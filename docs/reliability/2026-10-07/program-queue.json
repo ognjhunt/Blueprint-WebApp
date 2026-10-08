@@ -1,0 +1,3366 @@
+{
+  "schemaVersion": "blueprint-reliability-queue.v2",
+  "generated": 150,
+  "deduplicated": 150,
+  "cases": [
+    {
+      "id": "RQ-ordering-0d0e4a4aaf20",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "to",
+        "provider": "accepted"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "0d0e4a4aaf20f7e5417f7666e0458acdff5c3bc852a4c0b2a0ecfc2b30efe73e",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-a383c8dfa453",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "to",
+        "provider": "rejected"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "a383c8dfa453e94a918f074621a9640805e91b4192b06b10c7219ee1da878ae7",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-e191789b8d53",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "to",
+        "provider": "unknown"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "e191789b8d5349e336edb4279fbf3a2762938ce584e76315fa96cbf7ff863ab7",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-01fc0c62e4bb",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "body",
+        "provider": "accepted"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "01fc0c62e4bb6d64564329cb7bcfb3155efc1397bb2745e1b67e5980d70e97d5",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-b62087c250fe",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "body",
+        "provider": "rejected"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "b62087c250fe56c90f2df5b98bfc4be9aa9a79cf4e996ebbab2795c176054e6c",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-d600258ee75b",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "body",
+        "provider": "unknown"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "d600258ee75bd01645c719d8dae6220ea5dfb7aed3f16ae7ddbe9f07c9df67c1",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-252565f6ced6",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "subject",
+        "provider": "accepted"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "252565f6ced639a7607d880717e10b1da46f25804c969cb02d76c7ba75c28d8b",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-e3847bf83e19",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "subject",
+        "provider": "rejected"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "e3847bf83e1963daf3a9872772599197ded9b436093e3fff166ce10f5ccf818d",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-4113cc535a0d",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "subject",
+        "provider": "unknown"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "4113cc535a0d6bac682e143b46faead01334c61e36ef8ff9837f8db3d6ed66db",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-6dcbaa632c4b",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "replyTo",
+        "provider": "accepted"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "6dcbaa632c4b45c6b99ab7cdf55b75fb9a14bf56c00d564e98603918ca7187a7",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-bb960f160f0e",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "replyTo",
+        "provider": "rejected"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "bb960f160f0e8649c395ebad76bde55f5e6ac06c3d6643547694432564e37056",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-b329326af0e7",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "replyTo",
+        "provider": "unknown"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "b329326af0e783e1b83bab9ecdc7c6728185a74e9e82bdd403e5db91870a1957",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-97a2a3558d22",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "requestId",
+        "provider": "accepted"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "97a2a3558d2291e80e85c880cc64fbfa26b8eba4b9958547e8b87beed8dd0b79",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-51a92d754bec",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "requestId",
+        "provider": "rejected"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "51a92d754bec42deab4299c0848a9dfd356076f4222696759fa8058ec5fba4dc",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-0fb80f8cb386",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "requestId",
+        "provider": "unknown"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "0fb80f8cb386f2cbb8fd01efddcfca0ec8e32a57e10262d14640038d057df87d",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-d1333307897f",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "kind",
+        "provider": "accepted"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "d1333307897fa114ed9abc8e28220a17b4e92f13f5b5514f914d894dbdfee909",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-1a6237cd147b",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "kind",
+        "provider": "rejected"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "1a6237cd147b82ecc1a1e5a0552091058586686a79ce621b928bee431fb2517c",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-ebb3e2d7b7b1",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "kind",
+        "provider": "unknown"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "ebb3e2d7b7b144a629d3ba16f7665449fdf154cbec382ad506d43a823abe372a",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-5e7f0f214693",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "idempotencyKey",
+        "provider": "accepted"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "5e7f0f2146934fc8ba4b7ed63330ef48be7835e19bc18236dd2812ccb8e4d95d",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-d92ec8c5016a",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "idempotencyKey",
+        "provider": "rejected"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "d92ec8c5016a443b942ff17b4f5c78e9a646d6d4f1c2ce6ec64c01f64c710335",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-0ce0318ff5ce",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "idempotencyKey",
+        "provider": "unknown"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "0ce0318ff5ce00fa1c8b02a64f996fee50ad7ca42d5aeedf5f984c9f54c0b72d",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-99f4cd63f2de",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "deliveryToken",
+        "provider": "accepted"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "99f4cd63f2de60a0f7610833e04bcda823bb6af4048a07bc1741cea17826b240",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-7ab01d0d5f32",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "deliveryToken",
+        "provider": "rejected"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "7ab01d0d5f320b9cdec4df66b272e07f22a825c073f6d2d375c193ed02b7eb66",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-c12765e23055",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "deliveryToken",
+        "provider": "unknown"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "c12765e230550ff01ec756bd4ad02bb139215ed9542d4c412aab0aac27aa7f9c",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-c649e7d18b61",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "cancelled",
+        "provider": "accepted"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "c649e7d18b617ee634bbd359b89d2bdb50c0f93bdff6d52453620176ffb680b1",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-b540a5d24167",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "cancelled",
+        "provider": "rejected"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "b540a5d24167b8e052547794932cc3c24c1945582a97242333ff94905488e9a7",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-dff1526997d1",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "cancelled",
+        "provider": "unknown"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "dff1526997d18b6ca4cfc26bb12ee5b002ab146ecff662be4b812bd8552bb5ff",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-7ea899baa6cc",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "sent",
+        "provider": "accepted"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "7ea899baa6ccbdb13290e653f493a6536fa029e756109dbbc1489f6f2db2c951",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-7d8d303a2fc7",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "sent",
+        "provider": "rejected"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "7d8d303a2fc77ca74a6fa2a44ed28f548d1473541a03324a379f264fce07e791",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-ordering-9daedb06cf1b",
+      "family": "ordering",
+      "parameters": {
+        "mutation": "sent",
+        "provider": "unknown"
+      },
+      "expected": "Preserve successor message or terminal state; retain original-effect receipt; never attach stale acceptance or redispatch uncertainty",
+      "hash": "9daedb06cf1b1e945481485d9daf128520b45f63bf3b4e3fda66257a1849f910",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-16b0eebe60b5",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "enqueue",
+        "storageError": "unavailable"
+      },
+      "expected": "Unacknowledged unavailable/forbidden storage creates no intent; duplicate preserves original durable intent without another effect",
+      "hash": "16b0eebe60b5307cfda214475728d6398dee42540ce40b799d45ccba410fc7b4",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-98e401a7026b",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "enqueue",
+        "storageError": "permission_denied"
+      },
+      "expected": "Unacknowledged unavailable/forbidden storage creates no intent; duplicate preserves original durable intent without another effect",
+      "hash": "98e401a7026ba242da42caf2c74c83d1d5250f39132eb08052ecefa28f325dbf",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-c6c7d38ee70f",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "enqueue",
+        "storageError": "duplicate"
+      },
+      "expected": "Unacknowledged unavailable/forbidden storage creates no intent; duplicate preserves original durable intent without another effect",
+      "hash": "c6c7d38ee70f1347bc7a597ccc346f9870b5d8ebe66b196d11c128d6a039b5eb",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-6ca999fe3813",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "cursor_read",
+        "attempts": 0
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "6ca999fe38132129c7208b47ab86261d925f6f0de9926aba832109a2236332c7",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-15aa7621d486",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "cursor_read",
+        "attempts": 4
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "15aa7621d486b877b0aa30c1d014be3e430324f8506833f1d901f8b614da4a98",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-8754807e25a3",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "cursor_read",
+        "attempts": 5
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "8754807e25a3944060902b42fb1284f91e50a9fcb714926539ced7805dbda23c",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-afb29a4369ad",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "cursor_write",
+        "attempts": 0
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "afb29a4369ad7742af15c31c1af32fe7e5107638cff5705f716fa8b697d625c5",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-73082aef8c06",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "cursor_write",
+        "attempts": 4
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "73082aef8c06d88102d0fac9f9e6167e5a317b43d8aaec9689eb5b1363756526",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-1143aecc2af0",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "cursor_write",
+        "attempts": 5
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "1143aecc2af04da4932ae8454ba5b5b21555520f682b79b2fda2adaa86507410",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-6c32d807d164",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "pending_query",
+        "attempts": 0
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "6c32d807d1640400e7c64c9a470d6150edcc609c283c664217ba8ecd2842cb59",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-009bfc35bf31",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "pending_query",
+        "attempts": 4
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "009bfc35bf31c93f20097b811664f280199ec1b922770c86afad2772466e19b2",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-174e8f9f7fdf",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "pending_query",
+        "attempts": 5
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "174e8f9f7fdf375d4be13155cbfe1a385f5a541282c79cdd046b6f13903d1aa8",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-2ef9b7cf1f5c",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "claim_read",
+        "attempts": 0
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "2ef9b7cf1f5c80a6d86b10afd431d5efd07a09a711a554bfe99a389eff2900be",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-5c8d1e638059",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "claim_read",
+        "attempts": 4
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "5c8d1e6380591cff425423e191558dec1e36adb8a83b761a5ef50671ac392e90",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-5923614e4232",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "claim_read",
+        "attempts": 5
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "5923614e423249096bbb3f4204309a19e0fece60276a1a6a55b5b604b7fa2ebf",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-c5349ed0bf17",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "claim_write",
+        "attempts": 0
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "c5349ed0bf1745c1adb3d42e5cf43ab527cae97ac1fca051901996cddb8e581f",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-d185802bdb9d",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "claim_write",
+        "attempts": 4
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "d185802bdb9d17fd6841ee4889ce1d63013d5caf87708c01b3ec5cbf234dcc30",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-01a9e4c802bb",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "claim_write",
+        "attempts": 5
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "01a9e4c802bb7a15637379d96d971bd92fde211484165cf2e72c19185b16921e",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-cb5004cf1462",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "authority_read",
+        "attempts": 0
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "cb5004cf1462085de206e6798c4cfc58709468def85a4e9bd7883abc135925d4",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-1e3029e4aa04",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "authority_read",
+        "attempts": 4
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "1e3029e4aa048923a31c84fcf513b389898172efc1bcf0263dc3b9cedf7a6f4b",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-b7469fc2f101",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "authority_read",
+        "attempts": 5
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "b7469fc2f101e92d16d72b0e67cbb3a563da22ac66179bbe691eb07879e27a1a",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-c02538f8250a",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "dispatch_write",
+        "attempts": 0
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "c02538f8250a93268031f7e51edeefe267c4c459057567655cc9b495d1eda575",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-2e9ca707edbb",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "dispatch_write",
+        "attempts": 4
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "2e9ca707edbb25e41ec28c99097fe8b881a3bd1feb13ea8fde5a8f4b6f8f4f9f",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-a606d948fc2c",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "dispatch_write",
+        "attempts": 5
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "a606d948fc2ccd9a294fcfd23b4f4232efc0ef4378a1373d534ea3669f64ac6d",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-98ee229c93ba",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "receipt_write",
+        "attempts": 0
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "98ee229c93ba905666aa0a7a9b501f2f115393f07c56b5530609f939e0759abb",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-07c055a6ca63",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "receipt_write",
+        "attempts": 4
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "07c055a6ca63ff06ab11f7ab3d68a2f96977fc030c1eeba301ce6eaf47b7bb09",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-3c6abbd3ed58",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "receipt_write",
+        "attempts": 5
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "3c6abbd3ed5868d30b21968d1313bf49f52d403c0c559f4f49758c5432b3cd87",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-d78d97de3477",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "ack_write",
+        "attempts": 0
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "d78d97de34773889f8f3c218c32b4d376bbe700181d54f1660c01c22fcd4aaa0",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-ccaab59443c2",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "ack_write",
+        "attempts": 4
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "ccaab59443c2f3d00fd283872a539110f541b7298ed8d22f04efc598ccd4de09",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-storage_dependencies-5da78395ceed",
+      "family": "storage_dependencies",
+      "parameters": {
+        "boundary": "ack_write",
+        "attempts": 5
+      },
+      "expected": "Storage failure cannot publish sent or replay a potentially accepted effect; pre-dispatch recovery is allowed only after lease expiry",
+      "hash": "5da78395ceed35f86bbe8fad5a638e9431aa08b7cfe8d719ec1a323cb375fc16",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-54a3ec96e051",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "accepted",
+        "attempts": 0
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "54a3ec96e0517bac11052d2ceb9e7f4f95bb7c996e9abc9499147390b81cd29f",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-764db30206ae",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "accepted",
+        "attempts": 4
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "764db30206ae1f6753f10d129866bc0c74d282eb41b67e8a2bc17339d469292e",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-73e39fb7c02d",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "accepted",
+        "attempts": 5
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "73e39fb7c02d1522ec8bce54e6d9ffad1fc8812a64508515eaeb959400e76f8c",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-0157fb9edbe3",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "not_sent",
+        "attempts": 0
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "0157fb9edbe33d6c27e57dd2b8e4dac608564405f9391c4d0ff12a132d2e3238",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-8b4d7a00a93e",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "not_sent",
+        "attempts": 4
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "8b4d7a00a93ed2b24cda810eb68ee906e6d2a82204c507c18d864d3cf0cc5fb7",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-3502e30a1675",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "not_sent",
+        "attempts": 5
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "3502e30a16750642c4998df6472cd5215076c761bd04153baf4d5a5e16b24ad2",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-7eb5233ed987",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "unknown",
+        "attempts": 0
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "7eb5233ed987ba40401c0ec18c4e26f9a45c2b42cda687e9be209535bde9a581",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-df33e1fb7fc9",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "unknown",
+        "attempts": 4
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "df33e1fb7fc91d473e05baf3324420988c5c585f498ad8bf40bbd95e7e4b3430",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-c3e5ac123ca4",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "unknown",
+        "attempts": 5
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "c3e5ac123ca44d8135e00a9e76991fa27d848a50740ef9de1e34fd3158830826",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-63edc0bbe63c",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "throw",
+        "attempts": 0
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "63edc0bbe63cb7293c9d34f0fbff44e059bedeedc7ddd62f0439382289c3c1af",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-c944b0e7eea0",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "throw",
+        "attempts": 4
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "c944b0e7eea02708a6c3f0a3c64358ff936b5aba5f5ff294957741096a0d41fb",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-9970c5d3eab5",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "throw",
+        "attempts": 5
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "9970c5d3eab5d5b82e64c6002ea020e5c5e2f88361ad848a98ff1266ab2a385b",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-1be44885b43c",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "legacy_provider_failure",
+        "attempts": 0
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "1be44885b43c97da667093c4c6f87c5f6f2686a9ebfce0e5f5de2a28a89cd98f",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-2abbd0f1f422",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "legacy_provider_failure",
+        "attempts": 4
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "2abbd0f1f422cdca19602f19225e6f833a65e54ca48f8f383c65d2c7ed8b6784",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-8cff6b4e3871",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "legacy_provider_failure",
+        "attempts": 5
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "8cff6b4e3871469f3d5e2914ee5694fac8cc3e0a883d7252a74883e030136bde",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-6fae1befd58a",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "unconfigured",
+        "attempts": 0
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "6fae1befd58a7704ca1be9b9c0ce58c9d1204fbcc5c6a93bc3a47c67b0829637",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-6097e7f4a7c9",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "unconfigured",
+        "attempts": 4
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "6097e7f4a7c93d9aeec9e27c2caeb5b94e0433efa38cc1e24c23a4a92465ec42",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-f9c4fd589c50",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "unconfigured",
+        "attempts": 5
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "f9c4fd589c50dee1cbdd95f57d64a64c488b10b2b6db53c92b74d7984a8b01d7",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-2d30fc8cef04",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "accepted_missing_id",
+        "attempts": 0
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "2d30fc8cef04ee9e26556edc84e328e7879897d8f1bd9ce238b21caded0dcc3b",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-13ff6bb886f5",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "accepted_missing_id",
+        "attempts": 4
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "13ff6bb886f56d4d53e4a945499272597fa4e5f5645ad3a05cd21912cf94c5d9",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-9d37ba8690e5",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "accepted_missing_id",
+        "attempts": 5
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "9d37ba8690e519312af8f3d4f2455911fde1ad37fc654b93a229d78745c0d586",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-2ccd61790648",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "accepted_empty_id",
+        "attempts": 0
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "2ccd617906482d9ee39ab6de9be3016d79270930a44caa7139c362204e2ea2f6",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-0da32a57fc69",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "accepted_empty_id",
+        "attempts": 4
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "0da32a57fc69ed534fa3a2f2adbf22fb6232eb8788daf78304af2d1db1c634fe",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-fb4d5844d2b6",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "accepted_empty_id",
+        "attempts": 5
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "fb4d5844d2b6676cfb1894e1defe9189f81f81d0bcdba92ade11ff4d2fadee91",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-5e482e87402c",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "accepted_numeric_id",
+        "attempts": 0
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "5e482e87402c396f81c147fe3d400bbc0b1783893b178b15b7c5cfcea2d8bfa7",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-620dc86968a8",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "accepted_numeric_id",
+        "attempts": 4
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "620dc86968a84a22773505ee82b939c0350f7e509bdeb614871bf3095c822dae",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-54fa675eb204",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "accepted_numeric_id",
+        "attempts": 5
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "54fa675eb204d510bf09334b2c4baab1812944453121efc3f07ceeca3b12d73a",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-94f1e7c8f95a",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "malformed_null",
+        "attempts": 0
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "94f1e7c8f95af60f409d0e80062ac88cbf6c1bfa80987928b686935c09ac4b51",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-31d266283986",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "malformed_null",
+        "attempts": 4
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "31d2662839864e0e6365b115e783a81d03a0a9dc8b20aade6cf6e0b4bb3c5253",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-provider_failures-02837f68cbc5",
+      "family": "provider_failures",
+      "parameters": {
+        "outcome": "malformed_null",
+        "attempts": 5
+      },
+      "expected": "Only a typed acceptance with provider message identity completes; uncertainty stops replay; known nonacceptance consumes bounded attempts",
+      "hash": "02837f68cbc507cb0864a0d2ca0eed368149ff274733b2c40f5e5546ee283d0d",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-389795118be7",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "pending",
+        "attempts": 0
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "389795118be78b589f6426915508cd73ce76f53c3edc80638341225355e0bb01",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-05ee8a98f27c",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "pending",
+        "attempts": 2
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "05ee8a98f27cf7af0ccda9223883a812f32d8094a664b2a4d089692fd077f86b",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-13e6e1d5bb87",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "pending",
+        "attempts": 3
+      },
+      "expected": "Exhausted ready work stops without provider dispatch; an active lease remains protected; rotating scan must still reach later exhausted work",
+      "hash": "13e6e1d5bb87fee1e7ec77e2219cdd10c25b7862f58eb64791bfbdc601e27273",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-66f83cf29154",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "lease_active",
+        "attempts": 0
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "66f83cf29154e390d3cbecea4ac06583371f798198118f78cb9f7bffed1bfdbc",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-8582f2006bb4",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "lease_active",
+        "attempts": 2
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "8582f2006bb4245697c2155feabb3c267551c089635ce4577892aa38ee8bfe5a",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-4b0956e802a9",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "lease_active",
+        "attempts": 3
+      },
+      "expected": "Exhausted ready work stops without provider dispatch; an active lease remains protected; rotating scan must still reach later exhausted work",
+      "hash": "4b0956e802a991b987f55549e28de891f9196295797fe0457ec0442ed255370b",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-fdedcfbb5786",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "lease_expired",
+        "attempts": 0
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "fdedcfbb5786fef05e53c20c0067581dbc151eaf6eb817114b77d5001b600fff",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-ebae81033fe0",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "lease_expired",
+        "attempts": 2
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "ebae81033fe0529376bb71f86ce7a717bc0e2d26b410ae6baca354f2490d37a1",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-921b943b18a1",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "lease_expired",
+        "attempts": 3
+      },
+      "expected": "Exhausted ready work stops without provider dispatch; an active lease remains protected; rotating scan must still reach later exhausted work",
+      "hash": "921b943b18a11aed9394e8f3d10a678fea453d36fed61d526424c1841ecae724",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-c55a979a1fd9",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "unavailable",
+        "attempts": 0
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "c55a979a1fd985bc47eac17724ded2bfd7d0c61cbfdc1eb847eab3ab8371bd80",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-8f4091ed6c2c",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "unavailable",
+        "attempts": 1
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "8f4091ed6c2c18a578ae41fc767fc40017b5868dcf7bf0d2f54574d014e77153",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-10aee1c4845a",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "unavailable",
+        "attempts": 2
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "10aee1c4845a983e05e8708a556667808ac661b924f1b3cab4d974f8908b7c8f",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-612d2ad5f18d",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "throw",
+        "attempts": 0
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "612d2ad5f18d1d00dd3d85b1c2b08c3f53fe2dac8e74099727f28a731152119b",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-b96b381b35c0",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "throw",
+        "attempts": 1
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "b96b381b35c01200cdbe36ef6ed53d213432f6e4ac246b5c1c486ed5bb822b34",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-5146ca4a0cec",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "throw",
+        "attempts": 2
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "5146ca4a0cecf3726067aef98499525bdbfc2e9a91dd876f7b56d71b10f087f1",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-e24f73a216e1",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "stale_token",
+        "attempts": 0
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "e24f73a216e13649e753b1d2ee6e38bcc4ae1f22c6d75f2e95209eae95b28bd4",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-e35234dc981d",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "stale_token",
+        "attempts": 1
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "e35234dc981d65f59dc91936d68aea85ca7a0c1e76852403851ec06e578dd694",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-69f03ec46b7f",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "stale_token",
+        "attempts": 2
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "69f03ec46b7f86b8a2a8710ae3668667ac140aba8b76586cf0b201b2469162fc",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-27b4498380b7",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "cached_brief",
+        "attempts": 0
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "27b4498380b7ecaa7bfaf74fe6b6b255af162e6903e0b5699de320b97bb68592",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-2734b456a99d",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "cached_brief",
+        "attempts": 1
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "2734b456a99d3a7ea482924ee6d83710ba9564ed5a0ef2c120b1a2529302a530",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-e8b09ebde6a6",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "cached_brief",
+        "attempts": 2
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "e8b09ebde6a6df457bfb7b681f63568c12c01cf357ef80e235afd324ebccca48",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-cd398b8344b4",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "late_brief",
+        "attempts": 0
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "cd398b8344b4a5de0e8b04df0569a4486f8787bb7248dcb04748cb9146cabb6b",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-222a7bf731bf",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "late_brief",
+        "attempts": 1
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "222a7bf731bf3bb6b813bbc90330d7d94fa8880079e3319538cb4403a32b2a59",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-78e7d2b604cb",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "late_brief",
+        "attempts": 2
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "78e7d2b604cbce46a133889c1e2ee7c56cae8c4a8a6e404042113db43269fc3b",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-dc1138faa35c",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "starvation",
+        "attempts": 0
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "dc1138faa35c8cbb2ebc0da4d9f57d32c8e3fe79914258208ddaae749c05ccf8",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-6ad083c22e29",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "starvation",
+        "attempts": 2
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "6ad083c22e293049f8a4eb695841ba7d373d4db397c2c342ff6a0dcda519da02",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-3bda8976df4d",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "starvation",
+        "attempts": 3
+      },
+      "expected": "Exhausted ready work stops without provider dispatch; an active lease remains protected; rotating scan must still reach later exhausted work",
+      "hash": "3bda8976df4de7092e000b8c47bafbff859a6c226c1b8a5fe960caf0c7e68b3d",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-74e1b3202320",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "claim_write_failure",
+        "attempts": 0
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "74e1b32023207aa5a007a5adb36822809a9ee6a91b185a0ba813fa019edd7602",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-9ab57ddc5356",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "claim_write_failure",
+        "attempts": 1
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "9ab57ddc5356661c3cc1de959e1b1930e608dcad967c681557e1ec6de341ba7f",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-worker_lifecycle-fb81d77234fa",
+      "family": "worker_lifecycle",
+      "parameters": {
+        "boundary": "claim_write_failure",
+        "attempts": 2
+      },
+      "expected": "Durable producer intent survives worker reentry; bounded claims preserve attempts; stale workers cannot finish successors; blocked rows cannot starve ready work",
+      "hash": "fb81d77234fa199ad9b5adeb2e6352e7a7386e5a3c3c28633214546d322ca92f",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-a9c5a0679cab",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "duplicate",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "a9c5a0679cabad3e27ff6fd7f0d31935c478b33a90bda7738d39d0685114e8ea",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-7854ead38988",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "duplicate",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "7854ead3898893e2bec57fbc599c8382fda4f7b020fe3bc96d5c8b31fe125af0",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-1a80fc202653",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "concurrent_duplicate",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "1a80fc2026530271de080a36cfa20938ce069d200c505becfc9c2d65bf06f561",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-bfb4201a9ade",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "concurrent_duplicate",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "bfb4201a9adecbc56c2f7ea5ae4e08b19e1b5cb91324c0cc4634f92f249e9065",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-ecd1d9b0cfd0",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "changed_amount",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "ecd1d9b0cfd081a6fc25c5f68028f3256581b24537e21cef6fd23b79e88320a6",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-ca0d31487473",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "changed_amount",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "ca0d314874732ec85fee6f45af4434fb9d86eb6b5cd2fb09d826c9abb70cb692",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-65987deb71d2",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "changed_source",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "65987deb71d2d0c347cbd4f6fbd8cc969343a7f4e217feb05f2d96c58bf4affd",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-760f1a2dfe7d",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "changed_source",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "760f1a2dfe7dcf9ab1444a82cbbc64e8b8d3400285fb4cc5b2c8ccec34c5ecdf",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-9efa5f8bd8db",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "unknown",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "9efa5f8bd8db43e61f7b6c028bc423db6cdb01dca1e0e4b50d2754e2567ace2c",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-0de48a75c58c",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "unknown",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "0de48a75c58c835a419faf066dd07d65620ba15f41e3d8abe01a191013e4081a",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-d8d9694ea24a",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "estimated",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "d8d9694ea24a29c3c685c781c4a4371773bd2fe7c897604a80a63cb619b200c2",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-a1589e2aaaab",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "estimated",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "a1589e2aaaabe6c4b46018e4012c7f6d49202ff654e696a7d124d615ce2f3bd3",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-32d1578f109a",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "supersede_unknown",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "32d1578f109a04f7dcbd301480d9e63a3d462c87b4057fb362dab84eb4f6cfdb",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-a2392bd9f03f",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "supersede_unknown",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "a2392bd9f03f82676ef5788edb80f1514e9792059160a0ca3718871fcdebb622",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-2d24f8d0cc64",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "supersede_estimate",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "2d24f8d0cc640d8c06efb3e35a3a74b7fd46c853f4e6f00207ccc62549ba1303",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-403b508670ec",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "supersede_estimate",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "403b508670ece87308c377bc956265447b4b8f0b5e065fb2a2d1eba47858db0c",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-d29afd38c86a",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "missing_predecessor",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "d29afd38c86ae0ee80740bb64ef9db13bfe46766fd5fb42f593c4fce43759297",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-4197d5cc760e",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "missing_predecessor",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "4197d5cc760eb6a343b09b1ce034205542481bdf2fc0fbf4141deba7cabc2644",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-16e04f416f8f",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "settled_immutable",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "16e04f416f8fe154985a2af947f5ac187080f039c310cc4b5b9932b67e3d530a",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-a99ff40fbdb4",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "settled_immutable",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "a99ff40fbdb487bc99aac6505a3595a706c5d69365eae3953b5693bb2de5315e",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-29c4cdb79b50",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "invalid_currency",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "29c4cdb79b50497c733e19eef338e299306e13b028dd88959a510db7880cc861",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-7fda0f56c156",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "invalid_currency",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "7fda0f56c156cb77122c1b4b9c9aeabbe1c8d6d93a2e9b86a6df6a717ba7b105",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-acdb04c907c9",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "invalid_digest",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "acdb04c907c94d9d6530cc870d30ece63a06d9b30cf5ed86d6e2aec52a50d43f",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-3f1202418cb9",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "invalid_digest",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "3f1202418cb91e0bae7505c7b1df7bb7328f918ed1e71d0ad545f77e524a2481",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-fc8ee9c6e5aa",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "negative_amount",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "fc8ee9c6e5aa6b715d1ca85c537f42545aee084fc6292a76d0d44eea1f51fea2",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-a50b4b3a3d4b",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "negative_amount",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "a50b4b3a3d4ba29714f1a92e02803eeaeee1bcbe4fc4583a79a5a8d30f1c4bca",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-a520654696a3",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "unknown_with_amount",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "a520654696a385b32061d46eb498bf1f4854ed2d00389bd2d303789e46e1df64",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-88fdd785729a",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "unknown_with_amount",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "88fdd785729ad76a3e4e7e2e59e69086ca8bf41138fa1426638750b8c771ce52",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-1c53ad04dd58",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "conflicting_allocation",
+        "allocation": "shared_preparation"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "1c53ad04dd58b35782483d8bc68870b949f552c2b82ecf445ae523d18c1bff8e",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    },
+    {
+      "id": "RQ-notifications_accounting-d450cd1d596b",
+      "family": "notifications_accounting",
+      "parameters": {
+        "scenario": "conflicting_allocation",
+        "allocation": "incremental_policy"
+      },
+      "expected": "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected",
+      "hash": "d450cd1d596bc579b2209d55255cf1c476bea3f45e1456de3e0a6706036cfc80",
+      "labelVersion": "blueprint-reliability-queue.v2",
+      "layer": "actual-business-handlers/in-memory-serialized-firestore/fake-email-and-description-provider",
+      "seed": null,
+      "source": "synthetic-local-handler-state",
+      "split": "regression-development",
+      "assertions": [
+        "Current persisted state matches expected outcome",
+        "Consequential effect count and persisted attempt budget agree",
+        "Provider uncertainty does not authorize replay"
+      ]
+    }
+  ],
+  "seedPolicy": "No seeds or schedule permutations counted. Each hash changes a documented failure boundary, provider evidence, durable attempt budget, race mutation or allocation type.",
+  "replay": "npx vitest run server/tests/reliability-program-queue.test.ts --maxWorkers=1",
+  "baselineSha": "1b8d810ec117b93fe52fd323be052ddafa7070db",
+  "baselineResult": {
+    "attempted": 150,
+    "passed": 135,
+    "failed": 15,
+    "skipped": 0,
+    "blocked": 0,
+    "partially_executed": 0
+  },
+  "candidateResult": {
+    "attempted": 150,
+    "passed": 150,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "partially_executed": 0
+  },
+  "byFamily": {
+    "notifications_accounting": {
+      "generated": 30,
+      "baseline_passed": 30,
+      "baseline_failed": 0,
+      "candidate_passed": 30
+    },
+    "ordering": {
+      "generated": 30,
+      "baseline_passed": 30,
+      "baseline_failed": 0,
+      "candidate_passed": 30
+    },
+    "provider_failures": {
+      "generated": 30,
+      "baseline_passed": 18,
+      "baseline_failed": 12,
+      "candidate_passed": 30
+    },
+    "storage_dependencies": {
+      "generated": 30,
+      "baseline_passed": 30,
+      "baseline_failed": 0,
+      "candidate_passed": 30
+    },
+    "worker_lifecycle": {
+      "generated": 30,
+      "baseline_passed": 27,
+      "baseline_failed": 3,
+      "candidate_passed": 30
+    }
+  },
+  "sourceHashes": {
+    "server/utils/captureOutbox.ts": "181e76a41c8d7649e77302a58c0ba06ebe710f311cc42cc29490112e5ae672ed",
+    "server/utils/captureReviewRecovery.ts": "0579855454da233462c7ba6883f0d34b0f32429b5b574decba93eb22ce2b427a",
+    "server/utils/cohortEconomics.ts": "bd6136653e811e90563204a580866d31a9dd4365fcff2bb949fdbd52e05bde69",
+    "server/tests/reliability-program-queue.test.ts": "5b74fadd613a4e8b3754e52c25b5803a60bc821f341a496650c10a3428dd5f2b",
+    "server/tests/helpers/reliability-queue-cases.ts": "df35eb49ec87f3b49a17eb8a5633e8066930bb7e8e4db406bd10354f618dcc73"
+  },
+  "journeys": {
+    "generated": 20,
+    "deduplicated": 20,
+    "attempted": 20,
+    "passed": 20,
+    "failed": 0,
+    "layer": "actual-producer-worker-status/in-memory-firestore-private-local-snapshot/fake-model-and-email",
+    "definitions": [
+      {
+        "id": "RQJ-061955053394",
+        "hash": "0619550533949ab37aa4f44db4710aa054cb95c43854b1aeae3e7e66176a9031",
+        "parameters": {
+          "evidence": "covered",
+          "boundary": "happy"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-13e6264f572e",
+        "hash": "13e6264f572e43e788bf36d530573cbdf97a401d37498174ba584f4e63590b07",
+        "parameters": {
+          "evidence": "covered",
+          "boundary": "restore_after_producer"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-3217a87f9276",
+        "hash": "3217a87f92764363cfc280253096e9b2af0428c38f7fef1b5194eb19001f08f9",
+        "parameters": {
+          "evidence": "covered",
+          "boundary": "withdraw_during_provider"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-c1d8b696082d",
+        "hash": "c1d8b696082d55aa6171baa4ad5f5a89d05ad4d772ce51c122a7c73e3db90dce",
+        "parameters": {
+          "evidence": "covered",
+          "boundary": "replace_source_during_provider"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-5e7330fc0b8b",
+        "hash": "5e7330fc0b8b95a13d65f6bc187de0ba3641862b5a3685a8cb4b439cfd00df24",
+        "parameters": {
+          "evidence": "missing_views",
+          "boundary": "happy"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-401a28bdd583",
+        "hash": "401a28bdd5836c963c157bd602479b70e6385e7febcd433efb129036d21266d0",
+        "parameters": {
+          "evidence": "missing_views",
+          "boundary": "restore_after_producer"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-172b980bf861",
+        "hash": "172b980bf8610f9e2eb0489240d87eb9b7f7646c82ab095328e97451324360bb",
+        "parameters": {
+          "evidence": "missing_views",
+          "boundary": "withdraw_during_provider"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-0c4945afa9f2",
+        "hash": "0c4945afa9f280eb0765ee792d84162d8dd9021945e1510558c2f7f1f236712a",
+        "parameters": {
+          "evidence": "missing_views",
+          "boundary": "replace_source_during_provider"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-4f373c37e798",
+        "hash": "4f373c37e79856bb2c0e492774c01642cc98a70f0e11c8ebfe51680c65bcd7c9",
+        "parameters": {
+          "evidence": "contradictory",
+          "boundary": "happy"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-0fcc67175a1f",
+        "hash": "0fcc67175a1f40b2f7ce19c15fbf1cb01c6c689ee42c376bfa47bd6d7d51b649",
+        "parameters": {
+          "evidence": "contradictory",
+          "boundary": "restore_after_producer"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-873676503fdc",
+        "hash": "873676503fdc1c53536af2ebe3393165a0d2f3ad6a2b76f841767a1cd518ebd4",
+        "parameters": {
+          "evidence": "contradictory",
+          "boundary": "withdraw_during_provider"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-043315dd07da",
+        "hash": "043315dd07da481773f9cad975bc33c040d43cb5b45f68c7769b7e8b36e7e290",
+        "parameters": {
+          "evidence": "contradictory",
+          "boundary": "replace_source_during_provider"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-1cbc0fb549ba",
+        "hash": "1cbc0fb549ba9dd30040ef6d256b5b535b7476daf2e54de61abd835f533d15f1",
+        "parameters": {
+          "evidence": "low_confidence",
+          "boundary": "happy"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-580d11ff5ec2",
+        "hash": "580d11ff5ec2f2debdcf59ed7663ccb1901a2292fa7c843d75ab0f5d350f3437",
+        "parameters": {
+          "evidence": "low_confidence",
+          "boundary": "restore_after_producer"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-f08cdaa122ed",
+        "hash": "f08cdaa122ed6b420844299b05aec7fea7678228aa5946267a3e9ebdb0c99f6c",
+        "parameters": {
+          "evidence": "low_confidence",
+          "boundary": "withdraw_during_provider"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-9c7590ce3f44",
+        "hash": "9c7590ce3f44d18daed15ff4e9ec8acc8d9209eaae92593df817a333f206fe13",
+        "parameters": {
+          "evidence": "low_confidence",
+          "boundary": "replace_source_during_provider"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-83472f28bf49",
+        "hash": "83472f28bf492023b8f50f13eb04f76febe2b27c3a582e35ef0a52d5c7dbf625",
+        "parameters": {
+          "evidence": "no_output",
+          "boundary": "happy"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-e756d120e551",
+        "hash": "e756d120e551e0b106d55a4a243ea9fb1be31acaa4b7f6ab0c305c0ec6c7172f",
+        "parameters": {
+          "evidence": "no_output",
+          "boundary": "restore_after_producer"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-eca2f7a3d198",
+        "hash": "eca2f7a3d1981cf93018a4d238d98206a09a53e75999cfbd55733e59393bd231",
+        "parameters": {
+          "evidence": "no_output",
+          "boundary": "withdraw_during_provider"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      },
+      {
+        "id": "RQJ-93eaf1f65584",
+        "hash": "93eaf1f6558462b16cfae12e176ae74301f611fc8224f210eb78e3162b748eaf",
+        "parameters": {
+          "evidence": "no_output",
+          "boundary": "replace_source_during_provider"
+        },
+        "source": "synthetic-publication-fixture",
+        "expected": "Current consent and source bind publication; missing/null output stays unknown; covered and contradictions stay distinct; send once; durable producer intent restored before worker"
+      }
+    ],
+    "sourceHashes": {
+      "server/utils/captureCoverageQueue.ts": "0eb2815b4b04547bc53535a22f5d7d4ad7f4f957b772895f91e795e0c412a2bb",
+      "server/utils/captureCoverageReview.ts": "77b2e8390f2e49534f45c87d12ad69d0007e86ceda6610542ef7a489d09ddb0b",
+      "server/utils/captureOutbox.ts": "181e76a41c8d7649e77302a58c0ba06ebe710f311cc42cc29490112e5ae672ed",
+      "server/utils/taskStatusProjection.ts": "0de07d78cdcc105b68452a82f5fc232063ea931877a41146ddcba25807d1fdb3",
+      "server/tests/reliability-program-worker-journeys.test.ts": "c7e044ac867c0209ba48a7a7c21261c9b6dcd9012f0b2b0938b4ad2bf3ab3e67"
+    },
+    "replay": "npx vitest run server/tests/reliability-program-worker-journeys.test.ts --maxWorkers=1",
+    "limitation": "No real video perception, no genuine process restart, no Firebase emulator or production provider; restored local JSON tests handler reentry against retained simulated state."
+  },
+  "repeats": {
+    "runs": 3,
+    "independentInfrastructureCases": 150,
+    "independentJourneys": 20,
+    "attemptsPerRun": 170,
+    "extraIndependentCasesFromRepeats": 0,
+    "disagreementCases": 0
+  },
+  "harnessCorrections": [
+    {
+      "reason": "vi.restoreAllMocks cleared fake-provider call history before no-redispatch assertions; restore only injected dependency spy",
+      "initialResult": {
+        "passed": 129,
+        "failed": 21
+      },
+      "correctedBaseline": {
+        "passed": 135,
+        "failed": 15
+      },
+      "changedExpectedOutcomes": false
+    },
+    {
+      "version": "v1-to-v2",
+      "reason": "Independent review found unused enqueue attempt parameter and six worker faults short-circuited by exhausted budget; replace with exercised storage outcome or runnable attempt1.",
+      "invalidatedPriorFaultCoverageRows": 8,
+      "replacementCases": 8,
+      "thresholdsChanged": false,
+      "v2ExactBaselineReplay": "output/reliability-program/queue/v2-baseline/results.json",
+      "v2FinalScore": "150 attempted, 135 passed,15 failed on original runtime;150/150 on repaired runtime"
+    }
+  ],
+  "privateRawEvidence": "output/reliability-program/queue/ (ignored local path; regenerate with replay commands)",
+  "liveProviderCalls": 0,
+  "liveProviderCostUsd": null,
+  "liveCostReason": "No live dispatch; fake measurements cannot be used as provider performance or invoice evidence.",
+  "failures": [
+    {
+      "id": "REL-QUEUE-001",
+      "severity": "P2",
+      "invariant": "Durable recovery must not delay ready customer work behind skipped queue rows",
+      "rootCause": "Description recovery queries first limit pending documents; active held leases fill the batch while later ready work is skipped",
+      "minimizedReproducer": "Place aaa-held with a future lease before rq ready. Invoke recoverCaptureReviews({limit:1}) twice. Ready rq must be completed or budget-exhausted review-required, while held lease remains unchanged.",
+      "baselineFailingCaseIds": [
+        "RQ-worker_lifecycle-dc1138faa35c",
+        "RQ-worker_lifecycle-6ad083c22e29",
+        "RQ-worker_lifecycle-3bda8976df4d"
+      ],
+      "repair": "Reuse existing durable automationBatch cursor with immediate exhausted-cursor wrap",
+      "source": "server/utils/captureReviewRecovery.ts",
+      "candidateRetest": "3/3 formerly failing starvation budget variants pass, neighboring recovery and all 150 cases green",
+      "owner": "queue_recovery",
+      "releaseStatus": "code-tested; independent review, merge/deployment owned by coordinator",
+      "limitation": "Repeated-pass starvation while preceding leases remain held; this replay does not prove permanent loss under bounded normal leases. Serialized fake Firestore, not live index or process-restart proof."
+    },
+    {
+      "id": "REL-QUEUE-002",
+      "severity": "P2",
+      "invariant": "Malformed provider output cannot publish false notification completion or hide an uncertain consequential effect",
+      "rootCause": "Outbox trusts adapter sent flag without validating provider acknowledgement identity; null output escapes after durable dispatch",
+      "minimizedReproducer": "Return sent:true with messageId null/empty/numeric or return null from fake email adapter. Durable result must be unknown and a second pass must never resend.",
+      "baselineFailingCaseIds": [
+        "RQ-provider_failures-2d30fc8cef04",
+        "RQ-provider_failures-13ff6bb886f5",
+        "RQ-provider_failures-9d37ba8690e5",
+        "RQ-provider_failures-2ccd61790648",
+        "RQ-provider_failures-0da32a57fc69",
+        "RQ-provider_failures-fb4d5844d2b6",
+        "RQ-provider_failures-5e482e87402c",
+        "RQ-provider_failures-620dc86968a8",
+        "RQ-provider_failures-54fa675eb204",
+        "RQ-provider_failures-94f1e7c8f95a",
+        "RQ-provider_failures-31d266283986",
+        "RQ-provider_failures-02837f68cbc5"
+      ],
+      "repair": "Normalize malformed acceptance/null result to an unknown safe result before receipt publication",
+      "source": "server/utils/captureOutbox.ts",
+      "candidateRetest": "12/12 formerly failing malformed-provider budget variants pass, valid acceptance/rejection/outcome-unknown and stale receipts remain green",
+      "owner": "queue_recovery",
+      "releaseStatus": "code-tested; independent review, merge/deployment owned by coordinator",
+      "limitation": "Synthetic malformed-adapter counterexample; no evidence that production Resend has returned this malformed shape"
+    }
+  ]
+}
