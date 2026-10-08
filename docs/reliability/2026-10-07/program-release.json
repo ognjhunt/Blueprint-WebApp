@@ -1038,7 +1038,13 @@
     "required_PR_CI_conclusion": "success",
     "required_executed_contexts_passed": 9,
     "main_CI": 37804520799,
-    "main_CI_state": "active"
+    "main_CI_state": "active",
+    "release_descendant": {
+      "sha": "3221a58d98915d975ca7ee841e9f76641ee2183d",
+      "main_CI": 37804694834,
+      "state": "pending_existingserialCI",
+      "source_continuity": "All6reviewedguard/picker/test/workflowGitblobIDs match exactly; no LIVEclaim"
+    }
   },
   "beta_copy_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/956",
@@ -1097,7 +1103,11 @@
     "repair": "One existingms-check-row class attribute; noCSS/payload/defaultchanges",
     "independent_review": "rootminimalactualdiffcleared",
     "CI": 37803516597,
-    "state": "source_reviewed_requiredCIactive",
-    "dishwasher_gate": false
+    "state": "all9requiredPRchecks_passed_protectedmerged;exact_main_CI_pending_not_deployed",
+    "dishwasher_gate": false,
+    "merge_sha": "3221a58d98915d975ca7ee841e9f76641ee2183d",
+    "merged_at": "2026-10-08T15:55:20Z",
+    "required_PR_CI_conclusion": "success",
+    "main_CI": 37804694834
   }
 }
