@@ -543,6 +543,8 @@
     "required_PR_CI_run": 37773679243,
     "merged_sha": null,
     "deployed_sha": null,
-    "scope": "Persisted preview failure visibility only; no normal Pipeline blocked-state writer, notification, provider or final-assessment claim."
+    "scope": "Persisted preview failure visibility only; no normal Pipeline blocked-state writer, notification, provider or final-assessment claim.",
+    "independent_identity_review": "4ccb1480",
+    "private_receipt_copy_manifest_sha256": "ffac13e877e2d098fb3d0a9652e280395e809c6c50aa2ca9b6920d305f13b5c8"
   }
 }

@@ -1,6 +1,6 @@
 # Readiness decision: verified workflow releases, evaluation partial
 
-Updated 2026-10-08 12:01 UTC. The initial four-hour checkpoint at 08:21:46 UTC was **PARTIAL**, and the full reliability goal remains incomplete. Frozen targets, denominators and severity rules remain in `program-charter.md`; explicit case corrections and historical failures remain in the ledger and company Git history.
+Updated 2026-10-08 12:03 UTC. The initial four-hour checkpoint at 08:21:46 UTC was **PARTIAL**, and the full reliability goal remains incomplete. Frozen targets, denominators and severity rules remain in `program-charter.md`; explicit case corrections and historical failures remain in the ledger and company Git history.
 
 The reviewed WebApp repairs are merged and deployed on both web and worker at `d78b73f7661593fd12fd63ae9fbcfc3a739f6219`, including PR940–944. Exact-main CI and the CI-gated deployment passed. Direct paired deployment receipts match that SHA. A fresh GET-only production browser passed all 18 checks, including synthetic draft restore, actual durable Clear acknowledgment, matching empty local/IndexedDB state, fresh identity and empty return with consent unchecked. Two non-GET and three external requests were blocked; no intake submission was attempted. This proves the affected local browser flow and serving identity, not a production upload, provider assessment or notification.
 

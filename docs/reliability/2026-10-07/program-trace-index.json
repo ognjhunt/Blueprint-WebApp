@@ -1606,6 +1606,7 @@
     "live_provider_calls": 0,
     "observed": "Owner SceneIntakeForm exposes blocked pipeline status; normal signed/workspace customer job projection has no intake failure input. Not universal absence or demonstrated false completion.",
     "next_boundary": "Upstream website preparation may fail before prepared-scene WebApp record creation. Actual construction stage3 refusal is downstream in normal flow, but retained local probe bypassed WebApp intake. Trace original source-bound writer before choosing status bridge.",
-    "review": "independent verification in progress"
+    "review": "a5e7f51b: linked hashes/source/layering verified; no actual normal-site missed-failure reproduction yet",
+    "upstream_producer_semantics": "Actual handoff pre-enqueue probe retains awaiting_inputs/website_reconstruction_pending without source registration or intake outbox. This is a prerequisite hold, not terminal failure. Capture wrapper failure separately persists failed_retryable under lease with source delivery key and payload digest. Minimized outer handler proof and sanitized current-source consumer contract are in progress."
   }
 }
