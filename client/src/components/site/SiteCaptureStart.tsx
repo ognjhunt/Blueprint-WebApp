@@ -30,6 +30,7 @@ import {
 } from "@/lib/selfCaptureVideo";
 import { useAuth } from "@/contexts/AuthContext";
 import { newSiteCaptureRecovery, readSiteCaptureRecovery, writeSiteCaptureRecovery,
+  hydrateSiteCaptureRecovery, writeSiteCaptureRecoveryDurably, resetSiteCaptureRecoveryDurably,
   forgetSiteCaptureRecovery, hasSiteCaptureRecoveryBytes, siteCaptureDraftKey, withSiteCaptureRecoveryLock,
   freezeSiteCaptureRecovery, type SiteCaptureRecovery } from "@/lib/siteCaptureDraft";
 
@@ -75,8 +76,27 @@ export function SiteCaptureStart() {
   const authoring = typeof window === "undefined" ? "default"
     : new URLSearchParams(window.location.search).get("authoring") || "default";
   const storageKey = loading ? null : siteCaptureDraftKey(currentUser?.uid ?? null, authoring);
-  // Identity changes remount every field and cancel subsequent UI/upload work.
-  return <SiteCaptureStartForm key={storageKey || "loading"} storageKey={storageKey} />;
+  const [hydrated, setHydrated] = useState<{key: string; ready: boolean} | null>(null);
+  useEffect(() => {
+    let active = true;
+    if (storageKey) void hydrateSiteCaptureRecovery(storageKey, () => active)
+      .then(() => { if (active) setHydrated({key: storageKey, ready: true}); })
+      .catch(() => { if (active) setHydrated({key: storageKey, ready: false}); });
+    return () => { active = false; };
+  }, [storageKey]);
+  if (loading || !storageKey || hydrated?.key !== storageKey) return <p role="status">Loading your account and saved draft…</p>;
+  if (!hydrated.ready) return <div className="ms-form">
+    <p role="status">This browser could not safely check saved recovery details. Use your emailed private job link to return, or a supported browser with local storage enabled.</p>
+    <button type="button" className="ms-text-link" onClick={async () => {
+      try {
+        const saved = await withSiteCaptureRecoveryLock(storageKey, () => resetSiteCaptureRecoveryDurably(storageKey, newSiteCaptureRecovery()));
+        if (saved) setHydrated({key: storageKey, ready: true});
+      } catch { /* Keep the recovery route and scoped failure visible. */ }
+    }}>Clear this browser's draft</button>
+    <p className="ms-field-hint">Clearing removes only this device's recovery. It does not cancel or delete a saved job.</p>
+  </div>;
+  // Identity changes discard later UI updates and prevent starting another upload.
+  return <SiteCaptureStartForm key={storageKey} storageKey={storageKey} />;
 }
 
 function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
@@ -93,8 +113,9 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
   async function retain(next: SiteCaptureRecovery, releasePendingBody?: string) {
     recovery.current = next;
     try {
-      const result = await withSiteCaptureRecoveryLock(storageKey, () => {
-        const saved = writeSiteCaptureRecovery(storageKey, next, {releasePendingBody});
+      const result = await withSiteCaptureRecoveryLock(storageKey, async () => {
+        if (!active.current) return {saved: false, latest: null};
+        const saved = await writeSiteCaptureRecoveryDurably(storageKey, next, {releasePendingBody});
         return { saved, latest: readSiteCaptureRecovery(storageKey) };
       });
       if (!active.current) return;
@@ -282,8 +303,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
     if (operationInFlight.current) return;
     const fresh = newSiteCaptureRecovery();
     try {
-      const saved = await withSiteCaptureRecoveryLock(storageKey, () => forgetSiteCaptureRecovery(storageKey)
-        && writeSiteCaptureRecovery(storageKey, fresh));
+      const saved = await withSiteCaptureRecoveryLock(storageKey, () => active.current && resetSiteCaptureRecoveryDurably(storageKey, fresh));
       if (!saved || !active.current) { setStorageAvailable(false); return; }
     } catch { setStorageAvailable(false); return; }
     recovery.current = fresh;
@@ -392,7 +412,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
       let endpoint: "/api/workspace/capture-start" | "/api/inbound-request" = savedToWorkspace ? "/api/workspace/capture-start" : "/api/inbound-request";
       let frozen;
       try {
-        frozen = await freezeSiteCaptureRecovery(storageKey, {...operationRecovery, pending:{body,endpoint,acknowledged:false}});
+        frozen = await freezeSiteCaptureRecovery(storageKey, {...operationRecovery, pending:{body,endpoint,acknowledged:false}}, () => active.current);
       } catch (error) {
         setStorageAvailable(false);
         setState({status:"failed",message:error instanceof Error ? error.message : "This browser cannot safely retain your submission. No job was submitted."});
@@ -442,7 +462,12 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
         return;
       }
 
-      await retain({ ...frozen.value, pending: { ...frozen.value.pending!, acknowledged: true } });
+      const acknowledgementSaved = await retain({ ...frozen.value, pending: { ...frozen.value.pending!, acknowledged: true } });
+      if (!active.current) return;
+      if (!acknowledgementSaved) {
+        setState({status: "failed", message: "Your job may already be saved, but this browser could not retain its confirmation. Recover the same job here or use your emailed private link before sending the video."});
+        return;
+      }
       setPending(recovery.current.pending);
       analyticsEvents.contactFormSubmit("capture_start");
       // The screening form lower on the page shares this storage: nobody
