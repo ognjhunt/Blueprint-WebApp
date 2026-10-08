@@ -114,7 +114,7 @@ export async function reconcileCoverageReviews(limit = 10) {
     });
     try {
       if (claim !== "completed" && claim !== "exhausted") {
-        const finding = await reviewCaptureCoverage({ ...params, binding, reviewId: id });
+        const finding = await reviewCaptureCoverage({ ...params, binding, reviewId: id, claimToken });
         if (!finding) { await finish({ state: "waiting_prerequisite" }); continue; }
         if (!(await finish({ state: "completed", finding }))) continue;
       }

@@ -14,6 +14,7 @@ describe("site assessment agent", () => {
     const question = "What actually moves?";
     const model: Model = {
       async getResponse(request): Promise<ModelResponse> {
+        expect(request.modelSettings.providerData).toMatchObject({ service_tier: "default" });
         turn++;
         const call = (name: string, args: unknown) => ({ type: "function_call" as const, callId: `call-${turn}`,
           name, arguments: JSON.stringify(args) });

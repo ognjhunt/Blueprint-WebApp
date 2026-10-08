@@ -120,6 +120,7 @@ export interface CoverageFinding {
 export async function reviewCaptureCoverage(params: {
   binding?: { source: unknown; brief_digest: string; capture_id: string };
   reviewId?: string;
+  claimToken?: string;
   requestId: string;
   sceneId: string;
   captureId: string;
@@ -174,7 +175,7 @@ export async function reviewCaptureCoverage(params: {
     const result = await runAgentTask<CaptureCoverageInput, CaptureCoverageOutput>({
       ...captureCoverageTask,
       session_key: `capture_coverage:${params.reviewId || params.captureId}`,
-      metadata: { capture_id: params.captureId, review_id: params.reviewId || null },
+      metadata: { capture_id: params.captureId, review_id: params.reviewId || null, coverage_claim_token: params.claimToken || null },
       input: {
         videoUrl,
         supplementaryViewsOnly: additive,

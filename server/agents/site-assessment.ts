@@ -7,7 +7,8 @@ import { runCompanyHistoryTool, type CompanyHistoryAccess } from "../research-le
 import { listMatchableRobotTeams, toMatchCandidate } from "../utils/robotTeamRegistry";
 import { matchRobotTeam, type SiteRequirement } from "../../client/src/lib/robotMatch";
 
-export const SITE_ASSESSMENT_MODEL = "gpt-6.1-sol";
+export { SITE_ASSESSMENT_MODEL } from "./provider-config";
+import { SITE_ASSESSMENT_MODEL } from "./provider-config";
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const reference = z.object({ source_id: z.string(), at_seconds: z.number().nonnegative().nullable() });
 const claim = z.object({
@@ -270,7 +271,8 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
   };
   const agent = new Agent({ name: "Site assessment", model, instructions: SITE_ASSESSMENT_INSTRUCTIONS,
     tools: options.allowed_tools ? tools.filter(tool => options.allowed_tools!.includes(tool.name)) : tools,
-    modelSettings: { reasoning: { effort: "medium" }, parallelToolCalls: false, maxTokens: options.max_output_tokens ?? 8192, store: false },
+    modelSettings: { reasoning: { effort: "medium" }, parallelToolCalls: false, maxTokens: options.max_output_tokens ?? 8192, store: false,
+      providerData: { service_tier: "default" } },
     outputType: siteAssessmentSchema });
   return {
     agent,
