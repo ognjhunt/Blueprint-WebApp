@@ -248,7 +248,6 @@ export function SiteCaptureStart() {
           // records the versions it holds rather than trusting this flag alone.
           accountSignup: false,
           acceptedTerms: true,
-          budgetBucket: "Undecided/Unsure",
           requestedLanes: [],
           siteName: location,
           siteLocation: location,

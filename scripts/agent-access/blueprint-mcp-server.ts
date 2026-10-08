@@ -86,7 +86,7 @@ const requestLocationDraftInputSchema: BlueprintMcpTool["inputSchema"] = {
     company: stringProp("Optional company for submit-readiness validation."),
     roleTitle: stringProp("Optional role title for submit-readiness validation."),
     email: stringProp("Optional work email for submit-readiness validation."),
-    budgetBucket: { type: "string", enum: ["<$50K", "$50K-$300K", "$300K-$1M", ">$1M", "Undecided/Unsure"], description: "Optional budget bucket for submit-readiness validation." },
+    budgetBucket: { type: "string", enum: ["<$50K", "$50K-$300K", "$300K-$1M", ">$1M", "Undecided/Unsure"], description: "Optional legacy commercial context. Never required to submit or assess a task." },
   },
   additionalProperties: false,
 };

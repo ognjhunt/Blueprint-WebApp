@@ -1022,6 +1022,10 @@ export async function submitInboundRequest(req: Request, res: Response) {
       payload.helpWith
     );
     const buyerType = normalizeBuyerType(payload.buyerType);
+    // Free intake needs no customer budget. Retain legacy unknown storage
+    // when omitted, without making it a submission or assessment requirement.
+    const budgetBucket: BudgetBucket = payload.budgetBucket == null || (payload.budgetBucket as string) === ""
+      ? "Undecided/Unsure" : payload.budgetBucket;
     // What the person typed, before the site path fills placeholders below.
     // Emails greet with this, so nobody is ever greeted as "there".
     const typedFirstName = payload.firstName?.trim() || "";
@@ -1077,7 +1081,6 @@ export async function submitInboundRequest(req: Request, res: Response) {
     if (buyerType !== "site_operator" && !payload.lastName?.trim()) missingFields.push("lastName");
     if (!payload.company?.trim()) missingFields.push("company");
     if (!payload.email?.trim()) missingFields.push("email");
-    if (!payload.budgetBucket) missingFields.push("budgetBucket");
     if (!taskStatement) missingFields.push("taskStatement");
     if (buyerType === "site_operator") {
       if (!siteName) missingFields.push("siteName");
@@ -1135,7 +1138,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         : null;
 
     // 4. Validate enums
-    if (!VALID_BUDGET_BUCKETS.includes(payload.budgetBucket)) {
+    if (!VALID_BUDGET_BUCKETS.includes(budgetBucket)) {
       return res.status(400).json({
         ok: false,
         requestId: payload.requestId,
@@ -1321,7 +1324,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
     }
 
     // 6. Compute priority and owner
-    const priority = computePriority(payload.budgetBucket, requestedLanes);
+    const priority = computePriority(budgetBucket, requestedLanes);
     const owner = computeOwner(requestedLanes);
     const demandAttribution = getDemandAttributionFromContext(payload.context);
     const routing = determineInboundRouting({
@@ -1373,7 +1376,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
     const structuredIntakeDecision = evaluateStructuredIntake({
       buyerType,
       requestedLanes,
-      budgetBucket: payload.budgetBucket,
+      budgetBucket,
       siteName,
       siteLocation,
       taskStatement,
@@ -1507,7 +1510,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
           company: payload.company.trim(),
         },
         request: {
-          budgetBucket: payload.budgetBucket,
+          budgetBucket,
           requestedLanes,
           helpWith: legacyHelpWith,
           buyerType,
@@ -1667,7 +1670,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         company: payload.company.trim(),
       },
       request: {
-        budgetBucket: payload.budgetBucket,
+        budgetBucket,
         requestedLanes,
         helpWith: legacyHelpWith,
         details: payload.details?.trim() || null,
@@ -2060,7 +2063,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
             existingStackReviewWorkflow:
               payload.existingStackReviewWorkflow?.trim() || null,
             humanGateTopics: payload.humanGateTopics?.trim() || null,
-            budgetBucket: payload.budgetBucket,
+            budgetBucket,
             requestedLanes,
             helpWith: legacyHelpWith,
             details: payload.details || null,
@@ -2173,7 +2176,7 @@ Request path: ${requestPathLabel} (${commercialRequestPath})
 Site: ${payload.siteName?.trim()}
 Location: ${payload.siteLocation?.trim()}
 Task: ${payload.taskStatement?.trim()}
-Budget: ${payload.budgetBucket}
+Budget: ${budgetBucket}
 Requested lanes: ${requestedLanes.join(", ")}
 Priority: ${priority}
 Queue: ${routing.queueLabel}

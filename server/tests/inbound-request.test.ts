@@ -77,6 +77,48 @@ describe("description authority independent from recording", () => {
   });
 
   it.each([
+    { buyerType: "site_operator", budgetBucket: undefined },
+    { buyerType: "site_operator", budgetBucket: null },
+    { buyerType: "site_operator", budgetBucket: "" },
+    { buyerType: "robot_team", budgetBucket: undefined },
+    { buyerType: "robot_team", budgetBucket: "" },
+  ])("accepts free intake without a budget (%j)", async ({ buyerType, budgetBucket }) => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const requestId = `description-no-budget-${crypto.randomUUID()}`;
+      const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...descriptionPayload(requestId), buyerType, budgetBucket,
+          email: `budget+${crypto.randomUUID()}@example.com`,
+          targetSiteType: "Warehouse", proofPathPreference: "exact_site_required" }) });
+      expect(response.status).toBe(201);
+      expect((await response.json()).ok).toBe(true);
+      const row = fs.readFileSync(devLogPath, "utf8").trim().split("\n").map(line => JSON.parse(line)).find(row => row.requestId === requestId);
+      expect(row.request.budgetBucket).toBe("Undecided/Unsure");
+    } finally { await stopServer(server); }
+  });
+
+  it.each([
+    { buyerType: "robot_team", budgetBucket: "not-a-budget", error: "Invalid budget bucket" },
+    { buyerType: "site_operator", budgetBucket: "not-a-budget", error: "Invalid budget bucket" },
+  ])("rejects malformed optional legacy budget values (%j)", async ({ buyerType, budgetBucket, error }) => {
+    process.env.NODE_ENV = "development";
+    vi.resetModules();
+    const { server, baseUrl } = await startRouterServer();
+    try {
+      const requestId = `description-budget-validation-${crypto.randomUUID()}`;
+      const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...descriptionPayload(requestId), buyerType, budgetBucket,
+          email: `budget+${crypto.randomUUID()}@example.com`,
+          targetSiteType: "Warehouse", proofPathPreference: "exact_site_required" }) });
+      expect(response.status).toBe(400);
+      expect((await response.json()).message).toBe(error);
+      expect(fs.existsSync(devLogPath) && fs.readFileSync(devLogPath, "utf8").includes(requestId)).toBeFalsy();
+    } finally { await stopServer(server); }
+  });
+
+  it.each([
     { descriptionAuthority: undefined },
     { descriptionAuthority: { granted: false, statementVersion: "2026-10-06.v1" } },
     { descriptionAuthority: { granted: true, statementVersion: "old" } },

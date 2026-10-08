@@ -486,6 +486,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     const [, init] = fetchMock.mock.calls.find((call) => call[1]?.method === "POST")!;
     expect(JSON.parse(init.body)).toMatchObject({ captureMode: "self_capture", hasExistingFootage: true, captureRegion: "us", firstName: "", company: "Acme Foods" });
     expect(JSON.parse(init.body).filmerContact).toBeUndefined();
+    expect(JSON.parse(init.body)).not.toHaveProperty("budgetBucket");
     expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
     expect(screen.getByRole("link", { name: "Review your job brief" })).toHaveAttribute("href", captureUrl);
   });

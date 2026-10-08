@@ -129,7 +129,6 @@ export default function RobotTeamIntake() {
           roleTitle: contact.role || "Robot team contact",
           buyerType: "robot_team",
           accountSignup: false,
-          budgetBucket: "Undecided/Unsure",
           requestedLanes: [],
           // The endpoint requires one of these for a robot team; the task family
           // is the coarsest true statement of what site class they want.

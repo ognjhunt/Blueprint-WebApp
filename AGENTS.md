@@ -94,6 +94,9 @@ Public Launch Ready and Operational Launch Ready are separate standards. Public 
   deletion approvals, idempotency/duplicate effects, opt-outs, and the current
   draft-only/no-send direction. This autonomy rule does not authorize new spend,
   broader access, external sends or another approval framework.
+- Free intake and assessment require no customer-supplied budget or per-run spending
+  approval. Provider cost limits are automatic internal Blueprint controls.
+  Never turn an internal test spending limit into a step for sites.
 
 - Preserve truthful product language around hosted sessions, captures, rights, and provenance.
 - Prefer only edits that strengthen Arm Decision Proof partner intake,

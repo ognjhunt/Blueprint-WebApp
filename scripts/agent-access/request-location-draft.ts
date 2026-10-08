@@ -95,7 +95,6 @@ function requiredInboundFields(
   if (!clean(draft.company)) missing.push("company");
   if (!clean(draft.roleTitle)) missing.push("roleTitle");
   if (!clean(draft.email)) missing.push("email");
-  if (!draft.budgetBucket) missing.push("budgetBucket");
   if (!clean(draft.taskStatement)) missing.push("taskStatement");
   if (!clean(draft.targetSiteType) && !clean(draft.siteName) && !clean(draft.siteLocation)) {
     missing.push("targetSiteTypeOrSiteNameOrLocation");

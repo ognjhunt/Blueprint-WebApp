@@ -74,7 +74,7 @@ describe("Task Evaluation Run intake", () => {
     fill("Acceptable risk or confidence requirement", "At most five percent false-safe risk.");
     fill("Unacceptable failures", "Fixture collision");
     fill("Consequence of a false-safe", "Could damage the fixture.");
-    fill("Budget ceiling (USD)", "5000");
+    expect(screen.queryByLabelText("Budget ceiling (USD)")).toBeNull();
     fill("Decision deadline", "2026-08-15T17:00");
     fill("Allowed site changes (one per line)", "Move marker within 10 cm");
     fill("Rights, privacy, and provider restrictions (one per line)", "No raw video outside Blueprint storage");
@@ -99,6 +99,8 @@ describe("Task Evaluation Run intake", () => {
     });
     expect(serialized).not.toMatch(/mujoco|isaac|cosmos|oscar/i);
     expect(serialized).not.toMatch(/client_supplied_price\":true|price_cents|amount_cents/i);
+    expect(submitted).toMatchObject({ constraints: { budget: { currency: "USD", hard_cap: false } } });
+    expect((submitted as any).constraints.budget).not.toHaveProperty("amount");
     expect(navigate).toHaveBeenCalledWith(expect.stringMatching(/^\/app\/runs\/request-/));
   });
 
