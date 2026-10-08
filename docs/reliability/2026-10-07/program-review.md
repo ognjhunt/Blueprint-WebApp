@@ -3241,3 +3241,30 @@ No assertions were removed. Typecheck, Graphify and portability pass. This
 new matched replay resolves that specific source-identity limitation without
 rewriting initial receipts, inheriting42 checks onto the reordered source, or
 claiming the earlier unclassified SDK failures fixed. No new journey credit.
+
+### Standard-compatible array projection — 799c5fe7
+
+Independent source approval applies to `799c5fe7de1dbb4a79f327e3fe756f7886e3c0ef`,
+a one-file follow-up to approveded6dce24. The existing structural detector now
+fences direct nested arrays as well as depth at inline, final compact and
+nontransaction boundaries. Payload arrays use existing immutable verified JSON
+offload, preserving content/order; unsupported compact controls and legacy
+non-atomic writes refuse. No cancellation/accounting/CAS semantics changed.
+[Firestore data-types documentation](https://firebase.google.com/docs/firestore/manage-data/data-types)
+forbids direct array elements that are arrays in Standard edition and allows
+them in Enterprise. The current database edition remains unverified; installed
+Node validator acceptance is not misreported as server rejection.
+
+Receipt `f5cd7a0cbf09ab251b3854fc4a78948b521abc399fd3d7cdd1fca2cf716bac0c`
+and all11 linked artifacts, final sourcec06ebf47 and originaled6 Git bytes were
+verified. The private baseline loader changes only its relative storage import.
+The same small synthetic array offload assertion fails baseline with26
+unattempted controls, then27 private-file controls and27 separate session
+neighbors pass. Roundtrip hash/order/content and compact/noTX refusal execute
+in candidate; baseline stops at the main assertion before those later negatives.
+Typecheck, Graphify, static portability and diff checks pass. Existing tests
+were restored and no new test definition was committed. These overlapping
+checks add no original journey credit. The retained earlier CI hook timeout,
+actual server/edition validation, cloud incident cause, protected release and
+customer result are separate unresolved/required evidence, not implied by
+this source approval. No provider or production write occurred in review.
