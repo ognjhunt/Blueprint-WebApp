@@ -44,10 +44,13 @@ export function sanitizeExperiment(value: unknown): any {
     .replace(/\b(?:sk|AIza)[-_A-Za-z0-9]{16,}\b/g, "[redacted-key]");
   if (Array.isArray(value)) return value.filter(item => !(item && typeof item === "object"
     && (/^(reasoning|thinking|thought|chain_of_thought)$/i.test(item.type ?? "") || item.thought === true))).map(sanitizeExperiment);
-  if (value && typeof value === "object" && (/^(reasoning|thinking|thought|chain_of_thought)$/i.test(value.type ?? "") || value.thought === true)) return null;
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).filter(([key]) =>
-    !/^(authorization|cookie|headers|api.?key|secret|token|encrypted_content|reasoning|reasoning_content|chain_of_thought|thinking|thought|signed.?url|url)$/i.test(key))
-    .map(([key, item]) => [key, sanitizeExperiment(item)]));
+  if (value && typeof value === "object") {
+    const fields = value as Record<string, unknown>;
+    if ((typeof fields.type === "string" && /^(reasoning|thinking|thought|chain_of_thought)$/i.test(fields.type)) || fields.thought === true) return null;
+    return Object.fromEntries(Object.entries(fields).filter(([key]) =>
+      !/^(authorization|cookie|headers|api.?key|secret|token|encrypted_content|reasoning|reasoning_content|chain_of_thought|thinking|thought|signed.?url|url)$/i.test(key))
+      .map(([key, item]) => [key, sanitizeExperiment(item)]));
+  }
   return value;
 }
 
