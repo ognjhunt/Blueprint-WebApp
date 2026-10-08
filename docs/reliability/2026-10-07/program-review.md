@@ -2051,3 +2051,38 @@ assessment accuracy or native completion. No paid calls, production mutations
 or new original-case/journey credit occurred. Exact-head protected checks and
 promotion remain separate release gates;91 promotion cannot certify this new
 commit. No canonical deployment approval is given here.
+
+
+## Independent Web release identity review — 9a96add5
+
+Approved bounded release evidence for exact Web main
+`9a96add5213e840aa40d8758bdeb71c2a92b2382`. Native GitHubCI37808257513
+independently reports all ten jobs successful, including the nine checks and
+automatic deployment admission. Gated deploy37809643803 independently reports
+success for the same SHA. Retained native paired Render envelope
+`9409daccfa18bde0b483efd8ce17dc428aee8e3470ec051921d9b32ad99b5c15`
+reports web LIVE16:35:58.847UTC and worker LIVE16:36:21.087UTC at that commit.
+
+Source continuity manifest
+`b1e0ea657817805e2e3ec2babc6f326854eba1ca97993c085749ad5190bda1c2`
+is independently checked against Git blobs: three programme helper/budget/
+adapter files equal reviewedf6a0a7dc; replacement picker, browser case andCI
+workflow equal reviewedb18234b4. Its deployed:false field is the retained
+pre-deployment source snapshot, superseded for release identity by the separate
+paired native receipts; it is not itself deployment evidence.
+
+Existing safe presentation smoke result
+`7ae41728fbba02f233e00a4d60d3f6498aa4541fe17a087da2bcf35790867143`
+passes all eighteen checks16:37:33–37UTC with exact SHA before and after.
+It covers public form, local draft reload, clear acknowledgement, matching
+local stores, fresh empty identity and consent-unchecked return. Two non-GET
+and three external requests were aborted, zero intake mutations attempted.
+Reviewed smoke script remains ea03c76d; retained screenshot hash71f18849
+matches actual bytes. Context cleanup is recorded. No reviewer rerun or
+production mutation occurred.
+
+This verifies the reviewed source serving with safe presentation checks. It
+does not establish actual customer-video upload, backend durability, provider
+authentication/dispatch, assessment perception, notifications or full connected
+customer completion. The authorized owner remains sole actor for that separate
+video execution; no new authority, provider call or case credit is granted here.
