@@ -3397,3 +3397,41 @@ criteria. Initial6d4b16aa only differs by subsequently corrected explanatory
 recording-permission text. Terminal author checks, frozen execution fingerprint
 and an actual v3 result remain separate pending evidence. No app source,
 provider, customer context or current paid actor was changed by review.
+
+
+### Retained actual terminal assessment and v3 smoke — 189
+
+Independent inspection matched canonical terminal receipt
+`8555d17874145549e26b2656b8d88aea05d5d28a3baa36a3ca3dd8bf22d91e4b`
+and observable projectiond8570b12. Job, run and pointer are completed; all11
+current call records bind the same request/capture/run/context/video, with10Sol
+and1Gemini recorded and pending_token null. Reconstructed observable packet
+JSON independently hashes to its canonical pointer digest. The packet is
+needs_operator_input/advisory_review_required, not a verified robot capability
+or physical completion. Retained customer screenshotc05806b3 visibly reports
+“Your assessment needs a check”; detailed customer question rendering and
+perception/gold truth are not established by that screenshot. The usage pricing
+estimate is0.17061075USD, not a billing invoice or historical unknown refund.
+
+The owner's read helper checks GCS generation/size/SHA and envelope identity
+before producing the observable projection. Its actual readback records
+322791 bytes/generation1791501117606389/SHA2a025a5a…; the reviewer inspected
+that retained proof and helper, without independently downloading the raw
+bundle or reading hidden reasoning. The full raw bundle is not a locally
+rehashable review artifact. The original ledger was independently rehashed
+unchanged and recovery history matches the23:11/23:13 receipts. Retained
+retirementcb66786d establishes four earlier rows unchanged at retirement; the
+final query covers only this run's11 current rows, so fresh final readback of
+the four historical documents is not claimed. Historical source9a in the
+receipt is explicitly the original run release; observable projection189 and
+independent serving proof above establish the current release separately.
+
+V3 single smoke result99497542 and receipt9ea6b94f plus all10 linked artifacts
+were hash-verified. Actual exit1/presentation_failed remains intact:21checks
+true, recovery_eligibility_copy false. Exact189 source lacks the historical
+seven-day sentence. Both serving identities, draft restoration, region mirrors,
+pre-Start pending/grant observations and all9 durable Clear criteria pass;
+three nonGET and three external requests were blocked, zero attempted intake
+mutations, isolated context cleaned. This is a retained copy-criterion failure,
+not a passing presentation run or evidence of failed durability. No rerun,
+threshold rewrite, provider call or business write occurred in review.
