@@ -3084,3 +3084,20 @@ their original retained execution receipts and limitations; no tests were rerun
 or additional coverage credited. CI37846631178 is still in progress at this
 review. Protected checks, deployed recovery, actual hosting capacity and the
 interrupted assessment's provider outcome remain separate and unproven here.
+
+### Human-applied web capacity change
+
+Fresh independent Render get_service metadata reports one web instance on
+plan1c-2g, updated21:26:22.128175Z. Its protected native response is retained in
+`output/reliability-program/customer-policy/reviewer-web-2g-service.json`, SHA
+`408c09ff7f751bf4539080f70c3a24bde35b90c4b31eda4e12407ce5d10d205e`.
+A bounded native event read shows plan_changed21:26:22.130035Z and successful
+deploy_ended. Independent get_deploy confirms the associated service_updated
+replacement deployment LIVE on exacte9bb3716, finishing21:26:21.857381Z.
+Those native responses are retained in reviewer-web-2g-deployment.json, SHA
+`16fc807f87b32846d36d6694c5190bbd8ad1dd1ba24492108c5b38cdc681727b`.
+This corroborates configured capacity and a terminal replacement deployment;
+it does not measure the process's actual memory limit, peak usage, stability or
+successful assessment execution. No reviewer plan, credential, provider or
+customer mutation occurred. The memory and stranded-claim repairs remain subject
+to their separate exact-head checks, deployment and affected-run verification.
