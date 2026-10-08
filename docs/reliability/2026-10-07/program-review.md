@@ -147,3 +147,62 @@ the production-contract regression meaningful but distinct from live account
 proof. PR940's additional suites and integrated diff have not yet been independently
 executed by this reviewer; this snapshot does not approve that whole PR or a
 release that omits newly identified material controls.
+
+## Cross-tab follow-up review in progress
+
+The compatible intake candidate uses shared Web Locks to freeze one complete
+submission before dispatch and protects pending identity/body, monotonic receipt
+state, selected video and consent. Independent helper checks pass 11/11; actual
+two-tab baseline/candidate receipts remain the author's separate intercepted UI
+layer. They cannot establish real backend deduplication.
+
+A material candidate counterexample remains open: after another tab explicitly
+clears a pending draft and installs a fresh identity, a late acknowledgement
+rewrites the old private task and identity into local storage. Independent owned
+fixture replay returns `lateAckAccepted=true`, `clearedIdentityPreserved=false`,
+and `privateDraftResurrected=true`. Lock serialization alone does not fence stale
+authority after a clear. Author must repair and retain the failing evidence before
+this slice receives approval. Missing Web Locks or denied storage also now
+blocks first-time intake; supported-browser scope is an explicit integration
+decision, distinct from preserving an existing job recovery route.
+
+The author corrected the clear finding with identity fencing for both pending
+and fresh rows, captured operation authority before asynchronous headers, and
+explicit refusal of retired freeze attempts. Independent identical helper replay
+now returns `lateAckAccepted=false`, `clearedIdentityPreserved=true`,
+`privateDraftResurrected=false`, `retiredFreezeRejected=true`; independent
+helper/component checks pass 23/23. This was a reviewer-observed uncommitted
+candidate failure, not an exact deployed baseline defect. The ignored diagnostic
+receipt explicitly states the missing exact pre-correction snapshot limitation.
+Final author commit, browser clear replay and catalog correction remain pending.
+
+The integration owner explicitly bounded fresh creation to secure-context
+Web Locks and available origin persistence, with no-dispatch supported-browser
+and existing support-address guidance. This affects evaluated intake creation,
+not existing private-link uploads or parallel customer conversations. Actual
+Chrome execution and mobile emulation establish this tested scope; they do not
+prove all Safari versions, private browsing or sudden-crash durability. Record
+this capability scope correction before final replay, without lowering floors.
+
+Independent receipt inspection confirms v2 full browser replay 12/12
+(`89dc73425c87d4fc3da5061f46de0b0e3afe21a21a8ed1080c809dd231cbb8f6`)
+and four supplemental cases repeated three additional times, 12/12
+(`5f396cb72e12253eae5c457073cee9ae1ea4f4d3a0df11d4c30966f68650cae0`).
+Each selected case therefore has four total attempts, zero disagreement and
+no additional unique cases. Final create-reply barrier UI001/UI002 fail against
+author-retained exact `46e6b2ef` runtime, 0/2
+(`91c4120ee5ee59140bad438c77ae85c4b856332777e17be28e3ae3bb67aa9288`).
+All catalog-declared final source hashes independently match. The supplemental
+denominator correction is explicit: 13 to 16 offline cases and two to four
+intercepted browser cases, original 90 unchanged. Source review has no remaining
+material finding; exact committed identity and required checks remain pending.
+
+Final cross-tab source commit
+`d1033932f926ebcc8e873f2ccc6a07468af9634b` is approved. Independently verified
+committed bytes equal all frozen source hashes, every listed receipt hash
+matches, focused checks pass 133/133, and typecheck/Graphify receipts report
+success. The three minimized original helper failures and two final browser
+baseline failures remain retained. Clear-race finding is resolved with the
+explicit pre-correction source-snapshot limitation preserved. Normal protected
+release and exact combined PR940 review/CI/deployed behavior remain separate
+gates; this approval does not certify assessment usefulness or beta readiness.

@@ -178,10 +178,11 @@
       "owner": "intake_recovery",
       "invariant": "Stale tab cannot replace another tab frozen retry identity or create a second intake",
       "rootCause": "writeSiteCaptureRecovery overwrites pending authority; storage listener only adopts same mounted requestId",
-      "minimizedReproducer": "Independent source finding; scoped before/after runtime and two-tab reproducer in progress",
-      "repair": "Port cross-tab lock/re-read and monotonic frozen authority from independently developed PR940 into authoring-scoped/no-bearer schema",
-      "releaseStatus": "repair_in_progress;release_blocking_for_multitab_path",
-      "candidateRetest": "pending"
+      "minimizedReproducer": "Original author46e6b2ef: threehelperauthority/ack failures; exact two-tab CSRF/create-response-barrier browserbaseline2/2fails. Late-clear candidate failure retained with source-snapshot limitation.",
+      "repair": "Origin WebLock latest-authority freeze; whole frozen row andackmonotonic; exact refusal-body release; captured-operation identity fencestaleack/refusal afterclear. No signedURLs/video persisted.",
+      "releaseStatus": "independently_reviewed;combined940source_and_release_pending",
+      "candidateRetest": "Exactd1033932 author/8ccc99cc integration133focused,12interceptedbrowser,12additional repeatattempts pass. Supplemental16offline+4browser; notadded300core.",
+      "source": "8ccc99cc;author d1033932f926ebcc8e873f2ccc6a07468af9634b"
     }
   ],
   "dependencies": [
@@ -216,5 +217,9 @@
     "status": "one combined release through PR940; local supplemental source not merged independently",
     "count_policy": "Keep catalogs separate until semantic deduplication; do not add overlapping programs counts",
     "required_integration": "Preserve PR940 authentication/withdrawal/current-notification-authority/Pipeline fences and local scoped recovery/receipt uncertainty/upload-byte protections"
-  }
+  },
+  "scope_limits": [
+    "Fresh repaired intake dispatch requires secure-origin WebLocks and usable localpersistence; absent capabilities refuse with supported-browser/contact guidance beforedispatch. Existingprivate-link routes andparallelcustomerconversations retainownauthorization.",
+    "No immediate-crash/incognito/Safari certification; currentproduction1b8memory-only hasno legacy persistentdraftwriter."
+  ]
 }
