@@ -1,3 +1,4 @@
+import { inferenceProgrammeContextDigest } from "../../utils/inferenceProgrammeAdmission";
 import { reserveCaptureCoverageInference } from "../../utils/captureCoverageInferenceBudget";
 import { createHash } from "node:crypto";
 import OpenAI from "openai";
@@ -14,7 +15,7 @@ import { isSiteVideoEvidenceEnabled } from "../../config/env";
 import { hydrateAgentEvidence, requiresMutationReconciliation } from "../private-evidence";
 import { getCompanyHistoryAccess } from "../operator-tools";
 import { getGeminiVideoModel, getOpenAiMaxOutputTokens, getOpenAiTimeoutMs } from "../provider-config";
-import { createSiteAssessmentAgent, SITE_ASSESSMENT_MODEL, type SiteAssessmentInput } from "../site-assessment";
+import { createSiteAssessmentAgent, SITE_ASSESSMENT_MODEL, type SiteAssessmentInput, type SiteAssessmentOptions, videoAnalysisOperatorDigest } from "../site-assessment";
 import { siteAssessmentTaskInput } from "../tasks/site-assessment";
 import type { AgentResult, NormalizedAgentTask } from "../types";
 import type { InboundRequest } from "../../types/inbound-request";
@@ -90,11 +91,22 @@ export function bindBrowserAssessmentSource(requestId: string, record: Record<st
 export { SiteAssessmentBudget } from "./site-assessment-budget";
 import { SiteAssessmentBudget } from "./site-assessment-budget";
 
-export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { runId: string; assertActive: () => Promise<void>; assertCostAllowed: () => Promise<void> }): Promise<AgentResult> {
+/** Trusted local experiment host changes reservation persistence only. All live source checks remain below. */
+export interface SiteAssessmentExperiment {
+  mode: "saved-evidence" | "fresh-video";
+  prepare: (source: Record<string, any>) => Promise<NonNullable<SiteAssessmentOptions["retained_video_sources"]>>;
+  reserve: (...args: Parameters<typeof reserveCaptureCoverageInference>) => Promise<{
+    receipt: Record<string, unknown>; assertDispatchAllowed(): Promise<void>; record(usage: unknown): Promise<void>;
+  }>;
+  analyze_video?: SiteAssessmentOptions["analyze_video"];
+  record_error?: (error: unknown) => void;
+}
+export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { runId: string; assertActive: () => Promise<void>; assertCostAllowed: () => Promise<void>;
+  experiment?: SiteAssessmentExperiment }): Promise<AgentResult> {
   const base = { provider: task.provider, runtime: task.runtime, model: task.model, tool_mode: task.tool_policy.mode,
     requires_human_review: true, requires_approval: false };
   const budget = new SiteAssessmentBudget();
-  let captureAdmission: Awaited<ReturnType<typeof reserveCaptureCoverageInference>> | undefined;
+  let captureAdmission: Awaited<ReturnType<SiteAssessmentExperiment["reserve"]>> | undefined;
   const captureReservations: unknown[] = [];
   let instance: Awaited<ReturnType<typeof createSiteAssessmentAgent>> | undefined;
   let sourceAdmission: Record<string, unknown> | null = null;
@@ -164,8 +176,10 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       source_key: bound.source_key, context_digest: contextDigest, advisory_job_id: input.context.advisory_job_id ?? null, video_ref: videoRef, video_sha256: videoSha, video_bytes: video.body.length,
       duration_seconds: bound.duration_seconds, manifest: pending.manifest, rights: projectWebsiteCaptureRights(raw),
       privacy_eligibility: privacy.eligibility, privacy_proceeded: privacy.proceeded };
-    const [url] = await video.file.getSignedUrl({ action: "read", expires: Date.now() + 30 * 60 * 1000,
-      queryParams: { generation: pending.video.generation } });
+    // Bytes are already pinned and verified; experiments never mint an access URL.
+    const url = host.experiment ? "" : (await video.file.getSignedUrl({ action: "read", expires: Date.now() + 30 * 60 * 1000,
+      queryParams: { generation: pending.video.generation } }))[0];
+
     const assertSourceCurrent = async () => {
       const current = (await ref.get()).data(), currentPending = await loadBrowserPending(pending.capture_id);
       if (!current || !currentPending || digest(requestFacts(current)) !== digest(requestFacts(raw))
@@ -200,6 +214,9 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       if (packet?.request_id !== input.context.request_id) throw new Error("site_assessment_conversation_request_mismatch");
       priorPacket = packet;
     }
+    const experimentSources = host.experiment ? await host.experiment.prepare({ ...sourceAdmission,
+      experiment_context_digest: inferenceProgrammeContextDigest(raw, brief), producer_source: privacy.producer_source,
+      operator_messages_sha256: videoAnalysisOperatorDigest(messages) }) : undefined;
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, baseURL: "https://api.openai.com/v1", maxRetries: 0, timeout: getOpenAiTimeoutMs() });
     const provider = new OpenAIProvider({ useResponses: true,
       openAIClient: client as unknown as NonNullable<ConstructorParameters<typeof OpenAIProvider>[0]>["openAIClient"] });
@@ -207,17 +224,23 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       task_instruction: input.message, prior_assessment: priorPacket?.assessment,
       video: { source_id: pending.capture_id, source_ref: videoRef,
         url, sha256: videoSha, duration_seconds: bound.duration_seconds }, site_requirement: toSiteRequirement(request) }, {
-      history_access: await getCompanyHistoryAccess(task), model: task.model, model_provider: provider,
+      history_access: await (async () => {
+        const access = await getCompanyHistoryAccess(task);
+        // Experiments authorize Sol/Gemini only. Preserve read scope, suppress optional paid embeddings.
+        return access && host.experiment ? { ...access, embeddingAuthority: { enabled: false,
+          model: "text-embedding-3-small", dimensions: 1536, maxInputCharacters: 1 } } : access;
+      })(), model: task.model, model_provider: provider,
       video_bytes: { body: video.body, byteLength: video.body.length, contentType: video.contentType },
       max_output_tokens: budget.maxOutput, allowed_tools: task.tool_policy.allowed_actions,
       assert_video_processing_allowed: async () => {
         await host.assertActive(); await assertSourceCurrent();
       },
-      retained_video_sources: (priorPacket?.sources ?? []).filter((source: any) => source.kind === "video"
+      analyze_video: host.experiment?.analyze_video,
+      retained_video_sources: experimentSources ?? (priorPacket?.sources ?? []).filter((source: any) => source.kind === "video"
         && source.sha256 === videoSha && source.canonical_ref === videoRef),
       authorize_model_call: async (kind, model, request) => {
         await host.assertActive(); await assertSourceCurrent(); budget.authorize(kind, model, request);
-        captureAdmission = await reserveCaptureCoverageInference(model, { capture_id: pending.capture_id,
+        captureAdmission = await (host.experiment?.reserve ?? reserveCaptureCoverageInference)(model, { capture_id: pending.capture_id,
           assessment_run_id: host.runId, assessment_request_id: input.context.request_id,
           assessment_video_sha256: videoSha,
           assessment_source: raw.capture_privacy_source_bound_decision?.producer_source }, kind, request);
@@ -239,6 +262,8 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
     return { ...base, status: "completed", output: packet.assessment,
       artifacts: { site_assessment_packet: packet, site_assessment_packet_sha256: digest(packet), source_admission: sourceAdmission, capture_inference_reservations: captureReservations, ...budget.artifacts() } };
   } catch (error) {
+    // Diagnostics must never replace the original result or its retained reservations.
+    try { host.experiment?.record_error?.(error); } catch {}
     const code = errorField(error, "message");
     const message = error instanceof Error && typeof code === "string" && assessmentErrorCodes.has(code) ? code : "site_assessment_failed";
     return { ...base, status: message === "site_assessment_cancelled" ? "cancelled" : "failed", error: message,
