@@ -18,9 +18,10 @@ const cases: Case[] = [];
 const results: Record<string, any>[] = [];
 function canonical(value:any):any { if(Array.isArray(value))return value.map(canonical);if(value && typeof value === "object")return Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])]));return value; }
 function define(family:string, name:string, parameters:Record<string,any>, expectedTransitions:string[], run:()=>Promise<void>) {
- const semanticHash=createHash("sha256").update(JSON.stringify(canonical({kind:"infrastructure",family,parameters,expectedTransitions,sourceId:null,split:null}))).digest("hex");
+ const canonicalFamily=family === "provider-failures" ? "provider" : family === "worker-lifecycle" ? "worker" : family;
+ const semanticHash=createHash("sha256").update(JSON.stringify(canonical({kind:"infrastructure",family:canonicalFamily,parameters,expectedTransitions,sourceId:null,split:null}))).digest("hex");
  const caseId=`B-${family}-${name}`;
- cases.push({caseId,family,parameters,expectedTransitions,assertions:["durable fake state matches transition", "provider effects bounded by persisted attempts", "no uncertain automatic replay"],layer:"fake-provider-integration/fake-firestore",providerMode:"mocked Resend SDK transport; actual sendEmail wrapper",semanticHash,replayCommand:`npx vitest run server/tests/reliability-queue-program.test.ts -t '${caseId}'`});
+ cases.push({caseId,family:canonicalFamily,parameters,expectedTransitions,assertions:["durable fake state matches transition", "provider effects bounded by persisted attempts", "no uncertain automatic replay"],layer:"fake-provider-integration/fake-firestore",providerMode:"mocked Resend SDK transport; actual sendEmail wrapper",semanticHash,replayCommand:`npx vitest run server/tests/reliability-queue-program.test.ts -t '${caseId}'`});
  it(caseId, async()=>{const start=performance.now();try{await run();results.push({caseId,status:"passed",attempted:true,repeat:1,latencyMs:performance.now()-start,providerCalls:sdk.mock.calls.length});}catch(error){results.push({caseId,status:"failed",attempted:true,repeat:1,latencyMs:performance.now()-start,providerCalls:sdk.mock.calls.length,error:error instanceof Error?error.message:"failed"});throw error;}});
 }
 beforeEach(()=>{store.docs.clear();sdk.mockReset().mockResolvedValue({data:{id:"synthetic-accepted"},error:null});authority.mockReset().mockResolvedValue(true);vi.stubEnv("RESEND_API_KEY","synthetic-sink-only");vi.stubEnv("RESEND_FROM_EMAIL","sink@example.invalid");vi.stubEnv("NODE_ENV","test");});
