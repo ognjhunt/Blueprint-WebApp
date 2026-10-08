@@ -52,6 +52,8 @@ const TASK_MODEL_SUFFIXES: Partial<Record<AgentTaskKind, string>> = {
  * its own, and a task that needs footage fails closed rather than silently
  * falling back to a model that cannot see.
  */
+export const SITE_ASSESSMENT_MODEL = "gpt-6.1-sol";
+
 const GEMINI_VIDEO_DEFAULT_MODEL = "gemini-3.8-flash";
 
 export function getGeminiVideoModel(): string {

@@ -30,6 +30,7 @@
  * site revokes by unsharing, exactly as `taskVideoField` promises, and that
  * promise stays true only if we never keep a second copy.
  */
+import { reserveCaptureCoverageInference } from "../../utils/captureCoverageInferenceBudget";
 import { createHash } from "node:crypto";
 import type { ZodType } from "zod";
 
@@ -487,9 +488,16 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     };
   }
 
+  let coverageAdmission: Awaited<ReturnType<typeof reserveCaptureCoverageInference>> | undefined;
+  const coverageReservations: unknown[] = [];
+  const authorizeCoverage = async () => {
+    if (task.kind !== "capture_coverage") return;
+    coverageAdmission = await reserveCaptureCoverageInference(task.model, task.metadata);
+    coverageReservations.push(coverageAdmission.receipt);
+  };
   const receipts: Array<Record<string, unknown>> = [], usageSamples: Array<Record<string, unknown>> = [];
   const historyCalls: Array<Record<string, unknown>> = [];
-  const artifacts: Record<string, unknown> = { output_repairs: receipts, usage_samples: usageSamples, company_history_tool_calls: historyCalls };
+  const artifacts: Record<string, unknown> = { output_repairs: receipts, usage_samples: usageSamples, company_history_tool_calls: historyCalls, coverage_inference_reservations: coverageReservations };
   const historyAccess = await getCompanyHistoryAccess(task);
   const historyTools = historyAccess ? openAiResponsesHistoryTools : [];
   let retainedVideo: Awaited<ReturnType<typeof openVideo>> | undefined;
@@ -512,11 +520,14 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     const prompt = task.definition.build_prompt(task.input);
     const deadline = Date.now() + ANALYSIS_TIMEOUT_MS;
     let remainingOutput = task.definition.video_max_output_tokens ?? MAX_OUTPUT_TOKENS;
+    await authorizeCoverage();
     const response = await analyseAgenticVideo({ apiKey, model: task.model,
       prompt, video,
       processingMode: task.definition.video_processing_mode ?? "AGENTIC",
       samplingFps: task.definition.video_sampling_fps,
       maxOutputTokens: task.definition.video_max_output_tokens });
+    await coverageAdmission?.record(response.usage);
+    coverageAdmission = undefined;
     const { bytes: videoBytes, sha256: videoSha256 } = video.receipt();
     Object.assign(artifacts, { video_bytes: videoBytes, video_content_type: video.contentType,
       video_sha256: videoSha256, video_processing: response.processing,
@@ -531,6 +542,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     const continueText = async () => {
       if (!promptComplete || !outputComplete || !totalComplete) throw new GeminiVideoError("output_correction_usage_unavailable", "Retained input and output usage must be known before another request");
       if (Date.now() >= deadline || remainingOutput <= 0) throw new GeminiVideoError("output_correction_budget_exhausted", "Original runtime or aggregate output budget exhausted");
+      await authorizeCoverage();
       try {
         const continuation = await fetch(`${GEMINI_API}/v1beta/models/${encodeURIComponent(task.model)}:generateContent`, {
           method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
@@ -543,6 +555,8 @@ export async function runGeminiVideoTask<TInput, TOutput>(
         });
         if (!continuation.ok) throw new GeminiVideoError("gemini_output_correction_provider_failed", `Gemini returned HTTP ${continuation.status}`);
         const payload = await continuation.json() as { candidates?: Array<{ finishReason?: string; content?: { parts?: VideoResponsePart[] } }>; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number } };
+        await coverageAdmission?.record(payload.usageMetadata);
+        coverageAdmission = undefined;
         responseParts = payload.candidates?.[0]?.content?.parts ?? [];
         rawText = responseParts.filter(part => !part.thought && typeof part.text === "string").map(part => part.text).join("\n");
         retainUsage(payload.usageMetadata);
@@ -624,6 +638,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     };
   } catch (error) {
     if (error instanceof GeminiVideoError && error.evidence) {
+      await coverageAdmission?.record(error.evidence.usage).catch(() => undefined);
       rawText = error.evidence.text;
       retainUsage(error.evidence.usage);
     }
