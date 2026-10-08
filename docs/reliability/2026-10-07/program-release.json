@@ -2332,8 +2332,15 @@
     "PR978": {
       "head": "6e1b0392ebaf6d587723e75467d18e87732eaa9d",
       "CI": 37856019518,
-      "state": "new_checkpoint_only_integrated_head_required_CI_pending;prior_hook_cause_unresolved",
-      "independent_final_receipt_review": "e9ac5bef"
+      "state": "protected_merged_after_eight_applicable_checks_SUCCESS",
+      "independent_final_receipt_review": "e9ac5bef",
+      "merged_sha": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
+      "merged_at_utc": "2026-10-08T22:55:22Z",
+      "required_CI": 37856019518,
+      "expected_backend_e2e": "SKIPPED",
+      "test_summary": "Related4877PASS/6SKIP; additional25and86existingchecks overlap; no newcase credit",
+      "native_log_sha256": "90b78b11c2abfc41659ce204d9608490e558b6188a8ee6abe9af0ff47eadd66b",
+      "prior_setup_failure_status": "Two native120stimeouts preserved; cause remainsUNRESOLVED, diagnostic logging/microtasks may perturb scheduling; not declared causallyfixed"
     },
     "PR977": {
       "head": "52ad73eb99ca754cbf56a29e510e9bd768fc04c5",
@@ -2352,7 +2359,13 @@
       }
     },
     "claim_ceiling": "Reviewed source and checks remain separate from protected merge, exact combined deployed identity and customer persistence/report proof",
-    "latest_containing_main_sha": "8ce5c5f1dbf14fd5e2be3651d0a1a00e44fde3fc"
+    "latest_containing_main_sha": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
+    "final_main_CI": {
+      "run": 37856452795,
+      "state": "SUCCESS",
+      "sha": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9"
+    },
+    "final_independent_merged_source_review": "98738005"
   },
   "local_actual_assessment_run_totals": {
     "source_count": 1,
