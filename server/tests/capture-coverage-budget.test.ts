@@ -151,6 +151,70 @@ describe("programme-bound actual reservation transaction", () => {
       reviews: [{ review_id: id, attempts: 3, disposition: "verified_zero_provider" }] };
     return id;
   }
+  const continueClock = async (extra: Record<string, any> = {}) => {
+    const { grantInferenceProgrammeTechnicalContinuation } = await import("../utils/captureCoverageInferenceBudget");
+    return grantInferenceProgrammeTechnicalContinuation({ programmeId: "programme-one", expectedAuthorityDigest: read(budgetPath).inference_programme_authority_digest,
+      continuationIdentity: "explicit-window-one", authorityRef: "synthetic-test-approval", operatorRef: "synthetic-authorized-operator",
+      effectiveExpiresAtMs: Date.now() + 7200000, ...extra });
+  };
+  it("explicit technical continuation admits remaining held slots without rewriting original expiry or accounting", async () => {
+    reconcilePreProviderHistory();const first = await sol();await first.record({input_tokens:100,output_tokens:10});
+    const before = structuredClone(read(budgetPath)), original = structuredClone(read(programmePath));
+    vi.spyOn(Date,"now").mockReturnValue(original.expires_at_ms + 1);
+    try {
+      await expect(sol()).rejects.toThrow("inference_programme_expired");
+      const receipt = await continueClock();
+      expect(read(budgetPath)).toEqual(before);expect(read(programmePath).expires_at_ms).toBe(original.expires_at_ms);
+      expect(read(programmePath).slots).toEqual(original.slots);
+      expect(await continueClock()).toEqual(receipt);expect(read(programmePath).technical_continuations).toHaveLength(1);
+      const next=await sol();await next.assertDispatchAllowed();await next.record({input_tokens:100,output_tokens:10});
+      const gem=await reserveCaptureCoverageInference("gemini-3.8-flash",assessmentMetadata,"gemini");await gem.assertDispatchAllowed();
+      expect(read(programmePath).slots[0]).toEqual(original.slots[0]);expect(read(programmePath).slots[1]).toEqual(original.slots[1]);
+      expect(read(budgetPath).inference_programme_authority_digest).toBe(before.inference_programme_authority_digest);
+      expect(read(budgetPath).calls).toBe(3);
+    } finally {vi.restoreAllMocks();}
+  });
+  it.each(["identity","authority","digest","deadline","too-long","source","context","cap","cross-programme"])("refuses %s technical continuation without authority writes",async defect=>{
+    reconcilePreProviderHistory();const first=await sol();await first.record({input_tokens:100,output_tokens:10});
+    vi.spyOn(Date,"now").mockReturnValue(Date.now());
+    try {
+    const input:any={};
+    if(defect==="identity")input.continuationIdentity="bad / identity";
+    if(defect==="authority")input.authorityRef="unrelated-human-approval";
+    if(defect==="digest")input.expectedAuthorityDigest="f".repeat(64);
+    if(defect==="deadline")input.effectiveExpiresAtMs=Date.now()-1;
+    if(defect==="too-long")input.effectiveExpiresAtMs=Date.now()+7200001;
+    if(defect==="source")read("inboundRequests/one").capture_privacy_source_bound_decision.producer_source={...source,key:"changed"};
+    if(defect==="context")read("inboundRequests/one").request.taskDescription="changed";
+    if(defect==="cap")read(programmePath).cap_micro_usd=4999999;
+    if(defect==="cross-programme")input.programmeId="different-programme";
+    const before=structuredClone(read(programmePath));await expect(continueClock(input)).rejects.toThrow();expect(read(programmePath)).toEqual(before);
+    }finally{vi.restoreAllMocks();}
+  });
+  it("continuation never makes old admitted calls fresh, and permits late original accounting",async()=>{
+    reconcilePreProviderHistory();const first=await sol(),original=structuredClone(read(programmePath));
+    vi.spyOn(Date,"now").mockReturnValue(original.expires_at_ms+1);
+    try {
+      await continueClock();await expect(first.assertDispatchAllowed()).rejects.toThrow("inference_programme_");
+      await first.record({input_tokens:100,output_tokens:10});expect(read(programmePath).slots[2].state).toBe("recorded");
+      const next=await sol();await next.assertDispatchAllowed();
+      await expect(continueClock({continuationIdentity:"another-window"})).rejects.toThrow();
+      const receipt=read(programmePath).technical_continuations[0];vi.spyOn(Date,"now").mockReturnValue(receipt.effective_expires_at_ms+1);
+      await expect(next.assertDispatchAllowed()).rejects.toThrow("inference_programme_expired");
+      expect(read(budgetPath).pending_token).toBeTruthy();
+    } finally {vi.restoreAllMocks();}
+  });
+  it.each(["forged","original-expiry","slot-reset","new-slot"])("refuses %s after a technical continuation",async defect=>{
+    reconcilePreProviderHistory();const first=await sol();await first.record({input_tokens:100,output_tokens:10});await continueClock();
+    vi.spyOn(Date,"now").mockReturnValue(read(programmePath).expires_at_ms+1);
+    try {
+      if(defect==="forged")read(programmePath).technical_continuations[0].receipt_sha256="f".repeat(64);
+      if(defect==="original-expiry")read(programmePath).expires_at_ms+=1000;
+      if(defect==="slot-reset")read(programmePath).slots[2].state="held";
+      if(defect==="new-slot")read(programmePath).slots.push({id:"extra",provider:"openai",model:SITE_ASSESSMENT_MODEL,reserved_micro_usd:1,state:"held"});
+      await expect(sol()).rejects.toThrow("inference_programme_");
+    }finally{vi.restoreAllMocks();}
+  });
   it("admits first paid reservation only for exactly accepted pre-provider history, without resetting attempts", async () => {
     const id = reconcilePreProviderHistory();
     const call = await sol(); await call.assertDispatchAllowed();

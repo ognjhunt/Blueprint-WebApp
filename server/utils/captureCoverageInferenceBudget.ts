@@ -1,5 +1,5 @@
 import type { Transaction } from "firebase-admin/firestore";
-import { admitInferenceProgramme, hasInferenceProgramme, inferenceProgrammeId, inferenceProgrammeContextDigest, validateInferenceProgramme, inferenceProgrammeAuthorityDigest, acceptsReconciledCaptureHistory, validatedAssessmentRecoveries, type AssessmentRecovery } from "./inferenceProgrammeAdmission";
+import { admitInferenceProgramme, hasInferenceProgramme, inferenceProgrammeId, inferenceProgrammeContextDigest, validateInferenceProgramme, inferenceProgrammeAuthorityDigest, acceptsReconciledCaptureHistory, validatedAssessmentRecoveries, assertInferenceProgrammeClock, INFERENCE_TECHNICAL_WINDOW_MS, type AssessmentRecovery } from "./inferenceProgrammeAdmission";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -135,7 +135,7 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
       contextDigest: inferenceProgrammeContextDigest(request!, briefSnap.data() ?? null), videoSha256: metadata.assessment_video_sha256,
       sourceDigest: humanDecisionDigest(privacy.producer_source), provider, model,
       reservedMicroUsd: Math.ceil(reserved * 1e6), token, runId: assessmentRunId as string,
-      eligibleSlotIds: state?.inference_programme_eligible_slot_ids, admittedSlotIds: state?.inference_programme_admitted_slot_ids }) : null;
+      eligibleSlotIds: state?.inference_programme_eligible_slot_ids, admittedSlotIds: state?.inference_programme_admitted_slot_ids, captureState: state }) : null;
     if (programmeRef && programmeAdmission) tx.set(programmeRef, { slots: programmeAdmission.slots,
       producer_source_digest: programmeAdmission.producer_source_digest }, { merge: true });
     tx.set(budgetRef, { schema_version: "capture_coverage_inference_budget.v1", capture_id: captureId,
@@ -164,7 +164,7 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
         ]);
         const state = budgetSnap.data(), request = requestSnap.data();
         const programme = validateInferenceProgramme(programmeSnap.data());
-        if (programme.expires_at_ms <= Date.now()) throw new Error("inference_programme_expired");
+        assertInferenceProgrammeClock(programme, state, admission.programmeAdmission!.slotId);
         const privacy = request?.capture_privacy_source_bound_decision || request?.capture_privacy_screen;
         if (programme.capture_history_reconciliation || state?.assessment_recoveries) {
           await assertReconciledRunHistory(tx, captureId, assessmentRunId as string, admission.requestId, state, programme);
@@ -239,7 +239,7 @@ export async function prepareAssessmentRecovery(tx: Transaction, input: {
     || state.last_assessment_run_id !== input.previousRunId || !state.pending_token
     || !Number.isFinite(state.exposure_usd) || state.exposure_usd <= 0 || !Number.isSafeInteger(state.calls) || state.calls < 1
     || state.cap_usd !== new SiteAssessmentBudget().cap || state.exposure_usd > state.cap_usd
-    || programme.expires_at_ms <= Date.now() || programme.request_id !== input.requestId || programme.capture_id !== input.captureId
+    || programme.request_id !== input.requestId || programme.capture_id !== input.captureId
     || programme.context_digest !== inferenceProgrammeContextDigest(input.request, input.brief)
     || programme.producer_source_digest !== humanDecisionDigest(input.request.capture_privacy_source_bound_decision?.producer_source)
     || run.status !== "failed" || run.task_kind !== "site_assessment" || run.metadata?.capture_id !== input.captureId
@@ -259,6 +259,7 @@ export async function prepareAssessmentRecovery(tx: Transaction, input: {
     || state.inference_programme_eligible_slot_ids.some((id: unknown) => typeof id !== "string" || !programme.slots.some(row => row.id === id))
     || state.inference_programme_admitted_slot_ids.some((id: unknown) => !state.inference_programme_eligible_slot_ids.includes(id))
     || !state.inference_programme_admitted_slot_ids.includes(slot.id)) throw new Error("advisory_retry_unavailable");
+  assertInferenceProgrammeClock(programme, state);
   const history = validatedAssessmentRecoveries(state, programme);
   await assertReconciledRunHistory(tx, input.captureId, input.previousRunId, input.requestId, state, programme);
   if (programme.capture_history_reconciliation) {
@@ -297,16 +298,83 @@ export async function assertAssessmentRecoveryReplay(tx: Transaction, input: { r
     tx.get(db!.collection("inferencePrograms").doc(inferenceProgrammeId(input.request))),
   ]);
   const state = budgetSnap.data(), programme = validateInferenceProgramme(programmeSnap.data());
-  if (programme.expires_at_ms <= Date.now() || programme.request_id !== input.requestId || programme.capture_id !== input.captureId
+  if (programme.request_id !== input.requestId || programme.capture_id !== input.captureId
     || programme.context_digest !== inferenceProgrammeContextDigest(input.request, input.brief)
     || programme.producer_source_digest !== humanDecisionDigest(input.request.capture_privacy_source_bound_decision?.producer_source)
     || !validatedAssessmentRecoveries(state, programme).some(row => row.receipt_sha256 === input.receipt.receipt_sha256
       && row.job_id === input.jobId && row.new_run_id === input.runId && row.source_key === input.sourceKey
       && row.advisory_context_digest === input.contextDigest)) throw new Error("advisory_retry_unavailable");
+  assertInferenceProgrammeClock(programme, state);
   await assertReconciledRunHistory(tx, input.captureId, input.runId, input.requestId, state, programme);
   if (programme.capture_history_reconciliation) {
     const history = await tx.get(db!.collection("captureCoverageReviews").where("captureId", "==", input.captureId).limit(100));
     if (!acceptsReconciledCaptureHistory(programme, input.requestId, input.captureId,
       history.docs.map(row => ({ id: row.id, data: row.data() })))) throw new Error("advisory_retry_unavailable");
   }
+}
+
+/** Explicit trusted-operator invocation only; no customer endpoint or automatic renewal. */
+export async function grantInferenceProgrammeTechnicalContinuation(input: { programmeId: string; expectedAuthorityDigest: string;
+  continuationIdentity: string; authorityRef: string; operatorRef: string; effectiveExpiresAtMs: number }) {
+  if (!db || !/^[A-Za-z0-9._-]{1,120}$/.test(input.programmeId) || !/^[A-Za-z0-9._-]{1,120}$/.test(input.continuationIdentity)
+    || typeof input.operatorRef !== "string" || !input.operatorRef.trim() || input.operatorRef.length > 500)
+    throw new Error("inference_programme_continuation_invalid");
+  return db.runTransaction(async tx => {
+    const ref = db!.collection("inferencePrograms").doc(input.programmeId), programme = validateInferenceProgramme((await tx.get(ref)).data());
+    const digest = inferenceProgrammeAuthorityDigest(programme);
+    const [budgetSnap, requestSnap, briefSnap] = await Promise.all([
+      tx.get(db!.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({ capture_id: programme.capture_id })}`)),
+      tx.get(db!.collection("inboundRequests").doc(programme.request_id)), tx.get(db!.collection("siteTaskBriefs").doc(programme.request_id))]);
+    const state = budgetSnap.data(), request = requestSnap.data();
+    if (digest !== input.expectedAuthorityDigest || input.authorityRef !== programme.authority_ref
+      || !state || state.inference_program_id !== input.programmeId || state.inference_programme_authority_digest !== digest
+      || state.capture_id !== programme.capture_id || request?.inference_program_id !== input.programmeId
+      || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
+      || request?.capture_privacy_source_bound_decision?.proceeded !== true
+      || request.capture_privacy_source_bound_decision.capture_id !== programme.capture_id
+      || programme.context_digest !== inferenceProgrammeContextDigest(request!, briefSnap.data() ?? null)
+      || programme.producer_source_digest !== humanDecisionDigest(request?.capture_privacy_source_bound_decision?.producer_source)
+      || !Number.isSafeInteger(state.calls) || state.calls < 1 || !Number.isFinite(state.exposure_usd) || state.exposure_usd <= 0
+      || state.cap_usd !== new SiteAssessmentBudget().cap || state.exposure_usd > state.cap_usd)
+      throw new Error("inference_programme_continuation_invalid");
+    if (programme.technical_continuations !== undefined) {
+      assertInferenceProgrammeClock(programme, state);
+      const prior = programme.technical_continuations[0];
+      if (prior.identity !== input.continuationIdentity || prior.operator_ref !== input.operatorRef
+        || prior.effective_expires_at_ms !== input.effectiveExpiresAtMs) throw new Error("inference_programme_continuation_invalid");
+      return prior;
+    }
+    const now = Date.now();
+    if (!Number.isSafeInteger(input.effectiveExpiresAtMs) || input.effectiveExpiresAtMs <= Math.max(now, programme.expires_at_ms)
+      || input.effectiveExpiresAtMs - now > INFERENCE_TECHNICAL_WINDOW_MS) throw new Error("inference_programme_continuation_invalid");
+    const eligible = state.inference_programme_eligible_slot_ids, admitted = state.inference_programme_admitted_slot_ids;
+    if (!Array.isArray(eligible) || !Array.isArray(admitted) || new Set(eligible).size !== eligible.length || new Set(admitted).size !== admitted.length
+      || eligible.some(id => !programme.slots.some(slot => slot.id === id)) || admitted.some(id => !eligible.includes(id)))
+      throw new Error("inference_programme_continuation_invalid");
+    validatedAssessmentRecoveries(state, programme);
+    if (programme.capture_history_reconciliation || state.assessment_recoveries) {
+      if (typeof state.last_assessment_run_id !== "string") throw new Error("inference_programme_continuation_invalid");
+      await assertReconciledRunHistory(tx, programme.capture_id, state.last_assessment_run_id, programme.request_id, state, programme);
+    }
+    if (programme.capture_history_reconciliation) {
+      const history = await tx.get(db!.collection("captureCoverageReviews").where("captureId", "==", programme.capture_id).limit(100));
+      if (!acceptsReconciledCaptureHistory(programme, programme.request_id, programme.capture_id,
+        history.docs.map(row => ({ id: row.id, data: row.data() })))) throw new Error("inference_programme_continuation_invalid");
+    }
+    const content = { schema_version: "inference_programme_technical_continuation.v1", identity: input.continuationIdentity,
+      operator_ref: input.operatorRef, authority_ref: input.authorityRef, programme_id: input.programmeId,
+      original_authority_digest: digest, original_expires_at_ms: programme.expires_at_ms,
+      request_id: programme.request_id, capture_id: programme.capture_id, context_digest: programme.context_digest,
+      video_sha256: programme.video_sha256, source_digest: programme.producer_source_digest, ledger_sha256: programme.ledger_sha256,
+      cap_micro_usd: programme.cap_micro_usd, granted_at_ms: now, effective_expires_at_ms: input.effectiveExpiresAtMs,
+      remaining_slot_ids: programme.slots.filter(slot => slot.state === "held" && eligible.includes(slot.id) && !admitted.includes(slot.id)).map(slot => slot.id).sort(),
+      slot_snapshot: programme.slots.map(slot => ({ id: slot.id, state: slot.state, admission_token: slot.admission_token ?? null,
+        run_id: slot.run_id ?? null, reserved_call_micro_usd: slot.reserved_call_micro_usd ?? null })),
+      capture_snapshot: { calls: state.calls, exposure_usd: state.exposure_usd, cap_usd: state.cap_usd,
+        eligible_slot_ids: eligible, admitted_slot_ids: admitted, recovery_digests: (state.assessment_recoveries ?? []).map((row: AssessmentRecovery) => row.receipt_sha256) } };
+    const receipt = { ...content, receipt_sha256: humanDecisionDigest(content) };
+    assertInferenceProgrammeClock({ ...programme, technical_continuations: [receipt] }, state);
+    tx.set(ref, { technical_continuations: [receipt] }, { merge: true });
+    return receipt;
+  });
 }
