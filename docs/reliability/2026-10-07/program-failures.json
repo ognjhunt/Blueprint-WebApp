@@ -245,11 +245,13 @@
       "baselineResult": "Visible populated fields but canonicaldraft empty; new Start refused by canonicalguard, zero secondPOST",
       "source": "client/src/components/site/SiteCaptureStart.tsx",
       "owner": "combined release owner",
-      "repair": "Pending scoped noninteractive-autosaveguard and effect dependency; preserve canonicalbody/draft validation",
-      "releaseStatus": "OPEN;affectedintake_source_approval_withdrawn;release_blocking",
+      "repair": "Guard retainDraft until interactive; include interactive in method/region effect dependency. Canonicalbody validation unchanged.",
+      "releaseStatus": "FIXED;independent_review_approved;merged_d8988ab3;deployment_pending",
       "limitation": "Native Chromium/WebLocks/IndexedDB with API-intercepted backend. The ordinary reload requires no clear race; no current customer incidence established.",
       "independent_baseline_sha256": "4bc9e942ae3fa55a444a9feda6dc11f4389ccef3db3622a7dc53341d416b2e4f",
-      "probe_sha256": "eb038abd444dba850871355ec1aabdeeb3cd464c715ef1ed8b6dfb92e0ef3285"
+      "probe_sha256": "eb038abd444dba850871355ec1aabdeeb3cd464c715ef1ed8b6dfb92e0ef3285",
+      "candidateRevision": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+      "candidateRetest": "Frozen independent ordinaryreload observer3/3PASS all4valuesBOTHstores/sameID/exactly1POST;232clientneighborsPASS; originalintercepted12/12 plus003004selected/repeats3eachPASS"
     }
   ],
   "dependencies": [

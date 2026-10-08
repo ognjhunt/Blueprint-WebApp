@@ -9,7 +9,7 @@ Do not add the parallel owner's overlapping catalog/traces to these counts.
 notification receipts, recovery fairness, decrypted recipients, revoked sessions,
 withdrawal/current-notice authority, terminal result fences and source admission.
 The reviewed intake repair preserves account/authoring scope, frozen retry
-identity, cross-tab ordering and clear fences. The crash checkpoint passes matched native before/after checks, but exact884 has an open P1 unsubmitted-draft reload/autosave defect. Its early autosave reads disabled controls and empties the durable draft while the old values remain visible. Affected intake approval is withdrawn until the minimized case passes after repair; required checks and worker integration remain release gates.
+identity, cross-tab ordering and clear fences. The crash checkpoint and the subsequently discovered unsubmitted-draft reload defect both pass matched native before/after checks. The scoped source is independently approved at8baba7d and merged in PR940 atd8988ab3. Required main CI, paired deployment and deployed behavior are still pending.
 
 **Evaluation:** 300 distinct offline conditions pass, 30 per frozen family;
 16 cross-tab additions are separate. There are 22 normal-UI traces through actual
@@ -49,7 +49,7 @@ this verdict.
 **Bounded beta:** No assessment-quality recommendation yet. A workflow-only
 recommendation must name supported browsers/recovery flows and the final executed
 access, withdrawal, idempotency and status checks; retain P2 exclusions, owners and
-recovery steps. The native forced-kill automatic form return passes three candidate attempts and fails three matched pre-checkpoint attempts. This does not clear the new P1 fresh-draft reload failure; no workflow beta recommendation is made while that defect is open. Unsupported measurement/capability and citation
+recovery steps. The native forced-kill automatic form return passes three candidate attempts and fails three matched pre-checkpoint attempts. The later P1 fresh-draft reload case also passes3 independent attempts with bothstores retained and one actual intercepted intake request. A workflow beta recommendation still requires deployment and affected-path verification. Unsupported measurement/capability and citation
 entailment probes constrain the assessment claim separately. Customer learning
 and conversations continue under their existing permissions; this program adds
 no outreach or blanket incident freeze.

@@ -3,8 +3,12 @@
   "webapp": {
     "baseline_sha": "1b8d810ec117b93fe52fd323be052ddafa7070db",
     "pull_request": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
-    "merge_status": "pending_combined_source_review_and_required_checks",
-    "deployment_status": "not_dispatched_by_this_owner"
+    "merge_status": "merged_after_required_PR_checks_and_independent_source_review",
+    "deployment_status": "main_branch_CI_and_existing_paired_exact_SHA_deployment_pending",
+    "reviewed_pr_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+    "merged_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+    "merged_at_utc": "2026-10-08T06:36:17Z",
+    "post_deployment_verified": false
   },
   "pipeline": {
     "merged_required_stage_fix": "cc876af25389de934f57c08b33421987f9e3328d",

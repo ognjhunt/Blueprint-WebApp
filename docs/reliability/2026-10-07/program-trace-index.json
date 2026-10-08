@@ -1,6 +1,6 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-08T06:16:00Z",
+  "updated_at_utc": "2026-10-08T06:40:00Z",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 22,
@@ -774,7 +774,132 @@
   "open_native_counterexample": {
     "id": "INTAKE-HYDRATION-AUTOSAVE-001",
     "candidate": "884",
-    "status": "release_blocking_affected_intake",
+    "status": "fixed_reviewed_merged;deployment_verification_pending",
     "root_prior_green": "22/22 normalUI +300offline on narrower exercised sequences; does not override new actual failure"
+  },
+  "final_reviewed_merged_replay": {
+    "candidate_runtime_sha": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+    "merged_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+    "production_tree_matches_merged": true,
+    "offline": {
+      "generated": 300,
+      "deduplicated": 300,
+      "attempted": 300,
+      "passed": 300,
+      "failed": 0,
+      "skipped": 0,
+      "blocked": 0,
+      "partially_executed": 0,
+      "additional_fake_worker_journeys": 20,
+      "scoped_assertions": 424,
+      "result_sha256": "4185b8c519d975ab1c2c0690c80f3c6faaf603a6d20d24bc7716d9572668b74f",
+      "result_path": "output/reliability-program/final8b-core.json",
+      "component_original30_individually_mapped": true
+    },
+    "normal_ui": {
+      "run_id": "journeys-20261008T063117822Z",
+      "generated": 22,
+      "deduplicated": 22,
+      "attempted": 22,
+      "passed": 22,
+      "failed": 0,
+      "unattempted": 0,
+      "result_sha256": "87a34d329b26e0143e95499fad720368342e93ced746ffab49d0839d2ae218aa",
+      "source_sha256": {
+        "client/src/components/site/SiteCaptureStart.tsx": "c94d8aac950e6dc0616f66b770849b6d1f33218aa78133b6762fb235825db368",
+        "client/src/lib/siteCaptureDraft.ts": "45dbdfbdb0eb5df69711703d521b44796522b48ff9bf70ec870f77dcfed7ee62",
+        "client/src/lib/siteCaptureDurability.ts": "14cae68c96d26f791431ecdb000397bc42c38161cae1098788cd8fb1f6345087",
+        "server/routes/inbound-request.ts": "2dffc5ce36621aeabdca5d0b786fa3286a5990e910b2e85880aa9a97005dbfa0",
+        "server/routes/self-capture-uploads.ts": "3a16b1ae43546d9c04149687fbebc6f1e563c51a01074bd04cd4ef283eb268d5",
+        "server/routes/site-task-brief.ts": "94f1bd670795b3d67627c14f25b861e8f07c831d9db82943ddb320c2032d8656",
+        "server/utils/captureCoverageQueue.ts": "0eb2815b4b04547bc53535a22f5d7d4ad7f4f957b772895f91e795e0c412a2bb",
+        "server/utils/captureCoverageReview.ts": "9c6cb1c7c404bdff29fc4e7978fd22bef4186295a0831a418870c48144d6d03b",
+        "server/utils/captureReviewRecovery.ts": "0579855454da233462c7ba6883f0d34b0f32429b5b574decba93eb22ce2b427a",
+        "server/utils/captureParts.ts": "b61144375a5c184ccb926fc2325325741f455c6228e12cefe95f718465e41120",
+        "server/utils/field-encryption.ts": "64750f58b6e9010b686562633dbf04e8983c1ce39a9f9fa87e1153499049d2b2",
+        "server/utils/captureOutbox.ts": "78a3bd1cc0b5ae3590cc879eac7291825694b9fb2f3dac866a0ca8e61a99d746",
+        "server/agents/tasks/capture-coverage.ts": "9a25383f12ccd1c0a056c8cccac4900b7bf7d1f2ea45ba3fe825eae79bcb7bee",
+        "server/tests/helpers/reliability-local-storage.ts": "1f0f5cc4c3fa4719577db645d75c37b73a6a3062377653d36374636b726aae88",
+        "server/tests/reliability-program-journeys.browser.ts": "5de9ebcdfc264d7083219b61793e1440130d26cb0c7571b6c4f6ab5dd8bc6b54",
+        "server/tests/reliability-program-worker-resume.browser.ts": "3f7d2a0f0173dcbdab114516d366d77f7adb356648828466101a8e5d1e8467cd"
+      },
+      "latency_ms_sum": 129684,
+      "live_provider_calls": 0,
+      "live_cost_usd": 0,
+      "simulated_cost_usd": null
+    },
+    "intercepted_ui": {
+      "unique": 12,
+      "attempts": 16,
+      "passed": 16,
+      "failed": 0,
+      "selected_cases_three_attempts_each": [
+        "UI-CROSS-TAB-003",
+        "UI-CROSS-TAB-004"
+      ],
+      "definition_version": "frozen_v2_explicit_contract_port",
+      "receipt_manifest": "program-checkpoint-browser-port.json",
+      "layer": "API-intercepted native Chromium; real browser WebLocks/IndexedDB, fake server responses"
+    },
+    "independent_native_reload": {
+      "unique_count_credit": 0,
+      "attempts": 3,
+      "passed": 3,
+      "failed": 0,
+      "disagreement": 0,
+      "receipt_sha256": "77e4a2606519a667e5a56f878248dcebffc31d6c2af7a287b5e0e8f9a5ba3982",
+      "meaning": "Identical frozen ordinary-reload observer; both stores and visible values retained; one intakePOST/success",
+      "historical_baseline": "884 lost bothstores; noPOST; retainedseparately"
+    },
+    "limits": [
+      "normal UI provider/objectstore/mail fake with native Firestore emulator; not full final qualification completion",
+      "internal site_assessment source-admission diagnostics distinct from actual customer brief/coverage/evaluation readers",
+      "120 provisional semantic variants remain unscored by real models; one authorized real-site source and zero current human labels"
+    ],
+    "selected_normal_ui_repeats": {
+      "source_sha256": "c94d8aac950e6dc0616f66b770849b6d1f33218aa78133b6762fb235825db368",
+      "first_attempt": "full22run journeys-20261008T063117822Z",
+      "additional_runs": [
+        {
+          "run_id": "journeys-20261008T063618564Z",
+          "result_sha256": "f5d7f4f4c8dba6aad01758b39473954d3dddc4b7dc86749ba41d71a7af3f5766",
+          "generated": 22,
+          "attempted": 5,
+          "passed": 5,
+          "failed": 0,
+          "unattempted": 17,
+          "latency_ms_sum": 28533,
+          "cases": [
+            "UI-006",
+            "UI-019",
+            "UI-020",
+            "UI-021",
+            "UI-022"
+          ]
+        },
+        {
+          "run_id": "journeys-20261008T063745540Z",
+          "result_sha256": "f6470ff14c61cd29fff136bb604ffa0bb46287daae7a0cadf92e599094716055",
+          "generated": 22,
+          "attempted": 5,
+          "passed": 5,
+          "failed": 0,
+          "unattempted": 17,
+          "latency_ms_sum": 27694,
+          "cases": [
+            "UI-006",
+            "UI-019",
+            "UI-020",
+            "UI-021",
+            "UI-022"
+          ]
+        }
+      ],
+      "distinct_selected_cases": 5,
+      "attempts_per_case": 3,
+      "disagreement": 0,
+      "new_unique_credit": 0,
+      "provider_mode": "fake; native Express/Firestore emulator/browser/worker processes"
+    }
   }
 }
