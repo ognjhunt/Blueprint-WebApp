@@ -247,6 +247,16 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     try {
       result = await sendEmail({ to: entry.to, subject: entry.subject,
         text: message.text, html: message.html, replyTo: entry.replyTo ?? undefined });
+      // Provider adapters cross an untrusted response boundary. A truthy
+      // acceptance without a usable provider receipt is not a completed send.
+      // Keep that possible effect unknown rather than retrying it or allowing
+      // malformed/null output to strand an unobserved dispatch exception.
+      if (!result || typeof result.sent !== "boolean"
+        || (result.sent && (typeof result.provider !== "string" || !result.provider.trim()
+          || typeof result.messageId !== "string" || !result.messageId.trim()))) {
+        result = { sent: false, provider: null, messageId: null,
+          outcome: "unknown", error: new Error("delivery_provider_receipt_invalid") };
+      }
     } catch (error) {
       result = { sent: false, provider: null, messageId: null, error, outcome: "unknown" };
     }
