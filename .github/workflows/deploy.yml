@@ -73,77 +73,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  incident-inspect:
-    name: Read exact incident instance and admission receipts
-    runs-on: ubuntu-latest
-    if: >-
-      github.event_name == 'workflow_dispatch' &&
-      github.event.inputs.incident_inspect == 'true' &&
-      github.repository == 'ognjhunt/Blueprint-WebApp' &&
-      github.event.inputs.ref == 'c4db1d2f61970efda3a226c9715345718a2064f5'
-    steps:
-      # Inline, reviewed code only: no checkout, install, arbitrary endpoint,
-      # credential output or mutation. The existing deploy job is excluded.
-      - name: GET only the two known instance inventories and three admission flags
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-        run: |
-          node --input-type=module <<'NODE'
-          import { mkdirSync, writeFileSync } from 'node:fs';
-          import { createHash } from 'node:crypto';
-          const key = process.env.RENDER_API_KEY;
-          if (!key) throw Error('existing_render_binding_unavailable');
-          const worker = 'srv-d9t8gg1t0dsc73am9q70', web = 'srv-d4vnmk3e5dus73aiohk0';
-          const requests = [
-            ['worker-instances', worker, 'instances'], ['web-instances', web, 'instances'],
-            ['daily-enabled', worker, 'env-vars/BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED'],
-            ['communications-enabled', worker, 'env-vars/BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED'],
-            ['web-ops-enabled', web, 'env-vars/BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB'],
-          ];
-          const directory = `${process.env.RUNNER_TEMP}/communications-incident-inventory`;
-          mkdirSync(directory, { mode: 0o700 });
-          const receipts = [];
-          for (const [name, service, path] of requests) {
-            const url = `https://api.render.com/v1/services/${service}/${path}`;
-            const response = await fetch(url, { method: 'GET', redirect: 'error', signal: AbortSignal.timeout(20000), headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' } });
-            const raw = Buffer.from(await response.arrayBuffer());
-            if (raw.length > 1_000_000 || ![200, 404].includes(response.status)) throw Error('incident_get_unavailable');
-            let body; try { body = JSON.parse(raw); } catch { throw Error('incident_get_json_unavailable'); }
-            const fields = value => value && typeof value === 'object' ? Object.keys(value).slice(0, 16).map(field => /^[a-zA-Z][a-zA-Z0-9_]{0,64}$/.test(field) ? field : 'unrecognized_field') : [];
-            console.log(JSON.stringify({ name, status: response.status, responseKind: Array.isArray(body) ? 'array' : body === null ? 'null' : typeof body,
-              fieldNames: fields(body), firstRowFieldNames: Array.isArray(body) ? fields(body[0]) : [],
-              rawBodySha256: createHash('sha256').update(raw).digest('hex') }));
-            if (path === 'instances') {
-              if (response.status !== 200 || !Array.isArray(body) || body.length > 1000 || body.some(row => !row || typeof row.id !== 'string' || !row.id.startsWith(`${service}-`) || row.id.length > 200 || typeof row.createdAt !== 'string' || !Number.isFinite(Date.parse(row.createdAt))
-                || (row.status !== undefined && (typeof row.status !== 'string' || row.status.length > 64))
-                || (row.ready !== undefined && typeof row.ready !== 'boolean')
-                || Object.keys(row).some(field => !['id', 'createdAt', 'status', 'ready'].includes(field)))) throw Error('instance_response_shape_unverified');
-            } else if (response.status === 200) {
-              if (body?.key !== path.slice('env-vars/'.length) || !['false', 'true', '0', '1'].includes(body.value) || Object.keys(body).some(field => !['key', 'value'].includes(field))) throw Error('fixed_flag_response_shape_unverified');
-            } else {
-              // Keep authenticated absence without retaining arbitrary error bytes.
-              body = null;
-            }
-            const rawBodySha256 = createHash('sha256').update(raw).digest('hex');
-            const receipt = { method: 'GET', url, status: response.status, body, observedAtMs: Date.now(), rawBodySha256,
-              requestId: response.headers.get('render-request-id'), responseDate: response.headers.get('date') };
-            if (response.status === 200) writeFileSync(`${directory}/${name}-body.json`, raw, { mode: 0o600, flag: 'wx' });
-            receipts.push({ name, ...receipt });
-          }
-          const packet = { schema: 'blueprint.render-incident-ci-receipts.v1', incident: 'lap259-20261006', parentThread: '01a0fe81-486b-7714-9e81-983a66bd80c4',
-            sourceCommit: process.env.GITHUB_SHA, workflowRef: process.env.GITHUB_WORKFLOW_REF, runId: process.env.GITHUB_RUN_ID, runAttempt: process.env.GITHUB_RUN_ATTEMPT,
-            authentication: 'existing_repository_render_api_key', readOnly: true, receipts };
-          const bytes = JSON.stringify(packet, null, 2) + '\n';
-          writeFileSync(`${directory}/receipts.json`, bytes, { mode: 0o600, flag: 'wx' });
-          console.log(JSON.stringify({ ok: true, readOnly: true, receiptCount: receipts.length, packetSha256: createHash('sha256').update(bytes).digest('hex') }));
-          NODE
-      - uses: actions/upload-artifact@v4
-        with:
-          name: communications-incident-inventory-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/communications-incident-inventory
-          if-no-files-found: error
-          retention-days: 1
-
   deploy:
     name: Trigger CI-gated Render deploy
     runs-on: ubuntu-latest
@@ -297,6 +226,33 @@ jobs:
 
           node /tmp/outreach-release-holds.mjs before
 
+      - name: Checkout trusted release tooling
+        if: steps.ref.outputs.stale != 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+
+      - name: Capture healthy rollback predecessor
+        if: steps.ref.outputs.stale != 'true'
+        id: predecessor
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
+          ROLLBACK_TARGET_FILE: /tmp/deploy-evidence/rollback-target.json
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          node scripts/release/render-rollback.mjs snapshot
+          previous_sha=$(node -e 'process.stdout.write(JSON.parse(require("node:fs").readFileSync("/tmp/deploy-evidence/rollback-target.json", "utf8")).sha)')
+          green_runs=$(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${previous_sha}&status=completed" --jq '[.workflow_runs[] | select(.conclusion=="success" and .head_branch=="main" and .event=="push")] | length')
+          if [ "${green_runs}" -eq 0 ]; then
+            echo "::error::Healthy predecessor lacks exact main CI proof; refusing release."
+            exit 1
+          fi
+
       - name: Trigger exact-SHA Render deploy through API (fail-closed)
         if: steps.ref.outputs.stale != 'true'
         id: render
@@ -306,8 +262,18 @@ jobs:
           RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
           DEPLOY_REF: ${{ steps.ref.outputs.deploy_ref }}
           CLEAR_CACHE: ${{ github.event.inputs.clear_cache }}
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          if [ "${EVENT_NAME}" != "workflow_dispatch" ]; then
+            main_head=$(gh api "repos/${REPO}/commits/main" --jq .sha)
+            if [ "${DEPLOY_REF}" != "${main_head}" ]; then
+              echo "::error::Main changed after admission; refusing a stale release before mutation."
+              exit 1
+            fi
+          fi
           if [ -z "${RENDER_API_KEY:-}" ]; then
             echo "::error::RENDER_API_KEY secret is not set. Deploys fail closed. See docs/runbooks/ci-gated-deploy-2026-07-16.md."
             exit 1
@@ -405,6 +371,7 @@ jobs:
             fi
             echo "Render accepted ${label} deploy ${TRIGGERED_DEPLOY_ID} for ${DEPLOY_REF}."
           }
+          echo "mutation_started=true" >> "${GITHUB_OUTPUT}"
           trigger_deploy "${RENDER_SERVICE_ID}" web
           web_deploy_id="${TRIGGERED_DEPLOY_ID}"
           trigger_deploy "${RENDER_WORKER_SERVICE_ID}" worker
@@ -414,6 +381,7 @@ jobs:
           echo "API acceptance is NOT deployment success; both exact-SHA deploy records are verified below."
 
       - name: Verify deployment completed at the exact SHA
+        id: verification
         if: steps.ref.outputs.stale != 'true'
         env:
           DEPLOY_REF: ${{ steps.ref.outputs.deploy_ref }}
@@ -517,6 +485,17 @@ jobs:
             echo "::error::GET /health/ready returned ${ready_code}; the deployed commit is live but the service is not launch-ready."
             exit 1
           fi
+
+      - name: Restore healthy predecessor after failed release
+        if: >-
+          failure() && steps.predecessor.outcome == 'success' && steps.render.outputs.mutation_started == 'true' &&
+          (steps.render.outcome == 'failure' || steps.verification.outcome == 'failure')
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_WORKER_SERVICE_ID: ${{ vars.RENDER_WORKER_SERVICE_ID }}
+          ROLLBACK_TARGET_FILE: /tmp/deploy-evidence/rollback-target.json
+        run: node scripts/release/render-rollback.mjs restore
 
       - name: Verify outreach release holds remain off
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_hold == 'true'

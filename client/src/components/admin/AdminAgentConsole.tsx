@@ -318,6 +318,7 @@ export default function AdminAgentConsole() {
   const [startupPackName, setStartupPackName] = useState("");
   const [startupPackDescription, setStartupPackDescription] = useState("");
   const [editingStartupPackId, setEditingStartupPackId] = useState<string | null>(null);
+  const [editingStartupPackVersion, setEditingStartupPackVersion] = useState<number | null>(null);
   const [opsDocumentTitle, setOpsDocumentTitle] = useState("");
   const [opsDocumentSourceFileUri, setOpsDocumentSourceFileUri] = useState("");
   const [openClawSmokeModel, setOpenClawSmokeModel] = useState("");
@@ -573,6 +574,7 @@ export default function AdminAgentConsole() {
             storage_uri: run.storageUri,
           })),
         operatorNotes,
+        ...(editingStartupPackId ? { expectedVersion: editingStartupPackVersion } : {}),
       };
       const response = await fetch(
         editingStartupPackId
@@ -603,6 +605,7 @@ export default function AdminAgentConsole() {
       setStartupPackName("");
       setStartupPackDescription("");
       setEditingStartupPackId(null);
+      setEditingStartupPackVersion(null);
     },
   });
 
@@ -1432,6 +1435,7 @@ export default function AdminAgentConsole() {
                           className="text-xs text-runway-faint underline"
                           onClick={() => {
                             setEditingStartupPackId(pack.id);
+                            setEditingStartupPackVersion(pack.version);
                             setStartupPackName(pack.name);
                             setStartupPackDescription(pack.description || "");
                             setSelectedRepoDocs(pack.repoDocPaths || []);
@@ -1712,6 +1716,7 @@ export default function AdminAgentConsole() {
                       className="runway-cta-ghost ml-2 min-h-0 px-4 py-2 text-sm"
                       onClick={() => {
                         setEditingStartupPackId(null);
+                        setEditingStartupPackVersion(null);
                         setStartupPackName("");
                         setStartupPackDescription("");
                         setSelectedKnowledgePagePaths([]);

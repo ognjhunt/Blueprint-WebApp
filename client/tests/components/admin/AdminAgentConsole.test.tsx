@@ -351,6 +351,31 @@ describe("AdminAgentConsole", () => {
       );
     });
   }, 15000);
+  it("sends the version selected for editing with a prompt update", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    const pack = { id: "pack-1", name: "Test prompt", version: 7, operatorNotes: "Before", repoDocPaths: [], knowledgePagePaths: [], blueprintIds: [], documentIds: [], externalSources: [], creativeContexts: [] };
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input) === "/api/admin/agent/context/options") {
+        const response = await original(input, init);
+        const data = await response.json();
+        return new Response(JSON.stringify({ ...data, startupPacks: [pack] }));
+      }
+      if (String(input) === "/api/admin/agent/startup-packs/pack-1") {
+        return new Response(JSON.stringify({ ok: true, startupPack: { ...pack, version: 8 } }));
+      }
+      return original(input, init);
+    });
+    renderConsole();
+    fireEvent.click(await screen.findByRole("button", { name: /^Edit$/ }));
+    fireEvent.change(screen.getByPlaceholderText("Operator notes for this session"), { target: { value: "After" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Update startup pack$/ }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/admin/agent/startup-packs/pack-1", expect.objectContaining({
+      method: "PATCH", body: expect.stringContaining('"expectedVersion":7'),
+    })));
+    const call = vi.mocked(fetch).mock.calls.find(([url]) => String(url) === "/api/admin/agent/startup-packs/pack-1")!;
+    expect(JSON.parse(String(call[1]?.body)).operatorNotes).toBe("After");
+  });
+
   it("authenticates session creation without starting an inference run", async () => {
     renderConsole();
     await screen.findAllByText(/Ops thread/i);
