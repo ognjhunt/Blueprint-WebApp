@@ -818,5 +818,42 @@
       "state": "pending_or_active;not_used_as_deployment_evidence",
       "core_advisory_release_receipt_is_historical_when_superseded": true
     }
+  },
+  "latest_shared_main_release": {
+    "sha": "dc4db4e00188daa80a82337f2f2d37b05afb56ed",
+    "main_CI": 37791654850,
+    "main_CI_conclusion": "success",
+    "deploy_workflow": 37793873659,
+    "deploy_conclusion": "success",
+    "state": "paired_native_deployment_verified;public_smoke_blocked_by_local_DNS",
+    "render_receipts": [
+      {
+        "role": "web",
+        "deployment_id": "dep-db3ql16gekts73fqsbhg",
+        "status": "live",
+        "sha": "dc4db4e00188daa80a82337f2f2d37b05afb56ed",
+        "finished_at_utc": "2026-10-08T14:39:34.868928Z"
+      },
+      {
+        "role": "worker",
+        "deployment_id": "dep-db3ql17lk1mc73cikg10",
+        "status": "live",
+        "sha": "dc4db4e00188daa80a82337f2f2d37b05afb56ed",
+        "finished_at_utc": "2026-10-08T14:40:15.173562Z"
+      }
+    ],
+    "private_render_receipt_sha256": "fcab4586aa9450c4c457de8f5e35e592c4a8a0f9a98be412963c4e3757387aa2",
+    "public_smoke": {
+      "result_sha256": "e3a86225bef56c023904dc628cd8fd347755465cb1096496cdc84c895b1459f8",
+      "outcome": "blocked",
+      "started_at_utc": "2026-10-08T14:41:47.647Z",
+      "checks_attempted": 3,
+      "checks_passed": 0,
+      "reason": "All three GETs failed before HTTP response. Independent sanitized Node diagnostic returned ENOTFOUND/getaddrinfo; another owner independently reported DNS failure. No serving SHA observed in this attempt.",
+      "intake_mutations": 0,
+      "provider_calls": 0,
+      "notification_sends": 0
+    },
+    "claim_ceiling": "Native web/worker exact-SHA deployment and current-main CI only; earlier5f safe18presentation receipt remains historical. No dc4publicUI/provider/customerassessment proof."
   }
 }

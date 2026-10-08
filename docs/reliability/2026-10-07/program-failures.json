@@ -615,6 +615,16 @@
         "aggregate_is_not_current_approval": true,
         "same_video_hash_does_not_establish_coverage_reuse": true,
         "scope": "Default SDK can take more turns; coverage JSON continuations and retries are separately admitted. New intake also invokes qualification and operator notices. Verify existing-owned normal upload route and exact authorized notification destination; no broad outbox dispatch or configuration change."
+      },
+      "programme_seam": {
+        "state": "scoped_source_repair_in_progress;no_production_authority_or_paid_dispatch",
+        "observed_gap": "Existing capture reservation transaction does not read or consume shared programme held slots. Optional coverage must be deferred before claiming to avoid introducing an unresolved historical attempt.",
+        "repair_scope": "Server-owned optional request programme ref; default-denied existingFirestore record; same-transaction bound held-slot admission with immutable full reservations; default customer behavior unchanged.",
+        "source_and_control_manifest_sha256": "06cdec583bf51739f7fb81e8cfcb5216db216bbe7e91b8fee1b68283539fbd6a",
+        "original_prefix_usd": 3.146304,
+        "conditional_with_one_new_Gemini_slot_usd": 4.964928,
+        "conditional_headroom_usd": 0.035072,
+        "conditions": "Reuse up to3existingheldSol slots without double count; retain oldGemunknown; one newGem slot needs explicit amendment. Accounting feasibility is not paid permission or a completion guarantee."
       }
     },
     {
@@ -625,17 +635,20 @@
       "normal_route_owner_preflight": {
         "reported_by": "existing_authorized_dishwasher_owner",
         "actual_read_layer": "FirebaseAuth_and_UID_filtered_Firestore_GET_with_existing_ADC;no_customer_status_GET",
-        "state": "current_owned_dishwasher_task_not_established;legitimate_normal_claim_route_needed",
+        "state": "contact_and_current_terms_verified;normal_owner_link_and_claim_action_pending",
         "verified_account_enabled": true,
         "historical_dishwasher_account_owner_binding": "absent",
         "other_owned_records_not_reused": true,
-        "contact_email_match": "not_established_locally;existing_web_runtime_can_verify_encrypted_contact",
+        "contact_email_match": "verified_with_existing_KMS_envelope_and_in_place_ADC;no_keyexport_or_newgrant",
         "rights_clearance_proven": false,
         "private_claim_receipt_sha256": "9dc611757f3d1fd4cd489063e8ea614bb61ea7579a3520585fe22c5b7fa44e15",
         "production_writes": 0,
         "provider_calls": 0,
         "notification_sends": 0,
-        "claim_route_requirements": "Existing valid token, verified matching contact email and accepted terms; no token mint/direct owner assignment or credential transfer performed."
+        "claim_route_requirements": "Existing valid token, verified matching contact email and accepted terms; no token mint/direct owner assignment or credential transfer performed.",
+        "current_case_terms_recognized": true,
+        "new_terms_acceptance_required_for_existing_claim": false,
+        "latest_evidence": "Authorized existing owner reports actual contact match and canonical current Terms recognized by backend/UI. Prior9dc611receipt remains historical; updated safe receipt pending. No owner binding write performed."
       }
     },
     {
