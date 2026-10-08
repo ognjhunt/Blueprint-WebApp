@@ -38,8 +38,6 @@ export function WarehousePilotSequence() {
         <section id="warehouse-task" aria-labelledby="warehouse-task-title">
           <p className="ms-eyebrow">Warehouse walkthrough</p>
           <h2 id="warehouse-task-title">One task, from phone video to a pilot.</h2>
-          <p>A worker moves blue cases from a supply tote into a three-pocket tray. Here is how that job becomes a robot evaluation and an on-site trial.</p>
-          <p className="ms-pilot-caption">Illustrative warehouse pilot: from task capture to on-site testing.</p>
           <p className="ms-pilot-disclosure">These images illustrate the process. The robot configurations, policy labels and outcomes are examples, not measured customer results.</p>
           <dl className="ms-pilot-task">
             <div><dt>Task</dt><dd>Pick a case from the tote and place it in an empty tray pocket.</dd></div>

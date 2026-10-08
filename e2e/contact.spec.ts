@@ -44,7 +44,7 @@ test("phone: the first task field is on the first screen and the explanation sta
   await page.screenshot({ path: "/tmp/onboarding-p2-site-phone.png", fullPage: true });
 });
 
-test("capture takes the country from the address, asks only when it cannot, and keeps consent explicit", async ({ page }) => {
+test("capture takes the country from the address and asks only when it cannot", async ({ page }) => {
   const submissions: any[] = [];
   await page.route("**/api/inbound-request", route => {
     submissions.push(route.request().postDataJSON());
@@ -55,7 +55,6 @@ test("capture takes the country from the address, asks only when it cannot, and 
   await page.locator("#start-location").fill("Berlin");
   await page.locator("#start-email").fill("owner@example.test");
   await page.locator("#start-company").fill("Acme Foods");
-  await page.locator("#start-rights").check();
   // A city alone does not name its country, so Start asks for it in the address.
   await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await expect(page.getByText(/Add the country to the address/)).toBeVisible();
@@ -65,7 +64,7 @@ test("capture takes the country from the address, asks only when it cannot, and 
   await page.locator("#start-location").fill("Berlin, Germany");
   await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await expect.poll(() => submissions.length).toBe(1);
-  expect(submissions[0]).toMatchObject({ buyerType: "site_operator", captureRegion: "non_us", siteTaskGates: {}, consentAttestation: { granted: true, statementVersion: "2026-09-18.v1" } });
+  expect(submissions[0]).toMatchObject({ buyerType: "site_operator", captureRegion: "non_us", siteTaskGates: {}, consentAttestation: null });
   await expect(page.getByText(/We are not sending a camera link yet/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
 });

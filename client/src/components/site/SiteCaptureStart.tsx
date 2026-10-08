@@ -695,7 +695,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       {state.status === "failed" && pending && <p role="alert">{state.message}</p>}
       {recoveryUnavailable && <p role="status" className="ms-field-hint">Saved recovery details expired or could not be read. Use your emailed private job link to return, or clear this browser's draft to start again.</p>}
       {!storageAvailable && <p role="status" className="ms-field-hint">This browser cannot safely save or coordinate recovery details. Use a supported browser with local storage enabled, or email hello@tryblueprint.io for help starting your job. If your job is already saved, use its private link to return.</p>}
-      <p className="ms-field-hint">You can recover this draft here for up to seven days. On a shared device, clear this browser's draft when finished.</p>
       <ClearDraftControl status={clearStatus} onClear={forgetDraft} disabled={state.status === "working"} />
       <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} className="contents">
       <label htmlFor="start-task">
@@ -803,11 +802,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
         <label htmlFor="start-location">
           <span>Where would the robot do this task?</span>
-          <span className="ms-field-hint">
-            {selfRecording || hasFootage
-              ? "A city is enough to start. We ask for the street address before anyone visits."
-              : "We are sending someone to film it, so we need the street address."}
-          </span>
+          {!(selfRecording || hasFootage) && (
+            <span className="ms-field-hint">We are sending someone to film it, so we need the street address.</span>
+          )}
           <LocationAutocomplete
             id="start-location"
             name="startLocation"
@@ -848,7 +845,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       </label>
 
       <label htmlFor="start-company">
-        <span>Site or company</span>
+        <span>Company</span>
         <input id="start-company" name="startCompany" type="text" defaultValue={recovery.current.draft.company} required autoComplete="organization" maxLength={200} />
       </label>
 
@@ -869,15 +866,15 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
         />
       </div>
 
-      {/* Rights belong where a video is: required with an upload, optional
-          when the site films later (it can confirm then, from the task link). */}
-      {rightsShown && (
+      {/* Rights are asked only where footage is uploaded now: the upload cannot
+          go ahead without them. Otherwise the site confirms later, from the task link. */}
+      {footageWanted && (
         <label htmlFor="start-rights" className="ms-check-row" style={{ alignItems: "flex-start" }}>
           <input
             id="start-rights"
             name="startRights"
             type="checkbox"
-            required={footageWanted}
+            required
             checked={consent}
             onChange={(event) => setConsent(event.target.checked)}
             style={{ marginTop: "4px" }}
@@ -886,7 +883,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
             I am authorized to record this site and to let Blueprint use the recording to build a
             scene robot teams can evaluate against. Robot teams never receive the original video.{" "}
             <a href={PRIVACY_URL}>How we handle footage</a>.
-            {!footageWanted && <span className="ms-field-hint"> Optional now. You can confirm it later from your task link.</span>}
           </span>
         </label>
       )}

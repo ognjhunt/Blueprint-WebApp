@@ -56,12 +56,18 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 it("RETURN-001: restores the draft after remount and leaves recording consent unchecked", async () => {
-  const view = await renderReady(<SiteCaptureStart />); fill(); fireEvent.click(document.querySelector("#start-rights")!);
+  const view = await renderReady(<SiteCaptureStart />); fill(); fireEvent.click(document.querySelector("#start-method-upload")!); fireEvent.click(document.querySelector("#start-rights")!);
   view.unmount(); await renderReady(<SiteCaptureStart />);
   expect(document.querySelector("#start-task")).toHaveValue("Move sealed cartons");
   expect(document.querySelector("#start-location")).toHaveValue("Austin, TX");
   expect(document.querySelector("#start-email")).toHaveValue("operator@example.test");
   expect(document.querySelector("#start-rights")).not.toBeChecked();
+});
+it("RETURN-001b: a phone capture restores without any recording checkbox", async () => {
+  const view = await renderReady(<SiteCaptureStart />); fill();
+  view.unmount(); await renderReady(<SiteCaptureStart />);
+  expect(document.querySelector("#start-task")).toHaveValue("Move sealed cartons");
+  expect(document.querySelector("#start-rights")).toBeNull();
 });
 it("RETURN-002: recovers a lost intake response across remount without another identity", async () => {
   const view = await renderReady(<SiteCaptureStart />); fill(); submit();
@@ -73,10 +79,11 @@ it("RETURN-002: recovers a lost intake response across remount without another i
   expect(sent[1].body).toEqual(original);
 });
 it("RETURN-003: account changes discard mounted anonymous fields and retry authority", async () => {
-  const view = await renderReady(<SiteCaptureStart />); fill();
+  const view = await renderReady(<SiteCaptureStart />); fill(); fireEvent.click(document.querySelector("#start-method-upload")!); fireEvent.click(document.querySelector("#start-rights")!);
   identity.user = {uid: "other-account", email: "other@example.test", getIdToken: async () => "fixture"};
   await act(async () => { view.rerender(<SiteCaptureStart />); });
   expect(document.querySelector("#start-task")).toHaveValue("");
+  fireEvent.click(document.querySelector("#start-method-upload")!);
   expect(document.querySelector("#start-rights")).not.toBeChecked();
 });
 it("RETURN-004: an acknowledged upload recovers without requiring lost File bytes or uploading again", async () => {
