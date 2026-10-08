@@ -3315,3 +3315,18 @@ unclassified even if the new head passes; local Node20.17 success does not
 establish parity with CI Node20.20.2/x64. Head-bound final local checks and
 required native CI remain separate from this source clearance. No reviewer
 rerun, provider call or production mutation occurred.
+
+Final head-bound receipt
+`5a22d91ff3f81a3674b788879c54e20ef12173d1ba9ab4356d1c61e3b9d276fc`
+and preservation index
+`da90bbf05af859f6a6c3e57ea82c7d8a201954871aa9aaad308e0427af632e1d`
+were independently matched: three committed source blobs, eight receipt-linked
+files and all64 preserved artifacts. Both native failure logs retain their
+120-second hook boundary. The final merged existing journey passes once on
+Node22.21.1; typecheck, Graphify, static portability and diff checks terminate
+zero. The broader local20.17 run retains its require-ESM suite setup failure
+(exit1); its target success is not a full-suite pass or CI parity. Fresh native
+GitHub read confirms exact6e1b0392 and run37856019518: five checks SUCCESS,
+check/rules/test IN_PROGRESS, E2E SKIPPED at this snapshot. Source clearance
+stands; protected completion, merged/deployed identity and customer outcome
+remain separate, and the earlier timeout cause remains unresolved.
