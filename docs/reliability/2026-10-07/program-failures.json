@@ -371,7 +371,7 @@
       "semanticCaseHash": "414589b1f854d99d33dbfafbdcbffe4ad870d074f51ea69938f1024ea666f0de",
       "baselineResult": "actual SDK Runner scripted packet admitted; synthetic source disproves claim",
       "violatedClaim": "Observed completed bin stacking cites only bin-to-table movement; task completion not observable and owner/spec stacking absent.",
-      "releaseStatus": "OPEN_on_current_d217;candidate_codecomplete_reviewed_PR943_requiredCI_pending",
+      "releaseStatus": "candidate_reviewed_and_merged_8c6f020e;deployment_pending_current_d217",
       "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
       "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations.",
       "currentBaselineReconfirmation": {
@@ -386,7 +386,8 @@
       "candidateCommit": "a49db1fbdda580a4b29bc90adf47f065f3cdf8ec",
       "candidateSourceSha256": "5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c",
       "candidateRetest": "Originalraw/source/semantic hashes preserved; publishedfalsefact becomesunknown/recovery; selected-source positiveSDK case3freshprocesses; no natural-model/video truth claim",
-      "independentReview": "1980443a exacta49 scopedpublicationboundary approved"
+      "independentReview": "1980443a exacta49 scopedpublicationboundary approved",
+      "mergedSHA": "8c6f020ea75eccd4530b1cb8dde478fe6482b4be"
     },
     {
       "id": "ASSESS-FIELD-ENTAILMENT-001",
@@ -399,7 +400,7 @@
       "semanticCaseHash": "34d08adecdc8b5d74282d5230f758915ee909622ed9c1b3b6b0d4382c3bcff42",
       "baselineResult": "actual SDK Runner scripted packet admitted; synthetic source disproves claim",
       "violatedClaim": "Known published50m reach cites registry reachM:1 whose field provenance is otherwise qualified.",
-      "releaseStatus": "OPEN_on_current_d217;candidate_codecomplete_reviewed_PR943_requiredCI_pending",
+      "releaseStatus": "candidate_reviewed_and_merged_8c6f020e;deployment_pending_current_d217",
       "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
       "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations.",
       "currentBaselineReconfirmation": {
@@ -414,7 +415,8 @@
       "candidateCommit": "a49db1fbdda580a4b29bc90adf47f065f3cdf8ec",
       "candidateSourceSha256": "5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c",
       "candidateRetest": "Originalraw/source/semantic hashes preserved; publishedfalsefact becomesunknown/recovery; selected-source positiveSDK case3freshprocesses; no natural-model/video truth claim",
-      "independentReview": "1980443a exacta49 scopedpublicationboundary approved"
+      "independentReview": "1980443a exacta49 scopedpublicationboundary approved",
+      "mergedSHA": "8c6f020ea75eccd4530b1cb8dde478fe6482b4be"
     },
     {
       "id": "WEBSITE-OWNER-TARGET-PREPARATION-001",
@@ -476,6 +478,19 @@
       "independentReview": "e359506c_exacta980; same7failures\u219215placements+neighborspass",
       "deployedSHA": "d21721d94aad50c0314d2e10875c3b022841c689",
       "postDeployEvidence": "program-release.json assessment_claim_placement_followup; rootreceipt48c18596713035bdec5605278c93e4439605e3db83094b7d64f9634ed466823c"
+    },
+    {
+      "id": "INTAKE-CLEAR-RELOAD-CI-001",
+      "severity": "unclassified_pending_customer_impact_and_reproduction",
+      "owner": "intake_recovery; independent_review; coordinator",
+      "invariant": "A clear/recovery acknowledgment must reflect durable draft/authority state across supportedreloads",
+      "baselineRevision": "8c6f020ea75eccd4530b1cb8dde478fe6482b4be",
+      "minimizedReproducer": "ExistingfrozenUI-RETURN-002: close/returnretainsdraft thenClear+immediatereloadshouldleaveemptytask",
+      "baselineEvidence": "CurrentmainCI37766871316 e2e113276689429 failed12secassertion; exactsamePRcontexts earlierpassed",
+      "rootCause": "unknown_under_active_async_retirement_acknowledgment_diagnosis",
+      "releaseStatus": "OPEN_current_requiredCI_blocks_affected_release; no luckyretry",
+      "new_case_credit": 0,
+      "scope_limit": "No production fault or customer mutation; local UI/IndexedDB persistence suspected, not yet independently reproduced"
     }
   ],
   "dependencies": [

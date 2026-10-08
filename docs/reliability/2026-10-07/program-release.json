@@ -445,7 +445,7 @@
     "runtime_source_sha256": "5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c",
     "contract": "site_assessment.v2; legacyunverified; originalmodelpacketretainedprivate",
     "scope": "Selected-source factual rendering and explicitunverified/advisory recovery; notNLP/perception/feasibility truth",
-    "state": "code_complete_independently_reviewed_requiredCI_in_progress_not_merged_or_deployed",
+    "state": "merged_code_complete_deployment_blocked_by_current_required_CI_under_active_repair",
     "independent_review_commit": "1980443a",
     "reviewer_manifest_sha256": "fc5cbb02d4f0a0b313af59c0168c4711bcf7acd01511c52db36cb9f3f0cbaeb1",
     "independent_checks": "65focused+4neighbors;matchedtwoP1originalinputs/source/scriptedoutputs;positiveSDKreceiptsmatch3freshprocesses;17serializedstrictobjects",
@@ -453,6 +453,22 @@
     "new_unique_or_accuracy_sample_credit": 0,
     "required_PR_CI_run": 37765780084,
     "privacy": "existingprivateartifact/adminaccess; noDBmigration/customerproviderdispatch/email/storagechange",
-    "replay_doc": "docs/reliability/2026-10-07/assessment-evidence-binding.md"
+    "replay_doc": "docs/reliability/2026-10-07/assessment-evidence-binding.md",
+    "merged_sha": "8c6f020ea75eccd4530b1cb8dde478fe6482b4be",
+    "merged_at_utc": "2026-10-08T10:57:15Z",
+    "required_PR_CI_state": "success_all9_executed_contexts;deployment_admission_observer_expected_PR_skip",
+    "required_main_CI_run": 37766871316,
+    "required_main_CI_state": "completed_failure;8executedcontexts_success,e2e_failure,deployment_observer_skipped",
+    "current_main_failure": {
+      "run": 37766871316,
+      "job": 113276689429,
+      "step": "Verify scoped intake recovery and cross-tab authority",
+      "case": "UI-RETURN-002",
+      "assertion": "Immediately after Clear this browser draft and reload, expectedemptytask butprevioussyntheticdraft returned",
+      "retained_log_sha256": "4bb96f1f984a3205019c242145e04ba36bb8c14682e414bec7b6edd3a5b740d3",
+      "owner": "intake_recovery; coordinator; independent_review",
+      "rerun_or_bypass": false,
+      "status": "reproducing_original_case_before_scoped_repair"
+    }
   }
 }

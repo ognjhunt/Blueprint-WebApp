@@ -304,5 +304,20 @@
     "provider_calls": 0,
     "owner": "Pipeline Astra/scene-configuration under coordinator",
     "independent_review_commit": "997a03aa"
+  },
+  "outer_worker_continuation": {
+    "manifest_sha256": "2df64a2b99411d3dfa945d696d6be4d429344972e9f60b42babe30db734f57cc",
+    "source_commit": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+    "retained_states": 2,
+    "new_case_or_full_journey_credit": 0,
+    "actual_transition": "pending -> processing -> blocked",
+    "checkpoint_state": "1/2persisted;3absent",
+    "result": "immutableblockedresult/exactenvelope;secondsame-processpollidle/noreexecutor",
+    "execution_layer": "realfilesystemqueueworker andactualCPU/nocostcomponent at injectedexecutor/producer seam",
+    "provider_and_publisher_calls": 0,
+    "customer_status_proven": false,
+    "canonical_allocator_OS_restart_native_publication_proven": false,
+    "no_runtime_repair_needed": "missingauthoredartifactisdependency, no falsecompletedrecord observed",
+    "independent_review": "794fa286 approved boundedtransition; notcustomerresult"
   }
 }
