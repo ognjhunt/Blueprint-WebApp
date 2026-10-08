@@ -965,11 +965,11 @@
   "replay": "npx vitest run server/tests/reliability-program-transport-status.test.ts --maxWorkers=1",
   "sourceHashes": {
     "server/utils/captureParts.ts": "b61144375a5c184ccb926fc2325325741f455c6228e12cefe95f718465e41120",
-    "server/routes/self-capture-uploads.ts": "af6a0c9981c362f706270c7a7d6ccaab038e9e29b9046177d96abd8d63440d52",
+    "server/routes/self-capture-uploads.ts": "3a16b1ae43546d9c04149687fbebc6f1e563c51a01074bd04cd4ef283eb268d5",
     "server/utils/websiteBrowserUploadStatus.ts": "7abd380d7709b8159fb8f02485281fd1c10a886857470cebb2e24f9bb5f88d8a",
     "server/utils/websiteBrowserPending.ts": "34352f9c72b16be77bbdda2122543f448ff7f49926dae9694095560a5621b9eb",
     "server/tests/helpers/reliability-transport-status-cases.ts": "9a7545d55a10b854360c6de967555d372d8b0f63ced7fd016c8c131eb2760aa0",
-    "server/tests/reliability-program-transport-status.test.ts": "41a3e02a15ff05c9569cffe0abc488682556829ebab7eb77fa7e258c2247bab2"
+    "server/tests/reliability-program-transport-status.test.ts": "745e511377b9bda82fd777f745bbc5c66ca10b868da7803c3961a44af338108c"
   },
   "limitation": "Actual business functions with in-memory object/Firebase fakes; no live provider, network interruption, video decoding, browser termination or production latency proof.",
   "liveProviderCalls": 0,
@@ -1009,10 +1009,11 @@
     }
   },
   "repeats": {
-    "candidateRuns": 3,
+    "candidateRuns": 4,
     "casesPerRun": 60,
     "extraIndependentCasesFromRepeats": 0,
-    "disagreement": 0
+    "disagreement": 0,
+    "note": "First three integrity runs plus fourth62-check review-copy retest; no added semantic credit."
   },
   "neighborChecks": {
     "passed": 138,
@@ -1034,7 +1035,7 @@
         "RTS-upload_transport-e962976f2cd2"
       ],
       "minimizedReplay": "npx vitest run server/tests/reliability-program-transport-status.test.ts --maxWorkers=1 -t RTS-upload_transport-29181743445d",
-      "repair": "Create-only part save. A412 retries only identical generation-pinned bytes; changed bytes/current-generation race rejects without overwriting. Actual route returns409 fixed conflict code and original-video next step.",
+      "repair": "Create-only part save. A412 retries only identical generation-pinned bytes; changed bytes/current-generation race rejects without overwriting. Actual route returns409 fixed conflict code and original-video next step. Existing support address and job-link fallback covers customers without a retained local recording.",
       "retainedCounterexamples": [
         {
           "caseId": "RTS-upload_transport-29181743445d",
@@ -1100,5 +1101,10 @@
     }
   ],
   "rawEvidence": "output/reliability-program/transport-status/ (ignored local files; replayable without credentials)",
-  "sourceHashPolicy": "HEAD plus exact tested runtime/helper/runner SHA256; uncommitted tested source is identified by sourceHashes."
+  "sourceHashPolicy": "HEAD plus exact tested runtime/helper/runner SHA256; uncommitted tested source is identified by sourceHashes.",
+  "reviewCorrection": {
+    "severity": "P2",
+    "reason": "MediaRecorder409 stops retry; an original-video-only suggestion does not help a lost local recording.",
+    "resolution": "Existing support/job-link fallback added; actual route callback regression passed."
+  }
 }
