@@ -110,11 +110,11 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(h.api.run).toHaveBeenCalledOnce();
     const [{ input, checkpoint, feedback }] = h.seen;
     expect(input.firstTouchPolicy).toContain(COMMUNICATIONS_FOUNDER_GUIDANCE);
-    expect(input.firstTouchPolicy).toContain("free-beta-task-assessment-v2");
+    expect(input.firstTouchPolicy).toContain("recipient-aware-writing-v3");
     expect(input.researchBrief.qualification.openQuestions).toEqual(h.brief.qualification!.openQuestions);
     expect(checkpoint.draftProfile).toBe(COMMUNICATIONS_HYPOTHESIS_PROFILE);
     expect(checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_VERSION);
-    expect(input.firstTouchFraming).toEqual({ ...communicationsLaunchFraming(h.brief), question: "Is there a repetitive job you would like assessed?", questionIsSuggestion: true });
+    expect(input.firstTouchFraming).toEqual({ ...communicationsLaunchFraming(h.brief), question: undefined, questionIsSuggestion: true });
     expect(feedback).toBeNull();
     const ledger = h.f.db.records.get(`action_ledger/${result.ledgerId}`);
     expect(ledger).toMatchObject({ status: "pending_approval", action_tier: 3, approved_by: null, sent_at: null,
@@ -207,7 +207,7 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(outcome).toMatchObject({ state: "pending_approval" });
     const [{ input, checkpoint }] = h.seen;
     expect(input.firstTouchPolicy).toContain(COMMUNICATIONS_FOUNDER_GUIDANCE);
-    expect(input.firstTouchPolicy).toContain("free-beta-task-assessment-v2");
+    expect(input.firstTouchPolicy).toContain("recipient-aware-writing-v3");
     expect(input.researchBrief).not.toHaveProperty("qualification");
     expect(checkpoint).not.toHaveProperty("draftProfile");
     const ledger = h.f.db.records.get(`action_ledger/communications_${h.verifiedJob.jobId}`);

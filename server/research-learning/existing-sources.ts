@@ -1,3 +1,4 @@
+import { communicationsWritingVariant } from "../agents/communications-outreach-quality";
 import { readQueryPages } from "./query-pages";
 import {
   communicationsBriefSchema, communicationsJobSchema, communicationsDigest,
@@ -137,7 +138,8 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
                 interpretationOnly: true, grantsAuthority: false, jobId: job.jobId, briefId: job.briefId, briefDigest: job.briefDigest,
                 jobState: saved.state ?? "unknown", approvalStatus: ledger.status ?? "unknown",
                 sessionId: saved.checkpoint?.sessionId ?? null, turnId: saved.checkpoint?.turnId ?? null,
-                disposition: envelope.output.disposition, reason: envelope.output.reason, usedFactIds: envelope.output.usedFactIds,
+                disposition: envelope.output.disposition, reason: envelope.output.reason,
+                ...(communicationsWritingVariant(envelope.output) ? { writingVariant: communicationsWritingVariant(envelope.output) } : {}), usedFactIds: envelope.output.usedFactIds,
                 refreshFactIds: envelope.output.refreshFactIds, sourceChecksRefreshed: false,
                 sources: [{ recordRef: jobRef, sourceHash: communicationsDigest(saved) }, { recordRef: ledgerRef, sourceHash: communicationsDigest(ledger) }] } });
           } catch { quarantine.push({ recordRef: ledgerRef, reason: "draft_interpretation_invalid_reconcile_exact_job_output_and_ledger" }); }
@@ -165,7 +167,8 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
                 payloadDigest: receipt.payloadDigest, approvalLedgerId: receipt.approvalLedgerId,
                 // Copy controls use the approved pre-footer copy. Full payload
                 // and receipt hashes still retain recipient-specific transport evidence.
-                messageDigest: communicationsDigest({ subject: envelope.output.subject, body: envelope.output.body }), messageVariant: null,
+                messageDigest: communicationsDigest({ subject: envelope.output.subject, body: envelope.output.body }),
+                messageVariant: status === "accepted" ? communicationsWritingVariant(envelope.output)?.variantId ?? null : null,
                 messageId: receipt.receipt?.messageId ?? null, threadId: receipt.receipt?.threadId ?? null,
                 status, campaignId: null, timingWindow: null },
               evidence: [{ sourceSystem: "firestore", recordRef: ref, sourceHash: communicationsDigest(receipt), checkedAt: at,
@@ -208,7 +211,8 @@ export function normalizeExistingSources(sources: ExistingProspectSources[], rec
               : communicationsDigest({ founderSentSubjectSha256: observation.sent.subjectSha256, founderSentBodySha256: observation.sent.bodySha256 });
             events.push(makeEvent({ ...common, writer: "communications_adapter", kind: "outreach_observed", occurredAt: observation.sent.sentAt,
               data: { jobId: job.jobId, outreachVersion: "blueprint.outreach.v1", intent: job.intent,
-                payloadDigest: observation.payloadDigest, approvalLedgerId: null, messageDigest, messageVariant: null,
+                payloadDigest: observation.payloadDigest, approvalLedgerId: null, messageDigest,
+                messageVariant: exactDraft && envelope?.success ? communicationsWritingVariant(envelope.data.output)?.variantId ?? null : null,
                 messageId: observation.sent.gmailMessageId, threadId: observation.sent.threadId,
                 status: "founder_sent", campaignId: null, timingWindow: null },
               evidence: [{ sourceSystem: "firestore", recordRef: ref, sourceHash: communicationsDigest(bundle.founderSend),
