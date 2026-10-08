@@ -26,8 +26,11 @@ globalThis.fetch = (async(input:any, options?:RequestInit) => {
  if (!["127.0.0.1","localhost"].includes(url.hostname)) throw new Error("External dispatch prohibited");
  return originalFetch(input,{...options,redirect:"error"});
 }) as typeof fetch;
-const {dbAdmin:db} = await import("../../client/src/lib/firebaseAdmin");
-if(!db)throw new Error("Emulator db unavailable");
+const firebaseModule = await import(new URL("../../client/src/lib/firebaseAdmin.ts",import.meta.url).href);
+// tsx interop can unwrap an ESM default marked __esModule (Firebase SDK).
+// Its initialized default app still owns the exact same Firestore instance.
+const db = firebaseModule.dbAdmin ?? (firebaseModule as any).firestore?.();
+if(!db || db.projectId !== project)throw new Error("Emulator db unavailable or namespace changed");
 const originalTransaction=db.runTransaction.bind(db);
 let injected=false;
 (db as any).runTransaction=async(callback:any,...args:any[])=>{
@@ -36,7 +39,7 @@ let injected=false;
  if(!injected && ((mode==="crash-after-claim" && marker==="claimed") || (mode==="crash-after-dispatch" && marker==="dispatching"))){injected=true;process.exit(73);}
  return result;
 };
-const {deliverOutbox}=await import("../../server/utils/captureOutbox");
+const {deliverOutbox}=await import(new URL("../../server/utils/captureOutbox.ts",import.meta.url).href);
 try {
  const summary=await deliverOutbox({limit:100});
  const snapshot=await db.collection("captureOutbox").doc(`${requestId}:task_received`).get();

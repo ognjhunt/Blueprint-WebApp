@@ -1,5 +1,6 @@
 /** 20 joined HTTP-intake -> persisted outbox -> separate-process worker traces. */
 import assert from 'node:assert/strict';
+import {request as httpRequest} from 'node:http';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -19,14 +20,24 @@ const codeSha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}
 const traces=[];
 function worker(requestId,mode){return new Promise((resolve,reject)=>{const child=spawn(process.execPath,['--import','tsx',path.join(root,'scripts/qa/reliability-queue-worker.ts')],{cwd:root,env:{...env,RELIABILITY_WORKER_MODE:mode,RELIABILITY_REQUEST_ID:requestId,RELIABILITY_SINK_FILE:sink},stdio:['ignore','pipe','pipe']});let stdout='',stderr='';child.stdout.on('data',chunk=>stdout+=chunk);child.stderr.on('data',chunk=>stderr+=chunk);const timer=setTimeout(()=>{child.kill('SIGTERM');reject(new Error('Bounded local worker timed out'));},60000);child.on('error',reject);child.on('close',code=>{clearTimeout(timer);resolve({mode,exitCode:code,stdout,stderr});});});}
 const calls=id=>readFileSync(sink,'utf8').split('\n').filter(Boolean).map(line=>JSON.parse(line)).filter(row=>row.requestId===id).length;
-async function post(body){const csrf=await fetch(`${url}/api/csrf`,{redirect:"error"});const token=(await csrf.json()).csrfToken;const cookie=csrf.headers.get('set-cookie')?.split(';')[0];return fetch(`${url}/api/inbound-request`,{method:'POST',redirect:'error',headers:{'Content-Type':'application/json','x-csrf-token':token,...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)});}
+async function post(body){
+ const csrf=await fetch(`${url}/api/csrf`,{redirect:'error'});const token=(await csrf.json()).csrfToken;const cookie=csrf.headers.get('set-cookie')?.split(';')[0];
+ const encoded=JSON.stringify(body);
+ // Distinct ordinary test actors connect from real loopback peer addresses.
+ // The production rate limiter remains active; no forged forwarding header.
+ return new Promise((resolve,reject)=>{const req=httpRequest(`${url}/api/inbound-request`,{method:'POST',localAddress:`127.0.0.${101+traces.length}`,headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(encoded),'x-csrf-token':token,...(cookie?{Cookie:cookie}:{})}},res=>{const chunks=[];res.on('data',chunk=>chunks.push(chunk));res.on('end',()=>{let payload={};try{payload=JSON.parse(Buffer.concat(chunks).toString());}catch{}resolve({status:res.statusCode,diagnostic:{ok:payload.ok,message:payload.message,error:payload.error,requestIdPresent:Boolean(payload.requestId)}});});});req.on('error',reject);req.end(encoded);});
+}
 const scenarios=['happy','rejected-recovery','unknown-quarantine','crash-after-claim','crash-after-dispatch','crash-after-acceptance','concurrent-workers','retired-notice','changed-message','ack-write-failure'];
 for(const scenario of scenarios)for(const producerMode of ['single-submit','duplicate-submit']){
  const requestId=`b-emulator-${runId}-${scenario}-${producerMode}`;const caseId=`B-journey-${scenario}-${producerMode}`;const start=performance.now();const trace={caseId,runId,requestId,codeSha,scenario,producerMode,layer:'actual Express intake / real Firestore emulator / separate worker processes',providerMode:'fake Resend SDK HTTP sink',status:'partial',steps:[]};
  try{
+ // Preserve prior failed synthetic records but close their notification intents
+ // so a new independently scoped replay cannot consume another case's row.
+ const abandoned=await db.collection('captureOutbox').where('status','in',['pending','claimed','dispatching']).get();
+ for(const doc of abandoned.docs)if(doc.id.startsWith('b-emulator-') && doc.id!==`${requestId}:task_received`)await doc.ref.set({status:'cancelled',lastError:'synthetic_replay_scope_closed'},{merge:true});
  const body={requestId,retryToken:createHash('sha256').update(requestId).digest('hex'),firstName:'Synthetic',lastName:'Owner',email:`${requestId}@example.invalid`,company:'Owned synthetic fixture',roleTitle:'Site operator',buyerType:'site_operator',accountSignup:false,budgetBucket:'Undecided/Unsure',requestedLanes:[],siteName:'Owned synthetic site',siteLocation:'Austin, TX',taskStatement:'Move cartons onto a pallet',taskDescription:'Move cartons onto a pallet',siteTaskGates:{},siteTaskSpec:{},captureMode:'self_capture',captureRegion:'us',consentAttestation:{granted:true,statementVersion:'2026-09-18.v1'},context:{sourcePageUrl:`${url}/sites`}};
- const response=await post(body);trace.steps.push({kind:'normal intake HTTP',status:response.status});assert.equal(response.status,201);
- if(producerMode==='duplicate-submit'){const duplicate=await post(body);trace.steps.push({kind:'same retry identity HTTP',status:duplicate.status});assert.equal(duplicate.status,200);}
+ const response=await post(body);trace.steps.push({kind:'normal intake HTTP',status:response.status,diagnostic:response.diagnostic});assert.equal(response.status,201);
+ if(producerMode==='duplicate-submit'){const duplicate=await post(body);trace.steps.push({kind:'same retry identity HTTP',status:duplicate.status,diagnostic:duplicate.diagnostic});assert.equal(duplicate.status,200);}
  const ref=db.collection('captureOutbox').doc(`${requestId}:task_received`);assert.equal((await db.collection('inboundRequests').doc(requestId).get()).exists,true);assert.equal((await ref.get()).data()?.status,'pending');trace.steps.push({kind:'durable intake and notification intent confirmed'});
  if(scenario==='retired-notice')await ref.set({kind:'progress_update'},{merge:true});
  const firstMode=scenario==='rejected-recovery'?'rejected':scenario==='unknown-quarantine'?'unknown':scenario==='happy'||scenario==='concurrent-workers'||scenario==='retired-notice'?'accepted':scenario;
