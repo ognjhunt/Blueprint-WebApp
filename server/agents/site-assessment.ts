@@ -328,6 +328,12 @@ export function validateAssessmentEvidence(assessment: SiteAssessment, sources: 
     Object.values(value).forEach(inspect);
   };
   inspect(assessment);
+  for (const approach of assessment.approaches) {
+    // Unknown capability or an empty search cannot establish impossibility.
+    // Sourced estimates remain allowed; this does not prove prose entailment.
+    if (approach.disposition === "excluded" && !approach.reasons.some(reason =>
+      reason.basis !== "unknown" && reason.evidence.length > 0)) throw new Error("assessment_exclusion_evidence_required");
+  }
 }
 
 /** Existing workflow host persists this portable packet and presents any questions. */
