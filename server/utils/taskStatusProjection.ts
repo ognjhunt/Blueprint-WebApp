@@ -100,6 +100,8 @@ interface TaskStatusInput {
   supplementWouldFinish: boolean;
   /** The walkthrough's completion marker exists. Absent on older callers. */
   hasStoredCapture?: boolean;
+  /** Recording withdrawal overrides retained derived evidence on every surface. */
+  consentRevoked?: boolean;
   /** False when no automated footage review runs, so a person reviews it. */
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
@@ -130,6 +132,16 @@ function countLabel(count: number, noun: string): string {
  */
 export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const base = { stage: input.stage, missingViews: input.missingViews, nextUpdateIso: input.nextUpdateIso };
+  if (input.consentRevoked) {
+    return {
+      decision: input.hasStoredCapture ? "footage_received" : "received",
+      stage: null,
+      headline: `${input.hasStoredCapture ? "Your video is saved. " : ""}Recording consent was withdrawn. Further processing is blocked and the scene preview is unavailable.`,
+      operatorAction: null,
+      missingViews: [],
+      nextUpdateIso: null,
+    };
+  }
 
   // Coverage measured a shortfall we can name. This is the most actionable
   // state and it takes priority: it is a specific, cheap thing they can do.
@@ -290,6 +302,8 @@ export function taskStatusInputFrom(record: {
   briefDrafted: boolean;
   /** The walkthrough's completion marker exists — footage is in, unreviewed. */
   hasStoredCapture?: boolean;
+  /** Recording withdrawal overrides retained derived evidence on every surface. */
+  consentRevoked?: boolean;
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
   stage: ReadinessStage | null;
@@ -302,6 +316,7 @@ export function taskStatusInputFrom(record: {
   const coverage = record.capture_coverage;
   return {
     hasStoredCapture: Boolean(record.hasStoredCapture),
+    consentRevoked: record.consentRevoked === true,
     ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
     scenePreviewReady: Boolean(record.scenePreviewReady),
     briefDrafted: record.briefDrafted,
