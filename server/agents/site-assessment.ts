@@ -94,7 +94,11 @@ export interface SiteAssessmentOptions {
   retained_video_sources?: Source[];
   model?: string | Model;
   max_turns?: number;
+  /** Explicit host call allowance, if supplied. There is no default three-call quota. */
   max_video_calls?: number;
+  /** Deadline stops new provider dispatch; it does not imply cancellation of in-flight work. */
+  deadline_at_ms?: number;
+  now?: () => number;
   analyze_video?: (question: string, inspection: VideoInspection) => Promise<VideoAnalysis>;
   history_tool?: typeof runCompanyHistoryTool;
   read_robot_teams?: typeof listMatchableRobotTeams;
@@ -184,6 +188,17 @@ export async function createSiteAssessmentAgent(input: SiteAssessmentInput, opti
     sources.set(source.source_id, source);
     videoCache.set(hash({ question: value.question, processing: value.processing, sampling_fps: value.sampling_fps }), value);
   }
+  const now = options.now ?? Date.now;
+  const deadline = options.deadline_at_ms ?? now() + 10 * 60 * 1000;
+  if (!Number.isFinite(deadline)) throw new Error("assessment_deadline_invalid");
+  const assertDeadline = () => { if (now() >= deadline) throw new Error("site_assessment_deadline_exceeded"); };
+  const evidenceSeen = new Set<string>();
+  const evidenceItems = (evidence: ReturnType<typeof validateVideoObservations>) => [
+    ...evidence.observations.map(item => hash({ observation: item })),
+    ...evidence.not_observable.map(item => hash({ not_observable: item })),
+  ];
+  for (const retained of videoCache.values()) for (const item of evidenceItems(validateVideoObservations(retained.evidence, input.video!.duration_seconds))) evidenceSeen.add(item);
+  let unchangedVideoProbes = 0;
   let videoCalls = 0;
   let sourceBytes = options.video_bytes;
   const readVideo = options.analyze_video ?? (async (question: string, inspection: VideoInspection): Promise<VideoAnalysis> => {
@@ -203,7 +218,9 @@ export async function createSiteAssessmentAgent(input: SiteAssessmentInput, opti
     if (createHash("sha256").update(sourceBytes.body).digest("hex") !== video.sha256.replace(/^sha256:/, "")) {
       throw new Error("assessment_video_source_changed");
     }
+    assertDeadline();
     await options.authorize_model_call("gemini", model, { duration_seconds: video.duration_seconds, bytes: sourceBytes.byteLength });
+    assertDeadline();
     const mode = inspection.processing === "auto" ? (video.duration_seconds <= 300 ? "STATIC" : "AGENTIC")
       : inspection.processing === "static" ? "STATIC" : "AGENTIC";
     let response: Awaited<ReturnType<typeof analyseAgenticVideo>>;
@@ -235,10 +252,20 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
         if (!input.video) return retained("analyze_site_video", args, { ok: false, error: "video_not_supplied" });
         let result = videoCache.get(cacheKey);
         if (!result) {
-          if (videoCalls >= (options.max_video_calls ?? 3)) return retained("analyze_site_video", args, { ok: false, error: "video_call_limit", action: "Use retained findings or ask for the missing observation." });
+          const stop = now() >= deadline ? "assessment_time_budget_exhausted"
+            : unchangedVideoProbes >= 2 ? "assessment_video_no_new_evidence"
+            : options.max_video_calls !== undefined && videoCalls >= options.max_video_calls ? "video_call_limit" : null;
+          if (stop) return retained("analyze_site_video", args, { ok: false, error: stop,
+            action: "Use retained findings and explain the remaining uncertainty, or ask for the missing observation." });
           videoCalls++;
           result = await readVideo(question, inspection);
           result.evidence = validateVideoObservations(result.evidence, input.video.duration_seconds);
+          // Wording changes in a summary are not new observed evidence. Repeated
+          // observations at the same bounds cannot justify unbounded paid probes.
+          const items = evidenceItems(result.evidence);
+          const addsItem = items.some(item => !evidenceSeen.has(item));
+          unchangedVideoProbes = addsItem ? 0 : unchangedVideoProbes + 1;
+          for (const item of items) evidenceSeen.add(item);
           videoCache.set(cacheKey, result);
         }
         const source_id = `video:${input.video.source_id}:${cacheKey.slice(0, 12)}`;
@@ -295,12 +322,14 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
     : await (options.model_provider ?? new OpenAIProvider({ useResponses: true })).getModel(modelName);
   const model: Model = {
     getResponse: async request => {
+      assertDeadline();
       await options.authorize_model_call("openai", modelName, request);
+      assertDeadline();
       const response = await underlying.getResponse(request);
       await options.record_model_response?.("openai", modelName, response.providerData ?? response);
       return response;
     },
-    async *getStreamedResponse(request) { await options.authorize_model_call("openai", modelName); yield* underlying.getStreamedResponse(request); },
+    async *getStreamedResponse(request) { assertDeadline(); await options.authorize_model_call("openai", modelName); assertDeadline(); yield* underlying.getStreamedResponse(request); },
   };
   const agent = new Agent({ name: "Site assessment", model, instructions: SITE_ASSESSMENT_INSTRUCTIONS,
     tools: options.allowed_tools ? tools.filter(tool => options.allowed_tools!.includes(tool.name)) : tools,
