@@ -40,7 +40,7 @@ export async function libraryAccessForRequest(req: Request): Promise<LibraryAcce
 
   if (presented && authAdmin) {
     try {
-      const decoded = await authAdmin.verifyIdToken(presented);
+      const decoded = await authAdmin.verifyIdToken(presented, true);
       // Same role resolution as the admin routes: token claims plus users/{uid}.
       const context = await resolveAccessContext({ locals: { firebaseUser: decoded } } as unknown as Response);
       return await resolveViewerAccess({
