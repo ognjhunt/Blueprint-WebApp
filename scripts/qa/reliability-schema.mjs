@@ -29,7 +29,7 @@ export function summarize(cases, results) {
   const precedence = ['failed', 'partial', 'blocked', 'skipped', 'passed'];
   for (const equivalents of unique.values()) {
     const executions = results.filter(result => equivalents.some(testCase => testCase.caseId === result.caseId));
-    if (executions.some(result => result.attempted === true)) count.attempted++;
+    if (executions.some(result => result.attempted === true || result.executionStarted === true)) count.attempted++;
     for (const result of executions) if (!precedence.includes(result.status)) throw new Error(`Unknown result status: ${result.status}`);
     const status = precedence.find(candidate => executions.some(result => result.status === candidate)) ?? 'notExecuted';
     count[status]++;
@@ -37,7 +37,7 @@ export function summarize(cases, results) {
     const family = `${testCase.kind ?? 'infrastructure'}:${testCase.family}`;
     families[family] ??= { deduplicated: 0, attempted: 0, passed: 0, failed: 0, blocked: 0, partial: 0, skipped: 0, notExecuted: 0 };
     families[family].deduplicated++; families[family][status]++;
-    if (executions.some(result => result.attempted === true)) families[family].attempted++;
+    if (executions.some(result => result.attempted === true || result.executionStarted === true)) families[family].attempted++;
     for (const layer of new Set(equivalents.map(c => c.layer))) {
       layers[layer] ??= { semanticCases: 0, executions: 0 };
       layers[layer].semanticCases++; layers[layer].executions += executions.filter(r => (r.layer ?? testCase.layer) === layer && (r.attempted === true || r.executionStarted === true)).length;
@@ -76,16 +76,16 @@ export function summarizeJourneys(journeys) {
   for (const runs of semantic.values()) {
     const status = ['failed','partial','blocked','skipped','passed'].find(candidate => runs.some(run => run.status === candidate));
     count[status === 'passed' ? 'passedBoundary' : status]++;
-    if (runs.some(run => run.attempted === true)) count.attempted++;
-    if (runs.some(run => run.attempted === true && run.normalUi === true)) count.normalUiAttempted++;
+    if (runs.some(run => run.attempted === true || run.executionStarted === true)) count.attempted++;
+    if (runs.some(run => (run.attempted === true || run.executionStarted === true) && run.normalUi === true)) count.normalUiAttempted++;
     // Credit requires an explicit layer declaration; intercepted UI cannot inherit backend credit.
-    if (runs.some(run => run.attempted === true && run.normalUi === true && run.realBackend === true)) count.normalUiRealBackendAttempted++;
-    if (runs.some(run => run.attempted === true && run.persistenceWorker === true)) count.persistenceWorkerAttempted++;
+    if (runs.some(run => (run.attempted === true || run.executionStarted === true) && run.normalUi === true && run.realBackend === true)) count.normalUiRealBackendAttempted++;
+    if (runs.some(run => (run.attempted === true || run.executionStarted === true) && run.persistenceWorker === true)) count.persistenceWorkerAttempted++;
     if (status === 'passed' && runs.every(run => run.fullJourneyComplete === true)) count.fullJourneyComplete++;
     for (const layer of new Set(runs.map(run => run.layer))) {
       layers[layer] ??= { semanticJourneys: 0, executions: 0, attempted: 0 };
       layers[layer].semanticJourneys++; layers[layer].executions += runs.filter(run => run.layer === layer && (run.attempted === true || run.executionStarted === true)).length;
-      if (runs.some(run => run.layer === layer && run.attempted === true)) layers[layer].attempted++;
+      if (runs.some(run => run.layer === layer && (run.attempted === true || run.executionStarted === true))) layers[layer].attempted++;
     }
   }
   return { ...count, layers, note: 'Layer totals may overlap. Boundary passes do not establish completed upload/assessment/notification customer journeys. Repeats and changed opaque identities do not expand unique journeys.' };

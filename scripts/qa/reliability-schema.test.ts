@@ -33,3 +33,10 @@ describe('reliability evidence denominator', () => {
    expect(report).toMatchObject({ generated: 1, deduplicated: 1, executions: 0, resultRecords: 1, attempted: 0, blocked: 1 });
    expect(report.layers['real-backend-planned']).toMatchObject({ semanticJourneys: 1, executions: 0, attempted: 0 });
  });
+
+ it('counts an explicitly started blocked trace as an attempted journey', () => {
+   const started = { journeyId: 'started-blocked', parameters: { boundary: 'worker stopped' }, layer: 'real-backend', status: 'blocked', attempted: false, executionStarted: true, normalUi: false };
+   const report = summarizeJourneys([started]);
+   expect(report).toMatchObject({ executions: 1, attempted: 1, blocked: 1 });
+   expect(report.layers['real-backend']).toMatchObject({ executions: 1, attempted: 1 });
+ });
