@@ -1279,7 +1279,7 @@ router.put(
     } catch (error) {
       if (error instanceof Error && error.message === "capture_part_conflict") {
         return res.status(409).json({ code: "capture_part_conflict", retryAllowed: false,
-          error: "This recording differs from the upload already saved. Use the original video to resume." });
+          error: "This recording differs from the upload already saved. Use the original video to resume. If you no longer have the original recording, contact hello@tryblueprint.io with your job link for help." });
       }
       logger.error(
         { error, captureId: payload.captureId, index },

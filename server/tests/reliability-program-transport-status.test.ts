@@ -182,6 +182,7 @@ describe("neighboring duplicate transport recovery", () => {
     }, response);
     expect(response.statusCode).toBe(409); expect(response.body).toMatchObject({ code: "capture_part_conflict", retryAllowed: false });
     expect(response.body.error).toContain("original video");
+    expect(response.body.error).toContain("hello@tryblueprint.io with your job link");
     expect(harness.original.objects.get(partPath(RAW, 0))!.data.equals(original)).toBe(true);
   });
 
