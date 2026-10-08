@@ -145,7 +145,40 @@
       "production_promotion": {
         "run_id": 37745085909,
         "started_at_utc": "2026-10-08T07:42:20Z",
-        "state_at_0749_utc": "in_progress"
+        "state_at_0749_utc": "in_progress",
+        "initial_checkpoint": {
+          "observed_utc": "2026-10-08T08:21:55.699624+00:00",
+          "status": "in_progress",
+          "conclusion": "",
+          "jobs": [
+            {
+              "name": "Full pytest shard 3 of 4",
+              "status": "completed",
+              "conclusion": "success",
+              "completed_at_utc": "2026-10-08T08:08:12Z"
+            },
+            {
+              "name": "Full pytest shard 2 of 4",
+              "status": "in_progress",
+              "conclusion": "",
+              "completed_at_utc": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "Full pytest shard 0 of 4",
+              "status": "in_progress",
+              "conclusion": "",
+              "completed_at_utc": "0001-01-01T00:00:00Z"
+            },
+            {
+              "name": "Full pytest shard 1 of 4",
+              "status": "completed",
+              "conclusion": "success",
+              "completed_at_utc": "2026-10-08T08:20:31Z"
+            }
+          ],
+          "aggregate_not_yet_reached": true,
+          "deployment_not_claimed": true
+        }
       },
       "release_state": "code_complete_merged_promotion_in_progress_not_deployed"
     },
@@ -293,5 +326,30 @@
     ],
     "result": "approved_no_material_findings",
     "scope": "Current d217 core receipts, actual a56 CPU-prefix scope, B20 archived source/backend attestation correction, count separation, privacy and partial readiness. Subsequent CI status updates are factual receipt updates."
+  },
+  "initial_window_checkpoint": {
+    "objective": "Improve connected customer reliability through executed cases, reviewed repairs, authorized release and honest readiness evidence",
+    "program": "2026-10-07 reliability program",
+    "formal_ADP_run_context": "not supplied; charter retains this gap",
+    "kickoff_utc": "2026-10-08T04:21:46Z",
+    "initial_closeout_target_utc": "2026-10-08T08:21:46Z",
+    "window_hours": 4,
+    "state": "partial; full goal remains active",
+    "scoped_code": "WebApp repairs940/941/942 merged and deployed; Pipeline2648 reviewed and merged",
+    "evaluation": "300 frozen offline cases passed in current-source424checks;120scripted SDK semantic variants;42root layered traces, B20 separate; no full customer assessment or measured real-video accuracy sample",
+    "release": "Current WebAppd217 both services verified; Pipelinea56 exact promotion in progress, last independently verified serving4cb",
+    "beta_decision": "Assessment-quality beta not supported; current ordinary customer learning permissions continue",
+    "remaining_specific_dependencies": [
+      "Two open internal advisory citation-entailment P1 counterexamples",
+      "Full normal-UI customer assessment/publication join",
+      "Reference target12\u201324 versus1authorized source;0current human timestamp labels/0untouched holdout",
+      "No usable retained Gemini video analysis and acceptance/charge remains unknown",
+      "Pipeline exact-main full lane, aggregate/provenance and protected deployment/live verification"
+    ],
+    "next_owner_action": "Existing sole cloud release owner safely concludes Pipeline promotion and canonical deployment; coordinator verifies exact receipts and serving identity. Known semantic and quality gaps remain on failure ledger; no new scope or paid retry during initial closeout.",
+    "resume_conditions": "Exact new-main release gates and canonical receipts; source defects need scoped reproduce/fix/review; quality claims need real observed model/video reference execution.",
+    "raw_artifacts": "Authorized private ignored output directories, bounded retention policy; company Git stores sanitized replay sources/catalogs",
+    "new_outreach_or_real_test_email": false,
+    "temporary_fault_injection_or_owned_emulator_left_running": false
   }
 }

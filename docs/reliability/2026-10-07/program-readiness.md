@@ -1,6 +1,6 @@
 # Initial-window decision: verified workflow repairs, evaluation partial
 
-Updated 2026-10-08 08:14 UTC. Initial closeout: 08:21:46 UTC. The full goal is not complete. Required targets and acceptance thresholds remain unchanged; corrections and overlapping evidence stay explicit in the trace index and failure ledger.
+Initial checkpoint recorded 2026-10-08 08:21 UTC. Initial closeout: 08:21:46 UTC. The full goal is not complete. Required targets and acceptance thresholds remain unchanged; corrections and overlapping evidence stay explicit in the trace index and failure ledger.
 
 WebApp PR940 repaired demonstrated loss of draft/retry identity, upload byte-integrity and recovery defects, uncertain notifications, revoked-session access and required-result admission. Independent review, required checks and paired deployment passed. PR941 subsequently rejected explicitly superseded knowledge supporting known published facts. That eda83741 release is now historical. Current merged d21721d9 is independently verified serving on both web and worker, with GET-only production smoke proving draft return, fresh consent, health and matching version. No production intake or notification was sent.
 
@@ -23,3 +23,5 @@ The reference set contains one authorized real-site video, versus the unchanged 
 No assessment-quality beta recommendation is supported. Scoped workflow repairs are deployed, but a broader end-to-end beta requires the joined normal-customer path to finish through durable processing and customer-visible qualification/publication, plus current assessment-quality evidence. The retained joined trace reaches actual extraction, SDK coverage, notification, owner confirmation and Pipeline preflight; it does not finish the final assessment. Ordinary customer learning continues under its existing permissions, with no new campaign or blanket freeze.
 
 Use `program-replay.md`, `program-semantic-sdk.md`, the frozen inventory, trace index, release receipts and independent review record to reproduce the bounded claims. Raw traces and provider artifacts stay in authorized private storage; public summaries contain no bearer links, private capture identifiers or customer footage. Source approval, merge, deployment and customer outcome remain separate decisions.
+
+The initial four-hour checkpoint is partial. The Pipeline full promotion lane has two successful shards and two still active at the final observation; its aggregate and canonical provenance have not completed. The goal remains active for safe conclusion of that release work. Owned local fault infrastructure is stopped, and the retained private evidence and sanitized company Git sources support continuation without another routine approval question.
