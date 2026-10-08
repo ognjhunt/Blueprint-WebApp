@@ -19,9 +19,9 @@ const response = (output: unknown[], output_text = "") => ({ id: "response-fixtu
   usage: { input_tokens: 100, output_tokens: 20, input_tokens_details: { cached_tokens: 0 },
     output_tokens_details: { reasoning_tokens: 0 } } });
 const final = () => response([], JSON.stringify({ done: true }));
-async function run(metadata: Record<string, unknown> = {}) {
+async function run(metadata: Record<string, unknown> = {}, kind = "operator_thread") {
   const { runOpenAIResponsesTask } = await import("../agents/adapters/openai-responses");
-  return runOpenAIResponsesTask({ kind: "operator_thread", provider: "openai_responses", runtime: "openai_responses",
+  return runOpenAIResponsesTask({ kind, provider: "openai_responses", runtime: "openai_responses",
     model: "gpt-5.6-sol", input: {}, metadata, session_policy: { lane: "task" },
     tool_policy: { mode: "mixed" }, definition: { build_prompt: () => "Inspect the authorized fixture.",
       output_schema: z.object({ done: z.boolean() }) } } as any);
@@ -257,6 +257,17 @@ describe("OpenAI operator tool feedback", () => {
     expect((result.artifacts?.provider_responses as any[])[0].usage.input_tokens_details.cached_tokens).toBe(200);
     const reservation = result.artifacts?.inference_reservation as any;
     expect(reservation.reconciled_cost_usd).toBe(reservation.projected_max_cost_per_call_usd);
+  });
+
+  it.each(["site_assessment", "capture_coverage", "capture_video_privacy", "inbound_qualification"])("records unknown %s usage and repairs output without spending approval", async kind => {
+    vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD", "0.00001");
+    mocks.create.mockResolvedValueOnce({ ...response([], "{not-json"), usage: undefined }).mockResolvedValueOnce(final());
+    const result = await run({}, kind);
+    expect(result.status).toBe("completed"); expect(mocks.create).toHaveBeenCalledTimes(2);
+    expect(result.artifacts).toMatchObject({ usage_detail_status: "partial", cost_status: "usage_partial",
+      inference_reservation: { hard_cost_cap_usd: null, spending_gated: false } });
+    expect((result.artifacts?.provider_responses as any[])[0].usage).toBeNull();
+    expect((result.artifacts?.inference_reservation as any).unknown_usage_reserved_cost_usd).toBeGreaterThan(0);
   });
 
   it("reserves unknown continuation cost and refuses another request beyond the existing cap", async () => {

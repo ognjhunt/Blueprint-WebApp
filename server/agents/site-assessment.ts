@@ -100,8 +100,8 @@ export interface SiteAssessmentOptions {
   retained_video_sources?: Source[];
   model?: string | Model;
   max_turns?: number;
-  /** Explicit host call allowance, if supplied. There is no default three-call quota. */
-  max_video_calls?: number;
+  /** Current rights/source recheck before upload and after upload, before generation. */
+  assert_video_processing_allowed?: () => Promise<void>;
   /** Deadline stops new provider dispatch; it does not imply cancellation of in-flight work. */
   deadline_at_ms?: number;
   now?: () => number;
@@ -205,7 +205,6 @@ export async function createSiteAssessmentAgent(input: SiteAssessmentInput, opti
   ];
   for (const retained of videoCache.values()) for (const item of evidenceItems(validateVideoObservations(retained.evidence, input.video!.duration_seconds))) evidenceSeen.add(item);
   let unchangedVideoProbes = 0;
-  let videoCalls = 0;
   let sourceBytes = options.video_bytes;
   const readVideo = options.analyze_video ?? (async (question: string, inspection: VideoInspection): Promise<VideoAnalysis> => {
     const video = input.video!;
@@ -225,13 +224,20 @@ export async function createSiteAssessmentAgent(input: SiteAssessmentInput, opti
       throw new Error("assessment_video_source_changed");
     }
     assertDeadline();
-    await options.authorize_model_call("gemini", model, { duration_seconds: video.duration_seconds, bytes: sourceBytes.byteLength });
+    const requestSize = { duration_seconds: video.duration_seconds, bytes: sourceBytes.byteLength };
+    await options.authorize_model_call("gemini", model, requestSize);
+    await options.assert_video_processing_allowed?.();
     assertDeadline();
     const mode = inspection.processing === "auto" ? (video.duration_seconds <= 300 ? "STATIC" : "AGENTIC")
       : inspection.processing === "static" ? "STATIC" : "AGENTIC";
     let response: Awaited<ReturnType<typeof analyseAgenticVideo>>;
     try { response = await analyseAgenticVideo({ apiKey, model, video: sourceBytes, processingMode: mode,
       samplingFps: mode === "STATIC" ? inspection.sampling_fps : undefined, maxOutputTokens: 32768,
+      beforeGenerate: async () => {
+        assertDeadline();
+        await options.assert_video_processing_allowed?.();
+        assertDeadline();
+      },
       prompt: `Inspect the supplied site video to answer the question below. Return JSON with summary,
 observations [{category:job_step|object|motion|condition|variation|apparent_result, finding,
 basis:observed|estimate|not_visible, start_seconds:number|null, end_seconds:number|null, uncertainty:string|null}],
@@ -259,11 +265,9 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
         let result = videoCache.get(cacheKey);
         if (!result) {
           const stop = now() >= deadline ? "assessment_time_budget_exhausted"
-            : unchangedVideoProbes >= 2 ? "assessment_video_no_new_evidence"
-            : options.max_video_calls !== undefined && videoCalls >= options.max_video_calls ? "video_call_limit" : null;
+            : unchangedVideoProbes >= 2 ? "assessment_video_no_new_evidence" : null;
           if (stop) return retained("analyze_site_video", args, { ok: false, error: stop,
             action: "Use retained findings and explain the remaining uncertainty, or ask for the missing observation." });
-          videoCalls++;
           result = await readVideo(question, inspection);
           result.evidence = validateVideoObservations(result.evidence, input.video.duration_seconds);
           // Wording changes in a summary are not new observed evidence. Repeated

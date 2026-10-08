@@ -46,11 +46,11 @@ describe('assessment continuation policy (scripted SDK, no provider dispatch)', 
     expect(packet.tool_receipts.at(-1)?.result).toMatchObject({ ok: false, error: 'assessment_video_no_new_evidence' });
     expect(packet.assessment.status).toBe('needs_operator_input');
   });
-  it('preserves an explicit host allowance rather than replacing program-specific authority', async () => {
+  it('uses evidence progress and operational limits instead of a provider-call spending quota', async () => {
     let n = 0; const analyze = vi.fn(async () => ({ evidence: observation(++n), receipt: { mode: 'offline' } }));
-    const instance = await createSiteAssessmentAgent(input, { history_access: null, model: model(4), authorize_model_call: async () => {}, analyze_video: analyze, max_video_calls: 1 });
-    const packet = await instance.run(); expect(analyze).toHaveBeenCalledTimes(1);
-    expect(packet.tool_receipts.at(-1)?.result).toMatchObject({ ok: false, error: 'video_call_limit' });
+    const instance = await createSiteAssessmentAgent(input, { history_access: null, model: model(4), authorize_model_call: async () => {}, analyze_video: analyze });
+    const packet = await instance.run(); expect(analyze).toHaveBeenCalledTimes(4);
+    expect(packet.tool_receipts.every(row => (row.result as any).ok)).toBe(true);
   });
   it('does not dispatch a new Gemini or Sol call after the assessment deadline', async () => {
     let clock = 0; const analyze = vi.fn(async () => ({ evidence: observation(1), receipt: {} }));
@@ -61,14 +61,15 @@ describe('assessment continuation policy (scripted SDK, no provider dispatch)', 
     expect(analyze).not.toHaveBeenCalled(); expect(authorize).toHaveBeenCalledTimes(1);
     expect(instance.evidence().tool_receipts[0]?.result).toMatchObject({ error: 'assessment_time_budget_exhausted' });
   });
-  it('does not dispatch Gemini when the unchanged spending reservation cannot fit', async () => {
+  it('dispatches Gemini despite a former spending cap and retains its usage', async () => {
     vi.stubEnv('BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD', '0.1');
     const budget = new SiteAssessmentBudget(), authorize = vi.fn(async (provider: 'openai' | 'gemini', name: string, request?: unknown) => {
       if (provider === 'gemini') budget.authorize(provider, name, request);
     });
     const instance = await createSiteAssessmentAgent(input, { history_access: null, model: model(1),
       video_bytes: { body: bytes, byteLength: bytes.length, contentType: 'video/mp4' }, authorize_model_call: authorize });
-    await instance.run(); expect(analyseAgenticVideo).not.toHaveBeenCalled(); expect(budget.calls).toHaveLength(0);
+    vi.mocked(analyseAgenticVideo).mockResolvedValue({ text: JSON.stringify(observation(1)), processing: 'STATIC', usage: null } as any);
+    await instance.run(); expect(analyseAgenticVideo).toHaveBeenCalledTimes(1); expect(budget.calls).toHaveLength(1);
     expect(authorize.mock.results.some(row => row.type === 'return')).toBe(true);
   });
   it('checks the deadline again after asynchronous Sol admission before dispatch', async () => {
@@ -94,9 +95,10 @@ describe('assessment continuation policy (scripted SDK, no provider dispatch)', 
     const packet = await instance.run(); expect(analyze).toHaveBeenCalledTimes(3);
     expect(packet.tool_receipts.at(-1)?.result).toMatchObject({ error: 'assessment_video_no_new_evidence' });
   });
-  it('preserves unresolved-exposure blocking before additional useful probes', () => {
+  it('retains unresolved exposure while permitting distinct useful probes', () => {
     const budget = new SiteAssessmentBudget(); budget.authorize('gemini', 'gemini-3.8-flash');
-    expect(() => budget.authorize('gemini', 'gemini-3.8-flash')).toThrow('site_assessment_cost_unresolved');
+    expect(() => budget.authorize('gemini', 'gemini-3.8-flash')).not.toThrow();
+    expect(budget.calls).toHaveLength(2);
     expect(budget.artifacts().inference_reservation.unknown_usage_reserved_cost_usd).toBeGreaterThan(0);
   });
 });
