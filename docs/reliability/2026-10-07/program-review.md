@@ -873,3 +873,34 @@ worker failure transition is explicitly unexecuted. Full authoring, native
 qualification/publication, customer-status recovery and final customer result
 remain unproven. Reviewer work was read-only retained-evidence inspection, with
 no additional live invocation or source mutation.
+
+
+**Additional same-state outer-worker boundary verified; no new case credit.**
+Manifest SHA256 `2df64a2b99411d3dfa945d696d6be4d429344972e9f60b42babe30db734f57cc`
+under output/reliability-program/nextchain-a56/outer-worker matches. Independent
+read-only checks match the probe/log/four source hashes and lengths, all four
+source files against exact a56 Git, all twenty-four retained state-file hashes
+and lengths, and both original-fixture archive hashes and lengths. The final
+log records two passing unknown/explicit states. Those are the existing two
+criteria states, not two additional program cases or completed journeys.
+
+The actual queue/orchestrator executes through an explicit injected CPU executor
+and component producer seam. The missing-authoring exception produces a durable
+blocked result; pending and processing are cleared, completed is absent, and
+the blocked envelope preserves the original bytes. A second poll in the same
+process is idle, leaves the result unchanged and invokes no extra executor or
+retry. Stage-one/two checkpoints survive; no third-stage checkpoint exists.
+The real partial-publication guard rejects before publisher invocation/writes.
+Both traces retain zero provider calls and proposal-only/untranslated targets.
+
+This new replay supplies the outer-worker transition that the earlier direct
+stage-three diagnostic explicitly did not execute. Its earlier limitation
+remains historically accurate. Runtime is exact a56; release/source authority
+inside the synthetic envelopes is the retained fixture identity, not canonical
+allocator or live promotion proof. No OS process restart, actual provider,
+customer reader, native publication or completed recovery was exercised.
+Original fixture modes/bytes remain available in private archives; portable
+replay creates fresh exact-Git fixtures rather than relocating signed absolute
+bindings. No source edit, production invocation or additional coverage credit
+occurred in reviewer work. Intake-clear failure review remains separately
+reserved pending the author’s exact reproducer and candidate.
