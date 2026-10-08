@@ -3101,3 +3101,22 @@ it does not measure the process's actual memory limit, peak usage, stability or
 successful assessment execution. No reviewer plan, credential, provider or
 customer mutation occurred. The memory and stranded-claim repairs remain subject
 to their separate exact-head checks, deployment and affected-run verification.
+
+### Protected merged-source continuity — 39cdf0cc
+
+Fresh GitHub reads confirm PR975 reviewed7fcb merged as cfe2894f at21:29:20Z
+and PR976 reviewedcad18373 merged as `39cdf0cc6db405e1dca67d3a246691ec8652d515`
+at21:30:31Z. Each exact PR head has eight successful applicable checks; E2E and
+the automatic-admission observer are skipped, not newly executed proof. Protected
+native merge/check read hashes are `ffe53a12a44df5e9d4530e361d2757b889ffc7ec487fa3742a6de8c13af7d184`
+and `83c74dad02048d52b4525f1286ab4cdbb336cac92e81f17a251a9bcf0e181930`.
+
+After fetching main, independent Git-byte comparison confirms its Gemini adapter
+matches reviewed7fcb, both recovery helpers match reviewedcad18373, and all three
+clock tests match reviewed7fcb. Protected source receipt
+`output/reliability-program/customer-policy/reviewer-main39-source.json`, SHA
+`ca5d95238e1c8a6254e476cea0a46374c5cc76a151ced37b4ececa0ab57f747d`,
+records all six hashes. Their scoped source approvals carry to this merged main.
+No additional test, provider, plan or customer action occurred; main CI, paired
+deployment and actual affected retry remain separate gates. Source identity and
+capacity metadata do not establish assessment completion or provider outcome.
