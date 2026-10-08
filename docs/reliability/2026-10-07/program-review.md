@@ -2086,3 +2086,40 @@ does not establish actual customer-video upload, backend durability, provider
 authentication/dispatch, assessment perception, notifications or full connected
 customer completion. The authorized owner remains sole actor for that separate
 video execution; no new authority, provider call or case credit is granted here.
+
+
+## Independent SDK failure observability review — bd5196ee
+
+Approved scoped exact commit `bd5196eea0337c75cd35dcd34ff42e1ddf6b86ef`,
+parent9a96add5. Only the existing site-assessment adapter and focused regression
+file change; runtime/test hashes f1d5bf15/23e314c6 match committed and executed
+bytes. Private manifest
+`f5eb75ea55d06bfe89a8b0ee292b3afd5b66ea4790acab51f6e6af7b9c413c0f`
+and every retained source/baseline/log hash independently match. Same final
+test bytes on exact9a produce7 failures/2 guard passes; final candidate passes
+14/14 including five existing neighbors. Reviewer directly executed five
+selected SDK/privacy/guard controls, all passed; four unattempted controls are
+not counted as reviewer execution. Typecheck, Graphify, portability and diff
+checks are retained successful. Earlier fixture/setup failures remain excluded
+from product failure claims.
+
+The catch now admits only exact known host error codes, removing the old
+prefix-based reflection of arbitrary exception prose. A private structured
+artifact contains fixed exception classes, integer HTTP status100–599,
+allowlisted provider code, conservative request-ID syntax and host run
+correlation. Extraction uses own data descriptors, ignoring diagnostic getters.
+No error prose, stack, body, headers, URLs, prompts or arbitrary cause is added
+to returned output or logs. Existing customer projection does not expose these
+failed-run artifacts; existing private-evidence writer/access paths retain
+canonical diagnostics without a new service or access grant. Unrecognized
+metadata remains null, not evidence of absent provider work.
+
+Actual adapter, SDK Runner and capture admission execute with a scripted
+model exception, fake Firestore and pinned-byte map; manifest/marker checks
+are substituted and external fetch fails fast. The single attempted scripted
+call retains its capture reservation, null usage/cost and pending token, with
+no tool/Gemini call or automatic retry. Cancellation/context guard behavior
+is preserved. This repairs inspectability/privacy, not the unknown actual
+live serialization cause, source admission, model perception or customer
+completion. There is no refund, authority reset, paid call or original coverage
+credit. Exact-head requiredCI and deployment remain separate release gates.
