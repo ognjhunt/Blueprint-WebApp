@@ -3330,3 +3330,23 @@ GitHub read confirms exact6e1b0392 and run37856019518: five checks SUCCESS,
 check/rules/test IN_PROGRESS, E2E SKIPPED at this snapshot. Source clearance
 stands; protected completion, merged/deployed identity and customer outcome
 remain separate, and the earlier timeout cause remains unresolved.
+
+
+### Merged source continuity — 189fc91d
+
+Fresh native GitHub metadata confirms PR978 merged at22:55:22UTC as
+`189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9` after all eight applicable
+checks SUCCESS in37856019518, with expected E2E/observer skips. Retrieved Git
+objects show its entire tree equals reviewed6e1b0392, tree40a403f84e121e2dca8a50b3170c4c58c9064116.
+The PR977 sanitizer and PR979 queue/budget/test blobs also match their reviewed
+52ad73eb/19613115 heads, and both commits are ancestors of this merge.
+
+The inspected native test log reports4877 PASS/6 SKIP and separate overlapping
+25/86 safety checks; these totals are not added as unique coverage. Node20.20.2
+markers reach both imports and listening in approximately1.69 and2.16 seconds
+in the two executions. This establishes the current checks completed, not the
+cause or repair of the two preserved earlier timeouts. Main run37856452795 was
+IN_PROGRESS at the independent read. Final main CI, true deployment, paired
+service/capacity and public serving identity remain pending separate evidence;
+no provider/customer action or actual assessment proof follows from source
+continuity. Root-owned release edits were preserved.
