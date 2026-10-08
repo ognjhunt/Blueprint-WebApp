@@ -23,6 +23,14 @@ for (const width of [1440, 390]) {
   });
 }
 
+test("the auth robot scene moves on to the next example after one loop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/sign-in");
+  const scene = page.locator(".auth-art .robot-scene > svg");
+  await expect(scene).toHaveAttribute("aria-label", "Illustration of the warehouse example");
+  await expect(scene).toHaveAttribute("aria-label", /Illustration of the café example/, { timeout: 20_000 });
+});
+
 test("the auth robot scene can be paused and played again", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/sign-in");
