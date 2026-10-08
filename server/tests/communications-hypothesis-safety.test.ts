@@ -35,6 +35,7 @@ async function draftedHypothesis() {
   const intake = f.hypothesisIntake();
   const brief = communicationsBriefSchema.parse(f.records("briefs").find(item => item.briefId === intake.briefId));
   const output = hypothesisDraft(brief);
+  (output.outreachContract as any).version = "blueprint.outreach.v5";
   const api = { run: vi.fn(async (params: any) => ({ output, checkpoint: params.checkpoint, usage: {} })), cancel: vi.fn(), reconcileSaved: vi.fn() };
   const result: any = await processCommunicationsJob(intake.jobId, { ...f.deps, store: new CommunicationsStore(f.db, f.deps.now, "safety-owner"),
     api, verifyMailbox: vi.fn(), readThread: vi.fn(), suppress: vi.fn() });

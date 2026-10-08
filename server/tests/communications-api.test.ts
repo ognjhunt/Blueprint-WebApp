@@ -9,7 +9,7 @@ import { reserveCommunicationsDraft } from "../agents/communications-draft-budge
 import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION, COMMUNICATIONS_V2_INSTRUCTIONS, COMMUNICATIONS_V2_DEFINITION, COMMUNICATIONS_V3_INSTRUCTIONS, COMMUNICATIONS_V3_DEFINITION } from "../agents/communications-instructions";
 import { communicationsHypothesisConfiguration, communicationsHypothesisDefinition, COMMUNICATIONS_GMAIL_NOTION_FIREBASE_READ_DEFINITION,
   COMMUNICATIONS_GMAIL_NOTION_READ_DEFINITION, COMMUNICATIONS_GMAIL_READ_DEFINITION, COMMUNICATIONS_HISTORY_DEFINITION,
-  COMMUNICATIONS_HYPOTHESIS_PROFILE } from "../agents/communications-saved-agent";
+  COMMUNICATIONS_HYPOTHESIS_PROFILE, COMMUNICATIONS_PERSONALIZED_PROFILE } from "../agents/communications-saved-agent";
 import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
   COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_PROFILE } from "../agents/communications-saved-agent";
 
@@ -1121,29 +1121,37 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
   });
   it.each([false, true])("sends the real assembled founder guidance to the generator, hypothesis=%s", async hypothesis => {
     const fixture = hypothesis ? founderOutreachFixture("future") : communicationsFixture();
+    (fixture.output.outreachContract as any).version = hypothesis ? "blueprint.outreach.v5" : "blueprint.outreach.v6";
     const f = apiFixture({ rawOutput: JSON.stringify(fixture.output) }), { brief } = fixture;
     const input = buildCommunicationsInput(brief, null, "outreach", "pending_approval", undefined, undefined,
-      COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION);
+      COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION, undefined, undefined, COMMUNICATIONS_PERSONALIZED_PROFILE);
+    const historicalInput = JSON.parse(buildCommunicationsInput(brief, null, "outreach", "pending_approval", undefined, undefined,
+      COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION));
+    expect(historicalInput.firstTouchPolicy).toContain(LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
+    expect(historicalInput.firstTouchFraming.guidance).not.toBe(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
     const result = await f.api.run({ ...f.params, input, checkpoint: { ...f.params.checkpoint,
-      framingVersion: COMMUNICATIONS_FRAMING_VERSION,
+      framingVersion: COMMUNICATIONS_FRAMING_VERSION, writingProfile: COMMUNICATIONS_PERSONALIZED_PROFILE,
       ...(hypothesis ? { draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } : {}) } });
     const posted = JSON.parse(String(f.calls.find(call => call.init.method === "POST")!.init.body));
     expect(posted.input).toBe(input);
     const consumed = JSON.parse(posted.input);
     expect(consumed.researchBrief).toEqual(brief);
     expect(consumed.writingGuidance).toBe(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
-    expect(consumed.firstTouchPolicy).toContain("Learn why in a follow-up");
-    expect(consumed.firstTouchPolicy).toContain("without mechanically enumerating all three");
+    expect(consumed.firstTouchPolicy).not.toContain("Learn why in a follow-up");
+    expect(consumed.firstTouchPolicy).toContain("discovery-first");
     expect(consumed.firstTouchFraming.questionIsSuggestion).toBe(true);
     expect(consumed.firstTouchFraming).not.toHaveProperty("question");
     expect(consumed.firstTouchPolicy).toContain("recipient-aware-writing-v4");
     if (hypothesis) {
-      expect(posted.agent.instructions).toContain(LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
+      expect(posted.agent.instructions).not.toContain(LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
       expect(consumed.firstTouchPolicy).toContain(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
-      expect(posted.agent.instructions).toContain('version:"blueprint.outreach.v4"');
-      expect(posted.agent.instructions).toContain("Anchors may overlap naturally");
-      expect(result.outputSource?.definitionVersion).toBe("blueprint.communications-definition.v21");
+      expect(posted.agent.instructions).toContain('version:"blueprint.outreach.v5"');
+      expect(posted.agent.instructions).toContain("may overlap");
+      expect(result.outputSource?.definitionVersion).toBe("blueprint.communications-definition.v29");
     }
+    expect(posted.agent.instructions).toContain(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
+    expect(posted.agent.instructions).not.toContain('Introduce "I\'m building Blueprint"');
+    expect(posted.metadata.blueprint_communications_writing_profile).toBe(COMMUNICATIONS_PERSONALIZED_PROFILE);
     expect(f.reservePaidDraft).toHaveBeenCalledOnce(); // Mock admission only; no provider/spend.
     expect(result.checkpoint.requestDigest).toBe(posted.metadata.blueprint_communications_request_digest);
     expect(result.output).toEqual(fixture.output);

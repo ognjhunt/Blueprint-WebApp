@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { outreachReadyQuestionShaped } from "./outreach-ready-question";
-import { OUTREACH_HYPOTHESIS_CONTRACT_VERSION, OUTREACH_LAUNCH_CONTRACT_VERSION, OUTREACH_FOUNDER_CONTRACT_VERSION, outreachContextSchema, outreachHypothesisContractSchema, outreachReviewContractSchema, outreachLaunchContractSchema, outreachFounderContractSchema,
-  type OutreachHypothesisContract, type OutreachReviewContract, type OutreachLaunchContract, type OutreachFounderContract } from "./outreach-review";
+import { OUTREACH_HYPOTHESIS_CONTRACT_VERSION, OUTREACH_LAUNCH_CONTRACT_VERSION, OUTREACH_FOUNDER_CONTRACT_VERSION, OUTREACH_PERSONALIZED_CONTRACT_VERSION, outreachPersonalizedContractSchema, OUTREACH_PERSONALIZED_VALUE_CONTRACT_VERSION, outreachPersonalizedValueContractSchema, outreachContextSchema, outreachHypothesisContractSchema, outreachReviewContractSchema, outreachLaunchContractSchema, outreachFounderContractSchema,
+  type OutreachHypothesisContract, type OutreachReviewContract, type OutreachLaunchContract, type OutreachFounderContract, type OutreachPersonalizedContract, type OutreachPersonalizedValueContract } from "./outreach-review";
 import { COMMUNICATIONS_AUDIENCE_ROLES } from "./communications-launch-framing";
 
 export const COMMUNICATIONS_MODEL = "gpt-6-luna";
@@ -339,9 +339,11 @@ export type VerifiedThread = {
 
 /** The draft's outreach contract: blueprint.outreach.v2 when it says so, otherwise exactly the v1
  * schema, so a verified-lead draft parses, fails and is repaired with the same issues as before. */
-const outreachContractField = z.unknown().transform((value, context): OutreachReviewContract | OutreachHypothesisContract | OutreachLaunchContract | OutreachFounderContract => {
+const outreachContractField = z.unknown().transform((value, context): OutreachReviewContract | OutreachHypothesisContract | OutreachLaunchContract | OutreachFounderContract | OutreachPersonalizedContract | OutreachPersonalizedValueContract => {
   const version = value && typeof value === "object" ? (value as { version?: unknown }).version : null;
-  const schema = version === OUTREACH_FOUNDER_CONTRACT_VERSION ? outreachFounderContractSchema
+  const schema = version === OUTREACH_PERSONALIZED_VALUE_CONTRACT_VERSION ? outreachPersonalizedValueContractSchema
+    : version === OUTREACH_PERSONALIZED_CONTRACT_VERSION ? outreachPersonalizedContractSchema
+    : version === OUTREACH_FOUNDER_CONTRACT_VERSION ? outreachFounderContractSchema
     : version === OUTREACH_LAUNCH_CONTRACT_VERSION ? outreachLaunchContractSchema
     : version === OUTREACH_HYPOTHESIS_CONTRACT_VERSION ? outreachHypothesisContractSchema : outreachReviewContractSchema;
   const parsed = schema.safeParse(value);

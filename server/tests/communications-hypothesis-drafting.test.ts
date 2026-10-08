@@ -25,6 +25,7 @@ async function admitted(options: Parameters<typeof hypothesisSetup>[0] = {}) {
   let output = hypothesisDraft(brief);
   const seen: { input: any; checkpoint: any; feedback: unknown }[] = [];
   const api = { run: vi.fn(async (params: any) => {
+    if (params.checkpoint.writingProfile && output.outreachContract?.version === "blueprint.outreach.v4") (output.outreachContract as any).version = "blueprint.outreach.v5";
     seen.push({ input: JSON.parse(params.input), checkpoint: structuredClone(params.checkpoint), feedback: await params.validateOutput?.(output) });
     return { output, checkpoint: params.checkpoint, usage: { input_tokens: 1 } };
   }), cancel: vi.fn(async () => true), reconcileSaved: vi.fn(async () => null as any) };
@@ -99,7 +100,7 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     const h = await admitted(); h.setOutput(archivedHypothesisDraft(h.brief));
     const result: any = await processCommunicationsJob(h.intake.jobId, h.deps);
     expect(h.seen[0].feedback).toEqual(expect.arrayContaining([expect.objectContaining({ code: "launch_contract_required",
-      message: expect.stringContaining("blueprint.outreach.v4") })]));
+      message: expect.stringContaining("blueprint.outreach.v5") })]));
     expect(result).toMatchObject({ state: "blocked", reason: "hypothesis_draft_contract_failed:launch_contract_required" });
     expect([...h.f.db.records.keys()].some(path => path.startsWith("action_ledger/"))).toBe(false);
   });
@@ -109,12 +110,12 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(result).toMatchObject({ state: "pending_approval", sent: false, gmailDraftCreated: false });
     expect(h.api.run).toHaveBeenCalledOnce();
     const [{ input, checkpoint, feedback }] = h.seen;
-    expect(input.firstTouchPolicy).toContain(COMMUNICATIONS_FOUNDER_GUIDANCE);
+    expect(input.firstTouchPolicy).not.toContain(COMMUNICATIONS_FOUNDER_GUIDANCE);
     expect(input.firstTouchPolicy).toContain("recipient-aware-writing-v4");
     expect(input.researchBrief.qualification.openQuestions).toEqual(h.brief.qualification!.openQuestions);
     expect(checkpoint.draftProfile).toBe(COMMUNICATIONS_HYPOTHESIS_PROFILE);
     expect(checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_VERSION);
-    expect(input.firstTouchFraming).toEqual({ ...communicationsLaunchFraming(h.brief), question: undefined, questionIsSuggestion: true });
+    expect(input.firstTouchFraming).toEqual({ ...communicationsLaunchFraming(h.brief), guidance: input.writingGuidance, question: undefined, questionIsSuggestion: true });
     expect(feedback).toBeNull();
     const ledger = h.f.db.records.get(`action_ledger/${result.ledgerId}`);
     expect(ledger).toMatchObject({ status: "pending_approval", action_tier: 3, approved_by: null, sent_at: null,
@@ -206,7 +207,7 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     const outcome = await processCommunicationsJob(h.verifiedJob.jobId, h.deps);
     expect(outcome).toMatchObject({ state: "pending_approval" });
     const [{ input, checkpoint }] = h.seen;
-    expect(input.firstTouchPolicy).toContain(COMMUNICATIONS_FOUNDER_GUIDANCE);
+    expect(input.firstTouchPolicy).not.toContain(COMMUNICATIONS_FOUNDER_GUIDANCE);
     expect(input.firstTouchPolicy).toContain("recipient-aware-writing-v4");
     expect(input.researchBrief).not.toHaveProperty("qualification");
     expect(checkpoint).not.toHaveProperty("draftProfile");
@@ -216,14 +217,14 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(ledger.send_authority).toBe("none");
   });
 
-  it("gives a verified draft that carries the v2 contract the v1 repair, never the v2 review", async () => {
+  it("gives a verified draft that carries the v2 contract the prospective value-contract repair, never the v2 review", async () => {
     const h = await admitted();
     const output = verifiedOutput(h);
     h.setOutput({ ...output, outreachContract: hypothesisDraft(h.brief).outreachContract });
     const result: any = await processCommunicationsJob(h.verifiedJob.jobId, h.deps);
     expect(result.state).not.toBe("blocked");
     expect(h.seen[0].feedback).toEqual([{ code: "outreach_contract_missing_or_invalid", path: "outreachContract",
-      message: "For outreach, supply the recorded structured outreach contract matching this message; replies use null." }]);
+      message: "Use blueprint.outreach.v6 with evidence-backed contract anchors for this recipient-aware profile." }]);
   });
 
   it("never applies automatic first contact to a hypothesis, even with every automation flag on", async () => {
@@ -244,7 +245,7 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     h.setOutput({ ...draft, body: `${draft.body}\n\nAre you the right person to ask?` });
     await processCommunicationsJob(h.intake.jobId, h.deps);
     expect(h.seen[0].feedback).toEqual(expect.arrayContaining([expect.objectContaining({ code: "exactly_one_initial_question_required",
-      path: "outreachContract.questions" })]));
+      path: "body" })]));
   });
 
   it.each<[string, (draft: ReturnType<typeof hypothesisDraft>) => ReturnType<typeof hypothesisDraft>, string]>([

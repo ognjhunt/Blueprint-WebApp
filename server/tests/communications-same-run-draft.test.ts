@@ -42,8 +42,9 @@ async function setup(role: CommunicationsAudienceRole = "site") {
     find: vi.fn(async content => copied && communicationsDigest(content) === communicationsDigest(copied)
       ? { draftId: "synthetic-gmail-draft", messageId: "synthetic-message", threadId: "synthetic-thread", authoredRfcMessageId: content.messageId, observedRfcMessageId: "<synthetic@reserved.invalid>" } : null) };
   const api = { run: vi.fn(async (params: any) => {
-    const input = JSON.parse(params.input); expect(input.firstTouchFraming).toEqual(input.writingGuidance.includes("recipient-aware-writing-v4") ? { ...framing, question: undefined, questionIsSuggestion: true } : framing);
-    expect(input.writingGuidance).toContain("save_unsent_draft"); expect(input.firstTouchPolicy).toContain("No public API or deployment maturity hard gate");
+    const input = JSON.parse(params.input); expect(input.firstTouchFraming).toEqual(params.checkpoint.writingProfile ? { ...framing, guidance: input.writingGuidance, question: undefined, questionIsSuggestion: true } : input.writingGuidance.includes("recipient-aware-writing-v4") ? { ...framing, question: undefined, questionIsSuggestion: true } : framing);
+    expect(input.writingGuidance).toContain("save_unsent_draft"); if (params.checkpoint.writingProfile) expect(input.firstTouchPolicy).toContain("recipient-aware-writing-v4");
+    else expect(input.firstTouchPolicy).toContain("No public API or deployment maturity hard gate");
     return { output: f.output, checkpoint: params.checkpoint, usage: { input_tokens: 10 } };
   }), cancel: vi.fn(async () => true), reconcileSaved: vi.fn(async () => null) };
   const deps: CommunicationsDependencies = { store, api, readResearch: async () => f.snapshot, verifyMailbox: async () => ({}), readThread: async () => f.thread!,

@@ -27,11 +27,25 @@ describe("prospective founder outreach quality (offline fixtures)", () => {
     expect(input.firstTouchPolicy).toContain("Unknown automation, manual work");
     expect(input.firstTouchPolicy).toContain("recipient-site conflicts remain held");
     expect(input.firstTouchPolicy).toContain("Keep dated announcements dated");
-    const { output } = parseCommunicationsOutput(JSON.stringify(f.output));
+    // Prospective profile keeps the same recorded evidence, with flexible ordering and subject punctuation.
+    const prospective = structuredClone(f.output);
+    (prospective.outreachContract as any).version = "blueprint.outreach.v5";
+    prospective.subject += "?";
+    if (kind === "future") {
+      const contract = prospective.outreachContract as any;
+      const original = contract.questions[0].question, request = original.replace(/\?$/, ".");
+      contract.questions[0].question = request;
+      contract.opening.relevance = request; contract.recipientChoice = request;
+      prospective.body = prospective.body.replace(original, "");
+      const firstBreak = prospective.body.indexOf("\n\n");
+      prospective.body = prospective.body.slice(0, firstBreak) + "\n\n" + request + prospective.body.slice(firstBreak);
+    }
+    const { output } = parseCommunicationsOutput(JSON.stringify(prospective));
     const payload = buildCommunicationsPayload(f.job, f.brief, null, output, false, null);
     expect(reviewCommunicationsPayload(payload, communicationsNow)).toMatchObject({ hardChecksPassed: true, blockers: [] });
     expect(communicationsDigest(f.brief)).toBe(before);
-    expect(output.body.match(/\?/g)).toHaveLength(1);
+    if (kind === "future") expect(output.body.match(/\?/g)).toBeNull();
+    else expect(output.body.match(/\?/g)).toHaveLength(1);
     expect(output.body).toContain("Thanks,\nNijel Hunt\nBlueprint");
     expect(output.body).not.toMatch(/done by hand|labor savings|ready to deploy|and if so, why|That could mean/);
     expect(communicationsWritingSignals(output.body, f.brief.boundedJob)).toEqual([]);
@@ -50,6 +64,7 @@ describe("prospective founder outreach quality (offline fixtures)", () => {
     ["a deployment-ready solution", "We are ready to deploy.", "discovery_cannot_promise_qualified_match_or_capacity"],
   ])("holds %s through real validation", (_name, text, blocker) => {
     const f = founderOutreachFixture("inbox"), output = structuredClone(f.output);
+    (output.outreachContract as any).version = "blueprint.outreach.v5";
     output.body = text.startsWith("Hi ") ? output.body.replace("Hi machining team,", text) : output.body + "\n\n" + text;
     const review = reviewCommunicationsPayload(buildCommunicationsPayload(f.job, f.brief, null, output, false, null), communicationsNow);
     expect(review.blockers).toContain(blocker);
