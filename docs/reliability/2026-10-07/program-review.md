@@ -542,3 +542,69 @@ does not validate sentences, all other claim locations/bases, current-spec
 completeness or measured robot suitability. Full assessment/beta readiness and
 joined customer qualification/publication remain unapproved. Reviewer production
 trees remain clean; no runtime source was edited for this review.
+
+
+**Scoped Pipeline source approval: `a25bddbe20c32bebfe77a97c640ea500097979e4`
+over `4cb97edeb5fabcac30a14a4576a896a6a22941a3` (PR2648).**
+The two runtime files repair the producer/consumer mismatch for ADP-030/day28
+scene preparation. The compiler already fixes purpose to scene_preparation,
+selects no policies and retains a development_only claim ceiling. Unknown and
+explicit owner targets now permit this geometry path while their exact values
+and unverified translation remain canonical. Native staging preserves original
+context bytes, stores the targets in the task template and carries the same
+metadata in its existing owner authority. Supplied targets receive recognized
+`proposal_only`, never invented confirmation of fixed development controls.
+Legacy omission retains its historical behavior; it does not prove a current
+normal-UI journey. Existing access, consent, spend, source-binding and separate
+team evaluation authority checks are unchanged. No material source finding
+remains for this narrow boundary.
+
+Independent disposable snapshots verify all 2,187 src files byte-identical to
+each claimed Git revision. Only the three exact candidate test files were
+transplanted into the baseline snapshot. The same four unknown/explicit compiler
+and staging assertions fail 4/4 there, solely at the prior translation veto,
+before downstream assertions can execute. Candidate focused checks pass 16/16
+including legacy omission and scene-only no-controls/no-policy neighbors.
+Independent baseline log SHA256 is
+`8a7337aa686e68f42044ecb7bfbddcbf96b668382e39acbd75cb8d609c87ccdb`; candidate log is
+`5e3268e9f7581df15c0f8ce6e14634278aa6b6b822660be868aca00b293d43b1`. All 14 author
+manifest source/log hash relationships match its retained manifest
+`2cd25fab12d53e9b3d5646c64bf1843075a69579d3e7068eed492cca543f1804`. The author's
+108 neighboring passes are retained author execution, not independently rerun
+108 samples.
+
+Four additional independent transport controls pass, preserving the actual
+staged targets through the existing rigid and articulated native adapters.
+The real rigid success-contract seal rejects proposal_only authority. Although
+the native episode compiler deliberately skips that rigid helper for articulated
+tasks, the existing `confirmed_articulated_contract` consumer separately rejects
+the staged articulated proposal with
+`scene_control_omission_articulated_owner_contract_unconfirmed`; policy-run/canary
+validators also require a confirmed success contract. No generalized new gate
+or execution mode was added. These are actual CPU module consumers with owned
+synthetic geometry and fixture qualification records, not executed GPU policies
+or proof that every performance route has run.
+
+The first reviewer transport diagnostic retained two failures because its
+borrowed rigid fixture omitted the contract-required flag that the real staged
+website success record supplies. The corrected diagnostic carries that actual
+staged flag into both matching immutable fixture records and retains the initial
+receipt; those failures are a harness limitation, not demonstrated product bugs.
+The extra controls/repeats receive no new frozen catalog or journey credit.
+Private reviewer manifest under output/reliability-program/reviewer/pipeline-owner-target
+is SHA256 `2a83f4b619fdcab9a8ddb92dbfe589905aae3e06d86c69af0c41b75e7d9e89fa`;
+final consumer log is `90dd003715126404fa731591918637f7d72de354c56ca3b97a8d0409ac884814`.
+No provider calls, spending, customer data or shared QA mutations occurred.
+Required PR checks, exact-main promotion, protected deployment and the actual
+joined customer outcome remain separate unverified owner gates for this commit.
+
+**WebApp follow-up release observation:** reviewed e048 production bytes match
+merged PR941 SHA `eda83741bd06026f9ad4e9e8fa16417bdc1d432c`. Independent GitHub
+reads confirm merge and successful completed main CI37741000664/deploy37741434386
+at eda. Direct Render reads confirm both listed follow-up receipts live at eda.
+The protected ordinary-draft-only smoke hashes to
+`c2b2aee36f4c2ae0fbf3cc1c8ea154374d4aaef1a95fdbac2f71845b90107847` and retains
+its identity/health/local-draft ceiling and zero intake dispatch. Earlier d898
+receipts are historical. This release establishes deployed narrow stale-source
+admission code and scoped draft behavior; two admitted synthetic entailment
+defects and joined assessment-publication/reference-quality shortfalls remain.
