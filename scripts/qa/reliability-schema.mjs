@@ -23,7 +23,7 @@ export function summarize(cases, results) {
     unique.get(hash).push(testCase);
   }
   for (const result of results) if (!ids.has(result.caseId)) throw new Error(`Unknown result caseId: ${result.caseId}`);
-  const count = { generated: cases.length, deduplicated: unique.size, attempted: 0, passed: 0, failed: 0, skipped: 0, blocked: 0, partial: 0, notExecuted: 0, executions: results.length };
+  const count = { generated: cases.length, deduplicated: unique.size, attempted: 0, passed: 0, failed: 0, skipped: 0, blocked: 0, partial: 0, notExecuted: 0, executions: results.filter(result => result.attempted === true || result.executionStarted === true).length, resultRecords: results.length };
   const layers = {}; const families = {};
   // Any failing repeat fails its semantic case. A partial or blocked repeat cannot be hidden by a pass.
   const precedence = ['failed', 'partial', 'blocked', 'skipped', 'passed'];
@@ -40,11 +40,12 @@ export function summarize(cases, results) {
     if (executions.some(result => result.attempted === true)) families[family].attempted++;
     for (const layer of new Set(equivalents.map(c => c.layer))) {
       layers[layer] ??= { semanticCases: 0, executions: 0 };
-      layers[layer].semanticCases++; layers[layer].executions += executions.filter(r => (r.layer ?? testCase.layer) === layer).length;
+      layers[layer].semanticCases++; layers[layer].executions += executions.filter(r => (r.layer ?? testCase.layer) === layer && (r.attempted === true || r.executionStarted === true)).length;
     }
   }
   const measurements = {};
   for (const result of results) {
+    if (result.attempted !== true && result.executionStarted !== true) continue;
     const testCase = cases.find(c => c.caseId === result.caseId);
     const layer = result.layer ?? testCase.layer;
     measurements[layer] ??= { latencyMs: [], knownCostRows: 0, unknownCostRows: 0, knownCostByCurrency: {} };
@@ -70,7 +71,7 @@ export function summarizeJourneys(journeys) {
     if (!semantic.has(hash)) semantic.set(hash, []);
     semantic.get(hash).push(journey);
   }
-  const count = { generated: identities.size, deduplicated: semantic.size, executions: journeys.length, attempted: 0, passedBoundary: 0, failed: 0, blocked: 0, partial: 0, skipped: 0, normalUiAttempted: 0, normalUiRealBackendAttempted: 0, persistenceWorkerAttempted: 0, fullJourneyComplete: 0 };
+  const count = { generated: identities.size, deduplicated: semantic.size, executions: journeys.filter(run => run.attempted === true || run.executionStarted === true).length, resultRecords: journeys.length, attempted: 0, passedBoundary: 0, failed: 0, blocked: 0, partial: 0, skipped: 0, normalUiAttempted: 0, normalUiRealBackendAttempted: 0, persistenceWorkerAttempted: 0, fullJourneyComplete: 0 };
   const layers = {};
   for (const runs of semantic.values()) {
     const status = ['failed','partial','blocked','skipped','passed'].find(candidate => runs.some(run => run.status === candidate));
@@ -83,7 +84,7 @@ export function summarizeJourneys(journeys) {
     if (status === 'passed' && runs.every(run => run.fullJourneyComplete === true)) count.fullJourneyComplete++;
     for (const layer of new Set(runs.map(run => run.layer))) {
       layers[layer] ??= { semanticJourneys: 0, executions: 0, attempted: 0 };
-      layers[layer].semanticJourneys++; layers[layer].executions += runs.filter(run => run.layer === layer).length;
+      layers[layer].semanticJourneys++; layers[layer].executions += runs.filter(run => run.layer === layer && (run.attempted === true || run.executionStarted === true)).length;
       if (runs.some(run => run.layer === layer && run.attempted === true)) layers[layer].attempted++;
     }
   }

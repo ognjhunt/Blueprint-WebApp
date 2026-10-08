@@ -26,3 +26,10 @@ describe('reliability evidence denominator', () => {
    const report = summarizeJourneys([mock, { ...mock, repeat: 2 }, { ...mock, journeyId: 'renamed-ui', repeat: 3 }]);
    expect(report).toMatchObject({ generated: 2, deduplicated: 1, executions: 3, attempted: 1, passedBoundary: 1, normalUiAttempted: 1, normalUiRealBackendAttempted: 0, fullJourneyComplete: 0 });
  });
+
+ it('retains blocked planned journeys without inventing execution attempts', () => {
+   const blocked = { journeyId: 'blocked', parameters: { boundary: 'emulator absent' }, layer: 'real-backend-planned', status: 'blocked', attempted: false, normalUi: false };
+   const report = summarizeJourneys([blocked]);
+   expect(report).toMatchObject({ generated: 1, deduplicated: 1, executions: 0, resultRecords: 1, attempted: 0, blocked: 1 });
+   expect(report.layers['real-backend-planned']).toMatchObject({ semanticJourneys: 1, executions: 0, attempted: 0 });
+ });
