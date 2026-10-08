@@ -2123,3 +2123,42 @@ is preserved. This repairs inspectability/privacy, not the unknown actual
 live serialization cause, source admission, model perception or customer
 completion. There is no refund, authority reset, paid call or original coverage
 credit. Exact-head requiredCI and deployment remain separate release gates.
+
+
+## Independent strict SDK output schema review — 33c6c11f
+
+Approved bounded source head `33c6c11ff889e41a69b93f0cc6e4d3651db1fc1f`,
+comprisinge53e6560 schema repair and11 fixture-envelope additions over existing
+055882f3. Preexisting communications changes are outside this slice. Shared
+assessment shape supplies a required nullable citation selector for fresh
+provider output while the retained decoder preserves optional legacy selector
+compatibility. Runtime hashdf4981db matches Git and captured candidate bytes.
+The only follow-up fixture changes add selector:null; semantic text, labels,
+expectations and assertions are unchanged. No admission/cost/rights/dispatch
+or factual-source guard is relaxed.
+
+Installed SDK0.3.9 captured actual Responses request on9a96add5
+(hash5c72ac90) contains unsupported `not` at the selector union. Candidate
+request hash750ba3a9 removes it. Independently traversed both captures: four
+tool schemas and21 object schemas; candidate has no unsupported composition,
+all object properties required and additionalProperties:false. Each capture
+records one admission/client entry and zero network/provider calls. Official
+[OpenAI Structured Outputs documentation](https://developers.openai.com/api/docs/guides/structured-outputs)
+confirms required nullable fields and unsupported `not` composition. This
+is request-format evidence, not a paid API acceptance receipt or definitive
+causality for the live generic failure.
+
+Same matched schema test baseline617b15a2 fails serialization while legacy
+decoder control passes; candidatebb9f9f84 reports44/44 focused neighbors.
+Final broader scripted receiptc68a8168 reports346/346 after the explicit
+nullable-envelope correction; earlier missing-selector fixture failures are
+not retroactively turned into product failures or omitted. Reviewer directly
+executed the two existing serialized-request/legacy-decoder controls on the
+clean final head:2/2 passed. No extra tests, model calls or coverage credit
+were added by review. Required exact-head CI/release checks remain separate.
+
+This source clearance preserves historical DTO readability and removes the
+demonstrated unsupported request keyword. It does not establish model/video
+accuracy, provider authentication, live successful inference, charge settlement
+or customer assessment completion. Unknown historical exposure remains held;
+no retry, refund or additional spending authority follows from this review.
