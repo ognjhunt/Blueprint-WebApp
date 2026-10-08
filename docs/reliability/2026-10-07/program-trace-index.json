@@ -1,6 +1,6 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-08T08:17:41.848127+00:00",
+  "updated_at_utc": "2026-10-08T19:49:55Z",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 22,
@@ -1679,5 +1679,43 @@
       "no full production middleware or autonomous scheduler proof"
     ],
     "privacy": "raw synthetic bearer-token traces private, directories0700/files0600; no public CI trace upload"
+  },
+  "supplemental_native_sdk_worker_restart": {
+    "source_commit": "1cb4cfa6ea1e444bf6e51c699ae6bb2f1ce297b2",
+    "runtime_base_sha": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+    "case_ids": [
+      "SDK-UI-003"
+    ],
+    "generated_unique": 1,
+    "deduplicated_unique": 1,
+    "attempted_unique": 1,
+    "attempts": 3,
+    "passed_attempts": 3,
+    "failed_scored_attempts": 0,
+    "diagnostic_attempts": 3,
+    "diagnostic_failed": 2,
+    "diagnostic_passed": 1,
+    "repeats_per_case": 3,
+    "original_catalog_credit": 0,
+    "layer": "normal UI / actual handlers / native Firestore emulator / durable fake objects / actual SDK/private writer / scripted OpenAI and Gemini / local notifications",
+    "boundary": "Verified own worker SIGKILL after actual private completed-run commit before queue publication acknowledgement; fresh OS worker hydrates same canonical run, ordinary cursor scans publish without additional model calls",
+    "fault_seams": [
+      "test-only parent-web claim hold",
+      "test-only pause after unmodified private writer commit/readback"
+    ],
+    "receipt_path": "/Users/nijelhunt_1/.codex/worktrees/reliability-sdk-browser-join-20261008/Blueprint-WebApp/output/reliability-program/sdk-worker-browser/receipt.json",
+    "receipt_sha256": "477f3b95bab3a2dbca21b08f8696fd41e0198d3ca3ecfbcbfadb52a76192008c",
+    "artifact_hashes": 82,
+    "provider_mode": "scripted",
+    "live_provider_calls": 0,
+    "live_cost_usd": 0,
+    "limits": [
+      "manual queue ticks; no production autonomous scheduler proof",
+      "fake object storage, synthetic footage, no video-perception accuracy",
+      "native emulator export/import snapshot not claimed",
+      "new financial-accounting runtime replay has zero attempts pending source integration",
+      "diagnostic failures remain retained and are not successful restart attempts"
+    ],
+    "owned_process_cleanup": "Verified own Java stopped and ports8085/42878 released at19:32:51UTC"
   }
 }

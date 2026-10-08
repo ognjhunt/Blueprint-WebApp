@@ -1671,7 +1671,8 @@
       "Sol": 2,
       "Gemini": 1
     },
-    "scope_limit": "Remaining reservations alone cannot establish a completed normal SDK sequence; no slot split/reclassification/refund/new spending or alternate sequence performed."
+    "scope_limit": "Remaining reservations alone cannot establish a completed normal SDK sequence; no slot split/reclassification/refund/new spending or alternate sequence performed.",
+    "current_policy_note": "Original slot counts are historical; current source removes customer financial prerequisites. Post-key-change provider authentication and live assessment remain unverified."
   },
   "supplemental_native_sdk_browser_join": {
     "state": "code_complete_independently_reviewed_supplemental_execution",
@@ -1726,6 +1727,57 @@
     "production_effects": 0,
     "post_configuration_authentication": "unverified",
     "count_tokens_bound": "new source under review; exact frozen static request only, agentic conservative fallback; not billing proof",
-    "exposure_policy_clarification": "Pre-grant accepted/unknown usage stays full. An unused held slot may receive a new exact counted request bound at new dispatch; that NEW unknown call retains its full counted bound. Only validated new usage may reduce it further. No retrospective unknown refund."
+    "exposure_policy_clarification": "Pre-grant accepted/unknown usage stays full. An unused held slot may receive a new exact counted request bound at new dispatch; that NEW unknown call retains its full counted bound. Only validated new usage may reduce it further. No retrospective unknown refund.",
+    "historical": true,
+    "superseded_by": "customer_spending_gate_removal"
+  },
+  "customer_spending_gate_removal": {
+    "observed_at_utc": "2026-10-08T19:49:55Z",
+    "human_thread_id": "01a11c7e-4351-7c31-ac68-ab0fd09a2fbc",
+    "human_message_id": "01a11cf7-869d-7e30-9dc7-0caa5eda987f",
+    "instruction": "Remove all spending budget/cap gates from the product/service.",
+    "scope": "Customer assessment, capture coverage, video privacy and inbound qualification source gates; existing accounting remains. No unrelated infrastructure, access expansion, outreach or historical zero-cost inference.",
+    "candidate_head": "e5566498ec5a90fca7dc487439b0417e7978a51d",
+    "pull_request": "https://github.com/ognjhunt/Blueprint-WebApp/pull/970",
+    "state": "published_draft_not_merged_or_deployed;independent_stale_pending_owner_boundary_under_repair",
+    "old_amendment": "The unpublished $5.30 amendment and STATIC cost-admission proposal are superseded as customer prerequisites; original records and unknown liabilities remain historical/read-only.",
+    "required_checks": {
+      "run_id": 37833797729,
+      "observed": "eight_jobs_success_test_in_progress"
+    },
+    "frozen_coverage_quality_targets": "unchanged; requirement change is recorded explicitly, never additional unique-case credit",
+    "paid_provider_calls": 0
+  },
+  "latest_shared_main_observation": {
+    "observed_at_utc": "2026-10-08T19:49:55Z",
+    "sha": "8cb532f757c0d899cdd51617cb1c82a3c6acc42c",
+    "owning_pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/968",
+    "main_ci_run": 37831858051,
+    "ci_conclusion": "success",
+    "gated_deploy_run": 37832977155,
+    "deploy_conclusion": "success",
+    "native_render_receipts": [
+      {
+        "role": "web",
+        "deployment_id": "dep-db3v0mm7bikc73agl2e0",
+        "status": "live",
+        "sha": "8cb532f757c0d899cdd51617cb1c82a3c6acc42c",
+        "finished_at_utc": "2026-10-08T19:37:42.635148Z"
+      },
+      {
+        "role": "worker",
+        "deployment_id": "dep-db3v0mvf3r2c73dmman0",
+        "status": "live",
+        "sha": "8cb532f757c0d899cdd51617cb1c82a3c6acc42c",
+        "finished_at_utc": "2026-10-08T19:37:41.111791Z"
+      }
+    ],
+    "public_readback": {
+      "version_sha": "8cb532f757c0d899cdd51617cb1c82a3c6acc42c",
+      "built_at_utc": "2026-10-08T19:35:41.415Z",
+      "ready_http": 200,
+      "ready_response_timestamp": "2026-10-08T19:49:52.075Z"
+    },
+    "claim_ceiling": "current shared deployed identity and readiness only; prior783 browser smoke stays historical; no live provider/customer outcome proof"
   }
 }
