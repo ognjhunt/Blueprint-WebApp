@@ -202,8 +202,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "screening",
       headline: screening.running === 0
-        ? `Screening is queued for ${countLabel(screening.teams, "robot team")}. Execution has not started.`
-        : `${countLabel(screening.teams, "robot team")} ${screening.teams === 1 ? "is" : "are"} being screened against your scene.${screening.queued > 0 ? ` ${countLabel(screening.queued, "run")} still waiting to start.` : ""}`,
+        ? "Robot screening has not started. Results are not available yet."
+        : "Robot screening is in progress. Results are not available yet.",
       operatorAction: null,
     };
   }
@@ -224,10 +224,10 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "call_needed",
       headline:
-        "A short call settles the last questions before we build your scene. The agenda is already written.",
+        "Some operating details still affect the assessment. Review the specific open questions below; facts you cannot establish can remain unknown.",
       operatorAction: input.bookingUrl
-        ? `Book a 30-minute call: ${input.bookingUrl}`
-        : "We will reach out to book a 30-minute call.",
+        ? `You can discuss the remaining questions here: ${input.bookingUrl}`
+        : "Answer the consequential open questions below.",
     };
   }
 
