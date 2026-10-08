@@ -316,7 +316,7 @@ it("does not require a description or goal, but asks for usable work before a pr
   expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
 });
 
-it("asks one question about the video and asks for recording rights only when a video is uploaded", async () => {
+it("asks one question about the video and offers no separate rights step", async () => {
   await renderReady(<SiteCaptureStart />);
   expect(screen.getByRole("group", { name: "How will we see the task?" })).toBeInTheDocument();
   expect(screen.getByRole("radio", { name: "Film it later on a phone" })).toBeChecked();
@@ -325,9 +325,6 @@ it("asks one question about the video and asks for recording rights only when a 
   expect(document.querySelector("#start-rights")).toBeNull();
 
   fireEvent.click(screen.getByRole("radio", { name: "Upload a video now" }));
-  expect(document.querySelector("#start-rights")).toBeRequired();
-
-  fireEvent.click(screen.getByRole("radio", { name: "Have Blueprint film it" }));
   expect(document.querySelector("#start-rights")).toBeNull();
 });
 
@@ -343,23 +340,6 @@ it.each([["phone", "self_capture"], ["visit", "site_visit"]])("sends the capture
   const payload = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
   expect(payload.filmerContact).toBeUndefined();
   expect(payload.captureMode).toBe(captureMode);
-  expect(payload.consentAttestation).toBeNull();
-});
-
-it("does not carry a recording grant from the upload path into a phone submission", async () => {
-  signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: null } }]);
-  await renderReady(<SiteCaptureStart />);
-  await screen.findByText(/Saving to your workspace as owner@example.com/);
-  fireEvent.click(document.querySelector("#start-method-upload")!);
-  fireEvent.click(document.querySelector("#start-rights")!);
-  fireEvent.click(document.querySelector("#start-method-phone")!);
-  expect(document.querySelector("#start-rights")).toBeNull();
-  fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
-  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
-  fireEvent.submit(screen.getByRole("form"));
-  await screen.findByRole("link", { name: "Saved in your workspace" });
-  const payload = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
-  expect(payload).toMatchObject({ captureMode: "self_capture", descriptionOnly: true });
   expect(payload.consentAttestation).toBeNull();
 });
 
@@ -456,7 +436,6 @@ describe("SiteCaptureStart and a video that already exists", () => {
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } });
     fireEvent.change(document.querySelector("#start-company")!, { target: { value: "Acme Foods" } });
-  fireEvent.click(document.querySelector("#start-rights")!);
     fireEvent.submit(screen.getByRole("form"));
   }
 
@@ -522,7 +501,6 @@ describe("SiteCaptureStart and a video that already exists", () => {
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } });
     fireEvent.change(document.querySelector("#start-company")!, { target: { value: "Acme Foods" } });
-    fireEvent.click(document.querySelector("#start-rights")!);
     fireEvent.submit(screen.getByRole("form"));
     await screen.findByText("Your recording is in.", { selector: "h2" });
     const submitted = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
@@ -585,7 +563,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(screen.queryByRole("img", { name: /film/i })).not.toBeInTheDocument();
   });
 
-  it("does not create a job or upload existing footage without rights consent", async () => {
+  it("does not create a job or upload existing footage until a video is chosen", async () => {
     answerPosts({ captureUrl }); await renderReady(<SiteCaptureStart />);
     fireEvent.click(document.querySelector("#start-method-upload")!);
     fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
@@ -664,8 +642,6 @@ it.each(intakeCases)("$caseId $method intake $location $outcome", async ({ metho
   fireEvent.click(document.querySelector(`#start-method-${method}`)!);
   fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Move sealed cartons" } });
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
-  const rights = document.querySelector("#start-rights");
-  if (rights) fireEvent.click(rights);
   const file = document.querySelector("#start-footage");
   if (file) fireEvent.change(file, { target: { files: [new File(["synthetic"], "original.mp4", { type: "video/mp4" })] } });
   fireEvent.submit(screen.getByRole("form"));

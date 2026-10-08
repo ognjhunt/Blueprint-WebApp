@@ -219,7 +219,7 @@ test("UI-RETURN-005 real browser termination during video transport returns to t
   try {
     const page=await first.newPage();await page.goto(`${origin}/contact/site-operator`);await fill(page);
     await page.locator("#start-method-upload").check();await page.locator("#start-footage").setInputFiles(video);
-    await page.locator("#start-rights").check();await page.getByRole("button",{name:"Start free assessment",exact:true}).click();
+    await page.getByRole("button",{name:"Start free assessment",exact:true}).click();
     await uploading; const saved=await first.storageState();
     await firstBrowser.close();
     const resumedBrowser=await chromium.launch(launch);const resumed=await resumedBrowser.newContext({storageState:saved});
