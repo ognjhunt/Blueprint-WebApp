@@ -2916,3 +2916,62 @@ serving identity and observed service health, not real-provider authorization,
 video perception, customer assessment output, semantic quality or whole-goal
 completion. The original dishwasher owner's existing sole normal-UI run is a
 separate execution; this review performed no customer or provider dispatch.
+
+
+### Abandoned assessment recovery — aa519244
+
+Independent bounded source approval applies to immutable
+`aa519244fcfaff656d11e06150b76f5b223b8a55`, exact2b parent, changing only queue
+and capture-inference accounting helpers. The reviewer inspected the actual
+lease, claim, source/context and canonical call-intent checks and all retained
+receipt/source hashes. Private receipt is
+`ac29e7b83d381e362099483182d05fd7eb4832109e74488a81c8ef19e73b5ccc`;
+matched probes fail2/pass1 before and pass3 after, plus42 existing neighbors,
+for45/45 final, with terminal typecheck/Graphify/portability. Original test bytes
+were restored; no tests/frameworks were committed or rerun by the reviewer.
+
+An exact30-minute expired job/run/claim with current authority and a matching
+canonical admitted call can be atomically cancelled with an interruption receipt
+while the job becomes needs_review. Retirement does not change the pending call,
+its full reservation or exposure. Explicit authorized retry validates that receipt
+and the immutable canonical intent, derives missing source/reservation checkpoints
+from that actual call, and archives the old action UNKNOWN without provider
+replay, refund or fabricated response. Current source/access/claim checks remain.
+Ordinary cancellation and missing/ambiguous/incomplete ownership are not accepted
+as this recovery proof. A concurrent completed run is left for actual retained
+publication rather than overwritten as abandoned.
+
+The review required CANCELLED rather than merely FAILED retirement because the
+existing private writer fences cancelled assessments against late completion.
+The retained probe executes that actual writer and confirms no resurrection;
+future old dispatch/accounting also remains fenced after explicit retry. The
+lease is not proof that a remote call ended or cost zero. A later queue tick is
+required; finite recovery time is not established. This fake-store execution does
+not newly prove an OS restart, normal customer retry UI, deployed recovery or the
+live incident's provider outcome. Integrating onto currente9 and protected CI,
+deployment and actual affected result verification remain separate gates.
+
+### Bounded Gemini Buffer upload — eeefb7e9
+
+Independent source approval applies to
+`eeefb7e947c50ec590322664ffc00b5f359bcb83`, exacte9 parent, changing only the
+Gemini adapter and one existing fixture's assertions. A retained verified Buffer
+now uploads through pull-driven64KiB subarray views with highWaterMark0;
+pre-existing streams pass through. Content length, duplex, timeout, current-source
+hooks, provider flow and cleanup remain unchanged. The fixture verifies native
+no-send Request stream identity, shared Buffer backing/offsets and total byte/SHA
+identity. Receipt
+`1a910388fe1780e7385116340d15f1240c3f26ca5ac8387f674f1b27f7551e2b`
+links21/21 final existing checks and terminal typecheck/Graphify/portability;
+the matched baseline fails the same stream-instance requirement, but predates
+the expanded Request assertions. All two source and eight artifact hashes match.
+
+The separately retained native Node22 allocation probe
+`37e283937afdf2ebc495e35efb80b391783190dc3c0d3ea6643132c85d37a5eb`
+was inspected without duplication: constructing one Request from a synthetic
+60,035,801-byte Buffer adds60,093,280 ArrayBuffer bytes, versus57,479 with a
+stream. This explains an avoidable local extraction copy, not full production
+peak memory, deployed Node behavior or complete OOM causality. One verified
+Buffer remains resident. No real video/provider/network or new journey credit
+is established; the affected live assessment and unknown charge still require
+separate observation. Neither source approval alone clears whole-program quality.
