@@ -35,3 +35,41 @@ describe("assessment source admission", () => {
       .rejects.toThrow("assessment_video_timestamp_invalid");
   });
 });
+
+
+describe("known published facts require current knowledge applicability", () => {
+  const sourceId = "knowledge:synthetic-corrected-spec";
+  const record = (current?: unknown) => ({ source_id: sourceId, kind: "knowledge" as const,
+    canonical_ref: "synthetic/specification", sha256: "c".repeat(64), checked_at: "2020-01-01",
+    content: { ...(current === undefined ? {} : { current }), original_checked_at: "2020-01-01",
+      content: { reachM: 2, correction: "Superseded: current model reach is 1 m" } } });
+  const packet = (): SiteAssessment => ({ ...assessment(), job: [], known: [{ text: "The robot currently has a 2 m reach",
+    basis: "published", evidence: [{ source_id: sourceId, at_seconds: null }] }] });
+  it("rejects a known published claim from an explicitly non-current record without rewriting evidence", () => {
+    const value = packet(), sourceRecord = record(false), original = structuredClone({ value, sourceRecord });
+    expect(() => validateAssessmentEvidence(value, new Map([[sourceId, sourceRecord]]), null)).toThrow("assessment_known_published_source_not_current");
+    expect({ value, sourceRecord }).toEqual(original);
+  });
+  it.each([true, undefined, "false"])("does not invent an applicability veto from %s", current => {
+    const sourceRecord = record(current);
+    // No age cutoff, missing-as-false coercion or string-to-boolean coercion.
+    expect(() => validateAssessmentEvidence(packet(), new Map([[sourceId, sourceRecord]]), null)).not.toThrow();
+  });
+  it.each(["unknown", "estimate"] as const)("preserves explicit historical metadata and %s context", basis => {
+    const value = packet(), sourceRecord = record(false);
+    value.known = [{ text: "The historical 2 m record is superseded; current applicability is unknown", basis,
+      evidence: [{ source_id: sourceId, at_seconds: null }] }];
+    const original = structuredClone(sourceRecord);
+    expect(() => validateAssessmentEvidence(value, new Map([[sourceId, sourceRecord]]), null)).not.toThrow();
+    expect(sourceRecord).toEqual(original);
+  });
+  it("allows an independently current sibling while preserving superseded context", () => {
+    const value = packet(), old = record(false), active = { ...record(true), source_id: "knowledge:synthetic-current-spec",
+      content: { current: true, content: { reachM: 1 } } };
+    value.known[0] = { text: "The current synthetic specification states 1 m reach", basis: "published",
+      evidence: [{ source_id: active.source_id, at_seconds: null }] };
+    value.missing = [{ text: "An older record said 2 m; why it differs remains unresolved", basis: "unknown",
+      evidence: [{ source_id: sourceId, at_seconds: null }] }];
+    expect(() => validateAssessmentEvidence(value, new Map([[sourceId, old], [active.source_id, active]]), null)).not.toThrow();
+  });
+});
