@@ -194,6 +194,14 @@ export class CommunicationsStore {
         input.regenerationOf ? { expectedJobDigest: input.expectedJobDigest ?? "" } : undefined);
       if (queued.record.manualDraftRequest) {
         if (queued.record.manualDraftRequest.requestDigest !== requestDigest) throw Error("communications_draft_request_changed");
+        // An identical explicit retry can resume only a requeued native job.
+        // Preserve charged checkpoints, attempts and the previous diagnostic.
+        if (queued.record.manualDraftRequest.state === "failed" && queued.record.state === "queued"
+          && (queued.record.lease?.until ?? 0) <= this.now() && queued.record.attempts < 3
+          && queued.record.checkpoint.sessionSpendLimitCents === input.sessionSpendLimitCents) {
+          queued.record.manualDraftRequest.state = "requested";
+          tx.update(this.jobs().doc(queued.record.jobId), { "manualDraftRequest.state": "requested" });
+        }
         return queued.record;
       }
       if (queued.record.checkpoint.createClaimedAt || queued.record.attempts || queued.record.state !== "queued") throw Error("communications_draft_requires_explicit_regeneration");
