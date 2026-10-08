@@ -465,6 +465,8 @@ const workers: WorkerDefinition[] = [
       await recoverCaptureReviews({ limit: Math.min(limit, 2) }).catch(error => logger.warn({ error }, "Capture reviews will retry"));
       const { tickCoverageReviews } = await import("./captureCoverageQueue");
       tickCoverageReviews(Math.min(limit, 10));
+      const { tickSiteAssessments } = await import("./siteAssessmentQueue");
+      tickSiteAssessments(Math.min(limit, 2));
       return {
         processedCount: summary.sent,
         failedCount: summary.failed + summary.exhausted,

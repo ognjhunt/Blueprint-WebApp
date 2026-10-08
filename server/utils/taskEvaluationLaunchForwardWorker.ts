@@ -1,5 +1,6 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { processSceneIntakeQueue } from "./taskEvaluationSceneIntake";
 import { resolveExecutionAccessContext } from "./access-control";
 import type { Response } from "express";
@@ -320,7 +321,14 @@ export async function closeExpiredTaskEvaluationLaunches(
 }
 
 export function startTaskEvaluationLaunchForwardWorker() {
-  if (!truthy(process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED)) {
+  const enabled = truthy(process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED);
+  logger.info({
+    launchForwardWorkerEnabled: enabled,
+    siteVideoEvidenceEnabled: isSiteVideoEvidenceEnabled(),
+    openAiCredentialConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
+    geminiCredentialConfigured: ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_AI_STUDIO_API_KEY"].some(key => Boolean(process.env[key]?.trim())),
+  }, "Task Evaluation launch worker admission");
+  if (!enabled) {
     return () => undefined;
   }
   const intervalValue = Number(
@@ -329,7 +337,15 @@ export function startTaskEvaluationLaunchForwardWorker() {
   const intervalMs = Number.isFinite(intervalValue) && intervalValue >= 10_000
     ? intervalValue
     : 60_000;
+  let stopped = false;
   const run = () => {
+    if (stopped) return;
+    // This loop also runs when the broader ops scheduler is intentionally off.
+    if (isSiteVideoEvidenceEnabled()) {
+      void import("./siteAssessmentQueue").then(({ tickSiteAssessments }) => { if (!stopped) tickSiteAssessments(2); }).catch(() => {
+        logger.warn("Site advisory worker tick unavailable");
+      });
+    }
     void processSceneIntakeQueue().catch((error) => {
       logger.error({ err: error }, "Task Evaluation scene intake reconciliation failed");
     });
@@ -346,6 +362,7 @@ export function startTaskEvaluationLaunchForwardWorker() {
   const initial = setTimeout(run, 5_000);
   const interval = setInterval(run, intervalMs);
   return () => {
+    stopped = true;
     clearTimeout(initial);
     clearInterval(interval);
   };

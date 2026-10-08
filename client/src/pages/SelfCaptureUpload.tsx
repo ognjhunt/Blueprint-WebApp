@@ -1,3 +1,5 @@
+import type { SiteAdvisory } from "@/types/siteAdvisory";
+import { SiteAdvisoryReport } from "@/components/site/SiteAdvisoryReport";
 import { isLikelyPhone } from "@/lib/device";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { RecommendedPilot } from "@/components/site/RecommendedPilot";
@@ -33,6 +35,7 @@ import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo
 
 /** Mirrors the server's `projectTaskStatus`; the shared truth about where a task stands. */
 type TaskStatus = {
+  siteAdvisory?: SiteAdvisory | null;
   decision: string;
   headline: string;
   operatorAction: string | null;
@@ -446,12 +449,14 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         const data = await response.json();
         if (alive && response.ok && data?.status) setStatus({
           ...data.status,
+          siteAdvisory: data.siteAdvisory ?? null,
           claimUrl: data.claimUrl ?? null,
           sceneViewUrl: data.sceneViewUrl ?? null,
           captureReceived: data.captureReceived === true,
           footageReviewAutomated: data.footageReviewAutomated !== false,
         });
-      } catch { /* The capture remains usable during a status outage. */ }
+      else if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null);
+      } catch { if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null); }
       if (alive) timer = setTimeout(poll, 6000);
     }
     void poll();
@@ -494,6 +499,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         </p>
       )}
       <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />
+      <SiteAdvisoryReport advisory={status.siteAdvisory} />
       {status.sceneViewUrl && (
         <p style={{ margin: "10px 0 0" }}>
           <a className="ms-text-link" href={status.sceneViewUrl} target="_blank" rel="noreferrer">

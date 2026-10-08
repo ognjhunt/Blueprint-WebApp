@@ -8,6 +8,8 @@ import { browserPendingDecisionKey, loadBrowserPending, type BrowserPending } fr
 import { projectWebsiteCaptureRights } from "../../utils/websiteTaskContext";
 import { toSiteRequirement } from "../../utils/siteMatchRun";
 import { getBrief } from "../../utils/siteTaskBrief";
+import { advisoryContextDigest, assertAdvisoryJobBinding } from "../../utils/siteAssessmentContext";
+import { verifiedPendingManifest, verifiedPendingMarker } from "../../utils/websiteBrowserUploadStatus";
 import { isSiteVideoEvidenceEnabled } from "../../config/env";
 import { hydrateAgentEvidence, requiresMutationReconciliation } from "../private-evidence";
 import { getCompanyHistoryAccess } from "../operator-tools";
@@ -75,6 +77,25 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
     const privacy = raw.capture_privacy_source_bound_decision;
     const pending = privacy?.capture_id ? await loadBrowserPending(privacy.capture_id) : null;
     if (!pending) throw new Error("site_assessment_browser_capture_required");
+    const brief = await getBrief(input.context.request_id);
+    const contextDigest = advisoryContextDigest(raw, brief);
+    const assertAdvisoryClaim = async (current: Record<string, any>, selected: BrowserPending, currentBrief: Record<string, any> | null) => {
+      if (!input.context.advisory_job_id) return;
+      const job = (await db!.collection("siteAssessmentJobs").doc(input.context.advisory_job_id).get()).data();
+      assertAdvisoryJobBinding(job, { jobId: input.context.advisory_job_id, requestId: input.context.request_id,
+        sourceKey: browserPendingDecisionKey(selected), contextDigest: advisoryContextDigest(current, currentBrief),
+        runId: host.runId, claimId: input.context.advisory_claim_id! });
+    };
+    const assertCurrentSession = async (selected: BrowserPending) => {
+      const session = (await db!.collection("captureUploadSessions").doc(selected.capture_id).get()).data();
+      const current = session?.browser_pending_delivery as BrowserPending | undefined;
+      if (!current || current.state !== "published" || session?.browser_upload_reservation || session?.browser_stored_upload
+        || browserPendingDecisionKey(current) !== browserPendingDecisionKey(selected)) {
+        throw new Error("site_assessment_source_changed");
+      }
+    };
+    await assertCurrentSession(pending);
+    await assertAdvisoryClaim(raw, pending, brief);
     const bucket = storageAdmin.bucket(process.env.BLUEPRINT_CAPTURE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com");
     const readPinned = async (object: BrowserPending["video"], maxBytes: number) => {
       if (!/^[1-9][0-9]{0,19}$/.test(object.generation) || !Number.isSafeInteger(object.size_bytes)
@@ -92,6 +113,9 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
     bindBrowserAssessmentSource(input.context.request_id, raw, pending, { request_id: pending.request_id,
       scene_id: pending.scene_id, capture_id: pending.capture_id, video_uri: pending.video.object_name, duration_seconds: 1,
       capture_rights: projectWebsiteCaptureRights(raw) });
+    if (!(await verifiedPendingManifest(pending)) || !(await verifiedPendingMarker(pending))) {
+      throw new Error("site_assessment_current_source_unverified");
+    }
     const manifestBytes = await readPinned(pending.manifest, 65536);
     if (`sha256:${sha(manifestBytes.body)}` !== pending.manifest.sha256) throw new Error("site_assessment_manifest_changed");
     const bound = bindBrowserAssessmentSource(input.context.request_id, raw, pending, JSON.parse(manifestBytes.body.toString("utf8")));
@@ -99,7 +123,7 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
     const videoRef = `gs://${bucket.name}/${pending.video.object_name}#generation=${pending.video.generation}`;
     const videoSha = sha(video.body);
     sourceAdmission = { schema_version: "site_assessment_source.v1", request_id: pending.request_id, capture_id: pending.capture_id,
-      source_key: bound.source_key, video_ref: videoRef, video_sha256: videoSha, video_bytes: video.body.length,
+      source_key: bound.source_key, context_digest: contextDigest, advisory_job_id: input.context.advisory_job_id ?? null, video_ref: videoRef, video_sha256: videoSha, video_bytes: video.body.length,
       duration_seconds: bound.duration_seconds, manifest: pending.manifest, rights: projectWebsiteCaptureRights(raw),
       privacy_eligibility: privacy.eligibility, privacy_proceeded: privacy.proceeded };
     const [url] = await video.file.getSignedUrl({ action: "read", expires: Date.now() + 30 * 60 * 1000,
@@ -108,7 +132,14 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       const current = (await ref.get()).data(), currentPending = await loadBrowserPending(pending.capture_id);
       if (!current || !currentPending || digest(requestFacts(current)) !== digest(requestFacts(raw))
         || browserPendingDecisionKey(currentPending) !== bound.source_key) throw new Error("site_assessment_source_changed");
+      await assertCurrentSession(currentPending);
+      const currentBrief = await getBrief(input.context.request_id);
+      if (advisoryContextDigest(current, currentBrief) !== contextDigest) throw new Error("site_assessment_context_changed");
       bindBrowserAssessmentSource(input.context.request_id, current, currentPending, JSON.parse(manifestBytes.body.toString("utf8")));
+      if (!(await verifiedPendingManifest(currentPending)) || !(await verifiedPendingMarker(currentPending))) {
+        throw new Error("site_assessment_current_source_unverified");
+      }
+      await assertAdvisoryClaim(current, currentPending, currentBrief);
     };
     const messages: SiteAssessmentInput["operator_messages"] = [];
     let priorPacket: Record<string, any> | undefined;
@@ -117,7 +148,6 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       if (typeof text === "string" && text.trim()) messages.push({ id: `site:${field}`, text,
         source_ref: `inboundRequests/${input.context.request_id}/request/${field}` });
     }
-    const brief = await getBrief(input.context.request_id).catch(() => null);
     for (const field of ["operatorTaskDetails", "successCriteria", "operatorAnswers"] as const) {
       if (brief?.[field]) messages.push({ id: `brief:${field}`, text: JSON.stringify({ basis: "owner_stated_unverified", [field]: brief[field] }),
         source_ref: `siteTaskBriefs/${input.context.request_id}/${field}` });
@@ -153,11 +183,17 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
           assessment_run_id: host.runId, assessment_request_id: input.context.request_id,
           assessment_source: raw.capture_privacy_source_bound_decision?.producer_source }, kind, request);
         captureReservations.push(captureAdmission.receipt);
+        // Admission may await storage, rights and durable accounting. Verify
+        // authority again at the dispatch boundary; retained reservations are
+        // not refunded merely because a later source fence denies dispatch.
+        await host.assertActive(); await assertSourceCurrent();
       },
       record_model_response: async (kind, model, response) => { budget.record(kind, model, response);
         await captureAdmission?.record((response as any)?.usage); captureAdmission = undefined; },
     });
     const packet = await instance.run();
+    if (!packet.sources.some(source => source.kind === "video" && source.sha256 === videoSha
+      && source.canonical_ref === videoRef)) throw new Error("site_assessment_video_evidence_missing");
     await host.assertActive();
     await assertSourceCurrent();
     return { ...base, status: "completed", output: packet.assessment,

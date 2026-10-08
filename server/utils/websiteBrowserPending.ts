@@ -5,6 +5,9 @@ import { SITE_CAPTURE_SESSIONS_COLLECTION } from "./siteCaptureUploadIdentity";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import type { WrittenManifest, WrittenObject } from "./websiteCaptureDelivery";
 import type { CapturePrivacyProducerSource } from "./capturePrivacyRecord";
+import { logger } from "../logger";
+import { isSiteVideoEvidenceEnabled } from "../config/env";
+import { enqueueNewPublishedSiteAssessment } from "./siteAssessmentQueue";
 
 export interface BrowserPending {
   schema_version: "website_browser_pending.v1";
@@ -295,12 +298,24 @@ export async function loadBrowserPending(captureId: string): Promise<BrowserPend
 export async function publishBrowserPending(selected: BrowserPending): Promise<void> {
   if (!db) throw new Error("browser_pending_unavailable");
   const ref = db.collection(SITE_CAPTURE_SESSIONS_COLLECTION).doc(selected.capture_id);
-  await db.runTransaction(async (transaction) => {
+  const newlyPublished = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const value = snapshot.data()?.browser_pending_delivery;
     if (!validPending(value) || !sameDelivery(value, selected)) throw new Error("browser_pending_changed");
-    if (value.state !== "published") transaction.set(ref, {
-      browser_pending_delivery: { ...value, state: "published" },
-    }, { merge: true });
+    if (value.state !== "published") {
+      // New source publication and its advisory intent share one commit. An
+      // older already-published row is intentionally never backfilled.
+      await enqueueNewPublishedSiteAssessment(transaction, value);
+      transaction.set(ref, { browser_pending_delivery: { ...value, state: "published" } }, { merge: true });
+      return true;
+    }
+    return false;
   });
+  // Dispatch begins only after durable publication; the HTTP upload response
+  // does not wait for providers. Return visits can wake retained queued work.
+  if (newlyPublished && selected.capture_id === `walkthrough-${selected.request_id}` && isSiteVideoEvidenceEnabled()) {
+    void import("./siteAssessmentQueue").then(({ tickSiteAssessments }) => tickSiteAssessments(1)).catch(() => {
+      logger.warn("Site advisory publication wake-up unavailable");
+    });
+  }
 }

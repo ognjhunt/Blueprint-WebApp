@@ -1,3 +1,4 @@
+import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
 import type { WorkspaceResult } from "../../client/src/types/workspace";
 import { isBlueprintFundedRun } from "../utils/freeBeta";
 import { logger } from "../logger";
@@ -571,6 +572,11 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     task.readiness = null;
   }
 
+  task.siteAdvisory = consentRevoked ? null : await loadCurrentSiteAdvisory(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: record.account_owner_uid ?? null });
+  if (task.siteAdvisory?.state === "queued" || task.siteAdvisory?.state === "running") {
+    void import("../utils/siteAssessmentQueue").then(({ tickSiteAssessments }) => tickSiteAssessments(1))
+      .catch(() => logger.warn("Site advisory workspace return wake unavailable"));
+  }
   if (consentRevoked) task.status = "Recording consent withdrawn";
   return task;
 }
