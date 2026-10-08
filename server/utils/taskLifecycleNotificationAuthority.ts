@@ -2,6 +2,7 @@
 import {dbAdmin as db} from '../../client/src/lib/firebaseAdmin';
 import {projectWebsiteCaptureRights} from './websiteTaskContext';
 import type {OutboxKind} from './captureOutbox';
+import {canNotifyCurrentWebsitePreparationIssue} from './websitePreparationStatus';
 const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','screening_cleared','screening_started','results_ready','run_no_result',
  'brief_confirmed','coverage_shortfall','assessment_ready','input_needed',
@@ -11,9 +12,13 @@ const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  * existing authority checks; this grants no deletion/cancellation claim.
  * A missing capture source denies dispatch. A read failure stays recoverable. */
 export async function taskLifecycleNotificationIsCurrent(
- entry:{kind:OutboxKind;requestId:string},
+ entry:{kind:OutboxKind;requestId:string;preparationEventId?:string},
  transaction?:FirebaseFirestore.Transaction,
 ):Promise<boolean>{
+ if(entry.kind==='preparation_needs_attention'){
+  if(!/^sha256:[a-f0-9]{64}$/.test(entry.preparationEventId||''))return false;
+  return canNotifyCurrentWebsitePreparationIssue(entry.requestId,entry.preparationEventId!,transaction);
+ }
  if(!CAPTURE_DEPENDENT_NOTICES.has(entry.kind))return true;
  if(!db)throw new Error('capture_notification_authority_unavailable');
  const ref=db.collection('inboundRequests').doc(entry.requestId);

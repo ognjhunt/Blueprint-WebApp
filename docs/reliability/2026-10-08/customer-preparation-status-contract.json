@@ -67,7 +67,29 @@
       "Revalidate current source/owner/rights/context in transaction; durable status and notification intent/pending-enqueue state must survive retry.",
       "Same-source stale attempt/revision cannot replace newer status; genuine screening results and consent withdrawal keep precedence.",
       "Fresh customer status polls and notification dispatch reread canonical current ledger; unavailable read cannot masquerade as current failure or successful processing."
-    ]
+    ],
+    "acceptance": {
+      "schema_version": "website_preparation_status_acceptance.v1",
+      "fields": [
+        "schema_version",
+        "accepted",
+        "request_id",
+        "scene_id",
+        "capture_id",
+        "completion_marker_generation",
+        "producer_delivery_key",
+        "source_payload_sha256",
+        "task_context_digest",
+        "status_digest",
+        "state",
+        "native_execution_complete",
+        "correlation_id"
+      ],
+      "rules": [
+        "Emit only after durable status/notification-intent commit. accepted is true and native_execution_complete is false.",
+        "Producer verifies typed exact-source selectors and validated status-digest/reference binding before acknowledging delivery; arbitrary HTTP 200 is insufficient."
+      ]
+    }
   },
   "delivery": {
     "rules": [
@@ -108,6 +130,10 @@
     {
       "at_utc": "2026-10-08T12:17:00Z",
       "change": "Record actual worker hash formats and distinguish canonical correlation digest from public host-derived reference. No state, severity, target or acceptance threshold changed."
+    },
+    {
+      "at_utc": "2026-10-08T12:30:00Z",
+      "change": "Add typed post-commit source-bound callback acceptance; previously unspecified 200-body semantics could acknowledge unrelated success. Existing acceptance threshold strengthened explicitly; original coverage floors and severity rules unchanged. Historical v2 receipts retained; matched cases rerun at final candidate."
     }
   ]
 }

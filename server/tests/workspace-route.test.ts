@@ -12,6 +12,10 @@ const state = vi.hoisted(() => ({
   intakes: [] as any[],
   notices: vi.fn(async () => ({ enqueued: true })),
 }));
+const preparation = vi.hoisted(() => ({ read: vi.fn(async () => ({
+  state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
+})) }));
+vi.mock("../utils/websitePreparationStatus", () => ({ loadCurrentWebsitePreparationStatus: preparation.read }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({
   enqueueTaskLifecycleNotification: state.notices,
 }));
@@ -266,6 +270,24 @@ async function api(
   });
 }
 describe("workspace access and projections", () => {
+  it("PREP-UI-003 shows verified preparation failure only to the current owner", async () => {
+    state.records.set("inboundRequests/task-1", { ...task(),
+      site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
+    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
+      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
+      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: "2026-09-18T00:00:00Z" });
+    state.records.set("captureUploadSessions/walkthrough-task-1", { website_preparation: { selector: {} } });
+    const before = structuredClone([...state.records]);
+    const viewed = await (await api("/tasks/task-1", "site-1")).json();
+    expect(viewed.readiness).toMatchObject({ decision: "footage_received", stage: null, operatorAction: null });
+    expect(viewed.readiness.headline).toContain("Job preparation encountered a problem.");
+    expect(preparation.read).toHaveBeenCalledWith("task-1", "walkthrough-task-1");
+    preparation.read.mockClear();
+    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
+    expect(preparation.read).not.toHaveBeenCalled();
+    expect([...state.records]).toEqual(before);
+    expect(state.messages).not.toHaveBeenCalled();
+  });
   it("shows persisted reconstruction failure without exposing private provider details", async () => {
     state.records.set("inboundRequests/task-1", { ...task(),
       site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
