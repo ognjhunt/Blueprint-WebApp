@@ -11,6 +11,8 @@ import { mergeFootageIntoBrief } from "./siteTaskBriefReading";
 import { authorizeCaptureUpload } from "./captureUploadAuthorization";
 
 let activePass: Promise<void> | null = null;
+/** Admission defers another same-capture traversal while this worker is busy. */
+export function isCoverageReviewActive() { return activePass !== null; }
 /** Existing scheduler/pump owns the tick; durable intent owns restart recovery. */
 export function tickCoverageReviews(limit = 10) {
   if (!activePass) activePass = reconcileCoverageReviews(limit)

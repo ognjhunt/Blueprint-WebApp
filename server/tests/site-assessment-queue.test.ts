@@ -1,11 +1,12 @@
 // @vitest-environment node
 import { beforeEach, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
-const seams = vi.hoisted(() => ({ enabled: true, run: vi.fn(), manifest: vi.fn(), marker: vi.fn() }));
+const seams = vi.hoisted(() => ({ enabled: true, coverageActive: false, run: vi.fn(), manifest: vi.fn(), marker: vi.fn() }));
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore, storageAdmin: null }));
 vi.mock("../config/env", () => ({ isSiteVideoEvidenceEnabled: () => seams.enabled }));
 vi.mock("../agents/runtime", () => ({ runAgentTask: seams.run }));
+vi.mock("../utils/captureCoverageQueue", () => ({ isCoverageReviewActive: () => seams.coverageActive }));
 vi.mock("../utils/websiteBrowserUploadStatus", () => ({ verifiedPendingManifest: seams.manifest, verifiedPendingMarker: seams.marker, originalManifestConsent: () => true }));
 vi.mock("../logger", () => ({ logger: { warn: vi.fn() } }));
 import { publishBrowserPending, browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
@@ -19,7 +20,7 @@ const request = () => ({ request: { buyerType: "site_operator", capture_mode: "s
   consent_attestation: { granted: true, statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: "2026-10-08T00:00:00.000Z" } },
   capture_privacy_source_bound_decision: { capture_id: pending.capture_id, proceeded: true, eligibility: "unscreened",
     producer_source: { kind: "browser_pending", key: browserPendingDecisionKey(pending) } } });
-beforeEach(() => { seams.enabled = true; seams.run.mockReset(); seams.manifest.mockReset().mockResolvedValue("synthetic-manifest"); seams.marker.mockReset().mockResolvedValue(true); state.docs.clear(); state.docs.set(`inboundRequests/${pending.request_id}`, request());
+beforeEach(() => { seams.enabled = true; seams.coverageActive = false; seams.run.mockReset(); seams.manifest.mockReset().mockResolvedValue("synthetic-manifest"); seams.marker.mockReset().mockResolvedValue(true); state.docs.clear(); state.docs.set(`inboundRequests/${pending.request_id}`, request());
   state.docs.set(`captureUploadSessions/${pending.capture_id}`, { browser_pending_delivery: pending }); });
 it("ADVISORY-PRODUCER-001 normal new publication durably creates one source-bound advisory intent", async () => {
   await publishBrowserPending(pending);
@@ -67,6 +68,14 @@ it("keeps unknown interrupted provider work for review instead of redispatching"
   state.docs.set(`agentRuns/${job.run_id}`, { task_kind: "site_assessment", status: "running", artifacts: { usage: null } });
   await reconcileSiteAssessments();await reconcileSiteAssessments();
   expect(state.docs.get(key)?.state).toBe("needs_review"); expect(seams.run).not.toHaveBeenCalled();
+});
+it("waits for this worker's active coverage pass without requiring its verdict", async () => {
+  const { reconcileSiteAssessments } = await import("../utils/siteAssessmentQueue");
+  await publishBrowserPending(pending);const [key] = selectedJob();
+  seams.coverageActive = true;await reconcileSiteAssessments();
+  expect(state.docs.get(key)?.state).toBe("queued");expect(seams.run).not.toHaveBeenCalled();
+  seams.coverageActive = false;await reconcileSiteAssessments();await reconcileSiteAssessments();
+  expect(seams.run).toHaveBeenCalledTimes(1);
 });
 it("withdrawal wins over a retained completed packet", async () => {
   const { reconcileSiteAssessments } = await import("../utils/siteAssessmentQueue");

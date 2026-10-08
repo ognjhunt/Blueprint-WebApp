@@ -126,6 +126,10 @@ export async function reconcileSiteAssessments(limit = 2) {
         if (Date.now() - (job.started_at_ms || 0) >= RUN_LEASE_MS) await finish("needs_review", job.claim_id);
         continue;
       }
+      // Coverage and advisory share the existing capture allowance. Wait for
+      // this worker's active coverage pass, without making its verdict a gate.
+      const { isCoverageReviewActive } = await import("./captureCoverageQueue");
+      if (isCoverageReviewActive()) continue;
       const claimId = randomUUID();
       const claimed = await db.runTransaction(async tx => {
         const [current, request, brief, session] = await Promise.all([tx.get(row.ref), tx.get(requestRef), tx.get(briefRef), tx.get(sessionRef)]);
