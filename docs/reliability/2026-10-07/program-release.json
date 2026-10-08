@@ -603,7 +603,7 @@
       "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
     }
   },
-  "current_verified_webapp_release": "ae883831d7876da6632654b75026128dd6aa8450",
+  "current_verified_webapp_release": "783feb64213e78b5c219763e2fb2232b8390ba1c",
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
     "state": "WebApp_deployed;Pipeline_reviewed_protected_merged;exact_main_CI_and_promotion_active;actual_mapping_blocked",
@@ -1537,14 +1537,16 @@
     "independent_review": "1c188766",
     "required_PR_CI": 37821069092,
     "required_PR_CI_conclusion": "success",
-    "state": "protected_merged;latestcontainingmain783_CI_pending;no_activation",
+    "state": "protected_merged_paired_deployed_and_bounded_independently_verified;no_provider_customer_quality_or_activation_claim",
     "minimized_baseline": "triplemutatedlimit11vsretained10digest accepted",
     "retest": "sameunchangedcounterexample nowrefused;3compatibilityneighborspass",
     "independent_receipt_sha256": "73e4a97140b82a4bae87e2c2cd35fc33627745e12a6c4c8e2eec92bdac66ad7e",
     "claim_ceiling": "Dormant prospective binding/retainedexposure only; no limitselected/hardinvoiceguarantee/customercampaign/provider/Gmail activation",
     "merge_sha": "867afe6dff814f792a43d5e188adfeec4657f1b2",
     "merged_at_utc": "2026-10-08T18:14:40Z",
-    "main_CI": 37822769087
+    "main_CI": 37822769087,
+    "containing_verified_release": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+    "release_review": "ef527e88"
   },
   "CI_fixture_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/960",
@@ -1555,9 +1557,11 @@
     "merge_sha": "783feb64213e78b5c219763e2fb2232b8390ba1c",
     "merged_at_utc": "2026-10-08T18:15:24Z",
     "main_CI": 37822867694,
-    "state": "protected_merged;latestmainCI_pending;notdeployed",
+    "state": "protected_merged_paired_deployed_and_bounded_independently_verified;no_provider_customer_quality_or_activation_claim",
     "fixture": "Gitowned_synthetic2secondH264_13037bytes_60frames;byteidenticalregeneration",
-    "claim_ceiling": "Removed22minaptsetup;assertionskept/missingfixturefail. No realvideo_reference_or_originalcase_credit_or_controlled_performanceclaim."
+    "claim_ceiling": "Removed22minaptsetup;assertionskept/missingfixturefail. No realvideo_reference_or_originalcase_credit_or_controlled_performanceclaim.",
+    "containing_verified_release": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+    "release_review": "ef527e88"
   },
   "current_verified_pipeline_release": "0a17f52d23f233376b9944a6df49101491581f6c",
   "pipeline_canonical_0a": {
@@ -1607,14 +1611,66 @@
       966
     ],
     "main_CI": 37822867694,
-    "main_CI_observed": "nine_applicable_jobs_passed_observe_in_progress",
+    "main_CI_observed": "success_all9_applicable_jobs_and_automatic_admission_observer",
     "deploy_run": 37824096778,
-    "deploy_state": "failed_before_trigger_at_healthy_rollback_snapshot",
+    "deploy_state": "attempt2_success_exact_paired_native_LIVE_and18safe_UI_checks_independently_verified",
     "reason": "deployment_already_active",
     "failed_log_sha256": "c801ae75d21a774ac59e256a01010889919c3eb9104643d2b7b08e0d8802e46a",
     "competing_metadata": "WEB service_updated priorae deployment dep-db3tvrc9v7es738dfjdg alreadyinprogress",
-    "next_action": "Wait_existing_configuration_deploy_terminal_then_verify_healthy_paired_predecessor_and_replay_existing_CI_gated_release_once",
+    "next_action": "Actual_model_authentication_sufficient_normal_run_reservations_reference_quality_and_final_customer_assessment_remain_unproven",
     "new_runtime_configuration_by_root": false,
-    "deployed_claim": false
+    "deployed_claim": true,
+    "main_CI_test_count": 9202,
+    "main_CI_test_skips": 7,
+    "original_case_credit": 0,
+    "source_continuity_receipt_sha256": "97666da9ba5c20c32fefd664abb9e9f560537ca2488c2d5df5318a025d7503f2",
+    "deploy_attempt": 2,
+    "predecessor": {
+      "web_config_deploy": "dep-db3tvrc9v7es738dfjdg",
+      "web_config_deploy_finished_at": "2026-10-08T18:26:18.792926Z",
+      "sha": "ae883831d7876da6632654b75026128dd6aa8450",
+      "native_paired_LIVE": true,
+      "fresh_health_ready_HTTP200": true,
+      "health_read_sha256": "c2599ba4067380274b58cdbd7f02fade3ddd591750e3cd2db444636ed9e96692",
+      "observed_at": "2026-10-08T18:27:10.603098+00:00"
+    },
+    "web_deploy_id": "dep-db3u17bbc2fs73bv2hjg",
+    "worker_deploy_id": "dep-db3u17mi0phs73e9ras0",
+    "runtime_authentication_proven": false,
+    "web_finished_at_utc": "2026-10-08T18:30:36.184024Z",
+    "worker_finished_at_utc": "2026-10-08T18:31:31.156471Z",
+    "paired_native_receipt_sha256": "d483a63338b9f7b75f533914ae24805f6ca700db8a8494b31d0b11e2e3fe7e09",
+    "safe_smoke_receipt_sha256": "c059a8fb05d0f6fb6191aec13c787fb440f67a675919e2f4a5f043267d7983da",
+    "safe_smoke_checks": 18,
+    "safe_smoke_effects": "freshanonymouscontext_localdraft_only;no_customerjob_provider_notification",
+    "private_folder": "output/reliability-program/deployed-candidate-783feb64",
+    "deployment_review": "ef527e88"
+  },
+  "live_sdk_authentication_followup": {
+    "actual_retry_release": "ae883831d7876da6632654b75026128dd6aa8450",
+    "terminal_packet_sha256": "42c45cd3dbd7e90b3d6cc2f989694640c9aa92b2064d359b1fa1f51bbd1296c8",
+    "credential_dependency_sha256": "3f672a2d26281e723c5560baf6be7d127b7d554148cf9faf651e2839fc994da5",
+    "actual_error": {
+      "exception_class": "AuthenticationError",
+      "http_status": 401,
+      "provider_error_code": "invalid_api_key"
+    },
+    "new_Gemini_dispatches_this_retry": 0,
+    "returned_assessment_packet": false,
+    "historical_original_error_cause": "unknown_original_exception_discarded",
+    "human_configuration_report": "Soleowner reports directhuman found empty RenderWEB OPENAI_API_KEY value and saved/deployed it; root inspected deployment metadata only, not keyvalue.",
+    "configuration_deployment": "dep-db3tvrc9v7es738dfjdg",
+    "configuration_deployment_state": "nativeLIVE_priorae_finished18:26:18.792926Z",
+    "runtime_provider_authentication_after_configuration": "unverified_no_new_model_or_catalog_call",
+    "unknown_cost_retained": true,
+    "remaining_original_HELD_slots": {
+      "Sol": 1,
+      "Gemini": 1
+    },
+    "normal_SDK_minimum_required_calls": {
+      "Sol": 2,
+      "Gemini": 1
+    },
+    "scope_limit": "Remaining reservations alone cannot establish a completed normal SDK sequence; no slot split/reclassification/refund/new spending or alternate sequence performed."
   }
 }
