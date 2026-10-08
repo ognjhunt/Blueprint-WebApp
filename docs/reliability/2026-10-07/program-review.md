@@ -1416,3 +1416,36 @@ was added during this review. Required CI, merge, exact deployment and deployed
 customer behavior remain release-owner verification gates. This closes the
 bounded offline connected-execution review, not the whole reliability goal or
 assessment-quality evaluation.
+
+
+## Independent continuation release verification — PR947 / d0f67270
+
+Verified PR947 merged as `d0f6727077aae3b164c8e5c8444b53470ba123ec`.
+Its assessment core, read from company Git at the merged SHA, byte-equals the
+approved continuation source (`e96b2aa2606ace7b14271eecd5dd781090fd88b1c000286b312f9410faf42a00`).
+Independent read-only GitHub checks show main CI `37783828995` and CI-gated
+Render deploy `37784910208` completed successfully for that exact SHA.
+The protected paired receipts
+`output/reliability-program/deployed-candidate-d0f67270/render-receipts.json`
+SHA-256 `89a36dbc58382c5668a681966083864ee946df27a18f53763d6b87daa7e3fb33`
+show both web and worker LIVE, finished 13:34:02 and 13:34:11 UTC.
+
+The existing reviewed GET-only/local-context smoke completed
+13:34:33–13:34:36 UTC with all eighteen checks true, before/after serving SHA
+exactly d0f67270, health/ready healthy, ordinary draft restoration and actual
+clear acknowledgement across both local stores followed by an empty return with
+same fresh identity and unchecked recording consent. Result SHA-256
+`a0124749dc99ea41a1fc8c67d4816202581bdbaa84cadff35b34b8d1bb86858c`;
+script remains `ea03c76daa4f2cde69efc4939ec52a1715e0e8305648c2d03b6999d9cfa1f56c`.
+The private synthetic screenshot hash matches. Two non-GET and three external
+requests were blocked, zero intake mutations attempted, and the isolated context
+was cleaned. This verifies deployed continuation source identity and unaffected
+local draft/clear behavior. It does not execute the new provider continuation
+policy against a live assessment or prove perception, backend job/upload,
+worker processing, customer advisory delivery or notifications.
+
+Separately, PR948 final `caa51535802245f36081095cdef0b8062bc0233a` differs
+from approved advisory runtime7489 only in the reviewed test file from81e5;
+production byte continuity is confirmed. Connected offline execution approval
+above applies. Its required CI/release remain pending rather than being covered
+by PR947's deployment.
