@@ -1038,3 +1038,31 @@ assessment, normal customer assessment publication, upload/backend durability,
 notification delivery, human-reference quality or full-program completion is
 established by this smoke. Reviewer performed receipt/source/API inspection only,
 with no additional production browser run, source edit or coverage credit.
+
+
+**Customer failure contract diagnostic: bounded evidence approved, upstream seam incomplete.**
+Manifest SHA256 `2da5c7877089073be7d3745edcfb0743777e2d823c92310d19b888c6f9324036`
+under output/reliability-program/customer-failure-contract matches. All twenty-eight
+linked hashes/lengths and twenty source snapshots match exact WebApp d78/Pipeline
+a56 Git. Two actual scene-intake worker/owner GET checks pass with fake database,
+synthetic Pipeline status and injected authenticated principal; token verification
+is not exercised. Persisted pipeline_status is blocked while transport state
+remains accepted; another owner sees no intake. The current SceneIntakeForm
+reads that nested blocked state. Five separate negative completion tests pass
+with synthetic completion-control fixtures; these are not joined customer runs.
+The sixty-four WebApp and one Pipeline deselected checks are not counted passed.
+Private replay commands, source relocation and trace permissions are retained.
+No new case/journey credit or provider execution is claimed.
+
+A website_request_id-linked scene-intake poll alone cannot cover every earlier
+preparation boundary. Exact a56 website_scene_handoff.py enqueues prepared-scene
+only after intake-ready preparation, native-appearance handoff and source
+registration. Earlier exceptions persist awaiting_inputs/blockers in a local
+handoff result, before that WebApp scene-intake record exists. The two executed
+checks already create an intake and therefore cannot prove pre-enqueue failure
+visibility. The earlier CPU stage-three refusal also bypassed the WebApp
+prepared-scene seam and does not demonstrate that earlier failure. This is a
+verified source-contract limitation, not a reproduced normal-customer lost-status
+incident or universal absence of failure readers. Root/B retain ownership of
+the original capture/context failure lineage before any shared projection repair.
+No runtime or release mutation occurred in this review.
