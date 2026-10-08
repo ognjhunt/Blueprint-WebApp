@@ -2640,5 +2640,15 @@
     "private_preservation_index_sha256": "c09c9f4a028afbdfa952924bebad39439861ddb89dcd68606d98847ec0e9620a",
     "files_preserved_outside_author_worktree": 11,
     "outcome_unchanged": "presentation_failed"
+  },
+  "advisory_notification_policy_discovery": {
+    "source_main": "a65740d7e9aa5d7c930c7375aeffc49b78fb9bb2",
+    "receipt_sha256": "d6f86f47c5f63c04ca07953299df981f2057857438c6a75db5cbcca3b5f79081",
+    "private_root": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/advisory-notification-discovery",
+    "preservation_index_sha256": "9654849f62fe538f3e09efd7e375d101e9d7b6c0ddce9fb8327eab87aa24f963",
+    "observed": "No final advisory notice producer. Existing assessment_ready=internalpipeline scene claim;results_ready=simulation;input_needed=briefscreening. PR980 modelquestion draft/staffreview distinct from transactionalnotification.",
+    "classification": "P2 followthrough/integrationproof gap; no inspected explicitautomaticSDKassessmentemailpromise; not classifiedreleaseblockingmissingbug",
+    "next_action": "Existingworkflow/comms owner resolve generic heads-up policy/interface through source/currentrecipient/consent/dedupguards; leave modelquestionsstaffreviewed. Do not add new noticekind/autosend solely to turn an unpromised behavior green.",
+    "live_test_email_authority": "none for this program; no automaticenqueue/send/currentacceptedassessmentrewrite"
   }
 }
