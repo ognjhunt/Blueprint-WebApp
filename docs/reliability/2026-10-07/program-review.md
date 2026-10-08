@@ -1098,3 +1098,41 @@ Pipeline failure records or close the pre-enqueue status gap. Source approval
 is scoped to this persisted-preview P2 repair; required CI, merge/deploy and
 actual affected release observation remain root-owned gates. No broad rerun or
 additional coverage credit occurred in reviewer work.
+
+
+**Pipeline preparation-status reader reviewed; final delivery approval pending.**
+Reviewed immutable `41fa80b10f384ec033601c5434ff0b9cdd1f86ae` against
+`a56f9d240058f038060bd6aa89efcef3ff5f12e5`. A disposable Git archive
+(symlinks excluded, regular runtime/test bytes unchanged) passed 25/25 focused
+checks in 9.35 seconds. Private reviewer log SHA256
+`4d6596c06533f518e35689a931865dfb30e2903182cb79f6ed4d54465691cb7f`
+and reviewer receipt SHA256
+`172044848d086802183d3db7c3f95701d7e92dbf435284bd9cf9fed6bb2f123b`
+retain replay identity. All twenty linked author source/log checks match
+manifest `c7d3f2760c7ce3ea4cc732023b18ee556b744444907cb222c1426fe3f3d821e1`;
+joined producer trace SHA256
+`37107edb474eefef2de9b782a188a36c75ba0b985860b78147c844fcd45b96b4`
+is retained privately.
+
+The signed existing-service read accepts server-mapped roots only and verifies
+actual retained birth/membership, fresh full producer/owner/rights authority,
+matching retained/current task context and an unchanged current ledger revision.
+Missing or unstable authority is unavailable, with fixed safe errors. Delivery
+uses the existing drain, a fair bounded durable cursor and callbacks outside
+the lease lock; its retry does not reopen provider work. `handed_off` is only a
+source-stage handoff and cannot establish native execution or assessment success.
+
+Source approval is held for the typed post-commit callback-acceptance follow-up:
+41fa consumes pending delivery on an arbitrary successful HTTP response, whereas
+the integrated consumer contract now requires a source-bound committed receipt.
+The author's original 125 listener checks include the 25 focused checks; seventy
+source/authority neighbors overlap, and nine sentinel parameterizations do not
+replace the required full suite (46 mapped files exceed the existing 40-file
+cap). None are additional unique program cases or customer journeys.
+
+Execution used synthetic birth fixtures, local JSON state, fake source staging,
+fake fresh owner/context transports and a local callback sink. Existing nonce
+bookkeeping is exercised, but live authenticated capture-root configuration,
+WebApp customer projection/delivery, real provider/backend durability and
+deployment are unverified by this slice. Final integrated source review, required
+promotion and affected deployed behavior remain separate root-owned gates.
