@@ -161,6 +161,40 @@ function assertAbandonedCall(call: any, input: Pick<RecoveryInput, "requestId" |
     || !(call.provider === "openai" && call.model === "gpt-6.1-sol" || call.provider === "gemini" && call.model === "gemini-3.8-flash"))
     throw new Error("advisory_retry_unavailable");
 }
+/** Total run age is not inactivity. Only this claim's durable inference work
+ * renews it; unrelated capture accounting and provider uncertainty do not. */
+export async function hasRecentAssessmentProgress(tx: Transaction,
+  input: Omit<RecoveryInput, "newRunId" | "retryIdentity"> & { startedAtMs: number }) {
+  const [runSnap, jobSnap] = await Promise.all([
+    tx.get(db!.collection("agentRuns").doc(input.previousRunId)),
+    tx.get(db!.collection("siteAssessmentJobs").doc(input.jobId)),
+  ]);
+  const run: any = await hydrateAgentEvidence(runSnap.data() ?? {}, { collection: "agentRuns", id: input.previousRunId });
+  const job = jobSnap.data();
+  if (run.status !== "running" || run.task_kind !== "site_assessment" || !input.previousClaimId
+    || run.metadata?.capture_id !== input.captureId || run.metadata?.advisory_job_id !== input.jobId
+    || run.input?.input?.context?.request_id !== input.requestId || run.input.input.context.advisory_job_id !== input.jobId
+    || run.input.input.context.advisory_claim_id !== input.previousClaimId || job?.run_id !== input.previousRunId
+    || job.claim_id !== input.previousClaimId || job.request_id !== input.requestId || job.capture_id !== input.captureId
+    || job.schema_version !== "site_assessment_job.v1" || !["running", "needs_review"].includes(job.state)
+    || job.source_key !== input.sourceKey || job.context_digest !== input.contextDigest || job.started_at_ms !== input.startedAtMs
+    || advisoryContextDigest(input.request, input.brief) !== input.contextDigest
+    || !Number.isSafeInteger(input.startedAtMs) || input.startedAtMs < 0) return false;
+  const budgetRef = budgetFor(input.captureId);
+  // Admissions/usage also write this document: reading it fences progress
+  // racing a retirement transaction, including a new call added after a query.
+  await tx.get(budgetRef);
+  const calls = await tx.get(budgetRef.collection("calls").where("run_id", "==", input.previousRunId));
+  const now = Date.now();
+  return calls.docs.some(row => {
+    const call = row.data();
+    try { assertAbandonedCall(call, input, row.id); } catch { return false; }
+    if (!["admitted", "recorded", "unknown"].includes(call.state) || call.created_at_ms < input.startedAtMs || call.created_at_ms > now) return false;
+    const progress = [call.created_at_ms, ...(["recorded", "unknown"].includes(call.state) ? [call.recorded_at_ms] : [])];
+    return progress.some(time => Number.isSafeInteger(time) && time >= call.created_at_ms && time <= now
+      && now - time < ASSESSMENT_LEASE_MS);
+  });
+}
 /** Retire an expired claim, never retry its uncertain provider action. */
 export async function prepareAssessmentAbandonment(tx: Transaction, input: Omit<RecoveryInput, "newRunId" | "retryIdentity"> & { startedAtMs: number }) {
   const runRef = db!.collection("agentRuns").doc(input.previousRunId), runSnap = await tx.get(runRef);
@@ -172,13 +206,15 @@ export async function prepareAssessmentAbandonment(tx: Transaction, input: Omit<
     || run.input.input.context.advisory_claim_id !== input.previousClaimId || !Number.isSafeInteger(input.startedAtMs)
     || input.startedAtMs < 0 || Date.now() - input.startedAtMs < ASSESSMENT_LEASE_MS) throw new Error("advisory_retry_unavailable");
   assertSource(input.request, input.captureId, { kind: "browser_pending", key: input.sourceKey });
+  if (await hasRecentAssessmentProgress(tx, input)) throw new Error("advisory_retry_unavailable");
   const state = (await tx.get(budgetFor(input.captureId))).data();
   if (!state?.pending_token || state.capture_id !== input.captureId || state.last_assessment_run_id !== input.previousRunId
     || !Number.isSafeInteger(state.calls) || state.calls < 1 || !Number.isFinite(state.exposure_usd) || state.exposure_usd < 0)
     throw new Error("advisory_retry_unavailable");
   const call = (await tx.get(budgetFor(input.captureId).collection("calls").doc(state.pending_token))).data();
   assertAbandonedCall(call, input, state.pending_token);
-  if (call!.state !== "admitted" || call!.capture_exposure_usd !== state.exposure_usd) throw new Error("advisory_retry_unavailable");
+  if (call!.state !== "admitted" || call!.capture_exposure_usd !== state.exposure_usd
+    || call!.created_at_ms < input.startedAtMs || call!.created_at_ms > Date.now()) throw new Error("advisory_retry_unavailable");
   const content = { schema_version: "site_assessment_abandonment.v1", request_id: input.requestId, capture_id: input.captureId,
     job_id: input.jobId, run_id: input.previousRunId, claim_id: input.previousClaimId, source_key: input.sourceKey,
     context_digest: input.contextDigest, started_at_ms: input.startedAtMs, lease_ms: ASSESSMENT_LEASE_MS, retired_at_ms: Date.now(),
@@ -201,7 +237,43 @@ export async function prepareAssessmentRecovery(tx: Transaction, input: Recovery
     run = { ...run, ...abandonedRun.runUpdate };
   }
   let bound = run.artifacts?.source_admission, intent = run.artifacts?.capture_inference_reservations?.at(-1);
+  let checkpoint: { checkpoint_kind: "failed_evidence_commit_call_records"; checkpoint_call_intents_sha256: string } | undefined;
   assertSource(input.request, input.captureId, { kind: "browser_pending", key: input.sourceKey });
+  // A failed manifest commit can leave genuine call checkpoints but no packet
+  // or evidence link. These establish recovery provenance, never an old answer.
+  if (!bound && run.status === "failed" && run.agent_accounting_incomplete === true && !run.mutation_reconciliation_required
+    && run.artifacts == null && !run.agent_evidence_ref && /^agent_evidence_firestore_commit_failed(?::|$)/.test(run.error ?? "")) {
+    const job = (await tx.get(db!.collection("siteAssessmentJobs").doc(input.jobId))).data();
+    if (job?.schema_version !== "site_assessment_job.v1" || job.state !== "needs_review" || job.run_id !== input.previousRunId
+      || job.claim_id !== input.previousClaimId || job.request_id !== input.requestId || job.capture_id !== input.captureId
+      || job.source_key !== input.sourceKey || job.context_digest !== input.contextDigest
+      || !Number.isSafeInteger(job.started_at_ms) || job.started_at_ms < 0 || job.started_at_ms > Date.now()
+      || !state || state.pending_token || state.capture_id !== input.captureId || state.last_assessment_run_id !== input.previousRunId
+      || !Number.isSafeInteger(state.calls) || state.calls < 1 || !Number.isFinite(state.exposure_usd) || state.exposure_usd < 0)
+      throw new Error("advisory_retry_unavailable");
+    const calls = await tx.get(budgetRef.collection("calls").where("run_id", "==", input.previousRunId));
+    if (!calls.docs.length || calls.docs.length > state.calls) throw new Error("advisory_retry_unavailable");
+    let videoSha: string | null = null;
+    const now = Date.now();
+    for (const row of calls.docs) {
+      const call = row.data();
+      assertAbandonedCall(call, input, row.id);
+      if (!["recorded", "unknown"].includes(call.state) || !Number.isSafeInteger(call.recorded_at_ms)
+        || call.created_at_ms < job.started_at_ms || call.created_at_ms > call.recorded_at_ms || call.recorded_at_ms > now
+        || videoSha !== null && videoSha !== call.video_sha256) throw new Error("advisory_retry_unavailable");
+      videoSha = call.video_sha256;
+    }
+    const session = (await tx.get(db!.collection("captureUploadSessions").doc(input.captureId))).data();
+    const pending = session?.browser_pending_delivery as BrowserPending | undefined;
+    if (!pending || pending.state !== "published" || pending.request_id !== input.requestId || pending.capture_id !== input.captureId
+      || session?.browser_upload_reservation || session?.browser_stored_upload || browserPendingDecisionKey(pending) !== input.sourceKey
+      || (pending.video as any).sha256 && (pending.video as any).sha256 !== videoSha && (pending.video as any).sha256 !== `sha256:${videoSha}`)
+      throw new Error("advisory_retry_unavailable");
+    checkpoint = { checkpoint_kind: "failed_evidence_commit_call_records", checkpoint_call_intents_sha256:
+      digest(calls.docs.map(row => ({ admission_token: row.id, call_intent_sha256: callIntentDigest(row.data()) })).sort((a, b) => a.admission_token.localeCompare(b.admission_token))) };
+    bound = { request_id: input.requestId, capture_id: input.captureId, advisory_job_id: input.jobId,
+      source_key: input.sourceKey, context_digest: input.contextDigest, video_sha256: videoSha };
+  }
   let abandoned = false;
   if (run.status === "cancelled" && run.error === "site_assessment_process_interrupted") {
     const receipt = run.advisory_abandonment, { receipt_sha256, ...content } = receipt ?? {};
@@ -213,7 +285,8 @@ export async function prepareAssessmentRecovery(tx: Transaction, input: Recovery
       || receipt.retired_at_ms - receipt.started_at_ms < ASSESSMENT_LEASE_MS || typeof receipt.admission_token !== "string") throw new Error("advisory_retry_unavailable");
     const call = (await tx.get(budgetRef.collection("calls").doc(receipt.admission_token))).data();
     assertAbandonedCall(call, input, receipt.admission_token);
-    if (callIntentDigest(call!) !== receipt.call_intent_sha256 || !["admitted", "unknown", "recorded"].includes(call!.state)) throw new Error("advisory_retry_unavailable");
+    if (callIntentDigest(call!) !== receipt.call_intent_sha256 || !["admitted", "unknown", "recorded"].includes(call!.state)
+      || call!.created_at_ms < receipt.started_at_ms || call!.created_at_ms > receipt.retired_at_ms) throw new Error("advisory_retry_unavailable");
     // The call's hash and source binding were durably captured before dispatch.
     // These are checkpoints, never fabricated provider responses or measurements.
     bound ??= { request_id: input.requestId, capture_id: input.captureId, advisory_job_id: input.jobId,
@@ -250,7 +323,7 @@ export async function prepareAssessmentRecovery(tx: Transaction, input: Recovery
     advisory_context_digest: input.contextDigest, video_sha256: bound.video_sha256 ?? "", programme_id: state?.inference_program_id ?? "",
     authority_digest: state?.inference_programme_authority_digest ?? "", slot_id: "", admission_token: token, provider, model,
     reserved_micro_usd: Math.ceil(reserved * 1e6), reserved_call_micro_usd: Math.ceil(reserved * 1e6), capture_calls: state?.calls ?? 0,
-    capture_exposure_usd: state?.exposure_usd ?? 0, created_at_ms: Date.now() };
+    capture_exposure_usd: state?.exposure_usd ?? 0, created_at_ms: Date.now(), ...checkpoint };
   const receipt: AssessmentRecovery = { ...content, receipt_sha256: digest(content) };
   return { receipt, budgetRef, programmeRef: null, programmeUpdate: {}, callRef, abandonedRun,
     callUpdate: { schema_version: "capture_inference_call.v1", admission_token: token, request_id: input.requestId, capture_id: input.captureId, run_id: input.previousRunId, provider, model, source_digest: content.source_digest, context_digest: input.contextDigest, video_sha256: bound.video_sha256, reserved_usd: reserved, cost_estimate_usd: null, state: "unknown", recovery_receipt_sha256: receipt.receipt_sha256, recovered_at_ms: Date.now() },
