@@ -11,7 +11,7 @@ export function AuthLayout({ children, wide = false }: PropsWithChildren<{ wide?
       <div className="auth-body">
         <main id="main-content" className="auth-content">{children}</main>
         <aside className="auth-art" aria-label="Illustrative robotics scene">
-          <RobotScene className="robot-scene" label="Illustration: a humanoid lifts a tote from a shelf, walks it to a cart and sets it down." />
+          <RobotScene label="Illustration: a humanoid lifts a tote from a shelf, walks it to a cart and sets it down." />
           <span>Illustrative scene</span>
         </aside>
       </div>

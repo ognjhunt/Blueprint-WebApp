@@ -23,6 +23,18 @@ for (const width of [1440, 390]) {
   });
 }
 
+test("the auth robot scene can be paused and played again", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/sign-in");
+  const pause = page.locator(".auth-art").getByRole("button", { name: "Pause robot animation" });
+  await expect(pause).toBeVisible();
+  await pause.click();
+  const play = page.locator(".auth-art").getByRole("button", { name: "Play robot animation" });
+  await expect(play).toBeVisible();
+  await play.click();
+  await expect(page.locator(".auth-art").getByRole("button", { name: "Pause robot animation" })).toBeVisible();
+});
+
 test("sign-in validates and links to account creation and recovery", async ({ page }) => {
   await page.goto("/sign-in");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();

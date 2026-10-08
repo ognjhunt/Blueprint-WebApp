@@ -442,11 +442,13 @@ export function PilotPreview() {
 
 /**
  * The warehouse loop alone, for pages that carry the robot without the pilot card.
- * It holds the still frame under reduced motion and pauses while scrolled out of view.
+ * It holds the still frame under reduced motion, pauses while scrolled out of view,
+ * and has a pause control, since it keeps moving beside forms.
  */
 export function RobotScene({ label, className }: { label: string; className?: string }) {
   const artRef = useRef<SVGSVGElement>(null);
   const [inView, setInView] = useState(true);
+  const [paused, setPaused] = useState(false);
   const [reducedMotion] = useState(() => typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches));
 
   useEffect(() => {
@@ -456,11 +458,18 @@ export function RobotScene({ label, className }: { label: string; className?: st
     return () => observer.disconnect();
   }, []);
 
-  const t = useSceneClock(!reducedMotion && inView, "warehouse");
+  const t = useSceneClock(!reducedMotion && !paused && inView, "warehouse");
   return (
-    <svg ref={artRef} className={className} viewBox="0 0 320 196" role="img" aria-label={label}>
-      <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
-      <Warehouse t={t} />
-    </svg>
+    <div className={["robot-scene", className].filter(Boolean).join(" ")}>
+      <svg ref={artRef} viewBox="0 0 320 196" role="img" aria-label={label}>
+        <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+        <Warehouse t={t} />
+      </svg>
+      {reducedMotion ? null : (
+        <button type="button" className="ms-pilot-pause robot-scene-pause" onClick={() => setPaused(p => !p)} aria-label={paused ? "Play robot animation" : "Pause robot animation"}>
+          {paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}
+        </button>
+      )}
+    </div>
   );
 }
