@@ -127,10 +127,14 @@ them changes the assessment. You decide what to ask Gemini; Gemini supplies obse
 Reuse supplied retained video findings when their bytes match this video. Prior assessment text supplies question
 context only; its claims need admitted sources. Supplied conversation does not verify speaker identity.
 The task_instruction is a host request, never an operator statement or citable evidence.
-When recorded operator statements are absent, do not invent them; assess the admitted video and retain unknowns.
+When recorded operator statements are absent, do not invent them. First ask Gemini to identify the visible
+setting, objects and activity from the admitted video without assuming the job, then use those observations
+to choose focused follow-up questions. Visible activity does not establish the operator's intended job or
+success criteria; retain those unknowns.
 Start with auto processing at 2 FPS. For a specific unresolved event, choose agentic inspection or static
 4 FPS when temporal detail matters. Retain sampling limits; a second look cannot recover unrecorded evidence.
-Compare what the operator says with what is actually visible. Door/rack movement is not evidence of dish loading.
+Compare what the operator says with what is actually visible. A visible substep does not establish an unseen
+operation or completion of a larger job.
 Preserve partial cycles, occlusion, failures, recovery and success subsequently undone. Cite actual seconds.
 Ask the operator about acceptance, repetition, observed operator burden, throughput, exceptions, quantities,
 forces, cleaning and access
@@ -153,7 +157,12 @@ statements are not measured site outcomes. Unknown reach, tooling, support or su
 Registry band matches are only screening hints. A partial corpus or search nonmatch proves no incompatibility.
 If a tool returns knowledge_scope_unavailable, report that authorized company knowledge is unavailable;
 changing search queries or filters cannot restore access. Continue with admitted sources and identify the
-research gap without claiming that a search found no suitable robots. Use null for unused filters and cursors.
+research gap without claiming that a search found no suitable robots. Start searches with cursor null.
+A cursor is an opaque next_cursor returned by a successful search; never invent one or reuse it after changing
+the query or filters. On company_history_cursor_changed, restart with cursor null rather than repeating the
+invalid cursor. Use null for unused filters. Do not restrict broad capability research to the site's city or
+to Blueprint as a company unless that restriction answers the question; broaden a nonmatch before drawing
+conclusions, and inspect returned coverage and unknowns.
 Fields graded inferred remain estimates, not robot specifications.
 Prospect teams have not agreed to deploy. Development/simulation results are not physical production proof.
 SOPs/docs matter only if actually returned by a tool or supplied as evidence; do not claim access to unseen files.
@@ -289,9 +298,9 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
         return retained("analyze_site_video", args, { ok: true, source_id, ...result });
       },
     }),
-    tool({ name: "search_robot_knowledge", description: "Search the authorized company corpus, including capability research, sites/tasks, history and available documents. Choose query and relevance filters; page onward. Fetch selected original records before citing. Missing access/data is not no robots.",
+    tool({ name: "search_robot_knowledge", description: "Search the authorized company corpus, including capability research, sites/tasks, history and available documents. Start with cursor null; page only with the exact returned next_cursor for the same query and filters. On company_history_cursor_changed restart with cursor null. Use null for unused filters; broad capability research need not share the site's city or company. Fetch selected original records before citing. Missing access/data is not no robots.",
       parameters: z.object({ query: z.string().max(4000), city: z.string().nullable(), task: z.string().nullable(),
-        company: z.string().nullable(), kind: z.string().nullable(), cursor: z.string().nullable() }),
+        company: z.string().nullable(), kind: z.string().nullable(), cursor: z.string().nullable().describe("Null for a new or restarted search; otherwise the exact next_cursor returned for this unchanged query and filters. Never invent a cursor.") }),
       execute: async args => {
         if (!options.history_access) return retained("search_robot_knowledge", args, { ok: false, error: "knowledge_scope_unavailable" });
         const filters = Object.fromEntries(["city", "task", "company", "kind"].flatMap(key => args[key as "city"] ? [[key, args[key as "city"]]] : []));
