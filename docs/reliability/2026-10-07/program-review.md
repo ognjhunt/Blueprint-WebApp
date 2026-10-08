@@ -1631,3 +1631,54 @@ merge, configured-runtime deployment and live affected-result verification are
 separate gates. Reported configuration presence does not establish provider
 authentication or real video assessment quality. No extra tests or live provider
 calls were performed for this test-only delta.
+
+
+## Independent cold handoff-state extraction review — b3ec6aef
+
+Approved Pipeline candidate
+`b3ec6aef257a918f8deade812fdeaa13e1869e5e` against c0e47eb6. The four-file
+diff extracts only existing local ledger/read/required-stage/output-commit
+primitives into `handoff_job_state.py`; the website status reader imports that
+cold boundary. Listener names and runner required-stage API remain direct
+compatibility reexports. The same noncreating read-only lock path, exclusive
+flock lifetime, corrupt-ledger behavior, exact output identity and required-stage
+blockers are retained. Both callers share the identical primitive rather than
+adding a provider/execution dependency. All nine moved helper ASTs independently
+match the previous definitions, all four source hashes and six retained logs
+match manifest
+`dd797f021aadb0fd402c3e1e3dcdae056f18b3f47834204bfabf921801aae18d`.
+The original tests and hot-lane allowlist were not changed.
+
+The existing static import guard demonstrates the failure: unchangeda56 passes
+five; c0e47 fails one of five after website status imports transitively reach
+twelve hot-lane modules. Final candidate66/66 plus18 selected lease/retirement
+checks pass,82deselected; these are overlapping focused evidence, not new journey
+counts. The earlier mutable diagnostic45pass/15fail was retained and is not
+final approval evidence. Reviewer independently reran only the same unchanged
+import-isolation file:5/5 pass in8.48s with PYTHONDONTWRITEBYTECODE=1 and
+PYTHONPATH=src. This establishes static cold import reachability and preserved
+local contracts, not live host import/runtime delivery or provider execution.
+Final exact integrated head and required full Pipeline CI/promotion remain gates.
+
+## Independent preparation-status WebApp deployment identity — 1b1d74ed
+
+Verified current retained paired Render LIVE receipts for exact
+`1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136`: web finished13:53:17UTC,
+worker13:53:35UTC, receipt SHA-256
+`48844e20d2d7961c70a54be550ed361ae2f7a2d04d2d082186c3263ff6b6ded6`.
+Read-only GitHub confirms main CI37786623856 and CI-gated deployment37787526107
+success on the same SHA. Existing protected no-submit smoke at14:00:16–20UTC
+passes eighteen checks with serving identity unchanged, health/ready, local draft
+reload, acknowledged clear, both-store fresh empty draft and retained fresh
+identity/unchecked consent after return. Result
+`d4618d27b58560a4d381c313035d862f715a5aa416dfe3ad06a4d643c8545bc6`,
+private screenshot hash and unchanged reviewed smoke script ea03c76d were
+independently checked. Two non-GET and three external requests were blocked;
+zero attempted intake mutations.
+
+This verifies serving identity and the tested local draft presentation behavior.
+It does not execute a source-bound preparation failure, callback, notification,
+provider assessment, Pipeline deployment/mapping or full customer journey.
+The release ledger's still-pending/null deployed fields were flagged to the
+coordinator for a bounded identity update; Pipeline and affected-result gates
+must remain explicit.
