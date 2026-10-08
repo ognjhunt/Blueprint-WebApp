@@ -206,3 +206,80 @@ baseline failures remain retained. Clear-race finding is resolved with the
 explicit pre-correction source-snapshot limitation preserved. Normal protected
 release and exact combined PR940 review/CI/deployed behavior remain separate
 gates; this approval does not certify assessment usefulness or beta readiness.
+
+## Combined backend review at 2e5abb97a9618bc2ee8c3be640c1979ddca45737
+
+Read-only comparison against reviewed root `8ccc99cc` confirms chunk integrity,
+encrypted coverage-recipient handling and malformed-provider acceptance guards
+are preserved. Current-consent checks run inside the final outbox dispatch
+transaction; withdrawal suppresses retained derived status/workspace material;
+production token validation checks revoked/disabled/deleted users; asynchronous
+Pipeline responses are fenced by state, request digest/bytes, attempt and terminal
+receipt. Fresh and retained video readings use identical timestamp admission,
+and unsupported unknown/no-reason robot exclusions are rejected.
+
+Independent isolated exact-head replay passes 11 suites and 312/312 checks
+in 52.15 seconds, with no live providers or credentials. Receipt SHA256
+`4d5c8e0ba56293bd14a20e19ef26a58e57248150e8fbb02d2d0a7b2519059952` is retained under ignored
+`output/reliability-program/reviewer/pr940-focused.log`. These are checks, not
+312 new journeys. The 640 queue seeds remain schedule variations. Auth checks
+use an SDK-contract mock; opt-in emulator suites were not independently executed
+by this reviewer and remain separate evidence.
+
+The actual SDK scripted diagnostics deliberately retain six accepted unsupported
+capability/specification/event/measurement outputs as partial semantic evidence.
+A structural guard cannot establish citation entailment or video perception.
+No assessment usefulness or beta readiness approval follows from this green run.
+
+No material new finding remains in the reviewed backend diff at this head. Client
+source is provisional: it currently substitutes the older draft implementation,
+deletes unreadable/expired bytes, omits authoring scope, permits unlocked fallback,
+and lacks the reviewed clear/response-status guards. The release owner is actively
+integrating `d1033932` and crash-checkpoint changes; that final exact client head
+must preserve the accepted protections and receive independent review before
+release approval. This snapshot does not approve the full combined PR.
+
+Fixture correction `6f7ef4b76110092046a5dc286719a8fa9865a947` is approved.
+Independent replay uses exact `2e5abb97` backend plus only the committed queue
+test/helper correction: 150/150 pass, all 30 provider variants reach the strict
+fake sink exactly once, and every source hash matches the correction manifest.
+Result SHA256 `9b3be3979de25dc1d5dd2d7cf48ff77333abb131aa68f8865a8e75ffda5da48f`
+is retained under ignored reviewer output. Current capture-notice authority stays
+unmocked. Prior 81/150 failures were missing current-request prerequisites, with
+zero reached provider faults; they are preserved as integration diagnostics,
+not counted as 69 customer defects. Definitions and unique-case counts stay
+unchanged. No production source repair is included in this fixture correction.
+
+Retained-packet offline replay tool is approved at script SHA256 `026d2b4bbebb747d966b0c8b09339dab2f2e81a30d95c93393efe21d66eb2d49`.
+Independent exact authorized observable packet replay reproduces baseline
+admission and candidate rejection `assessment_published_source_required`, using
+baseline `1b8d810` and byte-attested `2e5abb97` candidate source. Raw packet
+hash remains unchanged, committed candidate source matches its declared runtime,
+and provider calls are zero. Independent receipt SHA256
+`df103d7a09218f8a47ed8be1f4abbbc7784a6fc027aabb0a2ab4550099b92e03` is private.
+Four malformed/alias negatives reject with static codes, no synthetic sensitive
+sentinel disclosure, no report creation and unchanged input hashes.
+
+The tool refuses input/output aliases, pre-existing output, writes outside
+ignored program output and mismatched source identity/cwd. Raw content, IDs and
+reasoning are neither copied into reports nor printed. This actual packet fails
+candidate admission; do not normalize its label after the fact or call the
+candidate assessment successful. Text-conditioned source discussion and
+provisional frame references do not establish video perception or human truth.
+
+Narrow assessment delta at `83aa791c1576c53d1a149beafaaf9a7d58ecfc7e`
+is independently approved: four focused suites pass 159/159 checks. Its SDK
+25-case report comprises 21 passed admission cases and four semantic partials,
+receipt SHA256 `04660068f481b52c8069b703e8e54da539e0336d6ad15c2910d4e6ec1f42c02b`. Empty/inferred registry sources and empty knowledge no
+longer support published claims; qualified published/self-reported/measured
+controls and explicit estimates remain admitted. Wrong prose/value against an
+otherwise qualified registry field still passes, as do corrected stale knowledge,
+conflicting event claims and invented measured video values. Qualification of a
+source does not establish claim-to-field mapping, entailment or video perception.
+Client remains unchanged and provisional; no full-PR approval follows.
+
+Correction to reviewer coordination: the 83-head queue test already seeds a
+current request inline, although its helper is older. Missing-request cancellation
+was therefore incorrectly predicted from inspecting only that helper. The
+approved `6f7ef4b` correction adds explicit fault-reached assertions and consistent
+source accounting; it does not supply a missing prerequisite in that 83 test.
