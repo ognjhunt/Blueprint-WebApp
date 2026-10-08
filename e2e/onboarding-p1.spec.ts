@@ -160,7 +160,7 @@ test("a robot team outside early access applies instead of browsing", async ({ p
   await form.getByLabel("Company").fill("Arm Co");
   await form.getByLabel("What does your robot do?").fill("Fixed arm with a parallel gripper");
   await form.getByLabel("What work do you want to test it on?").fill("Tote picking");
-  await form.getByRole("button", { name: "Apply for early access" }).click();
+  await form.getByRole("button", { name: "Register interest" }).click();
   await expect(page.getByRole("heading", { name: "Application received." })).toBeVisible();
   expect(mutations.at(-1)).toMatchObject({ path: "/api/robot-team-access/apply", body: { name: "Ada Lovelace", email: "ada@arm.example", acceptedTerms: true } });
   await screenshot(page, "early-access-applied");

@@ -75,7 +75,7 @@ test("capture takes the country from the address, asks only when it cannot, and 
 test("robot teams can apply before approval without seeing private jobs", async ({ page }) => {
   await page.goto("/contact/robot-team");
   await expect(page.getByRole("form", { name: "Early access application" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Apply for early access", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Register interest", exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Job library" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: /Operate a site/ })).toBeVisible();
 });

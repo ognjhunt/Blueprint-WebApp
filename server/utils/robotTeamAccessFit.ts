@@ -6,8 +6,8 @@
  * not a model: at early volume every application is read by a person anyway,
  * and a rule's reason is exact.
  *
- * Auto-approval is for clear fits only, and only once the library lists a site
- * task to show. Approval unlocks the task cards sites chose to share (never
+ * The checklist supports manual invitations when a real site task fits.
+ * It never grants access automatically. Approval unlocks the task cards sites chose to share (never
  * footage, names or addresses), and still needs the approved email to be
  * verified at sign-in.
  */
@@ -108,29 +108,18 @@ export function assessAccessFit(
   };
 }
 
-const DEFAULT_AUTO_APPROVE_MIN_TASKS = 1;
-/** Below this many listed tasks, teams are matched to sites by hand. */
-const THIN_LIBRARY_TASKS = 5;
-/** At this many listed tasks, browsing is worth it without a match. */
+/** At this many listed tasks, browsing may be worth discussing with the owner. */
 export const OPEN_LIBRARY_SUGGESTED_AT_TASKS = 10;
+const THIN_LIBRARY_TASKS = 5;
 
-/**
- * How many listed site tasks the library needs before clear fits are approved
- * without a person, or null when auto-approval is off. Approving a team into
- * an empty library is a worse first impression than a personal reply, so it
- * waits for one listed task; after that nobody waits on a person's calendar.
- */
+/** Compatibility metadata: invited beta admission always needs a person's decision. */
 export function autoApproveMinimumTasks(): number | null {
-  const raw = String(process.env.BLUEPRINT_ROBOT_TEAM_AUTO_APPROVE_MIN_TASKS ?? "").trim().toLowerCase();
-  if (!raw) return DEFAULT_AUTO_APPROVE_MIN_TASKS;
-  if (["off", "false", "no", "never"].includes(raw)) return null;
-  const value = Number(raw);
-  return Number.isInteger(value) && value >= 1 ? value : DEFAULT_AUTO_APPROVE_MIN_TASKS;
+  return null;
 }
 
-export function shouldAutoApprove(fit: AccessFit): boolean {
-  const minimum = autoApproveMinimumTasks();
-  return minimum !== null && fit.clearFit && fit.listedTaskCount >= minimum;
+/** Fit is review evidence, never an admission decision, including for matching domains. */
+export function shouldAutoApprove(_fit: AccessFit): boolean {
+  return false;
 }
 
 /** So few listed tasks that each team is matched to a site by hand. */

@@ -32,25 +32,19 @@ export type AccessEmailKind =
  */
 export function accessReceivedEmail(
   record: Pick<RobotTeamAccessRecord, "name" | "testSite">,
-  options: { thinLibrary?: boolean } = {},
+  _options: { thinLibrary?: boolean } = {},
 ) {
-  const body = options.thinLibrary
-    ? [
-      "Thanks for applying. We are opening Blueprint to a few robot teams at a time and matching each one to a real site, so a person will reply to you here.",
-      "",
-      record.testSite
-        ? `We will start from the site you named (${record.testSite}). If there is anyone we should talk to there, reply with their name.`
-        : "If there is a site or customer you would most want to test at, reply and tell us. It is the fastest way to a match.",
-    ]
-    : [
-      "Thanks for applying. Blueprint is opening to a small group of robot teams first, and a person reads every application.",
-      "",
-      "If there is a fit, we will email you here with how to create your account. From then on you will see the site jobs open to your team, and we email you whenever a site lists a new one.",
-      "",
-      "Nothing else is needed from you now. Reply to this email if you want to add anything.",
-    ];
+  const body = [
+    "Thanks for registering interest in Blueprint's invited beta. Your interest is saved and approval is pending. A person will review it and invite your team when a real site task fits.",
+    "",
+    record.testSite
+      ? `We have noted the site you named (${record.testSite}). Reply here if you want to clarify the task.`
+      : "If there is a real site task you would like to explore, you can reply here with the details.",
+    "",
+    "No account, policy upload, or integration is needed now. Registering interest does not approve access or subscribe you to a newsletter.",
+  ];
   return {
-    subject: "We have your Blueprint early-access application",
+    subject: "We have your Blueprint beta interest",
     body: [emailGreeting(firstName(record.name)), "", ...body, "", EMAIL_SIGN_OFF].join("\n"),
   };
 }
@@ -60,13 +54,13 @@ export function accessApprovedEmail(record: Pick<RobotTeamAccessRecord, "name" |
   const invited = record.source === "invite";
   const call = founderCallUrl();
   return {
-    subject: "You're in: Blueprint early access",
+    subject: "Your Blueprint beta invitation",
     body: [
       emailGreeting(firstName(record.name)),
       "",
       invited
-        ? "Following our conversation, your team has Blueprint early access."
-        : "Your team is approved for Blueprint early access.",
+        ? "Following our conversation, your team is invited to the Blueprint beta."
+        : "Your team is approved for the invited Blueprint beta.",
       "",
       `Create your account with this email address (${record.email}), or sign in if you already have one:`,
       `${base}/signup/business?buyerType=robot_team`,
@@ -81,7 +75,7 @@ export function accessApprovedEmail(record: Pick<RobotTeamAccessRecord, "name" |
           : "If a call would help, say so in your reply and we will find a time.",
         "",
       ]),
-      "We email you whenever a site lists a new job.",
+      "Any evaluation needs a separately agreed task scope. Approval does not guarantee a run, introduction, or deployment.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),
@@ -91,11 +85,11 @@ export function accessApprovedEmail(record: Pick<RobotTeamAccessRecord, "name" |
 /** A polite "not yet": the application stays on file and nothing is closed. */
 export function accessNotYetEmail(record: Pick<RobotTeamAccessRecord, "name">) {
   return {
-    subject: "Your Blueprint early-access application",
+    subject: "Your Blueprint beta interest",
     body: [
       emailGreeting(firstName(record.name)),
       "",
-      "Thanks for applying. We are opening Blueprint to a small number of robot teams at a time, matched to the sites we have today, and we can't offer your team access yet.",
+      "Thanks for registering interest. We invite teams manually when a real site task fits, and we can't offer your team access yet.",
       "",
       "We have kept your application on file. If something changes on your side, reply here and a person will read it.",
       "",
