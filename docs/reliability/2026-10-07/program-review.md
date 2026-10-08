@@ -3120,3 +3120,25 @@ records all six hashes. Their scoped source approvals carry to this merged main.
 No additional test, provider, plan or customer action occurred; main CI, paired
 deployment and actual affected retry remain separate gates. Source identity and
 capacity metadata do not establish assessment completion or provider outcome.
+
+### Deployed reviewed recovery and bounded upload — 39cdf0cc
+
+One fresh independent Render snapshot confirms both deployments LIVE at reviewed
+`39cdf0cc6db405e1dca67d3a246691ec8652d515`: web finished21:41:30.283066Z,
+worker21:42:04.930917Z. The same snapshot's web service metadata reports one
+instance on plan1c-2g, updated21:41:30.284223Z. Protected raw response envelope
+`output/reliability-program/customer-policy/reviewer-main39-live-capacity.json`
+has SHA `e4d965f7cd14da9f55acb17e377b696fb6578ac072f8e6e6ab87ba58ebe04e7e`.
+The prior six-blob source comparison remains applicable without another test run.
+
+Fresh GitHub reads confirm mainCI37847276364 and CI-gated deployment37848240025
+terminal SUCCESS on that exact SHA. Eight application checks and the admission
+observer pass; E2E is skipped under the existing backend scope policy. Protected
+CI/deploy read hashes are `7ad041bf80a6c1577eddb3914b3f33a199d24fc4503a4a4569ff6a719f036752`
+and `92fc498e6254643012fa7fcf85b03289883d059edb56899803b046b478995a45`.
+This clears the scoped source/paired-deployment/configured-capacity verification
+gate for the coordinator's already-authorized sole-owner normal recovery action.
+It is no additional spending or actor authorization. No reviewer customer/provider
+action, repeated polling or plan change occurred. Actual retry availability,
+provider completion, peak memory and evidence-grounded customer result still need
+their own observed proof; service identity alone cannot establish those outcomes.
