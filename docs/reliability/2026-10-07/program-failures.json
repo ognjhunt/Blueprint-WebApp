@@ -871,6 +871,55 @@
         "deployment_workflow": 37839216462,
         "affected_live_customer_behavior": "next original-owner operation cleared;notyet completed atthisobservation"
       }
+    },
+    {
+      "id": "REL-ABANDONED-ASSESSMENT-RUN-RECOVERY",
+      "severity": "P1 affected customer recovery; live incidence under reconciliation",
+      "owner": "queue_recovery; root integration/release; original dishwasher owner live read-only reconciliation",
+      "state": "actualOOMproven;source_recovery_gap_inspected;minimized_replay_inprogress",
+      "violated_invariant": "Worker recovery must remain inspectable and provide explicit same-job recovery without silently replaying uncertain providers.",
+      "source_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
+      "source_findings": [
+        "30-minute queue lease, no heartbeat.",
+        "Expired running job can become needs_review while agent run remains running.",
+        "Existing retry requires a failed prior run and source-admission/reservation artifacts.",
+        "Mid-call source admission exists only in memory until returned adapter outcome."
+      ],
+      "live_evidence": {
+        "canonical_read_at_utc": "2026-10-08T20:41:08.464Z",
+        "private_receipt_sha256": "cf93cb299fa336f3cd84d92ab85aab207926946a3e74f0c9aaa362ebdb803c40",
+        "canonical_state": "same job/run running; no returned Gemini response",
+        "openai": {
+          "state": "recorded",
+          "input_tokens": 3470,
+          "output_tokens": 112,
+          "estimated_cost_usd": 0.009795,
+          "invoice": false
+        },
+        "gemini": {
+          "state": "admitted",
+          "admitted_at_utc": "2026-10-08T20:30:08.737Z",
+          "returned_output": false,
+          "returned_usage": false,
+          "acceptance": "unknown"
+        },
+        "web_process_start": {
+          "platform_start_at_utc": "2026-10-08T20:30:44.850734237Z",
+          "listening_at_utc": "2026-10-08T20:31:22.348Z",
+          "cause": "RenderoomKilled512Mi",
+          "runtime_receipt_sha256": "4309bb04bf297ac86dc78af1259e35109db146e06e522b722b803d1a2457be7b"
+        },
+        "liveness_limit": "Originalengine killed; durableRUNNING doesnotprove currentexecution.",
+        "new_provider_retry": false,
+        "original_catalog_credit": 0
+      },
+      "limitations": [
+        "OOMkill proven; specific allocation/rootcause unproven.",
+        "Provider acceptance/cost/output unknown.",
+        "Lease has not expired at last current read; no production fault injection or business write."
+      ],
+      "next_action": "Retain minimized existing offline control; repair durable ownership/unknown outcome checkpoint and explicit recovery with independent review.",
+      "new_case_credit": 0
     }
   ],
   "dependencies": [
@@ -1100,7 +1149,7 @@
     "deployed_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
     "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
   },
-  "current_state_observed_at_utc": "2026-10-08T20:29:11.180123+00:00",
+  "current_state_observed_at_utc": "2026-10-08T20:43:39Z",
   "historical_state_policy": "Original baseline/reproducer/source receipts are retained. A historical_state field preserves superseded status text when current state changes; original failed attempts are not erased.",
   "last_new_failure_observed_at_utc": "2026-10-08T19:14:22Z",
   "customer_financial_policy": {

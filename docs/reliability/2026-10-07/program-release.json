@@ -1951,6 +1951,34 @@
     "provider_tool_completion": "notyetproven_atthisread",
     "cost": "Historical0.663840exposure/oldrecords unchanged;pendingownership archivedbyexplicitretry;no refund/zerochargeinference",
     "sole_provider_actor": "originaldishwasherowner;CLIheld",
-    "status_observation_age": "Freshcanonicalrefreshrequested20:33;noassumptionthatoldRUNNINGprovescurrentlyliveprovider"
+    "status_observation_age": "Freshcanonicalrefreshrequested20:33;noassumptionthatoldRUNNINGprovescurrentlyliveprovider",
+    "latest_reconciliation": {
+      "canonical_read_at_utc": "2026-10-08T20:41:08.464Z",
+      "private_receipt_sha256": "cf93cb299fa336f3cd84d92ab85aab207926946a3e74f0c9aaa362ebdb803c40",
+      "canonical_state": "same job/run running; no returned Gemini response",
+      "openai": {
+        "state": "recorded",
+        "input_tokens": 3470,
+        "output_tokens": 112,
+        "estimated_cost_usd": 0.009795,
+        "invoice": false
+      },
+      "gemini": {
+        "state": "admitted",
+        "admitted_at_utc": "2026-10-08T20:30:08.737Z",
+        "returned_output": false,
+        "returned_usage": false,
+        "acceptance": "unknown"
+      },
+      "web_process_start": {
+        "platform_start_at_utc": "2026-10-08T20:30:44.850734237Z",
+        "listening_at_utc": "2026-10-08T20:31:22.348Z",
+        "cause": "Render platform oomKilled512Mi event20:30:57.621493Z",
+        "runtime_receipt_sha256": "4309bb04bf297ac86dc78af1259e35109db146e06e522b722b803d1a2457be7b"
+      },
+      "liveness_limit": "PlatformOOMkilled originalexecution;canonicalrunning is abandonedstate, not liveproviderproof.",
+      "new_provider_retry": false,
+      "original_catalog_credit": 0
+    }
   }
 }
