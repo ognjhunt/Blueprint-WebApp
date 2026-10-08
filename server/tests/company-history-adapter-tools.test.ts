@@ -18,6 +18,13 @@ beforeEach(()=>{vi.resetModules();vi.stubEnv("OPENAI_API_KEY","offline-fixture")
 };});
 afterEach(()=>vi.unstubAllEnvs());
 describe("agent-chosen read-only company history tools",()=>{
+ it("keeps site assessment on its existing read binding and rejects its original expiry",async()=>{
+  const access=await getCompanyHistoryAccess({kind:"site_assessment"});
+  expect(access).toMatchObject({companyWide:false,principalId:"blueprint-learning-host",expiresAt:"2099-10-02T13:00:00.000Z",prospectIds:[]});
+  expect(access).not.toHaveProperty("embeddingAuthority");
+  mocks.learning.businessScope.expiresAt="2000-01-01T00:00:00Z";
+  expect(await getCompanyHistoryAccess({kind:"site_assessment"})).toBeNull();
+ });
  it("reuses the exact retained backend read binding without widening zero-native scope or renewing expiry",async()=>{
   const task:any={kind:"capture_dispatch",metadata:{principalId:"MODEL",companyWide:false,historyEmbedding:{authorized:true}},input:{principalId:"MODEL"}};
   const access=await getCompanyHistoryAccess(task);

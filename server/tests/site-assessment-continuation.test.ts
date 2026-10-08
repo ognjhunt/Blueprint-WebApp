@@ -26,6 +26,16 @@ const observation = (n: number) => ({ summary: `Reading ${n}`, observations: [{ 
   start_seconds: n, end_seconds: n + 1, uncertainty: null }], not_observable: ['Success criterion'] });
 beforeEach(() => { vi.clearAllMocks(); vi.stubEnv('GEMINI_API_KEY', 'noncredential-offline-fixture'); vi.stubEnv('BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD', '5'); });
 describe('assessment continuation policy (scripted SDK, no provider dispatch)', () => {
+  it('continues past twelve SDK turns while new evidence remains available', async () => {
+    let n = 0; const analyze = vi.fn(async () => ({ evidence: observation(++n), receipt: { mode: 'offline' } }));
+    const authorize = vi.fn(async () => {});
+    const instance = await createSiteAssessmentAgent(input, { history_access: null, model: model(13),
+      authorize_model_call: authorize, analyze_video: analyze });
+    const packet = await instance.run();
+    expect(analyze).toHaveBeenCalledTimes(13);
+    expect(authorize).toHaveBeenCalledTimes(14);
+    expect(packet.assessment.status).toBe('needs_operator_input');
+  });
   it('allows a useful fourth Gemini probe through the real budget admission and response accounting seams', async () => {
     const budget = new SiteAssessmentBudget(); let n = 0;
     vi.mocked(analyseAgenticVideo).mockImplementation(async () => ({ text: JSON.stringify(observation(++n)), processing: 'STATIC',
@@ -39,11 +49,11 @@ describe('assessment continuation policy (scripted SDK, no provider dispatch)', 
     expect(budget.calls).toHaveLength(4); expect(budget.calls.every(call => call.response !== null)).toBe(true);
     expect(packet.tool_receipts.map(row => (row.result as any).ok)).toEqual([true, true, true, true]);
   });
-  it('stops fresh probes after two consecutive probes add no new exact typed evidence items', async () => {
+  it('allows distinct Gemini questions even when consecutive readings repeat known evidence', async () => {
     const analyze = vi.fn(async () => ({ evidence: observation(1), receipt: { mode: 'offline' } }));
     const instance = await createSiteAssessmentAgent(input, { history_access: null, model: model(4), authorize_model_call: async () => {}, analyze_video: analyze });
-    const packet = await instance.run(); expect(analyze).toHaveBeenCalledTimes(3);
-    expect(packet.tool_receipts.at(-1)?.result).toMatchObject({ ok: false, error: 'assessment_video_no_new_evidence' });
+    const packet = await instance.run(); expect(analyze).toHaveBeenCalledTimes(4);
+    expect(packet.tool_receipts.every(row => (row.result as any).ok)).toBe(true);
     expect(packet.assessment.status).toBe('needs_operator_input');
   });
   it('uses evidence progress and operational limits instead of a provider-call spending quota', async () => {
@@ -87,13 +97,21 @@ describe('assessment continuation policy (scripted SDK, no provider dispatch)', 
     await expect(instance.run()).rejects.toThrow('site_assessment_deadline_exceeded');
     expect(analyseAgenticVideo).not.toHaveBeenCalled();
   });
-  it('does not count reordered known observations as progress', async () => {
+  it('does not impose a fresh-call count gate on reordered known observations', async () => {
     let n = 0; const analyze = vi.fn(async () => ({ evidence: { summary: `different wording ${++n}`,
       observations: n % 2 ? [observation(1).observations[0], observation(2).observations[0]]
         : [observation(2).observations[0], observation(1).observations[0]], not_observable: ['Success criterion'] }, receipt: {} }));
     const instance = await createSiteAssessmentAgent(input, { history_access: null, model: model(4), authorize_model_call: async () => {}, analyze_video: analyze });
-    const packet = await instance.run(); expect(analyze).toHaveBeenCalledTimes(3);
-    expect(packet.tool_receipts.at(-1)?.result).toMatchObject({ error: 'assessment_video_no_new_evidence' });
+    const packet = await instance.run(); expect(analyze).toHaveBeenCalledTimes(4);
+    expect(packet.tool_receipts.every(row => (row.result as any).ok)).toBe(true);
+  });
+  it('has no implicit ten-minute assessment deadline while retaining explicit host deadlines', async () => {
+    let clock = 0; const analyze = vi.fn(async () => ({ evidence: observation(1), receipt: {} }));
+    const instance = await createSiteAssessmentAgent(input, { history_access: null,
+      model: model(1, () => { clock += 11 * 60 * 1000; }), now: () => clock,
+      authorize_model_call: async () => {}, analyze_video: analyze });
+    expect((await instance.run()).assessment.status).toBe('needs_operator_input');
+    expect(analyze).toHaveBeenCalledTimes(1);
   });
   it('retains unresolved exposure while permitting distinct useful probes', () => {
     const budget = new SiteAssessmentBudget(); budget.authorize('gemini', 'gemini-3.8-flash');

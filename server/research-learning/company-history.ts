@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { digest, id, hash, instant, LEARNING_ROOT, sectionSchema } from "./contract";
 import { verifySourceSnapshot } from "./prior-research";
 import { readQueryPages } from "./query-pages";
@@ -330,7 +331,6 @@ export function createCompanyHistoryTools(db: FirebaseFirestore.Firestore, acces
   };
 }
 export async function runCompanyHistoryTool(name: string, args: unknown, access: CompanyHistoryAccess) {
-  const { dbAdmin } = await import("../../client/src/lib/firebaseAdmin");
   if (!dbAdmin) return { ok: false, error: "company_history_storage_unavailable" };
   return createCompanyHistoryTools(dbAdmin, access)(name, args);
 }

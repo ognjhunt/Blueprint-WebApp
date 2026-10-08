@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentHash, experimentVersions, openExperimentLedger,
+import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentErrorCode, experimentHash, experimentVersions, openExperimentLedger,
   sanitizeExperiment, validateExperimentRetention, validateSavedEvidence, writeExperimentJson } from "../agents/assessment-experiment";
 import { SiteAssessmentBudget } from "../agents/adapters/site-assessment-budget";
 
@@ -21,6 +21,13 @@ const open = (file: string, runId = "synthetic-run", mode: "fresh-video" | "save
 afterEach(() => { vi.unstubAllEnvs(); dirs.splice(0).forEach(dir => fs.rmSync(dir, { recursive: true })); });
 
 describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUALITY EVIDENCE", () => {
+  it("identifies exact owned encryption configuration failures without exposing arbitrary prose", () => {
+    expect(experimentErrorCode("KMS key name is required for KMS decryption.")).toBe("experiment_kms_configuration_missing");
+    expect(experimentErrorCode("FIELD_ENCRYPTION_MASTER_KEY is required when KMS is not configured.")).toBe("experiment_local_encryption_key_missing");
+    expect(experimentErrorCode("FIELD_ENCRYPTION_MASTER_KEY must be 32 bytes base64.")).toBe("experiment_local_encryption_key_invalid");
+    expect(experimentErrorCode("PRIVATE exception with a credential")).toBe("experiment_failed");
+    expect(experimentErrorCode("site_assessment_source_changed")).toBe("site_assessment_source_changed");
+  });
   it("requires valid retention permission, with no spending approval or dollar/call limits", () => {
     expect(validateExperimentRetention(retention()).local_evidence_allowed).toBe(true);
     expect(() => validateExperimentRetention(undefined)).toThrow();

@@ -140,12 +140,20 @@ on either. Consider workflow economics only when the owner supplies it; internal
 customer questions. Ask about the work performed and its frequency rather than a spending threshold.
 Return needs_operator_input with those questions when their answers change the next action. The caller continues
 the existing conversation by supplying the recorded answers on the next run; never invent an operator reply.
+Identify which missing fact prevents which decision. Unresolved success criteria or workload do not by themselves
+stop capture, scene preparation, evidence extraction or evaluation planning. Propose useful preparation alongside
+targeted site questions; measurements we can obtain belong in remaining checks, not a request for the operator
+to invent values. Define success criteria before scoring a pass and resolve necessary physical constraints before
+the affected physical trial. Keep assumptions explicit; preparation is not proof of successful deployment.
 
 Read the robot registry and search relevant authorized company knowledge. You choose search queries, filters,
 depth and paging; remove restrictive filters when useful. Fetch original records before citing knowledge.
 Inspect source dates, corrections, evidence scope and per-field provenance. Published specs and owner/vendor
 statements are not measured site outcomes. Unknown reach, tooling, support or success does not exclude a robot.
 Registry band matches are only screening hints. A partial corpus or search nonmatch proves no incompatibility.
+If a tool returns knowledge_scope_unavailable, report that authorized company knowledge is unavailable;
+changing search queries or filters cannot restore access. Continue with admitted sources and identify the
+research gap without claiming that a search found no suitable robots. Use null for unused filters and cursors.
 Fields graded inferred remain estimates, not robot specifications.
 Prospect teams have not agreed to deploy. Development/simulation results are not physical production proof.
 SOPs/docs matter only if actually returned by a tool or supplied as evidence; do not claim access to unseen files.
@@ -204,16 +212,9 @@ export async function createSiteAssessmentAgent(input: SiteAssessmentInput, opti
     videoCache.set(hash({ question: value.question, processing: value.processing, sampling_fps: value.sampling_fps }), value);
   }
   const now = options.now ?? Date.now;
-  const deadline = options.deadline_at_ms ?? now() + 10 * 60 * 1000;
-  if (!Number.isFinite(deadline)) throw new Error("assessment_deadline_invalid");
+  const deadline = options.deadline_at_ms ?? Number.POSITIVE_INFINITY;
+  if (options.deadline_at_ms !== undefined && !Number.isFinite(deadline)) throw new Error("assessment_deadline_invalid");
   const assertDeadline = () => { if (now() >= deadline) throw new Error("site_assessment_deadline_exceeded"); };
-  const evidenceSeen = new Set<string>();
-  const evidenceItems = (evidence: ReturnType<typeof validateVideoObservations>) => [
-    ...evidence.observations.map(item => hash({ observation: item })),
-    ...evidence.not_observable.map(item => hash({ not_observable: item })),
-  ];
-  for (const retained of videoCache.values()) for (const item of evidenceItems(validateVideoObservations(retained.evidence, input.video!.duration_seconds))) evidenceSeen.add(item);
-  let unchangedVideoProbes = 0;
   let sourceBytes = options.video_bytes;
   const readVideo = options.analyze_video ?? (async (question: string, inspection: VideoInspection): Promise<VideoAnalysis> => {
     const video = input.video!;
@@ -275,18 +276,11 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
         if (!input.video) return retained("analyze_site_video", args, { ok: false, error: "video_not_supplied" });
         let result = videoCache.get(cacheKey);
         if (!result) {
-          const stop = now() >= deadline ? "assessment_time_budget_exhausted"
-            : unchangedVideoProbes >= 2 ? "assessment_video_no_new_evidence" : null;
+          const stop = now() >= deadline ? "assessment_time_budget_exhausted" : null;
           if (stop) return retained("analyze_site_video", args, { ok: false, error: stop,
             action: "Use retained findings and explain the remaining uncertainty, or ask for the missing observation." });
           result = await readVideo(question, inspection);
           result.evidence = validateVideoObservations(result.evidence, input.video.duration_seconds);
-          // Wording changes in a summary are not new observed evidence. Repeated
-          // observations at the same bounds cannot justify unbounded paid probes.
-          const items = evidenceItems(result.evidence);
-          const addsItem = items.some(item => !evidenceSeen.has(item));
-          unchangedVideoProbes = addsItem ? 0 : unchangedVideoProbes + 1;
-          for (const item of items) evidenceSeen.add(item);
           videoCache.set(cacheKey, result);
         }
         const source_id = `video:${input.video.source_id}:${cacheKey.slice(0, 12)}`;
@@ -366,7 +360,7 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
         task_instruction: input.task_instruction ?? null, prior_assessment: input.prior_assessment ?? null,
         evidence_sources: [...sources.values()], video: input.video ? { source_id: input.video.source_id,
           sha256: input.video.sha256, duration_seconds: input.video.duration_seconds } : null,
-        site_requirement: input.site_requirement }), { maxTurns: options.max_turns ?? 12 });
+        site_requirement: input.site_requirement }), { maxTurns: options.max_turns ?? Number.POSITIVE_INFINITY });
       const raw_model_assessment = siteAssessmentSchema.parse(result.finalOutput);
       const { assessment, verification } = renderSourceBoundAssessment(raw_model_assessment, sources, input.video?.duration_seconds ?? null);
       return { schema_version: "site_assessment.v2", request_id: input.request_id, assessment,

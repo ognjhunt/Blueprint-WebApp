@@ -7,6 +7,14 @@ import type { SiteAssessmentExperiment } from "./adapters/site-assessment";
 import { getGeminiVideoModel } from "./provider-config";
 
 export const experimentHash = (value: unknown) => createHash("sha256").update(JSON.stringify(value ?? null)).digest("hex");
+/** Map only exact configuration failures owned by this repo; arbitrary exception prose stays private. */
+export function experimentErrorCode(message: unknown) {
+  if (message === "KMS key name is required for KMS decryption.") return "experiment_kms_configuration_missing";
+  if (message === "FIELD_ENCRYPTION_MASTER_KEY is required when KMS is not configured.") return "experiment_local_encryption_key_missing";
+  if (message === "FIELD_ENCRYPTION_MASTER_KEY must be 32 bytes base64.") return "experiment_local_encryption_key_invalid";
+  return typeof message === "string" && /^(experiment_|inference_programme_|site_assessment_|assessment_|gemini_video_)[a-z0-9_]+$/.test(message)
+    ? message : "experiment_failed";
+}
 const sha = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 export const experimentRetention = z.object({ local_evidence_allowed: z.literal(true),
