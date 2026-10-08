@@ -631,3 +631,32 @@ targets, retain all originals and preserve genuinely separately confirmed
 contracts. Exact new diff and unchanged-lineage replay are required before
 release approval is restored. Geometry preparation may remain eligible; no
 provider, disclosure, spending or new execution-mode authority follows.
+
+
+**Restored scoped Pipeline source approval at exact `ff45e8f9ecfed4f6d5f2e10fa95d514036beca65`.**
+The three-file delta from a25 makes automatically generated website development
+control authority universally proposal_only. Runtime SHA256
+`46d049d54c8b4d3b912f02aea093676ccf0c51d7760af964a6176027bad7b77e`
+matches the reviewed source. Omitted and explicit-null targets remain distinct
+in retained input bytes; both preserve not_supplied target metadata without
+claiming owner confirmation. No genuine separately confirmed contract or new
+execution mode is changed.
+
+Independent replay transplanted the exact final two test files onto unchanged
+a25 runtime: omitted/null both fail (2/2). Those baseline assertions stop at
+false authority projection, before the seal assertion; the earlier complete
+false seal lineage is retained separately in cloud PR2648 review comments. On
+exact ff45, the eight owner-target checks plus four genuine-confirmation/proposal
+controls pass 12/12. The final regressions use actual emitted required flags and
+execute actual materialization and rigid seal refusal; the confirmed positive
+controls remain green. Baseline log SHA256
+`a2440a10e8fd4b363a278ae8b680bd7bc0f3431c537aa8ca9053542cd0d6c6b8`;
+candidate log `55e77754519906d4a9ca792f6108c0bc7b165e5ae68975358f86cf850d085477`.
+Private reviewer replay metadata is under
+output/reliability-program/reviewer/pipeline-owner-target/authority-final.
+
+This resolves the reopened omitted/null authority finding for reviewed source.
+The original a25 scope and correction history remain explicit. CPU module
+controls receive no new journey credit; no provider calls or shared QA mutations
+occurred. Required exact-head checks, protected merge/promotion/deployment and
+the actual joined customer outcome remain separate release-owner gates.
