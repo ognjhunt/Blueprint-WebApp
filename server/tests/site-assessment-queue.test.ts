@@ -105,13 +105,13 @@ it("keeps unknown interrupted provider work for review instead of redispatching"
     if (progress === "future") call.created_at_ms = Date.now() + 60_000;
     if (progress === "already-review") state.docs.get(key)!.state = "needs_review";
     const recent = ["admitted", "recorded", "unknown", "already-review"].includes(progress);
-    expect(await sharedFakeFirestore.runTransaction(tx => hasRecentAssessmentProgress(tx, { requestId: pending.request_id,
-      jobId: id, captureId: pending.capture_id, previousRunId: job.run_id, previousClaimId: "retained-claim", sourceKey: job.source_key,
-      contextDigest: job.context_digest, startedAtMs: started, request: raw, brief: null })), progress).toBe(recent);
     const before = structuredClone([...state.docs.entries()].filter(([path]) => path.startsWith("captureCoverageReviews/") || path === runPath));
     await reconcileSiteAssessments(); await reconcileSiteAssessments();
     expect(state.docs.get(key)?.state, progress).toBe(recent && progress !== "already-review" ? "running" : "needs_review");
     expect((await describeSiteAssessmentRetry(pending.request_id, () => true)).available, progress).toBe(progress === "stale");
+    expect(await sharedFakeFirestore.runTransaction(tx => hasRecentAssessmentProgress(tx, { requestId: pending.request_id,
+      jobId: id, captureId: pending.capture_id, previousRunId: job.run_id, previousClaimId: "retained-claim", sourceKey: job.source_key,
+      contextDigest: job.context_digest, startedAtMs: started, request: raw, brief: null })), progress).toBe(recent);
     if (progress === "stale") {
       expect(state.docs.get(runPath)).toMatchObject({ status: "cancelled", error: "site_assessment_process_interrupted",
         advisory_abandonment: { schema_version: "site_assessment_abandonment.v1", admission_token: admission.receipt.admission_token } });
