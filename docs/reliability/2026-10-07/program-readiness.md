@@ -1,0 +1,64 @@
+# Initial-window decision — release verification pending
+
+This is an interim decision, not full-goal completion. The initial closeout is
+2026-10-08 08:21:46 UTC. PR #940 is the sole combined WebApp release; the
+coordinator's separate branch retains runnable cases and independent receipts.
+Do not add the parallel owner's overlapping catalog/traces to these counts.
+
+**Code:** Reviewed backend repairs cover upload-part byte integrity, uncertain
+notification receipts, recovery fairness, decrypted recipients, revoked sessions,
+withdrawal/current-notice authority, terminal result fences and source admission.
+The reviewed intake repair preserves account/authoring scope, frozen retry
+identity, cross-tab ordering and clear fences. Final crash-checkpoint/worker
+integration, exact-head review and required checks remain release gates.
+
+**Evaluation:** 300 distinct offline conditions pass, 30 per frozen family;
+16 cross-tab additions are separate. There are 21 normal-UI traces through actual
+Express and native Firestore emulator with local fake object/provider/mail
+boundaries, plus 20 different in-memory worker traces: 41 distinct layered traces.
+Twelve API-intercepted browser cases are a separate layer. Repeats and the older
+640 scheduler permutations add no unique journeys. These counts do not establish
+final SDK assessment publication or production provider reliability.
+
+The new semantic catalog has 120 genuinely distinct PROVISIONAL evidence states,
+with independently checked expectations and lineage. Semantic model evaluation
+is unscored. Earlier 120 topic-multiplied packets are only 15 structural source
+conditions; they are not another semantic dataset. The exact 83aa assessment SDK
+suite has 21 passed admission diagnostics and four semantic partials. Source
+qualification cannot verify that a sentence matches a cited field or video event.
+
+One actual isolated Sol SDK call used eleven provisional sampled-frame textual
+observations of the one authorized dishwasher source. Its unchanged packet is
+conservative about missing physical evidence but fails candidate admission for
+published/video provenance classification. It is neither continuous video
+perception nor a successful candidate customer assessment. Gemini exposure from
+the earlier failed host boundary remains unknown; no retry occurred. Usage and
+the $0.0327325 local price estimate are separate from absent dollar billing proof.
+
+Only one real-site source is authorized, versus the unchanged 12–24 target; there
+are zero current human timestamp labels and no untouched holdout. Existing six
+recorded simulations are explicitly separate. No accuracy denominator or
+statistical certification is claimed. Outdated human approval gates do not hold
+the engineering work; these are current evidence limits on quality claims.
+
+**Deployment:** WebApp still served the baseline at the last independent check.
+Required-stage Pipeline code is deployed and its serving identity independently
+verified at cc876af25389de934f57c08b33421987f9e3328d. That read-only identity check
+does not prove a live customer Pipeline job. Exact WebApp merge/deployed receipts
+and post-deployment UI evidence belong in `program-release.json` before changing
+this verdict.
+
+**Bounded beta:** No assessment-quality recommendation yet. A workflow-only
+recommendation must name supported browsers/recovery flows and the final executed
+access, withdrawal, idempotency and status checks; retain P2 exclusions, owners and
+recovery steps. The forced-kill checkpoint is still awaiting this coordinator's
+independent final replay. Unsupported measurement/capability and citation
+entailment probes constrain the assessment claim separately. Customer learning
+and conversations continue under their existing permissions; this program adds
+no outreach or blanket incident freeze.
+
+Canonical replay setup is in `program-replay.md`; frozen catalog, source hashes,
+results and review corrections are in the compact inventory/trace/review files.
+Private raw material remains in authorized ignored local storage and the sole
+assessment owner's company export/recovery manifest. No bearer links, credentials
+or raw customer footage belong in CI or public reports.
