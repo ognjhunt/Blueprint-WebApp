@@ -322,7 +322,12 @@ export async function closeExpiredTaskEvaluationLaunches(
 
 export function startTaskEvaluationLaunchForwardWorker() {
   const enabled = truthy(process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED);
-  logger.info({ launchForwardWorkerEnabled: enabled, siteVideoEvidenceEnabled: isSiteVideoEvidenceEnabled() }, "Task Evaluation launch worker admission");
+  logger.info({
+    launchForwardWorkerEnabled: enabled,
+    siteVideoEvidenceEnabled: isSiteVideoEvidenceEnabled(),
+    openAiCredentialConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
+    geminiCredentialConfigured: ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_AI_STUDIO_API_KEY"].some(key => Boolean(process.env[key]?.trim())),
+  }, "Task Evaluation launch worker admission");
   if (!enabled) {
     return () => undefined;
   }
