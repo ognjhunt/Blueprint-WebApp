@@ -778,13 +778,22 @@
     "correction": "Compare exact existing source-bound/legacy privacy and account attachment field presence/value in the same create-only transaction. Unclaimed owner remains unclaimed; no new account gate or privacy rewrite."
   },
   "pipeline_acceptance_receipt_followup": {
-    "state": "source_concern_confirmed_actual_offline_reproducer_and_independent_review_active",
-    "severity": "P1_candidate_affected_transport_only",
+    "state": "actual_before_failure_independently_reviewed_repair_protected_merged_fresh_promotion_pending",
+    "severity": "P1_affected_status_transport_release_blocking_before_repair_deployment",
     "owner": "queue_recovery_with_independent_review_and_coordinator",
     "source": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2649#discussion_r4220778060",
     "finding": "Old retained receipt may acknowledge already newer pending delivery because current canonical revision/attempt/digest/state are not compared; existing same-document fence handles only concurrent rewrite.",
     "canonical91_deploy_started": false,
     "unrelated_web_advisory_blocked": false,
-    "provider_calls": 0
+    "provider_calls": 0,
+    "baseline": "Both current91 source cases consumed newer pending deliveries with stale digest/state;2/2fail, actual birth/lease/status/reconciler/fake callback.",
+    "fix": "Read fresh canonical status after callback; require returned digest/state match; fence actual ledger revision/attempt under existing lock and preserve delivery equality.",
+    "candidate": "36 focused plus5import checks pass; independent4control replay.",
+    "PR": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2650",
+    "commit": "3a2897bb36e9ef0273381eee0f5903f338467a99",
+    "merge_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
+    "review": "93723d29",
+    "next_action": "Fresh exact0a mandatory production promotion/provenance then preserved-control canonical deployment and actual serving proof. No old91 receipt reuse.",
+    "live_incidence": "unproven;91 never canonically deployed bythisprogramme"
   }
 }

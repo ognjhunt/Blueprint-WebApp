@@ -155,3 +155,13 @@ env -i PATH="$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/path/to/isolated/Bluep
 ```
 
 The installed execution independently checked active Git identity before and after; its private result hash and exact compiler source digest are indexed in program-release.json. The stage3 continuation refuses absent same-source completed authoring evidence and retains its incomplete trace in program-prerequisites.json; it adds no full journey credit.
+
+### Preparation receipt fence (PR2650)
+
+On isolated Pipeline candidate3a2897bb or its exact merged descendant0a17f52, use the existing Python3.12 interpreter/dependencies:
+
+```bash
+env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src:. /path/to/existing/Pipeline/.venv/bin/python -m pytest tests/test_website_preparation_status.py tests/test_live_pipeline_import_isolation.py -q
+```
+
+The retained36status checks and5cold-import controls are separate suites, with no provider or production database calls. Both minimized older-ACK cases fail on actual91-source bytes with generated birth/lease fixtures and fake owner/context/callback transports. The candidate preserves a genuinely newer acknowledgment and rejects a ledger advance after postflight. Evidence is indexed by exact source/log/receipt hashes in program-release.json; the canonical test source is in company Git. Fresh exact merged-SHA promotion and canonical deployment are separate requirements. No exactly-once callback or live customer outcome is implied.

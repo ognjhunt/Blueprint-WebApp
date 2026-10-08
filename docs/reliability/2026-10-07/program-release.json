@@ -670,7 +670,8 @@
     "pipeline_provenance_state": "success_official_exact91_artifact",
     "pipeline_provenance_artifact_id": 11563625441,
     "pipeline_provenance_sha256": "fbfb0f08afad2022857d04278b55a6fe2aacdd58b22d3d583803e6a908a93993",
-    "pipeline_canonical_deploy_state": "not_started_pending_current_receipt_fencing_review_of_bot_P1"
+    "pipeline_canonical_deploy_state": "91_not_deployed_confirmed_stale_receipt_bug_repaired_followup2650",
+    "pipeline_main_CI_state": "success_exact91_historical"
   },
   "assessment_continuation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/947",
@@ -1146,11 +1147,44 @@
     "main_CI": 37804694834
   },
   "latest_pending_main_release": {
-    "sha": "b3e25e42d2acf3528bef920fd849bc329ac6a04b",
-    "CI": 37805959542,
-    "state": "pending_behind_4f_main_e2e_fixture_generator_setup_at16:17UTC",
+    "sha": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+    "CI": 37808257513,
+    "state": "first_CI_actively_executing_at16:28UTC",
     "source_continuity": "Six programme guard/adapter/picker/test/CI blobs match reviewed f6 and b182",
     "new_customer_execution": false,
-    "claim_ceiling": "Merged source and completed exact PR checks only. Last independently verified paired LIVE remains195."
+    "claim_ceiling": "Merged source and completed exact PR checks only. Last independently verified paired LIVE remains195.",
+    "source_continuity_receipt_sha256": "b1e0ea657817805e2e3ec2babc6f326854eba1ca97993c085749ad5190bda1c2",
+    "docs_only_merge": "PR959 independently reviewed all9 executed PR jobs passed; onlyAGENTS changed.",
+    "previous_b3_CI": "cancelled_while_pending_superseded_not_passed",
+    "preceding_4f_CI": {
+      "run": 37804520799,
+      "state": "success",
+      "terminal_e2e_log_sha256": "94d3fd3ce16ea3f0240abd3a7f30af8cb518cfd2f9ae1f7ee3feb9bd1a3b9f4b",
+      "actual_fixture_download": "94.1MB22min48sec",
+      "private_link_cases": 4,
+      "scoped_intake_cases": 14,
+      "restarts_or_cancellations": 0
+    }
+  },
+  "receipt_fence_followup": {
+    "PR": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2650",
+    "head": "3a2897bb36e9ef0273381eee0f5903f338467a99",
+    "state": "independently_reviewed_required_checks_passed_protected_merged_fresh_promotion_pending",
+    "baseline": "Same two stale receipt cases fail on actual91 source; no production incidence claimed.",
+    "candidate": "36 focused checks pass;5 cold/hot import-isolation checks pass; Ruff/compile/diff pass.",
+    "independent_review": "93723d29; independent4 selected controls pass,36 receipt and source/log hashes verified.",
+    "evidence_receipt_sha256": "3ba77be5a42cf70d8b1b0d43edb2c87b302a3d74db0f85a9ea3a082c5d679b55",
+    "required_PR_CI": 37808498924,
+    "required_PR_CI_state": "success_impact_and_aggregate;conditional_critical_full_security_lanes_skipped_not_execution",
+    "merged_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
+    "merged_at": "2026-10-08T16:26:38Z",
+    "fresh_production_promotion": 37808897987,
+    "promotion_state": "pending_exact0a_workflow_dispatch_reason_production_deployment_promotion",
+    "previous91_promotion_applicable": false,
+    "deployment_started": false,
+    "layer": "Actual birth/lease/status/reconciler with synthetic fixture and fake owner/context/callback transports.",
+    "provider_calls": 0,
+    "new_original_case_credit": 0,
+    "limitation": "Fresh canonical receipt/current ledger fenced under supported monotonic revision writers. No guarantee against arbitrary out-of-contract raw rewrites; newer callback may cause one redundant idempotent next-scan wake."
   }
 }
