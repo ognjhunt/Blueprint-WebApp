@@ -625,6 +625,29 @@
       "fix": null,
       "next_action": "Programme-only host suppression of inherited embedding providers if enabled use enters scope; preserve authorized lexical search/fetch and ordinary behaviour. No global authority mutation or new current-run prerequisite.",
       "new_case_credit": 0
+    },
+    {
+      "id": "SDK-LIVE-FIRST-STEP-20261008",
+      "severity": "P1 affected assessment journey; underlying failure cause unresolved",
+      "owner": "existing dishwasher owner: runtime diagnosis and recovery; queue_recovery: safe adapter diagnostics; root: review/release",
+      "state": "actual_live_failed; no paid retry",
+      "invariant": "Failures remain inspectable with safe correlation and honest provider uncertainty; upload success cannot imply assessment completion.",
+      "root_cause": "Unknown live SDK/provider exception. Demonstrated observability defect: adapter catch discarded non-host exception diagnostics. Capture-only installed SDK transformation reaches client method and does not reproduce pre-client serialization failure.",
+      "before": {
+        "deployed_sha": "9a96add5213e840aa40d8758bdeb71c2a92b2382",
+        "actual_normal_UI_upload": "durably published approved source, 60035801 bytes",
+        "customer_status": "needs_review",
+        "run_status": "failed",
+        "error": "site_assessment_failed",
+        "first_Sol": "admitted, no returned response or usage; acceptance unknown",
+        "new_Gemini": "held; no admission in this receipt",
+        "tool_receipts": 0
+      },
+      "receipt_sha256": "7f0a412a7f6d3b39dc53647a22454cf0d067b5d078fb4ee4ffcef0bf498a883d",
+      "offline_serialization_sha256": "5c72ac90f83928c75f3781f363adec6ad0581abccee8c2663ed5df673cdb16cc",
+      "fix": "Safe fixed-shape private exception metadata and explicit host-error allowlist under isolated TDD; independent review reserved. No proposed provider-root-cause claim yet.",
+      "next_action": "Fail/pass minimized no-network adapter reproducer, independent review, required CI and deployment, then coordinate authorized recovery within held slots and aggregate cap. Preserve original unknown exposure.",
+      "new_case_credit": 0
     }
   ],
   "dependencies": [
