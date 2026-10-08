@@ -2280,3 +2280,32 @@ execution and bounded review apply without another identical-byte rerun.
 Protected exact-head checks, deployment and a separately verified explicit
 operator invocation remain required; no live grant, provider call or customer
 assessment is established by this continuity approval.
+
+
+## Independent recovery release receipt — 6c1d2466
+
+Verified exact merged recovery release `6c1d2466261c67de7809b4b0012a71dd1a404956`.
+Fresh read-only GitHub inspection confirms main CI `37817794563` completed
+successfully with nine check jobs plus automatic deployment admission, and
+CI-gated deployment `37818726952` completed successfully on that exact SHA.
+Retained paired native Render receipt hash
+`bf4dffe7a041ff02986b33818eddc7b498cde88a009d98353bdab9541daa1f7f`
+reports both services LIVE, completing at 17:46:17.331 and 17:46:31.421 UTC.
+The parent/tree continuity was already independently verified against reviewed
+recovery `1e0e0d81`; no new source approval follows from deployment alone.
+
+Production smoke result hash
+`98be157ed1f1eda6e691e4847c12fd76296b317bc13d2dec808369b075df8a0b`
+records 18/18 checks passing at 17:47:06.684–17:47:10.615 UTC, with exact serving
+SHA before and after. Reviewer verified the unchanged approved smoke script
+hash `ea03c76d` and retained screenshot hash. Fresh anonymous local draft reload,
+explicit clear acknowledgment, both browser stores agreeing on a new empty
+identity, empty return and unchecked consent pass. Two non-GET and three external
+requests were blocked; attempted intake mutations are zero, local context was
+cleaned and no submit, account login, evidence upload or send occurred.
+
+This is deployed identity, health/readiness and narrowly safe local-draft/Clear
+presentation evidence. It does not execute the new retry route, paid provider,
+customer report, worker inference or notification path. Technical continuation
+source/release and actual operator grant remain separate; this receipt cannot
+establish whole-program completion or live assessment quality.
