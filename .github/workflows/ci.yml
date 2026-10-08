@@ -279,9 +279,6 @@ jobs:
       - name: Verify invited site beta journey with isolated fixture APIs
         run: npx playwright test --config playwright.invited-beta.config.ts
 
-      - name: Ensure existing video fixture generator for intake recovery coverage
-        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
-
       - name: Verify private site links and retained capture handoff
         run: npm run test:site-reliability:browser
 

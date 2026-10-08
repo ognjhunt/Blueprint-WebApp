@@ -1,6 +1,5 @@
 import { expect, test, chromium, type Page } from "@playwright/test";
-import { execFileSync } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { copyFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 const origin = "http://127.0.0.1:42879";
 const create = "/api/inbound-request";
@@ -201,9 +200,8 @@ test("UI-CROSS-TAB-004 missing browser coordination has a fresh-customer next st
 test("UI-RETURN-005 real browser termination during video transport returns to the same intake", async () => {
   const output = path.resolve("output/reliability-program/intake"); mkdirSync(output, {recursive:true});
   const video = path.join(output,"synthetic-transport.mp4");
-  try {
-    execFileSync(process.env.BLUEPRINT_TEST_FFMPEG || "ffmpeg", ["-hide_banner","-loglevel","error","-f","lavfi","-i","testsrc=size=320x240:rate=30","-t","2","-c:v","libx264","-pix_fmt","yuv420p","-y",video]);
-  } catch { test.skip(true, "Local ffmpeg is required to generate a consent-free synthetic transport video"); return; }
+  // Checked-in synthetic video keeps this mandatory check independent of FFmpeg installation.
+  copyFileSync(path.resolve("e2e/fixtures/synthetic-transport.mp4"), video);
   const launch = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE} : {};
   const firstBrowser=await chromium.launch(launch); const first=await firstBrowser.newContext();
   const bodies:string[]=[]; let began!:()=>void; const uploading=new Promise<void>(resolve=>{began=resolve;});
