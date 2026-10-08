@@ -102,6 +102,10 @@ export interface SiteAssessmentOptions {
   max_turns?: number;
   /** Explicit host call allowance, if supplied. There is no default three-call quota. */
   max_video_calls?: number;
+  /** Canonical host opts into exact static request counting, never model input. */
+  bound_video_requests?: boolean;
+  /** Recheck current rights before the non-generation video upload. */
+  assert_video_upload_allowed?: () => Promise<void>;
   /** Deadline stops new provider dispatch; it does not imply cancellation of in-flight work. */
   deadline_at_ms?: number;
   now?: () => number;
@@ -225,13 +229,22 @@ export async function createSiteAssessmentAgent(input: SiteAssessmentInput, opti
       throw new Error("assessment_video_source_changed");
     }
     assertDeadline();
-    await options.authorize_model_call("gemini", model, { duration_seconds: video.duration_seconds, bytes: sourceBytes.byteLength });
+    const requestSize = { duration_seconds: video.duration_seconds, bytes: sourceBytes.byteLength };
+    if (options.bound_video_requests) {
+      if (!options.assert_video_upload_allowed) throw new Error("assessment_video_preflight_authority_missing");
+      await options.assert_video_upload_allowed();
+    } else await options.authorize_model_call("gemini", model, requestSize);
     assertDeadline();
     const mode = inspection.processing === "auto" ? (video.duration_seconds <= 300 ? "STATIC" : "AGENTIC")
       : inspection.processing === "static" ? "STATIC" : "AGENTIC";
     let response: Awaited<ReturnType<typeof analyseAgenticVideo>>;
     try { response = await analyseAgenticVideo({ apiKey, model, video: sourceBytes, processingMode: mode,
       samplingFps: mode === "STATIC" ? inspection.sampling_fps : undefined, maxOutputTokens: 32768,
+      ...(options.bound_video_requests ? { beforeGenerate: async (request?: import("./adapters/gemini-video").GeminiInferenceBound) => {
+        assertDeadline();
+        await options.authorize_model_call("gemini", model, { ...requestSize, ...request });
+        assertDeadline();
+      } } : {}),
       prompt: `Inspect the supplied site video to answer the question below. Return JSON with summary,
 observations [{category:job_step|object|motion|condition|variation|apparent_result, finding,
 basis:observed|estimate|not_visible, start_seconds:number|null, end_seconds:number|null, uncertainty:string|null}],

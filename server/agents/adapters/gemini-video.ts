@@ -61,6 +61,11 @@ const FILE_ACTIVE_TIMEOUT_MS = 3 * 60_000;
 const FILE_POLL_INTERVAL_MS = 2_000;
 
 type UploadedVideo = { name: string; uri: string; mimeType: string };
+export type GeminiInferenceBound = { inference_bound: {
+  schema_version: "site_assessment_inference_bound.v1"; provider: "gemini"; model: string;
+  source_sha256: string; payload_sha256: string; input_tokens: number; max_output_tokens: number;
+  method: "count_tokens_same_payload";
+} };
 
 /**
  * Hand the clip to Gemini's Files API and wait until it can be read.
@@ -161,38 +166,77 @@ export async function analyseAgenticVideo(input: {
   processingMode?: "AGENTIC" | "STATIC";
   samplingFps?: number;
   maxOutputTokens?: number;
+  /** Trusted host admission after exact static counting, before generation. */
+  beforeGenerate?: (request?: GeminiInferenceBound) => Promise<void>;
 }, fetcher: typeof fetch = fetch, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))) {
+  if (input.beforeGenerate && (input.processingMode ?? "AGENTIC") === "STATIC"
+    && (!Buffer.isBuffer(input.video.body) || !Number.isSafeInteger(input.maxOutputTokens ?? MAX_OUTPUT_TOKENS)
+      || (input.maxOutputTokens ?? MAX_OUTPUT_TOKENS) < 1 || (input.maxOutputTokens ?? MAX_OUTPUT_TOKENS) > MAX_OUTPUT_TOKENS)) {
+    throw new GeminiVideoError("gemini_video_token_bound_invalid", "Static request bounds are unavailable");
+  }
+  const sourceSha256 = Buffer.isBuffer(input.video.body)
+    ? createHash("sha256").update(input.video.body).digest("hex") : undefined;
   const video = await uploadVideoFile(input, fetcher, sleep);
   try {
-    return await generateFromVideo(input, video, fetcher);
+    return await generateFromVideo({ ...input, sourceSha256 }, video, fetcher);
   } finally {
     await deleteVideoFile(input.apiKey, video.name, fetcher);
   }
 }
 
 async function generateFromVideo(input: { apiKey: string; model: string; prompt: string;
-  processingMode?: "AGENTIC" | "STATIC"; samplingFps?: number; maxOutputTokens?: number },
+  processingMode?: "AGENTIC" | "STATIC"; samplingFps?: number; maxOutputTokens?: number;
+  sourceSha256?: string; beforeGenerate?: (request?: GeminiInferenceBound) => Promise<void> },
   video: UploadedVideo, fetcher: typeof fetch) {
   const processingMode = input.processingMode ?? "AGENTIC";
+  const model = input.model, apiKey = input.apiKey;
+  // Retain one serialized body: the counted request and generated request
+  // cannot diverge during an asynchronous admission callback.
+  const generationRequest = {
+    contents: [{ role: "user", parts: [
+      { text: input.prompt },
+      { file_data: { mime_type: video.mimeType, file_uri: video.uri }, media_processing: processingMode,
+        ...(processingMode === "STATIC" && input.samplingFps ? { video_metadata: { fps: input.samplingFps } } : {}) },
+    ] }],
+    // 8192 truncated a retained real review; preserve the existing combined
+    // answer/reasoning allowance rather than shrinking it to fit a test budget.
+    generationConfig: { responseMimeType: "application/json", temperature: 0,
+      maxOutputTokens: input.maxOutputTokens ?? MAX_OUTPUT_TOKENS },
+  };
+  const generationBody = JSON.stringify(generationRequest);
+  if (input.beforeGenerate) {
+    if (processingMode === "STATIC") {
+      const counted = await fetcher(`${GEMINI_API}/v1beta/models/${encodeURIComponent(model)}:countTokens`, {
+        method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
+        body: JSON.stringify({ generateContentRequest: { model: `models/${model}`, ...generationRequest } }),
+      });
+      if (!counted.ok) throw new GeminiVideoError("gemini_video_token_count_failed", `Gemini token count returned HTTP ${counted.status}`);
+      let tokenResponse: { totalTokens?: unknown };
+      try { tokenResponse = await counted.json(); }
+      catch { throw new GeminiVideoError("gemini_video_token_bound_invalid", "Static token count could not be decoded"); }
+      const tokens = tokenResponse?.totalTokens;
+      if (typeof tokens !== "number" || !Number.isSafeInteger(tokens) || tokens < 1 || tokens > 1_048_576) {
+        throw new GeminiVideoError("gemini_video_token_bound_invalid", "Static token count is unavailable or exceeds the admitted context");
+      }
+      await input.beforeGenerate({ inference_bound: {
+        schema_version: "site_assessment_inference_bound.v1", provider: "gemini", model,
+        source_sha256: input.sourceSha256!,
+        payload_sha256: createHash("sha256").update(generationBody).digest("hex"), input_tokens: tokens,
+        max_output_tokens: generationRequest.generationConfig.maxOutputTokens, method: "count_tokens_same_payload",
+      } });
+    } else {
+      // Dynamic agentic media input is not bounded by a static token count.
+      await input.beforeGenerate();
+    }
+  }
   const response = await fetcher(
-    `${GEMINI_API}/v1beta/models/${encodeURIComponent(input.model)}:generateContent`,
+    `${GEMINI_API}/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": input.apiKey },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [
-          { text: input.prompt },
-          { file_data: { mime_type: video.mimeType, file_uri: video.uri }, media_processing: processingMode,
-            ...(processingMode === "STATIC" && input.samplingFps
-              ? { video_metadata: { fps: input.samplingFps } } : {}) },
-        ] }],
-        // Agentic media processing and the model's reasoning spend this budget
-        // before the answer does. At 8192 the first real review of a 30s phone
-        // clip stopped short of its answer.
-        generationConfig: { responseMimeType: "application/json", temperature: 0,
-          maxOutputTokens: input.maxOutputTokens ?? MAX_OUTPUT_TOKENS },
-      }),
+      body: generationBody,
     },
   );
   // Do not include upstream error bodies: they can echo source URLs or tokens.
@@ -226,7 +270,7 @@ async function generateFromVideo(input: { apiKey: string; model: string; prompt:
     content: candidate.content,
     processing: { mode: processingMode.toLowerCase(), media_tool_calls: calls, media_tool_responses: responses,
       ...(processingMode === "STATIC" ? { sampling_fps_requested: input.samplingFps ?? null } : {}),
-      model_version: payload.modelVersion ?? input.model },
+      model_version: payload.modelVersion ?? model },
   };
 }
 
