@@ -1,0 +1,309 @@
+{
+  "schema": "blueprint.frozen-component-replay-map.v1",
+  "candidate_runtime": "88476cb8bb367573e8cf5d1664721e9fac71b8d8",
+  "catalog_unchanged": true,
+  "result_sha256": "1c0fb7ea277b82c1d12ae6353b1ac933cf84cf3ac8a8ab959b8357aa0e65ad78",
+  "mapping": [
+    {
+      "id": "INTAKE-001",
+      "frozen_name": "keeps the prerendered form inactive until handlers attach and never defaults to a GET of contact details",
+      "matched": [
+        [
+          "keeps the prerendered form inactive until handlers attach and never defaults to a GET of contact details",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-002",
+      "frozen_name": "keeps gpt-6.1-sol-agents-api entry links on the upgraded Sol disclosure",
+      "matched": [
+        [
+          "keeps gpt-6.1-sol-agents-api entry links on the upgraded Sol disclosure",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-003",
+      "frozen_name": "keeps gpt-6-sol-agents-api entry links on the upgraded Sol disclosure",
+      "matched": [
+        [
+          "keeps gpt-6-sol-agents-api entry links on the upgraded Sol disclosure",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-004",
+      "frozen_name": "SiteCaptureStart and the country recognizes an explicit US job location before Start (Austin, TX)",
+      "matched": [
+        [
+          "SiteCaptureStart and the country recognizes an explicit US job location before Start (Austin, TX)",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-005",
+      "frozen_name": "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (Paris)",
+      "matched": [
+        [
+          "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (Paris)",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-006",
+      "frozen_name": "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (Georgia)",
+      "matched": [
+        [
+          "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (Georgia)",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-007",
+      "frozen_name": "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (Vancouver, CA)",
+      "matched": [
+        [
+          "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (Vancouver, CA)",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-008",
+      "frozen_name": "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (Austin, TX, Germany)",
+      "matched": [
+        [
+          "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (Austin, TX, Germany)",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-009",
+      "frozen_name": "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (123 Main St)",
+      "matched": [
+        [
+          "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (123 Main St)",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-010",
+      "frozen_name": "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (10 High ST)",
+      "matched": [
+        [
+          "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (10 High ST)",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-011",
+      "frozen_name": "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (Warehouse near us)",
+      "matched": [
+        [
+          "SiteCaptureStart and the country shows the country fallback before Start for unresolved geography (Warehouse near us)",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-012",
+      "frozen_name": "SiteCaptureStart and the country recognizes explicit non-US geography and keeps its upload hold (Berlin, Germany)",
+      "matched": [
+        [
+          "SiteCaptureStart and the country recognizes explicit non-US geography and keeps its upload hold (Berlin, Germany)",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-013",
+      "frozen_name": "SiteCaptureStart and the country posts a typed Austin TX description on the first Start with the existing country contract",
+      "matched": [
+        [
+          "SiteCaptureStart and the country posts a typed Austin TX description on the first Start with the existing country contract",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-014",
+      "frozen_name": "SiteCaptureStart and the country invalidates typed inference on an ambiguous edit and resolves explicit non-US edits",
+      "matched": [
+        [
+          "SiteCaptureStart and the country invalidates typed inference on an ambiguous edit and resolves explicit non-US edits",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-015",
+      "frozen_name": "SiteCaptureStart and the country clears the prior inferred country while a new Google pick awaits details and ignores details after another edit",
+      "matched": [
+        [
+          "SiteCaptureStart and the country clears the prior inferred country while a new Google pick awaits details and ignores details after another edit",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-016",
+      "frozen_name": "SiteCaptureStart and the country preserves an explicit country correction made while Google details are pending",
+      "matched": [
+        [
+          "SiteCaptureStart and the country preserves an explicit country correction made while Google details are pending",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-017",
+      "frozen_name": "SiteCaptureStart and the country takes the country from the address that was picked, and offers a correction",
+      "matched": [
+        [
+          "SiteCaptureStart and the country takes the country from the address that was picked, and offers a correction",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-018",
+      "frozen_name": "SiteCaptureStart and the country shows unresolved country before Start and focuses it if an incomplete form is submitted",
+      "matched": [
+        [
+          "SiteCaptureStart and the country shows unresolved country before Start and focuses it if an incomplete form is submitted",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-019",
+      "frozen_name": "clears an inferred country when the address is edited, but preserves an explicit correction",
+      "matched": [
+        [
+          "clears an inferred country when the address is edited, but preserves an explicit correction",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-020",
+      "frozen_name": "saves a description with explicit site authority and no recording or fee grant",
+      "matched": [
+        [
+          "saves a description with explicit site authority and no recording or fee grant",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-021",
+      "frozen_name": "asks one question about the video and asks for recording rights only when a video is involved",
+      "matched": [
+        [
+          "asks one question about the video and asks for recording rights only when a video is involved",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-022",
+      "frozen_name": "sends the capture mode for the chosen way (phone)",
+      "matched": [
+        [
+          "sends the capture mode for the chosen way (phone)",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-023",
+      "frozen_name": "sends the capture mode for the chosen way (visit)",
+      "matched": [
+        [
+          "sends the capture mode for the chosen way (visit)",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-024",
+      "frozen_name": "saves signed-in captures to the authenticated workspace and reuses the request on retry",
+      "matched": [
+        [
+          "saves signed-in captures to the authenticated workspace and reuses the request on retry",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-025",
+      "frozen_name": "tells a robot-team account up front that the site goes to the emailed link, and never blocks it",
+      "matched": [
+        [
+          "tells a robot-team account up front that the site goes to the emailed link, and never blocks it",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-026",
+      "frozen_name": "falls back to the emailed link with the same answers when the workspace refuses the account",
+      "matched": [
+        [
+          "falls back to the emailed link with the same answers when the workspace refuses the account",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-027",
+      "frozen_name": "SiteCaptureStart and a video that already exists refuses a file that is not a .mov or .mp4 before anything is sent",
+      "matched": [
+        [
+          "SiteCaptureStart and a video that already exists refuses a file that is not a .mov or .mp4 before anything is sent",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-028",
+      "frozen_name": "SiteCaptureStart and a video that already exists creates the task, then sends the video through the capture link",
+      "matched": [
+        [
+          "SiteCaptureStart and a video that already exists creates the task, then sends the video through the capture link",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-029",
+      "frozen_name": "SiteCaptureStart and a video that already exists does not create a job or upload existing footage without rights consent",
+      "matched": [
+        [
+          "SiteCaptureStart and a video that already exists does not create a job or upload existing footage without rights consent",
+          "passed"
+        ]
+      ]
+    },
+    {
+      "id": "INTAKE-030",
+      "frozen_name": "SiteCaptureStart and a video that already exists guards a repeated Start while the first intake is still saving",
+      "matched": [
+        [
+          "SiteCaptureStart and a video that already exists guards a repeated Start while the first intake is still saving",
+          "passed"
+        ]
+      ]
+    }
+  ],
+  "note": "Dynamic it.each titles and describe prefixes matched against executed Vitest assertion results; added A-I cases are not substituted for original frozen30."
+}

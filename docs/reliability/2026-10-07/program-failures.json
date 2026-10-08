@@ -168,9 +168,10 @@
       "rootCause": "Recent localStorage writes can disappear on forced Chromium kill before browser disk flush; backend acknowledged job and upload survive",
       "minimizedReproducer": "retained native SIGKILL automatic-local-return diagnostic-v4 failed; no local pending recovery button",
       "repair": "No browser crash durability repair claimed; strict queued private-link recovery passes scored v3 UI021.",
-      "candidateRetest": "Orderly native-profile CDP close/reopen UI020 and SIGKILL queued-link/fresh-worker UI021 pass scored v3; automatic immediate-crash local draft return remains failed/unproven.",
-      "releaseStatus": "P2 tracked; excludes automatic forced-kill draft recovery from any beta claim",
-      "nextAction": "Evaluate strict browser persistence or explicit current account/email recovery only if this supported-scope requirement is adopted; do not claim localStorage crash durability"
+      "candidateRetest": "UI022 literal SIGKILL before held upload-write acknowledgement, same profile ordinary form return/original identity/exact fixture passes3 historical attempts plus final884 full-run attempt; additional final884 repeats in flight",
+      "releaseStatus": "native_checkpoint_reviewed;884 normalUI022 pass;merge_deployment_pending",
+      "nextAction": "Evaluate strict browser persistence or explicit current account/email recovery only if this supported-scope requirement is adopted; do not claim localStorage crash durability",
+      "limitation": "Owned synthetic video, Firestore emulator and fake objects/model/mail; native Chromium only; original pre-checkpoint3 failures retained by combined release owner, not independently rerun by this author"
     },
     {
       "id": "INTAKE-MULTITAB-001",
@@ -195,6 +196,60 @@
       "candidateRetest": "Exact private packet unchanged: baseline admitted; candidate rejected; no provider dispatch.",
       "limitation": "Safe rejection demonstrates admission behavior, not improved model interpretation or successful customer publication. Actual isolated advice remains provisional and candidate publication unproven.",
       "releaseStatus": "guard_tested_prompt_behavior_awaiting_next_authorized_real_run"
+    },
+    {
+      "id": "DURABILITY-VALIDATION-001",
+      "severity": "P2",
+      "invariant": "Rejected draft writes preserve the last valid recovery route and bytes",
+      "rootCause": "Canonical validation threw after local mirror write outside the rollback boundary",
+      "minimizedReproducer": "Valid prior same-identity snapshot; conflicting pending task body causes rejection and erases readability on exact9de",
+      "repair": "Move canonical validation inside conditional rollback, restoring only this exact attempted write",
+      "source": "client/src/lib/siteCaptureDraft.ts",
+      "owner": "combined release owner",
+      "candidateRetest": "Identical independent helper counterexample and actual native Chromium two-store rollback pass on884;223 neighboring checks pass",
+      "releaseStatus": "independently_reviewed;merge_deployment_pending",
+      "limitation": "Isolated helper counterexample, not observed customer data loss"
+    },
+    {
+      "id": "COVERAGE-DURABLE-TASK-001",
+      "severity": "P1",
+      "invariant": "Accepted video processing reaches durable agent dispatch with serializable state",
+      "rootCause": "Coverage producer spread a structured task definition containing functions/Zod schema into persisted task record",
+      "minimizedReproducer": "Actual coverage producer reaches Firestore serialization before provider dispatch in the isolated combined SDK worker path",
+      "repair": "Persist plain task kind/session/metadata/input; registry restores definition at execution",
+      "source": "server/utils/captureCoverageReview.ts",
+      "owner": "combined release owner",
+      "candidateRetest": "Producer shape regression plus final884300/22 coverage status layers pass; complete actualSDK publication remains separate gate",
+      "releaseStatus": "independently_reviewed;merge_deployment_pending",
+      "limitation": "Root normalUI mocks whole agent and disables final reading; root layer alone would not have found or proved this serialization repair"
+    },
+    {
+      "id": "INTAKE-ACK-SNAPSHOT-001",
+      "severity": "P2_no_demonstrated_failure",
+      "invariant": "Acknowledgement authority must match the exact successful request body and endpoint",
+      "rootCause": "Acknowledgement uses mutable pending ref to account for workspace-to-inbound fallback",
+      "repair": "Recommended follow-up: bind acknowledgement to exact successfully sent endpoint/body snapshot",
+      "source": "client/src/components/site/SiteCaptureStart.tsx",
+      "owner": "combined release owner",
+      "candidateRetest": "Independent review found no reachable false acknowledgement: in-flight storage suppression, stale-write fences and early fallback rejection present",
+      "releaseStatus": "tracked_followup;not_a_demonstrated_release_blocker",
+      "limitation": "No falsely acknowledged customer or minimized failing case established"
+    },
+    {
+      "id": "INTAKE-HYDRATION-AUTOSAVE-001",
+      "severity": "P1",
+      "invariant": "A valid unsubmitted draft survives reload and fresh explicit Start without emptying or silently changing authority",
+      "rootCause": "Mount method/region autosave runs before interactive while fieldset disabled; native FormData omits disabledcontrols and commits emptydraft although DOM defaultValues show retained fields",
+      "minimizedReproducer": "Ordinary one-tab unsubmitted draft: allfourfields saved in bothstores; reload; displayed/FormDatafields populated but bothcanonicaldrafts empty under same identity; explicitStartrefused/noPOST",
+      "baselineRevision": "88476cb8bb367573e8cf5d1664721e9fac71b8d8",
+      "baselineResult": "Visible populated fields but canonicaldraft empty; new Start refused by canonicalguard, zero secondPOST",
+      "source": "client/src/components/site/SiteCaptureStart.tsx",
+      "owner": "combined release owner",
+      "repair": "Pending scoped noninteractive-autosaveguard and effect dependency; preserve canonicalbody/draft validation",
+      "releaseStatus": "OPEN;affectedintake_source_approval_withdrawn;release_blocking",
+      "limitation": "Native Chromium/WebLocks/IndexedDB with API-intercepted backend. The ordinary reload requires no clear race; no current customer incidence established.",
+      "independent_baseline_sha256": "4bc9e942ae3fa55a444a9feda6dc11f4389ccef3db3622a7dc53341d416b2e4f",
+      "probe_sha256": "eb038abd444dba850871355ec1aabdeeb3cd464c715ef1ed8b6dfb92e0ef3285"
     }
   ],
   "dependencies": [

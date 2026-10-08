@@ -8,8 +8,8 @@ Run from a disposable checkout containing the integrated program files and its e
 | Queue inventory | 150; fake database/provider fault replay | No real provider or production storage. |
 | Transport/status inventory | 60; fake transport/storage/status fault replay | No real upload-provider transport. |
 | Worker journeys | 20; real handlers with serialized fake database/object store, fake provider and mail sink | Five restore cases reload serialized state; they are not OS process restarts or Firestore emulator runs. Keep separate from the 300 offline cases. |
-| Intercepted browser runner | Eight UI traces | APIs are intercepted. Orderly browser shutdown plus imported storage state does not establish abrupt crash durability or chunk resume. |
-| Joined browser runner | 21 normal UI traces; real Express handlers, loopback Firestore emulator, fake object store/provider/local mail | UI020 uses orderly native browser return; UI021 uses SIGKILL then the queued email-link route and fresh worker processes. Automatic local draft recovery after SIGKILL was not established. |
+| Intercepted browser runner | Twelve UI traces (eight original plus four cross-tab) | APIs are intercepted. Orderly browser shutdown plus imported storage state does not establish abrupt crash durability or chunk resume. |
+| Joined browser runner | 22 normal UI traces (21 original plus one explicitly frozen supplemental); real Express handlers, loopback Firestore emulator, fake object store/provider/local mail | UI020 uses orderly native browser return; UI021 uses SIGKILL then the queued email-link route and fresh worker processes. Supplemental UI022 uses literal SIGKILL before a held upload-write acknowledgement, then the ordinary form and the same native profile; it checks automatic identity recovery and one byte-identical fixture upload. Root final884 full22 passes; baseline and repeated attempts remain separate receipts. |
 | Deployed presentation smoke | Production GET/presentation/local draft only | No intake submission, upload, login, worker, provider, assessment or email delivery proof. |
 
 The joined runner exercises coverage processing and persisted customer status. It does **not** exercise the final site assessment or establish video perception, citation entailment, robot suitability, human reference quality, or live provider behavior. Its video is a two-second generated test pattern. Fake provider output explicitly says the work area was not observed. Latency belongs to the local emulator/fake layer; simulated provider usage cannot be reported as production cost.
@@ -49,7 +49,7 @@ Port 42879 must be free; the dedicated Vite config uses strict port binding and 
 env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" NODE_ENV=test BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP=true RELIABILITY_INTAKE_OUTPUT=output/reliability-program/intake/browser-replay node node_modules/@playwright/test/cli.js test --config playwright.reliability-intake.config.ts --grep-invert UI-CROSS-TAB
 ```
 
-## Joined 21 UI traces with an owned emulator
+## Joined 22 UI traces with an owned emulator
 
 The harness clears **all documents** in `demo-blueprint-reliability` before each case. Never attach it to someone else's emulator. The following subshell refuses occupied ports 8085 and 42878, starts only its own loopback demo emulator, verifies that its recorded Java PID owns port 8085 before running any clearing test, and stops only that PID on exit. While the coordinator's emulator is running, this command must fail at the port check. Do not kill processes by name or port, or remove another run's files to free a port.
 
@@ -103,6 +103,8 @@ NODE
   env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" NODE_ENV=test BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP=true RELIABILITY_FIRESTORE_EMULATOR=1 FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 "$replay_node" node_modules/vitest/vitest.mjs run --config vitest.reliability-program.config.ts
 )
 ```
+
+For selected high-risk repeats, append `-t 'UI-006|UI-019|UI-020|UI-021|UI-022'` to the Vitest command and keep each run. Five selected cases attempted three times remain five distinct cases; the other 17 are unattempted in those selected runs. UI022 is one supplemental semantic condition, never three independent journeys.
 
 The runner retains timestamped `output/reliability-program/journeys/runs/<run-id>/catalog.json` and `results.json`, screenshots and case evidence, plus latest aliases. Catalogs hash source files and the fixture; retain the exact fixture and receipts privately for replay. UI021 automatically launches the fresh worker using `RELIABILITY_WORKER_ONLY=1`; do not run that worker independently without the case's matching persisted records. The harness owns and closes its Express, Vite and Chromium processes. If interrupted before cleanup, identify only this run's recorded processes and children; never stop shared services. Logs, demo exports and browser profiles remain private ignored artifacts, not public CI uploads. This documentation change did not launch an emulator or execute the joined suite.
 

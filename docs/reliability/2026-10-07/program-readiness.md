@@ -9,13 +9,12 @@ Do not add the parallel owner's overlapping catalog/traces to these counts.
 notification receipts, recovery fairness, decrypted recipients, revoked sessions,
 withdrawal/current-notice authority, terminal result fences and source admission.
 The reviewed intake repair preserves account/authoring scope, frozen retry
-identity, cross-tab ordering and clear fences. Final crash-checkpoint/worker
-integration, exact-head review and required checks remain release gates.
+identity, cross-tab ordering and clear fences. The crash checkpoint passes matched native before/after checks, but exact884 has an open P1 unsubmitted-draft reload/autosave defect. Its early autosave reads disabled controls and empties the durable draft while the old values remain visible. Affected intake approval is withdrawn until the minimized case passes after repair; required checks and worker integration remain release gates.
 
 **Evaluation:** 300 distinct offline conditions pass, 30 per frozen family;
-16 cross-tab additions are separate. There are 21 normal-UI traces through actual
+16 cross-tab additions are separate. There are 22 normal-UI traces through actual
 Express and native Firestore emulator with local fake object/provider/mail
-boundaries, plus 20 different in-memory worker traces: 41 distinct layered traces.
+boundaries, plus 20 different in-memory worker traces: 42 distinct layered traces.
 Twelve API-intercepted browser cases are a separate layer. Repeats and the older
 640 scheduler permutations add no unique journeys. These counts do not establish
 final SDK assessment publication or production provider reliability.
@@ -23,8 +22,7 @@ final SDK assessment publication or production provider reliability.
 The new semantic catalog has 120 genuinely distinct PROVISIONAL evidence states,
 with independently checked expectations and lineage. Semantic model evaluation
 is unscored. Earlier 120 topic-multiplied packets are only 15 structural source
-conditions; they are not another semantic dataset. The exact 83aa assessment SDK
-suite has 21 passed admission diagnostics and four semantic partials. Source
+conditions; they are not another semantic dataset. The exact884 assessment SDK suite has27 passed structural admission diagnostics and three semantic partials. Source
 qualification cannot verify that a sentence matches a cited field or video event.
 
 One actual isolated Sol SDK call used eleven provisional sampled-frame textual
@@ -51,8 +49,7 @@ this verdict.
 **Bounded beta:** No assessment-quality recommendation yet. A workflow-only
 recommendation must name supported browsers/recovery flows and the final executed
 access, withdrawal, idempotency and status checks; retain P2 exclusions, owners and
-recovery steps. The forced-kill checkpoint is still awaiting this coordinator's
-independent final replay. Unsupported measurement/capability and citation
+recovery steps. The native forced-kill automatic form return passes three candidate attempts and fails three matched pre-checkpoint attempts. This does not clear the new P1 fresh-draft reload failure; no workflow beta recommendation is made while that defect is open. Unsupported measurement/capability and citation
 entailment probes constrain the assessment claim separately. Customer learning
 and conversations continue under their existing permissions; this program adds
 no outreach or blanket incident freeze.

@@ -1,11 +1,11 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-08T05:38:04.781271+00:00",
+  "updated_at_utc": "2026-10-08T06:16:00Z",
   "counts": {
     "offline_unique": 300,
-    "normal_ui_emulator": 21,
+    "normal_ui_emulator": 22,
     "additional_fake_worker": 20,
-    "journey_unique": 41,
+    "journey_unique": 42,
     "intercepted_ui_separate": 12,
     "semantic_model_judgments": 0,
     "offline_supplemental_cross_tab": 16
@@ -603,5 +603,178 @@
     "latency": "native private receipt held by sole assessment owner; do not mix with simulated-layer timing",
     "exact_packet_candidate_admission": "rejected_assessment_published_source_required",
     "accuracy_denominator": 0
+  },
+  "checkpoint_ui_replay": {
+    "runtime_client_origin_sha": "8a4d35dcee85a114fbafc9362bd1329fb693801b",
+    "runtime_backend_origin_sha": "83aa791c1576c53d1a149beafaaf9a7d58ecfc7e",
+    "run_id": "journeys-20261008T060141484Z",
+    "generated": 21,
+    "attempted": 21,
+    "passed": 21,
+    "failed": 0,
+    "result_sha256": "10ef3eceb4de9adfaadcf055fa737efa21f332029d4bcaf11eed29ee3f10f0e4",
+    "code_hashes": {
+      "client/src/components/site/SiteCaptureStart.tsx": "487f5374f0a0f6504fb699aa158411cedda4a29b23cd22ac70e9c24671cc1261",
+      "client/src/lib/siteCaptureDraft.ts": "baf30af57e4cde3acc2e513f73e5180f4862b5c9e15eaf3ec762c3d3747fea7a",
+      "server/routes/inbound-request.ts": "2dffc5ce36621aeabdca5d0b786fa3286a5990e910b2e85880aa9a97005dbfa0",
+      "server/routes/self-capture-uploads.ts": "3a16b1ae43546d9c04149687fbebc6f1e563c51a01074bd04cd4ef283eb268d5",
+      "server/routes/site-task-brief.ts": "94f1bd670795b3d67627c14f25b861e8f07c831d9db82943ddb320c2032d8656",
+      "server/utils/captureCoverageQueue.ts": "0eb2815b4b04547bc53535a22f5d7d4ad7f4f957b772895f91e795e0c412a2bb",
+      "server/utils/captureCoverageReview.ts": "6ead77441d464256ea03bf419ad4b2b73851ea910f793a5a139c84535cf80eb2",
+      "server/utils/captureReviewRecovery.ts": "0579855454da233462c7ba6883f0d34b0f32429b5b574decba93eb22ce2b427a",
+      "server/utils/captureParts.ts": "b61144375a5c184ccb926fc2325325741f455c6228e12cefe95f718465e41120",
+      "server/utils/field-encryption.ts": "64750f58b6e9010b686562633dbf04e8983c1ce39a9f9fa87e1153499049d2b2",
+      "server/utils/captureOutbox.ts": "78a3bd1cc0b5ae3590cc879eac7291825694b9fb2f3dac866a0ca8e61a99d746",
+      "server/agents/tasks/capture-coverage.ts": "9a25383f12ccd1c0a056c8cccac4900b7bf7d1f2ea45ba3fe825eae79bcb7bee",
+      "server/tests/helpers/reliability-local-storage.ts": "1f0f5cc4c3fa4719577db645d75c37b73a6a3062377653d36374636b726aae88",
+      "server/tests/reliability-program-journeys.browser.ts": "6501a98d4f65a0aab48ca725df2a88f0b5a6ee874563117263f4f2ad58b86215",
+      "server/tests/reliability-program-worker-resume.browser.ts": "3f7d2a0f0173dcbdab114516d366d77f7adb356648828466101a8e5d1e8467cd"
+    },
+    "scope": "Same21 frozen normal-UI coverage/status/recovery cases; UI020 orderlyclose andUI021SIGKILLqueued-email-linkreturn. AutomaticSIGKILLdraftreturn remains supplemental independentlyunexecuted."
+  },
+  "final_reviewed_runtime_replay": {
+    "candidate_runtime_sha": "88476cb8bb367573e8cf5d1664721e9fac71b8d8",
+    "source_at_launch_checkout_sha": "3b5a07c55",
+    "code_hashes": {
+      "client/src/components/site/SiteCaptureStart.tsx": "068a191b3f8a048af64f04edc9acdf62c04ba2813d9b81c4d2ac9fde059f33cf",
+      "client/src/lib/siteCaptureDraft.ts": "45dbdfbdb0eb5df69711703d521b44796522b48ff9bf70ec870f77dcfed7ee62",
+      "client/src/lib/siteCaptureDurability.ts": "14cae68c96d26f791431ecdb000397bc42c38161cae1098788cd8fb1f6345087",
+      "server/routes/inbound-request.ts": "2dffc5ce36621aeabdca5d0b786fa3286a5990e910b2e85880aa9a97005dbfa0",
+      "server/routes/self-capture-uploads.ts": "3a16b1ae43546d9c04149687fbebc6f1e563c51a01074bd04cd4ef283eb268d5",
+      "server/routes/site-task-brief.ts": "94f1bd670795b3d67627c14f25b861e8f07c831d9db82943ddb320c2032d8656",
+      "server/utils/captureCoverageQueue.ts": "0eb2815b4b04547bc53535a22f5d7d4ad7f4f957b772895f91e795e0c412a2bb",
+      "server/utils/captureCoverageReview.ts": "9c6cb1c7c404bdff29fc4e7978fd22bef4186295a0831a418870c48144d6d03b",
+      "server/utils/captureReviewRecovery.ts": "0579855454da233462c7ba6883f0d34b0f32429b5b574decba93eb22ce2b427a",
+      "server/utils/captureParts.ts": "b61144375a5c184ccb926fc2325325741f455c6228e12cefe95f718465e41120",
+      "server/utils/field-encryption.ts": "64750f58b6e9010b686562633dbf04e8983c1ce39a9f9fa87e1153499049d2b2",
+      "server/utils/captureOutbox.ts": "78a3bd1cc0b5ae3590cc879eac7291825694b9fb2f3dac866a0ca8e61a99d746",
+      "server/agents/tasks/capture-coverage.ts": "9a25383f12ccd1c0a056c8cccac4900b7bf7d1f2ea45ba3fe825eae79bcb7bee",
+      "server/tests/helpers/reliability-local-storage.ts": "1f0f5cc4c3fa4719577db645d75c37b73a6a3062377653d36374636b726aae88",
+      "server/tests/reliability-program-journeys.browser.ts": "5de9ebcdfc264d7083219b61793e1440130d26cb0c7571b6c4f6ab5dd8bc6b54",
+      "server/tests/reliability-program-worker-resume.browser.ts": "3f7d2a0f0173dcbdab114516d366d77f7adb356648828466101a8e5d1e8467cd"
+    },
+    "normal_ui": {
+      "run_id": "journeys-20261008T061248886Z",
+      "path": "output/reliability-program/journeys/runs/journeys-20261008T061248886Z/results.json",
+      "result_sha256": "5eb5fec8f15c202f88dfd61e076fadd645762bc500bf6157d867ada9e798b41b",
+      "generated": 22,
+      "deduplicated": 22,
+      "attempted": 22,
+      "passed": 22,
+      "failed": 0,
+      "unattempted": 0,
+      "source_layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+      "live_provider_calls": 0,
+      "live_cost_usd": 0,
+      "simulated_cost_usd": null,
+      "latency_ms_sum": 109692
+    },
+    "offline": {
+      "unique": 300,
+      "passed": 300,
+      "additional_fake_worker_journeys": 20,
+      "passed_test_assertions_17_suites": 690,
+      "log": "output/reliability-program/final884-core.log",
+      "log_sha256": "076ee3b969f5d1fa871d8b24775f6273e125137fca3b8974b9093bfcb4717a77",
+      "overall_command_status": "one_extra_suite_setup_error_missing_grafted_dependency",
+      "correction": "Storage neighbor catalog dependency copied from identical candidate;37/37 separately pass;no changed product assertion or hidden rerun",
+      "storage_neighbor_log": "output/reliability-program/final884-storage-neighbor.log",
+      "storage_neighbor_sha256": "34e8754e3a9e1f6b09e0bd8643e0a5f106eb6a720fdaf32b8a9354d0f1a8d1f9"
+    },
+    "retained_packet_admission": {
+      "path": "output/reliability-program/retained-assessment-884-final.json",
+      "sha256": "f25d2267dc6102d834cb4e3f19affb343a115c0cc64673df9ee381314d263c3b",
+      "baseline_admitted": true,
+      "candidate_admitted": false,
+      "guard_error": "assessment_published_source_required",
+      "packet_unchanged": true,
+      "provider_calls": 0
+    },
+    "intercepted_browser": {
+      "attempted": 12,
+      "passed": 10,
+      "failed": 2,
+      "log": "output/reliability-program/final884-intercepted12.log",
+      "status": "retained_test_contract_failures_under_review",
+      "failed_cases": [
+        "UI-CROSS-TAB-003",
+        "UI-CROSS-TAB-004"
+      ],
+      "scope": "old-ack checkpoint rejection and earlier no-WebLocks refusal; primary no-resurrection/no-dispatch assertions must be reached in a documented port before acceptance"
+    },
+    "semantic_sdk_diagnostics": {
+      "scripted_cases": 30,
+      "structural_guard_passed": 27,
+      "semantic_partial": 3,
+      "live_provider_calls": 0,
+      "partial_modes": [
+        "stale specification",
+        "conflicting video/owner/spec facts",
+        "wrong prose against qualified field"
+      ]
+    },
+    "claim_limits": [
+      "coverage/status worker provider is fake and reading disabled; no final assessment customer publication",
+      "native Chromium and touch mobile emulation, not Safari or physical phone",
+      "unchanged 120 semantic states remain unscored by real models; no video truth labels"
+    ]
+  },
+  "independent_ui022_before_after": {
+    "case_id": "UI-022",
+    "source_manifest": "output/reliability-program/ui022-precheckpoint/source-manifest.json",
+    "source_manifest_sha256": "c392b3ea176df91d23097e1aeb35ccd1aed6524eef9b951ab001c1af176e526b",
+    "baseline_source": "8ccc99cc pre-checkpoint three client files; backend884 unchanged",
+    "baseline_attempts": [
+      {
+        "attempt": 1,
+        "exit_code": 1,
+        "run_id": "journeys-20261008T061949485Z",
+        "attempted": 1,
+        "passed": 0,
+        "failed": 1,
+        "results_sha256": "245df7da8703d088fe322d0715ca65d194df33fc1f743370316f45316043797b"
+      },
+      {
+        "attempt": 2,
+        "exit_code": 1,
+        "run_id": "journeys-20261008T062018743Z",
+        "attempted": 1,
+        "passed": 0,
+        "failed": 1,
+        "results_sha256": "295f9b5b52baf24c5520a5809909fe244d072f4c396074669cf61fcebfb65b30"
+      },
+      {
+        "attempt": 3,
+        "exit_code": 1,
+        "run_id": "journeys-20261008T062047849Z",
+        "attempted": 1,
+        "passed": 0,
+        "failed": 1,
+        "results_sha256": "3b1c478c56501331ba81ffa2cbba24f48863c7e42d96a49176bfc264f0008ac9"
+      }
+    ],
+    "baseline_unique": 1,
+    "baseline_passed": 0,
+    "baseline_failed": 3,
+    "candidate_runtime": "884",
+    "candidate_attempts": 3,
+    "candidate_passed": 3,
+    "candidate_failed": 0,
+    "repeat_unique_credit": 0,
+    "restoration": {
+      "restored": true,
+      "candidate_sha256": {
+        "client/src/components/site/SiteCaptureStart.tsx": "068a191b3f8a048af64f04edc9acdf62c04ba2813d9b81c4d2ac9fde059f33cf",
+        "client/src/lib/siteCaptureDraft.ts": "45dbdfbdb0eb5df69711703d521b44796522b48ff9bf70ec870f77dcfed7ee62",
+        "client/src/contexts/AuthContext.tsx": "bceeb8ea22c8791863e63d135268059db8c5d450428c5bdec3fcd25e9796ae4c"
+      }
+    },
+    "claim_limit": "Actual browser SIGKILL/same-profile ordinary form recovery at held upload-write boundary; synthetic owned video and emulated/fake dependencies"
+  },
+  "open_native_counterexample": {
+    "id": "INTAKE-HYDRATION-AUTOSAVE-001",
+    "candidate": "884",
+    "status": "release_blocking_affected_intake",
+    "root_prior_green": "22/22 normalUI +300offline on narrower exercised sequences; does not override new actual failure"
   }
 }
