@@ -1778,3 +1778,45 @@ attempts remain unresolved and still block admission; source approval cannot
 erase them. Human spending authorization, historical reconciliation, required
 exact-head CI/merge/deployment and affected live result verification remain
 separate gates. This is not full programme readiness or video-quality approval.
+
+
+## Independent historical coverage reconciliation evidence review
+
+Approved the bounded interpretation of retained evidence
+`0abd8ba87009482c69300b3aaa1d7a5734cf724c5b501d8c24980b8026fcacbb`
+for exactly three matched coverage invocations. Each distinct raw signing-error
+log has exact parsed review/request/scene/capture identity and full source/brief
+binding equality with the retained review; each reports
+`storage/invalid-argument`. The exact historical Git source at
+`a99f86eb9977ce9822397bf7a6108a751508a22f`, SHA-256
+`9e1f9123a08994993f78f2dfb39dd3087aa2f0616edefd78cb4ba5ebe482fe11`,
+contains storage-only signing preflight, immediately returns on that error,
+and reaches SDK dispatch only later. Its actual queue increments attempts before
+preflight. Three retained attempts therefore do not represent three provider
+calls. Waiting-prerequisite state or empty SDK queries alone was not used as
+zero-dispatch proof. Exact capture history and session query receipt hashes
+`ba44feda5a40611c5c99556c70ef785b221c65155996b2c8c4bc40c6fc4a968a`
+and `2d8ed09b335b1c19fa8f208e2860a1c6af1fcc3b09777eb5fc58ba710635165d`
+were verified; the complete retained review snapshot matches.
+
+Raw native deployment export
+`f04e38e246baabe912ea632b69c4315f732799a25bb6ddc0214df758ef327d12`
+contains the exact selected deployment objects in its original twenty-row MCP
+response. Requested service matches all three error-log resource labels and
+native commit matches the verified Git source. All three errors at
+18:10/18:12/18:14UTC lie between native finish times17:16:24.894647UTC and
+19:38:58.114335UTC, with no intervening completed deployment in that retained
+page. Historical serving attribution is an inference from this deployment
+window, not a retained contemporaneous LIVE observation. Native status at read
+is deactivated; the original retrieval timestamp was not retained. These
+limitations remain explicit. Private identities, claim tokens and raw logs
+remain in the authorized owner reconciliation folder.
+
+This review does not reconcile unrelated qualification calls or the original
+isolated Gemini unknown usage. It authorizes no attempt reset, zero-budget
+seeding, refund, provider call or production authority import. A narrowly bound
+server-owned reconciliation must still preserve exact history and attempts,
+reject changed or additional exposure, and receive separate source/import
+verification. No new case or journey credit, replay suite or live mutation was
+performed. Full programme readiness and customer assessment quality remain
+separate.
