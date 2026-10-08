@@ -1717,5 +1717,41 @@
       "diagnostic failures remain retained and are not successful restart attempts"
     ],
     "owned_process_cleanup": "Verified own Java stopped and ports8085/42878 released at19:32:51UTC"
+  },
+  "current_native_accounting_replay": {
+    "observed_at_utc": "2026-10-08T20:13:41.983045+00:00",
+    "receipt_path": "/Users/nijelhunt_1/.codex/worktrees/reliability-programme-authority-amendment-20261008/Blueprint-WebApp/output/reliability-program/accounting-native-replay/receipt.json",
+    "receipt_sha256": "cf2e771faa214eb66b4279995a0f8b26168b884314e2ed863ee3bac1c36cac42",
+    "root_readback": "154 retained artifact hashes match;15 runtime paths match frozenb426",
+    "runtime_head": "b426d0991c1cf34e5acbdaf62ce7c97be0d225dc",
+    "runner_sha256": "20fc741f186661d782738d76501227250949e82251149d392e10b18786ec1d48",
+    "counts": {
+      "existing_unique": 3,
+      "original_program_credit": 0,
+      "final_attempted": 9,
+      "final_passed": 9,
+      "final_failed": 0,
+      "earlier_attempted": 9,
+      "earlier_passed": 6,
+      "earlier_failed": 3,
+      "all_attempted": 18,
+      "all_passed": 15,
+      "all_failed": 3
+    },
+    "native_calls": {
+      "total": 27,
+      "scripted_openai": 18,
+      "scripted_gemini": 9,
+      "all_owner_run_binding_matches": true
+    },
+    "layer": "normal UI;real handlers;nativeFirestore emulator;durable fake objects;actual SDK/private writer;scripted providers;local notification sink",
+    "corrections": "Earlier CDP interference/independent cleanup-start driver failure retained; v2 cleans only owned browser and retains primary exception. Same cases/assertions/runtime;no hidden lucky-pass rerun claim.",
+    "limits": [
+      "No live-provider/video perception/invoice evidence",
+      "Worker case uses explicit test-only dispatcher hold, manual ticks and after-private-commit pause",
+      "Not all production global middleware mounted",
+      "No emulator import/export proof;hydrated records retained"
+    ],
+    "cleanup": "OwnJava stopped;ports8085/42878 bind available20:07:11Z;no fault injection left enabled"
   }
 }

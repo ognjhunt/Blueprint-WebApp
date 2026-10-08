@@ -1746,7 +1746,22 @@
       "observed": "eight_jobs_success_test_in_progress"
     },
     "frozen_coverage_quality_targets": "unchanged; requirement change is recorded explicitly, never additional unique-case credit",
-    "paid_provider_calls": 0
+    "paid_provider_calls": 0,
+    "current_followup": {
+      "PR": 970,
+      "reviewed_head": "b426d0991c1cf34e5acbdaf62ce7c97be0d225dc",
+      "merge_sha": "dd592c8f0cad2085d855673d54353a80d0cb4f9b",
+      "PR_CI": 37835615540,
+      "main_CI": 37836444298,
+      "required_checks": "success;8 applicable jobs;E2E skipped",
+      "independent_review": "0ccd85ff",
+      "state": "protected_merged;not_yet_native_deployed"
+    },
+    "canonical_human_direction": {
+      "local_path": "output/reliability-program/customer-policy/human-financial-direction.json",
+      "sha256": "8342f42b68a61d6931c017faed9b75be6d3a621e41c05ab3946078071380aab7",
+      "status": "exact direct human message reverified;historical records unchanged;one ordinary owned-video assessment coordinated with original owner;no customer monetary/call-quota gate"
+    }
   },
   "latest_shared_main_observation": {
     "observed_at_utc": "2026-10-08T19:49:55Z",
@@ -1779,5 +1794,52 @@
       "ready_response_timestamp": "2026-10-08T19:49:52.075Z"
     },
     "claim_ceiling": "current shared deployed identity and readiness only; prior783 browser smoke stays historical; no live provider/customer outcome proof"
+  },
+  "reviewed_customer_reliability_slices": {
+    "observed_at_utc": "2026-10-08T20:13:41.983045+00:00",
+    "spending_accounting": {
+      "PR": 970,
+      "reviewed_head": "b426d0991c1cf34e5acbdaf62ce7c97be0d225dc",
+      "merge_sha": "dd592c8f0cad2085d855673d54353a80d0cb4f9b",
+      "PR_CI": 37835615540,
+      "main_CI": 37836444298,
+      "required_checks": "success;8 applicable jobs;E2E skipped",
+      "independent_review": "0ccd85ff",
+      "state": "protected_merged;not_yet_native_deployed"
+    },
+    "customer_publication": {
+      "PR": 971,
+      "reviewed_head": "bb49c9d875b5c1387960103e1ef0e259fc5b3252",
+      "merge_sha": "9e8784f8ecaf342d78e64bb9e351dcf08d0f9610",
+      "PR_CI": 37835376064,
+      "main_CI": 37836652578,
+      "required_checks": "success;8 applicable jobs;E2E skipped",
+      "independent_review": "0ccd85ff",
+      "state": "protected_merged;not_yet_native_deployed"
+    },
+    "deployment_observation": {
+      "current_main": "51f05260faf71a646bd6eae605e164ae1428f33e",
+      "current_main_CI": 37837594629,
+      "state": "in_progress_at_observation",
+      "older_deploy_jobs": [
+        37837125601,
+        37837625177
+      ],
+      "older_job_result": "successfully_stood_down_stale_ref;no_Render_dispatch",
+      "native_web_and_worker_sha": "8cb532f757c0d899cdd51617cb1c82a3c6acc42c",
+      "native_state": "live_verified;not_relabelled_as_970_or_971"
+    },
+    "claim_ceiling": "Reviewed source and executed isolated controls; no successful current-video live Gemini assessment or semantic truth certification."
+  },
+  "owner_evidence_admission": {
+    "PR": 974,
+    "head": "5f7d70539511c5c02c702abc01ea7bc8e12ef4df",
+    "baseline": "b426d0991c1cf34e5acbdaf62ce7c97be0d225dc",
+    "private_receipt_path": "/private/tmp/blueprint-owner-evidence-20261008/output/reliability-program/customer-evidence-handoff-diagnosis/receipt.json",
+    "private_receipt_sha256": "e18609a5d8ed80343448b6d874b8199879c5d4383a021aa48e5ca29ac44dd710",
+    "checks": "same2isolatedprobes FAIL before/PASS after;39 existing checks;no additional unique credit",
+    "state": "draft_published;independent_source_approval_received;integration_checks_and_required_CI_pending",
+    "scope": "two source files;host instruction non-citable;canonical stored owner assertions only;generated display defaults excluded;video-only intake preserved",
+    "paid_provider_calls": 0
   }
 }

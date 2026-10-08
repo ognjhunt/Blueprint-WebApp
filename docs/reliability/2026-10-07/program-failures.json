@@ -778,7 +778,11 @@
       "candidateRetest": "same7a51selected4FAIL -> corrected33PASS; no live invoice or independent-case credit",
       "limitations": "Conservative priced token exposure is not observed thoughts or an invoice; source783 retains old full durable reservations and is not relabeled as a demonstrated live cap overrun",
       "followup_receipt_sha256": "b237cdafdf1822cd0555110cf02309e190822549d9f56f566f6160b114fbb5cf",
-      "current_policy_note": "Financial pool gates superseded. Residual usage still must not be represented as observed completion tokens; above-estimate remains separate and gross exposure increases once."
+      "current_policy_note": "Financial pool gates superseded. Residual usage still must not be represented as observed completion tokens; above-estimate remains separate and gross exposure increases once.",
+      "current_followup": {
+        "state": "repaired_independently_reviewed_protected_merged970;native_deployment_pending",
+        "cost_evidence": "Conservative accounting, not live invoice or zero-unknown assumption"
+      }
     },
     {
       "id": "REL-STALE-PENDING-INFERENCE-OWNER",
@@ -792,7 +796,13 @@
       "private_reproducer_directory": "/private/tmp/blueprint-pending-owner-20261008/output/reliability-program/pending-owner/",
       "limits": "Isolated fake-store execution. No demonstrated live customer incidence; missing/running owner must remain fenced; old UNKNOWN/full exposure retained.",
       "paid_provider_calls": 0,
-      "original_unique_case_credit": 0
+      "original_unique_case_credit": 0,
+      "current_followup": {
+        "state": "repaired_independently_reviewed_protected_merged970;native_deployment_pending",
+        "same_case_result": "3FAILe556\u21923PASSa349 plus33existing",
+        "receipt_sha256": "932faa7e78dcd408f1b108157a92ad0e4153a9e5f870b69f9fd91f3941494e0f",
+        "limitations": "Missing/running/ambiguous owners remain fenced;old full unknown exposure retained;completed-owner/lost receipt ambiguity remains explicit"
+      }
     },
     {
       "id": "REL-CUSTOMER-UNBOUND-COMMITMENT-CAPABILITY",
@@ -811,6 +821,27 @@
       "focused_checks": "author39PASS;independent14PASS;actual targeted probe exposes remaining gap",
       "pull_request": "https://github.com/ognjhunt/Blueprint-WebApp/pull/971",
       "limits": "Pure actual projection with synthetic packet; no live model perception or customer incidence. Current main conservative projection is not attributed this proposed regression.",
+      "paid_provider_calls": 0,
+      "original_unique_case_credit": 0,
+      "current_followup": {
+        "state": "exactbb49_independently_reviewed_protected_merged971;native_deployment_pending",
+        "evidence": "Both source-free presupposition counterexamples now excluded;39author/14independent checks overlap",
+        "limits": "Lexical/structural control is not citation entailment, video accuracy or universal robot capability proof"
+      }
+    },
+    {
+      "id": "REL-HOST-DEFAULT-AS-OWNER-EVIDENCE",
+      "severity": "P1_affected_assessment_evidence_attribution",
+      "owner": "queue_recovery;root_release;independent_review",
+      "invariant": "Recorded owner assertions stay distinct from host instructions and generated display defaults",
+      "rootCause": "Adapter admitted input.message as agentRuns operator source and missing stored taskStatement display fallback as owner statement; resume copied old host operator sources",
+      "minimizedReproducer": "Two actual SDK source-collection probes with absent canonical field and host machine instruction;no network dispatch",
+      "baseline_result": "2FAIL onb426",
+      "candidate_result": "same2PASS plus39existing checks onbf01;merged5f7dsourcehashesidentical",
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/974",
+      "state": "independent_source_approval_received;CI/integration_checks_pending",
+      "receipt_sha256": "e18609a5d8ed80343448b6d874b8199879c5d4383a021aa48e5ca29ac44dd710",
+      "limits": "Inherited source removal reviewed bydiff, no separate resume fixture;no live perception or customer incidence;historical packets preserved",
       "paid_provider_calls": 0,
       "original_unique_case_credit": 0
     }
@@ -1042,7 +1073,7 @@
     "deployed_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
     "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
   },
-  "current_state_observed_at_utc": "2026-10-08T19:49:55Z",
+  "current_state_observed_at_utc": "2026-10-08T20:13:41.983045+00:00",
   "historical_state_policy": "Original baseline/reproducer/source receipts are retained. A historical_state field preserves superseded status text when current state changes; original failed attempts are not erased.",
   "last_new_failure_observed_at_utc": "2026-10-08T19:14:22Z",
   "customer_financial_policy": {
@@ -1060,6 +1091,16 @@
       "observed": "eight_jobs_success_test_in_progress"
     },
     "frozen_coverage_quality_targets": "unchanged; requirement change is recorded explicitly, never additional unique-case credit",
-    "paid_provider_calls": 0
+    "paid_provider_calls": 0,
+    "current_followup": {
+      "PR": 970,
+      "reviewed_head": "b426d0991c1cf34e5acbdaf62ce7c97be0d225dc",
+      "merge_sha": "dd592c8f0cad2085d855673d54353a80d0cb4f9b",
+      "PR_CI": 37835615540,
+      "main_CI": 37836444298,
+      "required_checks": "success;8 applicable jobs;E2E skipped",
+      "independent_review": "0ccd85ff",
+      "state": "protected_merged;not_yet_native_deployed"
+    }
   }
 }
