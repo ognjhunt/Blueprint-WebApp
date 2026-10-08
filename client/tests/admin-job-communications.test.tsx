@@ -8,6 +8,20 @@ vi.mock("@/lib/firebaseAuthHeaders", () => ({ withFirebaseAuthHeaders: async (_u
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe("existing customer communications assessment handoff — offline", () => {
+  it("shows the exact branded draft in a sandbox while delivery remains explicitly reviewed", async () => {
+    const html = "<html><body>Blueprint branded question</body></html>";
+    const loaded = { context: { recipient: "fixture@example.invalid", assessment: { unknowns: [] } }, contextDigest: "a".repeat(64),
+      communications: [{ id: "draft-1", purpose: "question", state: "needs_review", output: { subject: "A question", body: "What final state defines success?" }, outputHtml: html, outputDigest: "b".repeat(64) }], draftingEnabled: true, deliveryEnabled: true };
+    const request = vi.fn(async () => ({ ok: true, json: async () => loaded }));
+    vi.stubGlobal("fetch", request);
+    render(<JobCommunications user={null} requestId="fixture-job" />);
+    fireEvent.click(screen.getByText("Load current customer context and drafts"));
+    const preview = await screen.findByTitle("Branded customer email preview");
+    expect(preview).toHaveAttribute("srcdoc", html);
+    expect(preview).toHaveAttribute("sandbox", "");
+    expect(screen.getByText("Send exact reviewed agent message")).toBeDisabled();
+    expect(request).toHaveBeenCalledTimes(1);
+  });
   it("lets an operator use the current question without drafting or sending on load", async () => {
     const question = "Question to resolve: What final state defines success? Decision consequence remains unverified.";
     const loaded = { context: { recipient: "fixture@example.invalid", assessment: { unknowns: [question] } },

@@ -24,7 +24,7 @@ router.get("/jobs/:requestId/communications", async (req, res) => {
     const context = await loadSiteJobCommunicationsContext(db, String(req.params.requestId));
     const rows = await db.collection("inboundRequests").doc(String(req.params.requestId)).collection("communications").limit(30).get();
     return res.json({ ok: true, ...context, communications: rows.docs.map(doc => { const row = doc.data(); return { id: doc.id, purpose: row.binding?.purpose,
-      state: row.state, output: row.output ?? null, outputDigest: row.outputDigest ?? null, contextDigest: row.contextDigest, sendReceipt: row.sendReceipt ?? null,
+      state: row.state, output: row.output ?? null, outputHtml: row.outputHtml ?? null, outputDigest: row.outputDigest ?? null, contextDigest: row.contextDigest, sendReceipt: row.sendReceipt ?? null,
       answerReceived: row.answerReceived ?? false, failureCode: row.failureCode ?? null }; }),
       deliveryEnabled: process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "true", draftingEnabled: process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true" });
   } catch (error) { return failure(res, error); }

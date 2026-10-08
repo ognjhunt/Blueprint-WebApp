@@ -113,6 +113,18 @@ describe("existing founder Gmail binding (mocked)", () => {
     gmail.users.messages.send.mockResolvedValueOnce({ data: {} });
     await expect(sendFounderMessage({ to: "ops@facility.example", subject: "Packing", body: "Synthetic", messageId: "<x@business.example>" }, gmail)).rejects.toThrow("gmail_send_receipt_missing");
   });
+  it("sends branded HTML and the exact plain reply evidence as MIME alternatives with the existing reply mailbox", async () => {
+    const { gmail } = gmailFixture();
+    const body = "Hi,\n\nWhat final state defines success?\n\n— The Blueprint team", html = "<html><body><p>What final state defines success?</p></body></html>";
+    await sendFounderMessage({ to: "ops@facility.example", subject: "A question about your Blueprint job", body, html, messageId: "<brand@business.example>", inReplyTo: "<incoming@facility.example>" }, gmail);
+    const raw = Buffer.from(gmail.users.messages.send.mock.calls[0][0].requestBody.raw, "base64url").toString();
+    expect(raw).toContain(`Reply-To: ${mailbox}`);
+    expect(raw).toContain("In-Reply-To: <incoming@facility.example>");
+    expect(raw).toContain("Content-Type: multipart/alternative;");
+    const parts = [...raw.matchAll(/Content-Type: text\/(plain|html); charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n([A-Za-z0-9+/=\r\n]+)/g)];
+    expect(parts.map(part => [part[1], Buffer.from(part[2], "base64").toString()])).toEqual([["plain", body], ["html", html]]);
+    expect(gmail.users.messages.send).toHaveBeenCalledTimes(1);
+  });
   it("refuses an unverified environment-token sending fallback before constructing an API client", async () => {
     for (const key of FOUNDER_GMAIL_BINDING_KEYS) vi.stubEnv(key, "MOCK_ENVIRONMENT_BINDING");
     await expect(sendFounderMessage({ to: "ops@facility.example", subject: "Packing", body: "Synthetic", messageId: "<x@business.example>" })).rejects.toThrow("founder_send_scope_unverified");

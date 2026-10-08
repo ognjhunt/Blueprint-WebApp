@@ -1,4 +1,5 @@
 import { google, type gmail_v1 } from "googleapis";
+import { createHash } from "node:crypto";
 import { extractHeader, extractPlainTextBody } from "../utils/human-reply-gmail";
 import { FOUNDER_MAILBOX, type VerifiedThread, type ThreadMessage, FOUNDER_THREAD_MESSAGE_LIMIT } from "./communications-contract";
 import { readFounderCredential, requireFounderSendCapability } from "./communications-oauth-store";
@@ -111,7 +112,7 @@ export async function findFounderSentMessage(messageId: string, expected: { to: 
 }
 
 export async function sendFounderMessage(params: {
-  to: string; subject: string; body: string; messageId: string; threadId?: string; inReplyTo?: string;
+  to: string; subject: string; body: string; html?: string; messageId: string; threadId?: string; inReplyTo?: string;
 }, gmail?: gmail_v1.Gmail) {
   if (!gmail) await requireFounderSendCapability();
   gmail ??= await existingFounderGmail();
@@ -119,13 +120,19 @@ export async function sendFounderMessage(params: {
   for (const header of [params.to, params.subject, params.messageId, params.inReplyTo ?? ""]) {
     if (/[\r\n]/.test(header)) throw new Error("email_header_injection");
   }
+  const boundary = `blueprint-${createHash("sha256").update(params.messageId).digest("hex")}`;
   const headers = [
     `From: Nijel Hunt <${FOUNDER_MAILBOX}>`, `To: ${params.to}`, `Reply-To: ${FOUNDER_MAILBOX}`,
     `Message-ID: ${params.messageId}`, `Subject: =?UTF-8?B?${Buffer.from(params.subject).toString("base64")}?=`,
-    "MIME-Version: 1.0", "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64",
+    "MIME-Version: 1.0",
+    ...(params.html !== undefined ? [`Content-Type: multipart/alternative; boundary="${boundary}"`]
+      : ["Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64"]),
     ...(params.inReplyTo ? [`In-Reply-To: ${params.inReplyTo}`, `References: ${params.inReplyTo}`] : []),
   ];
-  const raw = Buffer.from(headers.join("\r\n") + "\r\n\r\n" + Buffer.from(params.body).toString("base64")).toString("base64url");
+  const part = (kind: "plain" | "html", body: string) => `--${boundary}\r\nContent-Type: text/${kind}; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${Buffer.from(body).toString("base64").match(/.{1,76}/g)?.join("\r\n") ?? ""}\r\n`;
+  const content = params.html !== undefined ? `${part("plain", params.body)}${part("html", params.html)}--${boundary}--\r\n`
+    : Buffer.from(params.body).toString("base64");
+  const raw = Buffer.from(headers.join("\r\n") + "\r\n\r\n" + content).toString("base64url");
   const response = await gmail.users.messages.send({
     userId: "me", requestBody: { raw, ...(params.threadId ? { threadId: params.threadId } : {}) },
   });
