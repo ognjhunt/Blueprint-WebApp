@@ -899,7 +899,20 @@
     },
     "deploy_workflow": 37802266614,
     "deploy_state": "paired_native_LIVE_exact195",
-    "deployed_sha": "195a4019b563a7a1f765822e8e3a2e7c673ae313"
+    "deployed_sha": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
+    "normal_route": {
+      "actor": "sole existingdishwasherowner localIAB",
+      "authorization": "existinglegitimateowner-scopedprivateuploadlink,currentrecordingrights,exactapprovedMOV/programme",
+      "source_verified": "self-capture upload/status/brief plus SDKqueue/adapter do not require account_owner_uid; no policy or security code changed",
+      "claim_boundary": "Accountclaim remainsunverified; no accountcreation/credentialcopy/tokeninjection",
+      "cloud_duplicate": "prohibited; localactorretained",
+      "library": "unneeded forlocalnativefilechooser; failedoptionalprepare neveridentityverified",
+      "fresh_no_dispatch_readback": {
+        "checks_passed": 7,
+        "receipt_sha256": "db402e8809999a3e5b2abf8822d7b5a2f94cb896904555788bcde99438fe4244"
+      },
+      "remaining_gate": "actualreviewedpickerreleasepairedLIVE,normalvisiblefilechooser,newsourceprivacy/rightsadmission,actualSDK/provider/customerresult"
+    }
   },
   "beta_presentation_followup": {
     "state": "protected_merged_paired_deployed_live_beta_verified",
