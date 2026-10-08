@@ -1953,9 +1953,9 @@
     "sole_provider_actor": "originaldishwasherowner;CLIheld",
     "status_observation_age": "Freshcanonicalrefreshrequested20:33;noassumptionthatoldRUNNINGprovescurrentlyliveprovider",
     "latest_reconciliation": {
-      "canonical_read_at_utc": "2026-10-08T20:41:08.464Z",
-      "private_receipt_sha256": "cf93cb299fa336f3cd84d92ab85aab207926946a3e74f0c9aaa362ebdb803c40",
-      "canonical_state": "same job/run running; no returned Gemini response",
+      "canonical_read_at_utc": "2026-10-08T21:11:01.194Z",
+      "private_receipt_sha256": "2b9cc5cfe982a27ede12c50f55ee12834617d52f5b5d2a02b33dca4572ac1ad6",
+      "canonical_state": "job needs_review; run running; no returned Gemini response",
       "openai": {
         "state": "recorded",
         "input_tokens": 3470,
@@ -1978,7 +1978,9 @@
       },
       "liveness_limit": "PlatformOOMkilled originalexecution;canonicalrunning is abandonedstate, not liveproviderproof.",
       "new_provider_retry": false,
-      "original_catalog_credit": 0
+      "original_catalog_credit": 0,
+      "private_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-07/task-3/dishwasher-isolated-analysis/reconciliation/normal-assessment-receipt-2026-10-08T21-11-01-194Z.json",
+      "recovery_limit": "Old reconciler changed job to needs_review without retiring RUNNING run. Reviewed858 explicit retry atomically cancels verified expired owner, retains full UNKNOWN accounting and creates new run; not deployed."
     }
   },
   "local_assessment_iteration_release": {
@@ -1990,31 +1992,94 @@
     "merge_sha": "e9bb371680452845c6629f53b9786a219530aaab",
     "merged_at_utc": "2026-10-08T20:46:21Z",
     "main_CI": 37841943657,
-    "main_CI_state": "attempt1FAILEDChromiumscreenshotprotocol;other8jobsPASS;oneunchangeddebugE2Eattempt2dispatchedafterdiagnosis,notyetpassed",
-    "deployment": "unverified;current2bretained",
+    "main_CI_state": "attempt2SUCCESS; initial mobile capture protocol failure retained; one existing local diagnostic then one unchanged debug rerun",
+    "deployment": "paired_native_LIVE_exact_e9",
     "provider_execution": "No CLIinference;originalnormaloperationOOMkilled;unknownGemoutcomeheld",
-    "scope": "Existingproductionadapteriteration/saved-evidence/fresh-video/preflight/comparison; no alternateagent, no new originalprogram case credit"
+    "scope": "Existingproductionadapteriteration/saved-evidence/fresh-video/preflight/comparison; no alternateagent, no new originalprogram case credit",
+    "deployment_receipt_path": "/Users/nijelhunt_1/.codex/worktrees/dc17/Blueprint-WebApp/output/reliability-program/customer-policy/e9-release-receipt.json",
+    "deployment_receipt_sha256": "b693ab87bda4dd5159224fd7c34aab74611a3d08be1fe65c8cf244c181d47505",
+    "independent_release_review": "e1eac125",
+    "services": {
+      "web": {
+        "deploy_id": "dep-db409jrl550s73c5fbq0",
+        "status": "live",
+        "finished_at_utc": "2026-10-08T21:04:57.978884Z"
+      },
+      "worker": {
+        "deploy_id": "dep-db409k6b7d7c739shjtg",
+        "status": "live",
+        "finished_at_utc": "2026-10-08T21:05:27.281311Z"
+      }
+    },
+    "public_smoke": {
+      "version_sha": "e9bb371680452845c6629f53b9786a219530aaab",
+      "built_at_iso": "2026-10-08T21:02:53.066Z",
+      "version_curl_exit": 0,
+      "health": "healthy",
+      "health_timestamp": "2026-10-08T21:06:27.471Z",
+      "health_curl_exit": 0,
+      "ready": "ready",
+      "ready_blockers": 0,
+      "ready_timestamp": "2026-10-08T21:06:27.421Z",
+      "ready_curl_exit": 0
+    },
+    "verification_ceiling": "Source/services/health only; no actual memory fix, abandoned recovery or provider assessment outcome implied"
   },
   "live_OOM_repairs": {
-    "observed_at_utc": "2026-10-08T20:57:37Z",
+    "observed_at_utc": "2026-10-08T21:18:10Z",
     "memory": {
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/975",
-      "head": "eeefb7e947c50ec590322664ffc00b5f359bcb83",
-      "review": "2dec985f",
+      "head": "a24902ce475f3ca013d57b056bd2138c82ce1aa5",
+      "review": "2dec985f runtime; f32f12fe existing transport fixture compatibility",
       "receipt_sha256": "1a910388fe1780e7385116340d15f1240c3f26ca5ac8387f674f1b27f7551e2b",
-      "checks": "21existingprovidercontrolsPASS;types/Graphify/portabilityPASS;requiredPRtestactive",
-      "limit": "OneverifiedsourceBufferresident;onefullBodyInitcopyavoided;livepeaknotyetverified"
+      "checks": "21 existing runtime controls retained; 4 existing measured admission fixtures baseline2FAIL2PASS\u21924PASS; local required checks PASS; exact head CI37 synthetic expiry failures",
+      "limit": "OneverifiedsourceBufferresident;onefullBodyInitcopyavoided;livepeaknotyetverified",
+      "required_CI": {
+        "run_id": 37844399547,
+        "state": "FAILED",
+        "failed": 37,
+        "passed": 4795,
+        "skipped": 6,
+        "reason": "Three existing offline communications files use fixed Sep30 synthetic evidence; actual verifier clock crossed Oct8 21:00 validity. Sole intake_recovery owns deterministic test-only clock correction; production expiry preserved."
+      }
     },
     "recovery": {
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/976",
       "reviewed_head": "aa519244fcfaff656d11e06150b76f5b223b8a55",
-      "integrated_head": "44ac4f54e4cbbf6531be20f272995cf50e29b356",
-      "review": "2dec985f;6d1507b0independentemptydiff/interfacecontinuity",
-      "receipt_sha256": "ac29e7b83d381e362099483182d05fd7eb4832109e74488a81c8ef19e73b5ccc",
-      "checks": "same3probesbaseline2FAIL1PASS\u21923PASS;42existingcontrolsPASS;types/Graphify/portabilityPASS;requiredPRtestactive",
-      "limit": "Fake-store/directrecoveryproof;30minlease/fullunknownpreserved;noautoreplay;ordinarycancelledstillnonretryable"
+      "integrated_head": "858eb379cac3d8e746ed19f86d3d3cad65bba0ac",
+      "review": "f32f12fe actual already-needs_review/RUNNING correction",
+      "receipt_sha256": "858c4a286e8d9cffddc8d4172d83759c41224312256866c5aa3df13293ef6e1b",
+      "checks": "Actual stranded shape baseline2FAIL1PASS\u21923PASS;42 neighboring controls PASS; types/Graphify/portability PASS",
+      "limit": "Read-only describe exposes retry; explicit transaction retirement only. Fake store/source proof; original 30min age/full UNKNOWN retained; no automatic provider replay.",
+      "required_CI": {
+        "run_id": 37844803893,
+        "state": "FAILED",
+        "failed": 37,
+        "passed": 4795,
+        "skipped": 6,
+        "reason": "Same three existing offline synthetic expiry files; shared single-owner fixture correction pending."
+      }
     },
-    "deployment": "neitherrepairmerged/deployedatthisread;production2b",
+    "deployment": "Neither repair merged/deployed at this read; production exact e9 paired LIVE.",
     "original_case_credit": 0
+  },
+  "updated_at_utc": "2026-10-08T21:18:10Z",
+  "paid_provider_actor_handoff": {
+    "at_utc": "2026-10-08T21:22Z",
+    "owner": "Existing local assessment-iteration task; original normal-UI provider actor explicitly held",
+    "scope": "ONE same authorized supplied MOV baseline through production SDK/Gemini on reviewed e9+memory repair; afterward saved-evidence iterations only",
+    "authority": "Current direct human no monetary/call quota policy and authorized supplied video analysis; no new paid infrastructure, credentials, private source or external notifications",
+    "unknown_prior_Gemini": "Retained in full; actual original engine OOM-killed; new local ledger separate/no duplicate accounting",
+    "source_verification": "Exact reviewed runtime blob continuity and current source rights/hash preflight required before call; not yet observed",
+    "outcome": "not yet executed/received at handoff",
+    "verification_ceiling": "Local live analysis cannot prove deployed customer UI, cloud512Mi headroom, perception accuracy or gold labels"
+  },
+  "memory_capacity_decision": {
+    "at_utc": "2026-10-08T21:22Z",
+    "kind": "Engineering recommendation, not executed infrastructure change",
+    "recommendation": "2GB on current Render service for production customer headroom;512Mi unproven under current retained whole-buffer/concurrency design",
+    "evidence": "Native OOM event512Mi;minute samples323\u2013326Mi miss fatal peak;one57Mi verified source Buffer remains; scoped patch removes additional native copy",
+    "limits": "No idle baseline or candidate peak yet; a single successful512Mi run would not certify concurrent production reliability",
+    "official_plan_reference": "https://render.com/docs/compute-plans"
   }
 }

@@ -932,7 +932,7 @@
       "id": "REL-VERIFIED-BUFFER-GEMINI-UPLOAD-COPY",
       "severity": "P1 affectedliveassessment;allocationcontributionbounded",
       "owner": "intake_recovery;rootrelease",
-      "state": "reviewedPR975;requiredCIactive;notdeployed",
+      "state": "Reviewed PR975a249; required CI blocked synthetic fixture expiry; not deployed",
       "root_cause": "NormalSDKreadPinned passesverifiedwholeBuffer;nativefetchBufferBodyInitcopiesentiremedia despiteexistingURLstreamfix.",
       "live_evidence": "Render512MiOOMkill20:30:57.621493Z; fullmemorypeak/individualallocationcausalityunproven.",
       "minimized_reproducer": "Existingno-networkNode22synthetic60035801-byteRequest:BufferarrayBufferdelta60093280;stream57479.",
@@ -940,19 +940,20 @@
       "fix_commit": "eeefb7e947c50ec590322664ffc00b5f359bcb83",
       "candidate_result": "ExistinguploadcontrolbaselineFAIL\u219221existingcontrolsPASS;actualnativeRequeststreamidentity/chunkoriginalbufferoffset/SHAchecks.",
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/975",
-      "review": "2dec985f",
+      "review": "2dec985f runtime; f32f12fe fixture compatibility",
       "limitation": "One60MBverifiedBufferstillresident;livepeak/successnotyetproven.",
-      "new_case_credit": 0
+      "new_case_credit": 0,
+      "current_head": "a24902ce475f3ca013d57b056bd2138c82ce1aa5"
     },
     {
       "id": "REL-CI-MOBILE-CAPTURE-PROTOCOL",
       "severity": "P2 CIavailability;noappassertionfailureproven",
       "owner": "rootCIrelease;intake_recoverydiagnostic",
-      "state": "attempt1retained;singleunchangeddebugCIretryinprogress",
+      "state": "Initial failure retained; one unchanged diagnostic-informed CI rerun PASS; e9 deployed",
       "evidence": "e9mainCI37841943657job113533371062 mobile390fullPagescreenshotChromiumProtocolUnablecapture;78PASS13SKIP1FAIL.",
       "source_continuity": "PublicUI/selectedexistingtestunchangedfrompassedPR71.",
       "diagnostic": "OneexistingselectedlocalcasePASSfirstattemptwithretainedtrace;notreproducednotfixed.",
-      "next_action": "InspectoneunchangeddebugCIattempt2;nofurtherluckyrerunsifitfails;retainfirstfailure/nondeterminism.",
+      "next_action": "Retain P2 availability/nondeterminism finding; no claim root cause repaired; no further rerun needed.",
       "new_case_credit": 0
     },
     {
@@ -963,6 +964,16 @@
       "evidence": "captureCoverageQueue30minreclaimcreatesnewclaim;priorSDKRUNNINGownerpendingmutexblocksproviderreplay;nomatchingstaleterminalizer.",
       "limit": "Notactualcurrentdishwasheradvisoryrepair;noadditionalexecutedrepro/currentproductionincidence.",
       "next_action": "Minimizeexistingcoverage-restartcontrolafteractualadvisoryrelease;retainnoautoreplay/fullunknown.",
+      "new_case_credit": 0
+    },
+    {
+      "id": "REL-CI-SYNTHETIC-LEAD-CLOCK",
+      "severity": "P2 CI determinism; no production freshness relaxation",
+      "owner": "intake_recovery fixture author; independent_review; root integration",
+      "state": "Observed/reproduced class; scoped existing-test clock repair in progress",
+      "evidence": "PR975a249 run37844399547 and PR976858 run37844803893 both37FAIL4795PASS6SKIP across communications-contact-refresh/intake/producer. Synthetic assessed_at Sep30 21:00 valid_until Oct8 21:00 expired while actual evaluator at21:08/21:11.",
+      "root_cause": "Fixed fixture/injected communications clock differs from Date.now inside publication verifier.",
+      "next_action": "Freeze only Date in existing test hooks at same synthetic date, restore after each; preserve explicit expired-evidence negative cases. Reproduce existing cases and independent review before exact-head CI.",
       "new_case_credit": 0
     }
   ],
@@ -1193,7 +1204,7 @@
     "deployed_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
     "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
   },
-  "current_state_observed_at_utc": "2026-10-08T20:43:39Z",
+  "current_state_observed_at_utc": "2026-10-08T21:18:10Z",
   "historical_state_policy": "Original baseline/reproducer/source receipts are retained. A historical_state field preserves superseded status text when current state changes; original failed attempts are not erased.",
   "last_new_failure_observed_at_utc": "2026-10-08T19:14:22Z",
   "customer_financial_policy": {

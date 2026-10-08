@@ -1,6 +1,6 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-08T20:43:39Z",
+  "updated_at_utc": "2026-10-08T21:18:10Z",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 22,
@@ -1846,9 +1846,9 @@
     "sole_provider_actor": "originaldishwasherowner;CLIheld",
     "status_observation_age": "Freshcanonicalrefreshrequested20:33;noassumptionthatoldRUNNINGprovescurrentlyliveprovider",
     "latest_reconciliation": {
-      "canonical_read_at_utc": "2026-10-08T20:41:08.464Z",
-      "private_receipt_sha256": "cf93cb299fa336f3cd84d92ab85aab207926946a3e74f0c9aaa362ebdb803c40",
-      "canonical_state": "same job/run running; no returned Gemini response",
+      "canonical_read_at_utc": "2026-10-08T21:11:01.194Z",
+      "private_receipt_sha256": "2b9cc5cfe982a27ede12c50f55ee12834617d52f5b5d2a02b33dca4572ac1ad6",
+      "canonical_state": "job needs_review; run running; no returned Gemini response",
       "openai": {
         "state": "recorded",
         "input_tokens": 3470,
@@ -1871,7 +1871,9 @@
       },
       "liveness_limit": "PlatformOOMkilled originalexecution;canonicalrunning is abandonedstate, not liveproviderproof.",
       "new_provider_retry": false,
-      "original_catalog_credit": 0
+      "original_catalog_credit": 0,
+      "private_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-07/task-3/dishwasher-isolated-analysis/reconciliation/normal-assessment-receipt-2026-10-08T21-11-01-194Z.json",
+      "recovery_limit": "Old reconciler changed job to needs_review without retiring RUNNING run. Reviewed858 explicit retry atomically cancels verified expired owner, retains full UNKNOWN accounting and creates new run; not deployed."
     }
   }
 }
