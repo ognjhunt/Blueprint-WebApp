@@ -62,11 +62,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   task_received: {
     subject: "We have your Blueprint job — here is your link",
-    body: (url) => `Thanks for sending us your job. This private link is where you review your job brief and follow everything that happens next. You can add footage later, once you have recording permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\nWe will email you each time something happens on your job.`,
+    body: (url) => `Thanks for sending us your job. This private link shows the same job and lets you correct details when needed. You can also reply to a job conversation without completing another form. You can add footage later, once you have recording permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\nBlueprint will follow through with meaningful findings and questions that need your input.`,
   },
   video_received: {
     subject: "We received your Blueprint walkthrough",
-    body: (url) => `Your walkthrough arrived safely. Next we check that it covers the work area and that nothing private is in view, then we build the scene. We will email you when that is done.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your walkthrough arrived safely. Blueprint will investigate the observed task and prepare a recommendation or concrete next step. Reconstruction and evaluation are used when they help that decision. We will ask only when a missing fact, permission or real commitment blocks progress.\n\nOpen your job:\n${url}`,
   },
   scene_ready: {
     subject: "Your Blueprint scene is ready to view",
@@ -78,11 +78,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   screening_cleared: {
     subject: "Your job cleared our screen",
-    body: (url, detail) => `Thanks for the call. Your job now clears our screen, so we will build your scene from your recording${detail ? ` ${detail}` : ""}.\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `The reviewed information now clears the recorded assessment blocker. Blueprint can continue the useful, authorized investigation${detail ? ` ${detail}` : ""}.\n\nOpen your job:\n${url}`,
   },
   screening_not_now: {
     subject: "An update on your Blueprint job",
-    body: (url) => `Thanks for the call. One answer still means a robot evaluation would not hold up at your site today, so we are not building a scene yet. Your job page shows what is in the way. When it changes, edit your answers there and we will screen the job again.\n\nOpen your job:\n${url}`,
+    body: (url) => `The reviewed information leaves a consequential assessment blocker unresolved. Your job page shows the reason and what is needed. Blueprint owns the follow-through; reply in your job conversation with a correction or use the optional job page when that information changes.\n\nOpen your job:\n${url}`,
   },
   screening_started: {
     subject: "A robot team picked up your job",

@@ -175,14 +175,14 @@ test("desktop owner reviews the brief before optional recording, with one status
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toBeVisible();
   await expect(page.getByText("We have your task and are checking your footage.")).toHaveCount(1);
   // Updates follow events by email; the page promises that, not a deadline.
-  await expect(page.getByText("We email you each time something happens on this job. You do not need to check back.")).toHaveCount(1);
+  await expect(page.getByText("Blueprint prepares the next useful step from your job and existing evidence. We send meaningful progress and ask for action only when a missing fact or concrete commitment needs your input.")).toHaveCount(1);
   await expect(page.getByRole("link", { name: "Blueprint home" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open the camera" })).toHaveCount(0);
   const upload = await page.getByRole("button", { name: "Upload a video file" }).boundingBox();
   const instruction = await page.getByText("Already have the recording on this computer? Upload a .mov or .mp4 file.").boundingBox();
   expect(upload!.y - instruction!.y).toBeLessThan(110);
   await screenshot(page, "desktop-capture");
-  await page.getByText("Share a job card with robot teams", { exact: true }).click();
+  await page.getByText("Manage opportunity sharing (optional)", { exact: true }).click();
   const form = page.getByRole("form", { name: "Public job card" });
   await form.getByLabel("Describe the job without naming your site").fill(card.title);
   await form.getByLabel("Job type", { exact: true }).fill("Palletizing");
@@ -190,14 +190,14 @@ test("desktop owner reviews the brief before optional recording, with one status
   await expect(form.getByRole("img", { name: "Thumbnail crop to approve for public display" })).toBeVisible();
   await form.getByLabel("Show this card in the job library").check();
   await form.getByLabel(/I reviewed the text and thumbnail/).check();
-  await form.getByRole("button", { name: "Save public card" }).click();
+  await form.getByRole("button", { name: "Publish reviewed card" }).click();
   await expect(page.getByText(/Public card saved/)).toBeVisible();
   expect(mutations.at(-1)?.body).toMatchObject({ consent: true, enabled: true, thumbnailConsent: true, details: { title: card.title } });
   expect(mutations.at(-1)?.body.thumbnailPng).toBeTruthy();
   await form.getByRole("button", { name: "Use a job illustration instead" }).click();
   await expect(form.getByRole("img", { name: "Thumbnail crop to approve for public display" })).toHaveCount(0);
   await form.getByLabel(/I reviewed the text and thumbnail/).check();
-  await form.getByRole("button", { name: "Save public card" }).click();
+  await form.getByRole("button", { name: "Publish reviewed card" }).click();
   await expect.poll(() => mutations.at(-1)?.body.thumbnailPng).toBe(null);
 });
 
@@ -207,7 +207,7 @@ test("phone owner reviews the brief before optional recording and keeps event em
   await page.route("**/api/site-task-brief/*/status", route => route.fulfill({ json: { status: { decision: "assessing", headline: "Preparing your scene", nextUpdateIso: "2020-01-01T12:00:00Z" } } }));
   await page.goto("/capture-upload/phone-fixture");
   // A stale deadline left on the record is ignored: timed check-ins are retired.
-  await expect(page.getByText(/We email you each time something happens/)).toBeVisible();
+  await expect(page.getByText(/We send meaningful progress/)).toBeVisible();
   await expect(page.getByText(/Update overdue|Next status update by/)).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toBeVisible();

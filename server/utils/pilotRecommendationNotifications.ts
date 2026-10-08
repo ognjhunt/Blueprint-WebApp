@@ -11,6 +11,10 @@ export function pilotRecommendationEventId(recommendationId: string, recipient: 
   return `${recommendationId}.${createHash("sha256").update(recipient.trim()).digest("hex")}`;
 }
 
+export function pilotScheduledEventId(calendarEventId: string, recipient: string): string {
+  return createHash("sha256").update(JSON.stringify([calendarEventId, recipient.trim()])).digest("hex");
+}
+
 export function buildPilotRecommendationNotification(params: {
   requestId: string;
   recommendation: { id: string; teamName: string; purpose: string };
@@ -43,13 +47,13 @@ export async function pilotRecommendationNotificationIsCurrent(
     if (projectPilotCoordination(record)?.state !== "scheduled") return false;
   } else if (entry.kind === "pilot_booked") {
     if (record?.pilot_booking?.recommendationId !== recommendation.id) return false;
-  } else if (record?.pilot_booking) return false;
+  } else if (record?.pilot_booking || recommendation.reviewRequired) return false;
   const to = String(await decryptFieldValue(record?.contact?.email ?? "")).trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to) || to !== entry.to) return false;
   const event = entry.kind === "pilot_scheduled" ? record?.pilot_booking?.coordination?.calendarEventId : recommendation.id;
-  const expectedKey = `${entry.requestId}:${entry.kind}:${pilotRecommendationEventId(event, to)}`;
+  const expectedKey = `${entry.requestId}:${entry.kind}:${entry.kind === "pilot_scheduled" ? pilotScheduledEventId(event, to) : pilotRecommendationEventId(event, to)}`;
   // Legacy queued rows are accepted only if their exact current event and
   // recipient still match. No old event is upgraded into a new recommendation.
   return entry.idempotencyKey === expectedKey
-    || entry.idempotencyKey === `${entry.requestId}:${entry.kind}:${event}`;
+    || (entry.kind !== "pilot_scheduled" && entry.idempotencyKey === `${entry.requestId}:${entry.kind}:${event}`);
 }

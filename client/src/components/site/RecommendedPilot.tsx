@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { formatPrice } from "@/lib/evaluationPricing";
+import { TaskClarification } from "./TaskClarification";
+
+type JobDecision = { recommendation: string; why: string; decisiveUncertainty: string; nextAction: string; question?: { text: string; reason: string } | null };
 
 type Recommendation = {
   id: string;
@@ -26,6 +29,7 @@ export function RecommendedPilot({ token }: { token: string }) {
 
 function RecommendedPilotForToken({ token }: { token: string }) {
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
+  const [decision, setDecision] = useState<JobDecision | null>(null);
   const [booked, setBooked] = useState(false);
   const [coordination, setCoordination] = useState<{ state: string; nextAction: string; startsAt?: string; sitePreparation?: string; feeUsd?: number; commercialBasis?: string } | null>(null);
   const [authorized, setAuthorized] = useState(false);
@@ -37,9 +41,10 @@ function RecommendedPilotForToken({ token }: { token: string }) {
     let active = true;
     fetch(`/api/task-listings/owner/${encodeURIComponent(token)}`).then(async r => {
       if (!r.ok) return;
-      const { recommendation: saved, booking, coordination: progress } = await r.json();
+      const { recommendation: saved, booking, coordination: progress, decision: reviewedDecision } = await r.json();
       if (!active) return;
       setRecommendation(saved ?? null);
+      setDecision(reviewedDecision ?? null);
       setCoordination(progress ?? null);
       setBooked(Boolean(saved && booking?.recommendationId === saved.id));
     }).catch(() => undefined);
@@ -73,9 +78,18 @@ function RecommendedPilotForToken({ token }: { token: string }) {
     }
   }
 
-  if (!recommendation) return null;
+  if (!recommendation && !decision) return null;
+  const decisionSummary = decision ? <section className="ms-task-interest" aria-labelledby="job-decision-title">
+    <h2 id="job-decision-title">Our recommendation</h2>
+    <p>{decision.recommendation}</p>
+    <dl><dt>Why</dt><dd>{decision.why}</dd>
+      {decision.decisiveUncertainty && <><dt>What still changes the decision</dt><dd>{decision.decisiveUncertainty}</dd></>}
+      <dt>Blueprint's next action</dt><dd>{decision.nextAction}</dd></dl>
+    {decision.question && <TaskClarification token={token} />}
+  </section> : null;
+  if (!recommendation) return decisionSummary;
   return (
-    <section className="ms-task-interest" aria-labelledby="recommended-pilot-title">
+    <>{decisionSummary}<section className="ms-task-interest" aria-labelledby="recommended-pilot-title">
       <h2 id="recommended-pilot-title">Your recommended pilot</h2>
       <dl>
         <dt>Robot team</dt><dd>{recommendation.teamName}</dd>
@@ -83,12 +97,12 @@ function RecommendedPilotForToken({ token }: { token: string }) {
         <dt>Measurable success condition</dt><dd>{recommendation.successCondition || "Not yet recorded — agree the pass condition before a physical commitment."}</dd>
         <dt>Scope exclusions</dt><dd>{recommendation.exclusions || "Not yet agreed."}</dd>
         <dt>Capability evidence</dt><dd>{recommendation.capabilityBasis || "No demonstrated capability evidence is recorded here; this is a proposed fit to test."}</dd>
-        <dt>Provider commitment</dt><dd>{recommendation.providerCommitment || "Proposed team; availability and commitment are not yet confirmed."}</dd>
+        <dt>Provider commitment</dt><dd>{coordination?.state === "scheduled" ? "Provider and site agreement recorded for the confirmed date and scope." : recommendation.providerCommitment || "Proposed team; availability and commitment are not yet confirmed."}</dd>
         <dt>What you provide</dt><dd>{recommendation.siteProvides}</dd>
         <dt>What the robot team provides</dt><dd>{recommendation.teamProvides}</dd>
         <dt>Pilot cost</dt><dd>{recommendation.pilotCost}, paid to the robot team</dd>
         <dt>Cost basis</dt><dd>{recommendation.costBasis || "Provisional — confirm the provider quote and applicable agreement."}</dd>
-        <dt>Proposed timing</dt><dd>{recommendation.window} (not a reserved date)</dd>
+        <dt>Proposed timing</dt><dd>{recommendation.window} {coordination?.state === "scheduled" ? "(original proposal window; confirmed date below)" : "(not a reserved date)"}</dd>
         <dt>Site preparation</dt><dd>{recommendation.sitePreparation || "Responsibilities still need agreement."}</dd>
         <dt>Human work still needed</dt><dd>{recommendation.humanWork || "Provider/site coordination, safety review and installation authority remain to be confirmed."}</dd>
         {recommendation.uncertainties ? <><dt>Still uncertain</dt><dd>{recommendation.uncertainties}</dd></> : null}
@@ -114,6 +128,6 @@ function RecommendedPilotForToken({ token }: { token: string }) {
           {state === "error" && <p role="alert">{message}</p>}
         </form>
       )}
-    </section>
+    </section></>
   );
 }

@@ -256,6 +256,7 @@ function PilotProposalReview({ user }: { user: User | null }) {
   const [loadedId, setLoadedId] = useState("");
   const [job, setJob] = useState<any>(null);
   const [plan, setPlan] = useState<Record<string, string>>({});
+  const [decision, setDecision] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   async function request(path: string, body?: unknown) {
@@ -270,6 +271,7 @@ function PilotProposalReview({ user }: { user: User | null }) {
       const response = await fetch(`/api/admin/robot-teams/recommendations/${encodeURIComponent(requestId.trim())}`, { headers: await withFirebaseAuthHeaders(user) });
       const result = await response.json(); if (!response.ok) throw new Error(result.error);
       setJob(result); setLoadedId(requestId.trim()); setPlan({ ...result.draft, ...(result.recommendation ?? {}), teamId: result.recommendation?.teamId ?? "" });
+      setDecision({ ...(result.decision ?? {}), questionText: result.decision?.question?.text ?? "", questionReason: result.decision?.question?.reason ?? "" });
     } catch (error) { setMessage(error instanceof Error ? error.message : "Job unavailable"); }
     finally { setBusy(false); }
   }
@@ -279,6 +281,18 @@ function PilotProposalReview({ user }: { user: User | null }) {
       const result = await request("", { ...fields, briefRevision: job.briefRevision }); setJob({ ...job, recommendation: { ...fields, id: result.id } });
       setMessage("Proposal saved on the existing job. Its fixed transactional notice is queued; provider capacity and dates remain unconfirmed.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Proposal unavailable"); } finally { setBusy(false); }
+  }
+  async function saveDecision(event: React.FormEvent) {
+    event.preventDefault(); if (busy) return; setBusy(true); setMessage("");
+    try {
+      await request("/decision", { sourceDigest: job.decisionSourceDigest,
+        recommendation: decision.recommendation ?? "", why: decision.why ?? "",
+        decisiveUncertainty: decision.decisiveUncertainty ?? "", nextAction: decision.nextAction ?? "",
+        question: decision.questionText ? { text: decision.questionText, reason: decision.questionReason ?? "" } : null });
+      setJob(await request(""));
+      setMessage("Reviewed recommendation saved on this job. No message, model call or commitment was made.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Decision was not saved"); }
+    finally { setBusy(false); }
   }
   async function schedule(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (busy) return;
@@ -306,6 +320,13 @@ function PilotProposalReview({ user }: { user: User | null }) {
       <p role="note">{job.dependency}</p>
       <p role="note">New beta proposals have no Blueprint fee. Owner action: reconcile the published $2,500 booking terms before relying on a new commercial agreement. Existing accepted fees and terms remain unchanged; provider costs require the actual quote and approval.</p>
       {job.interests?.map((interest: any) => <p key={interest.submittedBy}>{interest.company}: {interest.state} — {interest.inputs}</p>)}
+      {job.customerConversation?.map((answer: any) => <p key={answer.messageId}>Customer answer ({answer.receivedAt}): {answer.text}</p>)}
+      {job.customerClarification && <p>Customer answer on the job page: {job.customerClarification.explanation} — Blueprint review required.</p>}
+      <form onSubmit={saveDecision} className="ms-form" aria-label="Reviewed job recommendation"><h3>Return a decision and own the next step</h3>
+        {[["recommendation", "What we recommend"], ["why", "Why the evidence supports it"], ["decisiveUncertainty", "Decision-changing uncertainty, if any"], ["nextAction", "Smallest next action Blueprint owns"], ["questionText", "One consequential question, if needed"], ["questionReason", "Why that answer changes the next decision"]].map(([key, label]) => <label key={key}>{label}<textarea value={decision[key] ?? ""} required={["recommendation", "why", "nextAction"].includes(key)} maxLength={key.startsWith("question") ? 1000 : 2000} onChange={event => setDecision({ ...decision, [key]: event.target.value })} /></label>)}
+        <button className="ms-button" disabled={busy}>Save reviewed recommendation</button>
+      </form>
+      <JobCommunications key={loadedId} user={user} requestId={loadedId} />
       <form onSubmit={propose} className="ms-form"><label>Admitted provider<select value={plan.teamId} onChange={event => setPlan({ ...plan, teamId: event.target.value })} required><option value="">Select a team; no automatic match</option>{job.teams.map((team: any) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
         {proposalFields.map(([key, label]) => <label key={key}>{label}<textarea value={plan[key] ?? ""} required={!["alternative", "uncertainties"].includes(key)} maxLength={["pilotCost", "window"].includes(key) ? 120 : ["purpose", "siteProvides", "teamProvides", "uncertainties", "alternative"].includes(key) ? 400 : ["costBasis", "providerCommitment"].includes(key) ? 600 : 1000} onChange={event => setPlan({ ...plan, [key]: event.target.value })} /></label>)}
         <button className="ms-button" disabled={busy || Boolean(job.coordination)}>Send reviewed proposal notice</button></form>
@@ -319,4 +340,53 @@ function PilotProposalReview({ user }: { user: User | null }) {
       </form></details>}
     </>}{message && <p role="status">{message}</p>}
   </Card>;
+}
+
+/** Staff use the actual communications agent; loading never drafts or sends. */
+function JobCommunications({ user, requestId }: { user: User | null; requestId: string }) {
+  const [loaded, setLoaded] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [approved, setApproved] = useState<Record<string, boolean>>({});
+  async function action(path = "", body?: unknown) {
+    const response = await fetch(`/api/admin/robot-teams/jobs/${encodeURIComponent(requestId)}/communications${path}`, {
+      method: body ? "POST" : "GET", credentials: "include",
+      headers: await withFirebaseAuthHeaders(user, await withCsrfHeader({ "Content-Type": "application/json" })),
+      ...(body ? { body: JSON.stringify(body) } : {}) });
+    const result = await response.json(); if (!response.ok) throw new Error(result.error || "Communications action unavailable"); return result;
+  }
+  async function run(work: () => Promise<void>) {
+    if (busy) return; setBusy(true); setMessage("");
+    try { await work(); } catch (error) { setMessage(error instanceof Error ? error.message : "Communications action unavailable"); }
+    finally { setBusy(false); }
+  }
+  return <details><summary>Customer conversation · actual communications agent</summary>
+    <p>Ask one consequential question, return the reviewed recommendation or coordinate an agreed next step. The customer can reply naturally by email; Blueprint imports the answer onto this job and owns follow-through.</p>
+    <button type="button" className="ms-button" disabled={busy} onClick={() => void run(async () => { setLoaded(await action()); setApproved({}); })}>Load current customer context and drafts</button>
+    {loaded && <><p>Recipient: {loaded.context.recipient}. Drafting: {loaded.draftingEnabled ? "existing authority enabled" : "disabled by current configuration"}. Sending: {loaded.deliveryEnabled ? "enabled for an explicitly reviewed message" : "disabled by current configuration"}.</p>
+      <details><summary>Exact customer context to review</summary><pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(loaded.context, null, 2)}</pre></details>
+      <form className="ms-form" onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget), read = (key: string) => String(data.get(key) || "").trim();
+        void run(async () => { await action("/draft", { purpose: read("purpose"), instruction: read("instruction"), decisionReason: read("reason"), expectedContextDigest: loaded.contextDigest,
+          reviewedCustomerContext: data.get("reviewed") === "on", ...(read("threadId") ? { threadId: read("threadId"), inboundMessageId: read("inboundMessageId") } : {}) });
+          setLoaded(await action()); setApproved({}); setMessage("Agent draft prepared for exact review. Nothing has been sent."); }); }}>
+        <label>Purpose<select name="purpose"><option value="question">Consequential question</option><option value="recommendation">Reviewed recommendation</option><option value="coordination">Authorized coordination</option></select></label>
+        <label>What the agent should communicate<textarea name="instruction" minLength={8} maxLength={1200} required /></label>
+        <label>Why this matters to the next decision<textarea name="reason" minLength={8} maxLength={800} required /></label>
+        <label>Existing customer thread ID, if replying<input name="threadId" maxLength={160} /></label><label>Exact inbound message ID, if replying<input name="inboundMessageId" maxLength={160} /></label>
+        <label className="ms-check-row"><input name="reviewed" type="checkbox" required />I reviewed this bounded customer context and have the applicable authority to prepare this agent draft.</label>
+        <button className="ms-button" disabled={busy || !loaded.draftingEnabled}>Prepare agent draft for review</button>
+      </form>
+      {loaded.communications.map((row: any) => <section key={row.id}><h4>{row.purpose}: {row.state}</h4>
+        {row.output && <><p>{row.output.subject}</p><p style={{ whiteSpace: "pre-wrap" }}>{row.output.body}</p></>}
+        {row.failureCode && <p role="alert">{row.failureCode}</p>}
+        {row.state === "needs_review" && <><label className="ms-check-row"><input type="checkbox" checked={approved[row.id] ?? false} onChange={event => setApproved({ ...approved, [row.id]: event.target.checked })} />I reviewed this exact recipient and message and have authority to send it. No new disclosure, cost or commitment is authorized by this control.</label>
+          <button type="button" className="ms-button" disabled={busy || !loaded.deliveryEnabled || !approved[row.id]} onClick={() => void run(async () => {
+            await action(`/${encodeURIComponent(row.id)}/approve-send`, { expectedOutputDigest: row.outputDigest, expectedContextDigest: loaded.contextDigest, reviewedSend: true });
+            setLoaded(await action()); setApproved({}); setMessage("Send acknowledged by the communications integration. Check the recorded receipt."); })}>Send exact reviewed agent message</button></>}
+        {row.sendReceipt && <button type="button" className="ms-button" disabled={busy} onClick={() => void run(async () => {
+          const result = await action(`/${encodeURIComponent(row.id)}/replies`, {}); setLoaded(await action());
+          setMessage(`Customer thread checked; ${result.saved ?? 0} new answers saved to this job for Blueprint review.`); })}>Read customer replies into this job</button>}
+      </section>)}
+    </>}{message && <p role="status">{message}</p>}
+  </details>;
 }

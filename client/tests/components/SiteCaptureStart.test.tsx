@@ -335,6 +335,17 @@ it("saves a description with explicit site authority and no recording or fee gra
   expect(screen.queryByRole("link", { name: /camera|uploader/i })).not.toBeInTheDocument();
 });
 
+it("does not require a description or goal, but asks for usable work before a prose-only submission", async () => {
+  signedIn({ workspaceType: "site_operator" }, []);
+  await renderReady(<SiteCaptureStart />);
+  await screen.findByText(/Saving to your workspace/);
+  expect(document.querySelector("#start-task")).not.toBeRequired();
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  fireEvent.submit(screen.getByRole("form"));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Add a video or a short explanation of the work.");
+  expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
+});
+
 it("asks one question about the video and asks for recording rights only when a video is involved", async () => {
   await renderReady(<SiteCaptureStart />);
   expect(screen.getByRole("group", { name: "How will we see the task?" })).toBeInTheDocument();
@@ -520,6 +531,26 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(JSON.parse(init.body)).not.toHaveProperty("budgetBucket");
     expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
     expect(screen.getByRole("link", { name: "Open your job and assessment" })).toHaveAttribute("href", captureUrl);
+  });
+
+  it("starts from authorized footage without requiring a written description or inventing a target", async () => {
+    answerPosts({ captureUrl });
+    upload.send.mockResolvedValue({ status: "done" });
+    const file = video();
+    await renderReady(<SiteCaptureStart />);
+    fireEvent.click(document.querySelector("#start-method-upload")!);
+    fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [file] } });
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } });
+    fireEvent.change(document.querySelector("#start-company")!, { target: { value: "Acme Foods" } });
+    fireEvent.click(document.querySelector("#start-rights")!);
+    fireEvent.submit(screen.getByRole("form"));
+    await screen.findByText("Your recording is in.", { selector: "h2" });
+    const submitted = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
+    expect(submitted).toMatchObject({ taskStatement: "", taskDescription: "", descriptionOnly: false,
+      hasExistingFootage: true, siteTaskGates: {}, siteTaskSpec: {},
+      publicTaskListing: { details: { title: "Work assessment opportunity" } } });
+    expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
   });
 
   it("keeps the job when the video does not send, and links to the uploader", async () => {

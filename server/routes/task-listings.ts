@@ -16,6 +16,8 @@ import { TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION, type OutboxEntry } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
 import { pilotRecommendationEventId } from "../utils/pilotRecommendationNotifications";
+import { projectCurrentSiteJobDecision } from "../utils/siteJobDecision";
+import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
 
 const router = Router();
 router.use(rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false }));
@@ -36,6 +38,8 @@ router.route("/owner/:token")
       res.set("Cache-Control", "no-store");
       const image = await db.collection("taskThumbnails").doc(res.locals.requestId).get();
       const brief = await getBrief(res.locals.requestId);
+      const record = snap.data()!;
+      const assessment = await loadCurrentSiteAdvisory(res.locals.requestId, `walkthrough-${res.locals.requestId}`, { expectedOwnerUid: record.account_owner_uid ?? null });
       return res.json({
         briefRevision: humanDecisionDigest(brief),
         requestId: res.locals.requestId,
@@ -45,6 +49,7 @@ router.route("/owner/:token")
         recommendation: snap.data()?.pilot_recommendation ?? null,
         booking: snap.data()?.pilot_booking ?? null,
         coordination: projectPilotCoordination(snap.data()),
+        decision: projectCurrentSiteJobDecision(record, brief, assessment),
       });
     } catch { return res.status(503).json({ error: "Listing unavailable" }); }
   })

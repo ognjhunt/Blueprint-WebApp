@@ -169,6 +169,19 @@ describe("confirming a brief is the attestation", () => {
     expect((stored.site_task_triage as Record<string, unknown>).disposition).toBe("qualified");
   });
 
+  it("requires proposal review after a material correction even on the first confirmation", async () => {
+    const recommendation = { id: "pre-confirmation-plan", purpose: "Prior scope" };
+    const listing = { enabled: true, details: { title: "Independent approved public title" } };
+    sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, {
+      requestId: REQUEST, request: { buyerType: "site_operator", capture_mode: "self_capture" },
+      siteTaskGates: { sceneStability: "stable" }, pilot_recommendation: recommendation, public_task_listing: listing,
+    });
+    await saveBrief(draftBrief({ requestId: REQUEST, summary: "Cartons", captureMode: "self_capture", proposed: [] }));
+    await confirmBrief({ requestId: REQUEST, confirmedBy: "Dana", operatorAnswers: { sceneStability: "rearranged" } });
+    const stored = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`) as any;
+    expect(stored.pilot_recommendation).toEqual({ ...recommendation, reviewRequired: true });
+    expect(stored.public_task_listing).toEqual(listing);
+  });
   it("refuses to turn one of our assumptions into their answer", async () => {
     // The worst outcome available here would be a `qualified` verdict nobody
     // actually made. An assumption has to be answered, not accepted.

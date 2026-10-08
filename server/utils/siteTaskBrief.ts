@@ -236,6 +236,12 @@ export function mergeProposals(
   const byField = new Map(existing.map((answer) => [answer.fieldId, answer]));
   for (const answer of incoming) {
     const current = byField.get(answer.fieldId);
+    // A matching clip observation must not replace an already supplied job fact.
+    // Contradictions still follow the existing evidence/review path.
+    if (current?.value === answer.value) {
+      if (answer.basis === "observation" && ["description", "measurement"].includes(current.basis)) continue;
+      if (current.basis === "observation" && answer.basis === "description") { byField.set(answer.fieldId, answer); continue; }
+    }
     if (!current || BASIS_RANK[answer.basis] > BASIS_RANK[current.basis]) {
       byField.set(answer.fieldId, answer);
     }
@@ -262,7 +268,8 @@ export async function mergeBriefProposals(params: {
   const ref = db.collection(TASK_BRIEFS_COLLECTION).doc(params.requestId);
   let incoming: ProposedGateAnswer[] = [];
   const merged = await db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(ref);
+    const requestRef = db!.collection("inboundRequests").doc(params.requestId);
+    const [snapshot, requestSnapshot] = await Promise.all([transaction.get(ref), transaction.get(requestRef)]);
     if (!snapshot.exists) return null;
     const brief = snapshot.data() as SiteTaskBriefRecord;
     if (params.source) {
@@ -285,7 +292,13 @@ export async function mergeBriefProposals(params: {
       draftedFrom: [...new Set([...brief.draftedFrom, ...proposed.map((answer) => answer.basis)])],
     };
     transaction.set(ref, next);
-    transaction.set(db!.collection("inboundRequests").doc(params.requestId), { capture_coverage_pending: true }, { merge: true });
+    const factDigest = (rows: readonly ProposedGateAnswer[]) => humanDecisionDigest(rows.map(({ fieldId, value, basis }) => ({ fieldId, value, basis })).sort((a, b) => a.fieldId.localeCompare(b.fieldId)));
+    const changedFacts = factDigest(brief.proposed) !== factDigest(proposed);
+    transaction.set(requestRef, { capture_coverage_pending: true,
+      ...(changedFacts && requestSnapshot.data()?.pilot_recommendation ? {
+        pilot_recommendation: { ...requestSnapshot.data()!.pilot_recommendation, reviewRequired: true },
+      } : {}),
+    }, { merge: true });
     return next;
   });
   if (!merged) return null;
@@ -413,7 +426,7 @@ export async function confirmBrief(params: {
       if (humanDecisionDigest(current.data()) !== humanDecisionDigest(brief)) throw new Error("brief_changed_before_confirmation");
       if (previousRequest && humanDecisionDigest(gateAnswersOnFile(requestSnapshot.data() ?? {})) !== humanDecisionDigest(gateAnswersOnFile(previousRequest)))
         throw new Error("brief_answers_changed_before_confirmation");
-      const materialChange = brief.confirmedAtIso && humanDecisionDigest({ answers: gateAnswersOnFile(previousRequest ?? {}),
+      const materialChange = humanDecisionDigest({ answers: gateAnswersOnFile(previousRequest ?? {}),
         unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null }) !== humanDecisionDigest({ answers,
         unknown: [...unknown].sort(), success: confirmed.successCriteria ?? null });
       tx.set(briefRef, confirmed, { merge: true });

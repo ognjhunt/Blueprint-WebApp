@@ -98,6 +98,28 @@ async function saveWithoutFirstEmail(baseUrl: string, requestId: string) {
 }
 
 describe("atomic inbound request ownership", () => {
+  it("accepts an authorized video-first job without text and rejects an empty prose-only job", async () => {
+    const { server, baseUrl } = await start();
+    try {
+      const body = { ...payload("video-no-text", "video@example.test"), taskStatement: "", taskDescription: "",
+        hasExistingFootage: true, descriptionOnly: false,
+        publicTaskListing: { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft("") } };
+      const post = (input: unknown) => fetch(`${baseUrl}/`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+      const response = await post(body);
+      expect(response.status).toBe(201);
+      expect((await response.json()).captureUrl).toContain("/capture-upload/");
+      const saved = sharedFakeFirestoreState.docs.get("inboundRequests/video-no-text")!;
+      expect(saved.request).toMatchObject({ taskStatement: "", taskDescription: null, siteTaskGates: null, siteTaskSpec: {} });
+      expect(saved.public_task_listing.details.title).toBe("Work assessment opportunity");
+      const emptyProse = await post({ ...body, requestId: "empty-prose", hasExistingFootage: false, descriptionOnly: true,
+        consentAttestation: null, acceptedTerms: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" } });
+      expect(emptyProse.status).toBe(400);
+      expect(sharedFakeFirestoreState.docs.has("inboundRequests/empty-prose")).toBe(false);
+      expect((await post({ ...body, requestId: "no-rights", consentAttestation: null })).status).toBe(400);
+      expect(sharedFakeFirestoreState.docs.has("inboundRequests/no-rights")).toBe(false);
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
   it("confirms the saved job even when its aggregate statistics cannot be updated", async () => {
     vi.mocked(incrementInboundRequestStats).mockRejectedValueOnce(new Error("statistics unavailable"));
     const { server, baseUrl } = await start();

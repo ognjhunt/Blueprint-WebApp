@@ -188,6 +188,22 @@ const confirmed = (extra: Record<string, unknown> = {}) => ({
 });
 
 describe("bounded progressive review", () => {
+  it("saves a factual correction without requiring a goal or an account", async () => {
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief({ successCriteria: null, confirmedBy: "Dana",
+      operatorAnswers: { sceneStability: "stable" } })} optionalAccount
+      account={{ claimed: false, email: "dana@acme.example", claimToken: "claim-tok" }} />);
+    expect(screen.queryByLabelText(/choose a password/i)).toBeNull();
+    expect(screen.getByLabelText(/also save this job to my account/i)).not.toBeChecked();
+    fireEvent.change(screen.getByLabelText(/between shifts/i), { target: { value: "minor_drift" } });
+    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody()).toMatchObject({ confirmedBy: "Dana", answers: { sceneStability: "minor_drift" } });
+    expect(lastConfirmBody()).not.toHaveProperty("successCriteria");
+    expect(authMocks.createUserWithEmailAndPassword).not.toHaveBeenCalled();
+    expect(authMocks.signInWithEmailAndPassword).not.toHaveBeenCalled();
+    expect(authMocks.workspaceRequest).not.toHaveBeenCalled();
+  });
   it("confirms assessment without hypothetical pilot intent or publication", async () => {
     fetchMock.mockResolvedValueOnce(confirmed());
     render(<TaskBriefReview token="tok" brief={brief()} />);

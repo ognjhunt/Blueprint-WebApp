@@ -100,7 +100,17 @@ it("joins the existing job, bounded review, proposal acceptance and evidence-gat
     expect(screen.queryByText(/Untrusted prose/)).toBeNull(); assessment.unmount();
     expect(draft.sources.successCondition).toMatch(/siteTaskBriefs\/req-1/);
     expect(draft.teams).toHaveLength(1);
-    expect(draft.dependency).toMatch(/communications agent/);
+    expect(draft.communications.route).toBe("/api/admin/robot-teams/jobs/req-1/communications");
+    const decision = { sourceDigest: draft.decisionSourceDigest, recommendation: "Investigate an isolated carton-handling pilot with the admitted team",
+      why: "The observed transfer is technically plausible; weight and guarding remain unverified", decisiveUncertainty: "Actual carton weight is not established by the video",
+      nextAction: "Blueprint will obtain the team’s scope and written quote before proposing a physical commitment", question: null };
+    expect((await request("/api/admin/robot-teams/recommendations/req-1/decision", decision)).status).toBe(200);
+    expect((await request("/api/admin/robot-teams/recommendations/req-1/decision", decision)).status).toBe(200);
+    const decidedView = render(<RecommendedPilot token={token} />);
+    expect(await screen.findByText(decision.recommendation)).toBeInTheDocument();
+    expect(screen.getByText(decision.why)).toBeInTheDocument();
+    expect(screen.getByText(decision.nextAction)).toBeInTheDocument();
+    expect(job().pilot_booking).toBeUndefined(); decidedView.unmount();
     const plan = { ...draft.draft, teamId: "fixture-team", briefRevision: draft.briefRevision,
       siteProvides: "Escort and isolated station", teamProvides: "Robot, operator and setup", pilotCost: "Fixture quote $18,000", costBasis: "Simulated quote, not an authorized purchase", window: "November, provisional",
       sitePreparation: "Site isolates the station; team reviews guarding", humanWork: "Named escort and robot operator", capabilityBasis: "Hypothesis from admitted team's supplied capability; untested here", providerCommitment: "Not yet committed" };

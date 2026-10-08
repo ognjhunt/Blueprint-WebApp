@@ -43,7 +43,7 @@ test("owner can request an authorized assessment retry while keeping the saved r
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Next: check your job brief", { exact: true })).toBeVisible();
+  await expect(page.getByText("Correct job details (optional)", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Try assessment again", exact: true })).toBeVisible();
   expect(writes).toEqual([]);
   await page.getByRole("button", { name: "Try assessment again", exact: true }).dblclick();
@@ -60,7 +60,7 @@ test("owner can request an authorized assessment retry while keeping the saved r
   await expect(page.getByText("Your video is saved and its job assessment is queued.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Try assessment again", exact: true })).toHaveCount(0);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Next: check your job brief", { exact: true })).toBeVisible();
+  await expect(page.getByText("Correct job details (optional)", { exact: true })).toBeVisible();
   expect(writes).toEqual([`/api/self-capture/uploads/${token}/advisory-retry`, `/api/self-capture/uploads/${token}/advisory-retry`]);
   await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
 });

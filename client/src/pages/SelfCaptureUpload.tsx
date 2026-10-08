@@ -354,6 +354,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           operatorAnswers: data.brief.operatorAnswers ?? null,
           operatorUnknown: data.brief.operatorUnknown ?? null,
           pilotIntent: data.brief.pilotIntent ?? null,
+          confirmedBy: data.brief.confirmedBy ?? null,
         });
         setBriefConfirmed(Boolean(data.brief.confirmedAtIso));
         setSiteAccount(data.account ?? null);
@@ -643,12 +644,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         {link.status === "held" || descriptionFirst ? "Your job assessment" : saved ? "Your job assessment" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Your job assessment"}
       </h1>
 
+      {(link.status === "valid" || link.status === "held") && scope === "owner" && <RecommendedPilot token={token} />}
       {(link.status !== "valid" || descriptionFirst) && statusCard}
       {descriptionFirst && (link.status === "valid" || link.status === "held") && (
         <section aria-label="Your job summary" style={{ marginBottom: "28px" }}>
           <h2>Your job summary</h2>
           {brief ? <><p>{brief.summary}</p><p className="ms-field-hint">Blueprint uses what you already supplied. Correct material mistakes below; confirmation is needed only for consequential claims or commitments.</p>
-            <details><summary>Correct job details (optional)</summary><TaskBriefReview key={token} token={token} brief={brief}
+            <details><summary>Correct job details (optional)</summary><TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount
               onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }} /></details>
           </> : <p className="ms-field-hint">Your job is saved. Blueprint will use the supplied information to prepare the next useful step and notify you of meaningful progress.</p>}
         </section>
@@ -828,7 +830,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     key={token}
                     token={token}
                     brief={brief}
-                    account={siteAccount}
+                    account={siteAccount} optionalAccount
                     onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }}
                   />
                 </details>
@@ -1001,7 +1003,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     key={token}
                     token={token}
                     brief={brief}
-                    account={siteAccount}
+                    account={siteAccount} optionalAccount
                     onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }}
                   />
                 </details>
@@ -1025,7 +1027,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           </div>}
         </>
       )}
-      {link.status === "valid" && scope === "owner" && <RecommendedPilot token={token} />}
       {link.status === "valid" && scope === "owner" && <PublicTaskListing token={token} jobRevision={JSON.stringify(brief)} />}
       {!saved && (
         <p className="ms-field-hint" style={{ marginTop: "28px" }}>Blueprint prepares the next useful step from your job and existing evidence. We send meaningful progress and ask for action only when a missing fact or concrete commitment needs your input.</p>

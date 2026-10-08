@@ -61,6 +61,11 @@ beforeEach(() => {
 });
 
 describe("mergeProposals", () => {
+  it("preserves a supplied fact when a matching clip observation arrives in either order", () => {
+    const observed = { ...footageStability, value: intakeStability.value, atSeconds: 20 };
+    expect(mergeProposals([intakeStability], [observed])).toEqual([intakeStability]);
+    expect(mergeProposals([observed], [intakeStability])).toEqual([intakeStability]);
+  });
   it("lets a stronger basis replace a weaker one", () => {
     const merged = mergeProposals([intakeStability], [footageStability]);
     expect(merged).toEqual([footageStability]);
@@ -82,6 +87,18 @@ describe("mergeProposals", () => {
 });
 
 describe("mergeBriefProposals", () => {
+  it("requires proposal review when later unconfirmed facts change without resetting consent or accepted terms", async () => {
+    const recommendation = { id: "existing-plan", purpose: "Prior scope" };
+    const listing = { enabled: true, details: { title: "Independent anonymous title" } };
+    const accepted = { recommendationId: recommendation.id, amountUsd: 2500, termsVersion: "historical-terms" };
+    sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, { pilot_recommendation: recommendation, public_task_listing: listing, pilot_booking: accepted });
+    await saveBrief(draftBrief({ requestId: REQUEST, summary: "Cartons", captureMode: "self_capture", proposed: [intakeStability] }));
+    await mergeBriefProposals({ requestId: REQUEST, proposals: [footageStability] });
+    const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`) as any;
+    expect(request.pilot_recommendation).toEqual({ ...recommendation, reviewRequired: true });
+    expect(request.public_task_listing).toEqual(listing);
+    expect(request.pilot_booking).toEqual(accepted);
+  });
   it("folds new evidence into the stored brief and recomputes what is unresolved", async () => {
     await saveBrief(
       draftBrief({ requestId: REQUEST, summary: "Move cartons", captureMode: "self_capture", proposed: [intakeStability] }),

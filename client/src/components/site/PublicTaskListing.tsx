@@ -33,8 +33,8 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
       if (!dirty.current) {
         if (listing) setDetails({ ...blank, ...listing.details });
         else if (draft?.details) setDetails({ ...blank, ...draft.details });
+        setEnabled(listing?.enabled === true);
       }
-      setEnabled(listing?.enabled === true);
       setSources(dirty.current ? {} : Object.fromEntries(Object.entries(draft?.sources ?? {}).filter(([field]) =>
         !listing || listing.details?.[field] === draft?.details?.[field])) as Record<string, { basis: string; field: string }>);
       setReviewRequired(listing?.reviewRequired === true);
@@ -57,9 +57,9 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
   const field = (key: Exclude<keyof TaskListingDetails, "targeting">, label: string, maxLength: number, required = false) =>
     <label key={key}>{label}<input value={details[key] ?? ""} maxLength={maxLength} minLength={key === "title" ? 8 : undefined} required={required}
       onChange={e => { dirty.current = true; setDetails({ ...details, [key]: e.target.value }); setConsent(false); setState("idle"); }} /></label>;
-  return <details className="ms-task-interest"><summary>Share a job card with robot teams</summary>
+  return <details className="ms-task-interest"><summary>Manage opportunity sharing (optional)</summary>
     <p className="ms-field-hint">Optional. Share only the text and thumbnail you approve below. Your contact details, full footage and scene stay private. Use a general region and leave out identifying details.</p>
-    <p className="ms-field-hint">This is a private draft of the same job. {sources.title ? "The title comes from your job brief. " : ""}{sources.cycleTarget ? "The cycle target comes from your stated success criteria, not an observed video rate. " : ""}Review it for public use; saving a draft does not publish it.</p>
+    <p className="ms-field-hint">This card belongs to the same job. {sources.title ? "The title comes from your job brief. " : ""}{sources.cycleTarget ? "The cycle target comes from your stated success criteria, not an observed video rate. " : ""}Review changes for public use; saving a private draft does not publish it.</p>
     {reviewRequired && <p role="alert">Your brief changed. The card is hidden for renewed review; your public edits are retained.</p>}
     {state === "loading" ? <p role="status">Loading your card…</p> : state === "load_error" ? <p role="alert">Your card could not be loaded. Reopen this page to try again.</p> :
       <form className="ms-form" onSubmit={save} aria-label="Public job card">
@@ -70,21 +70,15 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
         <details><summary>More job details (optional)</summary>
           {field("siteType", "Site type", 80)}{field("cycleTarget", "Cycle target", 80)}
           {field("pilotTiming", "Pilot timing", 80)}
-          <label>Pilot price status<select value={details.pilotPriceStatus ?? "target_budget"} onChange={e => { dirty.current = true; setDetails({ ...details, pilotPriceStatus: e.target.value as TaskListingDetails["pilotPriceStatus"] }); setConsent(false); setState("idle"); }}>
-            <option value="target_budget">Target budget, open to proposals</option>
-            <option value="site_offer">Site's proposed price</option>
-          </select></label>
-          {field("pilotBudget", details.pilotPriceStatus === "site_offer" ? "Proposed pilot price (optional)" : "Target pilot budget (optional)", 80)}
           <label>Pilot conditions (optional)<textarea value={details.pilotConditions ?? ""} maxLength={320} onChange={e => { dirty.current = true; setDetails({ ...details, pilotConditions: e.target.value }); setConsent(false); setState("idle"); }} placeholder="For example: four weeks, including setup and provider support" /></label>
-          {field("ongoingTarget", "Ongoing price target, if the pilot works (optional)", 80)}
-          <p className="ms-field-hint">A posted price is a proposal, not a purchase approval. Providers can accept it, ask for changes, or decline after evaluation.</p>
+          <p className="ms-field-hint">You do not need to propose a budget. Any provider cost belongs in a concrete pilot proposal for applicable approval. Previously supplied price information stays on this job; this form does not amend an agreement.</p>
         </details>
         <label>Pilot availability<select value={details.opportunity} onChange={e => { dirty.current = true; setDetails({ ...details, opportunity: e.target.value as TaskListingDetails["opportunity"] }); setConsent(false); }}>
           {Object.entries(opportunityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select></label>
         <TaskThumbnailEditor existing={existingThumbnail} onChange={png => { dirty.current = true; setThumbnailPng(png); setConsent(false); setState("idle"); }} />
         <div className="ms-task-preview" aria-label="Public card preview"><p className="ms-field-hint">Public preview · {opportunityLabels[details.opportunity]}</p><div className="ms-task-heading"><h3>{details.title || "Your job"}</h3><TaskThumbnail src={previewThumbnail ? `data:image/png;base64,${previewThumbnail}` : null} title={details.title || "Your job"} taskFamily={details.taskFamily} /></div><p>{details.taskFamily}</p><TaskFacts details={details} /></div>
-        <label className="ms-check-row"><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} />Show this card in the job library</label>
+        <label className="ms-check-row"><input type="checkbox" checked={enabled} onChange={e => { dirty.current = true; setEnabled(e.target.checked); setConsent(false); }} />Show this card in the job library</label>
         {enabled && details.opportunity === "open" && <p className="ms-field-hint">Opening to pilot proposals is free. Any later work needs separately agreed scope and cost. <a href="/beta#scope" target="_blank" rel="noreferrer">Beta program scope</a></p>}
         <label className="ms-check-row"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} required={enabled} />I reviewed the text and thumbnail for identifying details and am authorized to make them public. I can remove this card here at any time.</label>
         <button className="ms-button" disabled={state === "saving"}>{state === "saving" ? "Saving…" : enabled ? "Publish reviewed card" : "Save private draft"}</button>

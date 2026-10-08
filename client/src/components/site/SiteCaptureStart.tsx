@@ -1,6 +1,6 @@
 import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { isLikelyPhone } from "@/lib/device";
-/** Start with a description; recording authority is separate. */
+/** Show the work; explanatory text is optional when capture is authorized. */
 import { useEffect, useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
@@ -347,6 +347,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
       setMethod("phone"); setRegion(""); regionManuallySet.current = false;
+      setPrivateHandling(false); setTaskForPreview("");
       setCountryOpen(false); setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
       // A completion is visible only after both stores commit the fresh authority.
@@ -384,6 +385,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
     const read = (key: string) => String(savedAnswers ? savedAnswers[savedFields[key]] ?? "" : data.get(key) ?? "").trim();
     let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
+    if (!retained && !read("startTask") && !(consent && rightsShown)) {
+      setState({ status: "failed", message: "Add a video or a short explanation of the work. If you will film later, confirm the recording rights to start without an explanation." });
+      return;
+    }
 
     operationInFlight.current = true;
     setState({ status: "working" });
@@ -703,15 +708,15 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       <ClearDraftControl status={clearStatus} onClear={forgetDraft} disabled={state.status === "working"} />
       <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} className="contents">
       <label htmlFor="start-task">
-        <span>What is the task?</span>
+        <span>Anything we should know? (optional)</span>
         <span className="ms-field-hint">
-          For example, “move sealed cartons from the conveyor onto a pallet.”
+          Show us the work; we'll assess the observed task. Add context or what you want to achieve if helpful. We'll ask only when a missing answer changes the recommendation.
         </span>
-        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} onChange={event => setTaskForPreview(event.target.value)} required maxLength={2000} rows={4} />
+        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} onChange={event => setTaskForPreview(event.target.value)} maxLength={2000} rows={4} />
       </label>
 
       <div aria-label="Opportunity sharing">
-        <p>Blueprint will create an anonymized opportunity listing so robot teams approved for beta can discover this job. By starting, you authorize publication of the generated summary below. Footage, reconstruction, exact location, contacts and sensitive operating details remain restricted.</p>
+        <p>{privateHandling ? "This job will be handled privately; starting does not authorize a public listing. Blueprint uses the supplied information for your job assessment." : "Blueprint will create an anonymized opportunity listing so robot teams approved for beta can discover this job. By starting, you authorize publication of the generated summary below. Footage, reconstruction, exact location, contacts and sensitive operating details remain restricted."}</p>
         <p aria-label="Generated public summary"><strong>{publicDraft.title}</strong> · {publicDraft.taskFamily}{publicDraft.objects ? ` · ${publicDraft.objects}` : ""}. Requirements not supplied or approved for sharing remain unknown.</p>
         <label className="ms-check-row"><input name="startPrivateHandling" type="checkbox" checked={privateHandling} onChange={event => setPrivateHandling(event.target.checked)} />Keep this job private instead</label>
       </div>

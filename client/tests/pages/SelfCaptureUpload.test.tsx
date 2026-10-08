@@ -88,6 +88,22 @@ describe("description first owner return", () => {
       return mockFetch()(input);
     });
   }
+  it("keeps account claiming available inside optional corrections without gating the summary", async () => {
+    const fetcher = ownerFetch(false);
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => String(input) === `/api/site-task-brief/${TOKEN}`
+      ? Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner", account: { claimed: false, email: "owner@example.test", claimToken: "synthetic-claim-token" },
+        brief: { summary: "Pack cartons", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } }) })
+      : fetcher(input)));
+    render(<SelfCaptureUpload />);
+    await screen.findByRole("heading", { name: "Your job summary" });
+    expect(screen.getByText("Correct job details (optional)").closest("details")).not.toHaveAttribute("open");
+    fireEvent.click(screen.getByText("Correct job details (optional)"));
+    expect(screen.queryByLabelText("Choose a password")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Also save this job to my account (optional)"));
+    expect(screen.getByLabelText("Choose a password")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "This is right — confirm and save" })).toBeInTheDocument();
+    expect(videoUpload.send).not.toHaveBeenCalled();
+  });
   it("preserves saved pilot plans on return, through an interrupted correction and retry", async () => {
     let attempts = 0;
     let savedPilotIntent = { pilotConsideration: "subject_to_review", deploymentPath: "multiple_sites" };

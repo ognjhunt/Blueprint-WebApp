@@ -32,9 +32,9 @@ export function anonymizedOpportunityDraft(description: string): TaskListingDeta
   const text = description.toLowerCase();
   const category = /dish|dishwasher/.test(text) ? ["Dish handling opportunity", "Dish handling", "Dishes"]
     : /pallet/.test(text) ? [/carton|box/.test(text) ? "Carton palletizing opportunity" : "Pallet handling opportunity", "Pallet handling", /carton|box/.test(text) ? "Cartons" : ""]
-      : /pack/.test(text) ? ["Recurring packing opportunity", "Packing", ""]
-        : /inspect/.test(text) ? ["Recurring inspection opportunity", "Inspection", ""]
-          : /pick|place|transfer|move/.test(text) ? ["Recurring material handling opportunity", "Material handling", ""]
-            : ["Recurring work opportunity", "Recurring work", ""];
+      : /pack/.test(text) ? ["Packing opportunity", "Packing", ""]
+        : /inspect/.test(text) ? ["Inspection opportunity", "Inspection", ""]
+          : /pick|place|transfer|move/.test(text) ? ["Material handling opportunity", "Material handling", ""]
+            : ["Work assessment opportunity", "To be determined", ""];
   return { title: category[0], taskFamily: category[1], objects: category[2], siteType: "", region: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "open" };
 }

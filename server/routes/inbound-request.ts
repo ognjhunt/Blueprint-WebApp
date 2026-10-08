@@ -1094,7 +1094,14 @@ export async function submitInboundRequest(req: Request, res: Response) {
     if (buyerType !== "site_operator" && !payload.lastName?.trim()) missingFields.push("lastName");
     if (!payload.company?.trim()) missingFields.push("company");
     if (!payload.email?.trim()) missingFields.push("email");
-    if (!taskStatement) missingFields.push("taskStatement");
+    // Footage can supply the observed task. A customer need not write a goal
+    // to open the same authorized capture job; a prose-only job still needs
+    // something useful to assess. Recording rights are validated below too.
+    const captureWithoutDescription = buyerType === "site_operator"
+      && payload.captureMode === "self_capture"
+      && payload.descriptionOnly !== true
+      && hasCurrentRecordingConsent(buildConsentAttestation(payload.consentAttestation));
+    if (!taskStatement && !captureWithoutDescription) missingFields.push("taskStatement");
     if (buyerType === "site_operator") {
       if (!siteName) missingFields.push("siteName");
       if (!siteLocation) missingFields.push("siteLocation");

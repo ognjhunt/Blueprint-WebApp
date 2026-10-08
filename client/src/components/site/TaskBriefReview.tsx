@@ -102,6 +102,7 @@ export function TaskBriefReview(props: {
   brief: DraftedBrief;
   /** Absent or null: the page could not tell, so no account step is shown. */
   account?: SiteAccount | null;
+  optionalAccount?: boolean;
   onConfirmed?: (brief: DraftedBrief) => void;
 }) {
   const [state, setState] = useState<State>({ status: "reviewing" });
@@ -114,7 +115,9 @@ export function TaskBriefReview(props: {
   const [deploymentPath, setDeploymentPath] = useState<SitePilotIntent["deploymentPath"] | "">(props.brief.pilotIntent?.deploymentPath ?? "");
 
   // Saving the site to an account. Skipped when it is already claimed.
-  const needsAccount = Boolean(props.account && !props.account.claimed && props.account.claimToken);
+  const accountAvailable = Boolean(props.account && !props.account.claimed && props.account.claimToken);
+  const [saveAccount, setSaveAccount] = useState(!props.optionalAccount);
+  const needsAccount = accountAvailable && saveAccount;
   const [accountMode, setAccountMode] = useState<"create" | "signin">("create");
   const [password, setPassword] = useState("");
   const [terms, setTerms] = useState(false);
@@ -199,7 +202,7 @@ export function TaskBriefReview(props: {
 
   function problem(): string | null {
     if (!name.trim()) return "Please add your name so we know who confirmed this.";
-    if (!successUnknown && !successDefinition.trim()) return "Describe a successful cycle, or select I don't know yet.";
+    if (touchedSuccess.current && !successUnknown && !successDefinition.trim() && (successRate || cycleTimeSeconds)) return "Describe which outcome the edited target measures, or leave the targets open.";
     return null;
   }
 
@@ -247,11 +250,11 @@ export function TaskBriefReview(props: {
       ...props.brief,
       operatorAnswers: answers,
       operatorUnknown: [...unknown],
-      successCriteria: {
-        successDefinition: successUnknown ? null : successDefinition.trim(),
+      successCriteria: !touchedSuccess.current ? props.brief.successCriteria : {
+        successDefinition: successUnknown ? null : successDefinition.trim() || null,
         successRate: successUnknown || !successRate ? null : Number(successRate),
         cycleTimeSeconds: successUnknown || !cycleTimeSeconds ? null : Number(cycleTimeSeconds),
-        unknown: successUnknown,
+        unknown: successUnknown || (!successDefinition.trim() && !successRate && !cycleTimeSeconds),
       },
       pilotIntent: pilotConsideration && deploymentPath ? { pilotConsideration, deploymentPath } : props.brief.pilotIntent,
     };
@@ -265,7 +268,7 @@ export function TaskBriefReview(props: {
           confirmedBy: name.trim(),
           answers: confirmedBrief.operatorAnswers,
           unknown: confirmedBrief.operatorUnknown,
-          successCriteria: confirmedBrief.successCriteria,
+          ...(confirmedBrief.successCriteria ? { successCriteria: confirmedBrief.successCriteria } : {}),
           ...(confirmedBrief.pilotIntent ? { pilotIntent: confirmedBrief.pilotIntent } : {}),
         }),
       });
@@ -372,7 +375,7 @@ export function TaskBriefReview(props: {
             <p style={{ fontWeight: 500 }}>Check your inbox.</p>
             <p className="ms-field-hint">
               We sent a link to {accountOutcome.user.email}. One click verifies your email and saves
-              this site to your account. We start building your scene after that.
+              this site to your account.
             </p>
             <button className="ms-button" type="button" onClick={() => checkVerified(accountOutcome.user)}>
               I’ve verified my email
@@ -410,7 +413,7 @@ export function TaskBriefReview(props: {
 
       <p style={{ fontWeight: 500 }}>{props.brief.summary}</p>
       {props.brief.proposed.some(answer => answer.basis === "observation") && <details><summary>What your footage shows</summary>
-        {props.brief.proposed.filter(answer => answer.basis === "observation").map(answer => <p key={answer.fieldId}>{answer.reading} <span className="ms-field-hint">(from your footage{answer.confidence !== undefined ? `; confidence ${Math.round(answer.confidence * 100)}%` : ""}). This is an observation of the clip; the job across shifts remains a separate question.</span></p>)}
+        {props.brief.proposed.filter(answer => answer.basis === "observation").map(answer => <p key={answer.fieldId}>{answer.reading} <span className="ms-field-hint">(from your footage{answer.confidence !== undefined ? `; confidence ${Math.round(answer.confidence * 100)}%` : ""}{answer.atSeconds != null ? `; at ${answer.atSeconds}s` : ""}). This is an observation of the clip; the job across shifts remains a separate question.</span></p>)}
       </details>}
       <p className="ms-field-hint">Blueprint helps assess this job and, where appropriate, prepares a concrete plan for an on-site pilot using the information and permissions you already supplied. Correct the job summary where it matters. Saving corrections does not grant new publication or sharing rights, authorize spending, or commit your site to a visit. A concrete proposal will show any new cost, disclosure, agreement or physical commitment for approval.</p>
 
@@ -485,8 +488,8 @@ export function TaskBriefReview(props: {
       ))}
 
       <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0" }}>
-        <legend style={{ padding: "0 6px", fontWeight: 600 }}>What counts as success?</legend>
-        <p className="ms-field-hint">Confirm the outcome a robot should achieve. These are your targets for the job, not a claim that any robot meets them.</p>
+        <legend style={{ padding: "0 6px", fontWeight: 600 }}>What counts as success? (optional)</legend>
+        <p className="ms-field-hint">Add or correct your targets when they matter to the recommendation. Leaving them open does not prevent assessment; we cannot infer required throughput or success rates from a clip.</p>
         <label htmlFor="success-definition"><span>Successful cycle</span>
           <input id="success-definition" value={successDefinition} onChange={(event) => { touchedSuccess.current = true; setSuccessDefinition(event.target.value); }} disabled={successUnknown} maxLength={1000} placeholder="For example, the carton reaches the pallet without damage" />
         </label>
@@ -519,6 +522,7 @@ export function TaskBriefReview(props: {
 
       </details>}
 
+      {props.optionalAccount && accountAvailable && <label className="ms-check-row"><input type="checkbox" checked={saveAccount} onChange={event => setSaveAccount(event.target.checked)} />Also save this job to my account (optional)</label>}
       {needsAccount && (
         <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "10px 0" }}>
           <legend style={{ padding: "0 6px", fontWeight: 600 }}>Save this site to your account</legend>
@@ -527,8 +531,7 @@ export function TaskBriefReview(props: {
           ) : (
             <>
               <p className="ms-field-hint" style={{ marginTop: 0 }}>
-                We build your scene once the site is saved to an account. Your account is where you
-                follow the job, see results, and hide it from robot teams at any time. Use{" "}
+                An account lets you keep this job in your workspace. Corrections can be saved through this owner link without creating an account. Use{" "}
                 {ownerEmail}, the email you sent this job from.
               </p>
               <label htmlFor="account-password">

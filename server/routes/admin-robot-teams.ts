@@ -54,8 +54,44 @@ import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
 import { readPilotCalendarEvent } from "../utils/google-calendar";
 import { projectPilotCoordination } from "../utils/pilotCoordination";
 import { buildTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
-import { pilotRecommendationEventId } from "../utils/pilotRecommendationNotifications";
+import { pilotRecommendationEventId, pilotScheduledEventId } from "../utils/pilotRecommendationNotifications";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
+import { projectCurrentSiteJobDecision, siteJobDecisionSourceDigest } from "../utils/siteJobDecision";
+import siteJobCommunicationsRouter from "./admin-site-job-communications";
+
+router.use(siteJobCommunicationsRouter);
+
+const decisionSchema = z.object({ sourceDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  recommendation: z.string().trim().min(8).max(2000), why: z.string().trim().min(8).max(2000),
+  decisiveUncertainty: z.string().trim().max(2000), nextAction: z.string().trim().min(8).max(2000),
+  question: z.object({ text: z.string().trim().min(8).max(1000), reason: z.string().trim().min(8).max(1000) }).strict().nullable().default(null),
+}).strict();
+
+/** Human judgment is useful before a provider is ready to propose a pilot. */
+router.post("/recommendations/:requestId/decision", async (req, res) => {
+  const parsed = decisionSchema.safeParse(req.body), actor = String(res.locals.firebaseUser?.uid ?? "").trim();
+  if (!parsed.success || !actor) return res.status(400).json({ error: "A named reviewer must record the recommendation, why, decisive uncertainty and Blueprint's next action against the current evidence." });
+  if (!db) return res.status(503).json({ error: "Store unavailable" });
+  const requestId = String(req.params.requestId), input = parsed.data;
+  try {
+    await db.runTransaction(async tx => {
+      const ref = db!.collection("inboundRequests").doc(requestId), current = (await tx.get(ref)).data();
+      const brief = (await tx.get(db!.collection("siteTaskBriefs").doc(requestId))).data() ?? null;
+      if (!current) throw new Error("job_missing");
+      const assessment = await loadCurrentSiteAdvisory(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: current.account_owner_uid ?? null });
+      if (siteJobDecisionSourceDigest(current, brief, assessment) !== input.sourceDigest) throw new Error("decision_source_changed");
+      if (current.customer_decision?.sourceDigest === input.sourceDigest
+        && humanDecisionDigest({ recommendation: current.customer_decision.recommendation, why: current.customer_decision.why,
+          decisiveUncertainty: current.customer_decision.decisiveUncertainty, nextAction: current.customer_decision.nextAction,
+          question: current.customer_decision.question ?? null }) === humanDecisionDigest({ recommendation: input.recommendation,
+          why: input.why, decisiveUncertainty: input.decisiveUncertainty, nextAction: input.nextAction, question: input.question })) return;
+      tx.update(ref, { customer_decision: { schemaVersion: "site_job_decision.v1", ...input,
+        reviewedBy: actor, reviewedAtIso: new Date().toISOString() }, customerAnswerReviewRequired: false,
+        customerAnswerNextOwner: "Blueprint", customerAnswerNextAction: input.nextAction });
+    });
+    return res.json({ ok: true });
+  } catch { return res.status(409).json({ error: "The job or assessment changed. Reload the current evidence before recording the decision." }); }
+});
 
 const recommendationSchema = z.object({
   briefRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
@@ -199,6 +235,9 @@ router.get("/recommendations/:requestId", async (req, res) => {
     const terms = brief?.successCriteria;
     res.set("Cache-Control", "no-store");
     return res.json({ requestId, recommendation: record.pilot_recommendation ?? null,
+      decision: projectCurrentSiteJobDecision(record, brief, assessment), decisionSourceDigest: siteJobDecisionSourceDigest(record, brief, assessment),
+      customerConversation: Array.isArray(record.customerConversation) ? record.customerConversation : [],
+      customerClarification: record.site_task_clarification ?? null,
       coordination: projectPilotCoordination(record), assessment,
       teams: admitted.map(team => ({ id: team!.id, name: team!.name, capabilityDescription: team!.capabilityDescription ?? "No demonstrated capability recorded" })),
       interests: interests.docs.map(doc => doc.data()),
@@ -207,7 +246,8 @@ router.get("/recommendations/:requestId", async (req, res) => {
         siteProvides: "", teamProvides: "", pilotCost: "", window: "", sitePreparation: "", humanWork: "", costBasis: "", capabilityBasis: "", providerCommitment: "", exclusions: "Production deployment, purchases and private footage sharing require separate approval.", uncertainties: "", alternative: "" },
       briefRevision: humanDecisionDigest(brief),
       sources: { purpose: brief ? `siteTaskBriefs/${requestId}:summary` : `inboundRequests/${requestId}:request.taskStatement`, successCondition: terms?.successDefinition ? `siteTaskBriefs/${requestId}:successCriteria (site targets)` : null },
-      dependency: "Personalized pilot coordination needs an approved job-linked handoff to the communications agent. The existing outbound-prospect research handoff cannot be substituted. No outreach has been sent by this action." });
+      communications: { route: `/api/admin/robot-teams/jobs/${encodeURIComponent(requestId)}/communications`,
+        draftingEnabled: process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true", deliveryEnabled: process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "true" } });
   } catch (error) { logger.error({ err: error, requestId }, "Proposal draft unavailable"); return res.status(503).json({ error: "Proposal draft unavailable" }); }
 });
 
@@ -260,7 +300,7 @@ router.post("/recommendations/:requestId/coordination", async (req, res) => {
       if (!record || humanDecisionDigest({ proposal: record.pilot_recommendation, booking: record.pilot_booking }) !== humanDecisionDigest({ proposal: current.pilot_recommendation, booking: current.pilot_booking })) throw new Error("pilot_agreement_changed");
       const to = String(await decryptFieldValue(record.contact?.email ?? "")).trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw new Error("site_contact_missing");
-      const notification = buildTaskLifecycleNotification({ requestId, milestone: "pilot_scheduled", eventId: pilotRecommendationEventId(input.calendarEventId, to), to, captureUrl: captureUploadUrlFor(requestId, "owner") });
+      const notification = buildTaskLifecycleNotification({ requestId, milestone: "pilot_scheduled", eventId: pilotScheduledEventId(input.calendarEventId, to), to, captureUrl: captureUploadUrlFor(requestId, "owner") });
       const noticeRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(notification.idempotencyKey), notice = await tx.get(noticeRef);
       if (!record.pilot_booking.coordination) tx.update(ref, { pilot_booking: { ...record.pilot_booking, coordination: agreement } });
       if (!notice.exists) tx.create(noticeRef, buildOutboxEntry(notification));

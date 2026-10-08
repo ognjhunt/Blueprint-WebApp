@@ -1033,7 +1033,7 @@ router.post(
     const input = z.object({
       requestId: id,
       siteLocation: z.string().trim().min(1).max(300),
-      taskStatement: z.string().trim().min(1).max(2000),
+      taskStatement: z.string().trim().max(2000).default(""),
       publicTaskListing: z.object({ consent: z.literal(true), statementVersion: z.literal(listingConsentVersion), details: taskListingSchema }).strict().optional(),
       captureMode: z.enum(["self_capture", "site_visit"]),
       captureRegion: z.enum(["us", "non_us"]),
@@ -1048,6 +1048,10 @@ router.post(
       solAgentsApiConsent: z.object({ granted: z.literal(true),
         statementVersion: z.literal("2026-09-24.v1") }).optional(),
       honeypot: z.string().optional(),
+    }).refine(input => Boolean(input.taskStatement)
+      || (input.captureMode === "self_capture" && input.descriptionOnly !== true
+        && input.consentAttestation?.granted === true), {
+      path: ["taskStatement"], message: "Add a video or describe the work before requesting a description-only assessment.",
     }).parse(req.body);
     res.locals.workspaceIntake = {
       account_owner_uid: identity(res).uid,

@@ -68,7 +68,7 @@ for (const device of ["desktop", "mobile"] as const) {
       await shot("saved");
       await page.getByRole("link", { name: "Open your job and assessment", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toBeVisible();
-      await expect(page.getByText("Move sealed cartons from a conveyor onto a pallet.", { exact: true })).toBeVisible();
+      await expect(page.getByRole("region", { name: "Your job summary" }).locator(":scope > p").filter({ hasText: "Move sealed cartons from a conveyor onto a pallet." })).toBeVisible();
       await expect(page.getByRole("button", { name: /Open the camera|Choose or record|Upload a video file/ })).toHaveCount(0);
       await shot("brief-before-permission");
       await page.getByText("Add footage when you have permission (optional)", { exact: true }).click();
