@@ -1262,5 +1262,19 @@
     "actual_action": "Refused stale successful4fCI because currentmain9a; no Render deploy triggered.",
     "log_sha256": "3a912b65f051785524b965707b66949eb110c50d8d03b9b7076c80882305cbc7",
     "true_release_run": 37809643803
+  },
+  "communications_instruction_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/961",
+    "reviewed_head": "30ad71afdffb40769e85d213d7dcf8899faf8689",
+    "merge_sha": "055882f3aae677a3e1aa6bc8d23020aef263ea37",
+    "merged_at": "2026-10-08T16:50:51Z",
+    "authority": "Existing owning conversation reports direct human code/harness repair and reviewed merge/deployment instruction; no inference/mail action authority repurposed.",
+    "source_review": "Root independently inspected full prospective profile/contract/checkpoint diff and final test-only correction; author independent review reported.",
+    "PR_CI": 37811373773,
+    "applicable_executed_checks_passed": 8,
+    "E2E": "skipped by existing backend-only scope",
+    "main_CI": 37811970708,
+    "state": "protected_merged_latest_main_CI_running; not yet deployed",
+    "effects": "Source release only. No actual draft regeneration, Gmail, budgets, flags, providers or customer records changed."
   }
 }

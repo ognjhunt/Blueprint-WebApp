@@ -648,6 +648,26 @@
       "fix": "Safe fixed-shape private exception metadata and explicit host-error allowlist under isolated TDD; independent review reserved. No proposed provider-root-cause claim yet.",
       "next_action": "Fail/pass minimized no-network adapter reproducer, independent review, required CI and deployment, then coordinate authorized recovery within held slots and aggregate cap. Preserve original unknown exposure.",
       "new_case_credit": 0
+    },
+    {
+      "id": "PIPELINE-NATIVE-NIGHTLY-20261008",
+      "severity": "Unclassified pending native diagnosis; required canonical release remains gated",
+      "owner": "intake_recovery read-only diagnosis; root integration/release",
+      "state": "current nightly shard2 failed; CPU aggregate live; new exact0a promotion queued",
+      "invariant": "Required current native checks cannot be hidden by a previous green run or lucky retry.",
+      "before": {
+        "run": 37802358686,
+        "source": "91c1bc2117f3fb8111d28aca865c9b893cc20b76",
+        "job": 113411766492,
+        "failed_case": "tests/test_registered_feature_linux.py::test_actual_registered_disk_diagnostic_delete_offload_and_restore",
+        "expected": "experiment_diagnostic_process_reference",
+        "observed": "experiment_diagnostic_references_unknown from historical_generation_process_unknown",
+        "other_shards": "3 passed"
+      },
+      "native_log_sha256": "71ba029a8432f3e8e92def8790d5ebdc226df58354e7cf16865b876759dbc014",
+      "root_cause": "Not yet established; fixture cleanup groupdel text is not sufficient diagnosis. Native process-reference refusal trace is retained.",
+      "next_action": "Inspect exact native fixture/guard/source ownership without changing process-reference controls; follow existing live aggregate and exact0a promotion. No retry, bypass or deployment.",
+      "new_case_credit": 0
     }
   ],
   "dependencies": [
