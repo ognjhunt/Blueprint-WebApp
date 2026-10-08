@@ -152,22 +152,48 @@ test("UI-CROSS-TAB-003 clear in another tab survives an old acknowledgement befo
   await expect(second.locator("#start-task")).toHaveValue("");await fill(second);
   await second.locator("#start-task").fill("An explicitly new job after clearing");
   const snapshot=()=>second.evaluate(()=>JSON.parse(Object.entries(localStorage).find(([key])=>key.startsWith("bp-site-capture:"))![1]));
+  const durableSnapshot=()=>second.evaluate(()=>new Promise<unknown>((resolve,reject)=>{
+    const open=indexedDB.open("blueprint-site-capture-recovery-v1",1);
+    open.onerror=()=>reject(open.error);
+    open.onupgradeneeded=()=>{open.transaction!.abort();reject(new Error("Expected existing checkpoint database"));};
+    open.onsuccess=()=>{
+      const db=open.result,tx=db.transaction("recovery","readonly"),request=tx.objectStore("recovery").get("bp-site-capture:v1:anonymous:default");
+      request.onsuccess=()=>resolve(request.result?.value??null);request.onerror=()=>reject(request.error);
+      tx.oncomplete=()=>db.close();tx.onabort=()=>{db.close();reject(tx.error);};
+    };
+  }));
   await expect.poll(async()=>(await snapshot()).draft.task).toBe("An explicitly new job after clearing");
+  await expect.poll(async()=>await durableSnapshot()).toEqual(await snapshot());
   const fresh=await snapshot();finish();
-  await expect(first.getByRole("link",{name:"Review your job brief"})).toBeVisible();
+  // A retired generation cannot retain an acknowledgement or present success.
+  await expect(first.getByRole("alert")).toContainText("could not retain its confirmation");
+  await expect(first.getByRole("link",{name:"Review your job brief"})).toHaveCount(0);
   expect((await snapshot()).requestId).toBe(fresh.requestId);expect((await snapshot()).pending).toBeNull();
+  expect(await snapshot()).toEqual(fresh);expect(await durableSnapshot()).toEqual(fresh);
   await second.reload();await expect(second.locator("#start-task")).toHaveValue("An explicitly new job after clearing");
-  await second.getByRole("button",{name:"Start free assessment"}).click();await expect(second.getByRole("link",{name:"Review your job brief"})).toBeVisible();
+  // Reload retains the actual checkpoint as well as displayed default values.
+  await expect.poll(async()=>(await snapshot()).draft).toEqual(fresh.draft);
+  await expect.poll(async()=>await durableSnapshot()).toEqual(await snapshot());
+  // An unsubmitted recording grant is never restored by recovery.
+  await expect(second.locator("#start-rights")).not.toBeChecked();
+  await second.locator("#start-rights").check();
+  await second.getByRole("button",{name:"Start free assessment"}).click();
+  await expect(second.getByRole("link",{name:"Review your job brief"})).toBeVisible();
   expect(bodies).toHaveLength(2);expect(JSON.parse(bodies[1]).requestId).toBe(fresh.requestId);
   expect(JSON.parse(bodies[1]).requestId).not.toBe(JSON.parse(bodies[0]).requestId);
+  expect(JSON.parse(bodies[1]).taskStatement).toBe("An explicitly new job after clearing");
 });
 
 test("UI-CROSS-TAB-004 missing browser coordination has a fresh-customer next step without dispatch",async({context,page})=>{
   // Capability fault is simulated; the customer UI executes in actual Chromium.
   await context.addInitScript(()=>Object.defineProperty(navigator,"locks",{value:undefined,configurable:true}));
   let posts=0;await context.route(`**${create}`,route=>{posts++;return route.abort();});
-  await page.goto("/contact/site-operator");await fill(page);await page.getByRole("button",{name:"Start free assessment"}).click();
-  await expect(page.getByRole("alert")).toContainText("hello@tryblueprint.io");expect(posts).toBe(0);
+  await page.goto("/contact/site-operator");
+  await expect(page.getByRole("status").filter({hasText:"could not safely check"})).toContainText("supported browser with local storage enabled");
+  await expect(page.locator("#start-task")).toHaveCount(0);
+  await expect(page.getByRole("button",{name:"Start free assessment"})).toHaveCount(0);
+  await expect(page.getByRole("link",{name:"Talk to a person"})).toHaveAttribute("href","mailto:hello@tryblueprint.io");
+  expect(posts).toBe(0);
 });
 
 

@@ -1,0 +1,78 @@
+{
+  "schema": "blueprint.checkpoint-browser-port.v2",
+  "frozen_at": "2026-10-08T06:21:58.408599+00:00",
+  "scenario_ids": [
+    "UI-CROSS-TAB-003",
+    "UI-CROSS-TAB-004"
+  ],
+  "new_unique_cases": 0,
+  "original_browser_unique": 12,
+  "runtime_client_git_sha": "88476cb8bb367573e8cf5d1664721e9fac71b8d8",
+  "source_sha256": {
+    "client/src/components/site/SiteCaptureStart.tsx": "068a191b3f8a048af64f04edc9acdf62c04ba2813d9b81c4d2ac9fde059f33cf",
+    "client/src/lib/siteCaptureDraft.ts": "45dbdfbdb0eb5df69711703d521b44796522b48ff9bf70ec870f77dcfed7ee62",
+    "client/src/lib/siteCaptureDurability.ts": "14cae68c96d26f791431ecdb000397bc42c38161cae1098788cd8fb1f6345087",
+    "client/src/contexts/AuthContext.tsx": "bceeb8ea22c8791863e63d135268059db8c5d450428c5bdec3fcd25e9796ae4c"
+  },
+  "test_sha256": "2602ab648d99b70a0b2a393d02c4efc3fe144bc39359941540a610b8c6ca1023",
+  "corrections": [
+    {
+      "case": "UI-CROSS-TAB-003",
+      "reason": "Strict checkpoint rejects obsolete acknowledgement after explicit clear; old success-link expectation prevented reaching fresh identity/body preservation assertions. Require safe failure and no-success link; retain original assertions and add both-store equivalence."
+    },
+    {
+      "case": "UI-CROSS-TAB-004",
+      "reason": "Hydration fails before form when Web Locks are unavailable. Assert early supported-browser status, no form/Start/dispatch, and actual mailto help link; no fill on absent form."
+    },
+    {
+      "case": "UI-CROSS-TAB-003",
+      "reason": "First port reached an actual reload defect: disabled mount FormData overwrites durable draft with empty values despite restored DOM. Require stored draft to match restored fields after reload. Assert optional unsubmitted recording consent unchecked, then grant explicitly before fresh Start. Preserve every original ID/body/new-intake assertion."
+    }
+  ],
+  "acceptance": "Both selected cases pass and every original remaining semantic case passes, without new unique counts or suppressing old failure receipts.",
+  "baseline_receipt": "Integration worktree output/reliability-program/intake/browser/results.json retains10passed2failed;003 partial preservation assertions never reached,004 blocked before fill.",
+  "additional_diagnostic_runs": [
+    {
+      "path": "output/reliability-program/checkpoint-browser-port/selected/results.json",
+      "passed": 1,
+      "failed": 1,
+      "attempted": 2,
+      "new_unique": 0
+    },
+    {
+      "path": "output/reliability-program/checkpoint-browser-port/diagnostic003/results.json",
+      "passed": 0,
+      "failed": 1,
+      "attempted": 1,
+      "new_unique": 0,
+      "finding": "DOM restored all4 fields; canonical stored draft empty; fresh Start rejected before POST."
+    }
+  ],
+  "executed": [
+    {
+      "run": "selected",
+      "passed": 1,
+      "failed": 1,
+      "attempted": 2,
+      "new_unique": 0,
+      "results_sha256": "3fc36d00cd5b4b5fe209f3f597d40932232101910bdd640b535b97f4b5d9cea7"
+    },
+    {
+      "run": "diagnostic003",
+      "passed": 0,
+      "failed": 1,
+      "attempted": 1,
+      "new_unique": 0,
+      "results_sha256": "8ad6988b7ec1a8b83bd221386a184b6b8a02e13bb3d83c8fb9122458df107e52"
+    },
+    {
+      "run": "baseline-v2",
+      "passed": 0,
+      "failed": 1,
+      "attempted": 1,
+      "new_unique": 0,
+      "results_sha256": "3bb2576826720b01f731a8c26e03cb578bb993d85d4c9dea3183c30766d73fc5"
+    }
+  ],
+  "status": "test-port complete; exact884 reload defect reproduced; candidate replay pending runtime repair"
+}
