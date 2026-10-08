@@ -1,7 +1,7 @@
 /** 20 joined HTTP-intake -> persisted outbox -> separate-process worker traces. */
 import assert from 'node:assert/strict';
 import {request as httpRequest} from 'node:http';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, openSync } from 'node:fs';
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
@@ -14,6 +14,16 @@ if(process.env.FIRESTORE_EMULATOR_HOST!=='127.0.0.1:8080')throw new Error('Local
 const app=admin.initializeApp({projectId:project},'reliability-b-controller');const db=admin.firestore(app);
 const env=Object.fromEntries(['PATH','HOME','TMPDIR'].filter(key=>process.env[key]).map(key=>[key,process.env[key]]));
 Object.assign(env,{NODE_ENV:'test',BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP:'1',CODEX_LOCAL_AVAILABLE:'0',BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER:'1',BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED:'0',GOOGLE_CLOUD_PROJECT:project,GCLOUD_PROJECT:project,FIRESTORE_EMULATOR_HOST:'127.0.0.1:8080',FIREBASE_STORAGE_EMULATOR_HOST:'127.0.0.1:9199',FIREBASE_STORAGE_BUCKET:`${project}.appspot.com`,FIELD_ENCRYPTION_MASTER_KEY:Buffer.alloc(32,1).toString('base64'),BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET:'owned-local-reliability-fixture-secret-never-production',APP_URL:url,RESEND_API_KEY:'synthetic-local-sink-only',RESEND_FROM_EMAIL:'sink@example.invalid'});
+// Own the backend for the entire bounded replay. Detached tool sessions can
+// be reaped; a controller-owned child has an explicit shutdown path.
+const backendLog=openSync(`${output}/backend.log`,'a',0o600);
+const backendRoot=process.env.RELIABILITY_BACKEND_ROOT || '/workspace/reliability-e';
+if(!backendRoot.startsWith('/workspace/reliability-'))throw new Error('Owned worktree backend required');
+const backend=spawn(process.execPath,[path.join(backendRoot,'scripts/qa/reliability-local-app.mjs')],{cwd:backendRoot,env:{...env,RELIABILITY_PROJECT:project,RELIABILITY_APP_PORT:'4182'},stdio:['ignore',backendLog,backendLog]});
+process.once('exit',()=>backend.kill('SIGTERM'));
+const deadline=Date.now()+30000;let backendReady=false;
+while(Date.now()<deadline){try{const response=await fetch(`${url}/api/reliability/health`,{redirect:'error'});const health=await response.json();assert.equal(health.project,project);backendReady=true;break;}catch{await new Promise(resolve=>setTimeout(resolve,100));}}
+if(!backendReady){backend.kill('SIGTERM');throw new Error('B disposable backend unavailable');}
 const sink=`${output}/sink.jsonl`;writeFileSync(sink,'',{mode:0o600});
 const runId=Date.now().toString(36);
 const codeSha=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
@@ -49,4 +59,4 @@ for(const scenario of scenarios)for(const producerMode of ['single-submit','dupl
  }catch(error){trace.status='failed';trace.error=error.message;}
  trace.latencyMs=performance.now()-start;traces.push(trace);writeFileSync(`${output}/traces.json`,JSON.stringify({runId,project,providerMode:'simulated',costUsd:0,traces},null,2),{mode:0o600});
 }
-await db.terminate();await app.delete();console.log(JSON.stringify({layer:'real isolated emulator backend/fake provider',attempted:traces.length,passed:traces.filter(t=>t.status==='passed').length,failed:traces.filter(t=>t.status==='failed').length,costUsd:0}));if(traces.some(t=>t.status!=='passed'))process.exitCode=1;
+backend.kill('SIGTERM');await db.terminate();await app.delete();console.log(JSON.stringify({layer:'real isolated emulator backend/fake provider',attempted:traces.length,passed:traces.filter(t=>t.status==='passed').length,failed:traces.filter(t=>t.status==='failed').length,costUsd:0}));if(traces.some(t=>t.status!=='passed'))process.exitCode=1;
