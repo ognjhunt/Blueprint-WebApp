@@ -30,7 +30,10 @@ for (const dependencyPort of [8080, 9199]) await new Promise<void>((resolve, rej
 const [{ default: express }, { createServer: createVite }, { default: react }, { default: theme }, { csrfProtection, csrfCookieHandler }, { default: intake }, { default: uploads }, { default: brief }] = await Promise.all([
   import('express'), import('vite'), import('@vitejs/plugin-react'), import('@replit/vite-plugin-shadcn-theme-json'), import('../../server/middleware/csrf'), import('../../server/routes/inbound-request'), import('../../server/routes/self-capture-uploads'), import('../../server/routes/site-task-brief'),
 ]);
-const app = express(); app.use(express.json({ limit: '8mb' }));
+const app = express();
+// Deployed server trusts its one ingress hop; this local harness trusts loopback proxies only.
+app.set('trust proxy', 'loopback');
+app.use(express.json({ limit: '8mb' }));
 app.get('/api/csrf', csrfCookieHandler); app.get('/api/csrf-token', csrfCookieHandler);
 app.use('/api/inbound-request', csrfProtection, intake);
 app.use('/api/self-capture/uploads', uploads); app.use('/api/site-task-brief', brief);
