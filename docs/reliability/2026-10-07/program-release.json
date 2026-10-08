@@ -55,9 +55,9 @@
       "script_sha256": "306b01bc00db0c0f4f383b68bc16c62d08010428919c0829611d1cd3e656803b",
       "claim_ceiling": "Exact serving identity, paired deployment receipts, health/readiness and ordinary local-draft reload only; no production submission/upload/worker/assessment/notification path."
     },
-    "current_independently_verified_serving_sha": "1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136",
+    "current_independently_verified_serving_sha": "5f29d12b1d4577e7ee79cdad142fa5f8a0674a38",
     "initial940_receipts_are_historical": true,
-    "current_receipt_key": "source_bound_preparation_followup"
+    "current_receipt_key": "customer_advisory_followup"
   },
   "pipeline": {
     "merged_required_stage_fix": "cc876af25389de934f57c08b33421987f9e3328d",
@@ -579,7 +579,7 @@
       "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
     }
   },
-  "current_verified_webapp_release": "1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136",
+  "current_verified_webapp_release": "5f29d12b1d4577e7ee79cdad142fa5f8a0674a38",
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
     "state": "WebApp_reviewed_merged_paired_deployed_safe_presentation_verified;Pipeline_required_CI_failed_scoped_import_repair_under_review;live_mapping_blocked",
@@ -714,7 +714,7 @@
   "customer_advisory_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/948",
     "head": "df764f7ba11f7c51d3f7d69ba5a5839e7d50a554",
-    "state": "independently_reviewed_required_PR_checks_passed_protected_merge;main_CI_and_deployment_pending",
+    "state": "reviewed_required_PR_and_main_checks_passed_protected_merge_paired_deployed_safe_presentation_verified;live_assessment_unproven",
     "CI": 37788842015,
     "connected_receipt_sha256": "8506cd4f214c7d84945fa87086cd3d9a8afc14af56aeac2130d119d59377e690",
     "independent_connected_review_commit": "a5e724a3",
@@ -757,10 +757,66 @@
     "merged_sha": "5f29d12b1d4577e7ee79cdad142fa5f8a0674a38",
     "merged_at_utc": "2026-10-08T14:09:31Z",
     "required_PR_CI_state": "success_all9_executed_checks",
-    "deployed_sha": null,
+    "deployed_sha": "5f29d12b1d4577e7ee79cdad142fa5f8a0674a38",
     "main_CI": {
       "run_id": 37790171409,
-      "state": "in_progress_actual_test_handle"
+      "state": "success",
+      "sha": "5f29d12b1d4577e7ee79cdad142fa5f8a0674a38"
+    },
+    "deploy_workflow": {
+      "run_id": 37791163081,
+      "conclusion": "success",
+      "sha": "5f29d12b1d4577e7ee79cdad142fa5f8a0674a38"
+    },
+    "independent_release_review_commit": "bff5b549",
+    "render_receipts": [
+      {
+        "role": "web",
+        "deployment_id": "dep-db3qbqtg1s2s73bfehig",
+        "status": "live",
+        "sha": "5f29d12b1d4577e7ee79cdad142fa5f8a0674a38",
+        "finished_at_utc": "2026-10-08T14:20:09.424969Z"
+      },
+      {
+        "role": "worker",
+        "deployment_id": "dep-db3qbr0m7kps73fm959g",
+        "status": "live",
+        "sha": "5f29d12b1d4577e7ee79cdad142fa5f8a0674a38",
+        "finished_at_utc": "2026-10-08T14:20:14.192282Z"
+      }
+    ],
+    "private_receipt_sha256": "604e27d71cc056c92493dfbea606cd6eb6689e704bb971d03c6e8c2f41c02fed",
+    "safe_smoke": {
+      "checks_passed": 18,
+      "result_sha256": "3250ce17ff870296b92d49be400454c8df6c59c52b912facc4488c3169408292",
+      "script_sha256": "ea03c76daa4f2cde69efc4939ec52a1715e0e8305648c2d03b6999d9cfa1f56c",
+      "completed_at_utc": "2026-10-08T14:20:42.206Z",
+      "intake_mutations": 0,
+      "paid_provider_calls": 0,
+      "notification_sends": 0,
+      "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
+    },
+    "worker_runtime_metadata": {
+      "receipt_sha256": "7843a1965d32a6d203729df722cde4cef2e11db410d3cdfa7ffe2329e3d4696d",
+      "observed_at_utc": "2026-10-08T14:20:27.230Z",
+      "launch_forwarder_enabled": true,
+      "site_video_enabled": false,
+      "OpenAI_credential_configured": true,
+      "Gemini_credential_configured": false,
+      "attribution": "Constant safe log after paired deployment; log has service/time/instance but no commit. Presence is not authentication.",
+      "web_effective_configuration_proven": false,
+      "provider_dispatch_performed": false
+    },
+    "claim_ceiling": "Reviewed source and merged/deployed identity,18safe public draft checks, four actual worker admission booleans. No live SDK/video/provider/owner-report/notification execution; configured web wake remains to be observed on authorized real run.",
+    "subsequent_main": {
+      "sha": "dc4db4e00188daa80a82337f2f2d37b05afb56ed",
+      "PRs": [
+        949,
+        950
+      ],
+      "CI": 37791654850,
+      "state": "pending_or_active;not_used_as_deployment_evidence",
+      "core_advisory_release_receipt_is_historical_when_superseded": true
     }
   }
 }
