@@ -2885,3 +2885,34 @@ perception improvement, production readiness or new original coverage credit
 is established by this review. Replay is the existing documented
 assessment:iterate command and retained tests; it needs existing authorized
 source access and explicit local retention permission.
+
+
+### Paired deployed source identity — 2b185205
+
+Independent native Render reads confirmed exact
+`2b1852050dfcad4ec88e8a1a7566c3442b7c5800` LIVE for web and worker, finishing
+20:27:42.462759Z and20:27:48.790933Z respectively. Independently read GitHub
+mainCI37838250275 and CI-gatedDeploy37839216462 are completed SUCCESS at that
+same SHA; backend-only E2E is explicitly skipped. The eight reviewed assessment,
+runtime, accounting, queue and public-reader source paths have empty Git diff
+from approved5f7d to deployed2b. Service identity therefore includes the approved
+no-money and owner-attribution repairs; it is not an additional model execution.
+
+The coordinator's20:28 public observation records version2b/built20:25:30.512Z,
+health200 and ready200 with zero blockers. Independent public reconfirmation at
+20:30 encountered a request timeout, three503 responses, then an explicit
+Cloudflare429 challenge (`cf-mitigated: challenge`); alternate web fetch was
+inaccessible. These failures are retained as reviewer readback limitations, not
+silently replaced by green reads or classified as an origin outage. Native LIVE
+and source/CI identity are independently verified; successful public health is
+attributed to the coordinator's earlier observation. No new public-form browser
+smoke, repeated harness or security configuration change was performed.
+
+The current intentional intake-country/checkbox UI changes make the old deployed
+browser script unsuitable for claiming a new form smoke; prior51f UI execution
+remains separate historical evidence. Main test counts and overlapping safety
+checks add no unique journey credit. The release/readiness ceiling remains
+serving identity and observed service health, not real-provider authorization,
+video perception, customer assessment output, semantic quality or whole-goal
+completion. The original dishwasher owner's existing sole normal-UI run is a
+separate execution; this review performed no customer or provider dispatch.
