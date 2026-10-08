@@ -3479,3 +3479,28 @@ this assessment, with zero current-assessment rows/sends, no scheduled check-in
 and complete bounded empty child-receipt queries. It supports no assessment-ready
 email, fresh mail transport or human inbox read claim. No additional API,
 provider, UI action or business mutation occurred during review.
+
+
+### Explicit knowledge-search restart arguments — 7793de99
+
+Independent source approval applies to
+`7793de99ce40c7335334366b7ece7d0c9b45abf5`, two files only. Known
+cursor-changed/ranking-changed errors retain the rejected backend result and
+supplied arguments, while returning an explicit same-query/filter retry with
+literal cursor:null. There is no automatic call. Existing backend access
+expiry, corpus/query/scope/ranking cursor validation and provider/source/cost
+behavior are unchanged. Retry arguments duplicate already-protected tool
+arguments rather than introducing a new public projection.
+
+Receiptc96840cc and all14 linked files/two committed source blobs were
+independently hash-verified; retained baseline source matches exact97cbe Git
+and deployed189's core. Same existing scripted SDK control fails baseline
+with11 unattempted neighbors, then37 existing controls pass. Seven saved
+malformed argument sets still reject; explicit scripted consumption of the
+returned null-restart arguments succeeds on the eighth call, versus eight
+baseline rejections. The authorized corpus is synthetic/empty. Typecheck,
+Graphify and diff checks terminate zero. This proves actionable recovery
+output and unchanged rejection fences, not live Sol uptake, useful knowledge
+results or perception quality. No new journey credit, automatic retry,
+provider/production mutation or reviewer suite was added. Required exact-head
+CI, merge and deployment remain separate.
