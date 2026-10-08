@@ -3373,3 +3373,27 @@ it does not establish provider authentication, paid dispatch, retry outcome,
 assessment/perception quality, actual live failure recovery, or absence of
 the previously observed memory defect. No customer action/provider call or
 plan mutation occurred in review, and no additional authority was granted.
+
+
+### Presentation smoke contract port — v3
+
+Independent script source clearance applies to
+`25cccefcced8f05a3f3805cd73873f4a70191958c16c1b2da0e97d3ae67b31ff`,
+compared with unchanged v2ea03c76d. Exact189 UI source confirms that visible
+country text and #start-rights are obsolete selectors. V3 explicitly versions
+this correction: regionus must persist in both local/IDB mirrors before and
+after reload; both pending values remain null; current visible Start agreement
+links to Terms/Privacy; absent checkbox is count0 with unchecked:null, never
+reported as unchecked. Recording permission is tied to submitted footage,
+not every no-footage Start. These local observations do not establish backend
+consent or authorization.
+
+All nonGET/external aborts, fresh anonymous synthetic context, serving SHA
+fences and durable Clear acknowledgment/new identity/empty reload checks remain
+intact. No Start or upload is performed. Failure reporting uses fixed stages
+and classes without raw error content. The earlier v2 partial remains retained;
+this is an explicit changed selector contract, not a passing rerun of its old
+criteria. Initial6d4b16aa only differs by subsequently corrected explanatory
+recording-permission text. Terminal author checks, frozen execution fingerprint
+and an actual v3 result remain separate pending evidence. No app source,
+provider, customer context or current paid actor was changed by review.
