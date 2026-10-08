@@ -1932,6 +1932,25 @@
     ],
     "verification_ceiling": "Native pair/source identity and health/ready;not a new public-form browser proof or provider/video assessment result",
     "original_provider_actor": "Existing dishwasher owner cleared for ONE normal same-job UI run;CLI paid actor held;no new intake/reupload/notification or monetary gate",
-    "provider_dispatch_by_root": 0
+    "provider_dispatch_by_root": 0,
+    "independent_release_readback": {
+      "review_commit": "ee7706f0",
+      "native_pair_source_CI": "independently_verified",
+      "public_reconfirmation": "Automatedreadtimeout/503thenCloudflare429cf-mitigatedchallenge;20:28successfulpublicreadsremaincoordinator-observed",
+      "limits": "Edgeautomationresponseisnotprooforiginoutage;no security relaxation/newbrowseractor/gate"
+    }
+  },
+  "current_normal_UI_same_job_retry": {
+    "click_at_utc": "2026-10-08T20:29:30.061Z",
+    "source_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
+    "action": "ONE visible Try assessment again;existingjob/savedlawfulsource;no secondintake/reupload/account/terms/share/send",
+    "canonical_read_at_utc": "2026-10-08T20:29:46.065Z",
+    "canonical_state": "newjob/runRUNNING;noerror;current60,035,801bytepublication/privacyproceeded retained",
+    "private_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-07/task-3/dishwasher-isolated-analysis/reconciliation/normal-assessment-receipt-2026-10-08T20-29-46-065Z.json",
+    "private_receipt_sha256": "1dffdc447aca4ab37626d6099904c5c71c882af75df8cda9efc9653711b3501a",
+    "provider_tool_completion": "notyetproven_atthisread",
+    "cost": "Historical0.663840exposure/oldrecords unchanged;pendingownership archivedbyexplicitretry;no refund/zerochargeinference",
+    "sole_provider_actor": "originaldishwasherowner;CLIheld",
+    "status_observation_age": "Freshcanonicalrefreshrequested20:33;noassumptionthatoldRUNNINGprovescurrentlyliveprovider"
   }
 }
