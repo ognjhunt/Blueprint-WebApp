@@ -17,6 +17,7 @@ npm run assessment:iterate -- --compare output/assessment-iteration/baseline out
 {
   "message": "Assess the admitted recording against the supplied site task; preserve unobserved endpoints.",
   "context": { "request_id": "THE_EXISTING_AUTHORIZED_REQUEST_ID" },
+  "video_binding": { "sha256": "THE_VERIFIED_64_CHARACTER_VIDEO_SHA256", "bytes": 60035801 },
   "retention": {
     "local_evidence_allowed": true,
     "authority_ref": "THE_RECORDED_SOURCE_RETENTION_PERMISSION",
@@ -27,7 +28,7 @@ npm run assessment:iterate -- --compare output/assessment-iteration/baseline out
 
 Set the retention expiration to the actual permitted deadline; the example zero grants no retention. This is a data-use permission, not spending approval.
 
-An optional `local_video` object contains `path`, `sha256` and `bytes`; it checks local bytes against the supplied hash and, in provider modes, against the source admitted from Storage. It never replaces Storage evidence or uploads the file. Do not supply `advisory_job_id`, a customer claim, a prior run, or the original dishwasher allocation. A file marked `execution_scope: "read-only-preflight"` is rejected in both provider modes.
+Provider modes require the exact authorized video hash/byte binding through `video_binding` or `local_video`. `video_binding` has no filesystem path, so the same source can run in the already-configured cloud runtime without copying a key or uploading the video again. An optional `local_video` object contains `path`, `sha256` and `bytes`; it additionally checks local bytes against the supplied hash. Conflicting bindings fail before adapter dispatch. Both forms are checked against the current source admitted from Storage before any model call. It never replaces Storage evidence or uploads the file. Do not supply `advisory_job_id`, a customer claim, a prior run, or the original dishwasher allocation. A file marked `execution_scope: "read-only-preflight"` is rejected in both provider modes.
 
 There is no build, dev server, deployment, or full CI prerequisite. Each command starts `tsx` from current source, so the next assessment-prompt edit is loaded immediately. The four production tools, Sol model, Gemini path, output schema, source formatter and guards are unchanged. No model override is offered. The local CLI calls `runSiteAssessmentTask` in `server/agents/adapters/site-assessment.ts`, then the existing `createSiteAssessmentAgent(...).run()` and SDK `Runner`. `server/agents/runtime.ts` uses the same adapter; there is no `SDKAgentRunner` class in the inspected main revision. `agent:cli` addresses agent-access APIs; `smoke:agent` is another runtime smoke, neither runs this pipeline.
 

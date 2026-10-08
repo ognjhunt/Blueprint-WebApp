@@ -169,7 +169,9 @@ export function openExperimentLedger(file: string, requestId: string, runId: str
         assertSlot(); accounting.record(provider, model, { usage });
         const cost = accounting.calls[0].cost_usd;
         Object.assign(slot, { state: cost === null ? "unknown" : "recorded",
-          usage_estimate_micro_usd: cost === null ? null : Math.ceil(cost * 1e6), usage: sanitizeExperiment(usage) });
+          usage_estimate_micro_usd: cost === null ? null : Math.ceil(cost * 1e6), usage: sanitizeExperiment(usage),
+          usage_pricing_status: accounting.calls[0].usage_pricing_status ?? "unknown",
+          above_estimate: accounting.calls[0].above_estimate ?? false, priced_at_ms: accounting.calls[0].priced_at_ms ?? null });
         writeExperimentJson(file, state);
       } };
     }) as SiteAssessmentExperiment["reserve"],

@@ -20,6 +20,7 @@ const sha = (value: Buffer | string) => createHash("sha256").update(value).diges
 const inputSchema = z.object({ message: z.string().min(1).max(8000),
   context: z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/) }).strict(),
   retention: experimentRetention.optional(),
+  video_binding: z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.number().int().positive() }).strict().optional(),
   execution_scope: z.literal("read-only-preflight").optional(),
   local_video: z.object({ path: z.string().min(1), sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.number().int().positive() }).strict().optional(),
 }).strict();
@@ -112,6 +113,11 @@ async function main() {
     run.stage = "credentials";
     if (!run.configuration.openai_present) throw Error("experiment_openai_credential_missing");
     if (values.mode === "fresh-video" && !run.configuration.gemini_present) throw Error("experiment_gemini_credential_missing");
+    run.stage = "source_binding_input";
+    const expectedVideo = input.video_binding ?? input.local_video;
+    if (!expectedVideo) throw Error("experiment_video_binding_required");
+    if (input.video_binding && input.local_video && (input.video_binding.sha256 !== input.local_video.sha256
+      || input.video_binding.bytes !== input.local_video.bytes)) throw Error("experiment_video_binding_conflict");
     run.stage = "retention_permission";
     accounting = openExperimentLedger(path.join(output, "accounting.json"), input.context.request_id, runId, values.mode as "saved-evidence" | "fresh-video", input.retention);
     run.spending_gates = false;
@@ -125,14 +131,14 @@ async function main() {
     run.scope = { reused_stage: values.mode === "saved-evidence" ? "Gemini observations" : null,
       upload_retested: false, customer_workflow_retested: false, business_writes: false, embeddings: "disabled; authorized lexical history remains",
       reservation_persistence: "dedicated run-local accounting; no spending gates", model_substitution: false };
-    const { local_video, execution_scope, retention, ...taskInput } = input;
+    const { local_video, video_binding, execution_scope, retention, ...taskInput } = input;
     const task = { kind: "site_assessment", input: taskInput, provider: "openai_responses", runtime: "openai_agents_sdk", model: SITE_ASSESSMENT_MODEL,
       definition: siteAssessmentTask, tool_policy: { ...siteAssessmentTask.tool_policy, allowed_domains: ["api.openai.com", "generativelanguage.googleapis.com", "storage.googleapis.com"],
         isolated_runtime_required: false }, metadata: {} } as any;
     run.result = await runSiteAssessmentTask(task, { runId, assertActive: async () => retainFailure(async () => accounting!.assertActive()), assertCostAllowed: async () => retainFailure(async () => accounting!.assertActive()),
       experiment: { record_error: error => { run.error ??= failure(error); run.failure_stage ??= run.stage; }, mode: values.mode as "saved-evidence" | "fresh-video", prepare: async source => retainFailure(async () => {
         run.source = source; accounting!.bind(source);
-        if (input.local_video && (source.video_sha256 !== input.local_video.sha256 || source.video_bytes !== input.local_video.bytes)) throw Error("experiment_uploaded_video_binding_changed");
+        if (source.video_sha256 !== expectedVideo.sha256 || source.video_bytes !== expectedVideo.bytes) throw Error("experiment_uploaded_video_binding_changed");
         run.stage = "evidence_binding";
         const sources = evidence ? await validateSavedEvidence(evidence, source, run.versions) : [];
         run.stage = "assessment_sdk"; return sources;

@@ -20,6 +20,7 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 import { runSiteAssessmentTask } from "../agents/adapters/site-assessment";
 import { browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
+import { humanDecisionDigest } from "../utils/human-reply-admission";
 import type { NormalizedAgentTask } from "../agents/types";
 const runId = "synthetic-error-run", requestId = "synthetic-error";
 const task = { provider: "openai_responses", runtime: "openai_agents_sdk", model: "gpt-6.1-sol", kind: "site_assessment",
@@ -58,7 +59,12 @@ async function failProvider(error: unknown, extraHost: Record<string, any> = {})
   expect(result.artifacts?.capture_inference_reservations).toHaveLength(1);
   expect(result.artifacts?.site_assessment_partial_evidence?.tool_receipts).toEqual([]);
   expect(result.artifacts?.provider_responses).toMatchObject([{ provider: "openai", usage: null, response: null, cost_usd: null }]);
-  expect([...state.docs].find(([key]) => key.startsWith("captureCoverageReviews/budget-"))?.[1]?.pending_token).toBeTruthy();
+  const budgetPath = `captureCoverageReviews/budget-${humanDecisionDigest({ capture_id: `walkthrough-${requestId}` })}`;
+  const pendingToken = state.docs.get(budgetPath)?.pending_token;
+  expect(pendingToken).toBeTruthy();
+  const calls = [...state.docs].filter(([key]) => key.startsWith(`${budgetPath}/calls/`)).map(([, value]) => value);
+  expect(calls).toMatchObject([{ state: "admitted", admission_token: pendingToken, cost_estimate_usd: null, run_id: runId }]);
+  expect(calls[0].reserved_usd).toBeGreaterThan(0);
   return result;
 }
 it("retains only safe API exception metadata after the actual SDK reservation, without retry or refund", async () => {

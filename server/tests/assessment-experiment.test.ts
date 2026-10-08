@@ -35,6 +35,12 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
     const next = await run.reserve("gpt-6.1-sol", {}, "openai", {});
     await next.record({ input_tokens: 100, output_tokens: 20 });
     expect(run.status().slots.map((slot: any) => slot.state)).toEqual(["unknown", "recorded"]);
+    expect(run.status().slots[1]).toMatchObject({ usage_pricing_status: "reported_complete", above_estimate: false });
+    const upperBound = await run.reserve("gemini-3.8-flash", {}, "gemini", {});
+    await upperBound.record({ promptTokenCount: 10, candidatesTokenCount: 2, totalTokenCount: 15 });
+    expect(run.status().slots[2]).toMatchObject({ state: "recorded", usage_pricing_status: "unattributed_total_upper_bound",
+      usage: { promptTokenCount: 10, candidatesTokenCount: 2, totalTokenCount: 15 } });
+    expect(run.status().slots[0]).toMatchObject({ state: "unknown", usage_estimate_micro_usd: null });
     expect(run.status().spending_gates).toBe(false); run.close();
   });
   it("preserves an unanswered call after process death and refuses overwriting accounting", async () => {
@@ -162,7 +168,9 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
     };
     expect(command("fresh-video", []).error.code).toBe("experiment_openai_credential_missing");
     expect(command("saved-evidence", ["--evidence", path.join(dir, "not-borrowed.json")]).error.code).toBe("experiment_openai_credential_missing");
-    writeExperimentJson(input, { message: "Synthetic offline plumbing", context: { request_id: source.request_id }, retention: retention() });
+    expect(command("fresh-video", [], true).error.code).toBe("experiment_video_binding_required");
+    writeExperimentJson(input, { message: "Synthetic offline plumbing", context: { request_id: source.request_id }, retention: retention(),
+      video_binding: { sha256: source.video_sha256, bytes: source.video_bytes } });
     const admitted = command("fresh-video", [], true);
     expect(admitted.result?.error, JSON.stringify(admitted.error)).toBe("site_assessment_lane_unavailable");
     expect(admitted.accounting.slots).toEqual([]);
