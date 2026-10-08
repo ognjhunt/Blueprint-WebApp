@@ -1,9 +1,61 @@
 import { expect, test } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 
 const summary = (name: string, email = "operator@example.test") => ({
   ok: true, requestId: `fixture-${name}`, alreadyClaimed: false,
   claimEmail: email, siteTermsAcceptedCurrent: false,
   site: { siteName: name, siteLocation: "Austin", taskStatement: "Pack cartons", qualificationState: "submitted" },
+});
+
+test("returning owner can explicitly replace a received recording without confirming the brief", async ({ page }, info) => {
+  const token = "replacement-fixture";
+  const video = info.outputPath("synthetic-replacement.mp4");
+  // Owned generated pixels only; this exercises transport, not video judgment.
+  execFileSync(process.env.BLUEPRINT_TEST_FFMPEG || "ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=30", "-t", "2", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", video]);
+  const writes: string[] = [];
+  let posted = "";
+  await page.route("**/api/**", route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() !== "GET") writes.push(url.pathname);
+    if (url.pathname === `/api/self-capture/uploads/${token}` && request.method() === "POST") {
+      posted = request.postDataBuffer()!.toString("latin1");
+      return route.fulfill({ json: { captureReceived: true, uploadState: "processing_ready" } });
+    }
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"],
+    } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: {
+      ready: true, scope: "owner", brief: { summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null },
+    } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
+      captureReceived: true, status: { decision: "confirm_brief", headline: "Review your job brief.", operatorAction: null, missingViews: [] },
+    } });
+    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
+    if (url.pathname.endsWith("/follow-up")) return route.fulfill({ json: { questions: [] } });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Next: check your job brief", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
+  const choose = page.getByRole("button", { name: "Upload a new recording", exact: true });
+  await expect(choose).toBeVisible();
+  expect(writes).toEqual([]);
+  const chooserEvent = page.waitForEvent("filechooser");
+  await choose.click();
+  const chooser = await chooserEvent;
+  // Opening or canceling the picker leaves the acknowledged source untouched.
+  await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
+  expect(writes).toEqual([]);
+  await chooser.setFiles(video);
+  await expect.poll(() => writes).toEqual([`/api/self-capture/uploads/${token}`]);
+  expect(posted).toContain('filename="synthetic-replacement.mp4"');
+  expect(posted).toContain('name="metadata"');
+  await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Next: check your job brief", { exact: true })).toBeVisible();
+  await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
 });
 
 test.beforeEach(async ({ context }) => {
