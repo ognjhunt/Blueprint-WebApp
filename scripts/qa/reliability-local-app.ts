@@ -10,14 +10,15 @@ if (!/^demo-blueprint-reliability(?:-a|-b)?$/.test(project ?? '') || process.env
 if (Object.keys(process.env).some(key => /^(OPENAI_API_KEY|DEEPSEEK_API_KEY|ANTHROPIC_API_KEY|RESEND_API_KEY|FIREBASE_SERVICE_ACCOUNT_JSON|GOOGLE_APPLICATION_CREDENTIALS)$/.test(key))) throw new Error('Live credentials prohibited');
 const port = Number(process.env.RELIABILITY_APP_PORT);
 function loopbackHost(host: string) { return ['127.0.0.1', 'localhost', '[::1]', '::1'].includes(host); }
-function assertLocal(input: any) {
-  const hostname = input instanceof URL ? input.hostname : typeof input === 'string' ? new URL(input).hostname : input?.hostname ?? input?.host ?? 'localhost';
+function assertLocal(input: any, override?: any) {
+  const hostname = override && typeof override === 'object' && (override.hostname ?? override.host)
+    || (input instanceof URL ? input.hostname : typeof input === 'string' ? new URL(input).hostname : input?.hostname ?? input?.host ?? 'localhost');
   if (!loopbackHost(String(hostname).replace(/:\d+$/, ''))) throw new Error('Reliability harness blocked external dispatch');
 }
 for (const module of [http, https]) {
   const request = module.request.bind(module), get = module.get.bind(module);
-  module.request = ((input: any, ...args: any[]) => { assertLocal(input); return (request as any)(input, ...args); }) as typeof module.request;
-  module.get = ((input: any, ...args: any[]) => { assertLocal(input); return (get as any)(input, ...args); }) as typeof module.get;
+  module.request = ((input: any, ...args: any[]) => { assertLocal(input, args[0]); return (request as any)(input, ...args); }) as typeof module.request;
+  module.get = ((input: any, ...args: any[]) => { assertLocal(input, args[0]); return (get as any)(input, ...args); }) as typeof module.get;
 }
 const originalFetch = globalThis.fetch;
 globalThis.fetch = ((input: any, options?: any) => { assertLocal(input instanceof Request ? input.url : input); return originalFetch(input, { ...options, redirect: 'error' }); }) as typeof fetch;

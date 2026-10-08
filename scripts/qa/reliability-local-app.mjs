@@ -9,7 +9,7 @@ if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Inv
 // The launcher never inherits credentials, provider keys, dotenv, or live service addresses.
 const env = Object.fromEntries(['PATH', 'HOME', 'TMPDIR'].filter(key => process.env[key]).map(key => [key, process.env[key]]));
 Object.assign(env, {
-  NODE_ENV: 'development', BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP: '1', GOOGLE_CLOUD_PROJECT: project, GCLOUD_PROJECT: project,
+  NODE_ENV: 'test', BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP: '1', GOOGLE_CLOUD_PROJECT: project, GCLOUD_PROJECT: project,
   FIRESTORE_EMULATOR_HOST: '127.0.0.1:8080', FIREBASE_STORAGE_EMULATOR_HOST: '127.0.0.1:9199',
   FIREBASE_STORAGE_BUCKET: `${project}.appspot.com`,
   FIELD_ENCRYPTION_MASTER_KEY: Buffer.alloc(32, 1).toString('base64'), BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET: 'owned-local-reliability-fixture-secret-never-production',
