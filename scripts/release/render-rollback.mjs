@@ -19,7 +19,7 @@ export async function captureRollbackTarget(services, api, probe) {
   return {schema:'blueprint.release-rollback-target.v1',sha:records[0].sha,records,capturedAt:new Date().toISOString()};
 }
 
-export async function restorePreviousRelease(snapshot, services, api, probe, wait) {
+export async function restorePreviousRelease(snapshot, services, api, probe, wait, receipt = () => {}) {
   if (snapshot?.schema !== 'blueprint.release-rollback-target.v1' || !shaPattern.test(snapshot.sha ?? '') ||
       snapshot.records?.length !== 2 || snapshot.records.some((row, index) => row.service !== services[index] || row.sha !== snapshot.sha)) {
     throw Error('rollback_target_invalid');
@@ -29,16 +29,35 @@ export async function restorePreviousRelease(snapshot, services, api, probe, wai
   // Never retry an uncertain mutation. Independently attempt both pair members.
   const attempts = await Promise.allSettled(services.map(async service => {
     const started = Date.now();
-    const response = await api(service, 'deploys', {commitId:snapshot.sha,clearCache:'do_not_clear'});
+    receipt({service,sha:snapshot.sha,status:'attempted',startedAt:new Date(started).toISOString()});
+    let response;
+    try { response = await api(service, 'deploys', {commitId:snapshot.sha,clearCache:'do_not_clear'}); }
+    catch { receipt({service,sha:snapshot.sha,status:'acceptance_uncertain'}); }
     let id = response?.id;
     if (!id) {
-      const entries = await api(service,'deploys?limit=20');
-      id = entries.map(entry => entry.deploy ?? entry).find(row =>
-        row.commit?.id === snapshot.sha && active.has(row.status) && Date.parse(row.createdAt) >= started - 5000)?.id;
+      for (let attempt=0;attempt<80 && !id;attempt++) {
+        try {
+          const entries = await api(service,'deploys?limit=20');
+          id = entries.map(entry => entry.deploy ?? entry).find(row =>
+            row.id !== snapshot.records.find(record => record.service === service).deployId &&
+            row.commit?.id === snapshot.sha && Date.parse(row.createdAt) >= started - 5000)?.id;
+        } catch { /* Read-only reconciliation retries; never repeat POST. */ }
+        if (!id) await wait(15000);
+      }
     }
-    if (!/^dep-/.test(id ?? '')) throw Error('rollback_acceptance_unresolved');
+    if (!/^dep-/.test(id ?? '')) {
+      receipt({service,sha:snapshot.sha,status:'acceptance_unresolved'});
+      throw Error('rollback_acceptance_unresolved');
+    }
     for (let attempt=0;attempt<80;attempt++) {
-      const record = await api(service,`deploys/${id}`);
+      let record;
+      try { record = await api(service,`deploys/${id}`); }
+      catch {
+        receipt({service,deployId:id,sha:snapshot.sha,status:'verification_read_failed'});
+        await wait(15000);
+        continue;
+      }
+      receipt({service,deployId:id,sha:snapshot.sha,status:record.status});
       if (record.status === 'live') {
         if (record.commit?.id !== snapshot.sha) throw Error('rollback_sha_mismatch');
         return {service,deployId:id,sha:snapshot.sha,status:'live'};
@@ -46,6 +65,7 @@ export async function restorePreviousRelease(snapshot, services, api, probe, wai
       if (['build_failed','update_failed','canceled','deactivated'].includes(record.status)) throw Error('rollback_deploy_failed');
       await wait(15000);
     }
+    receipt({service,deployId:id,sha:snapshot.sha,status:'verification_timeout'});
     throw Error('rollback_deploy_timeout');
   }));
   if (attempts.some(result => result.status === 'rejected')) throw Error('rollback_pair_unverified');
@@ -87,7 +107,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     appendFileSync(process.env.GITHUB_OUTPUT,`previous_sha=${snapshot.sha}\n`);
   } else if (process.argv[2] === 'restore') {
     const snapshot = JSON.parse(readFileSync(file,'utf8'));
-    const result = await restorePreviousRelease(snapshot,services,api,probe,ms=>new Promise(resolve=>setTimeout(resolve,ms)));
+    const result = await restorePreviousRelease(snapshot,services,api,probe,ms=>new Promise(resolve=>setTimeout(resolve,ms)),
+      record=>appendFileSync(`${dirname(file)}/rollback-attempts.jsonl`,JSON.stringify({...record,at:new Date().toISOString()})+'\n',{mode:0o600}));
     writeFileSync(`${dirname(file)}/rollback-verification.json`,JSON.stringify({...result,elapsedMs:Date.now()-start},null,2)+'\n',{mode:0o600});
     console.log(JSON.stringify({rollbackVerified:true,sha:result.sha,elapsedMs:Date.now()-start}));
   } else throw Error('usage: render-rollback.mjs snapshot|restore');

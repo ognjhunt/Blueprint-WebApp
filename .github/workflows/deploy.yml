@@ -226,11 +226,11 @@ jobs:
 
           node /tmp/outreach-release-holds.mjs before
 
-      - name: Checkout exact verified release code
+      - name: Checkout trusted release tooling
         if: steps.ref.outputs.stale != 'true'
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.ref.outputs.deploy_ref }}
+          ref: ${{ github.workflow_sha }}
           persist-credentials: false
 
       - name: Capture healthy rollback predecessor

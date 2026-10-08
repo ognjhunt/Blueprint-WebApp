@@ -4,6 +4,24 @@ import { captureRollbackTarget,restorePreviousRelease } from './render-rollback.
 const sha='a'.repeat(40), services=['srv-web','srv-worker'];
 const inventory=(service:string)=>[{deploy:{id:`dep-${service}`,status:'live',commit:{id:sha}}}];
 describe('paired automatic rollback',()=>{
+  it('reconciles delayed acceptance and already-live responses without repeating a mutation',async()=>{
+    const snapshot=await captureRollbackTarget(services,async(service:string)=>inventory(service),async()=>{});
+    const reads=new Map<string,number>();
+    const api=vi.fn(async(service:string,path:string,body:any)=> {
+      if(body) return null;
+      if(path==='deploys?limit=20') {
+        const count=(reads.get(service) ?? 0)+1; reads.set(service,count);
+        return count<3 ? inventory(service) : [{deploy:{id:`dep-restored-${service}`,status:'live',commit:{id:sha},createdAt:new Date().toISOString()}}];
+      }
+      return {status:'live',commit:{id:sha}};
+    });
+    const receipts=vi.fn();
+    const result=await restorePreviousRelease(snapshot,services,api,async()=>{},async()=>{},receipts);
+    expect(result.records).toHaveLength(2);
+    expect(api.mock.calls.filter(call=>call[2])).toHaveLength(2);
+    expect([...reads.values()]).toEqual([3,3]);
+    expect(receipts.mock.calls.filter(([row])=>row.status==='attempted')).toHaveLength(2);
+  });
   it('captures a healthy same-SHA pair and restores both using current settings',async()=>{
     const probe=vi.fn(async()=>{});
     const snapshot=await captureRollbackTarget(services,async(service:string)=>inventory(service),probe);
