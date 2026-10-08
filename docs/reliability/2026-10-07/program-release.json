@@ -757,6 +757,10 @@
     "merged_sha": "5f29d12b1d4577e7ee79cdad142fa5f8a0674a38",
     "merged_at_utc": "2026-10-08T14:09:31Z",
     "required_PR_CI_state": "success_all9_executed_checks",
-    "deployed_sha": null
+    "deployed_sha": null,
+    "main_CI": {
+      "run_id": 37790171409,
+      "state": "in_progress_actual_test_handle"
+    }
   }
 }

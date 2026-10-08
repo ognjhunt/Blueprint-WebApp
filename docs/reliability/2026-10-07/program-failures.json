@@ -602,8 +602,20 @@
     {
       "id": "DEP-SPEND",
       "owner": "coordinator",
-      "state": "approved",
-      "detail": "User approved separate $5 USD total for one dishwasher SDK+Gemini analysis: max4 GPT-6.1Sol, max1 Gemini3.8Flash, no automatic paid retries/no test emails. Existing dishwasher owner assigned sole live executor, original unknown costs separate."
+      "state": "original_one_run_authority_only;additional_normal_journey_authority_not_verified",
+      "detail": "Original $5 one-run authority: at most4Sol/1Gem, no automatic paid retries/no test emails. Shared original full reservations3.146304 remain, including unknown Gemini1.818624; unused headroom1.853696 is not sufficient authority for another normal-route assessment. No reservation release or invoice inference.",
+      "normal_route_preflight": {
+        "private_audit_sha256": "8311050cd84db5c2a3a99c8299162bb1cd835dbfa32516ff4196cde20a5594a5",
+        "privacy": "0provider_calls;unscreened_not_a_visual_review",
+        "advisory_fresh_minimum_reserve_usd": 2.482464,
+        "fresh_coverage_and_advisory_minimum_reserve_usd": 4.301088,
+        "minimum_is_not_upper_bound": true,
+        "current_new_capture_internal_cap_usd": 5,
+        "aggregate_with_unchanged_original_prefix_usd": 8.146304,
+        "aggregate_is_not_current_approval": true,
+        "same_video_hash_does_not_establish_coverage_reuse": true,
+        "scope": "Default SDK can take more turns; coverage JSON continuations and retries are separately admitted. New intake also invokes qualification and operator notices. Verify existing-owned normal upload route and exact authorized notification destination; no broad outbox dispatch or configuration change."
+      }
     },
     {
       "id": "DEP-JOINED",
