@@ -2612,5 +2612,33 @@
       "final_owner_report_and_root_readback_agree": true
     },
     "independent_review": "3f95e4ac"
+  },
+  "knowledge_cursor_recovery": {
+    "id": "REL-KNOWLEDGE-CURSOR-RECOVERY-20261008",
+    "severity": "P2",
+    "owner": "coordinator/shared assessment tools",
+    "observed_release": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
+    "actual_observation": "Seven search_robot_knowledge calls across four queries supplied invented cursor tokens; all rejected/company_history_cursor_changed; zero retained knowledge records. Assessment disclosed limited evidence and remains needs_operator_input.",
+    "invariant": "Failures provide safe explicit recovery without widening access or accepting malformed cursors.",
+    "root_cause": "Strict SDK requires cursorproperty, existing erroraction says withoutcursor; exact189alreadyhasinitialnullprompt, so repeatingpromptalone is not a demonstratedfix.",
+    "reproducer": "Existing SDK continuationcontrol consumingreturned toolresults and exactbackend syntheticauthorizedcorpus; sevenactualargs privateproviderless replay.",
+    "pre_fix": "Applicable exact97cbe assessmentcore byteidentical189;1existingcontrol FAIL11unattempted; all7actualmalformedtokenrejections retained,8thscriptedrepeatfails.",
+    "repair": "Preserve rejection/originalqueryfilters; explicit retry_arguments cursor:null and literalnull action/schema guidance. Noautomaticcalls/backendfence/accessscope/providerquota changes.",
+    "candidate": "7793de99ce40c7335334366b7ece7d0c9b45abf5",
+    "candidate_validation": "37focusedcontrols PASS/typesGraphifydiff0;7malformedtokensstillreject, explicit8thscriptednullrestart succeeds; syntheticemptycorpus/no providerdispatch.",
+    "independent_review": "5ef2efc9",
+    "receipt_sha256": "c96840cc38ac0e95ae68210f22f84d1f41fc9ad814d0a9abf46324d0139b6e40",
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/981",
+    "CI": 37859788980,
+    "release_status": "reviewed_PR_required_CI_running_not_merged_deployed",
+    "live_uptake": "unverified; no additional paid run planned",
+    "new_unique_case_credit": 0
+  },
+  "public_smoke_portability": {
+    "source_company_git": "codex/reliability-advisory-longrun-20261008",
+    "source_commit": "68dac0ef3a76247cdee9fdfd229bf4597f2f7556",
+    "private_preservation_index_sha256": "c09c9f4a028afbdfa952924bebad39439861ddb89dcd68606d98847ec0e9620a",
+    "files_preserved_outside_author_worktree": 11,
+    "outcome_unchanged": "presentation_failed"
   }
 }
