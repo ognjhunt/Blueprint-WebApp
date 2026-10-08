@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { captureSavedEvidence, compareAssessmentRuns, experimentHash, experimentVersions, openExperimentAllocation,
+import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentHash, experimentVersions, openExperimentAllocation,
   sanitizeExperiment, validateExperimentAllocation, validateSavedEvidence, writeExperimentJson } from "../agents/assessment-experiment";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { SiteAssessmentBudget } from "../agents/adapters/site-assessment-budget";
@@ -107,6 +107,20 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
     await expect(validateSavedEvidence(saved, source, versions)).rejects.toThrow("digest_changed");
     saved.content_sha256 = experimentHash(Object.fromEntries(Object.entries(saved).filter(([key]) => key !== "content_sha256")));
     await expect(validateSavedEvidence(saved, source, versions)).rejects.toThrow("provenance_invalid");
+  });
+  it("reports unresolved reservation exposure when a response or final ledger read is lost", () => {
+    const reservation = { state: "admitted", reserved_call_micro_usd: 331_920 };
+    const lostResponse = { status: "failed", provider_call_may_have_happened: true,
+      allocation: { slots: [reservation] } };
+    expect(experimentCostStatus({ provider_call_may_have_happened: false })).toBe("no_new_provider_dispatch");
+    expect(experimentCostStatus(lostResponse)).toBe("provider_usage_or_charge_unresolved");
+    const lostLedger = { ...lostResponse, allocation_read_error: { code: "experiment_authority_changed" },
+      result: { status: "completed", artifacts: { cost_status: "reported_usage" } } };
+    const comparison = compareAssessmentRuns(lostResponse, lostLedger);
+    expect(comparison.after.cost_status).toBe("experiment_ledger_reconciliation_required");
+    expect(comparison.after.assessment_status).toBe("completed");
+    expect(comparison.after.allocation.slots[0]).toEqual(reservation);
+    expect(experimentCostStatus({ ...lostResponse, allocation_close_error: {} })).toBe("experiment_ledger_reconciliation_required");
   });
   it("redacts access URLs, secrets, personal emails and hidden reasoning without fabricating zero usage", () => {
     const clean = sanitizeExperiment({ authorization: "private", url: "https://example.invalid/signed?key=secret", text: "See https://example.invalid/x?token=secret and synthetic@example.invalid",

@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
 import { z } from "zod";
-import { captureSavedEvidence, compareAssessmentRuns, experimentVersions, openExperimentAllocation,
+import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentVersions, openExperimentAllocation,
   sanitizeExperiment, validateSavedEvidence, writeExperimentJson } from "../server/agents/assessment-experiment";
 
 const help = `Usage:
@@ -141,7 +141,8 @@ async function main() {
         const reservation = await retainFailure(() => allocation!.reserve(...args));
         run.provider_call_may_have_happened = true; // Conservative: reservation is durable, response may be lost.
         run.stage = `${args[2] ?? "gemini"}_provider`;
-        writeExperimentJson(path.join(output, "run.json"), sanitizeExperiment({ ...run, allocation: allocation!.status() }));
+        run.allocation = allocation!.status(); run.allocation_snapshot_at = new Date().toISOString();
+        writeExperimentJson(path.join(output, "run.json"), sanitizeExperiment(run));
         return reservation;
       }, ...(values.mode === "saved-evidence" ? { analyze_video: async () => {
         allocation!.pause("experiment_saved_evidence_miss");
@@ -160,14 +161,17 @@ async function main() {
   finally {
     run.completed_at = new Date().toISOString(); run.wall_ms = Date.now() - started;
     if (allocation) {
-      try { run.allocation = allocation.status(); } catch (error) { run.allocation_read_error = failure(error); process.exitCode = 1; }
-      allocation.close();
+      try { run.allocation = allocation.status(); run.allocation_snapshot_at = new Date().toISOString(); }
+      catch (error) { run.allocation_read_error = failure(error); run.status = "failed"; run.stage = "allocation_finalization"; process.exitCode = 1; }
+      try { allocation.close(); }
+      catch (error) { run.allocation_close_error = failure(error); run.status = "failed"; run.stage = "allocation_finalization"; process.exitCode = 1; }
     }
+    run.cost_status = experimentCostStatus(run);
     writeExperimentJson(path.join(output, "run.json"), sanitizeExperiment(run));
     const packet = run.result?.artifacts?.site_assessment_packet;
     if (packet) writeExperimentJson(path.join(output, "assessment.json"), sanitizeExperiment(packet.assessment));
-    const code = run.error?.code ?? run.allocation?.pause_reason ?? run.result?.error ?? "none";
-    fs.writeFileSync(path.join(output, "summary.md"), `Mode: ${run.mode}\nStatus: ${run.status}\nStage: ${run.stage}\nError: ${code}\nWall time: ${run.wall_ms} ms\nProvider call may have happened: ${run.provider_call_may_have_happened}\nCost status: ${run.result?.artifacts?.cost_status ?? "no_new_provider_dispatch"}\nKnown usage price estimate: ${run.result?.artifacts?.inference_reservation?.known_reported_cost_usd ?? "unavailable"}\nUnknown reserved exposure: ${run.result?.artifacts?.inference_reservation?.unknown_usage_reserved_cost_usd ?? "see allocation slots"}\n${run.mode === "saved-evidence" ? "Reuses fixed Gemini evidence; does not retest upload, perception or full integration. Still invokes paid production Sol.\n" : "No upload/customer acceptance or independently verified model quality is established by this experiment.\n"}`, { mode: 0o600 });
+    const code = run.error?.code ?? run.allocation_read_error?.code ?? run.allocation_close_error?.code ?? run.allocation?.pause_reason ?? run.result?.error ?? "none";
+    fs.writeFileSync(path.join(output, "summary.md"), `Mode: ${run.mode}\nStatus: ${run.status}\nStage: ${run.stage}\nError: ${code}\nWall time: ${run.wall_ms} ms\nProvider call may have happened: ${run.provider_call_may_have_happened}\nCost status: ${run.cost_status}\nKnown usage price estimate: ${run.result?.artifacts?.inference_reservation?.known_reported_cost_usd ?? "unavailable"}\nUnknown reserved exposure: ${run.result?.artifacts?.inference_reservation?.unknown_usage_reserved_cost_usd ?? "see allocation slots"}\n${run.mode === "saved-evidence" ? "Reuses fixed Gemini evidence; does not retest upload, perception or full integration. Still invokes paid production Sol.\n" : "No upload/customer acceptance or independently verified model quality is established by this experiment.\n"}`, { mode: 0o600 });
     console.log(`${run.status}: ${code}. Inspect ${path.join(output, "summary.md")}`);
   }
 }

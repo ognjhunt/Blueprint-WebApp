@@ -200,13 +200,20 @@ export function openExperimentAllocation(file: string, requestId: string, runId:
   } catch (error) { fs.unlinkSync(lock); throw error; }
 }
 
+export function experimentCostStatus(run: any): string {
+  if (run.allocation_read_error || run.allocation_close_error) return "experiment_ledger_reconciliation_required";
+  return run.result?.artifacts?.cost_status ?? (run.provider_call_may_have_happened
+    ? "provider_usage_or_charge_unresolved" : "no_new_provider_dispatch");
+}
+
 export function compareAssessmentRuns(before: any, after: any) {
   const projection = (run: any) => {
     const packet = run.result?.artifacts?.site_assessment_packet;
     const assessment = packet?.assessment;
     return { mode: run.mode, status: run.status ?? run.result?.status, assessment_status: run.result?.status ?? null, assessment: assessment ?? null,
       verification: packet?.verification ?? null, source_binding: run.source ?? null, versions: run.versions,
-      cost: run.result?.artifacts?.inference_reservation ?? null, usage: run.result?.artifacts?.usage ?? null, wall_ms: run.wall_ms };
+      cost_status: experimentCostStatus(run), cost: run.result?.artifacts?.inference_reservation ?? null,
+      allocation: run.allocation ?? null, usage: run.result?.artifacts?.usage ?? null, wall_ms: run.wall_ms };
   };
   const left = projection(before), right = projection(after);
   const sections = ["status", "job", "objects_motions_conditions_variations", "operator_success", "known", "estimates", "missing", "approaches", "next_action", "questions"];
