@@ -58,7 +58,11 @@ async function failProvider(error: unknown) {
   expect(result.artifacts?.capture_inference_reservations).toHaveLength(1);
   expect(result.artifacts?.site_assessment_partial_evidence?.tool_receipts).toEqual([]);
   expect(result.artifacts?.provider_responses).toMatchObject([{ provider: "openai", usage: null, response: null, cost_usd: null }]);
-  expect([...state.docs].find(([key]) => key.startsWith("captureCoverageReviews/budget-"))?.[1]?.pending_token).toBeTruthy();
+  const [budgetPath, budget] = [...state.docs].find(([key]) => key.startsWith("captureCoverageReviews/budget-") && !key.includes("/calls/"))!;
+  expect(budget.pending_token).toBeTruthy();
+  expect(state.docs.get(`${budgetPath}/calls/${budget.pending_token}`)).toMatchObject({
+    state: "admitted", admission_token: budget.pending_token, run_id: runId, request_id: requestId, cost_estimate_usd: null,
+  });
   return result;
 }
 it("retains only safe API exception metadata after the actual SDK reservation, without retry or refund", async () => {
