@@ -4,7 +4,7 @@ import { z } from "zod";
 import { analyseAgenticVideo, openVideo, GeminiVideoError } from "./adapters/gemini-video";
 import { getGeminiVideoModel } from "./provider-config";
 import { runCompanyHistoryTool, type CompanyHistoryAccess } from "../research-learning/company-history";
-import { listMatchableRobotTeams, toMatchCandidate } from "../utils/robotTeamRegistry";
+import { isQuotableGrade, listMatchableRobotTeams, toMatchCandidate } from "../utils/robotTeamRegistry";
 import { matchRobotTeam, type SiteRequirement } from "../../client/src/lib/robotMatch";
 
 export { SITE_ASSESSMENT_MODEL } from "./provider-config";
@@ -325,6 +325,24 @@ export function validateAssessmentEvidence(assessment: SiteAssessment, sources: 
           }
         }
         if (value.basis === "published" && !["knowledge", "robot_registry"].includes(source.kind)) throw new Error("assessment_published_source_required");
+        if (["published", "measured"].includes(value.basis) && source.kind === "knowledge") {
+          const record = source.content as { content?: unknown } | null;
+          const content = record && typeof record === "object" && "content" in record ? record.content : record;
+          if (content === null || content === undefined || (typeof content === "string" && !content.trim())
+            || (typeof content === "object" && !Object.keys(content).length)) throw new Error("assessment_knowledge_content_required");
+        }
+        if (["published", "measured"].includes(value.basis) && source.kind === "robot_registry") {
+          const record = source.content as { capability?: Record<string, unknown>; fieldProvenance?: Record<string, any> };
+          // This only admits a source with a qualified field. It cannot establish
+          // that the prose cites that field, gives its value, or entails robot fit.
+          if (!Object.entries(record?.capability ?? {}).some(([field, fieldValue]) => {
+            const provenance = record.fieldProvenance?.[field];
+            return ((typeof fieldValue === "string" && Boolean(fieldValue.trim()))
+              || (typeof fieldValue === "number" && Number.isFinite(fieldValue)))
+              && typeof provenance?.source === "string" && provenance.source.trim()
+              && (value.basis === "measured" ? provenance.grade === "measured" : isQuotableGrade(provenance.grade));
+          })) throw new Error("assessment_registry_source_basis_required");
+        }
         if (value.basis === "operator_stated" && source.kind !== "operator") throw new Error("assessment_operator_source_required");
       }
     }
