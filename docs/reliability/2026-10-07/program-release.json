@@ -157,8 +157,12 @@
       "cause": "Ubuntu apt package downloads timed out after12min before tests ran",
       "product_tests_executed": 0,
       "disposition": "One unchanged failed-job retry triggered by coordinator; original attempt retained, no assertion weakening, no product nondeterminism claim",
-      "retry_result": "pending",
-      "source": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37745039226"
+      "retry_result": "success",
+      "source": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37745039226",
+      "retry_attempt": 2,
+      "completed_at_utc": "2026-10-08T08:17:12Z",
+      "actual_gate_step": "Run sim-only local gate:success; artifact upload:success",
+      "claim_ceiling": "Existing sim-only gate execution; not full production promotion or final customer assessment"
     },
     "release_ownership_acknowledgment": {
       "owner": "existing_cloud_coordinator",
@@ -280,5 +284,14 @@
       "claim_ceiling": "GET-only version/health and local synthetic draft return; deployed source admission not invoked through live assessment."
     },
     "local_source_continuity": "Root production client/server bytes match current origin/main d217; supplemental tests/docs remain separate."
+  },
+  "initial_closeout_evidence_review": {
+    "reviewer": "independent_review",
+    "reviewed_coordinator_commits": [
+      "6e6faf7f",
+      "07080442"
+    ],
+    "result": "approved_no_material_findings",
+    "scope": "Current d217 core receipts, actual a56 CPU-prefix scope, B20 archived source/backend attestation correction, count separation, privacy and partial readiness. Subsequent CI status updates are factual receipt updates."
   }
 }
