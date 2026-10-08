@@ -825,5 +825,27 @@
     "client/tests/lib/siteCaptureDraft.reliability.test.ts": "e3af2098f1737e673dd523bd3acc8763ed589822a83f17b78b7a8d0212d5b05a",
     "e2e/reliability-program-intake.spec.ts": "fe28123130a86e260c25ef9cd3eac8b8b3b460efe5d314875b4a4242f7da302c",
     "playwright.reliability-intake.config.ts": "5b6be207881d3c0280b6c88dd7f0d6bc40fa896a3d9b79f5f48ce0264a0d671a"
+  },
+  "post_review_correction": {
+    "finding": "P2 misleading seven-day browser deletion wording",
+    "change": "Seven days describes recovery eligibility; expiry preserves bytes until explicit local clearing. No runtime storage/deletion change.",
+    "prior_evaluated_commit": "0052cf08abb64b666d53fdd07c99d3fdbe2214fa",
+    "source_sha256": {
+      "client/src/components/site/SiteCaptureStart.tsx": "cec05194b35bb3f34c92aad341d074925cab9f8e1027340a66fe42d09e91c065"
+    },
+    "original_receipts_preserved": true,
+    "scoped_receipt": {
+      "path": "output/reliability-program/intake/post-review-copy.json",
+      "sha256": "dac91c10c073af2e1672708ce4c01229a577cc9e5328afef9dac7cd17d45c1f5",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "success": true
+    },
+    "graphify_receipt": {
+      "path": "output/reliability-program/intake/graphify-post-review.log",
+      "sha256": "b62cb0b82d75213e4923bfb02ba78392a4d93d802688bf2d83bbf7662e6d2740",
+      "exit_code": 0
+    }
   }
 }

@@ -592,7 +592,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
       {state.status === "failed" && pending && <p role="alert">{state.message}</p>}
       {recoveryUnavailable && <p role="status" className="ms-field-hint">Saved recovery details expired or could not be read. Use your emailed private job link to return, or clear this browser's draft to start again.</p>}
       {!storageAvailable && <p role="status" className="ms-field-hint">This browser cannot save recovery details. Keep this page open until your private job link appears, then keep that link.</p>}
-      <p className="ms-field-hint">Your draft and recovery details stay in this browser for up to seven days. On a shared device, clear them when finished.</p>
+      <p className="ms-field-hint">You can recover this draft here for up to seven days. On a shared device, clear this browser's draft when finished.</p>
       <button type="button" className="ms-text-link" disabled={state.status === "working"} onClick={forgetDraft}>Clear this browser's draft</button>
       <fieldset disabled={!interactive || recoveryUnavailable || Boolean(pending)} className="contents">
       <label htmlFor="start-task">
