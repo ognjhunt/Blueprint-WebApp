@@ -19,6 +19,7 @@ const router = (await import("../routes/admin-robot-teams")).default;
 const listingRouter = (await import("../routes/task-listings")).default;
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 
+const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
 const plan = {
   purpose: "Test carton palletizing at line 3", siteProvides: "One escort", teamProvides: "Robot and operation",
   pilotCost: "$18,000", window: "November",
@@ -29,8 +30,9 @@ describe("recording Blueprint's recommended pilot", () => {
   beforeEach(async () => {
     state.docs.clear(); sendEmail.mockReset(); sendEmail.mockResolvedValue({ sent: true, provider: "fixture", messageId: "fixture-receipt" }); enqueue.mockReset(); enqueue.mockResolvedValue({ enqueued: true });
     state.docs.set("inboundRequests/req1", { requestId: "req1", contact: { email: "owner@example.test" } } as never);
-    state.docs.set("robotTeams/engaged", { id: "engaged", name: "Acme Robotics", status: "engaged" } as never);
+    state.docs.set("robotTeams/engaged", { id: "engaged", name: "Acme Robotics", status: "engaged", contactEmail: "team@example.test" } as never);
     state.docs.set("robotTeams/prospect", { id: "prospect", name: "Unknown Co", status: "prospect" } as never);
+    state.docs.set(`robotTeamAccess/${accessRecordId("team@example.test")}`, { status: "approved" });
     const app = express(); app.use(express.json()); app.use(router); app.use(listingRouter);
     server = createServer(app); await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
     base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
@@ -73,7 +75,7 @@ describe("recording Blueprint's recommended pilot", () => {
     expect(state.docs.get("inboundRequests/req1")?.pilot_booking).toBeUndefined();
     expect(current.id).not.toBe(previous.id);
     expect((await book(current.id)).status).toBe(200);
-    expect(state.docs.get("inboundRequests/req1")?.pilot_booking).toMatchObject({ recommendationId: current.id, amountUsd: 2500 });
+    expect(state.docs.get("inboundRequests/req1")?.pilot_booking).toMatchObject({ recommendationId: current.id, amountUsd: 0 });
   });
 
   it("keeps an exact durable notification even when post-commit enqueue is unavailable", async () => {

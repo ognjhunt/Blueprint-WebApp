@@ -6,6 +6,7 @@ export type SiteCaptureDraft = {
   task: string; location: string; email: string; company: string;
   method: "phone" | "upload" | "visit"; region: "" | "us" | "non_us";
   regionManuallySet: boolean;
+  privateHandling?: boolean;
 };
 export type SiteCaptureRecovery = {
   version: 1; savedAt: number; requestId: string; retryToken: string;
@@ -38,6 +39,7 @@ function validSiteCaptureRecovery(input: unknown): SiteCaptureRecovery | null {
     if (value.version !== 1 || !Number.isFinite(value.savedAt) || value.savedAt > now + 60000
       || now - value.savedAt >= SITE_CAPTURE_DRAFT_TTL_MS
       || !/^capture-[a-f0-9-]{36}$/.test(value.requestId) || !/^[a-f0-9-]{36}$/.test(value.retryToken)
+      || (draft.privateHandling !== undefined && typeof draft.privateHandling !== "boolean")
       || !draft || !["phone", "upload", "visit"].includes(draft.method)
       || !["", "us", "non_us"].includes(draft.region) || typeof draft.regionManuallySet !== "boolean"
       || !([[draft.task, 2000], [draft.location, 300], [draft.email, 320], [draft.company, 200]] as const)
@@ -77,10 +79,10 @@ export function writeSiteCaptureRecovery(key: string | null, value: SiteCaptureR
     }
     // Persist only the named recovery fields: no File objects or bearer URL
     // can ride along on a future caller's spread object.
-    const { task, location, email, company, method, region, regionManuallySet } = value.draft;
+    const { task, location, email, company, method, region, regionManuallySet, privateHandling } = value.draft;
     window.localStorage.setItem(key, JSON.stringify({
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
-      draft: { task, location, email, company, method, region, regionManuallySet },
+      draft: { task, location, email, company, method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}) },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     }));
     return true;

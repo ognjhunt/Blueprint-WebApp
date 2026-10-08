@@ -35,7 +35,7 @@ describe("durable pilot booking confirmation", () => {
   it("commits booking and confirmation together without relying on post-commit enqueue", async () => {
     enqueue.mockRejectedValueOnce(new Error("queue unavailable") as never);
     expect((await post()).status).toBe(200);
-    expect(doc().pilot_booking).toMatchObject({ recommendationId: "rec_book", amountUsd: 2500, termsVersion: TERMS_VERSION });
+    expect(doc().pilot_booking).toMatchObject({ recommendationId: "rec_book", amountUsd: 0, termsVersion: TERMS_VERSION });
     expect(rows()).toHaveLength(1);
     expect(rows()[0][1]).toMatchObject({ kind: "pilot_booked", status: "pending", to: "owner@example.test" });
     expect(enqueue).not.toHaveBeenCalled();
@@ -63,7 +63,7 @@ describe("durable pilot booking confirmation", () => {
     expect((await post()).status).toBe(503);
     const booking = doc().pilot_booking;
     const committed = rows();
-    expect(booking).toMatchObject({ recommendationId: "rec_book", amountUsd: 2500 });
+    expect(booking).toMatchObject({ recommendationId: "rec_book", amountUsd: 0 });
     expect(committed).toHaveLength(1);
     expect(committed[0][1]).toMatchObject({ status: "pending", attempts: 0 });
     expect((await post()).status).toBe(200);
@@ -99,7 +99,7 @@ describe("durable pilot booking confirmation", () => {
     expect(doc().pilot_booking).toBeUndefined();
     expect(rows()).toHaveLength(0);
     expect((await post()).status).toBe(200);
-    expect(doc().pilot_booking).toMatchObject({ amountUsd: 2500 });
+    expect(doc().pilot_booking).toMatchObject({ amountUsd: 0 });
   });
 
   it("requires a valid current recipient and suppresses old-recipient confirmation at dispatch", async () => {

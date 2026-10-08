@@ -128,7 +128,7 @@ describe("owner authorization and durable demand", () => {
     expect((await post("owner", { enabled: false, details, consent: true })).status).toBe(200);
     expect(await listTaskBrowseCards()).toHaveLength(0);
   });
-  it("opens a card to pilot proposals for free, and books only the recommended pilot", async () => {
+  it("opens a card to proposals and accepts only the recommended pilot without reserving dates", async () => {
     const { TERMS_VERSION } = await import("../../client/src/lib/legalAcceptance");
     const post = (body: unknown) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const book = (body: unknown) => fetch(`${base}/owner/${token("owner")}/book`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -142,7 +142,7 @@ describe("owner authorization and durable demand", () => {
     state.docs.set("inboundRequests/req1", { ...doc(), pilot_recommendation: { id: "rec_1", teamName: "Acme Robotics" } } as never);
     expect((await book({ recommendationId: "rec_0", authorized: true })).status).toBe(409);
     expect((await book({ recommendationId: "rec_1", authorized: true })).status).toBe(200);
-    expect(doc().pilot_booking).toMatchObject({ recommendationId: "rec_1", amountUsd: 2500, termsVersion: TERMS_VERSION });
+    expect(doc().pilot_booking).toMatchObject({ recommendationId: "rec_1", amountUsd: 0, termsVersion: TERMS_VERSION, state: "awaiting_coordination", commercialBasis: "invited_beta_free" });
   });
   it("emails the site once when its card goes live, and again only if it is switched off and on", async () => {
     const post = (enabled: boolean) => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled, details, consent: true }) });

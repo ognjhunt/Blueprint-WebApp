@@ -29,7 +29,7 @@ test("the example recommended pilot sits below the headline without overflowing"
     await page.evaluate(() => document.fonts.ready);
     const card = page.locator(".ms-pilot-card");
     await expect(card.getByRole("tabpanel")).toContainText("Example");
-    await expect(card).toContainText("Book this pilot");
+    await expect(card).toContainText("Accept proposal · coordinate dates");
     await expect(page.locator(".ms-task-pair")).toHaveCount(0);
     const layout = await page.evaluate(() => ({
       headlineBottom: document.querySelector("h1")!.getBoundingClientRect().bottom,

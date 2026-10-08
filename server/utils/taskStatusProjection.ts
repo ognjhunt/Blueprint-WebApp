@@ -174,15 +174,6 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  if (!input.briefConfirmed) {
-    return {
-      ...base,
-      decision: "confirm_brief",
-      headline: "We drafted your job brief. Check it and correct anything we got wrong.",
-      operatorAction: "Review and confirm the brief.",
-    };
-  }
-
   // The two rungs the Pipeline gap used to keep off this ladder. A run only
   // exists against runnable supply, so anything counted here is downstream of
   // every rung below; a reported result outranks a queued one.
@@ -211,8 +202,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "screening",
       headline: screening.running === 0
-        ? `Screening is queued for ${countLabel(screening.teams, "robot team")}. Execution has not started.`
-        : `${countLabel(screening.teams, "robot team")} ${screening.teams === 1 ? "is" : "are"} being screened against your scene.${screening.queued > 0 ? ` ${countLabel(screening.queued, "run")} still waiting to start.` : ""}`,
+        ? "Robot screening has not started. Results are not available yet."
+        : "Robot screening is in progress. Results are not available yet.",
       operatorAction: null,
     };
   }
@@ -233,10 +224,10 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "call_needed",
       headline:
-        "A short call settles the last questions before we build your scene. The agenda is already written.",
+        "Some operating details still affect the assessment. Review the specific open questions in your job details; facts you cannot establish can remain unknown.",
       operatorAction: input.bookingUrl
-        ? `Book a 30-minute call: ${input.bookingUrl}`
-        : "We will reach out to book a 30-minute call.",
+        ? `You can discuss the remaining questions here: ${input.bookingUrl}`
+        : "Answer the consequential questions in your job details.",
     };
   }
 
@@ -320,6 +311,15 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       headline: input.footageReviewAutomated === false
         ? "We have your recording. Our team reviews it and emails you with the next step."
         : "We have your recording and are checking whether it covers the work area.",
+      operatorAction: null,
+    };
+  }
+
+  if (!input.briefConfirmed) {
+    return {
+      ...base,
+      decision: "confirm_brief",
+      headline: "Your prefilled job summary is available. Correct material mistakes if needed; you can view the assessment without confirming it.",
       operatorAction: null,
     };
   }

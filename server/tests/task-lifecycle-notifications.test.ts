@@ -43,7 +43,7 @@ describe("task lifecycle notifications", () => {
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received") as Record<string, unknown>;
     expect(row.to).toBe("owner@example.com");
     expect(row.kind).toBe("video_received");
-    expect(row.body).toMatch(/covers the work area and that nothing private is in view/i);
+    expect(row.body).toMatch(/investigate the observed task and prepare a recommendation/i);
     expect(row.body).toMatch(/\/capture-upload\//);
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(1);
   });
@@ -76,7 +76,7 @@ describe("task lifecycle notifications", () => {
     await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "task_received" });
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received") as Record<string, string>;
     expect(row.body).toMatch(/\/capture-upload\//);
-    expect(row.body).toMatch(/each time something happens/i);
+    expect(row.body).toMatch(/meaningful findings and questions that need your input/i);
   });
 
   it("does not enqueue without an authoritative owner contact", async () => {

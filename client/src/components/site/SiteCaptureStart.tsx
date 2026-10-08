@@ -1,5 +1,6 @@
+import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { isLikelyPhone } from "@/lib/device";
-/** Start with a description; recording authority is separate. */
+/** Show the work; explanatory text is optional when capture is authorized. */
 import { useEffect, useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
@@ -284,6 +285,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
   const rightsShown = method !== "visit";
   // The rights checkbox is tracked so the grant itself is transmitted — a
   // required-only checkbox was a legal act the server never heard about.
+  const [taskForPreview, setTaskForPreview] = useState(initial.draft.task);
+  const [privateHandling, setPrivateHandling] = useState(initial.draft.privateHandling ?? false);
+  const publicDraft = anonymizedOpportunityDraft(taskForPreview);
   const [consent, setConsent] = useState(false);
   const [claudeConsent, setClaudeConsent] = useState(false);
   const [solAgentsConsent, setSolAgentsConsent] = useState(false);
@@ -293,6 +297,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       || recovery.current.pending?.body !== other.pending?.body;
     recovery.current = other;
     requestId.current = other.requestId; retryToken.current = other.retryToken;
+    setPrivateHandling(other.draft.privateHandling ?? false); setTaskForPreview(other.draft.task);
     setMethod(other.draft.method); setRegion(other.draft.region);
     setPending(other.pending);
     if (changed && resetChanged) {
@@ -306,10 +311,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
     const field = (name: string) => String(data.get(name) ?? "");
     retain({ ...recovery.current, savedAt: Date.now(), draft: {
       task: field("startTask"), location: field("startLocation"), email: field("startEmail"), company: field("startCompany"),
-      method, region, regionManuallySet: false,
+      method, region, regionManuallySet: false, ...(privateHandling ? { privateHandling: true } : {}),
     } });
   }
-  useEffect(() => { retainDraft(); }, [interactive, method, region]);
+  useEffect(() => { retainDraft(); }, [interactive, method, region, privateHandling]);
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== storageKey || operationInFlight.current) return;
@@ -332,7 +337,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
-      setMethod("phone"); setRegion(""); setCountryMissing(false); setFootage(null); setFootageError(null); setCaptureReceived(false);
+      setMethod("phone"); setRegion(""); setCountryMissing(false);
+      setPrivateHandling(false); setTaskForPreview("");
+      setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
       // A completion is visible only after both stores commit the fresh authority.
       setClearStatus("done");
@@ -369,6 +376,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
     const read = (key: string) => String(savedAnswers ? savedAnswers[savedFields[key]] ?? "" : data.get(key) ?? "").trim();
     let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
+    if (!retained && !read("startTask") && !(consent && rightsShown)) {
+      setState({ status: "failed", message: "Add a video or a short explanation of the work. If you will film later, confirm the recording rights to start without an explanation." });
+      return;
+    }
 
     operationInFlight.current = true;
     setState({ status: "working" });
@@ -395,6 +406,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
           siteLocation: location,
           taskStatement: read("startTask"),
           taskDescription: read("startTask"),
+          ...(!privateHandling ? { publicTaskListing: { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(read("startTask")) } } : {}),
           // Deliberately empty. The screen used to live here; it now happens
           // with the footage rather than in front of it.
           siteTaskGates: {},
@@ -574,8 +586,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
         {!state.hasFootage && state.captureUrl && !captureReceived ? (
           <>
             <h2 style={{ marginTop: 0 }}>Your job description is saved.</h2>
-            <p className="ms-field-hint">Review and correct your job brief. You can add footage later, once you have recording permission.</p>
-            <p><a className="ms-button ms-button-large" href={state.captureUrl}>Review your job brief</a></p>
+            <p className="ms-field-hint">Blueprint is preparing the useful next step from what you supplied. Your summary is available for optional corrections; add footage only when it resolves a missing fact and you have permission.</p>
+            <p><a className="ms-button ms-button-large" href={state.captureUrl}>Open your job and assessment</a></p>
             {!state.regionApproved && <p className="ms-field-hint">{captureRegionHeldNotice}</p>}
             <p className="ms-field-hint">Keep this private link to return to your job. We will also email it to {state.email}.</p>
             <CaptureLiveStatus captureUrl={state.captureUrl} onCaptureReceived={() => void refreshReceivedVideo(state.captureUrl!)} />
@@ -601,10 +613,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
               </button></p>
             )}
             <p className="ms-field-hint">
-              Next, check your job brief. You can do that here or on the phone; it is the same page.
+              Your job page shows what we found and the next step. Correct the prefilled summary only where it matters; there is no required confirmation before viewing value.
             </p>
             <p style={{ marginTop: "20px" }}>
-              <a className="ms-button ms-button-large" href={state.captureUrl}>Review your job brief</a>
+              <a className="ms-button ms-button-large" href={state.captureUrl}>Open your job and assessment</a>
             </p>
             <CaptureLiveStatus captureUrl={state.captureUrl} />
           </>
@@ -687,12 +699,18 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       <ClearDraftControl status={clearStatus} onClear={forgetDraft} disabled={state.status === "working"} />
       <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} className="contents">
       <label htmlFor="start-task">
-        <span>What is the task?</span>
+        <span>Anything we should know? (optional)</span>
         <span className="ms-field-hint">
-          For example, “move sealed cartons from the conveyor onto a pallet.”
+          Show us the work; we'll assess the observed task. Add context or what you want to achieve if helpful. We'll ask only when a missing answer changes the recommendation.
         </span>
-        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} required maxLength={2000} rows={4} />
+        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} onChange={event => setTaskForPreview(event.target.value)} maxLength={2000} rows={4} />
       </label>
+
+      <div aria-label="Opportunity sharing">
+        <p>{privateHandling ? "This job will be handled privately; starting does not authorize a public listing. Blueprint uses the supplied information for your job assessment." : "Blueprint will create an anonymized opportunity listing so robot teams approved for beta can discover this job. By starting, you authorize publication of the generated summary below. Footage, reconstruction, exact location, contacts and sensitive operating details remain restricted."}</p>
+        <p aria-label="Generated public summary"><strong>{publicDraft.title}</strong> · {publicDraft.taskFamily}{publicDraft.objects ? ` · ${publicDraft.objects}` : ""}. Requirements not supplied or approved for sharing remain unknown.</p>
+        <label className="ms-check-row"><input name="startPrivateHandling" type="checkbox" checked={privateHandling} onChange={event => setPrivateHandling(event.target.checked)} />Keep this job private instead</label>
+      </div>
 
       {claudeAuthoringRequested && (
         <label htmlFor="start-claude-authoring" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
