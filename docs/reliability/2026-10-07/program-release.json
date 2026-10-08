@@ -2046,15 +2046,31 @@
       "clock_fixture_receipt_sha256": "5e02686849e5d08da5d315e435dfe5fa5d399ea9da52f6a90d35083d34a5d9ec",
       "fresh_required_CI": {
         "run_id": 37846366988,
-        "state": "in_progress_at_21:23:34Z",
+        "state": "SUCCESS_all8applicable",
+        "tests": {
+          "related": {
+            "passed": 4832,
+            "skipped": 6
+          },
+          "selected_existing": {
+            "passed": 496
+          },
+          "durable_provider_controls": {
+            "passed": 86
+          }
+        },
+        "count_limit": "Overlapping regression runs; no new original catalogue credit.",
+        "test_log_sha256": "acbbb64983db8f960dcbf35bf843121baa48c6f5801e49b7c7d3b73d2e5f2477",
         "prior37failure": "retained"
-      }
+      },
+      "merge_sha": "cfe2894fadeb72dce2b30be46d294c7c4150f4f1",
+      "merged_at_utc": "2026-10-08T21:29:20Z"
     },
     "recovery": {
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/976",
       "reviewed_head": "aa519244fcfaff656d11e06150b76f5b223b8a55",
-      "integrated_head": "858eb379cac3d8e746ed19f86d3d3cad65bba0ac",
-      "review": "f32f12fe actual already-needs_review/RUNNING correction",
+      "integrated_head": "cad18373603d7e965b3c03f959504464a1eab2b9",
+      "review": "f32f12fe runtime; a3b6a1b0 clock;3a205eb2 exact cherry-pick blob continuity",
       "receipt_sha256": "858c4a286e8d9cffddc8d4172d83759c41224312256866c5aa3df13293ef6e1b",
       "checks": "Actual stranded shape baseline2FAIL1PASS\u21923PASS;42 neighboring controls PASS; types/Graphify/portability PASS",
       "limit": "Read-only describe exposes retry; explicit transaction retirement only. Fake store/source proof; original 30min age/full UNKNOWN retained; no automatic provider replay.",
@@ -2065,9 +2081,30 @@
         "passed": 4795,
         "skipped": 6,
         "reason": "Same three existing offline synthetic expiry files; shared single-owner fixture correction pending."
-      }
+      },
+      "fresh_required_CI": {
+        "run_id": 37846631178,
+        "state": "SUCCESS_all8applicable",
+        "tests": {
+          "related": {
+            "passed": 4832,
+            "skipped": 6
+          },
+          "selected_existing": {
+            "passed": 471
+          },
+          "durable_provider_controls": {
+            "passed": 86
+          }
+        },
+        "count_limit": "Overlapping regression runs; no new original catalogue credit.",
+        "test_log_sha256": "b7f857411641f660e54896211cb9ce26b93569aa88e026789dfe51ef9c563995",
+        "prior37failure": "retained"
+      },
+      "merge_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
+      "merged_at_utc": "2026-10-08T21:30:31Z"
     },
-    "deployment": "Neither repair merged/deployed at this read; production exact e9 paired LIVE.",
+    "deployment": "Both source repairs protected-merged; exact39mainCI37847276364queued behindcfe37847127780; no repair deployment yet. Current upgradedweb exacte9/nativepairedsource e9.",
     "original_case_credit": 0
   },
   "updated_at_utc": "2026-10-08T21:18:10Z",
@@ -2077,21 +2114,22 @@
     "authority": "Current direct human no monetary/call quota policy and authorized supplied video analysis; no new paid infrastructure, credentials, private source or external notifications",
     "unknown_prior_Gemini": "Retained in full; actual original engine OOM-killed; new local ledger separate/no duplicate accounting",
     "source_verification": "Exact reviewed runtime blob continuity and current source rights/hash preflight required before call; not yet observed",
-    "outcome": "Owner reports native fresh-video process started on6e00f0767758f08065cb6939e11d76100952da1e =e9+reviewedeeef; no terminal provider result observed yet.",
+    "outcome": "Fresh local attempt terminal at production_adapter_admission21:23:04.244/2374ms,0recordedslots; sourceboundarydiagnosis ownsCLI; no output/customer report. Failure flag alone is not universalbillingproof.",
     "verification_ceiling": "Local live analysis cannot prove deployed customer UI, cloud512Mi headroom, perception accuracy or gold labels",
     "recorded_at_utc": "2026-10-08T21:21:27Z"
   },
   "memory_capacity_decision": {
-    "kind": "Engineering recommendation, not executed infrastructure change",
+    "kind": "Direct human manual upgrade; native service verification obtained; cloud workflow adequacy not proven",
     "recommendation": "2GB on current Render service for production customer headroom;512Mi unproven under current retained whole-buffer/concurrency design",
     "evidence": "Native OOM event512Mi;minute samples323\u2013326Mi miss fatal peak;one57Mi verified source Buffer remains; scoped patch removes additional native copy",
     "limits": "No idle baseline or candidate peak yet; a single successful512Mi run would not certify concurrent production reliability",
     "official_plan_reference": "https://render.com/docs/compute-plans",
     "recorded_at_utc": "2026-10-08T21:21:27Z",
-    "verified_current_plan": "Render native get_service this turn: free, one web instance, deployed e9",
+    "verified_current_plan": "Native Render get_service:1c-2g,onewebinstance,updated_at2026-10-08T21:26:22.128175Z; manual human change",
     "proposed_monthly_service_cost_usd": 25,
     "proposed_monthly_increase_usd": 25,
-    "cost_scope": "One web-service compute tier; provider usage separate; no upgrade executed.",
-    "acceptance_addendum": "Before a bounded2GB memory adequacy claim: retain actual deployed peak with >=25% headroom at declared concurrency; inspect retained baseline after completed existing runs for unexplained growth. Minute samples/single local large-machine completion cannot satisfy cloud peak proof. This new operational sizing criterion is recorded explicitly, not changing original case denominators or past pass/fail scores."
+    "cost_scope": "One web-service compute tier $25/month; provider usage separate. Root made no plan mutation.",
+    "acceptance_addendum": "Before a bounded2GB memory adequacy claim: retain actual deployed peak with >=25% headroom at declared concurrency; inspect retained baseline after completed existing runs for unexplained growth. Minute samples/single local large-machine completion cannot satisfy cloud peak proof. This new operational sizing criterion is recorded explicitly, not changing original case denominators or past pass/fail scores.",
+    "independent_native_verification": "d22c279d: plan_changed21:26:22.130035; service_updated dep-db40jkub7d7c739tk450 LIVE exacte9 finished21:26:21.857381Z; no measured RSS/peak."
   }
 }
