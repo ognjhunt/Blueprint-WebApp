@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { openAiResponsesHistoryTools } from "./operator-tools";
 import { COMMUNICATIONS_MODEL, communicationsDigest } from "./communications-contract";
-import { COMMUNICATIONS_DEFINITION, COMMUNICATIONS_HYPOTHESIS_INSTRUCTIONS } from "./communications-instructions";
+import { COMMUNICATIONS_DEFINITION, COMMUNICATIONS_HYPOTHESIS_INSTRUCTIONS, COMMUNICATIONS_OUTREACH_GUIDANCE } from "./communications-instructions";
+import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE } from "./communications-outreach-quality";
 import { COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_LAUNCH_GUIDANCE_V1, COMMUNICATIONS_FRAMING_V1,
   COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FOUNDER_GUIDANCE,
   communicationsFramingVersion, type CommunicationsFramingVersion } from "./communications-launch-framing";
@@ -444,4 +445,34 @@ export function verifiedCommunicationsHypothesisAgent(value: any, verifyBase: (a
   const suffix = hypothesisSuffix(hypothesisFraming(launch));
   if (typeof value?.instructions !== "string" || !value.instructions.endsWith(suffix)) throw new Error("communications_hypothesis_agent_changed");
   return communicationsHypothesisDefinition(verifyBase({ ...value, instructions: value.instructions.slice(0, -suffix.length) }), launch);
+}
+
+/** New creates only. Keep the saved provider copy and v1-v24 exact; this
+ * checkpoint-bound session override repairs the actual agent instruction priority. */
+export const COMMUNICATIONS_PERSONALIZED_PROFILE = "recipient-aware-agent-v1" as const;
+const PERSONALIZED_HYPOTHESIS_CONTRACT = `For first contact with researchBrief.qualification, return outreachContract {version:"blueprint.outreach.v5",senderIdentity,opening,questions:[{question,checks:["interest"]}],recipientChoice}. opening is {kind:"cold",noVerifiedConnectionReason,publicDetail:{claim,source,sourceClaim},relevance}, built faithfully from recorded evidence. The question field records the one easy primary request in the body; it need not use a question mark. Subject punctuation is natural. Identity, evidence and request may appear in the order that fits this reader. All anchors occur verbatim in the body and may overlap. A supported offer may fit the writing hypothesis; it is not mandatory. Keep qualification.openQuestions/openChecks as historical evidence and unknowns, not a required question or proof of manual work, automation or fit. Hypothesis drafts have no send or approval authority.`;
+function personalizedInstructions(instructions: string, hypothesis: boolean) {
+  if (!instructions.includes(COMMUNICATIONS_OUTREACH_GUIDANCE)) throw new Error("communications_personalized_base_changed");
+  const replaced = instructions.replace(COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
+  if (hypothesis) return replaced.replace(/^For first contact, outreachContract uses exactly .*$/m, PERSONALIZED_HYPOTHESIS_CONTRACT);
+  return replaced.replace('version:"blueprint.outreach.v1"', 'version:"blueprint.outreach.v6"');
+}
+export function communicationsPersonalizedConfiguration<T extends { instructions: string }>(configuration: T, hypothesis: boolean): T {
+  return { ...configuration, instructions: personalizedInstructions(configuration.instructions, hypothesis) };
+}
+export function communicationsPersonalizedDefinition(base: { version: string; instructions: string }, hypothesis: boolean) {
+  const versions: Record<string, number> = { "blueprint.communications-definition.v5": 25,
+    "blueprint.communications-definition.v6": 26, "blueprint.communications-definition.v7": 27, "blueprint.communications-definition.v8": 28 };
+  const number = versions[base.version];
+  if (!number) throw new Error("communications_personalized_definition_unavailable");
+  const instructions = personalizedInstructions(base.instructions, hypothesis);
+  return Object.freeze({ version: `blueprint.communications-definition.v${number + (hypothesis ? 4 : 0)}`,
+    instructions, instructionsDigest: createHash("sha256").update(instructions).digest("hex") });
+}
+export function verifiedCommunicationsPersonalizedAgent(value: any, base: { version: string; instructions: string },
+  verifyBase: (agent: any) => { version: string; instructions: string }, hypothesis: boolean) {
+  const definition = communicationsPersonalizedDefinition(base, hypothesis);
+  if (value?.instructions !== definition.instructions) throw new Error("communications_personalized_agent_changed");
+  verifyBase({ ...value, instructions: base.instructions });
+  return definition;
 }

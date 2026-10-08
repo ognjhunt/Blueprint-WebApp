@@ -62,7 +62,8 @@ export function reviewCommunicationsPayload(payload: Record<string, unknown>, no
     || output.usedFactIds.some((ref) => !brief.facts.some((fact) => fact.id === ref))) blockers.push("used_fact_missing");
   // First-contact wording is chosen from known task/site context by the writer
   // and reviewed semantically. Its contract still anchors the exact one question.
-  if (job.intent === "outreach" && (output.body.match(/\?/g) || []).length !== 1) blockers.push("learning_question_mismatch");
+  if (job.intent === "outreach" && (["blueprint.outreach.v5", "blueprint.outreach.v6"].includes(output.outreachContract?.version ?? "")
+    ? (output.body.match(/[?\uFF1F\u061F]/g) || []).length > 1 : (output.body.match(/\?/g) || []).length !== 1)) blockers.push("learning_question_mismatch");
   if (job.intent === "outreach") {
     if (thread || job.inboundMessageId || brief.priorConversation) blockers.push("first_touch_has_prior_thread");
     if (communicationsDigest(payload.outreachContext) !== communicationsDigest(brief.outreachContext)

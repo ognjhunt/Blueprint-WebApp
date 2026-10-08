@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { communicationsLaunchFraming, COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_FRAMING_V2, type CommunicationsAudienceRole } from "./communications-launch-framing";
+import { communicationsLaunchFraming, COMMUNICATIONS_FRAMING_V2, type CommunicationsAudienceRole } from "./communications-launch-framing";
+
+import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE } from "./communications-outreach-quality";
 
 const text = z.string().trim().min(1).max(1200);
 const source = z.string().trim().min(1).max(500);
@@ -97,13 +99,25 @@ export const outreachFounderContractSchema = outreachLaunchContractSchema.extend
 }).strict();
 export type OutreachFounderContract = z.infer<typeof outreachFounderContractSchema>;
 
+export const OUTREACH_PERSONALIZED_VALUE_CONTRACT_VERSION = "blueprint.outreach.v6" as const;
+export const outreachPersonalizedValueContractSchema = outreachReviewContractSchema.extend({
+  version: z.literal(OUTREACH_PERSONALIZED_VALUE_CONTRACT_VERSION),
+}).strict();
+export type OutreachPersonalizedValueContract = z.infer<typeof outreachPersonalizedValueContractSchema>;
+
+export const OUTREACH_PERSONALIZED_CONTRACT_VERSION = "blueprint.outreach.v5" as const;
+export const outreachPersonalizedContractSchema = outreachFounderContractSchema.extend({
+  version: z.literal(OUTREACH_PERSONALIZED_CONTRACT_VERSION),
+}).strict();
+export type OutreachPersonalizedContract = z.infer<typeof outreachPersonalizedContractSchema>;
+
 export const OUTREACH_SEMANTIC_CHECKS = {
   connection: "Use a known verified connection/introduction/community where possible; only claimed relationships require proof. Web research and verified business contact routes lead discovery; no network mining or exhaustive network search is required for legitimate cold contact. LinkedIn is optional role verification. Check the source and recipient identity; a shared community implies no endorsement.",
   evidence: "Verify every factual claim against its source. For cold contact verify the public detail and its relevance; reject invented connections and unsupported claims.",
   boundedValue: "Confirm the observation or task-specific research brief is useful, deliverable, and has clear limits; no capability or outcome guarantees.",
-  easyQuestion: "Confirm there is exactly one easy, non-confidential question; no compound questionnaire, private operational data, video/upload, or meeting request by default. Tailor it to verified site state: unknown interest means ask relevance without assuming interest; expressed interest means ask the learning goal; pilot means ask an unresolved uncertainty; existing deployment means ask about expansion learning without assuming expansion plans. Verify recipient/site-specific public-signal provenance for claimed interest, pilot, or deployment. Do not invent motivation/status or ask 'what prompted your interest' without evidence of expressed interest. These are directions, not rigid templates; structural anchors do not establish semantic truth.",
+  easyQuestion: "Confirm there is one easy primary non-confidential request; no compound questionnaire, private operational data, video/upload, or meeting request by default. Tailor it to verified site state: unknown interest means ask relevance without assuming interest; expressed interest means ask the learning goal; pilot means ask an unresolved uncertainty; existing deployment means ask about expansion learning without assuming expansion plans. Verify recipient/site-specific public-signal provenance for claimed interest, pilot, or deployment. Do not invent motivation/status or ask 'what prompted your interest' without evidence of expressed interest. These are directions, not rigid templates; structural anchors do not establish semantic truth.",
   recipientChoice: "Confirm the recipient decides whether deeper conversation is worthwhile; reject pressure, urgency, implied obligation, or automatic follow-up commitments.",
-  workflow: "Disclose Blueprint identity from first contact using the founder's 'I'm building Blueprint' framing; do not pose as academic research or imply a large established company. Research site/job/team jointly with site-led discovery and parallel team feasibility. Separate interest in talking, evaluation participation, and deployment capacity. Keep readiness/learning distinct from the pilot booking fee. Use a progressive job brief before footage/details; obtain site permission before sharing with teams. Confirm team configuration/support/timing before any match promise; evaluations and physical-outcome feedback require evidence and consent. Verify every Atlas/pipeline capability claim. " + COMMUNICATIONS_LAUNCH_GUIDANCE,
+  workflow: "Disclose Blueprint identity honestly from first contact; do not pose as academic research or imply a large established company. Research site/job/team jointly with site-led discovery and parallel team feasibility. Separate interest in talking, evaluation participation, and deployment capacity. Keep readiness/learning distinct from the pilot booking fee. Use a progressive job brief before footage/details; obtain site permission before sharing with teams. Confirm team configuration/support/timing before any match promise; evaluations and physical-outcome feedback require evidence and consent. Verify every Atlas/pipeline capability claim. " + COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE,
 } as const;
 
 const decision = z.enum(["pass", "revise", "block"]);
@@ -171,9 +185,10 @@ function reviewHypothesisOutreachDraft(draft: OutreachDraft): OutreachReviewResu
   const published = Array.isArray(qualification?.openQuestions) && qualification!.openQuestions.length === 1
     && typeof qualification!.openQuestions[0] === "string" ? qualification!.openQuestions[0] as string : null;
   if (!open || !published) blockers.push("outreach_hypothesis_qualification_missing");
-  const natural = (draft.contract as any)?.version === OUTREACH_FOUNDER_CONTRACT_VERSION;
+  const personalized = (draft.contract as any)?.version === OUTREACH_PERSONALIZED_CONTRACT_VERSION;
+  const natural = personalized || (draft.contract as any)?.version === OUTREACH_FOUNDER_CONTRACT_VERSION;
   const launch = natural || (draft.contract as any)?.version === OUTREACH_LAUNCH_CONTRACT_VERSION;
-  const parsed = (natural ? outreachFounderContractSchema : launch ? outreachLaunchContractSchema : outreachHypothesisContractSchema).safeParse(draft.contract);
+  const parsed = (personalized ? outreachPersonalizedContractSchema : natural ? outreachFounderContractSchema : launch ? outreachLaunchContractSchema : outreachHypothesisContractSchema).safeParse(draft.contract);
   const context = outreachContextSchema.safeParse(draft.context);
   if (!parsed.success) blockers.push((draft.contract as any)?.version === "blueprint.outreach.v1"
     ? "outreach_hypothesis_contract_required" : "outreach_contract_missing_or_invalid");
@@ -189,11 +204,11 @@ function reviewHypothesisOutreachDraft(draft: OutreachDraft): OutreachReviewResu
   if (asked.question !== expected) blockers.push(launch ? "launch_question_mismatch" : "hypothesis_question_not_published");
   if (asked.checks.length !== 1 || asked.checks[0] !== (launch ? "interest" : answered)) blockers.push("hypothesis_question_checks_mismatch");
   if (!draft.body.includes(expected)) blockers.push("hypothesis_question_missing_from_body");
-  if ((draft.body.match(QUESTION_MARKS) || []).length !== 1) blockers.push("exactly_one_initial_question_required");
-  if (natural && (!asked.question.endsWith("?") || (asked.question.match(QUESTION_MARKS) || []).length !== 1)) blockers.push("exactly_one_initial_question_required");
-  if ((draft.subject.match(QUESTION_MARKS) || []).length) blockers.push("hypothesis_subject_has_question");
+  if (personalized ? (draft.body.match(QUESTION_MARKS) || []).length > 1 : (draft.body.match(QUESTION_MARKS) || []).length !== 1) blockers.push("exactly_one_initial_question_required");
+  if (!personalized && natural && (!asked.question.endsWith("?") || (asked.question.match(QUESTION_MARKS) || []).length !== 1)) blockers.push("exactly_one_initial_question_required");
+  if (!personalized && (draft.subject.match(QUESTION_MARKS) || []).length) blockers.push("hypothesis_subject_has_question");
   if (!/\bBlueprint\b/.test(contract.senderIdentity)) blockers.push("blueprint_identity_required");
-  if (draft.body.indexOf(contract.senderIdentity) > draft.body.indexOf(asked.question)) blockers.push("blueprint_identity_required_before_question");
+  if (!personalized && draft.body.indexOf(contract.senderIdentity) > draft.body.indexOf(asked.question)) blockers.push("blueprint_identity_required_before_question");
   if (!context.data.observations.some(item => item.claim === (opening.publicDetail.sourceClaim ?? opening.publicDetail.claim)
     && item.source === opening.publicDetail.source)) blockers.push("cold_detail_not_in_recorded_evidence");
   try {
@@ -204,7 +219,7 @@ function reviewHypothesisOutreachDraft(draft: OutreachDraft): OutreachReviewResu
   for (const anchor of [contract.senderIdentity, opening.publicDetail.claim, opening.relevance, asked.question, contract.recipientChoice]) {
     if (!draft.body.includes(anchor)) blockers.push("review_anchor_missing_from_body");
   }
-  if (draft.body.indexOf(opening.publicDetail.claim) > draft.body.indexOf(asked.question)) blockers.push("verified_or_public_opening_must_come_first");
+  if (!personalized && draft.body.indexOf(opening.publicDetail.claim) > draft.body.indexOf(asked.question)) blockers.push("verified_or_public_opening_must_come_first");
   for (const name of ["Atlas", "pipeline"]) if (new RegExp(`\\b${name}\\b`, "i").test(text)) blockers.push("capability_claim_not_verified_in_record");
   if (matchPromise.test(text)) blockers.push("discovery_cannot_promise_qualified_match_or_capacity");
   if (sharingClaim.test(text)) blockers.push("discovery_cannot_claim_site_sharing_permission");
@@ -246,7 +261,8 @@ export function reviewOutreachDraft(draft: OutreachDraft): OutreachReviewResult 
   // draft keeps the v1 review, so a v2 contract there fails as an invalid v1 contract, which the writer can repair.
   if (draft.qualification !== undefined) return reviewHypothesisOutreachDraft(draft);
   const blockers: string[] = [];
-  const parsed = outreachReviewContractSchema.safeParse(draft.contract);
+  const personalized = (draft.contract as any)?.version === OUTREACH_PERSONALIZED_VALUE_CONTRACT_VERSION;
+  const parsed = (personalized ? outreachPersonalizedValueContractSchema : outreachReviewContractSchema).safeParse(draft.contract);
   const context = outreachContextSchema.safeParse(draft.context);
   const result = (digest: string | null): OutreachReviewResult => ({
     hardChecksPassed: blockers.length === 0,
@@ -268,7 +284,7 @@ export function reviewOutreachDraft(draft: OutreachDraft): OutreachReviewResult 
   const founderIntroduction = [...draft.body.matchAll(/\bI(?:['’]m| am)\s+building\s+Blueprint\b/g)]
     .find(match => !/["'“”‘’]/.test(draft.body[match.index! - 1] ?? ""));
   const offerAt = draft.body.indexOf(contract.value.offer);
-  if (draft.body.indexOf(contract.senderIdentity) > offerAt
+  if (!personalized && draft.body.indexOf(contract.senderIdentity) > offerAt
     && (!founderIntroduction || founderIntroduction.index + founderIntroduction[0].length > offerAt)) {
     blockers.push("blueprint_identity_required_before_offer");
   }
@@ -324,10 +340,10 @@ export function reviewOutreachDraft(draft: OutreachDraft): OutreachReviewResult 
   for (const anchor of anchors) {
     if (!draft.body.includes(anchor)) blockers.push("review_anchor_missing_from_body");
   }
-  if ([contract.value.offer, contract.question].some((anchor) => draft.body.indexOf(openingClaim) > draft.body.indexOf(anchor))) {
+  if (!personalized && [contract.value.offer, contract.question].some((anchor) => draft.body.indexOf(openingClaim) > draft.body.indexOf(anchor))) {
     blockers.push("verified_or_public_opening_must_come_first");
   }
-  if ((draft.body.match(/\?/g) || []).length !== 1 || !contract.question.endsWith("?")) {
+  if (personalized ? (draft.body.match(QUESTION_MARKS) || []).length > 1 : (draft.body.match(/\?/g) || []).length !== 1 || !contract.question.endsWith("?")) {
     blockers.push("exactly_one_initial_question_required");
   }
   for (const [code, pattern] of prohibitedPatterns) {

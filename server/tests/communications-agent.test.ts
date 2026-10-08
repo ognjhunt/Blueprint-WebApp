@@ -377,11 +377,11 @@ describe("Blueprint-owned communications queue", () => {
     // Closed source and early maturity are context, never a recipient hard gate.
     f.deps.api.run.mockImplementation(async (params: any) => {
       const input = JSON.parse(params.input);
-      expect(input.firstTouchFraming).toEqual({ ...framing, question: undefined, questionIsSuggestion: true });
-      expect(input.firstTouchPolicy).toContain("No public API or deployment maturity hard gate");
-      expect(input.firstTouchPolicy).toContain("Demos do not establish paid demand");
-      expect(input.firstTouchPolicy).toContain("$2,500");
-      expect(input.firstTouchPolicy).toContain("only when the site books Blueprint's recommended pilot");
+      expect(input.firstTouchFraming).toEqual({ ...framing, guidance: input.writingGuidance, question: undefined, questionIsSuggestion: true });
+      expect(input.firstTouchPolicy).toContain("recipient-aware-writing-v4");
+      expect(input.firstTouchPolicy).toContain("Do not promise completed evaluation");
+      expect(input.firstTouchPolicy).not.toContain("$2,500");
+      expect(input.firstTouchPolicy).not.toContain("only when the site books Blueprint's recommended pilot");
       expect(input.firstTouchPolicy).not.toContain("when a match is found");
       expect(params.checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_VERSION);
       return { output: f.output, checkpoint: params.checkpoint, usage: { input_tokens: 10 } };
@@ -546,7 +546,7 @@ describe("Blueprint-owned communications queue", () => {
     const input = JSON.parse(f.deps.api.run.mock.calls[0][0].input);
     expect(input.firstTouchPolicy).not.toContain("automation_status");
     expect(input.firstTouchFraming.version).toBe(COMMUNICATIONS_FRAMING_VERSION);
-    expect(input.firstTouchPolicy).toContain("ask one primary initial question");
+    expect(input.firstTouchPolicy).toContain("one easy ask");
   });
   it.each(["outreach", "reply"] as const)("supplies fresh %s writing guidance without changing archived charged input", async intent => {
     const f = await setup(intent);
@@ -565,7 +565,7 @@ describe("Blueprint-owned communications queue", () => {
     // while old charged checkpoints without it keep their historical shape.
     const charged = { ...saved, createClaimedAt: new Date(communicationsNow).toISOString(), sessionId: null };
     expect(buildCommunicationsInput(input.researchBrief, input.emailThread, intent, input.currentApproval, undefined,
-      charged.executionWindow, charged.draftWritingGuidance, charged.framingVersion, charged.replyFollowup, charged.evaluationReadiness)).toBe(f.deps.api.run.mock.calls[0][0].input);
+      charged.executionWindow, charged.draftWritingGuidance, charged.framingVersion, charged.replyFollowup, charged.evaluationReadiness, charged.writingProfile)).toBe(f.deps.api.run.mock.calls[0][0].input);
     expect(JSON.parse(buildCommunicationsInput(f.brief, f.thread, intent, null))).not.toHaveProperty("writingGuidance");
   });
   it("claims concurrently enqueued work once across two worker owners", async () => {

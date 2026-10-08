@@ -3,7 +3,7 @@ import { logger } from "../logger";
 import { isEmailSuppressed, recordEmailSuppression, buildUnsubscribeUrl } from "../utils/email-suppression";
 import { COMMUNICATIONS_HYPOTHESIS_GUIDANCE, COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_WRITING_GUIDANCE } from "./communications-instructions";
 import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_WRITING_QUALITY_VERSION, communicationsWritingSignals } from "./communications-outreach-quality";
-import { COMMUNICATIONS_HYPOTHESIS_PROFILE } from "./communications-saved-agent";
+import { COMMUNICATIONS_HYPOTHESIS_PROFILE, COMMUNICATIONS_PERSONALIZED_PROFILE } from "./communications-saved-agent";
 import { COMMUNICATIONS_FRAMING_VERSION, communicationsLaunchFraming, communicationsFramingVersion,
   type CommunicationsFramingVersion } from "./communications-launch-framing";
 import { readReplyFollowup } from "./communications-reply-followup";
@@ -331,18 +331,19 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       const founderGuidance = claimed.checkpoint.framingVersion && claimed.checkpoint.framingVersion !== COMMUNICATIONS_FRAMING_VERSION
         ? LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE : COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE;
       claimed.checkpoint = { ...claimed.checkpoint, executionWindow,
-        draftWritingGuidance: `${COMMUNICATIONS_WRITING_GUIDANCE}\n${founderGuidance}`,
+        ...(founderGuidance === COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE ? { writingProfile: COMMUNICATIONS_PERSONALIZED_PROFILE } : {}),
+        draftWritingGuidance: `${founderGuidance === COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE ? COMMUNICATIONS_WRITING_GUIDANCE.replace("The server adds the company identity, homepage and reply opt-out footer;", "The host renders the approved founder signature;") : COMMUNICATIONS_WRITING_GUIDANCE}\n${founderGuidance}`,
         unsentDraftFooterProfile: "founder-footerless-v2",
         framingVersion: communicationsFramingVersion(claimed.checkpoint.framingVersion) ?? COMMUNICATIONS_FRAMING_VERSION,
         ...(replyFollowup ? { replyFollowup } : {}),
         ...(evaluationReadiness ? { evaluationReadiness } : {}),
-        ...(sameRunDraftSave ? { sameRunDraftSave, unsentDraftFooterProfile: "founder-footerless-v2", draftWritingGuidance: `${COMMUNICATIONS_WRITING_GUIDANCE}\n${founderGuidance}\nThis authorized run saves an eligible unsent Gmail draft immediately through the host's save_unsent_draft action. Return the authored plain draft; do not invent a Gmail ID or call a raw mail mutation. End the signature with Nijel Hunt followed by Blueprint on its own line. The host renders the approved founder block with separator, the existing linked logo, Nijel Hunt, Founder at Blueprint and Austin, TX; logo and company link directly to https://tryblueprint.io/ without a separate website line, tracking, a button, extra CTA or model-authored HTML. Success requires the host's actual unsent draft readback; sending still requires its separate authority.` } : {}),
+        ...(sameRunDraftSave ? { sameRunDraftSave, unsentDraftFooterProfile: "founder-footerless-v2", draftWritingGuidance: `${founderGuidance === COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE ? COMMUNICATIONS_WRITING_GUIDANCE.replace("The server adds the company identity, homepage and reply opt-out footer;", "The host renders the approved founder signature;") : COMMUNICATIONS_WRITING_GUIDANCE}\n${founderGuidance}\nThis authorized run saves an eligible unsent Gmail draft immediately through the host's save_unsent_draft action. Return the authored plain draft; do not invent a Gmail ID or call a raw mail mutation. End the signature with Nijel Hunt followed by Blueprint on its own line. The host renders the approved founder block with separator, the existing linked logo, Nijel Hunt, Founder at Blueprint and Austin, TX; logo and company link directly to https://tryblueprint.io/ without a separate website line, tracking, a button, extra CTA or model-authored HTML. Success requires the host's actual unsent draft readback; sending still requires its separate authority.` } : {}),
         ...(hypothesis ? { draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } : {}) };
       await deps.store.update(jobId, { checkpoint: claimed.checkpoint });
     }
     const input = buildCommunicationsInput(brief, thread, job.intent, approval, learning, claimed.checkpoint.executionWindow,
       claimed.checkpoint.draftWritingGuidance, claimed.checkpoint.framingVersion,
-      claimed.checkpoint.replyFollowup, claimed.checkpoint.evaluationReadiness);
+      claimed.checkpoint.replyFollowup, claimed.checkpoint.evaluationReadiness, claimed.checkpoint.writingProfile);
     // Bind only prospective work before its first paid create. Reconnected
     // sessions retain this decision; old charged/Tony sessions never acquire it.
     // No standing policy covers a hypothesis: it never enters automatic first contact.
@@ -438,7 +439,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
           ? output.refreshFactIds.some(id => !brief.facts.some(fact => fact.id === id))
             ? [{ path: "refreshFactIds", code: "refresh_fact_unknown", message: "Select only fact IDs already present in researchBrief.facts; do not invent evidence." }] : []
           : output.disposition === "no_reply" ? [] : communicationsDraftFeedback(assemble(output), output, job.intent, automatic, deps.now(), hypothesis,
-            communicationsFramingVersion(claimed.checkpoint.framingVersion));
+            communicationsFramingVersion(claimed.checkpoint.framingVersion), claimed.checkpoint.writingProfile);
         if (claimed.checkpoint.sameRunDraftSave && output.disposition === "draft" && !/(?:^|\n)Nijel Hunt\nBlueprint(?:\n|$)/.test(output.body.replace(/\r\n/g, "\n"))) {
           issues.push({ path: "body", code: "gmail_draft_signature_missing", message: "Finish the plain signature with Nijel Hunt, then Blueprint on its own line. The host adds the single direct homepage link; do not add HTML or another CTA." });
         }
@@ -482,7 +483,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     // The versioned hypothesis contract is hard: a draft that fails it is rejected, never
     // saved for review, copied to Gmail or sent.
     if (hypothesis && !review.hardChecksPassed) throw new Error(`hypothesis_draft_contract_failed:${review.blockers.join(",")}`);
-    if (hypothesis && claimed.checkpoint.framingVersion && output.outreachContract?.version !== hypothesisContractVersion(claimed.checkpoint.framingVersion)) {
+    if (hypothesis && claimed.checkpoint.framingVersion && output.outreachContract?.version !== hypothesisContractVersion(claimed.checkpoint.framingVersion, claimed.checkpoint.writingProfile)) {
       throw new Error("hypothesis_draft_contract_failed:launch_contract_required");
     }
     // Preserve useful drafts and isolate unresolved claims/style diagnostics in
@@ -576,7 +577,7 @@ const HYPOTHESIS_FIXES: Record<string, [string, string]> = {
 
 /** Field diagnostics only: this does not approve, publish, commit or send. */
 function communicationsDraftFeedback(payload: ActionPayload, output: CommunicationsOutput, intent: CommunicationsJob["intent"], automatic: boolean, now: number,
-  hypothesis = false, framingVersion?: CommunicationsFramingVersion): CommunicationsOutputFeedback {
+  hypothesis = false, framingVersion?: CommunicationsFramingVersion, writingProfile?: string): CommunicationsOutputFeedback {
   const launch = framingVersion !== undefined, natural = framingVersion === COMMUNICATIONS_FRAMING_VERSION;
   const fixes: Record<string, [string, string]> = {
     used_fact_missing: ["usedFactIds", "Reference only existing researchBrief.facts IDs; remove unsupported claims and IDs. Outreach needs a sourced fact; a plain acknowledgment need not cite one."],
@@ -621,7 +622,19 @@ function communicationsDraftFeedback(payload: ActionPayload, output: Communicati
       hypothesis_question_missing_from_body: ["body", "Include firstTouchFraming.question verbatim as the body's only question."] as [string, string],
       hypothesis_question_checks_mismatch: ["outreachContract.questions", "Use checks:['interest']; this draft leaves every research open check unresolved."] as [string, string],
     } : {}),
-    ...(hypothesis && natural ? {
+    ...(writingProfile === COMMUNICATIONS_PERSONALIZED_PROFILE ? {
+      learning_question_mismatch: ["body", "Keep one easy primary request relevant to this recipient; do not bundle a questionnaire."] as [string, string],
+      exactly_one_initial_question_required: ["body", "Keep one easy primary request; avoid a compound questionnaire or stacked CTA."] as [string, string],
+      ...(!hypothesis ? { outreach_contract_missing_or_invalid: ["outreachContract", "Use blueprint.outreach.v6 with evidence-backed contract anchors for this recipient-aware profile."] as [string, string] } : {}),
+    } : {}),
+    ...(hypothesis && writingProfile === COMMUNICATIONS_PERSONALIZED_PROFILE ? {
+      learning_question_mismatch: ["body", "Keep one easy primary request relevant to this recipient; do not bundle a questionnaire."] as [string, string],
+      outreach_contract_missing_or_invalid: ["outreachContract", "Use blueprint.outreach.v5 with the recorded cold opening, one easy primary request and checks:['interest']; retain evidence and recipient choice." ] as [string, string],
+      launch_contract_required: ["outreachContract", "Use blueprint.outreach.v5 for this recipient-aware agent profile."] as [string, string],
+      hypothesis_question_missing_from_body: ["body", "Include the primary request recorded in the contract verbatim in the body."] as [string, string],
+      exactly_one_initial_question_required: ["body", "Keep one easy primary request; avoid a compound questionnaire or stacked CTA."] as [string, string],
+    } : {}),
+    ...(hypothesis && natural && writingProfile !== COMMUNICATIONS_PERSONALIZED_PROFILE ? {
       outreach_contract_missing_or_invalid: ["outreachContract", "Use blueprint.outreach.v4 with one natural interest question, checks:['interest'], the recorded cold opening and recipientChoice. Anchor the actual body; the suggested framing is not mandatory wording."] as [string, string],
       launch_contract_required: ["outreachContract", "Use blueprint.outreach.v4; ask one natural interest question. Research open checks remain unresolved evidence."] as [string, string],
       hypothesis_question_missing_from_body: ["body", "Include the exact question recorded in outreachContract.questions[0] as the body's one question."] as [string, string],
@@ -631,7 +644,7 @@ function communicationsDraftFeedback(payload: ActionPayload, output: Communicati
   };
   const review = reviewCommunicationsPayload(payload, now);
   const blockers = [...new Set([...review.blockers,
-    ...(hypothesis && launch && output.outreachContract?.version !== hypothesisContractVersion(framingVersion) ? ["launch_contract_required"] : []),
+    ...(hypothesis && launch && output.outreachContract?.version !== hypothesisContractVersion(framingVersion, writingProfile) ? ["launch_contract_required"] : []),
     ...(automatic ? routineCommunicationsContentBlockers(output, intent) : [])])];
   const consequential = blockers.filter(code => !fixes[code]);
   if (consequential.length) throw new Error(`communications_context_not_repairable:${consequential.join(",")}`);
@@ -640,13 +653,14 @@ function communicationsDraftFeedback(payload: ActionPayload, output: Communicati
   return issues;
 }
 
-function hypothesisContractVersion(version?: CommunicationsFramingVersion) {
+function hypothesisContractVersion(version?: CommunicationsFramingVersion, writingProfile?: string) {
+  if (writingProfile === COMMUNICATIONS_PERSONALIZED_PROFILE) return "blueprint.outreach.v5";
   return version === COMMUNICATIONS_FRAMING_VERSION ? "blueprint.outreach.v4" : "blueprint.outreach.v3";
 }
 
 export function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedThread | null, intent: string, approvalState: unknown,
   learning?: PreparedLearning, executionWindow?: CommunicationsExecutionWindow, draftWritingGuidance?: string,
-  framingVersion?: CommunicationsFramingVersion, replyFollowup?: unknown, evaluationReadiness?: EvaluationReadiness) {
+  framingVersion?: CommunicationsFramingVersion, replyFollowup?: unknown, evaluationReadiness?: EvaluationReadiness, writingProfile?: string) {
   const version = communicationsFramingVersion(framingVersion);
   const framing = version === undefined ? undefined : communicationsLaunchFraming(brief, version);
   const policy = intent === "outreach" ? brief.qualification ? COMMUNICATIONS_HYPOTHESIS_GUIDANCE : COMMUNICATIONS_OUTREACH_GUIDANCE
@@ -659,8 +673,9 @@ export function buildCommunicationsInput(brief: CommunicationsBrief, thread: Ver
     ...(evaluationReadiness ? { evaluationReadiness, ...(intent === "reply" ? { siteInterestReplyGuidance: SITE_INTEREST_REPLY_GUIDANCE } : {}) } : {}),
     ...(draftWritingGuidance ? { writingGuidance: draftWritingGuidance,
       ...((draftWritingGuidance.includes("free-beta-task-assessment-v2") || /recipient-aware-writing-v[34]/.test(draftWritingGuidance)) && intent === "outreach" ? {
-        firstTouchPolicy: `${framing?.guidance ?? policy}\n${draftWritingGuidance}`,
+        firstTouchPolicy: writingProfile === COMMUNICATIONS_PERSONALIZED_PROFILE ? draftWritingGuidance : `${framing?.guidance ?? policy}\n${draftWritingGuidance}`,
         ...(framing && (/recipient-aware-writing-v[34]/.test(draftWritingGuidance) || (brief.audienceRole ?? "site") === "site") ? { firstTouchFraming: { ...framing,
+          ...(writingProfile === COMMUNICATIONS_PERSONALIZED_PROFILE ? { guidance: draftWritingGuidance } : {}),
           question: /recipient-aware-writing-v[34]/.test(draftWritingGuidance) ? undefined : "Is there a repetitive job you would like assessed?", questionIsSuggestion: true } } : {}),
       } : {}) } : {}),
     ...(executionWindow ? { executionBoundary: { window: executionWindow,
