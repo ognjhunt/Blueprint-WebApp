@@ -1,0 +1,185 @@
+{
+  "schemaVersion": "notification-encrypted.v1",
+  "baselineSha": "eaebc3627590ca29c2a163bf1cbd8609217e9bec",
+  "baselineSourceHashes": {
+    "server/utils/captureCoverageReview.ts": "77b2e8390f2e49534f45c87d12ad69d0007e86ceda6610542ef7a489d09ddb0b",
+    "server/utils/field-encryption.ts": "64750f58b6e9010b686562633dbf04e8983c1ce39a9f9fa87e1153499049d2b2",
+    "server/tests/reliability-encrypted-notification.test.ts": "e7297e60d71a129de63ca6df9d1fa6ad23c69dc50cfdbbde3fbdf8e07f59f32a"
+  },
+  "candidateSourceHashes": {
+    "server/utils/captureCoverageReview.ts": "6ead77441d464256ea03bf419ad4b2b73851ea910f793a5a139c84535cf80eb2",
+    "server/utils/field-encryption.ts": "64750f58b6e9010b686562633dbf04e8983c1ce39a9f9fa87e1153499049d2b2",
+    "server/tests/reliability-encrypted-notification.test.ts": "e7297e60d71a129de63ca6df9d1fa6ad23c69dc50cfdbbde3fbdf8e07f59f32a"
+  },
+  "cases": [
+    {
+      "id": "NOTIFY-ENCRYPTED-001-encrypted",
+      "semanticHash": "c271a800bfddc153a7cfb360c3c35c0a829256f6ad19edf183a76f34b9742241",
+      "parameters": {
+        "contactMode": "encrypted",
+        "evidence": "named_coverage_shortfall",
+        "duplicateEvents": true,
+        "sink": "strict_local_recipient"
+      },
+      "expected": "Single plaintext intended recipient and sent receipt for decryptable contact; no dispatch after withdrawal or unavailable decryption; canonical contact encryption preserved"
+    },
+    {
+      "id": "NOTIFY-ENCRYPTED-001-legacy_plaintext",
+      "semanticHash": "a0242d923bde990fee651d0593e6a169692861a30eb332187c64277b0c1860de",
+      "parameters": {
+        "contactMode": "legacy_plaintext",
+        "evidence": "named_coverage_shortfall",
+        "duplicateEvents": true,
+        "sink": "strict_local_recipient"
+      },
+      "expected": "Single plaintext intended recipient and sent receipt for decryptable contact; no dispatch after withdrawal or unavailable decryption; canonical contact encryption preserved"
+    },
+    {
+      "id": "NOTIFY-ENCRYPTED-001-withdrawn",
+      "semanticHash": "ab583d6098d7eaa342440e5e8818b2dcc611edf9f10bc6e707e9775b73386d5d",
+      "parameters": {
+        "contactMode": "withdrawn",
+        "evidence": "named_coverage_shortfall",
+        "duplicateEvents": true,
+        "sink": "strict_local_recipient"
+      },
+      "expected": "Single plaintext intended recipient and sent receipt for decryptable contact; no dispatch after withdrawal or unavailable decryption; canonical contact encryption preserved"
+    },
+    {
+      "id": "NOTIFY-ENCRYPTED-001-unavailable_decryption",
+      "semanticHash": "ffdcac2462f6134d54e9300b3abbb0cb0b4518e711191bd81520e512102e76dc",
+      "parameters": {
+        "contactMode": "unavailable_decryption",
+        "evidence": "named_coverage_shortfall",
+        "duplicateEvents": true,
+        "sink": "strict_local_recipient"
+      },
+      "expected": "Single plaintext intended recipient and sent receipt for decryptable contact; no dispatch after withdrawal or unavailable decryption; canonical contact encryption preserved"
+    }
+  ],
+  "floorCredit": 0,
+  "baseline": {
+    "attempted": 4,
+    "passed": 2,
+    "failed": 2,
+    "observations": [
+      {
+        "mode": "encrypted",
+        "storedContactEncrypted": true,
+        "queuedRecipientType": "object",
+        "recipientMatchesExpected": false,
+        "outboxStates": [
+          "unknown"
+        ],
+        "strictSinkCalls": 1,
+        "modelCalls": 1,
+        "customerStatus": "add_views"
+      },
+      {
+        "mode": "legacy_plaintext",
+        "storedContactEncrypted": false,
+        "queuedRecipientType": "string",
+        "recipientMatchesExpected": true,
+        "outboxStates": [
+          "sent"
+        ],
+        "strictSinkCalls": 1,
+        "modelCalls": 1,
+        "customerStatus": "add_views"
+      },
+      {
+        "mode": "withdrawn",
+        "storedContactEncrypted": true,
+        "queuedRecipientType": "undefined",
+        "recipientMatchesExpected": false,
+        "outboxStates": [],
+        "strictSinkCalls": 0,
+        "modelCalls": 0,
+        "customerStatus": "footage_received"
+      },
+      {
+        "mode": "unavailable_decryption",
+        "storedContactEncrypted": true,
+        "queuedRecipientType": "object",
+        "recipientMatchesExpected": false,
+        "outboxStates": [
+          "unknown"
+        ],
+        "strictSinkCalls": 1,
+        "modelCalls": 1,
+        "customerStatus": "add_views"
+      }
+    ]
+  },
+  "candidate": {
+    "attempted": 4,
+    "passed": 4,
+    "failed": 0,
+    "observations": [
+      {
+        "mode": "encrypted",
+        "storedContactEncrypted": true,
+        "queuedRecipientType": "string",
+        "recipientMatchesExpected": true,
+        "outboxStates": [
+          "sent"
+        ],
+        "strictSinkCalls": 1,
+        "modelCalls": 1,
+        "customerStatus": "add_views"
+      },
+      {
+        "mode": "legacy_plaintext",
+        "storedContactEncrypted": false,
+        "queuedRecipientType": "string",
+        "recipientMatchesExpected": true,
+        "outboxStates": [
+          "sent"
+        ],
+        "strictSinkCalls": 1,
+        "modelCalls": 1,
+        "customerStatus": "add_views"
+      },
+      {
+        "mode": "withdrawn",
+        "storedContactEncrypted": true,
+        "queuedRecipientType": "undefined",
+        "recipientMatchesExpected": false,
+        "outboxStates": [],
+        "strictSinkCalls": 0,
+        "modelCalls": 0,
+        "customerStatus": "footage_received"
+      },
+      {
+        "mode": "unavailable_decryption",
+        "storedContactEncrypted": true,
+        "queuedRecipientType": "undefined",
+        "recipientMatchesExpected": false,
+        "outboxStates": [],
+        "strictSinkCalls": 0,
+        "modelCalls": 1,
+        "customerStatus": "add_views"
+      }
+    ]
+  },
+  "neighborChecks": {
+    "passed": 33,
+    "failed": 0,
+    "includes": "four new regression checks,20 existing worker journeys,five consent andfour field-encryption checks; overlapping coverage never added to independent counts"
+  },
+  "failureLedger": {
+    "id": "NOTIFY-ENCRYPTED-001",
+    "severity": "P2",
+    "rootCause": "coverage shortfall casts stored encrypted contact fields to plaintext types and passes an object as mail destination; real emailDomain requires a string",
+    "repair": "Existing decryptFieldValue unwraps email/name only at notification boundary. Non-string or empty recipient not queued; decryption failure follows existing protected warning and skips the notice; no durable notification retry is established. Canonical stored contact remains encrypted. Existing consent/source fence and outbox duplicate key unchanged.",
+    "baselineFailure": "Strict localsink invoked once on encrypted object; outbox unknown, customer add_views; cannot claim provider acceptance or mail delivered.",
+    "existingRecords": "Does not silently rewrite or resend existing unknown outbox entries; inspect and reconcile under existing safe recovery process.",
+    "reviewStatus": "Independent exact-diff/baseline review and4/4 independent strict regression replay approved; integration/merge/deploy owned by coordinator"
+  },
+  "replay": "npx vitest run server/tests/reliability-encrypted-notification.test.ts --maxWorkers=1",
+  "rawEvidence": "output/reliability-program/notification/{baseline,baseline-final,candidate}/results.json (ignored private locally)",
+  "layer": "actual-encryption-producer-worker-status-outbox/fake-firestore-model-and-strict-local-email-sink",
+  "limitations": "Synthetic byte/video input and fake model/DB/mail; actual encryption and application functions. No live provider, production email receipt or newly added semantic floor credit. Initial baseline harness incorrectly inspected stale copied DB rows and lacked brief confirmation; corrected baseline-final preserves identical runtime and expected contract, initial report retained.",
+  "liveProviderCalls": 0,
+  "typecheck": "npm run check passed"
+}
