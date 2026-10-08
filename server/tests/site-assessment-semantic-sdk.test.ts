@@ -45,7 +45,10 @@ const scenarios = [
 // inputs, semantic identity and baseline outcome remain unchanged above.
 const expectationCorrections = [{ caseId: "V2-corrected-knowledge-current-spec", baselineExpectedError: null,
   candidateExpectedError: "assessment_known_published_source_not_current", baselineSemanticOnly: true,
-  candidateSemanticOnly: false, reason: "Known published facts cannot cite explicitly non-current knowledge; historical context remains retained." }];
+  candidateSemanticOnly: false, reason: "Known published facts cannot cite explicitly non-current knowledge; historical context remains retained." },
+  ...["V2-conflicting-owner-spec-video", "V5-admitted-field-wrong-claim"].map(caseId => ({ caseId,
+    baselineExpectedError: null, candidateExpectedError: null, baselineSemanticOnly: true, candidateSemanticOnly: true,
+    reason: "V10 weakens unchanged unbound factual prose to explicit unknown/unverified; raw text remains retained. This is a publication-boundary assertion, not a truth-label correction." }))];
 const codeSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const results: Array<Record<string, unknown>> = [];
 const historyRecord = (content: unknown, current = true) => ({ record_id: "fixture-spec", kind: "robot_capability", source_ref: "synthetic/specification",
@@ -59,8 +62,8 @@ afterAll(() => {
   const output = process.env.RELIABILITY_C_V2_OUTPUT;
   if (output) writeFileSync(`${output}/${process.env.RELIABILITY_C_V2_RUN ?? "results"}.json`, JSON.stringify({ codeSha,
     sourceCodeSha256: createHash("sha256").update(readFileSync(new URL("../agents/site-assessment.ts", import.meta.url))).digest("hex"),
-    labelVersion: "C-semantic-sdk.v9", baselineDefinitionVersion: "C-semantic-sdk.v8", expectationCorrections,
-    labelStatus: "PROVISIONAL synthetic fixture expectations; one V8 admission expectation explicitly corrected in V9", layer: "actual_SDK_runner_tool_loop_no_storage",
+    labelVersion: "C-semantic-sdk.v10", baselineDefinitionVersion: "C-semantic-sdk.v8", expectationCorrections,
+    labelStatus: "PROVISIONAL synthetic fixture expectations; V9 applicability and V10 publication-boundary corrections explicit; no video truth labels", layer: "actual_SDK_runner_tool_loop_no_storage",
     providerMode: "scripted_model_and_video_callbacks", liveProviderCalls: 0, knownCostUsd: 0,
     publicationMeaning: "Actual Runner finalOutput parsed and accepted into portable assessment packet; no adapter/database/customer publication executed",
     results }, null, 2) + "\n");
@@ -141,6 +144,15 @@ describe("actual SDK source-primitive semantic diagnostics", () => {
     const start = performance.now();
     let error: string | null = null, packet: unknown = null;
     try { packet = await instance.run(); } catch (e) { error = e instanceof Error ? e.message : "non_error"; }
+    if (["conflict", "wrong_field_claim"].includes(mode)) {
+      const value = packet as Awaited<ReturnType<typeof instance.run>>;
+      const rendered = mode === "conflict" ? value.assessment.job[0] : value.assessment.known[0];
+      const original = mode === "conflict" ? value.raw_model_assessment.job[0] : value.raw_model_assessment.known[0];
+      expect(rendered.basis).toBe("unknown");
+      expect(rendered.text).toBe("Unverified interpretation; consult the retained sources before relying on this claim.");
+      expect(original.text).toBe(mode === "conflict" ? "The bin stacking task visibly completed successfully" : "The robot has a published 50 m reach");
+      expect(value.verification.unverified_claims).toBe(1);
+    }
     const semanticHash = createHash("sha256").update(JSON.stringify({ scenario, admittedEvidence: instance.evidence(), structuredProviderOutputs: providerOutputs })).digest("hex");
     results.push({ caseId: scenario.id, semanticHash, status: semanticOnly ? "partial" : error === expectedError ? "passed" : "failed",
       actual: error ? "rejected" : "assessment_packet_accepted", error, expectedError,

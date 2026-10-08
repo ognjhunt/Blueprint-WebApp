@@ -409,4 +409,18 @@ describe("AdminAgentConsole", () => {
     expect(vi.mocked(fetch).mock.calls.some(([url, init]) => String(url) === "/api/admin/agent/sessions" && init?.method === "POST")).toBe(false);
   });
 
+  it.each(["site_assessment.v1", "site_assessment.v2"])("labels retained %s assessment output without upgrading its bytes", async schema_version => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    const assessment = { known: [{ text: "Retained synthetic claim", basis: "published", evidence: [] }] };
+    const retained = JSON.stringify({ ok: true, runs: [{ id: "assessment-1", session_id: "session-1", task_kind: "site_assessment", status: "completed",
+      output: assessment, artifacts: { site_assessment_packet: { schema_version, assessment } }, input: {}, metadata: {},
+      created_at: "2026-01-01", updated_at: "2026-01-01" }] });
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === "/api/admin/agent/sessions/session-1/runs"
+      ? Promise.resolve(new Response(retained)) : original(input, init));
+    renderConsole();
+    expect(await screen.findByText(schema_version === "site_assessment.v1" ? /Legacy assessment: factual wording/ : /Source-bound facts report selected source data/)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Retained synthetic claim/)).length).toBeGreaterThan(0);
+    expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+  });
+
 });

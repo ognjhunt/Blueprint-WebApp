@@ -10,7 +10,15 @@ import { matchRobotTeam, type SiteRequirement } from "../../client/src/lib/robot
 export { SITE_ASSESSMENT_MODEL } from "./provider-config";
 import { SITE_ASSESSMENT_MODEL } from "./provider-config";
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
-const reference = z.object({ source_id: z.string(), at_seconds: z.number().nonnegative().nullable() });
+const selector = z.object({
+  kind: z.enum(["video_observation", "qualified_field", "operator_statement"]),
+  observation_index: z.number().int().nonnegative().nullable(),
+  field_path: z.array(z.string().min(1)).min(1).max(8).nullable(),
+});
+// Missing selectors remain readable for v1 records and older model responses,
+// but cannot produce a source-bound fact in a newly returned v2 packet.
+const reference = z.object({ source_id: z.string(), at_seconds: z.number().nonnegative().nullable(),
+  selector: selector.nullable().optional() });
 const claim = z.object({
   text: z.string(),
   basis: z.enum(["observed", "operator_stated", "published", "measured", "estimate", "unknown"]),
@@ -129,6 +137,14 @@ Footage-based readings and timing remain observed or estimates; operator-reporte
 operator_stated. Use measured only with an admitted measurement record, not footage or a statement alone.
 Every factual claim needs returned source IDs; observed claims need timestamps within returned observed
 intervals, never estimated or not-visible events. Operator statements and video are not published specifications.
+Evidence binding v2: each factual citation must also select its actual source data. For video use
+selector {kind:video_observation, observation_index:the zero-based observations index, field_path:null}.
+For a registry use {kind:qualified_field, observation_index:null, field_path:[the capability field name]}.
+For fetched knowledge select a leaf relative to the record's content using qualified_field and field_path.
+For an operator statement use {kind:operator_statement, observation_index:null, field_path:null}.
+For unknown/estimate citations selector may be null. The host renders factual wording from the selected
+source data, preserving your original text privately as unverified interpretation. A selector does not
+verify video perception, measurement or robot suitability. Unbound factual prose becomes unknown.
 Search excerpts alone are
 not admitted citations. Unobservable weight, force, friction and hygiene need evidence or questions.
 Keep source hashes, byte counts, provider configuration and sample counts in retained provenance and tool
@@ -301,13 +317,118 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
         evidence_sources: [...sources.values()], video: input.video ? { source_id: input.video.source_id,
           sha256: input.video.sha256, duration_seconds: input.video.duration_seconds } : null,
         site_requirement: input.site_requirement }), { maxTurns: options.max_turns ?? 12 });
-      const assessment = siteAssessmentSchema.parse(result.finalOutput);
-      validateAssessmentEvidence(assessment, sources, input.video?.duration_seconds ?? null);
-      return { schema_version: "site_assessment.v1", request_id: input.request_id, assessment,
+      const raw_model_assessment = siteAssessmentSchema.parse(result.finalOutput);
+      const { assessment, verification } = renderSourceBoundAssessment(raw_model_assessment, sources, input.video?.duration_seconds ?? null);
+      return { schema_version: "site_assessment.v2", request_id: input.request_id, assessment,
+        verification, raw_model_assessment,
         sources: [...sources.values()], tool_receipts: receipts, model_requested: modelName,
         usage: result.rawResponses.map(response => response.usage) };
     },
   };
+}
+
+/** Source binding establishes wording provenance, never video truth or deployment fit. */
+export function renderSourceBoundAssessment(raw: SiteAssessment, sources: ReadonlyMap<string, Source>, duration: number | null) {
+  validateAssessmentEvidence(raw, sources, duration);
+  const verification = { format: "assessment_evidence_binding.v1", source_bound_claims: 0,
+    unverified_claims: 0, interpretation_claims: 0,
+    decision_status: "advisory_review_required",
+    interpretation_fields: ["approaches[].approach", "approaches[].remaining_checks[]", "questions[].question", "questions[].decision_it_changes"],
+    limitation: "Source-derived reports are not independently verified perception, measurements or robot suitability." };
+  const scalar = (value: unknown): value is string | number | boolean =>
+    typeof value === "string" && Boolean(value.trim()) || typeof value === "number" && Number.isFinite(value) || typeof value === "boolean";
+  const ownPath = (value: unknown, path: string[]): unknown => {
+    for (const key of path) {
+      if (!value || typeof value !== "object" || Array.isArray(value) || !Object.prototype.hasOwnProperty.call(value, key)) return undefined;
+      value = (value as Record<string, unknown>)[key];
+    }
+    return value;
+  };
+  const renderReference = (basis: string, ref: z.infer<typeof reference>): string | null => {
+    const source = sources.get(ref.source_id), binding = ref.selector;
+    if (!source || !binding) return null;
+    if (basis === "observed" && source.kind === "video" && binding.kind === "video_observation"
+      && binding.field_path === null && binding.observation_index !== null && duration !== null) {
+      const evidence = validateVideoObservations((source.content as { evidence?: unknown })?.evidence, duration);
+      const item = evidence.observations[binding.observation_index];
+      if (!item || item.basis !== "observed" || ref.at_seconds === null || item.start_seconds === null
+        || ref.at_seconds < item.start_seconds || ref.at_seconds > (item.end_seconds ?? item.start_seconds)) return null;
+      return `Video analysis reports at ${item.start_seconds}${item.end_seconds === null ? "" : `–${item.end_seconds}`} s: ${item.finding}`
+        + (item.uncertainty ? ` Observation uncertainty: ${item.uncertainty}` : "")
+        + (evidence.not_observable.length ? ` Not established by this reading: ${evidence.not_observable.join("; ")}.` : "")
+        + " Video analysis does not establish calibrated measurements or robot capability.";
+    }
+    if (basis === "operator_stated" && source.kind === "operator" && binding.kind === "operator_statement"
+      && binding.observation_index === null && binding.field_path === null && typeof source.content === "string") {
+      return `Supplied operator statement (speaker and facts unverified): ${source.content}`;
+    }
+    if (!["published", "measured"].includes(basis) || binding.kind !== "qualified_field"
+      || binding.observation_index !== null || !binding.field_path) return null;
+    if (source.kind === "robot_registry" && binding.field_path.length === 1) {
+      const field = binding.field_path[0];
+      const record = source.content as { capability?: Record<string, unknown>; fieldProvenance?: Record<string, any> };
+      const value = ownPath(record.capability, [field]), provenance = ownPath(record.fieldProvenance, [field]) as Record<string, unknown> | undefined;
+      if (!scalar(value) || !provenance || typeof provenance.source !== "string" || !provenance.source.trim()
+        || (basis === "measured" ? provenance.grade !== "measured" : !isQuotableGrade(provenance.grade as any))) return null;
+      return `Registry ${String(provenance.grade)} field ${field}: ${JSON.stringify(value)}. This specification does not establish site suitability.`;
+    }
+    if (source.kind === "knowledge" && basis === "published") {
+      const record = source.content as { content?: unknown; current?: unknown };
+      if (record.current === false) return null;
+      const value = ownPath(record.content, binding.field_path);
+      return scalar(value) ? `Fetched record states ${binding.field_path.join(".")}: ${JSON.stringify(value)}. This source statement does not establish site suitability.` : null;
+    }
+    return null;
+  };
+  const inspect = (value: any): any => {
+    if (!value || typeof value !== "object") return value;
+    if (Array.isArray(value)) return value.map(inspect);
+    if (typeof value.basis === "string" && Array.isArray(value.evidence)) {
+      if (["estimate", "unknown"].includes(value.basis)) {
+        verification.interpretation_claims++;
+        return { ...structuredClone(value), verification_status: "interpretation" };
+      }
+      const statements = value.evidence.map((ref: z.infer<typeof reference>) => renderReference(value.basis, ref));
+      if (statements.length && statements.every((statement: string | null) => statement !== null)) {
+        verification.source_bound_claims++;
+        return { ...structuredClone(value), text: statements.join("\n"), verification_status: "source_bound" };
+      }
+      verification.unverified_claims++;
+      return { ...structuredClone(value), text: "Unverified interpretation; consult the retained sources before relying on this claim.",
+        basis: "unknown", verification_status: "unverified" };
+    }
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, inspect(item)]));
+  };
+  const assessment = inspect(raw) as SiteAssessment;
+  for (const approach of assessment.approaches) {
+    // A selected specification/observation establishes its source wording,
+    // not the model's feasibility conclusion. This lane has no physical-trial
+    // decision DTO; retain the original disposition in raw_model_assessment.
+    approach.disposition = "needs_evidence";
+    Object.assign(approach, { verification_status: "advisory_review_required", interpretation_status: "unverified_interpretation" });
+  }
+  const action = assessment.next_action;
+  const safeActions: Record<SiteAssessment["next_action"]["kind"], string> = {
+    ask_operator: "Clarify unresolved site facts and success criteria.",
+    inspect_video: "Inspect the video for unresolved job evidence.",
+    measure: "Obtain the measurements needed to evaluate the job.",
+    research: "Check current specifications and unresolved evidence.",
+    robot_trial: "Consider a bounded physical trial after reviewing the evidence and permissions.",
+    process_change: "Evaluate a workflow or fixture change after reviewing the requirements.",
+    no_robot: "Keep manual work as an option while clarifying unresolved requirements.",
+  };
+  action.action = safeActions[action.kind];
+  Object.assign(action, { verification_status: "advisory_review_required" });
+  if (action.kind === "no_robot") action.kind = "research";
+  if (verification.unverified_claims) {
+    assessment.status = "needs_operator_input";
+    action.kind = "research";
+    action.action = safeActions.research;
+    action.why = { text: "Some factual claims lack a valid evidence binding; resolve them before choosing an approach.", basis: "unknown", evidence: [] };
+    if (!assessment.questions.length) assessment.questions.push({ question: "What evidence can confirm the unresolved job facts?", decision_it_changes: "Which approach can be evaluated usefully" });
+  }
+  for (const question of assessment.questions) Object.assign(question, { verification_status: "unverified_interpretation" });
+  return { assessment, verification };
 }
 
 /** Referential checks cannot establish that a model's interpretation is true. */
