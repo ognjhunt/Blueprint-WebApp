@@ -71,10 +71,10 @@ export class SiteAssessmentBudget {
       throw new Error("site_assessment_input_budget_exceeded");
     }
     // Sol: uncached input plus a conservative cache-write ceiling. Flash:
-    // full 1M context and 32768 output at its announced post-2026 ceiling.
+    // full 1,048,576-token context and 32768 output at its announced post-2026 ceiling.
     // Pricing sources are retained below; these are estimates, never invoices.
     const reserved = provider === "openai" ? (this.inputCeiling * 2.5 + this.maxOutput * 10) / 1e6
-      : (1_000_000 * 1.5 + 32768 * 7.5) / 1e6;
+      : (1_048_576 * 1.5 + 32768 * 7.5) / 1e6;
     if (this.calls.reduce((sum, call) => sum + (call.cost_usd ?? call.reserved_usd), 0) + reserved > this.cap) {
       throw new Error("site_assessment_inference_cost_cap");
     }
@@ -92,7 +92,9 @@ export class SiteAssessmentBudget {
     if (input !== null && output !== null) {
       const flashInputRate = Date.now() < Date.parse("2027-01-01T00:00:00Z") ? 0.75 : 1.5;
       const flashOutputRate = flashInputRate * 5;
-      call.cost_usd = (input * (provider === "openai" ? 2 : flashInputRate) + output * (provider === "openai" ? 10 : flashOutputRate)) / 1e6;
+      // Missing cache-write detail retains the highest admitted input rate.
+      // Never release this exposure at the cheaper ordinary-input rate.
+      call.cost_usd = (input * (provider === "openai" ? 2.5 : flashInputRate) + output * (provider === "openai" ? 10 : flashOutputRate)) / 1e6;
       if (call.cost_usd > call.reserved_usd) throw new Error("site_assessment_actual_cost_exceeds_reservation");
     }
   }

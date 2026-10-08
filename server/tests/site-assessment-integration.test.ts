@@ -22,6 +22,20 @@ const telemetry = (budget: SiteAssessmentBudget) => extractAgentCostTelemetry({ 
   provider: "openai_responses", model: "gpt-6.1-sol", artifacts: budget.artifacts() });
 
 describe("site assessment integration boundaries", () => {
+  it("retains cache-write exposure before admitting another paid call", () => {
+    vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD", "0.61");
+    const budget = new SiteAssessmentBudget();
+    budget.authorize("openai", "gpt-6.1-sol", {});
+    budget.record("openai", "gpt-6.1-sol", { usage: { input_tokens: 100000, output_tokens: 8192 } });
+    expect(budget.calls[0].cost_usd).toBeCloseTo(budget.calls[0].reserved_usd);
+    expect(() => budget.authorize("openai", "gpt-6.1-sol", {})).toThrow("inference_cost_cap");
+    expect(budget.calls).toHaveLength(1);
+  });
+  it("reserves the full admitted Gemini input context", () => {
+    const budget = new SiteAssessmentBudget();
+    budget.authorize("gemini", "gemini-3.8-flash");
+    expect(budget.calls[0].reserved_usd).toBeCloseTo((1048576 * 1.5 + 32768 * 7.5) / 1e6);
+  });
   it("admits only the current published browser source with both original and current rights", () => {
     expect(bindBrowserAssessmentSource("one", record(), pending, manifest).duration_seconds).toBe(30.1);
     expect(() => bindBrowserAssessmentSource("two", record(), pending, manifest)).toThrow("source_not_admitted");
@@ -34,7 +48,7 @@ describe("site assessment integration boundaries", () => {
     const budget = new SiteAssessmentBudget();
     budget.authorize("openai", "gpt-6.1-sol", {});
     budget.record("openai", "gpt-6.1-sol", { usage: { input_tokens: 1000, output_tokens: 100 } });
-    expect(telemetry(budget).conservative_spend_usd).toBeCloseTo(0.003);
+    expect(telemetry(budget).conservative_spend_usd).toBeCloseTo(0.0035);
     budget.authorize("openai", "gpt-6.1-sol", {});
     budget.record("openai", "gpt-6.1-sol", { output: [], usage: null });
     budget.authorize("gemini", "gemini-3.8-flash");
@@ -42,7 +56,7 @@ describe("site assessment integration boundaries", () => {
     const row = telemetry(budget);
     expect(row.spend_accounting_status).toBe("reserved_unknown");
     expect(row.spend_reservation?.unknown_calls).toBe(2);
-    expect(row.conservative_spend_usd).toBeCloseTo(0.003 + budget.calls[1].reserved_usd + budget.calls[2].reserved_usd);
+    expect(row.conservative_spend_usd).toBeCloseTo(0.0035 + budget.calls[1].reserved_usd + budget.calls[2].reserved_usd);
     expect(budget.artifacts().provider_responses[2].response).toEqual({ text: "Incomplete", usage: null });
   });
   it("stops ambiguous requests, unpriced models and cap overruns before provider calls", () => {
