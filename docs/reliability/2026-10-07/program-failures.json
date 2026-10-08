@@ -621,7 +621,22 @@
       "id": "DEP-JOINED",
       "owner": "coordinator",
       "state": "coverage_layer_executed;assessment_layer_unproven",
-      "detail": "22/22 normalUI actual Express/Firestore emulator plus20 additional in-memory worker traces;42 distinct layered traces. Fake objects/provider/local mail. Combined actual coverageSDK and qualification chain traced separately; final customer assessment publication remains unproven."
+      "detail": "22/22 normalUI actual Express/Firestore emulator plus20 additional in-memory worker traces;42 distinct layered traces. Fake objects/provider/local mail. Combined actual coverageSDK and qualification chain traced separately; final customer assessment publication remains unproven.",
+      "normal_route_owner_preflight": {
+        "reported_by": "existing_authorized_dishwasher_owner",
+        "actual_read_layer": "FirebaseAuth_and_UID_filtered_Firestore_GET_with_existing_ADC;no_customer_status_GET",
+        "state": "current_owned_dishwasher_task_not_established;legitimate_normal_claim_route_needed",
+        "verified_account_enabled": true,
+        "historical_dishwasher_account_owner_binding": "absent",
+        "other_owned_records_not_reused": true,
+        "contact_email_match": "not_established_locally;existing_web_runtime_can_verify_encrypted_contact",
+        "rights_clearance_proven": false,
+        "private_claim_receipt_sha256": "9dc611757f3d1fd4cd489063e8ea614bb61ea7579a3520585fe22c5b7fa44e15",
+        "production_writes": 0,
+        "provider_calls": 0,
+        "notification_sends": 0,
+        "claim_route_requirements": "Existing valid token, verified matching contact email and accepted terms; no token mint/direct owner assignment or credential transfer performed."
+      }
     },
     {
       "id": "DEP-LIVE-RUNTIME",
