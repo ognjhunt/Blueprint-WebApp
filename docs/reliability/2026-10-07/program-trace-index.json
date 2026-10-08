@@ -1552,5 +1552,27 @@
     "live_provider_calls": 0,
     "limitations": "Direct SDK-to-adapter return seam bypasses source-admission/browser path. No Firebase token verification, durable database, GCS, notification, native result, customer assessment publication or universal reader-absence proof. Initial v1 pass and two setup failures retained separately.",
     "independent_review": "All 22 linked file hashes and nine canonical source identities verified; deterministic producer relocation independently regenerated; bounded reader/status claims approved"
+  },
+  "final_clear_validation": {
+    "source_commit": "36225435c6eb10f38614b39b2394dba612a8c2a5",
+    "source_sha256": "c554cd1f48080ce40cd2d429c4d03b746b2510a9740e23ba83beae45776b868a",
+    "owner_worktree_branch": "codex/reliability-clear-20261008",
+    "private_manifest_path": "output/reliability-program/clear-reload/final362-evidence.json",
+    "manifest_sha256": "663e461b5d30799afd26262a5e633e565cd568e46f81e0129955c51bb460414e",
+    "native_intercepted_API_UI": {"unique_cases": 14, "attempts": 23, "passed": 23, "failed": 0, "repeat_note": "Full 14 plus three selected cases repeated three times. Separate from historical 811 results and from backend journey floor."},
+    "local_component_controls": 9,
+    "independent_component_controls": 11,
+    "control_count_note": "Overlapping author/reviewer checks are not summed as independent cases.",
+    "selected_existing_normal_UI_replay": {
+      "cases": ["UI-006", "UI-020"], "attempted": 2, "passed": 2, "other_catalog_cases_unattempted": 19,
+      "layer": "Normal Chromium UI with actual Express handlers and native isolated Firestore emulator; fake object/provider, simulated coverage-agent result, local notification sink",
+      "interruption": "Orderly CDP browser close mid-write and profile return, not SIGKILL or OS crash",
+      "durable_readback": "UI-020 retains 13 actual document and four fake-object JSON readbacks with matching hashes. UI-006 has retained per-case summary/digests only; its raw snapshot was superseded by the next case.",
+      "new_case_or_journey_credit": 0,
+      "full_customer_assessment_proven": false
+    },
+    "export": "Existing emulator export failed; zero export files. No complete database snapshot claimed.",
+    "cleanup": "Owned Java PID stopped; runner closed owned Vite/Chrome. Author verified ports by bind; reviewer independently confirmed PID absent without rebinding.",
+    "independent_review_commit": "505b61d1"
   }
 }

@@ -445,7 +445,7 @@
     "runtime_source_sha256": "5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c",
     "contract": "site_assessment.v2; legacyunverified; originalmodelpacketretainedprivate",
     "scope": "Selected-source factual rendering and explicitunverified/advisory recovery; notNLP/perception/feasibility truth",
-    "state": "merged_code_complete_deployment_blocked_by_current_required_CI_under_active_repair",
+    "state": "merged_code_complete; reviewed_descendant_d78_main_CI_success_and_paired_deployment_in_progress",
     "independent_review_commit": "1980443a",
     "reviewer_manifest_sha256": "fc5cbb02d4f0a0b313af59c0168c4711bcf7acd01511c52db36cb9f3f0cbaeb1",
     "independent_checks": "65focused+4neighbors;matchedtwoP1originalinputs/source/scriptedoutputs;positiveSDKreceiptsmatch3freshprocesses;17serializedstrictobjects",
@@ -468,7 +468,31 @@
       "retained_log_sha256": "4bb96f1f984a3205019c242145e04ba36bb8c14682e414bec7b6edd3a5b740d3",
       "owner": "intake_recovery; coordinator; independent_review",
       "rerun_or_bypass": false,
-      "status": "reproducing_original_case_before_scoped_repair"
+      "status": "Retained failure diagnosed as missing durable-clear acknowledgment. Reviewed PR944 repair merged d78; its exact-main CI remains the next gate."
     }
+  },
+  "durable_clear_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/944",
+    "head": "36225435c6eb10f38614b39b2394dba612a8c2a5",
+    "parent": "8c6f020ea75eccd4530b1cb8dde478fe6482b4be",
+    "merged_sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
+    "merged_at_utc": "2026-10-08T11:33:58Z",
+    "scope": "P2 durable clear progress/completion/failure feedback, account-scope epoch cancellation and retry warning recovery; no storage schema, backend, provider, authorization or migration change",
+    "source_sha256": "c554cd1f48080ce40cd2d429c4d03b746b2510a9740e23ba83beae45776b868a",
+    "parent_assessment_source_sha256": "5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c",
+    "merged_source_hashes_verified": true,
+    "independent_review_commits": ["019149b5", "505b61d1"],
+    "independent_review_scope": "Actual diff, matched failing controls, native browser checks and final trace/source/readback hashes; no full customer-assessment claim",
+    "private_final_manifest_sha256": "663e461b5d30799afd26262a5e633e565cd568e46f81e0129955c51bb460414e",
+    "required_PR_CI_run": 37769934452,
+    "required_PR_CI_state": "success_all9_executed_contexts; expected_PR_deployment_observer_skip",
+    "required_main_CI_run": 37770897943,
+    "required_main_CI_state": "completed_success_2026-10-08T11:42:28Z",
+    "deployment_workflow_run": 37771834921,
+    "deployment_workflow_state": "in_progress",
+    "paired_deployments": {"web": {"id": "dep-db3o3do473hc73eo8gh0", "sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219", "observed_status": "build_in_progress"}, "worker": {"id": "dep-db3o3drtqb8s73epbsj0", "sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219", "observed_status": "build_in_progress"}},
+    "state": "merged_code_complete; exact_main_green; paired_deployment_and_live_clear_verification_pending",
+    "new_unique_journey_credit": 0,
+    "deployed_clear_smoke": {"source_commit": "3514114eddaa320f6de02ede8923e6a2a4af4a58", "script_sha256": "ea03c76daa4f2cde69efc4939ec52a1715e0e8305648c2d03b6999d9cfa1f56c", "contract": "Optional --verify-clear receipt v2; fresh anonymous synthetic local browser; all non-GET/external traffic aborted; no customer backend mutation", "executed": false}
   }
 }
