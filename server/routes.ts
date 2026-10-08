@@ -60,6 +60,7 @@ import internalAgentExecutionRouter from "./routes/internal-agent-execution";
 import paperclipAdpExecutionRouter from "./routes/paperclip-adp-execution";
 import internalCaptureQaRouter from "./routes/internal-capture-qa";
 import internalCaptureReconstructionRouter from "./routes/internal-capture-reconstruction";
+import internalWebsitePreparationRouter from "./routes/internal-website-preparation";
 import internalCaptureWorldsRouter from "./routes/internal-capture-worlds";
 import internalAgentRunSettlementRouter from "./routes/internal-agent-run-settlement";
 import selfCaptureUploadsRouter from "./routes/self-capture-uploads";
@@ -139,6 +140,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/internal/paperclip", paperclipAdpExecutionRouter);
   app.use("/api/internal/pipeline", internalCaptureQaRouter);
   app.use("/api/internal/pipeline", internalCaptureReconstructionRouter);
+  app.use("/api/internal/pipeline", internalWebsitePreparationRouter);
   app.use("/api/internal/pipeline", internalCaptureWorldsRouter);
   // Closes out what an agent-started run reserved. Pipeline-signed, never
   // reachable with a team's own agent key: a team must not settle its own

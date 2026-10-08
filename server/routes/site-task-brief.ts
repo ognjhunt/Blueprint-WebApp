@@ -46,6 +46,7 @@ import {
   projectTaskStatus,
   taskStatusInputFrom,
 } from "../utils/taskStatusProjection";
+import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue, decryptInboundRequestForAdmin } from "../utils/field-encryption";
@@ -893,6 +894,11 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         ? safeSceneViewUrl(reconstruction?.assets?.launchUrl)
           || safeSceneViewUrl(reconstruction?.assets?.panoUrl)
         : null;
+    // Presence is only a readback hint. The stored failure itself is never
+    // customer truth: verify current Pipeline/source/rights/context again.
+    const preparationStatus = payload.scope !== "film" && !request?.captureRights.consent_revoked
+      && captureSession?.data()?.website_preparation
+      ? await loadCurrentWebsitePreparationStatus(payload.requestId, payload.captureId) : null;
 
     const status = projectTaskStatus(
       taskStatusInputFrom({
@@ -905,6 +911,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady: Boolean(sceneViewUrl),
         scenePreparationFailed: reconstruction?.state === "failed",
+        preparationStatus,
         stage,
         screening: request?.captureRights.consent_revoked ? null : screening,
         site_task_triage: request?.site_task_triage ?? null,
@@ -916,7 +923,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // Retention alone is not an active review or permission to process. The
     // desktop must show the same hold as the phone while preserving the saved
     // receipt (and must never ask for a replacement recording in that state).
-    if (!request?.captureRights.consent_revoked && reconstruction?.state !== "failed"
+    if (!request?.captureRights.consent_revoked && reconstruction?.state !== "failed" && !preparationStatus
       && status.decision === "footage_received" && (upload.processingHold || uploadState !== "processing_ready")) {
       status.headline = upload.processingHold?.detail
         ?? "Your video is saved. Processing has not been confirmed. Keep your original video; you do not need to record or upload it again.";

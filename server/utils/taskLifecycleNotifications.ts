@@ -14,12 +14,14 @@ import { enqueueOutbox, CAPTURE_OUTBOX_COLLECTION, type OutboxKind } from "./cap
 import { decryptFieldValue } from "./field-encryption";
 import { EMAIL_SIGN_OFF } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
+import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
   | "task_received"
   | "video_received"
   | "scene_ready"
+  | "preparation_needs_attention"
   | "listing_live"
   | "screening_cleared"
   | "screening_not_now"
@@ -53,6 +55,10 @@ export function reconstructionIsViewable(record: {
 }
 
 const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string) => string }> = {
+  preparation_needs_attention: {
+    subject: "An update on your Blueprint job preparation",
+    body: (url, detail) => `Job preparation needs our team's review. Keep your original recording. Open your job to see the latest status and next step.${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
+  },
   task_received: {
     subject: "We have your Blueprint job — here is your link",
     body: (url) => `Thanks for sending us your job. This private link is where you review your job brief and follow everything that happens next. You can add footage later, once you have recording permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\nWe will email you each time something happens on your job.`,
@@ -115,15 +121,24 @@ export async function enqueueTaskLifecycleNotification(params: {
   eventId?: string;
   /** One clause of event detail for the body, e.g. "12 of 50 episodes succeeded". */
   detail?: string;
+  correlationId?: string;
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn" }> {
   if (!db) return { enqueued: false, reason: "store_unavailable" };
   const requestId = params.requestId.trim();
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
   if (!snapshot.exists) return { enqueued: false, reason: "request_missing" };
-  if (!(await taskLifecycleNotificationIsCurrent({ requestId, kind: params.milestone }))) {
+  // New private-link notices bind recipient admission as well as source.
+  // Older notice kinds retain their existing ordering and authority behavior.
+  let preparationRecipient: string | undefined;
+  if (params.milestone === "preparation_needs_attention") {
+    try { preparationRecipient = String(await decryptFieldValue(snapshot.data()?.contact?.email ?? "")).trim(); }
+    catch { throw new Error("website_preparation_recipient_unavailable"); }
+  }
+  if (!(await taskLifecycleNotificationIsCurrent({ requestId, kind: params.milestone,
+    ...(params.milestone === "preparation_needs_attention" ? {preparationEventId: params.eventId, to: preparationRecipient} : {}) }))) {
     return { enqueued: false, reason: "consent_withdrawn" };
   }
-  const to = String(await decryptFieldValue(snapshot.data()?.contact?.email ?? "")).trim();
+  const to = preparationRecipient ?? String(await decryptFieldValue(snapshot.data()?.contact?.email ?? "")).trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     return { enqueued: false, reason: "contact_missing" };
   }
@@ -139,9 +154,13 @@ export function buildTaskLifecycleNotification(params: {
   to: string;
   eventId?: string;
   detail?: string;
+  correlationId?: string;
   captureUrl?: string;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
+  if (params.milestone === "preparation_needs_attention" && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
+    throw new Error("website_preparation_event_invalid");
+  }
   const message = copy[params.milestone];
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
@@ -149,11 +168,26 @@ export function buildTaskLifecycleNotification(params: {
     idempotencyKey: `${requestId}:${params.milestone}${eventId ? `:${eventId}` : ""}`,
     requestId,
     kind: params.milestone,
+    ...(params.milestone === "preparation_needs_attention" ? {preparationEventId: params.eventId} : {}),
     to: params.to,
     subject: message.subject,
-    body: `${message.body(url, params.detail?.trim() ?? "")}\n\n${EMAIL_SIGN_OFF}`,
+    body: `${message.body(url, params.milestone === "preparation_needs_attention"
+      ? /^bp-prep-[a-f0-9]{16}$/.test(params.correlationId || "") ? `Reference: ${params.correlationId}.` : ""
+      : params.detail?.trim() ?? "")}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "ops@tryblueprint.io",
   };
+}
+
+/** Existing outbox tick repairs a lost enqueue; fresh readback gates dispatch again. */
+export async function reconcileWebsitePreparationNotifications(limit = 1): Promise<void> {
+  if (!db) return;
+  const store = db;
+  await drainPendingWebsitePreparationNotifications(async intent => {
+    const result = await enqueueTaskLifecycleNotification({...intent, milestone: "preparation_needs_attention"});
+    if (result.enqueued) return "enqueued";
+    const key = `${intent.requestId}:preparation_needs_attention:${intent.eventId.replace(/[^A-Za-z0-9._-]/g, "_")}`;
+    return (await store.collection(CAPTURE_OUTBOX_COLLECTION).doc(key).get()).exists ? "duplicate" : "unavailable";
+  }, undefined, Math.max(1, Math.min(limit, 1)));
 }
 
 

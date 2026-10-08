@@ -90,6 +90,12 @@ export interface SceneScreening {
   noResult: number;
 }
 
+/** A fresh, source-bound Pipeline ledger observation; no final robot verdict. */
+export interface TaskPreparationStatus {
+  state: "preparing" | "awaiting_inputs" | "failed_retryable" | "authority_ended" | "handed_off" | "unavailable";
+  correlationId: string | null;
+}
+
 interface TaskStatusInput {
   briefDrafted: boolean;
   briefConfirmed: boolean;
@@ -107,6 +113,7 @@ interface TaskStatusInput {
   scenePreviewReady?: boolean;
   /** Current persisted preview reconstruction failed; not a robot-run verdict. */
   scenePreparationFailed?: boolean;
+  preparationStatus?: TaskPreparationStatus | null;
   /** Runs against the scene, when the caller looked. Absent means it did not. */
   screening?: SceneScreening | null;
   /**
@@ -246,6 +253,28 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
+  // Preparation is its own required-stage observation. A viewable preview
+  // cannot settle it, and a source-stage handoff cannot become a robot result.
+  const preparation = input.preparationStatus;
+  if (preparation && preparation.state !== "handed_off") {
+    const reference = /^bp-prep-[a-f0-9]{16}$/.test(preparation.correlationId || "")
+      ? ` Reference: ${preparation.correlationId}.` : "";
+    const headlines: Record<Exclude<TaskPreparationStatus["state"], "handed_off">, string> = {
+      preparing: "We are preparing your job. Keep your original recording.",
+      awaiting_inputs: "Job preparation needs more information. Keep your original recording; our team needs to review it.",
+      failed_retryable: "Job preparation encountered a problem. Keep your original recording; our team needs to review it.",
+      authority_ended: "Processing is on hold while our team checks its authorization. Keep your original recording.",
+      unavailable: "Your recording is saved. We could not verify the latest preparation status. Keep your original recording and check again shortly.",
+    };
+    return {
+      ...base,
+      decision: preparation.state === "preparing" ? "assessing" : "footage_received",
+      stage: preparation.state === "preparing" ? input.stage : null,
+      headline: headlines[preparation.state] + reference,
+      operatorAction: null,
+    };
+  }
+
   // A recorded preview failure is distinct from coverage and from robot-run
   // results above. Do not claim ongoing preparation or expose provider errors.
   if (input.scenePreparationFailed) {
@@ -323,6 +352,7 @@ export function taskStatusInputFrom(record: {
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
   scenePreparationFailed?: boolean;
+  preparationStatus?: TaskPreparationStatus | null;
   stage: ReadinessStage | null;
   screening?: SceneScreening | null;
   site_task_triage?: { disposition?: string | null } | null;
@@ -337,6 +367,7 @@ export function taskStatusInputFrom(record: {
     ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
     scenePreviewReady: Boolean(record.scenePreviewReady),
     scenePreparationFailed: record.scenePreparationFailed === true,
+    preparationStatus: record.preparationStatus ?? null,
     briefDrafted: record.briefDrafted,
     briefConfirmed: Boolean(record.site_task_brief_confirmed_at),
     stage: record.stage,
