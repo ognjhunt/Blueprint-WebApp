@@ -143,7 +143,7 @@ describe("mounted communications authentication and CSRF", () => {
     verifyIdToken.mockResolvedValueOnce({ uid: "ops-user", roles: ["ops"] });
     const response = await fetch(`${baseUrl}${preparation}`, { headers: { Authorization: "Bearer mock-valid-ops-token" } });
     expect(response.status).toBe(200);
-    expect(verifyIdToken).toHaveBeenCalledWith("mock-valid-ops-token");
+    expect(verifyIdToken).toHaveBeenCalledWith("mock-valid-ops-token", true);
     expect((await response.json()).connection).toMatchObject({ credentialsAccepted: false, grantStarted: false });
     expect(response.headers.get("cache-control")).toBe("no-store");
   });

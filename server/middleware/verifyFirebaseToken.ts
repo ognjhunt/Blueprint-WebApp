@@ -44,7 +44,10 @@ export default async function verifyFirebaseToken(
   }
 
   try {
-    const decodedToken = await authAdmin.verifyIdToken(token);
+    // The emulator checks account state automatically; production does so only
+    // with this flag. Disabled/deleted accounts and revoked sessions must lose
+    // access even while their formerly valid ID token has not expired.
+    const decodedToken = await authAdmin.verifyIdToken(token, true);
     res.locals.firebaseUser = decodedToken;
     return next();
   } catch (error) {
