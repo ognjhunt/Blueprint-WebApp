@@ -3350,3 +3350,26 @@ IN_PROGRESS at the independent read. Final main CI, true deployment, paired
 service/capacity and public serving identity remain pending separate evidence;
 no provider/customer action or actual assessment proof follows from source
 continuity. Root-owned release edits were preserved.
+
+
+### Independent deployed identity — 189fc91d
+
+Fresh purpose-built Render reads confirm web and worker LIVE at
+`189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9`, finishing23:01:28.047466Z
+and23:02:13.779473Z respectively. The web service reports one instance on
+plan1c-2g; this is service-plan metadata, not a measured process RSS or proof
+that a particular assessment cannot exhaust memory. Protected raw receipt
+`cf48b91fef6c8c753426f370003ea2b86d82e6f9c0a9802dfbffcb3008b59f99`
+retains the actual independent responses privately.
+
+Fresh native GitHub reads confirm main37856452795 and true
+Deploy37856783421 terminal SUCCESS at exact189. Independent public GETs at
+approximately23:04:30UTC return version189, health healthy, readiness ready
+with blocker_count0, all HTTP200. Protected public receipt
+`615be466e50528ae0364f13793220b364302c98f6d1bafcb1aa77b3b76664bc8`
+retains those bytes. Reviewed whole-tree continuity remains98738005 above.
+This clears bounded source/deployed service identity and reported capacity;
+it does not establish provider authentication, paid dispatch, retry outcome,
+assessment/perception quality, actual live failure recovery, or absence of
+the previously observed memory defect. No customer action/provider call or
+plan mutation occurred in review, and no additional authority was granted.
