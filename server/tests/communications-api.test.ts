@@ -146,13 +146,18 @@ describe("portable communications Agents API", () => {
     expect(posted.spend_control).toEqual({ limit: 10 });
     expect(posted.metadata.blueprint_communications_spend_limit_cents).toBe("10");
     expect(result.checkpoint.sessionSpendLimitCents).toBe(10);
+    await expect(f.api.verifyExistingDraftSession(result.checkpoint, "job-1", result.checkpoint.requestDigest!)).resolves.toMatchObject({ sessionId: "session-1" });
+    await expect(f.api.verifyExistingDraftSession({ ...result.checkpoint, sessionSpendRequestBaseDigest: undefined }, "job-1", result.checkpoint.requestDigest!))
+      .rejects.toThrow("spend_limit_binding_mismatch");
     await expect(f.api.run({ ...f.params, checkpoint: { ...result.checkpoint, sessionSpendLimitCents: 11 } }))
       .rejects.toThrow("spend_limit_binding_mismatch");
     const readback = f.fetchMock.getMockImplementation()!;
     f.fetchMock.mockImplementation(async (url: any, init: any) => {
       const response = await readback(url, init);
       if (new URL(String(url)).pathname.endsWith("/session-1")) {
-        return Response.json({ ...await response.json(), spend_control: { limit: 11 } });
+        const session = await response.json();
+        return Response.json({ ...session, spend_control: { limit: 11 },
+          metadata: { ...session.metadata, blueprint_communications_spend_limit_cents: "11" } });
       }
       return response;
     });
