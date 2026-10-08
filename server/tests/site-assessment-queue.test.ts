@@ -116,7 +116,7 @@ it("does not backfill already-published sources or publish an in-memory-only ans
   expect(state.docs.get(key)?.packet_sha256).toBeNull();
 });
 
-it("ADVISORY-PRODUCER-001 joined actual SDK persistence and authorized owner publication (scripted providers)", async () => {
+it.each(["ordinary", "programme-bound"])("ADVISORY-PRODUCER-001 joined actual SDK persistence and authorized owner publication (scripted providers, %s)", async (mode) => {
   const { OpenAIProvider, Usage, setTracingDisabled } = await import("@openai/agents");
   setTracingDisabled(true); // No provider telemetry for this offline joined control.
   const gemini = await import("../agents/adapters/gemini-video");
@@ -130,6 +130,23 @@ it("ADVISORY-PRODUCER-001 joined actual SDK persistence and authorized owner pub
   raw.capture_privacy_source_bound_decision.producer_source.key=browserPendingDecisionKey(joined);
   state.docs.set(`inboundRequests/${joined.request_id}`,raw);
   state.docs.set(`captureUploadSessions/${joined.capture_id}`,{browser_pending_delivery:joined});
+  if (mode === "programme-bound") {
+    const { inferenceProgrammeContextDigest } = await import("../utils/inferenceProgrammeAdmission");
+    state.docs.get(`inboundRequests/${joined.request_id}`)!.inference_program_id = "synthetic-programme";
+    state.docs.set("inferencePrograms/synthetic-programme", {
+      schema_version: "inference_program.v1", status: "active", authority_ref: "synthetic-offline-authority",
+      ledger_sha256: `sha256:${"f".repeat(64)}`, request_id: joined.request_id, capture_id: joined.capture_id,
+      context_digest: inferenceProgrammeContextDigest(raw, null),
+      video_sha256: createHash("sha256").update(Buffer.from("video-1")).digest("hex"),
+      expires_at_ms: Date.now() + 60_000, cap_micro_usd: 5_000_000,
+      slots: [
+        { id: "original-gemini", provider: "gemini", model: "gemini-3.8-flash", reserved_micro_usd: 1_818_624, state: "unknown" },
+        { id: "original-sol-1", provider: "openai", model: "gpt-6.1-sol", reserved_micro_usd: 331_920, state: "recorded" },
+        ...[2, 3, 4].map(n => ({ id: `original-sol-${n}`, provider: "openai", model: "gpt-6.1-sol", reserved_micro_usd: 331_920, state: "held" })),
+        { id: "amended-gemini", provider: "gemini", model: "gemini-3.8-flash", reserved_micro_usd: 1_818_624, state: "held" },
+      ],
+    });
+  }
   const put=(name:string,generation:string,body:Buffer,contentType="application/json")=>seams.objects.set(name,{generation,crc32c:"AAAAAA==",bytes:body,contentType});
   put(joined.video.object_name,joined.video.generation,Buffer.from("video-1"),"video/mp4");put(joined.manifest.object_name,joined.manifest.generation,bytes);
   const delivery=buildBrowserDelivery({requestId:joined.request_id,sceneId:joined.scene_id,captureId:joined.capture_id,
@@ -172,6 +189,14 @@ it("ADVISORY-PRODUCER-001 joined actual SDK persistence and authorized owner pub
     const run=state.docs.get(`agentRuns/${job.run_id}`)!;
     expect(run.artifacts.source_admission).toMatchObject({advisory_job_id:key.split("/")[1],context_digest:job.context_digest,source_key:browserPendingDecisionKey(joined),video_sha256:createHash("sha256").update(Buffer.from("video-1")).digest("hex")});
     expect(run.artifacts.capture_inference_reservations).toHaveLength(3);
+    if (mode === "programme-bound") {
+      const programme = state.docs.get("inferencePrograms/synthetic-programme")!;
+      expect(programme.slots.find((slot:any) => slot.id === "original-gemini").state).toBe("unknown");
+      expect(programme.slots.find((slot:any) => slot.id === "original-sol-1").state).toBe("recorded");
+      expect(programme.slots.filter((slot:any) => slot.state === "held")).toHaveLength(1);
+      expect(programme.slots.filter((slot:any) => slot.run_id === job.run_id && slot.state === "recorded")).toHaveLength(3);
+      expect(programme.slots.reduce((total:number, slot:any) => total + slot.reserved_micro_usd, 0)).toBe(4_964_928);
+    }
     const express=(await import("express")).default;const {createServer}=await import("node:http");
     const app=express();app.use(express.json());app.use("/api/site-task-brief",(await import("../routes/site-task-brief")).default);
     server=createServer(app);await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));

@@ -1,3 +1,4 @@
+import { hasInferenceProgramme } from "./inferenceProgrammeAdmission";
 import { randomUUID } from "node:crypto";
 import { hasCurrentRecordingConsent } from "./recordingConsent";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -42,7 +43,7 @@ export async function reconcileCoverageReviews(limit = 10) {
   for (const row of legacy.docs) await db.runTransaction(async tx => {
     const current = (await tx.get(row.ref)).data();
     const work = current?.coverageReviewWork;
-    if (!current?.coverageReviewPending || !work) return;
+    if (!current?.coverageReviewPending || !work || hasInferenceProgramme(current)) return;
     const privacy = current.capture_privacy_source_bound_decision || current.capture_privacy_screen;
     // A newer canonical request owns its own identity. Stale legacy work must
     // never overwrite that identity or authorize a review of a replacement.
@@ -69,6 +70,8 @@ export async function reconcileCoverageReviews(limit = 10) {
   await cursorRef.set({ last_id: pending.docs.length ? pending.docs[pending.docs.length - 1].id : null });
   for (const request of pending.docs) {
     const value = request.data();
+    // Optional coverage never claims or spends a programme reserved for the advisory.
+    if (hasInferenceProgramme(value)) continue;
     const params = value.capture_coverage_request;
     const privacy = value.capture_privacy_source_bound_decision || value.capture_privacy_screen;
     if (!hasCurrentRecordingConsent(value.request?.consent_attestation)) continue;
@@ -92,7 +95,7 @@ export async function reconcileCoverageReviews(limit = 10) {
       const [row, currentRequest, currentBrief] = await Promise.all([tx.get(jobRef), tx.get(request.ref), tx.get(db!.collection("siteTaskBriefs").doc(request.id))]);
       const current = currentRequest.data();
       const currentPrivacy = current?.capture_privacy_source_bound_decision || current?.capture_privacy_screen;
-      if (!hasCurrentRecordingConsent(current?.request?.consent_attestation)
+      if (hasInferenceProgramme(current) || !hasCurrentRecordingConsent(current?.request?.consent_attestation)
         || currentPrivacy?.proceeded !== true || currentPrivacy.capture_id !== params.captureId
         || humanDecisionDigest(currentPrivacy.producer_source) !== humanDecisionDigest(binding.source)
         || humanDecisionDigest(currentBrief.data()) !== binding.brief_digest) return null;
