@@ -343,11 +343,14 @@ function PilotProposalReview({ user }: { user: User | null }) {
 }
 
 /** Staff use the actual communications agent; loading never drafts or sends. */
-function JobCommunications({ user, requestId }: { user: User | null; requestId: string }) {
+export function JobCommunications({ user, requestId }: { user: User | null; requestId: string }) {
   const [loaded, setLoaded] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [approved, setApproved] = useState<Record<string, boolean>>({});
+  const [instruction, setInstruction] = useState("");
+  const [decisionReason, setDecisionReason] = useState("");
+  const [purpose, setPurpose] = useState("question");
   async function action(path = "", body?: unknown) {
     const response = await fetch(`/api/admin/robot-teams/jobs/${encodeURIComponent(requestId)}/communications${path}`, {
       method: body ? "POST" : "GET", credentials: "include",
@@ -365,19 +368,29 @@ function JobCommunications({ user, requestId }: { user: User | null; requestId: 
     <button type="button" className="ms-button" disabled={busy} onClick={() => void run(async () => { setLoaded(await action()); setApproved({}); })}>Load current customer context and drafts</button>
     {loaded && <><p>Recipient: {loaded.context.recipient}. Drafting: {loaded.draftingEnabled ? "existing authority enabled" : "disabled by current configuration"}. Sending: {loaded.deliveryEnabled ? "enabled for an explicitly reviewed message" : "disabled by current configuration"}.</p>
       <details><summary>Exact customer context to review</summary><pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(loaded.context, null, 2)}</pre></details>
+      {loaded.context.assessment && <section><h4>Assessment follow-up</h4>
+        <p>Preparation can continue where authorized while the site answers the remaining questions.</p>
+        {loaded.context.assessment.unknowns.filter((text: string) => text.startsWith("Question to resolve:")).map((text: string) =>
+          <p key={text}>{text} <button type="button" disabled={busy} onClick={() => {
+            setPurpose("question");
+            setInstruction(`Ask this unresolved assessment question in a natural customer message: ${text}`.slice(0, 1200));
+            setDecisionReason("Clarify the specific decision identified by the current assessment; preserve unknowns and explain which preparation can continue.");
+          }}>Use this question in the agent draft</button></p>)}
+      </section>}
       <form className="ms-form" onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget), read = (key: string) => String(data.get(key) || "").trim();
         void run(async () => { await action("/draft", { purpose: read("purpose"), instruction: read("instruction"), decisionReason: read("reason"), expectedContextDigest: loaded.contextDigest,
           reviewedCustomerContext: data.get("reviewed") === "on", ...(read("threadId") ? { threadId: read("threadId"), inboundMessageId: read("inboundMessageId") } : {}) });
           setLoaded(await action()); setApproved({}); setMessage("Agent draft prepared for exact review. Nothing has been sent."); }); }}>
-        <label>Purpose<select name="purpose"><option value="question">Consequential question</option><option value="recommendation">Reviewed recommendation</option><option value="coordination">Authorized coordination</option></select></label>
-        <label>What the agent should communicate<textarea name="instruction" minLength={8} maxLength={1200} required /></label>
-        <label>Why this matters to the next decision<textarea name="reason" minLength={8} maxLength={800} required /></label>
+        <label>Purpose<select name="purpose" value={purpose} onChange={event => setPurpose(event.target.value)}><option value="question">Consequential question</option><option value="recommendation">Reviewed recommendation</option><option value="coordination">Authorized coordination</option></select></label>
+        <label>What the agent should communicate<textarea name="instruction" value={instruction} onChange={event => setInstruction(event.target.value)} minLength={8} maxLength={1200} required /></label>
+        <label>Why this matters to the next decision<textarea name="reason" value={decisionReason} onChange={event => setDecisionReason(event.target.value)} minLength={8} maxLength={800} required /></label>
         <label>Existing customer thread ID, if replying<input name="threadId" maxLength={160} /></label><label>Exact inbound message ID, if replying<input name="inboundMessageId" maxLength={160} /></label>
         <label className="ms-check-row"><input name="reviewed" type="checkbox" required />I reviewed this bounded customer context and have the applicable authority to prepare this agent draft.</label>
         <button className="ms-button" disabled={busy || !loaded.draftingEnabled}>Prepare agent draft for review</button>
       </form>
       {loaded.communications.map((row: any) => <section key={row.id}><h4>{row.purpose}: {row.state}</h4>
         {row.output && <><p>{row.output.subject}</p><p style={{ whiteSpace: "pre-wrap" }}>{row.output.body}</p></>}
+        {row.outputHtml && <iframe title="Branded customer email preview" sandbox="" srcDoc={row.outputHtml} style={{ width: "100%", minHeight: 520, border: "1px solid #dcdfd4" }} />}
         {row.failureCode && <p role="alert">{row.failureCode}</p>}
         {row.state === "needs_review" && <><label className="ms-check-row"><input type="checkbox" checked={approved[row.id] ?? false} onChange={event => setApproved({ ...approved, [row.id]: event.target.checked })} />I reviewed this exact recipient and message and have authority to send it. No new disclosure, cost or commitment is authorized by this control.</label>
           <button type="button" className="ms-button" disabled={busy || !loaded.deliveryEnabled || !approved[row.id]} onClick={() => void run(async () => {
