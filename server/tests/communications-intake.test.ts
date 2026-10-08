@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { createHash } from "node:crypto";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { admitPublishedResearch, recordPublishedHypotheses, runCommunicationsIntake, RESEARCH_WORK_ITEMS } from "../agents/communications-intake";
 import { publishedPublicContact, PUBLIC_CONTACT_PREFIX } from "../agents/communications-contact-evidence";
@@ -23,6 +23,9 @@ function setup(options: Parameters<typeof publishedResearchFixture>[0] = { publi
     date, run_key: fixture.snapshot.row.run_key, packet_digest: fixture.snapshot.row.packet_digest, stage: "completed" });
   return { ...fixture, db, deps, records, admit, workItem };
 }
+// Fixed synthetic evidence must use its fixture clock, including readers whose
+// production default is Date.now(). Timers remain real outside explicit cases.
+beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(communicationsNow); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("agent-owned published research intake (offline)", () => {
@@ -229,6 +232,8 @@ describe("agent-owned published research intake (offline)", () => {
   });
 
   it("runs the one-minute automatic intake with paid work disabled and waits for active intake on stop", async () => {
+    // This case owns interval timers too, beyond the per-case Date clock.
+    vi.useRealTimers();
     vi.useFakeTimers(); vi.setSystemTime(communicationsNow);
     const f = setup(); await f.workItem();
     const store = new CommunicationsStore(f.db, f.deps.now), api = { run: vi.fn(), cancel: vi.fn(), reconcileSaved: vi.fn() };
