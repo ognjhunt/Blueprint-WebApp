@@ -76,11 +76,11 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
     const changed = JSON.parse(fs.readFileSync(file, "utf8")); changed.experiment.providers.openai.cap_usd = 2; writeExperimentJson(file, changed);
     await expect(reservation.assertDispatchAllowed()).rejects.toThrow("authority_changed"); run.close();
   });
-  it("validates retained tool query, source bytes, real-response binding and perception version", () => {
+  it("validates retained tool query, source bytes, real-response binding and perception version", async () => {
     const versions = experimentVersions(process.cwd()), args = { question: "Synthetic question", processing: "auto", sampling_fps: 2 };
     const evidence = { summary: "Synthetic", observations: [{ category: "motion", finding: "Synthetic movement", basis: "observed",
       start_seconds: 1, end_seconds: 2, uncertainty: null }], not_observable: [] };
-    const text = JSON.stringify(evidence), receipt = { source_sha256: source.video_sha256, bytes: source.video_bytes,
+    const text = JSON.stringify({ ...evidence, provider_metadata: { harmless: true } }), receipt = { source_sha256: source.video_sha256, bytes: source.video_bytes,
       model_requested: "gemini-3.8-flash", analysis_sha256: experimentHash(text), question: args.question,
       inspection: { processing: args.processing, sampling_fps: args.sampling_fps }, operator_messages_sha256: source.operator_messages_sha256,
       prompt_sha256: "f".repeat(64), processing: { model_version: "synthetic-not-a-provider", mode: "static", sampling_fps_requested: 2 } };
@@ -88,20 +88,25 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
       kind: "video", canonical_ref: source.video_ref, sha256: source.video_sha256, checked_at: null, content: { ...args, evidence, receipt } }] },
       provider_responses: [{ provider: "gemini", model: "gemini-3.8-flash", response: { text, usage: { promptTokenCount: 100, candidatesTokenCount: 20 },
         processing: receipt.processing } }] } };
-    const saved = captureSavedEvidence(result, source, versions, approval().experiment.retention, new Date().toISOString())!;
-    expect(validateSavedEvidence(saved, source, versions)).toHaveLength(1);
-    expect(() => validateSavedEvidence(saved, { ...source, video_sha256: "d".repeat(64) }, versions)).toThrow("source_mismatch");
-    expect(() => validateSavedEvidence(saved, { ...source, operator_messages_sha256: "f".repeat(64) }, versions)).toThrow("analysis_context_changed");
-    expect(() => validateSavedEvidence(saved, source, { ...versions, analysis_sha256: "d".repeat(64) })).toThrow("fresh_evidence_required");
+    const saved = (await captureSavedEvidence(result, source, versions, approval().experiment.retention, new Date().toISOString()))!;
+    expect(await validateSavedEvidence(saved, source, versions)).toHaveLength(1);
+    expect(saved.responses[0].response.text).toContain("provider_metadata");
+    expect(saved.sources[0].content.evidence).not.toHaveProperty("provider_metadata");
+    await expect(validateSavedEvidence(saved, { ...source, video_sha256: "d".repeat(64) }, versions)).rejects.toThrow("source_mismatch");
+    await expect(validateSavedEvidence(saved, { ...source, operator_messages_sha256: "f".repeat(64) }, versions)).rejects.toThrow("analysis_context_changed");
+    await expect(validateSavedEvidence(saved, source, { ...versions, analysis_sha256: "d".repeat(64) })).rejects.toThrow("fresh_evidence_required");
+    const injected = structuredClone(saved); injected.sources[0].content.evidence.unsourced_extra = "Synthetic injected field";
+    injected.content_sha256 = experimentHash(Object.fromEntries(Object.entries(injected).filter(([key]) => key !== "content_sha256")));
+    await expect(validateSavedEvidence(injected, source, versions)).rejects.toThrow("provenance_invalid");
     const relabeled = structuredClone(saved); relabeled.sources[0].content.question = "Different question";
     relabeled.sources[0].content.sampling_fps = 4;
     relabeled.sources[0].source_id = `video:${source.capture_id}:${experimentHash({ question: "Different question", processing: "auto", sampling_fps: 4 }).slice(0, 12)}`;
     relabeled.content_sha256 = experimentHash(Object.fromEntries(Object.entries(relabeled).filter(([key]) => key !== "content_sha256")));
-    expect(() => validateSavedEvidence(relabeled, source, versions)).toThrow("provenance_invalid");
+    await expect(validateSavedEvidence(relabeled, source, versions)).rejects.toThrow("provenance_invalid");
     saved.sources[0].content.evidence.summary = "Corrupted";
-    expect(() => validateSavedEvidence(saved, source, versions)).toThrow("digest_changed");
+    await expect(validateSavedEvidence(saved, source, versions)).rejects.toThrow("digest_changed");
     saved.content_sha256 = experimentHash(Object.fromEntries(Object.entries(saved).filter(([key]) => key !== "content_sha256")));
-    expect(() => validateSavedEvidence(saved, source, versions)).toThrow("provenance_invalid");
+    await expect(validateSavedEvidence(saved, source, versions)).rejects.toThrow("provenance_invalid");
   });
   it("redacts access URLs, secrets, personal emails and hidden reasoning without fabricating zero usage", () => {
     const clean = sanitizeExperiment({ authorization: "private", url: "https://example.invalid/signed?key=secret", text: "See https://example.invalid/x?token=secret and synthetic@example.invalid",
@@ -118,6 +123,8 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
     const failed = compareAssessmentRuns({ status: "failed", versions: {} }, { status: "completed", versions: {} });
     expect(failed.changed_runtime_status).toBe(true); expect(failed.changed_sections).toEqual([]);
     expect(failed.same_source).toBe(false); expect(failed.same_analysis_version).toBe(false);
+    const retentionFailed = compareAssessmentRuns(run([]), { ...run([]), status: "failed", stage: "evidence_retention" });
+    expect(retentionFailed.after.status).toBe("failed"); expect(retentionFailed.after.assessment_status).toBe("completed");
   });
   it("runs the real command's two explicit denial paths and writes readable nonzero results without model dispatch", () => {
     const file = ledger(), dir = path.dirname(file), input = path.join(dir, "input.json");

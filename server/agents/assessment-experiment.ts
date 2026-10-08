@@ -88,7 +88,7 @@ type Evidence = z.infer<typeof savedEvidence>;
 const sourceBinding = (source: Record<string, any>): Evidence["source"] => Object.fromEntries(
   ["request_id", "capture_id", "source_key", "video_ref", "video_sha256", "video_bytes", "duration_seconds"].map(key => [key, source[key]])) as Evidence["source"];
 
-export function validateSavedEvidence(value: unknown, admitted: Record<string, any>, versions: ReturnType<typeof experimentVersions>) {
+export async function validateSavedEvidence(value: unknown, admitted: Record<string, any>, versions: ReturnType<typeof experimentVersions>) {
   const evidence = savedEvidence.parse(value);
   const { content_sha256, ...content } = evidence;
   if (experimentHash(content) !== content_sha256) throw Error("experiment_evidence_digest_changed");
@@ -96,6 +96,7 @@ export function validateSavedEvidence(value: unknown, admitted: Record<string, a
   if (evidence.operator_messages_sha256 !== admitted.operator_messages_sha256) throw Error("experiment_analysis_context_changed");
   if (evidence.analysis_sha256 !== versions.analysis_sha256 || evidence.model_requested !== getGeminiVideoModel()) throw Error("experiment_fresh_evidence_required");
   if (evidence.retention.expires_at_ms <= Date.now() || Date.parse(evidence.completed_at) < Date.parse(evidence.started_at)) throw Error("experiment_evidence_retention_invalid");
+  const { validateVideoObservations } = await import("./site-assessment");
   for (const source of evidence.sources) {
     const receipt = source.content?.receipt;
     const raw = evidence.responses.find(response => response?.provider === "gemini" && response.model === evidence.model_requested
@@ -107,7 +108,9 @@ export function validateSavedEvidence(value: unknown, admitted: Record<string, a
       || receipt?.question !== source.content.question || !/^[a-f0-9]{64}$/.test(receipt?.prompt_sha256 ?? "")
       || experimentHash(receipt?.inspection) !== experimentHash({ processing: source.content.processing, sampling_fps: source.content.sampling_fps })
       || experimentHash(receipt?.processing) !== experimentHash(raw.response.processing)
-      || experimentHash(JSON.parse(raw.response.text)) !== experimentHash(source.content.evidence)
+      || experimentHash(source.content.evidence) !== experimentHash(validateVideoObservations(source.content.evidence, admitted.duration_seconds))
+      || experimentHash(validateVideoObservations(JSON.parse(raw.response.text), admitted.duration_seconds))
+        !== experimentHash(validateVideoObservations(source.content.evidence, admitted.duration_seconds))
       || !["auto", "static", "agentic"].includes(source.content.processing) || ![1, 2, 4].includes(source.content.sampling_fps)
       || typeof source.content.question !== "string" || !source.content.question.trim()) throw Error("experiment_evidence_provenance_invalid");
     const effectiveMode = source.content.processing === "auto" ? admitted.duration_seconds <= 300 ? "static" : "agentic" : source.content.processing;
@@ -120,8 +123,8 @@ export function validateSavedEvidence(value: unknown, admitted: Record<string, a
   return evidence.sources;
 }
 
-export function captureSavedEvidence(result: any, source: Record<string, any>, versions: ReturnType<typeof experimentVersions>,
-  retention: Evidence["retention"], startedAt: string): Evidence | null {
+export async function captureSavedEvidence(result: any, source: Record<string, any>, versions: ReturnType<typeof experimentVersions>,
+  retention: Evidence["retention"], startedAt: string): Promise<Evidence | null> {
   const packet = result.artifacts?.site_assessment_packet ?? result.artifacts?.site_assessment_partial_evidence;
   const sources = (packet?.sources ?? []).filter((item: any) => item.kind === "video");
   const responses = (result.artifacts?.provider_responses ?? []).filter((item: any) => item.provider === "gemini" && item.response?.text);
@@ -135,7 +138,7 @@ export function captureSavedEvidence(result: any, source: Record<string, any>, v
     model_versions: [...new Set<string>(responses.map((row: any) => row.response.processing?.model_version).filter(Boolean))],
     started_at: startedAt, completed_at: new Date().toISOString(), retention, sources: clean.sources, responses: clean.responses };
   const evidence = { ...content, content_sha256: experimentHash(content) };
-  validateSavedEvidence(evidence, source, versions);
+  await validateSavedEvidence(evidence, source, versions);
   return evidence;
 }
 
@@ -201,7 +204,7 @@ export function compareAssessmentRuns(before: any, after: any) {
   const projection = (run: any) => {
     const packet = run.result?.artifacts?.site_assessment_packet;
     const assessment = packet?.assessment;
-    return { mode: run.mode, status: run.result?.status ?? run.status, assessment: assessment ?? null,
+    return { mode: run.mode, status: run.status ?? run.result?.status, assessment_status: run.result?.status ?? null, assessment: assessment ?? null,
       verification: packet?.verification ?? null, source_binding: run.source ?? null, versions: run.versions,
       cost: run.result?.artifacts?.inference_reservation ?? null, usage: run.result?.artifacts?.usage ?? null, wall_ms: run.wall_ms };
   };

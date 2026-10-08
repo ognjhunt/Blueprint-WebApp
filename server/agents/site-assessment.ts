@@ -61,7 +61,7 @@ const videoObservationSchema = z.object({
   not_observable: z.array(z.string()),
 });
 /** Identical timestamp admission applies to fresh and persisted provider observations. */
-function validateVideoObservations(value: unknown, duration: number) {
+export function validateVideoObservations(value: unknown, duration: number) {
   const evidence = videoObservationSchema.parse(value);
   for (const item of evidence.observations) {
     if ((item.start_seconds ?? 0) > duration || (item.end_seconds ?? 0) > duration

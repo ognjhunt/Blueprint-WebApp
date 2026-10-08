@@ -130,11 +130,11 @@ async function main() {
       definition: siteAssessmentTask, tool_policy: { ...siteAssessmentTask.tool_policy, allowed_domains: ["api.openai.com", "generativelanguage.googleapis.com", "storage.googleapis.com"],
         isolated_runtime_required: false }, metadata: {} } as any;
     run.result = await runSiteAssessmentTask(task, { runId, assertActive: async () => retainFailure(async () => allocation!.assertActive()), assertCostAllowed: async () => retainFailure(async () => allocation!.assertActive()),
-      experiment: { record_error: error => { run.error ??= failure(error); }, mode: values.mode as "saved-evidence" | "fresh-video", prepare: async source => retainFailure(async () => {
+      experiment: { record_error: error => { run.error ??= failure(error); run.failure_stage ??= run.stage; }, mode: values.mode as "saved-evidence" | "fresh-video", prepare: async source => retainFailure(async () => {
         run.source = source; allocation!.bind(source);
         if (input.local_video && (source.video_sha256 !== input.local_video.sha256 || source.video_bytes !== input.local_video.bytes)) throw Error("experiment_uploaded_video_binding_changed");
         run.stage = "evidence_binding";
-        const sources = evidence ? validateSavedEvidence(evidence, source, run.versions) : [];
+        const sources = evidence ? await validateSavedEvidence(evidence, source, run.versions) : [];
         run.stage = "assessment_sdk"; return sources;
       }), reserve: async (...args) => {
         run.stage = `${args[2] ?? "gemini"}_admission`;
@@ -149,13 +149,14 @@ async function main() {
       } } : {}) } });
     run.status = run.result.status;
     if (values.mode === "fresh-video" && run.source) {
-      const saved = captureSavedEvidence(run.result, run.source, run.versions, allocation.approval.retention, startedAt);
+      run.stage = "evidence_retention";
+      const saved = await captureSavedEvidence(run.result, run.source, run.versions, allocation.approval.retention, startedAt);
       if (saved) { writeExperimentJson(path.join(output, "evidence.json"), saved); run.reusable_evidence = "evidence.json"; }
       else run.reusable_evidence = "not_available_or_redaction_changed_evidence";
     }
-    if (run.status !== "completed") process.exitCode = 1;
+    if (run.status !== "completed") { run.stage = run.failure_stage ?? run.stage; process.exitCode = 1; }
     else run.stage = "complete";
-  } catch (error) { run.error = failure(error); process.exitCode = 1; }
+  } catch (error) { run.status = "failed"; run.error = failure(error); process.exitCode = 1; }
   finally {
     run.completed_at = new Date().toISOString(); run.wall_ms = Date.now() - started;
     if (allocation) {
