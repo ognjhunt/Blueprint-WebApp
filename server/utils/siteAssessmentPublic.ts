@@ -21,9 +21,25 @@ const actions: Record<string, string> = {
   no_robot: "Keep manual work as an option while clarifying unresolved requirements.",
 };
 const scrub = (value: string) => value.replace(/(?:https?:\/\/|gs:\/\/)[^\s]+|Bearer\s+[^\s]+|\b[^\s@]+@[^\s@]+\.[^\s@]+/gi, "[private reference omitted]");
-// Recommendations are proposals, never a receipt for completed work. Keep the
-// renderer's conservative fallback when raw action prose asserts fulfillment.
-const assertsFulfillment = (value: string) => /\b(?:is|are|was|were|has been|have been)\s+(?:(?:already|now|fully|successfully)\s+)*(?:completed?|scheduled|booked|published|approved|certified|guaranteed)\b/i.test(value);
+// This DTO has no factual bindings for free-form action/question clauses.
+// Admit a narrow request form, not arbitrary declarations under a "proposal"
+// prefix. These checks do not establish semantic truth or robot suitability.
+const firstClause = (value: string) => value.replace(/\s+/g, " ").split(/(?<=[.!?])\s+|;|\b(?:because|since|given that|therefore)\b/i)[0].trim();
+const assertionTerms = /\b(?:booked|scheduled|confirmed|completed|published|approved|certified|guaranteed|proven|passed|capable|safely|suitable|ready)\b/i;
+const assertionVerbs = /\b(?:is|are|was|were|has|have|had|can|cannot|could|will|would|does|did)\b/i;
+const questionForm = /^(?:what|which|when|where|how|who|does|do|is|are|can|could|would|will)\b/i;
+const requestClause = (value: string): string | null => {
+  const text = firstClause(value);
+  return /^(?:measure|confirm|inspect|check|research|investigate|compare|record|define|ask|identify|obtain|plan|prepare|consider|evaluate|test)\b/i.test(text)
+    && !assertionTerms.test(text) && !assertionVerbs.test(text) ? text : null;
+};
+const uncertaintyClause = (value: string): string | null => {
+  const text = firstClause(value);
+  const remainder = text.replace(/\b(?:is|are|was|were)\s+(?:unknown|unverified|uncertain|unresolved|not (?:measured|established|provided|visible|observed|confirmed))\b/gi, "")
+    .replace(/\b(?:could|would|may) change\b/gi, "");
+  return /\b(?:unknown|unverified|uncertain|unresolved|not (?:measured|established|provided|visible|observed|confirmed)|(?:could|would|may) change)\b/i.test(text)
+    && !assertionTerms.test(remainder) && !assertionVerbs.test(remainder) ? text : null;
+};
 /** Facts use selected retained evidence; proposals and unanswered questions remain labeled reasoning. */
 export function projectCustomerSiteAdvisory(packet: Record<string, any>, correlationId: string, admittedDuration: number | null = null): SiteAdvisory {
   if (packet.schema_version !== "site_assessment.v2" || !Array.isArray(packet.sources) || packet.sources.length > 100
@@ -60,18 +76,25 @@ export function projectCustomerSiteAdvisory(packet: Record<string, any>, correla
   if (rendered.verification.unverified_claims || rendered.verification.interpretation_claims || rendered.assessment.status === "needs_operator_input")
     result.unknowns.push("Some job facts and interpretations remain unresolved. Clarify them before choosing an approach.");
   for (const claim of rendered.assessment.missing) {
-    const text = customerText(claim.text);
-    if (text) result.unknowns.push(`${claim.basis === "estimate" ? "Estimate to check" : "Unresolved"}: ${text}`);
+    const retained = (claim as any).verification_status === "source_bound" ? claim.text
+      : claim.basis === "unknown" ? uncertaintyClause(claim.text) : null;
+    const text = retained && customerText(retained);
+    if (text) result.unknowns.push(`Unresolved: ${text}`);
   }
   for (const question of rendered.assessment.questions) {
-    const text = customerText(question.question), consequence = customerText(question.decision_it_changes);
-    if (text && consequence) result.unknowns.push(`Question to resolve: ${text} Decision it changes: ${consequence}`);
+    const clause = firstClause(question.question);
+    if (!questionForm.test(clause) || assertionTerms.test(clause)) continue;
+    const text = customerText(`${clause.replace(/[.!?]+$/, "")}?`), effect = firstClause(question.decision_it_changes);
+    const consequence = !assertionTerms.test(effect) && (/^(?:whether|which|what|how)\b/i.test(effect) || !assertionVerbs.test(effect))
+      ? customerText(effect) : null;
+    if (text) result.unknowns.push(`Question to resolve: ${text} ${consequence ? `Decision it changes: ${consequence}` : "Decision consequence remains unverified."}`);
   }
   const action = rendered.assessment.next_action;
   const proposed = !rendered.verification.unverified_claims && action.kind === raw.next_action.kind
-    && !assertsFulfillment(raw.next_action.action) ? customerText(raw.next_action.action) : null;
-  result.nextAction = `Recommended next step (proposal): ${proposed ?? actions[action.kind] ?? actions.research}`;
-  const reason = customerText(action.why.text);
+    ? requestClause(raw.next_action.action) : null;
+  result.nextAction = `Recommended next step (proposal): ${(proposed && customerText(proposed)) || actions[action.kind] || actions.research}`;
+  const retainedReason = ["unknown", "estimate"].includes(action.why.basis) ? uncertaintyClause(action.why.text) : action.why.text;
+  const reason = retainedReason && customerText(retainedReason);
   if (reason) result.nextAction += ` ${["unknown", "estimate"].includes(action.why.basis) ? "Reasoning to check" : "Why"}: ${reason}`;
   result.unknowns = [...new Set(result.unknowns)];
   return result;
