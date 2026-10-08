@@ -2601,3 +2601,81 @@ Replay requires existing disposable emulator, cached browser/runtime and the
 retained synthetic fixture, with the documented cleared environment. No paid
 call, production/customer mutation, mail, real video interpretation, human
 quality scoring or whole-goal readiness follows from this approval.
+
+
+## Independent exact-count and programme amendment review — b7bea73b
+
+Approved bounded source at clean immutable
+`b7bea73b82d5264ed71cb9bbb50bc17dc96ced09`, based on exact783. Review
+covers the ten changed source/test paths, including root provider/core/adapter,
+separate author budget helpers and actual SDK scripted bridge. No live operator
+grant, provider call, authority record or release was performed by reviewer.
+Required protected CI and actual deployment remain separate gates.
+
+STATIC Gemini opt-in counts the full frozen generation request after upload,
+then invokes trusted host admission before sending that identical body. The
+binding includes model, source/payload hashes, bounded input/output ceilings and
+processing configuration. AGENTIC retains the conservative fallback; ordinary
+non-amended behavior is preserved. Reviewer found the earlier pre-upload await
+ordering gap; final host active/cost checks precede the last current-source
+check before upload. Durable reservation is followed by active/source checks
+and final dispatch admission without a subsequent await. Failure before
+admission cannot generate; cleanup is attempted without claiming live provider
+deletion. Count/error paths do not expose arbitrary provider bodies.
+
+The explicit trusted amendment preserves original authority, cap, expiry,
+technical continuation, ledger, slot identities, gross capture counters and
+pre-grant unknown exposure. Its separately approved effective cap is5,300,000
+micro USD; no customer budget step or automatic grant is introduced. HELD-at-
+grant future calls receive their full newly counted STATIC ceiling, or the
+conservative fallback, immediately; unknown new calls retain that entire new
+bound. Later validated usage may lower estimated exposure. This corrects the
+initial receipt wording that implied only known settlement could change future
+headroom. Original unknown calls are not discounted or refunded. Immutable
+amendment and exact recovery/SDK-run/source/rights fences remain enforced.
+
+Two later material findings held approval and are repaired in this head.
+Unattributed Gemini total tokens now bound output-rate cost exposure; missing
+or contradictory counters retain unknown/full reservations. Raw usage is kept,
+shared normalization validates recorded exposure, and usage above an admitted
+ceiling cannot settle. Conservative residuals are explicitly upper-bound
+pricing: completion tokens remain null rather than inventing observed thoughts
+or completions. The validator reproduces existing USD-to-micro rounding;
+matched114-input/10-output rounding failure remains retained. Grant creation
+also requires exact raw-request and published-upload-session fingerprints,
+reads both inside the same transaction, rejects account/privacy/session changes
+or reserved/stored replacement sources, and retains the creation fingerprints.
+These are grant evidence; subsequent legitimate workflow changes still use
+current source/rights admission rather than freezing every request field.
+
+Independent focused checks passed30 provider controls and4 actual installed-SDK
+bridge controls, plus the corrected rounding case and final7 cost/freshness and
+9 normalization/ceiling controls. Overlap is not added as unique coverage. The
+bridge uses scripted OpenAI model and Gemini HTTP transports, synthetic bytes
+and a host-admission fixture; it does not execute the canonical programme
+transaction or prove perception. Four fresh observations execute four Gemini
+and five scripted Sol calls. Tool refusals produce safe unknown source-less
+packets; the outer adapter's no-video rejection is inspected rather than
+claimed executed by that direct-core bridge. The original17 provider controls
+remain byte-identical; earlier observer/setup failures are retained.
+
+Final receipt SHA-256
+`9631a539aa9a7b4d5db09ae71d04d2b1873651dbc967443975578beba5af5619`
+links matched8b seven failures, candidate158/158 and exact five corrected
+Git blobs. Reviewer verified those hashes and byte continuity of the unchanged
+provider/core/bridge source. Provider and SDK receipts respectively match
+`0204e924433c3d316644b1c40d4fd91ac902eebd919a7b3763472e9695e0d3f7`
+and `ca138343fcbf842171ac84b436f640154b96f34569c51ce18499438e026491d8`.
+Root final combined197/197 log hash
+`a3deac6af747703eb9960ec5998298448d4357598ff4fab152c0e2adbab8cc81`
+and terminal typecheck, portability and Graphify were inspected. The static
+portability audit does not establish remote artifact access.
+
+Private replay artifacts remain in the amendment worktree's ignored
+`output/reliability-program/programme-authority-amendment/` and
+`gemini-exact-bound/` directories. Replay uses existing Vitest files listed in
+the receipts with scripted transports and disposable fake database fixtures;
+no secret or private footage is needed. No original300/40 or human-reference
+credit is added. This approves bounded source/count/accounting admission only,
+not invoiced cost, video accuracy, operator authorization authenticity, actual
+paid execution, customer usefulness or whole-program completion.
