@@ -761,6 +761,22 @@
       "current_release": "783feb64213e78b5c219763e2fb2232b8390ba1c",
       "current_release_review": "ef527e88",
       "next_action": "No activation/new paid sessions or messages. Prospective bounded readback now binds original reservation; live provider invoice ceiling remains unproven."
+    },
+    {
+      "id": "REL-INFERENCE-UNATTRIBUTED-TOKENS",
+      "severity": "P1_affected_new_amended_accounting_path",
+      "invariant": "Unresolved provider token usage must retain conservative exposure rather than free unproved spending headroom",
+      "observed_scope": "isolated source8b5dc169; no live invoice, customer charge or production overrun demonstrated",
+      "rootCause": "Missing Gemini thoughtsTokenCount defaulted to zero even when totalTokenCount exceeded input+candidates; the new pool could discount unpriced tokens",
+      "minimizedReproducer": "Record Gemini usage promptTokenCount114/candidatesTokenCount10/totalTokenCount12400 without thoughtsTokenCount. Source8b priced only10 output tokens at0.000123 USD despite12276 unattributed reported tokens.",
+      "baseline_source": "8b5dc169c04d3378fddd272847c3a52c18b2a721",
+      "baseline_log_path": "/Users/nijelhunt_1/.codex/worktrees/reliability-programme-authority-amendment-20261008/Blueprint-WebApp/output/reliability-program/programme-authority-amendment/unattributed-usage-reproducer.log",
+      "baseline_log_sha256": "0fcdbbc187c3f8fa6687d280288b3a7678313ef8eab33b7925da7331cb500cc7",
+      "owner": "queue_recovery",
+      "repair": "Shared lossless usage normalization and priced exposure validation: conservatively price valid unattributed total tokens, retain full unknown exposure if no consistent bound, preserve all original unknown reservations and identical rounding",
+      "releaseStatus": "pre_release_blocker_observed_repair_and_independent_review_active",
+      "candidateRetest": "pending final immutable fix and relevant neighboring controls",
+      "limitations": "Conservative priced token exposure is not observed thoughts or an invoice; source783 retains old full durable reservations and is not relabeled as a demonstrated live cap overrun"
     }
   ],
   "dependencies": [
@@ -988,5 +1004,6 @@
     "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
   },
   "current_state_observed_at_utc": "2026-10-08T18:38:09.713678+00:00",
-  "historical_state_policy": "Original baseline/reproducer/source receipts are retained. A historical_state field preserves superseded status text when current state changes; original failed attempts are not erased."
+  "historical_state_policy": "Original baseline/reproducer/source receipts are retained. A historical_state field preserves superseded status text when current state changes; original failed attempts are not erased.",
+  "last_new_failure_observed_at_utc": "2026-10-08T19:14:22Z"
 }

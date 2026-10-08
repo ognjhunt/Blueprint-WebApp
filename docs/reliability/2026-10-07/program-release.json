@@ -1725,6 +1725,7 @@
     "expiry_extended": false,
     "production_effects": 0,
     "post_configuration_authentication": "unverified",
-    "count_tokens_bound": "new source under review; exact frozen static request only, agentic conservative fallback; not billing proof"
+    "count_tokens_bound": "new source under review; exact frozen static request only, agentic conservative fallback; not billing proof",
+    "exposure_policy_clarification": "Pre-grant accepted/unknown usage stays full. An unused held slot may receive a new exact counted request bound at new dispatch; that NEW unknown call retains its full counted bound. Only validated new usage may reduce it further. No retrospective unknown refund."
   }
 }
