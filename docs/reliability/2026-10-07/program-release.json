@@ -661,9 +661,9 @@
   },
   "customer_advisory_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/948",
-    "head": "c1d02f6313b1553ab7bf1bb0bc1c3d609caee8d9",
+    "head": "6717788725d0b1173088cd3d88c7150577847f67",
     "state": "reviewed_offline_connected_execution;worker_hook_implemented;required_final_CI_active;not_merged_or_deployed",
-    "CI": 37786782409,
+    "CI": 37787190634,
     "connected_receipt_sha256": "8506cd4f214c7d84945fa87086cd3d9a8afc14af56aeac2130d119d59377e690",
     "independent_connected_review_commit": "a5e724a3",
     "connected_layer": "Actual normal publication/job/claim/runtime/SDK/private inline writer/owner GET/SSR; fakeFirestore/GCS and scriptedOpenAI/Gemini; no object-offload persistence, full browser, live perception or production durability proof.",
@@ -683,7 +683,7 @@
       "layer": "one existing joined scripted-provider SDK/owner-GET/SSR case plus existing queue and worker controls; not15journeys",
       "new_unique_case_credit": 0
     },
-    "startup_metadata": "Two booleans only: launchForwardWorkerEnabled/siteVideoEvidenceEnabled. Deployed worker values not yet observed; no flag mutation.",
-    "provider_readiness": "Current worker Gemini availability not verified. Existing dishwasher owner reports prior preflight worker site-video false/Gemini key absent; current read-only method/refresh requested. Historical lead, not current fact."
+    "startup_metadata": "Enablement plus OpenAI/Gemini credential-configured booleans only, using current adapter aliases. Configured presence is not authentication/provider execution; no values or configuration mutation.",
+    "provider_readiness": "Current worker Gemini availability not verified. Original owner corrected prior readiness lead: retained 05:10 worker preflight proves OpenAI present then, not site-video/Gemini values. Other older statement lacks a retained receipt. Existing native dashboard readback unavailable while Mac locked; no unlock/new credentials. Wait for exact deployed startup metadata."
   }
 }
