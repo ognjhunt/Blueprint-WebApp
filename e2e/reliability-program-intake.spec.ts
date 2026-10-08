@@ -35,10 +35,10 @@ test("UI-RETURN-001 lost create response, reload, recover original identity", as
   expect(bodies).toHaveLength(2); expect(bodies[1]).toBe(bodies[0]);
 });
 test("UI-RETURN-002 close tab and return preserves draft, without renewing consent", async ({ page, context }) => {
-  await page.goto("/contact/site-operator"); await fill(page); await page.locator("#start-rights").check();
+  await page.goto("/contact/site-operator"); await fill(page);
   await page.close(); const returning = await context.newPage(); await returning.goto("/contact/site-operator");
   await expect(returning.locator("#start-task")).toHaveValue("Move sealed cartons to the pallet");
-  await expect(returning.locator("#start-rights")).not.toBeChecked();
+  await expect(returning.locator("#start-rights")).toHaveCount(0);
   await returning.getByRole("button", {name: "Clear this browser's draft"}).click();
   await expect(returning.getByRole("status").filter({hasText:"has been cleared"})).toBeVisible();
   await returning.reload(); await expect(returning.locator("#start-task")).toHaveValue("");
@@ -174,9 +174,8 @@ test("UI-CROSS-TAB-003 clear in another tab survives an old acknowledgement befo
   // Reload retains the actual checkpoint as well as displayed default values.
   await expect.poll(async()=>(await snapshot()).draft).toEqual(fresh.draft);
   await expect.poll(async()=>await durableSnapshot()).toEqual(await snapshot());
-  // An unsubmitted recording grant is never restored by recovery.
-  await expect(second.locator("#start-rights")).not.toBeChecked();
-  await second.locator("#start-rights").check();
+  // A phone capture has no recording grant to restore, so none appears here.
+  await expect(second.locator("#start-rights")).toHaveCount(0);
   await second.getByRole("button",{name:"Start free assessment"}).click();
   await expect(second.getByRole("link",{name:"Open your job and assessment"})).toBeVisible();
   expect(bodies).toHaveLength(2);expect(JSON.parse(bodies[1]).requestId).toBe(fresh.requestId);
@@ -220,7 +219,7 @@ test("UI-RETURN-005 real browser termination during video transport returns to t
   try {
     const page=await first.newPage();await page.goto(`${origin}/contact/site-operator`);await fill(page);
     await page.locator("#start-method-upload").check();await page.locator("#start-footage").setInputFiles(video);
-    await page.locator("#start-rights").check();await page.getByRole("button",{name:"Start free assessment",exact:true}).click();
+    await page.getByRole("button",{name:"Start free assessment",exact:true}).click();
     await uploading; const saved=await first.storageState();
     await firstBrowser.close();
     const resumedBrowser=await chromium.launch(launch);const resumed=await resumedBrowser.newContext({storageState:saved});

@@ -41,6 +41,34 @@ const noSleep = async () => undefined;
 const callsTo = (fetcher: ReturnType<typeof gemini>, match: (url: string, init: RequestInit) => boolean) =>
   fetcher.mock.calls.filter(([url, init]) => match(url as string, (init ?? {}) as RequestInit));
 
+describe("current source recheck before video generation", () => {
+  it.each(["STATIC", "AGENTIC"] as const)("rechecks %s source without a token-count budget prerequisite and freezes generation", async processingMode => {
+    const request: any = { ...input, processingMode, samplingFps: 2 };
+    const beforeGenerate = vi.fn(async () => { request.prompt = "changed"; request.model = "changed-model"; });
+    request.beforeGenerate = beforeGenerate;
+    const underlying = gemini(() => reply([...trace, { text: "{}" }]));
+    const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
+      if (url.includes(":countTokens")) throw new Error("unexpected_budget_prerequisite");
+      if (url.includes(":generateContent")) expect(beforeGenerate).toHaveBeenCalledTimes(1);
+      return underlying(url, init);
+    });
+    await analyseAgenticVideo(request, fetcher, noSleep);
+    const generated = fetcher.mock.calls.find(([url]) => url.includes(":generateContent"))!;
+    expect(generated[0]).toContain(`${input.model}:generateContent`);
+    expect(JSON.parse(String(generated[1].body)).contents[0].parts[0].text).toBe(input.prompt);
+    expect(callsTo(fetcher, url => url.includes(":countTokens"))).toHaveLength(0);
+    expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
+  });
+  it.each(["STATIC", "AGENTIC"] as const)("refuses withdrawn %s evidence before generation and cleans up", async processingMode => {
+    const beforeGenerate = vi.fn(async () => { throw new Error("source_withdrawn"); });
+    const fetcher = gemini(() => reply([...trace, { text: "{}" }]));
+    await expect(analyseAgenticVideo({ ...input, processingMode, beforeGenerate }, fetcher, noSleep)).rejects.toThrow("source_withdrawn");
+    expect(beforeGenerate).toHaveBeenCalledTimes(1);
+    expect(callsTo(fetcher, url => url.includes(":generateContent"))).toHaveLength(0);
+    expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
+  });
+});
+
 describe("agentic video provider contract", () => {
   it("uploads through the Files API, waits for it, reads it by reference and deletes it", async () => {
     const fetcher = gemini(() => reply([...trace,
@@ -54,7 +82,26 @@ describe("agentic video provider contract", () => {
       "X-Goog-Upload-Header-Content-Type": "video/mp4" }) });
     const [upload] = callsTo(fetcher, (url) => url === UPLOAD_URL);
     expect(upload[1]).toMatchObject({ headers: expect.objectContaining({ "X-Goog-Upload-Command": "upload, finalize" }) });
-    expect((upload[1] as RequestInit).body).toBe(bytes);
+    const uploadBody = (upload[1] as RequestInit).body;
+    expect(uploadBody).toBeInstanceOf(ReadableStream);
+    // Construct the request without sending it: stream extraction retains the
+    // same body, whereas fetch copies a Buffer body before any network I/O.
+    const uploadRequest = new Request(UPLOAD_URL, upload[1] as RequestInit);
+    expect(uploadRequest.body).toBe(uploadBody);
+    const reader = uploadRequest.body!.getReader();
+    const uploadedHash = createHash("sha256");
+    let uploadedBytes = 0;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      expect(value.byteLength).toBeLessThanOrEqual(64 * 1024);
+      expect(value.buffer).toBe(bytes.buffer);
+      expect(value.byteOffset).toBe(bytes.byteOffset + uploadedBytes);
+      uploadedHash.update(value);
+      uploadedBytes += value.byteLength;
+    }
+    expect(uploadedBytes).toBe(bytes.byteLength);
+    expect(uploadedHash.digest("hex")).toBe(createHash("sha256").update(bytes).digest("hex"));
     expect(upload[1]).toMatchObject({ duplex: "half",
       headers: expect.objectContaining({ "Content-Length": String(bytes.byteLength) }) });
     expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && (init.method ?? "GET") === "GET")).toHaveLength(2);

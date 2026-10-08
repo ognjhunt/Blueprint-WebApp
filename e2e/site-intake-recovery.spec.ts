@@ -76,7 +76,6 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
     await page.locator("#start-email").fill("qa@example.invalid");
     await page.locator("#start-company").fill("Owned synthetic QA");
     await page.locator("#start-method-upload").check();
-    await page.locator("#start-rights").check();
     await page.locator("#start-footage").setInputFiles(fixture);
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
     await expect.poll(() => interrupted).toBe(true);

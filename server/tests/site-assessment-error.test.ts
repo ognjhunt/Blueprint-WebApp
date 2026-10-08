@@ -20,6 +20,7 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 import { runSiteAssessmentTask } from "../agents/adapters/site-assessment";
 import { browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
+import { humanDecisionDigest } from "../utils/human-reply-admission";
 import type { NormalizedAgentTask } from "../agents/types";
 const runId = "synthetic-error-run", requestId = "synthetic-error";
 const task = { provider: "openai_responses", runtime: "openai_agents_sdk", model: "gpt-6.1-sol", kind: "site_assessment",
@@ -49,16 +50,21 @@ beforeEach(() => {
   vi.spyOn(globalThis, "fetch").mockImplementation(async () => { throw Error("unexpected_external_network"); });
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
-async function failProvider(error: unknown) {
+async function failProvider(error: unknown, extraHost: Record<string, any> = {}) {
   const dispatch = vi.fn(async () => { throw error; });
   vi.spyOn(OpenAIProvider.prototype, "getModel").mockResolvedValue({ getResponse: dispatch,
     async *getStreamedResponse() { throw Error("unexpected_stream"); } } as any);
-  const result = await runSiteAssessmentTask(task, host);
+  const result = await runSiteAssessmentTask(task, { ...host, ...extraHost });
   expect(dispatch, JSON.stringify(result)).toHaveBeenCalledExactlyOnceWith(expect.anything());
   expect(result.artifacts?.capture_inference_reservations).toHaveLength(1);
   expect(result.artifacts?.site_assessment_partial_evidence?.tool_receipts).toEqual([]);
   expect(result.artifacts?.provider_responses).toMatchObject([{ provider: "openai", usage: null, response: null, cost_usd: null }]);
-  expect([...state.docs].find(([key]) => key.startsWith("captureCoverageReviews/budget-"))?.[1]?.pending_token).toBeTruthy();
+  const budgetPath = `captureCoverageReviews/budget-${humanDecisionDigest({ capture_id: `walkthrough-${requestId}` })}`;
+  const pendingToken = state.docs.get(budgetPath)?.pending_token;
+  expect(pendingToken).toBeTruthy();
+  const calls = [...state.docs].filter(([key]) => key.startsWith(`${budgetPath}/calls/`)).map(([, value]) => value);
+  expect(calls).toMatchObject([{ state: "admitted", admission_token: pendingToken, cost_estimate_usd: null, run_id: runId, request_id: requestId }]);
+  expect(calls[0].reserved_usd).toBeGreaterThan(0);
   return result;
 }
 it("retains only safe API exception metadata after the actual SDK reservation, without retry or refund", async () => {
@@ -103,5 +109,15 @@ it("ignores diagnostic getters and invalid bounds without replacing the original
 it.each([99, 600, 429.5])("rejects out-of-range/fractional HTTP status %s", async status => {
   const result = await failProvider(Object.assign(new Error("PRIVATE"), { status, code: { private: "PRIVATE" }, request_id: `req_${"a".repeat(65)}` }));
   expect(result.artifacts?.site_assessment_error).toMatchObject({ http_status: null, provider_error_code: null, provider_request_id: null });
+  expect(JSON.stringify(result)).not.toContain("PRIVATE");
+});
+
+it("keeps original SDK failure and reservations when an experiment diagnostics sink throws", async () => {
+  const { reserveCaptureCoverageInference } = await import("../utils/captureCoverageInferenceBudget");
+  const recordError = vi.fn(() => { throw Error("PRIVATE diagnostic failure"); });
+  const result = await failProvider(new TypeError("PRIVATE original failure"), { experiment: { mode: "fresh-video",
+    prepare: async () => [], reserve: reserveCaptureCoverageInference, record_error: recordError } });
+  expect(recordError).toHaveBeenCalledTimes(1);
+  expect(result.artifacts?.site_assessment_error).toMatchObject({ exception_class: "TypeError" });
   expect(JSON.stringify(result)).not.toContain("PRIVATE");
 });

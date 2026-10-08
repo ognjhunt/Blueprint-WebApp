@@ -61,7 +61,6 @@ const FILE_ACTIVE_TIMEOUT_MS = 3 * 60_000;
 const FILE_POLL_INTERVAL_MS = 2_000;
 
 type UploadedVideo = { name: string; uri: string; mimeType: string };
-
 /**
  * Hand the clip to Gemini's Files API and wait until it can be read.
  *
@@ -71,15 +70,30 @@ type UploadedVideo = { name: string; uri: string; mimeType: string };
  * so the only copy that outlives the call is the one the site uploaded to us.
  */
 /**
- * The clip as it goes to Gemini. A body whose length the link declared is a
- * stream, piped from storage into the upload without ever being held: on the
- * website's 512MB instance a 60MB phone clip held twice (once read, once
- * copied by fetch for the upload) was enough to kill the process.
+ * The clip as it goes to Gemini. Linked clips with a declared length stream
+ * from storage; the source-verified SDK path retains one Buffer. Upload that
+ * Buffer as bounded views so fetch does not make another full media copy.
  */
 export interface VideoSource {
   body: Buffer | ReadableStream<Uint8Array>;
   byteLength: number;
   contentType: string;
+}
+
+function videoUploadBody(body: VideoSource["body"]): ReadableStream<Uint8Array> {
+  if (!Buffer.isBuffer(body)) return body;
+  let offset = 0;
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (offset === body.byteLength) {
+        controller.close();
+        return;
+      }
+      const end = Math.min(offset + 64 * 1024, body.byteLength);
+      controller.enqueue(body.subarray(offset, end));
+      offset = end;
+    },
+  }, { highWaterMark: 0 });
 }
 
 async function uploadVideoFile(input: {
@@ -112,7 +126,7 @@ async function uploadVideoFile(input: {
       "Content-Length": String(input.video.byteLength),
     },
     signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
-    body: input.video.body,
+    body: videoUploadBody(input.video.body),
     duplex: "half",
   } as RequestInit);
   if (!finish.ok) {
@@ -161,6 +175,8 @@ export async function analyseAgenticVideo(input: {
   processingMode?: "AGENTIC" | "STATIC";
   samplingFps?: number;
   maxOutputTokens?: number;
+  /** Recheck source/consent after upload, immediately before generation. */
+  beforeGenerate?: () => Promise<void>;
 }, fetcher: typeof fetch = fetch, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))) {
   const video = await uploadVideoFile(input, fetcher, sleep);
   try {
@@ -171,28 +187,32 @@ export async function analyseAgenticVideo(input: {
 }
 
 async function generateFromVideo(input: { apiKey: string; model: string; prompt: string;
-  processingMode?: "AGENTIC" | "STATIC"; samplingFps?: number; maxOutputTokens?: number },
+  processingMode?: "AGENTIC" | "STATIC"; samplingFps?: number; maxOutputTokens?: number;
+  beforeGenerate?: () => Promise<void> },
   video: UploadedVideo, fetcher: typeof fetch) {
   const processingMode = input.processingMode ?? "AGENTIC";
+  const model = input.model, apiKey = input.apiKey;
+  // Source rechecks cannot change the frozen generation request.
+  const generationRequest = {
+    contents: [{ role: "user", parts: [
+      { text: input.prompt },
+      { file_data: { mime_type: video.mimeType, file_uri: video.uri }, media_processing: processingMode,
+        ...(processingMode === "STATIC" && input.samplingFps ? { video_metadata: { fps: input.samplingFps } } : {}) },
+    ] }],
+    // 8192 truncated a retained real review; preserve the existing combined
+    // answer/reasoning allowance rather than shrinking it to fit a test budget.
+    generationConfig: { responseMimeType: "application/json", temperature: 0,
+      maxOutputTokens: input.maxOutputTokens ?? MAX_OUTPUT_TOKENS },
+  };
+  const generationBody = JSON.stringify(generationRequest);
+  await input.beforeGenerate?.();
   const response = await fetcher(
-    `${GEMINI_API}/v1beta/models/${encodeURIComponent(input.model)}:generateContent`,
+    `${GEMINI_API}/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": input.apiKey },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [
-          { text: input.prompt },
-          { file_data: { mime_type: video.mimeType, file_uri: video.uri }, media_processing: processingMode,
-            ...(processingMode === "STATIC" && input.samplingFps
-              ? { video_metadata: { fps: input.samplingFps } } : {}) },
-        ] }],
-        // Agentic media processing and the model's reasoning spend this budget
-        // before the answer does. At 8192 the first real review of a 30s phone
-        // clip stopped short of its answer.
-        generationConfig: { responseMimeType: "application/json", temperature: 0,
-          maxOutputTokens: input.maxOutputTokens ?? MAX_OUTPUT_TOKENS },
-      }),
+      body: generationBody,
     },
   );
   // Do not include upstream error bodies: they can echo source URLs or tokens.
@@ -226,7 +246,7 @@ async function generateFromVideo(input: { apiKey: string; model: string; prompt:
     content: candidate.content,
     processing: { mode: processingMode.toLowerCase(), media_tool_calls: calls, media_tool_responses: responses,
       ...(processingMode === "STATIC" ? { sampling_fps_requested: input.samplingFps ?? null } : {}),
-      model_version: payload.modelVersion ?? input.model },
+      model_version: payload.modelVersion ?? model },
   };
 }
 

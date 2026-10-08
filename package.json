@@ -119,7 +119,8 @@
     "render:import-env": "node scripts/render/import-render-env.mjs",
     "gtm:first-send-approval:template": "tsx scripts/gtm/write-first-send-approval-template.ts",
     "gtm:first-send-approval:apply": "tsx scripts/gtm/apply-first-send-approvals.ts",
-    "test:result-consumer:browser": "playwright test --config playwright.result-consumer.config.ts"
+    "test:result-consumer:browser": "playwright test --config playwright.result-consumer.config.ts",
+    "assessment:iterate": "tsx scripts/site-assessment-iterate.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.52.0",
