@@ -446,3 +446,14 @@ not new independent cases or model-quality samples. No paid providers ran.
 The earlier test-only provenance followup `9e0e5a8d` is also approved: each
 diagnostic's declared source fingerprint matches its native trace's embedded
 test source, preserving the v1/v2 correction history without relabeling runs.
+
+Final intercepted-browser receipt commit `5faa6870` is approved. All 42 checked
+JSON/trace/test-source/client fingerprint relations match and the author's
+production overlay is restored clean. Exact `8baba7d` passes the frozen original
+12 cases plus four selected repeat attempts: 16/16, selected 003/004 three times
+each, zero new unique cases. Manifest SHA256 is
+`73c7756b4a577eec7353d909b5ff2f7e619e7f9c3fd15b9d51d76f1bb59fb8d5`.
+The unchanged test definition is `2602ab64...`; all earlier 884 failed/partial
+receipts remain. This establishes repaired browser/checkpoint behavior with
+intercepted APIs and does not replace final real-handler/emulator execution,
+provider receipts, required CI, deployed checks or assessment-quality evaluation.
