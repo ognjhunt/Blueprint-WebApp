@@ -16,6 +16,7 @@ import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpd
 import { createHash, randomUUID } from "node:crypto";
 import { automationBatch } from "./automationBatch";
 import { pilotRecommendationNotificationIsCurrent } from "./pilotRecommendationNotifications";
+import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { sendEmail } from "./email";
@@ -229,7 +230,11 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
       // A source read/decrypt failure leaves a recoverable pre-dispatch claim;
       // an obsolete notice is cancelled without consuming a send attempt.
       const currentRecommendation = await pilotRecommendationNotificationIsCurrent(entry, tx);
-      if (!currentNotice || !currentRecommendation) {
+      // Withdrawal can race a retained producer or a claim. Read its current
+      // authority before the durable dispatch marker; in-flight receipts below
+      // still describe the provider effect and are never recast as cancelled.
+      const currentCaptureNotice = await taskLifecycleNotificationIsCurrent(entry, tx);
+      if (!currentNotice || !currentRecommendation || !currentCaptureNotice) {
         tx.set(doc.ref, { status: "cancelled" }, { merge: true });
         return false;
       }
@@ -242,6 +247,16 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     try {
       result = await sendEmail({ to: entry.to, subject: entry.subject,
         text: message.text, html: message.html, replyTo: entry.replyTo ?? undefined });
+      // Provider adapters cross an untrusted response boundary. A truthy
+      // acceptance without a usable provider receipt is not a completed send.
+      // Keep that possible effect unknown rather than retrying it or allowing
+      // malformed/null output to strand an unobserved dispatch exception.
+      if (!result || typeof result.sent !== "boolean"
+        || (result.sent && (typeof result.provider !== "string" || !result.provider.trim()
+          || typeof result.messageId !== "string" || !result.messageId.trim()))) {
+        result = { sent: false, provider: null, messageId: null,
+          outcome: "unknown", error: new Error("delivery_provider_receipt_invalid") };
+      }
     } catch (error) {
       result = { sent: false, provider: null, messageId: null, error, outcome: "unknown" };
     }

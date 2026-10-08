@@ -4,6 +4,7 @@ import { decryptFieldValue } from "./field-encryption";
 import { draftBrief, getBrief, saveBrief } from "./siteTaskBrief";
 import { readBriefFromDescription } from "./siteTaskBriefReading";
 import { isSiteTaskBriefReadingEnabled } from "../config/env";
+import { automationBatch } from "./automationBatch";
 
 const MAX_ATTEMPTS = 3;
 const LEASE_MS = 30 * 60 * 1000;
@@ -14,8 +15,13 @@ export { enqueueCoverageReview as queueCoverageReview } from "./captureCoverageQ
 export async function recoverCaptureReviews({ limit = 25 }: { limit?: number } = {}) {
   const summary = { processedCount: 0, failedCount: 0 };
   if (!db) return summary;
-  const rows = await db.collection("inboundRequests").where("briefReviewPending", "==", true)
-    .limit(Math.max(1, Math.min(limit, 100))).get();
+  const query = db.collection("inboundRequests").where("briefReviewPending", "==", true);
+  // Unexpired leases and unavailable prerequisites remain pending. Rotate the
+  // durable scan so they cannot permanently occupy every slot ahead of a new
+  // customer's work, including after a worker restart. Wrap an exhausted
+  // cursor in this pass so a newly due lease need not wait another tick.
+  let rows = await automationBatch(db, query, "capture_brief_recovery", limit);
+  if (!rows.docs.length) rows = await automationBatch(db, query, "capture_brief_recovery", limit);
   for (const doc of rows.docs) {
     const token = randomUUID();
     const claimed = await db.runTransaction(async transaction => {

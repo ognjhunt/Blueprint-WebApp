@@ -4,7 +4,7 @@ import { z } from "zod";
 import { analyseAgenticVideo, openVideo, GeminiVideoError } from "./adapters/gemini-video";
 import { getGeminiVideoModel } from "./provider-config";
 import { runCompanyHistoryTool, type CompanyHistoryAccess } from "../research-learning/company-history";
-import { listMatchableRobotTeams, toMatchCandidate } from "../utils/robotTeamRegistry";
+import { isQuotableGrade, listMatchableRobotTeams, toMatchCandidate } from "../utils/robotTeamRegistry";
 import { matchRobotTeam, type SiteRequirement } from "../../client/src/lib/robotMatch";
 
 export { SITE_ASSESSMENT_MODEL } from "./provider-config";
@@ -46,6 +46,17 @@ const videoObservationSchema = z.object({
   })),
   not_observable: z.array(z.string()),
 });
+/** Identical timestamp admission applies to fresh and persisted provider observations. */
+function validateVideoObservations(value: unknown, duration: number) {
+  const evidence = videoObservationSchema.parse(value);
+  for (const item of evidence.observations) {
+    if ((item.start_seconds ?? 0) > duration || (item.end_seconds ?? 0) > duration
+      || (item.start_seconds !== null && item.end_seconds !== null && item.end_seconds < item.start_seconds)
+      || (item.basis === "observed" && item.start_seconds === null)) throw new Error("assessment_video_timestamp_invalid");
+  }
+  return evidence;
+}
+
 type VideoAnalysis = { evidence: z.infer<typeof videoObservationSchema>; receipt: Record<string, unknown> };
 type VideoInspection = { processing: "auto" | "static" | "agentic"; sampling_fps: 1 | 2 | 4 };
 type Source = {
@@ -94,8 +105,12 @@ Start with auto processing at 2 FPS. For a specific unresolved event, choose age
 4 FPS when temporal detail matters. Retain sampling limits; a second look cannot recover unrecorded evidence.
 Compare what the operator says with what is actually visible. Door/rack movement is not evidence of dish loading.
 Preserve partial cycles, occlusion, failures, recovery and success subsequently undone. Cite actual seconds.
-Ask the operator about acceptance, repetition, exceptions, quantities, forces, cleaning, access and economics
+Ask the operator about acceptance, repetition, observed operator burden, throughput, exceptions, quantities,
+forces, cleaning and access
 when relevant and unresolved. Choose a few questions with high decision value, not a questionnaire quota.
+The site assessment is free. Do not ask for a customer budget or payment, or make assessment availability depend
+on either. Consider workflow economics only when the owner supplies it; internal provider cost controls are not
+customer questions. Ask about the work performed and its frequency rather than a spending threshold.
 Return needs_operator_input with those questions when their answers change the next action. The caller continues
 the existing conversation by supplying the recorded answers on the next run; never invent an operator reply.
 
@@ -110,8 +125,15 @@ SOPs/docs matter only if actually returned by a tool or supplied as evidence; do
 
 Separate observed, operator_stated, published, measured, estimate and unknown claims. Engineering hypotheses
 may be estimates with explicit assumptions; do not use pretrained memory as verified robot specifications.
-Every factual claim needs returned source IDs; video observations need timestamps. Search excerpts alone are
-not admitted citations. Unobservable weight, force, friction, hygiene and economics need evidence or questions.
+Footage-based readings and timing remain observed or estimates; operator-reported measurements remain
+operator_stated. Use measured only with an admitted measurement record, not footage or a statement alone.
+Every factual claim needs returned source IDs; observed claims need timestamps within returned observed
+intervals, never estimated or not-visible events. Operator statements and video are not published specifications.
+Search excerpts alone are
+not admitted citations. Unobservable weight, force, friction and hygiene need evidence or questions.
+Keep source hashes, byte counts, provider configuration and sample counts in retained provenance and tool
+receipts, not customer-facing known facts. Explain relevant observation limits in plain English as uncertainty;
+audit metadata does not establish a site event, measurement, robot capability or successful task.
 Prefer the smallest action that resolves the decision: another view, a measurement, sourced research, a bounded
 physical trial, a fixture/process change or keeping manual work. A robot is not required as an answer.
 No deployment, safety certification, scientific verdict or guaranteed performance follows from this assessment.
@@ -142,7 +164,7 @@ export async function createSiteAssessmentAgent(input: SiteAssessmentInput, opti
     if (!input.video || source.kind !== "video" || source.sha256 !== input.video.sha256
       || source.canonical_ref !== input.video.source_ref) throw new Error("assessment_retained_video_binding_invalid");
     const value = source.content as VideoAnalysis & { question: string } & VideoInspection;
-    videoObservationSchema.parse(value.evidence);
+    validateVideoObservations(value.evidence, input.video.duration_seconds);
     sources.set(source.source_id, source);
     videoCache.set(hash({ question: value.question, processing: value.processing, sampling_fps: value.sampling_fps }), value);
   }
@@ -200,12 +222,7 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
           if (videoCalls >= (options.max_video_calls ?? 3)) return retained("analyze_site_video", args, { ok: false, error: "video_call_limit", action: "Use retained findings or ask for the missing observation." });
           videoCalls++;
           result = await readVideo(question, inspection);
-          result.evidence = videoObservationSchema.parse(result.evidence);
-          for (const item of result.evidence.observations) {
-            if ((item.start_seconds ?? 0) > input.video.duration_seconds || (item.end_seconds ?? 0) > input.video.duration_seconds
-              || (item.start_seconds !== null && item.end_seconds !== null && item.end_seconds < item.start_seconds)
-              || (item.basis === "observed" && item.start_seconds === null)) throw new Error("assessment_video_timestamp_invalid");
-          }
+          result.evidence = validateVideoObservations(result.evidence, input.video.duration_seconds);
           videoCache.set(cacheKey, result);
         }
         const source_id = `video:${input.video.source_id}:${cacheKey.slice(0, 12)}`;
@@ -303,14 +320,53 @@ export function validateAssessmentEvidence(assessment: SiteAssessment, sources: 
       for (const ref of value.evidence) {
         const source = sources.get(ref.source_id);
         if (!source) throw new Error("assessment_unknown_source_id");
-        if (ref.at_seconds !== null && (source.kind !== "video" || duration === null || ref.at_seconds > duration)) throw new Error("assessment_reference_timestamp_invalid");
+        if (ref.at_seconds !== null && (!Number.isFinite(ref.at_seconds) || ref.at_seconds < 0
+          || source.kind !== "video" || duration === null || ref.at_seconds > duration)) throw new Error("assessment_reference_timestamp_invalid");
         if (value.basis === "observed" && (source.kind !== "video" || ref.at_seconds === null)) throw new Error("assessment_observation_timestamp_required");
+        if (value.basis === "observed") {
+          const content = source.content as { evidence?: unknown };
+          const evidence = validateVideoObservations(content?.evidence, duration!);
+          // A citation must point to an admitted visible interval. This still cannot
+          // establish sentence entailment or whether the provider saw the event correctly.
+          if (!evidence.observations.some(item => item.basis === "observed" && item.start_seconds !== null
+            && ref.at_seconds >= item.start_seconds && ref.at_seconds <= (item.end_seconds ?? item.start_seconds))) {
+            throw new Error("assessment_observation_not_supported");
+          }
+        }
+        if (value.basis === "published" && !["knowledge", "robot_registry"].includes(source.kind)) throw new Error("assessment_published_source_required");
+        // Video findings and operator statements have no calibrated measurement
+        // receipt. Their timing/appearance or reported measurements retain their own basis.
+        if (value.basis === "measured" && !["knowledge", "robot_registry"].includes(source.kind)) throw new Error("assessment_measured_source_required");
+        if (["published", "measured"].includes(value.basis) && source.kind === "knowledge") {
+          const record = source.content as { content?: unknown } | null;
+          const content = record && typeof record === "object" && "content" in record ? record.content : record;
+          if (content === null || content === undefined || (typeof content === "string" && !content.trim())
+            || (typeof content === "object" && !Object.keys(content).length)) throw new Error("assessment_knowledge_content_required");
+        }
+        if (["published", "measured"].includes(value.basis) && source.kind === "robot_registry") {
+          const record = source.content as { capability?: Record<string, unknown>; fieldProvenance?: Record<string, any> };
+          // This only admits a source with a qualified field. It cannot establish
+          // that the prose cites that field, gives its value, or entails robot fit.
+          if (!Object.entries(record?.capability ?? {}).some(([field, fieldValue]) => {
+            const provenance = record.fieldProvenance?.[field];
+            return ((typeof fieldValue === "string" && Boolean(fieldValue.trim()))
+              || (typeof fieldValue === "number" && Number.isFinite(fieldValue)))
+              && typeof provenance?.source === "string" && provenance.source.trim()
+              && (value.basis === "measured" ? provenance.grade === "measured" : isQuotableGrade(provenance.grade));
+          })) throw new Error("assessment_registry_source_basis_required");
+        }
         if (value.basis === "operator_stated" && source.kind !== "operator") throw new Error("assessment_operator_source_required");
       }
     }
     Object.values(value).forEach(inspect);
   };
   inspect(assessment);
+  for (const approach of assessment.approaches) {
+    // Unknown capability or an empty search cannot establish impossibility.
+    // Sourced estimates remain allowed; this does not prove prose entailment.
+    if (approach.disposition === "excluded" && !approach.reasons.some(reason =>
+      reason.basis !== "unknown" && reason.evidence.length > 0)) throw new Error("assessment_exclusion_evidence_required");
+  }
 }
 
 /** Existing workflow host persists this portable packet and presents any questions. */

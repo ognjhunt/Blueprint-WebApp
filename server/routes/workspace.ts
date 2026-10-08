@@ -35,6 +35,7 @@ import {
   projectAgentRunResult,
 } from "../utils/workspace-projection";
 import { getBrief } from "../utils/siteTaskBrief";
+import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
 import { listRunsForScene, loadSceneScreening } from "../utils/agentEvalRuns";
@@ -457,6 +458,8 @@ async function applicationResults(task: WorkspaceTask, projectedRunIds: Readonly
 }
 async function hydrateTask(requestId: string, record: Record<string, any>) {
   const task = projectWorkspaceTask(requestId, record);
+  const consentRevoked = projectWebsiteCaptureRights(record).consent_revoked;
+  task.recordingPermissionWithdrawn = consentRevoked;
   const jobs = await db!
     .collection("capture_jobs")
     .where("buyer_request_id", "==", requestId)
@@ -491,11 +494,11 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
   // this response will show, including when the optional run read fails.
   let runs: Awaited<ReturnType<typeof listRunsForScene>> = [];
   try {
-    runs = await listRunsForScene(requestId);
+    if (!consentRevoked) runs = await listRunsForScene(requestId);
   } catch {
     // Preserve application history when the optional run list is unavailable.
   }
-  task.results = await applicationResults(task, new Set(runs.map((run) => run.runId)));
+  task.results = consentRevoked ? [] : await applicationResults(task, new Set(runs.map((run) => run.runId)));
   task.results.push(...runs.map((run) => projectAgentRunResult(run, task.id, task.terms)));
   if (
     task.results.some((result) => result.successRate !== null) &&
@@ -528,7 +531,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     }
     const captureSession = await db!.collection("captureUploadSessions").doc(`walkthrough-${requestId}`).get();
     const reconstruction = captureSession.data()?.world_reconstruction;
-    const scenePreviewReady = reconstruction?.state === "ready"
+    const scenePreviewReady = !consentRevoked && reconstruction?.state === "ready"
       && [reconstruction?.assets?.launchUrl, reconstruction?.assets?.panoUrl].some((value: unknown) => {
         try { const url = new URL(String(value || "")); return url.protocol === "https:" && !url.username && !url.password; }
         catch { return false; }
@@ -540,7 +543,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
       try { const url = new URL(String(value || "")); return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null; }
       catch { return null; }
     };
-    task.thumbnailUrl = (reconstruction?.state === "ready" ? httpsUrl(reconstruction?.assets?.thumbnailUrl) : null)
+    task.thumbnailUrl = consentRevoked ? null : (reconstruction?.state === "ready" ? httpsUrl(reconstruction?.assets?.thumbnailUrl) : null)
       ?? (/^[a-f0-9]{64}$/.test(String(record.public_task_listing?.thumbnailDigest ?? "")) && record.public_task_listing?.enabled === true
         ? `/api/site-worlds/tasks/${encodeURIComponent(requestId)}/thumbnail` : null);
     task.readiness = projectTaskStatus(
@@ -549,6 +552,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         capture_coverage: (record.capture_coverage as never) ?? null,
         site_task_next_update_iso: (record.site_task_next_update_iso as string | null) ?? null,
         briefDrafted: Boolean(brief),
+        consentRevoked,
         scenePreviewReady,
         stage,
         screening: await loadSceneScreening(requestId).catch(() => null),
@@ -562,6 +566,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     task.readiness = null;
   }
 
+  if (consentRevoked) task.status = "Recording consent withdrawn";
   return task;
 }
 async function listSetups(uid: string): Promise<RobotSetup[]> {

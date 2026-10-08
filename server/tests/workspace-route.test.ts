@@ -266,6 +266,28 @@ async function api(
   });
 }
 describe("workspace access and projections", () => {
+  it("withholds persisted capture derivatives on the owner's return after withdrawal", async () => {
+    state.records.set("inboundRequests/task-1", { ...task(), consent_revoked: true,
+      site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
+    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Derived reading",
+      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
+      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: "2026-09-18T00:00:00Z" });
+    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: { state: "ready",
+      assets: { launchUrl: "https://viewer.example/withdrawn", thumbnailUrl: "https://viewer.example/withdrawn.png" } } });
+    state.records.set("evaluationRuns/run-withdrawn", { runId: "run-withdrawn",teamId: "team",sceneId: "task-1",
+      state: "completed",result: { observed: { episodesRun: 10, episodesSucceeded: 8 } } });
+    const before = structuredClone([...state.records]);
+    const response = await api("/tasks/task-1", "site-1");
+    expect(response.status).toBe(200);
+    const viewed = await response.json();
+    expect(viewed.thumbnailUrl).toBeNull();
+    expect(viewed.sceneReady).toBe(false);
+    expect(viewed.results).toEqual([]);
+    expect(viewed.readiness.headline).toMatch(/consent was withdrawn/i);
+    expect(viewed.readiness.stage).toBeNull();
+    expect([...state.records]).toEqual(before);
+    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
+  });
   it("records only the owner's withdrawal, cancels queued work, and never claims deletion", async () => {
     state.records.set("inboundRequests/task-1", { ...task(), capture_coverage_pending: true, coverageReviewPending: true });
     state.records.set("evaluationRuns/run", { runId: "run", sceneId: "task-1", state: "requested", dispatchPending: true });

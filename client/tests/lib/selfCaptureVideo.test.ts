@@ -92,3 +92,20 @@ describe("verified receipt versus processing", () => {
     expect(fetch).toHaveBeenLastCalledWith(`/api/self-capture/uploads/${token}/status`);
   });
 });
+
+
+const transportCases = [
+  ...["error", "abort", "timeout"].flatMap(event => ["absent", "held", "processing_pending", "processing_ready"].map(receipt => ({ event, http: 0, receipt }))),
+  ...[400, 409, 413, 422, 429, 500].flatMap(http => ["absent", "held", "processing_pending"].map(receipt => ({ event: "load", http, receipt }))),
+].map((parameters, index) => ({ caseId: `A-U-${String(index + 1).padStart(3, "0")}`, ...parameters }));
+it.each(transportCases)("$caseId transport $event HTTP $http receipt $receipt", async ({ event, http, receipt }) => {
+  xhrOutcome.event = event; xhrOutcome.status = http;
+  const body = receipt === "absent" ? { error: `transport-${http}` }
+    : { captureReceived: true, state: receipt, processingRetryAvailable: true };
+  xhrOutcome.body = body;
+  vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => body } as Response);
+  const result = await uploadSelfCaptureVideo(token, new File(["synthetic"], "original.mp4"));
+  expect(result.status).toBe(receipt === "absent" ? "failed" : receipt === "processing_ready" ? "done" : receipt);
+  if (event !== "load" || receipt === "absent") expect(fetch).toHaveBeenCalledExactlyOnceWith(`/api/self-capture/uploads/${token}/status`);
+  else expect(fetch).not.toHaveBeenCalled();
+});
