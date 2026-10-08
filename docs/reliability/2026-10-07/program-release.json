@@ -2286,12 +2286,63 @@
   },
   "private_evidence_save_repair": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/978",
-    "head": "ed6dce24342dd7584e32d4b8dc1461f6dd47f3b8",
+    "head": "799c5fe7de1dbb4a79f327e3fe756f7886e3c0ef",
     "independent_review": "0f65cee8",
     "receipt_sha256": "26981e5da6ca1924c4312ea40a188b0c9aa9e58eac2710701bdad805d33dbcc1",
     "matched_counterexamples": "NativeFirestore validation of genuine local SDK sanitized shape and cancelled/lost-ack terminal neighbors:3FAIL on39\u21923PASS candidate",
     "checks": "54/54 existing+private controls; separateexistingqueue9/9 verifies offload\u2192hydrate\u2192publication and missingobject failure. Types/Graphify/portability/diff pass. RequiredCI37851991499 executing.",
     "repair": "Existing verifiedimmutableprivateJSONoffload handles excessive fielddepth as well as bytes; structuralnumeric-only diagnostics; atomic failed-write recovery preserves newer/cancelled/completed proof/accounting.",
-    "limit": "Actual failedcloudpayload/nativecause unavailable; demonstrated realSDKcounterpart and isolated regression controls, not freshcustomerpublication."
+    "limit": "Actual failedcloudpayload/nativecause unavailable; demonstrated realSDKcounterpart and isolated regression controls, not freshcustomerpublication.",
+    "historical_original_head": "ed6dce24342dd7584e32d4b8dc1461f6dd47f3b8",
+    "final_independent_review": "569fb2d0",
+    "final_receipt_sha256": "f5cd7a0cbf09ab251b3854fc4a78948b521abc399fd3d7cdd1fca2cf716bac0c",
+    "required_CI": {
+      "run": 37853905706,
+      "state_at_2234": "test_running_seven_other_applicable_checks_pass",
+      "prior_run": 37851991499,
+      "prior_failure": "free-beta-journey-contract_beforeEach_120s_timeout_unreproduced_not_declared_fixed"
+    }
+  },
+  "current_release_candidates": {
+    "observed_at_utc": "2026-10-08T22:34:45Z",
+    "customer_action_clearance": false,
+    "paid_actors": "all_prior_operations_terminal; original_customer_owner_held_until_verified_combined_release",
+    "PR979": {
+      "head": "196131153b6df2e48f674422a4040387f742c236",
+      "review": "31930a43",
+      "required_CI": 37853491909,
+      "eight_applicable_checks": "SUCCESS",
+      "expected_backend_e2e": "SKIPPED",
+      "merged_sha": "12915499e6f6de05c0ade2fc1772d9d39667e9fd",
+      "merged_at": "2026-10-08T22:34:45Z",
+      "deployment": "not_yet_verified",
+      "matched_replay": "same_final_controls_on_actual39:two_fail_then_two_candidate_pass; eighteen_unattempted",
+      "receipt_sha256": "ec3b5d31408ad8cd58ab53d26f4d3093126af282b8700a383c3b817e601cfcde"
+    },
+    "PR978": {
+      "head": "799c5fe7de1dbb4a79f327e3fe756f7886e3c0ef",
+      "CI": 37853905706,
+      "state": "required_test_running"
+    },
+    "PR977": {
+      "head": "52ad73eb99ca754cbf56a29e510e9bd768fc04c5",
+      "CI": 37854201765,
+      "state": "running",
+      "historical_14ec_failure": "TS2339 in experimental thought-parts redactor object narrowing; author narrow type repair, no runtime/provider cause claimed"
+    },
+    "claim_ceiling": "Reviewed source and checks remain separate from protected merge, exact combined deployed identity and customer persistence/report proof"
+  },
+  "local_actual_assessment_run_totals": {
+    "source_count": 1,
+    "complete_runs": 5,
+    "provider_modes": "three_fresh_actual_Gemini;two_saved_same-source_Gemini_reuse;latest_fresh_video-only_model_context_not_production_context_parity",
+    "sol_calls_recorded": 33,
+    "gemini_calls_recorded": 3,
+    "total_unique_recorded_calls": 36,
+    "usage_derived_USD_estimate": 0.65223075,
+    "pending_calls": 0,
+    "unknown_local_calls": 0,
+    "historical_customer_unknown_exposure": "separate_unchanged_not_zero",
+    "claim_ceiling": "Actual local SDK/provider execution, no customer publication, human truth labels, statistical perception certification or extra reference sources"
   }
 }
