@@ -26,10 +26,21 @@ for (const width of [1440, 390]) {
 test("the auth robot scene moves on to the next example after one loop", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/sign-in");
-  const scene = page.locator(".auth-art .robot-scene");
+  const scene = page.locator(".auth-art .robot-scene > svg");
   await expect(scene).toHaveAttribute("aria-label", "Illustration of the warehouse example");
   await expect(scene).toHaveAttribute("aria-label", /Illustration of the café example/, { timeout: 20_000 });
-  await expect(page.locator(".auth-art").getByRole("button")).toHaveCount(0);
+});
+
+test("the auth robot scene can be paused and played again", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/sign-in");
+  const pause = page.locator(".auth-art").getByRole("button", { name: "Pause robot animation" });
+  await expect(pause).toBeVisible();
+  await pause.click();
+  const play = page.locator(".auth-art").getByRole("button", { name: "Play robot animation" });
+  await expect(play).toBeVisible();
+  await play.click();
+  await expect(page.locator(".auth-art").getByRole("button", { name: "Pause robot animation" })).toBeVisible();
 });
 
 test("sign-in validates and links to account creation and recovery", async ({ page }) => {
