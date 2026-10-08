@@ -2212,3 +2212,55 @@ real provider acceptance, perception accuracy, native completion, notification
 delivery, charge settlement, or full reliability-program readiness. Exact-head
 protected CI, merge, deployment and the sole owner's actual authorized video
 result remain separate gates. Review made no paid calls or production changes.
+
+
+## Independent bounded technical continuation review — 5208cbf3
+
+Approved source `5208cbf30b3aeb0827c264126283a2170a3d36ee` over the reviewed
+explicit recovery head `1e0e0d8174cc6cc86ee82fea506ad0b25317f9e3`. Four-file
+slice: two existing runtime helpers, fifteen technical controls in the existing
+budget test, and a strengthened existing recovery positive. Receipt
+`inference_technical_continuation_replay.v1`, SHA-256
+`96d70f738e09e273cd0544fdc603eaee49991456b62ab1aa4d864ec46c8f0280`,
+is retained in the isolated continuation worktree's ignored
+`output/reliability-program/programme-continuation/`. Reviewer verified all
+four final Git source hashes, both original runtime hashes and five final
+baseline/candidate/check log hashes; final author tree is clean.
+
+The operator function is an explicit trusted Admin invocation with no customer
+route, runtime caller or automatic renewal. It reads canonical request rights,
+source-bound privacy, context, immutable authority, capture state and bounded
+historical-run evidence before writing only one separate continuation receipt.
+That receipt binds the original authority/expiry/source/video/context/ledger/cap,
+operator provenance, original human authority reference, remaining eligible held
+slots and monotone capture/slot snapshots. Its single effective window is at
+most two hours from grant. Original expiry and authority digest remain unchanged;
+no cap, exposure, calls, pending mutex, slot or recovery history is rewritten by
+the grant. Client Firestore default-deny preserves the server-only trust boundary.
+Receipt hashes and operator strings are provenance, not independent proof of
+operator identity or human authorization: the sole authorized operator must
+verify those before any actual invocation.
+
+Effective-clock checks cover new admission, final dispatch and explicit recovery.
+Old admitted calls cannot become fresh dispatch after original expiry. Original
+known-usage settlement remains token/digest-bound and clock-independent; unknown
+charges and reserved exposure remain held. Monotone checks allow legitimate
+admitted-to-recorded/unknown transitions and admissions from the snapshotted
+remaining held slots, while rejecting expired windows, forged receipts, original
+identity changes, reset consumed slots and unrelated grants. The reviewed
+null-safe eligibility correction returns a fixed refusal if the original deadline
+crosses between checks, rather than an undefined-receipt TypeError.
+
+Reviewer directly ran sixteen existing focused controls on the immutable head:
+fifteen technical controls and the expired-window recovery positive, all passing.
+The positive executes expired original refusal, explicit grant, unknown archival,
+remaining held admission and stale old-write refusal. Author final receipt reports
+86/86 overlapping budget/recovery checks and terminal typecheck, Graphify and
+portability success. Same final test bytes against the original runtime fail the
+two selected absent-continuation cases; this establishes the missing technical
+continuation path, not an unauthorized expiry bypass or a historical customer
+incident. Earlier clock/setup diagnostics remain retained. No new original
+journey credit, paid call or production grant occurred. Source approval does not
+authorize an unchecked operator invocation, prove real Firestore contention,
+settle historical charges or establish a successful live assessment. Protected
+exact-head checks and release remain separate gates.
