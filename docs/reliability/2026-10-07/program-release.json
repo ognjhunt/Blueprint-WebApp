@@ -1887,31 +1887,24 @@
     "claim_ceiling": "Read-only credential/model catalog access;not generation, currentcustomer assessment or video-quality proof. Historical401 andunknownexposure remain retained."
   },
   "current_verified_web_release": {
-    "sha": "12915499e6f6de05c0ade2fc1772d9d39667e9fd",
-    "verified_by": "coordinator; final independent combined release verification pending",
-    "main_CI": 37854354905,
+    "sha": "8ce5c5f1dbf14fd5e2be3651d0a1a00e44fde3fc",
+    "verified_by": "coordinator; final combined independent verification pending",
+    "main_CI": 37855033647,
     "main_CI_conclusion": "success",
-    "deployment_workflow": 37854897634,
+    "deployment_workflow": 37855941733,
     "deployment_conclusion": "success",
     "web": {
-      "id": "dep-db41nkvlot8c73cd9gk0",
+      "id": "dep-db41sdijnfac73b7nipg",
       "status": "live",
-      "finished_at": "2026-10-08T22:42:55.058509Z"
+      "finished_at": "2026-10-08T22:52:40.420655Z"
     },
     "worker": {
-      "id": "dep-db41nl6i0phs73elunk0",
+      "id": "dep-db41sdqj9qps73frjvj0",
       "status": "live",
-      "finished_at": "2026-10-08T22:43:29.300813Z"
+      "finished_at": "2026-10-08T22:53:29.34656Z"
     },
-    "public": {
-      "observed_at": "2026-10-08T22:44:53Z",
-      "version_sha": "12915499e6f6de05c0ade2fc1772d9d39667e9fd",
-      "health": 200,
-      "ready": 200,
-      "blockers": 0,
-      "receipt_sha256": "ff23bf64e59d2baa7a7da091c9537e391e152df39fa06347f4bccf5fce64f0c5"
-    },
-    "claim_ceiling": "Exact source/service/public health only; storage978 still unmerged and originalcustomer retry held"
+    "public_version_sha": "8ce5c5f1dbf14fd5e2be3651d0a1a00e44fde3fc",
+    "claim_ceiling": "Exact native pair and public version; 978 storage pending; no new customer retry/report yet"
   },
   "current_normal_UI_same_job_retry": {
     "source_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
@@ -2298,7 +2291,14 @@
       "prior_failure": "free-beta-journey-contract_beforeEach_120s_timeout_unreproduced_not_declared_fixed",
       "final_state": "FAILURE_same_setup_hook_timeout_recurred",
       "finished_at": "2026-10-08T22:35:19Z"
-    }
+    },
+    "diagnostic_integrated_head": "6e1b0392ebaf6d587723e75467d18e87732eaa9d",
+    "diagnostic_commit": "99a0b4eb",
+    "integrated_protected_main": "8ce5c5f1dbf14fd5e2be3651d0a1a00e44fde3fc",
+    "diagnostic_scope": "Five fixed phase markers +Nodeversion on existingfixture; same parallelimports/assertions/120stimeout. Logging/microtasks may change scheduling, not a causal repair.",
+    "head_bound_receipt_sha256": "5a22d91ff3f81a3674b788879c54e20ef12173d1ba9ab4356d1c61e3b9d276fc",
+    "durable_private_artifact_count": 64,
+    "durable_private_manifest_sha256": "da90bbf05af859f6a6c3e57ea82c7d8a201954871aa9aaad308e0427af632e1d"
   },
   "current_release_candidates": {
     "observed_at_utc": "2026-10-08T22:34:45Z",
@@ -2330,9 +2330,10 @@
       }
     },
     "PR978": {
-      "head": "799c5fe7de1dbb4a79f327e3fe756f7886e3c0ef",
-      "CI": 37853905706,
-      "state": "required_test_failed_same_setup_hook_timeout_under_diagnosis"
+      "head": "6e1b0392ebaf6d587723e75467d18e87732eaa9d",
+      "CI": 37856019518,
+      "state": "new_checkpoint_only_integrated_head_required_CI_pending;prior_hook_cause_unresolved",
+      "independent_final_receipt_review": "e9ac5bef"
     },
     "PR977": {
       "head": "52ad73eb99ca754cbf56a29e510e9bd768fc04c5",
@@ -2343,7 +2344,12 @@
       "merged_at_utc": "2026-10-08T22:41:20Z",
       "independent_final_guard_review": "a35ad86a",
       "deployment": "not_yet_verified",
-      "provider_limit_ceiling": "Default SDK turns/host deadline and Sol explicit output cap removed. Existing Gemini32768 token setting unchanged; no all-provider-output-unbounded claim."
+      "provider_limit_ceiling": "Default SDK turns/host deadline and Sol explicit output cap removed. Existing Gemini32768 token setting unchanged; no all-provider-output-unbounded claim.",
+      "main_CI": {
+        "run": 37855033647,
+        "conclusion": "success",
+        "exact_sha": "8ce5c5f1dbf14fd5e2be3651d0a1a00e44fde3fc"
+      }
     },
     "claim_ceiling": "Reviewed source and checks remain separate from protected merge, exact combined deployed identity and customer persistence/report proof",
     "latest_containing_main_sha": "8ce5c5f1dbf14fd5e2be3651d0a1a00e44fde3fc"
@@ -2398,5 +2404,32 @@
     "receipt_path": "/Users/nijelhunt_1/.codex/worktrees/dc17/Blueprint-WebApp/output/reliability-program/customer-policy/39-release-receipt.json",
     "receipt_sha256": "fc098c4b82b06443b3dcaced65e1ad0bd3a16544c7001b4f2a9b5d00120f86ed",
     "limits": "Source/pair/plan/health. Customerretry and measured cloudmemory peak are separate; no full beta/referenceaccuracy proof."
+  },
+  "historical_129_verified_web_release": {
+    "sha": "12915499e6f6de05c0ade2fc1772d9d39667e9fd",
+    "verified_by": "coordinator; final independent combined release verification pending",
+    "main_CI": 37854354905,
+    "main_CI_conclusion": "success",
+    "deployment_workflow": 37854897634,
+    "deployment_conclusion": "success",
+    "web": {
+      "id": "dep-db41nkvlot8c73cd9gk0",
+      "status": "live",
+      "finished_at": "2026-10-08T22:42:55.058509Z"
+    },
+    "worker": {
+      "id": "dep-db41nl6i0phs73elunk0",
+      "status": "live",
+      "finished_at": "2026-10-08T22:43:29.300813Z"
+    },
+    "public": {
+      "observed_at": "2026-10-08T22:44:53Z",
+      "version_sha": "12915499e6f6de05c0ade2fc1772d9d39667e9fd",
+      "health": 200,
+      "ready": 200,
+      "blockers": 0,
+      "receipt_sha256": "ff23bf64e59d2baa7a7da091c9537e391e152df39fa06347f4bccf5fce64f0c5"
+    },
+    "claim_ceiling": "Exact source/service/public health only; storage978 still unmerged and originalcustomer retry held"
   }
 }
