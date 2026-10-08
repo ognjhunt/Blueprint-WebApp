@@ -297,5 +297,27 @@
       29
     ],
     "exact_decoded_frame_timestamps_retained": false
+  },
+  "current_provider_catalog_access": {
+    "timestamp": "2026-10-08T20:17:22.594Z",
+    "private_receipt_path": "/Users/nijelhunt_1/.codex/worktrees/assessment-iteration/Blueprint-WebApp/output/assessment-iteration/provider-catalog-preflight.json",
+    "sha256": "82becb22d08ef3ea4fa39da7cc0449feda1ca616a059b9d7504dc9c0306aa7e7",
+    "root_readback": "hash_verified;sanitized_metadata_only",
+    "credential_provenance": "CLIowner reports exactcurrentWEB OpenAIcredential securelyexported under its separate directhuman permission;rootdidnotread/copykey",
+    "openai": {
+      "model": "gpt-6.1-sol",
+      "http_status": 200,
+      "exact_model_found": true,
+      "authentication_rejected": false
+    },
+    "gemini": {
+      "model": "gemini-3.8-flash",
+      "http_status": 200,
+      "exact_model_found": true,
+      "authentication_rejected": false
+    },
+    "inference_dispatched": false,
+    "upload_dispatched": false,
+    "claim_ceiling": "Read-only credential/model catalog access;not generation, currentcustomer assessment or video-quality proof. Historical401 andunknownexposure remain retained."
   }
 }
