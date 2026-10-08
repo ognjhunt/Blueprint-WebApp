@@ -2317,9 +2317,22 @@
       "expected_backend_e2e": "SKIPPED",
       "merged_sha": "12915499e6f6de05c0ade2fc1772d9d39667e9fd",
       "merged_at": "2026-10-08T22:34:45Z",
-      "deployment": "not_yet_verified",
+      "deployment": "CI-gated37854897634_building_native_web_dep-db41nkvlot8c73cd9gk0;not_yet_live_verified",
       "matched_replay": "same_final_controls_on_actual39:two_fail_then_two_candidate_pass; eighteen_unattempted",
-      "receipt_sha256": "ec3b5d31408ad8cd58ab53d26f4d3093126af282b8700a383c3b817e601cfcde"
+      "receipt_sha256": "ec3b5d31408ad8cd58ab53d26f4d3093126af282b8700a383c3b817e601cfcde",
+      "main_CI": {
+        "run": 37854354905,
+        "conclusion": "success",
+        "exact_sha": "12915499e6f6de05c0ade2fc1772d9d39667e9fd"
+      },
+      "durable_private_replay": {
+        "format": "UTF-8 JSON/source/logs and README; files0600/dirs0700",
+        "manifest_sha256": "40867ae07e250a165cfa08457b65e6bc351eaf32f097a8cbe1fb3ed8e4b3204b",
+        "README_sha256": "f58899e4228e36848af87d5092417b9ead4599c771e7f005fdf9e97dc43db8bd",
+        "artifact_count": 21,
+        "private_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/advisory-recovery-979-19613115",
+        "scope": "Canonical Git source + verified private snapshot, no provider session-only dependency"
+      }
     },
     "PR978": {
       "head": "799c5fe7de1dbb4a79f327e3fe756f7886e3c0ef",
@@ -2329,10 +2342,16 @@
     "PR977": {
       "head": "52ad73eb99ca754cbf56a29e510e9bd768fc04c5",
       "CI": 37854201765,
-      "state": "running",
-      "historical_14ec_failure": "TS2339 in experimental thought-parts redactor object narrowing; author narrow type repair, no runtime/provider cause claimed"
+      "state": "protected_merged_after_nine_applicable_checks_SUCCESS",
+      "historical_14ec_failure": "TS2339 in experimental thought-parts redactor object narrowing; author narrow type repair, no runtime/provider cause claimed",
+      "merged_sha": "8ce5c5f1dbf14fd5e2be3651d0a1a00e44fde3fc",
+      "merged_at_utc": "2026-10-08T22:41:20Z",
+      "independent_final_guard_review": "a35ad86a",
+      "deployment": "not_yet_verified",
+      "provider_limit_ceiling": "Default SDK turns/host deadline and Sol explicit output cap removed. Existing Gemini32768 token setting unchanged; no all-provider-output-unbounded claim."
     },
-    "claim_ceiling": "Reviewed source and checks remain separate from protected merge, exact combined deployed identity and customer persistence/report proof"
+    "claim_ceiling": "Reviewed source and checks remain separate from protected merge, exact combined deployed identity and customer persistence/report proof",
+    "latest_containing_main_sha": "8ce5c5f1dbf14fd5e2be3651d0a1a00e44fde3fc"
   },
   "local_actual_assessment_run_totals": {
     "source_count": 1,
