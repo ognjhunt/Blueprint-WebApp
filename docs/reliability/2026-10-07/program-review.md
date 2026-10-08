@@ -1317,3 +1317,55 @@ scripted model and Gemini adapter results. No paid provider call, real video
 analysis, customer publication, increased spending authority or deployment is
 established. This approval covers the bounded continuation policy; required
 release checks and the separate customer adapter integration remain distinct.
+
+
+## Independent customer advisory source review — 7489ee75
+
+Source review approved through immutable
+`7489ee755748c43adb131668dce06fe022dd1bb7` (combined reader/adapter/queue,
+continuation policy separately reviewed above). Approval of connected execution
+and release remains pending the actual adapter/SDK-to-customer trace and required
+checks; the component checks below cannot substitute for that trace.
+
+The initial combined source lacked parity with the reader: a newer journaled
+upload was not excluded by the queue, and adapter per-call admission did not
+check session reservation/stored-upload state. The matched stored-upload queue
+control fails on prior `3c9f3d5f` (one attempted, six unattempted) and passes in
+the repaired queue. Final combined `c8b9f13a` rejects both flags initially,
+per call and at result admission. Active/source authority is reread after durable
+cost reservation; a denied later dispatch does not invent a reservation refund.
+The signed reader now carries the initial owner-UID snapshot fence, matching
+the workspace's existing fence. This does not claim account attachment revokes
+an existing owner-link capability. Final enqueue is narrowed to the supported
+walkthrough path; supplemental/app footage is not silently evaluated or backfilled.
+
+Minimum independent checks on a disposable exact `c8b9f13a` archive passed:
+seven existing queue checks (receipt
+`418bd5b8b962501e63d8ffc40cab4c272457486b19985da8b37bc74c76477386`)
+and one actual owner-status-handler/SSR projection/withdrawal check with 27
+unattempted tests (receipt
+`8000f06d006bdb70b47e0b2e0d05a376ab1239e42774524a741969e66b6da55a`).
+Both are private under `output/reliability-program/reviewer/advisory-*-c8b9.json`.
+The later one-line walkthrough restriction changes no tested walkthrough result.
+No extra semantic cases or broad reruns were generated during review.
+
+The queue commits its deterministic intent/claim before SDK dispatch, reconciles
+retained canonical results, and routes interrupted/unknown work to review rather
+than paid replay. Same-worker coverage work defers new advisory dispatch; the
+shared durable spending reservation still owns cross-worker admission. Customer
+projection checks pointer/job/current context, exact current manifest/marker,
+source admission, hydrated packet hash and completed run, then rereads persisted
+records in a read-only transaction. Only rerendered source-bound factual sections,
+source categories/timestamps, uncertainty and safe generic next steps are public.
+Raw model prose, approaches, questions, estimates, provider receipts and canonical
+object references remain private. Film links receive no advisory; owner and
+workspace access remain in their existing authorization paths. Reader timeouts
+are read-only; failed polls hide cached advisory content.
+
+These checks use an in-memory database/object double, scripted/stubbed provider
+and runtime seams and static rendering, not a real browser/SDK joined journey,
+real database durability, real perception or paid provider output. Later context
+edits invalidate the old pointer; automatic reassessment after clarification is
+not established by first-publication dispatch. No physical qualification, robot
+suitability, assessment quality, deployment or whole-program completion claim
+follows from this source approval.
