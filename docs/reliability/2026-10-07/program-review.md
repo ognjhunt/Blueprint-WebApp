@@ -3226,3 +3226,18 @@ exception prose. Memory stores/scripted providers are disclosed, with no new
 journey credit, live provider, native database/browser, perception or customer
 recovery proof. Integration, protected release and the actual failed customer's
 explicit recovery remain separate gates.
+
+### Matched transition/recovery replay — 19613115
+
+Approval carries to `196131153b6df2e48f674422a4040387f742c236`: only three
+unchanged helper-assertion lines move after actual transition/availability
+assertions. Both production blobs remain byte-identical to approvede72f3f43.
+Receipt `ec3b5d31408ad8cd58ab53d26f4d3093126af282b8700a383c3b817e601cfcde`
+and all seven linked artifacts were verified. The disposable baseline is exact39
+with only two dirty tests, byte-identical to the final candidate tests. Two
+controls fail on the actual wrong transition/unavailable recovery before any
+absent helper is called; the candidate passes those two, with18 unattempted.
+No assertions were removed. Typecheck, Graphify and portability pass. This
+new matched replay resolves that specific source-identity limitation without
+rewriting initial receipts, inheriting42 checks onto the reordered source, or
+claiming the earlier unclassified SDK failures fixed. No new journey credit.
