@@ -5,7 +5,7 @@ import HowItWorks from "@/pages/HowItWorks";
 describe("How it works", () => {
   it("shows the warehouse walkthrough and retains the job-fit assessment links", () => {
     render(<HowItWorks />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("From your task to a measured pilot.");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Start with your task.");
     expect(screen.getByRole("heading", { name: "One task, from phone video to a pilot." })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Is your job a fit?" })).toBeInTheDocument();
     expect(screen.getByText(/Start with repeatable parts handling/)).toHaveTextContent(/A description is enough to start/);

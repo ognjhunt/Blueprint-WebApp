@@ -8,7 +8,7 @@ describe("Site-led homepage", () => {
     render(<Home />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Could a robot take over a repetitive task at your site?");
     expect(screen.getByRole("link", { name: "Show us a task" })).toHaveAttribute("href", "/contact/site-operator");
-    expect(screen.getByText("Free to start. No pilot, no fee.")).toBeInTheDocument();
+    expect(screen.getByText("Free initial assessment for invited beta participants.")).toBeInTheDocument();
     // Robot teams reach their own page from the nav, not from the homepage.
     expect(screen.queryByRole("link", { name: /robot-team beta|early access/i })).not.toBeInTheDocument();
     // One example of the deliverable, clearly marked, instead of staged imagery.
@@ -28,8 +28,8 @@ describe("Site-led homepage", () => {
     const steps = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(steps).toHaveLength(3);
     expect(steps[0]).toHaveTextContent(/Show us the task.*Describe it or film it on your phone\./);
-    expect(steps[1]).toHaveTextContent(/We find the right robot.*We test it with robot teams and pick one that fits\./);
-    expect(steps[2]).toHaveTextContent(/Book the pilot.*One click\. We coordinate the rest\./);
+    expect(steps[1]).toHaveTextContent(/Review the evidence.*Understand what it supports and what is still unknown\./);
+    expect(steps[2]).toHaveTextContent(/Agree a next step.*Any later work has a separately agreed scope and cost\./);
   });
 
   it("keeps the example still while a keyboard user is inside it, even after the pointer leaves", () => {

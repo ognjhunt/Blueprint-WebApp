@@ -2,7 +2,6 @@ import { SEO } from "@/components/SEO";
 import { EditorialFaq } from "@/components/site/editorial";
 import { Reveal } from "@/components/site/motion";
 import { Band, ClosingCta, Inner } from "@/components/site/publicSections";
-import { formatPrice, pilotFeeUsd } from "@/lib/evaluationPricing";
 import { faqJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 export const faqItems = [
@@ -54,7 +53,7 @@ export const faqItems = [
   {
     question: "How is Blueprint paid?",
     answer:
-      `No pilot, no fee. Submitting a job, screening, evaluation and our recommendation are free. When you book the pilot we recommend, Blueprint charges ${formatPrice(pilotFeeUsd)} per job. Blueprint takes no cut of the pilot or any deployment. Robot teams pay nothing to join or to evaluate the jobs we invite them to.`,
+      "The initial assessment is free for invited beta participants. Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. Robot teams participate by invitation within an agreed scope.",
   },
 ];
 

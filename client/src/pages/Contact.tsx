@@ -1,7 +1,7 @@
 /**
  * Two public entry points. Keep the application after a concise team invitation,
  * the site form before supporting details, and keep
- * assessment free and booking the recommended pilot as the one paid decision.
+ * the invited initial assessment free, with later scope and cost agreed separately.
  */
 import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
@@ -22,16 +22,16 @@ export default function Contact() {
       <>
         <SEO
           title="Early access for robot teams | Blueprint"
-          description="Test your robot on real site jobs. Evaluate fit on a captured workspace and work toward a measured customer pilot. Free evaluations for invited teams."
+          description="Register interest in real site tasks. Applications remain pending until manual approval; later evaluation scope and cost are agreed separately."
           canonical="/contact/robot-team"
         />
         <section className="ms-beta-hero ms-container" aria-labelledby="robot-team-title">
           <div className="ms-beta-copy">
             <p className="ms-eyebrow">Robot-team beta</p>
             <h1 id="robot-team-title">Test your robot on real site jobs.</h1>
-            <p>Evaluate fit on a captured workspace and work toward a measured customer pilot.</p>
-            <a className="ms-button" href="#robot-team-access">Join the robot-team beta <ArrowRight size={20} aria-hidden="true" /></a>
-            <p className="ms-beta-free">Free evaluations for invited teams.</p>
+            <p>Tell us what your robot can do and which real site tasks you can support.</p>
+            <a className="ms-button" href="#robot-team-access">Register interest <ArrowRight size={20} aria-hidden="true" /></a>
+            <p className="ms-beta-free">Task invitations follow manual review.</p>
           </div>
           <div className="ms-beta-example">
             <figure>
@@ -44,10 +44,10 @@ export default function Contact() {
           <TaskBrowse />
           <details className="ms-task-interest ms-visitor-detail">
             <summary>What happens after applying?</summary>
-            <p>We review your robot's capabilities, the work you want and where you can support a pilot, then email the next step. Approved teams can see shared job details; applying does not commit you to an integration or a pilot.</p>
+            <p>We review your robot's capabilities against a real site task, then email the next step. Your application remains pending until manual approval. Applying or creating an account does not grant access; approved teams can see job details sites chose to share.</p>
             <p>You confirm the configuration, price, timing and site conditions before a customer sees your offer.</p>
             <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. Executable submissions use a policy endpoint or container; compatibility must be checked for the specific task.</p>
-            <p>During the beta, evaluate for a pilot for free when invited; the site sees those results. A physical on-site trial is agreed separately with the site.</p>
+            <p>Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. An invitation does not guarantee a run, introduction, or deployment.</p>
             <p><a href="/agent-access.openapi.json">Technical API reference</a> · <a href="mailto:hello@tryblueprint.io">Ask about job fit or integration</a></p>
           </details>
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>
@@ -64,7 +64,7 @@ export default function Contact() {
     <>
       <SEO
         title="Show us a task | Blueprint"
-          description="Describe one recurring job. Blueprint helps assess fit, scope a funded robot pilot, measure the trial, and decide what follows."
+          description="Describe one recurring job for an initial evidence-backed assessment. The initial assessment is free for invited beta participants; later scope and cost are agreed separately."
           canonical="/contact/site-operator"
       />
       <section className="ms-inquiry ms-container">
@@ -75,7 +75,7 @@ export default function Contact() {
           <p className="ms-eyebrow">For site owners</p>
           <h1>Start with one task.</h1>
           <p className="ms-inquiry-description">
-            Describe the work now. Add a phone video when you have recording permission. Starting is free; you do not need an approved budget.
+            Describe the work now. Add a phone video when you have recording permission. The initial assessment is free for invited beta participants.
           </p>
         </div>
         <div className="ms-inquiry-forms">
@@ -84,7 +84,7 @@ export default function Contact() {
             <summary>How this works</summary>
             <p className="ms-field-hint">
               Your job link shows progress and follow-ups. We draft a brief from the evidence for you to correct.
-              Robot teams evaluate for free when invited. You review the results before deciding on a pilot.
+              Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding.
               Simulation informs that choice; an agreed physical trial tests performance on site.
             </p>
             <p className="ms-field-hint">

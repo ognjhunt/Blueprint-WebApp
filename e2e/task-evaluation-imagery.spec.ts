@@ -16,7 +16,7 @@ test("How it works opens its own page from desktop and mobile navigation", async
     if (width === 390) await page.getByRole("button", { name: "Open menu" }).click();
     await page.getByRole("navigation", { name: width === 390 ? "Mobile navigation" : "Main navigation", exact: true }).getByRole("link", { name: "How it works" }).click();
     await expect(page).toHaveURL(/\/how-it-works$/);
-    await expect(page.locator("h1")).toContainText("From your task to a measured pilot.");
+    await expect(page.locator("h1")).toContainText("Start with your task.");
     await expect(page.getByRole("heading", { name: "One task, from phone video to a pilot." })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
@@ -50,7 +50,7 @@ test("both audience actions lead to their working intake and the beta action rea
   await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "For robot teams" }).click();
   await expect(page.locator("h1")).toHaveText("Test your robot on real site jobs.");
   await expect(page.getByRole("img", { name: /Illustration: a humanoid lifts a tote/ })).toBeVisible();
-  await page.getByRole("link", { name: "Join the robot-team beta" }).click();
+  await page.getByRole("link", { name: "Register interest", exact: true }).click();
   await expect(page).toHaveURL(/#robot-team-access$/);
   await expect(page.getByLabel("Your name", { exact: true })).toBeVisible();
   await page.getByLabel("Your name", { exact: true }).fill("Ada");

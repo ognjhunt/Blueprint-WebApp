@@ -3,21 +3,19 @@
  *
  * Public and CSRF-protected. It records the application with its fit
  * checklist, sends one email, and rings the team's Slack. A person grants
- * access in `/admin/robot-team-access`; the one exception is a clear fit once
- * the library has enough listed site tasks (see `robotTeamAccessFit`).
+ * access in `/admin/robot-team-access` when a real site task fits. Fit checks
+ * support that decision and never approve public registrations automatically.
  */
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 
 import { logger } from "../logger";
-import { assessAccessFit, libraryIsThin, shouldAutoApprove } from "../utils/robotTeamAccessFit";
+import { assessAccessFit, libraryIsThin } from "../utils/robotTeamAccessFit";
 import { enqueueAccessEmail } from "../utils/robotTeamAccessEmails";
 import {
   accessRecordId,
-  decideAccessApplication,
   recordAccessApplication,
-  type RobotTeamAccessRecord,
 } from "../utils/robotTeamEarlyAccess";
 import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 import { notifySlackRobotTeamAccessApplication } from "../utils/slack";
@@ -57,28 +55,19 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
   }
   const { acceptedTerms: _accepted, ...application } = parsed.data;
   try {
-    // A library that cannot be read counts as empty: nothing is auto-approved.
+    // An unavailable library remains unknown to the fit checklist. Admission is manual.
     const listed = await listTaskBrowseCards().catch(() => []);
     const fit = assessAccessFit(application, listed.map((card) => ({ title: card.title, region: card.region })));
     const { record, created } = await recordAccessApplication(application, { fit });
     const recordId = accessRecordId(record.email);
-    let current: RobotTeamAccessRecord = record;
-    const autoApproved = record.status === "applied" && shouldAutoApprove(fit);
-    if (autoApproved) {
-      current = (await decideAccessApplication({
-        id: recordId,
-        status: "approved",
-        note: "Clear fit: work email and a website on the same domain.",
-        decidedBy: "auto: fit checklist",
-      })) ?? record;
-    }
-    await enqueueAccessEmail(autoApproved
-      ? { kind: "robot_team_access_approved", recordId, record: current }
-      : { kind: "robot_team_access_received", recordId, record: current, thinLibrary: libraryIsThin(listed.length) },
-    ).catch((error) => {
+    // Registration records interest; only the existing staff decision/invite routes grant admission.
+    const current = record;
+    const autoApproved = false;
+    // A previously approved email keeps its admission and should not get a pending receipt.
+    if (current.status !== "approved") await enqueueAccessEmail({ kind: "robot_team_access_received", recordId, record: current, thinLibrary: libraryIsThin(listed.length) }).catch((error) => {
       logger.warn({ error }, "Could not queue the early-access email");
     });
-    if (created || autoApproved) {
+    if (created) {
       void notifySlackRobotTeamAccessApplication({ ...current, fit, autoApproved }).catch(() => undefined);
     }
     return res.status(202).json({ status: current.status });

@@ -9,7 +9,7 @@ export const primaryNavLinks = [
   { href: "/how-it-works", label: "How it works" },
   { href: "/for-site-operators", label: "For sites" },
   { href: "/for-robot-teams", label: "For robot teams" },
-  { href: "/pricing", label: "Pricing" },
+  { href: "/beta", label: "Beta program" },
 ];
 
 // Utility links sit between the primary nav and the auth controls. The capture
@@ -25,7 +25,7 @@ export const headerRequestEvaluation = {
 // Footer columns for the legacy layout. Every link resolves to a live page.
 export const footerProductLinks = [
   { href: "/how-it-works", label: "How it works" },
-  { href: "/pricing", label: "Pricing" },
+  { href: "/beta", label: "Beta program" },
   { href: "/contact/site-operator", label: "Show us a task" },
   { href: "/contact/robot-team", label: "Robot teams" },
   { href: "/sites", label: "Job library" },

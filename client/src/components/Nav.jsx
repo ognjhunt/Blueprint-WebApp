@@ -79,7 +79,7 @@ export default function Nav({
     { href: "/product", label: "Product" },
     { href: "/sites", label: "Sites" },
     { href: "/capture", label: "Capture" },
-    { href: "/pricing", label: "Pricing" },
+    { href: "/beta", label: "Beta program" },
     ...(currentUser && !hideAuthenticatedFeatures
       ? [{ href: "/scanner-portal", label: "Scanner Portal" }]
       : []),

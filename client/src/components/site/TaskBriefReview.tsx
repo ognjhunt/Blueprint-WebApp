@@ -649,8 +649,8 @@ export function TaskBriefReview(props: {
             </label>
             {listing.opportunity === "open" && (
               <p className="ms-field-hint">
-                Opening to pilot proposals is free. We pick the robot team and send you one recommended
-                pilot; you pay only if you book it. <a href="/pricing#pilot-fee" target="_blank" rel="noreferrer">Fee and replacement policy</a>
+                Opening to pilot proposals is free. Any later work needs separately agreed scope and cost.
+                <a href="/beta#scope" target="_blank" rel="noreferrer">Beta program scope</a>
               </p>
             )}
             <label className="ms-check-row">

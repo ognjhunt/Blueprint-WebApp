@@ -298,7 +298,7 @@ describe("the review queue", () => {
     listedSite("site-1");
     const response = await fetch(`${base}/api/admin/robot-team-access`, { headers: { Authorization: "Bearer ops", ...CSRF } });
     expect(await response.json()).toMatchObject({
-      library: { listedTaskCount: 1, autoApproveMinimumTasks: 1, gated: true, openSuggestedAtTasks: 10 },
+      library: { listedTaskCount: 1, autoApproveMinimumTasks: null, gated: true, openSuggestedAtTasks: 10 },
     });
   });
 });
@@ -320,24 +320,21 @@ describe("the fit checklist", () => {
     ]);
     const receipt = outbox("robot_team_access_received");
     expect(receipt).toHaveLength(1);
-    expect(String((receipt[0][1] as { body: string }).body)).toMatch(/a person will reply[\s\S]*Our pilot warehouse in Ohio/);
+    expect(String((receipt[0][1] as { body: string }).body)).toMatch(/A person will review[\s\S]*Our pilot warehouse in Ohio/);
     expect(slack).toHaveBeenCalledWith(expect.objectContaining({ testSite: "Our pilot warehouse in Ohio", autoApproved: false }));
   });
 
-  it("approves a clear fit on its own as soon as one site task is listed, with the call optional", async () => {
+  it("keeps a clear matching-domain fit pending even with listed tasks and a legacy auto-approval setting", async () => {
     listedSite("site-1");
-    expect(await (await apply(application)).json()).toEqual({ status: "approved" });
-    expect(state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`))
-      .toMatchObject({ status: "approved", decidedBy: "auto: fit checklist" });
-    expect(outbox("robot_team_access_received")).toHaveLength(0);
-    const approval = outbox("robot_team_access_approved");
-    expect(approval).toHaveLength(1);
-    const body = String((approval[0][1] as { body: string }).body);
-    expect(body).toMatch(/Reply with the site or customer you would most want to test at/);
-    expect(body).toMatch(/If a call would help/);
-    expect(body).not.toMatch(/20-minute/);
-    expect((state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`) as Record<string, any>)
-      .fit.checks[2]).toMatchObject({ id: "open_tasks_in_region", passed: true });
+    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_AUTO_APPROVE_MIN_TASKS", "1");
+    expect(await (await apply(application)).json()).toEqual({ status: "applied" });
+    const record = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`) as Record<string, any>;
+    expect(record).toMatchObject({ status: "applied", decidedBy: null });
+    expect(outbox("robot_team_access_approved")).toHaveLength(0);
+    const receipt = outbox("robot_team_access_received");
+    expect(receipt).toHaveLength(1);
+    expect(String((receipt[0][1] as { body: string }).body)).toContain("approval is pending");
+    expect(record.fit.checks[2]).toMatchObject({ id: "open_tasks_in_region", passed: true });
   });
 
   it("leaves anything short of a clear fit, or a switched-off rule, to a person", async () => {

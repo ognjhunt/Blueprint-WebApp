@@ -265,7 +265,7 @@ describe("the same step decides the listing", () => {
     fireEvent.change(screen.getByLabelText(/describe the job/i), { target: { value: "Move cartons onto a pallet" } });
     fireEvent.change(screen.getByLabelText(/job type/i), { target: { value: "Palletizing" } });
     fireEvent.change(screen.getByLabelText(/pilot availability/i), { target: { value: "open" } });
-    expect(screen.getByText(/you pay only if you book it/i)).toBeInTheDocument();
+    expect(screen.getByText(/Any later work needs separately agreed scope and cost/i)).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText(/authorized to make it public/i));
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
     answerPilotIntent();
