@@ -38,7 +38,7 @@ describe("the task page's public card", () => {
     const availability = await screen.findByLabelText(/pilot availability/i);
     fireEvent.change(availability, { target: { value: "open" } });
     expect(screen.queryByLabelText(/Blueprint's \$2,500 fee/i)).toBeNull();
-    expect(screen.getByText(/you pay only if you book the pilot we recommend/i)).toBeInTheDocument();
+    expect(screen.getByText(/Any later work needs separately agreed scope and cost/i)).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText(/authorized to make them public/i));
     fireEvent.click(screen.getByRole("button", { name: /save public card/i }));
 

@@ -25,7 +25,7 @@ test("persona aliases separate site buyers from participating robot teams", asyn
   const gated = { items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } };
   await page.route("**/api/site-worlds/tasks", route => route.fulfill({ json: gated }));
   await page.goto("/for-robot-teams");
-  await expect(page.getByText(/Free evaluations for invited teams\./, { exact: false }).first()).toBeVisible();
+  await expect(page.getByText(/Task invitations follow manual review\./, { exact: false }).first()).toBeVisible();
   // Outside early access, the page is the application, not the library.
   await expect(page.getByRole("form", { name: "Early access application" })).toBeVisible();
   await expect(page.getByText("Already have a robot policy to evaluate? Register it and see a plan", { exact: true })).toHaveCount(0);

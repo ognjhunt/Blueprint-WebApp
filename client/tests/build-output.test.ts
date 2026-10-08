@@ -48,7 +48,7 @@ describe("build output", () => {
     [
       "index.html",
       "how-it-works/index.html",
-      "pricing/index.html",
+      "beta/index.html",
       "sites/index.html",
       "about/index.html",
       "contact/robot-team/index.html",
@@ -124,6 +124,7 @@ describe("build output", () => {
 
   it("does not prerender retired aliases or protected operations routes", () => {
     [
+      "pricing/index.html",
       "proof/index.html",
       "for-robot-teams/index.html",
       "for-site-operators/index.html",
@@ -176,7 +177,7 @@ describe("build output", () => {
   it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
-    ["/", "/how-it-works", "/pricing", "/contact/site-operator", "/contact/robot-team", "/sites", "/about", "/privacy", "/terms"].forEach((route) => {
+    ["/", "/how-it-works", "/beta", "/contact/site-operator", "/contact/robot-team", "/sites", "/about", "/privacy", "/terms"].forEach((route) => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
     expect((sitemap.match(/<loc>/g) || []).length).toBe(9);
@@ -218,14 +219,15 @@ describe("build output", () => {
     expect(llms).toContain("## Public pages");
     expect(llms).toContain("https://tryblueprint.io/contact/site-operator");
     expect(llms).toContain("https://tryblueprint.io/contact/robot-team");
-    expect(llms).toContain("free invited evaluations only");
+    expect(llms).toContain("Applications remain pending until manual approval for a real site task");
     expect(llms).toContain("paid_evaluations_disabled");
     expect(llmsFull).toMatch(/simulation is not physical proof or a deployment guarantee/i);
-    expect(llmsFull).toContain("Robot teams join by early access");
+    expect(llmsFull).toContain("Robot teams register interest through the existing application");
     expect(llmsFull).toContain("early_access_required");
-    expect(llms).toContain("https://tryblueprint.io/pricing");
-    expect(llms).toContain("No pilot, no fee.");
-    expect(llms).toContain("pays Blueprint $2,500 per job only when it books");
+    expect(llms).toContain("https://tryblueprint.io/beta");
+    expect(llms).toContain("limited, invited beta");
+    expect(llms).toContain("scope and cost agreed separately before proceeding");
+    expect(llms).not.toContain("$2,500");
     expect(llms).not.toMatch(/5% fee|capped at \$5,000|authorized buyer/);
 
   });
@@ -235,14 +237,14 @@ describe("build output", () => {
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(homeHtml).toContain("Could a robot take over a repetitive task at your site?");
-    expect(homeHtml).toContain("Free to start. No pilot, no fee.");
+    expect(homeHtml).toContain("Free initial assessment for invited beta participants.");
     expect(homeHtml).toContain("One recommended pilot, on one page.");
     expect(homeHtml).toContain("Quoted by the robot team, paid to them");
     expect(homeHtml).not.toContain("The same task, in simulation.");
-    expect(homeHtml).toContain("Book the pilot");
+    expect(homeHtml).toContain("Agree a next step");
     expect(homeHtml).not.toContain("Join the robot-team beta");
     expect(homeHtml).not.toContain("/illustrations/task-evaluation/02-arm-evaluation.webp");
-    expect(homeHtml).toContain("No pilot, no fee.");
+    expect(homeHtml).not.toContain("No pilot, no fee.");
     expect(homeHtml).toContain('rel="canonical" href="https://tryblueprint.io/"');
     expect(homeHtml).toContain('type="application/ld+json"');
     expect(homeHtml).not.toContain("The site pays nothing");
@@ -256,7 +258,7 @@ describe("build output", () => {
     expect(siteHtml).toContain("Loading your account and saved draft");
     expect(siteHtml).not.toContain('aria-label="Start a site capture"');
     expect(siteHtml).not.toContain('id="start-task"');
-    expect(siteHtml).toContain("Describe the work now. Add a phone video when you have recording permission. Starting is free; you do not need an approved budget.");
+    expect(siteHtml).toContain("Describe the work now. Add a phone video when you have recording permission. The initial assessment is free for invited beta participants.");
     expect(siteHtml).toContain("How this works");
     // The country comes from the address; its select opens only to correct it.
     expect(siteHtml).not.toContain('id="start-region"');
@@ -265,7 +267,7 @@ describe("build output", () => {
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Test your robot on real site jobs.");
-    expect(robotHtml).toContain("Free evaluations for invited teams.");
+    expect(robotHtml).toContain("Task invitations follow manual review.");
     expect(robotHtml).toContain("Illustrative scene · Robot configuration shown as an example.");
     expect(robotHtml).toContain('class="robot-scene"');
     // The application is public; tasks and executable plans still wait for
@@ -312,7 +314,7 @@ describe("build output", () => {
   });
 
   it("keeps charting, Firebase and Sentry out of what a marketing page preloads", () => {
-    for (const page of ["index.html", "pricing/index.html", "how-it-works/index.html", "about/index.html"]) {
+    for (const page of ["index.html", "beta/index.html", "how-it-works/index.html", "about/index.html"]) {
       const html = fs.readFileSync(distPath(page), "utf8");
       const preloaded = [...html.matchAll(/(?:src|href)="\/assets\/([^"]+\.js)"/g)].map((match) => match[1]);
       expect(preloaded.length, page).toBeGreaterThan(0);
@@ -325,7 +327,7 @@ describe("build output", () => {
   it("writes the client route patterns outside the served directory for real 404s", () => {
     const file = path.resolve(process.cwd(), "dist", "app-route-patterns.json");
     const { patterns } = JSON.parse(fs.readFileSync(file, "utf8")) as { patterns: string[] };
-    expect(patterns).toEqual(expect.arrayContaining(["/", "/pricing", "/about", "/sites", "/capture-upload/:token"]));
+    expect(patterns).toEqual(expect.arrayContaining(["/", "/beta", "/about", "/sites", "/capture-upload/:token"]));
     expect(fs.existsSync(distPath("app-route-patterns.json"))).toBe(false);
   });
 });

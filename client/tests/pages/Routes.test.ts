@@ -12,9 +12,9 @@ describe("Route registration", () => {
     expect(source).toContain('path: "/"');
     expect(source).toContain('path: "/sites"');
     expect(source).toContain('path: "/sites/:slug"');
-    // /pricing is a page of its own again, not a redirect into the site intake.
-    expect(source).toContain('path: "/pricing"');
-    expect(minimalMarketingRedirects["/pricing"]).toBeUndefined();
+    // Pricing is preserved in source while its public URL leads to beta information.
+    expect(source).toContain('path: "/beta"');
+    expect(minimalMarketingRedirects["/pricing"]).toBe("/beta");
     expect(minimalMarketingRedirects["/proof"]).toBe("/#how-it-works");
     expect(source).toContain('path: "/contact"');
     expect(minimalMarketingRedirects["/for-robot-teams"]).toBe("/contact/robot-team");
@@ -186,7 +186,7 @@ describe("Route registration", () => {
     const routesPath = path.resolve(process.cwd(), "client/src/app/routes.tsx");
     const source = fs.readFileSync(routesPath, "utf-8");
 
-    expect(source).toContain('<MarketingRedirect to="/pricing" />');
+    expect(source).toContain('<MarketingRedirect to="/beta" />');
     for (const route of [
       "/policy-shortlist",
       "/robot-match",

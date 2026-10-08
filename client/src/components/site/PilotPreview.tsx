@@ -433,7 +433,7 @@ export function PilotPreview() {
         </div>
         <div className="ms-pilot-card-foot">
           <span className="ms-button" aria-hidden="true">Book this pilot</span>
-          <span>No pilot, no fee.</span>
+          <span>Scope and cost agreed separately.</span>
         </div>
       </div>
     </section>
