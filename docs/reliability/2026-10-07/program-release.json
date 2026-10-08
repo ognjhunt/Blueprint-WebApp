@@ -603,7 +603,7 @@
       "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
     }
   },
-  "current_verified_webapp_release": "6c1d2466261c67de7809b4b0012a71dd1a404956",
+  "current_verified_webapp_release": "ae883831d7876da6632654b75026128dd6aa8450",
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
     "state": "WebApp_deployed;Pipeline_reviewed_protected_merged;exact_main_CI_and_promotion_active;actual_mapping_blocked",
@@ -1471,7 +1471,7 @@
     "claim_ceiling": "Exact source/paired native deployment and safe health/local-draft/clear UI. Does not establish a successful provider assessment."
   },
   "technical_expiry_followup": {
-    "state": "protected_merged;mainCI_SUCCESS;paired_deploy_active;no_live_grant",
+    "state": "reviewed_protected_merged_paired_nativeLIVE_18safechecks;soleowner_clearance_sent_actualexecution_pending",
     "expired_dispatch": "forbidden",
     "original_expiry_and_authority_digest": "preserved;changing_originalexpiry wouldbreakreceiptaccounting",
     "original_slots_cap_unknown_history": "unchanged",
@@ -1484,7 +1484,7 @@
     "author_receipt_sha256": "96d70f738e09e273cd0544fdc603eaee49991456b62ab1aa4d864ec46c8f0280",
     "integration_receipt_sha256": "fa07c68d31c577f49c64e08139899fee3947fdc6af772863b53c5394aa5fd31d",
     "operator_provenance_export_sha256": "14ea3b7ac29d44d9d4712312ec24124de4474a02dace72ce3627abcaa882d408",
-    "claim_ceiling": "Source approval/offline execution only; explicit original-authority-bound operator grant still requires exact reviewed paired live release and fresh canonical checks.",
+    "claim_ceiling": "Exactpairedrelease/safeUI and approvedexplicitcaller only; no actualgrant/provider/modelquality/customerreport result established.",
     "merge_sha": "ae883831d7876da6632654b75026128dd6aa8450",
     "merged_at_utc": "2026-10-08T17:51:17Z",
     "required_PR_CI_conclusion": "success",
@@ -1492,12 +1492,28 @@
     "main_CI_conclusion": "success",
     "deployment_workflow": 37820388566,
     "merged_tree_matches_reviewed_head": true,
-    "CI_terminal_log_sha256": "001aa815185222686b7372b7d4b37cfeb6d2396f9fe298d03cb810fcc4611eea"
+    "CI_terminal_log_sha256": "001aa815185222686b7372b7d4b37cfeb6d2396f9fe298d03cb810fcc4611eea",
+    "deployment_workflow_conclusion": "success",
+    "render_receipt_sha256": "778530c2a62cf956bd3be5779383bcae6326ca694b5212514fd45411c6f57f36",
+    "safe_smoke_sha256": "e2889eb918dd4711f670d592f55d307b5f1cf2456471aed0428e33cd539d0974",
+    "safe_smoke_checks": 18,
+    "actual_caller_independent_static_review_sha256": "36ee9e9dad40630cf0a8acae2ab9a77ead5e007458a283481d6e136388a88d01",
+    "prepared_packet_sha256": "5cee9e0708f7dd57f428008832a663468a66c267336cf62daaea2f802041d3e2",
+    "prepared_caller_sha256": "a01900809f8b28e7f4fa6b4c14d2007c31090a4651d385b965897bf10d3b64d4",
+    "prepared_effective_window": "fixed90minutes;notregenerated",
+    "actual_grant": "pending_no_receipt",
+    "paid_execution": "pending_no_receipt"
   },
   "historical_shared_1364_release": {
     "sha": "1364d24e489571bc971dbc247df5fa9e2ae7d0ac",
     "state": "paired_live_and18safe_checks_verified;superseded_by_recovery6c",
     "render_receipt_sha256": "c65a463fc153a0f4ee9a0da010ef292644c36796c3d94d41a5fc4fe7fe433e0a",
     "smoke_sha256": "6f821d53c7c0ea3446bfc34ef0425f70036ea19e9a5249f797bbaf97b1a818bd"
+  },
+  "historical_shared_6c_release": {
+    "sha": "6c1d2466261c67de7809b4b0012a71dd1a404956",
+    "state": "pairedLIVE_18safe_checks_independentlyverified8054fd49;superseded_byae",
+    "render_receipt_sha256": "bf4dffe7a041ff02986b33818eddc7b498cde88a009d98353bdab9541daa1f7f",
+    "smoke_sha256": "98be157ed1f1eda6e691e4847c12fd76296b317bc13d2dec808369b075df8a0b"
   }
 }
