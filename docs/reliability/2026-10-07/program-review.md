@@ -1136,3 +1136,53 @@ bookkeeping is exercised, but live authenticated capture-root configuration,
 WebApp customer projection/delivery, real provider/backend durability and
 deployment are unverified by this slice. Final integrated source review, required
 promotion and affected deployed behavior remain separate root-owned gates.
+
+
+**Typed Pipeline delivery and WebApp consumer helpers approved within scope.**
+Reviewed immutable Pipeline `29fbe1811c70c76117bd715c1192433cf70003a2`
+(parent 41fa). The identical seven receipt controls fail 7/7 on 41fa runtime
+with final test bytes, then the final source passes 32/32 focused checks. Private
+logs are SHA256 `68f714afcdd73385c71d15e0fe47a8437192f03f5def913ff297029e3932480c`
+and `08c48aaa59fb4457c4c6482192a837e99e5fb4e0fcfe50e18b299d10e706121b`.
+The source now consumes only an exact typed acceptance with matching selectors,
+accepted true, native completion false, bounded digest and derived public
+reference. Newer canonical status may be accepted; equality with an obsolete
+sender preflight is not required. The pending newer delivery revision remains
+fenced after the network returns. The revised actual-worker trace
+`88d80d11eb3d9556bb4c8054570609f1bd31a0be43abaf93e8b186b03345aed5`
+exercises a synthetic browser manifest and default skip/control-plane flags;
+qualification/staging/owner transports remain isolated seams. Installed unit
+configuration alone does not establish an active processor or live run.
+
+Reviewed exact WebApp helper-only `b346132c1422cf7ab0e63f7e1f5bc7f65adfa2fd`.
+A disposable immutable archive passed 41/41 checks; private result SHA256
+`f8607b101846601d2120aced2c0538bbe4237e0804677daf2bf8c49eb27933c2`.
+The exact raw-body parser/HMAC callback commits only after fresh signed ledger,
+current canonical marker/video/pending source, owner/rights/context checks and
+transactional source fingerprint/binding revalidation. Read timeouts cannot
+enter a late durable commit. Polls and notification admission reread current
+authority; transaction admission performs no nested status writes. Customer
+and callback references derive from the validated status digest. Canonical
+correlation_id is shape/artifact checked rather than independently rederived;
+it is not displayed as a trusted arbitrary string. These checks use fake
+Firestore/object storage and source transports; token verification, production
+indexes/root mapping, and normal customer execution remain distinct gates.
+
+**New preparation-notice recipient finding holds integrated source approval.**
+On immutable root integration `78fe507544325d389ee87e99179aa0ed3a7ab627`,
+a same-request contact correction after enqueue still allows the old retained
+recipient to receive the private job link. The isolated reviewer minimizer
+executes the actual enqueue/claim/dispatch/message path with current canonical
+authority injected true and a local mail sink: one expected refusal fails, seven
+neighbors are unselected, and one send to the old synthetic address is observed.
+No live email/customer incidence is established. Private result SHA256
+`0567c26411fb2b10fbe04bb0f8e289e8b2e2bb0c6be27ceeca1bd50879d2a030`
+and source/replay manifest SHA256
+`b9279f1dbf3fd3002e94f6ce0c0df98074ae2d8f7cc707b6426c54faecf25455`
+retain the exact counterexample. The new source/rights guard does not bind
+current decrypted contact email to the retained recipient. Coordinator owns
+a scoped dispatch-transaction repair: changed recipient refuses without send;
+decryption/read uncertainty remains recoverable. Approval for the affected
+integrated notice remains held until exact repair and neighboring evidence.
+No source/runtime edits, new unique coverage, provider effects, or release
+approval occurred in this independent review.
