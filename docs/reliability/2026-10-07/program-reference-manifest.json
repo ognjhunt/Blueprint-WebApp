@@ -151,8 +151,12 @@
   "real_site_target_min": 12,
   "shortfall": 11,
   "human_reference_gate": "partial_one_authorized_source_zero_current_human_timestamp_labels",
-  "baseline_and_candidate_live_model_runs": 0,
-  "dishwasher": "Local video-stage host exception before any retained source/response; Gemini exposure unknown, Sol not dispatched. Sole owner preserves claim/reservation and diagnoses provider boundary nonbillably. No combined-provider success or perception claim.",
+  "baseline_and_candidate_live_model_runs": {
+    "baseline_isolated_sdk": 1,
+    "candidate": 0,
+    "matched_comparisons": 0
+  },
+  "dishwasher": "One actual Agents SDK gpt-6.1-sol execution completed using PROVISIONAL local text observations from eleven timestamped JPEG samples. No image pixels or continuous video were supplied to OpenAI; zero tools were called. Original Gemini stage still has unknown provider exposure and no retained perception result. No combined-provider success, human gold, accuracy or normal-customer E2E claim.",
   "holdout": "none; all existing source families are development/regression and pre-exposed",
   "rubric": {
     "factual_support": "fail invented consequential event/measurement/capability",
@@ -172,16 +176,37 @@
       "prior_real_site_source_count": 0,
       "new_real_site_source_count": 1,
       "target_min_unchanged": 12
+    },
+    {
+      "version": 3,
+      "reason": "actual isolated SDK terminal receipt and independent unchanged-packet offline replay",
+      "real_site_sources_unchanged": 1,
+      "human_timestamp_labels_unchanged": 0,
+      "target_min_unchanged": 12,
+      "no_paired_candidate_provider_call": true
     }
   ],
   "provider_execution": {
     "completed_analysis_runs": 0,
-    "gemini_http_dispatch": "unknown_pending_boundary_diagnosis",
-    "sol_http_dispatch": 0,
+    "gemini_http_dispatch": "unknown_no_retained_response_no_retry",
+    "sol_http_dispatch": 1,
     "cost_usd": null,
     "reserved_worst_case_usd": 3.146304,
     "approved_total_cap_usd": 5,
     "accounting_owner": "existing_dishwasher_task",
-    "automatic_retry": false
+    "automatic_retry": false,
+    "completed_isolated_frame_conditioned_sdk_runs": 1,
+    "sol_input_tokens": 3649,
+    "sol_output_tokens": 2361,
+    "sol_total_tokens": 6010,
+    "sol_local_price_estimate_usd": 0.0327325,
+    "sol_billed_usd": null,
+    "billing_receipt": "No dollar invoice receipt; usage receipt is retained. Local pricing estimate is separate from billed dollars.",
+    "original_gemini_unknown_reservation_usd": 1.818624,
+    "actual_sdk_mode": "frame_sampled_sol_sdk_text_conditioned_no_tools",
+    "assessment_status": "needs_operator_input",
+    "candidate_packet_admission": "rejected_assessment_published_source_required_on_exact_unmodified_packet",
+    "packet_sha256": "5062da05b8b454c2a304d82e62dab9d45cd90d608a8a3cf2b5c43e2e792d21c7",
+    "raw_export_access": "Private company object export retained; direct authenticated download403; same-authority native worker recovered matching bytes locally without expanded access. Canonical private export/recovery manifest held by sole run owner."
   }
 }

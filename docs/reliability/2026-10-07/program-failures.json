@@ -183,6 +183,18 @@
       "releaseStatus": "independently_reviewed;combined940source_and_release_pending",
       "candidateRetest": "Exactd1033932 author/8ccc99cc integration133focused,12interceptedbrowser,12additional repeatattempts pass. Supplemental16offline+4browser; notadded300core.",
       "source": "8ccc99cc;author d1033932f926ebcc8e873f2ccc6a07468af9634b"
+    },
+    {
+      "id": "ASSESS-PROVENANCE-BASIS-001",
+      "severity": "P2",
+      "owner": "assessment_release_owner",
+      "invariant": "Observations and retained provenance are distinct from published specifications",
+      "reproducer": "Exact authorized isolated SDK packet on baseline1b8 admits a known published statement citing retained video provenance metadata at null timestamp; candidate2e5 rejects assessment_published_source_required. Public counterpart: existing JUD-action-video-is-not-published. No private source IDs or raw video are required to replay the public guard regression.",
+      "rootCause": "Baseline source admission accepted any source kind for published; actual baseline model chose published for internal source metadata. Metadata text itself is not a fabricated consequential video event or capability.",
+      "repair": "Candidate published-source guard already prevents this classification. Assessment owner investigating scoped provenance-placement prompt guidance; no output rewrite, automatic paid retry or claim of candidate model success.",
+      "candidateRetest": "Exact private packet unchanged: baseline admitted; candidate rejected; no provider dispatch.",
+      "limitation": "Safe rejection demonstrates admission behavior, not improved model interpretation or successful customer publication. Actual isolated advice remains provisional and candidate publication unproven.",
+      "releaseStatus": "guard_tested_prompt_behavior_awaiting_next_authorized_real_run"
     }
   ],
   "dependencies": [

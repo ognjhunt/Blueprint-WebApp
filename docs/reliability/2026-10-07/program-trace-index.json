@@ -539,5 +539,69 @@
     "runtime_author_commit": "d1033932f926ebcc8e873f2ccc6a07468af9634b",
     "full_result_sha256": "89dc73425c87d4fc3da5061f46de0b0e3afe21a21a8ed1080c809dd231cbb8f6",
     "repeat_result_sha256": "5f396cb72e12253eae5c457073cee9ae1ea4f4d3a0df11d4c30966f68650cae0"
+  },
+  "combined_backend_run": {
+    "runtime_backend_origin_sha": "2e5abb97a9618bc2ee8c3be640c1979ddca45737",
+    "client_runtime_author_commit": "d1033932f926ebcc8e873f2ccc6a07468af9634b",
+    "run_id": "journeys-20261008T053844432Z",
+    "generated": 21,
+    "attempted": 21,
+    "passed": 21,
+    "failed": 0,
+    "result_sha256": "2cafabc06060ee17fde27b10dced2308bd09ff69f96eb703cd5e70ba2f33e284",
+    "code_hashes": {
+      "client/src/components/site/SiteCaptureStart.tsx": "36c8f42ae0851553e7b730b687e54b5ed6bf8eaa7536ac8ea586a1905b5da0f0",
+      "client/src/lib/siteCaptureDraft.ts": "253ed07f4c113a9af8be5f05ce4a46eddaa214811b23bc85d7a801ac4ac721c3",
+      "server/routes/inbound-request.ts": "2dffc5ce36621aeabdca5d0b786fa3286a5990e910b2e85880aa9a97005dbfa0",
+      "server/routes/self-capture-uploads.ts": "3a16b1ae43546d9c04149687fbebc6f1e563c51a01074bd04cd4ef283eb268d5",
+      "server/routes/site-task-brief.ts": "94f1bd670795b3d67627c14f25b861e8f07c831d9db82943ddb320c2032d8656",
+      "server/utils/captureCoverageQueue.ts": "0eb2815b4b04547bc53535a22f5d7d4ad7f4f957b772895f91e795e0c412a2bb",
+      "server/utils/captureCoverageReview.ts": "6ead77441d464256ea03bf419ad4b2b73851ea910f793a5a139c84535cf80eb2",
+      "server/utils/captureReviewRecovery.ts": "0579855454da233462c7ba6883f0d34b0f32429b5b574decba93eb22ce2b427a",
+      "server/utils/captureParts.ts": "b61144375a5c184ccb926fc2325325741f455c6228e12cefe95f718465e41120",
+      "server/utils/field-encryption.ts": "64750f58b6e9010b686562633dbf04e8983c1ce39a9f9fa87e1153499049d2b2",
+      "server/utils/captureOutbox.ts": "78a3bd1cc0b5ae3590cc879eac7291825694b9fb2f3dac866a0ca8e61a99d746",
+      "server/agents/tasks/capture-coverage.ts": "9a25383f12ccd1c0a056c8cccac4900b7bf7d1f2ea45ba3fe825eae79bcb7bee",
+      "server/tests/helpers/reliability-local-storage.ts": "1f0f5cc4c3fa4719577db645d75c37b73a6a3062377653d36374636b726aae88",
+      "server/tests/reliability-program-journeys.browser.ts": "6501a98d4f65a0aab48ca725df2a88f0b5a6ee874563117263f4f2ad58b86215",
+      "server/tests/reliability-program-worker-resume.browser.ts": "3f7d2a0f0173dcbdab114516d366d77f7adb356648828466101a8e5d1e8467cd"
+    },
+    "layer": "actual Express + native Firestore emulator + fake local object/provider/mail; final SDK publication disabled",
+    "claim_ceiling": "21 normal-UI coverage/status and recovery cases; not final assessment or production provider execution"
+  },
+  "combined_offline_replay": {
+    "backend_runtime_sha": "2e5abb97a9618bc2ee8c3be640c1979ddca45737",
+    "client_author_commit": "d1033932f926ebcc8e873f2ccc6a07468af9634b",
+    "core_unique_cases": 300,
+    "passed": 300,
+    "failed": 0,
+    "families": 10,
+    "per_family": 30,
+    "extra_cross_tab_unique": 16,
+    "focused_intake_checks": 133,
+    "queue_and_worker_and_outbox_checks": 194,
+    "transport_admission_notification_neighbor_checks": 204,
+    "assertion_counts_overlap_not_unique_cases": true,
+    "queue_prerequisite_correction": "6f7ef4b76110092046a5dc286719a8fa9865a947; current authority unmocked; all30 providerfaults actually reach adapter once",
+    "log_hashes": {
+      "combined-intake-133.log": "81c96f71f3e8f4b11fb0d6023d4dbf57481053508a8d53999a8cadbc887571d8",
+      "combined-2e5-queue-fixed.log": "faa1fb724533fc5d4bce05929eaa82c9d2d765d7092d099ea3ded751cb8fb0e1",
+      "combined-2e5-neighbors.log": "a4dc667d2da4101f5d17c4d2988e444dd7f51aa69e65017b959df71d9494279a",
+      "combined-2e5-typecheck.log": "cac4641f604577738681f4f70c0ded3f441c0562d5814768106527214a0f49d4"
+    }
+  },
+  "isolated_live_provider": {
+    "actual_sdk_model_calls": 1,
+    "tool_calls": 0,
+    "mode": "Sol SDK text-conditioned on11 PROVISIONAL local frame observations; no OpenAI image/video input",
+    "normal_customer_ui": false,
+    "final_customer_publication": false,
+    "gemini_result": "unknown_no_retained_receipt_no_retry",
+    "human_truth_labels": 0,
+    "local_price_estimate_usd": 0.0327325,
+    "billed_cost_usd": null,
+    "latency": "native private receipt held by sole assessment owner; do not mix with simulated-layer timing",
+    "exact_packet_candidate_admission": "rejected_assessment_published_source_required",
+    "accuracy_denominator": 0
   }
 }

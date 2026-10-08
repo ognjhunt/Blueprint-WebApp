@@ -16,6 +16,14 @@ The joined runner exercises coverage processing and persisted customer status. I
 
 ## Existing runtime and clean environment
 
+For an already-authorized private assessment packet, replay admission without a provider call:
+
+```bash
+env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" NODE_ENV=test BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP=true node --import ./node_modules/tsx/dist/loader.mjs scripts/reliability/validate-retained-assessment.ts --packet /absolute/authorized/private/packet.json --duration ACTUAL_VIDEO_SECONDS --baseline-sha 1b8d810ec117b93fe52fd323be052ddafa7070db --candidate-runtime-sha EXACT_40_CHAR_RUNTIME_SOURCE_SHA --output output/reliability-program/retained-assessment-admission.json
+```
+
+The optional candidate runtime SHA must match the actual validator bytes. Checkout SHA, runtime hash, baseline function hash and packet hash remain separate. The script preserves the raw packet and emits sanitized admission outcomes only. A rejected candidate packet is a recorded failure or guard catch, never rewritten into a passing provider evaluation. It proves neither semantic truth nor video perception. Keep private packets and outputs out of public CI.
+
 Use the repository's installed Node dependencies, cached Playwright Chromium, installed `ffmpeg`, Java and cached Firestore emulator jar. Do not download browsers, install infrastructure, provision credentials, or substitute a shared customer project. Observed local paths were `/opt/homebrew/opt/openjdk@22/bin/java` and `$HOME/.cache/firebase/emulators/cloud-firestore-emulator-v1.19.8.jar`; overrides below must name already installed local files. The joined runner uses `chromium.executablePath()` and requires that cached binary; it does not honor an arbitrary browser executable override.
 
 All commands use `env -i`. Only the runtime `PATH`, existing `HOME` (for cached tools), and `TMPDIR` are inherited, plus the explicit fixture flags shown. No provider, Firebase service account, notification, KMS, budget or production environment values are allowed. The harness sets its own fake Firebase frontend values, deterministic local encryption fixture, empty KMS key name, disabled automation, fake model and recipient-validating mail sink. Vite loads no dotenv files. The worker child receives the same clean runtime plus test-only emulator and receipt flags. Never add production credentials to make a replay pass.

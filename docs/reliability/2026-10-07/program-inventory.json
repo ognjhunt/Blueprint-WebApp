@@ -20,9 +20,10 @@
     },
     {
       "path": "docs/reliability/2026-10-07/program-queue.json",
-      "sha256": "1494040c0a065397a672b1be748402dfba27e3b31862b8bf717a2339dcc31648",
+      "sha256": "7e7133d49cbe7b81f61ddac33a7ef04c8915fceae1148279cf932db4af4cbd3b",
       "count": 150,
-      "replay": "npx vitest run server/tests/reliability-program-queue.test.ts --maxWorkers=1"
+      "replay": "npx vitest run server/tests/reliability-program-queue.test.ts --maxWorkers=1",
+      "frozen_pre_prerequisite_catalog_sha256": "1494040c0a065397a672b1be748402dfba27e3b31862b8bf717a2339dcc31648"
     },
     {
       "path": "docs/reliability/2026-10-07/program-transport-status.json",
@@ -1867,5 +1868,16 @@
       "catalog": "program-transport-status.json"
     }
   ],
-  "case_detail_rule": "Meaningful parameters, transitions and assertions are canonical in the referenced family catalog/test; this union indexes IDs/hashes without duplicating those packets."
+  "case_detail_rule": "Meaningful parameters, transitions and assertions are canonical in the referenced family catalog/test; this union indexes IDs/hashes without duplicating those packets.",
+  "corrections": [
+    {
+      "version": "v2.authority-prerequisite",
+      "reason": "Current-authority fixture prerequisite appended to catalog metadata; all150 case IDs/hash/parameters/outcomes unchanged. No denominator or threshold changed. Prior69 failures were unreached provider prerequisites, not69 product defects.",
+      "catalog": "program-queue.json",
+      "previous_catalog_sha256": "1494040c0a065397a672b1be748402dfba27e3b31862b8bf717a2339dcc31648",
+      "current_catalog_sha256": "7e7133d49cbe7b81f61ddac33a7ef04c8915fceae1148279cf932db4af4cbd3b",
+      "exact_runtime_sha": "2e5abb97a9618bc2ee8c3be640c1979ddca45737",
+      "provider_fault_boundaries_reached": 30
+    }
+  ]
 }
