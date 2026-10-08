@@ -6,7 +6,7 @@ import { verifiedPendingManifest, verifiedPendingMarker, originalManifestConsent
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { advisoryContextDigest, advisoryJobId } from "./siteAssessmentContext";
 import { automationBatch } from "./automationBatch";
-import { prepareAssessmentRecovery, assertAssessmentRecoveryReplay, prepareAssessmentAbandonment } from "./captureCoverageInferenceBudget";
+import { prepareAssessmentRecovery, assertAssessmentRecoveryReplay, prepareAssessmentAbandonment, hasRecentAssessmentProgress } from "./captureCoverageInferenceBudget";
 import { humanDecisionDigest } from "./human-reply-admission";
 import { logger } from "../logger";
 
@@ -87,6 +87,10 @@ export async function reconcileSiteAssessments(limit = 2) {
       if (retire && (latest.started_at_ms !== job.started_at_ms || latest.source_key !== job.source_key
         || latest.context_digest !== job.context_digest || latest.capture_id !== job.capture_id || latest.request_id !== job.request_id)) return;
       if (retire && Number.isFinite(latest.started_at_ms) && Date.now() - latest.started_at_ms! < RUN_LEASE_MS) return;
+      if (retire && authority && await hasRecentAssessmentProgress(tx, { requestId: job.request_id, jobId: row.id,
+        captureId: job.capture_id, previousRunId: job.run_id, previousClaimId: claimId, sourceKey: job.source_key,
+        contextDigest: job.context_digest, startedAtMs: latest.started_at_ms!, request: request.data()!,
+        brief: brief.exists ? brief.data()! : null })) return;
       if (retire && authority) {
         try { abandonment = await prepareAssessmentAbandonment(tx, { requestId: job.request_id, jobId: row.id, captureId: job.capture_id,
           previousRunId: job.run_id, previousClaimId: claimId, sourceKey: job.source_key, contextDigest: job.context_digest,

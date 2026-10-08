@@ -82,4 +82,39 @@ it("rejects stale identity replay after owner/source rotation",async()=>{
 it("allows explicit recovery before the first inference reservation without inventing usage",async()=>{
  state.docs.delete(budgetPath);read(`agentRuns/${oldRun}`).artifacts.capture_inference_reservations=[];
  const accepted=await retry();expect(accepted.state).toBe("queued");expect(read(budgetPath)).toMatchObject({exposure_usd:0,calls:0,pending_token:null});expect(read(budgetPath).assessment_recoveries[0].reserved_micro_usd).toBe(0);
+
+ // A failed final evidence commit can retain real call records without a
+ // packet. Recovery may use those checkpoints, never fabricate the old answer.
+ read(`siteAssessmentJobs/${jobId}`).run_id=oldRun;read(`siteAssessmentJobs/${jobId}`).claim_id="old-claim";read(`siteAssessmentJobs/${jobId}`).state="running";read(`siteAssessmentJobs/${jobId}`).started_at_ms=Date.now()-60_000;
+ delete read(`siteAssessmentJobs/${jobId}`).retry_history;state.docs.delete(budgetPath);
+ for(const path of state.docs.keys())if(path.startsWith(`${budgetPath}/calls/`))state.docs.delete(path);
+ read(`agentRuns/${oldRun}`).status="running";
+ for(let n=0;n<4;n++){const call=await reserveCaptureCoverageInference("gpt-6.1-sol",metadata(oldRun),"openai",{});await call.record({input_tokens:100+n,output_tokens:10});}
+ Object.assign(read(`agentRuns/${oldRun}`),{status:"failed",error:`agent_evidence_firestore_commit_failed: agentRuns/${oldRun}`,artifacts:null,
+  agent_evidence_ref:null,agent_accounting_incomplete:true});read(`siteAssessmentJobs/${jobId}`).state="needs_review";
+ const current=structuredClone([...state.docs]);
+ for(const fault of ["generic-error","claim","call-source","call-context","call-video","admitted","empty-calls","withdrawal","access"]){
+  state.docs.clear();for(const [path,data] of structuredClone(current))state.docs.set(path,data);
+  const call=[...state.docs].find(([path])=>path.startsWith(`${budgetPath}/calls/`))![1];
+  if(fault==="generic-error")read(`agentRuns/${oldRun}`).error="unrelated_failure";
+  if(fault==="claim")read(`agentRuns/${oldRun}`).input.input.context.advisory_claim_id="foreign-claim";
+  if(fault==="call-source")call.source_digest="f".repeat(64);
+  if(fault==="call-context")call.context_digest="f".repeat(64);
+  if(fault==="call-video")call.video_sha256="f".repeat(64);
+  if(fault==="admitted")call.state="admitted";
+  if(fault==="empty-calls")for(const path of state.docs.keys())if(path.startsWith(`${budgetPath}/calls/`))state.docs.delete(path);
+  if(fault==="withdrawal")read(`inboundRequests/${requestId}`).consent_revoked=true;
+  if(fault==="access")read(`inboundRequests/${requestId}`).account_owner_uid="foreign-owner";
+  const unchanged=structuredClone([...state.docs]);
+  expect((await describeSiteAssessmentRetry(requestId,access)).available,fault).toBe(false);
+  await expect(retry()).rejects.toThrow();expect([...state.docs],fault).toEqual(unchanged);
+ }
+ state.docs.clear();for(const [path,data] of structuredClone(current))state.docs.set(path,data);
+ const old=structuredClone(read(`agentRuns/${oldRun}`)),before=structuredClone([...state.docs].filter(([path])=>path.startsWith(`${budgetPath}/calls/`)));
+ expect((await describeSiteAssessmentRetry(requestId,access)).available).toBe(true);
+ const recovered=await retry();expect(recovered.state).toBe("queued");expect(read(`agentRuns/${oldRun}`)).toEqual(old);
+ expect([...state.docs].filter(([path])=>path.startsWith(`${budgetPath}/calls/`))).toEqual(before);
+ expect(read(budgetPath)).toMatchObject({calls:4,pending_token:null});
+ expect(read(budgetPath).assessment_recoveries[0]).toMatchObject({checkpoint_kind:"failed_evidence_commit_call_records"});
+ expect(read(budgetPath).assessment_recoveries[0].checkpoint_call_intents_sha256).toMatch(/^[a-f0-9]{64}$/);
 });
