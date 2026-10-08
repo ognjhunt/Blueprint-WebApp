@@ -37,6 +37,11 @@ function evidenceShape(value: unknown, depth = 0): { max_depth: number; nested_a
   }, { max_depth: depth, nested_arrays: false });
 }
 
+function fitsFirestoreShape(value: unknown): boolean {
+  const shape = evidenceShape(value);
+  return shape.max_depth <= 20 && !shape.nested_arrays;
+}
+
 export class AgentEvidenceError extends Error {
   constructor(readonly code: string, readonly scope: Scope, readonly evidenceReference?: Reference, readonly recovery?: { sourceDigest: string; metadata: RecordData; accountingIdentity?: RecordData }, readonly diagnostic?: CommitDiagnostic) {
     super(`${code}: ${scope.collection}/${scope.id}`);
@@ -67,8 +72,8 @@ export function requiresMutationReconciliation(record: RecordData): boolean {
 export async function projectAgentEvidence(record: RecordData, scope: Scope, storage = resolveBundleStorage()): Promise<RecordData> {
   const projected = { ...record, agent_evidence_ref: null, agent_evidence_accounting_sha256: null, agent_evidence_accounting_identity: null,
     mutation_reconciliation_required: requiresMutationReconciliation(record) };
-  // Firestore also limits nested document depth, regardless of JSON size.
-  if (byteSize(projected) <= AGENT_DOCUMENT_BYTE_BUDGET && evidenceShape(projected).max_depth <= 20) return projected;
+  // Retain Standard-compatible depth and array shape, regardless of JSON size.
+  if (byteSize(projected) <= AGENT_DOCUMENT_BYTE_BUDGET && fitsFirestoreShape(projected)) return projected;
   if (!storage) throw new AgentEvidenceError("agent_evidence_storage_unavailable", scope);
   const fields = payloadFields[scope.collection].filter(field => record[field] !== undefined);
   const payload = Object.fromEntries(fields.map(field => [field, record[field]]));
@@ -103,7 +108,7 @@ export async function projectAgentEvidence(record: RecordData, scope: Scope, sto
     resolved_model: typeof record.artifacts?.openrouter_model === "string" ? record.artifacts.openrouter_model : record.model ?? null,
     sha256,
   };
-  if (byteSize(result) > AGENT_DOCUMENT_BYTE_BUDGET || evidenceShape(result).max_depth > 20) throw new AgentEvidenceError("agent_evidence_controls_too_large", scope);
+  if (byteSize(result) > AGENT_DOCUMENT_BYTE_BUDGET || !fitsFirestoreShape(result)) throw new AgentEvidenceError("agent_evidence_controls_too_large", scope);
   return result;
 }
 
@@ -192,7 +197,7 @@ export async function persistAgentEvidence(document: Document, scope: Scope, upd
     if (typeof database?.runTransaction !== "function") {
       // Small legacy test transports can retain native merge behavior. Never
       // synthesize false controls or attempt a non-atomic evidence migration.
-      if (rawPrior.agent_evidence_ref || byteSize(merged) > AGENT_DOCUMENT_BYTE_BUDGET || evidenceShape(merged).max_depth > 20) throw new AgentEvidenceError("agent_evidence_atomic_writer_unavailable", scope);
+      if (rawPrior.agent_evidence_ref || byteSize(merged) > AGENT_DOCUMENT_BYTE_BUDGET || !fitsFirestoreShape(merged)) throw new AgentEvidenceError("agent_evidence_atomic_writer_unavailable", scope);
       await document.set(updates, { merge: true });
       return;
     }
