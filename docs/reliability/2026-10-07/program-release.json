@@ -55,9 +55,9 @@
       "script_sha256": "306b01bc00db0c0f4f383b68bc16c62d08010428919c0829611d1cd3e656803b",
       "claim_ceiling": "Exact serving identity, paired deployment receipts, health/readiness and ordinary local-draft reload only; no production submission/upload/worker/assessment/notification path."
     },
-    "current_independently_verified_serving_sha": "d0f6727077aae3b164c8e5c8444b53470ba123ec",
+    "current_independently_verified_serving_sha": "1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136",
     "initial940_receipts_are_historical": true,
-    "current_receipt_key": "assessment_continuation_followup"
+    "current_receipt_key": "source_bound_preparation_followup"
   },
   "pipeline": {
     "merged_required_stage_fix": "cc876af25389de934f57c08b33421987f9e3328d",
@@ -579,27 +579,27 @@
       "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
     }
   },
-  "current_verified_webapp_release": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
+  "current_verified_webapp_release": "1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136",
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
-    "state": "reviewed_required_PR_CI_passed_merged;main_CI_active;deployment_pending",
+    "state": "WebApp_reviewed_merged_paired_deployed_safe_presentation_verified;Pipeline_required_CI_failed_scoped_import_repair_under_review;live_mapping_blocked",
     "root_integration": "78fe507544325d389ee87e99179aa0ed3a7ab627",
     "webapp_consumer": "b346132c1422cf7ab0e63f7e1f5bc7f65adfa2fd",
     "pipeline_candidate": "29fbe1811c70c76117bd715c1192433cf70003a2",
     "pipeline_PR": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2649",
     "merged_sha": "1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136",
-    "deployed_sha": null,
+    "deployed_sha": "1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136",
     "scope": "Fresh exact-source preparation status and existing outbox notification recovery; no provider dispatch, customer budget gate or final assessment substitute.",
     "review": "Recipient correction approved8a5; final joined replay approved8582395 with precise process/withdrawal limitations.",
     "required_full_pipeline_gate": "Impact mapping46 exceeds40 cap;9 sentinels insufficient, existing full promotion remains required.",
     "production_mapping": "Verified read-only live intake: client root map absent; existing manifest has no capture_root. No scope expansion/configuration mutation or paused worker activation performed.",
     "head": "4b31cd8886e0e11ee910cd768800f8b4ed54e8a5",
-    "pipeline_head": "c0e47eb639fbe775bade5b260218201a96eeab96",
+    "pipeline_head": "fe1d89475f72e7fd93b92d09288faadfbdaf44a7",
     "recipient_repair": "54d23763ea96a2d51ee141051028e9a4bf2cc61a",
     "required_WebApp_PR_CI": 37780219360,
     "required_WebApp_PR_CI_state": "success_all9_executed_checks",
-    "required_Pipeline_PR_CI": 37780079135,
-    "required_Pipeline_PR_CI_state": "four_full_pytest_shards_confirmed_active",
+    "required_Pipeline_PR_CI": 37790170932,
+    "required_Pipeline_PR_CI_state": "new_exact_fe1_CI_active_after_reviewed_root_cause_repair",
     "joined_replay": {
       "unique_cases": 1,
       "frozen_attempts": 3,
@@ -608,7 +608,59 @@
       "claim_ceiling": "Actual Pipeline durable ledger and signed FastAPI/Express/local outbox. Python process restart; Express listener rebind in same Node process; simulated DB/object/owner/provider. Withdrawal after sent notice proves no additional send. No live provider/customer assessment/native outcome or original coverage credit."
     },
     "merged_at_utc": "2026-10-08T13:43:28Z",
-    "main_CI": 37786623856
+    "main_CI": 37786623856,
+    "main_CI_state": "success",
+    "deploy_workflow": {
+      "run_id": 37787526107,
+      "conclusion": "success"
+    },
+    "render_receipts": [
+      {
+        "role": "web",
+        "deployment_id": "dep-db3pv9gm7kps73fl4uag",
+        "status": "live",
+        "sha": "1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136",
+        "finished_at_utc": "2026-10-08T13:53:17.305905Z"
+      },
+      {
+        "role": "worker",
+        "deployment_id": "dep-db3pv9qjnfac738cfbi0",
+        "status": "live",
+        "sha": "1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136",
+        "finished_at_utc": "2026-10-08T13:53:35.870448Z"
+      }
+    ],
+    "private_receipt_sha256": "48844e20d2d7961c70a54be550ed361ae2f7a2d04d2d082186c3263ff6b6ded6",
+    "safe_smoke": {
+      "checks_passed": 18,
+      "result_sha256": "d4618d27b58560a4d381c313035d862f715a5aa416dfe3ad06a4d643c8545bc6",
+      "script_sha256": "ea03c76daa4f2cde69efc4939ec52a1715e0e8305648c2d03b6999d9cfa1f56c",
+      "completed_at_utc": "2026-10-08T14:00:20.546Z",
+      "intake_mutations": 0,
+      "paid_provider_calls": 0,
+      "notification_sends": 0,
+      "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
+    },
+    "pipeline_import_repair": {
+      "candidate": "b3ec6aef257a918f8deade812fdeaa13e1869e5e",
+      "state": "independently_approved_integrated_pushed_exact_fe1_required_CI_active",
+      "root_cause": "Cold status route imported PubSub listener and hot provider orchestration closure. Extract existing pure durability/required-stage helpers; keep compatibility exports.",
+      "baseline": "unchanged_a56_5of5pass;unchanged_c0_1fail4pass",
+      "candidate_focused": "66of66pass_plus18lease_retirement;initial_candidate_missing_guard_import_diagnostic_retained",
+      "allowlist_or_test_weakened": false,
+      "new_case_credit": 0,
+      "integrated_sha": "fe1d89475f72e7fd93b92d09288faadfbdaf44a7",
+      "independent_review_commit": "10739ae8"
+    },
+    "claim_ceiling": "Paired WebApp serving identity and18safe local-draft checks only; source-bound preparation endpoint/actual affected job blocked until Pipeline repair/promotion and trusted production mapping. No provider or notification execution.",
+    "independent_release_review_commit": "10739ae8",
+    "previous_failed_Pipeline_PR_CI": {
+      "run_id": 37780079135,
+      "head": "c0e47eb639fbe775bade5b260218201a96eeab96",
+      "conclusion": "failure",
+      "failed_check": "tests/test_live_pipeline_import_isolation.py::test_control_plane_lane_does_not_import_hot_lane",
+      "retained": true
+    }
   },
   "assessment_continuation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/947",
@@ -661,15 +713,15 @@
   },
   "customer_advisory_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/948",
-    "head": "6717788725d0b1173088cd3d88c7150577847f67",
-    "state": "reviewed_offline_connected_execution;worker_hook_implemented;required_final_CI_active;not_merged_or_deployed",
-    "CI": 37787190634,
+    "head": "df764f7ba11f7c51d3f7d69ba5a5839e7d50a554",
+    "state": "independently_reviewed_required_PR_checks_passed_protected_merge;main_CI_and_deployment_pending",
+    "CI": 37788842015,
     "connected_receipt_sha256": "8506cd4f214c7d84945fa87086cd3d9a8afc14af56aeac2130d119d59377e690",
     "independent_connected_review_commit": "a5e724a3",
     "connected_layer": "Actual normal publication/job/claim/runtime/SDK/private inline writer/owner GET/SSR; fakeFirestore/GCS and scriptedOpenAI/Gemini; no object-offload persistence, full browser, live perception or production durability proof.",
     "new_unique_case_credit": 0,
     "paid_provider_calls": 0,
-    "runtime_gap": "Live worker startup says launch forwarder only; broader opsScheduler capture_outbox hook is not reached. Narrow hook into existing forwarder tick is being repaired; no broader workers/config flags activated.",
+    "runtime_gap": "Worker launch-only tick repaired but current worker feature disabled/Gemini unconfigured; automatic durable-publication and pending authorized owner-return wake use existing configured web process. No credential transfer/feature change/new timer.",
     "previous_joined_head_CI": {
       "run_id": 37785307196,
       "head": "caa51535802245f36081095cdef0b8062bc0233a",
@@ -684,6 +736,27 @@
       "new_unique_case_credit": 0
     },
     "startup_metadata": "Enablement plus OpenAI/Gemini credential-configured booleans only, using current adapter aliases. Configured presence is not authentication/provider execution; no values or configuration mutation.",
-    "provider_readiness": "Current worker Gemini availability not verified. Original owner corrected prior readiness lead: retained 05:10 worker preflight proves OpenAI present then, not site-video/Gemini values. Other older statement lacks a retained receipt. Existing native dashboard readback unavailable while Mac locked; no unlock/new credentials. Wait for exact deployed startup metadata."
+    "provider_readiness": "Authorized parent cloud Render UI reported worker d0 OpenAI configured, Gemini aliases/feature absent at13:47\u201348; web1b OpenAI/Gemini configured and site feature true at13:53\u201354. UI configuration presence is not effective runtime authentication or successful provider execution. Local native dashboard remained unavailable while locked; no unlock/new credentials.",
+    "automatic_web_dispatch": {
+      "commit": "36bffa1ab5a58565730edf868e77b2788d6060cb",
+      "review_commit": "7f297faf",
+      "receipt_sha256": "405516d7b0b7f3815bb8cf306cb6e43bb802d24cf24c943d0fe20c91608c8529",
+      "baseline": "exact671 same joined assertion fails0automaticwake",
+      "candidate": "8of8scripted_joined_and_neighbors_pass;typecheck_pass",
+      "scope": "Only new original walkthrough after successful durable publication wakes guarded existing queue. No await of provider in upload response, no backfill."
+    },
+    "owner_return_recovery": {
+      "review_commit": "2fcefdf1",
+      "receipt_sha256": "f6dd31c177419c7b41d59b31cc5c58e5279bf6442bbcd92b86cc2bc3efdbbbba",
+      "baseline": "old671 owner route with fixed postcommit queue: same return assertion fails,7unattempted",
+      "candidate": "8of8pass;ownerGET restores retained completed SDK packet without increasing2Sol1Gem scripted calls;withdrawal no additional wake",
+      "limitations": "Fake Firestore/GCS/scripted providers; no process crash, real DB durability or live video claim."
+    },
+    "reader_effect_boundary": "Public projection helper remains read-only; verified status/workspace handlers can wake pending advisory processing. A GET on an authorized queued job is therefore not an effect-free production diagnostic.",
+    "independent_final_review_commit": "2fcefdf1",
+    "merged_sha": "5f29d12b1d4577e7ee79cdad142fa5f8a0674a38",
+    "merged_at_utc": "2026-10-08T14:09:31Z",
+    "required_PR_CI_state": "success_all9_executed_checks",
+    "deployed_sha": null
   }
 }

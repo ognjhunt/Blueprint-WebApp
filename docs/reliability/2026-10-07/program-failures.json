@@ -551,7 +551,7 @@
       "id": "PREPARATION-RECIPIENT-001",
       "severity": "P1",
       "owner": "coordinator",
-      "state": "independently_reviewed_repair_required_PR_checks_green_not_deployed",
+      "state": "reviewed_merged_paired_deployed_safe_identity_verified;affected_production_delivery_unproven",
       "violated_invariant": "Private customer access links must not be dispatched to an obsolete recipient.",
       "root_cause": "New preparation-notice authority checked source/rights but omitted current contact binding before dispatch.",
       "baseline_sha": "78fe507544325d389ee87e99179aa0ed3a7ab627",
@@ -562,11 +562,34 @@
       "matched_root_after": "186combinedscopedpassed;overlappingneighborsnotindependentjourneys",
       "candidate_result_sha256": "a7f69431b273bd80b3ac4852a51cc4136a0e829054b1c3becce81fe3b8090078",
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
-      "merged_sha": null,
-      "deployed_sha": null,
+      "merged_sha": "1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136",
+      "deployed_sha": "1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136",
       "privacy": "Synthetic identities/local sink; no customer mail or real link disclosed.",
       "candidate_sha": "54d23763ea96a2d51ee141051028e9a4bf2cc61a",
-      "independent_review": "8a5dfbb0; original minimizer1pass and9notice controls pass"
+      "independent_review": "8a5dfbb0; original minimizer1pass and9notice controls pass",
+      "deployment_evidence": "program-release.json source_bound_preparation_followup;18safe_presentation_checks_do_not_prove_actual_notice_delivery"
+    },
+    {
+      "id": "PREPARATION-IMPORT-ISOLATION-001",
+      "severity": "P1_for_affected_cold_intake_path",
+      "owner": "intake_recovery;coordinator_release",
+      "state": "reviewed_root_cause_repair_pushed_required_CI_active",
+      "invariant": "Intake/control-plane inspection must not import GPU/provider execution closure.",
+      "baseline_sha": "c0e47eb639fbe775bade5b260218201a96eeab96",
+      "pre_PR_baseline_sha": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+      "root_cause": "Cold website preparation status imported PubSub listener for shared durability helpers, which imported run_e2e and hot provider orchestration. Nested lazy imports remain visible to existing AST boundary guard.",
+      "minimized_reproducer": "Existing five live_pipeline_import_isolation tests: unchanged pre-PR main5pass; unchangedPRhead1fail4pass with12hot modules.",
+      "repair": "Extract existing ledger/read/noncreating lock/output-commit and required-stage predicate bodies into cold handoff_job_state; preserve direct listener/run_e2e compatibility exports.",
+      "candidate_sha": "fe1d89475f72e7fd93b92d09288faadfbdaf44a7",
+      "author_sha": "b3ec6aef257a918f8deade812fdeaa13e1869e5e",
+      "PR": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2649",
+      "candidate_retest": "66focused+18lease_retirement_pass;independent5isolation_pass;Ruff_pass;initial_missing_guard_import_diagnostic_retained",
+      "test_or_allowlist_weakened": false,
+      "private_receipt_sha256": "dd797f021aadb0fd402c3e1e3dcdae056f18b3f47834204bfabf921801aae18d",
+      "independent_review_commit": "10739ae8",
+      "required_CI_run": 37790170932,
+      "new_unique_case_credit": 0,
+      "scope_limit": "CPU/helper import and durability semantics; no hosted final gate, deployed status delivery, provider or customer job result yet."
     }
   ],
   "dependencies": [
@@ -598,8 +621,8 @@
     {
       "id": "DEP-FREE-ADVISORY-JOIN",
       "owner": "coordinator_with_intake_recovery_and_queue_recovery",
-      "state": "offline_connected_execution_reviewed;existing_worker_hook_repair_and_release_pending",
-      "detail": "PR948 implements current-source SDK dispatch, canonical private result and owner-authorized safe report. One real SDK/handler joined case passed with simulated providers/storage; independent review a5e724a3. Current live launch-only worker skips opsScheduler hook; narrow existing-tick repair active. No live video analysis established.",
+      "state": "independent_final_review_required_PR_checks_passed_protected_merge;deployment_and_live_provider_result_pending",
+      "detail": "PR948 merged5f29d12 after9checks and independent exactdf764 review. Successful durable upload publication wakes existing configured web SDKqueue; pending authorized owner return reconciles retained output without repeating scripted provider calls. One joined actualSDK/handler/privatewriter/ownerGET/SSR proof uses fakeFirestore/GCS/scriptedproviders; no live Gemini result established.",
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/948"
     }
   ],
