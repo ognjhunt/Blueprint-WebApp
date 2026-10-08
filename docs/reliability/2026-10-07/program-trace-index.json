@@ -1608,5 +1608,17 @@
     "next_boundary": "Upstream website preparation may fail before prepared-scene WebApp record creation. Actual construction stage3 refusal is downstream in normal flow, but retained local probe bypassed WebApp intake. Trace original source-bound writer before choosing status bridge.",
     "review": "a5e7f51b: linked hashes/source/layering verified; no actual normal-site missed-failure reproduction yet",
     "upstream_producer_semantics": "Actual handoff pre-enqueue probe retains awaiting_inputs/website_reconstruction_pending without source registration or intake outbox. This is a prerequisite hold, not terminal failure. Capture wrapper failure separately persists failed_retryable under lease with source delivery key and payload digest. Minimized outer handler proof and sanitized current-source consumer contract are in progress."
+  },
+  "current_deployed_preview_smoke": {
+    "sha": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
+    "layer": "production_identity_and_anonymous_local_browser_restore_clear_return;GET-onlynetwork",
+    "result_sha256": "701f0fa8e25968046e7a1b5a99ab2a8dcfc564c49f91dc4b988898f673388de0",
+    "paired_receipt_sha256": "035eddc61badf0ddff33de8aed0fa929a3294ea585c49d27eb3c35149c28fd8c",
+    "checks": 18,
+    "new_unique_journey_credit": 0,
+    "provider_calls": 0,
+    "notifications": 0,
+    "customer_backend_mutations": 0,
+    "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
   }
 }

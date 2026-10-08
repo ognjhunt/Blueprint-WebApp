@@ -539,16 +539,59 @@
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/945",
     "head": "15cc916e64738f9a8b6c91d679c31f83b6e97e85",
     "parent": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
-    "state": "merged_required_main_CI_running;deployment_unverified",
+    "state": "deployed_and_verified_with_scoped_live_identity_and_presentation_smoke",
     "required_PR_CI_run": 37773679243,
     "merged_sha": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
-    "deployed_sha": null,
+    "deployed_sha": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
     "scope": "Persisted preview failure visibility only; no normal Pipeline blocked-state writer, notification, provider or final-assessment claim.",
     "independent_identity_review": "4ccb1480",
     "private_receipt_copy_manifest_sha256": "ffac13e877e2d098fb3d0a9652e280395e809c6c50aa2ca9b6920d305f13b5c8",
     "merged_at_utc": "2026-10-08T12:05:58Z",
     "required_PR_CI_state": "success_all9_executed_contexts;expected_observer_skip",
     "required_main_CI_run": 37774501270,
-    "required_main_CI_state": "in_progress"
+    "required_main_CI_state": "completed_success",
+    "deployment_workflow_run": 37778217090,
+    "deployment_workflow_state": "completed_success",
+    "paired_deployments": {
+      "web": {
+        "id": "dep-db3otacs728c73fmf7jg",
+        "sha": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
+        "observed_status": "live",
+        "finished_at_utc": "2026-10-08T12:40:49.436908Z"
+      },
+      "worker": {
+        "id": "dep-db3ota8473hc73eqqks0",
+        "sha": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
+        "observed_status": "live",
+        "finished_at_utc": "2026-10-08T12:41:05.272972Z"
+      }
+    },
+    "paired_receipt_sha256": "035eddc61badf0ddff33de8aed0fa929a3294ea585c49d27eb3c35149c28fd8c",
+    "post_deployment_smoke": {
+      "result": "presentation_passed",
+      "checks_passed": 18,
+      "started_at_utc": "2026-10-08T12:42:07.560Z",
+      "completed_at_utc": "2026-10-08T12:42:12.473Z",
+      "result_sha256": "701f0fa8e25968046e7a1b5a99ab2a8dcfc564c49f91dc4b988898f673388de0",
+      "private_path": "output/reliability-program/deployed-candidate-3f911025/result.json",
+      "intake_submissions": 0,
+      "backend_provider_notification_mutations": 0,
+      "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
+    }
+  },
+  "current_verified_webapp_release": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
+  "source_bound_preparation_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
+    "state": "draft_integration_review;recipient_privacy_fix_tested;joined_replay_active",
+    "root_integration": "78fe507544325d389ee87e99179aa0ed3a7ab627",
+    "webapp_consumer": "b346132c1422cf7ab0e63f7e1f5bc7f65adfa2fd",
+    "pipeline_candidate": "29fbe1811c70c76117bd715c1192433cf70003a2",
+    "pipeline_PR": null,
+    "merged_sha": null,
+    "deployed_sha": null,
+    "scope": "Fresh exact-source preparation status and existing outbox notification recovery; no provider dispatch, customer budget gate or final assessment substitute.",
+    "review": "Independent helper/producer approvals retained; affected integrated notice held for recipient correction; no final release approval yet.",
+    "required_full_pipeline_gate": "Impact mapping46 exceeds40 cap;9 sentinels insufficient, existing full promotion remains required.",
+    "production_mapping": "Authenticated intake live;client root map absent. Candidate fallback/current exact source binding remains unverified; no scope/config expansion or service activation."
   }
 }

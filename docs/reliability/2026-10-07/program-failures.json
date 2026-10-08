@@ -526,7 +526,7 @@
       "id": "CUSTOMER-PREVIEW-FAILURE-001",
       "severity": "P2",
       "owner": "existing_dishwasher_task;coordinator_release",
-      "state": "independently_reviewed_merged_main_CI_running;deployment_unverified",
+      "state": "deployed_verified_scoped",
       "invariant": "Customer status reflects persisted preparation results without falsely promising ongoing work.",
       "baseline_sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
       "reproducer": "Two actual HTTP handlers with disposable database/object/notification fakes: confirmed covered request + current world_reconstruction.state failed returns ongoing assessing copy.",
@@ -542,9 +542,29 @@
       "reviewed_code_test_diff_sha256": "8a13360faa3d1275ced22c72004d0f3bc5cc25e08fff7d6e807526d748467155",
       "required_CI_run": 37773679243,
       "merged_sha": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
-      "deployed_sha": null,
+      "deployed_sha": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
       "scope_limit": "Existing persisted preview failures only. Normal Pipeline website visual-scene callback publishes ready only; blocked-state delivery/final robot result not repaired or proven by this slice. No live failed customer record asserted, no new unique coverage credit.",
-      "independent_identity_review": "4ccb1480"
+      "independent_identity_review": "4ccb1480",
+      "deployment_receipt_key": "preview_preparation_status_followup"
+    },
+    {
+      "id": "PREPARATION-RECIPIENT-001",
+      "severity": "P1",
+      "owner": "coordinator",
+      "state": "repair_tested_independent_review_pending_not_deployed",
+      "violated_invariant": "Private customer access links must not be dispatched to an obsolete recipient.",
+      "root_cause": "New preparation-notice authority checked source/rights but omitted current contact binding before dispatch.",
+      "baseline_sha": "78fe507544325d389ee87e99179aa0ed3a7ab627",
+      "reproduction": "Actual local outbox enqueue then same-request contact correction sent one private-link message to the old local-sink recipient.",
+      "independent_counterexample_sha256": "0567c26411fb2b10fbe04bb0f8e289e8b2e2bb0c6be27ceeca1bd50879d2a030",
+      "repair": "Compare current decrypted authoritative contact with retained entry.to in dispatch transaction. Changed contact cancels0sendattempts; read/decrypt uncertainty remains recoverable before dispatch.",
+      "matched_root_before": "2failed/0passed/7unselected",
+      "matched_root_after": "186combinedscopedpassed;overlappingneighborsnotindependentjourneys",
+      "candidate_result_sha256": "a7f69431b273bd80b3ac4852a51cc4136a0e829054b1c3becce81fe3b8090078",
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
+      "merged_sha": null,
+      "deployed_sha": null,
+      "privacy": "Synthetic identities/local sink; no customer mail or real link disclosed."
     }
   ],
   "dependencies": [
