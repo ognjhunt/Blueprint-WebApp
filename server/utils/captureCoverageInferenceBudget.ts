@@ -94,10 +94,10 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
         const state = stateSnap.data(), call = callSnap.data();
         if (state?.pending_token !== token || call?.state !== "admitted" || call.admission_token !== token) throw new Error("coverage_budget_admission_changed");
         tx.set(callRef, { state: priced.cost_usd === null ? "unknown" : "recorded", raw_usage: usage ?? null,
-          cost_estimate_usd: priced.cost_usd, usage_pricing_status: priced.usage_pricing_status, recorded_at_ms: Date.now() }, { merge: true });
+          cost_estimate_usd: priced.cost_usd, usage_pricing_status: priced.usage_pricing_status, above_estimate: priced.above_estimate ?? false, priced_input_tokens: priced.input_tokens, priced_output_tokens: priced.output_tokens, recorded_at_ms: Date.now() }, { merge: true });
         // A received response with unknown usage ends this action; full unknown
         // exposure remains retained, while distinct authorized work can continue.
-        tx.set(budgetRef, { pending_token: null, last_usage_estimate_usd: priced.cost_usd, updated_at_ms: Date.now() }, { merge: true });
+        tx.set(budgetRef, { pending_token: null, exposure_usd: state.exposure_usd + Math.max(0, (priced.cost_usd ?? reserved) - reserved), last_usage_estimate_usd: priced.cost_usd, updated_at_ms: Date.now() }, { merge: true });
       });
     },
   };

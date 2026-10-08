@@ -71,6 +71,15 @@ describe("durable customer inference accounting without spending gates",()=>{
   seedAssessment();const call=await reserveCaptureCoverageInference(SITE_ASSESSMENT_MODEL,assessmentMetadata,"openai",{});
   read("captureUploadSessions/walkthrough-one").browser_stored_upload={newer:true};await expect(call.assertDispatchAllowed()).rejects.toThrow("source_changed");
  });
+ it("increases gross exposure for above-estimate known usage exactly once",async()=>{
+  const call=await reserveCaptureCoverageInference("gemini-3.8-flash",metadata);
+  const raw={promptTokenCount:2000000,candidatesTokenCount:2000000,thoughtsTokenCount:0,totalTokenCount:4000000};
+  await call.record(raw);expect(read(budgetPath).exposure_usd).toBeCloseTo(9);
+  const persisted=[...sharedFakeFirestoreState.docs.entries()].find(([key])=>key.startsWith(budgetPath+"/calls/"))![1];
+  expect(persisted).toMatchObject({state:"recorded",reserved_usd:1.818624,cost_estimate_usd:9,above_estimate:true,priced_output_tokens:2000000,raw_usage:raw});
+  await expect(call.record(raw)).rejects.toThrow();expect(read(budgetPath).exposure_usd).toBeCloseTo(9);
+  const next=await reserveCaptureCoverageInference("gemini-3.8-flash",metadata);expect(next.receipt.capture_exposure_usd).toBeCloseTo(9+1.818624);
+ });
  it("keeps known usage, response bodies and missing usage separate in cost telemetry",()=>{
   const budget=new SiteAssessmentBudget(99999,0.0001);budget.authorize("openai",SITE_ASSESSMENT_MODEL,{});budget.record("openai",SITE_ASSESSMENT_MODEL,{usage:null});
   budget.authorize("gemini","gemini-3.8-flash");budget.record("gemini","gemini-3.8-flash",{usage});
@@ -97,10 +106,22 @@ describe("provider usage normalization retains unexplained exposure",()=>{
   expect(artifacts.usage.completion_tokens).toBe(status==="unattributed_total_upper_bound"?null:output);
   expect(artifacts.provider_responses[0].output_tokens).toBe(status==="unattributed_total_upper_bound"?null:output);
  });
+ it("keeps unattributed above-estimate output separate from observed completion",()=>{
+  const raw={promptTokenCount:114,candidatesTokenCount:10,totalTokenCount:100000};
+  const budget=new SiteAssessmentBudget();budget.authorize("gemini","gemini-3.8-flash");budget.record("gemini","gemini-3.8-flash",{usage:raw});
+  const artifacts=budget.artifacts();expect(artifacts.usage.completion_tokens).toBeNull();
+  expect(artifacts.usage_samples[0]).toMatchObject({output_tokens:null,priced_output_tokens:99886,usage_pricing_status:"unattributed_total_upper_bound",above_estimate:true,raw_usage:raw});
+  expect(artifacts.provider_responses[0]).toMatchObject({output_tokens:null,priced_output_tokens:99886,above_estimate:true});
+  expect(artifacts.cost_status).toBe("usage_upper_bound_pricing_estimate");expect(()=>budget.authorize("gemini","gemini-3.8-flash")).not.toThrow();
+ });
+ it("ignores retired optional pricing bounds rather than denying an authorized call",()=>{
+  const budget=new SiteAssessmentBudget();expect(()=>budget.authorize("gemini","gemini-3.8-flash",{inference_bound:{input_tokens:-1,payload_sha256:"invalid"}})).not.toThrow();
+  expect(budget.calls[0].reserved_usd).toBe(1.818624);
+ });
  it("reports usage above a prior estimate without imposing a monetary stop",()=>{
   const budget=new SiteAssessmentBudget();budget.authorize("gemini","gemini-3.8-flash");
   budget.record("gemini","gemini-3.8-flash",{usage:{promptTokenCount:1048577,candidatesTokenCount:32769,thoughtsTokenCount:0}});
-  expect(budget.calls[0].cost_usd).toBeGreaterThan(0);expect(budget.calls[0].usage_pricing_status).toBe("reported_usage_above_estimate");
+  expect(budget.calls[0].cost_usd).toBeGreaterThan(0);expect(budget.calls[0].usage_pricing_status).toBe("reported_complete");expect(budget.calls[0].above_estimate).toBe(true);
   expect(()=>budget.authorize("gemini","gemini-3.8-flash")).not.toThrow();
  });
 });
