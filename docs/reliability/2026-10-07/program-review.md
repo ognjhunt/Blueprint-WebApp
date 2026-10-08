@@ -2386,3 +2386,40 @@ The single probe then failed as expected, with139 existing cases unattempted;
 no coverage credit or broad suite result is inferred. No source, activation,
 provider configuration or draft/send authority was changed. Unrelated assessment
 and canonical Pipeline release work remains outside this source finding.
+
+
+## Independent communications binding repair — PR966 d59c96e4
+
+The preceding a96 finding is resolved for immutable source
+`d59c96e441e9f4a20263576dd2cd6e8d451006c8`; bounded source approval is restored.
+Only communications API and its existing tests change from the held a96 head.
+A prospective bounded create retains the pre-limit request-base digest and
+binds the final request digest to that base plus the selected cents. Every
+bounded readback recomputes the same final digest before accepting checkpoint,
+provider limit and metadata. Continuation binding also retains the base digest.
+Legacy uncapped create digests and absent/null provider readback remain unchanged.
+No caller, activation, spending authority, campaign, draft/send or Gmail grant
+is introduced. Full retained session holds remain conservative across midnight;
+measured usage does not release them or constitute a hard invoice guarantee.
+
+Reviewer replayed the exact original three-field counterexample, unchanged,
+in the same private isolated fixture with exact repaired source bytes. It now
+passes the expected binding rejection. Three existing bounded-positive,
+missing-base and legacy uncapped controls also pass:4 selected controls,
+136 unattempted, zero provider calls and zero original journey credit.
+Private repaired replay log hash
+`a2dd6cd23530ffe72c605b1c10a0e3735e90b3cf7c400320fda6130c83d13134`
+is retained under `output/reliability-program/comms966-review-repaired-minimizer.log`;
+the original failing log remains retained unchanged.
+
+Head-bound author verification receipt
+`50f88517a478841e213fea711583174a926b966e456ce51b36d3ba573493720e`
+retains exact API/test hashes and five log hashes, all independently verified.
+The actual final log reports357/357 across three existing communications suites;
+matched original-head triple-change control fails, and typecheck, portability
+and Graphify complete successfully. These are scripted source/transaction tests,
+not live provider spending or invoice settlement. Native exact-head CI
+`37821069092` remains active at review time, so source approval does not satisfy
+release gates. The separately pinned assessment release must remain untouched
+through its sole owner's live attempt; this review performs no merge, deployment,
+provider call, private handoff retrieval or communications activation.
