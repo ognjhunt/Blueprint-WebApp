@@ -2309,3 +2309,40 @@ presentation evidence. It does not execute the new retry route, paid provider,
 customer report, worker inference or notification path. Technical continuation
 source/release and actual operator grant remain separate; this receipt cannot
 establish whole-program completion or live assessment quality.
+
+
+## Independent Pipeline promotion/provenance review — 0a17f52d
+
+Verified protected merged receipt-fence source
+`0a17f52d23f233376b9944a6df49101491581f6c` (PR2650). Its complete Git tree
+matches independently approved `3a2897bb`; runtime hash `fbd117aa` and test
+hash `1ded277b` match the reviewed same-source baseline/candidate receipts.
+No new behavior or broader callback guarantee follows from this merge.
+The canonical installer source hash `61b388ed` is byte-identical to existing
+a56 installer code; planned preservation of configured controls introduces
+no new installer semantics.
+
+Fresh read-only GitHub inspection confirms full promotion run `37808897987`
+completed successfully for all four shards and the CPU aggregate on exact0a.
+Official provenance run `37819709003` also completed successfully on exact0a.
+Reviewer independently downloaded native artifact `11568622637` from that
+run: decoded receipt bytes equal retained
+`output/reliability-program/pipeline-canonical-0a/official-provenance/production-deploy-provenance.json`,
+SHA-256 `ece46dadd7c1da7be24bc2be48993951bbf5b218539dd75d4f1b47f0d0c14fbe`.
+Native artifact metadata binds exact0a/main, unexpired status and archive digest
+`c745a882180c4274921f36b70ee085b84ee1c216286b54c3e6e7ab150c2bdcc8`.
+The official canonical receipt identifies 34,115 tests, zero skips, four shards,
+retained planned/executed node-ID and JUnit hashes, and canonical-full-lane
+verification. These are promotion tests, not independent customer journeys or
+provider/perception evidence. The receipt explicitly leaves live deployment
+health unproven.
+
+Predeployment authenticated host read hash
+`6b4727643fb168264e78cc53db6f3cdacc952f25121b68c3d994ade620251aa5`
+at 17:52:08 UTC records source and active release at clean a56. The listener
+service/timer and agent dispatcher timer are inactive; enabled/disabled unit
+states are retained. This is a predeployment snapshot, not current0a serving
+or callback delivery proof. Bounded source and official promotion/provenance
+requirements are supported; canonical installation, installed receipt identity,
+serving status and preserved paused-state readback remain separate gates. Review
+made no production changes, provider calls or live fault injection.
