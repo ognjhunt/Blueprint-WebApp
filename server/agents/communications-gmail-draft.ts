@@ -14,7 +14,7 @@ import { logger } from "../logger";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const requestSchema = z.object({ expectedReviewDigest: hash, expectedRevisionId: hash.nullable(), mode: z.enum(["write", "reconcile"]).default("write") }).strict();
-type DraftContent = { jobId: string; reviewDigest: string; payloadDigest: string; to: string; subject: string; body: string; messageId: string; mimeProfile?: "multipart-alternative-v1" | "multipart-signature-link-v2"; threadId?: string; inReplyTo?: string };
+type DraftContent = { jobId: string; reviewDigest: string; payloadDigest: string; to: string; subject: string; body: string; messageId: string; mimeProfile?: "multipart-alternative-v1" | "multipart-signature-link-v2" | "multipart-founder-signature-v3"; threadId?: string; inReplyTo?: string };
 export type GmailDraftPorts = {
   enabled(): boolean; requireCapability(): Promise<void>; verifyMailbox(): Promise<unknown>;
   allowsRevision(jobId: string, revisionId: string | null, reviewDigest: string): boolean;
@@ -185,7 +185,7 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
       to: payload.to, subject: payload.subject, body: payload.transportBody,
       messageId: `<blueprint-draft-${job.jobId}@tryblueprint.io>`,
       // A new delivery profile never relabels a retained text/plain attempt.
-      ...(!old ? { mimeProfile: (ports.signatureLink || payload.communicationsDraftOnly === "founder-footerless-v2") ? "multipart-signature-link-v2" as const : "multipart-alternative-v1" as const }
+      ...(!old ? { mimeProfile: (ports.signatureLink || payload.communicationsDraftOnly === "founder-footerless-v2") ? "multipart-founder-signature-v3" as const : "multipart-alternative-v1" as const }
         : old.content?.mimeProfile ? { mimeProfile: old.content.mimeProfile } : {}),
       ...(payload.gmailThreadId ? { threadId: payload.gmailThreadId } : {}), ...(payload.inReplyTo ? { inReplyTo: payload.inReplyTo } : {}) };
     if (old && (old.jobId !== job.jobId || old.ledgerId !== ledgerId || old.prospectId !== job.prospectId)) fail("gmail_draft_binding_identity_changed");
@@ -372,14 +372,21 @@ function signatureLines(body: string) {
   return { lines, index };
 }
 export function gmailDraftPlain(content: { body: string; mimeProfile?: string }) {
-  if (content.mimeProfile !== "multipart-signature-link-v2") return content.body;
+  if (!["multipart-signature-link-v2", "multipart-founder-signature-v3"].includes(content.mimeProfile ?? "")) return content.body;
   const { lines, index } = signatureLines(content.body);
-  lines[index] = "Blueprint — https://tryblueprint.io/";
+  if (content.mimeProfile === "multipart-founder-signature-v3") {
+    lines.splice(index - 1, 2, "--", "Nijel Hunt", "Founder at Blueprint", "Austin, TX");
+  } else lines[index] = "Blueprint — https://tryblueprint.io/";
   return lines.join("\n");
 }
 function gmailDraftHtml(body: string, profile?: DraftContent["mimeProfile"]) {
   const escape = (value: string) => value.replace(/[&<>"']/g, character =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]!));
+  if (profile === "multipart-founder-signature-v3") {
+    const { lines, index } = signatureLines(body);
+    const signature = '--<br>\n<a href="https://tryblueprint.io/"><img src="https://tryblueprint.io/brand/email-mark.png" alt="Blueprint" width="36" height="36" style="display:block;border:0;width:36px;height:36px"></a><br>\nNijel Hunt<br>\nFounder at <a href="https://tryblueprint.io/">Blueprint</a><br>\nAustin, TX';
+    return `<html><body><div>${lines.slice(0, index - 1).map(escape).join("<br>\n")}<br>\n${signature}${lines.slice(index + 1).map(line => `<br>\n${escape(line)}`).join("")}</div></body></html>`;
+  }
   if (profile === "multipart-signature-link-v2") {
     const { lines, index } = signatureLines(body);
     return `<html><body><div>${lines.map((line, number) => number === index
@@ -400,7 +407,7 @@ function gmailDraftBodyMatches(payload: gmail_v1.Schema$MessagePart | undefined,
   if (!payload || payload.filename || payload.body?.attachmentId) return false;
   if (!content.mimeProfile) return payload.mimeType === "text/plain" && !(payload.parts?.length)
     && normalize(extractPlainTextBody(payload)) === normalize(content.body);
-  if (!["multipart-alternative-v1", "multipart-signature-link-v2"].includes(content.mimeProfile) || payload.mimeType !== "multipart/alternative"
+  if (!["multipart-alternative-v1", "multipart-signature-link-v2", "multipart-founder-signature-v3"].includes(content.mimeProfile) || payload.mimeType !== "multipart/alternative"
     || payload.body?.data || payload.parts?.length !== 2
     || payload.headers?.some(header => (header.name ?? "").toLowerCase() === "content-disposition"
       && !/^inline(?:;|$)/i.test(header.value ?? ""))) return false;
@@ -419,7 +426,7 @@ export function configuredGmailDraftPorts(gmail?: gmail_v1.Gmail, mode: "automat
   const client = async () => gmail ??= await existingFounderGmail();
   const raw = (content: DraftContent) => {
     if ([content.to,content.subject,content.messageId,content.inReplyTo ?? ""].some(value => /[\r\n]/.test(value))) fail("gmail_draft_header_invalid");
-    if (content.mimeProfile && !["multipart-alternative-v1", "multipart-signature-link-v2"].includes(content.mimeProfile)) fail("gmail_draft_mime_profile_invalid");
+    if (content.mimeProfile && !["multipart-alternative-v1", "multipart-signature-link-v2", "multipart-founder-signature-v3"].includes(content.mimeProfile)) fail("gmail_draft_mime_profile_invalid");
     const headers = [`From: Nijel Hunt <${FOUNDER_MAILBOX}>`, `To: ${content.to}`, `Reply-To: ${FOUNDER_MAILBOX}`, `Message-ID: ${content.messageId}`,
       `Subject: =?UTF-8?B?${Buffer.from(content.subject).toString("base64")}?=`, `X-Blueprint-Job-ID: ${content.jobId}`,
       `X-Blueprint-Review-Digest: ${content.reviewDigest}`, `X-Blueprint-Payload-Digest: ${content.payloadDigest}`,

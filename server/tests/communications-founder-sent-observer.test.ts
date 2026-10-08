@@ -84,7 +84,7 @@ describe("founder-sent draft observation (all providers faked)", () => {
   it.each(["exact", "edited"])("records an %s founder send as hashes and ids only, without a receipt or approval", async kind => {
     const f = setup(), ledger = structuredClone(f.db.records.get(f.paths.ledger)), job = structuredClone(f.db.records.get(`${f.root}/jobs/${f.job.jobId}`));
     const sent = f.thread.messages[0];
-    f.binding.content.mimeProfile = "multipart-signature-link-v2";
+    f.binding.content.mimeProfile = kind === "exact" ? "multipart-founder-signature-v3" : "multipart-signature-link-v2";
     f.binding.content.body = `${f.payload.body}\n\nThanks,\nNijel Hunt\nBlueprint`;
     sent.body = gmailDraftPlain(f.binding.content);
     if (kind === "edited") sent.body = sent.body.replace("Is packing a relevant job to discuss?", "Would packing be worth a short call?");

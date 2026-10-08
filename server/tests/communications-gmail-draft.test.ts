@@ -10,7 +10,7 @@ vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () =
 import { communicationsFixture, communicationsNow, memoryFirestore, syntheticQualification } from "./fixtures/communications";
 import { launchHypothesisDraft, archivedLaunchHypothesisDraft } from "./fixtures/hypothesis";
 import { founderOutreachFixture } from "./fixtures/founder-outreach";
-import { appendFirstContactFooter, appendUnsentDraftFooter } from "../agents/communications-first-contact-footer";
+import { appendFirstContactFooter } from "../agents/communications-first-contact-footer";
 import { communicationsDeliveryKey, communicationsDigest } from "../agents/communications-contract";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 import { mirrorCommunicationsGmailDraft, reconcileEndedGmailDraftWriter, configuredGmailDraftPorts, communicationsGmailDraftStatus, runCommunicationsGmailDraftCopies,
@@ -121,7 +121,7 @@ describe("same-run unsent Gmail draft action",()=>{
   const f=await direct();
   expect(await f.save()).toMatchObject({state:"gmail_draft_saved",gmailDraftId:"gmail-draft-1",sent:false,approved:false});
   await f.save();expect(f.ports.write).toHaveBeenCalledOnce();expect(f.ports.find).toHaveBeenCalledTimes(2);
-  expect(vi.mocked(f.ports.write).mock.calls[0][0].mimeProfile).toBe("multipart-signature-link-v2");
+  expect(vi.mocked(f.ports.write).mock.calls[0][0].mimeProfile).toBe("multipart-founder-signature-v3");
   expect(f.db.records.get(`action_ledger/${f.ledgerId}`).status).toBe("pending_approval");
   expect(f.db.records.get(`action_ledger/${f.ledgerId}`).approved_by).toBeUndefined();
   expect(process.env.BLUEPRINT_COMMUNICATIONS_GMAIL_DRAFT_APPROVED_JOB_ID).toBeUndefined();
@@ -343,22 +343,22 @@ describe("manual Gmail draft copy of the exact canonical revision",()=>{
   }),get:vi.fn(async()=>({data:full})),send:vi.fn()},messages:{send:vi.fn()}}};
   const ports=configuredGmailDraftPorts(api), content:any={jobId:f.job.jobId,reviewDigest:f.input.expectedReviewDigest,payloadDigest:"c".repeat(64),
    to:f.payload.to,subject:founder.output.subject,
-   body:(kind === "direct" ? appendUnsentDraftFooter : appendFirstContactFooter)(founder.output.body,f.brief.contact.email)+"\n<unsafe>&\"'",messageId:`<blueprint-draft-${f.job.jobId}@tryblueprint.io>`,mimeProfile:kind === "direct" ? "multipart-signature-link-v2" : "multipart-alternative-v1"};
+   body:(kind === "direct" ? founder.output.body : appendFirstContactFooter(founder.output.body,f.brief.contact.email))+"\n<unsafe>&\"'",messageId:`<blueprint-draft-${f.job.jobId}@tryblueprint.io>`,mimeProfile:kind === "direct" ? "multipart-founder-signature-v3" : "multipart-alternative-v1"};
   await ports.write(content);
   const parts=full.message.payload.parts;
   const plain=Buffer.from(parts[0].body.data,"base64url").toString();
-  if(kind === "direct")expect(plain).toContain("Nijel Hunt\nBlueprint — https://tryblueprint.io/");else expect(plain).toBe(content.body);
+  if(kind === "direct")expect(plain).toContain("--\nNijel Hunt\nFounder at Blueprint\nAustin, TX");else expect(plain).toBe(content.body);
   const html=Buffer.from(parts[1].body.data,"base64url").toString();
-  expect(html).toContain(kind === "direct" ? '<a href="https://tryblueprint.io/" style="color:#0000ee;text-decoration:underline">Blueprint</a>' : '<a href="https://tryblueprint.io/">https://tryblueprint.io</a>');
-  if(kind === "direct"){expect(html.match(/<a /g)).toHaveLength(1);expect(html).not.toMatch(/<img|utm_|tracking|redirect|<button/);}
+  expect(html).toContain(kind === "direct" ? 'Founder at <a href="https://tryblueprint.io/">Blueprint</a>' : '<a href="https://tryblueprint.io/">https://tryblueprint.io</a>');
+  if(kind === "direct"){expect(html.match(/<a /g)).toHaveLength(2);expect(html).toContain('src="https://tryblueprint.io/brand/email-mark.png" alt="Blueprint" width="36" height="36"');expect(plain).not.toContain("https://tryblueprint.io");expect(html).not.toMatch(/utm_|tracking|redirect|<button/);}
   expect(html).toContain("&lt;unsafe&gt;&amp;&quot;&#39;");expect(html).not.toContain("<unsafe>");
-  expect(html).toContain(kind === "direct" ? "Commercial outreach. Reply “no thanks” to stop all marketing emails from Blueprint." : "If you’d rather I don’t follow up, just let me know.");expect(html).not.toContain("Unsubscribe from");
+  if(kind !== "direct")expect(html).toContain("If you’d rather I don’t follow up, just let me know.");expect(html).not.toContain("Unsubscribe from");
   if(kind === "direct")for(const rendered of [plain,html]){
-   expect(rendered).toContain("Commercial outreach. Reply “no thanks” to stop all marketing emails from Blueprint.");
-   expect(rendered.match(/Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000/g)).toHaveLength(1);
+   expect(rendered).not.toMatch(/Commercial outreach|no thanks|Business outreach|Synthetic test location|https:\/\/tryblueprint\.io\/<br/);
+   expect(rendered).toContain("Austin, TX");
   }
   expect(html).toContain("<br>\n<br>\n");
-  expect(html).toContain(kind === "direct" ? "Thanks,<br>\nNijel Hunt<br>\n<a" : "Thanks,<br>\nNijel Hunt<br>\nBlueprint");
+  expect(html).toContain(kind === "direct" ? "Thanks,<br>\n--<br>\n<a" : "Thanks,<br>\nNijel Hunt<br>\nBlueprint");
   expect(html.match(/Nijel Hunt/g)).toHaveLength(1);
   expect(html).not.toMatch(/<script|<style/);
   expect(await ports.find(content,full.id)).toMatchObject({draftId:full.id,mimeProfile:content.mimeProfile,htmlSha256:createHash("sha256").update(html).digest("hex")});
