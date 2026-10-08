@@ -55,9 +55,9 @@
       "script_sha256": "306b01bc00db0c0f4f383b68bc16c62d08010428919c0829611d1cd3e656803b",
       "claim_ceiling": "Exact serving identity, paired deployment receipts, health/readiness and ordinary local-draft reload only; no production submission/upload/worker/assessment/notification path."
     },
-    "current_independently_verified_serving_sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
+    "current_independently_verified_serving_sha": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
     "initial940_receipts_are_historical": true,
-    "current_receipt_key": "durable_clear_followup"
+    "current_receipt_key": "preview_preparation_status_followup"
   },
   "pipeline": {
     "merged_required_stage_fix": "cc876af25389de934f57c08b33421987f9e3328d",
@@ -582,16 +582,41 @@
   "current_verified_webapp_release": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
-    "state": "draft_integration_review;recipient_privacy_fix_tested;joined_replay_active",
+    "state": "source_reviewed_required_WebApp_PR_checks_green;Pipeline_full_shards_active;production_mapping_blocked",
     "root_integration": "78fe507544325d389ee87e99179aa0ed3a7ab627",
     "webapp_consumer": "b346132c1422cf7ab0e63f7e1f5bc7f65adfa2fd",
     "pipeline_candidate": "29fbe1811c70c76117bd715c1192433cf70003a2",
-    "pipeline_PR": null,
+    "pipeline_PR": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2649",
     "merged_sha": null,
     "deployed_sha": null,
     "scope": "Fresh exact-source preparation status and existing outbox notification recovery; no provider dispatch, customer budget gate or final assessment substitute.",
-    "review": "Independent helper/producer approvals retained; affected integrated notice held for recipient correction; no final release approval yet.",
+    "review": "Recipient correction approved8a5; final joined replay approved8582395 with precise process/withdrawal limitations.",
     "required_full_pipeline_gate": "Impact mapping46 exceeds40 cap;9 sentinels insufficient, existing full promotion remains required.",
-    "production_mapping": "Authenticated intake live;client root map absent. Candidate fallback/current exact source binding remains unverified; no scope/config expansion or service activation."
+    "production_mapping": "Verified read-only live intake: client root map absent; existing manifest has no capture_root. No scope expansion/configuration mutation or paused worker activation performed.",
+    "head": "4b31cd8886e0e11ee910cd768800f8b4ed54e8a5",
+    "pipeline_head": "c0e47eb639fbe775bade5b260218201a96eeab96",
+    "recipient_repair": "54d23763ea96a2d51ee141051028e9a4bf2cc61a",
+    "required_WebApp_PR_CI": 37780219360,
+    "required_WebApp_PR_CI_state": "success_all9_executed_checks",
+    "required_Pipeline_PR_CI": 37780079135,
+    "required_Pipeline_PR_CI_state": "four_full_pytest_shards_confirmed_active",
+    "joined_replay": {
+      "unique_cases": 1,
+      "frozen_attempts": 3,
+      "passed": 3,
+      "manifest_sha256": "2e29d90f2f0474e962ee1ccd3e88caee40606facfed83f4dce81fdd594a6d629",
+      "claim_ceiling": "Actual Pipeline durable ledger and signed FastAPI/Express/local outbox. Python process restart; Express listener rebind in same Node process; simulated DB/object/owner/provider. Withdrawal after sent notice proves no additional send. No live provider/customer assessment/native outcome or original coverage credit."
+    }
+  },
+  "assessment_continuation_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/947",
+    "head": "2595c31aa05ce215038671dd02a4976e87fda857",
+    "state": "code_committed_focused_checks_passed;independent_review_and_required_CI_finishing;not_merged_or_deployed",
+    "CI": 37782417012,
+    "before": "same9controls_at3f:6failed3passed",
+    "candidate": "9controls+34overlappingneighborspassed;3selectedcontrols_repeated3freshprocesses",
+    "budget_changed": false,
+    "paid_calls": 0,
+    "scope": "Useful fourth targeted video probe, explicit authority preserved, deadline before/after admission, two non-novel exact-item probes stop fresh dispatch; no natural semantic accuracy or publication proof."
   }
 }

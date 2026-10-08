@@ -551,7 +551,7 @@
       "id": "PREPARATION-RECIPIENT-001",
       "severity": "P1",
       "owner": "coordinator",
-      "state": "repair_tested_independent_review_pending_not_deployed",
+      "state": "independently_reviewed_repair_required_PR_checks_green_not_deployed",
       "violated_invariant": "Private customer access links must not be dispatched to an obsolete recipient.",
       "root_cause": "New preparation-notice authority checked source/rights but omitted current contact binding before dispatch.",
       "baseline_sha": "78fe507544325d389ee87e99179aa0ed3a7ab627",
@@ -564,7 +564,9 @@
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
       "merged_sha": null,
       "deployed_sha": null,
-      "privacy": "Synthetic identities/local sink; no customer mail or real link disclosed."
+      "privacy": "Synthetic identities/local sink; no customer mail or real link disclosed.",
+      "candidate_sha": "54d23763ea96a2d51ee141051028e9a4bf2cc61a",
+      "independent_review": "8a5dfbb0; original minimizer1pass and9notice controls pass"
     }
   ],
   "dependencies": [
@@ -592,6 +594,12 @@
       "state": "partial_completed_Gemini_unknown_no_automatic_retry",
       "detail": "One isolated actual Sol SDK call over provisional frame text completed; no continuous video or usable Gemini evidence. Gemini exposure/cost remains unknown with reserved headroom; no paid retry or real customer email. Current guard rejects unchanged baseline packet.",
       "read_only_reconciliation": "Completed non-billable existing-provider GET/UI checks; no correlated receipt and inconclusive negative logs/files. Original unknown reservation/primary ledger unchanged, no retry."
+    },
+    {
+      "id": "DEP-FREE-ADVISORY-JOIN",
+      "owner": "coordinator_with_intake_recovery_and_queue_recovery",
+      "state": "implementation_active",
+      "detail": "Current normal upload has no site_assessment dispatch/canonical customer publication/authorized reader. Native simulation is separate, not this advisory prerequisite. Root binds exact current source, request and optional brief to durable job/claim; A reader/UI, B existing-worker dispatcher. No additional paid dispatch."
     }
   ],
   "coordination": {
