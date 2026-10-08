@@ -1,0 +1,320 @@
+{
+  "schema": "blueprint.intake-cross-tab.v1",
+  "frozen_at": "2026-10-08T05:22:27.014867+00:00",
+  "baseline_runtime_sha": "46e6b2efddf6278b9a05dd7559b8611bcfa122b6",
+  "severity": "P1 lost work / duplicate logical intake authority",
+  "acceptance": "zero failures in all 16 supplemental offline cases and 4 distinct browser cases; existing focused and eight browser regressions pass; repeat each new browser case three times without counting new independent cases",
+  "cases": [
+    {
+      "id": "CROSS-TAB-001",
+      "condition": "stale same-identity autosave cannot erase frozen authority",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "6281bcbb5e7853ab464f2a0b14a7e33929dbb1f8867aa56ef4ca21d4a084e169"
+    },
+    {
+      "id": "CROSS-TAB-002",
+      "condition": "stale different-identity autosave cannot erase frozen authority",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "48db27b202a45264f349719ac75d9b0b30281aebe5470c981dc4b412ac12c687"
+    },
+    {
+      "id": "CROSS-TAB-003",
+      "condition": "acknowledgements cannot be downgraded by stale pending writes",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "c30d6b7f58429c8c242e985f2d1984779c3fa3c3c1b3e0e02793fbfd4d2f5d39"
+    },
+    {
+      "id": "CROSS-TAB-004",
+      "condition": "two contenders adopt one frozen whole snapshot under the shared lock",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "558a55dc53b17e94503b1d00db42495ac12279161fba91f1860517aeca5311bb"
+    },
+    {
+      "id": "CROSS-TAB-005",
+      "condition": "a matching receipt cannot replace frozen draft fields or lower their timestamp",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "cd50f0edd3c7c921d8e099e69a2481b3be5fae21beeab259ce86ccf6d4adbdce"
+    },
+    {
+      "id": "CROSS-TAB-006",
+      "condition": "only an explicit unacknowledged refusal releases the matching frozen row",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "45f9e644db8d13164af7699a8ec898fd0096852750e1a5e9dd87005df5d6276f"
+    },
+    {
+      "id": "CROSS-TAB-011",
+      "condition": "a stale refusal cannot release a newer frozen body",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "b0985e1615d0ecce6d79c537b3bc2b2dc56b641480e3faa69babc2dfc85a789d"
+    },
+    {
+      "id": "CROSS-TAB-007",
+      "condition": "unreadable bytes survive autosave and freeze attempts",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "9d0f8d7310bbd23b7982d27683238a2fbbd5e985fabdb82f836b4d2c8b23e1d7"
+    },
+    {
+      "id": "CROSS-TAB-008",
+      "condition": "missing Web Locks blocks unsafe creation",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "fa77e2fd28dba7a37166e376a18ac867a37cc252269d8f041e8d2e53e0bb4c0e"
+    },
+    {
+      "id": "CROSS-TAB-009",
+      "condition": "failed storage persistence cannot authorize dispatch",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "8600c1c849359d7ca77d6bb492c98d3378be4ae5538d0e8e967845f07ab15b3b"
+    },
+    {
+      "id": "CROSS-TAB-010",
+      "condition": "denied reads expose a safe failure without private exception content",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "4408fed659ed2a437bacf85c777888233c16342b59805441a91b7edc0a8ceea7"
+    },
+    {
+      "id": "CROSS-TAB-014",
+      "condition": "late acknowledgement cannot resurrect an explicitly cleared identity",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "3cb4e5e61ec0e19dea1779275ead0784e834962043178218866864c45c18f21a"
+    },
+    {
+      "id": "CROSS-TAB-015",
+      "condition": "stale autosave cannot replace an explicitly cleared identity",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "757c8dc356aaa4819497ea6a0abb3edaa1bffc645e8317753e4345836ec63d16"
+    },
+    {
+      "id": "CROSS-TAB-016",
+      "condition": "retired pending authority cannot freeze under the fresh cleared identity",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "source_sha256": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+      "hash": "f7d619d89dd1b144fbff6be83785f04f02ea79ac0df58de922416c21ecaf00da"
+    },
+    {
+      "id": "CROSS-TAB-012",
+      "condition": "adopting another tab's freeze does not upload this tab's selected File or consent",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/components/SiteCaptureStart.recovery.test.tsx",
+      "source_sha256": "042d4b8bbd3d71a927013362b546641e1893658da8ea3ade43713e3aaa7d2d0e",
+      "hash": "ed846ba5d0c6be8c318efb7b992873725db3b60d11a4fe310bb1c883f0e609a0"
+    },
+    {
+      "id": "CROSS-TAB-013",
+      "condition": "unsupported coordination blocks dispatch with a recovery next step",
+      "layer": "offline-helper-or-component",
+      "source": "client/tests/components/SiteCaptureStart.recovery.test.tsx",
+      "source_sha256": "042d4b8bbd3d71a927013362b546641e1893658da8ea3ade43713e3aaa7d2d0e",
+      "hash": "b4ee31b74da28e6b1bb29381cb6dddbe5b76039cf2ca93fbdd780014bea5bc71"
+    },
+    {
+      "id": "UI-CROSS-TAB-001",
+      "condition": "concurrent Start with delayed storage events shares exact frozen authority",
+      "layer": "intercepted-api-chromium-two-tab",
+      "source": "e2e/reliability-program-intake.spec.ts",
+      "source_sha256": "97c2bdd06d1ec983e1425ddca1b6f7d0d719b7db2b1dc5dd5c8040b523cf5f23",
+      "hash": "b623a12f69d88e68ac17c3c8911dc74d388fd2ab178e507f499e127b1c42d4a1"
+    },
+    {
+      "id": "UI-CROSS-TAB-002",
+      "condition": "stale edits after lost response preserve winner across reload",
+      "layer": "intercepted-api-chromium-two-tab",
+      "source": "e2e/reliability-program-intake.spec.ts",
+      "source_sha256": "97c2bdd06d1ec983e1425ddca1b6f7d0d719b7db2b1dc5dd5c8040b523cf5f23",
+      "hash": "92128e39e6af109f6b2512901f650e0eecc1600d40838f8053cef5644978655b"
+    },
+    {
+      "id": "UI-CROSS-TAB-003",
+      "condition": "clear in another tab survives an old acknowledgement before fresh explicit Start",
+      "layer": "intercepted-api-chromium-two-tab",
+      "source": "e2e/reliability-program-intake.spec.ts",
+      "source_sha256": "97c2bdd06d1ec983e1425ddca1b6f7d0d719b7db2b1dc5dd5c8040b523cf5f23",
+      "hash": "5adb019cbb6023c47738d61e4084a77b5584aff696f22f5bf96d0aecc36ae876"
+    },
+    {
+      "id": "UI-CROSS-TAB-004",
+      "condition": "missing browser coordination has a fresh-customer next step without dispatch",
+      "layer": "intercepted-api-chromium-simulated-capability-fault",
+      "source": "e2e/reliability-program-intake.spec.ts",
+      "source_sha256": "97c2bdd06d1ec983e1425ddca1b6f7d0d719b7db2b1dc5dd5c8040b523cf5f23",
+      "hash": "de633a81bcd639dba7aae9f9840a9c583db60176cc2c4c83095256d43412c7e0"
+    }
+  ],
+  "counts": {
+    "offline_unique": 16,
+    "browser_unique": 4,
+    "browser_repeats_per_selected": 3
+  },
+  "scope": "Anonymous/account+authoring scoped browser recovery; actual Chromium Web Locks/localStorage; APIs intercepted; no real backend or provider proof",
+  "replay": {
+    "focused": "node node_modules/vitest/vitest.mjs run client/tests/components/SiteCaptureStart.test.tsx client/tests/components/SiteCaptureStart.recovery.test.tsx client/tests/lib/siteCaptureDraft.reliability.test.ts client/tests/lib/siteCaptureDraft.crossTab.test.ts --maxWorkers=1 --minWorkers=1",
+    "browser": "node node_modules/@playwright/test/cli.js test --config playwright.reliability-intake.config.ts",
+    "selected_repeat": "node node_modules/@playwright/test/cli.js test --config playwright.reliability-intake.config.ts --grep UI-CROSS-TAB --repeat-each=3"
+  },
+  "source_sha256": {
+    "client/src/components/site/SiteCaptureStart.tsx": "36c8f42ae0851553e7b730b687e54b5ed6bf8eaa7536ac8ea586a1905b5da0f0",
+    "client/src/lib/siteCaptureDraft.ts": "253ed07f4c113a9af8be5f05ce4a46eddaa214811b23bc85d7a801ac4ac721c3",
+    "client/tests/lib/siteCaptureDraft.crossTab.test.ts": "e3acd18767fa4772d7e56dad17f46dede25b7a2ed3866b174c792213d292798a",
+    "client/tests/components/SiteCaptureStart.recovery.test.tsx": "042d4b8bbd3d71a927013362b546641e1893658da8ea3ade43713e3aaa7d2d0e",
+    "e2e/reliability-program-intake.spec.ts": "97c2bdd06d1ec983e1425ddca1b6f7d0d719b7db2b1dc5dd5c8040b523cf5f23"
+  },
+  "results": {
+    "receipts": {
+      "baseline_helper": {
+        "path": "output/reliability-program/intake/cross-tab/baseline-helper.log",
+        "sha256": "5076ccf6362952bcff804ef5b55a9eab11ca74e42e4d5f5b89215e8a7f12e139"
+      },
+      "baseline_final_browser": {
+        "path": "output/reliability-program/intake/cross-tab/baseline-browser-create-barrier/results.json",
+        "sha256": "91c4120ee5ee59140bad438c77ae85c4b856332777e17be28e3ae3bb67aa9288"
+      },
+      "scored_focused": {
+        "path": "output/reliability-program/intake/cross-tab/v2-scored-focused.log",
+        "sha256": "2dfdcfdfb756186322e3af095e0966e244a3c46823d4cfceaf93565bb81895f4"
+      },
+      "scored_browser": {
+        "path": "output/reliability-program/intake/cross-tab/v2-scored-browser/results.json",
+        "sha256": "89dc73425c87d4fc3da5061f46de0b0e3afe21a21a8ed1080c809dd231cbb8f6"
+      },
+      "selected_repeats": {
+        "path": "output/reliability-program/intake/cross-tab/v2-repeat-browser/results.json",
+        "sha256": "5f396cb72e12253eae5c457073cee9ae1ea4f4d3a0df11d4c30966f68650cae0"
+      },
+      "typecheck": {
+        "path": "output/reliability-program/intake/cross-tab/v2-typecheck.log",
+        "sha256": "cac4641f604577738681f4f70c0ded3f441c0562d5814768106527214a0f49d4"
+      },
+      "graphify": {
+        "path": "output/reliability-program/intake/cross-tab/v2-graphify.log",
+        "sha256": "2cdf5f56b4b1a5c43ddd73820efac4a93431f04f2800510d74c00cf8e6215d97"
+      },
+      "exploratory_selected_file_failure": {
+        "path": "output/reliability-program/intake/cross-tab/candidate-focused.log",
+        "sha256": "dce58ca9e78352169886dc1c4501fa5d6011c528271f195a0db4ddfde8f50d17"
+      },
+      "exploratory_physical_click_failure": {
+        "path": "output/reliability-program/intake/cross-tab/candidate-browser-final/results.json",
+        "sha256": "2dcf6669f9c608801d189a29a5384c86211109f35919543ceb1b1d2c79cfd4f8"
+      },
+      "exploratory_cached_csrf_failure": {
+        "path": "output/reliability-program/intake/cross-tab/scored-browser/results.json",
+        "sha256": "882441658050faa0f4e44b520693f1b62c16aab1ae4ca062d943b16cd27f805b"
+      }
+    },
+    "offline_supplemental": {
+      "generated": 16,
+      "deduplicated": 16,
+      "attempted": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "blocked": 0,
+      "partial": 0
+    },
+    "browser_supplemental": {
+      "generated": 4,
+      "deduplicated": 4,
+      "attempted": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "blocked": 0,
+      "partial": 0
+    },
+    "focused_suite": {
+      "checks_passed": 133,
+      "checks_failed": 0,
+      "not_unique_journey_count": true
+    },
+    "full_browser_suite": {
+      "distinct_cases": 12,
+      "attempted": 12,
+      "passed": 12,
+      "failed": 0
+    },
+    "selected_repeats": {
+      "distinct_cases": 4,
+      "additional_attempts": 12,
+      "passed": 12,
+      "failed": 0,
+      "total_attempts_per_selected_case_including_full_suite": 4,
+      "new_unique_cases": 0
+    },
+    "baseline": {
+      "minimized_helper_cases": 3,
+      "failed": 3,
+      "final_browser_cases": 2,
+      "failed_browser": 2
+    },
+    "typecheck": "passed",
+    "graphify": "passed",
+    "provider_calls": 0,
+    "real_notifications": 0,
+    "deployed": "not by this author slice",
+    "reviewer_clear_receipt": {
+      "path": "output/reliability-program/reviewer/clear-race-observed.json",
+      "sha256": "a714cdde730f54ab6e330fa242fce62293ec84f252a92a999d572f04813f9c7e",
+      "source_identity_limit": "Uncommitted candidate source snapshot not retained; reviewer-observed failure only, not exact-commit before/after."
+    }
+  },
+  "corrections": [
+    {
+      "reason": "Concurrent physical page clicks submitted only one form in an exploratory run; deterministic UI clicks now hold both CSRF GETs until both forms start, then release together. Exact-body assertions retained.",
+      "retained_failure": "output/reliability-program/intake/cross-tab/candidate-browser-final/results.json",
+      "baseline_rechecked": "Both corrected browser cases fail exact 46e6b2ef runtime."
+    },
+    {
+      "reason": "CSRF was already cached before the proposed gate. UI001 now holds create replies until both ordinary UI submissions are in flight, eliminating physical-click and CSRF-cache harness nondeterminism. No exact-body assertion removed.",
+      "retained_failure": "output/reliability-program/intake/cross-tab/scored-browser/results.json",
+      "baseline_rechecked": "Both final UI001/UI002 fail exact 46e6b2ef runtime; baseline-browser-create-barrier/results.json."
+    },
+    {
+      "reason": "Independent reviewer observed clear followed by old acknowledgement resurrecting old identity in uncommitted candidate. No exact executed source snapshot was retained, so this is reviewer-observed evidence, not exact-commit before/after. Identity/operation fencing added, with new three offline and two browser neighbors.",
+      "receipt": "output/reliability-program/reviewer/clear-race-observed.json",
+      "denominator_change": "13->16 supplemental offline; 2->4 supplemental browser; original90 unchanged."
+    }
+  ],
+  "version": 2,
+  "previous_catalog": {
+    "sha256": "82271c21a5c9dbde9e9ff52570a10be7772e256362c600950007905335475d03",
+    "frozen_at": "2026-10-08T05:18:07.239368+00:00",
+    "counts": {
+      "offline_unique": 13,
+      "browser_unique": 2,
+      "browser_repeats_per_selected": 3
+    },
+    "retained": "output/reliability-program/intake/cross-tab/exploratory-v1-catalog.json"
+  },
+  "supported_scope": "Fresh creation requires secure modern Web Locks plus available origin persistence, explicitly accepted by coordinator. Tested Chromium desktop, existing mobile emulation; no Safari/incognito or abrupt crash durability claim. Current production baseline1b8d810 was memory-only; persistent legacy writer bundles existed only in isolated pre-release tests, not an observed deployed incident.",
+  "artifact_storage": {
+    "raw_root": "/Users/nijelhunt_1/.codex/worktrees/reliability-intake-20261007/Blueprint-WebApp/output/reliability-program/intake/cross-tab",
+    "format": "UTF-8 JSON/text and Playwright trace ZIP; code and portable catalog in private company Git",
+    "retention": "At most30 days per program charter; coordinator owns retention and minimal audit metadata. No new hosted service."
+  }
+}
