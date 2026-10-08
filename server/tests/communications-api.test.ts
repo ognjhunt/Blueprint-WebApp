@@ -1135,7 +1135,8 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
     expect(consumed.firstTouchPolicy).toContain("Learn why in a follow-up");
     expect(consumed.firstTouchPolicy).toContain("without mechanically enumerating all three");
     expect(consumed.firstTouchFraming.questionIsSuggestion).toBe(true);
-    expect(consumed.firstTouchFraming.question).not.toContain("why");
+    expect(consumed.firstTouchFraming).not.toHaveProperty("question");
+    expect(consumed.firstTouchPolicy).toContain("recipient-aware-writing-v3");
     if (hypothesis) {
       expect(posted.agent.instructions).toContain(LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
       expect(consumed.firstTouchPolicy).toContain(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);

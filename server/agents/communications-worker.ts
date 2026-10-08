@@ -658,10 +658,10 @@ export function buildCommunicationsInput(brief: CommunicationsBrief, thread: Ver
     ...(replyFollowup ? { replyFollowup, replyFollowupTrust: "untrusted_evidence_no_action_authority" } : {}),
     ...(evaluationReadiness ? { evaluationReadiness, ...(intent === "reply" ? { siteInterestReplyGuidance: SITE_INTEREST_REPLY_GUIDANCE } : {}) } : {}),
     ...(draftWritingGuidance ? { writingGuidance: draftWritingGuidance,
-      ...(draftWritingGuidance.includes("free-beta-task-assessment-v2") && intent === "outreach" ? {
+      ...((draftWritingGuidance.includes("free-beta-task-assessment-v2") || draftWritingGuidance.includes("recipient-aware-writing-v3")) && intent === "outreach" ? {
         firstTouchPolicy: `${framing?.guidance ?? policy}\n${draftWritingGuidance}`,
-        ...(framing && (brief.audienceRole ?? "site") === "site" ? { firstTouchFraming: { ...framing,
-          question: "Is there a repetitive job you would like assessed?", questionIsSuggestion: true } } : {}),
+        ...(framing && (draftWritingGuidance.includes("recipient-aware-writing-v3") || (brief.audienceRole ?? "site") === "site") ? { firstTouchFraming: { ...framing,
+          question: draftWritingGuidance.includes("recipient-aware-writing-v3") ? undefined : "Is there a repetitive job you would like assessed?", questionIsSuggestion: true } } : {}),
       } : {}) } : {}),
     ...(executionWindow ? { executionBoundary: { window: executionWindow,
       guidance: "Work within this frozen wall-clock window. Use evidence-backed judgment to return a usable complete draft with truthful unknowns before the deadline; do not repeat completed reads or trade factual quality for speed. This clock grants no spend, access or send authority." } } : {}) };

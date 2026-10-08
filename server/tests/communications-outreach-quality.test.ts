@@ -8,7 +8,7 @@ import { parseCommunicationsOutput } from "../agents/communications-output";
 import { buildCommunicationsInput, buildCommunicationsPayload } from "../agents/communications-worker";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 import { COMMUNICATIONS_FRAMING_VERSION } from "../agents/communications-launch-framing";
-import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, communicationsBatchRepetition, communicationsWritingSignals } from "../agents/communications-outreach-quality";
+import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, communicationsWritingVariant, communicationsBatchRepetition, communicationsWritingSignals } from "../agents/communications-outreach-quality";
 
 describe("prospective founder outreach quality (offline fixtures)", () => {
   it.each(["named", "inbox", "dated", "future"] as const)("retains evidence and accepts a natural %s first reply through real input/parser/review", kind => {
@@ -16,6 +16,14 @@ describe("prospective founder outreach quality (offline fixtures)", () => {
     const input = JSON.parse(buildCommunicationsInput(f.brief, null, "outreach", "pending_approval", undefined, undefined,
       COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION));
     expect(input.researchBrief).toEqual(f.brief);
+    expect(input.firstTouchFraming).not.toHaveProperty("question");
+    const variant = communicationsWritingVariant({ ...f.output, reason: "[writing-hypothesis:job-relevance] Evidence-backed relevance, no outcome yet." })!;
+    expect(variant).toMatchObject({ hypothesisId: "job-relevance", interpretationOnly: true });
+    const changed = communicationsWritingVariant({ ...f.output, reason: "[writing-hypothesis:job-relevance]", subject: "A different supported angle" })!;
+    expect(changed.variantId).not.toBe(variant.variantId);
+    expect(changed.subjectVariantId).not.toBe(variant.subjectVariantId);
+    expect(changed.bodyVariantId).toBe(variant.bodyVariantId);
+    expect(communicationsWritingVariant(f.output)).toBeNull();
     expect(input.firstTouchPolicy).toContain("Unknown automation, manual work");
     expect(input.firstTouchPolicy).toContain("recipient-site conflicts remain held");
     expect(input.firstTouchPolicy).toContain("Keep dated announcements dated");

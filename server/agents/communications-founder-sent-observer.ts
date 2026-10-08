@@ -1,3 +1,4 @@
+import { gmailDraftPlain } from "./communications-gmail-draft";
 import { createHash } from "node:crypto";
 import { type gmail_v1 } from "googleapis";
 import {
@@ -165,7 +166,7 @@ export async function founderSentRepliesAllowed(db: FirebaseFirestore.Firestore,
 type VerifiedDraftBinding = {
   version: "blueprint.communications-gmail-draft-binding.v1"; jobId: string; ledgerId: string; prospectId: string;
   deliveryKey: string; state: "verified"; draftId: string; verifiedAt: number; revisionId?: string | null;
-  content: { jobId: string; to: string; subject: string; body: string; payloadDigest: string; reviewDigest: string; messageId?: string };
+  content: { jobId: string; to: string; subject: string; body: string; payloadDigest: string; reviewDigest: string; messageId?: string; mimeProfile?: string };
   receipt: { draftId: string; messageId: string; threadId: string; authoredRfcMessageId?: string; observedRfcMessageId?: string };
 };
 function verifiedBinding(jobId: string, value: any): VerifiedDraftBinding | null {
@@ -239,7 +240,7 @@ type ThreadEvaluation = { kind: "absent" } | { kind: "reconcile"; reason: string
 type EvaluatedBinding = Pick<VerifiedDraftBinding, "jobId" | "verifiedAt" | "content" | "receipt">;
 const normalizedBody = (value: string) => value.replace(/\r\n/g, "\n");
 function exactCopy(message: FounderSentThreadMessage, binding: EvaluatedBinding) {
-  return message.subject === binding.content.subject && normalizedBody(message.body) === normalizedBody(binding.content.body);
+  return message.subject === binding.content.subject && normalizedBody(message.body) === normalizedBody(gmailDraftPlain(binding.content));
 }
 /** Positive evidence that a message in a shared thread is this Blueprint copy. */
 function linkBasis(message: FounderSentThreadMessage, binding: EvaluatedBinding): MatchBasis | null {
