@@ -25,8 +25,9 @@ export const siteAssessmentTask: StructuredTaskDefinition<z.infer<typeof siteAss
   build_outcome_contract: () => ({
     objective: "Assess one admitted site's job using video, operator statements and sourced robot evidence.",
     success_criteria: ["Return the six assessment sections, including uncertainties and a useful next action."],
-    self_checks: ["Cite admitted evidence; preserve missing facts and the no-robot option."],
-    proof_requirements: ["Retain source provenance, tool receipts and provider accounting."],
+    self_checks: ["Select admitted observations or qualified fields; factual text is rendered from sources, while unbound interpretations remain unverified.",
+      "Preserve missing facts and the no-robot option; a source-bound report is not proof of robot suitability."],
+    proof_requirements: ["Retain site_assessment.v2 source-bound output, raw unverified model prose, source provenance, tool receipts and provider accounting."],
     pass_threshold: 0.75, bounded_scope: "One internal advisory assessment; no fulfillment or qualification changes.",
   }),
 };
