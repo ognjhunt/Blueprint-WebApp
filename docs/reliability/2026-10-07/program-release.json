@@ -1360,7 +1360,7 @@
     "helper_head": "42bc50ad960b7639792bf8ae79a0973d85445f2e",
     "UI_head": "d66f083e",
     "root_route_head": "07ca3c73",
-    "state": "actual_HTTP_SDK_scripted_worker_join_passed;required_PR_CI_and_final_review_active;not_deployed",
+    "state": "required_PR_CI_running;final_independent_source_approved;not_deployed",
     "helper_checks": 80,
     "route_status_checks": 42,
     "UI_component_checks": 33,
@@ -1372,7 +1372,9 @@
     "required_PR_CI": 37816466483,
     "integrated_regression_checks": 156,
     "integrated_intercepted_UI_checks": 5,
-    "private_receipt_sha256": "52984df65d7dba08516943814c32687cdeb5a8a6821e602a845a37fb5e9b2c1e"
+    "private_receipt_sha256": "52984df65d7dba08516943814c32687cdeb5a8a6821e602a845a37fb5e9b2c1e",
+    "independent_review_commit": "89079733a",
+    "independent_review_state": "exact1e0e_bounded_source_approved;independent18helpers7UI1joinedpass"
   },
   "historical_shared_3a_release": {
     "sha": "3a472ee99c62ca19b17c3e3f6529f3ca026afbb3",
@@ -1422,5 +1424,13 @@
       "notification_sends": 0
     },
     "claim_ceiling": "Exact source/paired native deployment and safe health/local-draft/clear UI. Does not establish a successful provider assessment."
+  },
+  "technical_expiry_followup": {
+    "state": "read_only_confirmed_no_supported_renewal;separate_scoped_offline_continuation_repair_active",
+    "expired_dispatch": "forbidden",
+    "original_expiry_and_authority_digest": "preserved;changing_originalexpiry wouldbreakreceiptaccounting",
+    "original_slots_cap_unknown_history": "unchanged",
+    "inspection_sha256": "8ec45da485dee019c25c8bd1bfdbfb7799d7d34b949a7a77140e93b96ae7770d",
+    "new_authority_or_paid_calls": false
   }
 }
