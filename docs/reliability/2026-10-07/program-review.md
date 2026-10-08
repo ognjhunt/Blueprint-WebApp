@@ -608,3 +608,26 @@ its identity/health/local-draft ceiling and zero intake dispatch. Earlier d898
 receipts are historical. This release establishes deployed narrow stale-source
 admission code and scoped draft behavior; two admitted synthetic entailment
 defects and joined assessment-publication/reference-quality shortfalls remain.
+
+
+**Reopened: omitted/null owner-target authority at `a25bddbe`; affected source
+release approval withdrawn.** A separate cloud reviewer traced the actual staged
+website task/success/execution records through the native adapter with the real
+producer contract-required flag. When owner targets are absent, the a25 conditional
+still marks fixed development controls confirmed; the real rigid seal returns a
+confirmed/task_owner contract. Read-only PR2648 comments 6054895177/6054949521
+record the minimized lineage and preserve its initial zero-thickness support
+fixture refusal separately from the corrected synthetic support prerequisite.
+This is a consequential false authority counterexample in isolated source
+execution, not evidence of completed native/customer performance or incidence.
+
+The earlier a25 approval proved supplied unknown/explicit targets and their
+proposal-only consumer refusals, while treating omitted criteria as historical
+compatibility. That assumption cannot justify a claim of owner confirmation.
+Those scoped passing observations remain valid; they do not override this newly
+executed omitted-target defect. The smallest correction is to make website
+fixed-control authority proposal_only for omitted/null as well as supplied
+targets, retain all originals and preserve genuinely separately confirmed
+contracts. Exact new diff and unchanged-lineage replay are required before
+release approval is restored. Geometry preparation may remain eligible; no
+provider, disclosure, spending or new execution-mode authority follows.
