@@ -614,10 +614,11 @@
         "aggregate_with_unchanged_original_prefix_usd": 8.146304,
         "aggregate_is_not_current_approval": true,
         "same_video_hash_does_not_establish_coverage_reuse": true,
-        "scope": "Default SDK can take more turns; coverage JSON continuations and retries are separately admitted. New intake also invokes qualification and operator notices. Verify existing-owned normal upload route and exact authorized notification destination; no broad outbox dispatch or configuration change."
+        "scope": "Default SDK can take more turns; coverage JSON continuations and retries are separately admitted. New intake also invokes qualification and operator notices. Verify existing-owned normal upload route and exact authorized notification destination; no broad outbox dispatch or configuration change.",
+        "current_case_upload_sequencing_receipt_sha256": "f96e97d101ad555c1b7423a5c1a86a6fac2d24cdaa158d0c3e10b8f356ac223b"
       },
       "programme_seam": {
-        "state": "independent_source_approved71controls;PR953_required_CI_active",
+        "state": "independent_source_approved85controls;PR953_final_required_CI_active",
         "observed_gap": "Existing capture reservation transaction does not read or consume shared programme held slots. Optional coverage must be deferred before claiming to avoid introducing an unresolved historical attempt.",
         "repair_scope": "Server-owned optional request programme ref; default-denied existingFirestore record; same-transaction bound held-slot admission with immutable full reservations; default customer behavior unchanged.",
         "source_and_control_manifest_sha256": "06cdec583bf51739f7fb81e8cfcb5216db216bbe7e91b8fee1b68283539fbd6a",
@@ -629,16 +630,17 @@
         "calls_allowed": "1additionalGemini+up_to3existingheldSol;oneaccountableexecutionowner;noautomaticadditionalretry",
         "notices_allowed": "Job-status messages only to verified existing owner inbox; no other recipient or outreach.",
         "remaining_engineering": "Required CI, protected merge, paired deployment and exact serving verification; separate real historical capture uncertainty must be reconciled before any admission.",
-        "head_sha": "10d62e9a06e6b57b7652149aad2367eaecff5682",
+        "head_sha": "f6a0a7dc3ba7fa6868804d18e2ab1d602d96db51",
         "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/953",
-        "required_CI_run": 37797951016,
-        "independent_review_commit": "cf5f3f86",
-        "focused_checks": 71,
+        "required_CI_run": 37800310677,
+        "independent_review_commit": "21f8a00e",
+        "focused_checks": 85,
         "new_unique_case_credit": 0,
-        "final_receipt_sha256": "b5ce0c1123e255109d763e862d053bb419db5a9d965a920901dbcefcec9cf570"
+        "final_receipt_sha256": "b5ce0c1123e255109d763e862d053bb419db5a9d965a920901dbcefcec9cf570",
+        "reconciliation_receipt_sha256": "91eac714282ab0e3c94d926939c20942364a7e779e2b747ed51750c5b5adb9ed"
       },
       "historical_capture_eligibility": {
-        "state": "blocked_pending_exact_history_reconciliation",
+        "state": "exact3preprovider_evidence_independently_accepted;supported_binding_reviewed;canonical_import_pending",
         "capture_budget_exists": false,
         "coverage_review_count": 1,
         "retained_attempts": 3,
@@ -646,9 +648,13 @@
         "scoped_matching_sdk_rows": 0,
         "query_limit_reached": false,
         "unknown_is_not_zero": true,
-        "root_cause": "Existing historical-attempt guard rejects missing budget. Review state/null can also follow caught provider errors, so it cannot prove zero dispatch. Preserve history; no counter reset or zero seed.",
+        "root_cause": "Exactly3matched signing failures precede providerentry in exacthistoricalsource; noattemptreset/costseed. OtherSDK/history uncertainty and originalisolatedGemUNKNOWN remain refused/reserved.",
         "private_receipt_sha256": "ba44feda5a40611c5c99556c70ef785b221c65155996b2c8c4bc40c6fc4a968a",
-        "owner": "existing dishwasher execution task"
+        "owner": "existing dishwasher execution task",
+        "private_preprovider_receipt_sha256": "0abd8ba87009482c69300b3aaa1d7a5734cf724c5b501d8c24980b8026fcacbb",
+        "private_raw_deploy_receipt_sha256": "f04e38e246baabe912ea632b69c4315f732799a25bb6ddc0214df758ef327d12",
+        "review_commit": "7af37843",
+        "historical_serving_attribution": "Bounded inference fromnative finishedAtwindow, not contemporaneousLIVEread; originalretrievaltimestampmissingretained."
       }
     },
     {

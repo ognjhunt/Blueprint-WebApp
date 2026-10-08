@@ -579,10 +579,10 @@
       "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
     }
   },
-  "current_verified_webapp_release": "5f29d12b1d4577e7ee79cdad142fa5f8a0674a38",
+  "current_verified_webapp_release": "aa919afc052f32897fedb513dff1b00165418ffb",
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
-    "state": "WebApp_reviewed_merged_paired_deployed_safe_presentation_verified;Pipeline_required_CI_failed_scoped_import_repair_under_review;live_mapping_blocked",
+    "state": "WebApp_deployed;Pipeline_reviewed_protected_merged;exact_main_CI_and_promotion_active;actual_mapping_blocked",
     "root_integration": "78fe507544325d389ee87e99179aa0ed3a7ab627",
     "webapp_consumer": "b346132c1422cf7ab0e63f7e1f5bc7f65adfa2fd",
     "pipeline_candidate": "29fbe1811c70c76117bd715c1192433cf70003a2",
@@ -599,7 +599,7 @@
     "required_WebApp_PR_CI": 37780219360,
     "required_WebApp_PR_CI_state": "success_all9_executed_checks",
     "required_Pipeline_PR_CI": 37790170932,
-    "required_Pipeline_PR_CI_state": "new_exact_fe1_CI_active_after_reviewed_root_cause_repair",
+    "required_Pipeline_PR_CI_state": "success_exact_fe1_all4shards_CPUaggregate",
     "joined_replay": {
       "unique_cases": 1,
       "frozen_attempts": 3,
@@ -660,7 +660,12 @@
       "conclusion": "failure",
       "failed_check": "tests/test_live_pipeline_import_isolation.py::test_control_plane_lane_does_not_import_hot_lane",
       "retained": true
-    }
+    },
+    "pipeline_merge_sha": "91c1bc2117f3fb8111d28aca865c9b893cc20b76",
+    "pipeline_merged_at": "2026-10-08T15:12:59Z",
+    "pipeline_main_CI": 37798891223,
+    "pipeline_production_promotion_run": 37798996014,
+    "pipeline_production_promotion_state": "active_exact91_workflowdispatch_reason_production_deployment_promotion"
   },
   "assessment_continuation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/947",
@@ -820,6 +825,95 @@
     }
   },
   "latest_shared_main_release": {
+    "sha": "aa919afc052f32897fedb513dff1b00165418ffb",
+    "main_CI": 37797594624,
+    "main_CI_conclusion": "success",
+    "deploy_workflow": 37798819591,
+    "deploy_conclusion": "success",
+    "state": "paired_native_LIVE_and_exact_serving_safe_UI_verified",
+    "render_receipts": [
+      {
+        "service_id": "srv-d4vnmk3e5dus73aiohk0",
+        "deployment_id": "dep-db3r5rs9v7es73e58rcg",
+        "sha": "aa919afc052f32897fedb513dff1b00165418ffb",
+        "status": "live",
+        "created_at": "2026-10-08T15:12:47.942833Z",
+        "finished_at": "2026-10-08T15:15:50.252587Z",
+        "updated_at": "2026-10-08T15:16:13.827191Z"
+      },
+      {
+        "service_id": "srv-d9t8gg1t0dsc73am9q70",
+        "deployment_id": "dep-db3r5s2j9qps738od870",
+        "sha": "aa919afc052f32897fedb513dff1b00165418ffb",
+        "status": "live",
+        "created_at": "2026-10-08T15:12:48.595543Z",
+        "finished_at": "2026-10-08T15:15:56.758646Z",
+        "updated_at": "2026-10-08T15:15:56.758972Z"
+      }
+    ],
+    "private_render_receipt_sha256": "4290da82a8876b8ae2341662af0e50cd858a8fc6450253c10002343b7c0d1333",
+    "public_smoke": {
+      "result_sha256": "1ccfcfe2f74546ad22f9fdec3cbdb3c65ee5a3bd31a7b6ab54eeb4fff70d50cf",
+      "outcome": "presentation_passed",
+      "checks_passed": 18,
+      "serving_sha_before": "aa919afc052f32897fedb513dff1b00165418ffb",
+      "serving_sha_after": "aa919afc052f32897fedb513dff1b00165418ffb",
+      "intake_mutations": 0,
+      "provider_calls": 0,
+      "notification_sends": 0
+    },
+    "claim_ceiling": "18safe draft/recovery/presentation checks and nativeexactSHA; no productionupload, customerassessment, providerperception or notice proof."
+  },
+  "programme_admission_followup": {
+    "state": "source_and_exact3historical_evidence_reviewed;new_required_CI_active;not_deployed",
+    "head_sha": "f6a0a7dc3ba7fa6868804d18e2ab1d602d96db51",
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/953",
+    "independent_review_commit": "21f8a00e",
+    "required_CI_run": 37800310677,
+    "focused_checks": 85,
+    "typecheck": "pass",
+    "graphify": "pass",
+    "receipt_sha256": "b5ce0c1123e255109d763e862d053bb419db5a9d965a920901dbcefcec9cf570",
+    "claim_ceiling": "Matched original refusal and SDK continuation/dispatch gaps repaired with scripted tests/fakeDB; exactrealretainedhistory purevalidation accepted. Server-owned production import/release and livevideo remain unexecuted.",
+    "reconciliation_receipt_sha256": "91eac714282ab0e3c94d926939c20942364a7e779e2b747ed51750c5b5adb9ed"
+  },
+  "beta_presentation_followup": {
+    "state": "protected_merged_paired_deployed_live_beta_verified",
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/951",
+    "reviewed_head": "709c44fb77198e3d96b28faedd34ae06b2b8d24c",
+    "merge_sha": "aa919afc052f32897fedb513dff1b00165418ffb",
+    "merged_at": "2026-10-08T15:03:31Z",
+    "required_PR_CI": 37795958298,
+    "required_PR_contexts_passed": 9,
+    "main_CI": 37797594624,
+    "claim_ceiling": "Presentation/manual admission release, not assessment-quality beta readiness.",
+    "main_CI_conclusion": "success",
+    "deploy_workflow": 37798819591,
+    "native_deployments": [
+      {
+        "service_id": "srv-d4vnmk3e5dus73aiohk0",
+        "deployment_id": "dep-db3r5rs9v7es73e58rcg",
+        "sha": "aa919afc052f32897fedb513dff1b00165418ffb",
+        "status": "live",
+        "created_at": "2026-10-08T15:12:47.942833Z",
+        "finished_at": "2026-10-08T15:15:50.252587Z",
+        "updated_at": "2026-10-08T15:16:13.827191Z"
+      },
+      {
+        "service_id": "srv-d9t8gg1t0dsc73am9q70",
+        "deployment_id": "dep-db3r5s2j9qps738od870",
+        "sha": "aa919afc052f32897fedb513dff1b00165418ffb",
+        "status": "live",
+        "created_at": "2026-10-08T15:12:48.595543Z",
+        "finished_at": "2026-10-08T15:15:56.758646Z",
+        "updated_at": "2026-10-08T15:15:56.758972Z"
+      }
+    ],
+    "owner_GET_only_beta_checks": 15,
+    "customer_mutations": 0,
+    "provider_calls": 0
+  },
+  "historical_shared_dc4_release": {
     "sha": "dc4db4e00188daa80a82337f2f2d37b05afb56ed",
     "main_CI": 37791654850,
     "main_CI_conclusion": "success",
@@ -856,27 +950,20 @@
     },
     "claim_ceiling": "Native web/worker exact-SHA deployment and current-main CI only; earlier5f safe18presentation receipt remains historical. No dc4publicUI/provider/customerassessment proof."
   },
-  "programme_admission_followup": {
-    "state": "source_reviewed;required_CI_active;not_deployed",
-    "head_sha": "10d62e9a06e6b57b7652149aad2367eaecff5682",
-    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/953",
-    "independent_review_commit": "cf5f3f86",
-    "required_CI_run": 37797951016,
-    "focused_checks": 71,
-    "typecheck": "pass",
-    "graphify": "pass",
-    "receipt_sha256": "b5ce0c1123e255109d763e862d053bb419db5a9d965a920901dbcefcec9cf570",
-    "claim_ceiling": "Scripted provider/fake store proof only; no production authority writes/paid calls. Real historical capture uncertainty remains an independent admission blocker."
-  },
-  "beta_presentation_followup": {
-    "state": "protected_merged;exact_main_CI_active;deployment_pending",
-    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/951",
-    "reviewed_head": "709c44fb77198e3d96b28faedd34ae06b2b8d24c",
-    "merge_sha": "aa919afc052f32897fedb513dff1b00165418ffb",
-    "merged_at": "2026-10-08T15:03:31Z",
-    "required_PR_CI": 37795958298,
-    "required_PR_contexts_passed": 9,
-    "main_CI": 37797594624,
-    "claim_ceiling": "Presentation/manual admission release, not assessment-quality beta readiness."
+  "notification_preferences_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/952",
+    "reviewed_head": "a33e6da588287772c328689c915c3849ac23ea3f",
+    "state": "independently_reviewed_protected_merged;exact_main_release_pending",
+    "merge_sha": "4d0deb46db836237a6b50ed60120efb387e30e31",
+    "merged_at": "2026-10-08T15:23:08Z",
+    "required_PR_CI": 37798708025,
+    "required_executed_contexts_passed": 9,
+    "focused_checks": 305,
+    "focused_files": 16,
+    "receipt_sha256": "a0675ddfd988c6a7bd7331d10bbe174170947c254767bf0ca38ffdb0c0d33261",
+    "native_query_receipt_sha256": "c2425169323a85a946dd2a0a3636c770bd3779ac58b5f5dc0d2c477d378909b0",
+    "index_state": "Bothactualqueryshapesnative200OK;noindexmutationneeded/performed",
+    "real_sends": 0,
+    "scope": "Explicitoptin/currentconsent+safeboundedworkerfanout, partialregistryunknownfacts;640schedulesseparate,nooriginalcoveragecredit."
   }
 }
