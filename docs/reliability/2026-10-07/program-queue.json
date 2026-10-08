@@ -3362,5 +3362,54 @@
       "releaseStatus": "code-tested; independent review, merge/deployment owned by coordinator",
       "limitation": "Synthetic malformed-adapter counterexample; no evidence that production Resend has returned this malformed shape"
     }
-  ]
+  ],
+  "fixturePrerequisiteCorrection": {
+    "version": "pr940-current-authority.v1",
+    "runtimeRevision": "2e5abb97a9618bc2ee8c3be640c1979ddca45737",
+    "reason": "New real taskLifecycleNotificationIsCurrent denies a missing inbound request. Previous outbox-only fixtures lacked the current producer authority, so cancellation was correct and provider faults were not reached. This is a fixture correction, not a relaxation of withdrawal safety or a runtime product repair.",
+    "repair": "Seed a synthetic current consent attestation and source-bound capture request before dispatch; leave actual capture-notice authority unmocked; assert each provider-failure variant reaches sendEmail exactly once.",
+    "caseDefinitions": "All 150 stable IDs/hashes/parameters/expected transitions remain identical; no new case credits or changed thresholds.",
+    "before": {
+      "attempted": 150,
+      "passed": 81,
+      "failed": 69,
+      "providerRows": 30,
+      "providerAdapterCalls": 0,
+      "providerFaultCredit": 0
+    },
+    "after": {
+      "attempted": 150,
+      "passed": 150,
+      "failed": 0,
+      "skipped": 0,
+      "blocked": 0,
+      "partiallyExecuted": 0,
+      "providerRows": 30,
+      "providerAdapterCalls": 30,
+      "providerFaultReached": 30
+    },
+    "afterSourceHashes": {
+      "server/utils/captureOutbox.ts": "78a3bd1cc0b5ae3590cc879eac7291825694b9fb2f3dac866a0ca8e61a99d746",
+      "server/utils/taskLifecycleNotificationAuthority.ts": "25ccd7aa963b4e1a041f6612f07281c98b72bb8da8d64ce10a301cc6980a3106",
+      "server/utils/websiteTaskContext.ts": "95a6fc837d06573ba568151091873ef5fe95982dbb8d0fa56d0c7598aed76858",
+      "server/utils/captureReviewRecovery.ts": "0579855454da233462c7ba6883f0d34b0f32429b5b574decba93eb22ce2b427a",
+      "server/utils/cohortEconomics.ts": "bd6136653e811e90563204a580866d31a9dd4365fcff2bb949fdbd52e05bde69",
+      "server/tests/reliability-program-queue.test.ts": "25082493282941b1659c44d72a9c90c016db1587a9c31d540886344c97e26007",
+      "server/tests/helpers/reliability-queue-cases.ts": "354dce516f8ed6b60cee7a0bc992ce083a74c2d6a10e40f08097cf6f0019498e"
+    },
+    "beforeSourceHashes": {
+      "server/utils/captureOutbox.ts": "78a3bd1cc0b5ae3590cc879eac7291825694b9fb2f3dac866a0ca8e61a99d746",
+      "server/utils/taskLifecycleNotificationAuthority.ts": "25ccd7aa963b4e1a041f6612f07281c98b72bb8da8d64ce10a301cc6980a3106",
+      "server/utils/websiteTaskContext.ts": "95a6fc837d06573ba568151091873ef5fe95982dbb8d0fa56d0c7598aed76858",
+      "server/utils/captureReviewRecovery.ts": "0579855454da233462c7ba6883f0d34b0f32429b5b574decba93eb22ce2b427a",
+      "server/utils/cohortEconomics.ts": "bd6136653e811e90563204a580866d31a9dd4365fcff2bb949fdbd52e05bde69",
+      "server/tests/reliability-program-queue.test.ts": "c4dc9b5dfaed06973ca30be58f09c15862cee4a8d20757aaa594f35e86ba6243",
+      "server/tests/helpers/reliability-queue-cases.ts": "df35eb49ec87f3b49a17eb8a5633e8066930bb7e8e4db406bd10354f618dcc73"
+    },
+    "runtimeExecution": "Only relevant exact PR940 dispatch sources (captureOutbox, taskLifecycleNotificationAuthority, websiteTaskContext) temporarily overlaid from the 2e5 Git object in the isolated author worktree, then restored byte-for-byte. Real isolated fixture logic and strict fault assertions ran; fake storage/email remain explicitly simulated. No production source change is part of this correction.",
+    "retainedFailedRootLog": "output/reliability-program/combined-2e5-core.log in coordinator checkout; contains other owned peer tests outside this 150-case catalog scope.",
+    "localEvidence": "output/reliability-program/queue/pr940-prerequisite-{baseline,candidate}/{results.json,catalog.json,vitest.log} (ignored local replayable files)",
+    "replay": "Run on integrated PR940 dispatch runtime: npx vitest run server/tests/reliability-program-queue.test.ts --maxWorkers=1",
+    "review": "Fixture-only correction submitted for independent review; runtime safeguard independently reviewed by coordinator reviewer"
+  }
 }
