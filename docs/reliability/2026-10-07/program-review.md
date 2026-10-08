@@ -2162,3 +2162,53 @@ demonstrated unsupported request keyword. It does not establish model/video
 accuracy, provider authentication, live successful inference, charge settlement
 or customer assessment completion. Unknown historical exposure remains held;
 no retry, refund or additional spending authority follows from this review.
+
+
+## Independent explicit advisory recovery review — 1e0e0d81
+
+Approved bounded integrated source `1e0e0d8174cc6cc86ee82fea506ad0b25317f9e3`
+over schema parent `1364d24e489571bc971dbc247df5fa9e2ae7d0ac`. Reviewed
+helper, owner route/status and explicit UI changes; eleven non-joined files
+match reviewed author commits, and assessment factory/adapter bytes are
+unchanged from the schema parent. Integration receipt
+`site_assessment_recovery_integration.v1`, SHA-256
+`52984df65d7dba08516943814c32687cdeb5a8a6821e602a845a37fb5e9b2c1e`,
+is retained under the authorized recovery worktree's ignored
+`output/reliability-program/advisory-recovery-integration/`. Independently
+verified all twelve source hashes against final Git and thirteen retained log
+hashes. No material findings remain in this bounded slice.
+
+Retry requires a fresh authorized owner action, exact job/failed-run identities
+and current access, source, context, rights and immutable programme authority.
+The transaction retains the old failed run, full unknown reservation, capture
+exposure/call history and admitted slot identities. It releases only the old
+pending mutex and atomically records the canonical recovery chain and new
+queued run. Late old settlement/dispatch guards cannot modify the successor.
+No authority reset, refund or automatic retry is introduced. Same-tab reload
+retains the retry UUID without storing the private link; denied storage uses
+memory only. Expired, withdrawn, film and unavailable paths do not offer the
+new action. Existing global CSRF middleware remains required; the isolated
+HTTP fixture does not independently prove that middleware.
+
+Reviewer executed the existing eighteen helper controls, seven selected UI
+controls and the final actual HTTP/runtime/SDK joined test, all passing.
+`ADVISORY-RECOVERY-JOIN-001` uses transactional fake Firestore, fake object
+storage and scripted OpenAI/Gemini transports. The first lost-response failure
+keeps its full unknown exposure; explicit retry/replayed UUID yields one
+successor, two subsequent scripted Sol calls and one Gemini call. Actual
+private writer, protected customer GET and SSR execute; simulated lost final
+publication is recovered by ordinary owner polling without extra model calls.
+Withdrawal afterward hides the result, without proving an in-flight withdrawal
+race. Earlier missing-helper and premature async assertions are retained as
+uncompleted fixture diagnostics. Matched unchanged-parent test fails at absent
+retry metadata; candidate final joined test passes. Author reports 156 scoped
+regression checks and five intercepted-API browser checks passing, with
+terminal typecheck, Graphify, portability and diff checks. These checks and
+review repetitions receive zero original unique-case credit.
+
+This approval covers explicit recovery identity/accounting/privacy and the
+executed simulated connected path. It does not establish production retry,
+real provider acceptance, perception accuracy, native completion, notification
+delivery, charge settlement, or full reliability-program readiness. Exact-head
+protected CI, merge, deployment and the sole owner's actual authorized video
+result remain separate gates. Review made no paid calls or production changes.
