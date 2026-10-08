@@ -3074,3 +3074,13 @@ These attempts are not summed as independent coverage. The standalone correction
 may be carried to both affected PR branches; protected final-head CI remains a
 separate release gate. No new framework, case, production/provider/send behavior,
 customer journey or affected live-assessment result is established.
+
+PR976 combined-head continuity independently verified for
+`cad18373603d7e965b3c03f959504464a1eab2b9`: both recovery runtime blobs are
+byte-identical to approved858eb379, all three added test blobs are byte-identical
+to approved7fcb380f, and the diff from858 contains only those three test paths.
+The author tree is clean. The two scoped source approvals carry forward with
+their original retained execution receipts and limitations; no tests were rerun
+or additional coverage credited. CI37846631178 is still in progress at this
+review. Protected checks, deployed recovery, actual hosting capacity and the
+interrupted assessment's provider outcome remain separate and unproven here.
