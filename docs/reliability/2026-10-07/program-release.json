@@ -1956,7 +1956,16 @@
       "largest_coordinator_30s_sample_bytes": 385253380,
       "observed_OOM_or_restart": false,
       "receipt_sha256": "44c81561e141066bb7029b0beca9a2ec37e46dec98794a822aa2de03f07b60ac",
-      "limit": "Periodic total-process samples, not instantaneous peak, assessment-only allocation, concurrency capacity or leak proof."
+      "limit": "Periodic total-process samples, not instantaneous peak, assessment-only allocation, concurrency capacity or leak proof.",
+      "post_run_observation": {
+        "through_utc": "2026-10-08T22:01:00Z",
+        "resolution_seconds": 30,
+        "largest_sample_bytes": 385253380,
+        "last_sample_bytes": 315416580,
+        "before_run_sample_bytes": 294645760,
+        "receipt_sha256": "34590d873c8edb05ab41820fc4adbcf8abf7e4155cfe854beea127e13bcc5923",
+        "limit": "Totalprocess periodic samples; retainedbaseline difference may include ordinarytraffic/caches/GC. Not provenleak, truepeak or concurrentcapacity."
+      }
     },
     "next_action": "Minimize evidence-save failure; independently review scoped repair, required CI, merge/deploy and retry same job after serial local actor returns.",
     "original_catalog_case_credit": 0,
@@ -2123,7 +2132,7 @@
     },
     "original_case_credit": 0
   },
-  "updated_at_utc": "2026-10-08T21:53:00Z",
+  "updated_at_utc": "2026-10-08T22:03:00Z",
   "paid_provider_actor_handoff": {
     "owner": "Existing local assessment-iteration task; original normal-UI provider actor explicitly held",
     "scope": "ONE same authorized MOV production SDK/Gemini fresh baseline, then ONE actual Sol saved-evidence comparison reusing Gemini output. Serial actor; no automatic paid retry; no customer writes.",
