@@ -457,3 +457,47 @@ The unchanged test definition is `2602ab64...`; all earlier 884 failed/partial
 receipts remain. This establishes repaired browser/checkpoint behavior with
 intercepted APIs and does not replace final real-handler/emulator execution,
 provider receipts, required CI, deployed checks or assessment-quality evaluation.
+
+
+**Scoped release independently verified at `d8988ab3f8bcfa16527d0a77ba168f1cde19f63c`; assessment evaluation remains partial.**
+The reviewer independently reread PR940 merge metadata and both completed GitHub
+runs: main CI `37738528838` and deployment `37739286731` are successful at that
+exact SHA. Direct read-only Render deployment queries confirm web
+`dep-db3jnn2j9qps73fupnrg` and worker `dep-db3jnnegekts73f31qqg` are live at d898,
+with the documented finish timestamps. The previously approved `8baba7d` source
+tree is identical to merged d898 under client/src, server, scripts and package
+manifests; the coordinator checkout differs only in replay/test tooling.
+
+The protected production smoke receipt independently hashes to
+`89ca675c9e3198fe4721f237dd7f74de0fc9742c4cb258eeb996f0d07dac5417`; its PNG hashes to
+`6a59b9bbd4aef3cb9f898c7a217c0e0add22bbe0ea848c85539dc07df88a9294` and executed
+script remains `306b01bc00db0c0f4f383b68bc16c62d08010428919c0829611d1cd3e656803b`.
+The retained observation at 06:48:57–06:48:59 UTC verifies matching serving identity
+before/after, health/readiness 200, all four synthetic local draft fields restored
+on ordinary reload, country retained and recording consent unchecked. Its fresh
+context blocks all non-GET/HEAD and external requests, records zero attempted
+intake mutations and never submits/uploads/sends. This supports deployed identity
+and ordinary local draft recovery, not a production backend job, worker outcome,
+assessment publication, privacy fault injection or delivery proof. Individual
+repair claims still depend on their separately retained offline/native replays.
+
+The static portability audit hashes to
+`2fbc657ed7df0c1538406e20bd470739d4d07f31261359f9e8e1e9bf3e81b6aa` and reports zero
+explicit-reference findings. Its stated limitation is preserved: it verifies no
+remote artifact access, completeness of migration or recoverability of all data.
+The stale ledger description of 1b8 as current production was corrected to
+historical baseline. No runtime or release changes were made by this reviewer.
+
+Assessment-source admission fixes being deployed does not resolve semantic truth.
+The exact-main scripted SDK trace still admits three synthetic false claims: an
+explicitly noncurrent specification presented as current, a completed video event
+absent from the supplied observation, and 50 m reach attributed to a qualified
+registry field holding 1 m. Ledger IDs `ASSESS-STALE-APPLICABILITY-001`,
+`ASSESS-VIDEO-ENTAILMENT-001` and `ASSESS-FIELD-ENTAILMENT-001` preserve these as P1
+defects for the affected internal advisory path. They are not measured live-model
+incidence or demonstrated customer publication. Any narrow follow-up guard needs
+its own exact diff/reproducer/retest review. The current joined customer path
+remains unproven; the reference-source and human-label shortfalls remain explicit.
+There is no independent approval for assessment-quality beta, broad end-to-end
+beta or full-goal completion. Existing authorized customer conversations remain
+independent of these specific evidence limits.
