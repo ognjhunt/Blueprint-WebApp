@@ -2559,7 +2559,7 @@ export default function AdminAgentConsole() {
                     {run.task_kind === "site_assessment" && run.output ? (
                       <p className="mt-3 text-xs text-runway-mute">
                         {(run.artifacts?.site_assessment_packet as any)?.schema_version === "site_assessment.v2"
-                          ? "Source-bound facts report selected source data. Unbound factual claims remain unknown. Decisions and recommendations require evidence review; video perception and robot suitability remain unverified. Raw model wording is retained as unverified interpretation."
+                          ? "Source-bound facts report selected source data. Unbound factual claims remain unknown. Proposed approaches, checks and questions are unverified interpretations. Decisions and recommendations require evidence review; video perception and robot suitability remain unverified. Raw model wording is retained as unverified interpretation."
                           : "Legacy assessment: factual wording was not bound to individual observations or specification fields. Treat its claims as unverified; retained records remain unchanged."}
                       </p>
                     ) : null}

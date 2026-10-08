@@ -36,3 +36,21 @@ env -i PATH="$PATH" TMPDIR="${TMPDIR:-/tmp}" NODE_ENV=test RELIABILITY_C_V2_OUTP
 ```
 
 The separate unchanged supplemental SDK120 harness is retained on assessment supplemental commit `ab9b2df3433574e8918fcadbc3bfa74fdc14bc5b`, not added to the minimal production slice. Its replay command uses `RELIABILITY_C_SDK_OUTPUT` and `server/tests/site-assessment-mutations-sdk.test.ts`. Root owns independent review, integration, required CI and deployed acceptance. At this artifact's freeze there is no merge or deployment claim. Reference-video quality and freeform interpretation entailment remain unscored.
+
+## Independent review correction
+
+Initial candidate `0167dcabb9f09b120353fb14016e3d82d3856851` used source fingerprint `2260d77d...`. Review identified retained model strings in approach descriptions/checks and question presuppositions. The final correction explicitly tags each approach and question as an unverified interpretation, lists those free-string fields in packet metadata, and makes that status visible in the actual admin consumer. These fields do not become source-bound facts. Original text remains retained; no prose heuristic is introduced.
+
+Corrected source SHA256 is `5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c`. Fresh corrected SDK30/binding/admin checks pass 52 assertions; SDK120 repeats the same 120/264/72-structural/48-partial/12-applicability counts. Three corrected bound SDK processes produce identical private receipts, including the serialized strict SDK output schema. Its recursively inspected object schemas require every property and forbid additional properties; legacy parser optionality does not weaken the provider's required nullable selector field in the current SDK. This is local serialization proof, not a paid live provider call.
+
+Corrected private receipts beneath `output/reliability-program/`:
+
+| Receipt | SHA256 |
+| --- | --- |
+| `semantic-evidence-binding-reviewed/results.json` | `f04caabdf2d00b009ca5fe1a0a48b7cf7409f82c60a71b5726058ccde3952070` |
+| `semantic-evidence-binding-120-reviewed/results.json` | `590f7395007d8bfb2baa746c44d8df374885543f5beb74b4dd4d92ec81ede70b` |
+| `semantic-evidence-binding-120-reviewed/publication-results.json` | `5314361085a4ab061f80649f39025d430c656566dfadeebb813ac0d00c21e4cc` |
+| `semantic-evidence-binding-reviewed/minimized-decision.json` | `87e9ab9b99d1c5e24109a62ad5d2b2d84b0ab4ac0fc8344171fe98b669b1cfb1` |
+| `semantic-evidence-binding-reviewed/bound-repeat-{1,2,3}/results.json` | `83df0be5aca60f77aeb0a025c74ddc8e6129b982d562c55f443775e82eb185d1` each |
+
+The minimized decision reproducer runs the unchanged legacy validator (body byte-identical to exact d217) followed by the v2 renderer: the validator admits a selected truthful reach field beside an unsupported exclusion/no-robot conclusion, while the renderer returns `needs_evidence`/research and a source-derived reason. It is an isolated validation/rendering counterexample, not an old production/customer publication trace. The two original P1 SDK reproductions preserve their raw outputs, sources and semantic hashes. Catalog input hashes cover fixture parameters/evidence/operator/scripted claims/tool steps/placement; they do not cover the changed SDK instructions or derived output. No natural-model matched A/B claim is made. Earlier receipts remain immutable.

@@ -113,12 +113,33 @@ describe("v2 source-derived factual rendering; provenance is not truth", () => {
     expect(result.assessment.next_action.action).not.toBe("Deploy immediately");
     expect(result.assessment.questions).toHaveLength(1);
   });
+  it("labels retained question and approach presuppositions as unverified interpretations", () => {
+    const raw = packet();
+    raw.approaches = [{ approach: "Try the claimed 50 m robot", disposition: "plausible", reasons: [], remaining_checks: ["Confirm the claimed payload"] }];
+    raw.questions = [{ question: "Does the robot's claimed 50 m reach help?", decision_it_changes: "Whether the proposed robot could reach the fixture" }];
+    const result = renderSourceBoundAssessment(raw, sources(), null);
+    expect(result.assessment.approaches[0]).toMatchObject({ disposition: "needs_evidence", interpretation_status: "unverified_interpretation" });
+    expect(result.assessment.questions[0]).toMatchObject({ verification_status: "unverified_interpretation" });
+    expect(result.verification.interpretation_fields).toContain("questions[].question");
+  });
   it("actual SDK preserves raw false prose while rendering selected source facts in v2", async () => {
     let turn = 0;
+    let serializedOutputSchema: unknown;
     const model: Model = {
       async getResponse(request): Promise<ModelResponse> {
         const schema = request.outputType as any;
+        serializedOutputSchema = schema;
         expect(schema.schema.properties.job.items.properties.evidence.items.properties.selector).toBeDefined();
+        expect(schema.strict).toBe(true);
+        const inspectSchema = (node: any): void => {
+          if (!node || typeof node !== "object") return;
+          if (node.type === "object") {
+            expect(node.additionalProperties).toBe(false);
+            expect([...node.required].sort()).toEqual(Object.keys(node.properties).sort());
+          }
+          Object.values(node).forEach(inspectSchema);
+        };
+        inspectSchema(schema.schema);
         turn++;
         const output: ModelResponse["output"] = turn === 1
           ? [{ type: "function_call", callId: "video", name: "analyze_site_video", arguments: JSON.stringify({ question: "What moves?", processing: "auto", sampling_fps: 2 }) }]
@@ -148,6 +169,7 @@ describe("v2 source-derived factual rendering; provenance is not truth", () => {
       layer: "actual_SDK_runner_scripted_tools_no_storage", liveProviderCalls: 0, newIndependentCases: 0,
       sourceSha256: createHash("sha256").update(readFileSync(new URL("../agents/site-assessment.ts", import.meta.url))).digest("hex"),
       fixtureSha256: createHash("sha256").update(readFileSync(new URL(import.meta.url))).digest("hex"), result,
+      serializedOutputSchema,
     }, null, 2) + "\n");
   });
 });

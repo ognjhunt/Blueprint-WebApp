@@ -333,6 +333,7 @@ export function renderSourceBoundAssessment(raw: SiteAssessment, sources: Readon
   const verification = { format: "assessment_evidence_binding.v1", source_bound_claims: 0,
     unverified_claims: 0, interpretation_claims: 0,
     decision_status: "advisory_review_required",
+    interpretation_fields: ["approaches[].approach", "approaches[].remaining_checks[]", "questions[].question", "questions[].decision_it_changes"],
     limitation: "Source-derived reports are not independently verified perception, measurements or robot suitability." };
   const scalar = (value: unknown): value is string | number | boolean =>
     typeof value === "string" && Boolean(value.trim()) || typeof value === "number" && Number.isFinite(value) || typeof value === "boolean";
@@ -404,7 +405,7 @@ export function renderSourceBoundAssessment(raw: SiteAssessment, sources: Readon
     // not the model's feasibility conclusion. This lane has no physical-trial
     // decision DTO; retain the original disposition in raw_model_assessment.
     approach.disposition = "needs_evidence";
-    Object.assign(approach, { verification_status: "advisory_review_required" });
+    Object.assign(approach, { verification_status: "advisory_review_required", interpretation_status: "unverified_interpretation" });
   }
   const action = assessment.next_action;
   const safeActions: Record<SiteAssessment["next_action"]["kind"], string> = {
@@ -426,6 +427,7 @@ export function renderSourceBoundAssessment(raw: SiteAssessment, sources: Readon
     action.why = { text: "Some factual claims lack a valid evidence binding; resolve them before choosing an approach.", basis: "unknown", evidence: [] };
     if (!assessment.questions.length) assessment.questions.push({ question: "What evidence can confirm the unresolved job facts?", decision_it_changes: "Which approach can be evaluated usefully" });
   }
+  for (const question of assessment.questions) Object.assign(question, { verification_status: "unverified_interpretation" });
   return { assessment, verification };
 }
 
