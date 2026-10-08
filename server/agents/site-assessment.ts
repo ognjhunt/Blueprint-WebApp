@@ -340,10 +340,12 @@ export function validateAssessmentEvidence(assessment: SiteAssessment, sources: 
         if (value.basis === "measured" && !["knowledge", "robot_registry"].includes(source.kind)) throw new Error("assessment_measured_source_required");
         if (["published", "measured"].includes(value.basis) && source.kind === "knowledge") {
           const record = source.content as { content?: unknown; current?: unknown } | null;
-          // Known published facts require present applicability. Retain explicitly
-          // superseded records for historical context/unknowns; age alone is no veto.
-          if (value.basis === "published" && knownClaims.has(value) && record?.current === false) {
-            throw new Error("assessment_known_published_source_not_current");
+          // Published facts require present applicability in every claim location.
+          // Retain superseded sources as historical unknown/estimate context;
+          // age alone is no veto, and claim prose is not a semantic oracle.
+          if (value.basis === "published" && record?.current === false) {
+            throw new Error(knownClaims.has(value) ? "assessment_known_published_source_not_current"
+              : "assessment_published_source_not_current");
           }
           const content = record && typeof record === "object" && "content" in record ? record.content : record;
           if (content === null || content === undefined || (typeof content === "string" && !content.trim())
