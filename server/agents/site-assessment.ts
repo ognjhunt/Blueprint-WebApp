@@ -125,6 +125,8 @@ SOPs/docs matter only if actually returned by a tool or supplied as evidence; do
 
 Separate observed, operator_stated, published, measured, estimate and unknown claims. Engineering hypotheses
 may be estimates with explicit assumptions; do not use pretrained memory as verified robot specifications.
+Footage-based readings and timing remain observed or estimates; operator-reported measurements remain
+operator_stated. Use measured only with an admitted measurement record, not footage or a statement alone.
 Every factual claim needs returned source IDs; observed claims need timestamps within returned observed
 intervals, never estimated or not-visible events. Operator statements and video are not published specifications.
 Search excerpts alone are
@@ -332,6 +334,9 @@ export function validateAssessmentEvidence(assessment: SiteAssessment, sources: 
           }
         }
         if (value.basis === "published" && !["knowledge", "robot_registry"].includes(source.kind)) throw new Error("assessment_published_source_required");
+        // Video findings and operator statements have no calibrated measurement
+        // receipt. Their timing/appearance or reported measurements retain their own basis.
+        if (value.basis === "measured" && !["knowledge", "robot_registry"].includes(source.kind)) throw new Error("assessment_measured_source_required");
         if (["published", "measured"].includes(value.basis) && source.kind === "knowledge") {
           const record = source.content as { content?: unknown } | null;
           const content = record && typeof record === "object" && "content" in record ? record.content : record;
