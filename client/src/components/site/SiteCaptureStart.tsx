@@ -29,6 +29,7 @@ import {
   type VideoUploadResult,
 } from "@/lib/selfCaptureVideo";
 import { useAuth } from "@/contexts/AuthContext";
+import { clearSiteCaptureDraft, readSiteCaptureDraft, siteCaptureDraftKey, writeSiteCaptureDraft, type SiteCaptureDraft } from "@/lib/siteCaptureDraft";
 
 /**
  * Same sentence version the screening form records: the attestation names the
@@ -68,7 +69,39 @@ function formatBytes(bytes: number) {
 
 
 export function SiteCaptureStart() {
-  const { currentUser, loading } = useAuth();
+  const auth = useAuth();
+  if (auth.loading) return <p role="status">Loading your account…</p>;
+  return <SiteCaptureForm key={auth.currentUser?.uid || "anonymous"} {...auth} />;
+}
+
+function SiteCaptureForm({ currentUser, loading }: ReturnType<typeof useAuth>) {
+  const draftKey = siteCaptureDraftKey(currentUser?.uid);
+  const draft = useRef<SiteCaptureDraft>(readSiteCaptureDraft(draftKey) || {
+    version: 1, createdAt: Date.now(), requestId: `capture-${crypto.randomUUID()}`,
+    retryToken: crypto.randomUUID(), fields: {}, method: "phone", region: "",
+  });
+  const formRef = useRef<HTMLFormElement>(null);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  const [storageAvailable, setStorageAvailable] = useState(true);
+  function persist() {
+    if (mounted.current && !loading) setStorageAvailable(writeSiteCaptureDraft(draftKey, draft.current));
+  }
+  function forget() {
+    clearSiteCaptureDraft(draftKey);
+    window.location.reload();
+  }
+  function saveFields() {
+    if (!formRef.current || loading) return;
+    const data = new FormData(formRef.current);
+    for (const name of ["startTask", "startLocation", "startEmail", "startCompany"]) {
+      draft.current.fields[name] = String(data.get(name) || "");
+    }
+    persist();
+  }
   const [interactive, setInteractive] = useState(false);
   useEffect(() => setInteractive(true), []);
   // A scoped development entry link exposes the optional Claude disclosure.
@@ -105,11 +138,23 @@ export function SiteCaptureStart() {
   // The phone's recording has landed on the server. The laptop then stops
   // being a handoff and becomes the place to do the next step.
   const [captureReceived, setCaptureReceived] = useState(false);
-  const requestId = useRef(`capture-${crypto.randomUUID()}`);
+  const requestId = useRef(draft.current.requestId);
   // Separate from the public record identifier: only this form can recover
   // the capture link if the server saved the job but its response was lost.
-  const retryToken = useRef(crypto.randomUUID());
-  const [state, setState] = useState<State>({ status: "idle" });
+  const retryToken = useRef(draft.current.retryToken);
+  const [state, setState] = useState<State>(() => draft.current.saved
+    ? draft.current.saved as Extract<State, { status: "done" }> : { status: "idle" });
+  useEffect(() => {
+    if (state.status === "done") {
+      draft.current.saved = state;
+      delete draft.current.submittedBody;
+      draft.current.fields = {};
+      persist();
+    }
+  }, [state]);
+  useEffect(() => {
+    if (state.status === "done" && state.captureUrl) void refreshReceivedVideo(state.captureUrl);
+  }, []);
   const operationInFlight = useRef(false);
   const [retryingProcessing, setRetryingProcessing] = useState(false);
   const [retryingVideo, setRetryingVideo] = useState(false);
@@ -151,10 +196,18 @@ export function SiteCaptureStart() {
   }
   // One question decides how we will see the task: an upload now, the site's
   // own phone later, or a Blueprint visit.
-  const [method, setMethod] = useState<"upload" | "phone" | "visit">("phone");
+  const [method, setMethod] = useState<"upload" | "phone" | "visit">(draft.current.method);
   const selfRecording = method === "phone";
-  const [region, setRegion] = useState<CaptureRegion | "">("");
-  const regionManuallySet = useRef(false);
+
+  const [region, setRegion] = useState<CaptureRegion | "">(draft.current.region);
+  const regionManuallySet = useRef(draft.current.regionManuallySet === true);
+  useEffect(() => {
+    if (loading) return;
+    draft.current.method = method;
+    draft.current.region = region;
+    draft.current.regionManuallySet = regionManuallySet.current;
+    persist();
+  }, [method, region, loading]);
   // The address answers the country, so the country is not a question on the
   // page. It opens when the operator asks to correct it, or when a typed
   // address never resolved to a country and we cannot go on without one.
@@ -211,7 +264,7 @@ export function SiteCaptureStart() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (operationInFlight.current || state.status === "working" || loading
-      || (footageWanted && !consent)
+      || (!draft.current.submittedBody && footageWanted && !consent)
       || (claudeAuthoringRequested && !claudeConsent)
       || (solAgentsRequested && !solAgentsConsent)) return;
     // A typed address that never resolved to a country: ask now, once, rather
@@ -221,7 +274,7 @@ export function SiteCaptureStart() {
       setCountryPrompted(true);
       return;
     }
-    if (footageWanted && !footage) return;
+    if (footageWanted && !footage && !draft.current.submittedBody) return;
 
     const data = new FormData(event.currentTarget);
     const read = (key: string) => String(data.get(key) ?? "").trim();
@@ -233,7 +286,8 @@ export function SiteCaptureStart() {
 
     try {
       const headers = await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" }));
-      const body = JSON.stringify({
+      const recoveringSave = Boolean(draft.current.submittedBody);
+      const body = draft.current.submittedBody || JSON.stringify({
           requestId: requestId.current,
           retryToken: retryToken.current,
           // No name field: emails open without one.
@@ -289,6 +343,10 @@ export function SiteCaptureStart() {
             sourcePageUrl: typeof window === "undefined" ? null : window.location.href,
           },
       });
+      // Persist before dispatch: a lost response retries the exact saved request.
+      saveFields();
+      draft.current.submittedBody = body;
+      persist();
       const post = (url: string) => fetch(url, { method: "POST", credentials: "include", headers, body });
       // Unknown type (the lookup is still in flight or failed) still tries the
       // workspace first; a refusal falls back with the same answers intact.
@@ -306,6 +364,11 @@ export function SiteCaptureStart() {
       };
 
       if (!response.ok) {
+        if (response.status === 400 || response.status === 422) {
+          // These responses reject validation before creation; corrections may rebuild the body.
+          delete draft.current.submittedBody;
+          persist();
+        }
         analyticsEvents.contactFormError("capture_start");
         setState({
           status: "failed",
@@ -333,8 +396,25 @@ export function SiteCaptureStart() {
       }
 
       const captureUrl = typeof result.captureUrl === "string" ? result.captureUrl : null;
-      const regionApproved = isApprovedCaptureRegion(region);
+      const submitted = JSON.parse(body) as {
+        email: string; captureRegion: CaptureRegion; captureMode: string; hasExistingFootage: boolean;
+      };
+      const regionApproved = isApprovedCaptureRegion(submitted.captureRegion);
 
+      const saved: Extract<State, { status: "done" }> = {
+        status: "done", workspaceUrl: savedToWorkspace ? `/app/tasks/${requestId.current}` : null,
+        linkOnlyNote: currentUser && !savedToWorkspace
+          ? `This account is not a site workspace, so this site is saved to the link we email ${submitted.email}. You can claim it from that link later.` : null,
+        captureUrl, selfRecording: submitted.captureMode === "self_capture", email: submitted.email, regionApproved,
+        hasFootage: submitted.hasExistingFootage, uploaded: submitted.hasExistingFootage ? "failed" : "none",
+        uploadMessage: submitted.hasExistingFootage ? "The upload was interrupted. Check the job page before selecting your original file again." : null,
+        processingRetryAvailable: false,
+      };
+      // Save the recovery route before the potentially long video transfer.
+      draft.current.saved = saved;
+      delete draft.current.submittedBody;
+      draft.current.fields = {};
+      persist();
       // The job is saved; now the video, through the same token route the
       // capture page uses. A failure here never loses the submission: the
       // success screen offers the link to send it again.
@@ -342,7 +422,7 @@ export function SiteCaptureStart() {
       let uploadMessage: string | null = null;
       let processingRetryAvailable = false;
       const captureToken = captureUrl ? captureTokenFromUrl(captureUrl) : null;
-      if (footageWanted && footage && regionApproved && captureToken) {
+      if (!recoveringSave && submitted.hasExistingFootage && footage && regionApproved && captureToken) {
         setUploadPercent(0);
         const outcome = await uploadSelfCaptureVideo(captureToken, footage, setUploadPercent);
         uploaded = outcome.status;
@@ -352,18 +432,9 @@ export function SiteCaptureStart() {
       }
 
       setState({
-        status: "done",
-        workspaceUrl: savedToWorkspace ? `/app/tasks/${requestId.current}` : null,
-        linkOnlyNote: currentUser && !savedToWorkspace
-          ? `This account is not a site workspace, so this site is saved to the link we email ${email}. You can claim it from that link later.`
-          : null,
-        captureUrl,
-        selfRecording: selfRecording || hasFootage,
-        email,
-        regionApproved,
-        hasFootage: footageWanted,
-        uploaded,
-        uploadMessage,
+        ...saved,
+        uploaded: recoveringSave && saved.hasFootage ? "failed" : uploaded,
+        uploadMessage: recoveringSave && saved.hasFootage ? saved.uploadMessage : uploadMessage,
         processingRetryAvailable,
       });
     } catch {
@@ -380,6 +451,7 @@ export function SiteCaptureStart() {
   if (state.status === "done") {
     return (
       <div className="ms-form" aria-live="polite">
+        <p className="ms-field-hint">This private job link is saved on this device. It expires from recovery after 24 hours and is removed when you next visit. <button type="button" className="ms-text-link" onClick={forget}>Clear this device’s saved job</button> Clearing removes only device recovery; it does not cancel or delete your job.</p>
         {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
         {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
         {!state.hasFootage && state.captureUrl && !captureReceived ? (
@@ -483,14 +555,17 @@ export function SiteCaptureStart() {
   }
 
   return (
-    <form className="ms-form" method="post" onSubmit={submit} aria-label="Start a site capture">
+    <form ref={formRef} className="ms-form" method="post" onChange={saveFields} onSubmit={submit} aria-label="Start a site capture">
       <fieldset disabled={!interactive} className="contents">
+      <p className="ms-field-hint">Your draft is saved privately on this device. It expires from recovery after 24 hours and is removed when you next visit. <button type="button" className="ms-text-link" onClick={forget}>Clear this device’s draft</button> Clearing removes only device recovery; it does not cancel or delete a job already saved. Retry an unconfirmed save before clearing.</p>
+      {!storageAvailable && <p role="status">This browser cannot save your draft for return visits. Keep your private job link after submitting.</p>}
+      {draft.current.submittedBody && <p role="status">A previous save is unconfirmed. Start free assessment will retry the same job with its original answers.</p>}
       <label htmlFor="start-task">
         <span>What is the task?</span>
         <span className="ms-field-hint">
           For example, “move sealed cartons from the conveyor onto a pallet.”
         </span>
-        <textarea id="start-task" name="startTask" required maxLength={2000} rows={4} />
+        <textarea id="start-task" name="startTask" required maxLength={2000} rows={4} defaultValue={draft.current.fields.startTask || ""} />
       </label>
 
       {claudeAuthoringRequested && (
@@ -593,6 +668,7 @@ export function SiteCaptureStart() {
           <LocationAutocomplete
             id="start-location"
             name="startLocation"
+            defaultValue={draft.current.fields.startLocation || ""}
             required
             maxLength={300}
             placeholder={selfRecording || hasFootage ? "City or address" : "Street address"}
@@ -650,12 +726,12 @@ export function SiteCaptureStart() {
         <span className="ms-field-hint">
           Where we send your task link to add footage, follow progress and review the brief.
         </span>
-        <input id="start-email" name="startEmail" type="email" required maxLength={320} />
+        <input id="start-email" name="startEmail" type="email" required maxLength={320} defaultValue={draft.current.fields.startEmail || ""} />
       </label>
 
       <label htmlFor="start-company">
         <span>Site or company</span>
-        <input id="start-company" name="startCompany" type="text" required autoComplete="organization" maxLength={200} />
+        <input id="start-company" name="startCompany" type="text" required autoComplete="organization" maxLength={200} defaultValue={draft.current.fields.startCompany || ""} />
       </label>
 
       </>}

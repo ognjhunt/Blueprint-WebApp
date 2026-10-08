@@ -26,7 +26,7 @@ vi.mock("@/lib/selfCaptureVideo", async (importOriginal) => ({
   retrySelfCaptureProcessing: upload.retry,
 }));
 
-const account = vi.hoisted(() => ({ user: null as any }));
+const account = vi.hoisted(() => ({ user: null as any, loading: false }));
 const fetchMock = vi.fn();
 
 function photon(properties: Record<string, unknown>[]) {
@@ -34,7 +34,9 @@ function photon(properties: Record<string, unknown>[]) {
 }
 
 beforeEach(() => {
+  window.localStorage.clear();
   account.user = null;
+  account.loading = false;
   fetchMock.mockReset();
   upload.send.mockReset();
   upload.retry.mockReset();
@@ -236,7 +238,7 @@ describe("SiteCaptureStart and the country", () => {
   });
 });
 
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: account.user, loading: false }) }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: account.user, loading: account.loading }) }));
 
 
 it("asks where the robot would do the task, not where the video was filmed", () => {
@@ -591,4 +593,122 @@ describe("SiteCaptureStart identity fields", () => {
     expect(document.querySelector("#start-name")).toBeNull();
     expect(document.querySelector("#start-company")).toBeNull();
   });
+});
+
+
+it("recovers the same intake identity and draft after a lost response and reload", async () => {
+  signedIn({ workspaceType: "site_operator" }, [{ ok: false, body: { message: "Connection lost after save" } }, { ok: true, body: { captureUrl: "/capture-upload/tok.signed" } }]);
+  const first = render(<SiteCaptureStart />);
+  await screen.findByText(/Saving to your workspace/);
+  fillAndSubmit();
+  await screen.findByRole("alert");
+  const original = postsTo("/api/workspace/capture-start")[0][1].body;
+  first.unmount();
+  render(<SiteCaptureStart />);
+  await screen.findByText(/Saving to your workspace/);
+  expect(document.querySelector<HTMLTextAreaElement>("#start-task")!.value).toBe("Pack cartons");
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByRole("link", { name: "Review your job brief" });
+  expect(postsTo("/api/workspace/capture-start")[1][1].body).toBe(original);
+});
+
+
+const intakeCases = ["phone", "upload", "visit"].flatMap(method => ["Austin, TX", "London UK", "Berlin, Germany", "Toronto, Canada", "Austin TX 78701"]
+  .flatMap(location => ["rejected", "saved"].map(outcome => ({ method, location, outcome }))))
+  .map((parameters, index) => ({ caseId: `A-I-${String(index + 1).padStart(3, "0")}`, ...parameters }));
+it.each(intakeCases)("$caseId $method intake $location $outcome", async ({ method, location, outcome }) => {
+  signedIn({ workspaceType: "site_operator" }, [{ ok: outcome === "saved", status: outcome === "saved" ? 201 : 422,
+    body: outcome === "saved" ? { captureUrl: "/capture-upload/tok.signed" } : { message: "Correct the task description" } }]);
+  upload.send.mockResolvedValue({ status: "done" });
+  render(<SiteCaptureStart />);
+  await screen.findByText(/Saving to your workspace/);
+  fireEvent.click(document.querySelector(`#start-method-${method}`)!);
+  fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Move sealed cartons" } });
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
+  const rights = document.querySelector("#start-rights");
+  if (rights) fireEvent.click(rights);
+  const file = document.querySelector("#start-footage");
+  if (file) fireEvent.change(file, { target: { files: [new File(["synthetic"], "original.mp4", { type: "video/mp4" })] } });
+  fireEvent.submit(screen.getByRole("form"));
+  if (outcome === "rejected") await screen.findByText("Correct the task description");
+  else await screen.findByRole("link", { name: "Saved in your workspace" });
+  const post = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
+  expect(post.captureMode).toBe(method === "visit" ? "site_visit" : "self_capture");
+  expect(post.captureRegion).toBe(location.startsWith("Austin") ? "us" : "non_us");
+  if (!location.startsWith("Austin")) expect(upload.send).not.toHaveBeenCalled();
+});
+
+it("allows corrected fields after a proven validation rejection", async () => {
+  signedIn({ workspaceType: "site_operator" }, [{ ok: false, status: 422, body: { message: "Correct task" } }, { ok: true, body: { captureUrl: null } }]);
+  render(<SiteCaptureStart />);
+  await screen.findByText(/Saving to your workspace/);
+  fillAndSubmit();
+  await screen.findByText("Correct task");
+  fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Corrected task" } });
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByRole("link", { name: "Saved in your workspace" });
+  const posts = postsTo("/api/workspace/capture-start").map(call => JSON.parse(call[1].body));
+  expect(posts[1].taskDescription).toBe("Corrected task");
+  expect(posts[1].requestId).toBe(posts[0].requestId);
+});
+
+
+it("replays uncertain original answers without attaching newly selected footage", async () => {
+  fetchMock.mockImplementation(async (url: string) => {
+    if (url.startsWith("/api/self-capture")) return { ok: true, json: async () => ({ captureReceived: false }) };
+    const count = postsTo("/api/inbound-request").length;
+    return count === 1 ? { ok: false, status: 503, json: async () => ({ message: "Uncertain save" }) }
+      : { ok: true, status: 201, json: async () => ({ captureUrl: "/capture-upload/tok.signed" }) };
+  });
+  render(<SiteCaptureStart />);
+  fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Original task" } });
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin TX" } });
+  fireEvent.change(document.querySelector("#start-email")!, { target: { value: "original@example.invalid" } });
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByText("Uncertain save");
+  fireEvent.click(document.querySelector("#start-method-upload")!);
+  fireEvent.change(document.querySelector("#start-email")!, { target: { value: "other@example.invalid" } });
+  fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [new File(["synthetic"], "new.mp4")] } });
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByRole("link", { name: "Review your job brief" });
+  expect(upload.send).not.toHaveBeenCalled();
+  expect(screen.getByText(/email it to original@example.invalid/)).toBeInTheDocument();
+  const posts = postsTo("/api/inbound-request");
+  expect(posts[1][1].body).toBe(posts[0][1].body);
+});
+
+it("isolates account drafts after an authenticated account switch", async () => {
+  signedIn({ workspaceType: "site_operator" }, []);
+  const view = render(<SiteCaptureStart />);
+  await screen.findByText(/Saving to your workspace/);
+  fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Account A private task" } });
+  account.user = { uid: "owner-2", email: "other@example.invalid", getIdToken: async () => "other-token" };
+  view.rerender(<SiteCaptureStart />);
+  await screen.findByText(/other@example.invalid/);
+  expect(document.querySelector<HTMLTextAreaElement>("#start-task")!.value).toBe("");
+});
+
+
+it("waits for auth resolution before reading a private anonymous draft", () => {
+  window.localStorage.setItem("bp-site-capture-draft-v1:anonymous", JSON.stringify({
+    version: 1, createdAt: Date.now(), requestId: "capture-1234567890123456", retryToken: "12345678901234567890123456789012ab",
+    fields: {}, method: "phone", region: "us", saved: { status: "done", email: "qa@example.invalid", regionApproved: true,
+      hasFootage: false, selfRecording: true, uploaded: "none", processingRetryAvailable: false, linkOnlyNote: null, uploadMessage: null, captureUrl: "/capture-upload/private-synthetic", workspaceUrl: null },
+  }));
+  account.loading = true;
+  render(<SiteCaptureStart />);
+  expect(screen.getByRole("status")).toHaveTextContent("Loading your account");
+  expect(screen.queryByRole("link", { name: "Review your job brief" })).not.toBeInTheDocument();
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+
+it("recomputes an inferred country after restoring and editing a draft", () => {
+  const first = render(<SiteCaptureStart />);
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin TX" } });
+  first.unmount();
+  render(<SiteCaptureStart />);
+  expect(screen.getByText(/Country: United States/)).toBeInTheDocument();
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Berlin, Germany" } });
+  expect(screen.getByText(/Country: Outside the United States/)).toBeInTheDocument();
 });

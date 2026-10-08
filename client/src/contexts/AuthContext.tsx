@@ -5,6 +5,7 @@ import type { IdTokenResult, User as FirebaseUser } from "firebase/auth";
 import type { UserData } from "@/lib/firebase";
 import { resolveOperatorQaAuth } from "@/lib/operatorQaAuth";
 import { onFirebaseClientLoaded } from "@/lib/firebaseLoadSignal";
+import { clearSiteCaptureDraft, siteCaptureDraftKey } from "@/lib/siteCaptureDraft";
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -233,6 +234,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = React.useState<FirebaseUser | null>(
     operatorQaAuth.enabled ? (operatorQaAuth.currentUser as FirebaseUser) : null,
   );
+  const previousDraftAccount = React.useRef<string | null>(currentUser?.uid || null);
+  React.useEffect(() => {
+    const next = currentUser?.uid || null;
+    const previous = previousDraftAccount.current;
+    if (previous && previous !== next) clearSiteCaptureDraft(siteCaptureDraftKey(previous));
+    previousDraftAccount.current = next;
+  }, [currentUser?.uid]);
   const [userData, setUserData] = React.useState<UserData | null>(
     operatorQaAuth.enabled ? operatorQaAuth.userData : null,
   );
@@ -695,6 +703,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const firebase = await loadFirebaseClientModule();
       await firebase.logOut();
+      if (currentUser?.uid) clearSiteCaptureDraft(siteCaptureDraftKey(currentUser.uid));
       setCurrentUser(null);
       setUserData(null);
       setTokenClaims(null);
