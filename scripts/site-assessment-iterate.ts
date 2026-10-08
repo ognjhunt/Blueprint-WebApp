@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
 import { z } from "zod";
-import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentVersions, openExperimentLedger, experimentRetention,
+import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentErrorCode, experimentVersions, openExperimentLedger, experimentRetention,
   sanitizeExperiment, validateSavedEvidence, writeExperimentJson } from "../server/agents/assessment-experiment";
 
 const help = `Usage:
@@ -22,6 +22,7 @@ const inputSchema = z.object({ message: z.string().min(1).max(8000),
   retention: experimentRetention.optional(),
   video_binding: z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.number().int().positive() }).strict().optional(),
   execution_scope: z.literal("read-only-preflight").optional(),
+  model_context: z.literal("video-only").optional(),
   local_video: z.object({ path: z.string().min(1), sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.number().int().positive() }).strict().optional(),
 }).strict();
 const readJson = (file: string) => JSON.parse(fs.readFileSync(file, "utf8"));
@@ -39,7 +40,7 @@ function failure(error: unknown) {
   const row = error instanceof Error ? error : Error("experiment_unknown_error");
   // Never retain arbitrary exception prose/stack/body. Owned codes and schema paths are enough to repair input.
   const ownMessage = own("message");
-  const message = typeof ownMessage === "string" && /^(experiment_|inference_programme_|site_assessment_|assessment_|gemini_video_)[a-z0-9_]+$/.test(ownMessage) ? ownMessage : "experiment_failed";
+  const message = experimentErrorCode(ownMessage);
   const providerCode = typeof code === "string" && /^(gemini_video_[a-z0-9_]+|invalid_request_error|rate_limit_exceeded|context_length_exceeded|invalid_api_key|insufficient_quota|server_error|model_not_found|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN)$/.test(code) ? code : null;
   return { code: message, provider_error_code: providerCode,
     http_status: typeof status === "number" && Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
@@ -75,7 +76,7 @@ async function main() {
   const started = Date.now(), startedAt = new Date(started).toISOString(), runId = `assessment-experiment-${randomUUID()}`;
   let accounting: ReturnType<typeof openExperimentLedger> | undefined;
   const run: Record<string, any> = { schema_version: "site_assessment_experiment.v1", run_id: runId, mode: values.mode ?? "preflight", started_at: startedAt,
-    status: "failed", stage: "input", provider_call_may_have_happened: false, output_retention: "private_local_sanitized" };
+    status: "running", stage: "input", provider_call_may_have_happened: false, output_retention: "private_local_sanitized" };
   try {
     if (!values.input || positionals.length) throw Error("experiment_input_required");
     if (values.preflight ? Boolean(values.mode || values.evidence)
@@ -96,7 +97,9 @@ async function main() {
     run.models = { openai: SITE_ASSESSMENT_MODEL, gemini: getGeminiVideoModel(), override: false };
     run.configuration = { openai_present: Boolean(process.env.OPENAI_API_KEY?.trim()), gemini_present: isGeminiVideoConfigured(),
       firebase_present: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_APPLICATION_CREDENTIALS),
-      lane_enabled: ["1", "true", "yes", "on"].includes(process.env.BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED ?? "") };
+      lane_enabled: ["1", "true", "yes", "on"].includes(process.env.BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED ?? ""),
+      kms_configuration_present: Boolean(process.env.FIELD_ENCRYPTION_KMS_KEY_NAME?.trim()),
+      local_encryption_key_present: Boolean(process.env.FIELD_ENCRYPTION_MASTER_KEY?.trim()) };
     if (values.preflight) {
       run.stage = "read_only_request_preflight";
       const { dbAdmin } = createRequire(import.meta.url)("../client/src/lib/firebaseAdmin.ts") as typeof import("../client/src/lib/firebaseAdmin");
@@ -130,13 +133,15 @@ async function main() {
     run.stage = "production_adapter_admission";
     run.scope = { reused_stage: values.mode === "saved-evidence" ? "Gemini observations" : null,
       upload_retested: false, customer_workflow_retested: false, business_writes: false, embeddings: "disabled; authorized lexical history remains",
-      reservation_persistence: "dedicated run-local accounting; no spending gates", model_substitution: false };
-    const { local_video, video_binding, execution_scope, retention, ...taskInput } = input;
+      reservation_persistence: "dedicated run-local accounting; no spending gates", model_substitution: false,
+      model_context: input.model_context ?? "production", context_omitted: input.model_context === "video-only",
+      production_context_parity: input.model_context !== "video-only" };
+    const { local_video, video_binding, execution_scope, retention, model_context, ...taskInput } = input;
     const task = { kind: "site_assessment", input: taskInput, provider: "openai_responses", runtime: "openai_agents_sdk", model: SITE_ASSESSMENT_MODEL,
       definition: siteAssessmentTask, tool_policy: { ...siteAssessmentTask.tool_policy, allowed_domains: ["api.openai.com", "generativelanguage.googleapis.com", "storage.googleapis.com"],
         isolated_runtime_required: false }, metadata: {} } as any;
     run.result = await runSiteAssessmentTask(task, { runId, assertActive: async () => retainFailure(async () => accounting!.assertActive()), assertCostAllowed: async () => retainFailure(async () => accounting!.assertActive()),
-      experiment: { record_error: error => { run.error ??= failure(error); run.failure_stage ??= run.stage; }, mode: values.mode as "saved-evidence" | "fresh-video", prepare: async source => retainFailure(async () => {
+      experiment: { model_context, record_error: error => { run.error ??= failure(error); run.failure_stage ??= run.stage; }, mode: values.mode as "saved-evidence" | "fresh-video", prepare: async source => retainFailure(async () => {
         run.source = source; accounting!.bind(source);
         if (source.video_sha256 !== expectedVideo.sha256 || source.video_bytes !== expectedVideo.bytes) throw Error("experiment_uploaded_video_binding_changed");
         run.stage = "evidence_binding";

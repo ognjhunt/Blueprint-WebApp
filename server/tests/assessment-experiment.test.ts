@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentHash, experimentVersions, openExperimentLedger,
+import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentErrorCode, experimentHash, experimentVersions, openExperimentLedger,
   sanitizeExperiment, validateExperimentRetention, validateSavedEvidence, writeExperimentJson } from "../agents/assessment-experiment";
 import { SiteAssessmentBudget } from "../agents/adapters/site-assessment-budget";
 
@@ -21,6 +21,13 @@ const open = (file: string, runId = "synthetic-run", mode: "fresh-video" | "save
 afterEach(() => { vi.unstubAllEnvs(); dirs.splice(0).forEach(dir => fs.rmSync(dir, { recursive: true })); });
 
 describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUALITY EVIDENCE", () => {
+  it("identifies exact owned encryption configuration failures without exposing arbitrary prose", () => {
+    expect(experimentErrorCode("KMS key name is required for KMS decryption.")).toBe("experiment_kms_configuration_missing");
+    expect(experimentErrorCode("FIELD_ENCRYPTION_MASTER_KEY is required when KMS is not configured.")).toBe("experiment_local_encryption_key_missing");
+    expect(experimentErrorCode("FIELD_ENCRYPTION_MASTER_KEY must be 32 bytes base64.")).toBe("experiment_local_encryption_key_invalid");
+    expect(experimentErrorCode("PRIVATE exception with a credential")).toBe("experiment_failed");
+    expect(experimentErrorCode("site_assessment_source_changed")).toBe("site_assessment_source_changed");
+  });
   it("requires valid retention permission, with no spending approval or dollar/call limits", () => {
     expect(validateExperimentRetention(retention()).local_evidence_allowed).toBe(true);
     expect(() => validateExperimentRetention(undefined)).toThrow();
@@ -133,9 +140,13 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
   });
   it("redacts access URLs, secrets, personal emails and hidden reasoning without fabricating zero usage", () => {
     const clean = sanitizeExperiment({ authorization: "private", url: "https://example.invalid/signed?key=secret", text: "See https://example.invalid/x?token=secret and synthetic@example.invalid",
-      output: [{ type: "reasoning", encrypted_content: "hidden" }, { type: "message", content: "visible" }], usage: null });
+      output: [{ type: "reasoning", encrypted_content: "hidden" }, { type: "thinking", content: "hidden" },
+        { thought: true, text: "hidden" }, { type: "message", content: "visible", reasoning_content: "hidden",
+          chain_of_thought: "hidden", thinking: "hidden" }], usage: { reasoning_tokens: 42 } });
     expect(JSON.stringify(clean)).not.toContain("secret"); expect(JSON.stringify(clean)).not.toContain("hidden");
-    expect(clean.text).toContain("[redacted-email]"); expect(clean.usage).toBeNull();
+    expect(clean.text).toContain("[redacted-email]"); expect(clean.usage.reasoning_tokens).toBe(42);
+    expect(clean.output).toEqual([{ type: "message", content: "visible" }]);
+    expect(sanitizeExperiment({ content: { thought: true, text: "hidden" } })).toEqual({ content: null });
   });
   it("shows material section differences and cost/latency without asserting quality", () => {
     const run = (missing: string[]) => ({ mode: "saved-evidence", wall_ms: 100, source, versions: { analysis_sha256: "same" },
@@ -178,5 +189,15 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
   it("retains the unchanged production pricing reservation", () => {
     const budget = new SiteAssessmentBudget(); budget.authorize("gemini", "gemini-3.8-flash");
     expect(budget.calls[0].reserved_usd).toBe(1.818624);
+  });
+  it("prices Sol output above the historical estimate without imposing a response ceiling or claiming an unknown upper bound", () => {
+    const budget = new SiteAssessmentBudget(); budget.authorize("openai", "gpt-6.1-sol");
+    expect(budget.artifacts().inference_reservation).toMatchObject({openai_output_token_cap:null,
+      projected_max_cost_per_call_usd:null,reconciled_cost_status:"includes_unbounded_output_estimates",
+      reservation_estimates_are_upper_bounds:false});
+    expect(budget.artifacts().usage_samples[0].reserved_max_cost_usd).toBeNull();
+    budget.record("openai", "gpt-6.1-sol", {usage:{input_tokens:100,output_tokens:20000,total_tokens:20100}});
+    expect(budget.artifacts().usage).toMatchObject({completion_tokens:20000,cost_usd:0.20025});
+    expect(budget.calls[0]).toMatchObject({output_ceiling:null,above_estimate:true});
   });
 });

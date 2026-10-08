@@ -7,6 +7,14 @@ import type { SiteAssessmentExperiment } from "./adapters/site-assessment";
 import { getGeminiVideoModel } from "./provider-config";
 
 export const experimentHash = (value: unknown) => createHash("sha256").update(JSON.stringify(value ?? null)).digest("hex");
+/** Map only exact configuration failures owned by this repo; arbitrary exception prose stays private. */
+export function experimentErrorCode(message: unknown) {
+  if (message === "KMS key name is required for KMS decryption.") return "experiment_kms_configuration_missing";
+  if (message === "FIELD_ENCRYPTION_MASTER_KEY is required when KMS is not configured.") return "experiment_local_encryption_key_missing";
+  if (message === "FIELD_ENCRYPTION_MASTER_KEY must be 32 bytes base64.") return "experiment_local_encryption_key_invalid";
+  return typeof message === "string" && /^(experiment_|inference_programme_|site_assessment_|assessment_|gemini_video_)[a-z0-9_]+$/.test(message)
+    ? message : "experiment_failed";
+}
 const sha = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 export const experimentRetention = z.object({ local_evidence_allowed: z.literal(true),
@@ -34,10 +42,15 @@ export function sanitizeExperiment(value: unknown): any {
     .replace(/https?:\/\/[^\s"<>]+/g, url => { try { const parsed = new URL(url); parsed.search = ""; parsed.hash = ""; parsed.username = ""; parsed.password = ""; return parsed.toString(); } catch { return "[redacted-url]"; } })
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted-email]")
     .replace(/\b(?:sk|AIza)[-_A-Za-z0-9]{16,}\b/g, "[redacted-key]");
-  if (Array.isArray(value)) return value.filter(item => !(item && typeof item === "object" && (item.type === "reasoning" || item.thought === true))).map(sanitizeExperiment);
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).filter(([key]) =>
-    !/^(authorization|cookie|headers|api.?key|secret|token|encrypted_content|reasoning|thought|signed.?url|url)$/i.test(key))
-    .map(([key, item]) => [key, sanitizeExperiment(item)]));
+  if (Array.isArray(value)) return value.filter(item => !(item && typeof item === "object"
+    && (/^(reasoning|thinking|thought|chain_of_thought)$/i.test(item.type ?? "") || item.thought === true))).map(sanitizeExperiment);
+  if (value && typeof value === "object") {
+    const fields = value as Record<string, unknown>;
+    if ((typeof fields.type === "string" && /^(reasoning|thinking|thought|chain_of_thought)$/i.test(fields.type)) || fields.thought === true) return null;
+    return Object.fromEntries(Object.entries(fields).filter(([key]) =>
+      !/^(authorization|cookie|headers|api.?key|secret|token|encrypted_content|reasoning|reasoning_content|chain_of_thought|thinking|thought|signed.?url|url)$/i.test(key))
+      .map(([key, item]) => [key, sanitizeExperiment(item)]));
+  }
   return value;
 }
 
@@ -157,6 +170,8 @@ export function openExperimentLedger(file: string, requestId: string, runId: str
       const accounting = new SiteAssessmentBudget(); accounting.authorize(provider, model, request);
       const reserved = accounting.calls[0].reserved_usd, token = randomUUID();
       const slot = { id: token, provider, model, state: "admitted", reserved_call_micro_usd: Math.ceil(reserved * 1e6),
+        reservation_is_upper_bound: accounting.calls[0].output_ceiling !== null,
+        output_token_cap: accounting.calls[0].output_ceiling,
         usage_estimate_micro_usd: null, usage: null, metadata: sanitizeExperiment(metadata) };
       state.slots.push(slot); writeExperimentJson(file, state);
       const receipt = { provider, run_id: runId, slot_id: token, reserved_usd: reserved,

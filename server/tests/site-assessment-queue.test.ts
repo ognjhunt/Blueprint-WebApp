@@ -74,12 +74,52 @@ it("dispatches the committed claim once and reconciles canonical completion afte
   expect(state.docs.get(key)?.state).toBe("completed"); expect(seams.run).toHaveBeenCalledTimes(1);
 });
 it("keeps unknown interrupted provider work for review instead of redispatching", async () => {
-  const { reconcileSiteAssessments } = await import("../utils/siteAssessmentQueue");
+  const { reconcileSiteAssessments, describeSiteAssessmentRetry } = await import("../utils/siteAssessmentQueue");
   await publishBrowserPending(pending);const [key, job] = selectedJob();
   state.docs.set(key, { ...job, state: "running", claim_id: "retained-claim", started_at_ms: 0 });
   state.docs.set(`agentRuns/${job.run_id}`, { task_kind: "site_assessment", status: "running", artifacts: { usage: null } });
   await reconcileSiteAssessments();await reconcileSiteAssessments();
   expect(state.docs.get(key)?.state).toBe("needs_review"); expect(seams.run).not.toHaveBeenCalled();
+  // Total run age alone cannot retire a current claim that is still making
+  // durable inference progress. These are isolated phases of this control.
+  const { reserveCaptureCoverageInference, hasRecentAssessmentProgress } = await import("../utils/captureCoverageInferenceBudget");
+  const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+  for (const progress of ["admitted", "recorded", "unknown", "already-review", "stale", "foreign-run", "foreign-source", "foreign-claim", "future"] as const) {
+    state.docs.clear();
+    const raw = request(), id = key.split("/")[1], started = Date.now() - 40 * 60_000;
+    state.docs.set(`inboundRequests/${pending.request_id}`, { ...raw, site_advisory: { job_id: id, source_key: job.source_key, context_digest: job.context_digest, state: "running" } });
+    state.docs.set(`captureUploadSessions/${pending.capture_id}`, { browser_pending_delivery: { ...pending, state: "published" } });
+    state.docs.set(key, { ...job, state: "running", claim_id: "retained-claim", started_at_ms: started });
+    const runPath = `agentRuns/${job.run_id}`;
+    state.docs.set(runPath, { task_kind: "site_assessment", status: "running", metadata: { capture_id: pending.capture_id, advisory_job_id: id },
+      input: { input: { context: { request_id: pending.request_id, advisory_job_id: id, advisory_claim_id: "retained-claim" } } }, artifacts: { usage: null } });
+    const admission = await reserveCaptureCoverageInference("gpt-6.1-sol", { capture_id: pending.capture_id,
+      assessment_run_id: job.run_id, assessment_request_id: pending.request_id, assessment_video_sha256: "a".repeat(64),
+      assessment_source: { kind: "browser_pending", key: job.source_key } }, "openai", {});
+    if (progress === "recorded" || progress === "unknown") await admission.record(progress === "recorded" ? { input_tokens: 20, output_tokens: 10 } : null);
+    const [callPath, call] = [...state.docs.entries()].find(([path]) => path.endsWith(`/calls/${admission.receipt.admission_token}`))!;
+    if (["recorded", "unknown", "stale"].includes(progress)) call.created_at_ms = started + 1_000;
+    if (progress === "foreign-run") call.run_id = "other-run";
+    if (progress === "foreign-source") call.source_digest = "f".repeat(64);
+    if (progress === "foreign-claim") state.docs.get(runPath)!.input.input.context.advisory_claim_id = "other-claim";
+    if (progress === "future") call.created_at_ms = Date.now() + 60_000;
+    if (progress === "already-review") state.docs.get(key)!.state = "needs_review";
+    const recent = ["admitted", "recorded", "unknown", "already-review"].includes(progress);
+    const before = structuredClone([...state.docs.entries()].filter(([path]) => path.startsWith("captureCoverageReviews/") || path === runPath));
+    await reconcileSiteAssessments(); await reconcileSiteAssessments();
+    expect(state.docs.get(key)?.state, progress).toBe(recent && progress !== "already-review" ? "running" : "needs_review");
+    expect((await describeSiteAssessmentRetry(pending.request_id, () => true)).available, progress).toBe(progress === "stale");
+    expect(await sharedFakeFirestore.runTransaction(tx => hasRecentAssessmentProgress(tx, { requestId: pending.request_id,
+      jobId: id, captureId: pending.capture_id, previousRunId: job.run_id, previousClaimId: "retained-claim", sourceKey: job.source_key,
+      contextDigest: job.context_digest, startedAtMs: started, request: raw, brief: null })), progress).toBe(recent);
+    if (progress === "stale") {
+      expect(state.docs.get(runPath)).toMatchObject({ status: "cancelled", error: "site_assessment_process_interrupted",
+        advisory_abandonment: { schema_version: "site_assessment_abandonment.v1", admission_token: admission.receipt.admission_token } });
+      expect([...state.docs.entries()].filter(([path]) => path.startsWith("captureCoverageReviews/"))).toEqual(before.filter(([path]) => path !== runPath));
+    } else expect([...state.docs.entries()].filter(([path]) => path.startsWith("captureCoverageReviews/") || path === runPath)).toEqual(before);
+    expect(state.docs.get(callPath)?.state, progress).toBe(progress === "recorded" ? "recorded" : progress === "unknown" ? "unknown" : "admitted");
+    expect(seams.run).not.toHaveBeenCalled();
+  }
 });
 it("waits for this worker's active coverage pass without requiring its verdict", async () => {
   const { reconcileSiteAssessments } = await import("../utils/siteAssessmentQueue");
@@ -175,8 +215,12 @@ it.each(["ordinary", "programme-bound"])("ADVISORY-PRODUCER-001 joined actual SD
     if(new URL(String(url)).hostname!=="127.0.0.1") throw Error("unexpected_external_network");
     return originalFetch(url,options);
   });
+  let sdkException: string | null = null;
   try {
-    seams.run.mockImplementation(async(task,options)=>(await vi.importActual<typeof import("../agents/runtime")>("../agents/runtime")).runAgentTask(task,options));
+    seams.run.mockImplementation(async(task,options)=>{
+      try { return await (await vi.importActual<typeof import("../agents/runtime")>("../agents/runtime")).runAgentTask(task,options); }
+      catch(error) { sdkException=error instanceof SyntaxError ? "SyntaxError" : error instanceof TypeError ? "TypeError" : error instanceof Error ? "Error" : "non_error_exception";throw error; }
+    });
     wakeSpy.mockRestore();
     const queue=await import("../utils/siteAssessmentQueue");
     wakeSpy=vi.spyOn(queue,"tickSiteAssessments");
@@ -185,7 +229,8 @@ it.each(["ordinary", "programme-bound"])("ADVISORY-PRODUCER-001 joined actual SD
     await wakeSpy.mock.results[0].value;
     const {reconcileSiteAssessments}=queue;
     const [key,job]=selectedJob();
-    expect(job.state,JSON.stringify(state.docs.get(`agentRuns/${job.run_id}`))).toBe("completed");
+    expect(job.state,JSON.stringify({run:state.docs.get(`agentRuns/${job.run_id}`),sdkException,
+      runtimeCalls:seams.run.mock.calls.length,manifestCalls:seams.manifest.mock.calls.length,markerCalls:seams.marker.mock.calls.length})).toBe("completed");
     expect(calls).toBe(2);expect(videoSpy).toHaveBeenCalledTimes(1);
     const run=state.docs.get(`agentRuns/${job.run_id}`)!;
     expect(run.artifacts.source_admission).toMatchObject({advisory_job_id:key.split("/")[1],context_digest:job.context_digest,source_key:browserPendingDecisionKey(joined),video_sha256:createHash("sha256").update(Buffer.from("video-1")).digest("hex")});
