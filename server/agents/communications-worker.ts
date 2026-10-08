@@ -719,9 +719,9 @@ export function startCommunicationsWorker(): () => Promise<void> {
   const store = new CommunicationsStore(db);
   const allowPaidInference = process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true";
   const api: CommunicationsAgentsAPI = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference,
-    reservePaidDraft: async (jobId, digest) => {
+    reservePaidDraft: async (jobId, digest, sessionSpendLimitCents) => {
       await reconcileCommunicationsDraftCost(db, api, Date.now());
-      return reserveCommunicationsDraft(db, jobId, digest, Date.now());
+      return reserveCommunicationsDraft(db, jobId, digest, Date.now(), sessionSpendLimitCents);
     },
     recordPaidDraftUsage: (jobId, digest, usage) => recordCommunicationsDraftUsage(db, jobId, digest, usage, Date.now()),
   });
