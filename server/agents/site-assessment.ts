@@ -127,10 +127,14 @@ them changes the assessment. You decide what to ask Gemini; Gemini supplies obse
 Reuse supplied retained video findings when their bytes match this video. Prior assessment text supplies question
 context only; its claims need admitted sources. Supplied conversation does not verify speaker identity.
 The task_instruction is a host request, never an operator statement or citable evidence.
-When recorded operator statements are absent, do not invent them; assess the admitted video and retain unknowns.
+When recorded operator statements are absent, do not invent them. First ask Gemini to identify the visible
+setting, objects and activity from the admitted video without assuming the job, then use those observations
+to choose focused follow-up questions. Visible activity does not establish the operator's intended job or
+success criteria; retain those unknowns.
 Start with auto processing at 2 FPS. For a specific unresolved event, choose agentic inspection or static
 4 FPS when temporal detail matters. Retain sampling limits; a second look cannot recover unrecorded evidence.
-Compare what the operator says with what is actually visible. Door/rack movement is not evidence of dish loading.
+Compare what the operator says with what is actually visible. A visible substep does not establish an unseen
+operation or completion of a larger job.
 Preserve partial cycles, occlusion, failures, recovery and success subsequently undone. Cite actual seconds.
 Ask the operator about acceptance, repetition, observed operator burden, throughput, exceptions, quantities,
 forces, cleaning and access
@@ -140,12 +144,25 @@ on either. Consider workflow economics only when the owner supplies it; internal
 customer questions. Ask about the work performed and its frequency rather than a spending threshold.
 Return needs_operator_input with those questions when their answers change the next action. The caller continues
 the existing conversation by supplying the recorded answers on the next run; never invent an operator reply.
+Identify which missing fact prevents which decision. Unresolved success criteria or workload do not by themselves
+stop capture, scene preparation, evidence extraction or evaluation planning. Propose useful preparation alongside
+targeted site questions; measurements we can obtain belong in remaining checks, not a request for the operator
+to invent values. Define success criteria before scoring a pass and resolve necessary physical constraints before
+the affected physical trial. Keep assumptions explicit; preparation is not proof of successful deployment.
 
 Read the robot registry and search relevant authorized company knowledge. You choose search queries, filters,
 depth and paging; remove restrictive filters when useful. Fetch original records before citing knowledge.
 Inspect source dates, corrections, evidence scope and per-field provenance. Published specs and owner/vendor
 statements are not measured site outcomes. Unknown reach, tooling, support or success does not exclude a robot.
 Registry band matches are only screening hints. A partial corpus or search nonmatch proves no incompatibility.
+If a tool returns knowledge_scope_unavailable, report that authorized company knowledge is unavailable;
+changing search queries or filters cannot restore access. Continue with admitted sources and identify the
+research gap without claiming that a search found no suitable robots. Start searches with cursor null.
+A cursor is an opaque next_cursor returned by a successful search; never invent one or reuse it after changing
+the query or filters. On company_history_cursor_changed, restart with cursor null rather than repeating the
+invalid cursor. Use null for unused filters. Do not restrict broad capability research to the site's city or
+to Blueprint as a company unless that restriction answers the question; broaden a nonmatch before drawing
+conclusions, and inspect returned coverage and unknowns.
 Fields graded inferred remain estimates, not robot specifications.
 Prospect teams have not agreed to deploy. Development/simulation results are not physical production proof.
 SOPs/docs matter only if actually returned by a tool or supplied as evidence; do not claim access to unseen files.
@@ -204,16 +221,9 @@ export async function createSiteAssessmentAgent(input: SiteAssessmentInput, opti
     videoCache.set(hash({ question: value.question, processing: value.processing, sampling_fps: value.sampling_fps }), value);
   }
   const now = options.now ?? Date.now;
-  const deadline = options.deadline_at_ms ?? now() + 10 * 60 * 1000;
-  if (!Number.isFinite(deadline)) throw new Error("assessment_deadline_invalid");
+  const deadline = options.deadline_at_ms ?? Number.POSITIVE_INFINITY;
+  if (options.deadline_at_ms !== undefined && !Number.isFinite(deadline)) throw new Error("assessment_deadline_invalid");
   const assertDeadline = () => { if (now() >= deadline) throw new Error("site_assessment_deadline_exceeded"); };
-  const evidenceSeen = new Set<string>();
-  const evidenceItems = (evidence: ReturnType<typeof validateVideoObservations>) => [
-    ...evidence.observations.map(item => hash({ observation: item })),
-    ...evidence.not_observable.map(item => hash({ not_observable: item })),
-  ];
-  for (const retained of videoCache.values()) for (const item of evidenceItems(validateVideoObservations(retained.evidence, input.video!.duration_seconds))) evidenceSeen.add(item);
-  let unchangedVideoProbes = 0;
   let sourceBytes = options.video_bytes;
   const readVideo = options.analyze_video ?? (async (question: string, inspection: VideoInspection): Promise<VideoAnalysis> => {
     const video = input.video!;
@@ -275,18 +285,11 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
         if (!input.video) return retained("analyze_site_video", args, { ok: false, error: "video_not_supplied" });
         let result = videoCache.get(cacheKey);
         if (!result) {
-          const stop = now() >= deadline ? "assessment_time_budget_exhausted"
-            : unchangedVideoProbes >= 2 ? "assessment_video_no_new_evidence" : null;
+          const stop = now() >= deadline ? "assessment_time_budget_exhausted" : null;
           if (stop) return retained("analyze_site_video", args, { ok: false, error: stop,
             action: "Use retained findings and explain the remaining uncertainty, or ask for the missing observation." });
           result = await readVideo(question, inspection);
           result.evidence = validateVideoObservations(result.evidence, input.video.duration_seconds);
-          // Wording changes in a summary are not new observed evidence. Repeated
-          // observations at the same bounds cannot justify unbounded paid probes.
-          const items = evidenceItems(result.evidence);
-          const addsItem = items.some(item => !evidenceSeen.has(item));
-          unchangedVideoProbes = addsItem ? 0 : unchangedVideoProbes + 1;
-          for (const item of items) evidenceSeen.add(item);
           videoCache.set(cacheKey, result);
         }
         const source_id = `video:${input.video.source_id}:${cacheKey.slice(0, 12)}`;
@@ -295,14 +298,20 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
         return retained("analyze_site_video", args, { ok: true, source_id, ...result });
       },
     }),
-    tool({ name: "search_robot_knowledge", description: "Search the authorized company corpus, including capability research, sites/tasks, history and available documents. Choose query and relevance filters; page onward. Fetch selected original records before citing. Missing access/data is not no robots.",
+    tool({ name: "search_robot_knowledge", description: "Search the authorized company corpus, including capability research, sites/tasks, history and available documents. Start with cursor null; page only with the exact returned next_cursor for the same query and filters. On company_history_cursor_changed restart with cursor null. Use null for unused filters; broad capability research need not share the site's city or company. Fetch selected original records before citing. Missing access/data is not no robots.",
       parameters: z.object({ query: z.string().max(4000), city: z.string().nullable(), task: z.string().nullable(),
-        company: z.string().nullable(), kind: z.string().nullable(), cursor: z.string().nullable() }),
+        company: z.string().nullable(), kind: z.string().nullable(), cursor: z.string().nullable().describe("Null for a new or restarted search; otherwise the exact next_cursor returned for this unchanged query and filters. Never invent a cursor.") }),
       execute: async args => {
         if (!options.history_access) return retained("search_robot_knowledge", args, { ok: false, error: "knowledge_scope_unavailable" });
-        const filters = Object.fromEntries(["city", "task", "company", "kind"].flatMap(key => args[key as "city"] ? [[key, args[key as "city"]]] : []));
+        // Some valid SDK responses spell nullable fields as the string "null".
+        // Recover only that absence marker; real cursors still undergo backend binding checks.
+        const optional = (value: string | null) => value?.trim().toLowerCase() === "null" ? null : value;
+        const filters = Object.fromEntries(["city", "task", "company", "kind"].flatMap(key => {
+          const value = optional(args[key as "city"]); return value ? [[key, value]] : [];
+        }));
+        const cursor = optional(args.cursor);
         return retained("search_robot_knowledge", args, await history("search_company_history",
-          { query: args.query, filters, page_size: 20, ...(args.cursor ? { cursor: args.cursor } : {}) }, options.history_access));
+          { query: args.query, filters, page_size: 20, ...(cursor ? { cursor } : {}) }, options.history_access));
       },
     }),
     tool({ name: "fetch_robot_knowledge", description: "Fetch one original authorized record by the exact record_id returned by search. Inspect source hash, original check date, scope, corrections and unknowns; cite the returned source_id.",
@@ -354,7 +363,8 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
   };
   const agent = new Agent({ name: "Site assessment", model, instructions: SITE_ASSESSMENT_INSTRUCTIONS,
     tools: options.allowed_tools ? tools.filter(tool => options.allowed_tools!.includes(tool.name)) : tools,
-    modelSettings: { reasoning: { effort: "medium" }, parallelToolCalls: false, maxTokens: options.max_output_tokens ?? 8192, store: false,
+    modelSettings: { reasoning: { effort: "medium" }, parallelToolCalls: false,
+      ...(options.max_output_tokens === undefined ? {} : { maxTokens: options.max_output_tokens }), store: false,
       providerData: { service_tier: "default" } },
     outputType: siteAssessmentOutputSchema });
   return {
@@ -366,7 +376,7 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
         task_instruction: input.task_instruction ?? null, prior_assessment: input.prior_assessment ?? null,
         evidence_sources: [...sources.values()], video: input.video ? { source_id: input.video.source_id,
           sha256: input.video.sha256, duration_seconds: input.video.duration_seconds } : null,
-        site_requirement: input.site_requirement }), { maxTurns: options.max_turns ?? 12 });
+        site_requirement: input.site_requirement }), { maxTurns: options.max_turns ?? Number.POSITIVE_INFINITY });
       const raw_model_assessment = siteAssessmentSchema.parse(result.finalOutput);
       const { assessment, verification } = renderSourceBoundAssessment(raw_model_assessment, sources, input.video?.duration_seconds ?? null);
       return { schema_version: "site_assessment.v2", request_id: input.request_id, assessment,

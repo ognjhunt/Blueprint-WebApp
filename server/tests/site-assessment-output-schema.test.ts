@@ -25,9 +25,12 @@ describe("site assessment Responses output contract", () => {
     expect(create).toHaveBeenCalledTimes(1);
     expect(network).not.toHaveBeenCalled();
     const request = create.mock.calls[0][0] as unknown as {
+      max_output_tokens?: number;
       tools: Array<{ parameters: unknown }>;
       text: { format: { schema: unknown } };
     };
+    expect(request.max_output_tokens).toBeUndefined();
+    expect(JSON.parse(JSON.stringify(request))).not.toHaveProperty("max_output_tokens");
     const unsupported = new Set(["allOf", "not", "dependentRequired", "dependentSchemas", "if", "then", "else"]);
     const findings: string[] = [];
     function inspect(value: unknown, path: string) {
