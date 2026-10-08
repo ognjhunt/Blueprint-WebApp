@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { RECORDING_CONSENT_VERSION } from "../../utils/recordingConsent";
 
 export const QUEUE_CASE_VERSION = "blueprint-reliability-queue.v2";
 export type QueueCase = {
@@ -43,3 +44,15 @@ for (const scenario of ["duplicate", "concurrent_duplicate", "changed_amount", "
     "One immutable receipt per logical allocation; unknown/estimated stay outside settled totals; duplicate events never double-charge; conflicts rejected");
 }
 export const queueCases = cases;
+
+/** Prerequisite for capture-derived notification replay, not another semantic case.
+ * Real dispatch authority must read this current isolated request; it is never mocked. */
+export function queueAuthorityFixture() {
+  return {
+    request: { consent_attestation: { granted: true, statement_version: RECORDING_CONSENT_VERSION,
+      recorded_at_iso: "2026-10-01T00:00:00Z" } },
+    contact: { email: "fixture@example.invalid", firstName: "Fixture" },
+    capture_privacy_source_bound_decision: { capture_id: "rq-capture", proceeded: true,
+      producer_source: { kind: "app_bundle_completion", key: "rq-authorized-source" } },
+  };
+}

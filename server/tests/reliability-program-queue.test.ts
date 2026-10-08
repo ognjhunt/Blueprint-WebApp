@@ -1,11 +1,11 @@
 // @vitest-environment node
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { sharedFakeFirestore as db, sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
-import { queueCases, QUEUE_CASE_VERSION, type QueueCase } from "./helpers/reliability-queue-cases";
+import { queueCases, queueAuthorityFixture, QUEUE_CASE_VERSION, type QueueCase } from "./helpers/reliability-queue-cases";
 
 const mocks = vi.hoisted(() => ({ send: vi.fn(), authority: vi.fn(), description: vi.fn(), save: vi.fn() }));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
@@ -29,7 +29,6 @@ vi.mock("../utils/captureCoverageQueue", () => ({ enqueueCoverageReview: vi.fn()
 import { deliverOutbox, enqueueOutbox, reconcileOutboxDeliveries } from "../utils/captureOutbox";
 import { recoverCaptureReviews } from "../utils/captureReviewRecovery";
 import { recordCohortCostReceipt, getCohort, type CohortCostReceipt } from "../utils/cohortEconomics";
-import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 
 const key = "rq:brief_confirmed", path = `captureOutbox/${key}`;
 const row = () => state.docs.get(path)!;
@@ -42,17 +41,14 @@ const traceResults: Record<string, unknown>[] = [];
 const started = new Date().toISOString();
 const baseSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const sourceHashes = Object.fromEntries([
-  "server/utils/captureOutbox.ts", "server/utils/captureReviewRecovery.ts", "server/utils/cohortEconomics.ts",
+  "server/utils/captureOutbox.ts", "server/utils/taskLifecycleNotificationAuthority.ts", "server/utils/websiteTaskContext.ts", "server/utils/captureReviewRecovery.ts", "server/utils/cohortEconomics.ts",
   "server/tests/reliability-program-queue.test.ts", "server/tests/helpers/reliability-queue-cases.ts",
-].map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
+].filter(path => existsSync(path)).map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
 beforeEach(() => {
   state.docs.clear(); Object.values(mocks).forEach(m => m.mockReset());
-  // The integrated dispatcher reads present capture authority. These provider
-  // fault cases own a consented source; withdrawal has its separate regressions.
-  state.docs.set("inboundRequests/rq", { request: { consent_attestation: {
-    granted: true, statement_version: RECORDING_CONSENT_VERSION,
-    recorded_at_iso: "2026-10-01T00:00:00Z",
-  } } });
+  // PR940 checks current capture-notice authority. A provider fault case needs
+  // the normal authorized producer prerequisite, otherwise cancellation is correct.
+  state.docs.set("inboundRequests/rq", queueAuthorityFixture());
   mocks.authority.mockResolvedValue(true); mocks.send.mockResolvedValue(accepted);
   mocks.description.mockResolvedValue(true);
   mocks.save.mockImplementation(async (v: any) => state.docs.set(`siteTaskBriefs/${v.requestId}`, v));
@@ -68,7 +64,7 @@ afterAll(() => {
   writeFileSync(resolve(dir, "catalog.json"), JSON.stringify(catalog, null, 2));
   const counts = Object.fromEntries(["passed", "failed", "skipped", "blocked", "partially_executed"].map(s => [s, traceResults.filter(r => r.status === s).length]));
   writeFileSync(resolve(dir, "results.json"), JSON.stringify({ schemaVersion: QUEUE_CASE_VERSION, started,
-    finished: new Date().toISOString(), codeSha: baseSha, sourceHashes, generated: queueCases.length,
+    finished: new Date().toISOString(), codeSha: baseSha, runtimeRevision: process.env.RELIABILITY_QUEUE_RUNTIME_REVISION || baseSha, sourceHashes, generated: queueCases.length,
     deduplicated: new Set(queueCases.map(c => c.hash)).size, attempted: traceResults.length, ...counts,
     providerMode: "fake-local-sink", storageMode: "in-memory-serialized-Firestore-fake", liveProviderCalls: 0,
     liveProviderCostUsd: null, liveCostReason: "No live dispatch; fake latency and calls are not provider performance or billing receipts.", traces: traceResults }, null, 2));
@@ -84,7 +80,8 @@ async function tracked(c: QueueCase, run: () => Promise<void>) {
       incrementalPolicyCostUsd: data.incrementalPolicyCostUsd ?? null }));
     traceResults.push({ caseId: c.id, semanticHash: c.hash, status, error, elapsedMs: performance.now() - begin,
       layer: c.layer, codeSha: baseSha, promptVersion: null, providerCalls: mocks.send.mock.calls.length,
-      descriptionCalls: mocks.description.mock.calls.length, documents,
+      descriptionCalls: mocks.description.mock.calls.length,
+      providerFaultReached: c.family === "provider_failures" ? mocks.send.mock.calls.length === 1 : null, documents,
       traceDigest: createHash("sha256").update(JSON.stringify(documents)).digest("hex") });
   }
 }
@@ -195,6 +192,9 @@ describe("frozen queue cases: provider evidence", () => {
     if (outcome === "throw") mocks.send.mockRejectedValue(new Error("fixture connection lost"));
     else mocks.send.mockResolvedValue(results[outcome]);
     await deliverOutbox();
+    // Missing/withdrawn authority would cancel before this boundary. Do not
+    // credit a provider fault unless the actual dispatch reached its adapter.
+    expect(mocks.send).toHaveBeenCalledTimes(1);
     const retriable = ["not_sent", "unconfigured"].includes(outcome);
     expect(row().status).toBe(outcome === "accepted" ? "sent" : retriable ? attempts === 5 ? "failed" : "pending" : "unknown");
     expect(row().attempts).toBe(attempts + 1);
