@@ -881,7 +881,7 @@
     "main_CI": 37801137055,
     "main_CI_state": "success",
     "canonical_import": {
-      "state": "actual_atomic_attachment_committed_verified_owner_receipt_independent_readback_review_pending",
+      "state": "actual_atomic_attachment_committed_verified_independently_reviewed",
       "schema": "canonical_programme_attachment_execution.v1",
       "committed_at": "2026-10-08T15:47:14.114Z",
       "execution_sha256": "8f73ac57ca9d21781b9c7e65f83d08df5a2b1438b9f43d2dc836c6c43d018fc8",
@@ -894,7 +894,8 @@
       "account_attachment": "unchanged_absent_unclaimed",
       "privacy": "unchanged_current_source_bound_and_legacy",
       "original_ledger": "byte_identical",
-      "effect_ceiling": "Created programme and request reference only; no claim/upload/customer status/workspace wake or model dispatch"
+      "effect_ceiling": "Created programme and request reference only; no claim/upload/customer status/workspace wake or model dispatch",
+      "execution_review_commit": "a29e3728"
     },
     "deploy_workflow": 37802266614,
     "deploy_state": "paired_native_LIVE_exact195",
@@ -1023,7 +1024,15 @@
     "prior_CI_outcome": "e2e failed ffmpegENOENT,3neighborspassed;test cancelled by superseding head",
     "workflow_correction": "Move unchanged existing ffmpeg setup before private-link browser suite",
     "workflow_independent_review_commit": "ef25c0b4",
-    "failed_job_log_sha256": "13b318ccc16b7fb6445934724a6486a448d24cc2c822562089991d2da4d8d238"
+    "failed_job_log_sha256": "13b318ccc16b7fb6445934724a6486a448d24cc2c822562089991d2da4d8d238",
+    "fresh_e2e": {
+      "job": 113401869812,
+      "conclusion": "success",
+      "log_sha256": "57f7b21f51aa973d4e6780ec3d125212e02e35848b6a496cc162a6dbca1854ab",
+      "private_link_cases_passed": 4,
+      "scoped_intake_cases_passed": 14,
+      "claim_ceiling": "NativeLinux actualChromium with interceptedAPI/generatedMP4; no originalcoveragecredit or livebackend/upload/providerclaim"
+    }
   },
   "beta_copy_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/956",
