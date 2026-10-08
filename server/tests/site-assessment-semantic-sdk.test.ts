@@ -11,9 +11,9 @@ import type { RobotTeamRecord } from "../types/robot-team-registry";
 // admission/publication diagnostics, never real model or video accuracy labels.
 const scenarios = [
   { id: "V2-empty-search-invented-source", mode: "empty_search", steps: ["search", "fetch"], expectedError: "assessment_unknown_source_id", semanticOnly: false },
-  { id: "V2-unknown-registry-invented-reach", mode: "unknown_registry", steps: ["registry"], expectedError: null, semanticOnly: true },
-  { id: "V2-inferred-registry-published-reach", mode: "inferred_registry", steps: ["registry"], expectedError: null, semanticOnly: true },
-  { id: "V2-empty-knowledge-published-reach", mode: "empty_knowledge", steps: ["search", "fetch"], expectedError: null, semanticOnly: true },
+  { id: "V2-unknown-registry-invented-reach", mode: "unknown_registry", steps: ["registry"], expectedError: "assessment_registry_source_basis_required", semanticOnly: false },
+  { id: "V2-inferred-registry-published-reach", mode: "inferred_registry", steps: ["registry"], expectedError: "assessment_registry_source_basis_required", semanticOnly: false },
+  { id: "V2-empty-knowledge-published-reach", mode: "empty_knowledge", steps: ["search", "fetch"], expectedError: "assessment_knowledge_content_required", semanticOnly: false },
   { id: "V2-corrected-knowledge-current-spec", mode: "stale_knowledge", steps: ["search", "fetch"], expectedError: null, semanticOnly: true },
   { id: "V2-conflicting-owner-spec-video", mode: "conflict", steps: ["video", "search", "fetch"], expectedError: null, semanticOnly: true },
   { id: "V2-invented-video-measurement", mode: "measurement", steps: ["video"], expectedError: null, semanticOnly: true },
@@ -23,6 +23,15 @@ const scenarios = [
   { id: "V2-sourced-estimate-exclusion-control", mode: "estimate_control", steps: ["registry"], expectedError: null, semanticOnly: false },
   { id: "V2-no-robot-unknown-control", mode: "manual_control", steps: ["search"], expectedError: null, semanticOnly: false },
   { id: "V2-published-registry-control", mode: "published_control", steps: ["registry"], expectedError: null, semanticOnly: false },
+  { id: "V5-measured-registry-control", mode: "measured_control", steps: ["registry"], expectedError: null, semanticOnly: false },
+  { id: "V5-self-reported-registry-control", mode: "self_reported_control", steps: ["registry"], expectedError: null, semanticOnly: false },
+  { id: "V5-inferred-estimate-control", mode: "inferred_estimate_control", steps: ["registry"], expectedError: null, semanticOnly: false },
+  { id: "V5-unknown-context-control", mode: "unknown_context_control", steps: ["registry"], expectedError: null, semanticOnly: false },
+  { id: "V5-nonempty-knowledge-published-control", mode: "knowledge_published_control", steps: ["search", "fetch"], expectedError: null, semanticOnly: false },
+  { id: "V5-nonempty-knowledge-measured-control", mode: "knowledge_measured_control", steps: ["search", "fetch"], expectedError: null, semanticOnly: false },
+  { id: "V5-published-is-not-measured", mode: "published_as_measured", steps: ["registry"], expectedError: "assessment_registry_source_basis_required", semanticOnly: false },
+  { id: "V5-missing-named-provenance", mode: "missing_named_provenance", steps: ["registry"], expectedError: "assessment_registry_source_basis_required", semanticOnly: false },
+  { id: "V5-admitted-field-wrong-claim", mode: "wrong_field_claim", steps: ["registry"], expectedError: null, semanticOnly: true },
 ];
 const codeSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const results: Array<Record<string, unknown>> = [];
@@ -37,7 +46,7 @@ afterAll(() => {
   const output = process.env.RELIABILITY_C_V2_OUTPUT;
   if (output) writeFileSync(`${output}/${process.env.RELIABILITY_C_V2_RUN ?? "results"}.json`, JSON.stringify({ codeSha,
     sourceCodeSha256: createHash("sha256").update(readFileSync(new URL("../agents/site-assessment.ts", import.meta.url))).digest("hex"),
-    labelVersion: "C-semantic-sdk.v2", labelStatus: "PROVISIONAL synthetic fixture expectations", layer: "actual_SDK_runner_tool_loop_no_storage",
+    labelVersion: "C-semantic-sdk.v5", labelStatus: "PROVISIONAL synthetic fixture expectations; v2 expectations amended explicitly in C/v5 manifest", layer: "actual_SDK_runner_tool_loop_no_storage",
     providerMode: "scripted_model_and_video_callbacks", liveProviderCalls: 0, knownCostUsd: 0,
     publicationMeaning: "Actual Runner finalOutput parsed and accepted into portable assessment packet; no adapter/database/customer publication executed",
     results }, null, 2) + "\n");
@@ -46,14 +55,15 @@ afterAll(() => {
 describe("actual SDK source-primitive semantic diagnostics", () => {
   it.each(scenarios)("$id", async scenario => {
     const mode = scenario.mode;
-    const knownRegistry = ["estimate_control", "published_control"].includes(mode);
-    const inferred = mode === "inferred_registry";
+    const knownRegistry = ["estimate_control", "published_control", "measured_control", "self_reported_control", "published_as_measured", "missing_named_provenance", "wrong_field_claim"].includes(mode);
+    const inferred = ["inferred_registry", "inferred_estimate_control"].includes(mode);
     const team: RobotTeamRecord = { id: "fixture-team", name: "Synthetic Team", status: "prospect",
       capability: { reachM: knownRegistry ? 1 : inferred ? 3 : null, payloadCapacity: null },
-      fieldProvenance: knownRegistry || inferred ? { reachM: { grade: inferred ? "inferred" : "published", source: "synthetic/specification", observedAt: "2026-01-01" } } : {},
+      fieldProvenance: knownRegistry || inferred ? { reachM: { grade: inferred ? "inferred" : mode === "measured_control" ? "measured" : mode === "self_reported_control" ? "self_reported" : "published", source: mode === "missing_named_provenance" ? "" : "synthetic/specification", observedAt: "2026-01-01" } } : {},
       createdAt: "2026-01-01", updatedAt: "2026-01-01", capabilityDescription: "Synthetic registry record; no physical trial" };
     const record = mode === "empty_knowledge" ? historyRecord({})
       : mode === "stale_knowledge" ? historyRecord({ reachM: 2, correction: "Superseded: current model reach is 1 m; original 2 m must not be treated as current" }, false)
+      : ["knowledge_published_control", "knowledge_measured_control"].includes(mode) ? historyRecord({ reachM: 1, basis: mode === "knowledge_measured_control" ? "measured synthetic fixture" : "published synthetic fixture" })
       : historyRecord({ task_success: "The task requires bin stacking; moving the bin onto a table does not establish completion" });
     let turn = 0, modelCalls = 0, videoCalls = 0;
     const providerOutputs: unknown[] = [];
@@ -82,6 +92,12 @@ describe("actual SDK source-primitive semantic diagnostics", () => {
             reasons: [{ text: "Assuming the owner's 2 m reach requirement, the published 1 m reach leaves a gap; confirm a fixture alternative", basis: "estimate", evidence: [registryRef, { source_id: "operator:fixture-message", at_seconds: null }] }], remaining_checks: ["Check the owner's measurement and fixture alternatives"] }];
           if (mode === "manual_control") assessment.next_action = { kind: "no_robot", action: "Keep the task manual while requirements are clarified", why: { text: "Available robot capability is unknown", basis: "unknown", evidence: [] } };
           if (mode === "published_control") assessment.known = [{ text: "The synthetic record publishes a 1 m reach", basis: "published", evidence: [registryRef] }];
+          if (["measured_control", "published_as_measured"].includes(mode)) assessment.known = [{ text: "The synthetic record measures a 1 m reach", basis: "measured", evidence: [registryRef] }];
+          if (mode === "self_reported_control") assessment.known = [{ text: "The team reports a 1 m reach; no measurement is established", basis: "published", evidence: [registryRef] }];
+          if (mode === "inferred_estimate_control") assessment.estimates = [{ text: "A 3 m reach is inferred and needs verification", basis: "estimate", evidence: [registryRef] }];
+          if (mode === "unknown_context_control") assessment.missing = [{ text: "The registry reach is unknown", basis: "unknown", evidence: [registryRef] }];
+          if (["knowledge_published_control", "knowledge_measured_control"].includes(mode)) assessment.known = [{ text: "The synthetic record gives a 1 m reach", basis: mode === "knowledge_measured_control" ? "measured" : "published", evidence: [knowledgeRef] }];
+          if (["missing_named_provenance", "wrong_field_claim"].includes(mode)) assessment.known = [{ text: mode === "wrong_field_claim" ? "The robot has a published 50 m reach" : "The robot has a published 1 m reach", basis: "published", evidence: [registryRef] }];
           output = [{ type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text: JSON.stringify(assessment) }] }];
         }
         providerOutputs.push(output);
