@@ -129,6 +129,23 @@ describe("immutable forward receipt application", () => {
     expect(receipts.reduce((sum,receipt)=>sum+(receipt.status==="fulfilled"?receipt.value.processed:0),0)).toBe(1);
     expect(state.docs.get("taskEvaluationLaunches/launch-001")).toMatchObject({state:"queued_in_pipeline",forward_attempt_count:1});
   });
+  it("persists a diagnostic terminal blocker for an originally invalid request", async () => {
+    const launch=record();launch.request.required_controls.retry_cap=1 as any;
+    state.docs.set("taskEvaluationLaunches/launch-001",launch);
+    await processTaskEvaluationLaunchForwardQueue();
+    expect(forward).not.toHaveBeenCalled();
+    expect(state.docs.get("taskEvaluationLaunches/launch-001")).toMatchObject({state:"forward_terminal_blocked",retryable:false,blockers:expect.arrayContaining(["stored_launch_control_boundary_invalid"])});
+  });
+  it.each(["missing", "digest-invalid", "primitive"])("closes unchanged malformed %s request to a diagnostic blocker", async malformed => {
+    const launch:any=record();
+    if(malformed==="missing")delete launch.request;
+    if(malformed==="digest-invalid")launch.request.run_id="tampered";
+    if(malformed==="primitive")launch.request="invalid";
+    state.docs.set("taskEvaluationLaunches/launch-001",launch);
+    await processTaskEvaluationLaunchForwardQueue();
+    expect(forward).not.toHaveBeenCalled();
+    expect(state.docs.get("taskEvaluationLaunches/launch-001")).toMatchObject({state:"forward_terminal_blocked",retryable:false});
+  });
   it("applies an unchanged pending receipt", async () => {
     state.docs.set("taskEvaluationLaunches/launch-001", record());
     forward.mockResolvedValue({status:"forwarded",pipeline_intake_status:"accepted"});
