@@ -183,13 +183,12 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
           assessment_run_id: host.runId, assessment_request_id: input.context.request_id,
           assessment_video_sha256: videoSha,
           assessment_source: raw.capture_privacy_source_bound_decision?.producer_source }, kind, request);
-        await host.assertActive(); await assertSourceCurrent();
-        await captureAdmission.assertDispatchAllowed();
         captureReservations.push(captureAdmission.receipt);
         // Admission may await storage, rights and durable accounting. Verify
         // authority again at the dispatch boundary; retained reservations are
         // not refunded merely because a later source fence denies dispatch.
         await host.assertActive(); await assertSourceCurrent();
+        await captureAdmission.assertDispatchAllowed();
       },
       record_model_response: async (kind, model, response) => { budget.record(kind, model, response);
         await captureAdmission?.record((response as any)?.usage); captureAdmission = undefined; },
