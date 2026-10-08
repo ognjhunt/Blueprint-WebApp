@@ -283,3 +283,78 @@ current request inline, although its helper is older. Missing-request cancellati
 was therefore incorrectly predicted from inspecting only that helper. The
 approved `6f7ef4b` correction adds explicit fault-reached assertions and consistent
 source accounting; it does not supply a missing prerequisite in that 83 test.
+
+## Final combined delta and device checkpoint review
+
+Backend delta at `9de35ded4ba4da7865ac86605a8a6ade922f554f` is approved.
+Independent isolated clean-environment replay passes five files and 169/169
+checks, receipt SHA256
+`9280dcd199b8cc9ad6380c795c71e3a3956e11ce77c67a6b20f984dd4da52968`.
+Measured claims require admitted knowledge/registry records; video timing,
+operator reports and explicit estimates retain their respective bases. The
+prompt keeps free assessment independent of customer budget questions and
+keeps internal provenance metadata outside customer-facing site facts. Coverage
+production now passes portable task data instead of spreading executable Zod
+schemas/functions; registry prompt construction and output validation remain.
+The 30 scripted SDK diagnostics retain three semantic partials: stale knowledge,
+conflicting statements and a wrong claim against a qualified registry field.
+This is admission evidence, not video perception or assessment quality proof.
+
+The device checkpoint at `8a4d35d` (four production files preserved at `9de35ded`)
+uses native strict IndexedDB commits before intake dispatch, hydrates before
+fresh identity creation, and scopes retirement across each account's authoring
+modes. WebLocks, stale-body fences, acknowledgement monotonicity, active-account
+guards, explicit clear and withdrawal protections remain. Native browser crash
+and emulator journey receipts belong to their respective runner owners; helper
+contract fakes do not prove native IndexedDB durability.
+
+Independent exact `9de35ded` client replay passes seven files and 222/222 checks,
+receipt SHA256
+`03811f365e189b2075e95f9d96c190db441a2576b5a4c6960b7d7d7aa063abe4`.
+This includes actual AuthProvider session wiring with explicit Firebase and
+cleanup API mocks and the ported recovery helper/component layer with an
+explicit durability contract fake. Neither this layer nor its passing result
+exercises the malformed-canonical rejection below or proves native durability.
+
+Review found one reproducible rejection gap in `writeSiteCaptureRecoveryDurably`:
+an invalid pending body replaces valid local draft bytes before canonical
+validation throws outside rollback. Exact `8a4d35d` source replay rejects the
+write but leaves unreadable recovery, with no IndexedDB execution or dispatch.
+Private minimized receipt is `reviewer/durable-malformed-before.json`; this is a
+helper failure and does not establish customer data loss or native crash loss.
+Validate-before-write or protected rollback is required before final client
+approval. The `9de35ded` acknowledgement uses a mutable recovery pending value
+to preserve the workspace-to-inbound fallback endpoint; an explicit successful
+request body/endpoint snapshot is preferable. No reachable false acknowledgement
+has been demonstrated from that line. Final exact-head client replay, required
+CI, protected merge and deployed verification remain separate release gates.
+
+Final source at `88476cb8bb367573e8cf5d1664721e9fac71b8d8` is approved.
+Canonical validation now runs inside conditional rollback; the identical retained
+probe rejects the invalid write while preserving exact prior bytes and readable
+recovery. Its helper source SHA256 is
+`45dbdfbdb0eb5df69711703d521b44796522b48ff9bf70ec870f77dcfed7ee62`,
+and corrected receipt SHA256 is
+`7fd6a762fa76ef6543d62e6e333b00a43b919acafeae6a17688309c716607e4e`.
+An independent isolated native Chromium diagnostic executes the actual helpers,
+WebLocks and IndexedDB and verifies both stores unchanged on rejection, receipt
+SHA256 `586cb710f91b01d96aac91c9e4f8263af77c99e639828d4ac10890135f5eaff6`.
+It executes no backend, provider or customer journey. The committed native
+regression checks the same invariant. Seven exact-head client files pass 223/223,
+receipt SHA256 `b5b198247a9173d6a1b70ab297150941ac1a77240120ddbf5dea7404e6ac84ba`.
+Backend is unchanged from approved `9de35ded`. No demonstrated material source
+finding remains; the explicit acknowledgement snapshot recommendation is tracked
+P2, with no reproduced false acknowledgement. Required CI and final joined replay,
+protected merge, deployment and post-deployment receipts remain owner gates.
+
+Supplemental UI022 test/evidence commit `199df069dfe7a7887d7d501576233ac8de56de67`
+is approved. All 70 source/receipt checks and 63 original-case comparisons match;
+the original 21 conditions/hashes are unchanged and unattempted in these selected
+runs. Three successful native SIGKILL/ordinary-form return attempts represent one
+new unique journey. The source overlay is explicitly `9de35ded` UI plus `f659ce4b`
+other runtime, and author restoration is clean. Manifest SHA256 is
+`5691561d491248cf4f298fef56e862dcf746eea050495573854f9e06dd52773c`.
+The initial Invalid Chai harness failure and zero-attempt setup diagnostic remain
+retained. These are historical results; final `88476cb8` source requires its own
+replay rather than relabeling earlier receipts. Firestore is an emulator, objects
+and providers are simulated, and no live video-analysis quality follows.
