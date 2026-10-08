@@ -904,6 +904,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         consentRevoked: request?.captureRights.consent_revoked,
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady: Boolean(sceneViewUrl),
+        scenePreparationFailed: reconstruction?.state === "failed",
         stage,
         screening: request?.captureRights.consent_revoked ? null : screening,
         site_task_triage: request?.site_task_triage ?? null,
@@ -915,7 +916,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // Retention alone is not an active review or permission to process. The
     // desktop must show the same hold as the phone while preserving the saved
     // receipt (and must never ask for a replacement recording in that state).
-    if (!request?.captureRights.consent_revoked && status.decision === "footage_received" && (upload.processingHold || uploadState !== "processing_ready")) {
+    if (!request?.captureRights.consent_revoked && reconstruction?.state !== "failed"
+      && status.decision === "footage_received" && (upload.processingHold || uploadState !== "processing_ready")) {
       status.headline = upload.processingHold?.detail
         ?? "Your video is saved. Processing has not been confirmed. Keep your original video; you do not need to record or upload it again.";
       status.operatorAction = null;

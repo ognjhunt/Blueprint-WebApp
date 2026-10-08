@@ -554,6 +554,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         briefDrafted: Boolean(brief),
         consentRevoked,
         scenePreviewReady,
+        scenePreparationFailed: reconstruction?.state === "failed",
         stage,
         screening: await loadSceneScreening(requestId).catch(() => null),
         site_task_triage: (record.site_task_triage as { disposition?: string | null } | undefined) ?? null,

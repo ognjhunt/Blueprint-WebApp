@@ -105,6 +105,8 @@ interface TaskStatusInput {
   /** False when no automated footage review runs, so a person reviews it. */
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
+  /** Current persisted preview reconstruction failed; not a robot-run verdict. */
+  scenePreparationFailed?: boolean;
   /** Runs against the scene, when the caller looked. Absent means it did not. */
   screening?: SceneScreening | null;
   /**
@@ -237,8 +239,22 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "save_account",
-      headline: "Your job clears our screen. Save it to your account and we start building your scene.",
+      headline: input.scenePreparationFailed
+        ? "Your job clears our screen. Save it to your account so our team can review the scene preview preparation issue."
+        : "Your job clears our screen. Save it to your account and we start building your scene.",
       operatorAction: "Save this site to your account and verify your email.",
+    };
+  }
+
+  // A recorded preview failure is distinct from coverage and from robot-run
+  // results above. Do not claim ongoing preparation or expose provider errors.
+  if (input.scenePreparationFailed) {
+    return {
+      ...base,
+      decision: "footage_received",
+      stage: null,
+      headline: "Scene preview preparation could not finish. Our team needs to review it. Keep your original recording.",
+      operatorAction: null,
     };
   }
 
@@ -306,6 +322,7 @@ export function taskStatusInputFrom(record: {
   consentRevoked?: boolean;
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
+  scenePreparationFailed?: boolean;
   stage: ReadinessStage | null;
   screening?: SceneScreening | null;
   site_task_triage?: { disposition?: string | null } | null;
@@ -319,6 +336,7 @@ export function taskStatusInputFrom(record: {
     consentRevoked: record.consentRevoked === true,
     ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
     scenePreviewReady: Boolean(record.scenePreviewReady),
+    scenePreparationFailed: record.scenePreparationFailed === true,
     briefDrafted: record.briefDrafted,
     briefConfirmed: Boolean(record.site_task_brief_confirmed_at),
     stage: record.stage,
