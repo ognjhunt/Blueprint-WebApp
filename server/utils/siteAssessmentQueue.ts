@@ -60,6 +60,7 @@ export function tickSiteAssessments(limit = 2) {
   if (!activePass) activePass = reconcileSiteAssessments(limit)
     .catch(() => logger.warn("Site advisory reconciliation will resume on the next tick"))
     .finally(() => { activePass = null; });
+  return activePass;
 }
 
 export async function reconcileSiteAssessments(limit = 2) {

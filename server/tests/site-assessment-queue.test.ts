@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 const seams = vi.hoisted(() => ({ objects: new Map<string, any>(), enabled: true, coverageActive: false, run: vi.fn(), manifest: vi.fn(), marker: vi.fn() }));
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
@@ -20,6 +20,8 @@ vi.mock("../logger", () => ({ attachRequestMeta: (x:any)=>x, logger: { info:vi.f
 import { publishBrowserPending, browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
+let wakeSpy: ReturnType<typeof vi.spyOn>;
+afterEach(() => { wakeSpy?.mockRestore(); });
 const pending: BrowserPending = { schema_version: "website_browser_pending.v1", request_id: "advisory-fixture", scene_id: "site-advisory-fixture",
   capture_id: "walkthrough-advisory-fixture", state: "held", completed_at_iso: "2026-10-08T00:00:00.000Z",
   video: { object_name: "scenes/site-advisory-fixture/captures/walkthrough-advisory-fixture/raw/walkthrough.mp4", generation: "90071992547409931", size_bytes: 7, crc32c: "AAAAAA==" },
@@ -28,7 +30,9 @@ const request = () => ({ request: { buyerType: "site_operator", capture_mode: "s
   consent_attestation: { granted: true, statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: "2026-10-08T00:00:00.000Z" } },
   capture_privacy_source_bound_decision: { capture_id: pending.capture_id, proceeded: true, eligibility: "unscreened",
     producer_source: { kind: "browser_pending", key: browserPendingDecisionKey(pending) } } });
-beforeEach(() => { seams.enabled = true; seams.coverageActive = false; seams.run.mockReset(); seams.manifest.mockReset().mockResolvedValue(JSON.stringify({capture_rights:{derived_scene_generation_allowed:true,consent_status:"granted",consent_revoked:false}})); seams.marker.mockReset().mockResolvedValue(true); seams.objects.clear(); state.docs.clear(); state.docs.set(`inboundRequests/${pending.request_id}`, request());
+beforeEach(async () => {
+  wakeSpy=vi.spyOn(await import("../utils/siteAssessmentQueue"),"tickSiteAssessments").mockResolvedValue();
+  seams.enabled = true; seams.coverageActive = false; seams.run.mockReset(); seams.manifest.mockReset().mockResolvedValue(JSON.stringify({capture_rights:{derived_scene_generation_allowed:true,consent_status:"granted",consent_revoked:false}})); seams.marker.mockReset().mockResolvedValue(true); seams.objects.clear(); state.docs.clear(); state.docs.set(`inboundRequests/${pending.request_id}`, request());
   state.docs.set(`captureUploadSessions/${pending.capture_id}`, { browser_pending_delivery: pending }); });
 it("ADVISORY-PRODUCER-001 normal new publication durably creates one source-bound advisory intent", async () => {
   await publishBrowserPending(pending);
@@ -155,8 +159,13 @@ it("ADVISORY-PRODUCER-001 joined actual SDK persistence and authorized owner pub
   });
   try {
     seams.run.mockImplementation(async(task,options)=>(await vi.importActual<typeof import("../agents/runtime")>("../agents/runtime")).runAgentTask(task,options));
+    wakeSpy.mockRestore();
+    const queue=await import("../utils/siteAssessmentQueue");
+    wakeSpy=vi.spyOn(queue,"tickSiteAssessments");
     await publishBrowserPending(joined);
-    const {reconcileSiteAssessments}=await import("../utils/siteAssessmentQueue");await reconcileSiteAssessments();
+    await vi.waitFor(() => expect(wakeSpy).toHaveBeenCalledExactlyOnceWith(1));
+    await wakeSpy.mock.results[0].value;
+    const {reconcileSiteAssessments}=queue;
     const [key,job]=selectedJob();
     expect(job.state,JSON.stringify(state.docs.get(`agentRuns/${job.run_id}`))).toBe("completed");
     expect(calls).toBe(2);expect(videoSpy).toHaveBeenCalledTimes(1);
