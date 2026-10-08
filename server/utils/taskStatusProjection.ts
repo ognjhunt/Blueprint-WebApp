@@ -136,7 +136,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       decision: input.hasStoredCapture ? "footage_received" : "received",
       stage: null,
-      headline: `${input.hasStoredCapture ? "Your video is saved. " : ""}Recording consent was withdrawn. Further processing is blocked and the scene preview is unavailable.`,
+      headline: `${input.hasStoredCapture ? "Your video is saved. " : ""}Recording consent was withdrawn. Capture-derived review and the scene preview are unavailable.`,
       operatorAction: null,
       missingViews: [],
       nextUpdateIso: null,

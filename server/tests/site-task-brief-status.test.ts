@@ -167,7 +167,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
     expect(await response.json()).toMatchObject({ captureReceived: true,
       processingHold: { code: "capture_processing_not_authorized" },
-      status: { headline: "Your video is saved. Recording consent was withdrawn. Further processing is blocked and the scene preview is unavailable.", operatorAction: null } });
+      status: { headline: "Your video is saved. Recording consent was withdrawn. Capture-derived review and the scene preview are unavailable.", operatorAction: null } });
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(storage.write).not.toHaveBeenCalled();
     expect(deliverOutbox).not.toHaveBeenCalled();
@@ -195,7 +195,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
     expect(await response.json()).toMatchObject({ captureReceived: true, uploadState: "processing_ready",
       processingHold: { code: "capture_processing_not_authorized" },
-      status: { headline: "Your video is saved. Recording consent was withdrawn. Further processing is blocked and the scene preview is unavailable.", operatorAction: null } });
+      status: { headline: "Your video is saved. Recording consent was withdrawn. Capture-derived review and the scene preview are unavailable.", operatorAction: null } });
     expect(storage.write).not.toHaveBeenCalled();
     expect(deliverOutbox).not.toHaveBeenCalled();
   });
