@@ -19,6 +19,11 @@ Object.assign(env,{NODE_ENV:'test',BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP:'1',COD
 const backendLog=openSync(`${output}/backend.log`,'a',0o600);
 const backendRoot=process.env.RELIABILITY_BACKEND_ROOT || '/workspace/reliability-e';
 if(!backendRoot.startsWith('/workspace/reliability-'))throw new Error('Owned worktree backend required');
+const workerRoot=process.env.RELIABILITY_WORKER_ROOT||root;
+if(![root,'/workspace/reliability-main'].includes(workerRoot))throw new Error('Owned worker runtime required');
+env.RELIABILITY_WORKER_ROOT=workerRoot;
+const workerCodeSha=execFileSync('git',['rev-parse','HEAD'],{cwd:workerRoot,encoding:'utf8'}).trim();
+const workerSourceHashes=Object.fromEntries(['server/utils/captureOutbox.ts','server/utils/email.ts','server/utils/taskLifecycleNotificationAuthority.ts','client/src/lib/firebaseAdmin.ts'].map(file=>[file,createHash('sha256').update(readFileSync(path.join(workerRoot,file))).digest('hex')]));
 const backend=spawn(process.execPath,[path.join(backendRoot,'scripts/qa/reliability-local-app.mjs')],{cwd:backendRoot,env:{...env,RELIABILITY_PROJECT:project,RELIABILITY_APP_PORT:'4182'},stdio:['ignore',backendLog,backendLog]});
 process.once('exit',()=>backend.kill('SIGTERM'));
 const deadline=Date.now()+30000;let backendReady=false;
@@ -39,7 +44,7 @@ async function post(body){
 }
 const scenarios=['happy','rejected-recovery','unknown-quarantine','crash-after-claim','crash-after-dispatch','crash-after-acceptance','concurrent-workers','retired-notice','changed-message','ack-write-failure'];
 for(const scenario of scenarios)for(const producerMode of ['single-submit','duplicate-submit']){
- const requestId=`b-emulator-${runId}-${scenario}-${producerMode}`;const caseId=`B-journey-${scenario}-${producerMode}`;const start=performance.now();const trace={caseId,runId,requestId,codeSha,scenario,producerMode,layer:'actual Express intake / real Firestore emulator / separate worker processes',providerMode:'fake Resend SDK HTTP sink',status:'partial',steps:[]};
+ const requestId=`b-emulator-${runId}-${scenario}-${producerMode}`;const caseId=`B-journey-${scenario}-${producerMode}`;const start=performance.now();const trace={caseId,runId,requestId,codeSha,workerCodeSha,workerRoot,workerSourceHashes,scenario,producerMode,layer:'actual Express intake / real Firestore emulator / separate worker processes',providerMode:'fake Resend SDK HTTP sink',status:'partial',steps:[]};
  try{
  // Preserve prior failed synthetic records but close their notification intents
  // so a new independently scoped replay cannot consume another case's row.

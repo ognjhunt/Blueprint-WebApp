@@ -26,7 +26,9 @@ globalThis.fetch = (async(input:any, options?:RequestInit) => {
  if (!["127.0.0.1","localhost"].includes(url.hostname)) throw new Error("External dispatch prohibited");
  return originalFetch(input,{...options,redirect:"error"});
 }) as typeof fetch;
-const firebaseModule = await import(new URL("../../client/src/lib/firebaseAdmin.ts",import.meta.url).href);
+const runtimeRoot=process.env.RELIABILITY_WORKER_ROOT;
+if(runtimeRoot && !["/workspace/reliability-b","/workspace/reliability-main"].includes(runtimeRoot))throw new Error("Owned worker source required");
+const firebaseModule = await import(runtimeRoot?`${runtimeRoot}/client/src/lib/firebaseAdmin.ts`:new URL("../../client/src/lib/firebaseAdmin.ts",import.meta.url).href);
 // tsx interop can unwrap an ESM default marked __esModule (Firebase SDK).
 // Its initialized default app still owns the exact same Firestore instance.
 const db = firebaseModule.dbAdmin ?? (firebaseModule as any).firestore?.();
@@ -39,7 +41,7 @@ let injected=false;
  if(!injected && ((mode==="crash-after-claim" && marker==="claimed") || (mode==="crash-after-dispatch" && marker==="dispatching"))){injected=true;process.exit(73);}
  return result;
 };
-const {deliverOutbox}=await import(new URL("../../server/utils/captureOutbox.ts",import.meta.url).href);
+const {deliverOutbox}=await import(runtimeRoot?`${runtimeRoot}/server/utils/captureOutbox.ts`:new URL("../../server/utils/captureOutbox.ts",import.meta.url).href);
 try {
  const summary=await deliverOutbox({limit:100});
  const snapshot=await db.collection("captureOutbox").doc(`${requestId}:task_received`).get();

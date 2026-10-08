@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "recordedAt": "2026-10-08T07:43:04.654331+00:00",
+  "purpose": "Sanitized four-file replay source inventory; no new execution",
+  "files": [
+    {
+      "path": "scripts/qa/reliability-queue-emulator.mjs",
+      "sha256": "79735e42251b55a61b3222beaec362e15d70b849e9f90b5a7f517d07365c80c0",
+      "gitLastChange": "261bf38c01e1898712a2e06c75d0ecf321f68556",
+      "role": "final executed controller bytes",
+      "containsRawCaptureIds": false,
+      "containsLiveCredentials": false,
+      "containsPrivateReceipts": false
+    },
+    {
+      "path": "scripts/qa/reliability-queue-worker.ts",
+      "sha256": "4b627d06691848c2b1dfff89d8d908aa48747bdc7b80a4c2258f05c66d9a37a3",
+      "gitLastChange": "261bf38c01e1898712a2e06c75d0ecf321f68556",
+      "role": "final executed child worker harness bytes",
+      "containsRawCaptureIds": false,
+      "containsLiveCredentials": false,
+      "containsPrivateReceipts": false
+    },
+    {
+      "path": "scripts/qa/reliability-local-app.mjs",
+      "sha256": "a819436a24b662722a1cc7a162ba70a8a91dd06adbb9e942f29b1ff918185fc5",
+      "gitLastChange": "d17eb8d5aba4c3780e145d16d88b24e27932422a",
+      "role": "archived E local launcher; identical final main launcher bytes",
+      "containsRawCaptureIds": false,
+      "containsLiveCredentials": false,
+      "containsPrivateReceipts": false
+    },
+    {
+      "path": "scripts/qa/reliability-local-app.ts",
+      "sha256": "49425a2e6091f75dfa3313fd0cfebce718511489c5d66f3185eb4b1c4d5599fc",
+      "gitLastChange": "2232a050b142f23313b655ade84da86fb909cce5",
+      "role": "archived E local bootstrap; DIFFERENT from final launch-record main bootstrap",
+      "containsRawCaptureIds": false,
+      "containsLiveCredentials": false,
+      "containsPrivateReceipts": false
+    }
+  ],
+  "dependencies": {
+    "repository": "Blueprint-WebApp checkout with locked npm dependencies installed",
+    "nodePackages": [
+      "firebase-admin",
+      "tsx",
+      "express",
+      "vite",
+      "@vitejs/plugin-react",
+      "@replit/vite-plugin-shadcn-theme-json"
+    ],
+    "requiredRepositoryModules": [
+      "server/routes/inbound-request.ts",
+      "server/routes/self-capture-uploads.ts",
+      "server/routes/site-task-brief.ts",
+      "server/middleware/csrf.ts",
+      "server/utils/captureOutbox.ts",
+      "server/utils/email.ts",
+      "server/utils/taskLifecycleNotificationAuthority.ts",
+      "client/src/lib/firebaseAdmin.ts",
+      "client/",
+      "shared/"
+    ],
+    "localServices": [
+      "Firestore emulator 127.0.0.1:8080",
+      "Storage emulator 127.0.0.1:9199"
+    ],
+    "paidProviders": "disabled; fake Resend HTTP response only"
+  },
+  "portability": {
+    "arbitraryCheckoutPortable": false,
+    "requiredControllerCheckout": "/workspace/reliability-b",
+    "allowedWorkerCheckouts": [
+      "/workspace/reliability-b",
+      "/workspace/reliability-main"
+    ],
+    "backendRootEnvironmentVariable": "RELIABILITY_BACKEND_ROOT",
+    "workerRootEnvironmentVariable": "RELIABILITY_WORKER_ROOT",
+    "fixedOutputDirectory": "/workspace/reliability-program/B/emulator",
+    "fixedDemoProject": "demo-blueprint-reliability-b",
+    "fixedAppPort": 4182,
+    "warning": "Exact historical bytes intentionally enforce these fixed paths. A path-neutral adapter is a new unevaluated harness version. Preserve prior output before replay and do not run alongside other B namespace workers or customer records. E bootstrap uses shared Vite cache/HMR; do not run concurrent UI launchers."
+  },
+  "privacyReview": "Read-only source inspection: only synthetic constants, local demo namespace, private-output directory references and fake credentials; no raw capture IDs, bearer links, personal details or receipts bundled. Dependency graph imports actual repository code; no private fixture manifest is required.",
+  "publicationBaseSha": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c",
+  "publicationMode": "source-only nonrelease branch; not rerun/merged/deployed",
+  "sourceProvenance": {
+    "workerRuntimeSha": "c34ce0be7595c7835a4825a1a980c030b3f9dcf5",
+    "controllerSha": "261bf38c01e1898712a2e06c75d0ecf321f68556",
+    "backendRuntimeAttestedSha": null,
+    "backendRecordedLaunchSha": "c34ce0be7595c7835a4825a1a980c030b3f9dcf5",
+    "recordedFinalBootstrapSha256": "8d59d8c7c15e61c98f063789d03c77e9782d799f6adcb236f4086751deacd927",
+    "archivedPublishedBootstrapSha256": "49425a2e6091f75dfa3313fd0cfebce718511489c5d66f3185eb4b1c4d5599fc",
+    "historicalExactArgvReceiptAvailable": false,
+    "rawReceiptsIncluded": false,
+    "newExecutions": 0
+  }
+}
