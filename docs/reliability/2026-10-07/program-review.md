@@ -1186,3 +1186,49 @@ decryption/read uncertainty remains recoverable. Approval for the affected
 integrated notice remains held until exact repair and neighboring evidence.
 No source/runtime edits, new unique coverage, provider effects, or release
 approval occurred in this independent review.
+
+
+**Recipient repair resolves the retained minimizer; integrated source approved within scope.**
+Reviewed immutable `54d23763ea96a2d51ee141051028e9a4bf2cc61a` against 78fe.
+The exact retained reviewer contact-correction minimizer passes 1/1 with seven
+unselected controls (private result SHA256
+`78c3e29eae8700fa05005bd717f0028375a6b19b7328906501521f70f4630864`).
+The final nine notice controls pass independently (SHA256
+`6afcbe44101730c72a90a57fa1e01575aaa2ebc96d696d6433c1c486837c94df`).
+Current decrypted contact is compared with retained recipient inside the same
+dispatch transaction, before canonical/source/rights admission and the durable
+dispatch marker. Changed, missing or withdrawn recipients cancel without any
+send attempt. Read/decryption uncertainty throws only a fixed safe error and
+leaves the existing pre-dispatch claim recoverable. Older notification kinds
+retain their ordering and historical seven-field message digest; the new event
+identity is bound only when present. This prevents the demonstrated old-address
+dispatch; it does not promise automatic delivery to a corrected address.
+
+The integration preserves original reader access/film/withdrawal controls and
+required brief/disposition/account/recorded-robot-result precedence. Stored
+preparation presence is only a hint: customer polling rereads canonical current
+source status, with unavailable distinct from confirmed failure. Notification
+authority performs read-only transaction admission; lost delivery responses stay
+unknown without automatic resend. Typecheck/Graphify and required CI are
+root-owned evidence. The retained broad run is red (9,042 pass, four fail, six
+skip); it is not recast as a green release suite or counted as journeys. Final
+joined transport evidence, required release checks, live root configuration and
+affected deployed bridge behavior remain separate acceptance gates.
+
+**PR945 deployed identity/local-draft receipt verified separately.**
+Paired Render LIVE receipts match exact main
+`3f911025b68a17498f6ce924ae9e51cca7e8fb5b` (receipt SHA256
+`035eddc61badf0ddff33de8aed0fa929a3294ea585c49d27eb3c35149c28fd8c`).
+Independent GitHub reads confirm main CI 37774501270 and deploy 37778217090
+succeeded at that exact SHA. The unchanged reviewed smoke script ea03 executed
+12:42:07–12 UTC with eighteen passing checks; result SHA256
+`701f0fa8e25968046e7a1b5a99ab2a8dcfc564c49f91dc4b988898f673388de0`.
+Serving identity matches before/after, health/ready pass, a fresh synthetic
+local draft survives return and actual clear acknowledgement survives empty
+return with the same new identity and unchecked consent. Two non-GET and three
+external requests were blocked; intake mutations attempted are zero; local
+context cleanup and retained screenshot hash match. This verifies deployed
+identity and those local UI controls. No production failed record was created
+or mutated, so it does not execute the new failed-preview branch, the new
+preparation-status bridge, backend upload/worker behavior, delivery or assessment
+quality. No additional unique case/journey credit or provider effect is claimed.
