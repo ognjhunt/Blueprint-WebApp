@@ -69,6 +69,7 @@ it("joins failed provider admission, explicit owner retry, durable worker and sa
       ],
     });
   }
+  const historicalProgramme = structuredClone(state.docs.get("inferencePrograms/synthetic-programme"));
   const put=(name:string,generation:string,body:Buffer,contentType="application/json")=>seams.objects.set(name,{generation,crc32c:"AAAAAA==",bytes:body,contentType});
   put(joined.video.object_name,joined.video.generation,Buffer.from("video-1"),"video/mp4");put(joined.manifest.object_name,joined.manifest.generation,bytes);
   const delivery=buildBrowserDelivery({requestId:joined.request_id,sceneId:joined.scene_id,captureId:joined.capture_id,
@@ -128,7 +129,9 @@ it("joins failed provider admission, explicit owner retry, durable worker and sa
     await vi.waitFor(()=>expect(wakeSpy).toHaveBeenCalledTimes(2)); await wakeSpy.mock.results[1].value;
     expect(state.docs.get(`agentRuns/${oldRunId}`)).toEqual(retainedFailed);
     const programme=state.docs.get("inferencePrograms/synthetic-programme")!;
-    expect(programme.slots.find((slot:any)=>slot.run_id===oldRunId).state).toBe("unknown");
+    expect(programme).toEqual(historicalProgramme);
+    const archived = [...state.docs.entries()].find(([key, value]) => key.includes("/calls/") && value.run_id === oldRunId);
+    expect(archived?.[1]).toMatchObject({ state: "unknown", cost_estimate_usd: null });
     const repeated=await retry();expect(repeated.status).toBe(200);expect(await repeated.json()).toMatchObject({run_id:ack.run_id,job_id:ack.job_id});
     expect(state.docs.get(oldKey)?.retry_history).toHaveLength(1);
     // The existing bounded queue may wrap its retained cursor on a return
@@ -150,8 +153,12 @@ it("joins failed provider admission, explicit owner retry, durable worker and sa
       const programme = state.docs.get("inferencePrograms/synthetic-programme")!;
       expect(programme.slots.find((slot:any) => slot.id === "original-gemini").state).toBe("unknown");
       expect(programme.slots.find((slot:any) => slot.id === "original-sol-1").state).toBe("recorded");
-      expect(programme.slots.filter((slot:any) => slot.state === "held")).toHaveLength(0);
-      expect(programme.slots.filter((slot:any) => slot.run_id === job.run_id && slot.state === "recorded")).toHaveLength(3);
+      expect(programme.slots.filter((slot:any) => slot.state === "held")).toHaveLength(4);
+      expect(programme).toEqual(historicalProgramme);
+      const newCalls = [...state.docs.entries()].filter(([key, value]) => key.includes("/calls/") && value.run_id === job.run_id);
+      expect(newCalls).toHaveLength(3);
+      expect(newCalls.every(([,value]) => ["recorded", "unknown"].includes(value.state))).toBe(true);
+      expect(run.artifacts.capture_inference_reservations.every((row:any) => row.spending_gated === false)).toBe(true);
       expect(programme.slots.reduce((total:number, slot:any) => total + slot.reserved_micro_usd, 0)).toBe(4_964_928);
     }
     const response=await read();expect(response.status).toBe(200);const body=await response.json();

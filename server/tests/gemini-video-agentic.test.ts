@@ -41,6 +41,34 @@ const noSleep = async () => undefined;
 const callsTo = (fetcher: ReturnType<typeof gemini>, match: (url: string, init: RequestInit) => boolean) =>
   fetcher.mock.calls.filter(([url, init]) => match(url as string, (init ?? {}) as RequestInit));
 
+describe("current source recheck before video generation", () => {
+  it.each(["STATIC", "AGENTIC"] as const)("rechecks %s source without a token-count budget prerequisite and freezes generation", async processingMode => {
+    const request: any = { ...input, processingMode, samplingFps: 2 };
+    const beforeGenerate = vi.fn(async () => { request.prompt = "changed"; request.model = "changed-model"; });
+    request.beforeGenerate = beforeGenerate;
+    const underlying = gemini(() => reply([...trace, { text: "{}" }]));
+    const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
+      if (url.includes(":countTokens")) throw new Error("unexpected_budget_prerequisite");
+      if (url.includes(":generateContent")) expect(beforeGenerate).toHaveBeenCalledTimes(1);
+      return underlying(url, init);
+    });
+    await analyseAgenticVideo(request, fetcher, noSleep);
+    const generated = fetcher.mock.calls.find(([url]) => url.includes(":generateContent"))!;
+    expect(generated[0]).toContain(`${input.model}:generateContent`);
+    expect(JSON.parse(String(generated[1].body)).contents[0].parts[0].text).toBe(input.prompt);
+    expect(callsTo(fetcher, url => url.includes(":countTokens"))).toHaveLength(0);
+    expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
+  });
+  it.each(["STATIC", "AGENTIC"] as const)("refuses withdrawn %s evidence before generation and cleans up", async processingMode => {
+    const beforeGenerate = vi.fn(async () => { throw new Error("source_withdrawn"); });
+    const fetcher = gemini(() => reply([...trace, { text: "{}" }]));
+    await expect(analyseAgenticVideo({ ...input, processingMode, beforeGenerate }, fetcher, noSleep)).rejects.toThrow("source_withdrawn");
+    expect(beforeGenerate).toHaveBeenCalledTimes(1);
+    expect(callsTo(fetcher, url => url.includes(":generateContent"))).toHaveLength(0);
+    expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && init.method === "DELETE")).toHaveLength(1);
+  });
+});
+
 describe("agentic video provider contract", () => {
   it("uploads through the Files API, waits for it, reads it by reference and deletes it", async () => {
     const fetcher = gemini(() => reply([...trace,

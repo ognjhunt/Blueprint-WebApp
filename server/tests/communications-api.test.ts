@@ -40,6 +40,7 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
   let requestDigest = "a".repeat(64), pageNumber = 0;
   let savedBinding = false;
   let sessionAgent: any = null, sessionMetadata: any = null, sessionVaults: string[] = [];
+  let sessionSpendControl: unknown;
   const agentId = () => savedBinding ? COMMUNICATIONS_SAVED_AGENT_ID : "agent-1";
   const savedAgent = { id: COMMUNICATIONS_SAVED_AGENT_ID, ...structuredClone(COMMUNICATIONS_SAVED_CONFIGURATION) };
   if (options.changedSaved === "instructions") savedAgent.instructions += " Changed";
@@ -61,11 +62,13 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
         requestDigest = body.metadata.blueprint_communications_request_digest;
         sessionAgent = { id: COMMUNICATIONS_SAVED_AGENT_ID, ...body.agent }; sessionMetadata = body.metadata; sessionVaults = body.vault_ids ?? [];
         savedBinding = true;
+        sessionSpendControl = body.spend_control;
       }
       return new Response(stream.map(event => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers: { "Content-Type": "text/event-stream" } });
     }
     if (path.endsWith("/session-1")) return Response.json({ id: "session-1", status: "idle", agent: savedBinding ? sessionAgent : { id: "agent-1", model: options.model ?? COMMUNICATIONS_MODEL,
       instructions: options.instructions ?? COMMUNICATIONS_INSTRUCTIONS, service_tier: "default", tools: [], multi_agent: { enabled: false } }, environment: { type: "none" }, vault_ids: sessionVaults,
+      ...(sessionSpendControl === undefined ? {} : { spend_control: sessionSpendControl }),
       metadata: options.missingMetadata ? {} : sessionMetadata ?? { blueprint_communications_job: "job-1", role: "communications", blueprint_communications_request_digest: requestDigest,
         ...(savedBinding ? { blueprint_communications_saved_agent: COMMUNICATIONS_SAVED_AGENT_ID,
           blueprint_communications_configuration_digest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_PROFILE } : {}) } });
@@ -134,6 +137,57 @@ async function rejectedCreateFixture(options: { coverage?: "matching" | "incompl
 }
 
 describe("portable communications Agents API", () => {
+  it("binds a prospective provider spending limit to reservation, request, checkpoint and readback without relabeling old sessions", async () => {
+    const f = apiFixture();
+    const checkpoint = { ...f.params.checkpoint, sessionSpendLimitCents: 10 };
+    const result = await f.api.run({ ...f.params, checkpoint });
+    expect(f.reservePaidDraft).toHaveBeenCalledExactlyOnceWith("job-1", result.checkpoint.requestDigest, 10);
+    const posted = JSON.parse(String(f.calls.find(c => c.init.method === "POST")!.init.body));
+    expect(posted.spend_control).toEqual({ limit: 10 });
+    expect(posted.metadata.blueprint_communications_spend_limit_cents).toBe("10");
+    expect(result.checkpoint.sessionSpendLimitCents).toBe(10);
+    await expect(f.api.verifyExistingDraftSession(result.checkpoint, "job-1", result.checkpoint.requestDigest!)).resolves.toMatchObject({ sessionId: "session-1" });
+    await expect(f.api.verifyExistingDraftSession({ ...result.checkpoint, sessionSpendRequestBaseDigest: undefined }, "job-1", result.checkpoint.requestDigest!))
+      .rejects.toThrow("spend_limit_binding_mismatch");
+    await expect(f.api.run({ ...f.params, checkpoint: { ...result.checkpoint, sessionSpendLimitCents: 11 } }))
+      .rejects.toThrow("spend_limit_binding_mismatch");
+    const readback = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const response = await readback(url, init);
+      if (new URL(String(url)).pathname.endsWith("/session-1")) {
+        const session = await response.json();
+        return Response.json({ ...session, spend_control: { limit: 11 },
+          metadata: { ...session.metadata, blueprint_communications_spend_limit_cents: "11" } });
+      }
+      return response;
+    });
+    // Increasing both the checkpoint and provider setting cannot change the
+    // frozen create's limit without a different bound request/admission.
+    await expect(f.api.run({ ...f.params, checkpoint: { ...result.checkpoint, sessionSpendLimitCents: 11 } }))
+      .rejects.toThrow("spend_limit_binding_mismatch");
+    const old = apiFixture(), historical = await old.api.run(old.params);
+    expect(historical.checkpoint.sessionSpendLimitCents).toBeUndefined();
+    expect(JSON.parse(String(old.calls.find(c => c.init.method === "POST")!.init.body))).not.toHaveProperty("spend_control");
+    await expect(old.api.run({ ...old.params, checkpoint: { ...historical.checkpoint, sessionSpendLimitCents: 10 } }))
+      .rejects.toThrow("spend_limit_binding_mismatch");
+  });
+  it.each([0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER])("rejects invalid session limit %s before any provider call", async limit => {
+    const f = apiFixture();
+    await expect(f.api.run({ ...f.params, checkpoint: { ...f.params.checkpoint, sessionSpendLimitCents: limit } }))
+      .rejects.toThrow("session_spend_limit_invalid");
+    expect(f.fetchMock).not.toHaveBeenCalled(); expect(f.reservePaidDraft).not.toHaveBeenCalled();
+  });
+  it.each([{ limit: null }, {}])("retains historical uncapped readback compatibility for %j", async spendControl => {
+    const f = apiFixture(), original = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const response = await original(url, init);
+      if (new URL(String(url)).pathname.endsWith("/session-1")) {
+        return Response.json({ ...await response.json(), spend_control: spendControl });
+      }
+      return response;
+    });
+    expect((await f.api.run(f.params)).output).toEqual(f.output);
+  });
   it("backs off transient saved GET failures within one new window without settling pending usage or creating another turn", async () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-03T00:00:00Z"));
     const f = apiFixture({ usage: { input_tokens: 3, output_tokens: 2, total_tokens: 5 } });
