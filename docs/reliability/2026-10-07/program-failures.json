@@ -601,7 +601,7 @@
       "repair": "Keep picker mounted for done state and offer Upload a new recording; preserve receipt and brief until file selection, then use existing guarded same-token transport",
       "retest": "Candidate4/4 actual intercepted-API browser cases +26component checks/typecheck/Graphify pass",
       "review": "937bf913 approves exactc29f9c4c",
-      "releaseStatus": "Finalb182 minimalexistingCIsetupordering independently reviewedef25c0b4; freshCI37803188894 active; no merge/deployment",
+      "releaseStatus": "Finalb182 reviewedef25/937; all9requirednativePRchecks passed; protectedmerge4fdfb6c2; mainCI37804520799active; deploymentunverified",
       "limitation": "Synthetic MP4 and intercepted APIs; actual replacement backend and video analysis not yet proved; no original coverage credit",
       "retained_CI_failure": {
         "run": 37802404014,

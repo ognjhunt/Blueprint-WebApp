@@ -1007,7 +1007,7 @@
     "claim_ceiling": "Prospectiveformatter/defaultlinksource plus scriptedmailcontrols; no actualGmaildraftverification or extraoutreachauthority."
   },
   "replacement_upload_followup": {
-    "state": "source_and_minimal_CI_order_correction_independently_approved_fresh_CI_active",
+    "state": "independently_reviewed_all9_required_PR_checks_passed_protected_merged;exact_main_CI_active_not_deployed",
     "owner": "intake_recovery",
     "baseline_sha": "4d0deb46db836237a6b50ed60120efb387e30e31",
     "scope": "Existing normalreturnverifiedoldvideo hides replacementpicker; explicitvisibleaffordance required forapprovedfreshMOV normalUI",
@@ -1032,7 +1032,13 @@
       "private_link_cases_passed": 4,
       "scoped_intake_cases_passed": 14,
       "claim_ceiling": "NativeLinux actualChromium with interceptedAPI/generatedMP4; no originalcoveragecredit or livebackend/upload/providerclaim"
-    }
+    },
+    "merge_sha": "4fdfb6c2e3cbaa37a029b89721142bed04b89742",
+    "merged_at": "2026-10-08T15:54:04Z",
+    "required_PR_CI_conclusion": "success",
+    "required_executed_contexts_passed": 9,
+    "main_CI": 37804520799,
+    "main_CI_state": "active"
   },
   "beta_copy_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/956",
