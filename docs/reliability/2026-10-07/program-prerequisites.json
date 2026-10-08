@@ -319,5 +319,14 @@
     "canonical_allocator_OS_restart_native_publication_proven": false,
     "no_runtime_repair_needed": "missingauthoredartifactisdependency, no falsecompletedrecord observed",
     "independent_review": "794fa286 approved boundedtransition; notcustomerresult"
+  },
+  "advisory_customer_result_boundary": {
+    "source_commit": "8c6f020ea75eccd4530b1cb8dde478fe6482b4be",
+    "evidence": "program-trace-index.json advisory_private_reader_boundary",
+    "observed": "The selected v2 advisory packet is retained and read through the protected admin session lane. The selected actual customer status reads separate brief/screening state and is unchanged by advisory completion.",
+    "missing_customer_join": "No executed final customer assessment publication joins this internal advisory packet to a qualified native/customer evaluation result. A new dispatch/projection contract must not be invented solely to make the existing lanes appear end-to-end.",
+    "customer_ready_or_full_journey_credit": false,
+    "runtime_bug_demonstrated": false,
+    "independent_scope_limit": "Selected actual handlers, fake stores, injected verified auth claims; not a proof about every reader or live token verification"
   }
 }

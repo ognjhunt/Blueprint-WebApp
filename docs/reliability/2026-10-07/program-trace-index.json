@@ -1532,5 +1532,25 @@
     "layer": "Offline components and fake database/provider handlers; no live provider, emulator, normal UI or production records",
     "source_identity": "Local production code byte-equal to origin/main d217; supplemental program tests are on coordinator branch",
     "unique_case_credit": 0
+  },
+  "advisory_private_reader_boundary": {
+    "manifest_path": "output/reliability-program/assessment-joined-followup/manifest.json",
+    "manifest_sha256": "55efc24fc40569be070061ea22af0ea0407563c051503d460dc778a8d54e610b",
+    "source_commit": "8c6f020ea75eccd4530b1cb8dde478fe6482b4be",
+    "producer_source_sha256": "5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c",
+    "executed_producer_sha256": "bff89243d3068d5029d0a96c99e1cad0aafed068e72537041473c9b77dcc6157",
+    "relocation": "Deterministic relative-module-specifier relocation only; producer body unchanged; eight other relevant source files byte-equal to exact 8c6",
+    "layer": "Actual scripted SDK v2 producer, session/runtime private writer and protected admin/customer GET handlers; in-memory fake database and storage; injected already-verified authentication claims",
+    "selected_existing_case": 1,
+    "attempted": 1,
+    "passed": 1,
+    "new_case_or_journey_credit": 0,
+    "packet_admin_readback_sha256": "f920caa04e40e245976bd4861ddfa23380a83c048b8daaa8cec4ff9463f80c0d",
+    "reader_statuses": {"anonymous": 401, "non_admin": 403, "admin": 200},
+    "customer_status": "Selected actual signed customer GET remains byte-identical confirm_brief with no results after completed internal advisory",
+    "scripted_SDK_calls": 2,
+    "live_provider_calls": 0,
+    "limitations": "Direct SDK-to-adapter return seam bypasses source-admission/browser path. No Firebase token verification, durable database, GCS, notification, native result, customer assessment publication or universal reader-absence proof. Initial v1 pass and two setup failures retained separately.",
+    "independent_review": "All 22 linked file hashes and nine canonical source identities verified; deterministic producer relocation independently regenerated; bounded reader/status claims approved"
   }
 }

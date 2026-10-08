@@ -488,11 +488,16 @@
       "minimizedReproducer": "ExistingfrozenUI-RETURN-002: close/returnretainsdraft thenClear+immediatereloadshouldleaveemptytask",
       "baselineEvidence": "CurrentmainCI37766871316 e2e113276689429 failed12secassertion; exactsamePRcontexts earlierpassed",
       "rootCause": "Clear awaited WebLock and strict IndexedDB retirement/fresh-authority commit without visible pending or completion feedback. Immediate reload can end the old document before the lock is granted. No acknowledged-clear resurrection or false-success was demonstrated.",
-      "candidateCommit": "81183b1f7f5543f87682d00d597fbe2ee6500ce2",
+      "candidateCommit": "36225435c6eb10f38614b39b2394dba612a8c2a5",
       "candidatePR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/944",
+      "review_findings": [
+        {"id": "CLEAR-SCOPE-ABA", "severity": "P2", "baseline": "81183b1f7f5543f87682d00d597fbe2ee6500ce2", "evidence": "Author and independent FIFO WebLock component replay both fail: an old unreadable-recovery Clear revives after account A to B to A and displays completion. Returning A hydration queues behind it; no new-A editing, new-work loss, or cross-account exposure was demonstrated.", "repair_state": "Scope epoch cancels old intent even after return; exact 36225435 independent same-case retest passes"},
+        {"id": "CLEAR-RETRY-COPY", "severity": "P2", "baseline": "81183b1f7f5543f87682d00d597fbe2ee6500ce2", "evidence": "Author and independent component replay both fail: committed retry retains prior cannot-save warning. The flag controls warning copy, not submit admission.", "repair_state": "Committed reset restores storageAvailable; exact 36225435 independent failure/retry retest passes"}
+      ],
       "candidateRetest": "Three unchanged local UI-RETURN-002 baseline attempts passed; deterministic held-lock feedback expectation failed before repair. Candidate full 14 intercepted-API browser cases plus selected three cases repeated three times passed: 14 unique cases, 23 attempts. 228 component/helper neighbors passed. Original CI failure and invalid first cancellation-boundary probe retained.",
       "case_contract_correction": "Versioned supplemental acknowledgment contract: UI-RETURN-002 now waits for actual visible durable completion before its original reload-empty assertion. UI-CLEAR-001 checks pending/fresh committed authority; UI-CLEAR-002 explicitly reloads before acknowledgment and confirms no false success and retained unretired draft. No arbitrary sleep or new coverage credit for repeats.",
-      "releaseStatus": "CANDIDATE_independent_review_and_required_PR_CI_in_progress; no deployment or lucky rerun",
+      "releaseStatus": "CANDIDATE_36225435_independently_approved; final_required_PR_CI_37769934452_in_progress; no deployment or lucky rerun",
+      "independentReview": "019149b5; exact source SHA c554cd1f48080ce40cd2d429c4d03b746b2510a9740e23ba83beae45776b868a; 11 scoped controls including matched failures plus three native browser cases passed",
       "new_case_credit": 0,
       "scope_limit": "Native Chromium IndexedDB/WebLock behavior with intercepted APIs and simulated component stores. No production fault, customer mutation, paid provider call, real notification, or backend assessment proof. P2 feedback finding does not hold unrelated customer learning."
     }
