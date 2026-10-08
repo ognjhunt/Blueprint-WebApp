@@ -25,7 +25,7 @@ export const termsSections: readonly Section[] = [
   {
     title: "3. For sites: your authority and your footage",
     items: [
-      "When you submit a job description, you confirm that you are authorized to share it on behalf of the site. Before recording or submitting footage, you separately confirm that you are authorized to record the site and to let Blueprint use the recording as these Terms describe.",
+      "When you submit a job description, you confirm that you are authorized to share it on behalf of the site. When you start a capture with footage, you confirm that you are authorized to record the site and to let Blueprint use the recording as these Terms describe.",
       "Task footage may show people, including hands or arms performing the task. You confirm that you have authority to record and submit the footage and have given any required notice and obtained any required permissions from people shown. Blueprint and the providers listed in our Privacy Policy may process the recording and derived frames to build and operate the scene and evaluation. We remove people from the frames used as input to reconstruction; the original recording may still contain them. Do not submit footage if you cannot authorize those uses.",
       "Avoid recording screens, documents and restricted areas where you can. We may blur or remove those details when practical.",
       "You grant Blueprint a non-exclusive license to use your footage, photos and job details to provide the Service for your job: to review them, build a simulated scene, run the evaluations your listing allows, and show you the results. We never give your recording to a robot team, and we do not license it to anyone for training without your written agreement.",
