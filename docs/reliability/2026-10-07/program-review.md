@@ -3051,3 +3051,26 @@ does not promote them to independent fresh public reads. No additional browser
 smoke, affected recovery, upload-memory peak or assessment execution was run.
 Serving identity and release checks do not resolve the interrupted live run,
 unknown provider outcome, forthcoming memory/recovery fixes or reference quality.
+
+### Fixed synthetic evidence clock — 7fcb380f
+
+Independent test-source approval applies to `7fcb380f48d8cb6be0b872fecd4f2071997d1893`,
+three existing communications test files only. Each case now freezes Date at its
+existing communicationsNow and restores real Date afterward. Timers remain real
+except the original interval case, which first removes the Date-only installation
+before reinstalling its existing full fake scheduling clock. The explicit
+eight/nine-day stale/expired negatives, fixture dates, digests and assertions are
+unchanged; production freshness code has no change. This repairs a mixed-clock
+fixture whose eight-day synthetic evidence expired under real wall time.
+
+Receipt `5e02686849e5d08da5d315e435dfe5fa5d399ea9da52f6a90d35083d34a5d9ec`,
+all six linked artifacts, the failed CI log, three immutable test blobs and five
+unchanged production/fixture blobs were independently verified; the author tree
+is clean. The matched selected baseline fails three existing controls with468
+unattempted. Initial Date-only execution passes470/fails one because the original
+interval fake was not reinstalled; that diagnostic and its source remain retained.
+Final same-three-file execution passes471/471 with terminal typecheck and Graphify.
+These attempts are not summed as independent coverage. The standalone correction
+may be carried to both affected PR branches; protected final-head CI remains a
+separate release gate. No new framework, case, production/provider/send behavior,
+customer journey or affected live-assessment result is established.
