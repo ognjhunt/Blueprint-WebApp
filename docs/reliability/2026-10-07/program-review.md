@@ -3296,3 +3296,22 @@ Private reviewer snapshot hash
 records exact heads/checks/source hash and limits. It is explicitly a compact
 reviewer transcription of directly inspected native outputs, not a raw response
 envelope or new execution evidence. No rerun/provider/release mutation occurred.
+
+
+### PR978 setup checkpoints — 6e1b0392
+
+Independent source clearance applies to immutable
+`6e1b0392ebaf6d587723e75467d18e87732eaa9d`. The checkpoint parent
+99a0b4eb adds five fixed setup-phase markers and Node version to the existing
+free-beta journey fixture. Logs contain timestamps and fixed labels only;
+module values returned by Promise.all, route wiring, listener, assertions and
+the 120-second hook timeout remain unchanged. The worktree was clean. The
+private-evidence source has an empty diff against approved799c5fe7; versus
+protected8ce5c5f1 only the approved helper/assertion and this fixture differ.
+
+These checkpoints are diagnostic, not a causal repair. Added logging and
+microtasks can affect scheduling. The two retained native hook timeouts remain
+unclassified even if the new head passes; local Node20.17 success does not
+establish parity with CI Node20.20.2/x64. Head-bound final local checks and
+required native CI remain separate from this source clearance. No reviewer
+rerun, provider call or production mutation occurred.
