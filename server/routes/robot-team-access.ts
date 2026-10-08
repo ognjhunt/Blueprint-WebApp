@@ -62,7 +62,8 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
     // Registration records interest; only the existing staff decision/invite routes grant admission.
     const current = record;
     const autoApproved = false;
-    await enqueueAccessEmail({ kind: "robot_team_access_received", recordId, record: current, thinLibrary: libraryIsThin(listed.length) }).catch((error) => {
+    // A previously approved email keeps its admission and should not get a pending receipt.
+    if (current.status !== "approved") await enqueueAccessEmail({ kind: "robot_team_access_received", recordId, record: current, thinLibrary: libraryIsThin(listed.length) }).catch((error) => {
       logger.warn({ error }, "Could not queue the early-access email");
     });
     if (created) {
