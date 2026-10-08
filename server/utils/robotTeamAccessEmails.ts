@@ -41,7 +41,7 @@ export function accessReceivedEmail(
       ? `We have noted the site you named (${record.testSite}). Reply here if you want to clarify the task.`
       : "If there is a real site task you would like to explore, you can reply here with the details.",
     "",
-    "No account, policy upload, or integration is needed now. Registering interest does not approve access or subscribe you to a newsletter.",
+    "No account, policy upload, or integration is needed now. Registering interest alone does not approve access or subscribe you to a newsletter.",
   ];
   return {
     subject: "We have your Blueprint beta interest",
@@ -76,6 +76,7 @@ export function accessApprovedEmail(record: Pick<RobotTeamAccessRecord, "name" |
         "",
       ]),
       "Any evaluation needs a separately agreed task scope. Approval does not guarantee a run, introduction, or deployment.",
+      "Optional new-job alerts and Blueprint updates are controlled separately in Settings.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),
@@ -140,45 +141,23 @@ export function newTaskEmail(record: Pick<RobotTeamAccessRecord, "name">, card: 
       "See the card and start an evaluation run from the job library:",
       `${APP_URL()}/contact/robot-team`,
       "",
-      "You get one of these each time a site lists a job. Reply to stop them.",
+      "You chose relevant new-job alerts. Change your preferences in Settings or unsubscribe below.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),
   };
 }
 
-/**
- * Tell every approved team that a site listed a task, so nobody has to watch
- * the library or wait for a person to notice a match. Only the card's own
- * text goes out, which is what the site approved for these teams to see.
- */
-export async function enqueueNewTaskAlerts(params: {
-  requestId: string;
-  card: ListedCard;
-  /** When the card went live; one alert per team per time it is switched on. */
-  wentLiveIso: string;
-}): Promise<{ enqueued: number }> {
+/** Record fanout intent; the existing outbox worker owns bounded continuation. */
+export async function enqueueNewTaskAlerts(params: { requestId: string; card: ListedCard; wentLiveIso: string }): Promise<{ enqueued: number }> {
   if (!db) return { enqueued: 0 };
-  const snapshot = await db.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved").limit(500).get();
-  let enqueued = 0;
-  for (const doc of snapshot.docs) {
-    const record = doc.data() as RobotTeamAccessRecord;
-    if (!record?.email) continue;
-    const message = newTaskEmail(record, params.card);
-    try {
-      const result = await enqueueOutbox({
-        idempotencyKey: `robot_team_new_task:${params.requestId}:${params.wentLiveIso}:${accessRecordId(record.email)}`,
-        requestId: `robot-team-access:${accessRecordId(record.email)}`,
-        kind: "robot_team_new_task",
-        to: record.email,
-        subject: message.subject,
-        body: message.body,
-        replyTo: "hello@tryblueprint.io",
-      });
-      if (result.enqueued) enqueued += 1;
-    } catch (error) {
-      logger.warn({ error, requestId: params.requestId }, "Could not queue a new-task alert");
-    }
-  }
-  return { enqueued };
+  const { newJobFanoutIntent } = await import("./newJobAlerts");
+  const ref = db.collection("inboundRequests").doc(params.requestId);
+  await db.runTransaction(async tx => {
+    const source = (await tx.get(ref)).data();
+    if (source?.public_task_listing?.wentLiveIso !== params.wentLiveIso
+      || source?.newJobAlertFanout?.eventId === params.wentLiveIso) return;
+    tx.update(ref, { newJobAlertFanout: newJobFanoutIntent(params.wentLiveIso) });
+  });
+  return { enqueued: 0 };
 }

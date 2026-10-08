@@ -1,3 +1,5 @@
+import { updatePreferencesInputSchema } from "../../client/src/types/updatePreferences";
+import { buildUpdatePreferences, savedUpdatePreferences, bindVerifiedPreferenceAccount } from "../utils/updatePreferences";
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
 import type { WorkspaceResult } from "../../client/src/types/workspace";
 import { isBlueprintFundedRun } from "../utils/freeBeta";
@@ -61,7 +63,7 @@ import { listRunsForTeam } from "../utils/agentRunResults";
 import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from "../utils/robotTeamAgentKeys";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
-import { resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
+import { accessRecordId, resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
 import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 
 const router = Router();
@@ -183,6 +185,7 @@ const accountSetupSchema = z
     name: short,
     organization: short,
     acceptedTerms: z.boolean().optional(),
+    optionalUpdates: z.boolean().optional(),
   })
   .strict();
 function currentTermsAccepted(user: Record<string, any>) {
@@ -268,6 +271,7 @@ router.post(
         company: input.organization,
         buyerType: input.workspaceType,
         workspaceSetupCompletedAt: now,
+        ...(!user.updatePreferences && input.optionalUpdates !== undefined ? { updatePreferences: buildUpdatePreferences({ newsletter: input.optionalUpdates, newJobAlerts: input.optionalUpdates, interests: {}, declaredCategories: {}, requirements: {} }, "signup") } : {}),
         ...(!snapshot.exists
           ? { uid: auth.uid, email: text(auth.email), createdDate: now }
           : {}),
@@ -283,6 +287,7 @@ router.post(
       if (snapshot.exists) transaction.update(profileRef, patch);
       else transaction.set(profileRef, patch);
     });
+    if (auth.email_verified === true && auth.email) await bindVerifiedPreferenceAccount(auth.uid, auth.email);
     return res.json({ ok: true, workspaceType: input.workspaceType });
   }),
 );
@@ -613,6 +618,7 @@ router.get(
             caller.user.organization,
         ) || text(caller.user.name),
       email: caller.email,
+      updatePreferences: savedUpdatePreferences(caller.user.updatePreferences),
     };
     if (caller.role === "site_operator") {
       return res.json({
@@ -1204,6 +1210,19 @@ router.post(
       }).catch((error) => logger.warn({ error, requestId: input.opportunityId }, "Could not queue the pilot-request email"));
   }),
 );
+router.patch("/update-preferences", handle(async (req, res) => {
+  const caller = identity(res);
+  if (!caller.verified) refuse(403, "Verify your email to save update preferences.");
+  const preferences = buildUpdatePreferences(updatePreferencesInputSchema.parse(req.body), "settings");
+  const userRef = db!.collection("users").doc(caller.uid);
+  await db!.runTransaction(async tx => {
+    const contactRef = db!.collection("robotTeamAccess").doc(accessRecordId(caller.email));
+    const contact = await tx.get(contactRef);
+    tx.update(userRef, { updatePreferences: preferences });
+    if (contact.exists) tx.update(contactRef, { preferencesAccountUid: caller.uid, newJobAlertsOptIn: preferences.newJobAlerts });
+  });
+  return res.json({ ok: true });
+}));
 router.patch(
   "/profile",
   handle(async (req, res) => {

@@ -157,24 +157,32 @@ describe("owner authorization and durable demand", () => {
     await post(true);
     expect(live()).toHaveLength(2);
   });
-  it("tells every approved robot team once when a card goes live, with the card's text only", async () => {
+  it("queues opted-in approved robot teams once for an open card, with the card's text only", async () => {
     const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
-    const team = (email: string, status: string) => state.docs.set(`robotTeamAccess/${accessRecordId(email)}`, {
-      name: "Ada Lovelace", email, company: "Arm Co", status,
+    const { buildUpdatePreferences } = await import("../utils/updatePreferences");
+    const { resumeNewJobFanout } = await import("../utils/newJobAlerts");
+    const team = (email: string, status: string, optIn = true) => state.docs.set(`robotTeamAccess/${accessRecordId(email)}`, {
+      name: "Ada Lovelace", email, company: "Arm Co", status, newJobAlertsOptIn: optIn,
+      updatePreferences: buildUpdatePreferences({ newsletter: false, newJobAlerts: optIn, interests: {}, declaredCategories: {}, requirements: {} }, "settings"),
       appliedAtIso: "2026-09-23T00:00:00.000Z", updatedAtIso: "2026-09-23T00:00:00.000Z",
     } as never);
     team("ada@arm.example", "approved");
     team("grace@arm.example", "approved");
     team("mallory@arm.example", "declined");
+    team("optout@arm.example", "approved", false);
+    team("suppressed@arm.example", "approved");
+    state.docs.set("email_suppressions/suppressed@arm.example", { suppressed_scopes: ["optional_updates"] });
     state.docs.set("inboundRequests/req1", record({ public_task_listing: undefined }) as never);
-    const alerts = () => [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_new_task:req1:"));
-    const post = () => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: true, details, consent: true }) });
+    const alerts = () => [...state.docs.entries()].filter(([key, value]) => key.startsWith("captureOutbox/") && value.kind === "robot_team_new_task" && value.requestId === "req1");
+    const post = () => fetch(`${base}/owner/${token("owner")}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: true, details: { ...details, opportunity: "open" }, consent: true }) });
     expect((await post()).status).toBe(200);
+    await resumeNewJobFanout();
     expect(alerts().map(([, value]) => (value as { to: string }).to).sort()).toEqual(["ada@arm.example", "grace@arm.example"]);
     const body = String((alerts()[0][1] as { body: string }).body);
     expect(body).toContain(details.title);
     expect(body).not.toMatch(/owner@|PRIVATE/);
     expect((await post()).status).toBe(200);
+    await resumeNewJobFanout();
     expect(alerts()).toHaveLength(2);
   });
   it("requires photo permission, serves sanitized approved pixels, and revokes access on pause or withdrawal", async () => {

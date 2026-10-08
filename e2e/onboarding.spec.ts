@@ -21,8 +21,9 @@ test('site-operator signup defers the dossier and permissions to the workspace',
   await expect(page.getByLabel('Plan a robot pilot for my site')).toBeChecked();
   await expect(page.getByText(/Next, describe one recurring job and share footage/)).toBeVisible();
   await expect(page.getByText(/Progressive access|Standardized benchmark|Requested lane/)).toHaveCount(0);
-  await expect(page.getByRole('checkbox')).toHaveCount(1);
-  await expect(page.getByRole('checkbox')).not.toBeChecked();
+  await expect(page.getByRole('checkbox')).toHaveCount(2);
+  await expect(page.getByRole('checkbox', { name: /Email me relevant/ })).not.toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /I agree/ })).not.toBeChecked();
   await expect(page.getByRole('button', { name: 'Create account', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

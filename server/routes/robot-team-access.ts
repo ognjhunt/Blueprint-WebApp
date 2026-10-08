@@ -41,6 +41,7 @@ export const applicationSchema = z
     pilotPackage: optionalText(1200),
     testSite: optionalText(300),
     acceptedTerms: z.literal(true),
+    optionalUpdates: z.boolean().optional(),
   })
   .strict();
 

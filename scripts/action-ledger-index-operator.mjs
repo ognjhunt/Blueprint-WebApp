@@ -9,7 +9,7 @@ export const PROJECT = 'blueprint-8c1ca';
 export const PARENT = `projects/${PROJECT}/databases/(default)/collectionGroups/action_ledger`;
 const DATABASE = `projects/${PROJECT}/databases/(default)`;
 const WORKER = 'srv-d9t8gg1t0dsc73am9q70';
-const MANIFEST_SHA256 = '91b3fcdc84a63fbd1c63de6d3f9d12f52f1bed0a9ddcde1d33d474f0e75e6647';
+const MANIFEST_SHA256 = '6a027ae610c35d0def5d5ce105abae6679f0d5d340d20b000cb14235eaa5fab7';
 export const FIELDS = Object.freeze(['lane', 'status', 'created_at', '__name__'].map(fieldPath => Object.freeze({ fieldPath, order: 'ASCENDING' })));
 const RPC = { timeout: 10000, retry: null };
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');

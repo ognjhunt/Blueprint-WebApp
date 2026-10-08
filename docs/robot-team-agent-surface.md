@@ -339,3 +339,37 @@ city and state, separated by semicolons (for example `Texas; Ohio; Austin, TX; C
 Coverage is compared with the site's stated location, independently of capture-visit coverage.
 Missing or ambiguous location/coverage stays provisional. Legacy Austin answers remain
 accepted by the agent API and retain their original Austin-only meaning.
+
+## Optional updates and exact targeting
+
+`users.updatePreferences` and `robotTeamAccess.updatePreferences` store independent
+newsletter/new-job choices, source, timestamp and `optional-updates-v1`. Missing
+preferences mean no subscription. New signup/application checkboxes start unchecked;
+reapplications and manual invitations preserve existing choices. A verified account
+binds its existing contact via `preferencesAccountUid`; account preferences then win.
+Settings opt-out and account binding commit together. Application/account/current-job
+notices remain the existing fixed transactional templates.
+
+Settings supports exact role, region, industry, embodiment, policy category (including
+WAM/VLA), job family and capability interests, plus separate declared team categories.
+Categories are self-reported stack descriptions, never measured performance. Matching
+is case-insensitive exact category membership with composable any/all clauses; missing
+or inferred facts return unknown. No embedding or prose extraction fills unknowns.
+Data retention, no-training and required rights scopes are hard requirements. Unknown
+terms block the alert. Rights scopes come from current recording authority, never a
+public-card label; this matching grants no evidence or private-site access.
+
+The existing owner-approved job card optionally carries targeting categories, recipient
+requirements and stated retention/training terms. Those terms are matching inputs, not
+proof of operational enforcement. Alerts contain only approved public card text.
+Listing publication saves `inboundRequests.newJobAlertFanout` in the same transaction.
+The existing capture outbox tick resumes at most five sources and one bounded contact
+page per source, querying the indexed opt-in candidate flag before exact filtering and using leases, a document cursor and event/email deduplication. Failed
+pages replay safely; existing unknown delivery outcomes remain quarantined. Both queue
+and dispatch read current preferences, suppressions, card event/digest, visibility and
+withdrawal authority. Legacy alerts without this authority are cancelled before sends.
+
+The `optional_updates` unsubscribe scope is honored alongside global/all, lifecycle
+and growth suppression. Saving an opt-in never removes a suppression. Deploy the
+checked-in Firestore indexes with the release. No subscription backfill, newsletter
+campaign executor, dormant send enablement or live send is part of this change.

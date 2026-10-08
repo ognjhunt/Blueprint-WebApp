@@ -39,6 +39,7 @@ function ApplicationForm({ email }: { email: string | null }) {
         workWanted: read("workWanted"),
         testSite: read("testSite") || undefined,
         acceptedTerms: true,
+        optionalUpdates: data.get("optionalUpdates") === "on",
       });
       setState(status === "approved" ? "approved" : "sent");
     } catch (failure) {
@@ -81,6 +82,7 @@ function ApplicationForm({ email }: { email: string | null }) {
       <label>A site or customer you would want to test at <span className="ms-field-hint">(optional)</span>
         <input disabled={!interactive} name="testSite" placeholder="e.g. the warehouse you are piloting with" maxLength={300} />
       </label>
+      <label><input type="checkbox" name="optionalUpdates" disabled={!interactive} /> Email me relevant new jobs and Blueprint updates (optional). Unsubscribe anytime. Application notices are separate.</label>
       <p className="ms-field-hint">
         By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>.
       </p>

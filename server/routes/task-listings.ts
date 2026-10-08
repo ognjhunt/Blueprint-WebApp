@@ -6,6 +6,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { captureUploadUrlFor, verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import { listingConsentVersion, taskListingSchema } from "../utils/taskListingDetails";
 import { buildTaskLifecycleNotification, enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { newJobFanoutIntent } from "../utils/newJobAlerts";
 import { enqueueNewTaskAlerts } from "../utils/robotTeamAccessEmails";
 import { pilotFeeUsd } from "../../client/src/lib/evaluationPricing";
 import { TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
@@ -60,7 +61,10 @@ router.route("/owner/:token")
         if (!current.exists) throw new Error("Task removed");
         const previousDigest = current.data()?.public_task_listing?.thumbnailDigest ?? null;
         wentLive = parsed.data.enabled && current.data()?.public_task_listing?.enabled !== true ? new Date().toISOString() : null;
-        transaction.update(ref, { public_task_listing: {
+        transaction.update(ref, {
+          ...(wentLive ? { newJobAlertFanout: newJobFanoutIntent(wentLive) } : {}),
+          public_task_listing: {
+          wentLiveIso: wentLive ?? current.data()?.public_task_listing?.wentLiveIso ?? null,
           enabled: parsed.data.enabled, details: parsed.data.details,
           consentVersion: listingConsentVersion, approvedAtIso: new Date().toISOString(),
           approvedBy: "signed_owner_link",
