@@ -7,10 +7,10 @@ vi.mock("../logger", () => ({logger:{warn:vi.fn(),info:vi.fn(),error:vi.fn()}}))
 import { retrySiteAssessment, describeSiteAssessmentRetry } from "../utils/siteAssessmentQueue";
 import { browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
-import { inferenceProgrammeContextDigest, inferenceProgrammeAmendmentStateDigest } from "../utils/inferenceProgrammeAdmission";
+import { inferenceProgrammeContextDigest } from "../utils/inferenceProgrammeAdmission";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
-import { reserveCaptureCoverageInference, grantInferenceProgrammeTechnicalContinuation } from "../utils/captureCoverageInferenceBudget";
+import { reserveCaptureCoverageInference } from "../utils/captureCoverageInferenceBudget";
 const requestId="retry-fixture",captureId=`walkthrough-${requestId}`,oldRun="site-assessment-old",programmePath="inferencePrograms/retry-programme";
 const budgetPath=`captureCoverageReviews/budget-${humanDecisionDigest({capture_id:captureId})}`;
 const read=(path:string):any=>state.docs.get(path);
@@ -22,7 +22,7 @@ const metadata=(runId:string)=>({capture_id:captureId,assessment_run_id:runId,as
 const access=(raw:any)=>{if(raw.account_owner_uid!=="synthetic-owner")throw Error("private denial");};
 const retry=()=>retrySiteAssessment({requestId,expectedJobId:jobId,expectedRunId:oldRun,retryIdentity:"owner-retry-one",assertAccess:access});
 beforeEach(async()=>{
- state.docs.clear();vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD","5");sourceKey=browserPendingDecisionKey(pending);
+ vi.restoreAllMocks();state.docs.clear();vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD","5");sourceKey=browserPendingDecisionKey(pending);
  const raw:any={account_owner_uid:"synthetic-owner",inference_program_id:"retry-programme",request:{buyerType:"site_operator",taskDescription:"Move a carton",
   consent_attestation:{granted:true,statement_version:RECORDING_CONSENT_VERSION,recorded_at_iso:"2026-10-08T00:00:00Z"}},
   capture_privacy_source_bound_decision:{proceeded:true,eligibility:"unscreened",capture_id:captureId,producer_source:{kind:"browser_pending",key:sourceKey}}};
@@ -49,93 +49,37 @@ beforeEach(async()=>{
  read(`agentRuns/${oldRun}`).artifacts.capture_inference_reservations=[oldCall.receipt];
  read(`agentRuns/${oldRun}`).status="failed";read(`siteAssessmentJobs/${jobId}`).state="needs_review";raw.site_advisory.state="needs_review";
 });
-it("explicit retry preserves unknown full exposure and immutable old run, then permits only remaining held slots",async()=>{
- vi.spyOn(Date,"now").mockReturnValue(read(programmePath).expires_at_ms+1);
- try {
- await expect(retry()).rejects.toThrow("advisory_retry_unavailable");
- await grantInferenceProgrammeTechnicalContinuation({programmeId:"retry-programme",expectedAuthorityDigest:read(budgetPath).inference_programme_authority_digest,
-  continuationIdentity:"explicit-technical-window",authorityRef:"synthetic-authority",operatorRef:"synthetic-authorized-operator",effectiveExpiresAtMs:Date.now()+7200000});
- const old=structuredClone(read(`agentRuns/${oldRun}`)),before=structuredClone(read(budgetPath)),original=structuredClone(read(programmePath).slots.slice(0,2));
- expect(await describeSiteAssessmentRetry(requestId,access)).toEqual({available:true,job_id:jobId,run_id:oldRun});
- expect(read(budgetPath)).toEqual(before);
- read(`siteAssessmentJobs/${jobId}`).retry_history=[{receipt_sha256:"mismatched-history"}];
- expect((await describeSiteAssessmentRetry(requestId,access)).available).toBe(false);
- delete read(`siteAssessmentJobs/${jobId}`).retry_history;
- const accepted=await retry();expect(accepted.state).toBe("queued");expect(accepted.job_id).toBe(jobId);expect(accepted.run_id).not.toBe(oldRun);
- expect(read(`agentRuns/${oldRun}`)).toEqual(old);expect(read(`agentRuns/${accepted.run_id}`)).toBeUndefined();
- expect(read(budgetPath)).toMatchObject({pending_token:null,exposure_usd:0.33192,calls:1});
- expect(read(programmePath).slots.slice(0,2)).toEqual(original);
- expect(read(programmePath).slots.find((row:any)=>row.id==="held-sol-1")).toMatchObject({state:"unknown",run_id:oldRun,reserved_micro_usd:331920,admission_token:before.pending_token});
- expect(read(budgetPath).assessment_recoveries).toHaveLength(1);expect(read(`siteAssessmentJobs/${jobId}`).retry_history).toEqual(read(budgetPath).assessment_recoveries);
- expect(await retry()).toEqual(accepted);expect(read(budgetPath).assessment_recoveries).toHaveLength(1);
+it("explicit failed retry needs no programme or financial deadline and preserves old unknown exposure",async()=>{
+ const old=structuredClone(read(`agentRuns/${oldRun}`)),before=structuredClone(read(budgetPath)),programme=structuredClone(read(programmePath));
+ read(programmePath).expires_at_ms=0;delete read(`inboundRequests/${requestId}`).inference_program_id;
+ expect(await describeSiteAssessmentRetry(requestId,access)).toEqual({available:true,job_id:jobId,run_id:oldRun});expect(read(budgetPath)).toEqual(before);
+ const accepted=await retry();expect(accepted.state).toBe("queued");expect(await retry()).toEqual(accepted);
+ expect(read(`agentRuns/${oldRun}`)).toEqual(old);expect(read(budgetPath)).toMatchObject({pending_token:null,exposure_usd:before.exposure_usd,calls:before.calls});
+ expect(read(budgetPath).assessment_recoveries).toHaveLength(1);expect(read(budgetPath).assessment_recoveries[0]).toMatchObject({schema_version:"site_assessment_recovery.v2",admission_token:before.pending_token,reserved_call_micro_usd:331920});
+ expect(read(programmePath)).toEqual({...programme,expires_at_ms:0});
  const job=read(`siteAssessmentJobs/${jobId}`);job.state="running";job.claim_id="new-claim";
- state.docs.set(`agentRuns/${accepted.run_id}`,{task_kind:"site_assessment",status:"running",metadata:{capture_id:captureId,advisory_job_id:jobId},input:{input:{context:{request_id:requestId}}}});
+ state.docs.set(`agentRuns/${accepted.run_id}`,{task_kind:"site_assessment",status:"running",metadata:{capture_id:captureId,advisory_job_id:jobId},input:{input:{context:{request_id:requestId,advisory_job_id:jobId,advisory_claim_id:"new-claim"}}}});
  const next=await reserveCaptureCoverageInference("gpt-6.1-sol",metadata(accepted.run_id),"openai",{});await next.assertDispatchAllowed();
- const pending=read(budgetPath).pending_token;
- await expect(oldCall.assertDispatchAllowed()).rejects.toThrow();
- await expect(oldCall.record({input_tokens:100,output_tokens:10})).rejects.toThrow("coverage_budget_admission_changed");
- expect(read(budgetPath).pending_token).toBe(pending);
- expect(next.receipt.capture_exposure_usd).toBeCloseTo(0.66384);expect(read(budgetPath).calls).toBe(2);
- expect(read(programmePath).slots.filter((row:any)=>row.run_id===oldRun&&row.state==="unknown")).toHaveLength(1);
- }finally{vi.restoreAllMocks();}
+ const token=read(budgetPath).pending_token;await expect(oldCall.assertDispatchAllowed()).rejects.toThrow();await expect(oldCall.record({input_tokens:100,output_tokens:10})).rejects.toThrow();expect(read(budgetPath).pending_token).toBe(token);
+ await next.record({input_tokens:100,output_tokens:10});expect(read(budgetPath).calls).toBe(2);
 });
-it.each(["access","withdrawal","source","context","expiry","cap","slot","running","unknown-run","history","missing-intent","duplicate-token"])("refuses %s without changing any accounting",async defect=>{
- if(defect==="access")read(`inboundRequests/${requestId}`).account_owner_uid="different-owner";
- if(defect==="withdrawal")read(`inboundRequests/${requestId}`).consent_revoked=true;
- if(defect==="source")read(`captureUploadSessions/${captureId}`).browser_pending_delivery.video.generation="3";
- if(defect==="context")read(`inboundRequests/${requestId}`).request.taskDescription="Changed";
- if(defect==="expiry")read(programmePath).expires_at_ms=Date.now()-1;
- if(defect==="cap")read(programmePath).cap_micro_usd=4900000;
- if(defect==="slot")read(programmePath).slots.find((row:any)=>row.id==="held-sol-2").state="unknown";
- if(defect==="running")read(`agentRuns/${oldRun}`).status="running";
- if(defect==="unknown-run")state.docs.set("agentRuns/unbound",{task_kind:"site_assessment",status:"failed",metadata:{capture_id:captureId},input:{input:{context:{request_id:requestId}}}});
- if(defect==="missing-intent")delete read(`agentRuns/${oldRun}`).artifacts.capture_inference_reservations;
- if(defect==="duplicate-token")read(programmePath).slots.find((row:any)=>row.id==="new-gem").admission_token=read(budgetPath).pending_token;
- if(defect==="history")read(`captureCoverageReviews/${"d".repeat(64)}`).attempts=4;
- const before=structuredClone(read(budgetPath)),programme=structuredClone(read(programmePath));
- expect((await describeSiteAssessmentRetry(requestId,access)).available).toBe(false);
- await expect(retry()).rejects.toThrow();expect(read(budgetPath)).toEqual(before);expect(read(programmePath)).toEqual(programme);
+it.each(["access","withdrawal","source","context","running","missing-intent","pending-run","receipt"])("refuses %s without changing accounting or old run",async fault=>{
+ if(fault==="access")read(`inboundRequests/${requestId}`).account_owner_uid="different-owner";
+ if(fault==="withdrawal")read(`inboundRequests/${requestId}`).consent_revoked=true;
+ if(fault==="source")read(`captureUploadSessions/${captureId}`).browser_pending_delivery.video.generation="3";
+ if(fault==="context")read(`inboundRequests/${requestId}`).request.taskDescription="Changed";
+ if(fault==="running")read(`agentRuns/${oldRun}`).status="running";
+ if(fault==="missing-intent")delete read(`agentRuns/${oldRun}`).artifacts.capture_inference_reservations;
+ if(fault==="pending-run")read(budgetPath).last_assessment_run_id="different";
+ if(fault==="receipt")read(budgetPath).assessment_recoveries=[{schema_version:"site_assessment_recovery.v2",receipt_sha256:"bad"}];
+ const before=structuredClone(read(budgetPath)),old=structuredClone(read(`agentRuns/${oldRun}`));
+ expect((await describeSiteAssessmentRetry(requestId,access)).available).toBe(false);await expect(retry()).rejects.toThrow();expect(read(budgetPath)).toEqual(before);expect(read(`agentRuns/${oldRun}`)).toEqual(old);
 });
-it("rejects stale expected run and rotated owner even when the retry identity was accepted",async()=>{
- const result=await retry();await expect(retrySiteAssessment({requestId,expectedJobId:jobId,expectedRunId:"different",retryIdentity:"owner-retry-one",assertAccess:access})).rejects.toThrow("advisory_retry_conflict");
- read(`inboundRequests/${requestId}`).account_owner_uid="different-owner";
- await expect(retry()).rejects.toThrow("advisory_retry_not_authorized");expect(read(`siteAssessmentJobs/${jobId}`).run_id).toBe(result.run_id);
+it("rejects stale identity replay after owner/source rotation",async()=>{
+ const accepted=await retry();await expect(retrySiteAssessment({requestId,expectedJobId:jobId,expectedRunId:"different",retryIdentity:"owner-retry-one",assertAccess:access})).rejects.toThrow("advisory_retry_conflict");
+ read(`inboundRequests/${requestId}`).account_owner_uid="different-owner";await expect(retry()).rejects.toThrow("advisory_retry_not_authorized");expect(read(`siteAssessmentJobs/${jobId}`).run_id).toBe(accepted.run_id);
 });
-
-it.each(["receipt","old-source","slot-reset","brief-rotation"])("refuses %s after explicit recovery, including identity replay",async defect=>{
- const accepted=await retry(),job=read(`siteAssessmentJobs/${jobId}`);
- if(defect==="receipt")read(budgetPath).assessment_recoveries[0].receipt_sha256="f".repeat(64);
- if(defect==="old-source")read(`agentRuns/${oldRun}`).artifacts.source_admission.video_sha256="c".repeat(64);
- if(defect==="slot-reset")read(programmePath).slots.find((row:any)=>row.id==="held-sol-1").state="held";
- if(defect==="brief-rotation")state.docs.set(`siteTaskBriefs/${requestId}`,{operatorTaskDetails:null,successCriteria:null,operatorAnswers:null,unrelated:"changed full programme context"});
- await expect(retry()).rejects.toThrow("advisory_retry_unavailable");
- if(defect!=="brief-rotation"){
-  job.state="running";job.claim_id="new-claim";
-  state.docs.set(`agentRuns/${accepted.run_id}`,{task_kind:"site_assessment",status:"running",metadata:{capture_id:captureId,advisory_job_id:jobId},input:{input:{context:{request_id:requestId}}}});
-  await expect(reserveCaptureCoverageInference("gpt-6.1-sol",metadata(accepted.run_id),"openai",{})).rejects.toThrow();
- }
- expect(read(budgetPath).calls).toBe(1);expect(read(budgetPath).exposure_usd).toBe(0.33192);
-});
-
-it("budget amendment enables exact two-call failed recovery using one original held Sol plus approved pool",async()=>{
- const {grantInferenceProgrammeAuthorityAmendment}=await import("../utils/captureCoverageInferenceBudget");
- await oldCall.record({input_tokens:100,output_tokens:10});
- await grantInferenceProgrammeTechnicalContinuation({programmeId:"retry-programme",expectedAuthorityDigest:read(budgetPath).inference_programme_authority_digest,
-  continuationIdentity:"current-fixed-window",authorityRef:"synthetic-authority",operatorRef:"synthetic-authorized-operator",effectiveExpiresAtMs:Date.now()+7200000});
- read(`agentRuns/${oldRun}`).status="running";oldCall=await reserveCaptureCoverageInference("gpt-6.1-sol",metadata(oldRun),"openai",{});
- read(`agentRuns/${oldRun}`).artifacts.capture_inference_reservations=[oldCall.receipt];read(`agentRuns/${oldRun}`).status="failed";
- expect((await describeSiteAssessmentRetry(requestId,access)).available).toBe(false);
- const old=structuredClone(read(`agentRuns/${oldRun}`)),before=structuredClone(read(programmePath));
- await grantInferenceProgrammeAuthorityAmendment({programmeId:"retry-programme",expectedAuthorityDigest:read(budgetPath).inference_programme_authority_digest,
-  expectedTechnicalReceiptDigest:before.technical_continuations[0].receipt_sha256,amendmentIdentity:"approved-budget-amendment",authorityRef:"synthetic-new-human-approval",
-  expectedRawRequestDigest:inferenceProgrammeAmendmentStateDigest(read(`inboundRequests/${requestId}`)),expectedUploadSessionDigest:inferenceProgrammeAmendmentStateDigest(read(`captureUploadSessions/${captureId}`)),
-  operatorRef:"synthetic-authorized-operator",approvalReceiptSha256:`sha256:${"c".repeat(64)}`,effectiveCapMicroUsd:5300000});
- expect((await describeSiteAssessmentRetry(requestId,access)).available).toBe(true);
- const accepted=await retry();const job=read(`siteAssessmentJobs/${jobId}`);job.state="running";job.claim_id="new-claim";
- state.docs.set(`agentRuns/${accepted.run_id}`,{task_kind:"site_assessment",status:"running",metadata:{capture_id:captureId,advisory_job_id:jobId},input:{input:{context:{request_id:requestId}}}});
- for(const provider of ["openai","gemini","openai"] as const){const call=await reserveCaptureCoverageInference(provider==="openai"?"gpt-6.1-sol":"gemini-3.8-flash",metadata(accepted.run_id),provider,{});
-  await call.assertDispatchAllowed();await call.record(provider==="openai"?{input_tokens:100,output_tokens:10}:{promptTokenCount:100,candidatesTokenCount:10,thoughtsTokenCount:0});}
- expect(read(`agentRuns/${oldRun}`)).toEqual(old);expect(read(programmePath).slots.slice(0,2)).toEqual(before.slots.slice(0,2));
- expect(read(programmePath).slots.find((c:any)=>c.id==="held-sol-2").state).toBe("unknown");expect(read(programmePath).amended_calls).toHaveLength(3);
- expect(read(budgetPath).assessment_recoveries).toHaveLength(1);await expect(oldCall.record({input_tokens:100,output_tokens:10})).rejects.toThrow();
+it("allows explicit recovery before the first inference reservation without inventing usage",async()=>{
+ state.docs.delete(budgetPath);read(`agentRuns/${oldRun}`).artifacts.capture_inference_reservations=[];
+ const accepted=await retry();expect(accepted.state).toBe("queued");expect(read(budgetPath)).toMatchObject({exposure_usd:0,calls:0,pending_token:null});expect(read(budgetPath).assessment_recoveries[0].reserved_micro_usd).toBe(0);
 });

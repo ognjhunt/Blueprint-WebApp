@@ -1,448 +1,164 @@
 import type { Transaction } from "firebase-admin/firestore";
-import { admitInferenceProgramme, inferenceProgrammeAmendment, inferenceProgrammeAmendmentStateDigest, effectiveInferenceProgrammeSlots, hasInferenceProgramme, inferenceProgrammeId, inferenceProgrammeContextDigest, validateInferenceProgramme, inferenceProgrammeAuthorityDigest, acceptsReconciledCaptureHistory, validatedAssessmentRecoveries, assertInferenceProgrammeClock, INFERENCE_TECHNICAL_WINDOW_MS, type AssessmentRecovery } from "./inferenceProgrammeAdmission";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
-import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowserPending";
 import { randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { SiteAssessmentBudget } from "../agents/adapters/site-assessment-budget";
 import { humanDecisionDigest } from "./human-reply-admission";
-import { hasCurrentRecordingConsent } from "./recordingConsent";
+import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowserPending";
+import { advisoryContextDigest } from "./siteAssessmentContext";
 import { hydrateAgentEvidence } from "../agents/private-evidence";
+import type { AssessmentRecovery } from "./inferenceProgrammeAdmission";
 
-/** Accepted zero-provider review history never authorizes a second or unknown SDK run. */
-async function assertReconciledRunHistory(tx: Transaction, captureId: string, runId: string, requestId: string,
-  state?: Record<string, any>, programme?: any) {
-  const receipts = programme && state ? validatedAssessmentRecoveries(state, programme) : [];
-  const accounted = async (id: string, raw: Record<string, any>) => {
-    const receipt = receipts.find(row => row.previous_run_id === id);
-    if (!receipt) return false;
-    const run: any = await hydrateAgentEvidence(raw, { collection: "agentRuns", id });
-    const job = (await tx.get(db!.collection("siteAssessmentJobs").doc(receipt.job_id))).data();
-    const bound = run.artifacts?.source_admission, intent = run.artifacts?.capture_inference_reservations?.at(-1);
-    return run.task_kind === "site_assessment" && run.status === "failed" && run.metadata?.capture_id === captureId
-      && run.metadata?.advisory_job_id === receipt.job_id && run.input?.input?.context?.request_id === requestId
-      && run.input?.input?.context?.advisory_job_id === receipt.job_id
-      && run.input?.input?.context?.advisory_claim_id === receipt.previous_claim_id
-      && bound?.request_id === requestId && bound?.capture_id === captureId && bound?.advisory_job_id === receipt.job_id
-      && bound?.source_key === receipt.source_key && bound?.context_digest === receipt.advisory_context_digest
-      && bound?.video_sha256 === receipt.video_sha256
-      && intent?.provider === receipt.provider && Math.ceil(intent?.reserved_usd * 1e6) === receipt.reserved_call_micro_usd
-      && intent?.capture_exposure_usd === receipt.capture_exposure_usd && intent?.cap_usd === state?.cap_usd
-      && job?.run_id === runId
-      && job?.source_key === receipt.source_key && job?.context_digest === receipt.advisory_context_digest
-      && humanDecisionDigest(job.retry_history) === humanDecisionDigest(receipts);
-  };
-  const [runs, assessments] = await Promise.all([
-    tx.get(db!.collection("agentRuns").where("metadata.capture_id", "==", captureId).limit(100)),
-    tx.get(db!.collection("agentRuns").where("task_kind", "==", "site_assessment").limit(100)),
-  ]);
-  const unrelatedRuns = await Promise.all(runs.docs.filter(row => row.id !== runId).map(async row => !(await accounted(row.id, row.data()))));
-  if (runs.docs.length >= 100 || assessments.docs.length >= 100 || unrelatedRuns.some(Boolean))
-    throw new Error("coverage_budget_historical_exposure_unresolved");
-  const otherAssessments = await Promise.all(assessments.docs.filter(row => row.id !== runId).map(async row => ({ id: row.id,
-    data: await hydrateAgentEvidence(row.data(), { collection: "agentRuns", id: row.id }), raw: row.data() })));
-  const uncovered = await Promise.all(otherAssessments.filter(row => row.data.input?.input?.context?.request_id === requestId)
-    .map(async row => !(await accounted(row.id, row.raw))));
-  if (uncovered.some(Boolean))
-    throw new Error("coverage_budget_historical_exposure_unresolved");
+const budgetFor = (captureId: string) => db!.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({ capture_id: captureId })}`);
+const digest = humanDecisionDigest;
+const privacyFor = (request: any) => request?.capture_privacy_source_bound_decision || request?.capture_privacy_screen;
+function assertSource(request: any, captureId: string, source: unknown) {
+  const privacy = privacyFor(request);
+  if (!projectWebsiteCaptureRights(request).derived_scene_generation_allowed || privacy?.proceeded !== true
+    || privacy.capture_id !== captureId || digest(privacy.producer_source) !== digest(source)) throw new Error("coverage_budget_source_changed");
 }
 
-/** SDK assessment, each traversal and correction share one durable capture allowance. Brief
- * changes, queue retries and restarts never reset already reserved exposure.
- * Reuse the existing internal inference policy; the customer supplies no cap. */
+/** A durable call intent and current claim fence. Money, missing usage and old
+ * programme approvals are accounting facts, never customer admission gates. */
 export async function reserveCaptureCoverageInference(model: string, metadata: Record<string, unknown> = {},
   provider: "gemini" | "openai" = "gemini", modelRequest?: unknown) {
-  const captureId = metadata.capture_id, reviewId = metadata.review_id, claimToken = metadata.coverage_claim_token;
-  const assessmentRunId = metadata.assessment_run_id, assessment = typeof assessmentRunId === "string";
+  const captureId = metadata.capture_id, runId = metadata.assessment_run_id, assessment = typeof runId === "string";
+  const reviewId = metadata.review_id, claim = metadata.coverage_claim_token;
   if (!db || typeof captureId !== "string" || !/^[A-Za-z0-9._-]{1,200}$/.test(captureId)
-    || (assessment ? !/^[A-Za-z0-9._-]{1,200}$/.test(assessmentRunId as string)
-      : typeof reviewId !== "string" || !/^[a-f0-9]{64}$/.test(reviewId) || typeof claimToken !== "string" || !claimToken)) throw new Error("coverage_budget_claim_required");
-  const jobRef = assessment ? db.collection("agentRuns").doc(assessmentRunId as string)
-    : db.collection("captureCoverageReviews").doc(reviewId as string);
-  const budgetRef = db.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({ capture_id: captureId })}`);
-  const token = randomUUID();
-  const admission = await db.runTransaction(async tx => {
-    const [jobSnap, budgetSnap] = await Promise.all([tx.get(jobRef), tx.get(budgetRef)]);
-    const job = assessment && jobSnap.exists
-      ? await hydrateAgentEvidence(jobSnap.data()!, { collection: "agentRuns", id: assessmentRunId as string })
-      : jobSnap.data();
-    const state = budgetSnap.data();
+    || (assessment ? !/^[A-Za-z0-9._-]{1,200}$/.test(runId as string)
+      : typeof reviewId !== "string" || !/^[a-f0-9]{64}$/.test(reviewId) || typeof claim !== "string" || !claim)) throw new Error("coverage_budget_claim_required");
+  const jobRef = assessment ? db.collection("agentRuns").doc(runId as string) : db.collection("captureCoverageReviews").doc(reviewId as string);
+  const budgetRef = budgetFor(captureId), token = randomUUID(), callRef = budgetRef.collection("calls").doc(token);
+  const budget = new SiteAssessmentBudget(); budget.authorize(provider, model, modelRequest);
+  const reserved = budget.calls[0].reserved_usd;
+  const check = async (tx: Transaction) => {
+    const snap = await tx.get(jobRef);
+    const job = assessment && snap.exists ? await hydrateAgentEvidence(snap.data()!, { collection: "agentRuns", id: runId as string }) : snap.data();
     const requestId = assessment ? job?.input?.input?.context?.request_id : job?.requestId;
-    if (!job || (assessment ? job.task_kind !== "site_assessment" || job.status !== "running"
-      || requestId !== metadata.assessment_request_id
-      : job.state !== "running" || job.claim_token !== claimToken || job.captureId !== captureId)
-      || typeof requestId !== "string") throw new Error("coverage_budget_claim_changed");
-    const [requestSnap, briefSnap] = await Promise.all([tx.get(db!.collection("inboundRequests").doc(requestId)),
-      tx.get(db!.collection("siteTaskBriefs").doc(requestId))]);
-    const request = requestSnap.data(), privacy = request?.capture_privacy_source_bound_decision || request?.capture_privacy_screen;
-    if (!hasCurrentRecordingConsent(request?.request?.consent_attestation) || privacy?.proceeded !== true
-      || privacy.capture_id !== captureId || humanDecisionDigest(privacy.producer_source) !== humanDecisionDigest(assessment ? metadata.assessment_source : job.binding?.source)
-      || (!assessment && (!briefSnap.exists || humanDecisionDigest(briefSnap.data()) !== job.binding?.brief_digest))) throw new Error("coverage_budget_source_changed");
-    if (hasInferenceProgramme(request) && !assessment) throw new Error("inference_programme_coverage_deferred");
-    if (state?.inference_program_id && (!hasInferenceProgramme(request) || request?.inference_program_id !== state.inference_program_id))
-      throw new Error("inference_programme_binding_changed");
-    const programmeId = hasInferenceProgramme(request) ? inferenceProgrammeId(request!) : null;
-    // All authority reads precede writes in this same capture admission transaction.
-    const programmeRef = programmeId ? db!.collection("inferencePrograms").doc(programmeId) : null;
-    const programme = programmeRef ? (await tx.get(programmeRef)).data() : null;
-    if (state?.inference_program_id) {
-      if (state.inference_programme_authority_digest !== inferenceProgrammeAuthorityDigest(programme))
-        throw new Error("inference_programme_authority_changed");
-      const eligible = state.inference_programme_eligible_slot_ids, admitted = state.inference_programme_admitted_slot_ids;
-      if (!Array.isArray(eligible) || !Array.isArray(admitted) || new Set(eligible).size !== eligible.length
-        || new Set(admitted).size !== admitted.length || eligible.some(id => typeof id !== "string" || !/^[A-Za-z0-9._-]{1,120}$/.test(id)
-          || !validateInferenceProgramme(programme).slots.some(row => row.id === id))
-        || admitted.some(id => !eligible.includes(id))) throw new Error("inference_programme_state_invalid");
+    if (!job || typeof requestId !== "string" || (assessment ? job.task_kind !== "site_assessment" || job.status !== "running"
+      || requestId !== metadata.assessment_request_id || (job.metadata?.capture_id && job.metadata.capture_id !== captureId)
+      : job.state !== "running" || job.claim_token !== claim || job.captureId !== captureId)) throw new Error("coverage_budget_claim_changed");
+    const [requestSnap, briefSnap] = await Promise.all([tx.get(db!.collection("inboundRequests").doc(requestId)), tx.get(db!.collection("siteTaskBriefs").doc(requestId))]);
+    const request = requestSnap.data(), brief = briefSnap.data() ?? null, source = assessment ? metadata.assessment_source : job.binding?.source;
+    assertSource(request, captureId, source);
+    if (!assessment && (!briefSnap.exists || digest(brief) !== job.binding?.brief_digest)) throw new Error("coverage_budget_source_changed");
+    const context = advisoryContextDigest(request!, brief);
+    if (assessment && job.input?.input?.context?.advisory_job_id) {
+      const advisory = (await tx.get(db!.collection("siteAssessmentJobs").doc(job.input.input.context.advisory_job_id))).data();
+      if (advisory?.state !== "running" || advisory.run_id !== runId || advisory.claim_id !== job.input.input.context.advisory_claim_id
+        || advisory.request_id !== requestId || advisory.capture_id !== captureId || advisory.source_key !== (source as any)?.key
+        || advisory.context_digest !== context) throw new Error("coverage_budget_claim_changed");
     }
+    if (assessment && (source as any)?.kind === "browser_pending") {
+      const session = (await tx.get(db!.collection("captureUploadSessions").doc(captureId))).data();
+      const pending = session?.browser_pending_delivery as BrowserPending | undefined;
+      if (!pending || pending.state !== "published" || pending.request_id !== requestId || pending.capture_id !== captureId
+        || session?.browser_upload_reservation || session?.browser_stored_upload || browserPendingDecisionKey(pending) !== (source as any).key)
+        throw new Error("coverage_budget_source_changed");
+    }
+    return { requestId, context, source };
+  };
+  const admission = await db.runTransaction(async tx => {
+    const binding = await check(tx), state = (await tx.get(budgetRef)).data();
     if (state && (state.capture_id !== captureId || !Number.isFinite(state.exposure_usd) || state.exposure_usd < 0
-      || !Number.isSafeInteger(state.calls) || state.calls < 1)) throw new Error("coverage_budget_state_invalid");
-    if (state && (programme?.capture_history_reconciliation || state.assessment_recoveries))
-      await assertReconciledRunHistory(tx, captureId, assessmentRunId as string, requestId, state, programme);
-    if (!state) {
-      const [prior, runs, assessments] = await Promise.all([
-        tx.get(db!.collection("captureCoverageReviews").where("captureId", "==", captureId).limit(100)),
-        tx.get(db!.collection("agentRuns").where("metadata.capture_id", "==", captureId).limit(100)),
-        // Input can be offloaded to immutable private evidence. Do not treat
-        // an absent queryable input as proof that a prior paid run is absent.
-        tx.get(db!.collection("agentRuns").where("task_kind", "==", "site_assessment").limit(100)),
-      ]);
-      const coverageRuns = await Promise.all(runs.docs.filter(row => row.data().task_kind === "capture_coverage")
-        .map(async row => ({ id: row.id, data: await hydrateAgentEvidence(row.data(), { collection: "agentRuns", id: row.id }) })));
-      const assessmentRuns = await Promise.all(assessments.docs.map(async row => ({ id: row.id,
-        data: await hydrateAgentEvidence(row.data(), { collection: "agentRuns", id: row.id }) })));
-      const currentRuns = coverageRuns.filter(row => row.data.status === "running"
-        && row.data.metadata?.review_id === reviewId && row.data.metadata?.coverage_claim_token === claimToken);
-      const reconciledHistory = assessment && programmeRef && programme?.capture_history_reconciliation
-        ? acceptsReconciledCaptureHistory(programme, requestId, captureId, prior.docs.map(row => ({ id: row.id, data: row.data() }))) : false;
-      // Never reinterpret pre-budget attempts as free. Their provider exposure
-      // requires reconciliation before this new policy can admit another call.
-      if ((!assessment && job.attempts !== 1) || prior.docs.length >= 100 || runs.docs.length >= 100 || assessments.docs.length >= 100
-        || assessmentRuns.some(row => row.id !== assessmentRunId
-          && row.data.input?.input?.context?.request_id === requestId)
-        || currentRuns.length > 1 || coverageRuns.length !== currentRuns.length
-        || (programme?.capture_history_reconciliation && (!reconciledHistory || runs.docs.some(row => row.id !== assessmentRunId)))
-        || (prior.docs.some(row => (assessment || row.id !== reviewId) && (row.data().attempts ?? 0) > 0)
-          && !reconciledHistory)) {
-        throw new Error("coverage_budget_historical_exposure_unresolved");
-      }
-    }
-    if (state?.pending_token) throw new Error("coverage_budget_cost_unresolved");
-    const amendment=programme ? inferenceProgrammeAmendment(validateInferenceProgramme(programme),state):null;
-    const budget = amendment ? new SiteAssessmentBudget(0,amendment.receipt.effective_cap_micro_usd/1e6) : new SiteAssessmentBudget(state?.exposure_usd ?? 0);
-    if (state && state.cap_usd !== new SiteAssessmentBudget().cap) throw new Error("coverage_budget_policy_changed");
-    if(amendment && (modelRequest as any)?.inference_bound?.source_sha256 !== undefined
-      && (modelRequest as any).inference_bound.source_sha256 !== metadata.assessment_video_sha256)throw new Error("inference_programme_binding_changed");
-    const budgetRequest = !amendment && (modelRequest as any)?.inference_bound ? {...(modelRequest as any),inference_bound:undefined}:modelRequest;
-    budget.authorize(provider, model, budgetRequest);
-    const reserved = budget.calls[0].reserved_usd;
+      || !Number.isSafeInteger(state.calls) || state.calls < 0)) throw new Error("coverage_budget_state_invalid");
+    // This is a concurrent dispatch mutex, not a veto on historical unknown cost.
+    if (state?.pending_token) throw new Error("coverage_budget_call_in_flight");
     const exposure = (state?.exposure_usd ?? 0) + reserved;
-    const programmeAdmission = programmeRef ? admitInferenceProgramme(programme, { requestId, captureId,
-      contextDigest: inferenceProgrammeContextDigest(request!, briefSnap.data() ?? null), videoSha256: metadata.assessment_video_sha256,
-      sourceDigest: humanDecisionDigest(privacy.producer_source), provider, model,
-      reservedMicroUsd: Math.ceil(reserved * 1e6), requestBound: amendment ? (modelRequest as any)?.inference_bound : undefined, token, runId: assessmentRunId as string,
-      eligibleSlotIds: state?.inference_programme_eligible_slot_ids, admittedSlotIds: state?.inference_programme_admitted_slot_ids, captureState: state }) : null;
-    if (programmeRef && programmeAdmission) tx.set(programmeRef, { slots: programmeAdmission.slots,
-      producer_source_digest: programmeAdmission.producer_source_digest, ...(programmeAdmission.amendedCalls ? {amended_calls:programmeAdmission.amendedCalls}: {}) }, { merge: true });
+    const intent = { schema_version: "capture_inference_call.v1", admission_token: token, capture_id: captureId,
+      request_id: binding.requestId, run_id: runId ?? null, review_id: reviewId ?? null, claim_token: claim ?? null,
+      provider, model, source_digest: digest(binding.source), context_digest: binding.context,
+      video_sha256: metadata.assessment_video_sha256 ?? null, reserved_usd: reserved, capture_exposure_usd: exposure,
+      state: "admitted", cost_estimate_usd: null, created_at_ms: Date.now() };
+    tx.set(callRef, intent);
     tx.set(budgetRef, { schema_version: "capture_coverage_inference_budget.v1", capture_id: captureId,
-      cap_usd: state?.cap_usd ?? new SiteAssessmentBudget().cap, exposure_usd: exposure, calls: (state?.calls ?? 0) + 1,
-      pending_token: token, ...(programmeId && programmeAdmission ? { inference_program_id: programmeId,
-        inference_programme_authority_digest: programmeAdmission.authorityDigest,
-        inference_programme_eligible_slot_ids: state?.inference_programme_eligible_slot_ids
-          ?? validateInferenceProgramme(programme).slots.filter(row => row.state === "held").map(row => row.id).sort(),
-        inference_programme_admitted_slot_ids: programmeAdmission.supplemental ? state!.inference_programme_admitted_slot_ids : [...(state?.inference_programme_admitted_slot_ids ?? []), programmeAdmission.slotId].sort(),
-        ...(programmeAdmission.amendedCalls ? {inference_programme_amended_admitted_slot_ids: programmeAdmission.amendedCalls.filter((c:any)=>!c.original_slot_id).map((c:any)=>c.id).sort()} : {}),
-      } : {}), last_review_id: reviewId ?? null, last_assessment_run_id: assessmentRunId ?? null, updated_at_ms: Date.now() }, { merge: true });
-    return { budget, originalCap:state?.cap_usd ?? new SiteAssessmentBudget().cap, exposure, reserved, programmeRef, programmeAdmission, programmeId, requestId,
-      historyDigest: programmeAdmission ? humanDecisionDigest({ eligible: state?.inference_programme_eligible_slot_ids
-        ?? validateInferenceProgramme(programme).slots.filter(row => row.state === "held").map(row => row.id).sort(),
-        admitted: programmeAdmission.supplemental ? state!.inference_programme_admitted_slot_ids : [...(state?.inference_programme_admitted_slot_ids ?? []), programmeAdmission.slotId].sort() }) : null };
+      cap_usd: state?.cap_usd ?? null, exposure_usd: exposure, calls: (state?.calls ?? 0) + 1,
+      pending_token: token, ...(state ? {} : { historical_usage_status: "unreconciled" }), last_review_id: reviewId ?? null, last_assessment_run_id: runId ?? null, updated_at_ms: Date.now() }, { merge: true });
+    return { ...binding, exposure, cap: state?.cap_usd ?? null };
   });
   return {
-    receipt: { provider, cap_usd: admission.originalCap, ...(admission.programmeAdmission?.amendedCalls ? {effective_programme_cap_usd:admission.budget.cap}:{}), reserved_usd: admission.reserved, capture_exposure_usd: admission.exposure },
-    /** Recheck operator authority immediately before dispatch. Refusal never refunds or clears uncertainty. */
+    receipt: { provider, cap_usd: admission.cap, spending_gated: false, admission_token: token,
+      reserved_usd: reserved, capture_exposure_usd: admission.exposure },
     async assertDispatchAllowed() {
-      if (!admission.programmeRef || !admission.programmeAdmission) return;
       await db!.runTransaction(async tx => {
-        const [budgetSnap, programmeSnap, requestSnap, briefSnap] = await Promise.all([
-          tx.get(budgetRef), tx.get(admission.programmeRef!),
-          tx.get(db!.collection("inboundRequests").doc(admission.requestId)),
-          tx.get(db!.collection("siteTaskBriefs").doc(admission.requestId)),
-        ]);
-        const state = budgetSnap.data(), request = requestSnap.data();
-        const programme = validateInferenceProgramme(programmeSnap.data());
-        assertInferenceProgrammeClock(programme, state, admission.programmeAdmission!.slotId);
-        const privacy = request?.capture_privacy_source_bound_decision || request?.capture_privacy_screen;
-        if (programme.capture_history_reconciliation || state?.assessment_recoveries) {
-          await assertReconciledRunHistory(tx, captureId, assessmentRunId as string, admission.requestId, state, programme);
-        }
-        if (programme.capture_history_reconciliation) {
-          const history = await tx.get(db!.collection("captureCoverageReviews").where("captureId", "==", captureId).limit(100));
-          if (!acceptsReconciledCaptureHistory(programme, admission.requestId, captureId,
-            history.docs.map(row => ({ id: row.id, data: row.data() })))) throw new Error("inference_programme_history_changed");
-        }
-        const slot = effectiveInferenceProgrammeSlots(programme,state).find(row => row.id === admission.programmeAdmission!.slotId);
-        if (state?.pending_token !== token || state.capture_id !== captureId || state.inference_program_id !== admission.programmeId
-          || state.inference_programme_authority_digest !== admission.programmeAdmission!.authorityDigest
-          || humanDecisionDigest({ eligible: state.inference_programme_eligible_slot_ids,
-            admitted: state.inference_programme_admitted_slot_ids }) !== admission.historyDigest
-          || inferenceProgrammeAuthorityDigest(programme) !== admission.programmeAdmission!.authorityDigest
-          || request?.inference_program_id !== admission.programmeId || programme.request_id !== admission.requestId
-          || programme.capture_id !== captureId || programme.video_sha256 !== metadata.assessment_video_sha256
-          || programme.context_digest !== inferenceProgrammeContextDigest(request!, briefSnap.data() ?? null)
-          || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed || privacy?.proceeded !== true
-          || privacy.capture_id !== captureId || humanDecisionDigest(privacy.producer_source) !== programme.producer_source_digest
-          || humanDecisionDigest(metadata.assessment_source) !== programme.producer_source_digest
-          || slot?.state !== "admitted" || slot.admission_token !== token || slot.run_id !== assessmentRunId
-          || slot.provider !== provider || slot.model !== model || slot.reserved_micro_usd !== admission.programmeAdmission!.slotReservation
-          || slot.reserved_call_micro_usd !== Math.ceil(admission.reserved * 1e6))
-          throw new Error("inference_programme_dispatch_changed");
+        const binding = await check(tx), [state, call] = await Promise.all([tx.get(budgetRef), tx.get(callRef)]);
+        if (state.data()?.pending_token !== token || call.data()?.state !== "admitted"
+          || binding.context !== admission.context || digest(binding.source) !== digest(admission.source)) throw new Error("coverage_budget_admission_changed");
       });
     },
     async record(usage: unknown) {
-      admission.budget.record(provider, model, { usage });
-      // Unknown usage retains both the reservation and pending state. Known
-      // usage clears the pending call, but never releases reserved exposure.
-      if (admission.budget.calls[0].cost_usd === null) return;
+      budget.record(provider, model, { usage });
+      const priced = budget.calls[0];
       await db!.runTransaction(async tx => {
-        const state = (await tx.get(budgetRef)).data();
-        if (state?.pending_token !== token) throw new Error("coverage_budget_admission_changed");
-        if (admission.programmeRef && admission.programmeAdmission) {
-          const programme = validateInferenceProgramme((await tx.get(admission.programmeRef)).data(), false);
-          const slot = effectiveInferenceProgrammeSlots(programme,state).find(row => row.id === admission.programmeAdmission!.slotId);
-          if (state.inference_programme_authority_digest !== admission.programmeAdmission.authorityDigest
-            || inferenceProgrammeAuthorityDigest(programme) !== admission.programmeAdmission.authorityDigest
-            || programme.producer_source_digest !== admission.programmeAdmission.producer_source_digest
-            || slot?.state !== "admitted" || slot.admission_token !== token || slot.run_id !== assessmentRunId
-            || slot.provider !== provider || slot.model !== model || slot.reserved_micro_usd !== admission.programmeAdmission.slotReservation
-            || slot.reserved_call_micro_usd !== Math.ceil(admission.reserved * 1e6))
-            throw new Error("inference_programme_admission_changed");
-          tx.set(admission.programmeRef, { slots: programme.slots.map(row => row.id === slot.id ? { ...row, state: "recorded",
-            usage_estimate_micro_usd: Math.ceil(admission.budget.calls[0].cost_usd! * 1e6) } : row),
-            ...(programme.authority_amendments ? {amended_calls: inferenceProgrammeAmendment(programme,state)!.calls.map(call=>call.admission_token===token ? {...call,state:"recorded",usage_estimate_micro_usd:Math.ceil(admission.budget.calls[0].cost_usd!*1e6),usage_input_tokens:admission.budget.calls[0].input_tokens,usage_output_tokens:admission.budget.calls[0].output_tokens,priced_at_ms:admission.budget.calls[0].priced_at_ms,usage_metadata:admission.budget.calls[0].usage,usage_pricing_status:admission.budget.calls[0].usage_pricing_status}:call)}:{}) }, { merge: true });
-        }
-        tx.set(budgetRef, { pending_token: null, last_usage_estimate_usd: admission.budget.calls[0].cost_usd,
-          updated_at_ms: Date.now() }, { merge: true });
+        const [stateSnap, callSnap] = await Promise.all([tx.get(budgetRef), tx.get(callRef)]);
+        const state = stateSnap.data(), call = callSnap.data();
+        if (state?.pending_token !== token || call?.state !== "admitted" || call.admission_token !== token) throw new Error("coverage_budget_admission_changed");
+        tx.set(callRef, { state: priced.cost_usd === null ? "unknown" : "recorded", raw_usage: usage ?? null,
+          cost_estimate_usd: priced.cost_usd, usage_pricing_status: priced.usage_pricing_status, recorded_at_ms: Date.now() }, { merge: true });
+        // A received response with unknown usage ends this action; full unknown
+        // exposure remains retained, while distinct authorized work can continue.
+        tx.set(budgetRef, { pending_token: null, last_usage_estimate_usd: priced.cost_usd, updated_at_ms: Date.now() }, { merge: true });
       });
     },
   };
 }
 
-/** Read/validate before any retry writes. Only a full-reserve unknown disposition is prepared. */
-export async function prepareAssessmentRecovery(tx: Transaction, input: {
-  requestId: string; jobId: string; captureId: string; previousRunId: string; previousClaimId: string | null; newRunId: string; retryIdentity: string;
-  sourceKey: string; contextDigest: string; request: Record<string, any>; brief: Record<string, any> | null;
-}) {
-  const budgetRef = db!.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({ capture_id: input.captureId })}`);
-  const programmeId = inferenceProgrammeId(input.request);
-  const programmeRef = db!.collection("inferencePrograms").doc(programmeId);
-  const [budgetSnap, programmeSnap, runSnap] = await Promise.all([tx.get(budgetRef), tx.get(programmeRef),
-    tx.get(db!.collection("agentRuns").doc(input.previousRunId))]);
-  const state = budgetSnap.data(), programme = validateInferenceProgramme(programmeSnap.data());
-  const run: any = await hydrateAgentEvidence(runSnap.data() ?? {}, { collection: "agentRuns", id: input.previousRunId });
+type RecoveryInput = { requestId: string; jobId: string; captureId: string; previousRunId: string; previousClaimId: string | null;
+  newRunId: string; retryIdentity: string; sourceKey: string; contextDigest: string; request: Record<string, any>; brief: Record<string, any> | null };
+/** Explicit failed-run recovery preserves the old run and every unknown estimate.
+ * No financial programme, provider receipt or remaining spending quota is required. */
+export async function prepareAssessmentRecovery(tx: Transaction, input: RecoveryInput) {
+  const budgetRef = budgetFor(input.captureId), [budgetSnap, runSnap] = await Promise.all([tx.get(budgetRef), tx.get(db!.collection("agentRuns").doc(input.previousRunId))]);
+  const state = budgetSnap.data(), run: any = await hydrateAgentEvidence(runSnap.data() ?? {}, { collection: "agentRuns", id: input.previousRunId });
   const bound = run.artifacts?.source_admission, intent = run.artifacts?.capture_inference_reservations?.at(-1);
-  const slots=effectiveInferenceProgrammeSlots(programme,state);
-  const amendment=inferenceProgrammeAmendment(programme,state);
-  const slot = slots.find(row => row.admission_token === state?.pending_token);
-  if (!state || state.schema_version !== "capture_coverage_inference_budget.v1" || state.capture_id !== input.captureId || state.inference_program_id !== programmeId
-    || state.inference_programme_authority_digest !== inferenceProgrammeAuthorityDigest(programme)
-    || state.last_assessment_run_id !== input.previousRunId || !state.pending_token
-    || !Number.isFinite(state.exposure_usd) || state.exposure_usd <= 0 || !Number.isSafeInteger(state.calls) || state.calls < 1
-    || state.cap_usd !== new SiteAssessmentBudget().cap || (!amendment && state.exposure_usd > state.cap_usd)
-    || programme.request_id !== input.requestId || programme.capture_id !== input.captureId
-    || programme.context_digest !== inferenceProgrammeContextDigest(input.request, input.brief)
-    || programme.producer_source_digest !== humanDecisionDigest(input.request.capture_privacy_source_bound_decision?.producer_source)
-    || run.status !== "failed" || run.task_kind !== "site_assessment" || run.metadata?.capture_id !== input.captureId
+  assertSource(input.request, input.captureId, { kind: "browser_pending", key: input.sourceKey });
+  if (run.status !== "failed" || run.task_kind !== "site_assessment" || run.metadata?.capture_id !== input.captureId
     || run.metadata?.advisory_job_id !== input.jobId || run.input?.input?.context?.request_id !== input.requestId
-    || !input.previousClaimId || run.input?.input?.context?.advisory_job_id !== input.jobId
-    || run.input?.input?.context?.advisory_claim_id !== input.previousClaimId
+    || !input.previousClaimId || run.input?.input?.context?.advisory_job_id !== input.jobId || run.input?.input?.context?.advisory_claim_id !== input.previousClaimId
     || bound?.request_id !== input.requestId || bound?.capture_id !== input.captureId || bound?.advisory_job_id !== input.jobId
-    || bound?.source_key !== input.sourceKey || bound?.context_digest !== input.contextDigest || bound?.video_sha256 !== programme.video_sha256
-    || slots.filter(row => row.admission_token === state?.pending_token).length !== 1
-    || slot?.state !== "admitted" || slot.run_id !== input.previousRunId || !slot.admission_token
-    || intent?.provider !== slot.provider || Math.ceil(intent?.reserved_usd * 1e6) !== slot.reserved_call_micro_usd
-    || intent?.capture_exposure_usd !== state.exposure_usd || intent?.cap_usd !== state.cap_usd
-    || !Number.isSafeInteger(slot.reserved_call_micro_usd) || slot.reserved_call_micro_usd! <= 0 || slot.reserved_call_micro_usd! > slot.reserved_micro_usd
-    || !Array.isArray(state.inference_programme_eligible_slot_ids) || !Array.isArray(state.inference_programme_admitted_slot_ids)
-    || new Set(state.inference_programme_eligible_slot_ids).size !== state.inference_programme_eligible_slot_ids.length
-    || new Set(state.inference_programme_admitted_slot_ids).size !== state.inference_programme_admitted_slot_ids.length
-    || state.inference_programme_eligible_slot_ids.some((id: unknown) => typeof id !== "string" || !programme.slots.some(row => row.id === id))
-    || state.inference_programme_admitted_slot_ids.some((id: unknown) => !state.inference_programme_eligible_slot_ids.includes(id))
-    || !(state.inference_programme_admitted_slot_ids.includes(slot.id)||state.inference_programme_amended_admitted_slot_ids?.includes(slot.id))) throw new Error("advisory_retry_unavailable");
-  assertInferenceProgrammeClock(programme, state);
-  const history = validatedAssessmentRecoveries(state, programme);
-  await assertReconciledRunHistory(tx, input.captureId, input.previousRunId, input.requestId, state, programme);
-  if (programme.capture_history_reconciliation) {
-    const rows = await tx.get(db!.collection("captureCoverageReviews").where("captureId", "==", input.captureId).limit(100));
-    if (!acceptsReconciledCaptureHistory(programme, input.requestId, input.captureId,
-      rows.docs.map(row => ({ id: row.id, data: row.data() })))) throw new Error("advisory_retry_unavailable");
+    || bound?.source_key !== input.sourceKey || bound?.context_digest !== input.contextDigest || !/^[a-f0-9]{64}$/.test(bound?.video_sha256 ?? "")
+    || advisoryContextDigest(input.request, input.brief) !== input.contextDigest) throw new Error("advisory_retry_unavailable");
+  const history: AssessmentRecovery[] = state?.assessment_recoveries ?? [];
+  if (!Array.isArray(history) || history.some(row => !validRecovery(row))) throw new Error("advisory_retry_unavailable");
+  let token = "none", reserved = 0, provider: "openai" | "gemini" = "openai", model = "gpt-6.1-sol", callRef: FirebaseFirestore.DocumentReference | null = null;
+  if (state?.pending_token) {
+    if (state.last_assessment_run_id !== input.previousRunId || !intent || intent.capture_exposure_usd !== state.exposure_usd
+      || intent.cap_usd !== state.cap_usd || !Number.isFinite(intent.reserved_usd) || intent.reserved_usd <= 0) throw new Error("advisory_retry_unavailable");
+    token = state.pending_token; reserved = intent.reserved_usd; provider = intent.provider;
+    if (!["openai", "gemini"].includes(provider)) throw new Error("advisory_retry_unavailable");
+    model = provider === "openai" ? "gpt-6.1-sol" : "gemini-3.8-flash";
+    callRef = budgetRef.collection("calls").doc(token);
+    const call = (await tx.get(callRef)).data();
+    if (call && (call.state !== "admitted" || call.run_id !== input.previousRunId || call.admission_token !== token
+      || call.request_id !== input.requestId || call.capture_id !== input.captureId || call.source_digest !== digest({kind:"browser_pending",key:input.sourceKey})
+      || call.context_digest !== input.contextDigest || call.reserved_usd !== reserved)) throw new Error("advisory_retry_unavailable");
+    if (!call && intent.admission_token && intent.admission_token !== token) throw new Error("advisory_retry_unavailable");
   }
-  const budget = amendment ? new SiteAssessmentBudget(0,5.3) : new SiteAssessmentBudget(state.exposure_usd); budget.authorize("openai", "gpt-6.1-sol", {});
-  const sol = Math.ceil(budget.calls[0].reserved_usd * 1e6);
-  const gemBudget = new SiteAssessmentBudget(); gemBudget.authorize("gemini", "gemini-3.8-flash");
-  const gem = Math.ceil(gemBudget.calls[0].reserved_usd * 1e6);
-  const held = programme.slots.filter(row => row.state === "held" && state.inference_programme_eligible_slot_ids.includes(row.id)
-    && !state.inference_programme_admitted_slot_ids.includes(row.id));
-  const heldSol=held.filter(row=>row.provider==="openai"&&row.model==="gpt-6.1-sol"&&row.reserved_micro_usd>=sol).slice(0,2);
-  const heldGem=held.find(row=>row.provider==="gemini"&&row.model==="gemini-3.8-flash"&&row.reserved_micro_usd>=gem);
-  if(amendment ? amendment.exposure+(2-heldSol.length)*sol+(heldGem?0:gem)>amendment.receipt.effective_cap_micro_usd
-    : heldSol.length<2 || !heldGem || state.exposure_usd+(sol*2+gem)/1e6>state.cap_usd)throw new Error("advisory_retry_unavailable");
-  const content = { schema_version: "site_assessment_recovery.v1" as const, retry_identity: input.retryIdentity, job_id: input.jobId,
+  const content = { schema_version: "site_assessment_recovery.v2" as const, retry_identity: input.retryIdentity, job_id: input.jobId,
     request_id: input.requestId, capture_id: input.captureId, previous_run_id: input.previousRunId, previous_claim_id: input.previousClaimId!, new_run_id: input.newRunId,
-    source_key: input.sourceKey, source_digest: programme.producer_source_digest!, context_digest: programme.context_digest,
-    advisory_context_digest: input.contextDigest, video_sha256: programme.video_sha256, programme_id: programmeId,
-    authority_digest: state.inference_programme_authority_digest, slot_id: slot.id, admission_token: slot.admission_token,
-    provider: slot.provider, model: slot.model, reserved_micro_usd: slot.reserved_micro_usd,
-    reserved_call_micro_usd: slot.reserved_call_micro_usd!, capture_calls: state.calls,
-    capture_exposure_usd: state.exposure_usd, created_at_ms: Date.now() };
-  const receipt: AssessmentRecovery = { ...content, receipt_sha256: humanDecisionDigest(content) };
-  return { receipt, budgetRef, programmeRef, budgetUpdate: { pending_token: null, assessment_recoveries: [...history, receipt] },
-    programmeUpdate: { slots: programme.slots.map(row => row.id === slot.id ? { ...row, state: "unknown" } : row),
-      ...(amendment ? {amended_calls:amendment.calls.map(call=>call.admission_token===slot.admission_token?{...call,state:"unknown"}:call)}:{}) } };
+    source_key: input.sourceKey, source_digest: digest({kind:"browser_pending",key:input.sourceKey}), context_digest: input.contextDigest,
+    advisory_context_digest: input.contextDigest, video_sha256: bound.video_sha256 ?? "", programme_id: state?.inference_program_id ?? "",
+    authority_digest: state?.inference_programme_authority_digest ?? "", slot_id: "", admission_token: token, provider, model,
+    reserved_micro_usd: Math.ceil(reserved * 1e6), reserved_call_micro_usd: Math.ceil(reserved * 1e6), capture_calls: state?.calls ?? 0,
+    capture_exposure_usd: state?.exposure_usd ?? 0, created_at_ms: Date.now() };
+  const receipt: AssessmentRecovery = { ...content, receipt_sha256: digest(content) };
+  return { receipt, budgetRef, programmeRef: null, programmeUpdate: {}, callRef,
+    callUpdate: { schema_version: "capture_inference_call.v1", admission_token: token, request_id: input.requestId, capture_id: input.captureId, run_id: input.previousRunId, provider, model, source_digest: content.source_digest, context_digest: input.contextDigest, video_sha256: bound.video_sha256, reserved_usd: reserved, cost_estimate_usd: null, state: "unknown", recovery_receipt_sha256: receipt.receipt_sha256, recovered_at_ms: Date.now() },
+    budgetUpdate: { ...(state ? {} : {schema_version:"capture_coverage_inference_budget.v1",capture_id:input.captureId,cap_usd:null,exposure_usd:0,calls:0}),
+      pending_token: null, assessment_recoveries: [...history, receipt] } };
 }
-
-/** Identity replay remains a fresh authority read, never a cached access grant. */
-export async function assertAssessmentRecoveryReplay(tx: Transaction, input: { requestId: string; captureId: string;
-  jobId: string; runId: string; sourceKey: string; contextDigest: string; request: Record<string, any>; brief: Record<string, any> | null;
-  receipt: AssessmentRecovery }) {
-  const [budgetSnap, programmeSnap] = await Promise.all([
-    tx.get(db!.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({ capture_id: input.captureId })}`)),
-    tx.get(db!.collection("inferencePrograms").doc(inferenceProgrammeId(input.request))),
-  ]);
-  const state = budgetSnap.data(), programme = validateInferenceProgramme(programmeSnap.data());
-  if (programme.request_id !== input.requestId || programme.capture_id !== input.captureId
-    || programme.context_digest !== inferenceProgrammeContextDigest(input.request, input.brief)
-    || programme.producer_source_digest !== humanDecisionDigest(input.request.capture_privacy_source_bound_decision?.producer_source)
-    || !validatedAssessmentRecoveries(state, programme).some(row => row.receipt_sha256 === input.receipt.receipt_sha256
-      && row.job_id === input.jobId && row.new_run_id === input.runId && row.source_key === input.sourceKey
-      && row.advisory_context_digest === input.contextDigest)) throw new Error("advisory_retry_unavailable");
-  assertInferenceProgrammeClock(programme, state);
-  await assertReconciledRunHistory(tx, input.captureId, input.runId, input.requestId, state, programme);
-  if (programme.capture_history_reconciliation) {
-    const history = await tx.get(db!.collection("captureCoverageReviews").where("captureId", "==", input.captureId).limit(100));
-    if (!acceptsReconciledCaptureHistory(programme, input.requestId, input.captureId,
-      history.docs.map(row => ({ id: row.id, data: row.data() })))) throw new Error("advisory_retry_unavailable");
-  }
+function validRecovery(row: AssessmentRecovery) {
+  if (!row || !["site_assessment_recovery.v1", "site_assessment_recovery.v2"].includes(row.schema_version)) return false;
+  const {receipt_sha256, ...content} = row;
+  return receipt_sha256 === digest(content);
 }
-
-/** Explicit trusted-operator invocation only; no customer endpoint or automatic renewal. */
-export async function grantInferenceProgrammeTechnicalContinuation(input: { programmeId: string; expectedAuthorityDigest: string;
-  continuationIdentity: string; authorityRef: string; operatorRef: string; effectiveExpiresAtMs: number }) {
-  if (!db || !/^[A-Za-z0-9._-]{1,120}$/.test(input.programmeId) || !/^[A-Za-z0-9._-]{1,120}$/.test(input.continuationIdentity)
-    || typeof input.operatorRef !== "string" || !input.operatorRef.trim() || input.operatorRef.length > 500)
-    throw new Error("inference_programme_continuation_invalid");
-  return db.runTransaction(async tx => {
-    const ref = db!.collection("inferencePrograms").doc(input.programmeId), programme = validateInferenceProgramme((await tx.get(ref)).data());
-    const digest = inferenceProgrammeAuthorityDigest(programme);
-    const [budgetSnap, requestSnap, briefSnap] = await Promise.all([
-      tx.get(db!.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({ capture_id: programme.capture_id })}`)),
-      tx.get(db!.collection("inboundRequests").doc(programme.request_id)), tx.get(db!.collection("siteTaskBriefs").doc(programme.request_id))]);
-    const state = budgetSnap.data(), request = requestSnap.data();
-    if (digest !== input.expectedAuthorityDigest || input.authorityRef !== programme.authority_ref
-      || !state || state.inference_program_id !== input.programmeId || state.inference_programme_authority_digest !== digest
-      || state.capture_id !== programme.capture_id || request?.inference_program_id !== input.programmeId
-      || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
-      || request?.capture_privacy_source_bound_decision?.proceeded !== true
-      || request.capture_privacy_source_bound_decision.capture_id !== programme.capture_id
-      || programme.context_digest !== inferenceProgrammeContextDigest(request!, briefSnap.data() ?? null)
-      || programme.producer_source_digest !== humanDecisionDigest(request?.capture_privacy_source_bound_decision?.producer_source)
-      || !Number.isSafeInteger(state.calls) || state.calls < 1 || !Number.isFinite(state.exposure_usd) || state.exposure_usd <= 0
-      || state.cap_usd !== new SiteAssessmentBudget().cap || (!inferenceProgrammeAmendment(programme,state) && state.exposure_usd > state.cap_usd))
-      throw new Error("inference_programme_continuation_invalid");
-    if (programme.technical_continuations !== undefined) {
-      assertInferenceProgrammeClock(programme, state);
-      const prior = programme.technical_continuations[0];
-      if (prior.identity !== input.continuationIdentity || prior.operator_ref !== input.operatorRef
-        || prior.effective_expires_at_ms !== input.effectiveExpiresAtMs) throw new Error("inference_programme_continuation_invalid");
-      return prior;
-    }
-    const now = Date.now();
-    if (!Number.isSafeInteger(input.effectiveExpiresAtMs) || input.effectiveExpiresAtMs <= Math.max(now, programme.expires_at_ms)
-      || input.effectiveExpiresAtMs - now > INFERENCE_TECHNICAL_WINDOW_MS) throw new Error("inference_programme_continuation_invalid");
-    const eligible = state.inference_programme_eligible_slot_ids, admitted = state.inference_programme_admitted_slot_ids;
-    if (!Array.isArray(eligible) || !Array.isArray(admitted) || new Set(eligible).size !== eligible.length || new Set(admitted).size !== admitted.length
-      || eligible.some(id => !programme.slots.some(slot => slot.id === id)) || admitted.some(id => !eligible.includes(id)))
-      throw new Error("inference_programme_continuation_invalid");
-    validatedAssessmentRecoveries(state, programme);
-    if (programme.capture_history_reconciliation || state.assessment_recoveries) {
-      if (typeof state.last_assessment_run_id !== "string") throw new Error("inference_programme_continuation_invalid");
-      await assertReconciledRunHistory(tx, programme.capture_id, state.last_assessment_run_id, programme.request_id, state, programme);
-    }
-    if (programme.capture_history_reconciliation) {
-      const history = await tx.get(db!.collection("captureCoverageReviews").where("captureId", "==", programme.capture_id).limit(100));
-      if (!acceptsReconciledCaptureHistory(programme, programme.request_id, programme.capture_id,
-        history.docs.map(row => ({ id: row.id, data: row.data() })))) throw new Error("inference_programme_continuation_invalid");
-    }
-    const content = { schema_version: "inference_programme_technical_continuation.v1", identity: input.continuationIdentity,
-      operator_ref: input.operatorRef, authority_ref: input.authorityRef, programme_id: input.programmeId,
-      original_authority_digest: digest, original_expires_at_ms: programme.expires_at_ms,
-      request_id: programme.request_id, capture_id: programme.capture_id, context_digest: programme.context_digest,
-      video_sha256: programme.video_sha256, source_digest: programme.producer_source_digest, ledger_sha256: programme.ledger_sha256,
-      cap_micro_usd: programme.cap_micro_usd, granted_at_ms: now, effective_expires_at_ms: input.effectiveExpiresAtMs,
-      remaining_slot_ids: programme.slots.filter(slot => slot.state === "held" && eligible.includes(slot.id) && !admitted.includes(slot.id)).map(slot => slot.id).sort(),
-      slot_snapshot: programme.slots.map(slot => ({ id: slot.id, state: slot.state, admission_token: slot.admission_token ?? null,
-        run_id: slot.run_id ?? null, reserved_call_micro_usd: slot.reserved_call_micro_usd ?? null })),
-      capture_snapshot: { calls: state.calls, exposure_usd: state.exposure_usd, cap_usd: state.cap_usd,
-        eligible_slot_ids: eligible, admitted_slot_ids: admitted, recovery_digests: (state.assessment_recoveries ?? []).map((row: AssessmentRecovery) => row.receipt_sha256) } };
-    const receipt = { ...content, receipt_sha256: humanDecisionDigest(content) };
-    assertInferenceProgrammeClock({ ...programme, technical_continuations: [receipt] }, state);
-    tx.set(ref, { technical_continuations: [receipt] }, { merge: true });
-    return receipt;
-  });
-}
-
-/** Explicit trusted operator amendment; no route, renewal, original-slot rewrite, or dispatch. */
-export async function grantInferenceProgrammeAuthorityAmendment(input:{programmeId:string;expectedAuthorityDigest:string;
-  expectedTechnicalReceiptDigest:string;amendmentIdentity:string;authorityRef:string;operatorRef:string;
-  approvalReceiptSha256:string;effectiveCapMicroUsd:5300000;expectedRawRequestDigest:string;expectedUploadSessionDigest:string}) {
-  if(!db||!/^[A-Za-z0-9._-]{1,120}$/.test(input.programmeId)||!/^[A-Za-z0-9._-]{1,120}$/.test(input.amendmentIdentity)
-    ||typeof input.authorityRef!=="string"||!input.authorityRef.trim()||input.authorityRef.length>500
-    ||typeof input.operatorRef!=="string"||!input.operatorRef.trim()||input.operatorRef.length>500
-    ||!/^sha256:[a-f0-9]{64}$/.test(input.approvalReceiptSha256)||input.effectiveCapMicroUsd!==5300000
-    ||!/^[a-f0-9]{64}$/.test(input.expectedRawRequestDigest)||!/^[a-f0-9]{64}$/.test(input.expectedUploadSessionDigest))
-    throw new Error("inference_programme_amendment_invalid");
-  return db.runTransaction(async tx=>{
-    const ref=db!.collection("inferencePrograms").doc(input.programmeId),programme=validateInferenceProgramme((await tx.get(ref)).data());
-    const budgetRef=db!.collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({capture_id:programme.capture_id})}`);
-    const [budgetSnap,requestSnap,briefSnap,sessionSnap]=await Promise.all([tx.get(budgetRef),tx.get(db!.collection("inboundRequests").doc(programme.request_id)),tx.get(db!.collection("siteTaskBriefs").doc(programme.request_id)),tx.get(db!.collection("captureUploadSessions").doc(programme.capture_id))]);
-    const state=budgetSnap.data(),request=requestSnap.data(),session=sessionSnap.data(),pending=session?.browser_pending_delivery as BrowserPending|undefined,digest=inferenceProgrammeAuthorityDigest(programme);
-    assertInferenceProgrammeClock(programme,state);
-    const technical:any=programme.technical_continuations?.[0];
-    if(inferenceProgrammeAmendmentStateDigest(request)!==input.expectedRawRequestDigest||inferenceProgrammeAmendmentStateDigest(session)!==input.expectedUploadSessionDigest
-      ||!pending||pending.schema_version!=="website_browser_pending.v1"||pending.state!=="published"||pending.request_id!==programme.request_id||pending.capture_id!==programme.capture_id
-      ||session?.browser_upload_reservation||session?.browser_stored_upload
-      ||request?.capture_privacy_source_bound_decision?.producer_source?.kind!=="browser_pending"
-      ||browserPendingDecisionKey(pending)!==request.capture_privacy_source_bound_decision.producer_source.key
-      ||digest!==input.expectedAuthorityDigest||input.authorityRef===programme.authority_ref||!technical||technical.receipt_sha256!==input.expectedTechnicalReceiptDigest
-      ||technical.effective_expires_at_ms<=Date.now()||!state||state.inference_program_id!==input.programmeId
-      ||state.inference_programme_authority_digest!==digest||state.capture_id!==programme.capture_id||request?.inference_program_id!==input.programmeId
-      ||!projectWebsiteCaptureRights(request).derived_scene_generation_allowed||request?.capture_privacy_source_bound_decision?.proceeded!==true
-      ||request.capture_privacy_source_bound_decision.capture_id!==programme.capture_id
-      ||programme.context_digest!==inferenceProgrammeContextDigest(request!,briefSnap.data()??null)
-      ||programme.producer_source_digest!==humanDecisionDigest(request.capture_privacy_source_bound_decision.producer_source))throw new Error("inference_programme_amendment_invalid");
-    if(programme.authority_amendments!==undefined){
-      const prior=inferenceProgrammeAmendment(programme,state)!.receipt;
-      if(prior.identity!==input.amendmentIdentity||prior.authority_ref!==input.authorityRef||prior.operator_ref!==input.operatorRef
-        ||prior.approval_receipt_sha256!==input.approvalReceiptSha256)throw new Error("inference_programme_amendment_invalid");
-      return prior;
-    }
-    validatedAssessmentRecoveries(state,programme);
-    if(typeof state.last_assessment_run_id!=="string")throw new Error("inference_programme_amendment_invalid");
-    await assertReconciledRunHistory(tx,programme.capture_id,state.last_assessment_run_id,programme.request_id,state,programme);
-    if(programme.capture_history_reconciliation){const history=await tx.get(db!.collection("captureCoverageReviews").where("captureId","==",programme.capture_id).limit(100));
-      if(!acceptsReconciledCaptureHistory(programme,programme.request_id,programme.capture_id,history.docs.map(r=>({id:r.id,data:r.data()}))))throw new Error("inference_programme_amendment_invalid");}
-    const content={schema_version:"inference_programme_authority_amendment.v1",identity:input.amendmentIdentity,authority_ref:input.authorityRef,operator_ref:input.operatorRef,
-      approval_receipt_sha256:input.approvalReceiptSha256,grant_raw_request_digest:input.expectedRawRequestDigest,grant_upload_session_digest:input.expectedUploadSessionDigest,programme_id:input.programmeId,original_authority_digest:digest,original_authority_ref:programme.authority_ref,
-      original_expires_at_ms:programme.expires_at_ms,technical_receipt_sha256:technical.receipt_sha256,effective_expires_at_ms:technical.effective_expires_at_ms,
-      request_id:programme.request_id,capture_id:programme.capture_id,context_digest:programme.context_digest,video_sha256:programme.video_sha256,source_digest:programme.producer_source_digest,
-      ledger_sha256:programme.ledger_sha256,original_cap_micro_usd:programme.cap_micro_usd,effective_cap_micro_usd:input.effectiveCapMicroUsd,granted_at_ms:Date.now(),
-      slot_snapshot:programme.slots.map(slot=>({id:slot.id,state:slot.state,admission_token:slot.admission_token??null,run_id:slot.run_id??null,reserved_call_micro_usd:slot.reserved_call_micro_usd??null})),
-      capture_snapshot:{calls:state.calls,exposure_usd:state.exposure_usd,cap_usd:state.cap_usd,eligible_slot_ids:state.inference_programme_eligible_slot_ids,
-        admitted_slot_ids:state.inference_programme_admitted_slot_ids,recovery_digests:(state.assessment_recoveries??[]).map((r:any)=>r.receipt_sha256)}};
-    const receipt={...content,receipt_sha256:humanDecisionDigest(content)};
-    const nextState={...state,inference_programme_amendment_digest:receipt.receipt_sha256,inference_programme_amended_admitted_slot_ids:[]};
-    inferenceProgrammeAmendment({...programme,authority_amendments:[receipt],amended_calls:[]},nextState);
-    tx.set(ref,{authority_amendments:[receipt],amended_calls:[]},{merge:true});
-    tx.set(budgetRef,{inference_programme_amendment_digest:receipt.receipt_sha256,inference_programme_amended_admitted_slot_ids:[]},{merge:true});
-    return receipt;
-  });
+/** Replays still reread current source/access in the caller transaction. */
+export async function assertAssessmentRecoveryReplay(tx: Transaction, input: {requestId: string; captureId: string; jobId: string; runId: string;
+ sourceKey: string; contextDigest: string; request: Record<string, any>; brief: Record<string, any> | null; receipt: AssessmentRecovery}) {
+  const state = (await tx.get(budgetFor(input.captureId))).data();
+  assertSource(input.request,input.captureId,{kind:"browser_pending",key:input.sourceKey});
+  if (advisoryContextDigest(input.request,input.brief)!==input.contextDigest || !validRecovery(input.receipt)
+    || input.receipt.request_id!==input.requestId || input.receipt.capture_id!==input.captureId || input.receipt.job_id!==input.jobId
+    || input.receipt.new_run_id!==input.runId || input.receipt.source_key!==input.sourceKey || input.receipt.advisory_context_digest!==input.contextDigest
+    || !state?.assessment_recoveries?.some((row:AssessmentRecovery)=>validRecovery(row)&&row.receipt_sha256===input.receipt.receipt_sha256)) throw new Error("advisory_retry_unavailable");
 }

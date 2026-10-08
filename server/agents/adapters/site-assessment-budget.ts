@@ -3,11 +3,6 @@ import { getGeminiVideoModel, getOpenAiMaxOutputTokens, SITE_ASSESSMENT_MODEL } 
 type Call = { provider: "openai" | "gemini"; model: string; reserved_usd: number;
   usage: unknown; response: unknown; cost_usd: number | null; input_tokens: number | null; output_tokens: number | null; priced_at_ms?: number; input_ceiling:number; output_ceiling:number; usage_pricing_status?:string };
 const counter = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
-const configuredPositive = (value: string | undefined, fallback: number, maximum: number) => {
-  const parsed = Number(value ?? fallback);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, maximum) : fallback;
-};
-
 /** Provider totals can bound unattributed tokens, but do not establish that they were thoughts. */
 export function normalizeSiteAssessmentUsage(provider:"openai"|"gemini",usage:any) {
   const input=counter(provider==="openai"?usage?.input_tokens:usage?.promptTokenCount);
@@ -34,26 +29,19 @@ export function priceSiteAssessmentUsage(provider:"openai"|"gemini",usage:unknow
   return {...normalized,cost_usd:cost};
 }
 
-/** Reuses the existing inference cap; unknown paid calls retain their exposure. */
+/** Accounting estimates only. Missing usage remains unknown and never imposes a spending gate. */
 export class SiteAssessmentBudget {
   readonly calls: Call[] = [];
-  constructor(private readonly committedExposureUsd = 0, internalCapUsd?: number) {
-    this.cap = internalCapUsd ?? configuredPositive(process.env.BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD, 5, 100);
-    if(!Number.isFinite(this.cap)||this.cap<=0||this.cap>100)throw new Error("site_assessment_exposure_invalid");
+  constructor(private readonly committedExposureUsd = 0, _legacyCapUsd?: number) {
     if (!Number.isFinite(committedExposureUsd) || committedExposureUsd < 0) throw new Error("site_assessment_exposure_invalid");
   }
-  readonly cap: number;
-  readonly inputCeiling = Math.floor(configuredPositive(process.env.BLUEPRINT_OPENAI_AGENT_MAX_INPUT_TOKENS, 100000, 100000));
+  readonly cap = null;
+  readonly inputCeiling = 100000;
   readonly maxOutput = Math.min(8192, getOpenAiMaxOutputTokens());
   authorize(provider: "openai" | "gemini", model: string, request?: unknown) {
-    if (this.calls.some(call => call.response === null)) throw new Error("site_assessment_cost_unresolved");
     if ((provider === "openai" && model !== SITE_ASSESSMENT_MODEL)
       || (provider === "gemini" && (model !== getGeminiVideoModel() || model !== "gemini-3.8-flash"))) {
       throw new Error("site_assessment_model_not_admitted");
-    }
-    // UTF-8 bytes upper-bound visible text tokens; reserve room for SDK schemas.
-    if (provider === "openai" && Buffer.byteLength(JSON.stringify(request ?? {})) + 4096 > this.inputCeiling) {
-      throw new Error("site_assessment_input_budget_exceeded");
     }
     // Sol: uncached input plus a conservative cache-write ceiling. Flash:
     // full 1,048,576-token context and 32768 output at its announced post-2026 ceiling.
@@ -65,9 +53,6 @@ export class SiteAssessmentBudget {
       || !Number.isSafeInteger(bound.max_output_tokens)||bound.max_output_tokens<1||bound.max_output_tokens>32768))throw new Error("site_assessment_input_budget_exceeded");
     const reserved = provider === "openai" ? (this.inputCeiling * 2.5 + this.maxOutput * 10) / 1e6
       : ((bound?.input_tokens ?? 1_048_576) * 1.5 + (bound?.max_output_tokens ?? 32768) * 7.5) / 1e6;
-    if (this.committedExposureUsd + this.calls.reduce((sum, call) => sum + (call.cost_usd ?? call.reserved_usd), 0) + reserved > this.cap) {
-      throw new Error("site_assessment_inference_cost_cap");
-    }
     this.calls.push({ provider, model, reserved_usd: reserved, usage: null, response: null, cost_usd: null, input_tokens: null, output_tokens: null, input_ceiling:provider==="openai"?this.inputCeiling:(bound?.input_tokens??1048576), output_ceiling:provider==="openai"?this.maxOutput:(bound?.max_output_tokens??32768) });
   }
   record(provider: "openai" | "gemini", model: string, response: any) {
@@ -78,9 +63,11 @@ export class SiteAssessmentBudget {
     const normalized=priceSiteAssessmentUsage(provider,call.usage,call.priced_at_ms);
     call.input_tokens=normalized.input_tokens;call.output_tokens=normalized.output_tokens;call.usage_pricing_status=normalized.status;
     if(normalized.cost_usd!==null){
-      if(normalized.input_tokens!>call.input_ceiling||normalized.output_tokens!>call.output_ceiling||normalized.cost_usd>call.reserved_usd)
-        throw new Error("site_assessment_actual_cost_exceeds_reservation");
       call.cost_usd=normalized.cost_usd;
+      // A response above the estimate is observable accounting, not authority
+      // to interrupt an otherwise authorized customer operation.
+      if(normalized.input_tokens!>call.input_ceiling||normalized.output_tokens!>call.output_ceiling||normalized.cost_usd>call.reserved_usd)
+        call.usage_pricing_status = "reported_usage_above_estimate";
     }
   }
   artifacts() {
@@ -98,7 +85,7 @@ export class SiteAssessmentBudget {
       usage: { calls: this.calls.length, prompt_tokens: total("input_tokens"), completion_tokens: upperBound ? null : total("output_tokens"),
         cost_usd: known ? reportedCost : null, estimated_total_cost_usd: known ? reportedCost : null },
       cost_status: known ? (upperBound ? "usage_upper_bound_pricing_estimate":"reported_usage_pricing_estimate") : "usage_missing",
-      inference_reservation: { hard_cost_cap_usd: this.cap, known_reported_cost_usd: reportedCost,
+      inference_reservation: { hard_cost_cap_usd: null, spending_gated: false, committed_exposure_usd: this.committedExposureUsd, known_reported_cost_usd: reportedCost,
         reconciled_cost_status: known ? (upperBound ? "usage_upper_bound_pricing_estimate":"reported_usage_pricing_estimate") : "includes_worst_case_reservations",
         projected_max_cost_per_call_usd: Math.max(0, ...unknown.map(call => call.reserved_usd)),
         unknown_usage_reserved_cost_usd: this.calls.filter(call => call.cost_usd === null).reduce((sum, call) => sum + call.reserved_usd, 0),
