@@ -2766,3 +2766,64 @@ universal prevention of unsupported capability/commitment claims, assessment
 usefulness, production execution or deployment. Required exact-head release
 checks and live verification remain the coordinator's separate gates. Neither
 slice adds original300/40 or human-reference credit.
+
+
+### Owner evidence attribution — 5f7d7053
+
+Independent source approval applies to merged immutable
+`5f7d70539511c5c02c702abc01ea7bc8e12ef4df`. Its two changed source files are
+byte-identical to checked bf01, adapter/core hashes respectively
+`c37657643b0b15e23480841fc936986b7c8f27c9679291544c985096a52c1d95`
+and `a1cb87bf792ca6cb41973750ff07fef1a8e8309876adc30edca345e3a4e68878`.
+Host task instructions remain question context and are never operator citation
+sources. Resumed agentRuns operator claims are no longer copied into fresh
+sources; prior assessment context and source-bound video reuse remain. Stored
+nonempty plaintext or the existing encrypted-field shape, followed by successful
+nonempty decryption, is required before admitting intake text. Generated display
+defaults are excluded. Genuine recorded request/brief assertions remain owner
+claims rather than verified visual facts. Video-only input is accepted without
+invented owner text. Access, rights, consent and current-source guards are
+unchanged.
+
+Private receipt hash
+`e18609a5d8ed80343448b6d874b8199879c5d4383a021aa48e5ca29ac44dd710`
+and all 14 linked retained hashes were independently verified. Matched actual
+SDK source-collection probes fail2/2 on b426 and pass2/2 on the repair; final
+39 existing neighbors plus those probes pass41/41, with terminal typecheck and
+Graphify. Scripted first-model failure observes the source map without network.
+The resume exclusion is source inspection, not an executed resume fixture.
+No additional rerun or scaffolding was added by the reviewer. Replay instructions
+and original test bytes remain in the receipt directory. This approves source
+attribution only, not model obedience, factual entailment, perception, customer
+browser execution, deployment or whole-program quality.
+
+### Accounting native replay — b426 / driver v2
+
+Bounded retained-execution evidence is accepted for receipt
+`cf2e771faa214eb66b4279995a0f8b26168b884314e2ed863ee3bac1c36cac42`.
+The reviewer verified all154 linked artifact hashes and 15 current runtime files
+against exact b426 Git bytes. Final results are9/9 attempts over three existing
+cases, each repeated three times; earlier9 attempts remain6 passed/3 failed.
+These are repeated source-version checks, with zero additional original coverage
+credit. Native Firestore emulator readbacks contain27 canonical call documents,
+18 scripted OpenAI and9 scripted Gemini, with matching owner/run identity,
+source/context/video binding, terminal accounting and null cap. This does not
+establish historical unknown-cost migration or live receipt prices.
+
+Actual traces retain ordinary UI/handlers, durable fake objects, actual SDK and
+private writer, owner report UI and local notification sink. Browser interruption
+uses literal SIGKILL after transmitted bytes, same native profile and ordinary
+return; it does not prove chunk resume. The third case kills the verified SDK
+child after durable private completion and starts a distinct child that publishes
+the same retained run with zero new model calls. Parent dispatcher hold and
+checkpoint pause are explicit test seams, not autonomous scheduler proof.
+The driver correction handles disconnected CDP, terminates only its own spawn
+handle, awaits exit and preserves primary errors; product assertions were not
+removed. Earlier external observer interference was not treated as the sole
+cause after separate closed-CDP cleanup failure was observed.
+
+Replay setup and the owned synthetic fixture are retained in the private receipt.
+Cleanup records bind-free owned ports; no full emulator export is claimed.
+Production middleware topology, live providers/notifications, real video quality,
+expired-link renewal and customer readiness remain outside this evidence. These
+receipts do not verify the newer owner-evidence source through the native journey.
