@@ -1520,3 +1520,25 @@ merged/deployed identity, current live worker admission/provider state and
 observed affected customer behavior remain release verification gates. An older
 worker's disabled site-video flag or missing Gemini configuration is not silently
 promoted to current readiness; the loaded current process must be observed.
+
+
+## Independent provider-presence metadata review — 67177887
+
+Approved exact candidate `6717788725d0b1173088cd3d88c7150577847f67`.
+Its sole change from approved c1d02f63 adds two startup booleans indicating a
+nonblank OpenAI key and at least one nonblank recognized Gemini key. The names
+match the SDK adapter: `OPENAI_API_KEY`, `GEMINI_API_KEY`,
+`GOOGLE_GENERATIVE_AI_API_KEY`, `GOOGLE_AI_STUDIO_API_KEY`. No secret values,
+URLs or identifiers are logged, and no provider selection, dispatch, authority,
+flag, cost or queue behavior changes. Presence is configuration evidence only;
+it does not prove the selected credential authenticates or any provider ran.
+The existing source/SDK/customer execution approvals remain bounded and unchanged.
+
+Historical readiness wording is corrected explicitly: the old worker-disabled /
+Gemini-missing statement was an unretained parent inspection lead, not a retained
+receipt or current proof. The retained05:10 preflight established OpenAI presence
+then only. A current exact-deployment startup record is still needed, and even
+positive presence booleans do not establish authenticated provider availability.
+No extra test or paid probe was requested/performed for this logging-only delta.
+Final exact-head required checks, deployment and observed affected behavior
+remain release gates.
