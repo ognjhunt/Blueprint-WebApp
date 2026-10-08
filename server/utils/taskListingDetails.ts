@@ -1,8 +1,21 @@
 import { listingTargetingSchema } from "../../client/src/types/updatePreferences";
 import { z } from "zod";
 import type { TaskListingDetails } from "../../client/src/types/taskBrowse";
+import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 
 export const listingConsentVersion = "public-task-card-v1";
+/** Private suggestions only. Publication still needs the owner's exact review. */
+export function taskListingDraft(brief: SiteTaskBriefRecord | null) {
+  const details: TaskListingDetails = {
+    title: (brief?.summary ?? "").slice(0, 160), taskFamily: "Recurring work", siteType: "", region: "", objects: "",
+    cycleTarget: brief?.successCriteria?.cycleTimeSeconds != null ? `${brief.successCriteria.cycleTimeSeconds} seconds (site target)` : "",
+    pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "not_seeking",
+  };
+  return { details, sources: {
+    ...(brief ? { title: { record: `siteTaskBriefs/${brief.requestId}`, field: "summary", basis: "supplied_description" } } : {}),
+    ...(details.cycleTarget ? { cycleTarget: { record: `siteTaskBriefs/${brief!.requestId}`, field: "successCriteria.cycleTimeSeconds", basis: "site_target" } } : {}),
+  } };
+}
 export const taskListingSchema = z.object({
   targeting: listingTargetingSchema.optional(),
   title: z.string().trim().min(8).max(160),

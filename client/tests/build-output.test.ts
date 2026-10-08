@@ -258,7 +258,7 @@ describe("build output", () => {
     expect(siteHtml).toContain("Loading your account and saved draft");
     expect(siteHtml).not.toContain('aria-label="Start a site capture"');
     expect(siteHtml).not.toContain('id="start-task"');
-    expect(siteHtml).toContain("Describe the work now. Add a phone video when you have recording permission. The initial assessment is free for invited beta participants.");
+    expect(siteHtml).toContain("Show us the work. We’ll investigate, ask only what matters, and come back with a recommendation or concrete pilot plan. Blueprint beta support is free; any provider cost or new commitment is agreed separately.");
     expect(siteHtml).toContain("How this works");
     // The country comes from the address; its select opens only to correct it.
     expect(siteHtml).not.toContain('id="start-region"');

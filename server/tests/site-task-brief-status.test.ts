@@ -393,14 +393,15 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.claimUrl).toMatch(/\/claim\/.+/);
   });
 
-  it("offers no claim before the brief is confirmed", async () => {
+  it("shows known assessment status without mandatory confirmation while retaining claim controls", async () => {
     const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
     const { site_task_brief_confirmed_at: _confirmed, ...unconfirmed } = record;
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", unconfirmed);
 
     const { body } = await status();
 
-    expect(body.status.decision).toBe("confirm_brief");
+    expect(body.status.decision).toBe("assessing");
+    expect(body.status.operatorAction).toBeNull();
     expect(body.claimUrl ?? null).toBeNull();
   });
 
@@ -419,8 +420,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const { body } = await status();
 
     expect(body.status.decision).toBe("screening");
-    expect(body.status.headline).toContain("queued for 1 robot team");
-    expect(body.status.headline).toContain("Execution has not started");
+    expect(body.status.headline).toContain("Robot screening has not started");
+    expect(body.status.headline).toContain("Results are not available yet");
     expect(body.claimUrl).toMatch(/\/claim\/.+/);
   });
 

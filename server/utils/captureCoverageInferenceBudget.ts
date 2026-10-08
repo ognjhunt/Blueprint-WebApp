@@ -56,20 +56,60 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
         || session?.browser_upload_reservation || session?.browser_stored_upload || browserPendingDecisionKey(pending) !== (source as any).key)
         throw new Error("coverage_budget_source_changed");
     }
-    return { requestId, context, source };
+    let ownerRunId = assessment ? runId as string : null;
+    if (!assessment) {
+      const runs = await tx.get(db!.collection("agentRuns").where("session_key", "==", `capture_coverage:${reviewId}`));
+      const current = runs.docs.filter(row => row.data().task_kind === "capture_coverage" && row.data().status === "running"
+        && row.data().metadata?.capture_id === captureId && row.data().metadata?.review_id === reviewId && row.data().metadata?.coverage_claim_token === claim);
+      if (current.length > 1) throw new Error("coverage_budget_claim_changed");
+      ownerRunId = current[0]?.id ?? null;
+    }
+    return { requestId, context, source, ownerRunId };
   };
   const admission = await db.runTransaction(async tx => {
     const binding = await check(tx), state = (await tx.get(budgetRef)).data();
     if (state && (state.capture_id !== captureId || !Number.isFinite(state.exposure_usd) || state.exposure_usd < 0
       || !Number.isSafeInteger(state.calls) || state.calls < 0)) throw new Error("coverage_budget_state_invalid");
-    // This is a concurrent dispatch mutex, not a veto on historical unknown cost.
-    if (state?.pending_token) throw new Error("coverage_budget_call_in_flight");
+    // A terminal historical action cannot turn missing usage into an
+    // availability gate for distinct authorized work. Never replay that action.
+    let retiredRef: FirebaseFirestore.DocumentReference | null = null;
+    if (state?.pending_token) {
+      const ref = budgetRef.collection("calls").doc(state.pending_token), prior = (await tx.get(ref)).data();
+      const distinct = prior && (assessment ? prior.run_id !== runId : prior.run_id !== null || prior.review_id !== reviewId || prior.claim_token !== claim);
+      if (!prior || prior.state !== "admitted" || prior.admission_token !== state.pending_token || prior.capture_id !== captureId
+        || prior.request_id !== binding.requestId || !Number.isFinite(prior.reserved_usd) || prior.reserved_usd <= 0 || !distinct)
+        throw new Error("coverage_budget_call_in_flight");
+      let terminal = false;
+      if (prior.run_id) {
+        const owner = (await tx.get(db!.collection("agentRuns").doc(prior.run_id))).data();
+        terminal = owner?.task_kind === "site_assessment" && ["failed", "cancelled"].includes(owner.status)
+          && (owner.metadata?.capture_id === captureId || owner.input?.input?.context?.request_id === prior.request_id);
+      } else if (prior.review_id) {
+        const owner = (await tx.get(db!.collection("captureCoverageReviews").doc(prior.review_id))).data();
+        terminal = owner?.captureId === captureId && owner.requestId === prior.request_id && owner.claim_token === prior.claim_token
+          && ["failed", "cancelled"].includes(owner.state);
+        {
+          // Older intents did not capture their SDK run ID. Reuse the same
+          // canonical session query, matching the exact persisted claim.
+          const runs = prior.owner_run_id ? [(await tx.get(db!.collection("agentRuns").doc(prior.owner_run_id))).data()]
+            : (await tx.get(db!.collection("agentRuns").where("session_key", "==", `capture_coverage:${prior.review_id}`))).docs.map(row => row.data());
+          const matching = runs.filter(run => run?.task_kind === "capture_coverage" && run.metadata?.capture_id === captureId
+            && run.metadata?.review_id === prior.review_id && run.metadata?.coverage_claim_token === prior.claim_token);
+          // A failed review cannot retire a still-running SDK owner. With no
+          // captured SDK owner, an exact terminal review is sufficient.
+          if (prior.owner_run_id || matching.length) terminal = matching.length === 1 && ["failed", "cancelled"].includes(matching[0]?.status ?? "");
+        }
+      }
+      if (!terminal) throw new Error("coverage_budget_call_in_flight");
+      retiredRef = ref;
+    }
     const exposure = (state?.exposure_usd ?? 0) + reserved;
     const intent = { schema_version: "capture_inference_call.v1", admission_token: token, capture_id: captureId,
-      request_id: binding.requestId, run_id: runId ?? null, review_id: reviewId ?? null, claim_token: claim ?? null,
+      request_id: binding.requestId, run_id: runId ?? null, owner_run_id: binding.ownerRunId, review_id: reviewId ?? null, claim_token: claim ?? null,
       provider, model, source_digest: digest(binding.source), context_digest: binding.context,
       video_sha256: metadata.assessment_video_sha256 ?? null, reserved_usd: reserved, capture_exposure_usd: exposure,
       state: "admitted", cost_estimate_usd: null, created_at_ms: Date.now() };
+    if (retiredRef) tx.set(retiredRef, { state: "unknown", retired_for_distinct_call_token: token, retired_at_ms: Date.now() }, { merge: true });
     tx.set(callRef, intent);
     tx.set(budgetRef, { schema_version: "capture_coverage_inference_budget.v1", capture_id: captureId,
       cap_usd: state?.cap_usd ?? null, exposure_usd: exposure, calls: (state?.calls ?? 0) + 1,
@@ -144,7 +184,7 @@ export async function prepareAssessmentRecovery(tx: Transaction, input: Recovery
   const receipt: AssessmentRecovery = { ...content, receipt_sha256: digest(content) };
   return { receipt, budgetRef, programmeRef: null, programmeUpdate: {}, callRef,
     callUpdate: { schema_version: "capture_inference_call.v1", admission_token: token, request_id: input.requestId, capture_id: input.captureId, run_id: input.previousRunId, provider, model, source_digest: content.source_digest, context_digest: input.contextDigest, video_sha256: bound.video_sha256, reserved_usd: reserved, cost_estimate_usd: null, state: "unknown", recovery_receipt_sha256: receipt.receipt_sha256, recovered_at_ms: Date.now() },
-    budgetUpdate: { ...(state ? {} : {schema_version:"capture_coverage_inference_budget.v1",capture_id:input.captureId,cap_usd:null,exposure_usd:0,calls:0}),
+    budgetUpdate: { ...(state ? {} : {schema_version:"capture_coverage_inference_budget.v1",capture_id:input.captureId,cap_usd:null,exposure_usd:0,calls:0,historical_usage_status:"unreconciled"}),
       pending_token: null, assessment_recoveries: [...history, receipt] } };
 }
 function validRecovery(row: AssessmentRecovery) {

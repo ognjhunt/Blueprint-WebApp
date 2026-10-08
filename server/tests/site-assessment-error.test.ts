@@ -63,7 +63,7 @@ async function failProvider(error: unknown, extraHost: Record<string, any> = {})
   const pendingToken = state.docs.get(budgetPath)?.pending_token;
   expect(pendingToken).toBeTruthy();
   const calls = [...state.docs].filter(([key]) => key.startsWith(`${budgetPath}/calls/`)).map(([, value]) => value);
-  expect(calls).toMatchObject([{ state: "admitted", admission_token: pendingToken, cost_estimate_usd: null, run_id: runId }]);
+  expect(calls).toMatchObject([{ state: "admitted", admission_token: pendingToken, cost_estimate_usd: null, run_id: runId, request_id: requestId }]);
   expect(calls[0].reserved_usd).toBeGreaterThan(0);
   return result;
 }

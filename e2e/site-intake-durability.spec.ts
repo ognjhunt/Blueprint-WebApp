@@ -107,16 +107,16 @@ for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stor
             const returnButton = page.getByRole("button", { name: /^(Return to saved job|Recover saved job)$/ });
             if (await returnButton.isVisible())
                 await returnButton.click();
-            await expect(page.getByRole("link", { name: "Review your job brief", exact: true })).toBeVisible();
-            const target = await page.getByRole("link", { name: "Review your job brief", exact: true }).getAttribute("href");
+            await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toBeVisible();
+            const target = await page.getByRole("link", { name: "Open your job and assessment", exact: true }).getAttribute("href");
             expect(savedUrl).toBe(target);
             // Exercise a normal navigation away and return after verified acknowledgement.
             await page.goto("http://127.0.0.1:4181/");
             await page.goto("http://127.0.0.1:4181/contact/site-operator", { waitUntil: "networkidle" });
             if (await returnButton.isVisible())
                 await returnButton.click();
-            await expect(page.getByRole("link", { name: "Review your job brief", exact: true })).toBeVisible();
-            const renewedTarget = await page.getByRole("link", { name: "Review your job brief", exact: true }).getAttribute("href");
+            await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toBeVisible();
+            const renewedTarget = await page.getByRole("link", { name: "Open your job and assessment", exact: true }).getAttribute("href");
             expect(new URL(renewedTarget!, "http://127.0.0.1:4181").pathname.split("/").pop()).toBeTruthy();
             expect(intakeBodies.every(body => body === intakeBodies[0])).toBe(true);
             expect(new Set(intakeBodies.map(body => JSON.parse(body).requestId)).size).toBe(1);
@@ -145,7 +145,7 @@ for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stor
             expect(rawVideo.ok()).toBe(true);
             const { readFile: readFixture } = await import("node:fs/promises");
             expect(await rawVideo.body()).toEqual(await readFixture(fixture));
-            await page.getByRole("link", { name: "Review your job brief", exact: true }).click();
+            await page.getByRole("link", { name: "Open your job and assessment", exact: true }).click();
             await expect(page.getByRole("heading", { name: "A few details about the job", exact: true })).toBeVisible();
             await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
             await writeFile(path.join(output, `${caseId}.json`), JSON.stringify({ caseId, parameters: { boundary, source: "owned-synthetic-pattern" },
@@ -215,7 +215,7 @@ test.describe("native strict recovery controls", () => {
         injected = true;
         await page.evaluate(() => { (window as any).__originalIDBTransaction = IDBDatabase.prototype.transaction; IDBDatabase.prototype.transaction = function (store, mode, ...options) { if (mode === 'readwrite')
             throw new Error('Owned acceptance-commit failure'); return (window as any).__originalIDBTransaction.call(this, store, mode, ...options); }; });
-    } await cdp.send('Fetch.continueResponse', { requestId: e.requestId }); }); await page.locator('#start-task').fill('Owned accepted description'); await page.locator('#start-location').fill('Austin TX'); await page.locator('#start-email').fill(`owned-accepted-${Date.now()}@example.invalid`); await page.locator('#start-company').fill('Owned fixture'); await page.getByRole('button', { name: 'Start free assessment', exact: true }).click(); await expect(page.getByRole('alert')).toContainText('Your job may already be saved'); expect(uploads).toBe(0); expect(bodies).toHaveLength(1); await page.evaluate(() => { IDBDatabase.prototype.transaction = (window as any).__originalIDBTransaction; }); await page.getByRole('button', { name: 'Recover saved job', exact: true }).click(); await expect(page.getByRole('link', { name: 'Review your job brief', exact: true })).toBeVisible(); expect(bodies).toHaveLength(2); expect(bodies[1]).toBe(bodies[0]); expect(uploads).toBe(0); await cdp.detach(); });
+    } await cdp.send('Fetch.continueResponse', { requestId: e.requestId }); }); await page.locator('#start-task').fill('Owned accepted description'); await page.locator('#start-location').fill('Austin TX'); await page.locator('#start-email').fill(`owned-accepted-${Date.now()}@example.invalid`); await page.locator('#start-company').fill('Owned fixture'); await page.getByRole('button', { name: 'Start free assessment', exact: true }).click(); await expect(page.getByRole('alert')).toContainText('Your job may already be saved'); expect(uploads).toBe(0); expect(bodies).toHaveLength(1); await page.evaluate(() => { IDBDatabase.prototype.transaction = (window as any).__originalIDBTransaction; }); await page.getByRole('button', { name: 'Recover saved job', exact: true }).click(); await expect(page.getByRole('link', { name: 'Open your job and assessment', exact: true })).toBeVisible(); expect(bodies).toHaveLength(2); expect(bodies[1]).toBe(bodies[0]); expect(uploads).toBe(0); await cdp.detach(); });
     for (const cancel of [true, false])
         test(`A-IDB-${cancel ? '08' : '09'} unknownscope hydration ${cancel ? 'cancelled' : 'activecontrol'}`, async ({ page }) => { const result = await page.evaluate(async (cancel) => { const h = await import('/src/lib/siteCaptureDraft.ts'), m = await import('/src/lib/siteCaptureDurability.ts'); const uid = 'owned-late-scope', key = h.siteCaptureDraftKey(uid, 'new-authoring'); const descriptor = Object.getOwnPropertyDescriptor(IDBTransaction.prototype, 'oncomplete'); let hold = true, release, readyResolve; const ready = new Promise(r => readyResolve = r); Object.defineProperty(IDBTransaction.prototype, 'oncomplete', { configurable: true, enumerable: descriptor.enumerable, get: descriptor.get, set(fn) { descriptor.set.call(this, function (event) { if (hold && this.mode === 'readonly') {
                 hold = false;

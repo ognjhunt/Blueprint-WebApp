@@ -108,7 +108,7 @@ it('completed-job clear also exposes pending state until device recovery is comm
     fetchMock.mockImplementation(async (_url,init)=>({ok:true,status:200,json:async()=>init?.method==='POST'?{captureUrl:'/capture-upload/owned-clear-fixture'}:{workspaceType:'site_operator',features:[]}}));
     render(<SiteCaptureStart />);await ready();
     for(const [id,value] of [['start-task','A saved description'],['start-location','Austin, TX']])fireEvent.change(document.querySelector('#'+id)!,{target:{value}});
-    fireEvent.submit(screen.getByRole('form'));await screen.findByRole('link',{name:'Review your job brief'});
+    fireEvent.submit(screen.getByRole('form'));await screen.findByRole('link',{name:'Open your job and assessment'});
     hold=true;fireEvent.click(screen.getByRole('button',{name:"Clear this browser's draft"}));
     await screen.findByText(/Clearing this browser's draft/);expect(screen.getByRole('button',{name:'Clearing…',exact:true})).toBeDisabled();
     await act(async()=>{await release!();});await screen.findByText(/This browser's draft has been cleared/);
