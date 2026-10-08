@@ -3142,3 +3142,46 @@ It is no additional spending or actor authorization. No reviewer customer/provid
 action, repeated polling or plan change occurred. Actual retry availability,
 provider completion, peak memory and evidence-grounded customer result still need
 their own observed proof; service identity alone cannot establish those outcomes.
+
+### Deep private evidence and failed-write fences — ed6dce24
+
+Independent source approval applies to `ed6dce24342dd7584e32d4b8dc1461f6dd47f3b8`
+on39cdf0cc, changing the existing private evidence helper and one existing
+accounting expectation. Small JSON payloads exceeding the conservative depth
+limit now use the existing immutable, hash/generation-verified JSON offload.
+The compact result must also pass byte/depth bounds; unsafe controls and deep
+non-atomic legacy writes refuse safely. No schema deletion or lossy SDK-field
+filtering was introduced. Commit diagnostics retain only fixed structural
+fields and an own numeric gRPC code1–16, never exception prose, field paths,
+stack, URLs or provider content.
+
+The review found the pre-existing failure fallback could overwrite a cancelled
+assessment, defeating its late-result fence. The repaired fallback rereads
+atomically, refuses stale source-snapshot overwrites, preserves cancelled
+status/error/outcome and newer proof/accounting, and only adds a justified
+monotonic mutation quarantine marker. An already completed identical verified
+proof also survives a lost commit acknowledgement. The corrected existing
+expectation preserves independently newer complete accounting rather than
+falsely declaring it incomplete. Nontransaction legacy transports retain an
+explicit best-effort limitation, not a production atomicity claim.
+
+Receipt `26981e5da6ca1924c4312ea40a188b0c9aa9e58eac2710701bdad805d33dbcc1`
+and all37 linked source/artifact hashes were independently verified, with clean
+immutable source blobs. Original baseline bytes equal39; its retained loader
+changes only the isolated storage import path. Three matched private controls
+fail baseline/pass candidate, including native Firestore validation of a72,602-byte
+genuine local SDK shape, both cancellation/lost-ack terminal outcomes, and safe
+diagnostics. Reasoning subtrees and scalar content were excluded from that
+structural fixture. Final checks pass51 existing plus3 private controls;
+separate existing queue checks pass9 with verified offload publication and safe
+missing-object behavior. The queue source already hydrates verified evidence
+and required no change. Typecheck, Graphify, portability and diff checks pass.
+
+These overlapping checks are not new original-case or live-journey credit.
+Memory stores/scripted transports and the actual installed Firestore validator
+are distinct layers. The local SDK counterpart does not establish the failed
+cloud payload or the current incident's cause. No provider, production record,
+live retry or deployment was executed by this review; protected release and
+actual customer recovery remain separate gates. Future unbounded run policy
+must remain compatible with stale-claim recovery so elapsed wall time cannot
+retire demonstrably active work.
