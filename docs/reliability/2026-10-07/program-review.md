@@ -739,3 +739,34 @@ authenticated customer readback, live a56 promotion, real-provider performance,
 human quality or new catalog/journey credit follows. This reviewer inspected
 retained execution rather than rerunning the broader suites; the manifest's
 disposable archive/probe command is the bounded replay route.
+
+
+**Bounded canonical Pipeline deployment proof verified: exact `a56f9d240058f038060bd6aa89efcef3ff5f12e5`.**
+Read-only inspection matches official artifact ZIP SHA256
+`f06b7031590f7aaedce32fee064d1590791699e6eeba6af483f27868284db7da`
+and decoded canonical provenance
+`1782cee419a7c3ddf174b36097e51a2ead70ac03a91a6563307b4204ac6b0487`: exact
+a56, 34,079 collected tests, zero skips, canonical_full_lane_verified true.
+Both active deployment/staging tools byte-match target Git source. The actual
+terminal deployment receipt SHA256
+`b6b5a1b896b0d9d89b0101a90d82c3c76da5e5bacd9fb3f97ee2bb2f0af5bb75`
+reports deployed, exact a56, verified installed provenance, promotion eligible
+and provider_mutation_performed false. Installed provenance is byte-identical
+to the official decoded artifact, not an iteration receipt.
+
+Fresh host-read receipt at 10:36:43 UTC corroborates both Git heads and active
+running intake, and binds the deployment/provenance hashes. All nineteen timer
+and ten path states in the deployment receipt match their before states; the
+configured-controls timer/path remain enabled/inactive with pause preserved.
+The separate authenticated status read at 10:36:44 UTC hashes to
+`dcd45c5729c42ca77d521e85b550faa7c4036f97cd22205ec0f818c0ec04caf4` and
+reports active a56, commit_proven true and no deployment blockers. Host-read
+SHA256 is `08a312a389b035adab2b555bfd191567f4ca19a4c3749ba043551f89fc55643c`.
+Raw status and unrelated identifiers remain private under
+output/reliability-program/pipeline-canonical-a56. The reviewer inspected actual
+retained bytes without remote mutations.
+
+This supports deployed-and-verified canonical service identity and provenance
+for the reviewed repair. It does not prove a prior bound launch bundle remains
+valid, authorize paused dispatch, establish a completed customer result, verify
+natural-model assessment quality or complete the reliability goal.
