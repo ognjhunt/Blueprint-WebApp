@@ -23,7 +23,7 @@ globalThis.fetch = (async(input:any, options?:RequestInit) => {
   return new Response(JSON.stringify({id:`sink-${requestId}`}),{status:200});
  }
  if (!["127.0.0.1","localhost"].includes(url.hostname)) throw new Error("External dispatch prohibited");
- return originalFetch(input,options);
+ return originalFetch(input,{...options,redirect:"error"});
 }) as typeof fetch;
 const {dbAdmin:db} = await import("../../client/src/lib/firebaseAdmin");
 if(!db)throw new Error("Emulator db unavailable");

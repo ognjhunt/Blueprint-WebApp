@@ -219,6 +219,7 @@ export async function processTaskEvaluationLaunchForwardQueue(limit = 10) {
       const current = (await transaction.get(doc.ref)).data();
       if (!current || current.state !== record.state
         || current.request_digest !== record.request_digest
+        || validateStoredTaskEvaluationLaunch(current).length > 0
         || Number(current.forward_attempt_count || 0) !== Number(record.forward_attempt_count || 0)
         || current.terminal_receipt) return false;
       transaction.set(doc.ref, {

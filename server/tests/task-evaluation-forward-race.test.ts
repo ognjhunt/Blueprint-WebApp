@@ -81,6 +81,18 @@ describe("immutable forward receipt application", () => {
     expect(state.docs.get("taskEvaluationLaunches/launch-001")?.state).toBe("forward_pending");
     expect(state.docs.get("taskEvaluationLaunches/launch-001")?.forward).toBeUndefined();
   });
+  it("does not apply acceptance when request bytes changed without updating the digest", async () => {
+    state.docs.set("taskEvaluationLaunches/launch-001", record());
+    forward.mockImplementation(async () => {
+      const latest=structuredClone(state.docs.get("taskEvaluationLaunches/launch-001") as any);
+      latest.request.authorization.execution.approved=false;
+      await db.collection("taskEvaluationLaunches").doc("launch-001").set(latest);
+      return {status:"forwarded",pipeline_intake_status:"accepted"};
+    });
+    await processTaskEvaluationLaunchForwardQueue();
+    expect(state.docs.get("taskEvaluationLaunches/launch-001")?.state).toBe("forward_pending");
+    expect(state.docs.get("taskEvaluationLaunches/launch-001")?.forward).toBeUndefined();
+  });
   it("does not overwrite a newer forward attempt", async () => {
     state.docs.set("taskEvaluationLaunches/launch-001", record());
     forward.mockImplementation(async () => {
