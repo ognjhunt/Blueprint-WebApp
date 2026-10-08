@@ -289,6 +289,13 @@
       "private_raw_receipt_sha256": "dcd45c5729c42ca77d521e85b550faa7c4036f97cd22205ec0f818c0ec04caf4",
       "canonical_receipt_sha256": "b6b5a1b896b0d9d89b0101a90d82c3c76da5e5bacd9fb3f97ee2bb2f0af5bb75",
       "claim_ceiling": "Canonical provenance and current deployed service identity; no affected customer job or assessment run invoked."
+    },
+    "receipt_fence_followup_at_1750_utc": {
+      "sha": "0a17f52d23f233376b9944a6df49101491581f6c",
+      "mandatory_promotion": 37808897987,
+      "observed": "three_shards_success;shard2_live;aggregate_and_official_provenance_pending",
+      "canonical_current": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+      "not_restarted": true
     }
   },
   "privacy": "Only sanitized deployment identity/receipt metadata; private operator status remains ignored.",
@@ -579,7 +586,7 @@
       "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
     }
   },
-  "current_verified_webapp_release": "1364d24e489571bc971dbc247df5fa9e2ae7d0ac",
+  "current_verified_webapp_release": "6c1d2466261c67de7809b4b0012a71dd1a404956",
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
     "state": "WebApp_deployed;Pipeline_reviewed_protected_merged;exact_main_CI_and_promotion_active;actual_mapping_blocked",
@@ -1360,7 +1367,7 @@
     "helper_head": "42bc50ad960b7639792bf8ae79a0973d85445f2e",
     "UI_head": "d66f083e",
     "root_route_head": "07ca3c73",
-    "state": "protected_merged;latestmainCIrunning;not_deployed",
+    "state": "reviewed_protected_merged_paired_native_LIVE_and18safe_clear_checks;actual_retry_not_executed",
     "helper_checks": 80,
     "route_status_checks": 42,
     "UI_component_checks": 33,
@@ -1383,7 +1390,18 @@
     "CI_unit_skipped": 7,
     "CI_terminal_log_sha256": "75dd06cb22f3f605e863549b3f9b5e9c8385d1172b95258962fac08c4c658932",
     "CI_browser": "operator_fakeauth1;workspace18;invitedintercepted2;private_intercepted5;scoped_intake14;overlapping_supplemental_not_unique",
-    "main_CI": 37817794563
+    "main_CI": 37817794563,
+    "main_CI_conclusion": "success",
+    "deployment_workflow": 37818726952,
+    "deployment_workflow_conclusion": "success",
+    "render_receipt_sha256": "bf4dffe7a041ff02986b33818eddc7b498cde88a009d98353bdab9541daa1f7f",
+    "safe_smoke_sha256": "98be157ed1f1eda6e691e4847c12fd76296b317bc13d2dec808369b075df8a0b",
+    "safe_smoke_checks_passed": 18,
+    "render_deployments": [
+      "dep-db3tch7f3r2c73dh2a7g",
+      "dep-db3tcheb7d7c739icb0g"
+    ],
+    "claim_ceiling": "Paired release identity and GET/local-draft/Clear behavior only; no actual owner retry, live perception, provider acceptance, billing settlement or customer assessment completion."
   },
   "historical_shared_3a_release": {
     "sha": "3a472ee99c62ca19b17c3e3f6529f3ca026afbb3",
@@ -1435,11 +1453,25 @@
     "claim_ceiling": "Exact source/paired native deployment and safe health/local-draft/clear UI. Does not establish a successful provider assessment."
   },
   "technical_expiry_followup": {
-    "state": "read_only_confirmed_no_supported_renewal;separate_scoped_offline_continuation_repair_active",
+    "state": "explicit_continuation_reviewed_86checks_and1scripted_joined_neighbor_pass;PR_CI_active;no_live_grant",
     "expired_dispatch": "forbidden",
     "original_expiry_and_authority_digest": "preserved;changing_originalexpiry wouldbreakreceiptaccounting",
     "original_slots_cap_unknown_history": "unchanged",
     "inspection_sha256": "8ec45da485dee019c25c8bd1bfdbfb7799d7d34b949a7a77140e93b96ae7770d",
-    "new_authority_or_paid_calls": false
+    "new_authority_or_paid_calls": false,
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/967",
+    "reviewed_head": "6f1940408f8380e81ae9f2cc8f0987e50572a3d5",
+    "independent_release_review": "920eb0bd",
+    "required_PR_CI": 37819194835,
+    "author_receipt_sha256": "96d70f738e09e273cd0544fdc603eaee49991456b62ab1aa4d864ec46c8f0280",
+    "integration_receipt_sha256": "fa07c68d31c577f49c64e08139899fee3947fdc6af772863b53c5394aa5fd31d",
+    "operator_provenance_export_sha256": "14ea3b7ac29d44d9d4712312ec24124de4474a02dace72ce3627abcaa882d408",
+    "claim_ceiling": "Source approval/offline execution only; explicit original-authority-bound operator grant still requires exact reviewed paired live release and fresh canonical checks."
+  },
+  "historical_shared_1364_release": {
+    "sha": "1364d24e489571bc971dbc247df5fa9e2ae7d0ac",
+    "state": "paired_live_and18safe_checks_verified;superseded_by_recovery6c",
+    "render_receipt_sha256": "c65a463fc153a0f4ee9a0da010ef292644c36796c3d94d41a5fc4fe7fe433e0a",
+    "smoke_sha256": "6f821d53c7c0ea3446bfc34ef0425f70036ea19e9a5249f797bbaf97b1a818bd"
   }
 }

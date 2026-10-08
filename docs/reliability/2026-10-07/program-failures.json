@@ -630,7 +630,7 @@
       "id": "SDK-LIVE-FIRST-STEP-20261008",
       "severity": "P1 affected assessment journey; underlying failure cause unresolved",
       "owner": "existing dishwasher owner: runtime diagnosis and recovery; queue_recovery: safe adapter diagnostics; root: review/release",
-      "state": "actual_original_live_failed;diagnostics_and_schema_released;reviewed_recovery_CI_active;no_live_retry",
+      "state": "actual_original_live_failed;diagnostics_schema_recovery_released;technical_continuation_PR_CI_active;no_live_retry",
       "invariant": "Failures remain inspectable with safe correlation and honest provider uncertainty; upload success cannot imply assessment completion.",
       "root_cause": "Original live exception remains unknown because the catch discarded it. Separately demonstrated: installedSDK0.3.9 serialized optional nullable citation selector into unsupported strict-output not:{}, which the scripted Model tests bypassed. Capturing a request at the client boundary does not validate provider schema acceptance.",
       "before": {
@@ -689,13 +689,18 @@
       "id": "PROGRAMME-TECHNICAL-EXPIRY-001",
       "severity": "P2_internal_operator_window;fail_closed",
       "owner": "queue_recovery/root",
-      "state": "demonstrated_expiry_binding;separate_offline_scoped_continuation_active",
+      "state": "bounded_source_independently_reviewed;PR967_requiredCI_active;no_actual_grant",
       "invariant": "Temporary execution windows cannot reset spending authority or unresolved accounting",
       "root_cause": "Operator expiry is in immutable authority digest; ad hoc deadline extension breaks dispatch and receipt settlement. No supported technical continuation exists.",
       "source_evidence_sha256": "8ec45da485dee019c25c8bd1bfdbfb7799d7d34b949a7a77140e93b96ae7770d",
       "proposed_scoped_repair": "Explicit operator-only bounded technical attestation preserving original authority/expiry and remaining existing slots. No automaticrenewal/customerAPI/budget reset.",
       "production_mutations": 0,
-      "unique_original_case_credit": 0
+      "unique_original_case_credit": 0,
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/967",
+      "review": "920eb0bd",
+      "candidate": "86budget/retrycontrols_and1scripted_handler_worker_joined_neighbor_pass;typecheck_graphify_portability_pass",
+      "matched_baseline": "two_selected_final_controls_fail_on_pre_fix_runtime;84unselected_skipped_not_counted",
+      "actual_invocation": "not_executed;original_expiry_digest_unknowns_cap_slots_preserved"
     }
   ],
   "dependencies": [
