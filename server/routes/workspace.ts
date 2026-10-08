@@ -1,3 +1,4 @@
+import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
 import type { WorkspaceResult } from "../../client/src/types/workspace";
 import { isBlueprintFundedRun } from "../utils/freeBeta";
 import { logger } from "../logger";
@@ -567,6 +568,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     task.readiness = null;
   }
 
+  task.siteAdvisory = consentRevoked ? null : await loadCurrentSiteAdvisory(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: record.account_owner_uid ?? null });
   if (consentRevoked) task.status = "Recording consent withdrawn";
   return task;
 }

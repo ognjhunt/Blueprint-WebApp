@@ -1,3 +1,5 @@
+import type { SiteAdvisory } from "@/types/siteAdvisory";
+import { SiteAdvisoryReport } from "./SiteAdvisoryReport";
 import { NextTaskUpdate } from "./NextTaskUpdate";
 /**
  * The desktop reflecting what the phone is doing — from the server, not a guess.
@@ -21,6 +23,7 @@ import { NextTaskUpdate } from "./NextTaskUpdate";
 import { useEffect, useState } from "react";
 
 interface LiveStatus {
+  siteAdvisory?: SiteAdvisory | null;
   headline: string;
   stage: string | null;
   nextUpdateIso?: string | null;
@@ -47,6 +50,7 @@ export function CaptureLiveStatus({
   const token = tokenFromCaptureUrl(captureUrl);
 
   useEffect(() => {
+    setStatus(null);
     if (!token) return;
     let alive = true;
     let timer: number | undefined;
@@ -55,15 +59,14 @@ export function CaptureLiveStatus({
       try {
         const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token!)}/status`);
         if (response.ok) {
-          const data = (await response.json()) as { status?: LiveStatus; captureReceived?: boolean };
+          const data = (await response.json()) as { status?: LiveStatus; captureReceived?: boolean; siteAdvisory?: SiteAdvisory | null };
           if (alive && data?.captureReceived === true) onCaptureReceived?.();
           if (alive && data?.status?.headline) {
-            setStatus({ headline: data.status.headline, stage: data.status.stage ?? null, nextUpdateIso: data.status.nextUpdateIso });
+            setStatus({ siteAdvisory: data.siteAdvisory ?? null, headline: data.status.headline, stage: data.status.stage ?? null, nextUpdateIso: data.status.nextUpdateIso });
           }
-        }
+        } else if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null);
       } catch {
-        // Transient. Keep the last state and try again; this must never surface
-        // an error on a page whose job is already done.
+        if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null);
       }
       if (alive) timer = window.setTimeout(poll, 6000);
     }
@@ -93,6 +96,7 @@ export function CaptureLiveStatus({
         {status.headline}
       </p>
       <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />
+      <SiteAdvisoryReport advisory={status.siteAdvisory} />
       <p className="ms-field-hint" style={{ marginTop: "4px", opacity: 0.8 }}>
         This updates on its own — you can leave it open, or close it and come back to the link.
       </p>

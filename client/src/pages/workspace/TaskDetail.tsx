@@ -1,3 +1,4 @@
+import { SiteAdvisoryReport } from "@/components/site/SiteAdvisoryReport";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
@@ -109,6 +110,8 @@ export default function TaskDetail() {
               </div>
             </div>
           )}
+
+          <SiteAdvisoryReport advisory={query.error ? null : task.siteAdvisory} />
 
           {!task.archived && (
             <div className="ws-section" aria-label="Your task page">

@@ -143,6 +143,54 @@ describe("GET /api/site-task-brief/:token/status", () => {
     return { token: createCaptureUploadToken({ ...identity, scope }), objectName };
   }
 
+  it("publishes only the current source-bound advisory through the owner status handler and suppresses it after withdrawal", async () => {
+    const saved = savedRecording("published");
+    const requestId = "req-1", captureId = "walkthrough-req-1";
+    const session = sharedFakeFirestoreState.docs.get(`captureUploadSessions/${captureId}`)!;
+    const pending = session.browser_pending_delivery;
+    const bytes = Buffer.from(JSON.stringify({ request_id: requestId, scene_id: "site-req-1", capture_id: captureId,
+      video_uri: pending.video.object_name, duration_seconds: 10,
+      capture_rights: { derived_scene_generation_allowed: true, consent_status: "granted", consent_revoked: false } }));
+    pending.manifest = { ...pending.manifest, size_bytes: bytes.length, sha256: `sha256:${createHash("sha256").update(bytes).digest("hex")}` };
+    storage.objects.set(pending.manifest.object_name, { generation: "18", size: String(bytes.length), crc32c: "AAAAAA==", bytes });
+    const { buildBrowserDelivery } = await import("../utils/websiteCaptureDelivery");
+    const delivery = buildBrowserDelivery({ requestId, sceneId: pending.scene_id, captureId,
+      rawPrefix: pending.video.object_name.slice(0, pending.video.object_name.lastIndexOf("/")), video: pending.video,
+      manifest: pending.manifest, completedAtIso: pending.completed_at_iso });
+    for (const [name, content] of [[`${delivery.record.raw_prefix}/capture_upload_complete.json`, delivery.markerBytes],
+      [delivery.objectName, delivery.recordBytes]] as const) storage.objects.set(name, { generation: "19", size: String(content.length), crc32c: "AAAAAA==", bytes: content });
+    const { browserPendingDecisionKey } = await import("../utils/websiteBrowserPending");
+    const { advisoryContextDigest, advisoryJobId } = await import("../utils/siteAssessmentContext");
+    const raw = sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`)!;
+    const brief = sharedFakeFirestoreState.docs.get(`siteTaskBriefs/${requestId}`) ?? null;
+    const sourceKey = browserPendingDecisionKey(pending), context = advisoryContextDigest(raw, brief), jobId = advisoryJobId(requestId, sourceKey, context);
+    raw.site_advisory = { job_id: jobId, source_key: sourceKey, context_digest: context, state: "completed" };
+    raw.capture_privacy_source_bound_decision = { proceeded: true, eligibility: "approved", capture_id: captureId, producer_source: {kind: "browser_pending", key: sourceKey} };
+    const videoRef = `gs://${process.env.BLUEPRINT_CAPTURE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com"}/${pending.video.object_name}#generation=${pending.video.generation}`;
+    const packet = { schema_version: "site_assessment.v2", request_id: requestId, sources: [{ source_id: "video:synthetic", kind: "video", canonical_ref: videoRef, sha256: "a".repeat(64),
+      content: { evidence: {summary: "Carton movement", observations: [{category: "motion", finding: "A carton moves", basis: "observed", start_seconds: 1, end_seconds: 3, uncertainty: "Hands partly occluded"}], not_observable: ["weight"]} } }],
+      raw_model_assessment: { status: "assessment", job: [{text: "PRIVATE fabricated robot success", basis: "observed", evidence: [{source_id: "video:synthetic", at_seconds: 2, selector: {kind: "video_observation", observation_index: 0, field_path: null}}]}],
+        objects_motions_conditions_variations: [], operator_success: [], known: [], estimates: [], missing: [], approaches: [], questions: [], next_action: {kind: "measure", action: "PRIVATE dispatch robot", why: {text: "Unknown weight", basis: "unknown", evidence: []}} } };
+    sharedFakeFirestoreState.docs.set(`siteAssessmentJobs/${jobId}`, { schema_version: "site_assessment_job.v1", request_id: requestId, source_key: sourceKey, context_digest: context, state: "completed", run_id: "synthetic-advisory-run", packet_sha256: createHash("sha256").update(JSON.stringify(packet)).digest("hex") });
+    sharedFakeFirestoreState.docs.set("agentRuns/synthetic-advisory-run", {task_kind: "site_assessment", status: "completed", artifacts: {site_assessment_packet: packet,
+      source_admission: {schema_version: "site_assessment_source.v1", request_id: requestId, capture_id: captureId, source_key: sourceKey, context_digest: context, advisory_job_id: jobId,
+        video_ref: videoRef, video_sha256: "a".repeat(64), video_bytes: pending.video.size_bytes, manifest: pending.manifest, duration_seconds: 10} } });
+    const read = () => fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
+    const response = await read(); expect(response.status).toBe(200);
+    const body = await response.json(); expect(body.siteAdvisory?.state).toBe("ready");
+    expect(JSON.stringify(body.siteAdvisory)).toContain("A carton moves");
+    expect(JSON.stringify(body.siteAdvisory)).not.toMatch(/PRIVATE|gs:\/\/|raw_model_assessment|robot success/);
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { createElement } = await import("react");
+    const { SiteAdvisoryReport } = await import("../../client/src/components/site/SiteAdvisoryReport");
+    const html = renderToStaticMarkup(createElement(SiteAdvisoryReport, {advisory: body.siteAdvisory}));
+    expect(html).toContain("Video analysis"); expect(html).toContain("Video at 2 s");
+    expect(html).not.toMatch(/PRIVATE|robot success|gs:\/\//);
+    raw.consent_revoked = true;
+    const withdrawn = await (await read()).json(); expect(withdrawn.siteAdvisory.state).toBe("authority_ended");
+    expect(withdrawn.siteAdvisory.sections).toEqual([]); expect(withdrawn.status.headline).toContain("withdrawn");
+  });
+
   it.each(["stored", "held", "published"] as const)("acknowledges %s browser bytes without a processing marker", async (kind) => {
     const saved = savedRecording(kind);
     const before = structuredClone([...sharedFakeFirestoreState.docs]);
