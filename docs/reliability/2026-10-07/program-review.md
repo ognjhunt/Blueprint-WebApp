@@ -3268,3 +3268,31 @@ checks add no original journey credit. The retained earlier CI hook timeout,
 actual server/edition validation, cloud incident cause, protected release and
 customer result are separate unresolved/required evidence, not implied by
 this source approval. No provider or production write occurred in review.
+
+### Exact source/check snapshot — PR979/978 and PR977 type guard
+
+Fresh native GitHub reads confirm PR979 head19613115, run37853491909, eight
+applicable checks SUCCESS and the existing E2E/admission-observer skips; the PR
+is now merged. Its source clearance remains the matched31930a43 review above.
+PR978 remains exact799c5fe7, with its source approval569fb2d0 unchanged. At the
+read snapshot run37853905706 had seven successful checks, test IN_PROGRESS and
+E2E SKIPPED; unfinished checks are not called passed.
+
+PR977 `52ad73eb99ca754cbf56a29e510e9bd768fc04c5` changes only the private
+artifact sanitizer versus14ec40d1: narrow the object to Record<string,unknown>
+and inspect its type only when string. This fixes the TS2339 access while
+preserving fixed hidden-reasoning/thought block and sensitive-key removal.
+Numerical reasoning_tokens and other usage fields remain intact; no provider,
+authority or financial gate changes occur in this delta. Its existing control
+explicitly retains reasoning_tokens42 while removing hidden blocks/fields.
+The retained focused log reports15 passing controls; typecheck/Graphify logs
+were inspected, without inheriting old broad totals or running another suite.
+Fresh native run37854201765 check is SUCCESS, with test/E2E still IN_PROGRESS
+at this snapshot. The narrow source delta is clear; required final checks,
+merged identity, deployment and actual customer result remain separate.
+
+Private reviewer snapshot hash
+`4708b53e6e17d62e4f0010d1707648d388e95e083075c06611f54038dcf20930`
+records exact heads/checks/source hash and limits. It is explicitly a compact
+reviewer transcription of directly inspected native outputs, not a raw response
+envelope or new execution evidence. No rerun/provider/release mutation occurred.
