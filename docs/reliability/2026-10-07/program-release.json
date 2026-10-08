@@ -2521,7 +2521,7 @@
     "usage_pricing_estimate_USD": 0.17061075,
     "billing_invoice": false,
     "gemini_returned_usage_at_utc": "2026-10-08T23:10:27.886Z",
-    "persisted_customer_report": "Owner authorized normal UI report rendered; independent a0a42dd4 validates canonical packet digest/call bindings/observable export. Reviewer screenshot proves needscheck only, not full detailed UI text.",
+    "persisted_customer_report": "Owner authorized normal UI report rendered; independent3f95e4ac verifies actual task-specific question, decision consequence and proposed nextstep in hashed completed screenshots/observable export. Perceptiontruthunscored.",
     "private_evidence": {
       "bytes": 322791,
       "generation": "1791501117606389",
@@ -2602,9 +2602,15 @@
     "scope": "Exactexistingoutbox query only; recorded provider send is not inbox-read proof. No assessment-ready delivery or widercommunicationabsence claimed."
   },
   "normal_189_final_compact_export": {
-    "sha256": "a7a531fb3ee58df43267a44bf6c58305fdbe46d2fb80440f77e84463a1550d67",
+    "sha256": "eecb9eb0b7de8c16194e487b80cab8d6a328adfb3a289381b90ac2faf14ba19f",
     "path": "/Users/nijelhunt_1/Documents/Codex/2026-10-07/task-3/dishwasher-isolated-analysis/reconciliation/normal-assessment-combined189-terminal-20261008.json",
     "outcome": "normal_customer_same_job_assessment_completed",
-    "goal_completion": "partial assessmentquality/fulljourneycoverage; no humantruthscore/physicalpilot/readyemailproof"
+    "goal_completion": "partial assessmentquality/fulljourneycoverage; no humantruthscore/physicalpilot/readyemailproof",
+    "interim_hash_correction": {
+      "previous_observed_sha256": "a7a531fb3ee58df43267a44bf6c58305fdbe46d2fb80440f77e84463a1550d67",
+      "status": "interim export before author finalized metadata; oldbytes not separately retained; do not replay/reviewclaim oldhash",
+      "final_owner_report_and_root_readback_agree": true
+    },
+    "independent_review": "3f95e4ac"
   }
 }
