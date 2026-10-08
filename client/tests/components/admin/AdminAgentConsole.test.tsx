@@ -285,6 +285,9 @@ describe("AdminAgentConsole", () => {
     renderConsole();
 
     expect((await screen.findAllByText(/Ops thread/i)).length).toBeGreaterThan(0);
+    expect(fetch).toHaveBeenCalledWith("/api/admin/agent/sessions", expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: "Bearer fixture-admin-token" }),
+    }));
     const selectedSessionCard = await screen.findByRole("heading", { name: /Selected session/i });
     const selectedSessionPanel = selectedSessionCard.parentElement;
     expect(selectedSessionPanel).not.toBeNull();
@@ -326,7 +329,7 @@ describe("AdminAgentConsole", () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/admin/agent/sessions/session-1/messages",
-        expect.objectContaining({ method: "POST" }),
+        expect.objectContaining({ method: "POST", headers: expect.objectContaining({ Authorization: "Bearer fixture-admin-token" }) }),
       );
     });
 
@@ -348,4 +351,14 @@ describe("AdminAgentConsole", () => {
       );
     });
   }, 15000);
+  it("authenticates session creation without starting an inference run", async () => {
+    renderConsole();
+    await screen.findAllByText(/Ops thread/i);
+    fireEvent.click(screen.getByRole("button", { name: /^Create session$/i }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/admin/agent/sessions", expect.objectContaining({
+      method: "POST", headers: expect.objectContaining({ Authorization: "Bearer fixture-admin-token" }),
+    })));
+    expect(vi.mocked(fetch).mock.calls.some(([url, init]) => String(url).endsWith("/messages") && init?.method === "POST")).toBe(false);
+  });
+
 });
