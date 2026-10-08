@@ -9,7 +9,7 @@
  * typed location remains ambiguous. That fallback is visible before Start,
  * because the country decides whether we may collect footage at all.
  */
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render as renderView, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
@@ -27,6 +27,34 @@ vi.mock("@/lib/selfCaptureVideo", async (importOriginal) => ({
 }));
 
 const account = vi.hoisted(() => ({ user: null as any, loading: false }));
+// Explicit unit durability contract fake; native storage is exercised separately.
+// Native strict IndexedDB execution is a separate layer.
+const durability = vi.hoisted(() => ({ rows: new Map<string, { value: any; retired: boolean }>() }));
+vi.mock("@/lib/siteCaptureDurability", () => ({
+  readDurableSiteCaptureRecovery: async (key: string) => {
+    const row = durability.rows.get(key);
+    return row ? JSON.parse(JSON.stringify(row)) : null;
+  },
+  writeDurableSiteCaptureRecovery: async (key: string, value: any, replaceIdentity = false) => {
+    const current = durability.rows.get(key);
+    if (!replaceIdentity && current && (current.retired || current.value?.requestId !== value.requestId
+      || current.value?.retryToken !== value.retryToken)) throw new Error("Fixture durability transaction aborted");
+    const { task, location, email, company, method, region, regionManuallySet } = value.draft;
+    durability.rows.set(key, { retired: false, value: {
+      version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
+      draft: { task, location, email, company, method, region, regionManuallySet },
+      pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
+    } });
+  },
+  retireDurableSiteCaptureRecovery: async (key: string) => { durability.rows.set(key, { value: null, retired: true }); },
+  durableSiteCaptureRecoveryKeys: async () => [...durability.rows.keys()],
+}));
+
+async function renderReady(ui: React.ReactElement) {
+  let result!: ReturnType<typeof renderView>;
+  await act(async () => { result = renderView(ui); });
+  return result;
+}
 const fetchMock = vi.fn();
 
 function photon(properties: Record<string, unknown>[]) {
@@ -34,7 +62,10 @@ function photon(properties: Record<string, unknown>[]) {
 }
 
 beforeEach(() => {
+  durability.rows.clear();
+  vi.stubGlobal("navigator", { userAgent: navigator.userAgent, locks: { request: async (_key: string, action: () => unknown) => action() } });
   window.localStorage.clear();
+  window.sessionStorage.clear();
   account.user = null;
   account.loading = false;
   fetchMock.mockReset();
@@ -54,19 +85,17 @@ function region() {
 
 it("keeps the prerendered form inactive until handlers attach and never defaults to a GET of contact details", () => {
   const document = new DOMParser().parseFromString(renderToString(<SiteCaptureStart />), "text/html");
-  const form = document.querySelector("form")!;
-  expect(form.method).toBe("post");
-  expect(form.querySelector("fieldset")?.disabled).toBe(true);
-  expect(form.querySelector<HTMLButtonElement>("button[type=submit]")?.disabled).toBe(true);
+  expect(document.querySelector("form")).toBeNull();
+  expect(document.querySelector("[role=status]")?.textContent).toContain("Loading");
 });
 
 it.each(["gpt-6.1-sol-agents-api", "gpt-6-sol-agents-api"])(
   "keeps %s entry links on the upgraded Sol disclosure",
-  (authoring) => {
+  async (authoring) => {
     const previousUrl = window.location.href;
     window.history.replaceState(null, "", `?authoring=${authoring}`);
     try {
-      render(<SiteCaptureStart />);
+      await renderReady(<SiteCaptureStart />);
       const disclosure = screen.getByRole("checkbox", { name: /GPT-6\.1 Sol managed-agent 3D authoring/ });
       expect(disclosure).not.toBeChecked();
       fireEvent.click(disclosure);
@@ -78,24 +107,24 @@ it.each(["gpt-6.1-sol-agents-api", "gpt-6-sol-agents-api"])(
 );
 
 describe("SiteCaptureStart and the country", () => {
-  it.each(["Austin, TX", "austin tx", "Austin, Texas, United States", "Austin, TX 78701"])("recognizes an explicit US job location before Start (%s)", (location) => {
-    render(<SiteCaptureStart />);
+  it.each(["Austin, TX", "austin tx", "Austin, Texas, United States", "Austin, TX 78701"])("recognizes an explicit US job location before Start (%s)", async (location) => {
+    await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
     expect(screen.getByText(/Country: United States\./)).toBeInTheDocument();
     expect(region()).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it.each(["Paris", "Georgia", "Vancouver, CA", "Austin, TX, Germany", "123 Main St", "123 Main St.", "10 High ST", "Warehouse near us"])("shows the country fallback before Start for unresolved geography (%s)", (location) => {
-    render(<SiteCaptureStart />);
+  it.each(["Paris", "Georgia", "Vancouver, CA", "Austin, TX, Germany", "123 Main St", "123 Main St.", "10 High ST", "Warehouse near us"])("shows the country fallback before Start for unresolved geography (%s)", async (location) => {
+    await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
     expect(region()).not.toBeNull();
     expect(region()!.value).toBe("");
     expect(postsTo("/api/inbound-request")).toHaveLength(0);
   });
 
-  it.each(["Berlin, Germany", "London UK", "Toronto, Canada"])("recognizes explicit non-US geography and keeps its upload hold (%s)", (location) => {
-    render(<SiteCaptureStart />);
+  it.each(["Berlin, Germany", "London UK", "Toronto, Canada"])("recognizes explicit non-US geography and keeps its upload hold (%s)", async (location) => {
+    await renderReady(<SiteCaptureStart />);
     fireEvent.click(document.querySelector("#start-method-upload")!);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
     expect(screen.getByText(/Country: Outside the United States\./)).toBeInTheDocument();
@@ -106,7 +135,7 @@ describe("SiteCaptureStart and the country", () => {
 
   it("posts a typed Austin TX description on the first Start with the existing country contract", async () => {
     signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: null } }]);
-    render(<SiteCaptureStart />);
+    await renderReady(<SiteCaptureStart />);
     await screen.findByText(/Saving to your workspace/);
     fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Slide the dishwasher racks" } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin TX" } });
@@ -118,8 +147,8 @@ describe("SiteCaptureStart and the country", () => {
     expect(upload.send).not.toHaveBeenCalled();
   });
 
-  it("invalidates typed inference on an ambiguous edit and resolves explicit non-US edits", () => {
-    render(<SiteCaptureStart />);
+  it("invalidates typed inference on an ambiguous edit and resolves explicit non-US edits", async () => {
+    await renderReady(<SiteCaptureStart />);
     const location = document.querySelector("#start-location")!;
     fireEvent.change(location, { target: { value: "Austin TX" } });
     expect(screen.getByText(/Country: United States\./)).toBeInTheDocument();
@@ -147,7 +176,7 @@ describe("SiteCaptureStart and the country", () => {
     } } });
     try {
       signedIn({ workspaceType: "site_operator" }, []);
-      render(<SiteCaptureStart />);
+      await renderReady(<SiteCaptureStart />);
       await screen.findByText(/Saving to your workspace/);
       fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Slide the racks" } });
       const location = document.querySelector("#start-location")!;
@@ -179,7 +208,7 @@ describe("SiteCaptureStart and the country", () => {
       },
     } } });
     try {
-      render(<SiteCaptureStart />);
+      await renderReady(<SiteCaptureStart />);
       fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin TX" } });
       fireEvent.mouseDown(await screen.findByText("Berlin, Germany"));
       fireEvent.change(region()!, { target: { value: "us" } });
@@ -189,15 +218,15 @@ describe("SiteCaptureStart and the country", () => {
     } finally { vi.unstubAllEnvs(); }
   });
 
-  it("does not ask for a country up front", () => {
-    render(<SiteCaptureStart />);
+  it("does not ask for a country up front", async () => {
+    await renderReady(<SiteCaptureStart />);
     expect(region()).toBeNull();
     expect(screen.queryByText("Which country is the site in?")).toBeNull();
   });
 
   it("takes the country from the address that was picked, and offers a correction", async () => {
     fetchMock.mockResolvedValue(photon([{ name: "Austin", state: "Texas", country: "United States", countrycode: "US" }]));
-    render(<SiteCaptureStart />);
+    await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "austin" } });
 
     fireEvent.mouseDown(await screen.findByText("Austin, Texas, United States"));
@@ -212,7 +241,7 @@ describe("SiteCaptureStart and the country", () => {
 
   it("says up front that a site outside the US cannot be recorded yet", async () => {
     fetchMock.mockResolvedValue(photon([{ name: "Munich", country: "Germany", countrycode: "DE" }]));
-    render(<SiteCaptureStart />);
+    await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "munich" } });
 
     fireEvent.mouseDown(await screen.findByText("Munich, Germany"));
@@ -222,7 +251,7 @@ describe("SiteCaptureStart and the country", () => {
   });
 
   it("shows unresolved country before Start and focuses it if an incomplete form is submitted", async () => {
-    render(<SiteCaptureStart />);
+    await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Berlin" } });
     expect(region()).not.toBeNull();
@@ -241,8 +270,8 @@ describe("SiteCaptureStart and the country", () => {
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: account.user, loading: account.loading }) }));
 
 
-it("asks where the robot would do the task, not where the video was filmed", () => {
-  render(<SiteCaptureStart />);
+it("asks where the robot would do the task, not where the video was filmed", async () => {
+  await renderReady(<SiteCaptureStart />);
   const label = document.querySelector('label[for="start-location"]')!;
   expect(label).toHaveTextContent(/^Where would the robot do this task\?/);
   expect(label).not.toHaveTextContent(/filmed/i);
@@ -250,7 +279,7 @@ it("asks where the robot would do the task, not where the video was filmed", () 
 
 it("clears an inferred country when the address is edited, but preserves an explicit correction", async () => {
   fetchMock.mockResolvedValue(photon([{ name: "Austin", countrycode: "US" }]));
-  render(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   const location = document.querySelector("#start-location")!;
   fireEvent.change(location, { target: { value: "austin" } });
   fireEvent.mouseDown(await screen.findByText("Austin"));
@@ -289,7 +318,7 @@ function postsTo(url: string) {
 
 it("saves a description with explicit site authority and no recording or fee grant", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: "/capture-upload/tok.signed" } }]);
-  render(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace/);
   fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin" } });
@@ -306,8 +335,8 @@ it("saves a description with explicit site authority and no recording or fee gra
   expect(screen.queryByRole("link", { name: /camera|uploader/i })).not.toBeInTheDocument();
 });
 
-it("asks one question about the video and asks for recording rights only when a video is involved", () => {
-  render(<SiteCaptureStart />);
+it("asks one question about the video and asks for recording rights only when a video is involved", async () => {
+  await renderReady(<SiteCaptureStart />);
   expect(screen.getByRole("group", { name: "How will we see the task?" })).toBeInTheDocument();
   expect(screen.getByRole("radio", { name: "Film it later on a phone" })).toBeChecked();
   expect(document.querySelector("#start-filmer")).toBeNull();
@@ -323,7 +352,7 @@ it("asks one question about the video and asks for recording rights only when a 
 
 it.each([["phone", "self_capture"], ["visit", "site_visit"]])("sends the capture mode for the chosen way (%s)", async (method, captureMode) => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: null } }]);
-  render(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace as owner@example.com/);
   fireEvent.click(document.querySelector(`#start-method-${method}`)!);
   fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
@@ -341,7 +370,7 @@ it.each([["phone", "self_capture"], ["visit", "site_visit"]])("sends the capture
 
 it("saves signed-in captures to the authenticated workspace and reuses the request on retry", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: false, body: { message: "Try again" } }, { ok: true, body: { captureUrl: null } }]);
-  render(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace as owner@example.com/);
   fillAndSubmit();
   await screen.findByRole("alert");
@@ -360,7 +389,7 @@ it("saves signed-in captures to the authenticated workspace and reuses the reque
 
 it("tells a robot-team account up front that the site goes to the emailed link, and never blocks it", async () => {
   signedIn({ workspaceType: "robot_team" }, [{ ok: true, body: { captureUrl: "https://example.test/capture" } }]);
-  render(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Signed in as owner@example.com, which is not a site workspace/);
   fillAndSubmit();
   await screen.findByText(/saved to the link we email owner@example.com/);
@@ -370,8 +399,8 @@ it("tells a robot-team account up front that the site goes to the emailed link, 
 });
 
 it("falls back to the emailed link with the same answers when the workspace refuses the account", async () => {
-  signedIn({ ok: false }, [{ ok: false, status: 403, body: { error: "This action requires a site account." } }, { ok: true, body: { captureUrl: null } }]);
-  render(<SiteCaptureStart />);
+  signedIn({ workspaceType: "site_operator" }, [{ ok: false, status: 403, body: { error: "This action requires a site account." } }, { ok: true, body: { captureUrl: null } }]);
+  await renderReady(<SiteCaptureStart />);
   fillAndSubmit();
   await screen.findByText(/saved to the link we email owner@example.com/);
   expect(screen.queryByRole("alert")).toBeNull();
@@ -394,7 +423,7 @@ it("moves the laptop from the QR code to the brief once the phone's recording la
     if (init?.method === "POST") return { ok: true, status: 200, json: async () => ({ captureUrl }) };
     return photon([]);
   });
-  render(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin" } });
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } });
@@ -441,8 +470,8 @@ describe("SiteCaptureStart and a video that already exists", () => {
     fireEvent.submit(screen.getByRole("form"));
   }
 
-  it("asks for the upload only when that is the chosen way, and offers video only", () => {
-    render(<SiteCaptureStart />);
+  it("asks for the upload only when that is the chosen way, and offers video only", async () => {
+    await renderReady(<SiteCaptureStart />);
     expect(document.querySelector("#start-footage")).toBeNull();
 
     fireEvent.click(document.querySelector("#start-method-upload")!);
@@ -457,8 +486,8 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(document.querySelector("#start-footage")).toBeNull();
   });
 
-  it("refuses a file that is not a .mov or .mp4 before anything is sent", () => {
-    render(<SiteCaptureStart />);
+  it("refuses a file that is not a .mov or .mp4 before anything is sent", async () => {
+    await renderReady(<SiteCaptureStart />);
     fireEvent.click(document.querySelector("#start-method-upload")!);
     fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [new File(["x"], "site.jpg", { type: "image/jpeg" })] } });
     expect(screen.getByRole("alert")).toHaveTextContent(/not a \.mov or \.mp4/);
@@ -466,7 +495,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
 
   it("does not ask for the upload from a site outside the US", async () => {
     fetchMock.mockResolvedValue(photon([{ name: "Munich", country: "Germany", countrycode: "DE" }]));
-    render(<SiteCaptureStart />);
+    await renderReady(<SiteCaptureStart />);
     fireEvent.click(document.querySelector("#start-method-upload")!);
     expect(document.querySelector("#start-footage")).not.toBeNull();
 
@@ -481,7 +510,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     answerPosts({ captureUrl });
     upload.send.mockResolvedValue({ status: "done" });
     const file = video();
-    render(<SiteCaptureStart />);
+    await renderReady(<SiteCaptureStart />);
     fillFor(file);
 
     await screen.findByText("Your recording is in.", { selector: "h2" });
@@ -496,7 +525,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
   it("keeps the job when the video does not send, and links to the uploader", async () => {
     answerPosts({ captureUrl });
     upload.send.mockResolvedValue({ status: "failed", message: "The connection dropped before the video finished." });
-    render(<SiteCaptureStart />);
+    await renderReady(<SiteCaptureStart />);
     fillFor(video());
 
     await screen.findByText("Your job is saved. Check your video upload.", { selector: "h2" });
@@ -511,7 +540,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     answerPosts({ captureUrl });
     upload.send.mockResolvedValueOnce({ status: "failed", message: "This browser could not read the video's frame rate. Keep your original video." })
       .mockResolvedValueOnce({ status: "done" });
-    render(<SiteCaptureStart />); const original = video(); fillFor(original);
+    await renderReady(<SiteCaptureStart />); const original = video(); fillFor(original);
     fireEvent.click(await screen.findByRole("button", { name: "Try the selected video again" }));
     await screen.findByRole("heading", { name: "Your recording is in." });
     expect(upload.send.mock.calls[1][1]).toBe(original);
@@ -523,7 +552,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     upload.send.mockResolvedValue({ status: "processing_pending", message: "Your video is saved. We could not confirm that processing started.", processingRetryAvailable: true });
     let finishRetry!: (result: { status: "done" }) => void;
     upload.retry.mockImplementation(() => new Promise((resolve) => { finishRetry = resolve; }));
-    render(<SiteCaptureStart />);
+    await renderReady(<SiteCaptureStart />);
     fillFor(video());
     await screen.findByRole("heading", { name: "Video received. Processing is not confirmed." });
     expect(screen.queryByText(/The video did not send|Nothing was lost/)).not.toBeInTheDocument();
@@ -540,14 +569,14 @@ describe("SiteCaptureStart and a video that already exists", () => {
   it("offers no processing retry for a current consent or authorization hold", async () => {
     answerPosts({ captureUrl });
     upload.send.mockResolvedValue({ status: "held", message: "Processing is on hold until current consent is confirmed." });
-    render(<SiteCaptureStart />); fillFor(video());
+    await renderReady(<SiteCaptureStart />); fillFor(video());
     await screen.findByText(/current consent is confirmed/);
     expect(screen.queryByRole("button", { name: "Retry processing" })).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: /film/i })).not.toBeInTheDocument();
   });
 
   it("does not create a job or upload existing footage without rights consent", async () => {
-    answerPosts({ captureUrl }); render(<SiteCaptureStart />);
+    answerPosts({ captureUrl }); await renderReady(<SiteCaptureStart />);
     fireEvent.click(document.querySelector("#start-method-upload")!);
     fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
     fireEvent.submit(screen.getByRole("form"));
@@ -561,7 +590,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
       if (init?.method === "POST") { intakeCalls++; return new Promise(() => undefined); }
       return photon([]);
     });
-    render(<SiteCaptureStart />); fillFor(video());
+    await renderReady(<SiteCaptureStart />); fillFor(video());
     fireEvent.submit(screen.getByRole("form"));
     await vi.waitFor(() => expect(intakeCalls).toBe(1));
     expect(upload.send).not.toHaveBeenCalled();
@@ -569,7 +598,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
 
   it("does not send the video when no camera link comes back", async () => {
     answerPosts({ captureUrl: null });
-    render(<SiteCaptureStart />);
+    await renderReady(<SiteCaptureStart />);
     fillFor(video());
 
     await screen.findByRole("heading", { level: 2 });
@@ -578,18 +607,18 @@ describe("SiteCaptureStart and a video that already exists", () => {
 });
 
 describe("SiteCaptureStart identity fields", () => {
-  it("asks for an email and a company, not a name", () => {
-    render(<SiteCaptureStart />);
+  it("asks for an email and a company, not a name", async () => {
+    await renderReady(<SiteCaptureStart />);
     expect(document.querySelector("#start-name")).toBeNull();
     expect(document.querySelector("#start-email")).toBeRequired();
     expect(document.querySelector("#start-company")).toBeRequired();
     expect(document.querySelector('label[for="start-company"]')!.textContent).not.toMatch(/optional/i);
   });
 
-  it("asks a signed-in account for neither, since the account has both", () => {
+  it("asks a signed-in account for neither, since the account has both", async () => {
     account.user = { uid: "owner-1", email: "owner@example.com", getIdToken: async () => "owner-token" };
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({ workspaceType: "site_operator" }) });
-    render(<SiteCaptureStart />);
+    await renderReady(<SiteCaptureStart />);
     expect(document.querySelector("#start-name")).toBeNull();
     expect(document.querySelector("#start-company")).toBeNull();
   });
@@ -598,13 +627,13 @@ describe("SiteCaptureStart identity fields", () => {
 
 it("recovers the same intake identity and draft after a lost response and reload", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: false, body: { message: "Connection lost after save" } }, { ok: true, body: { captureUrl: "/capture-upload/tok.signed" } }]);
-  const first = render(<SiteCaptureStart />);
+  const first = await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace/);
   fillAndSubmit();
   await screen.findByRole("alert");
   const original = postsTo("/api/workspace/capture-start")[0][1].body;
   first.unmount();
-  render(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace/);
   expect(document.querySelector<HTMLTextAreaElement>("#start-task")!.value).toBe("Pack cartons");
   fireEvent.submit(screen.getByRole("form"));
@@ -620,7 +649,7 @@ it.each(intakeCases)("$caseId $method intake $location $outcome", async ({ metho
   signedIn({ workspaceType: "site_operator" }, [{ ok: outcome === "saved", status: outcome === "saved" ? 201 : 422,
     body: outcome === "saved" ? { captureUrl: "/capture-upload/tok.signed" } : { message: "Correct the task description" } }]);
   upload.send.mockResolvedValue({ status: "done" });
-  render(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace/);
   fireEvent.click(document.querySelector(`#start-method-${method}`)!);
   fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Move sealed cartons" } });
@@ -640,7 +669,7 @@ it.each(intakeCases)("$caseId $method intake $location $outcome", async ({ metho
 
 it("allows corrected fields after a proven validation rejection", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: false, status: 422, body: { message: "Correct task" } }, { ok: true, body: { captureUrl: null } }]);
-  render(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace/);
   fillAndSubmit();
   await screen.findByText("Correct task");
@@ -660,7 +689,7 @@ it("replays uncertain original answers without attaching newly selected footage"
     return count === 1 ? { ok: false, status: 503, json: async () => ({ message: "Uncertain save" }) }
       : { ok: true, status: 201, json: async () => ({ captureUrl: "/capture-upload/tok.signed" }) };
   });
-  render(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Original task" } });
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin TX" } });
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "original@example.invalid" } });
@@ -679,7 +708,7 @@ it("replays uncertain original answers without attaching newly selected footage"
 
 it("isolates account drafts after an authenticated account switch", async () => {
   signedIn({ workspaceType: "site_operator" }, []);
-  const view = render(<SiteCaptureStart />);
+  const view = await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace/);
   fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Account A private task" } });
   account.user = { uid: "owner-2", email: "other@example.invalid", getIdToken: async () => "other-token" };
@@ -689,38 +718,38 @@ it("isolates account drafts after an authenticated account switch", async () => 
 });
 
 
-it("waits for auth resolution before reading a private anonymous draft", () => {
+it("waits for auth resolution before reading a private anonymous draft", async () => {
   window.localStorage.setItem("bp-site-capture-draft-v1:anonymous", JSON.stringify({
     version: 1, createdAt: Date.now(), requestId: "capture-1234567890123456", retryToken: "12345678901234567890123456789012ab",
     fields: {}, method: "phone", region: "us", saved: { status: "done", email: "qa@example.invalid", regionApproved: true,
       hasFootage: false, selfRecording: true, uploaded: "none", processingRetryAvailable: false, linkOnlyNote: null, uploadMessage: null, captureUrl: "/capture-upload/private-synthetic", workspaceUrl: null },
   }));
   account.loading = true;
-  render(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   expect(screen.getByRole("status")).toHaveTextContent("Loading your account");
   expect(screen.queryByRole("link", { name: "Review your job brief" })).not.toBeInTheDocument();
   expect(fetchMock).not.toHaveBeenCalled();
 });
 
 
-it("recomputes an inferred country after restoring and editing a draft", () => {
-  const first = render(<SiteCaptureStart />);
+it("recomputes an inferred country after restoring and editing a draft", async () => {
+  const first = await renderReady(<SiteCaptureStart />);
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin TX" } });
   first.unmount();
-  render(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   expect(screen.getByText(/Country: United States/)).toBeInTheDocument();
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Berlin, Germany" } });
   expect(screen.getByText(/Country: Outside the United States/)).toBeInTheDocument();
 });
 
 
-it("restores all anonymous required fields before the first create attempt", () => {
-  const first = render(<SiteCaptureStart />);
+it("restores all anonymous required fields before the first create attempt", async () => {
+  const first = await renderReady(<SiteCaptureStart />);
   for (const [id, value] of [["start-task", "Move sealed cartons"], ["start-location", "Austin TX"], ["start-email", "qa@example.invalid"], ["start-company", "Owned QA"]]) {
     fireEvent.change(document.querySelector(`#${id}`)!, { target: { value } });
   }
   first.unmount();
-  render(<SiteCaptureStart />);
+  await renderReady(<SiteCaptureStart />);
   for (const [id, value] of [["start-task", "Move sealed cartons"], ["start-location", "Austin TX"], ["start-email", "qa@example.invalid"], ["start-company", "Owned QA"]]) {
     expect(document.querySelector<HTMLInputElement>(`#${id}`)!.value).toBe(value);
   }
@@ -733,11 +762,11 @@ it("A-R-033 v2 a pre-mounted tab replays the same uncertain request despite edit
       ? { ok: false, status: 503, json: async () => ({ message: "Uncertain save" }) }
       : { ok: true, status: 201, json: async () => ({ captureUrl: "/capture-upload/tok.signed" }) };
   });
-  const first = render(<SiteCaptureStart />);
+  const first = await renderReady(<SiteCaptureStart />);
   for (const [id, value] of [["start-task", "Original task"], ["start-location", "Austin TX"], ["start-email", "qa@example.invalid"], ["start-company", "Owned QA"]]) {
     fireEvent.change(first.container.querySelector(`#${id}`)!, { target: { value } });
   }
-  const second = render(<SiteCaptureStart />);
+  const second = await renderReady(<SiteCaptureStart />);
   fireEvent.change(second.container.querySelector("#start-task")!, { target: { value: "Other task in stale tab" } });
   fireEvent.submit(first.container.querySelector("form")!);
   await screen.findByText("Uncertain save");
