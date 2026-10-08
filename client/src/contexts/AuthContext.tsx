@@ -5,7 +5,7 @@ import type { IdTokenResult, User as FirebaseUser } from "firebase/auth";
 import type { UserData } from "@/lib/firebase";
 import { resolveOperatorQaAuth } from "@/lib/operatorQaAuth";
 import { onFirebaseClientLoaded } from "@/lib/firebaseLoadSignal";
-import { clearSiteCaptureDraft, siteCaptureDraftKey } from "@/lib/siteCaptureDraft";
+import { clearSiteCaptureRecoveryForAccount } from "@/lib/siteCaptureDraft";
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -238,7 +238,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     const next = currentUser?.uid || null;
     const previous = previousDraftAccount.current;
-    if (previous && previous !== next) clearSiteCaptureDraft(siteCaptureDraftKey(previous));
+    if (previous && previous !== next) {
+      void clearSiteCaptureRecoveryForAccount(previous).then((cleared) => {
+        if (!cleared) console.warn("Saved recovery details for the previous account could not be cleared.");
+      }).catch(() => {
+        console.warn("Saved recovery details for the previous account could not be cleared.");
+      });
+    }
     previousDraftAccount.current = next;
   }, [currentUser?.uid]);
   const [userData, setUserData] = React.useState<UserData | null>(
@@ -702,12 +708,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const firebase = await loadFirebaseClientModule();
-      await firebase.logOut();
-      if (currentUser?.uid) clearSiteCaptureDraft(siteCaptureDraftKey(currentUser.uid));
+      const leavingAccount = currentUser?.uid ?? null;
+      // Explicit logout owns this cleanup; the SDK's null callback must not
+      // duplicate it. Storage availability must never prevent signout.
+      previousDraftAccount.current = null;
+      try {
+        await firebase.logOut();
+      } catch (error) {
+        previousDraftAccount.current = leavingAccount;
+        throw error;
+      }
       setCurrentUser(null);
       setUserData(null);
       setTokenClaims(null);
+      if (leavingAccount) {
+        const cleared = await clearSiteCaptureRecoveryForAccount(leavingAccount).catch(() => false);
+        if (!cleared) {
+          throw Object.assign(new Error(
+            "Signed out, but saved recovery details could not be cleared. Clear this browser's Blueprint site data.",
+          ), { code: "auth/recovery-cleanup-incomplete" });
+        }
+      }
     } catch (error: any) {
+      if (error?.code === "auth/recovery-cleanup-incomplete") throw error;
       console.error("Logout error:", {
         code: error.code,
         message: error.message,
