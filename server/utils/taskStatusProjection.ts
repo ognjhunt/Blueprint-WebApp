@@ -224,10 +224,10 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "call_needed",
       headline:
-        "Some operating details still affect the assessment. Review the specific open questions below; facts you cannot establish can remain unknown.",
+        "Some operating details still affect the assessment. Review the specific open questions in your job details; facts you cannot establish can remain unknown.",
       operatorAction: input.bookingUrl
         ? `You can discuss the remaining questions here: ${input.bookingUrl}`
-        : "Answer the consequential open questions below.",
+        : "Answer the consequential questions in your job details.",
     };
   }
 
