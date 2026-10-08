@@ -18,7 +18,12 @@ afterAll(() => {
   const output = process.env.RELIABILITY_C_SDK_OUTPUT;
   if (!output) return;
   writeFileSync(`${output}/results.json`, JSON.stringify({
-    schema: "blueprint.judgment-sdk-supplement.v1", codeSha,
+    schema: "blueprint.judgment-sdk-supplement.v2", codeSha,
+    admissionAssertionVersion: "published-applicability.v2",
+    expectationCorrections: cases.filter(row => row.family === "stale_specifications").map(row => ({
+      caseId: row.caseId, originalStructuralExpectation: row.structuralExpectation, originalTruthLabelStatus: row.labelStatus,
+      baselineSDKAdmission: "accept", candidateSDKAdmission: "reject", candidateError: "assessment_published_source_not_current",
+      reason: "Explicit published-source applicability applies recursively; PROVISIONAL sentence truth and source relationships remain unchanged." })),
     runtimeSourceSha256: createHash("sha256").update(readFileSync(new URL("../agents/site-assessment.ts", import.meta.url))).digest("hex"),
     fixtureSha256: createHash("sha256").update(readFileSync(new URL("./fixtures/site-assessment-mutations.ts", import.meta.url))).digest("hex"),
     labelVersion: "judgment-rubric.v1", labelStatus: "PROVISIONAL", truthLabelsChanged: false,
@@ -29,6 +34,9 @@ afterAll(() => {
     structuralPassed: new Set(results.filter(row => row.status === "passed").map(row => row.caseId)).size,
     structuralFailed: new Set(results.filter(row => row.status === "failed").map(row => row.caseId)).size,
     semanticPartial: new Set(results.filter(row => row.status === "partial").map(row => row.caseId)).size,
+    correctedApplicabilityControls: { attempted: 12,
+      passed: new Set(results.filter(row => row.family === "stale_specifications" && row.applicabilityAdmissionStatus === "passed").map(row => row.caseId)).size,
+      failed: new Set(results.filter(row => row.family === "stale_specifications" && row.applicabilityAdmissionStatus === "failed").map(row => row.caseId)).size },
     skipped: 0, blocked: 0, invocationCount: results.length,
     actualInputUnique: new Set(results.map(row => row.actualInputHash)).size,
     acceptedPackets: results.filter(row => row.actual === "accept").length,
@@ -115,11 +123,14 @@ describe("unchanged provisional semantic cases through scripted SDK tool loop", 
       const status = c.semanticOnly ? "partial" : actual === c.structuralExpectation ? "passed" : "failed";
       results.push({ caseId: c.caseId, semanticHash: c.semanticHash, actualInputHash, sourceId: c.sourceId, split: c.split,
         family: c.family, expectedRelationship: p.expectedRelationship, structuralExpectation: c.structuralExpectation,
-        labelStatus: c.labelStatus, status, actual, error, repeat, latencyMs: performance.now() - start,
+        labelStatus: c.labelStatus, status, actual, error, repeat,
+        applicabilityAdmissionStatus: c.family === "stale_specifications" ? error === "assessment_published_source_not_current" ? "passed" : "failed" : "not_applicable",
+        latencyMs: performance.now() - start,
         scriptedModelCalls: modelCalls, scriptedVideoCallbacks: videoCalls, scriptedHistoryCallbacks: historyCalls,
         sourcesAndToolReceipts: instance.evidence(), scriptedProviderOutputs: providerOutputs, packet,
         interpretation: c.semanticOnly ? "SDK admission executed; semantic relationship remains unscored; no accuracy denominator" : "SDK source-admission regression; no model or video quality proof" });
       if (!c.semanticOnly) expect(actual).toBe(c.structuralExpectation);
+      if (c.family === "stale_specifications") expect(error).toBe("assessment_published_source_not_current");
     }
   });
 });
