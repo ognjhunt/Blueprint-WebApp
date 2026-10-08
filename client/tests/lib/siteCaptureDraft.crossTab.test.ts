@@ -1,5 +1,26 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+// Explicit unit contract fake: native strict IndexedDB execution is a separate layer.
+const durability = vi.hoisted(() => ({ rows: new Map<string, { value: any; retired: boolean }>() }));
+vi.mock("@/lib/siteCaptureDurability", () => ({
+  readDurableSiteCaptureRecovery: async (key: string) => {
+    const row = durability.rows.get(key);
+    return row ? JSON.parse(JSON.stringify(row)) : null;
+  },
+  writeDurableSiteCaptureRecovery: async (key: string, value: any, replaceIdentity = false) => {
+    const current = durability.rows.get(key);
+    if (!replaceIdentity && current && (current.retired || current.value?.requestId !== value.requestId
+      || current.value?.retryToken !== value.retryToken)) throw new Error("Fixture durability transaction aborted");
+    const { task, location, email, company, method, region, regionManuallySet } = value.draft;
+    durability.rows.set(key, { retired: false, value: {
+      version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
+      draft: { task, location, email, company, method, region, regionManuallySet },
+      pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
+    } });
+  },
+  retireDurableSiteCaptureRecovery: async (key: string) => { durability.rows.set(key, { value: null, retired: true }); },
+  durableSiteCaptureRecoveryKeys: async () => [...durability.rows.keys()],
+}));
 import { newSiteCaptureRecovery, readSiteCaptureRecovery, writeSiteCaptureRecovery, siteCaptureDraftKey, freezeSiteCaptureRecovery, forgetSiteCaptureRecovery } from "@/lib/siteCaptureDraft";
 const key = siteCaptureDraftKey(null, "default");
 function frozen() {
@@ -9,6 +30,7 @@ function frozen() {
   return value;
 }
 beforeEach(() => {
+  durability.rows.clear();
   localStorage.clear();
   const queues=new Map<string,Promise<unknown>>();
   vi.stubGlobal("navigator",{locks:{request:async(name:string, action:()=>unknown)=>{
@@ -88,4 +110,17 @@ it("CROSS-TAB-016 retired pending authority cannot freeze under the fresh cleare
   const fresh=newSiteCaptureRecovery();writeSiteCaptureRecovery(key,fresh);
   await expect(freezeSiteCaptureRecovery(key,old)).rejects.toThrow("changed in another tab");
   expect(readSiteCaptureRecovery(key)).toEqual(fresh);
+});
+it("DURABILITY-VALIDATION-001 invalid frozen body preserves exact prior recovery bytes", async () => {
+  const helper = await import("@/lib/siteCaptureDraft");
+  const previous = frozen(); previous.pending = null;
+  await helper.writeSiteCaptureRecoveryDurably(key, previous);
+  const bytes = localStorage.getItem(key);
+  const invalid = { ...previous, pending: { endpoint: "/api/inbound-request" as const, acknowledged: false,
+    body: JSON.stringify({ requestId: previous.requestId, retryToken: previous.retryToken, buyerType: "site_operator",
+      taskStatement: "A different task", siteLocation: previous.draft.location, captureRegion: previous.draft.region }) } };
+  await expect(helper.writeSiteCaptureRecoveryDurably(key, invalid)).rejects.toThrow("could not be read");
+  expect(localStorage.getItem(key)).toBe(bytes);
+  expect(readSiteCaptureRecovery(key)).toEqual(previous);
+  expect(durability.rows.get(key)?.value).toEqual(previous);
 });

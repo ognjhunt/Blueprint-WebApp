@@ -175,7 +175,7 @@ export async function reviewCaptureCoverage(params: {
     }
     if (!output) {
     const result = await runAgentTask<CaptureCoverageInput, CaptureCoverageOutput>({
-      ...captureCoverageTask,
+      kind: captureCoverageTask.kind,
       session_key: `capture_coverage:${params.reviewId || params.captureId}`,
       metadata: { capture_id: params.captureId, review_id: params.reviewId || null, coverage_claim_token: params.claimToken || null },
       input: {
@@ -184,7 +184,7 @@ export async function reviewCaptureCoverage(params: {
         taskSummary: brief.summary,
         requestedViews,
       },
-    } as never);
+    });
     output = (result?.output as CaptureCoverageOutput) ?? null;
     }
   } catch (error) {

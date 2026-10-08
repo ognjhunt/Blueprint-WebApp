@@ -1,5 +1,26 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+// Explicit unit contract fake: native strict IndexedDB execution is a separate layer.
+const durability = vi.hoisted(() => ({ rows: new Map<string, { value: any; retired: boolean }>() }));
+vi.mock("@/lib/siteCaptureDurability", () => ({
+  readDurableSiteCaptureRecovery: async (key: string) => {
+    const row = durability.rows.get(key);
+    return row ? JSON.parse(JSON.stringify(row)) : null;
+  },
+  writeDurableSiteCaptureRecovery: async (key: string, value: any, replaceIdentity = false) => {
+    const current = durability.rows.get(key);
+    if (!replaceIdentity && current && (current.retired || current.value?.requestId !== value.requestId
+      || current.value?.retryToken !== value.retryToken)) throw new Error("Fixture durability transaction aborted");
+    const { task, location, email, company, method, region, regionManuallySet } = value.draft;
+    durability.rows.set(key, { retired: false, value: {
+      version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
+      draft: { task, location, email, company, method, region, regionManuallySet },
+      pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
+    } });
+  },
+  retireDurableSiteCaptureRecovery: async (key: string) => { durability.rows.set(key, { value: null, retired: true }); },
+  durableSiteCaptureRecoveryKeys: async () => [...durability.rows.keys()],
+}));
 import catalog from "../../../docs/reliability/2026-10-07/program-intake.json";
 import { newSiteCaptureRecovery, readSiteCaptureRecovery, writeSiteCaptureRecovery, forgetSiteCaptureRecovery,
   siteCaptureDraftKey, SITE_CAPTURE_DRAFT_TTL_MS, type SiteCaptureRecovery } from "@/lib/siteCaptureDraft";
@@ -16,7 +37,7 @@ function pending(value: SiteCaptureRecovery) {
 function changeBody(value: SiteCaptureRecovery, property: string, replacement: unknown) {
   const body = JSON.parse(value.pending!.body); body[property] = replacement; value.pending!.body = JSON.stringify(body);
 }
-beforeEach(() => { localStorage.clear(); vi.spyOn(Date, "now").mockReturnValue(fixedTime); });
+beforeEach(() => { durability.rows.clear(); localStorage.clear(); vi.spyOn(Date, "now").mockReturnValue(fixedTime); });
 afterEach(() => { vi.restoreAllMocks(); });
 for (const item of catalog.cases.filter(item => item.layer === "local-storage-helper")) {
   it(`${item.id}: ${item.meaningful_condition}`, () => {

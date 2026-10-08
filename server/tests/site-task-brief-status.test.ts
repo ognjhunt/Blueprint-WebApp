@@ -167,7 +167,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
     expect(await response.json()).toMatchObject({ captureReceived: true,
       processingHold: { code: "capture_processing_not_authorized" },
-      status: { headline: "Your video is saved. Processing is on hold until its existing consent can be verified.", operatorAction: null } });
+      status: { headline: "Your video is saved. Recording consent was withdrawn. Capture-derived review and the scene preview are unavailable.", operatorAction: null } });
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(storage.write).not.toHaveBeenCalled();
     expect(deliverOutbox).not.toHaveBeenCalled();
@@ -195,7 +195,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
     expect(await response.json()).toMatchObject({ captureReceived: true, uploadState: "processing_ready",
       processingHold: { code: "capture_processing_not_authorized" },
-      status: { headline: "Your video is saved. Processing is on hold until its existing consent can be verified.", operatorAction: null } });
+      status: { headline: "Your video is saved. Recording consent was withdrawn. Capture-derived review and the scene preview are unavailable.", operatorAction: null } });
     expect(storage.write).not.toHaveBeenCalled();
     expect(deliverOutbox).not.toHaveBeenCalled();
   });
@@ -381,6 +381,22 @@ describe("GET /api/site-task-brief/:token/status", () => {
 
     expect(body.status.decision).toBe("screening");
     expect(body.claimUrl ?? null).toBeNull();
+  });
+
+  it("withholds a derived scene preview after recording consent is withdrawn", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
+      world_reconstruction: { state: "ready", assets: { launchUrl: "https://viewer.example/withdrawn" } },
+    });
+    const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, consent_revoked: true });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const { body } = await status();
+    expect(body.sceneViewUrl).toBeNull();
+    expect(body.status.headline).toMatch(/withdrawn/i);
+    expect(body.status.headline).not.toMatch(/preview is ready|preparing|screening|results are in/i);
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect(storage.write).not.toHaveBeenCalled();
+    expect(deliverOutbox).not.toHaveBeenCalled();
   });
 
   it("projects a persisted safe scene viewer only to the owner link", async () => {

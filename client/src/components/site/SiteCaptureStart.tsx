@@ -462,7 +462,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
         return;
       }
 
-      const acknowledgementSaved = await retain({ ...frozen.value, pending: { ...frozen.value.pending!, acknowledged: true } });
+      const acknowledgementSaved = await retain({ ...frozen.value, pending: { ...recovery.current.pending!, acknowledged: true } });
       if (!active.current) return;
       if (!acknowledgementSaved) {
         setState({status: "failed", message: "Your job may already be saved, but this browser could not retain its confirmation. Recover the same job here or use your emailed private link before sending the video."});

@@ -142,9 +142,12 @@ export async function writeSiteCaptureRecoveryDurably(key: string | null, value:
   const before = window.localStorage.getItem(key);
   if (!writeSiteCaptureRecovery(key, value, options)) return false;
   const written = window.localStorage.getItem(key);
-  const canonical = readSiteCaptureRecovery(key);
-  if (!canonical) throw new SiteCaptureRecoveryError("Saved recovery details could not be read.");
-  try { await writeDurableSiteCaptureRecovery(key, canonical, options.replaceIdentity); return true; }
+  try {
+    const canonical = readSiteCaptureRecovery(key);
+    if (!canonical) throw new SiteCaptureRecoveryError("Saved recovery details could not be read.");
+    await writeDurableSiteCaptureRecovery(key, canonical, options.replaceIdentity);
+    return true;
+  }
   catch (error) {
     // Roll back only this exact attempted write; never erase a later authority.
     if (window.localStorage.getItem(key) === written) {

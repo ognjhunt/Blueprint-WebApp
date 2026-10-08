@@ -16,7 +16,7 @@ const scenarios = [
   { id: "V2-empty-knowledge-published-reach", mode: "empty_knowledge", steps: ["search", "fetch"], expectedError: "assessment_knowledge_content_required", semanticOnly: false },
   { id: "V2-corrected-knowledge-current-spec", mode: "stale_knowledge", steps: ["search", "fetch"], expectedError: null, semanticOnly: true },
   { id: "V2-conflicting-owner-spec-video", mode: "conflict", steps: ["video", "search", "fetch"], expectedError: null, semanticOnly: true },
-  { id: "V2-invented-video-measurement", mode: "measurement", steps: ["video"], expectedError: null, semanticOnly: true },
+  { id: "V2-invented-video-measurement", mode: "measurement", steps: ["video"], expectedError: "assessment_measured_source_required", semanticOnly: false },
   { id: "V2-empty-search-unknown-exclusion", mode: "empty_exclusion", steps: ["search", "registry"], expectedError: "assessment_exclusion_evidence_required", semanticOnly: false },
   { id: "V2-unknown-registry-exclusion", mode: "unknown_exclusion", steps: ["registry"], expectedError: "assessment_exclusion_evidence_required", semanticOnly: false },
   { id: "V2-no-reasons-exclusion", mode: "no_reasons", steps: ["registry"], expectedError: "assessment_exclusion_evidence_required", semanticOnly: false },
@@ -35,6 +35,11 @@ const scenarios = [
   { id: "V5-malformed-object-capability", mode: "object_capability", steps: ["registry"], expectedError: "assessment_registry_source_basis_required", semanticOnly: false },
   { id: "V5-malformed-array-capability", mode: "array_capability", steps: ["registry"], expectedError: "assessment_registry_source_basis_required", semanticOnly: false },
   { id: "V5-malformed-boolean-capability", mode: "boolean_capability", steps: ["registry"], expectedError: "assessment_registry_source_basis_required", semanticOnly: false },
+  { id: "V8-operator-measurement-basis", mode: "operator_measured", steps: [], expectedError: "assessment_measured_source_required", semanticOnly: false },
+  { id: "V8-owner-stated-measurement-control", mode: "operator_stated_control", steps: [], expectedError: null, semanticOnly: false },
+  { id: "V8-observed-timing-control", mode: "timing_control", steps: ["video"], expectedError: null, semanticOnly: false },
+  { id: "V8-observed-ruler-control", mode: "ruler_control", steps: ["video"], expectedError: null, semanticOnly: false },
+  { id: "V8-estimated-dimension-control", mode: "dimension_estimate_control", steps: ["video"], expectedError: null, semanticOnly: false },
 ];
 const codeSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const results: Array<Record<string, unknown>> = [];
@@ -49,7 +54,7 @@ afterAll(() => {
   const output = process.env.RELIABILITY_C_V2_OUTPUT;
   if (output) writeFileSync(`${output}/${process.env.RELIABILITY_C_V2_RUN ?? "results"}.json`, JSON.stringify({ codeSha,
     sourceCodeSha256: createHash("sha256").update(readFileSync(new URL("../agents/site-assessment.ts", import.meta.url))).digest("hex"),
-    labelVersion: "C-semantic-sdk.v5", labelStatus: "PROVISIONAL synthetic fixture expectations; v2 expectations amended explicitly in C/v5 manifest", layer: "actual_SDK_runner_tool_loop_no_storage",
+    labelVersion: "C-semantic-sdk.v8", labelStatus: "PROVISIONAL synthetic fixture expectations; v2 expectations amended explicitly in C/v5 and C/v8 manifests", layer: "actual_SDK_runner_tool_loop_no_storage",
     providerMode: "scripted_model_and_video_callbacks", liveProviderCalls: 0, knownCostUsd: 0,
     publicationMeaning: "Actual Runner finalOutput parsed and accepted into portable assessment packet; no adapter/database/customer publication executed",
     results }, null, 2) + "\n");
@@ -90,6 +95,10 @@ describe("actual SDK source-primitive semantic diagnostics", () => {
           if (["empty_knowledge", "empty_search", "stale_knowledge"].includes(mode)) assessment.known = [{ text: mode === "stale_knowledge" ? "The robot currently has a 2 m reach" : "The robot has a published 50 m reach", basis: "published", evidence: [knowledgeRef] }];
           if (mode === "conflict") assessment.job = [{ text: "The bin stacking task visibly completed successfully", basis: "observed", evidence: [{ source_id: videoSource, at_seconds: 8 }] }];
           if (mode === "measurement") assessment.known = [{ text: "The bin mass is measured at 12 kg", basis: "measured", evidence: [{ source_id: videoSource, at_seconds: 8 }] }];
+          if (["operator_measured", "operator_stated_control"].includes(mode)) assessment.known = [{ text: "The owner reports measuring a 12 kg mass; this has not been independently verified", basis: mode === "operator_measured" ? "measured" : "operator_stated", evidence: [{ source_id: "operator:fixture-message", at_seconds: null }] }];
+          if (mode === "timing_control") assessment.job = [{ text: "The bin is visibly moving during the observed 8 to 12 second interval", basis: "observed", evidence: [{ source_id: videoSource, at_seconds: 8 }] }];
+          if (mode === "ruler_control") assessment.known = [{ text: "A ruler is visible beside the bin; calibration and a metric measurement remain unknown", basis: "observed", evidence: [{ source_id: videoSource, at_seconds: 8 }] }];
+          if (mode === "dimension_estimate_control") assessment.estimates = [{ text: "The bin may span about 1.3 m; no calibrated dimensions are available", basis: "estimate", evidence: [{ source_id: videoSource, at_seconds: 8 }] }];
           if (["empty_exclusion", "unknown_exclusion", "no_reasons"].includes(mode)) assessment.approaches = [{ approach: "Any robot", disposition: "excluded",
             reasons: mode === "no_reasons" ? [] : [{ text: "No robot can perform this job because capability is unknown", basis: "unknown", evidence: mode === "unknown_exclusion" ? [registryRef] : [] }], remaining_checks: [] }];
           if (mode === "estimate_control") assessment.approaches = [{ approach: "Direct reach with the current fixture", disposition: "excluded",
@@ -110,14 +119,15 @@ describe("actual SDK source-primitive semantic diagnostics", () => {
       async *getStreamedResponse() { throw new Error("streaming_not_used"); },
     };
     const instance = await createSiteAssessmentAgent({ request_id: "fixture-request", operator_messages: [{ id: "fixture-message",
-      text: "Owner: the task is bin stacking; stacking is absent from the clip. A separate task may require 2 m reach, not verified by a measurement receipt.", source_ref: "synthetic/operator" }],
+      text: ["operator_measured", "operator_stated_control"].includes(mode) ? "Owner: I measured the bin mass at 12 kg; no calibration or measurement receipt is supplied."
+        : "Owner: the task is bin stacking; stacking is absent from the clip. A separate task may require 2 m reach, not verified by a measurement receipt.", source_ref: "synthetic/operator" }],
       video: { source_id: "fixture-video", source_ref: "synthetic/video-no-bytes", url: "https://example.invalid/not-fetched", sha256: "b".repeat(64), duration_seconds: 30 },
       site_requirement: { spec: { payloadWeight: "ten_to_twentyfive" }, serviceArea: null, location: { label: null, city: null, state: null, country: null }, taskFamily: null } },
     { model, history_access: { principalId: "fixture-owner", expiresAt: "2099-01-01T00:00:00Z" }, authorize_model_call: async () => { modelCalls++; },
       read_robot_teams: async () => ["empty_exclusion", "no_reasons"].includes(mode) ? [] : [team],
       history_tool: async name => name === "search_company_history" ? { ok: true, rows: ["empty_search", "empty_exclusion", "manual_control"].includes(mode) ? [] : [{ record_id: "fixture-spec" }], next_cursor: null, coverage: ["bounded synthetic corpus; not robot universe"] }
         : mode === "empty_search" ? { ok: false, error: "company_history_record_missing_or_not_authorized" } : { ok: true, record },
-      analyze_video: async () => { videoCalls++; return { evidence: { summary: "Only bin movement is visible", observations: [{ category: "motion", finding: "Bin moves onto table", basis: "observed", start_seconds: 8, end_seconds: 12, uncertainty: "Stacking and measurement are not shown" }], not_observable: ["Bin stacking", "Bin mass", "Metric calibration", "Task completion"] }, receipt: { fixtureOnly: true, noVideoBytesRead: true } }; },
+      analyze_video: async () => { videoCalls++; return { evidence: { summary: "Only bin movement is visible", observations: [{ category: "motion", finding: mode === "ruler_control" ? "Bin moves beside a visible ruler; calibration is unknown" : "Bin moves onto table", basis: "observed", start_seconds: 8, end_seconds: 12, uncertainty: "Stacking and measurement are not shown" }], not_observable: ["Bin stacking", "Bin mass", "Metric calibration", "Task completion"] }, receipt: { fixtureOnly: true, noVideoBytesRead: true } }; },
     });
     const start = performance.now();
     let error: string | null = null, packet: unknown = null;
