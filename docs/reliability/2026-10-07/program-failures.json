@@ -526,7 +526,7 @@
       "id": "CUSTOMER-PREVIEW-FAILURE-001",
       "severity": "P2",
       "owner": "existing_dishwasher_task;coordinator_release",
-      "state": "independently_reviewed_PR945_required_CI_running",
+      "state": "independently_reviewed_merged_main_CI_running;deployment_unverified",
       "invariant": "Customer status reflects persisted preparation results without falsely promising ongoing work.",
       "baseline_sha": "d78b73f7661593fd12fd63ae9fbcfc3a739f6219",
       "reproducer": "Two actual HTTP handlers with disposable database/object/notification fakes: confirmed covered request + current world_reconstruction.state failed returns ongoing assessing copy.",
@@ -541,9 +541,10 @@
       "independent_review_receipt_sha256": "132ec3dd33745aa4afe3e70585657e9049a16506417bfcbd4c943f10c42db253",
       "reviewed_code_test_diff_sha256": "8a13360faa3d1275ced22c72004d0f3bc5cc25e08fff7d6e807526d748467155",
       "required_CI_run": 37773679243,
-      "merged_sha": null,
+      "merged_sha": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
       "deployed_sha": null,
-      "scope_limit": "Existing persisted preview failures only. Normal Pipeline website visual-scene callback publishes ready only; blocked-state delivery/final robot result not repaired or proven by this slice. No live failed customer record asserted, no new unique coverage credit."
+      "scope_limit": "Existing persisted preview failures only. Normal Pipeline website visual-scene callback publishes ready only; blocked-state delivery/final robot result not repaired or proven by this slice. No live failed customer record asserted, no new unique coverage credit.",
+      "independent_identity_review": "4ccb1480"
     }
   ],
   "dependencies": [
