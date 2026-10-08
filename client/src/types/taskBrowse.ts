@@ -1,5 +1,7 @@
+import type { ListingTargeting } from "./updatePreferences";
 /** Public fields approved by the site owner, never copied from private intake. */
 export interface TaskListingDetails {
+  targeting?: ListingTargeting;
   title: string;
   taskFamily: string;
   siteType: string;

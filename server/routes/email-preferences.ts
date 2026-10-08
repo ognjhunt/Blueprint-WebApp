@@ -10,7 +10,7 @@ const router = Router();
 
 function normalizeScope(value: unknown): EmailSuppressionScope {
   const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-  if (normalized === "all" || normalized === "growth_campaign" || normalized === "lifecycle") {
+  if (normalized === "all" || normalized === "growth_campaign" || normalized === "lifecycle" || normalized === "optional_updates") {
     return normalized;
   }
   return "lifecycle";

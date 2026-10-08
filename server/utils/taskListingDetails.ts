@@ -1,8 +1,10 @@
+import { listingTargetingSchema } from "../../client/src/types/updatePreferences";
 import { z } from "zod";
 import type { TaskListingDetails } from "../../client/src/types/taskBrowse";
 
 export const listingConsentVersion = "public-task-card-v1";
 export const taskListingSchema = z.object({
+  targeting: listingTargetingSchema.optional(),
   title: z.string().trim().min(8).max(160),
   taskFamily: z.string().trim().min(2).max(60),
   siteType: z.string().trim().max(80),

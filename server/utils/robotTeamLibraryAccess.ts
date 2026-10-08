@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 
 import { authAdmin } from "../../client/src/lib/firebaseAdmin";
+import { bindVerifiedPreferenceAccount } from "./updatePreferences";
 import { logger } from "../logger";
 import { resolveAccessContext } from "./access-control";
 import { presentedAgentKey, resolveAgentKey } from "./robotTeamAgentKeys";
@@ -43,6 +44,7 @@ export async function libraryAccessForRequest(req: Request): Promise<LibraryAcce
       const decoded = await authAdmin.verifyIdToken(presented, true);
       // Same role resolution as the admin routes: token claims plus users/{uid}.
       const context = await resolveAccessContext({ locals: { firebaseUser: decoded } } as unknown as Response);
+      if (decoded.email_verified === true && decoded.email) await bindVerifiedPreferenceAccount(decoded.uid, decoded.email);
       return await resolveViewerAccess({
         email: typeof decoded.email === "string" ? decoded.email : null,
         emailVerified: decoded.email_verified === true,

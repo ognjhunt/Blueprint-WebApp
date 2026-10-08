@@ -45,7 +45,7 @@ export function accessReceivedEmail(
     : [
       "Thanks for applying. Blueprint is opening to a small group of robot teams first, and a person reads every application.",
       "",
-      "If there is a fit, we will email you here with how to create your account. From then on you will see the site jobs open to your team, and we email you whenever a site lists a new one.",
+      "If there is a fit, we will email you here with how to create your account. From then on you will see the site jobs open to your team, and can choose relevant new-job alerts in Settings.",
       "",
       "Nothing else is needed from you now. Reply to this email if you want to add anything.",
     ];
@@ -81,7 +81,7 @@ export function accessApprovedEmail(record: Pick<RobotTeamAccessRecord, "name" |
           : "If a call would help, say so in your reply and we will find a time.",
         "",
       ]),
-      "We email you whenever a site lists a new job.",
+      "Optional new-job alerts and Blueprint updates are controlled separately in Settings.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),
@@ -146,45 +146,23 @@ export function newTaskEmail(record: Pick<RobotTeamAccessRecord, "name">, card: 
       "See the card and start an evaluation run from the job library:",
       `${APP_URL()}/contact/robot-team`,
       "",
-      "You get one of these each time a site lists a job. Reply to stop them.",
+      "You chose relevant new-job alerts. Change your preferences in Settings or unsubscribe below.",
       "",
       EMAIL_SIGN_OFF,
     ].join("\n"),
   };
 }
 
-/**
- * Tell every approved team that a site listed a task, so nobody has to watch
- * the library or wait for a person to notice a match. Only the card's own
- * text goes out, which is what the site approved for these teams to see.
- */
-export async function enqueueNewTaskAlerts(params: {
-  requestId: string;
-  card: ListedCard;
-  /** When the card went live; one alert per team per time it is switched on. */
-  wentLiveIso: string;
-}): Promise<{ enqueued: number }> {
+/** Record fanout intent; the existing outbox worker owns bounded continuation. */
+export async function enqueueNewTaskAlerts(params: { requestId: string; card: ListedCard; wentLiveIso: string }): Promise<{ enqueued: number }> {
   if (!db) return { enqueued: 0 };
-  const snapshot = await db.collection(ROBOT_TEAM_ACCESS_COLLECTION).where("status", "==", "approved").limit(500).get();
-  let enqueued = 0;
-  for (const doc of snapshot.docs) {
-    const record = doc.data() as RobotTeamAccessRecord;
-    if (!record?.email) continue;
-    const message = newTaskEmail(record, params.card);
-    try {
-      const result = await enqueueOutbox({
-        idempotencyKey: `robot_team_new_task:${params.requestId}:${params.wentLiveIso}:${accessRecordId(record.email)}`,
-        requestId: `robot-team-access:${accessRecordId(record.email)}`,
-        kind: "robot_team_new_task",
-        to: record.email,
-        subject: message.subject,
-        body: message.body,
-        replyTo: "hello@tryblueprint.io",
-      });
-      if (result.enqueued) enqueued += 1;
-    } catch (error) {
-      logger.warn({ error, requestId: params.requestId }, "Could not queue a new-task alert");
-    }
-  }
-  return { enqueued };
+  const { newJobFanoutIntent } = await import("./newJobAlerts");
+  const ref = db.collection("inboundRequests").doc(params.requestId);
+  await db.runTransaction(async tx => {
+    const source = (await tx.get(ref)).data();
+    if (source?.public_task_listing?.wentLiveIso !== params.wentLiveIso
+      || source?.newJobAlertFanout?.eventId === params.wentLiveIso) return;
+    tx.update(ref, { newJobAlertFanout: newJobFanoutIntent(params.wentLiveIso) });
+  });
+  return { enqueued: 0 };
 }

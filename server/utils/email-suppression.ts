@@ -4,7 +4,8 @@ import { COMPANY_POSTAL_LINE } from "../../client/src/data/company.js";
 export type EmailSuppressionScope =
   | "all"
   | "lifecycle"
-  | "growth_campaign";
+  | "growth_campaign"
+  | "optional_updates";
 
 const SUPPRESSION_COLLECTION = "email_suppressions";
 const BLUEPRINT_MAILING_ADDRESS = COMPANY_POSTAL_LINE;
@@ -15,7 +16,7 @@ export function normalizeSuppressionEmail(value: unknown): string {
 
 function normalizeScope(value: unknown): EmailSuppressionScope {
   const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-  if (normalized === "all" || normalized === "growth_campaign" || normalized === "lifecycle") {
+  if (normalized === "all" || normalized === "growth_campaign" || normalized === "lifecycle" || normalized === "optional_updates") {
     return normalized;
   }
   return "lifecycle";

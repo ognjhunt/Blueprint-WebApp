@@ -1,3 +1,4 @@
+import { targetingDimensions } from "@/types/updatePreferences";
 /**
  * The brief we drafted, for the operator to correct — and the button that
  * turns their correction into an attestation.
@@ -454,7 +455,7 @@ export function TaskBriefReview(props: {
     );
   }
 
-  const listingField = (key: keyof TaskListingDetails, label: string, maxLength: number, placeholder?: string) => (
+  const listingField = (key: Exclude<keyof TaskListingDetails, "targeting">, label: string, maxLength: number, placeholder?: string) => (
     <label key={key} htmlFor={`listing-${key}`}>
       <span>{label}</span>
       <input
@@ -612,6 +613,24 @@ export function TaskBriefReview(props: {
               <label htmlFor="listing-pilot-conditions"><span>Pilot conditions</span><textarea id="listing-pilot-conditions" value={listing.pilotConditions ?? ""} maxLength={320} onChange={event => { setListing({ ...listing, pilotConditions: event.target.value }); setListingConsent(false); }} placeholder="For example: four weeks, including setup and provider support" /></label>
               {listingField("ongoingTarget", "Ongoing price target, if the pilot works (optional)", 80)}
               <p className="ms-field-hint">A posted price is a proposal, not a purchase approval. Teams can accept it, ask for changes, or decline after evaluation.</p>
+            </details>
+            <details><summary>Alert targeting and data terms (optional)</summary>
+              <p className="ms-field-hint">Exact comma-separated categories, reviewed as part of this public card. Leave unknown values blank. These terms do not grant access to private footage or verify robot performance.</p>
+              {(["categories", "requiredRecipient"] as const).map(group => <fieldset key={group}><legend>{group === "categories" ? "Job categories" : "Required team categories"}</legend>
+                {targetingDimensions.map(dimension => <label key={dimension}><span>{dimension}</span><input maxLength={2400} value={listing.targeting?.[group][dimension]?.join(", ") ?? ""} onChange={event => {
+                  const targeting = listing.targeting ?? { categories: {}, requiredRecipient: {} };
+                  setListing({ ...listing, targeting: { ...targeting, [group]: { ...targeting[group], [dimension]: event.target.value.split(",").map(v => v.trim()).filter(Boolean) } } }); setListingConsent(false);
+                }} /></label>)}
+              </fieldset>)}
+              <label><span>Data retention (days)</span><input type="number" min={0} max={36500} value={listing.targeting?.retentionDays ?? ""} onChange={event => {
+                const targeting = listing.targeting ?? { categories: {}, requiredRecipient: {} };
+                const { retentionDays: _days, ...rest } = targeting;
+                setListing({ ...listing, targeting: { ...rest, ...(event.target.value ? { retentionDays: Number(event.target.value) } : {}) } }); setListingConsent(false);
+              }} /></label>
+              <label><span>Use of data for training</span><select value={listing.targeting?.trainingUseAllowed === undefined ? "" : String(listing.targeting.trainingUseAllowed)} onChange={event => {
+                const { trainingUseAllowed: _training, ...rest } = listing.targeting ?? { categories: {}, requiredRecipient: {} };
+                setListing({ ...listing, targeting: { ...rest, ...(event.target.value ? { trainingUseAllowed: event.target.value === "true" } : {}) } }); setListingConsent(false);
+              }}><option value="">Unknown</option><option value="false">Not permitted</option><option value="true">Permitted by the applicable agreement</option></select></label>
             </details>
             <label htmlFor="listing-opportunity">
               <span>Pilot availability</span>

@@ -37,7 +37,7 @@ export function PublicTaskListing({ token }: { token: string }) {
     } catch { setState("error"); }
   }
   const previewThumbnail = thumbnailPng === undefined ? existingThumbnail : thumbnailPng;
-  const field = (key: keyof TaskListingDetails, label: string, maxLength: number, required = false) =>
+  const field = (key: Exclude<keyof TaskListingDetails, "targeting">, label: string, maxLength: number, required = false) =>
     <label key={key}>{label}<input value={details[key] ?? ""} maxLength={maxLength} minLength={key === "title" ? 8 : undefined} required={required}
       onChange={e => { setDetails({ ...details, [key]: e.target.value }); setConsent(false); setState("idle"); }} /></label>;
   return <details className="ms-task-interest"><summary>Share a job card with robot teams</summary>

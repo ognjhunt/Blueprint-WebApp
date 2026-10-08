@@ -1,3 +1,4 @@
+import { jobAlertIsCurrent, resumeNewJobFanout, type JobAlertContext } from "./newJobAlerts";
 import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpdateIsCurrent } from "./taskStatusUpdates";
 /**
  * Durable delivery for site lifecycle and evaluation notices once enqueued.
@@ -71,6 +72,7 @@ export interface OutboxEntry {
   replyTo?: string | null;
   /** Exact source/context event identity for preparation dispatch authority. */
   preparationEventId?: string;
+  jobAlert?: JobAlertContext;
   status: OutboxStatus;
   attempts: number;
   createdAtIso: string;
@@ -90,6 +92,7 @@ function messageDigest(entry: OutboxEntry): string {
   ];
   // Preserve the exact historical tuple for every existing retained lease.
   if (entry.preparationEventId !== undefined) fields.push(entry.preparationEventId);
+  if (entry.jobAlert !== undefined) fields.push(JSON.stringify(entry.jobAlert));
   return createHash("sha256").update(JSON.stringify(fields)).digest("hex");
 }
 
@@ -121,7 +124,7 @@ function nowIso() {
  * asking. Delivery retries use the same durable intent.
  */
 export type OutboxInput = Pick<OutboxEntry,
-  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo" | "preparationEventId">;
+  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo" | "preparationEventId" | "jobAlert">;
 
 /** Build a durable intent for an owning business transaction. This function
  * performs no I/O; callers create the row atomically with their state change. */
@@ -204,6 +207,8 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const { reconcileTaskEvaluationNotificationRetries } = await import("./taskEvaluationNotificationRetry");
     await reconcileTaskEvaluationNotificationRetries(db, limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile notification acknowledgements"); }
+  try { await resumeNewJobFanout(limit); }
+  catch (error) { logger.warn({ error }, "New-job fanout will resume on a later tick"); }
   await reconcileOutboxDeliveries(limit);
   const snapshot = await db
     .collection(CAPTURE_OUTBOX_COLLECTION)
@@ -244,7 +249,8 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
       // authority before the durable dispatch marker; in-flight receipts below
       // still describe the provider effect and are never recast as cancelled.
       const currentCaptureNotice = await taskLifecycleNotificationIsCurrent(entry, tx);
-      if (!currentNotice || !currentRecommendation || !currentCaptureNotice) {
+      const currentJobAlert = await jobAlertIsCurrent(entry, tx);
+      if (!currentNotice || !currentRecommendation || !currentCaptureNotice || !currentJobAlert) {
         tx.set(doc.ref, { status: "cancelled" }, { merge: true });
         return false;
       }

@@ -21,6 +21,7 @@ export interface EarlyAccessApplication {
   pilotPackage?: string;
   testSite?: string;
   acceptedTerms: true;
+  optionalUpdates?: boolean;
 }
 
 export class EarlyAccessApplicationError extends Error {}

@@ -18,7 +18,7 @@ function workspaceStep(role: "site_operator" | "robot_team" = "robot_team") {
   fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Test User" } });
   fireEvent.change(screen.getByLabelText("Organization", { exact: true }), { target: { value: "Test Team" } });
   fireEvent.click(screen.getByLabelText(role === "robot_team" ? "Assess site jobs for my robots" : "Plan a robot pilot for my site"));
-  fireEvent.click(screen.getByRole("checkbox"));
+  fireEvent.click(screen.getByRole("checkbox", { name: /I agree/ }));
 }
 beforeEach(() => {
   cleanup(); vi.clearAllMocks(); mocks.currentUser = null;
@@ -35,7 +35,14 @@ describe("minimal business signup", () => {
     expect(screen.getAllByRole("textbox")).toHaveLength(2);
     expect(screen.getAllByRole("radio")).toHaveLength(2);
     expect(screen.queryByText(/Requested lane|Proof path|Company size|Standardized benchmark|Commercialization boundary/)).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /Email me relevant/ })).not.toBeChecked();
     expect(mocks.create).not.toHaveBeenCalled();
+  });
+  it("saves optional updates only when explicitly checked", async () => {
+    render(<BusinessSignUpFlow />); accountStep(); workspaceStep();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Email me relevant/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
+    await waitFor(() => expect(mocks.request).toHaveBeenCalledWith(user, "/setup", "POST", expect.objectContaining({ optionalUpdates: true })));
   });
   for (const role of ["robot_team", "site_operator"] as const) {
     it(`creates only an account and ${role} workspace, without a sales intake or permissions grant`, async () => {
@@ -43,12 +50,12 @@ describe("minimal business signup", () => {
       fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
       await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith(role === "robot_team" ? "/contact/robot-team" : "/contact/site-operator"));
       expect(mocks.create).toHaveBeenCalledTimes(1);
-      expect(mocks.request).toHaveBeenCalledWith(user, "/setup", "POST", { name: "Test User", organization: "Test Team", workspaceType: role, acceptedTerms: true });
+      expect(mocks.request).toHaveBeenCalledWith(user, "/setup", "POST", { name: "Test User", organization: "Test Team", workspaceType: role, acceptedTerms: true, optionalUpdates: false });
       expect(mocks.request.mock.calls.every(call => call[1] === "/setup")).toBe(true);
     });
   }
   it("requires legal acceptance before creating credentials", () => {
-    render(<BusinessSignUpFlow />); accountStep(); workspaceStep(); fireEvent.click(screen.getByRole("checkbox"));
+    render(<BusinessSignUpFlow />); accountStep(); workspaceStep(); fireEvent.click(screen.getByRole("checkbox", { name: /I agree/ }));
     fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
     expect(screen.getByRole("alert")).toHaveTextContent("Accept the Terms");
     expect(mocks.create).not.toHaveBeenCalled();
@@ -68,7 +75,7 @@ describe("minimal business signup", () => {
   it("prefills Google identity and requires workspace details and consent", async () => {
     render(<BusinessSignUpFlow />); fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
     await waitFor(() => expect(screen.getByLabelText("Your name")).toHaveValue("Test User"));
-    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /I agree/ })).not.toBeChecked();
     expect(mocks.request.mock.calls.some(c => c[2] === "POST")).toBe(false);
     workspaceStep();fireEvent.click(screen.getByRole("button", { name: "Open workspace" }));
     await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/robot-team"));
