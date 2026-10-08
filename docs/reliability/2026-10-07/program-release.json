@@ -1471,7 +1471,7 @@
     "claim_ceiling": "Exact source/paired native deployment and safe health/local-draft/clear UI. Does not establish a successful provider assessment."
   },
   "technical_expiry_followup": {
-    "state": "reviewed_protected_merged_paired_nativeLIVE_18safechecks;soleowner_clearance_sent_actualexecution_pending",
+    "state": "reviewed_deployed_boundedgrant_and_normalUI_retry_executed;liveassessmentevaluation_blocked_by_provider401",
     "expired_dispatch": "forbidden",
     "original_expiry_and_authority_digest": "preserved;changing_originalexpiry wouldbreakreceiptaccounting",
     "original_slots_cap_unknown_history": "unchanged",
@@ -1484,7 +1484,7 @@
     "author_receipt_sha256": "96d70f738e09e273cd0544fdc603eaee49991456b62ab1aa4d864ec46c8f0280",
     "integration_receipt_sha256": "fa07c68d31c577f49c64e08139899fee3947fdc6af772863b53c5394aa5fd31d",
     "operator_provenance_export_sha256": "14ea3b7ac29d44d9d4712312ec24124de4474a02dace72ce3627abcaa882d408",
-    "claim_ceiling": "Exactpairedrelease/safeUI and approvedexplicitcaller only; no actualgrant/provider/modelquality/customerreport result established.",
+    "claim_ceiling": "RealnormalUI/durablejob/worker/authenticationfailure/customerfailurestatus executed. Gemini perception and completed assessment notproven; originaldiscardedexception cause remainsunknown.",
     "merge_sha": "ae883831d7876da6632654b75026128dd6aa8450",
     "merged_at_utc": "2026-10-08T17:51:17Z",
     "required_PR_CI_conclusion": "success",
@@ -1502,15 +1502,22 @@
     "prepared_caller_sha256": "a01900809f8b28e7f4fa6b4c14d2007c31090a4651d385b965897bf10d3b64d4",
     "prepared_effective_window": "fixed90minutes;notregenerated",
     "actual_grant": "solecanonicaltechnicalreceipt_written_once;9unchangedreadbacks_verified",
-    "paid_execution": "soleowner_normalUI_retry_now_starting;actualproviderresult_not_yet_proven",
-    "paired_release_pin": "ae_pinned_until_soleowner_terminal_or_unknown_result",
+    "paid_execution": "actualownerUI_once;newrunfailed_OpenAI_AuthenticationError401invalid_api_key_beforetools_Gemini",
+    "paired_release_pin": "lifted_after_actualterminal/noinflightreceipt",
     "actual_grant_receipt_sha256": "f6d5b183ac6e3f714a334b083a725f12b28c3e144732cb4b6d44e3fabfa93710",
     "actual_caller_v2_sha256": "3761ee9a4b887800e9e56df97f6ab7ff23068db9292cab857939b01e9eb05d96",
     "actual_caller_v2_review_sha256": "8fa49a0ed72cb637e04c26c120b8ee5419421f86cc50501e01d42610d61037a3",
     "grant_provider_calls": 0,
     "unrelated_cloud_writes": 0,
     "first_caller_failure_sha256": "0f5f0574fa7d03a550a64adf7d95097cc58a8c6cb921b874fb6ea7f5b3ece349",
-    "local_loader_diagnostic_sha256": "8aee28844e7986717fa0d020f0fad4f2d554d713ce6a31fbb17343974c2fbd5e"
+    "local_loader_diagnostic_sha256": "8aee28844e7986717fa0d020f0fad4f2d554d713ce6a31fbb17343974c2fbd5e",
+    "paid_retry_receipt_sha256": "6ec6a02c79b33982d06824c0e3b5d4541884e37f55d4bd8a24218d2b8532fb0e",
+    "new_model_response_or_usage": "none_returned;charge_unknown_notzero",
+    "actual_capture_calls": 2,
+    "actual_capture_exposure_usd": 0.66384,
+    "remaining_held": "oneSol_and_oneGemini;no_furtherpaid_dispatch",
+    "aggregate_reserved_micro_usd": 4964928,
+    "customer_outcome": "video_saved;needs_review;no_completed_assessment"
   },
   "historical_shared_1364_release": {
     "sha": "1364d24e489571bc971dbc247df5fa9e2ae7d0ac",
@@ -1530,10 +1537,26 @@
     "independent_review": "1c188766",
     "required_PR_CI": 37821069092,
     "required_PR_CI_conclusion": "success",
-    "state": "reviewed_dormant_source_codecomplete;merge_held_during_pinnedae_owner_operation",
+    "state": "protected_merged;latestcontainingmain783_CI_pending;no_activation",
     "minimized_baseline": "triplemutatedlimit11vsretained10digest accepted",
     "retest": "sameunchangedcounterexample nowrefused;3compatibilityneighborspass",
     "independent_receipt_sha256": "73e4a97140b82a4bae87e2c2cd35fc33627745e12a6c4c8e2eec92bdac66ad7e",
-    "claim_ceiling": "Dormant prospective binding/retainedexposure only; no limitselected/hardinvoiceguarantee/customercampaign/provider/Gmail activation"
+    "claim_ceiling": "Dormant prospective binding/retainedexposure only; no limitselected/hardinvoiceguarantee/customercampaign/provider/Gmail activation",
+    "merge_sha": "867afe6dff814f792a43d5e188adfeec4657f1b2",
+    "merged_at_utc": "2026-10-08T18:14:40Z",
+    "main_CI": 37822769087
+  },
+  "CI_fixture_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/960",
+    "reviewed_head": "f39c18246f210ad64946d54f87516415ede218cd",
+    "independent_review": "1a02a6cc",
+    "required_PR_CI": 37809181713,
+    "required_PR_CI_conclusion": "success_9applicablejobs",
+    "merge_sha": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+    "merged_at_utc": "2026-10-08T18:15:24Z",
+    "main_CI": 37822867694,
+    "state": "protected_merged;latestmainCI_pending;notdeployed",
+    "fixture": "Gitowned_synthetic2secondH264_13037bytes_60frames;byteidenticalregeneration",
+    "claim_ceiling": "Removed22minaptsetup;assertionskept/missingfixturefail. No realvideo_reference_or_originalcase_credit_or_controlled_performanceclaim."
   }
 }

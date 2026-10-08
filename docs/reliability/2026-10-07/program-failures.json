@@ -630,7 +630,7 @@
       "id": "SDK-LIVE-FIRST-STEP-20261008",
       "severity": "P1 affected assessment journey; underlying failure cause unresolved",
       "owner": "existing dishwasher owner: runtime diagnosis and recovery; queue_recovery: safe adapter diagnostics; root: review/release",
-      "state": "actual_original_live_failed;diagnostics_schema_recovery_released;technical_continuation_PR_CI_active;no_live_retry",
+      "state": "originalexception_unknown;reviewed_repairs_deployed;actualnormalretry_failed_known_provider401",
       "invariant": "Failures remain inspectable with safe correlation and honest provider uncertainty; upload success cannot imply assessment completion.",
       "root_cause": "Original live exception remains unknown because the catch discarded it. Separately demonstrated: installedSDK0.3.9 serialized optional nullable citation selector into unsupported strict-output not:{}, which the scripted Model tests bypassed. Capturing a request at the client boundary does not validate provider schema acceptance.",
       "before": {
@@ -663,7 +663,19 @@
         "Original provider acceptance/charge unknown, full reservation retained",
         "No actual new Gemini admission or useful customer assessment yet",
         "Review/source/CI and simulated providers are not video-perception evidence"
-      ]
+      ],
+      "latest_actual_recovery": {
+        "release_sha": "ae883831d7876da6632654b75026128dd6aa8450",
+        "grant": "onecanonicalreceipt_9unchangedchecks",
+        "customer_UI": "ordinaryvisibleRetry_once;no_reupload",
+        "persisted_run": "failed",
+        "safe_exception": "AuthenticationError401invalid_api_key",
+        "Gemini": "no_tool_or_Gemini_execution",
+        "receipt_sha256": "6ec6a02c79b33982d06824c0e3b5d4541884e37f55d4bd8a24218d2b8532fb0e",
+        "charges": "unknown_fullreservations_retained",
+        "next_step": "valid_existing_authorized_runtime_OpenAI_configuration;no_newcredential_provision/access_expansion_or_paidretry"
+      },
+      "retrospective_limit": "Current401isproven;cannotreconstructtheoriginaldiscardedexceptionorclaimthatitwas401/schema."
     },
     {
       "id": "PIPELINE-NATIVE-NIGHTLY-20261008",
@@ -689,7 +701,7 @@
       "id": "PROGRAMME-TECHNICAL-EXPIRY-001",
       "severity": "P2_internal_operator_window;fail_closed",
       "owner": "queue_recovery/root",
-      "state": "bounded_source_independently_reviewed;PR967_requiredCI_active;no_actual_grant",
+      "state": "reviewed_deployed_actualgrant_verified_without_authorityreset",
       "invariant": "Temporary execution windows cannot reset spending authority or unresolved accounting",
       "root_cause": "Operator expiry is in immutable authority digest; ad hoc deadline extension breaks dispatch and receipt settlement. No supported technical continuation exists.",
       "source_evidence_sha256": "8ec45da485dee019c25c8bd1bfdbfb7799d7d34b949a7a77140e93b96ae7770d",
@@ -700,7 +712,9 @@
       "review": "920eb0bd",
       "candidate": "86budget/retrycontrols_and1scripted_handler_worker_joined_neighbor_pass;typecheck_graphify_portability_pass",
       "matched_baseline": "two_selected_final_controls_fail_on_pre_fix_runtime;84unselected_skipped_not_counted",
-      "actual_invocation": "not_executed;original_expiry_digest_unknowns_cap_slots_preserved"
+      "actual_invocation": "successfulfixedcallerV2;soletechnicalreceipt/9unchangedchecks;originalexpiredvaluekept",
+      "actual_receipt_sha256": "f6d5b183ac6e3f714a334b083a725f12b28c3e144732cb4b6d44e3fabfa93710",
+      "local_diagnostic": "firstcallerinteropfailed_beforegrant;originalfailedbytesretained;consistentloaderV2independentlyreviewedandexecuted"
     },
     {
       "id": "COMMS-DORMANT-SPEND-BINDING-001",
