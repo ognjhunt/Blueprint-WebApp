@@ -34,6 +34,7 @@ function photon(properties: Record<string, unknown>[]) {
 }
 
 beforeEach(() => {
+  vi.stubGlobal("navigator", {userAgent:navigator.userAgent, locks:{request:async (_key:string, action:()=>unknown)=>action()}});
   window.localStorage.clear();
   window.sessionStorage.clear();
   account.user = null;

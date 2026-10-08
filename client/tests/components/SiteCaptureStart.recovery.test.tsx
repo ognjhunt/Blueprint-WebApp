@@ -16,6 +16,7 @@ function fill(task = "Move sealed cartons") {
 }
 function submit() { fireEvent.submit(screen.getByRole("form")); }
 beforeEach(() => {
+  vi.stubGlobal("navigator", {userAgent:navigator.userAgent, locks:{request:async (_key:string, action:()=>unknown)=>action()}});
   localStorage.clear(); sessionStorage.clear(); identity.user = null; sent.length = 0;
   vi.stubGlobal("FormData", window.FormData);
   vi.stubGlobal("fetch", fetchMock);
@@ -91,12 +92,32 @@ it("INTAKE-REGRESSION-031: malformed failure fields retain a safe actionable err
   expect(screen.getByText(/Job reference: capture-/)).toBeInTheDocument();
   expect(screen.queryByText(/private fixture/)).toBeNull();
 });
-it("RETURN-REGRESSION-031: unreadable recovery cannot silently create a replacement job",()=>{
+it("RETURN-REGRESSION-031: unreadable recovery cannot silently create a replacement job",async()=>{
   localStorage.setItem("bp-site-capture:v1:anonymous:default","{torn-json");
   render(<SiteCaptureStart />);
   expect(screen.getByRole("status")).toHaveTextContent("could not be read");
   submit();expect(sent).toHaveLength(0);
   expect(localStorage.getItem("bp-site-capture:v1:anonymous:default")).toBe("{torn-json");
   fireEvent.click(screen.getByRole("button",{name:"Clear this browser's draft"}));
-  expect(document.querySelector("#start-task")).toBeEnabled();
+  await vi.waitFor(()=>expect(document.querySelector("#start-task")).toBeEnabled());
+});
+it("CROSS-TAB-012 adopting another tab's freeze does not upload this tab's selected File or consent",async()=>{
+  const helper=await import("@/lib/siteCaptureDraft");
+  const upload=await import("@/lib/selfCaptureVideo");const sender=vi.spyOn(upload,"uploadSelfCaptureVideo");
+  fetchMock.mockImplementation(async(url:string,init?:any)=>{
+    if(init?.method==="POST"){sent.push({url,body:JSON.parse(init.body)});return {ok:true,status:200,json:async()=>({captureUrl:"/capture-upload/fixture"})};}
+    return {ok:true,status:200,json:async()=>({features:[]})};
+  });
+  render(<SiteCaptureStart />);fill();fireEvent.click(document.querySelector("#start-method-upload")!);
+  fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
+  fireEvent.click(document.querySelector("#start-rights")!);submit();
+  const winner=helper.newSiteCaptureRecovery();winner.draft={...winner.draft,task:"Winning description",location:"Austin, TX",region:"us",email:"winner@example.test"};
+  winner.pending={endpoint:"/api/inbound-request",acknowledged:false,body:JSON.stringify({requestId:winner.requestId,retryToken:winner.retryToken,buyerType:"site_operator",taskStatement:winner.draft.task,siteLocation:winner.draft.location,captureRegion:"us",email:winner.draft.email,descriptionOnly:true})};
+  localStorage.setItem(helper.siteCaptureDraftKey(null,"default"),JSON.stringify(winner));
+  await screen.findByRole("link",{name:"Review your job brief"});
+  expect(sent).toHaveLength(1);expect(sent[0].body).toEqual(JSON.parse(winner.pending.body));expect(sender).not.toHaveBeenCalled();sender.mockRestore();
+});
+it("CROSS-TAB-013 unsupported coordination blocks dispatch with a recovery next step",async()=>{
+  vi.stubGlobal("navigator",{userAgent:"fixture"});render(<SiteCaptureStart />);fill();submit();
+  await expect(screen.findByRole("alert")).resolves.toHaveTextContent("cannot safely coordinate");expect(sent).toHaveLength(0);
 });

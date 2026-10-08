@@ -30,7 +30,8 @@ import {
 } from "@/lib/selfCaptureVideo";
 import { useAuth } from "@/contexts/AuthContext";
 import { newSiteCaptureRecovery, readSiteCaptureRecovery, writeSiteCaptureRecovery,
-  forgetSiteCaptureRecovery, hasSiteCaptureRecoveryBytes, siteCaptureDraftKey, type SiteCaptureRecovery } from "@/lib/siteCaptureDraft";
+  forgetSiteCaptureRecovery, hasSiteCaptureRecoveryBytes, siteCaptureDraftKey, withSiteCaptureRecoveryLock,
+  freezeSiteCaptureRecovery, type SiteCaptureRecovery } from "@/lib/siteCaptureDraft";
 
 /**
  * Same sentence version the screening form records: the attestation names the
@@ -89,12 +90,26 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
   const [resetVersion, setResetVersion] = useState(0);
   const active = useRef(true);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
-  function retain(next: SiteCaptureRecovery) {
+  async function retain(next: SiteCaptureRecovery, releasePendingBody?: string) {
     recovery.current = next;
-    setStorageAvailable(writeSiteCaptureRecovery(storageKey, next));
+    try {
+      const result = await withSiteCaptureRecoveryLock(storageKey, () => {
+        const saved = writeSiteCaptureRecovery(storageKey, next, {releasePendingBody});
+        return { saved, latest: readSiteCaptureRecovery(storageKey) };
+      });
+      if (!active.current) return;
+      // A rejected stale autosave adopts the whole winner, not just its identity.
+      if (result.latest && (result.latest.pending || result.latest.requestId !== next.requestId)) {
+        if (!operationInFlight.current) adoptRecovery(result.latest);
+        else recovery.current = result.latest;
+      }
+      setStorageAvailable(result.saved || Boolean(result.latest?.pending));
+      return result.saved;
+    } catch { if (active.current) setStorageAvailable(false); }
+    return false;
   }
   useEffect(() => {
-    if (storageKey && !recoveryUnavailable) setStorageAvailable(writeSiteCaptureRecovery(storageKey, recovery.current));
+    if (storageKey && !recoveryUnavailable) void retain(recovery.current);
   }, [storageKey]);
   const [interactive, setInteractive] = useState(false);
   useEffect(() => setInteractive(true), []);
@@ -231,6 +246,19 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
   const [claudeConsent, setClaudeConsent] = useState(false);
   const [solAgentsConsent, setSolAgentsConsent] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  function adoptRecovery(other: SiteCaptureRecovery, resetChanged = true) {
+    const changed = recovery.current.requestId !== other.requestId
+      || recovery.current.pending?.body !== other.pending?.body;
+    recovery.current = other;
+    requestId.current = other.requestId; retryToken.current = other.retryToken;
+    setMethod(other.draft.method); setRegion(other.draft.region);
+    regionManuallySet.current = other.draft.regionManuallySet;
+    setPending(other.pending);
+    if (changed && resetChanged) {
+      setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
+      setFootage(null); setResetVersion(value => value + 1);
+    }
+  }
   function retainDraft() {
     if (recoveryUnavailable || recovery.current.pending || !formRef.current) return;
     const data = new FormData(formRef.current);
@@ -245,28 +273,25 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== storageKey || operationInFlight.current) return;
       const other = readSiteCaptureRecovery(storageKey);
-      if (other?.pending && other.requestId === requestId.current) {
-        recovery.current = other;
-        setMethod(other.draft.method); setRegion(other.draft.region);
-        regionManuallySet.current = other.draft.regionManuallySet;
-        setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
-        setPending(other.pending);
-        setResetVersion(value => value + 1);
-      }
+      if (other && (other.pending || other.requestId !== requestId.current)) adoptRecovery(other);
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, [storageKey]);
-  function forgetDraft() {
+  async function forgetDraft() {
     if (operationInFlight.current) return;
-    if (!forgetSiteCaptureRecovery(storageKey)) { setStorageAvailable(false); return; }
-    const fresh = newSiteCaptureRecovery(); recovery.current = fresh;
+    const fresh = newSiteCaptureRecovery();
+    try {
+      const saved = await withSiteCaptureRecoveryLock(storageKey, () => forgetSiteCaptureRecovery(storageKey)
+        && writeSiteCaptureRecovery(storageKey, fresh));
+      if (!saved || !active.current) { setStorageAvailable(false); return; }
+    } catch { setStorageAvailable(false); return; }
+    recovery.current = fresh;
     requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
     setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
     setMethod("phone"); setRegion(""); regionManuallySet.current = false;
     setCountryOpen(false); setFootage(null); setFootageError(null); setCaptureReceived(false);
     setResetVersion(value => value + 1);
-    retain(fresh);
   }
   // Whether the phone handoff below is worth anything here. This form is
   // filled in from whatever device is at hand, including the phone that is
@@ -291,10 +316,11 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
     if (!retained && footageWanted && !footage) return;
 
     const data = new FormData(formRef.current!);
-    const savedAnswers = retained ? JSON.parse(retained.body) as Record<string, unknown> : null;
+    const operationRecovery = recovery.current;
+    let savedAnswers = retained ? JSON.parse(retained.body) as Record<string, unknown> : null;
     const savedFields: Record<string, string> = { startTask: "taskStatement", startLocation: "siteLocation", startEmail: "email", startCompany: "company" };
     const read = (key: string) => String(savedAnswers ? savedAnswers[savedFields[key]] ?? "" : data.get(key) ?? "").trim();
-    const email = currentUser?.email || read("startEmail");
+    let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
 
     operationInFlight.current = true;
@@ -302,9 +328,9 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
 
     try {
       const headers = await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" }));
-      const body = retained?.body ?? JSON.stringify({
-          requestId: requestId.current,
-          retryToken: retryToken.current,
+      let body = retained?.body ?? JSON.stringify({
+          requestId: operationRecovery.requestId,
+          retryToken: operationRecovery.retryToken,
           // No name field: emails open without one.
           firstName: "",
           lastName: "",
@@ -359,21 +385,34 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
           },
       });
       if (!active.current) return;
-      const post = (url: string) => fetch(url, { method: "POST", credentials: "include", headers, body });
       // Unknown type (the lookup is still in flight or failed) still tries the
       // workspace first; a refusal falls back with the same answers intact.
       let savedToWorkspace = retained ? retained.endpoint === "/api/workspace/capture-start"
         : Boolean(currentUser) && workspaceType !== null && workspaceType !== "robot_team";
-      const endpoint = savedToWorkspace ? "/api/workspace/capture-start" : "/api/inbound-request";
-      if (!retained) {
-        const frozen = { body, endpoint, acknowledged: false } as const;
-        retain({ ...recovery.current, pending: frozen }); setPending(frozen);
+      let endpoint: "/api/workspace/capture-start" | "/api/inbound-request" = savedToWorkspace ? "/api/workspace/capture-start" : "/api/inbound-request";
+      let frozen;
+      try {
+        frozen = await freezeSiteCaptureRecovery(storageKey, {...operationRecovery, pending:{body,endpoint,acknowledged:false}});
+      } catch (error) {
+        setStorageAvailable(false);
+        setState({status:"failed",message:error instanceof Error ? error.message : "This browser cannot safely retain your submission. No job was submitted."});
+        return;
       }
+      if (!active.current) return;
+      const recoveredSubmission = Boolean(retained) || frozen.adopted;
+      adoptRecovery(frozen.value, frozen.adopted);
+      body = frozen.value.pending!.body; endpoint = frozen.value.pending!.endpoint;
+      savedAnswers = JSON.parse(body); email = String(savedAnswers!.email ?? "");
+      savedToWorkspace = endpoint === "/api/workspace/capture-start";
+      const submissionRegion = frozen.value.draft.region;
+      const submissionFootageWanted = frozen.value.draft.method === "upload" && submissionRegion !== "non_us";
+      const post = (url: string) => fetch(url, { method: "POST", credentials: "include", headers, body });
       let response = await post(endpoint);
       if (!active.current) return;
       if (savedToWorkspace && response.status === 403) {
         savedToWorkspace = false;
-        retain({ ...recovery.current, pending: { body, endpoint: "/api/inbound-request", acknowledged: false } });
+        const fallbackSaved = await retain({ ...frozen.value, pending: { body, endpoint: "/api/inbound-request", acknowledged: false } });
+        if (!fallbackSaved) {setState({status:"failed",message:"This draft changed in another tab. Reload and review the current draft before starting."});return;}
         setPending(recovery.current.pending);
         response = await post("/api/inbound-request");
         if (!active.current) return;
@@ -390,7 +429,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
         // Definitive validation refusal can be corrected. Uncertain 5xx/429
         // responses retain the original identity and exact accepted authority.
         if ([400, 401, 403, 422].includes(response.status)) {
-          retain({ ...recovery.current, pending: null }); setPending(null);
+          await retain({ ...frozen.value, pending: null }, body); setPending(recovery.current.pending);
         }
         analyticsEvents.contactFormError("capture_start");
         setState({
@@ -403,7 +442,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
         return;
       }
 
-      retain({ ...recovery.current, pending: { ...recovery.current.pending!, acknowledged: true } });
+      await retain({ ...frozen.value, pending: { ...frozen.value.pending!, acknowledged: true } });
       setPending(recovery.current.pending);
       analyticsEvents.contactFormSubmit("capture_start");
       // The screening form lower on the page shares this storage: nobody
@@ -422,7 +461,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
       }
 
       const captureUrl = typeof result.captureUrl === "string" ? result.captureUrl : null;
-      const regionApproved = isApprovedCaptureRegion(region);
+      const regionApproved = isApprovedCaptureRegion(submissionRegion);
 
       // The job is saved; now the video, through the same token route the
       // capture page uses. A failure here never loses the submission: the
@@ -431,7 +470,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
       let uploadMessage: string | null = null;
       let processingRetryAvailable = false;
       const captureToken = captureUrl ? captureTokenFromUrl(captureUrl) : null;
-      if (!retained && footageWanted && footage && regionApproved && captureToken) {
+      if (!recoveredSubmission && submissionFootageWanted && footage && regionApproved && captureToken) {
         setUploadPercent(0);
         const outcome = await uploadSelfCaptureVideo(captureToken, footage, setUploadPercent);
         uploaded = outcome.status;
@@ -441,7 +480,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
       }
 
       if (!active.current) return;
-      if (retained && footageWanted) {
+      if (recoveredSubmission && submissionFootageWanted) {
         uploaded = "failed";
         uploadMessage = "Check the saved video's status on your job page. If it was interrupted, select your original video there.";
       }
@@ -452,15 +491,15 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
           ? `This account is not a site workspace, so this site is saved to the link we email ${email}. You can claim it from that link later.`
           : null,
         captureUrl,
-        selfRecording: selfRecording || hasFootage,
+        selfRecording: frozen.value.draft.method !== "visit",
         email,
         regionApproved,
-        hasFootage: footageWanted,
+        hasFootage: submissionFootageWanted,
         uploaded,
         uploadMessage,
         processingRetryAvailable,
       });
-      if (retained && captureUrl) void refreshReceivedVideo(captureUrl);
+      if (recoveredSubmission && captureUrl) void refreshReceivedVideo(captureUrl);
     } catch {
       if (!active.current) return;
       setState({
@@ -591,7 +630,7 @@ function SiteCaptureStartForm({ storageKey }: { storageKey: string | null }) {
       </div>}
       {state.status === "failed" && pending && <p role="alert">{state.message}</p>}
       {recoveryUnavailable && <p role="status" className="ms-field-hint">Saved recovery details expired or could not be read. Use your emailed private job link to return, or clear this browser's draft to start again.</p>}
-      {!storageAvailable && <p role="status" className="ms-field-hint">This browser cannot save recovery details. Keep this page open until your private job link appears, then keep that link.</p>}
+      {!storageAvailable && <p role="status" className="ms-field-hint">This browser cannot safely save or coordinate recovery details. Use a supported browser with local storage enabled, or email hello@tryblueprint.io for help starting your job. If your job is already saved, use its private link to return.</p>}
       <p className="ms-field-hint">You can recover this draft here for up to seven days. On a shared device, clear this browser's draft when finished.</p>
       <button type="button" className="ms-text-link" disabled={state.status === "working"} onClick={forgetDraft}>Clear this browser's draft</button>
       <fieldset disabled={!interactive || recoveryUnavailable || Boolean(pending)} className="contents">

@@ -33,12 +33,12 @@ env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" NODE_ENV=test BLUEPRIN
 
 Save terminal receipts under ignored `output/reliability-program/` with restrictive permissions. Queue/transport runners emit their own catalogs and result files in the specified folders. Intake definitions and original receipts remain in `program-intake.json` and `program-intake-results.json`. Changing meaningful conditions requires an explicit catalog correction; repeated attempts do not become new cases.
 
-## Eight intercepted UI traces
+## Eight original intercepted UI traces
 
-Port 42879 must be free; the dedicated Vite config uses strict port binding and refuses an existing server. The test generates its own synthetic transport fixture with existing `ffmpeg` and records traces/results under the chosen ignored output folder.
+Port 42879 must be free; the dedicated Vite config uses strict port binding and refuses an existing server. The test generates its own synthetic transport fixture with existing `ffmpeg` and records traces/results under the chosen ignored output folder. `--grep-invert` preserves the original eight-case replay after the supplemental cross-tab slice; omit that filter to run all twelve. See `program-intake-cross-tab.json` for the four new cases and repeat command.
 
 ```bash
-env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" NODE_ENV=test BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP=true RELIABILITY_INTAKE_OUTPUT=output/reliability-program/intake/browser-replay node node_modules/@playwright/test/cli.js test --config playwright.reliability-intake.config.ts
+env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" NODE_ENV=test BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP=true RELIABILITY_INTAKE_OUTPUT=output/reliability-program/intake/browser-replay node node_modules/@playwright/test/cli.js test --config playwright.reliability-intake.config.ts --grep-invert UI-CROSS-TAB
 ```
 
 ## Joined 21 UI traces with an owned emulator

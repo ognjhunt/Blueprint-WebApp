@@ -98,6 +98,78 @@ test("UI-ACCESS-001 denied status cannot masquerade as upload receipt", async ({
   await expect(page.getByRole("heading", {name: "Your recording is in."})).toHaveCount(0);
 });
 
+test("UI-CROSS-TAB-001 concurrent Start with delayed storage events shares exact frozen authority", async ({ context }) => {
+  // Missing event delivery is a controlled adversarial ordering, not a mocked browser storage implementation.
+  await context.addInitScript(() => window.addEventListener("storage", event => event.stopImmediatePropagation(), true));
+  const bodies: string[]=[];
+  const createRoutes: import("@playwright/test").Route[]=[];
+  await context.route(`**${create}`,async route=>{
+    bodies.push(route.request().postData()!);createRoutes.push(route);
+    if(createRoutes.length===2) await Promise.all(createRoutes.map(held=>held.fulfill({json:{captureUrl:fixtureLink}})));
+  });
+  const first=await context.newPage(), second=await context.newPage();
+  await Promise.all([first.goto(`${origin}/contact/site-operator`),second.goto(`${origin}/contact/site-operator`)]);
+  await fill(first);await fill(second);await second.locator("#start-task").fill("A different stale-tab task");
+  // Hold create replies until both normal UI submissions are in flight. This
+  // avoids cached CSRF tokens and racing two physical page clicks.
+  await first.getByRole("button",{name:"Start free assessment"}).click();
+  await expect(first.getByRole("button",{name:"Working…"})).toBeVisible();
+  await second.getByRole("button",{name:"Start free assessment"}).click();
+  await expect(first.getByRole("link",{name:"Review your job brief"})).toBeVisible();
+  await expect(second.getByRole("link",{name:"Review your job brief"})).toBeVisible();
+  expect(bodies).toHaveLength(2);expect(bodies[1]).toBe(bodies[0]);
+  expect(await first.evaluate(()=>Object.entries(localStorage).find(([key])=>key.startsWith("bp-site-capture:"))?.[1]))
+    .toBe(await second.evaluate(()=>Object.entries(localStorage).find(([key])=>key.startsWith("bp-site-capture:"))?.[1]));
+});
+
+test("UI-CROSS-TAB-002 stale edits after lost response preserve winner across reload", async ({ context }) => {
+  const first=await context.newPage(), second=await context.newPage();
+  await second.addInitScript(()=>window.addEventListener("storage",event=>event.stopImmediatePropagation(),true));
+  const bodies:string[]=[];
+  await context.route(`**${create}`,route=>{bodies.push(route.request().postData()!);return bodies.length===1?route.abort():route.fulfill({json:{captureUrl:fixtureLink}});});
+  await Promise.all([first.goto(`${origin}/contact/site-operator`),second.goto(`${origin}/contact/site-operator`)]);
+  await fill(first);await fill(second);
+  await first.getByRole("button",{name:"Start free assessment"}).click();await expect(first.getByRole("alert")).toBeVisible();
+  await second.locator("#start-task").fill("Stale edits must not replace frozen task");
+  await second.reload();await expect(second.locator("#start-task")).toHaveValue("Move sealed cartons to the pallet");
+  await second.getByRole("button",{name:"Recover saved job"}).click();
+  await expect(second.getByRole("link",{name:"Review your job brief"})).toBeVisible();
+  expect(bodies).toHaveLength(2);expect(bodies[1]).toBe(bodies[0]);
+});
+
+test("UI-CROSS-TAB-003 clear in another tab survives an old acknowledgement before fresh explicit Start",async({context})=>{
+  const first=await context.newPage(), second=await context.newPage();const bodies:string[]=[];
+  let finish!:()=>void;const wait=new Promise<void>(resolve=>{finish=resolve;});
+  await context.route(`**${create}`,async route=>{
+    bodies.push(route.request().postData()!);if(bodies.length===1)await wait;
+    return route.fulfill({json:{captureUrl:fixtureLink}});
+  });
+  await Promise.all([first.goto(`${origin}/contact/site-operator`),second.goto(`${origin}/contact/site-operator`)]);
+  await fill(first);await first.getByRole("button",{name:"Start free assessment"}).click();
+  await expect(first.getByRole("button",{name:"Working…"})).toBeVisible();
+  await expect(second.getByRole("button",{name:"Recover saved job"})).toBeVisible();
+  await second.getByRole("button",{name:"Clear this browser's draft"}).click();
+  await expect(second.locator("#start-task")).toHaveValue("");await fill(second);
+  await second.locator("#start-task").fill("An explicitly new job after clearing");
+  const snapshot=()=>second.evaluate(()=>JSON.parse(Object.entries(localStorage).find(([key])=>key.startsWith("bp-site-capture:"))![1]));
+  await expect.poll(async()=>(await snapshot()).draft.task).toBe("An explicitly new job after clearing");
+  const fresh=await snapshot();finish();
+  await expect(first.getByRole("link",{name:"Review your job brief"})).toBeVisible();
+  expect((await snapshot()).requestId).toBe(fresh.requestId);expect((await snapshot()).pending).toBeNull();
+  await second.reload();await expect(second.locator("#start-task")).toHaveValue("An explicitly new job after clearing");
+  await second.getByRole("button",{name:"Start free assessment"}).click();await expect(second.getByRole("link",{name:"Review your job brief"})).toBeVisible();
+  expect(bodies).toHaveLength(2);expect(JSON.parse(bodies[1]).requestId).toBe(fresh.requestId);
+  expect(JSON.parse(bodies[1]).requestId).not.toBe(JSON.parse(bodies[0]).requestId);
+});
+
+test("UI-CROSS-TAB-004 missing browser coordination has a fresh-customer next step without dispatch",async({context,page})=>{
+  // Capability fault is simulated; the customer UI executes in actual Chromium.
+  await context.addInitScript(()=>Object.defineProperty(navigator,"locks",{value:undefined,configurable:true}));
+  let posts=0;await context.route(`**${create}`,route=>{posts++;return route.abort();});
+  await page.goto("/contact/site-operator");await fill(page);await page.getByRole("button",{name:"Start free assessment"}).click();
+  await expect(page.getByRole("alert")).toContainText("hello@tryblueprint.io");expect(posts).toBe(0);
+});
+
 
 test("UI-RETURN-005 real browser termination during video transport returns to the same intake", async () => {
   const output = path.resolve("output/reliability-program/intake"); mkdirSync(output, {recursive:true});

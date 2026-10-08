@@ -49,9 +49,26 @@ export function readSiteCaptureRecovery(key: string | null): SiteCaptureRecovery
     return value;
   } catch { return null; }
 }
-export function writeSiteCaptureRecovery(key: string | null, value: SiteCaptureRecovery): boolean {
+export function writeSiteCaptureRecovery(key: string | null, value: SiteCaptureRecovery, options: { releasePendingBody?: string } = {}): boolean {
   if (!key || typeof window === "undefined") return false;
   try {
+    const raw = window.localStorage.getItem(key);
+    const latest = readSiteCaptureRecovery(key);
+    // Invalid/expired bytes require explicit clearing, never silent replacement.
+    if (raw !== null && !latest) return false;
+    if (latest && (latest.requestId !== value.requestId || latest.retryToken !== value.retryToken)) return false;
+    if (latest?.pending) {
+      if (!value.pending) {
+        if (options.releasePendingBody !== latest.pending.body || latest.pending.acknowledged) return false;
+      } else {
+        if (latest.pending.body !== value.pending.body) return false;
+        // Only a matching workspace refusal can change the retry route.
+        if (latest.pending.endpoint !== value.pending.endpoint && !(latest.pending.endpoint === "/api/workspace/capture-start"
+          && value.pending.endpoint === "/api/inbound-request" && !latest.pending.acknowledged)) return false;
+        value = { ...latest, savedAt: Math.max(latest.savedAt, value.savedAt), pending: { ...value.pending,
+          acknowledged: latest.pending.acknowledged || value.pending.acknowledged } };
+      }
+    }
     // Persist only the named recovery fields: no File objects or bearer URL
     // can ride along on a future caller's spread object.
     const { task, location, email, company, method, region, regionManuallySet } = value.draft;
@@ -62,6 +79,41 @@ export function writeSiteCaptureRecovery(key: string | null, value: SiteCaptureR
     }));
     return true;
   } catch { return false; }
+}
+
+/** Every UI write shares this origin/scoped lock; no network work belongs inside it. */
+class SiteCaptureRecoveryError extends Error {}
+export async function withSiteCaptureRecoveryLock<T>(key: string | null, action: () => T): Promise<T> {
+  if (!key || typeof navigator === "undefined" || !navigator.locks?.request) {
+    throw new SiteCaptureRecoveryError("This browser cannot safely coordinate saved drafts. Use a supported browser with local storage enabled, or email hello@tryblueprint.io for help starting your job.");
+  }
+  try { return await navigator.locks.request(key, action); }
+  catch (error) {
+    if (error instanceof SiteCaptureRecoveryError) throw error;
+    throw new SiteCaptureRecoveryError("This browser cannot safely save recovery details. No new job was submitted. Use a browser with local storage enabled, or your existing private job link.");
+  }
+}
+
+/** Read authority and freeze atomically across tabs, before dispatching any request. */
+export async function freezeSiteCaptureRecovery(key: string | null, candidate: SiteCaptureRecovery) {
+  return withSiteCaptureRecoveryLock(key, () => {
+    if (!key) throw new SiteCaptureRecoveryError("Recovery scope unavailable");
+    // Read bytes explicitly: a denied read must not be mistaken for an empty slot.
+    const raw = window.localStorage.getItem(key);
+    const latest = readSiteCaptureRecovery(key);
+    if (raw !== null && !latest) throw new SiteCaptureRecoveryError("Saved recovery details could not be read. Use your private job link or explicitly clear this browser's draft.");
+    if (latest?.pending) return { value: latest, adopted: true };
+    if (latest && (latest.requestId !== candidate.requestId || latest.retryToken !== candidate.retryToken)) {
+      throw new SiteCaptureRecoveryError("This draft was changed in another tab. Reload this page and review the current draft before starting.");
+    }
+    if (!candidate.pending) throw new SiteCaptureRecoveryError("Submission snapshot missing");
+    const value = { ...candidate, savedAt: Date.now(), requestId: latest?.requestId ?? candidate.requestId,
+      retryToken: latest?.retryToken ?? candidate.retryToken };
+    value.pending = { ...candidate.pending, body: JSON.stringify({ ...JSON.parse(candidate.pending.body),
+      requestId: value.requestId, retryToken: value.retryToken }) };
+    if (!writeSiteCaptureRecovery(key, value)) throw new SiteCaptureRecoveryError("This browser cannot save recovery details. No job was submitted. Use a browser with local storage enabled.");
+    return { value, adopted: false };
+  });
 }
 export function forgetSiteCaptureRecovery(key: string | null): boolean {
   try { if (key) window.localStorage.removeItem(key); return true; } catch { return false; }
