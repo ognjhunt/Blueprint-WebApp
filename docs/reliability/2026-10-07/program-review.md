@@ -1066,3 +1066,35 @@ verified source-contract limitation, not a reproduced normal-customer lost-statu
 incident or universal absence of failure readers. Root/B retain ownership of
 the original capture/context failure lineage before any shared projection repair.
 No runtime or release mutation occurred in this review.
+
+
+**PR945 immutable scoped preview-status patch approved.**
+Reviewed exact head `15cc916e64738f9a8b6c91d679c31f83b6e97e85` against d78.
+The shared private receipt-copy manifest SHA256
+`ffac13e877e2d098fb3d0a9652e280395e809c6c50aa2ca9b6920d305f13b5c8`
+and all seven copied file hashes/lengths match. External independent code/doc
+reviews are retained with their exact hashes. Applying reviewed six-file patch
+`8a13360faa3d1275ced22c72004d0f3bc5cc25e08fff7d6e807526d748467155`
+to exact d78 files in a disposable reviewer snapshot produces byte-identical
+PR-head code/tests. All three production source hashes match the prior review;
+final document SHA256
+`a38d48a61cf0449e13e0f046cc28d9a7c0937254bb0216800054c37f35bc605e`
+identifies the separately reviewed limited claim.
+
+The retained baseline receipt contains the two named signed-status/workspace
+handler failures and seventy-one unselected tests. Final retained candidate
+receipt is 131/131 passing. These are synthetic database/storage/notification
+fixtures exercising real handlers, not live failures or new customer journeys.
+Prior external mounted/neighbor reviews are separately attributed; their
+unshared raw receipts were not independently re-executed by this reviewer.
+
+The diff passes only a current persisted failed-preview boolean to shared status.
+Withdrawal, coverage, brief/disposition/account requirements and genuine queued,
+reported/no-result screening keep precedence. Private upstream reasons/stale
+assets are not disclosed; newer ready state remains usable. The failed-preview
+copy provides a safe retain-recording next step without inventing a retry action,
+write, notification or provider call. This patch cannot create missing normal
+Pipeline failure records or close the pre-enqueue status gap. Source approval
+is scoped to this persisted-preview P2 repair; required CI, merge/deploy and
+actual affected release observation remain root-owned gates. No broad rerun or
+additional coverage credit occurred in reviewer work.
