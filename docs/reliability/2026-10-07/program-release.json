@@ -1887,42 +1887,31 @@
     "claim_ceiling": "Read-only credential/model catalog access;not generation, currentcustomer assessment or video-quality proof. Historical401 andunknownexposure remain retained."
   },
   "current_verified_web_release": {
-    "sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
-    "main_CI": {
-      "id": 37847276364,
-      "state": "success",
-      "scope": "backend-fast;8applicablechecksSUCCESS;E2Eexpectedskip"
-    },
-    "workflow": {
-      "id": 37848240025,
-      "conclusion": "success"
-    },
+    "sha": "12915499e6f6de05c0ade2fc1772d9d39667e9fd",
+    "verified_by": "coordinator; final independent combined release verification pending",
+    "main_CI": 37854354905,
+    "main_CI_conclusion": "success",
+    "deployment_workflow": 37854897634,
+    "deployment_conclusion": "success",
     "web": {
-      "deploy_id": "dep-db40qu2j9qps73fo1ksg",
+      "id": "dep-db41nkvlot8c73cd9gk0",
       "status": "live",
-      "finished_at_utc": "2026-10-08T21:41:30.283066Z",
-      "plan": "1c-2g",
-      "num_instances": 1
+      "finished_at": "2026-10-08T22:42:55.058509Z"
     },
     "worker": {
-      "deploy_id": "dep-db40qu9srm7s73agbi5g",
+      "id": "dep-db41nl6i0phs73elunk0",
       "status": "live",
-      "finished_at_utc": "2026-10-08T21:42:04.930917Z"
+      "finished_at": "2026-10-08T22:43:29.300813Z"
     },
     "public": {
-      "version_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
-      "built_at_iso": "2026-10-08T21:39:48.558Z",
-      "health": "healthy",
-      "health_timestamp": "2026-10-08T21:42:27.053Z",
-      "ready": "ready",
-      "ready_blockers": 0,
-      "ready_timestamp": "2026-10-08T21:42:27.229Z",
-      "all_curl_exit": 0,
-      "http_status": 200
+      "observed_at": "2026-10-08T22:44:53Z",
+      "version_sha": "12915499e6f6de05c0ade2fc1772d9d39667e9fd",
+      "health": 200,
+      "ready": 200,
+      "blockers": 0,
+      "receipt_sha256": "ff23bf64e59d2baa7a7da091c9537e391e152df39fa06347f4bccf5fce64f0c5"
     },
-    "receipt_path": "/Users/nijelhunt_1/.codex/worktrees/dc17/Blueprint-WebApp/output/reliability-program/customer-policy/39-release-receipt.json",
-    "receipt_sha256": "fc098c4b82b06443b3dcaced65e1ad0bd3a16544c7001b4f2a9b5d00120f86ed",
-    "limits": "Source/pair/plan/health. Customerretry and measured cloudmemory peak are separate; no full beta/referenceaccuracy proof."
+    "claim_ceiling": "Exact source/service/public health only; storage978 still unmerged and originalcustomer retry held"
   },
   "current_normal_UI_same_job_retry": {
     "source_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
@@ -2156,7 +2145,13 @@
     "proposed_monthly_increase_usd": 25,
     "cost_scope": "One web-service compute tier $25/month; provider usage separate. Root made no plan mutation.",
     "acceptance_addendum": "Before a bounded2GB memory adequacy claim: retain actual deployed peak with >=25% headroom at declared concurrency; inspect retained baseline after completed existing runs for unexplained growth. Minute samples/single local large-machine completion cannot satisfy cloud peak proof. This new operational sizing criterion is recorded explicitly, not changing original case denominators or past pass/fail scores.",
-    "independent_native_verification": "d22c279d: plan_changed21:26:22.130035; service_updated dep-db40jkub7d7c739tk450 LIVE exacte9 finished21:26:21.857381Z; no measured RSS/peak."
+    "independent_native_verification": "d22c279d: plan_changed21:26:22.130035; service_updated dep-db40jkub7d7c739tk450 LIVE exacte9 finished21:26:21.857381Z; no measured RSS/peak.",
+    "current_normal_queue_source": {
+      "sha": "8ce5c5f1dbf14fd5e2be3651d0a1a00e44fde3fc",
+      "source": "server/utils/siteAssessmentQueue.ts:61",
+      "behavior": "All non-test callers use tickSiteAssessments; one per-process activePass promise, sequential job loop",
+      "limit": "Source evidence for per-process serialization, not global/multi-instance or instantaneous memory-capacity proof; current real test uses one web instance and one owner"
+    }
   },
   "local_actual_assessment_runs": {
     "fresh": {
@@ -2365,5 +2360,43 @@
     "unknown_local_calls": 0,
     "historical_customer_unknown_exposure": "separate_unchanged_not_zero",
     "claim_ceiling": "Actual local SDK/provider execution, no customer publication, human truth labels, statistical perception certification or extra reference sources"
+  },
+  "historical_39_verified_web_release": {
+    "sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
+    "main_CI": {
+      "id": 37847276364,
+      "state": "success",
+      "scope": "backend-fast;8applicablechecksSUCCESS;E2Eexpectedskip"
+    },
+    "workflow": {
+      "id": 37848240025,
+      "conclusion": "success"
+    },
+    "web": {
+      "deploy_id": "dep-db40qu2j9qps73fo1ksg",
+      "status": "live",
+      "finished_at_utc": "2026-10-08T21:41:30.283066Z",
+      "plan": "1c-2g",
+      "num_instances": 1
+    },
+    "worker": {
+      "deploy_id": "dep-db40qu9srm7s73agbi5g",
+      "status": "live",
+      "finished_at_utc": "2026-10-08T21:42:04.930917Z"
+    },
+    "public": {
+      "version_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
+      "built_at_iso": "2026-10-08T21:39:48.558Z",
+      "health": "healthy",
+      "health_timestamp": "2026-10-08T21:42:27.053Z",
+      "ready": "ready",
+      "ready_blockers": 0,
+      "ready_timestamp": "2026-10-08T21:42:27.229Z",
+      "all_curl_exit": 0,
+      "http_status": 200
+    },
+    "receipt_path": "/Users/nijelhunt_1/.codex/worktrees/dc17/Blueprint-WebApp/output/reliability-program/customer-policy/39-release-receipt.json",
+    "receipt_sha256": "fc098c4b82b06443b3dcaced65e1ad0bd3a16544c7001b4f2a9b5d00120f86ed",
+    "limits": "Source/pair/plan/health. Customerretry and measured cloudmemory peak are separate; no full beta/referenceaccuracy proof."
   }
 }
