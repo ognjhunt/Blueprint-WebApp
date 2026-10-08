@@ -57,6 +57,7 @@ async function hypothesisRefusal(payload: ActionPayload): Promise<string | null>
 export async function communicationsSendBlocker(payload: ActionPayload, ledgerId: string): Promise<string | null> {
   const hypothesis = await hypothesisRefusal(payload);
   if (hypothesis) return hypothesis;
+  if (payload.communicationsDraftOnly) return "footerless_draft_requires_delivery_review";
   if (!communicationsSendingEnabled()) return "communications_sending_disabled";
   if (!dbAdmin) return "communications_store_unavailable";
   try {
@@ -163,6 +164,10 @@ export async function reconcileCommunicationsSend(payload: ActionPayload) {
 
 /** Exact human approval or the existing immutable owner-activated policy. */
 export async function executeCommunicationsSend(payload: ActionPayload) {
+  if (payload.communicationsDraftOnly) {
+    const refusal = await hypothesisRefusal(payload);
+    throw new Error(refusal ?? "footerless_draft_requires_delivery_review");
+  }
   const recovered = await reconcileCommunicationsSend(payload);
   if (recovered) return recovered;
   const hypothesis = await hypothesisRefusal(payload);

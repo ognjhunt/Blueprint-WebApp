@@ -42,7 +42,7 @@ async function setup(role: CommunicationsAudienceRole = "site") {
     find: vi.fn(async content => copied && communicationsDigest(content) === communicationsDigest(copied)
       ? { draftId: "synthetic-gmail-draft", messageId: "synthetic-message", threadId: "synthetic-thread", authoredRfcMessageId: content.messageId, observedRfcMessageId: "<synthetic@reserved.invalid>" } : null) };
   const api = { run: vi.fn(async (params: any) => {
-    const input = JSON.parse(params.input); expect(input.firstTouchFraming).toEqual(framing);
+    const input = JSON.parse(params.input); expect(input.firstTouchFraming).toEqual(role === "site" && input.writingGuidance.includes("free-beta-task-assessment-v2") ? { ...framing, question: "Is there a repetitive job you would like assessed?", questionIsSuggestion: true } : framing);
     expect(input.writingGuidance).toContain("save_unsent_draft"); expect(input.firstTouchPolicy).toContain("No public API or deployment maturity hard gate");
     return { output: f.output, checkpoint: params.checkpoint, usage: { input_tokens: 10 } };
   }), cancel: vi.fn(async () => true), reconcileSaved: vi.fn(async () => null) };
@@ -57,18 +57,22 @@ describe("one communications run saves and verifies the unsent Gmail draft", () 
     expect(result).toMatchObject({ state: "gmail_draft_saved", gmailDraftId: "synthetic-gmail-draft", gmailDraftCreated: true, sent: false, approved: false });
     expect(f.api.run).toHaveBeenCalledOnce(); expect(f.ports.write).toHaveBeenCalledOnce();
     const copied = vi.mocked(f.ports.write).mock.calls[0][0];
-    expect(copied.body).toContain("Blueprint Robotics, Inc. · Synthetic test location, ZZ 00000");
-    expect(copied.body).toContain("Reply “no thanks” to stop all marketing emails from Blueprint.");
-    expect(copied.body).toContain("Commercial outreach.");
+    expect(copied.body).toBe(f.output.body.trimEnd());
+    expect(copied.body).not.toMatch(/Synthetic test location|no thanks|Commercial outreach|Unsubscribe|If you’d rather/);
     expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/${f.job.jobId}`).output.body).toBe(f.output.body);
     expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({ state: "gmail_draft_saved" });
     expect(f.api.run).toHaveBeenCalledOnce(); expect(f.ports.write).toHaveBeenCalledOnce();
     expect(f.db.records.get(`action_ledger/communications_${f.job.jobId}`)).toMatchObject({ status: "pending_approval", approved_by: null, sent_at: null });
   });
-  it("does no inference or Gmail write when the approved runtime postal configuration is unavailable", async () => {
+  it("saves an unsent draft without postal configuration while retaining send refusal", async () => {
     const f = await setup(); vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE", "");
-    expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({ state: "blocked" });
-    expect(f.api.run).not.toHaveBeenCalled(); expect(f.ports.write).not.toHaveBeenCalled();
+    expect(await processCommunicationsJob(f.job.jobId, f.deps)).toMatchObject({ state: "gmail_draft_saved", sent: false, approved: false });
+    expect(f.api.run).toHaveBeenCalledOnce(); expect(f.ports.write).toHaveBeenCalledOnce();
+    const payload = f.db.records.get(`action_ledger/communications_${f.job.jobId}`).action_payload;
+    expect(payload.communicationsDraftOnly).toBe("founder-footerless-v2");
+    const { communicationsSendBlocker, executeCommunicationsSend } = await import("../agents/communications-send");
+    expect(await communicationsSendBlocker(payload, `communications_${f.job.jobId}`)).toBe("footerless_draft_requires_delivery_review");
+    await expect(executeCommunicationsSend(payload)).rejects.toThrow("footerless_draft_requires_delivery_review");
   });
   it("retains the historical footer for an already charged same-run v1 checkpoint", async () => {
     const f = await setup(), bound = await f.deps.prepareDraftSave!();

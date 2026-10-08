@@ -104,6 +104,7 @@ export async function reviseCommunicationsDraft(db: FirebaseFirestore.Firestore,
     let approvedTransport: string | undefined;
     const approvedOutreachTransport = () => {
       if (approvedTransport !== undefined) return approvedTransport;
+      if (payload.communicationsDraftOnly === "founder-footerless-v2") return approvedTransport = output.body.trimEnd();
       try { return approvedTransport = appendFirstContactFooter(output.body, brief.contact.email); }
       catch { throw new CommunicationsDraftRevisionError("The approved outreach mailing footer is unavailable on this server. Restore its existing configuration, then save again; this draft was not changed.", 503); }
     };
@@ -129,7 +130,9 @@ export async function reviseCommunicationsDraft(db: FirebaseFirestore.Firestore,
       throw new CommunicationsDraftRevisionError("The saved message differs from its draft; restore that record before editing");
     }
     let transportBody: string;
-    if (job.intent === "outreach") {
+    if (payload.communicationsDraftOnly === "founder-footerless-v2") {
+      transportBody = output.body.trimEnd();
+    } else if (job.intent === "outreach") {
       // An explicit authenticated save can repair a legacy footer. Its full
       // prior transport stays in the private immutable audit; client text never
       // supplies the postal identity and deployment alone changes no draft.
@@ -152,7 +155,8 @@ export async function reviseCommunicationsDraft(db: FirebaseFirestore.Firestore,
       jobId: job.jobId, requestedBy, revisedAt: new Date(now).toISOString(),
       expectedReviewDigest: request.data.expectedReviewDigest, previousOutput: envelope.data.output,
       previousPayload: payload, previousPayloadDigest: communicationsDigest(payload),
-      footerPolicy: job.intent === "outreach" ? "owner_configured_first_contact" : "preserve_reply_footer",
+      footerPolicy: payload.communicationsDraftOnly === "founder-footerless-v2" ? "founder_footerless_unsent"
+        : job.intent === "outreach" ? "owner_configured_first_contact" : "preserve_reply_footer",
       previousDiagnostics: payload.communicationsDraftDiagnostics ?? null, previousReview: currentReview,
       submittedOutput: request.data.output, output, review,
       normalizedMetadataPaths: parsed.normalizedMetadataPaths, formatNormalizations: parsed.formatNormalizations,
@@ -162,7 +166,7 @@ export async function reviseCommunicationsDraft(db: FirebaseFirestore.Firestore,
       draft_output: { ...ledger.draft_output, ...output, requires_human_review: true, category: "communications" },
       outreach_semantic_review: null, outreach_reviewed_by: null, outreach_reviewed_at: null,
       // An outreach-ready hypothesis stays draft only whatever the revision; its diagnostics stay in the payload.
-      approval_reason: outreachReadySendRefusal(brief) ? OUTREACH_READY_SEND_REFUSAL
+      approval_reason: outreachReadySendRefusal(brief) ? OUTREACH_READY_SEND_REFUSAL : payload.communicationsDraftOnly ? "footerless_draft_requires_delivery_review"
         : review.hardChecksPassed ? "requires_human_review" : `content_validation_failed:${review.blockers.join(",")}`,
       draft_revision_id: revisionId, updated_at: new Date(now) });
     tx.update(jobRef, { output, reviewDigest: review.digest, draftRevisionId: revisionId, updatedAt: now });

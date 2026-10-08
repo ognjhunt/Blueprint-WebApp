@@ -51,7 +51,7 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     h.setOutput(output);
     expect(await processCommunicationsJob(h.intake.jobId, h.deps)).toMatchObject({ state: "pending_approval", sent: false });
     expect(h.seen[0].feedback).toBeNull();
-    expect(h.seen[0].input.writingGuidance).toContain("Learn why in a follow-up");
+    expect(h.seen[0].input.writingGuidance).toContain("Ask one easy question");
     expect(h.seen[0].input.firstTouchFraming.questionIsSuggestion).toBe(true);
     const job = h.f.records("jobs").find(job => job.jobId === h.intake.jobId);
     expect(job.writingQuality).toMatchObject({ advisoryOnly: true, signals: [] });
@@ -109,11 +109,12 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(result).toMatchObject({ state: "pending_approval", sent: false, gmailDraftCreated: false });
     expect(h.api.run).toHaveBeenCalledOnce();
     const [{ input, checkpoint, feedback }] = h.seen;
-    expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_FOUNDER_GUIDANCE);
+    expect(input.firstTouchPolicy).toContain(COMMUNICATIONS_FOUNDER_GUIDANCE);
+    expect(input.firstTouchPolicy).toContain("free-beta-task-assessment-v2");
     expect(input.researchBrief.qualification.openQuestions).toEqual(h.brief.qualification!.openQuestions);
     expect(checkpoint.draftProfile).toBe(COMMUNICATIONS_HYPOTHESIS_PROFILE);
     expect(checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_VERSION);
-    expect(input.firstTouchFraming).toEqual(communicationsLaunchFraming(h.brief));
+    expect(input.firstTouchFraming).toEqual({ ...communicationsLaunchFraming(h.brief), question: "Is there a repetitive job you would like assessed?", questionIsSuggestion: true });
     expect(feedback).toBeNull();
     const ledger = h.f.db.records.get(`action_ledger/${result.ledgerId}`);
     expect(ledger).toMatchObject({ status: "pending_approval", action_tier: 3, approved_by: null, sent_at: null,
@@ -205,13 +206,14 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     const outcome = await processCommunicationsJob(h.verifiedJob.jobId, h.deps);
     expect(outcome).toMatchObject({ state: "pending_approval" });
     const [{ input, checkpoint }] = h.seen;
-    expect(input.firstTouchPolicy).toBe(COMMUNICATIONS_FOUNDER_GUIDANCE);
+    expect(input.firstTouchPolicy).toContain(COMMUNICATIONS_FOUNDER_GUIDANCE);
+    expect(input.firstTouchPolicy).toContain("free-beta-task-assessment-v2");
     expect(input.researchBrief).not.toHaveProperty("qualification");
     expect(checkpoint).not.toHaveProperty("draftProfile");
     const ledger = h.f.db.records.get(`action_ledger/communications_${h.verifiedJob.jobId}`);
-    expect(ledger).toMatchObject({ status: "pending_approval", approval_reason: "requires_human_review" });
+    expect(ledger).toMatchObject({ status: "pending_approval", approval_reason: "footerless_draft_requires_delivery_review" });
     expect(ledger).not.toHaveProperty("qualification_tier");
-    expect(ledger).not.toHaveProperty("send_authority");
+    expect(ledger.send_authority).toBe("none");
   });
 
   it("gives a verified draft that carries the v2 contract the v1 repair, never the v2 review", async () => {

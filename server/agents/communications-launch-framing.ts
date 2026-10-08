@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { questionTask, sitePhrase } from "./outreach-ready-question";
-import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE } from "./communications-outreach-quality";
+import { LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE as COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE } from "./communications-outreach-quality";
 
 // Owner-directed prospective writing policy. Research qualification and historical
 // questions remain immutable evidence; this policy does not promote their open checks.

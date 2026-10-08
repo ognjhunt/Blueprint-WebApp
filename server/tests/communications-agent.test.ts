@@ -377,7 +377,7 @@ describe("Blueprint-owned communications queue", () => {
     // Closed source and early maturity are context, never a recipient hard gate.
     f.deps.api.run.mockImplementation(async (params: any) => {
       const input = JSON.parse(params.input);
-      expect(input.firstTouchFraming).toEqual(framing);
+      expect(input.firstTouchFraming).toEqual(role === "site" ? { ...framing, question: "Is there a repetitive job you would like assessed?", questionIsSuggestion: true } : framing);
       expect(input.firstTouchPolicy).toContain("No public API or deployment maturity hard gate");
       expect(input.firstTouchPolicy).toContain("Demos do not establish paid demand");
       expect(input.firstTouchPolicy).toContain("$2,500");

@@ -1845,7 +1845,7 @@ export default function AdminLeads() {
                           Tier {item.action_tier}
                         </span>
                         {isDraftOnlyHypothesis(item) ? (
-                          <span className="runway-chip runway-chip-quiet">Hypothesis · draft only</span>
+                          <span className="runway-chip runway-chip-quiet">{item.approval_reason === "footerless_draft_requires_delivery_review" ? "Unsent · delivery review required" : "Hypothesis · draft only"}</span>
                         ) : null}
                       </div>
                     </div>

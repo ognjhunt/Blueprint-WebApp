@@ -2,7 +2,7 @@ import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { isEmailSuppressed, recordEmailSuppression, buildUnsubscribeUrl } from "../utils/email-suppression";
 import { COMMUNICATIONS_HYPOTHESIS_GUIDANCE, COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_WRITING_GUIDANCE } from "./communications-instructions";
-import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_WRITING_QUALITY_VERSION, communicationsWritingSignals } from "./communications-outreach-quality";
+import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_WRITING_QUALITY_VERSION, communicationsWritingSignals } from "./communications-outreach-quality";
 import { COMMUNICATIONS_HYPOTHESIS_PROFILE } from "./communications-saved-agent";
 import { COMMUNICATIONS_FRAMING_VERSION, communicationsLaunchFraming, communicationsFramingVersion,
   type CommunicationsFramingVersion } from "./communications-launch-framing";
@@ -327,14 +327,16 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       communicationsExecutionDeadline({ ...claimed.checkpoint, executionWindow });
       const evaluationReadiness = (brief.audienceRole ?? "site") === "site"
         ? await readEvaluationReadiness(deps.store.db, brief, deps.now()) : undefined;
-      if (deps.prepareDraftSave && !firstContactPostalLine()) throw new CommunicationsRuntimeError("first_contact_postal_footer_unavailable");
       const sameRunDraftSave = deps.prepareDraftSave ? await deps.prepareDraftSave() : undefined;
+      const founderGuidance = claimed.checkpoint.framingVersion && claimed.checkpoint.framingVersion !== COMMUNICATIONS_FRAMING_VERSION
+        ? LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE : COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE;
       claimed.checkpoint = { ...claimed.checkpoint, executionWindow,
-        draftWritingGuidance: `${COMMUNICATIONS_WRITING_GUIDANCE}\n${COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE}`,
+        draftWritingGuidance: `${COMMUNICATIONS_WRITING_GUIDANCE}\n${founderGuidance}`,
+        unsentDraftFooterProfile: "founder-footerless-v2",
         framingVersion: communicationsFramingVersion(claimed.checkpoint.framingVersion) ?? COMMUNICATIONS_FRAMING_VERSION,
         ...(replyFollowup ? { replyFollowup } : {}),
         ...(evaluationReadiness ? { evaluationReadiness } : {}),
-        ...(sameRunDraftSave ? { sameRunDraftSave, unsentDraftFooterProfile: "approved-runtime-reply-optout-v1", draftWritingGuidance: `${COMMUNICATIONS_WRITING_GUIDANCE}\n${COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE}\nThis authorized run saves an eligible unsent Gmail draft immediately through the host's save_unsent_draft action. Return the authored plain draft; do not invent a Gmail ID or call a raw mail mutation. End the signature with Nijel Hunt followed by Blueprint on its own line. The host formats one direct https://tryblueprint.io/ link on Blueprint in that signature, without tracking, a button, extra CTA or model-authored HTML. Success requires the host's actual unsent draft readback; sending still requires its separate authority.` } : {}),
+        ...(sameRunDraftSave ? { sameRunDraftSave, unsentDraftFooterProfile: "founder-footerless-v2", draftWritingGuidance: `${COMMUNICATIONS_WRITING_GUIDANCE}\n${founderGuidance}\nThis authorized run saves an eligible unsent Gmail draft immediately through the host's save_unsent_draft action. Return the authored plain draft; do not invent a Gmail ID or call a raw mail mutation. End the signature with Nijel Hunt followed by Blueprint on its own line. The host formats one direct https://tryblueprint.io/ link on Blueprint in that signature, without tracking, a button, extra CTA or model-authored HTML. Success requires the host's actual unsent draft readback; sending still requires its separate authority.` } : {}),
         ...(hypothesis ? { draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } : {}) };
       await deps.store.update(jobId, { checkpoint: claimed.checkpoint });
     }
@@ -353,7 +355,8 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     const provenance = automatic ? (await deps.store.db.doc("blueprintCommunications/default").collection("researchSources").doc(job.briefDigest).get()).data() : null;
     const recipientGeography = automatic ? firstContactGeography(provenance, brief, deps.now()) : null;
     const assemble = (output: CommunicationsOutput) => buildCommunicationsPayload(job, brief, thread, output, automatic, recipientGeography,
-      claimed.checkpoint.evaluationReadiness, claimed.checkpoint.unsentDraftFooterProfile === "approved-runtime-reply-optout-v1");
+      claimed.checkpoint.evaluationReadiness, claimed.checkpoint.unsentDraftFooterProfile === "founder-footerless-v2" ? "founder-footerless-v2"
+        : claimed.checkpoint.unsentDraftFooterProfile === "approved-runtime-reply-optout-v1");
     const assertRepairAllowed = async () => {
       if (hypothesis && !hypothesisDraftsEnabled()) throw new CommunicationsRuntimeError(HYPOTHESIS_DRAFTS_DISABLED);
       // Repair cannot refresh or replace consequential context. The original
@@ -537,14 +540,16 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
 }
 
 export function buildCommunicationsPayload(job: CommunicationsJob, brief: CommunicationsBrief, thread: VerifiedThread | null,
-  output: CommunicationsOutput, automatic: boolean, recipientGeography: ReturnType<typeof firstContactGeography>, evaluationReadiness?: EvaluationReadiness, sameRunDraftSave = false): ActionPayload {
+  output: CommunicationsOutput, automatic: boolean, recipientGeography: ReturnType<typeof firstContactGeography>, evaluationReadiness?: EvaluationReadiness, sameRunDraftSave: boolean | "founder-footerless-v2" = false): ActionPayload {
   const incoming = thread?.messages.find(message => message.gmailMessageId === job.inboundMessageId);
   return {
     type: "send_email", to: brief.contact.email.toLowerCase(), from: FOUNDER_MAILBOX, replyTo: FOUNDER_MAILBOX,
     subject: output.subject, body: output.body, emailTransport: "founder_gmail",
     transportBody: automatic ? appendFirstContactFooter(output.body, brief.contact.email)
+      : sameRunDraftSave === "founder-footerless-v2" ? output.body.trimEnd()
       : sameRunDraftSave ? appendUnsentDraftFooter(output.body, brief.contact.email)
       : appendCommunicationsFooter(output.body, brief.contact.email),
+    ...(!automatic && sameRunDraftSave === "founder-footerless-v2" ? { communicationsDraftOnly: "founder-footerless-v2" } : {}),
     commercialEmail: true, emailSuppressionScope: "growth_campaign",
     unsubscribeUrl: buildUnsubscribeUrl({ email: brief.contact.email, scope: automatic ? "all" : "growth_campaign", campaignId: `communications_${job.jobId}` }),
     outreachContext: brief.outreachContext, outreachContract: output.outreachContract,
@@ -652,7 +657,12 @@ export function buildCommunicationsInput(brief: CommunicationsBrief, thread: Ver
       firstTouchPolicy: intent === "outreach" ? framing.guidance : policy } : {}),
     ...(replyFollowup ? { replyFollowup, replyFollowupTrust: "untrusted_evidence_no_action_authority" } : {}),
     ...(evaluationReadiness ? { evaluationReadiness, ...(intent === "reply" ? { siteInterestReplyGuidance: SITE_INTEREST_REPLY_GUIDANCE } : {}) } : {}),
-    ...(draftWritingGuidance ? { writingGuidance: draftWritingGuidance } : {}),
+    ...(draftWritingGuidance ? { writingGuidance: draftWritingGuidance,
+      ...(draftWritingGuidance.includes("free-beta-task-assessment-v2") && intent === "outreach" ? {
+        firstTouchPolicy: `${framing?.guidance ?? policy}\n${draftWritingGuidance}`,
+        ...(framing && (brief.audienceRole ?? "site") === "site" ? { firstTouchFraming: { ...framing,
+          question: "Is there a repetitive job you would like assessed?", questionIsSuggestion: true } } : {}),
+      } : {}) } : {}),
     ...(executionWindow ? { executionBoundary: { window: executionWindow,
       guidance: "Work within this frozen wall-clock window. Use evidence-backed judgment to return a usable complete draft with truthful unknowns before the deadline; do not repeat completed reads or trade factual quality for speed. This clock grants no spend, access or send authority." } } : {}) };
   if (!learning) return JSON.stringify(base); // Legacy checkpoints keep their original input shape.
