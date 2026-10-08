@@ -1549,8 +1549,8 @@ remain release gates.
 Approved exact combined candidate
 `36bffa1ab5a58565730edf868e77b2788d6060cb`: reviewed67177887 plus root
 return-wake `c24b7194f3b63085215fc50b5ea4b92fcc57f715` and author postcommit
-changes `3611fdd56b8a23f4b08bd86b7db88586ecffd8fd`. Current worker UI
-inspection found its site-video flag and recognized Gemini aliases absent;
+changes `3611fdd56b8a23f4b08bd86b7db88586ecffd8fd`. The release owner reports current worker UI
+inspection showing its site-video flag and recognized Gemini aliases absent;
 worker credential transfer/global automation activation was not authorized or
 performed. The supported web process now wakes the existing queue after a
 successful newly-published original walkthrough commit. It does not await the
