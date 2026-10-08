@@ -1,10 +1,9 @@
 import { SEO } from "@/components/SEO";
 import { COMPANY } from "@/data/company";
-import { formatPrice, pilotFeeUsd } from "@/lib/evaluationPricing";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  "Blueprint helps businesses turn one recurring job into a scoped, funded, measurable robot pilot and decide what happens afterward.";
+  "Blueprint helps businesses assess one recurring task using real-site evidence and decide what to explore next.";
 
 const principles = [
   "Start from the real job at a real site, not a demo.",
@@ -31,22 +30,21 @@ export default function About() {
       />
       <article className="ms-legal ms-about ms-container">
         <p className="ms-eyebrow">About</p>
-        <h1>We help one real job reach a measured robot pilot.</h1>
+        <h1>We start with one real job.</h1>
         <p className="ms-about-lead">
-          Blueprint helps a business describe one recurring job and receive a credible robot-pilot
-          offer. The site may propose the pilot terms; a provider may accept or suggest changes.
-          We keep the job and outcome
-          record so the business can decide whether to stop, change, or continue.
+          Blueprint helps a business describe one recurring job and review an initial assessment
+          grounded in the available evidence. Our limited, invited beta asks what is supported,
+          what is uncertain, and what a useful next step would be.
         </p>
 
         <section>
           <h2>How it works</h2>
           <ol>
-            <li>Show us the job, including phone footage and a proposed pilot price or target budget. Keep ongoing economics separate.</li>
-            <li>Robot teams evaluate it for free. We pick the one that fits and send you a recommended pilot to book. No pilot, no fee; booking is {formatPrice(pilotFeeUsd)} per job.</li>
-            <li>You and the team agree the pilot directly, and we take no cut. The team installs and operates the robot.</li>
+            <li>Show us a real job, your desired outcome, and permitted footage or a conversation about the work.</li>
+            <li>Invited beta participants receive a free initial assessment and share feedback.</li>
+            <li>Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding.</li>
           </ol>
-          <p><a href="/how-it-works">More on how it works</a> · <a href="/pricing">Pricing</a></p>
+          <p><a href="/how-it-works">More on how it works</a> · <a href="/beta">Beta program</a></p>
         </section>
 
         <section>

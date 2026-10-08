@@ -1,5 +1,4 @@
 import { embedTexts } from "./embeddings";
-import { formatPrice, pilotFeeUsd, pilotReplacementPolicy } from "../../client/src/lib/evaluationPricing";
 
 // Grounded question answering for headless agents. Answers are curated,
 // citation-backed snippets over Blueprint's public canonical content — never
@@ -63,7 +62,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "capture backed evaluation",
     ],
     answer:
-      `Blueprint helps a business turn one recurring job into a measured robot pilot. The site shows the job and may post a pilot price and conditions or a target budget, with ongoing economics separate. Robot teams evaluate the job for free where evaluation is useful. Blueprint picks one team that passed, fits the budget, and wants the pilot, and sends the site one recommended pilot; teams it does not recommend stay anonymous. No pilot, no fee: the site pays Blueprint ${formatPrice(pilotFeeUsd)} per job only when it books the recommended pilot. Blueprint takes no cut of the pilot itself. The provider or integrator installs and operates the robot. Blueprint does not guarantee a ranking, winner, deployment, or pilot outcome.`,
+      "Blueprint offers a limited, invited beta for real sites and tasks. Participants share permitted video or discuss the work, describe the desired outcome, and provide feedback and follow-up. Invited participants receive a free initial evidence-backed task assessment, including what is supported, unknown, and worth exploring next. Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. Robot teams participate by invitation on an agreed task scope. No guaranteed ready robot, instant automatic delivery, validated physical performance, or free physical deployment.",
     citations: [`${CANONICAL_ORIGIN}/`, `${CANONICAL_ORIGIN}/proof`],
     actions: [
       { description: "Read the public discovery summary", method: "GET", endpoint: "/api/site-content" },
@@ -116,7 +115,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
     ],
     answer:
       "Start at /contact/robot-team or /contact/site-operator and request the same Task Evaluation Run. Include the site job, decision question, candidates when applicable, measurable thresholds, unacceptable failures, false-safe consequence, budget, deadline, existing evidence, rights/privacy restrictions, and whether physical testing is possible. Blueprint returns a scoped quote; no client-supplied price is authoritative. Standalone site-package and hosted-session checkout is retired and returns 410 without creating a Stripe session, order, charge, or entitlement.",
-    citations: [`${CANONICAL_ORIGIN}/agent-access.openapi.json`, `${CANONICAL_ORIGIN}/pricing`],
+    citations: [`${CANONICAL_ORIGIN}/agent-access.openapi.json`, `${CANONICAL_ORIGIN}/beta`],
     actions: [
       { description: "Open robot-team intake", method: "GET", endpoint: "/contact/robot-team?interest=task-evaluation-run" },
       { description: "Open site-operator intake", method: "GET", endpoint: "/contact/site-operator?interest=task-evaluation-run" },
@@ -194,9 +193,9 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "fees",
     ],
     answer:
-      `No pilot, no fee. Submitting a site job, screening, evaluation and a recommended pilot are free. Blueprint selects one robot team that passed the evaluation for the job, fits the site's budget, and wants to run the pilot, and charges the site ${formatPrice(pilotFeeUsd)} per job only when the site books that pilot. Blueprint takes no percentage of the pilot or any deployment; the site and the team agree the pilot price directly, and the provider performs installation and operation. Booking is the site's one approval and where it agrees to the fee. ${pilotReplacementPolicy} Robot teams evaluate invited jobs for free. The beta enables free invited evaluations only. Private evaluations and balance top-ups are unavailable. A Task Evaluation Run supports a pilot decision but simulated ranking is not physical proof and no outcome is guaranteed.`,
+      "The initial assessment is free for invited beta participants. Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. Participation does not include a free physical deployment. Robot teams participate by invitation within a specific agreed scope; paid self-serve evaluations and balance top-ups remain unavailable. Historical agreements and billing records retain their original terms.",
 
-    citations: [`${CANONICAL_ORIGIN}/pricing`],
+    citations: [`${CANONICAL_ORIGIN}/beta`],
     actions: [
       { description: "Request a scoped quote", method: "GET", endpoint: "/contact/robot-team?interest=task-evaluation-run" },
     ],

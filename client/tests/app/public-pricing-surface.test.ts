@@ -71,20 +71,16 @@ describe("the public surface carries one pricing model", () => {
     }
   });
 
-  it("states the no-pilot-no-fee site price and free robot-team evaluation", async () => {
-    const { formatPrice, pilotFeeUsd } = await import("@/lib/evaluationPricing");
+  it("routes historical pricing to current beta information while preserving its implementation", async () => {
+    const { minimalMarketingRedirects } = await import("@/data/minimalPublicSite");
     const { faqItems } = await import("@/pages/FAQ");
-
-    const paymentAnswer = faqItems.find((item) => item.question === "How is Blueprint paid?");
-    expect(paymentAnswer).toBeTruthy();
-
-    // One site price, charged for the outcome Blueprint delivers. The optional
-    // self-directed API price lives in the Terms and the API, not in the FAQ.
-    expect(paymentAnswer?.answer).toMatch(/^No pilot, no fee\./);
-    expect(paymentAnswer?.answer).toContain(`${formatPrice(pilotFeeUsd)} per job`);
-    expect(paymentAnswer?.answer).toContain("no cut of the pilot");
-    expect(paymentAnswer?.answer).toContain("Robot teams pay nothing");
-    expect(paymentAnswer?.answer).not.toMatch(/5%|capped|introduced provider|\$99/);
+    expect(minimalMarketingRedirects["/pricing"]).toBe("/beta");
+    expect(appRoutes.find(route => route.path === "/beta")?.layout).toBe("public");
+    expect(fs.existsSync(path.join(repoRoot, "client/src/pages/Pricing.tsx"))).toBe(true);
+    const answer = faqItems.find(item => item.question === "How is Blueprint paid?")?.answer;
+    expect(answer).toContain("free for invited beta participants");
+    expect(answer).toContain("agreed separately before proceeding");
+    expect(answer).not.toMatch(/\$2,500|No pilot, no fee/);
   });
 
   it("quotes a robot team the same price the server charges it", async () => {

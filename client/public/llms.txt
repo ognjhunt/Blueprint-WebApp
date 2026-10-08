@@ -2,7 +2,7 @@
 
 > Blueprint helps a business turn one recurring job into a scoped, funded, measurable robot pilot and decide what happens afterward.
 
-Show Blueprint one recurring job, including phone footage and a proposed pilot price and conditions or a target budget. Keep ongoing economics separate. An approved budget is not required to start. Robot teams evaluate the job for free. No pilot, no fee. Blueprint picks one robot team that passed the evaluation, fits the site's budget, and wants to run the pilot, and sends the site one recommended pilot with its purpose, responsibilities, cost and dates; teams it does not recommend stay anonymous. The site books it in one step and pays Blueprint $2,500 per job only when it books. Blueprint takes no percentage of the pilot or any deployment. The provider or integrator installs and operates the robot. Simulation is not physical proof or a deployment guarantee.
+Blueprint offers a limited, invited beta for real sites and tasks. Share permitted video or discuss the work, describe the desired outcome, and provide feedback and follow-up. Invited participants receive a free initial evidence-backed assessment of what is supported, what is unknown, and a practical next step. Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. No guaranteed ready robot, instant automatic delivery, or free physical deployment. Simulation is not physical proof or a deployment guarantee.
 
 Booking the recommended pilot is the site's one approval and where it agrees to the fee. If the recommended team withdraws or materially changes its confirmed price or scope before the pilot starts, Blueprint recommends a replacement that meets the same agreed requirements. If none fits, Blueprint refunds the fee. Contact hello@tryblueprint.io with the job link.
 
@@ -10,13 +10,13 @@ Booking the recommended pilot is the site's one approval and where it agrees to 
 
 - [Home](https://tryblueprint.io/)
 - [How it works](https://tryblueprint.io/how-it-works)
-- [Pricing](https://tryblueprint.io/pricing)
+- [Beta program](https://tryblueprint.io/beta)
 - [Discuss your site](https://tryblueprint.io/contact/site-operator)
 - [Robot teams: apply for early access](https://tryblueprint.io/contact/robot-team)
 - [Privacy](https://tryblueprint.io/privacy)
 - [Terms](https://tryblueprint.io/terms)
 
-Robot teams join by early access. Approved teams see only job cards sites chose to share. Invited evaluations are free within a bounded scope, carry no supplier commission, and share results with the site for pilot consideration. When a team passes, fits the site's budget, and wants the pilot, Blueprint introduces it to the site, and the two sides agree the pilot directly. The beta offers free invited evaluations only; private paid evaluations and top-ups are unavailable. Pricing: https://tryblueprint.io/pricing. Contact: hello@tryblueprint.io.
+Robot teams join by early access. Approved teams see only job cards sites chose to share. Invited evaluations are free within a bounded scope, carry no supplier commission, and share results with the site for pilot consideration. When a team passes, fits the site's budget, and wants the pilot, Blueprint introduces it to the site, and the two sides agree the pilot directly. The beta offers free invited evaluations only; private paid evaluations and top-ups are unavailable. Beta program: https://tryblueprint.io/beta. Contact: hello@tryblueprint.io.
 
 ## Evidence boundary
 

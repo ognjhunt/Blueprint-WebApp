@@ -41,7 +41,8 @@ function lazyRoute<P = any>(
 }
 
 const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
-const Pricing = lazyRoute(() => import("../pages/Pricing"));
+// Keep the historical Pricing component for a later commercial release.
+const Beta = lazyRoute(() => import("../pages/Beta"));
 const About = lazyRoute(() => import("../pages/About"));
 const Home = lazyRoute(() => import("../pages/Home"));
 const SelfCaptureUpload = lazyRoute(() => import("../pages/SelfCaptureUpload"));
@@ -195,7 +196,7 @@ const LegacyBookExactSiteReviewRedirect = () => (
 );
 
 const LegacyOfferRedirect = () => (
-  <MarketingRedirect to="/pricing" />
+  <MarketingRedirect to="/beta" />
 );
 
 const LegacyBlogRedirect = () => (
@@ -235,7 +236,7 @@ export const appRoutes: AppRoute[] = [
   })),
   { path: "/", layout: "public", component: Home },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
-  { path: "/pricing", layout: "public", component: Pricing },
+  { path: "/beta", layout: "public", component: Beta },
   { path: "/about", layout: "public", component: About },
   // The capturer network and its app are retired for now: sites film their own
   // tasks. Old entry points go to the site start page.
