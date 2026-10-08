@@ -371,7 +371,7 @@
       "semanticCaseHash": "414589b1f854d99d33dbfafbdcbffe4ad870d074f51ea69938f1024ea666f0de",
       "baselineResult": "actual SDK Runner scripted packet admitted; synthetic source disproves claim",
       "violatedClaim": "Observed completed bin stacking cites only bin-to-table movement; task completion not observable and owner/spec stacking absent.",
-      "releaseStatus": "OPEN_no_general_sentence_entailment_guard",
+      "releaseStatus": "OPEN_on_current_d217;candidate_codecomplete_reviewed_PR943_requiredCI_pending",
       "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
       "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations.",
       "currentBaselineReconfirmation": {
@@ -381,7 +381,12 @@
         "outcome": "Both unchanged minimizers still admitted;8existing SDK and1history/current-source controls pass",
         "new_unique_case_credit": 0
       },
-      "repairInProgress": "Versioned evidence selectors and source-derived factual publication; retain raw model packet, historical DTOs and explicit unverified/review-required recovery. Independent review includes decision/capability entailment, field qualification and observable/unknown boundaries. No approval, merge or deployment claimed."
+      "repairInProgress": "Versioned evidence selectors and source-derived factual publication; retain raw model packet, historical DTOs and explicit unverified/review-required recovery. Independent review includes decision/capability entailment, field qualification and observable/unknown boundaries. No approval, merge or deployment claimed.",
+      "candidatePR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/943",
+      "candidateCommit": "a49db1fbdda580a4b29bc90adf47f065f3cdf8ec",
+      "candidateSourceSha256": "5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c",
+      "candidateRetest": "Originalraw/source/semantic hashes preserved; publishedfalsefact becomesunknown/recovery; selected-source positiveSDK case3freshprocesses; no natural-model/video truth claim",
+      "independentReview": "1980443a exacta49 scopedpublicationboundary approved"
     },
     {
       "id": "ASSESS-FIELD-ENTAILMENT-001",
@@ -394,7 +399,7 @@
       "semanticCaseHash": "34d08adecdc8b5d74282d5230f758915ee909622ed9c1b3b6b0d4382c3bcff42",
       "baselineResult": "actual SDK Runner scripted packet admitted; synthetic source disproves claim",
       "violatedClaim": "Known published50m reach cites registry reachM:1 whose field provenance is otherwise qualified.",
-      "releaseStatus": "OPEN_qualified_source_does_not_entail_prose",
+      "releaseStatus": "OPEN_on_current_d217;candidate_codecomplete_reviewed_PR943_requiredCI_pending",
       "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
       "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations.",
       "currentBaselineReconfirmation": {
@@ -404,7 +409,12 @@
         "outcome": "Both unchanged minimizers still admitted;8existing SDK and1history/current-source controls pass",
         "new_unique_case_credit": 0
       },
-      "repairInProgress": "Versioned evidence selectors and source-derived factual publication; retain raw model packet, historical DTOs and explicit unverified/review-required recovery. Independent review includes decision/capability entailment, field qualification and observable/unknown boundaries. No approval, merge or deployment claimed."
+      "repairInProgress": "Versioned evidence selectors and source-derived factual publication; retain raw model packet, historical DTOs and explicit unverified/review-required recovery. Independent review includes decision/capability entailment, field qualification and observable/unknown boundaries. No approval, merge or deployment claimed.",
+      "candidatePR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/943",
+      "candidateCommit": "a49db1fbdda580a4b29bc90adf47f065f3cdf8ec",
+      "candidateSourceSha256": "5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c",
+      "candidateRetest": "Originalraw/source/semantic hashes preserved; publishedfalsefact becomesunknown/recovery; selected-source positiveSDK case3freshprocesses; no natural-model/video truth claim",
+      "independentReview": "1980443a exacta49 scopedpublicationboundary approved"
     },
     {
       "id": "WEBSITE-OWNER-TARGET-PREPARATION-001",

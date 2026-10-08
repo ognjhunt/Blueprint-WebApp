@@ -289,5 +289,20 @@
       "Provider-zero closure",
       "Customer-visible final result"
     ]
+  },
+  "stage3_no_cost_boundary_continuation": {
+    "manifest_sha256": "fc3fb7762a09351345926bbe70bae14e2fa390ba83ca103c89017918a9905c71",
+    "source_commit": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+    "same_retained_states": 2,
+    "new_case_or_full_journey_credit": 0,
+    "outcome": "Actualno-costcomponent refuses missingcompletedauthoring; stage1/2checkpoints survive; realpublisher refuses incompleteprefix beforewrite",
+    "missing_artifact": "task_evaluation_retained_astra_artifacts.v1 completedauthoring_result withsame-source rights/budget lineage, thenrealstatic/nativequalification",
+    "neighbor_checks": 11,
+    "neighbor_limits": "Some nativeobservations/subprocess mocked; separatefromactualboundaryrefusal",
+    "outer_worker_failure_transition_executed": false,
+    "customer_status_proven": false,
+    "provider_calls": 0,
+    "owner": "Pipeline Astra/scene-configuration under coordinator",
+    "independent_review_commit": "997a03aa"
   }
 }

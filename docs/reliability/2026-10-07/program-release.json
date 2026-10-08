@@ -230,7 +230,32 @@
           "outcome": "approved_bounded_deployed_identity_provenance_and_paused_state",
           "claim_ceiling": "No customer assessment completion, quality or older launch artifact validity proved."
         },
-        "public_sanitized_receipt": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6058033866"
+        "public_sanitized_receipt": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6058033866",
+        "installed_compiler_behavior_smoke": {
+          "observed_utc": "2026-10-08T10:50:43.603124+00:00",
+          "before_after_commit": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+          "outcome": "passed",
+          "normal_states": [
+            "unknown",
+            "explicit"
+          ],
+          "independent_case_credit": 0,
+          "compiler_sha256": "570ee667e0af5a869fb455175c835e386db7a7dea532fd2caa60d34508a93ae9",
+          "executed_script_sha256": "50933962d699dbcbf31d4f36d53bd4b012a99d15ee68d3e3250831180cf10f54",
+          "receipt_sha256": "0a9981e8cc28fd330ca8b4aebe7a31a1eb3328e04c9aae7dedf3c61dcaf418ac",
+          "replay_source": "scripts/reliability/pipeline-installed-compiler-smoke.py",
+          "network_subprocess_attempts": 0,
+          "writes": "disposable temporary geometry only; cleaned after execution",
+          "production_customer_state_used": false,
+          "materializer_or_native_publication_executed": false,
+          "claim_ceiling": "Actual installed pure-compiler behavior for2synthetic normal inputs; no complete customer or native journey.",
+          "independent_review_commit": "997a03aa",
+          "isolation_limit": "Audit fences apply to inspected trusted compiler path, not a general sandbox guarantee",
+          "root_Graphify_refresh": {
+            "outcome": "pass",
+            "log_sha256": "c20c9460ef5c873a11d29551f23136c1be802304247c545198e0439896dd7912"
+          }
+        }
       }
     },
     "sim_only_current_main_setup_failure": {
@@ -412,5 +437,22 @@
     "raw_artifacts": "Authorized private ignored output directories, bounded retention policy; company Git stores sanitized replay sources/catalogs",
     "new_outreach_or_real_test_email": false,
     "temporary_fault_injection_or_owned_emulator_left_running": false
+  },
+  "assessment_evidence_binding_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/943",
+    "head": "a49db1fbdda580a4b29bc90adf47f065f3cdf8ec",
+    "parent": "d21721d94aad50c0314d2e10875c3b022841c689",
+    "runtime_source_sha256": "5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c",
+    "contract": "site_assessment.v2; legacyunverified; originalmodelpacketretainedprivate",
+    "scope": "Selected-source factual rendering and explicitunverified/advisory recovery; notNLP/perception/feasibility truth",
+    "state": "code_complete_independently_reviewed_requiredCI_in_progress_not_merged_or_deployed",
+    "independent_review_commit": "1980443a",
+    "reviewer_manifest_sha256": "fc5cbb02d4f0a0b313af59c0168c4711bcf7acd01511c52db36cb9f3f0cbaeb1",
+    "independent_checks": "65focused+4neighbors;matchedtwoP1originalinputs/source/scriptedoutputs;positiveSDKreceiptsmatch3freshprocesses;17serializedstrictobjects",
+    "frozen_120_replay": "120cases/264scriptedinvocations;72structural/48provisionaltruthpartial/12applicability controls unchanged;90acceptedlegacyrawsderivedunknown;174rejected",
+    "new_unique_or_accuracy_sample_credit": 0,
+    "required_PR_CI_run": 37765780084,
+    "privacy": "existingprivateartifact/adminaccess; noDBmigration/customerproviderdispatch/email/storagechange",
+    "replay_doc": "docs/reliability/2026-10-07/assessment-evidence-binding.md"
   }
 }
