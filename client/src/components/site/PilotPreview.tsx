@@ -441,15 +441,16 @@ export function PilotPreview() {
 }
 
 /**
- * The warehouse loop alone, for pages that carry the robot without the pilot card.
- * It holds the still frame under reduced motion, pauses while scrolled out of view,
- * and has a pause control, since it keeps moving beside forms.
+ * The home pilot examples on their own, for pages that carry the robot without the pilot card.
+ * Each example plays one loop, then the next one starts. It holds the first still frame under
+ * reduced motion and pauses while scrolled out of view.
  */
-export function RobotScene({ label, className }: { label: string; className?: string }) {
+export function RobotScene() {
   const artRef = useRef<SVGSVGElement>(null);
   const [inView, setInView] = useState(true);
-  const [paused, setPaused] = useState(false);
+  const [active, setActive] = useState(0);
   const [reducedMotion] = useState(() => typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches));
+  const firstLoop = useRef(true);
 
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined" || !artRef.current) return;
@@ -458,18 +459,26 @@ export function RobotScene({ label, className }: { label: string; className?: st
     return () => observer.disconnect();
   }, []);
 
-  const t = useSceneClock(!reducedMotion && !paused && inView, "warehouse");
+  const running = !reducedMotion && inView;
+  const example = examples[active];
+  const t = useSceneClock(running, example.site);
+
+  useEffect(() => {
+    if (!running) return;
+    // The first loop starts at the still frame, so it has less than a full loop left to play.
+    const seconds = firstLoop.current ? LOOP - STILL : LOOP;
+    firstLoop.current = false;
+    const id = window.setTimeout(() => setActive(i => (i + 1) % examples.length), seconds * 1000);
+    return () => window.clearTimeout(id);
+  }, [active, running]);
+
+  const { Art } = example;
   return (
-    <div className={["robot-scene", className].filter(Boolean).join(" ")}>
-      <svg ref={artRef} viewBox="0 0 320 196" role="img" aria-label={label}>
-        <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
-        <Warehouse t={t} />
-      </svg>
-      {reducedMotion ? null : (
-        <button type="button" className="ms-pilot-pause robot-scene-pause" onClick={() => setPaused(p => !p)} aria-label={paused ? "Play robot animation" : "Pause robot animation"}>
-          {paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}
-        </button>
-      )}
-    </div>
+    <svg ref={artRef} className="robot-scene" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example`}>
+      <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
+      <g key={example.site} className="ms-pilot-art-scene">
+        <Art t={t} />
+      </g>
+    </svg>
   );
 }

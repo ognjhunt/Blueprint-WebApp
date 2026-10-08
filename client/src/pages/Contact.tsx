@@ -35,7 +35,7 @@ export default function Contact() {
           </div>
           <div className="ms-beta-example">
             <figure>
-              <RobotScene label="Illustration: a humanoid lifts a tote from a shelf, walks it to a cart and sets it down." />
+              <RobotScene />
               <figcaption className="ms-imagery-caption">Illustrative scene · Robot configuration shown as an example.</figcaption>
             </figure>
           </div>
