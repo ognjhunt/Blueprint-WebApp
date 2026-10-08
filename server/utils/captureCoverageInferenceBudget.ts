@@ -144,7 +144,8 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
 }
 
 type RecoveryInput = { requestId: string; jobId: string; captureId: string; previousRunId: string; previousClaimId: string | null;
-  newRunId: string; retryIdentity: string; sourceKey: string; contextDigest: string; request: Record<string, any>; brief: Record<string, any> | null };
+  newRunId: string; retryIdentity: string; sourceKey: string; contextDigest: string; request: Record<string, any>; brief: Record<string, any> | null;
+  abandonmentStartedAtMs?: number };
 const ASSESSMENT_LEASE_MS = 30 * 60_000;
 const callIntentDigest = (call: Record<string, any>) => digest(Object.fromEntries([
   "schema_version", "admission_token", "request_id", "capture_id", "run_id", "owner_run_id", "provider", "model",
@@ -189,7 +190,16 @@ export async function prepareAssessmentAbandonment(tx: Transaction, input: Omit<
  * No financial programme, provider receipt or remaining spending quota is required. */
 export async function prepareAssessmentRecovery(tx: Transaction, input: RecoveryInput) {
   const budgetRef = budgetFor(input.captureId), [budgetSnap, runSnap] = await Promise.all([tx.get(budgetRef), tx.get(db!.collection("agentRuns").doc(input.previousRunId))]);
-  const state = budgetSnap.data(), run: any = await hydrateAgentEvidence(runSnap.data() ?? {}, { collection: "agentRuns", id: input.previousRunId });
+  const state = budgetSnap.data();
+  let run: any = await hydrateAgentEvidence(runSnap.data() ?? {}, { collection: "agentRuns", id: input.previousRunId });
+  let abandonedRun: Awaited<ReturnType<typeof prepareAssessmentAbandonment>> | undefined;
+  if (run.status === "running" && input.abandonmentStartedAtMs !== undefined) {
+    abandonedRun = await prepareAssessmentAbandonment(tx, { ...input, startedAtMs: input.abandonmentStartedAtMs });
+    if (abandonedRun.completed) throw new Error("advisory_retry_unavailable");
+    // A verified proposal makes availability inspectable without writing. The
+    // caller commits this cancellation only with the explicit retry transaction.
+    run = { ...run, ...abandonedRun.runUpdate };
+  }
   let bound = run.artifacts?.source_admission, intent = run.artifacts?.capture_inference_reservations?.at(-1);
   assertSource(input.request, input.captureId, { kind: "browser_pending", key: input.sourceKey });
   let abandoned = false;
@@ -242,7 +252,7 @@ export async function prepareAssessmentRecovery(tx: Transaction, input: Recovery
     reserved_micro_usd: Math.ceil(reserved * 1e6), reserved_call_micro_usd: Math.ceil(reserved * 1e6), capture_calls: state?.calls ?? 0,
     capture_exposure_usd: state?.exposure_usd ?? 0, created_at_ms: Date.now() };
   const receipt: AssessmentRecovery = { ...content, receipt_sha256: digest(content) };
-  return { receipt, budgetRef, programmeRef: null, programmeUpdate: {}, callRef,
+  return { receipt, budgetRef, programmeRef: null, programmeUpdate: {}, callRef, abandonedRun,
     callUpdate: { schema_version: "capture_inference_call.v1", admission_token: token, request_id: input.requestId, capture_id: input.captureId, run_id: input.previousRunId, provider, model, source_digest: content.source_digest, context_digest: input.contextDigest, video_sha256: bound.video_sha256, reserved_usd: reserved, cost_estimate_usd: null, state: "unknown", recovery_receipt_sha256: receipt.receipt_sha256, recovered_at_ms: Date.now() },
     budgetUpdate: { ...(state ? {} : {schema_version:"capture_coverage_inference_budget.v1",capture_id:input.captureId,cap_usd:null,exposure_usd:0,calls:0,historical_usage_status:"unreconciled"}),
       pending_token: null, assessment_recoveries: [...history, receipt] } };

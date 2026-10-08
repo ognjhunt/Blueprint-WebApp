@@ -211,11 +211,12 @@ export async function retrySiteAssessment(input: { requestId: string; expectedJo
     const runId = `site-assessment-retry-${humanDecisionDigest({ jobId: id, previousRunId: job.run_id, retryIdentity: input.retryIdentity })}`;
     const archive = await prepareAssessmentRecovery(tx, { requestId: input.requestId, jobId: id, captureId: job.capture_id,
       previousRunId: job.run_id, previousClaimId: job.claim_id, newRunId: runId, retryIdentity: input.retryIdentity, sourceKey: job.source_key,
-      contextDigest: job.context_digest, request: raw, brief: selected.brief });
+      contextDigest: job.context_digest, request: raw, brief: selected.brief, abandonmentStartedAtMs: job.started_at_ms });
     if (humanDecisionDigest(job.retry_history ?? []) !== humanDecisionDigest(archive.budgetUpdate.assessment_recoveries.slice(0, -1)))
       throw new Error("advisory_retry_unavailable");
     const next: SiteAssessmentJob = { ...job, state: "queued", run_id: runId, claim_id: null, packet_sha256: null,
       retry_history: archive.budgetUpdate.assessment_recoveries };
+    if (archive.abandonedRun && !archive.abandonedRun.completed) tx.set(archive.abandonedRun.runRef, archive.abandonedRun.runUpdate, { merge: true });
     if (archive.callRef) tx.set(archive.callRef, archive.callUpdate, { merge: true });
     tx.set(archive.budgetRef, archive.budgetUpdate, { merge: true });
     tx.set(selected.ref, { state: next.state, run_id: runId, claim_id: null, packet_sha256: null,
@@ -234,7 +235,7 @@ export async function describeSiteAssessmentRetry(requestId: string, assertAcces
       if (job.state !== "needs_review") throw new Error("advisory_retry_unavailable");
       const archive = await prepareAssessmentRecovery(tx, { requestId, jobId: id, captureId: job.capture_id,
         previousRunId: job.run_id, previousClaimId: job.claim_id, newRunId: "read-only-validation", retryIdentity: "read-only-validation",
-        sourceKey: job.source_key, contextDigest: job.context_digest, request: raw, brief: selected.brief });
+        sourceKey: job.source_key, contextDigest: job.context_digest, request: raw, brief: selected.brief, abandonmentStartedAtMs: job.started_at_ms });
       if (humanDecisionDigest(job.retry_history ?? []) !== humanDecisionDigest(archive.budgetUpdate.assessment_recoveries.slice(0, -1)))
         throw new Error("advisory_retry_unavailable");
       return { available: true, job_id: id, run_id: job.run_id };
