@@ -1204,7 +1204,7 @@
     "deployed_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
     "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
   },
-  "current_state_observed_at_utc": "2026-10-08T21:53:00Z",
+  "current_state_observed_at_utc": "2026-10-08T22:13:00Z",
   "historical_state_policy": "Original baseline/reproducer/source receipts are retained. A historical_state field preserves superseded status text when current state changes; original failed attempts are not erased.",
   "last_new_failure_observed_at_utc": "2026-10-08T21:47:57.021Z",
   "customer_financial_policy": {
@@ -1249,11 +1249,28 @@
     "applicable_revision": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
     "reproducer": "Actual normal same-job UI retry on2GB; Gemini and all3Sol responses recorded, then evidence transaction failure; exact native exception discarded by writer.",
     "terminal_receipt_sha256": "35283a48ccbd53d96fccd0baacd1706bf1f8779ddfbb32231d048d021908fb8a",
-    "state": "diagnosis_and_scoped_repair_in_progress",
+    "state": "source_reviewed_required_CI_executing_customer_recovery_predicate_under_repair",
     "isolated_neighbor": "Installed Firestore SDK rejects a250-byte depth24 document that current byte-only projection retains inline; minimized before/after under review. This does not establish the native customer failure cause.",
     "root_cause": "Unresolved: native transaction cause was discarded. No claim that final output ceiling caused this error.",
     "paid_retry": "Customer retry held technically until reviewed save repair deployed; serial independent local validation separately authorized.",
     "customer_visible_outcome": "needs_review; no falsely completed report",
-    "new_unique_coverage_credit": 0
+    "new_unique_coverage_credit": 0,
+    "candidate": {
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/978",
+      "head": "ed6dce24342dd7584e32d4b8dc1461f6dd47f3b8",
+      "independent_review": "0f65cee8",
+      "receipt_sha256": "26981e5da6ca1924c4312ea40a188b0c9aa9e58eac2710701bdad805d33dbcc1",
+      "matched_counterexamples": "NativeFirestore validation of genuine local SDK sanitized shape and cancelled/lost-ack terminal neighbors:3FAIL on39\u21923PASS candidate",
+      "checks": "54/54 existing+private controls; separateexistingqueue9/9 verifies offload\u2192hydrate\u2192publication and missingobject failure. Types/Graphify/portability/diff pass. RequiredCI37851991499 executing.",
+      "repair": "Existing verifiedimmutableprivateJSONoffload handles excessive fielddepth as well as bytes; structuralnumeric-only diagnostics; atomic failed-write recovery preserves newer/cancelled/completed proof/accounting.",
+      "limit": "Actual failedcloudpayload/nativecause unavailable; demonstrated realSDKcounterpart and isolated regression controls, not freshcustomerpublication."
+    },
+    "joined_recovery_gap": {
+      "observed": "Actual terminal39 run has no source_admission artifact/ref; existing retry predicate refuses recovery despite fully recorded canonicalcalls and no pendingcall.",
+      "owner": "intake_recovery",
+      "severity": "P1 affected recovery path",
+      "baseline": "Existingcontrol with exact35283 failedcommit shape cannot expose retry; retained private witness.",
+      "candidate": "Narrow same-source failedpersistence checkpoint from strict canonicalrun/job/claim/currentauthority+fullyboundrecorded/unknowncalls; no fabricated oldartifact or zerocharge inference. Underimplementation/review."
+    }
   }
 }

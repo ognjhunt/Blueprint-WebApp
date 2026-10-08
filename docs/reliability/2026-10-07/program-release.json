@@ -2132,7 +2132,7 @@
     },
     "original_case_credit": 0
   },
-  "updated_at_utc": "2026-10-08T22:03:00Z",
+  "updated_at_utc": "2026-10-08T22:13:00Z",
   "paid_provider_actor_handoff": {
     "owner": "Existing local assessment-iteration task; original normal-UI provider actor explicitly held",
     "scope": "ONE same authorized MOV production SDK/Gemini fresh baseline, then ONE actual Sol saved-evidence comparison reusing Gemini output. Serial actor; no automatic paid retry; no customer writes.",
@@ -2283,5 +2283,15 @@
       "public_reconfirmation": "Automatedreadtimeout/503thenCloudflare429cf-mitigatedchallenge;20:28successfulpublicreadsremaincoordinator-observed",
       "limits": "Edgeautomationresponseisnotprooforiginoutage;no security relaxation/newbrowseractor/gate"
     }
+  },
+  "private_evidence_save_repair": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/978",
+    "head": "ed6dce24342dd7584e32d4b8dc1461f6dd47f3b8",
+    "independent_review": "0f65cee8",
+    "receipt_sha256": "26981e5da6ca1924c4312ea40a188b0c9aa9e58eac2710701bdad805d33dbcc1",
+    "matched_counterexamples": "NativeFirestore validation of genuine local SDK sanitized shape and cancelled/lost-ack terminal neighbors:3FAIL on39\u21923PASS candidate",
+    "checks": "54/54 existing+private controls; separateexistingqueue9/9 verifies offload\u2192hydrate\u2192publication and missingobject failure. Types/Graphify/portability/diff pass. RequiredCI37851991499 executing.",
+    "repair": "Existing verifiedimmutableprivateJSONoffload handles excessive fielddepth as well as bytes; structuralnumeric-only diagnostics; atomic failed-write recovery preserves newer/cancelled/completed proof/accounting.",
+    "limit": "Actual failedcloudpayload/nativecause unavailable; demonstrated realSDKcounterpart and isolated regression controls, not freshcustomerpublication."
   }
 }
