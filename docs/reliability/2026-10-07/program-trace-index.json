@@ -1622,10 +1622,10 @@
     "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
   },
   "current_evaluation_snapshot": {
-    "updated_at_utc": "2026-10-08T18:39:19.382562+00:00",
+    "updated_at_utc": "2026-10-08T20:14:34.350302+00:00",
     "original_frozen_counts_unchanged": true,
-    "verified_web_release": "783feb64213e78b5c219763e2fb2232b8390ba1c",
-    "release_review": "ef527e88",
+    "verified_web_release": "8cb532f757c0d899cdd51617cb1c82a3c6acc42c",
+    "release_review": "Native8cb identity/readiness;earlier783 browser release proof ef527e88 remains historical",
     "original_normal_UI_emulator_coverage_traces": 22,
     "additional_in_memory_worker_traces": 20,
     "supplemental_real_SDK_HTTP_worker_recovery": "actualhandlers+inmemoryFirestore/fakeobjects+scriptedSDKproviders;passed",
@@ -1634,10 +1634,12 @@
     "live_Gemini_perception_proven": false,
     "live_final_customer_assessment_proven": false,
     "new_paid_dispatch_after_human_configuration": 0,
-    "native_emulator_full_normal_UI_SDK_joined_gap": "Unproven;two supplemental cases frozen/executed by assignedauthor beforecounting;fakeproviders remain explicit.",
+    "native_emulator_full_normal_UI_SDK_joined_gap": "Bounded supplement now executed:3existing cases x3 PASS onb426;real handlers/nativeFirestore/fakeobjects/scriptedproviders/manual worker ticks, current974patch not exercised by this replay",
     "reference_sources": 1,
     "current_human_labels": 0,
-    "costs": "Localfake timings/usage stay separate; productionprovideracceptance/chargeunknownsnotzero."
+    "costs": "Localfake timings/usage stay separate; productionprovideracceptance/chargeunknownsnotzero.",
+    "reviewed_pending_release": "970dd and9719e protectedmerged;PR9745f independentlysourceapproved/CIactive",
+    "canonical_native_receipt_sha256": "cf2e771faa214eb66b4279995a0f8b26168b884314e2ed863ee3bac1c36cac42"
   },
   "supplemental_native_sdk_browser_join": {
     "state": "code_complete_independently_reviewed_supplemental_execution",
@@ -1753,5 +1755,23 @@
       "No emulator import/export proof;hydrated records retained"
     ],
     "cleanup": "OwnJava stopped;ports8085/42878 bind available20:07:11Z;no fault injection left enabled"
+  },
+  "historical_evaluation_snapshot_1839": {
+    "updated_at_utc": "2026-10-08T18:39:19.382562+00:00",
+    "original_frozen_counts_unchanged": true,
+    "verified_web_release": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+    "release_review": "ef527e88",
+    "original_normal_UI_emulator_coverage_traces": 22,
+    "additional_in_memory_worker_traces": 20,
+    "supplemental_real_SDK_HTTP_worker_recovery": "actualhandlers+inmemoryFirestore/fakeobjects+scriptedSDKproviders;passed",
+    "normal_customer_current_video_production_trace": "durableuploadthenfailedSDK;explicitretryfailed401beforeGemini",
+    "terminal_packet_sha256": "42c45cd3dbd7e90b3d6cc2f989694640c9aa92b2064d359b1fa1f51bbd1296c8",
+    "live_Gemini_perception_proven": false,
+    "live_final_customer_assessment_proven": false,
+    "new_paid_dispatch_after_human_configuration": 0,
+    "native_emulator_full_normal_UI_SDK_joined_gap": "Unproven;two supplemental cases frozen/executed by assignedauthor beforecounting;fakeproviders remain explicit.",
+    "reference_sources": 1,
+    "current_human_labels": 0,
+    "costs": "Localfake timings/usage stay separate; productionprovideracceptance/chargeunknownsnotzero."
   }
 }

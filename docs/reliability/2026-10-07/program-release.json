@@ -1737,13 +1737,14 @@
     "human_message_id": "01a11cf7-869d-7e30-9dc7-0caa5eda987f",
     "instruction": "Remove all spending budget/cap gates from the product/service.",
     "scope": "Customer assessment, capture coverage, video privacy and inbound qualification source gates; existing accounting remains. No unrelated infrastructure, access expansion, outreach or historical zero-cost inference.",
-    "candidate_head": "e5566498ec5a90fca7dc487439b0417e7978a51d",
+    "candidate_head": "b426d0991c1cf34e5acbdaf62ce7c97be0d225dc",
     "pull_request": "https://github.com/ognjhunt/Blueprint-WebApp/pull/970",
-    "state": "published_draft_not_merged_or_deployed;independent_stale_pending_owner_boundary_under_repair",
+    "state": "independently_reviewed_protected_merged970;native_deployment_pending",
     "old_amendment": "The unpublished $5.30 amendment and STATIC cost-admission proposal are superseded as customer prerequisites; original records and unknown liabilities remain historical/read-only.",
     "required_checks": {
-      "run_id": 37833797729,
-      "observed": "eight_jobs_success_test_in_progress"
+      "PR_run": 37835615540,
+      "main_run": 37836444298,
+      "observed": "success;E2E skipped not executed"
     },
     "frozen_coverage_quality_targets": "unchanged; requirement change is recorded explicitly, never additional unique-case credit",
     "paid_provider_calls": 0,
@@ -1761,6 +1762,14 @@
       "local_path": "output/reliability-program/customer-policy/human-financial-direction.json",
       "sha256": "8342f42b68a61d6931c017faed9b75be6d3a621e41c05ab3946078071380aab7",
       "status": "exact direct human message reverified;historical records unchanged;one ordinary owned-video assessment coordinated with original owner;no customer monetary/call-quota gate"
+    },
+    "historical_1949_snapshot": {
+      "candidate_head": "e5566498ec5a90fca7dc487439b0417e7978a51d",
+      "state": "published_draft_not_merged_or_deployed;independent_stale_pending_owner_boundary_under_repair",
+      "required_checks": {
+        "run_id": 37833797729,
+        "observed": "eight_jobs_success_test_in_progress"
+      }
     }
   },
   "latest_shared_main_observation": {
