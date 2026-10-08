@@ -185,8 +185,24 @@ it("ADVISORY-PRODUCER-001 joined actual SDK persistence and authorized owner pub
     const {SiteAdvisoryReport}=await import("../../client/src/components/site/SiteAdvisoryReport");
     const html=renderToStaticMarkup(createElement(SiteAdvisoryReport,{advisory:body.siteAdvisory}));expect(html).toContain("Video analysis");expect(html).toContain("A carton moves");
     await reconcileSiteAssessments();expect(calls).toBe(2);
+    // The actual private SDK result survived, but the final job/pointer commit
+    // was lost. Ordinary owner polling must recover it without paid replay.
+    state.docs.set(key,{...state.docs.get(key),state:"running",packet_sha256:null});
+    state.docs.get(`inboundRequests/${joined.request_id}`)!.site_advisory.state="running";
+    const wakesBeforeReturn=wakeSpy.mock.calls.length;
+    const returning=await(await read()).json();expect(returning.siteAdvisory.state).toBe("running");
+    await vi.waitFor(()=>expect(wakeSpy.mock.calls.length).toBeGreaterThan(wakesBeforeReturn));
+    // The existing rotating scan may wrap its retained cursor on this poll;
+    // follow ordinary status polling until its next bounded pass reads the row.
+    await vi.waitFor(async()=> {
+      await Promise.all(wakeSpy.mock.results.map(result=>result.value));
+      expect((await(await read()).json()).siteAdvisory.state).toBe("ready");
+    });
+    expect(state.docs.get(key)?.state).toBe("completed");expect(calls).toBe(2);expect(videoSpy).toHaveBeenCalledTimes(1);
+    const wakesBeforeWithdrawal=wakeSpy.mock.calls.length;
     state.docs.get(`inboundRequests/${joined.request_id}`)!.consent_revoked=true;
     const withdrawn=await(await read()).json();expect(withdrawn.siteAdvisory.state).toBe("authority_ended");expect(withdrawn.siteAdvisory.sections).toEqual([]);
+    await Promise.resolve();expect(wakeSpy.mock.calls.length).toBe(wakesBeforeWithdrawal);expect(calls).toBe(2);
   } finally {
     modelSpy.mockRestore();videoSpy.mockRestore();fetchGuard.mockRestore();vi.unstubAllEnvs();
     if(server)await new Promise<void>(resolve=>server.close(()=>resolve()));
