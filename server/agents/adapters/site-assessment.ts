@@ -26,6 +26,44 @@ const requestFacts = (record: Record<string, any>) => Object.fromEntries([
   "siteTaskSpec", "siteTaskGates", "siteLocation", "siteLocationMetadata", "capture_region",
 ].map(key => [key, record.request?.[key] ?? null]));
 
+// Exception prose is untrusted; only existing host codes and bounded provider
+// metadata belong in the canonical private result. Never inspect headers/body.
+const assessmentErrorCodes = new Set([
+  "site_assessment_failed", "site_assessment_cancelled", "site_assessment_run_not_active", "site_assessment_runtime_cost_stop",
+  "site_assessment_source_not_admitted", "site_assessment_lane_unavailable", "site_assessment_runtime_not_admitted",
+  "site_assessment_video_read_not_allowed", "site_assessment_provider_domain_not_allowed", "site_assessment_request_not_found",
+  "site_assessment_browser_capture_required", "site_assessment_source_changed", "site_assessment_context_changed",
+  "site_assessment_capture_size_invalid", "site_assessment_capture_identity_changed", "site_assessment_capture_size_changed",
+  "site_assessment_current_source_unverified", "site_assessment_manifest_changed", "site_assessment_advisory_binding_changed",
+  "site_assessment_conversation_binding_invalid", "site_assessment_conversation_request_mismatch", "site_assessment_video_evidence_missing",
+  "site_assessment_deadline_exceeded", "site_assessment_exposure_invalid", "site_assessment_cost_unresolved",
+  "site_assessment_model_not_admitted", "site_assessment_input_budget_exceeded", "site_assessment_inference_cost_cap",
+  "site_assessment_accounting_mismatch", "site_assessment_actual_cost_exceeds_reservation",
+]);
+const providerErrorCodes = new Set(["invalid_request_error", "rate_limit_exceeded", "context_length_exceeded", "invalid_api_key",
+  "insufficient_quota", "server_error", "model_not_found", "ETIMEDOUT", "ECONNRESET", "ENOTFOUND", "EAI_AGAIN"]);
+const sdkErrorClasses = new Set(["SystemError", "MaxTurnsExceededError", "ModelBehaviorError", "InvalidToolInputError", "UserError",
+  "GuardrailExecutionError", "ToolCallError", "InputGuardrailTripwireTriggered", "OutputGuardrailTripwireTriggered",
+  "ToolInputGuardrailTripwireTriggered", "ToolOutputGuardrailTripwireTriggered"]);
+function errorField(error: unknown, key: string): unknown {
+  // Own data properties only: a diagnostic getter must not replace the failure.
+  try { return error && typeof error === "object" ? Object.getOwnPropertyDescriptor(error, key)?.value : undefined; }
+  catch { return undefined; }
+}
+function assessmentExceptionDiagnostic(error: unknown, runId: string) {
+  const apiClasses = ["APIConnectionTimeoutError", "APIConnectionError", "APIUserAbortError", "BadRequestError", "AuthenticationError",
+    "PermissionDeniedError", "NotFoundError", "ConflictError", "UnprocessableEntityError", "RateLimitError", "InternalServerError", "APIError"] as const;
+  const apiClass = apiClasses.find(name => error instanceof OpenAI[name]);
+  const name = errorField(error, "name"), status = errorField(error, "status"), code = errorField(error, "code"), requestId = errorField(error, "request_id");
+  const exceptionClass = apiClass ?? (error instanceof TypeError ? "TypeError" : error instanceof RangeError ? "RangeError"
+    : error instanceof SyntaxError ? "SyntaxError" : error instanceof Error
+      ? typeof name === "string" && sdkErrorClasses.has(name) ? name : "Error" : null);
+  return { schema_version: "site_assessment_error.v1", correlation_id: runId, exception_class: exceptionClass,
+    http_status: typeof status === "number" && Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+    provider_error_code: typeof code === "string" && providerErrorCodes.has(code) ? code : null,
+    provider_request_id: typeof requestId === "string" && /^req_[a-f0-9]{16,64}$/.test(requestId) ? requestId : null };
+}
+
 /** Admission uses stored source identity, not URLs/durations in model input. */
 export function bindBrowserAssessmentSource(requestId: string, record: Record<string, any>, pending: BrowserPending,
   manifest: Record<string, any>) {
@@ -201,8 +239,9 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
     return { ...base, status: "completed", output: packet.assessment,
       artifacts: { site_assessment_packet: packet, site_assessment_packet_sha256: digest(packet), source_admission: sourceAdmission, capture_inference_reservations: captureReservations, ...budget.artifacts() } };
   } catch (error) {
-    const message = error instanceof Error && /^site_assessment_/.test(error.message) ? error.message.split(":")[0] : "site_assessment_failed";
+    const code = errorField(error, "message");
+    const message = error instanceof Error && typeof code === "string" && assessmentErrorCodes.has(code) ? code : "site_assessment_failed";
     return { ...base, status: message === "site_assessment_cancelled" ? "cancelled" : "failed", error: message,
-      artifacts: { site_assessment_partial_evidence: instance?.evidence() ?? null, source_admission: sourceAdmission, capture_inference_reservations: captureReservations, ...budget.artifacts() } };
+      artifacts: { site_assessment_error: assessmentExceptionDiagnostic(error, host.runId), site_assessment_partial_evidence: instance?.evidence() ?? null, source_admission: sourceAdmission, capture_inference_reservations: captureReservations, ...budget.artifacts() } };
   }
 }
