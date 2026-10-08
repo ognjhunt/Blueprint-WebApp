@@ -1754,7 +1754,18 @@
       "Not all production global middleware mounted",
       "No emulator import/export proof;hydrated records retained"
     ],
-    "cleanup": "OwnJava stopped;ports8085/42878 bind available20:07:11Z;no fault injection left enabled"
+    "cleanup": "OwnJava stopped;ports8085/42878 bind available20:07:11Z;no fault injection left enabled",
+    "canonical_runner": {
+      "repository": "ognjhunt/Blueprint-WebApp",
+      "commit": "2af4b4da4b65466b9035d75975a26e569243833a",
+      "paths": [
+        "server/tests/reliability-program-assessment.browser.ts",
+        "vitest.reliability-program.config.ts"
+      ],
+      "branch": "codex/reliability-sdk-browser-join-20261008",
+      "publication_checks": "typecheck/Graphify/portability/diffPASS",
+      "execution_boundary": "Published head was not executed;retained9/9 remains pinnedb426;source-only existing replay cleanup publication, no new cases/scaffolding"
+    }
   },
   "historical_evaluation_snapshot_1839": {
     "updated_at_utc": "2026-10-08T18:39:19.382562+00:00",

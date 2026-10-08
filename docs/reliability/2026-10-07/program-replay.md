@@ -165,3 +165,17 @@ env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" PYTHONDONTWRITEBYTECOD
 ```
 
 The retained36status checks and5cold-import controls are separate suites, with no provider or production database calls. Both minimized older-ACK cases fail on actual91-source bytes with generated birth/lease fixtures and fake owner/context/callback transports. The candidate preserves a genuinely newer acknowledgment and rejects a ledger advance after postflight. Evidence is indexed by exact source/log/receipt hashes in program-release.json; the canonical test source is in company Git. Fresh exact merged-SHA promotion and canonical deployment are separate requirements. No exactly-once callback or live customer outcome is implied.
+
+
+## Retained SDK browser/accounting replay
+
+The existing supplemental runner is preserved in company Git at `2af4b4da4b65466b9035d75975a26e569243833a`, paths `server/tests/reliability-program-assessment.browser.ts` and `vitest.reliability-program.config.ts`. Its final runner SHA is `20fc741f186661d782738d76501227250949e82251149d392e10b18786ec1d48`. That publication adds no new cases. The retained nine passing attempts executed runtime `b426d099`, not the newer publication or PR974 runtime. Three cases repeat three times: normal completion, literal Chromium termination during upload, and fresh worker recovery after private completion but before queue acknowledgement. Earlier nine attempts (six pass/three fail) remain retained with the explicit browser-driver cleanup corrections.
+
+Use a disposable checkout, the existing cached runtime setup and exclusively owned emulator/ports described above. To replay the retained source combination, start from `b426d0991c1cf34e5acbdaf62ce7c97be0d225dc` and copy the two published runner/config paths from `2af4b4da` with `git show` into that disposable checkout only. Restore the retained authorized synthetic pattern to `output/reliability-program/sdk-browser-pattern.mp4`; its bytes and hash are in the private receipt's retained-final-readback, not a customer video. With your owned emulator already listening, invoke:
+
+```bash
+env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" NODE_ENV=test BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP=true RELIABILITY_FIRESTORE_EMULATOR=1 FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 RELIABILITY_ASSESSMENT_ONLY=1 node node_modules/vitest/vitest.mjs run --config vitest.reliability-program.config.ts --maxWorkers=1 --minWorkers=1
+env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" NODE_ENV=test BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP=true RELIABILITY_FIRESTORE_EMULATOR=1 FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 RELIABILITY_ASSESSMENT_RESTART_ONLY=1 node node_modules/vitest/vitest.mjs run --config vitest.reliability-program.config.ts --maxWorkers=1 --minWorkers=1
+```
+
+Do not connect an external diagnostic CDP client during execution. The worker case uses an explicit test-only dispatcher hold, manual ticks and an after-private-commit pause. Actual SDK/private writer/native Firestore records and owner bindings are exercised; objects, provider responses and notification delivery are local fakes. This proves neither live video accuracy, live provider pricing nor production automatic scheduling. Raw bearer traces stay private; no full emulator export/import is claimed. Receipt `cf2e771faa214eb66b4279995a0f8b26168b884314e2ed863ee3bac1c36cac42` indexes 154 retained artifacts and the exact frozen source pins.
