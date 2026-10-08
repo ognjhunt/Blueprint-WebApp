@@ -33,7 +33,7 @@ async function fillIntake(page: Page, decisionQuestion: string) {
   await page.getByLabel("Acceptable risk or confidence requirement").fill("At most five percent false-safe risk.");
   await page.getByLabel("Unacceptable failures").fill("Fixture collision");
   await page.getByLabel("Consequence of a false-safe").fill("Could damage the fixture.");
-  await page.getByLabel("Budget ceiling (USD)").fill("5000");
+  await expect(page.getByLabel("Budget ceiling (USD)")).toHaveCount(0);
   await page.getByLabel("Rights, privacy, and provider restrictions (one per line)").fill("No raw video outside Blueprint storage");
   await page.getByRole("button", { name: "Request a Task Evaluation Run" }).click();
 }
@@ -120,6 +120,10 @@ test("authenticated intake progresses from planning to a partial decision", asyn
   await expect(page).toHaveURL(/\/app\/runs\/request-/);
   await expect(page.getByText("No decision yet. Current status: planning.", { exact: true })).toBeVisible();
   expect(JSON.stringify(api.submitted())).not.toMatch(/mujoco|isaac|cosmos|oscar/i);
+  expect(api.submitted()).toMatchObject({
+    constraints: { budget: { currency: "USD", hard_cap: false } },
+  });
+  expect((api.submitted()?.constraints as { budget: unknown }).budget).not.toHaveProperty("amount");
 
   api.makeDecisionAvailable();
   await page.reload();
