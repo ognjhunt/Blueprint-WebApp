@@ -12,13 +12,14 @@ function option(name: string, fallback = "") {
 }
 const expectedSha = option("--expected-sha");
 const mode = option("--mode", "candidate");
+const verifyClear = args.includes("--verify-clear");
 if (!/^[a-f0-9]{40}$/.test(expectedSha) || !["baseline", "candidate"].includes(mode)) {
   throw new Error("Usage: npx tsx scripts/reliability/verify-deployed.ts --expected-sha <40-char SHA> --mode baseline|candidate [--output <ignored folder>]");
 }
 const output = path.resolve(option("--output", `output/reliability-program/deployed-${mode}`));
 const digest = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
 const report: Record<string, any> = {
-  schema: "blueprint.reliability.deployed-presentation.v1", started_at: new Date().toISOString(),
+  schema: verifyClear ? "blueprint.reliability.deployed-presentation.v2" : "blueprint.reliability.deployed-presentation.v1", started_at: new Date().toISOString(),
   origin, expected_sha: expectedSha, mode, script_sha256: digest(await readFile(fileURLToPath(import.meta.url))),
   source_checkout_sha: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8", shell: false }).trim(),
   layer: "production-ui/local-draft-only", providers: "no paid provider dispatch", notifications: "no send",
@@ -70,7 +71,8 @@ try {
     for (const [selector, value] of Object.entries(fields)) await page.locator(selector).fill(value);
     report.checks.ordinary_form_loaded = true;
     report.checks.country_inferred_before = await page.getByText("Country: United States.", { exact: false }).isVisible();
-    // Filling and reloading only. No Start/recover/clear request is sent.
+    // No Start or recovery submission is sent. Optional Clear operates only
+    // on this newly created anonymous browser context's synthetic local draft.
     await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
     report.reload_fields = {};
     for (const [selector, expected] of Object.entries(fields)) {
@@ -85,6 +87,51 @@ try {
     await page.screenshot({ path: screenshot, fullPage: true });
     await chmod(screenshot, 0o600);
     report.artifacts.push({ path: "draft-after-reload.png", sha256: digest(await readFile(screenshot)), format: "PNG", contains: "public page and synthetic local draft only" });
+    if (verifyClear) {
+      const mirrors = () => page.evaluate(async () => {
+        const key = "bp-site-capture:v1:anonymous:default";
+        // Drain preceding scoped autosaves before comparing the two mirrors.
+        return navigator.locks.request(key, async () => {
+        const raw = localStorage.getItem(key);
+        const local = raw ? JSON.parse(raw) : null;
+        const durable = await new Promise<any>((resolve, reject) => {
+          const request = indexedDB.open("blueprint-site-capture-recovery-v1", 1);
+          request.onerror = () => reject(request.error);
+          request.onupgradeneeded = () => { request.transaction!.abort(); reject(new Error("Expected existing recovery database")); };
+          request.onsuccess = () => {
+            const db = request.result, tx = db.transaction("recovery", "readonly"), read = tx.objectStore("recovery").get(key);
+            let value: any;
+            read.onsuccess = () => { value = read.result; };
+            read.onerror = () => reject(read.error);
+            tx.oncomplete = () => { db.close(); resolve(value); };
+            tx.onabort = () => { db.close(); reject(tx.error); };
+          };
+        });
+        return { local, durable };
+        });
+      });
+      const original = await mirrors();
+      await page.getByRole("button", { name: "Clear this browser's draft", exact: true }).click();
+      await page.getByRole("status").filter({ hasText: "This browser's draft has been cleared." }).waitFor({ state: "visible" });
+      const committed = await mirrors();
+      report.checks.clear_acknowledged = true;
+      report.checks.clear_stores_agree = Boolean(committed.local && committed.durable?.retired === false
+        && JSON.stringify(committed.durable.value) === JSON.stringify(committed.local));
+      report.checks.clear_fresh_identity = Boolean(original.local?.requestId && committed.local?.requestId
+        && original.local.requestId !== committed.local.requestId);
+      report.checks.clear_empty_draft = Boolean(committed.local?.pending === null
+        && ["task", "location", "email", "company"].every(field => committed.local?.draft?.[field] === ""));
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
+      await page.locator("#start-task").waitFor({ state: "visible" });
+      report.checks.clear_return_empty = (await Promise.all(Object.keys(fields).map(selector => page.locator(selector).inputValue()))).every(value => value === "");
+      report.checks.clear_return_consent_unchecked = !(await page.locator("#start-rights").isChecked());
+      const returned = await mirrors();
+      report.checks.clear_return_identity_retained = Boolean(committed.local?.requestId && returned.local?.requestId === committed.local.requestId
+        && returned.durable?.retired === false && JSON.stringify(returned.durable.value) === JSON.stringify(returned.local));
+      report.checks.clear_no_intake_mutation = report.blocked_requests.attempted_intake_mutations === 0;
+      report.clear_acknowledgment_passed = ["clear_acknowledged", "clear_stores_agree", "clear_fresh_identity", "clear_empty_draft", "clear_return_empty",
+        "clear_return_consent_unchecked", "clear_return_identity_retained", "clear_no_intake_mutation"].every(key => report.checks[key] === true);
+    }
     // Erase only this isolated context's local synthetic draft. Clearing local
     // storage via evaluate performs no network request and affects no user session.
     await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
@@ -100,10 +147,12 @@ try {
   report.completed_at = new Date().toISOString();
   const identityPassed = report.checks.identity_before && report.checks.identity_after;
   const presentationPassed = identityPassed && report.checks.health && report.checks.ready && report.checks.ordinary_form_loaded
-    && report.checks.draft_restored && report.checks.country_inferred_after && report.checks.recording_consent_unchecked && report.checks.recovery_eligibility_copy;
+    && report.checks.draft_restored && report.checks.country_inferred_after && report.checks.recording_consent_unchecked && report.checks.recovery_eligibility_copy
+    && (!verifyClear || report.clear_acknowledgment_passed);
   report.candidate_presentation_passed = Boolean(presentationPassed);
   report.outcome = report.blocker ? "blocked" : presentationPassed ? "presentation_passed" : "presentation_failed";
-  report.claim_ceiling = "Serving identity, health/ready and non-destructive local draft return only; no backend job, upload durability, assessment, worker or notification result proven.";
+  report.claim_ceiling = "Serving identity, health/ready and non-destructive local draft return" + (verifyClear ? ", durable local clear acknowledgment and empty return" : "")
+    + " only; no backend job, upload durability, assessment, worker or notification result proven.";
   await writeFile(path.join(output, "result.json"), `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
   console.log(JSON.stringify({ outcome: report.outcome, mode, serving_sha: report.serving_sha_before ?? null, expected_sha: expectedSha, draft_restored: report.checks.draft_restored ?? null, candidate_presentation_passed: report.candidate_presentation_passed, result: path.join(output, "result.json") }));
   // Baseline reports expected defects without pretending the candidate gate is

@@ -481,16 +481,20 @@
     },
     {
       "id": "INTAKE-CLEAR-RELOAD-CI-001",
-      "severity": "unclassified_pending_customer_impact_and_reproduction",
+      "severity": "P2_missing_progress_and_durable_clear_acknowledgment; required_CI_failure_blocks_release",
       "owner": "intake_recovery; independent_review; coordinator",
       "invariant": "A clear/recovery acknowledgment must reflect durable draft/authority state across supportedreloads",
       "baselineRevision": "8c6f020ea75eccd4530b1cb8dde478fe6482b4be",
       "minimizedReproducer": "ExistingfrozenUI-RETURN-002: close/returnretainsdraft thenClear+immediatereloadshouldleaveemptytask",
       "baselineEvidence": "CurrentmainCI37766871316 e2e113276689429 failed12secassertion; exactsamePRcontexts earlierpassed",
-      "rootCause": "unknown_under_active_async_retirement_acknowledgment_diagnosis",
-      "releaseStatus": "OPEN_current_requiredCI_blocks_affected_release; no luckyretry",
+      "rootCause": "Clear awaited WebLock and strict IndexedDB retirement/fresh-authority commit without visible pending or completion feedback. Immediate reload can end the old document before the lock is granted. No acknowledged-clear resurrection or false-success was demonstrated.",
+      "candidateCommit": "81183b1f7f5543f87682d00d597fbe2ee6500ce2",
+      "candidatePR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/944",
+      "candidateRetest": "Three unchanged local UI-RETURN-002 baseline attempts passed; deterministic held-lock feedback expectation failed before repair. Candidate full 14 intercepted-API browser cases plus selected three cases repeated three times passed: 14 unique cases, 23 attempts. 228 component/helper neighbors passed. Original CI failure and invalid first cancellation-boundary probe retained.",
+      "case_contract_correction": "Versioned supplemental acknowledgment contract: UI-RETURN-002 now waits for actual visible durable completion before its original reload-empty assertion. UI-CLEAR-001 checks pending/fresh committed authority; UI-CLEAR-002 explicitly reloads before acknowledgment and confirms no false success and retained unretired draft. No arbitrary sleep or new coverage credit for repeats.",
+      "releaseStatus": "CANDIDATE_independent_review_and_required_PR_CI_in_progress; no deployment or lucky rerun",
       "new_case_credit": 0,
-      "scope_limit": "No production fault or customer mutation; local UI/IndexedDB persistence suspected, not yet independently reproduced"
+      "scope_limit": "Native Chromium IndexedDB/WebLock behavior with intercepted APIs and simulated component stores. No production fault, customer mutation, paid provider call, real notification, or backend assessment proof. P2 feedback finding does not hold unrelated customer learning."
     }
   ],
   "dependencies": [
