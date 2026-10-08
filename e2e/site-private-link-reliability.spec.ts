@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { execFileSync } from "node:child_process";
+import { copyFileSync } from "node:fs";
+import path from "node:path";
 
 const summary = (name: string, email = "operator@example.test") => ({
   ok: true, requestId: `fixture-${name}`, alreadyClaimed: false,
@@ -68,8 +69,8 @@ test("owner can request an authorized assessment retry while keeping the saved r
 test("returning owner can explicitly replace a received recording without confirming the brief", async ({ page }, info) => {
   const token = "replacement-fixture";
   const video = info.outputPath("synthetic-replacement.mp4");
-  // Owned generated pixels only; this exercises transport, not video judgment.
-  execFileSync(process.env.BLUEPRINT_TEST_FFMPEG || "ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=30", "-t", "2", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", video]);
+  // Owned synthetic pixels exercise actual decoding and transport, not video judgment.
+  copyFileSync(path.resolve("e2e/fixtures/synthetic-transport.mp4"), video);
   const writes: string[] = [];
   let posted = "";
   await page.route("**/api/**", route => {

@@ -29,9 +29,9 @@ const email = (value: unknown) => String(value ?? "").trim().toLowerCase();
 export function existingSiteJobCommunicationsPorts(db: FirebaseFirestore.Firestore): SiteJobCommunicationsPorts {
   const api = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY,
     allowPaidInference: process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true",
-    reservePaidDraft: async (jobId, digest) => {
+    reservePaidDraft: async (jobId, digest, sessionSpendLimitCents) => {
       await reconcileCommunicationsDraftCost(db, api, Date.now());
-      return reserveCommunicationsDraft(db, jobId, digest, Date.now());
+      return reserveCommunicationsDraft(db, jobId, digest, Date.now(), sessionSpendLimitCents);
     },
     recordPaidDraftUsage: (jobId, digest, usage) => recordCommunicationsDraftUsage(db, jobId, digest, usage, Date.now()),
   });

@@ -109,6 +109,11 @@ export type CommunicationsCheckpoint = {
   draftWritingGuidance?: string;
   /** Selected before a new create; absent on all retained historical sessions. */
   writingProfile?: typeof COMMUNICATIONS_PERSONALIZED_PROFILE;
+  /** Trusted prospective selection, in provider-supported USD cents. Never
+   * retroactively add this to an already charged historical checkpoint. */
+  sessionSpendLimitCents?: number;
+  /** Frozen pre-limit request digest for prospective bounded creates only. */
+  sessionSpendRequestBaseDigest?: string;
   /** Frozen only before a prospective create; old charged sessions never gain it. */
   sameRunDraftSave?: import("./communications-gmail-draft").SameRunDraftSave;
   /** Added only to new drafts; absent on historical same-run checkpoints. */
@@ -128,7 +133,9 @@ export function communicationsContinuationSessionBinding(checkpoint: Communicati
     historyProfile: checkpoint.historyProfile, historyConfigurationDigest: checkpoint.historyConfigurationDigest,
     gmailMcp: checkpoint.gmailMcp ?? null, executionWindow: checkpoint.executionWindow ?? null,
     finalRepairProfile: checkpoint.finalRepairProfile ?? null,
-    ...(checkpoint.writingProfile ? { writingProfile: checkpoint.writingProfile } : {}) };
+    ...(checkpoint.writingProfile ? { writingProfile: checkpoint.writingProfile } : {}),
+    ...(checkpoint.sessionSpendLimitCents !== undefined ? { sessionSpendLimitCents: checkpoint.sessionSpendLimitCents } : {}),
+    ...(checkpoint.sessionSpendRequestBaseDigest !== undefined ? { sessionSpendRequestBaseDigest: checkpoint.sessionSpendRequestBaseDigest } : {}) };
 }
 export function communicationsContinuationDeadline(phase: CommunicationsCancelledContinuation) {
   return communicationsExecutionDeadline({ createClaimedAt: null, sessionId: null, turnId: null, executionWindow: phase.intent.window });
@@ -177,7 +184,7 @@ export class CommunicationsAgentsAPI {
   constructor(private options: {
     apiKey?: string; allowPaidInference: boolean; fetch?: typeof fetch;
     requestTimeoutMs?: number;
-    reservePaidDraft?: (jobId: string, requestDigest: string) => Promise<unknown>;
+    reservePaidDraft?: (jobId: string, requestDigest: string, sessionSpendLimitCents?: number) => Promise<unknown>;
     recordPaidDraftUsage?: (jobId: string, requestDigest: string, usage: unknown) => Promise<unknown>;
     // Existing authenticated operator/service code selects the exact saved
     // artifact. This is never a model/client approval flag or send authority.
@@ -417,6 +424,7 @@ export class CommunicationsAgentsAPI {
     communicationsFramingVersion(params.checkpoint.framingVersion);
     if (params.checkpoint.writingProfile !== undefined && params.checkpoint.writingProfile !== COMMUNICATIONS_PERSONALIZED_PROFILE) throw new CommunicationsRuntimeError("communications_writing_profile_unsupported");
     if (params.checkpoint.rejectedCreateRecovery) {
+      if (params.checkpoint.sessionSpendLimitCents !== undefined) throw new CommunicationsRuntimeError("communications_bounded_create_recovery_requires_reconciliation");
       const recovery = this.verifyRecoveryRecord(params.checkpoint, params.jobId, params.input);
       return this.runRecoveryAttempt(params, recovery);
     }
@@ -430,6 +438,7 @@ export class CommunicationsAgentsAPI {
     validateOutput?: CommunicationsOutputValidator; assertRepairAllowed?: () => void | Promise<void>;
     intent: CommunicationsRejectedCreateRecoveryIntent;
   }) {
+    if (params.checkpoint.sessionSpendLimitCents !== undefined) throw new CommunicationsRuntimeError("communications_bounded_create_recovery_requires_reconciliation");
     const original = params.checkpoint;
     // Operator recovery rebuilds a session from today's verified definition; a hypothesis job never uses it.
     if (original.draftProfile !== undefined) throw new CommunicationsRuntimeError("communications_hypothesis_recovery_unsupported");
@@ -592,6 +601,10 @@ export class CommunicationsAgentsAPI {
     if (!this.options.allowPaidInference) throw new CommunicationsRuntimeError("communications_inference_disabled");
     if (Buffer.byteLength(params.input) > 64000) throw new CommunicationsRuntimeError("communications_input_limit_exceeded");
     const checkpoint = await this.hydrateHistoryCheckpoint(params.checkpoint, params.jobId);
+    if (checkpoint.sessionSpendLimitCents !== undefined && (!Number.isSafeInteger(checkpoint.sessionSpendLimitCents)
+      || checkpoint.sessionSpendLimitCents < 1 || checkpoint.sessionSpendLimitCents > Math.floor(Number.MAX_SAFE_INTEGER / 10000))) {
+      throw new CommunicationsRuntimeError("communications_session_spend_limit_invalid");
+    }
     communicationsFramingVersion(checkpoint.framingVersion);
     const saveCheckpoint = async (value: CommunicationsCheckpoint) => params.saveCheckpoint(await this.projectHistoryCheckpoint(value, params.jobId));
     try {
@@ -626,18 +639,22 @@ export class CommunicationsAgentsAPI {
       const configurationDigest = checkpoint.writingProfile ? communicationsDigest(communicationsPersonalizedConfiguration(base, hypothesis)) : hypothesis
         ? communicationsDigest(communicationsHypothesisConfiguration(base, communicationsFramingVersion(checkpoint.framingVersion)))
         : checkpoint.siteJobProfile ? SITE_JOB_COMMUNICATIONS_CONFIGURATION_DIGEST : checked.gmailMcp?.configurationDigest ?? COMMUNICATIONS_HISTORY_CONFIGURATION_DIGEST;
-      const preparedDigest = communicationsDigest({ agentId: COMMUNICATIONS_SAVED_AGENT_ID,
+      const preparedBaseDigest = communicationsDigest({ agentId: COMMUNICATIONS_SAVED_AGENT_ID,
         configurationDigest, historyProfile: COMMUNICATIONS_HISTORY_PROFILE, finalRepairProfile: FINAL_REPAIR_PROFILE, input: params.input,
         ...(checkpoint.writingProfile ? { writingProfile: checkpoint.writingProfile } : {}), ...(checkpoint.siteJobProfile ? { siteJobProfile: checkpoint.siteJobProfile } : {}),
         ...(checked.gmailMcp ? { mcpProfile: checked.gmailMcp.profile, savedConfigurationDigest: checked.gmailMcp.savedConfigurationDigest,
           mcpBindingDigest: communicationsDigest(checked.gmailMcp) } : {}) });
+      const preparedDigest = checkpoint.sessionSpendLimitCents === undefined ? preparedBaseDigest
+        : communicationsDigest({ requestBaseDigest: preparedBaseDigest, sessionSpendLimitCents: checkpoint.sessionSpendLimitCents });
       if (resumeUnsubmitted && preparedDigest !== checkpoint.requestDigest) throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
       requestDigest = preparedDigest;
       if (checkpoint.siteJobProfile) await params.assertRepairAllowed?.();
       // A resumed, proven-unsubmitted create reuses this exact reservation; never admit another one.
-      await this.options.reservePaidDraft(params.jobId, requestDigest);
+      if (checkpoint.sessionSpendLimitCents === undefined) await this.options.reservePaidDraft(params.jobId, requestDigest);
+      else await this.options.reservePaidDraft(params.jobId, requestDigest, checkpoint.sessionSpendLimitCents);
       if (!resumeUnsubmitted) checkpoint.createClaimedAt = new Date().toISOString();
       checkpoint.requestDigest = requestDigest;
+      if (checkpoint.sessionSpendLimitCents !== undefined) checkpoint.sessionSpendRequestBaseDigest = preparedBaseDigest;
       checkpoint.historyProfile = COMMUNICATIONS_HISTORY_PROFILE;
       checkpoint.finalRepairProfile = FINAL_REPAIR_PROFILE;
       if (hypothesis) checkpoint.hypothesisCreateSubmission = { version: "hypothesis-create-submission-v1", state: "not_submitted",
@@ -685,6 +702,7 @@ export class CommunicationsAgentsAPI {
         agent_id: COMMUNICATIONS_SAVED_AGENT_ID, agent: checkpoint.writingProfile ? communicationsPersonalizedConfiguration(baseConfiguration, hypothesis)
           : hypothesis ? communicationsHypothesisConfiguration(baseConfiguration, communicationsFramingVersion(checkpoint.framingVersion)) : baseConfiguration,
         environment: { type: "none" }, input: params.input, stream: true,
+        ...(checkpoint.sessionSpendLimitCents !== undefined ? { spend_control: { limit: checkpoint.sessionSpendLimitCents } } : {}),
         ...(gmailMcp ? { vault_ids: communicationsMcpVaultIds(gmailMcp) } : {}),
         metadata: { blueprint_communications_job: params.jobId, role: "communications",
           blueprint_communications_request_digest: requestDigest,
@@ -700,6 +718,8 @@ export class CommunicationsAgentsAPI {
           blueprint_communications_instructions_digest: definition.instructionsDigest,
           ...(checkpoint.writingProfile ? { blueprint_communications_writing_profile: checkpoint.writingProfile } : {}),
           ...(checkpoint.siteJobProfile ? { blueprint_communications_site_job_profile: checkpoint.siteJobProfile } : {}),
+          ...(checkpoint.sessionSpendLimitCents !== undefined ? { blueprint_communications_spend_limit_cents: String(checkpoint.sessionSpendLimitCents) } : {}),
+
           ...(hypothesis ? { blueprint_communications_draft_profile: COMMUNICATIONS_HYPOTHESIS_PROFILE } : {}) },
       }),
     } : { headers: { Accept: "text/event-stream" } }, checkpoint.finalRepairProfile ? this.repairDeadline(checkpoint) - Date.now() : undefined);
@@ -1063,6 +1083,18 @@ export class CommunicationsAgentsAPI {
       || !/^[a-f0-9]{64}$/.test(requestDigest)) throw new CommunicationsRuntimeError("agents_existing_session_binding_mismatch");
     const path = `/agents/sessions/${encodeURIComponent(checkpoint.sessionId)}`;
     const session = await this.json(path, 256000);
+    if ((checkpoint.sessionSpendLimitCents !== undefined || checkpoint.sessionSpendRequestBaseDigest !== undefined
+      || session.spend_control?.limit != null
+      || session.metadata?.blueprint_communications_spend_limit_cents !== undefined)
+      && (!Number.isSafeInteger(checkpoint.sessionSpendLimitCents) || checkpoint.sessionSpendLimitCents! < 1
+        || typeof checkpoint.sessionSpendRequestBaseDigest !== "string"
+        || !/^[a-f0-9]{64}$/.test(checkpoint.sessionSpendRequestBaseDigest)
+        || communicationsDigest({ requestBaseDigest: checkpoint.sessionSpendRequestBaseDigest,
+          sessionSpendLimitCents: checkpoint.sessionSpendLimitCents }) !== requestDigest
+        || session.spend_control?.limit !== checkpoint.sessionSpendLimitCents
+        || session.metadata?.blueprint_communications_spend_limit_cents !== String(checkpoint.sessionSpendLimitCents))) {
+      throw new CommunicationsRuntimeError("agents_session_spend_limit_binding_mismatch");
+    }
     if (checkpoint.executionWindow !== undefined || session.metadata?.blueprint_communications_execution_window_digest !== undefined) {
       if (!checkpoint.executionWindow || !checkpoint.finalRepairProfile
         || session.metadata?.blueprint_communications_execution_window_digest !== communicationsDigest(checkpoint.executionWindow)
