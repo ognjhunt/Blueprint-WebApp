@@ -1001,7 +1001,18 @@
       ],
       "nextAction": "Reproduce exact related execution in real Git worktree and trace import/listen boundary; require observed cause and reviewed scoped repair if identified",
       "releaseStatus": "PR978required_check_failed;no_merge_or_bypass",
-      "limitation": "Test infrastructure boundary not demonstrated customer defect; repeated timeout not declared causally fixed by isolated passes"
+      "limitation": "Test infrastructure boundary not demonstrated customer defect; repeated timeout not declared causally fixed by isolated passes",
+      "additional_observed_shared_fixture_failure": {
+        "PR": 982,
+        "source_head": "4248d58481b06341c6401f25f2423a38a7033078",
+        "raw_log_sha256": "fe3c8c141f1019bfeaaaa625cb110cdf14771211af5ef186e80bb6585e61c45f",
+        "raw_private_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/task-4/release-evidence/pr982-test-failure.log",
+        "native_node": "20.20.2",
+        "phase": "journey_setup_routes_started; import-completion checkpoints absent before120000ms beforeEach timeout; no customer assertions ran",
+        "root_readback_at_utc": "2026-10-08T23:45:19Z",
+        "owner": "existing research-consumer source lane actively diagnosing; root sharedfixture ledger",
+        "limit": "Not a demonstrated vendor/runtime defect or diagnosed causal fix. Current15 exactmain checks passed; neither clears this intermittent setup failure. No duplicate root rerun/scaffold or timeout relaxation."
+      }
     },
     {
       "id": "REL-KNOWLEDGE-CURSOR-RECOVERY-20261008",
