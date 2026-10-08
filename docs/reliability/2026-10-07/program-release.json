@@ -2029,7 +2029,7 @@
     "observed_at_utc": "2026-10-08T21:18:10Z",
     "memory": {
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/975",
-      "head": "a24902ce475f3ca013d57b056bd2138c82ce1aa5",
+      "head": "7fcb380f48d8cb6be0b872fecd4f2071997d1893",
       "review": "2dec985f runtime; f32f12fe existing transport fixture compatibility",
       "receipt_sha256": "1a910388fe1780e7385116340d15f1240c3f26ca5ac8387f674f1b27f7551e2b",
       "checks": "21 existing runtime controls retained; 4 existing measured admission fixtures baseline2FAIL2PASS\u21924PASS; local required checks PASS; exact head CI37 synthetic expiry failures",
@@ -2041,6 +2041,13 @@
         "passed": 4795,
         "skipped": 6,
         "reason": "Three existing offline communications files use fixed Sep30 synthetic evidence; actual verifier clock crossed Oct8 21:00 validity. Sole intake_recovery owns deterministic test-only clock correction; production expiry preserved."
+      },
+      "clock_fixture_review": "a3b6a1b0",
+      "clock_fixture_receipt_sha256": "5e02686849e5d08da5d315e435dfe5fa5d399ea9da52f6a90d35083d34a5d9ec",
+      "fresh_required_CI": {
+        "run_id": 37846366988,
+        "state": "in_progress_at_21:23:34Z",
+        "prior37failure": "retained"
       }
     },
     "recovery": {
@@ -2065,21 +2072,26 @@
   },
   "updated_at_utc": "2026-10-08T21:18:10Z",
   "paid_provider_actor_handoff": {
-    "at_utc": "2026-10-08T21:22Z",
     "owner": "Existing local assessment-iteration task; original normal-UI provider actor explicitly held",
-    "scope": "ONE same authorized supplied MOV baseline through production SDK/Gemini on reviewed e9+memory repair; afterward saved-evidence iterations only",
+    "scope": "ONE same authorized MOV production SDK/Gemini fresh baseline, then ONE actual Sol saved-evidence comparison reusing Gemini output. Serial actor; no automatic paid retry; no customer writes.",
     "authority": "Current direct human no monetary/call quota policy and authorized supplied video analysis; no new paid infrastructure, credentials, private source or external notifications",
     "unknown_prior_Gemini": "Retained in full; actual original engine OOM-killed; new local ledger separate/no duplicate accounting",
     "source_verification": "Exact reviewed runtime blob continuity and current source rights/hash preflight required before call; not yet observed",
-    "outcome": "not yet executed/received at handoff",
-    "verification_ceiling": "Local live analysis cannot prove deployed customer UI, cloud512Mi headroom, perception accuracy or gold labels"
+    "outcome": "Owner reports native fresh-video process started on6e00f0767758f08065cb6939e11d76100952da1e =e9+reviewedeeef; no terminal provider result observed yet.",
+    "verification_ceiling": "Local live analysis cannot prove deployed customer UI, cloud512Mi headroom, perception accuracy or gold labels",
+    "recorded_at_utc": "2026-10-08T21:21:27Z"
   },
   "memory_capacity_decision": {
-    "at_utc": "2026-10-08T21:22Z",
     "kind": "Engineering recommendation, not executed infrastructure change",
     "recommendation": "2GB on current Render service for production customer headroom;512Mi unproven under current retained whole-buffer/concurrency design",
     "evidence": "Native OOM event512Mi;minute samples323\u2013326Mi miss fatal peak;one57Mi verified source Buffer remains; scoped patch removes additional native copy",
     "limits": "No idle baseline or candidate peak yet; a single successful512Mi run would not certify concurrent production reliability",
-    "official_plan_reference": "https://render.com/docs/compute-plans"
+    "official_plan_reference": "https://render.com/docs/compute-plans",
+    "recorded_at_utc": "2026-10-08T21:21:27Z",
+    "verified_current_plan": "Render native get_service this turn: free, one web instance, deployed e9",
+    "proposed_monthly_service_cost_usd": 25,
+    "proposed_monthly_increase_usd": 25,
+    "cost_scope": "One web-service compute tier; provider usage separate; no upgrade executed.",
+    "acceptance_addendum": "Before a bounded2GB memory adequacy claim: retain actual deployed peak with >=25% headroom at declared concurrency; inspect retained baseline after completed existing runs for unexplained growth. Minute samples/single local large-machine completion cannot satisfy cloud peak proof. This new operational sizing criterion is recorded explicitly, not changing original case denominators or past pass/fail scores."
   }
 }
