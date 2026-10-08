@@ -62,11 +62,10 @@ describe("structured intake proof readiness", () => {
     expect(decision.filterTags).toContain("has_evidence_validation_needs");
   });
 
-  it("marks a concrete robot-team exact-site request as proof-ready intake", () => {
+  it("marks a concrete robot-team exact-site request as proof-ready without a budget", () => {
     const decision = evaluateStructuredIntake({
       buyerType: "robot_team",
       requestedLanes: ["deeper_evaluation"],
-      budgetBucket: "$50K-$300K",
       roleTitle: "Autonomy lead",
       siteName: "Durham fulfillment center",
       siteLocation: "Durham, NC",

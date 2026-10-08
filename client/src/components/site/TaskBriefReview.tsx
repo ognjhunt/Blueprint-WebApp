@@ -235,7 +235,6 @@ export function TaskBriefReview(props: {
     if (listChoice === "list") {
       if (listing.title.trim().length < 8) return "Describe the job for the public card in a few words.";
       if (listing.taskFamily.trim().length < 2) return "Add a job type for the public card.";
-      if (listing.pilotPriceStatus === "site_offer" && !listing.pilotBudget.trim()) return "Add a proposed pilot price or choose target budget.";
       if (!listingConsent) return "Confirm you reviewed the public card before listing it.";
     }
     return null;
@@ -609,7 +608,7 @@ export function TaskBriefReview(props: {
                 <option value="target_budget">Target budget, open to proposals</option>
                 <option value="site_offer">Site's proposed price</option>
               </select></label>
-              {listingField("pilotBudget", listing.pilotPriceStatus === "site_offer" ? "Proposed pilot price" : "Target pilot budget", 80)}
+              {listingField("pilotBudget", listing.pilotPriceStatus === "site_offer" ? "Proposed pilot price (optional)" : "Target pilot budget (optional)", 80)}
               <label htmlFor="listing-pilot-conditions"><span>Pilot conditions</span><textarea id="listing-pilot-conditions" value={listing.pilotConditions ?? ""} maxLength={320} onChange={event => { setListing({ ...listing, pilotConditions: event.target.value }); setListingConsent(false); }} placeholder="For example: four weeks, including setup and provider support" /></label>
               {listingField("ongoingTarget", "Ongoing price target, if the pilot works (optional)", 80)}
               <p className="ms-field-hint">A posted price is a proposal, not a purchase approval. Teams can accept it, ask for changes, or decline after evaluation.</p>

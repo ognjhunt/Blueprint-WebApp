@@ -230,12 +230,14 @@ describe("the same step decides the listing", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("publishes the card the operator wrote and reviewed, after confirming", async () => {
+  it("publishes the reviewed card with a pilot price left unknown, after confirming", async () => {
     fetchMock.mockResolvedValueOnce(confirmed()).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
     render(<TaskBriefReview token="tok" brief={brief()} />);
     fireEvent.click(screen.getByLabelText(/yes, list it/i));
     fireEvent.change(screen.getByLabelText(/describe the job/i), { target: { value: "Move cartons onto a pallet" } });
     fireEvent.change(screen.getByLabelText(/job type/i), { target: { value: "Palletizing" } });
+    fireEvent.change(screen.getByLabelText(/^price status$/i), { target: { value: "site_offer" } });
+    expect(screen.getByLabelText(/proposed pilot price/i)).toHaveValue("");
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
     answerPilotIntent();
 

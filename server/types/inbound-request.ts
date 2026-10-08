@@ -1183,7 +1183,8 @@ export interface InboundRequestPayload {
   company: string;
   roleTitle: string;
   email: string;
-  budgetBucket: BudgetBucket;
+  /** Optional legacy commercial context; free intake and assessment never require it. */
+  budgetBucket?: BudgetBucket;
   requestedLanes?: RequestedLane[];
   helpWith?: HelpWithOption[];
   buyerType?: BuyerType;

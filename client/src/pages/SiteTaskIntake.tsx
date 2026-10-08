@@ -116,7 +116,6 @@ export default function SiteTaskIntake() {
           buyerType: "site_operator",
           // No account is created here, so no terms gate applies.
           accountSignup: false,
-          budgetBucket: "Undecided/Unsure",
           requestedLanes: [],
           // The address is the site's identity now. A separate "site name" was
           // asked and never used: an operator types the company name again, and

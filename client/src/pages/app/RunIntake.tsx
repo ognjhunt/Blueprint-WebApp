@@ -36,7 +36,6 @@ type IntakeState = {
   falseSafeSeverity: "low" | "moderate" | "high" | "critical";
   falseSafeConsequence: string;
   confidence: string;
-  budget: string;
   deadline: string;
   allowedChanges: string;
   restrictions: string;
@@ -67,7 +66,6 @@ const initialState: IntakeState = {
   falseSafeSeverity: "high",
   falseSafeConsequence: "",
   confidence: "",
-  budget: "",
   deadline: "",
   allowedChanges: "",
   restrictions: "",
@@ -192,9 +190,8 @@ export default function RunIntake() {
       },
       constraints: {
         budget: {
-          ...(form.budget ? { amount: Number(form.budget) } : {}),
           currency: "USD",
-          hard_cap: Boolean(form.budget),
+          hard_cap: false,
         },
         ...(form.deadline ? { deadline: new Date(form.deadline).toISOString() } : {}),
         available_physical_evidence: physicalEvidence,
@@ -303,7 +300,6 @@ export default function RunIntake() {
           <Field label="Unacceptable failures" wide><textarea required className={fieldClass} value={form.unacceptableFailures} onChange={(e) => set("unacceptableFailures", e.target.value)} /></Field>
           <Field label="False-safe severity"><select className={fieldClass} value={form.falseSafeSeverity} onChange={(e) => set("falseSafeSeverity", e.target.value as IntakeState["falseSafeSeverity"])}><option value="low">Low</option><option value="moderate">Moderate</option><option value="high">High</option><option value="critical">Critical</option></select></Field>
           <Field label="Consequence of a false-safe"><textarea required className={fieldClass} value={form.falseSafeConsequence} onChange={(e) => set("falseSafeConsequence", e.target.value)} /></Field>
-          <Field label="Budget ceiling (USD)"><input type="number" min="0" className={fieldClass} value={form.budget} onChange={(e) => set("budget", e.target.value)} /></Field>
           <Field label="Decision deadline"><input type="datetime-local" className={fieldClass} value={form.deadline} onChange={(e) => set("deadline", e.target.value)} /></Field>
           <Field label="Allowed site changes (one per line)" wide><textarea className={fieldClass} value={form.allowedChanges} onChange={(e) => set("allowedChanges", e.target.value)} /></Field>
           <Field label="Rights, privacy, and provider restrictions (one per line)" wide><textarea required className={fieldClass} value={form.restrictions} onChange={(e) => set("restrictions", e.target.value)} /></Field>
