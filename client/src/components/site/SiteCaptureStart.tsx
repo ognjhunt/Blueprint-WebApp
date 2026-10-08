@@ -282,7 +282,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
   }
   // The video is only taken from a site we are cleared to receive it from.
   const footageWanted = hasFootage && region !== "non_us";
-  const rightsShown = method !== "visit";
+  // The grant only counts when the box it came from is on screen. A consent
+  // left over from the upload path must not ride along on a phone submission.
+  const rightsShown = footageWanted;
   // The rights checkbox is tracked so the grant itself is transmitted — a
   // required-only checkbox was a legal act the server never heard about.
   const [taskForPreview, setTaskForPreview] = useState(initial.draft.task);
@@ -377,7 +379,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
     let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
     if (!retained && !read("startTask") && !(consent && rightsShown)) {
-      setState({ status: "failed", message: "Add a video or a short explanation of the work. If you will film later, confirm the recording rights to start without an explanation." });
+      setState({ status: "failed", message: footageWanted ? "Add a video or a short explanation of the work." : "Add a short explanation of the work to start." });
       return;
     }
 
@@ -752,7 +754,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
               checked={method === value}
               onChange={() => {
                 setMethod(value);
-                if (value !== "upload") { setFootage(null); setFootageError(null); }
+                if (value !== "upload") { setFootage(null); setFootageError(null); setConsent(false); }
               }} />
             <span>{label}</span>
           </label>

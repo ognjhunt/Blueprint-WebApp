@@ -312,7 +312,7 @@ it("does not require a description or goal, but asks for usable work before a pr
   expect(document.querySelector("#start-task")).not.toBeRequired();
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
   fireEvent.submit(screen.getByRole("form"));
-  expect(await screen.findByRole("alert")).toHaveTextContent("Add a video or a short explanation of the work.");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Add a short explanation of the work to start.");
   expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
 });
 
@@ -343,6 +343,23 @@ it.each([["phone", "self_capture"], ["visit", "site_visit"]])("sends the capture
   const payload = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
   expect(payload.filmerContact).toBeUndefined();
   expect(payload.captureMode).toBe(captureMode);
+  expect(payload.consentAttestation).toBeNull();
+});
+
+it("does not carry a recording grant from the upload path into a phone submission", async () => {
+  signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: null } }]);
+  await renderReady(<SiteCaptureStart />);
+  await screen.findByText(/Saving to your workspace as owner@example.com/);
+  fireEvent.click(document.querySelector("#start-method-upload")!);
+  fireEvent.click(document.querySelector("#start-rights")!);
+  fireEvent.click(document.querySelector("#start-method-phone")!);
+  expect(document.querySelector("#start-rights")).toBeNull();
+  fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByRole("link", { name: "Saved in your workspace" });
+  const payload = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
+  expect(payload).toMatchObject({ captureMode: "self_capture", descriptionOnly: true });
   expect(payload.consentAttestation).toBeNull();
 });
 
