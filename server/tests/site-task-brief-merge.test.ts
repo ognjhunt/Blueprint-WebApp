@@ -97,7 +97,7 @@ describe("mergeBriefProposals", () => {
     // The assumption is on file as a question, not as an answer.
     expect(stored!.proposed.find((answer) => answer.fieldId === "taskShape")?.basis).toBe("assumption");
     expect(stored!.unresolved).toContain("taskShape");
-    expect(stored!.unresolved).not.toContain("sceneStability");
+    expect(stored!.unresolved).toContain("sceneStability");
     expect(stored!.draftedFrom).toEqual(expect.arrayContaining(["description", "observation", "assumption"]));
   });
 

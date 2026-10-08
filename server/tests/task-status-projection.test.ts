@@ -41,7 +41,7 @@ describe("a persisted preview preparation failure", () => {
   });
   it("preserves withdrawal, brief and disposition gates", () => {
     expect(projectTaskStatus({ ...failed(), consentRevoked: true }).headline).toMatch(/withdrawn/i);
-    expect(projectTaskStatus({ ...failed(), briefConfirmed: false }).decision).toBe("confirm_brief");
+    expect(projectTaskStatus({ ...failed(), briefConfirmed: false }).decision).toBe("footage_received");
     expect(projectTaskStatus({ ...failed(), disposition: "needs_conversation" }).decision).toBe("call_needed");
     expect(projectTaskStatus({ ...failed(), disposition: "not_now" }).decision).toBe("not_now");
     const unclaimed = projectTaskStatus({ ...failed(), disposition: "qualified", claimed: false });
@@ -72,7 +72,8 @@ describe("the decision ladder", () => {
   it("asks for a confirmation once a brief is drafted", () => {
     const status = projectTaskStatus(base({ briefDrafted: true }));
     expect(status.decision).toBe("confirm_brief");
-    expect(status.operatorAction).toMatch(/confirm the brief/i);
+    expect(status.operatorAction).toBeNull();
+    expect(status.headline).toMatch(/without confirming/i);
   });
 
   it("asks for a recording once the brief is confirmed and coverage is unknown", () => {

@@ -58,8 +58,8 @@ function fullyProposed() {
     .map((field) => ({
       fieldId: field.id,
       value: clearValue(field.id),
-      basis: "observation" as const,
-      reading: `Seen in the walkthrough: ${field.id}`,
+      basis: "description" as const,
+      reading: `Operator stated: ${field.id}`,
     }));
 }
 
@@ -92,7 +92,7 @@ describe("drafting a brief", () => {
     });
 
     expect(brief.unresolved).toContain("taskShape");
-    expect(brief.unresolved).not.toContain("sceneStability");
+    expect(brief.unresolved).toContain("sceneStability");
   });
 
   it("asks the capture-blocking questions first", async () => {

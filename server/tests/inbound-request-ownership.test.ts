@@ -1,3 +1,4 @@
+import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 // @vitest-environment node
 import express from "express";
 import { createServer, type Server } from "node:http";
@@ -370,4 +371,24 @@ describe("saved intake first-email recovery", () => {
       await new Promise<void>(resolve => server.close(() => resolve()));
     }
   });
+});
+
+// Upfront publication is a text-only grant. Old/omitted grants never become public on recovery.
+it.each([true, false])("honors the disclosed initial opportunity grant without exposing private intake (public: %s)", async publish => {
+  const { server, baseUrl } = await start();
+  try {
+    const requestId = `initial-listing-${publish}`, taskStatement = "Acme Depot at 123 High Street moves cartons onto a pallet", retryToken = "f".repeat(64);
+    const grant = { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(taskStatement) };
+    const input = { ...payload(requestId, "owner@example.test"), taskStatement, retryToken, ...(publish ? { publicTaskListing: grant } : {}) };
+    const post = (body: unknown) => fetch(`${baseUrl}/`, { method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": publish ? "203.0.113.211" : "203.0.113.212" }, body: JSON.stringify(body) });
+    expect((await post({ ...input, publicTaskListing: { ...grant, details: { ...grant.details, region: "123 High Street" } } })).status).toBe(400);
+    expect((await post(input)).status).toBe(201);
+    const record = sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`)!;
+    if (publish) {
+      expect(record.public_task_listing).toMatchObject({ enabled: true, approvedBy: "initial_submission", consentVersion: "public-task-card-v1", thumbnailDigest: null });
+      expect(JSON.stringify(record.public_task_listing)).not.toMatch(/Acme|123 High|owner@example/);
+    } else expect(record.public_task_listing).toBeUndefined();
+    expect((await post({ ...input, publicTaskListing: grant })).status).toBe(200);
+    expect(sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`)?.public_task_listing).toEqual(record.public_task_listing);
+  } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
 });

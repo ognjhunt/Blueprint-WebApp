@@ -174,15 +174,6 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  if (!input.briefConfirmed) {
-    return {
-      ...base,
-      decision: "confirm_brief",
-      headline: "We drafted your job brief. Check it and correct anything we got wrong.",
-      operatorAction: "Review and confirm the brief.",
-    };
-  }
-
   // The two rungs the Pipeline gap used to keep off this ladder. A run only
   // exists against runnable supply, so anything counted here is downstream of
   // every rung below; a reported result outranks a queued one.
@@ -320,6 +311,15 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       headline: input.footageReviewAutomated === false
         ? "We have your recording. Our team reviews it and emails you with the next step."
         : "We have your recording and are checking whether it covers the work area.",
+      operatorAction: null,
+    };
+  }
+
+  if (!input.briefConfirmed) {
+    return {
+      ...base,
+      decision: "confirm_brief",
+      headline: "Your prefilled job summary is available. Correct material mistakes if needed; you can view the assessment without confirming it.",
       operatorAction: null,
     };
   }

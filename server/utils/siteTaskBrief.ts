@@ -90,6 +90,9 @@ export interface ProposedGateAnswer {
   basis: BriefBasis;
   /** Our words for why, shown next to the answer so they can disagree with it. */
   reading: string;
+  confidence?: number;
+  atSeconds?: number;
+  sourceQuote?: string;
 }
 
 export interface SiteTaskBriefRecord {
@@ -198,6 +201,7 @@ export function unresolvedGates(
   const proposedIds = new Set(
     proposed
       .filter((answer) => CONFIRMABLE_BASES.includes(answer.basis))
+      .filter((answer) => answer.basis !== "observation")
       .map((answer) => answer.fieldId),
   );
   return bindingGates(captureMode)
@@ -343,16 +347,22 @@ export async function confirmBrief(params: {
   const brief = await getBrief(params.requestId);
   if (!brief) return null;
 
-  const unknown = new Set(params.operatorUnknown ?? []);
-  const supplied = params.operatorAnswers ?? {};
-  const answers: Record<string, string> = {};
+  const unknown = new Set(params.operatorUnknown ?? brief.operatorUnknown ?? []);
+  const supplied = { ...brief.operatorAnswers, ...params.operatorAnswers };
+  const previousRequest = db
+    ? (await db.collection("inboundRequests").doc(params.requestId).get()).data() : null;
+  const answers: Record<string, string> = { ...gateAnswersOnFile(previousRequest ?? {}) };
+  for (const fieldId of unknown) delete answers[fieldId];
 
   // Our proposed answers, except the ones we only assumed. An assumption is a
   // question wearing an answer's clothes, and confirming it back to ourselves
   // would establish nothing while looking like it established everything.
   for (const answer of brief.proposed) {
     if (!CONFIRMABLE_BASES.includes(answer.basis)) continue;
-    if (unknown.has(answer.fieldId)) continue;
+    // A clip supports observations, not shift variability, the full item
+    // distribution, required throughput or the site's business decisions.
+    if (answer.basis === "observation") continue;
+    if (unknown.has(answer.fieldId) || answers[answer.fieldId]) continue;
     answers[answer.fieldId] = answer.value;
   }
 
@@ -378,7 +388,7 @@ export async function confirmBrief(params: {
     ...brief,
     confirmedAtIso: nowIso(),
     confirmedBy: params.confirmedBy,
-    operatorAnswers: supplied,
+    operatorAnswers: answers,
     operatorUnknown: [...unknown],
     successCriteria: params.successCriteria ?? brief.successCriteria ?? null,
     pilotIntent: params.pilotIntent ?? brief.pilotIntent ?? null,
@@ -401,6 +411,11 @@ export async function confirmBrief(params: {
       evidence.coversScene = coverage?.covers_scene ?? false;
       evidence.missingCoverage = coverage?.missing_coverage;
       if (humanDecisionDigest(current.data()) !== humanDecisionDigest(brief)) throw new Error("brief_changed_before_confirmation");
+      if (previousRequest && humanDecisionDigest(gateAnswersOnFile(requestSnapshot.data() ?? {})) !== humanDecisionDigest(gateAnswersOnFile(previousRequest)))
+        throw new Error("brief_answers_changed_before_confirmation");
+      const materialChange = brief.confirmedAtIso && humanDecisionDigest({ answers: gateAnswersOnFile(previousRequest ?? {}),
+        unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null }) !== humanDecisionDigest({ answers,
+        unknown: [...unknown].sort(), success: confirmed.successCriteria ?? null });
       tx.set(briefRef, confirmed, { merge: true });
       tx.set(requestRef,
         {
@@ -422,6 +437,13 @@ export async function confirmBrief(params: {
             evaluated_at: nowIso(),
           },
           site_task_brief_confirmed_at: admin.firestore.FieldValue.serverTimestamp(),
+          ...(materialChange && requestSnapshot.data()?.public_task_listing
+            && ["cycleTarget", "pilotConditions", "targeting"].some(field => Boolean(requestSnapshot.data()!.public_task_listing.details?.[field])) ? {
+            public_task_listing: { ...requestSnapshot.data()!.public_task_listing, enabled: false, reviewRequired: true },
+          } : {}),
+          ...(materialChange && requestSnapshot.data()?.pilot_recommendation ? {
+            pilot_recommendation: { ...requestSnapshot.data()!.pilot_recommendation, reviewRequired: true },
+          } : {}),
           ...(params.successCriteria || params.pilotIntent ? {
             workspace_task: {
               ...(params.successCriteria ? { terms: {

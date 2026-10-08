@@ -1,3 +1,5 @@
+import { withCsrfHeader } from "@/lib/csrf";
+import type { User } from "firebase/auth";
 import { TaskThumbnail } from "./TaskThumbnail";
 import { isLikelyPhone } from "@/lib/device";
 import { TaskFacts } from "./TaskFacts";
@@ -98,10 +100,40 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
       <ul className="ms-task-list">{filtered.map(item => <li key={item.id}>
         <div className="ms-task-heading"><div><div className="ms-task-meta"><span>{taskStageLabels[item.stage]}</span><span>{opportunityLabels[item.opportunity]}</span></div>
         <h2>{item.title}</h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
-        {item.evaluationAvailable ? <a className="ms-text-link" href={inWorkspace ? `/app/opportunities/${encodeURIComponent(item.id)}` : "/app"}>Request a free invited evaluation</a> : <p className="ms-field-hint">No runs available yet.</p>}
+        {item.evaluationAvailable ? <a className="ms-text-link" href={inWorkspace ? `/app/opportunities/${encodeURIComponent(item.id)}` : "/app"}>Request a free invited evaluation</a> : <p className="ms-field-hint">An evaluation is not ready yet. You can still assess the shared job and provide proposal inputs.</p>}
+        {item.opportunity === "open" && currentUser && !access?.staff && <TeamJobResponse jobId={item.id} user={currentUser} />}
       </li>)}</ul>
     </>}
     <p className="ms-field-hint">Invited evaluations are free within the approved scope and share results with the site.</p>
     <p className="ms-field-hint">{!inWorkspace && <><a href="/agent-access.openapi.json">Agent API (OpenAPI spec, JSON)</a> · </>}<a href="mailto:hello@tryblueprint.io">Talk to a person</a></p>
   </section>;
+}
+
+/** The existing card is sufficient to express interest; private job data remains private. */
+function TeamJobResponse({ jobId, user }: { jobId: string; user: User }) {
+  const [message, setMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (saving) return;
+    const data = new FormData(event.currentTarget); setSaving(true); setMessage("");
+    try {
+      const state = String(data.get("state")), recommendationId = String(data.get("recommendationId") || "").trim();
+      const response = await fetch(`/api/site-worlds/tasks/${encodeURIComponent(jobId)}/interest`, { method: "POST", credentials: "include",
+        headers: await withFirebaseAuthHeaders(user, await withCsrfHeader({ "Content-Type": "application/json" })),
+        body: JSON.stringify({ state, inputs: data.get("inputs"), ...(state === "committed" ? { recommendationId, authorized: data.get("authorized") === "on" } : {}) }) });
+      const body = await response.json();
+      setMessage(response.ok ? body.nextAction : body.error || "Your response was not saved.");
+    } catch { setMessage("Your response was not confirmed. Try again from this job."); }
+    finally { setSaving(false); }
+  }
+  return <details><summary>Respond about this job</summary><form onSubmit={submit} className="ms-form" aria-label="Respond about this job">
+    <p className="ms-field-hint">Only the shared card is available here. Give the quote basis, available timing, evidence of capability or one question needed to scope a proposal. Interest does not commit your team.</p>
+    <label>Your decision<select name="state"><option value="interested">Interested — review for a proposal</option><option value="declined">Not a fit</option><option value="committed">Confirm our current proposal commitment</option></select></label>
+    <label>Proposal inputs or question<textarea name="inputs" required minLength={4} maxLength={2000} /></label>
+    <details><summary>For a commitment already reviewed with Blueprint</summary>
+      <label>Proposal reference<input name="recommendationId" maxLength={120} /></label>
+      <label className="ms-check-row"><input name="authorized" type="checkbox" />I reviewed that proposal and have authority to commit this team's scope, cost and proposed timing. A confirmed date and site agreement are still required.</label>
+    </details>
+    <button className="ms-button" disabled={saving}>{saving ? "Saving…" : "Save response"}</button>{message && <p role="status">{message}</p>}
+  </form></details>;
 }

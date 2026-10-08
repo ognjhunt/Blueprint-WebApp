@@ -1,3 +1,4 @@
+import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
 import { updatePreferencesInputSchema } from "../../client/src/types/updatePreferences";
 import { buildUpdatePreferences, savedUpdatePreferences, bindVerifiedPreferenceAccount } from "../utils/updatePreferences";
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
@@ -1033,6 +1034,7 @@ router.post(
       requestId: id,
       siteLocation: z.string().trim().min(1).max(300),
       taskStatement: z.string().trim().min(1).max(2000),
+      publicTaskListing: z.object({ consent: z.literal(true), statementVersion: z.literal(listingConsentVersion), details: taskListingSchema }).strict().optional(),
       captureMode: z.enum(["self_capture", "site_visit"]),
       captureRegion: z.enum(["us", "non_us"]),
       hasExistingFootage: z.boolean(),

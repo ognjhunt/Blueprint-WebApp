@@ -31,6 +31,7 @@ export type TaskLifecycleMilestone = Extract<
   | "pilot_request"
   | "pilot_recommended"
   | "pilot_booked"
+  | "pilot_scheduled"
 >;
 
 /** A ready label without viewable assets is not a scene-ready milestone. */
@@ -101,11 +102,15 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   pilot_recommended: {
     subject: "Your recommended pilot is ready",
-    body: (url, detail) => `We have one recommended pilot for your job${detail ? `: ${detail}` : ""}. Your job page shows the robot team, what the pilot tests, what you provide, the cost and dates, and what is still uncertain. If it looks right, book it there in one step. If not, reply and tell us why.\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `We have one recommended pilot for your job${detail ? `: ${detail}` : ""}. Your job page shows the robot team, what the pilot tests, what you provide, the cost basis, proposed timing and what is still uncertain. If it looks right, accept the proposal there. Provider and site agreement, the date and preparation responsibilities still need coordination. If not, reply and tell us why.\n\nOpen your job:\n${url}`,
   },
   pilot_booked: {
-    subject: "Your pilot is booked",
-    body: (url) => `Thanks. Your pilot is booked. We will coordinate the robot team, the dates and the site visit from here and email you when anything needs you.\n\nOpen your job:\n${url}`,
+    subject: "Your pilot proposal is accepted",
+    body: (url, detail) => `Your acceptance is recorded. The pilot is awaiting coordination: provider and site agreement, a confirmed date and agreed preparation responsibilities are still needed. No date is reserved yet. Blueprint owns that next step. ${detail === "invited_beta_free" ? "Blueprint beta coordination is free. Provider costs remain subject to the applicable proposal and agreement." : "Your previously agreed Blueprint fee remains due when the pilot is booked."}\n\nOpen your job:\n${url}`,
+  },
+  pilot_scheduled: {
+    subject: "Your pilot is scheduled",
+    body: (url) => `The provider and site agreement, date and preparation responsibilities have been recorded and checked against the calendar. Open your job for the agreed date and responsibilities.\n\nOpen your job:\n${url}`,
   },
 };
 

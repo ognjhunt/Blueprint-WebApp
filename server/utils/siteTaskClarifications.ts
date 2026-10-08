@@ -1,5 +1,6 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { humanDecisionDigest } from "./human-reply-admission";
+import { gateFields } from "../../client/src/data/siteTaskQualification";
 
 export function clarificationRevision(brief: unknown, request: Record<string, any>) {
   return humanDecisionDigest({ brief, answers: request.siteTaskGates,
@@ -13,7 +14,11 @@ export async function readSiteClarification(requestId: string) {
   if (!request.exists || !brief.exists) throw new Error("clarification_missing");
   const value = request.data()!;
   return { revision: clarificationRevision(brief.data(), value),
-    questions: value.site_task_triage?.open_questions || [],
+    questions: [...(value.site_task_triage?.open_questions || []),
+      ...(value.site_task_triage?.unanswered_field_ids || []).flatMap((id: string) => {
+        const field = gateFields.find(field => field.id === id);
+        return field ? [`${field.question} — Needed before ${field.blocks === "capture" ? "scene preparation" : "robot evaluation"}; it does not establish pilot willingness or authority.`] : [];
+      })],
     needed: value.site_task_triage?.disposition === "needs_conversation",
     response: value.site_task_clarification || null };
 }

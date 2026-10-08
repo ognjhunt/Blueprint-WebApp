@@ -6,6 +6,7 @@ export type SiteCaptureDraft = {
   task: string; location: string; email: string; company: string;
   method: "phone" | "upload" | "visit"; region: "" | "us" | "non_us";
   regionManuallySet: boolean;
+  privateHandling?: boolean;
 };
 export type SiteCaptureRecovery = {
   version: 1; savedAt: number; requestId: string; retryToken: string;
@@ -38,6 +39,7 @@ function validSiteCaptureRecovery(input: unknown): SiteCaptureRecovery | null {
     if (value.version !== 1 || !Number.isFinite(value.savedAt) || value.savedAt > now + 60000
       || now - value.savedAt >= SITE_CAPTURE_DRAFT_TTL_MS
       || !/^capture-[a-f0-9-]{36}$/.test(value.requestId) || !/^[a-f0-9-]{36}$/.test(value.retryToken)
+      || (draft.privateHandling !== undefined && typeof draft.privateHandling !== "boolean")
       || !draft || !["phone", "upload", "visit"].includes(draft.method)
       || !["", "us", "non_us"].includes(draft.region) || typeof draft.regionManuallySet !== "boolean"
       || !([[draft.task, 2000], [draft.location, 300], [draft.email, 320], [draft.company, 200]] as const)

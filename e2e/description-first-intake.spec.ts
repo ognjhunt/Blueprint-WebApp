@@ -61,13 +61,13 @@ for (const device of ["desktop", "mobile"] as const) {
       await expect(page.getByText(/Country: United States\./)).toBeVisible();
       await expect(page.locator("#start-region")).toHaveCount(0);
       await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
-      await expect(page.getByRole("link", { name: "Review your job brief", exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toBeVisible();
       expect(mutations).toHaveLength(1);
       expect(mutations[0].body).toMatchObject({ descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" }, consentAttestation: null, hasExistingFootage: false });
       expect(mutations[0].body.matchFee).toBeUndefined();
       await shot("saved");
-      await page.getByRole("link", { name: "Review your job brief", exact: true }).click();
-      await expect(page.getByRole("heading", { name: "Review your job brief", exact: true })).toBeVisible();
+      await page.getByRole("link", { name: "Open your job and assessment", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toBeVisible();
       await expect(page.getByText("Move sealed cartons from a conveyor onto a pallet.", { exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: /Open the camera|Choose or record|Upload a video file/ })).toHaveCount(0);
       await shot("brief-before-permission");
@@ -76,7 +76,7 @@ for (const device of ["desktop", "mobile"] as const) {
       await page.getByRole("checkbox", { name: /I am authorized to record this site/ }).check();
       await page.getByRole("button", { name: "Confirm recording permission" }).click();
       await expect(page.getByRole("button", { name: "Add footage when you are ready (optional)" })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Review your job brief", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: /Open the camera|Choose or record|Upload a video file/ })).toHaveCount(0);
       expect(mutations.map(row => row.path)).toEqual(["/api/inbound-request", `/api/self-capture/uploads/${token}/recording-consent`]);
       expect(errors).toEqual([]);

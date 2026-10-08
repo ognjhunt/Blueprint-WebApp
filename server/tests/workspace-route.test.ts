@@ -3,6 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { createSiteClaimToken } from "../utils/request-review-auth";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
 import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
@@ -1183,6 +1184,12 @@ describe("capture-first workspace intake", () => {
     expect(response.status).toBe(201);
     expect(state.intakes.at(-1)).toMatchObject({ body: { acceptedTerms: true, descriptionOnly: true,
       descriptionAuthority, consentAttestation: null, email: "site-1@example.com" }, metadata: { account_owner_uid: "site-1" } });
+  });
+  it("carries the approved anonymized listing grant through signed-in intake", async () => {
+    const publicTaskListing = { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(capture.taskStatement) };
+    expect((await api("/capture-start", "site-1", { ...capture, publicTaskListing })).status).toBe(201);
+    expect(state.intakes.at(-1).body.publicTaskListing).toEqual(publicTaskListing);
+    expect((await api("/capture-start", "site-1", { ...capture, publicTaskListing: { ...publicTaskListing, consent: false } })).status).toBe(400);
   });
   it("binds new capture to the authenticated account, ignoring forged identity and permissions", async () => {
     const response = await api("/capture-start", "site-1", { ...capture, email: "forged@example.com", account_owner_uid: "site-2", siteTaskGates: { cleared: true } });

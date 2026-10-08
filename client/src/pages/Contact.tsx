@@ -75,7 +75,7 @@ export default function Contact() {
           <p className="ms-eyebrow">For site owners</p>
           <h1>Start with one task.</h1>
           <p className="ms-inquiry-description">
-            Describe the work now. Add a phone video when you have recording permission. The initial assessment is free for invited beta participants.
+            Describe the work now. Add a phone video when you have recording permission. Blueprint helps assess your job and, where appropriate, work toward an on-site pilot. Blueprint beta support is free; we reuse your information and bring back a concrete plan for any new commitment.
           </p>
         </div>
         <div className="ms-inquiry-forms">

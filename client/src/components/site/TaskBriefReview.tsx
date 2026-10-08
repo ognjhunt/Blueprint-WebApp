@@ -1,43 +1,4 @@
-import { targetingDimensions } from "@/types/updatePreferences";
-/**
- * The brief we drafted, for the operator to correct — and the button that
- * turns their correction into an attestation.
- *
- * ## Why this is the piece that was missing
- *
- * Tier 2 built the whole mechanism: a brief drafted from the operator's
- * evidence, a confirmation that writes their answers as `operator_stated`, and
- * the readiness ladder that follows. It shipped with a server route, the
- * attestation, and tests — and no button. So a site could not confirm, nothing
- * could reach `qualified` through the new path, and the dead end I said I fixed
- * was still a dead end, moved from "impossible in principle" to "impossible
- * because there is nowhere to click". This is the click.
- *
- * ## What the operator sees, and why the basis is shown
- *
- * Each proposed answer carries what it rests on — a description they gave, an
- * observation from the footage, or an assumption we made — and our one-line
- * reasoning. An answer whose basis the operator cannot see is one they cannot
- * meaningfully correct, so the basis is on the page, not hidden behind a
- * verdict. An assumption is never pre-filled as an answer; it is shown as an
- * open question, because confirming our guess back to ourselves would establish
- * nothing.
- *
- * ## "I do not know" is a first-class answer
- *
- * It leaves the gate blank and records the question as outstanding. It never
- * loops, and it never blocks the confirmation — a blank gate holds whatever it
- * holds downstream, but the operator has still done their part.
- *
- * ## The same step saves the site and decides the listing
- *
- * Blueprint builds a scene only for a site saved to an account, so this is
- * where the account comes in: right before we spend money on the site, never
- * on the first form. Password or Google, then one verification click attaches
- * the site. The listing question is asked here too, as a required yes or no,
- * because a card nobody finds is a site no robot team sees.
- */
-
+/** Review the existing job; retain corrections and defer commitments to a concrete proposal. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TaskClarification } from "./TaskClarification";
 import type { User } from "firebase/auth";
@@ -60,7 +21,6 @@ import {
   watchAuth,
 } from "@/lib/accountAuth";
 import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
-import { opportunityLabels, type TaskListingDetails } from "@/types/taskBrowse";
 
 type Basis = "description" | "observation" | "measurement" | "assumption";
 
@@ -69,6 +29,8 @@ export interface ProposedAnswer {
   value: string;
   basis: Basis;
   reading: string;
+  confidence?: number;
+  atSeconds?: number;
 }
 
 export interface DraftedBrief {
@@ -81,6 +43,7 @@ export interface DraftedBrief {
   operatorUnknown?: string[] | null;
   successCriteria?: { successDefinition: string | null; successRate: number | null; cycleTimeSeconds: number | null; unknown: boolean } | null;
   pilotIntent?: SitePilotIntent | null;
+  confirmedBy?: string | null;
 }
 
 type Screening = { headline: string; detail: string; bookingUrl: string | null };
@@ -98,11 +61,6 @@ type AccountOutcome =
   | { status: "verify"; user: User }
   | { status: "failed"; message: string; user: User | null };
 
-const blankListing: TaskListingDetails = {
-  title: "", taskFamily: "", siteType: "", region: "", objects: "",
-  cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "not_seeking",
-};
-
 type Verdict = {
   disposition: string;
   /** Present when our screen has not cleared the site, so no scene is built yet. */
@@ -116,7 +74,7 @@ type Verdict = {
 type State =
   | { status: "reviewing" }
   | { status: "confirming" }
-  | { status: "confirmed"; verdict: Verdict; listed: boolean | "failed" }
+  | { status: "confirmed"; verdict: Verdict }
   | { status: "failed"; message: string };
 
 /** How each basis reads to the operator. Our word for where the answer came from. */
@@ -147,19 +105,13 @@ export function TaskBriefReview(props: {
   onConfirmed?: (brief: DraftedBrief) => void;
 }) {
   const [state, setState] = useState<State>({ status: "reviewing" });
-  const [name, setName] = useState("");
+  const [name, setName] = useState(props.brief.confirmedBy ?? "");
   const [successDefinition, setSuccessDefinition] = useState(props.brief.successCriteria?.successDefinition ?? "");
   const [successRate, setSuccessRate] = useState(props.brief.successCriteria?.successRate?.toString() ?? "");
   const [cycleTimeSeconds, setCycleTimeSeconds] = useState(props.brief.successCriteria?.cycleTimeSeconds?.toString() ?? "");
   const [successUnknown, setSuccessUnknown] = useState(props.brief.successCriteria?.unknown ?? false);
   const [pilotConsideration, setPilotConsideration] = useState<SitePilotIntent["pilotConsideration"] | "">(props.brief.pilotIntent?.pilotConsideration ?? "");
   const [deploymentPath, setDeploymentPath] = useState<SitePilotIntent["deploymentPath"] | "">(props.brief.pilotIntent?.deploymentPath ?? "");
-
-  // The listing decision. Null until they choose: a yes or no is required, so
-  // nobody skips past the card without seeing it.
-  const [listChoice, setListChoice] = useState<"list" | "not_now" | null>(null);
-  const [listing, setListing] = useState<TaskListingDetails>(blankListing);
-  const [listingConsent, setListingConsent] = useState(false);
 
   // Saving the site to an account. Skipped when it is already claimed.
   const needsAccount = Boolean(props.account && !props.account.claimed && props.account.claimToken);
@@ -191,26 +143,42 @@ export function TaskBriefReview(props: {
   // The operator's corrections, keyed by gate id, and the gates they said they
   // do not know. A correction wins over our reading; an "unknown" clears it.
   // Editing a confirmed brief starts from what the operator said last time.
+  const touchedAnswers = useRef(new Set<string>());
+  const touchedSuccess = useRef(false);
   const [answers, setAnswers] = useState<Record<string, string>>(() => ({ ...(props.brief.operatorAnswers ?? {}) }));
   const [unknown, setUnknown] = useState<Set<string>>(() => new Set(props.brief.operatorUnknown ?? []));
+
+  useEffect(() => {
+    setAnswers(current => ({ ...props.brief.operatorAnswers, ...Object.fromEntries(Object.entries(current).filter(([id]) => touchedAnswers.current.has(id))) }));
+    setUnknown(current => new Set([...(props.brief.operatorUnknown ?? []).filter(id => !touchedAnswers.current.has(id)), ...[...current].filter(id => touchedAnswers.current.has(id))]));
+    if (!touchedSuccess.current) {
+      setSuccessDefinition(props.brief.successCriteria?.successDefinition ?? "");
+      setSuccessRate(props.brief.successCriteria?.successRate?.toString() ?? "");
+      setCycleTimeSeconds(props.brief.successCriteria?.cycleTimeSeconds?.toString() ?? "");
+      setSuccessUnknown(props.brief.successCriteria?.unknown ?? false);
+    }
+  }, [props.brief]);
 
   // Everything to show as a row: our confirmable proposals, plus the gates we
   // could not settle from the evidence. Sorted so the questions we actually
   // need come before the ones we are only confirming.
   const rows = useMemo(() => {
-    const confirmable = props.brief.proposed.filter((answer) => answer.basis !== "assumption");
+    const confirmable = props.brief.proposed.filter((answer) => answer.basis !== "assumption" && answer.basis !== "observation");
     const proposedIds = new Set(confirmable.map((answer) => answer.fieldId));
     const openIds = [
-      ...props.brief.proposed.filter((answer) => answer.basis === "assumption").map((a) => a.fieldId),
+      ...props.brief.proposed.filter((answer) => answer.basis === "assumption" || answer.basis === "observation").map((a) => a.fieldId),
       ...props.brief.unresolved.filter((id) => !proposedIds.has(id)),
     ];
     return {
       confirmable,
-      open: [...new Set(openIds)].filter((id) => gateFields.some((field) => field.id === id)),
+      open: [...new Set(openIds)].filter((id) => !props.brief.operatorAnswers?.[id]
+        && !props.brief.operatorUnknown?.includes(id)
+        && gateFields.some((field) => field.id === id && field.blocks === "capture")),
     };
   }, [props.brief]);
 
   function setAnswer(fieldId: string, value: string) {
+    touchedAnswers.current.add(fieldId);
     setUnknown((current) => {
       const next = new Set(current);
       next.delete(fieldId);
@@ -220,6 +188,7 @@ export function TaskBriefReview(props: {
   }
 
   function markUnknown(fieldId: string) {
+    touchedAnswers.current.add(fieldId);
     setAnswers((current) => {
       const next = { ...current };
       delete next[fieldId];
@@ -231,13 +200,6 @@ export function TaskBriefReview(props: {
   function problem(): string | null {
     if (!name.trim()) return "Please add your name so we know who confirmed this.";
     if (!successUnknown && !successDefinition.trim()) return "Describe a successful cycle, or select I don't know yet.";
-    if (!pilotConsideration || !deploymentPath) return "Answer the two pilot and deployment questions, even if you are undecided.";
-    if (!listChoice) return "Choose whether to show this job to robot teams.";
-    if (listChoice === "list") {
-      if (listing.title.trim().length < 8) return "Describe the job for the public card in a few words.";
-      if (listing.taskFamily.trim().length < 2) return "Add a job type for the public card.";
-      if (!listingConsent) return "Confirm you reviewed the public card before listing it.";
-    }
     return null;
   }
 
@@ -264,8 +226,8 @@ export function TaskBriefReview(props: {
 
   async function confirm(options: { google?: boolean } = {}) {
     const missing = problem();
-    if (missing || !pilotConsideration || !deploymentPath) {
-      setState({ status: "failed", message: missing || "Answer the two pilot and deployment questions, even if you are undecided." });
+    if (missing) {
+      setState({ status: "failed", message: missing });
       return;
     }
     setState({ status: "confirming" });
@@ -291,7 +253,7 @@ export function TaskBriefReview(props: {
         cycleTimeSeconds: successUnknown || !cycleTimeSeconds ? null : Number(cycleTimeSeconds),
         unknown: successUnknown,
       },
-      pilotIntent: { pilotConsideration, deploymentPath },
+      pilotIntent: pilotConsideration && deploymentPath ? { pilotConsideration, deploymentPath } : props.brief.pilotIntent,
     };
     let verdict: Verdict;
     try {
@@ -304,7 +266,7 @@ export function TaskBriefReview(props: {
           answers: confirmedBrief.operatorAnswers,
           unknown: confirmedBrief.operatorUnknown,
           successCriteria: confirmedBrief.successCriteria,
-          pilotIntent: confirmedBrief.pilotIntent,
+          ...(confirmedBrief.pilotIntent ? { pilotIntent: confirmedBrief.pilotIntent } : {}),
         }),
       });
       const body = (await response.json().catch(() => ({}))) as Partial<Verdict> & {
@@ -327,25 +289,7 @@ export function TaskBriefReview(props: {
       return;
     }
 
-    // The public card, when they chose one. A failure here does not undo the
-    // confirmation; the card can be saved again from the task page.
-    let listed: boolean | "failed" = false;
-    if (listChoice === "list") {
-      try {
-        const response = await fetch(`/api/task-listings/owner/${encodeURIComponent(props.token)}`, {
-          method: "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-          body: JSON.stringify({
-            enabled: true, details: listing, consent: true,
-          }),
-        });
-        listed = response.ok ? true : "failed";
-      } catch {
-        listed = "failed";
-      }
-    }
-
-    setState({ status: "confirmed", verdict, listed });
+    setState({ status: "confirmed", verdict });
     props.onConfirmed?.(confirmedBrief);
     if (user) await saveToAccount(user);
   }
@@ -418,12 +362,6 @@ export function TaskBriefReview(props: {
             None of it stops you filming.
           </p>
         )}
-        {state.listed === true && (
-          <p className="ms-field-hint">Your job card is in the robot-team library. You can edit or hide it below.</p>
-        )}
-        {state.listed === "failed" && (
-          <p role="alert" className="ms-field-hint">Your job card was not saved. Add it from “Share a job card” below.</p>
-        )}
         {accountOutcome.status === "saved" && (
           <p className="ms-field-hint">
             Saved to your account. <a className="ms-text-link" href="/app">Open your workspace</a>
@@ -455,22 +393,6 @@ export function TaskBriefReview(props: {
     );
   }
 
-  const listingField = (key: Exclude<keyof TaskListingDetails, "targeting">, label: string, maxLength: number, placeholder?: string) => (
-    <label key={key} htmlFor={`listing-${key}`}>
-      <span>{label}</span>
-      <input
-        id={`listing-${key}`}
-        value={listing[key]}
-        maxLength={maxLength}
-        placeholder={placeholder}
-        onChange={(event) => {
-          setListing({ ...listing, [key]: event.target.value });
-          setListingConsent(false);
-        }}
-      />
-    </label>
-  );
-
   // Only say we drafted answers when we did. With brief reading off, every
   // question arrives open, and the honest framing is a short set of questions.
   const drafted = rows.confirmable.length > 0;
@@ -482,11 +404,15 @@ export function TaskBriefReview(props: {
       </h2>
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
         {drafted
-          ? "We read what you sent and drafted this. Confirming it is what lets us act on it — you are not filling in a form, you are correcting ours."
+          ? "We used what you sent to prefill this summary. Save material corrections when needed; the assessment remains available without confirming every inference."
           : "These tell us whether a robot evaluation will hold up at your site. Answer what you know; anything you are not sure about can stay open, and you can clarify it in writing or on a call."}
       </p>
 
       <p style={{ fontWeight: 500 }}>{props.brief.summary}</p>
+      {props.brief.proposed.some(answer => answer.basis === "observation") && <details><summary>What your footage shows</summary>
+        {props.brief.proposed.filter(answer => answer.basis === "observation").map(answer => <p key={answer.fieldId}>{answer.reading} <span className="ms-field-hint">(from your footage{answer.confidence !== undefined ? `; confidence ${Math.round(answer.confidence * 100)}%` : ""}). This is an observation of the clip; the job across shifts remains a separate question.</span></p>)}
+      </details>}
+      <p className="ms-field-hint">Blueprint helps assess this job and, where appropriate, prepares a concrete plan for an on-site pilot using the information and permissions you already supplied. Correct the job summary where it matters. Saving corrections does not grant new publication or sharing rights, authorize spending, or commit your site to a visit. A concrete proposal will show any new cost, disclosure, agreement or physical commitment for approval.</p>
 
       {/* What we think we know, each with where it came from. The operator can
           override any of it, or say they do not know. */}
@@ -524,6 +450,12 @@ export function TaskBriefReview(props: {
         </fieldset>
       ))}
 
+      {[...new Set([...Object.keys(props.brief.operatorAnswers ?? {}), ...(props.brief.operatorUnknown ?? [])])].filter(id => !rows.confirmable.some(answer => answer.fieldId === id)).length > 0 && <details><summary>Recorded facts (optional corrections)</summary>
+        {[...new Set([...Object.keys(props.brief.operatorAnswers ?? {}), ...(props.brief.operatorUnknown ?? [])])].filter(id => !rows.confirmable.some(answer => answer.fieldId === id)).map(id => <label key={id}>{fieldQuestion(id)}<select value={unknown.has(id) ? "__unknown" : answers[id] ?? ""} onChange={event => event.target.value === "__unknown" ? markUnknown(id) : setAnswer(id, event.target.value)}>
+          {fieldOptions(id).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}<option value="__unknown">I am not sure</option>
+        </select></label>)}
+      </details>}
+
       {/* What the evidence could not settle. Real questions, and "not sure" is a
           real answer that does not block. */}
       {rows.open.map((fieldId) => (
@@ -556,17 +488,18 @@ export function TaskBriefReview(props: {
         <legend style={{ padding: "0 6px", fontWeight: 600 }}>What counts as success?</legend>
         <p className="ms-field-hint">Confirm the outcome a robot should achieve. These are your targets for the job, not a claim that any robot meets them.</p>
         <label htmlFor="success-definition"><span>Successful cycle</span>
-          <input id="success-definition" value={successDefinition} onChange={(event) => setSuccessDefinition(event.target.value)} disabled={successUnknown} maxLength={1000} placeholder="For example, the carton reaches the pallet without damage" />
+          <input id="success-definition" value={successDefinition} onChange={(event) => { touchedSuccess.current = true; setSuccessDefinition(event.target.value); }} disabled={successUnknown} maxLength={1000} placeholder="For example, the carton reaches the pallet without damage" />
         </label>
         <label htmlFor="success-rate"><span>Minimum success rate (%)</span>
-          <input id="success-rate" type="number" min="0" max="100" step="0.1" value={successRate} onChange={(event) => setSuccessRate(event.target.value)} disabled={successUnknown} placeholder="If known" />
+          <input id="success-rate" type="number" min="0" max="100" step="0.1" value={successRate} onChange={(event) => { touchedSuccess.current = true; setSuccessRate(event.target.value); }} disabled={successUnknown} placeholder="If known" />
         </label>
         <label htmlFor="cycle-time"><span>Maximum cycle time (seconds)</span>
-          <input id="cycle-time" type="number" min="0.01" max="86400" step="0.01" value={cycleTimeSeconds} onChange={(event) => setCycleTimeSeconds(event.target.value)} disabled={successUnknown} placeholder="If known" />
+          <input id="cycle-time" type="number" min="0.01" max="86400" step="0.01" value={cycleTimeSeconds} onChange={(event) => { touchedSuccess.current = true; setCycleTimeSeconds(event.target.value); }} disabled={successUnknown} placeholder="If known" />
         </label>
-        <label htmlFor="success-unknown"><input id="success-unknown" type="checkbox" checked={successUnknown} onChange={(event) => setSuccessUnknown(event.target.checked)} /> I don't know the success criteria yet</label>
+        <label htmlFor="success-unknown"><input id="success-unknown" type="checkbox" checked={successUnknown} onChange={(event) => { touchedSuccess.current = true; setSuccessUnknown(event.target.checked); }} /> I don't know the success criteria yet</label>
       </fieldset>
 
+      {props.brief.pilotIntent && <details><summary>Your recorded pilot preferences (optional corrections)</summary>
       <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0" }}>
         <legend style={{ padding: "0 6px", fontWeight: 600 }}>What could follow this assessment?</legend>
         <p className="ms-field-hint">These answers describe your plans and commit you to nothing.</p>
@@ -584,82 +517,7 @@ export function TaskBriefReview(props: {
         </label>
       </fieldset>
 
-      <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "18px 0 10px" }}>
-        <legend style={{ padding: "0 6px", fontWeight: 600 }}>Show this job to robot teams?</legend>
-        <p className="ms-field-hint" style={{ marginTop: 0 }}>
-          A card in the job library is how robot teams find your site. It shows only the text you
-          write here. Your name, contact details, footage and scene stay private.
-        </p>
-        <label className="ms-check-row">
-          <input type="radio" name="list-choice" checked={listChoice === "list"} onChange={() => setListChoice("list")} />
-          Yes, list it in the job library
-        </label>
-        <label className="ms-check-row">
-          <input type="radio" name="list-choice" checked={listChoice === "not_now"} onChange={() => setListChoice("not_now")} />
-          Not now
-        </label>
-        {listChoice === "list" && (
-          <div aria-label="Public job card">
-            {listingField("title", "Describe the job without naming your site", 160, "Move sealed cartons from a conveyor onto a pallet")}
-            {listingField("taskFamily", "Job type", 60, "Palletizing")}
-            {listingField("objects", "Objects (optional)", 160)}
-            {listingField("region", "Region (optional)", 80, "US Midwest")}
-            <details><summary>Pilot price and conditions (optional)</summary>
-              <label htmlFor="listing-price-status"><span>Price status</span><select id="listing-price-status" value={listing.pilotPriceStatus ?? "target_budget"} onChange={event => { setListing({ ...listing, pilotPriceStatus: event.target.value as TaskListingDetails["pilotPriceStatus"] }); setListingConsent(false); }}>
-                <option value="target_budget">Target budget, open to proposals</option>
-                <option value="site_offer">Site's proposed price</option>
-              </select></label>
-              {listingField("pilotBudget", listing.pilotPriceStatus === "site_offer" ? "Proposed pilot price (optional)" : "Target pilot budget (optional)", 80)}
-              <label htmlFor="listing-pilot-conditions"><span>Pilot conditions</span><textarea id="listing-pilot-conditions" value={listing.pilotConditions ?? ""} maxLength={320} onChange={event => { setListing({ ...listing, pilotConditions: event.target.value }); setListingConsent(false); }} placeholder="For example: four weeks, including setup and provider support" /></label>
-              {listingField("ongoingTarget", "Ongoing price target, if the pilot works (optional)", 80)}
-              <p className="ms-field-hint">A posted price is a proposal, not a purchase approval. Teams can accept it, ask for changes, or decline after evaluation.</p>
-            </details>
-            <details><summary>Alert targeting and data terms (optional)</summary>
-              <p className="ms-field-hint">Exact comma-separated categories, reviewed as part of this public card. Leave unknown values blank. These terms do not grant access to private footage or verify robot performance.</p>
-              {(["categories", "requiredRecipient"] as const).map(group => <fieldset key={group}><legend>{group === "categories" ? "Job categories" : "Required team categories"}</legend>
-                {targetingDimensions.map(dimension => <label key={dimension}><span>{{ roles: "Roles", regions: "Regions", industries: "Industry focus", embodiments: "Embodiments", policyCategories: "Policy categories (e.g. WAM, VLA)", taskFamilies: "Work categories", capabilities: "Capabilities" }[dimension]}</span><input maxLength={2400} value={listing.targeting?.[group][dimension]?.join(", ") ?? ""} onChange={event => {
-                  const targeting = listing.targeting ?? { categories: {}, requiredRecipient: {} };
-                  setListing({ ...listing, targeting: { ...targeting, [group]: { ...targeting[group], [dimension]: event.target.value.split(",").map(v => v.trim()).filter(Boolean) } } }); setListingConsent(false);
-                }} /></label>)}
-              </fieldset>)}
-              <label><span>Data retention (days)</span><input type="number" min={0} max={36500} value={listing.targeting?.retentionDays ?? ""} onChange={event => {
-                const targeting = listing.targeting ?? { categories: {}, requiredRecipient: {} };
-                const { retentionDays: _days, ...rest } = targeting;
-                setListing({ ...listing, targeting: { ...rest, ...(event.target.value ? { retentionDays: Number(event.target.value) } : {}) } }); setListingConsent(false);
-              }} /></label>
-              <label><span>Use of data for training</span><select value={listing.targeting?.trainingUseAllowed === undefined ? "" : String(listing.targeting.trainingUseAllowed)} onChange={event => {
-                const { trainingUseAllowed: _training, ...rest } = listing.targeting ?? { categories: {}, requiredRecipient: {} };
-                setListing({ ...listing, targeting: { ...rest, ...(event.target.value ? { trainingUseAllowed: event.target.value === "true" } : {}) } }); setListingConsent(false);
-              }}><option value="">Unknown</option><option value="false">Not permitted</option><option value="true">Permitted by the applicable agreement</option></select></label>
-            </details>
-            <label htmlFor="listing-opportunity">
-              <span>Pilot availability</span>
-              <select
-                id="listing-opportunity"
-                value={listing.opportunity}
-                onChange={(event) => {
-                  setListing({ ...listing, opportunity: event.target.value as TaskListingDetails["opportunity"] });
-                  setListingConsent(false);
-                }}
-              >
-                {Object.entries(opportunityLabels).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </label>
-            {listing.opportunity === "open" && (
-              <p className="ms-field-hint">
-                Opening to pilot proposals is free. Any later work needs separately agreed scope and cost.
-                <a href="/beta#scope" target="_blank" rel="noreferrer">Beta program scope</a>
-              </p>
-            )}
-            <label className="ms-check-row">
-              <input type="checkbox" checked={listingConsent} onChange={(event) => setListingConsent(event.target.checked)} />
-              I reviewed this text for identifying details and am authorized to make it public. I can hide the card at any time.
-            </label>
-          </div>
-        )}
-      </fieldset>
+      </details>}
 
       {needsAccount && (
         <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "10px 0" }}>

@@ -95,7 +95,7 @@ test("returning owner can explicitly replace a received recording without confir
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Next: check your job brief", { exact: true })).toBeVisible();
+  await expect(page.getByText("Correct job details (optional)", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
   const choose = page.getByRole("button", { name: "Upload a new recording", exact: true });
@@ -112,7 +112,7 @@ test("returning owner can explicitly replace a received recording without confir
   expect(posted).toContain('filename="synthetic-replacement.mp4"');
   expect(posted).toContain('name="metadata"');
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Next: check your job brief", { exact: true })).toBeVisible();
+  await expect(page.getByText("Correct job details (optional)", { exact: true })).toBeVisible();
   await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
 });
 
@@ -202,7 +202,7 @@ test("desktop handoff recognizes retained footage without claiming processing co
   await page.clock.fastForward(6000);
   await expect(page.getByRole("heading", { name: "Your recording is in." })).toBeVisible();
   await expect(page.getByText("Your video is retained. Recording permission needs review.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Review your job brief" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open your job and assessment" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Retry processing" })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath("desktop-held-footage.png"), fullPage: true });

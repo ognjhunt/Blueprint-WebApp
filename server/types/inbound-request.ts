@@ -1246,6 +1246,7 @@ export interface InboundRequestPayload {
   /** Description-only admission preserves the recording hold until a separate grant. */
   descriptionOnly?: boolean;
   descriptionAuthority?: ConsentAttestationInput | null;
+  publicTaskListing?: { consent: boolean; statementVersion: string; details: import("../../client/src/types/taskBrowse").TaskListingDetails } | null;
   /** Only sent by the scoped Claude development-test website form. */
   claudeAuthoringConsent?: ConsentAttestationInput | null;
   /** Only sent by the scoped GPT-6.1 Sol managed-agent development-test website form. */

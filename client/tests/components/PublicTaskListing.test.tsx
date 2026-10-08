@@ -25,7 +25,7 @@ describe("the task page's public card", () => {
     fireEvent.change(screen.getByLabelText(/pilot price status/i), { target: { value: "site_offer" } });
     expect(screen.getByLabelText(/proposed pilot price/i)).not.toBeRequired();
     fireEvent.click(screen.getByLabelText(/authorized to make them public/i));
-    fireEvent.click(screen.getByRole("button", { name: /save public card/i }));
+    fireEvent.click(screen.getByRole("button", { name: /publish reviewed card/i }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     const body = JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body);
     expect(body.details).toMatchObject({ pilotBudget: "", pilotPriceStatus: "site_offer" });
@@ -40,7 +40,7 @@ describe("the task page's public card", () => {
     expect(screen.queryByLabelText(/Blueprint's \$2,500 fee/i)).toBeNull();
     expect(screen.getByText(/Any later work needs separately agreed scope and cost/i)).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText(/authorized to make them public/i));
-    fireEvent.click(screen.getByRole("button", { name: /save public card/i }));
+    fireEvent.click(screen.getByRole("button", { name: /publish reviewed card/i }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     const body = JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body);
@@ -54,7 +54,7 @@ describe("the task page's public card", () => {
     await screen.findByLabelText(/pilot availability/i);
 
     fireEvent.click(screen.getByLabelText(/authorized to make them public/i));
-    fireEvent.click(screen.getByRole("button", { name: /save public card/i }));
+    fireEvent.click(screen.getByRole("button", { name: /publish reviewed card/i }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body).matchFee).toBeUndefined();

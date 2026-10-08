@@ -169,7 +169,7 @@ test("a robot team outside early access applies instead of browsing", async ({ p
 test("desktop owner reviews the brief before optional recording, with one status and explicit public card approval", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 }); const mutations = await fixtures(page);
   await page.goto("/capture-upload/owner-fixture");
-  await expect(page.getByRole("heading", { name: "Review your job brief", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toHaveCount(0);
   await page.getByRole("button", { name: "Add footage when you are ready (optional)" }).click();
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toBeVisible();
@@ -210,7 +210,7 @@ test("phone owner reviews the brief before optional recording and keeps event em
   await expect(page.getByText(/We email you each time something happens/)).toBeVisible();
   await expect(page.getByText(/Update overdue|Next status update by/)).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Review your job brief", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /Open the camera|Choose or record a video/ })).toHaveCount(0);
   await page.getByRole("button", { name: "Add footage when you are ready (optional)" }).click();
   await expect(page.getByRole("button", { name: /Open the camera|Choose or record a video/ }).first()).toBeVisible();
@@ -230,7 +230,7 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: descr
   await expect(form.getByText(/Country: United States\./)).toBeVisible();
   await expect(form.locator("#start-region")).toHaveCount(0);
   await form.getByRole("button", { name: "Start free assessment", exact: true }).click();
-  await expect(page.getByRole("link", { name: "Review your job brief", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
   await expect(page.getByRole("img", { name: "Point your phone at this to film" })).toHaveCount(0);
   await screenshot(page, `${mobile ? "phone" : "desktop"}-intake-handoff`); await context.close();
