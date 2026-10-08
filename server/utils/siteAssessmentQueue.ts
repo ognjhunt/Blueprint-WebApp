@@ -6,6 +6,8 @@ import { verifiedPendingManifest, verifiedPendingMarker, originalManifestConsent
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { advisoryContextDigest, advisoryJobId } from "./siteAssessmentContext";
 import { automationBatch } from "./automationBatch";
+import { prepareAssessmentRecovery, assertAssessmentRecoveryReplay } from "./captureCoverageInferenceBudget";
+import { humanDecisionDigest } from "./human-reply-admission";
 import { logger } from "../logger";
 
 export const SITE_ASSESSMENT_JOBS = "siteAssessmentJobs";
@@ -13,7 +15,7 @@ type State = "queued" | "running" | "completed" | "needs_review" | "authority_en
 export type SiteAssessmentJob = {
   schema_version: "site_assessment_job.v1"; request_id: string; scene_id: string; capture_id: string;
   source_key: string; context_digest: string; state: State; run_id: string; claim_id: string | null;
-  packet_sha256: string | null; correlation_id: string; started_at_ms?: number;
+  packet_sha256: string | null; correlation_id: string; started_at_ms?: number; retry_history?: import("./inferenceProgrammeAdmission").AssessmentRecovery[];
 };
 const RUN_LEASE_MS = 30 * 60_000;
 const sha = (packet: unknown) => createHash("sha256").update(JSON.stringify(packet)).digest("hex");
@@ -160,4 +162,70 @@ export async function reconcileSiteAssessments(limit = 2) {
       logger.warn({ correlationId: job.correlation_id }, "Site advisory needs operator review");
     }
   }
+}
+
+type RetryAccess = (request: Record<string, any>) => void | boolean | Promise<void | boolean>;
+async function selectRetryJob(tx: FirebaseFirestore.Transaction, requestId: string, assertAccess: RetryAccess) {
+  const requestRef = db!.collection("inboundRequests").doc(requestId), briefRef = db!.collection("siteTaskBriefs").doc(requestId);
+  const [request, brief] = await Promise.all([tx.get(requestRef), tx.get(briefRef)]);
+  const raw = request.data();
+  if (!raw) throw new Error("advisory_retry_unavailable");
+  try { if (await assertAccess(raw) === false) throw new Error(); } catch { throw new Error("advisory_retry_not_authorized"); }
+  const id = raw.site_advisory?.job_id;
+  if (typeof id !== "string" || !/^advisory-[a-f0-9]{64}$/.test(id)) throw new Error("advisory_retry_unavailable");
+  const ref = db!.collection(SITE_ASSESSMENT_JOBS).doc(id), snap = await tx.get(ref), job = snap.data() as SiteAssessmentJob;
+  if (!job || job.schema_version !== "site_assessment_job.v1" || job.request_id !== requestId
+    || job.capture_id !== `walkthrough-${requestId}` || id !== advisoryJobId(requestId, job.source_key, job.context_digest)
+    || raw.site_advisory.source_key !== job.source_key || raw.site_advisory.context_digest !== job.context_digest)
+    throw new Error("advisory_retry_unavailable");
+  const session = await tx.get(db!.collection("captureUploadSessions").doc(job.capture_id));
+  if (!currentAuthority(job, raw, brief.data() ?? null, session.data())) throw new Error("advisory_retry_unavailable");
+  return { id, ref, job, requestRef, raw, brief: brief.data() ?? null };
+}
+export async function retrySiteAssessment(input: { requestId: string; expectedJobId: string; expectedRunId: string;
+  retryIdentity: string; assertAccess: RetryAccess }) {
+  if (!db || !isSiteVideoEvidenceEnabled() || !/^[A-Za-z0-9._-]{1,120}$/.test(input.retryIdentity)) throw new Error("advisory_retry_unavailable");
+  return db.runTransaction(async tx => {
+    const selected = await selectRetryJob(tx, input.requestId, input.assertAccess), { id, job, raw } = selected;
+    if (id !== input.expectedJobId) throw new Error("advisory_retry_conflict");
+    const prior = job.retry_history?.find(row => row.retry_identity === input.retryIdentity);
+    if (prior) {
+      if (prior.previous_run_id !== input.expectedRunId || prior.new_run_id !== job.run_id) throw new Error("advisory_retry_conflict");
+      await assertAssessmentRecoveryReplay(tx, { requestId: input.requestId, captureId: job.capture_id, jobId: id,
+        runId: job.run_id, sourceKey: job.source_key, contextDigest: job.context_digest, request: raw, brief: selected.brief, receipt: prior });
+      return { state: job.state, job_id: id, run_id: job.run_id };
+    }
+    if (job.state !== "needs_review" || job.run_id !== input.expectedRunId) throw new Error("advisory_retry_conflict");
+    const runId = `site-assessment-retry-${humanDecisionDigest({ jobId: id, previousRunId: job.run_id, retryIdentity: input.retryIdentity })}`;
+    const archive = await prepareAssessmentRecovery(tx, { requestId: input.requestId, jobId: id, captureId: job.capture_id,
+      previousRunId: job.run_id, previousClaimId: job.claim_id, newRunId: runId, retryIdentity: input.retryIdentity, sourceKey: job.source_key,
+      contextDigest: job.context_digest, request: raw, brief: selected.brief });
+    if (humanDecisionDigest(job.retry_history ?? []) !== humanDecisionDigest(archive.budgetUpdate.assessment_recoveries.slice(0, -1)))
+      throw new Error("advisory_retry_unavailable");
+    const next: SiteAssessmentJob = { ...job, state: "queued", run_id: runId, claim_id: null, packet_sha256: null,
+      retry_history: archive.budgetUpdate.assessment_recoveries };
+    tx.set(archive.programmeRef, archive.programmeUpdate, { merge: true });
+    tx.set(archive.budgetRef, archive.budgetUpdate, { merge: true });
+    tx.set(selected.ref, { state: next.state, run_id: runId, claim_id: null, packet_sha256: null,
+      retry_history: next.retry_history, updated_at_ms: Date.now() }, { merge: true });
+    tx.set(selected.requestRef, { site_advisory: pointer(id, next) }, { merge: true });
+    return { state: next.state, job_id: id, run_id: runId };
+  }).catch(error => { throw new Error(error instanceof Error && ["advisory_retry_conflict", "advisory_retry_not_authorized"].includes(error.message)
+    ? error.message : "advisory_retry_unavailable"); });
+}
+/** Read-only availability; no archive, wakeup, dispatch or customer mutation. */
+export async function describeSiteAssessmentRetry(requestId: string, assertAccess: RetryAccess) {
+  if (!db || !isSiteVideoEvidenceEnabled()) return { available: false, job_id: null, run_id: null };
+  try {
+    return await db.runTransaction(async tx => {
+      const selected = await selectRetryJob(tx, requestId, assertAccess), { id, job, raw } = selected;
+      if (job.state !== "needs_review") throw new Error("advisory_retry_unavailable");
+      const archive = await prepareAssessmentRecovery(tx, { requestId, jobId: id, captureId: job.capture_id,
+        previousRunId: job.run_id, previousClaimId: job.claim_id, newRunId: "read-only-validation", retryIdentity: "read-only-validation",
+        sourceKey: job.source_key, contextDigest: job.context_digest, request: raw, brief: selected.brief });
+      if (humanDecisionDigest(job.retry_history ?? []) !== humanDecisionDigest(archive.budgetUpdate.assessment_recoveries.slice(0, -1)))
+        throw new Error("advisory_retry_unavailable");
+      return { available: true, job_id: id, run_id: job.run_id };
+    });
+  } catch { return { available: false, job_id: null, run_id: null }; }
 }

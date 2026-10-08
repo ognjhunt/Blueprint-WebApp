@@ -7,6 +7,64 @@ const summary = (name: string, email = "operator@example.test") => ({
   site: { siteName: name, siteLocation: "Austin", taskStatement: "Pack cartons", qualificationState: "submitted" },
 });
 
+test("owner can request an authorized assessment retry while keeping the saved recording", async ({ page }) => {
+  const token = "advisory-retry-fixture";
+  const jobId = `advisory-${"a".repeat(64)}`, originalRun = `site-assessment-${"b".repeat(64)}`, newRun = `site-assessment-${"c".repeat(64)}`;
+  let queued = false;
+  let releaseFirst!: () => void;
+  const firstResponse = new Promise<void>(resolve => { releaseFirst = resolve; });
+  const retries: Array<{ expected_job_id: string; expected_run_id: string; retry_identity: string }> = [];
+  const writes: string[] = [];
+  await page.route("**/api/**", async route => {
+    const url = new URL(route.request().url());
+    if (route.request().method() !== "GET" && url.pathname !== "/api/analytics/ingest") writes.push(url.pathname);
+    if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
+    if (url.pathname === `/api/self-capture/uploads/${token}/advisory-retry`) {
+      expect(route.request().headers()["x-csrf-token"]).toBe("fixture");
+      retries.push(route.request().postDataJSON());
+      if (retries.length === 1) { await firstResponse; return route.abort(); }
+      queued = true;
+      return route.fulfill({ json: { ok: true, state: "queued", job_id: jobId, run_id: newRun } });
+    }
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"],
+    } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: {
+      ready: true, scope: "owner", brief: { summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null },
+    } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
+      scope: "owner", captureReceived: true, status: { decision: "confirm_brief", headline: "Review your job brief.", operatorAction: null, missingViews: [] },
+      siteAdvisory: { schemaVersion: "site_customer_advisory.v1", state: queued ? "queued" : "needs_review", correlationId: "bp-advisory-aaaaaaaaaaaaaaaa", sections: [], unknowns: [], nextAction: null },
+      assessment_retry_available: !queued, assessment_job_id: jobId, assessment_run_id: queued ? newRun : originalRun,
+    } });
+    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
+    if (url.pathname.endsWith("/follow-up")) return route.fulfill({ json: { questions: [] } });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Next: check your job brief", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Try assessment again", exact: true })).toBeVisible();
+  expect(writes).toEqual([]);
+  await page.getByRole("button", { name: "Try assessment again", exact: true }).dblclick();
+  await expect.poll(() => retries.length).toBe(1);
+  await expect(page.getByRole("button", { name: "Requesting assessment retry…", exact: true })).toBeDisabled();
+  expect(retries[0]).toMatchObject({ expected_job_id: jobId, expected_run_id: originalRun });
+  expect(retries[0].retry_identity).toMatch(/^[0-9a-f-]{36}$/);
+  releaseFirst();
+  await expect(page.getByRole("status")).toContainText("We could not confirm the retry.");
+  await page.reload();
+  await page.getByRole("button", { name: "Try assessment again", exact: true }).click();
+  await expect.poll(() => retries.length).toBe(2);
+  expect(retries[1]).toEqual(retries[0]);
+  await expect(page.getByText("Your video is saved and its job assessment is queued.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Try assessment again", exact: true })).toHaveCount(0);
+  await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Next: check your job brief", { exact: true })).toBeVisible();
+  expect(writes).toEqual([`/api/self-capture/uploads/${token}/advisory-retry`, `/api/self-capture/uploads/${token}/advisory-retry`]);
+  await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
+});
+
 test("returning owner can explicitly replace a received recording without confirming the brief", async ({ page }, info) => {
   const token = "replacement-fixture";
   const video = info.outputPath("synthetic-replacement.mp4");

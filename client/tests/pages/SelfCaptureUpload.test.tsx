@@ -302,6 +302,62 @@ describe("retained video processing recovery", () => {
   });
 });
 
+describe("explicit assessment retry", () => {
+  const jobId = `advisory-${"a".repeat(64)}`, runId = `site-assessment-${"b".repeat(64)}`;
+  function retryFetch(options: { available?: boolean; scope?: string; state?: string; jobId?: string | null; post?: () => Promise<unknown> } = {}) {
+    return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/csrf") return Promise.resolve({ ok: true, json: async () => ({ csrfToken: "synthetic-qa" }) });
+      if (url.endsWith("/advisory-retry")) return options.post?.() ?? Promise.resolve({ ok: false, status: 409, json: async () => ({ error: "private provider detail" }) });
+      if (url.includes("second-token")) return Promise.resolve({ ok: false, json: async () => ({ error: "This link was withdrawn." }) });
+      if (url === `/api/self-capture/uploads/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({ ok: true, state: "open", accepts: ["mov", "mp4"], captureReceived: true, uploadState: "processing_ready" }) });
+      if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: options.scope ?? "owner", brief: { summary: "Pack cartons", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } }) });
+      if (url === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({ scope: options.scope ?? "owner", captureReceived: true,
+        status: { decision: "confirm_brief", headline: "Review your job brief.", operatorAction: null, missingViews: [] },
+        siteAdvisory: { schemaVersion: "site_customer_advisory.v1", state: options.state ?? "needs_review", correlationId: "bp-advisory-aaaaaaaaaaaaaaaa", sections: [], unknowns: [], nextAction: null },
+        assessment_retry_available: options.available, assessment_job_id: options.jobId === undefined ? jobId : options.jobId, assessment_run_id: runId,
+      }) });
+      return mockFetch()(input);
+    });
+  }
+  it.each([
+    { available: false }, {}, { available: true, scope: "film" },
+    { available: true, state: "queued" }, { available: true, jobId: null },
+  ])("does not offer an unauthorized or inapplicable retry %j", async options => {
+    const read = retryFetch(options); vi.stubGlobal("fetch", read);
+    render(<SelfCaptureUpload />);
+    await screen.findByRole("heading", { name: "Your job assessment" });
+    expect(screen.queryByRole("button", { name: "Try assessment again" })).not.toBeInTheDocument();
+    expect(read.mock.calls.some(call => String(call[0]).endsWith("/advisory-retry"))).toBe(false);
+  });
+  it("keeps the acknowledged video and brief through a current-source retry refusal", async () => {
+    const read = retryFetch({ available: true }); vi.stubGlobal("fetch", read);
+    render(<SelfCaptureUpload />);
+    fireEvent.click(await screen.findByRole("button", { name: "Try assessment again" }));
+    await screen.findByText("The current assessment could not be retried. Your recording is saved. Check this page for the next step.");
+    expect(screen.queryByText("private provider detail")).not.toBeInTheDocument();
+    expect(await screen.findByText("Video received.")).toBeVisible();
+    expect(screen.getByText("Next: check your job brief")).toBeVisible();
+    expect(read.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(1);
+    expect(videoUpload.send).not.toHaveBeenCalled();
+    expect(videoUpload.retry).not.toHaveBeenCalled();
+  });
+  it("ignores an old retry acknowledgement when another private link opens", async () => {
+    let finish!: (value: unknown) => void;
+    const read = retryFetch({ available: true, post: () => new Promise(resolve => { finish = resolve; }) });
+    vi.stubGlobal("fetch", read);
+    const { rerender } = render(<SelfCaptureUpload />);
+    fireEvent.click(await screen.findByRole("button", { name: "Try assessment again" }));
+    await waitFor(() => expect(read.mock.calls.some(call => String(call[0]).endsWith("/advisory-retry"))).toBe(true));
+    route.token = "second-token"; rerender(<SelfCaptureUpload />);
+    await screen.findByText("This link was withdrawn.");
+    finish({ ok: true, json: async () => ({ ok: true, state: "queued", job_id: jobId, run_id: "new-run" }) });
+    await waitFor(() => expect(screen.queryByText(/Your assessment retry is recorded/)).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Try assessment again" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Your video is saved and its job assessment is queued.")).not.toBeInTheDocument();
+  });
+});
+
 describe("SelfCaptureUpload by device", () => {
   it("shows a phone handoff and no camera on a desktop", async () => {
     setUserAgent(
