@@ -618,7 +618,7 @@
         "current_case_upload_sequencing_receipt_sha256": "f96e97d101ad555c1b7423a5c1a86a6fac2d24cdaa158d0c3e10b8f356ac223b"
       },
       "programme_seam": {
-        "state": "independent_source_approved85controls;PR953_final_required_CI_active",
+        "state": "independent_source_approved85;required_PR_CI_passed;protected_merged195;release_pending",
         "observed_gap": "Existing capture reservation transaction does not read or consume shared programme held slots. Optional coverage must be deferred before claiming to avoid introducing an unresolved historical attempt.",
         "repair_scope": "Server-owned optional request programme ref; default-denied existingFirestore record; same-transaction bound held-slot admission with immutable full reservations; default customer behavior unchanged.",
         "source_and_control_manifest_sha256": "06cdec583bf51739f7fb81e8cfcb5216db216bbe7e91b8fee1b68283539fbd6a",
@@ -629,7 +629,7 @@
         "authority": "Direct human yes-i-approve in parent14:53:03UTC, sourceSentinel_a67f6dab711881918978f849f68f2f8a; exact prior bundle14:50:13 and accepted14:52:47 relayed by authorized existing owner. No provider effect from this approval receipt.",
         "calls_allowed": "1additionalGemini+up_to3existingheldSol;oneaccountableexecutionowner;noautomaticadditionalretry",
         "notices_allowed": "Job-status messages only to verified existing owner inbox; no other recipient or outreach.",
-        "remaining_engineering": "Required CI, protected merge, paired deployment and exact serving verification; separate real historical capture uncertainty must be reconciled before any admission.",
+        "remaining_engineering": "Exact-main CI, automaticpaireddeployment and exactserving/guardverification; actualcanonicalprogrammeimportreview+normalUIreplacementaffordance and sourceprivacy/admission beforelivecall. No hypotheticallyoldqueuepointerrepair.",
         "head_sha": "f6a0a7dc3ba7fa6868804d18e2ab1d602d96db51",
         "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/953",
         "required_CI_run": 37800310677,
@@ -637,7 +637,9 @@
         "focused_checks": 85,
         "new_unique_case_credit": 0,
         "final_receipt_sha256": "b5ce0c1123e255109d763e862d053bb419db5a9d965a920901dbcefcec9cf570",
-        "reconciliation_receipt_sha256": "91eac714282ab0e3c94d926939c20942364a7e779e2b747ed51750c5b5adb9ed"
+        "reconciliation_receipt_sha256": "91eac714282ab0e3c94d926939c20942364a7e779e2b747ed51750c5b5adb9ed",
+        "merge_sha": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
+        "main_CI_run": 37801137055
       },
       "historical_capture_eligibility": {
         "state": "exact3preprovider_evidence_independently_accepted;supported_binding_reviewed;canonical_import_pending",

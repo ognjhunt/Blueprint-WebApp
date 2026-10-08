@@ -865,7 +865,7 @@
     "claim_ceiling": "18safe draft/recovery/presentation checks and nativeexactSHA; no productionupload, customerassessment, providerperception or notice proof."
   },
   "programme_admission_followup": {
-    "state": "source_and_exact3historical_evidence_reviewed;new_required_CI_active;not_deployed",
+    "state": "independently_reviewed_required_PR_CI_passed_protected_merged;exact_main_CI_pending;not_deployed",
     "head_sha": "f6a0a7dc3ba7fa6868804d18e2ab1d602d96db51",
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/953",
     "independent_review_commit": "21f8a00e",
@@ -875,7 +875,15 @@
     "graphify": "pass",
     "receipt_sha256": "b5ce0c1123e255109d763e862d053bb419db5a9d965a920901dbcefcec9cf570",
     "claim_ceiling": "Matched original refusal and SDK continuation/dispatch gaps repaired with scripted tests/fakeDB; exactrealretainedhistory purevalidation accepted. Server-owned production import/release and livevideo remain unexecuted.",
-    "reconciliation_receipt_sha256": "91eac714282ab0e3c94d926939c20942364a7e779e2b747ed51750c5b5adb9ed"
+    "reconciliation_receipt_sha256": "91eac714282ab0e3c94d926939c20942364a7e779e2b747ed51750c5b5adb9ed",
+    "merge_sha": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
+    "merged_at": "2026-10-08T15:29:04Z",
+    "required_PR_CI_conclusion": "success",
+    "required_executed_contexts_passed": 8,
+    "conditional_e2e": "skipped_backend_scope",
+    "main_CI": 37801137055,
+    "main_CI_state": "pending_existing_serial_release_lane",
+    "canonical_import": "private_packet_preparation;no_writes"
   },
   "beta_presentation_followup": {
     "state": "protected_merged_paired_deployed_live_beta_verified",
@@ -965,5 +973,30 @@
     "index_state": "Bothactualqueryshapesnative200OK;noindexmutationneeded/performed",
     "real_sends": 0,
     "scope": "Explicitoptin/currentconsent+safeboundedworkerfanout, partialregistryunknownfacts;640schedulesseparate,nooriginalcoveragecredit."
+  },
+  "founder_formatter_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/954",
+    "reviewed_head": "0a8a19fa65d7f7b05bdd22f914f48359e0a8ac8d",
+    "merge_sha": "08313e6a5da13fb72df53b94efddc8fcb45c55ae",
+    "merged_at": "2026-10-08T15:28:03Z",
+    "required_PR_CI": 37799739065,
+    "required_PR_CI_conclusion": "success",
+    "required_executed_contexts_passed": 8,
+    "conditional_e2e": "skipped_backend_scope",
+    "state": "source_independently_reviewed_protected_merged;latest195_combined_release_pending",
+    "focused_existing_checks": 446,
+    "actual_Gmail_writes": 0,
+    "actual_sends": 0,
+    "booking_actions": 0,
+    "claim_ceiling": "Prospectiveformatter/defaultlinksource plus scriptedmailcontrols; no actualGmaildraftverification or extraoutreachauthority."
+  },
+  "replacement_upload_followup": {
+    "state": "actual_saved_component_gap_confirmed;scoped_repair_active",
+    "owner": "intake_recovery",
+    "baseline_sha": "4d0deb46db836237a6b50ed60120efb387e30e31",
+    "scope": "Existing normalreturnverifiedoldvideo hides replacementpicker; explicitvisibleaffordance required forapprovedfreshMOV normalUI",
+    "real_uploads": 0,
+    "provider_calls": 0,
+    "claim_ceiling": "Source/mountedUIreplay; actualcustomerpath remains unexecuted untilsource/release/normalflowproof."
   }
 }
