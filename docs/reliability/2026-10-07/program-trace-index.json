@@ -1,6 +1,6 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-08T21:18:10Z",
+  "updated_at_utc": "2026-10-08T21:53:00Z",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 22,
@@ -1639,7 +1639,9 @@
     "current_human_labels": 0,
     "costs": "Localfake timings/usage stay separate; productionprovideracceptance/chargeunknownsnotzero.",
     "reviewed_pending_release": "970/971/974 nowdeployed2b;relatedCLI965sourceapproved71/exactCIstillrunning/no competingoperation",
-    "canonical_native_receipt_sha256": "cf2e771faa214eb66b4279995a0f8b26168b884314e2ed863ee3bac1c36cac42"
+    "canonical_native_receipt_sha256": "cf2e771faa214eb66b4279995a0f8b26168b884314e2ed863ee3bac1c36cac42",
+    "live_Gemini_perception_execution_observed": true,
+    "scope_limit": "Real Gemini response returned; factual accuracy unscored; customer evidence save failed."
   },
   "supplemental_native_sdk_browser_join": {
     "state": "code_complete_independently_reviewed_supplemental_execution",
@@ -1786,54 +1788,82 @@
     "costs": "Localfake timings/usage stay separate; productionprovideracceptance/chargeunknownsnotzero."
   },
   "current_verified_web_release_readback": {
-    "observed_at_utc": "2026-10-08T20:29:11.180123+00:00",
-    "sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
-    "containing_PRs": [
-      970,
-      971,
-      974
-    ],
-    "main_CI": 37838250275,
-    "main_CI_conclusion": "success",
-    "CI_counts": {
-      "changed_file_checks_passed": 4818,
-      "changed_file_checks_skipped": 6,
-      "separate_overlapping_safety_checks_passed": 86,
-      "unique_journey_credit": 0,
-      "E2E": "skipped on backend-only2b;preceding51fUIrunE2EPASS separately"
+    "sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
+    "main_CI": {
+      "id": 37847276364,
+      "state": "success",
+      "scope": "backend-fast;8applicablechecksSUCCESS;E2Eexpectedskip"
     },
-    "deployment_workflow": 37839216462,
-    "deployment_workflow_conclusion": "success",
+    "workflow": {
+      "id": 37848240025,
+      "conclusion": "success"
+    },
     "web": {
-      "deploy_id": "dep-db3vo31srm7s73ad01c0",
-      "state": "live",
-      "finished_at_utc": "2026-10-08T20:27:42.462759Z"
+      "deploy_id": "dep-db40qu2j9qps73fo1ksg",
+      "status": "live",
+      "finished_at_utc": "2026-10-08T21:41:30.283066Z",
+      "plan": "1c-2g",
+      "num_instances": 1
     },
     "worker": {
-      "deploy_id": "dep-db3vo3bbc2fs73c4icv0",
-      "state": "live",
-      "finished_at_utc": "2026-10-08T20:27:48.790933Z"
+      "deploy_id": "dep-db40qu9srm7s73agbi5g",
+      "status": "live",
+      "finished_at_utc": "2026-10-08T21:42:04.930917Z"
     },
-    "public_readback": {
-      "version_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
-      "built_at_iso": "2026-10-08T20:25:30.512Z",
-      "version_http": 200,
-      "health_http": 200,
-      "health_timestamp": "2026-10-08T20:27:59.357Z",
-      "ready_http": 200,
-      "ready_blocker_count": 0,
-      "ready_timestamp": "2026-10-08T20:28:16.963Z"
+    "public": {
+      "version_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
+      "built_at_iso": "2026-10-08T21:39:48.558Z",
+      "health": "healthy",
+      "health_timestamp": "2026-10-08T21:42:27.053Z",
+      "ready": "ready",
+      "ready_blockers": 0,
+      "ready_timestamp": "2026-10-08T21:42:27.229Z",
+      "all_curl_exit": 0,
+      "http_status": 200
     },
-    "source_continuity": "Actual core adapter/agent/runtime/accounting/publication diff5f..current2b empty;latestreviewed source deployed",
-    "independent_reviews": [
-      "0ccd85ff",
-      "65511d15"
-    ],
-    "verification_ceiling": "Native pair/source identity and health/ready;not a new public-form browser proof or provider/video assessment result",
-    "original_provider_actor": "Existing dishwasher owner cleared for ONE normal same-job UI run;CLI paid actor held;no new intake/reupload/notification or monetary gate",
-    "provider_dispatch_by_root": 0
+    "receipt_path": "/Users/nijelhunt_1/.codex/worktrees/dc17/Blueprint-WebApp/output/reliability-program/customer-policy/39-release-receipt.json",
+    "receipt_sha256": "fc098c4b82b06443b3dcaced65e1ad0bd3a16544c7001b4f2a9b5d00120f86ed",
+    "limits": "Source/pair/plan/health. Customerretry and measured cloudmemory peak are separate; no full beta/referenceaccuracy proof."
   },
   "current_normal_UI_same_job_retry": {
+    "source_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
+    "web_plan": "1c-2g",
+    "click_at_utc": "2026-10-08T21:43:50.452Z",
+    "mode": "normal customer UI; real handlers/storage/OpenAI Agents SDK/Gemini; same authorized video/job; local notifications only",
+    "old_run_retirement": {
+      "status": "cancelled",
+      "bindings_passed": 8,
+      "full_unknown_accounting": "archived unchanged",
+      "receipt_sha256": "8019758ef3da83fb61b64ee8dfcd4360daa243b8f9cd86a5184061e64aebbf83"
+    },
+    "terminal_read_at_utc": "2026-10-08T21:47:57.021Z",
+    "job_status": "needs_review",
+    "run_status": "failed",
+    "customer_report_published": false,
+    "primary_error_code": "agent_evidence_firestore_commit_failed",
+    "root_cause": "Unresolved: native transaction cause was discarded. No claim that final output ceiling caused this error.",
+    "evidence_reference_persisted": false,
+    "artifacts_persisted": false,
+    "Sol_calls_recorded": 3,
+    "Gemini_calls_recorded": 1,
+    "current_pending_call": false,
+    "Gemini_returned": true,
+    "reported_usage_estimate_usd": 0.12567875,
+    "invoice": false,
+    "terminal_receipt_sha256": "35283a48ccbd53d96fccd0baacd1706bf1f8779ddfbb32231d048d021908fb8a",
+    "runtime": {
+      "memory_limit_bytes": 2147483600,
+      "largest_owner_60s_sample_bytes": 385634300,
+      "largest_coordinator_30s_sample_bytes": 385253380,
+      "observed_OOM_or_restart": false,
+      "receipt_sha256": "44c81561e141066bb7029b0beca9a2ec37e46dec98794a822aa2de03f07b60ac",
+      "limit": "Periodic total-process samples, not instantaneous peak, assessment-only allocation, concurrency capacity or leak proof."
+    },
+    "next_action": "Minimize evidence-save failure; independently review scoped repair, required CI, merge/deploy and retry same job after serial local actor returns.",
+    "original_catalog_case_credit": 0,
+    "semantic_limit": "One source and provider interpretations; zero current human reference labels. No video accuracy or robot suitability claim."
+  },
+  "historical_normal_UI_2029_retry": {
     "click_at_utc": "2026-10-08T20:29:30.061Z",
     "source_sha": "2b1852050dfcad4ec88e8a1a7566c3442b7c5800",
     "action": "ONE visible Try assessment again;existingjob/savedlawfulsource;no secondintake/reupload/account/terms/share/send",
@@ -1875,5 +1905,34 @@
       "private_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-07/task-3/dishwasher-isolated-analysis/reconciliation/normal-assessment-receipt-2026-10-08T21-11-01-194Z.json",
       "recovery_limit": "Old reconciler changed job to needs_review without retiring RUNNING run. Reviewed858 explicit retry atomically cancels verified expired owner, retains full UNKNOWN accounting and creates new run; not deployed."
     }
+  },
+  "local_actual_assessment_runs": {
+    "fresh": {
+      "runtime_sha": "6e00f0767758f08065cb6939e11d76100952da1e",
+      "mode": "realproductionadapter+SDK+Gemini;localisolatedI/O",
+      "wall_ms": 106954,
+      "Sol_calls": 6,
+      "Gemini_calls": 1,
+      "reported_usage_estimate_usd_approx": 0.103,
+      "invoice": false,
+      "run_sha256": "a322274fccc5c762c8daa92af34354d5e102b8a6fc6ed9c2ea705bb119418375",
+      "assessment_sha256": "3dd830fbb6517f0ba2fa862bd47b9a1e4e7cc67e1032f9fdc9c41acc6a97295f",
+      "evidence_sha256": "bb2c94af281cba6d3516c01982912bcdf07a93b93280840f99f4287c93b881b0",
+      "status": "completed;assessmentneeds_operator_input",
+      "semantic_limit": "Provider interpreted video; zero currenthumanlabels/no perceptionaccuracy score/robotfit proof. Dynamic-import localknowledgeparitygap discovered separately."
+    },
+    "saved": {
+      "mode": "realSolSDK;reuseexactgenuineGeminiresponse",
+      "wall_ms": 62538,
+      "Sol_calls": 3,
+      "Gemini_calls": 0,
+      "reported_usage_estimate_usd_approx": 0.059,
+      "invoice": false,
+      "status": "completed;source/analysisbindingpreserved",
+      "observed_change": "Unavailableknowledge searches3\u21921; sourceauthorityinteropgapnotfixedbythisprompt; not fulltoolparity/perceptionuplift."
+    },
+    "original_case_credit": 0,
+    "original_unknown_Gemini": "retained separately in full; no refund/zero inference",
+    "raw_output_paths": "Existingprivateassessment-iteration/baseline-fresh-2 andsaved-1; companyGit CLI/source recovery; no rawmedia/providerreasoning publicexport."
   }
 }
