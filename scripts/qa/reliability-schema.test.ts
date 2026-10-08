@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { semanticHash, summarize } from './reliability-schema.mjs';
+import { semanticHash, summarize, summarizeJourneys } from './reliability-schema.mjs';
 const sample = (caseId: string, layer = 'actual-handler/fake-storage') => ({ caseId, family: 5, parameters: { evidence: 'missing marker' }, expectedTransitions: ['published', 'retained'], layer, replayCommand: 'local-replay', semanticHash: '' });
 describe('reliability evidence denominator', () => {
   it('deduplicates renamed fixtures and different code revisions, retains every execution, and exposes a failing repeat', () => {
@@ -20,3 +20,9 @@ describe('reliability evidence denominator', () => {
     expect(() => summarize([{ ...sample('a'), semanticHash: 'stale' }], [])).toThrow('Semantic hash mismatch');
   });
 });
+
+ it('counts browser repeats once and never credits intercepted UI as real backend', () => {
+   const mock = { journeyId: 'ui-one', parameters: { boundary: 'lost response' }, layer: 'intercepted-api', status: 'passed', attempted: true, normalUi: true, fullJourneyComplete: false };
+   const report = summarizeJourneys([mock, { ...mock, repeat: 2 }, { ...mock, journeyId: 'renamed-ui', repeat: 3 }]);
+   expect(report).toMatchObject({ generated: 2, deduplicated: 1, executions: 3, attempted: 1, passedBoundary: 1, normalUiAttempted: 1, normalUiRealBackendAttempted: 0, fullJourneyComplete: 0 });
+ });

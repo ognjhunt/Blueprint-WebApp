@@ -60,3 +60,32 @@ export function summarize(cases, results) {
   }
   return { schemaVersion: SCHEMA_VERSION, counts: count, families, layers, measurements, note: 'Layer totals can overlap: never sum them as unique coverage. Executions include repeats, not extra semantic cases.' };
 }
+export function summarizeJourneys(journeys) {
+  const identities = new Map(), semantic = new Map();
+  for (const journey of journeys) {
+    if (!journey.journeyId || !journey.parameters || !journey.layer || !['passed','failed','blocked','partial','skipped'].includes(journey.status)) throw new Error('Incomplete journey record');
+    const hash = semanticHash({ kind: 'journey', family: 'connected-customer', parameters: journey.parameters, expectedTransitions: journey.expectedTransitions ?? null, sourceId: journey.sourceId ?? null, split: journey.split ?? null });
+    if (identities.has(journey.journeyId) && identities.get(journey.journeyId) !== hash) throw new Error('Journey identity changed semantic conditions');
+    identities.set(journey.journeyId, hash);
+    if (!semantic.has(hash)) semantic.set(hash, []);
+    semantic.get(hash).push(journey);
+  }
+  const count = { generated: identities.size, deduplicated: semantic.size, executions: journeys.length, attempted: 0, passedBoundary: 0, failed: 0, blocked: 0, partial: 0, skipped: 0, normalUiAttempted: 0, normalUiRealBackendAttempted: 0, persistenceWorkerAttempted: 0, fullJourneyComplete: 0 };
+  const layers = {};
+  for (const runs of semantic.values()) {
+    const status = ['failed','partial','blocked','skipped','passed'].find(candidate => runs.some(run => run.status === candidate));
+    count[status === 'passed' ? 'passedBoundary' : status]++;
+    if (runs.some(run => run.attempted === true)) count.attempted++;
+    if (runs.some(run => run.attempted === true && run.normalUi === true)) count.normalUiAttempted++;
+    // Credit requires an explicit layer declaration; intercepted UI cannot inherit backend credit.
+    if (runs.some(run => run.attempted === true && run.normalUi === true && run.realBackend === true)) count.normalUiRealBackendAttempted++;
+    if (runs.some(run => run.attempted === true && run.persistenceWorker === true)) count.persistenceWorkerAttempted++;
+    if (status === 'passed' && runs.every(run => run.fullJourneyComplete === true)) count.fullJourneyComplete++;
+    for (const layer of new Set(runs.map(run => run.layer))) {
+      layers[layer] ??= { semanticJourneys: 0, executions: 0, attempted: 0 };
+      layers[layer].semanticJourneys++; layers[layer].executions += runs.filter(run => run.layer === layer).length;
+      if (runs.some(run => run.layer === layer && run.attempted === true)) layers[layer].attempted++;
+    }
+  }
+  return { ...count, layers, note: 'Layer totals may overlap. Boundary passes do not establish completed upload/assessment/notification customer journeys. Repeats and changed opaque identities do not expand unique journeys.' };
+}
