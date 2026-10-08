@@ -601,8 +601,15 @@
       "repair": "Keep picker mounted for done state and offer Upload a new recording; preserve receipt and brief until file selection, then use existing guarded same-token transport",
       "retest": "Candidate4/4 actual intercepted-API browser cases +26component checks/typecheck/Graphify pass",
       "review": "937bf913 approves exactc29f9c4c",
-      "releaseStatus": "PR957 requiredCI37802404014 active; not merged/deployed",
-      "limitation": "Synthetic MP4 and intercepted APIs; actual replacement backend and video analysis not yet proved; no original coverage credit"
+      "releaseStatus": "Finalb182 minimalexistingCIsetupordering independently reviewedef25c0b4; freshCI37803188894 active; no merge/deployment",
+      "limitation": "Synthetic MP4 and intercepted APIs; actual replacement backend and video analysis not yet proved; no original coverage credit",
+      "retained_CI_failure": {
+        "run": 37802404014,
+        "job": 113397959759,
+        "cause": "spawnSyncffmpegENOENT; existingsetupafterprivatelinkstep",
+        "neighbors_passed": 3,
+        "unknown": "supersededunitjobcancelled,notclaimedpass"
+      }
     }
   ],
   "dependencies": [
@@ -745,7 +752,7 @@
     "claim_ceiling": "Real handlers/durability/SDK and Pipeline boundaries in isolated fixture with simulated providers; no fabricated qualifying facts/funding/completion. Final joined happy path remains unproven."
   },
   "programme_packet_review": {
-    "state": "minimal correction prepared_no_writes_final_review_pending",
+    "state": "minimal correction independently cleared379a2d8d; actual atomicattachment8f73 sixreadbackchecks pass; independentexecutionreviewpending",
     "finding": "Prepared operator transaction4388/d41 did not snapshot/recheck raw existing privacy decision or exact account attachment state",
     "impact": "No demonstrated paid dispatch bypass; runtime guard still applies. Correct packet/transaction source binding before canonical attachment.",
     "owner": "existing dishwasher run owner",

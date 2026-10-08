@@ -871,7 +871,7 @@
     "typecheck": "pass",
     "graphify": "pass",
     "receipt_sha256": "b5ce0c1123e255109d763e862d053bb419db5a9d965a920901dbcefcec9cf570",
-    "claim_ceiling": "Reviewed source/scripted85checks, exact matched historical pre-provider evidence, pairedLIVEidentity and safe18browserchecks. Canonical import and actual video/provider assessment remain unexecuted.",
+    "claim_ceiling": "Reviewed guard/scripted85checks, exact retained historical pre-provider evidence, pairedLIVE195 and18safebrowserchecks, actual canonicalprogramme/reference attachment with6readbackchecks. Actual suppliedvideo upload/liveproviderassessment stillpending.",
     "reconciliation_receipt_sha256": "91eac714282ab0e3c94d926939c20942364a7e779e2b747ed51750c5b5adb9ed",
     "merge_sha": "195a4019b563a7a1f765822e8e3a2e7c673ae313",
     "merged_at": "2026-10-08T15:29:04Z",
@@ -880,7 +880,22 @@
     "conditional_e2e": "skipped_backend_scope",
     "main_CI": 37801137055,
     "main_CI_state": "success",
-    "canonical_import": "corrected_private_packet_prepared_no_writes_independent_final_review_pending",
+    "canonical_import": {
+      "state": "actual_atomic_attachment_committed_verified_owner_receipt_independent_readback_review_pending",
+      "schema": "canonical_programme_attachment_execution.v1",
+      "committed_at": "2026-10-08T15:47:14.114Z",
+      "execution_sha256": "8f73ac57ca9d21781b9c7e65f83d08df5a2b1438b9f43d2dc836c6c43d018fc8",
+      "append_only_sha256": "cbaa4a87af33287c6bbac31ac2c451dc60312b0e50733d91cd5fe2be2e7d0fb3",
+      "reviewed_packet_sha256": "da7347729025b8e832bb3539a9143f4003d8c5b4197df4187bc868fe1f73259d",
+      "reviewed_operator_sha256": "f2a0358db7062298aec812f831c105d58d06744d64cc0a2a963cb4a485964260",
+      "review_commit": "379a2d8d",
+      "readback_checks": 6,
+      "provider_calls": 0,
+      "account_attachment": "unchanged_absent_unclaimed",
+      "privacy": "unchanged_current_source_bound_and_legacy",
+      "original_ledger": "byte_identical",
+      "effect_ceiling": "Created programme and request reference only; no claim/upload/customer status/workspace wake or model dispatch"
+    },
     "deploy_workflow": 37802266614,
     "deploy_state": "paired_native_LIVE_exact195",
     "deployed_sha": "195a4019b563a7a1f765822e8e3a2e7c673ae313"
@@ -991,7 +1006,7 @@
     "claim_ceiling": "Prospectiveformatter/defaultlinksource plus scriptedmailcontrols; no actualGmaildraftverification or extraoutreachauthority."
   },
   "replacement_upload_followup": {
-    "state": "independently_reviewed_reproducer_and_source_required_CI_active",
+    "state": "source_and_minimal_CI_order_correction_independently_approved_fresh_CI_active",
     "owner": "intake_recovery",
     "baseline_sha": "4d0deb46db836237a6b50ed60120efb387e30e31",
     "scope": "Existing normalreturnverifiedoldvideo hides replacementpicker; explicitvisibleaffordance required forapprovedfreshMOV normalUI",
@@ -999,10 +1014,16 @@
     "provider_calls": 0,
     "claim_ceiling": "One actual visible file-chooser regression and three neighbors with intercepted APIs/generatedMP4; no real backend upload/provider proof and no original catalog credit.",
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/957",
-    "head": "c29f9c4ca5c2476748f4440acd4384d853ca5f72",
-    "CI": 37802404014,
+    "head": "b18234b4b64adcc8c4d5ef6dba77f3137140616f",
+    "CI": 37803188894,
     "review_commit": "937bf913",
-    "replay_command": "env -i PATH=\"$PATH\" HOME=\"$HOME\" TMPDIR=\"${TMPDIR:-/tmp}\" NODE_ENV=test BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP=true ./node_modules/.bin/playwright test --config playwright.site-reliability.config.ts"
+    "replay_command": "env -i PATH=\"$PATH\" HOME=\"$HOME\" TMPDIR=\"${TMPDIR:-/tmp}\" NODE_ENV=test BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP=true ./node_modules/.bin/playwright test --config playwright.site-reliability.config.ts",
+    "prior_head": "c29f9c4ca5c2476748f4440acd4384d853ca5f72",
+    "prior_CI": 37802404014,
+    "prior_CI_outcome": "e2e failed ffmpegENOENT,3neighborspassed;test cancelled by superseding head",
+    "workflow_correction": "Move unchanged existing ffmpeg setup before private-link browser suite",
+    "workflow_independent_review_commit": "ef25c0b4",
+    "failed_job_log_sha256": "13b318ccc16b7fb6445934724a6486a448d24cc2c822562089991d2da4d8d238"
   },
   "beta_copy_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/956",
@@ -1052,5 +1073,16 @@
       "notification_sends": 0
     },
     "claim_ceiling": "18safe draft/recovery/presentation checks and nativeexactSHA; no productionupload, customerassessment, providerperception or notice proof."
+  },
+  "notification_layout_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/958",
+    "head": "1854d323b325963fae8dd9352081bccfde1d7eb1",
+    "severity": "P2",
+    "observed_before": "Live optionalcheckbox920x49px incolumn; unchecked/notrequired retained",
+    "repair": "One existingms-check-row class attribute; noCSS/payload/defaultchanges",
+    "independent_review": "rootminimalactualdiffcleared",
+    "CI": 37803516597,
+    "state": "source_reviewed_requiredCIactive",
+    "dishwasher_gate": false
   }
 }
