@@ -210,13 +210,24 @@ export async function processTaskEvaluationLaunchForwardQueue(limit = 10) {
       ? await forwardStoredPolicyCanaryRun(record)
       : await forwardStoredTaskEvaluationLaunch(record);
     if (result.skipped) continue;
-    await withTaskEvaluationLaunchStoreTimeout(
-      doc.ref.set({
+    // Forwarding is an asynchronous, digest-bound intake operation. A Pipeline
+    // terminal callback may already have advanced this record while the HTTP
+    // response was in flight; applying a stale queue snapshot must not reopen
+    // it or bind the receipt to a successor request. Concurrent queue passes
+    // likewise only apply the response to the state/attempt they observed.
+    const applied = await withTaskEvaluationLaunchStoreTimeout(db.runTransaction(async transaction => {
+      const current = (await transaction.get(doc.ref)).data();
+      if (!current || current.state !== record.state
+        || current.request_digest !== record.request_digest
+        || Number(current.forward_attempt_count || 0) !== Number(record.forward_attempt_count || 0)
+        || current.terminal_receipt) return false;
+      transaction.set(doc.ref, {
         ...result,
         updated_at_iso: new Date().toISOString(),
-      }, { merge: true }),
-    );
-    processed += 1;
+      }, { merge: true });
+      return true;
+    }));
+    if (applied) processed += 1;
   }
   return { status: "completed", processed };
 }
