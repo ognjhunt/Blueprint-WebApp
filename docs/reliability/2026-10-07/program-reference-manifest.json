@@ -152,7 +152,7 @@
   "shortfall": 11,
   "human_reference_gate": "partial_one_authorized_source_zero_current_human_timestamp_labels",
   "baseline_and_candidate_live_model_runs": 0,
-  "dishwasher": "Both native worker and local preflights passed; approved single Gemini stage dispatched by sole owner, actual SDK Sol synthesis follows on pinned deployed baseline. Terminal output/receipts/cost remain pending; dispatch is not completion.",
+  "dishwasher": "Local video-stage host exception before any retained source/response; Gemini exposure unknown, Sol not dispatched. Sole owner preserves claim/reservation and diagnoses provider boundary nonbillably. No combined-provider success or perception claim.",
   "holdout": "none; all existing source families are development/regression and pre-exposed",
   "rubric": {
     "factual_support": "fail invented consequential event/measurement/capability",
@@ -173,5 +173,15 @@
       "new_real_site_source_count": 1,
       "target_min_unchanged": 12
     }
-  ]
+  ],
+  "provider_execution": {
+    "completed_analysis_runs": 0,
+    "gemini_http_dispatch": "unknown_pending_boundary_diagnosis",
+    "sol_http_dispatch": 0,
+    "cost_usd": null,
+    "reserved_worst_case_usd": 3.146304,
+    "approved_total_cap_usd": 5,
+    "accounting_owner": "existing_dishwasher_task",
+    "automatic_retry": false
+  }
 }

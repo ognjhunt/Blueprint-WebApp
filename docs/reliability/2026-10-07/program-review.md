@@ -48,7 +48,20 @@ commands and sanitized decision records; private local traces remain ignored.
    Both joined sinks now reject invalid recipient types before receipt creation.
    Do not claim that notification as delivered from the old permissive receipt.
    An unavailable decryption key safely skips the notice and logs a warning;
-   durable retry of that skipped notice remains a documented P2 limitation.
+  durable retry of that skipped notice remains a documented P2 limitation.
+
+The replacement `program-semantic-variants.json` catalogs 120 meaningfully
+different synthetic typed evidence states across 60 paired questions. Independent
+expectation inspection found narrow supported claims unnecessarily forbidden
+and an explicit fixture-motion contradiction incorrectly weakened by unrelated
+owner testimony. Author label version `provisional.v2` records the correction,
+adds explicit supported/contradicted/unknown annotations, and separates broader
+forbidden capability/certification claims. Independent source/hash/paired-state
+validation passes 120/120. Its 55 supported, 32 contradicted and 33 unknown
+annotations describe invented packets: **zero semantic model judgments, zero
+human truth labels, zero real videos added**, and no untouched holdout. They are
+approved as provisional expectation design, not an accuracy result or another
+120 cases to add to the obsolete topic-expanded inventory.
 
 ## Joined harness and readiness limits
 
