@@ -184,6 +184,14 @@
       "human_timestamp_labels_unchanged": 0,
       "target_min_unchanged": 12,
       "no_paired_candidate_provider_call": true
+    },
+    {
+      "version": 4,
+      "reason": "CurrentnormalMOVproductiontraceandpost-configdeploymentareseparatefrominitialdifferent-sourceframe-textSDKexecution;originalreceiptsandfieldsretainedhistorically.",
+      "reference_sources_current_tier": 1,
+      "current_human_timestamp_labels": 0,
+      "target_min_unchanged": 12,
+      "no_accuracy_denominator": true
     }
   ],
   "provider_execution": {
@@ -242,5 +250,23 @@
     "private_inventory_sha256": "6b5687b455bbdabf43c1a64f00c2d5a7926f1db49fed945628c8a0e4cfbab4e1",
     "discovery_effects": "metadata reads only;no media reads/copy/decode/upload/provider",
     "missing_dependency": "Current owner timestamp observations and explicit reference-reuse labels for the existing video; eleven additional owned/licensed consent-compatible representative sources. No accuracy denominator or physical/partner proof inferred."
+  },
+  "current_normal_route_execution": {
+    "updated_at_utc": "2026-10-08T18:39:19.382562+00:00",
+    "current_authorized_source": "program-dishwasher-source-001",
+    "source_identity": "Exactuser-suppliedcurrentMOV60035801bytes;sourcehashandrightsbindingsretainedprivatelybysoleowner",
+    "relationship_to_initial_isolated_reference": "Prior6309190bytevideo hasdifferenthash;its11framePROVISIONALtextandisolatedSolpacketdonotestablishcurrentMOVobservations. No cache/label/independentsampleinheritance.",
+    "normal_UI_upload": "actualdurablepublishedsource",
+    "original_normal_assessment": "failedgenericexceptiondiscarded_beforeGemini",
+    "explicit_normal_UI_retry": "failed401invalid_api_key_beforeGemini",
+    "terminal_packet_sha256": "42c45cd3dbd7e90b3d6cc2f989694640c9aa92b2064d359b1fa1f51bbd1296c8",
+    "subsequent_human_configuration_deployment": "nativeLIVE;provider_authentication_unverified",
+    "completed_current_source_analysis_runs": 0,
+    "returned_current_source_Gemini_observations": 0,
+    "current_human_timestamp_labels": 0,
+    "untouched_holdout_sources": 0,
+    "reference_video_floor_unchanged": 12,
+    "eligible_additional_sources": 0,
+    "accounting": "Unknowns/fulloriginalreservationsretained;APIerrororhealthydeploymentdoesnotestablishzerobilling."
   }
 }

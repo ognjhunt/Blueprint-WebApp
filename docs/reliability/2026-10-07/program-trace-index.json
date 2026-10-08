@@ -1620,5 +1620,23 @@
     "notifications": 0,
     "customer_backend_mutations": 0,
     "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
+  },
+  "current_evaluation_snapshot": {
+    "updated_at_utc": "2026-10-08T18:39:19.382562+00:00",
+    "original_frozen_counts_unchanged": true,
+    "verified_web_release": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+    "release_review": "ef527e88",
+    "original_normal_UI_emulator_coverage_traces": 22,
+    "additional_in_memory_worker_traces": 20,
+    "supplemental_real_SDK_HTTP_worker_recovery": "actualhandlers+inmemoryFirestore/fakeobjects+scriptedSDKproviders;passed",
+    "normal_customer_current_video_production_trace": "durableuploadthenfailedSDK;explicitretryfailed401beforeGemini",
+    "terminal_packet_sha256": "42c45cd3dbd7e90b3d6cc2f989694640c9aa92b2064d359b1fa1f51bbd1296c8",
+    "live_Gemini_perception_proven": false,
+    "live_final_customer_assessment_proven": false,
+    "new_paid_dispatch_after_human_configuration": 0,
+    "native_emulator_full_normal_UI_SDK_joined_gap": "Unproven;two supplemental cases frozen/executed by assignedauthor beforecounting;fakeproviders remain explicit.",
+    "reference_sources": 1,
+    "current_human_labels": 0,
+    "costs": "Localfake timings/usage stay separate; productionprovideracceptance/chargeunknownsnotzero."
   }
 }

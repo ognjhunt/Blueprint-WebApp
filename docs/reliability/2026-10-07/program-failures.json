@@ -573,7 +573,7 @@
       "id": "PREPARATION-IMPORT-ISOLATION-001",
       "severity": "P1_for_affected_cold_intake_path",
       "owner": "intake_recovery;coordinator_release",
-      "state": "reviewed_root_cause_repair_pushed_required_CI_active",
+      "state": "reviewed_repair_merged_in91_and_canonically_deployed_containing0a",
       "invariant": "Intake/control-plane inspection must not import GPU/provider execution closure.",
       "baseline_sha": "c0e47eb639fbe775bade5b260218201a96eeab96",
       "pre_PR_baseline_sha": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
@@ -589,7 +589,16 @@
       "independent_review_commit": "10739ae8",
       "required_CI_run": 37790170932,
       "new_unique_case_credit": 0,
-      "scope_limit": "CPU/helper import and durability semantics; no hosted final gate, deployed status delivery, provider or customer job result yet."
+      "scope_limit": "CPU/helper import and durability semantics; no hosted final gate, deployed status delivery, provider or customer job result yet.",
+      "historical_state": "reviewed_root_cause_repair_pushed_required_CI_active",
+      "current_release": {
+        "sha": "0a17f52d23f233376b9944a6df49101491581f6c",
+        "promotion_run": 37808897987,
+        "production_tests_passed": 34115,
+        "skips": 0,
+        "deployment_review": "a4772f6f",
+        "postdeploy_host_receipt_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
+      }
     },
     {
       "id": "RETURN-REPLACEMENT-PICKER-001",
@@ -655,9 +664,10 @@
         "candidate": "required nullable freshoutput; optional legacydecoder;346assessmentchecksPASS;installedSDKserialization capture provider/network0",
         "recovery_PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/964",
         "recovery_review": "89079733a",
-        "recovery_state": "156regressions+5interceptedUI+actualHTTP_SDK_scripted_worker_joinPASS;requiredCIactive;notdeployed"
+        "recovery_state": "reviewed_merged6c_and_deployed_containing783;normalUI_retry_actual401_retained",
+        "recovery_historical_state": "156regressions+5interceptedUI+actualHTTP_SDK_scripted_worker_joinPASS;requiredCIactive;notdeployed"
       },
-      "next_action": "Fail/pass minimized no-network adapter reproducer, independent review, required CI and deployment, then coordinate authorized recovery within held slots and aggregate cap. Preserve original unknown exposure.",
+      "next_action": "Post-human-configuration provider authentication and completed normal customer assessment remain unverified. Preserve unknown charges and exact held slots; current1Sol1Gem cannot finish normal2Sol1Gem. No extra dispatch or fabricated before/after.",
       "new_case_credit": 0,
       "remaining_limitations": [
         "Original provider acceptance/charge unknown, full reservation retained",
@@ -673,15 +683,19 @@
         "Gemini": "no_tool_or_Gemini_execution",
         "receipt_sha256": "6ec6a02c79b33982d06824c0e3b5d4541884e37f55d4bd8a24218d2b8532fb0e",
         "charges": "unknown_fullreservations_retained",
-        "next_step": "valid_existing_authorized_runtime_OpenAI_configuration;no_newcredential_provision/access_expansion_or_paidretry"
+        "next_step": "valid_existing_authorized_runtime_OpenAI_configuration;no_newcredential_provision/access_expansion_or_paidretry",
+        "subsequent_human_configuration": "Owner-retrieved directhuman message says empty RenderOPENAI_API_KEY saved/deployed; nativeconfigurationdeployLIVE18:26:18.792Z. Rootinspected metadata only, not keyvalue/authentication.",
+        "terminal_packet_sha256": "42c45cd3dbd7e90b3d6cc2f989694640c9aa92b2064d359b1fa1f51bbd1296c8"
       },
-      "retrospective_limit": "Current401isproven;cannotreconstructtheoriginaldiscardedexceptionorclaimthatitwas401/schema."
+      "retrospective_limit": "Current401isproven;cannotreconstructtheoriginaldiscardedexceptionorclaimthatitwas401/schema.",
+      "current_containing_release": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+      "current_release_review": "ef527e88"
     },
     {
       "id": "PIPELINE-NATIVE-NIGHTLY-20261008",
-      "severity": "Unclassified pending native diagnosis; required canonical release remains gated",
+      "severity": "P2_fail_closed_native_process_census_variability;historical_nightly_failure_retained",
       "owner": "intake_recovery read-only diagnosis; root integration/release",
-      "state": "current nightly shard2 failed; CPU aggregate live; new exact0a promotion queued",
+      "state": "diagnosed_safe_refusal;current_exact0a_mandatory_promotion_passed_and_canonical_release_verified",
       "invariant": "Required current native checks cannot be hidden by a previous green run or lucky retry.",
       "before": {
         "run": 37802358686,
@@ -693,9 +707,16 @@
         "other_shards": "3 passed"
       },
       "native_log_sha256": "71ba029a8432f3e8e92def8790d5ebdc226df58354e7cf16865b876759dbc014",
-      "root_cause": "Not yet established; fixture cleanup groupdel text is not sufficient diagnosis. Native process-reference refusal trace is retained.",
-      "next_action": "Inspect exact native fixture/guard/source ownership without changing process-reference controls; follow existing live aggregate and exact0a promotion. No retry, bypass or deployment.",
-      "new_case_credit": 0
+      "root_cause": "Bounded three-pass native process census exhausted before foreign-FD fixture hook, refusing UNKNOWN rather than expected later process-reference code. Six fixture/guard sources match91 and0a; safety controls still fail closed.",
+      "next_action": "Retain owner/root native-diagnosis receipt and investigate native process-snapshot stability if it recurs; do not weaken census/unknown refusal or rerun until a lucky pass.",
+      "new_case_credit": 0,
+      "historical_state": "current nightly shard2 failed; CPU aggregate live; new exact0a promotion queued",
+      "historical_severity": "Unclassified pending native diagnosis; required canonical release remains gated",
+      "diagnosis_sha256": "232e68e092c6d1403bf98289a8c6b519d8c43c59236e717871e1a2071649f406",
+      "current_promotion_run": 37808897987,
+      "current_promotion_passed": 34115,
+      "current_promotion_skipped": 0,
+      "current_deploy_review": "a4772f6f"
     },
     {
       "id": "PROGRAMME-TECHNICAL-EXPIRY-001",
@@ -720,7 +741,7 @@
       "id": "COMMS-DORMANT-SPEND-BINDING-001",
       "severity": "P2_dormant_prospective_source;no_live_incidence",
       "owner": "existing_communications_owner;independent_review/root_release",
-      "state": "originalcounterexample_now_refused_by_independentlyreviewed_d59c;requiredCI_active;source_unmerged_pinnedae",
+      "state": "repaired_independently_reviewed_required_checks_passed_protected_merged_and_paired_deployed783;still_dormant",
       "invariant": "Provider session readback cannot exceed the retained native reservation through incoherent checkpoint mutation",
       "source_head": "a96e5939bd3ac0acbd9781a8c6a1d28e6fb2df95",
       "counterexample": "original10cent reservation digest;changecheckpoint+providerlimit+providermetadata to11;actualfakeproviderAPIrun resolves instead of refusing",
@@ -734,7 +755,12 @@
       "independent_review": "1c188766",
       "retest": "sameoriginalcounterexample_plusmatching_missingbase_legacycontrols4PASS;other136unattempted",
       "repair": "prospective frozenbase+selectedlimit finaldigest;recomputeboundedreadback;legacyabsentsemanticsunchanged",
-      "independent_author_receipt_sha256": "73e4a97140b82a4bae87e2c2cd35fc33627745e12a6c4c8e2eec92bdac66ad7e"
+      "independent_author_receipt_sha256": "73e4a97140b82a4bae87e2c2cd35fc33627745e12a6c4c8e2eec92bdac66ad7e",
+      "historical_state": "originalcounterexample_now_refused_by_independentlyreviewed_d59c;requiredCI_active;source_unmerged_pinnedae",
+      "merge_sha": "867afe6dff814f792a43d5e188adfeec4657f1b2",
+      "current_release": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+      "current_release_review": "ef527e88",
+      "next_action": "No activation/new paid sessions or messages. Prospective bounded readback now binds original reservation; live provider invoice ceiling remains unproven."
     }
   ],
   "dependencies": [
@@ -802,6 +828,21 @@
         "private_raw_deploy_receipt_sha256": "f04e38e246baabe912ea632b69c4315f732799a25bb6ddc0214df758ef327d12",
         "review_commit": "7af37843",
         "historical_serving_attribution": "Bounded inference fromnative finishedAtwindow, not contemporaneousLIVEread; originalretrievaltimestampmissingretained."
+      },
+      "current_snapshot": {
+        "at_utc": "2026-10-08T18:38:09.713678+00:00",
+        "deployed_source": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+        "normal_upload": "actual_durable_publication",
+        "normal_retry": "actual_persisted_401_invalid_api_key_before_Gemini",
+        "subsequent_human_configuration_deploy": "native_LIVE_authentication_unverified",
+        "remaining_HELD_Sol": 1,
+        "remaining_HELD_Gemini": 1,
+        "normal_minimum_Sol": 2,
+        "normal_minimum_Gemini": 1,
+        "original_cap_USD": 5,
+        "reserved_total_micro_USD": 4964928,
+        "cost_uncertainty_preserved": true,
+        "terminal_packet_sha256": "42c45cd3dbd7e90b3d6cc2f989694640c9aa92b2064d359b1fa1f51bbd1296c8"
       }
     },
     {
@@ -828,6 +869,17 @@
         "latest_evidence": "Existing issued owner link and legitimate claim preflight200; exact case/currentTerms/verifiedcontactmatch andcanonicalrights valid. Existing upload statusGET withrecoverLegacy=false200 ready acceptsMOV; its captureReceived belongs to historical different video, not current supplied bytes. No claim/upload/state/provider/notice write.",
         "latest_route_receipt_sha256": "52762b19749d3b38cd870184c31357833d9c306dd354dbe55de152c867407959",
         "upload_route_receipt_sha256": "f5143c15fb7dbc8d6306c56e78efcf79656c6e2e8dafc413639c0cb006df94ae"
+      },
+      "current_snapshot": {
+        "at_utc": "2026-10-08T18:38:09.713678+00:00",
+        "source_release": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+        "release_review": "ef527e88",
+        "normal_UI_emulator_coverage_traces": 22,
+        "in_memory_worker_traces": 20,
+        "real_SDK_fake_store_joined_recovery": "passed_actual_handlers_scripted_providers",
+        "final_normal_UI_native_emulator_actual_SDK_happy_and_interruption": "unproven;bounded_extension_existing_harness_assigned_intake_recovery",
+        "live_completed_customer_assessment": false,
+        "original_unique_case_credit_from_new_extension": 0
       }
     },
     {
@@ -835,14 +887,40 @@
       "owner": "existing_dishwasher_task",
       "state": "partial_completed_Gemini_unknown_no_automatic_retry",
       "detail": "One isolated actual Sol SDK call over provisional frame text completed; no continuous video or usable Gemini evidence. Gemini exposure/cost remains unknown with reserved headroom; no paid retry or real customer email. Current guard rejects unchanged baseline packet.",
-      "read_only_reconciliation": "Completed non-billable existing-provider GET/UI checks; no correlated receipt and inconclusive negative logs/files. Original unknown reservation/primary ledger unchanged, no retry."
+      "read_only_reconciliation": "Completed non-billable existing-provider GET/UI checks; no correlated receipt and inconclusive negative logs/files. Original unknown reservation/primary ledger unchanged, no retry.",
+      "current_snapshot": {
+        "at_utc": "2026-10-08T18:38:09.713678+00:00",
+        "deployed_source": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+        "normal_upload": "actual_durable_publication",
+        "normal_retry": "actual_persisted_401_invalid_api_key_before_Gemini",
+        "subsequent_human_configuration_deploy": "native_LIVE_authentication_unverified",
+        "remaining_HELD_Sol": 1,
+        "remaining_HELD_Gemini": 1,
+        "normal_minimum_Sol": 2,
+        "normal_minimum_Gemini": 1,
+        "original_cap_USD": 5,
+        "reserved_total_micro_USD": 4964928,
+        "cost_uncertainty_preserved": true,
+        "terminal_packet_sha256": "42c45cd3dbd7e90b3d6cc2f989694640c9aa92b2064d359b1fa1f51bbd1296c8"
+      }
     },
     {
       "id": "DEP-FREE-ADVISORY-JOIN",
       "owner": "coordinator_with_intake_recovery_and_queue_recovery",
       "state": "reviewed_merged_paired_deployed_safe_identity_verified;live_provider_customer_result_unproven",
       "detail": "PR9485f29d12 mainCI and CI-gatedDeploy passed; pairedLIVE and18safeUI checks independently verifiedbff5b549. Actualworker site-video disabled/Geminiunconfigured; sourceusesexistingweb wake. JoinedSDK/ownerreport execution is scripted-provider/fake-store proof. No successful live Gemini analysis or real owner-visible assessment yet.",
-      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/948"
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/948",
+      "current_snapshot": {
+        "at_utc": "2026-10-08T18:38:09.713678+00:00",
+        "source_release": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+        "release_review": "ef527e88",
+        "normal_UI_emulator_coverage_traces": 22,
+        "in_memory_worker_traces": 20,
+        "real_SDK_fake_store_joined_recovery": "passed_actual_handlers_scripted_providers",
+        "final_normal_UI_native_emulator_actual_SDK_happy_and_interruption": "unproven;bounded_extension_existing_harness_assigned_intake_recovery",
+        "live_completed_customer_assessment": false,
+        "original_unique_case_credit_from_new_extension": 0
+      }
     }
   ],
   "coordination": {
@@ -908,5 +986,7 @@
     "deployment_review": "a4772f6f",
     "deployed_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
     "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
-  }
+  },
+  "current_state_observed_at_utc": "2026-10-08T18:38:09.713678+00:00",
+  "historical_state_policy": "Original baseline/reproducer/source receipts are retained. A historical_state field preserves superseded status text when current state changes; original failed attempts are not erased."
 }
