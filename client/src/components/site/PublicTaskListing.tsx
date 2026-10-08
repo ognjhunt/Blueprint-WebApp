@@ -38,7 +38,7 @@ export function PublicTaskListing({ token }: { token: string }) {
   }
   const previewThumbnail = thumbnailPng === undefined ? existingThumbnail : thumbnailPng;
   const field = (key: keyof TaskListingDetails, label: string, maxLength: number, required = false) =>
-    <label key={key}>{label}<input value={details[key] ?? ""} maxLength={maxLength} minLength={key === "title" ? 8 : undefined} required={required || (key === "pilotBudget" && details.pilotPriceStatus === "site_offer")}
+    <label key={key}>{label}<input value={details[key] ?? ""} maxLength={maxLength} minLength={key === "title" ? 8 : undefined} required={required}
       onChange={e => { setDetails({ ...details, [key]: e.target.value }); setConsent(false); setState("idle"); }} /></label>;
   return <details className="ms-task-interest"><summary>Share a job card with robot teams</summary>
     <p className="ms-field-hint">Optional. Share only the text and thumbnail you approve below. Your contact details, full footage and scene stay private. Use a general region and leave out identifying details.</p>
@@ -55,7 +55,7 @@ export function PublicTaskListing({ token }: { token: string }) {
             <option value="target_budget">Target budget, open to proposals</option>
             <option value="site_offer">Site's proposed price</option>
           </select></label>
-          {field("pilotBudget", details.pilotPriceStatus === "site_offer" ? "Proposed pilot price" : "Target pilot budget", 80)}
+          {field("pilotBudget", details.pilotPriceStatus === "site_offer" ? "Proposed pilot price (optional)" : "Target pilot budget (optional)", 80)}
           <label>Pilot conditions (optional)<textarea value={details.pilotConditions ?? ""} maxLength={320} onChange={e => { setDetails({ ...details, pilotConditions: e.target.value }); setConsent(false); setState("idle"); }} placeholder="For example: four weeks, including setup and provider support" /></label>
           {field("ongoingTarget", "Ongoing price target, if the pilot works (optional)", 80)}
           <p className="ms-field-hint">A posted price is a proposal, not a purchase approval. Providers can accept it, ask for changes, or decline after evaluation.</p>

@@ -46,7 +46,8 @@ describe("public task disclosure", () => {
     expect(projectTaskBrowseCard("req1", record({ public_task_listing: {
       enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-09-19T00:00:00.000Z", details: proposed,
     } }))).toMatchObject(proposed);
-    expect(taskListingSchema.safeParse({ ...proposed, pilotBudget: "" }).success).toBe(false);
+    expect(taskListingSchema.parse({ ...proposed, pilotBudget: "" }).pilotBudget).toBe("");
+    expect(taskListingSchema.parse({ ...proposed, pilotBudget: undefined }).pilotBudget).toBe("");
     expect(approvedTaskDetails(record())).toMatchObject({ pilotBudget: "", opportunity: "past" });
   });
   it.each([
