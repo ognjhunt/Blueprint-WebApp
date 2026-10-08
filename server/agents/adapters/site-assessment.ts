@@ -86,6 +86,15 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
         sourceKey: browserPendingDecisionKey(selected), contextDigest: advisoryContextDigest(current, currentBrief),
         runId: host.runId, claimId: input.context.advisory_claim_id! });
     };
+    const assertCurrentSession = async (selected: BrowserPending) => {
+      const session = (await db!.collection("captureUploadSessions").doc(selected.capture_id).get()).data();
+      const current = session?.browser_pending_delivery as BrowserPending | undefined;
+      if (!current || current.state !== "published" || session?.browser_upload_reservation || session?.browser_stored_upload
+        || browserPendingDecisionKey(current) !== browserPendingDecisionKey(selected)) {
+        throw new Error("site_assessment_source_changed");
+      }
+    };
+    await assertCurrentSession(pending);
     await assertAdvisoryClaim(raw, pending, brief);
     const bucket = storageAdmin.bucket(process.env.BLUEPRINT_CAPTURE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com");
     const readPinned = async (object: BrowserPending["video"], maxBytes: number) => {
@@ -123,6 +132,7 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       const current = (await ref.get()).data(), currentPending = await loadBrowserPending(pending.capture_id);
       if (!current || !currentPending || digest(requestFacts(current)) !== digest(requestFacts(raw))
         || browserPendingDecisionKey(currentPending) !== bound.source_key) throw new Error("site_assessment_source_changed");
+      await assertCurrentSession(currentPending);
       const currentBrief = await getBrief(input.context.request_id);
       if (advisoryContextDigest(current, currentBrief) !== contextDigest) throw new Error("site_assessment_context_changed");
       bindBrowserAssessmentSource(input.context.request_id, current, currentPending, JSON.parse(manifestBytes.body.toString("utf8")));
@@ -173,6 +183,10 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
           assessment_run_id: host.runId, assessment_request_id: input.context.request_id,
           assessment_source: raw.capture_privacy_source_bound_decision?.producer_source }, kind, request);
         captureReservations.push(captureAdmission.receipt);
+        // Admission may await storage, rights and durable accounting. Verify
+        // authority again at the dispatch boundary; retained reservations are
+        // not refunded merely because a later source fence denies dispatch.
+        await host.assertActive(); await assertSourceCurrent();
       },
       record_model_response: async (kind, model, response) => { budget.record(kind, model, response);
         await captureAdmission?.record((response as any)?.usage); captureAdmission = undefined; },

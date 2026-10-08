@@ -937,7 +937,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     return res.status(200).json({
       ok: true,
       scope: payload.scope,
-      siteAdvisory: payload.scope === "owner" ? await loadCurrentSiteAdvisory(payload.requestId, payload.captureId) : null,
+      siteAdvisory: payload.scope === "owner" ? await loadCurrentSiteAdvisory(payload.requestId, payload.captureId, { expectedOwnerUid: request?.account_owner_uid ?? null }) : null,
       status,
       // Retention only: a saved recording does not prove processing started.
       captureReceived: hasStoredCapture,

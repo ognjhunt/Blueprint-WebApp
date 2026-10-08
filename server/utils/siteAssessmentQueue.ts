@@ -26,7 +26,7 @@ function currentAuthority(job: Pick<SiteAssessmentJob, "request_id" | "capture_i
   const privacy = raw?.capture_privacy_source_bound_decision;
   if (!raw || raw.request?.buyerType !== "site_operator" || !projectWebsiteCaptureRights(raw).derived_scene_generation_allowed
     || !pending || pending.request_id !== job.request_id || pending.capture_id !== job.capture_id
-    || session?.browser_upload_reservation || pending.state !== "published"
+    || session?.browser_upload_reservation || session?.browser_stored_upload || pending.state !== "published"
     || privacy?.proceeded !== true || !["approved", "unscreened"].includes(privacy.eligibility)
     || privacy.capture_id !== job.capture_id || privacy.producer_source?.kind !== "browser_pending"
     || privacy.producer_source.key !== job.source_key
