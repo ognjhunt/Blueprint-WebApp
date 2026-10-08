@@ -260,9 +260,9 @@ router.post("/:prospectId/communications/generate", async (req: Request, res: Re
   if (!parsed.success || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(prospectId)) return res.status(400).json({ error: "communications_draft_request_invalid" });
   res.setHeader("Cache-Control", "no-store");
   try {
-    if (parsed.data.expectedSourceCommit !== process.env.RENDER_GIT_COMMIT
-      || SAVED_RECOVERY_CONTROLS.some(key => process.env[key] !== "false")) throw Error("communications_draft_runtime_changed");
+    if (parsed.data.expectedSourceCommit !== process.env.RENDER_GIT_COMMIT) throw Error("communications_draft_runtime_changed");
     const readiness = (await db.doc(SAVED_RECOVERY_WORKER).get()).data() as SavedRecoveryReadiness | undefined;
+    // Outreach controls belong to the worker; its source-bound heartbeat validates them.
     assertSavedRecoveryWorker(readiness, parsed.data.expectedSourceCommit, ownerUid, Date.now());
     if (readiness?.serviceId === process.env.RENDER_SERVICE_ID) throw Error("communications_draft_requires_existing_worker");
     await requireFounderDraftCapability(); await verifyFounderMailbox();
