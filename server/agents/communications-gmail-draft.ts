@@ -185,7 +185,7 @@ export async function mirrorCommunicationsGmailDraft(db: FirebaseFirestore.Fires
       to: payload.to, subject: payload.subject, body: payload.transportBody,
       messageId: `<blueprint-draft-${job.jobId}@tryblueprint.io>`,
       // A new delivery profile never relabels a retained text/plain attempt.
-      ...(!old ? { mimeProfile: ports.signatureLink ? "multipart-signature-link-v2" as const : "multipart-alternative-v1" as const }
+      ...(!old ? { mimeProfile: (ports.signatureLink || payload.communicationsDraftOnly === "founder-footerless-v2") ? "multipart-signature-link-v2" as const : "multipart-alternative-v1" as const }
         : old.content?.mimeProfile ? { mimeProfile: old.content.mimeProfile } : {}),
       ...(payload.gmailThreadId ? { threadId: payload.gmailThreadId } : {}), ...(payload.inReplyTo ? { inReplyTo: payload.inReplyTo } : {}) };
     if (old && (old.jobId !== job.jobId || old.ledgerId !== ledgerId || old.prospectId !== job.prospectId)) fail("gmail_draft_binding_identity_changed");
@@ -371,7 +371,7 @@ function signatureLines(body: string) {
   if (index < 1 || lines[index - 1] !== "Nijel Hunt") fail("gmail_draft_signature_missing");
   return { lines, index };
 }
-function gmailDraftPlain(content: DraftContent) {
+export function gmailDraftPlain(content: { body: string; mimeProfile?: string }) {
   if (content.mimeProfile !== "multipart-signature-link-v2") return content.body;
   const { lines, index } = signatureLines(content.body);
   lines[index] = "Blueprint — https://tryblueprint.io/";

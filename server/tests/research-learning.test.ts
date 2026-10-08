@@ -1,3 +1,4 @@
+import { communicationsWritingVariant } from "../agents/communications-outreach-quality";
 import { describe, expect, it } from "vitest";
 import { CLASSIFICATION_POLICY, digest, instant, makeEvent, validateEvent, type EventInput, type LearningEvent } from "../research-learning/contract";
 import { buildSnapshot, resolveHistory, verifySnapshot } from "../research-learning/snapshot";
@@ -289,6 +290,13 @@ describe("read-only existing-source joins and staged migration", () => {
     expect(serialized).not.toContain("PRIVATE_SENTINEL"); expect(serialized).not.toContain(input.prospect.contactEmail);
     expect(serialized).not.toContain(input.jobs[0].ledger.action_payload.transportBody);
     expect(normalized.events.some(e => e.kind === "delivery_observed")).toBe(false);
+    for (const state of ["attempting", "unknown"]) {
+      const attempt = existingSourceFixture(), bundle = attempt.jobs[0];
+      bundle.ledger.action_payload.communications.output.reason += " [writing-hypothesis:job-relevance]";
+      bundle.receipt = { ...bundle.receipt, state, payloadDigest: communicationsDigest(bundle.ledger.action_payload) };
+      const touch = normalizeExistingSources([attempt], learningNow).events.find(e => e.kind === "outreach_observed");
+      expect(touch?.data).toMatchObject({ messageVariant: null });
+    }
   });
   it.each(["crm", "site", "case", "recipient", "ledger_job", "source_digest", "receipt_job", "copy_subject", "copy_body"])("quarantines the affected claim for invalid %s joins", change => {
     const input = existingSourceFixture(), job = input.jobs[0];
@@ -397,6 +405,7 @@ function founderSendSourceFixture(contentMatch: "exact" | "differs_from_draft" =
   bundle.id = jobId; bundle.record = { ...record, jobId }; bundle.receipt = undefined;
   bundle.ledger.action_payload.communications.job = identity;
   const payload = bundle.ledger.action_payload;
+  payload.communications.output.reason += " [writing-hypothesis:job-relevance]";
   const evidence: any = { version: "blueprint.communications-founder-send-observation.v1", state: "observed", ...identity,
     ledgerId: `communications_${jobId}`, deliveryKey: communicationsDeliveryKey(identity), payloadDigest: communicationsDigest(payload),
     reviewDigest: "c".repeat(64), recipient: brief.contact.email.toLowerCase(), gmailDraftBindingDigest: "d".repeat(64), directionDigest: "e".repeat(64),
@@ -430,6 +439,7 @@ describe("founder-sent observations in existing-source learning", () => {
     expect(validateEvent(event)).toEqual(event);
     // An exact copy groups with the Blueprint draft's canonical pre-footer copy.
     expect(event.data.messageDigest).toBe(communicationsDigest({ subject: f.payload.communications.output.subject, body: f.payload.communications.output.body }));
+    expect(event.data.messageVariant).toBe(communicationsWritingVariant(f.payload.communications.output)!.variantId);
     expect(result.observedSourceRefs).toContain(f.founderRef);
     expect(JSON.stringify(result.events)).not.toContain(f.input.prospect.contactEmail);
     const view = snapshot(result.events);
@@ -440,6 +450,7 @@ describe("founder-sent observations in existing-source learning", () => {
     const exact = founderOutreach(normalizeExistingSources([founderSendSourceFixture().input], learningNow).events)[0];
     const changed = founderSendSourceFixture("differs_from_draft"), [event] = founderOutreach(normalizeExistingSources([changed.input], learningNow).events);
     expect(event.data.messageDigest).not.toBe(exact.data.messageDigest);
+    expect(event.data.messageVariant).toBeNull();
     expect(event.data.messageDigest).toBe(communicationsDigest({ founderSentSubjectSha256: changed.evidence.sent.subjectSha256,
       founderSentBodySha256: changed.evidence.sent.bodySha256 }));
   });
