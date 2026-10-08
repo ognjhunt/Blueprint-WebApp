@@ -6,7 +6,7 @@ import { verifiedPendingManifest, verifiedPendingMarker, originalManifestConsent
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { advisoryContextDigest, advisoryJobId } from "./siteAssessmentContext";
 import { automationBatch } from "./automationBatch";
-import { prepareAssessmentRecovery, assertAssessmentRecoveryReplay } from "./captureCoverageInferenceBudget";
+import { prepareAssessmentRecovery, assertAssessmentRecoveryReplay, prepareAssessmentAbandonment } from "./captureCoverageInferenceBudget";
 import { humanDecisionDigest } from "./human-reply-admission";
 import { logger } from "../logger";
 
@@ -78,12 +78,24 @@ export async function reconcileSiteAssessments(limit = 2) {
       const [request, brief, session] = await Promise.all([requestRef.get(), briefRef.get(), sessionRef.get()]);
       return currentAuthority(job, request.data(), brief.exists ? brief.data()! : null, session.data());
     };
-    const finish = async (state: State, claimId: string | null, packetSha: string | null = null) => db!.runTransaction(async tx => {
+    const finish = async (state: State, claimId: string | null, packetSha: string | null = null, retire = false) => db!.runTransaction(async tx => {
       const [current, request, brief, session] = await Promise.all([tx.get(row.ref), tx.get(requestRef), tx.get(briefRef), tx.get(sessionRef)]);
       const latest = current.data() as SiteAssessmentJob | undefined;
       if (!latest || latest.state !== job.state || latest.claim_id !== claimId || latest.run_id !== job.run_id) return;
       const authority = currentAuthority(job, request.data(), brief.exists ? brief.data()! : null, session.data());
+      let abandonment;
+      if (retire && (latest.started_at_ms !== job.started_at_ms || latest.source_key !== job.source_key
+        || latest.context_digest !== job.context_digest || latest.capture_id !== job.capture_id || latest.request_id !== job.request_id)) return;
+      if (retire && Number.isFinite(latest.started_at_ms) && Date.now() - latest.started_at_ms! < RUN_LEASE_MS) return;
+      if (retire && authority) {
+        try { abandonment = await prepareAssessmentAbandonment(tx, { requestId: job.request_id, jobId: row.id, captureId: job.capture_id,
+          previousRunId: job.run_id, previousClaimId: claimId, sourceKey: job.source_key, contextDigest: job.context_digest,
+          startedAtMs: latest.started_at_ms!, request: request.data()!, brief: brief.exists ? brief.data()! : null }); }
+        catch { /* Ambiguous ownership stays for review; never synthesize a checkpoint. */ }
+        if (abandonment?.completed) return; // The next pass publishes the actual retained result.
+      }
       const next = { ...latest, state: authority ? state : "authority_ended" as State, packet_sha256: authority ? packetSha : null };
+      if (abandonment && !abandonment.completed) tx.set(abandonment.runRef, abandonment.runUpdate, { merge: true });
       tx.set(row.ref, { state: next.state, packet_sha256: next.packet_sha256, updated_at_ms: Date.now() }, { merge: true });
       if (request.data()?.site_advisory?.job_id === row.id) tx.set(requestRef, { site_advisory: pointer(row.id, next) }, { merge: true });
     });
@@ -123,7 +135,7 @@ export async function reconcileSiteAssessments(limit = 2) {
         }
         if (job.state === "running" && retained.data()?.status === "running"
           && Date.now() - (job.started_at_ms || 0) < RUN_LEASE_MS) continue;
-        await finish("needs_review", job.claim_id); continue;
+        await finish("needs_review", job.claim_id, null, job.state === "running" && retained.data()?.status === "running"); continue;
       }
       if (job.state === "running") {
         if (Date.now() - (job.started_at_ms || 0) >= RUN_LEASE_MS) await finish("needs_review", job.claim_id);
@@ -199,11 +211,12 @@ export async function retrySiteAssessment(input: { requestId: string; expectedJo
     const runId = `site-assessment-retry-${humanDecisionDigest({ jobId: id, previousRunId: job.run_id, retryIdentity: input.retryIdentity })}`;
     const archive = await prepareAssessmentRecovery(tx, { requestId: input.requestId, jobId: id, captureId: job.capture_id,
       previousRunId: job.run_id, previousClaimId: job.claim_id, newRunId: runId, retryIdentity: input.retryIdentity, sourceKey: job.source_key,
-      contextDigest: job.context_digest, request: raw, brief: selected.brief });
+      contextDigest: job.context_digest, request: raw, brief: selected.brief, abandonmentStartedAtMs: job.started_at_ms });
     if (humanDecisionDigest(job.retry_history ?? []) !== humanDecisionDigest(archive.budgetUpdate.assessment_recoveries.slice(0, -1)))
       throw new Error("advisory_retry_unavailable");
     const next: SiteAssessmentJob = { ...job, state: "queued", run_id: runId, claim_id: null, packet_sha256: null,
       retry_history: archive.budgetUpdate.assessment_recoveries };
+    if (archive.abandonedRun && !archive.abandonedRun.completed) tx.set(archive.abandonedRun.runRef, archive.abandonedRun.runUpdate, { merge: true });
     if (archive.callRef) tx.set(archive.callRef, archive.callUpdate, { merge: true });
     tx.set(archive.budgetRef, archive.budgetUpdate, { merge: true });
     tx.set(selected.ref, { state: next.state, run_id: runId, claim_id: null, packet_sha256: null,
@@ -222,7 +235,7 @@ export async function describeSiteAssessmentRetry(requestId: string, assertAcces
       if (job.state !== "needs_review") throw new Error("advisory_retry_unavailable");
       const archive = await prepareAssessmentRecovery(tx, { requestId, jobId: id, captureId: job.capture_id,
         previousRunId: job.run_id, previousClaimId: job.claim_id, newRunId: "read-only-validation", retryIdentity: "read-only-validation",
-        sourceKey: job.source_key, contextDigest: job.context_digest, request: raw, brief: selected.brief });
+        sourceKey: job.source_key, contextDigest: job.context_digest, request: raw, brief: selected.brief, abandonmentStartedAtMs: job.started_at_ms });
       if (humanDecisionDigest(job.retry_history ?? []) !== humanDecisionDigest(archive.budgetUpdate.assessment_recoveries.slice(0, -1)))
         throw new Error("advisory_retry_unavailable");
       return { available: true, job_id: id, run_id: job.run_id };
