@@ -904,3 +904,54 @@ replay creates fresh exact-Git fixtures rather than relocating signed absolute
 bindings. No source edit, production invocation or additional coverage credit
 occurred in reviewer work. Intake-clear failure review remains separately
 reserved pending the author’s exact reproducer and candidate.
+
+
+**Intake clear acknowledgment: scoped source approval at 36225435.**
+Independent review approves exact `36225435c6eb10f38614b39b2394dba612a8c2a5`,
+parented through 81183 to current-main baseline 8c6. Executed UI SHA256
+`c554cd1f48080ce40cd2d429c4d03b746b2510a9740e23ba83beae45776b868a`
+matches committed bytes. Existing three clear controls expose working,
+committed and failed outcomes; dispatch/editing remains fenced while clearing.
+Completion follows strict retirement and fresh two-store commit. Saved-job and
+provider records are not canceled/deleted by this device recovery action.
+
+The original main CI immediate-click/reload failure remains retained. The
+version-two case explicitly waits for a visible product acknowledgment, then
+preserves the original empty-on-reload assertion. Held native WebLock cases
+separately exercise pending controls/commit and document replacement before
+acknowledgment. This supports P2 ambiguous action/feedback, not a demonstrated
+acknowledged-clear resurrection or cross-account exposure. Independent matched
+component expectations fail 2/2 on original 8c6; candidate controls pass. All six
+author browser result hashes and thirty native trace/embedded-definition hashes
+were checked: the earlier 811 run is 14 unique intercepted browser cases, 23
+passing attempts, not 23 unique journeys. Initial invalid cancellation-boundary
+and fixture setup diagnostics remain explicit.
+
+Review found two 811 neighbors: FIFO A→B→A can revive a canceled unavailable-
+recovery clear intent, and committed retry can retain stale unsupported-storage
+copy. Both reproduced independently. The former proves stale intent/confirmation;
+returning hydration queues behind the old clear, so no newly edited A work loss
+is claimed. Captured key plus monotonic epoch now fences old mutation and late
+acknowledgment, and committed clear restores the storage-copy state. Eleven
+scoped component controls pass on final bytes, including both matched failures
+and two reviewer controls switching scope after retirement has already started.
+They preserve new-scope mirrors/UI and produce no misplaced completion or POST.
+These use an explicit durability fake.
+
+Independent native Chromium replay passes the same selected three cases on
+isolated port 42991, with APIs intercepted and local IndexedDB/WebLocks real.
+The reviewer changed only test-origin/config port; initial origin-mismatch
+aborts before page load are retained as setup failures. Native result SHA256
+`c7b45032860f65f9b040238946bf9162d90c0d44f8360964a9a90d8d6caac657`;
+private reviewer manifest `output/reliability-program/reviewer/clear-811/final-manifest.json`
+SHA256 `9d05ef1702cd94ce7aa7e3bbd4947a5cfd19dc707f0af82e9247255dc0c76c22`.
+No new program case/journey credit is assigned to reviewer repetitions.
+
+Optional deployed clear smoke in verify-deployed.ts, source SHA256
+`ea03c76daa4f2cde69efc4939ec52a1715e0e8305648c2d03b6999d9cfa1f56c`,
+is approved: fresh anonymous synthetic context, unchanged non-GET/external
+request refusal, actual completion, read-only mirror/fresh-authority/empty-return
+checks and zero intake mutation. Reviewer did not invoke production. Required
+remote checks, final merged/serving identity and deployed affected behavior
+remain release-owner gates. This approval proves neither a backend job nor
+assessment/provider/notification correctness or overall program completion.
