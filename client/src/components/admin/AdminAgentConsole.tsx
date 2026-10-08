@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 
 import { withCsrfHeader } from "@/lib/csrf";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import { useAuth } from "@/contexts/AuthContext";
 import AdpAgentTasksPanel from "./AdpAgentTasksPanel";
 import type {
   AgentCheckpointRecord,
@@ -273,6 +275,9 @@ type CacheEfficiencyResponse = {
 };
 
 export default function AdminAgentConsole() {
+  const { currentUser } = useAuth();
+  const withAgentHeaders = async (headers: Record<string, string> = {}) =>
+    withCsrfHeader(await withFirebaseAuthHeaders(currentUser, headers));
   const queryClient = useQueryClient();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [title, setTitle] = useState("Ops agent thread");
@@ -321,7 +326,7 @@ export default function AdminAgentConsole() {
     queryKey: ["admin-agent-sessions"],
     queryFn: async () => {
       const response = await fetch("/api/admin/agent/sessions", {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch agent sessions");
       return response.json();
@@ -332,7 +337,7 @@ export default function AdminAgentConsole() {
     queryKey: ["admin-agent-cache-efficiency"],
     queryFn: async () => {
       const response = await fetch("/api/admin/agent/cache-efficiency?hours=24&limit=500", {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch cache efficiency telemetry");
       const payload = await response.json();
@@ -351,7 +356,7 @@ export default function AdminAgentConsole() {
     queryKey: ["admin-agent-context-options"],
     queryFn: async () => {
       const response = await fetch("/api/admin/agent/context/options", {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch startup context options");
       return response.json();
@@ -363,7 +368,7 @@ export default function AdminAgentConsole() {
     enabled: Boolean(activeSessionId),
     queryFn: async () => {
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}`, {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch agent session");
       return response.json();
@@ -375,7 +380,7 @@ export default function AdminAgentConsole() {
     enabled: Boolean(activeSessionId),
     queryFn: async () => {
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/runs`, {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch agent runs");
       return response.json();
@@ -389,7 +394,7 @@ export default function AdminAgentConsole() {
       const response = await fetch(
         `/api/admin/agent/sessions/${activeSessionId}/action-logs`,
         {
-          headers: await withCsrfHeader({}),
+          headers: await withAgentHeaders({}),
         },
       );
       if (!response.ok) throw new Error("Failed to fetch action logs");
@@ -402,7 +407,7 @@ export default function AdminAgentConsole() {
     enabled: Boolean(activeSessionId),
     queryFn: async () => {
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/events`, {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch runtime events");
       return response.json();
@@ -414,7 +419,7 @@ export default function AdminAgentConsole() {
     enabled: Boolean(activeSessionId),
     queryFn: async () => {
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/checkpoints`, {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch checkpoints");
       return response.json();
@@ -426,7 +431,7 @@ export default function AdminAgentConsole() {
     enabled: Boolean(activeSessionId),
     queryFn: async () => {
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/compactions`, {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch compactions");
       return response.json();
@@ -437,7 +442,7 @@ export default function AdminAgentConsole() {
     queryKey: ["admin-agent-openclaw-connectivity"],
     queryFn: async () => {
       const response = await fetch("/api/admin/agent/runtime/connectivity", {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch agent runtime connectivity");
       return response.json();
@@ -529,7 +534,7 @@ export default function AdminAgentConsole() {
       };
       const response = await fetch("/api/admin/agent/sessions", {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error("Failed to create session");
@@ -569,7 +574,7 @@ export default function AdminAgentConsole() {
           : "/api/admin/agent/startup-packs",
         {
           method: editingStartupPackId ? "PATCH" : "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          headers: await withAgentHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(payload),
         },
       );
@@ -599,7 +604,7 @@ export default function AdminAgentConsole() {
     mutationFn: async () => {
       const response = await fetch("/api/admin/agent/documents", {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           title: opsDocumentTitle,
           sourceFileUri: opsDocumentSourceFileUri,
@@ -648,7 +653,7 @@ export default function AdminAgentConsole() {
         `/api/admin/agent/sessions/${activeSessionId}/messages`,
         {
           method: "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          headers: await withAgentHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(body),
         },
       );
@@ -671,7 +676,7 @@ export default function AdminAgentConsole() {
     mutationFn: async (runId: string) => {
       const response = await fetch(`/api/admin/agent/runs/${runId}/approve`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
       });
       if (!response.ok) throw new Error("Failed to approve run");
       return response.json();
@@ -689,7 +694,7 @@ export default function AdminAgentConsole() {
     mutationFn: async (runId: string) => {
       const response = await fetch(`/api/admin/agent/runs/${runId}/cancel`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
       });
       if (!response.ok) throw new Error("Failed to cancel run");
       return response.json();
@@ -707,7 +712,7 @@ export default function AdminAgentConsole() {
     mutationFn: async () => {
       const response = await fetch("/api/admin/agent/runtime/smoke-test", {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           model: openClawSmokeModel.trim() || undefined,
           includeArtifactProbe: true,
@@ -725,7 +730,7 @@ export default function AdminAgentConsole() {
 
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/fork`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           phase,
           source_run_id: runs[0]?.id,
@@ -754,7 +759,7 @@ export default function AdminAgentConsole() {
       if (!activeSessionId) throw new Error("No session selected");
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/start`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ message: message.trim() || "Start the bounded task." }),
       });
       if (!response.ok) throw new Error("Failed to start session");
@@ -773,7 +778,7 @@ export default function AdminAgentConsole() {
       if (!activeSessionId) throw new Error("No session selected");
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/interrupt`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ reason: "Interrupted by operator from managed runtime console" }),
       });
       if (!response.ok) throw new Error("Failed to interrupt session");
@@ -790,7 +795,7 @@ export default function AdminAgentConsole() {
       if (!activeSessionId) throw new Error("No session selected");
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/steer`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ message: steerMessage }),
       });
       if (!response.ok) throw new Error("Failed to steer session");
@@ -809,7 +814,7 @@ export default function AdminAgentConsole() {
       if (!activeSessionId) throw new Error("No session selected");
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/resume`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ checkpoint_id: checkpointId }),
       });
       if (!response.ok) throw new Error("Failed to resume session");
@@ -827,7 +832,7 @@ export default function AdminAgentConsole() {
       if (!activeSessionId) throw new Error("No session selected");
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/cancel`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ reason: "Cancelled from managed runtime console" }),
       });
       if (!response.ok) throw new Error("Failed to cancel session");
@@ -844,7 +849,7 @@ export default function AdminAgentConsole() {
     mutationFn: async () => {
       const response = await fetch("/api/admin/agent/delegations", {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           title: delegationTitle,
           message: delegationMessage,
@@ -870,7 +875,7 @@ export default function AdminAgentConsole() {
       if (!activeSessionId) throw new Error("No session selected");
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/compact`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ phase: compactPhase }),
       });
       if (!response.ok) throw new Error("Failed to compact session");
@@ -898,7 +903,7 @@ export default function AdminAgentConsole() {
         profileEditorId ? `/api/admin/agent/profiles/${profileEditorId}` : "/api/admin/agent/profiles",
         {
           method: profileEditorId ? "PATCH" : "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          headers: await withAgentHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(payload),
         },
       );
@@ -935,7 +940,7 @@ export default function AdminAgentConsole() {
           : "/api/admin/agent/environments",
         {
           method: environmentEditorId ? "PATCH" : "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          headers: await withAgentHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(payload),
         },
       );
