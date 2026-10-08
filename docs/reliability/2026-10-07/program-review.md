@@ -770,3 +770,63 @@ This supports deployed-and-verified canonical service identity and provenance
 for the reviewed repair. It does not prove a prior bound launch bundle remains
 valid, authorize paused dispatch, establish a completed customer result, verify
 natural-model assessment quality or complete the reliability goal.
+
+
+**Bounded assessment evidence-binding source approval: exact `a49db1fbdda580a4b29bc90adf47f065f3cdf8ec`.**
+Runtime/test bytes equal independently executed `3864029d`; the final delta is
+only a corrected portable supplemental-harness link. Runtime SHA256
+`5a5365c639b0e6224f88594c427b2b2905cfbb820aff2e2dce345cf59e1f805c` matches.
+The existing private adapter retains v2, raw_model_assessment and sources as an
+opaque artifact, while output uses the derived assessment. No access scope,
+consent boundary, storage service or historical record migration is changed.
+Legacy selectors remain parseable, and the admin consumer explicitly labels
+legacy records unverified. Current SDK serialization requires nullable selectors
+and every object property, with additionalProperties false; seventeen object
+schemas were independently inspected through the actual SDK request. This is
+local serialization evidence, not live-provider schema acceptance.
+
+Exact-d217 independent replay reproduces both original false factual packets
+as admitted semantic-partial diagnostics. On final source the same hashes,
+source/tool objects and scripted provider outputs yield unknown/unverified
+facts and needs_operator_input; the raw assessment remains byte-equivalent to
+the original parsed output. Baseline raw receipt SHA256
+`219c8ce72a8a26d26e9dd6c9736d7fd09d6a8fe7273f8d70502e4263663d6e65`;
+final thirty-case receipt `9fea95c29d0fec6e58dbe15fdb93a13470e34407563a00b6f91ade4a828d079f`.
+Independent focused checks pass 65/65 (binding, thirty SDK cases, existing
+admission and actual admin component), plus four operator, nested knowledge,
+measured registry and legacy-valid-sibling controls. Focused receipt SHA256
+`032442ad9ccf1cda08bd98ffd6b78a59f7ecbbb6e882aac790e4604d86c9e72d`;
+extra controls `92e09cadd2924a4f197671a54fdd38e20c08a625ac3a4c5b75662445545953e2`.
+
+The independent positive bound SDK repeat hashes to
+`83df0be5aca60f77aeb0a025c74ddc8e6129b982d562c55f443775e82eb185d1`,
+identical to all three author processes. It returns selected rack motion with
+uncertainty and the actual qualified reachM:1, while preserving false model
+wording privately. Independent read-only comparison of all 264 supplemental
+rows confirms unchanged input/semantic/source/tool/scripted-output identities
+and all ninety accepted raw assessments. That layer remains 120 states,
+72 original structural controls, 48 semantic-partial labels and 12 applicability
+controls. Its ninety legacy packets all weaken factual output; zero are useful
+positively bound samples. The separate positive regression establishes useful
+source-derived output without increasing catalog or accuracy denominators.
+
+Review corrections are explicit: source facts do not justify model exclusions;
+all approach dispositions become needs_evidence, action wording is constrained
+advisory text, no_robot becomes research/manual-work option, and weakened facts
+request evidence. Approach/check/question strings are labeled unverified
+interpretations in returned metadata and the actual admin notice. They are not
+validated entailment or physical fit. Current-source admission safeguards and
+raw evidence remain intact. The company Git supplemental recovery commit
+`6b34d0ec43c1a1d3e83bca659accbf40af3b2f8f` and file are independently accessible;
+SHA256 `3180dd8a129426eefcc2c5f956c2d087976387ee20bcba04e2817020183be609`
+matches. Local-only ab9 is explicitly not the remote recovery route.
+
+Private reviewer evidence and probe are retained under
+output/reliability-program/reviewer/assessment-evidence-binding-a49. Optional
+receipt-variable mistakes and an ad hoc tsx schema-probe setup error are retained
+as harness corrections, not product failures or added samples. No paid calls
+or live mutations occurred. This approval covers derived factual publication
+and explicitly advisory decisions; it does not close natural-model reasoning,
+video perception, human truth-label, measurement or robot-suitability evaluation.
+Required exact-head checks, merge, deployment and actual connected customer
+result remain distinct release-owner evidence gates.
