@@ -86,6 +86,13 @@ it("withdrawal wins over a retained completed packet", async () => {
   expect(state.docs.get(key)?.state).toBe("authority_ended");expect(seams.run).not.toHaveBeenCalled();
   expect(state.docs.get(`inboundRequests/${pending.request_id}`)?.site_advisory).toMatchObject({ state: "authority_ended" });
 });
+it("does not dispatch the older pending source during a newer durable upload", async () => {
+  const { reconcileSiteAssessments } = await import("../utils/siteAssessmentQueue");
+  await publishBrowserPending(pending);const [key] = selectedJob();
+  state.docs.get(`captureUploadSessions/${pending.capture_id}`)!.browser_stored_upload = { video: { generation: "90071992547409999" } };
+  await reconcileSiteAssessments();
+  expect(state.docs.get(key)?.state).toBe("authority_ended");expect(seams.run).not.toHaveBeenCalled();
+});
 it("does not backfill already-published sources or publish an in-memory-only answer", async () => {
   const { reconcileSiteAssessments } = await import("../utils/siteAssessmentQueue");
   state.docs.set(`captureUploadSessions/${pending.capture_id}`, { browser_pending_delivery: { ...pending, state: "published" } });
