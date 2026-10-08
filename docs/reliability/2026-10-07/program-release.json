@@ -582,12 +582,12 @@
   "current_verified_webapp_release": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
-    "state": "source_reviewed_required_WebApp_PR_checks_green;Pipeline_full_shards_active;production_mapping_blocked",
+    "state": "reviewed_required_PR_CI_passed_merged;main_CI_active;deployment_pending",
     "root_integration": "78fe507544325d389ee87e99179aa0ed3a7ab627",
     "webapp_consumer": "b346132c1422cf7ab0e63f7e1f5bc7f65adfa2fd",
     "pipeline_candidate": "29fbe1811c70c76117bd715c1192433cf70003a2",
     "pipeline_PR": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2649",
-    "merged_sha": null,
+    "merged_sha": "1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136",
     "deployed_sha": null,
     "scope": "Fresh exact-source preparation status and existing outbox notification recovery; no provider dispatch, customer budget gate or final assessment substitute.",
     "review": "Recipient correction approved8a5; final joined replay approved8582395 with precise process/withdrawal limitations.",
@@ -606,7 +606,9 @@
       "passed": 3,
       "manifest_sha256": "2e29d90f2f0474e962ee1ccd3e88caee40606facfed83f4dce81fdd594a6d629",
       "claim_ceiling": "Actual Pipeline durable ledger and signed FastAPI/Express/local outbox. Python process restart; Express listener rebind in same Node process; simulated DB/object/owner/provider. Withdrawal after sent notice proves no additional send. No live provider/customer assessment/native outcome or original coverage credit."
-    }
+    },
+    "merged_at_utc": "2026-10-08T13:43:28Z",
+    "main_CI": 37786623856
   },
   "assessment_continuation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/947",
@@ -659,9 +661,9 @@
   },
   "customer_advisory_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/948",
-    "head": "ee3d72a12ce8fcf4e2a88a1bf354ec43d6f009d5",
+    "head": "c1d02f6313b1553ab7bf1bb0bc1c3d609caee8d9",
     "state": "reviewed_offline_connected_execution;worker_hook_implemented;required_final_CI_active;not_merged_or_deployed",
-    "CI": 37786164546,
+    "CI": 37786782409,
     "connected_receipt_sha256": "8506cd4f214c7d84945fa87086cd3d9a8afc14af56aeac2130d119d59377e690",
     "independent_connected_review_commit": "a5e724a3",
     "connected_layer": "Actual normal publication/job/claim/runtime/SDK/private inline writer/owner GET/SSR; fakeFirestore/GCS and scriptedOpenAI/Gemini; no object-offload persistence, full browser, live perception or production durability proof.",
@@ -673,6 +675,15 @@
       "head": "caa51535802245f36081095cdef0b8062bc0233a",
       "conclusion": "success"
     },
-    "worker_hook": "Existing launch-forwarder5s startup/interval now lazy-ticks2advisories only when site-video enabled; no newtimer/broadops/flag/spend change. Samebaseline selectedcase fails0ticks; candidate7/7+typecheckPASS."
+    "worker_hook": "Existing launch-forwarder5s startup/interval now lazy-ticks2advisories only when site-video enabled; no newtimer/broadops/flag/spend change. Samebaseline selectedcase fails0ticks; candidate7/7+typecheckPASS.",
+    "integrated_main": "1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136",
+    "integrated_same_checks": {
+      "passed": 15,
+      "log_sha256": "3a62075330e4ebed1b90aa4aff886878ec2b04b17354b3fd528a0f165bdcbc0c",
+      "layer": "one existing joined scripted-provider SDK/owner-GET/SSR case plus existing queue and worker controls; not15journeys",
+      "new_unique_case_credit": 0
+    },
+    "startup_metadata": "Two booleans only: launchForwardWorkerEnabled/siteVideoEvidenceEnabled. Deployed worker values not yet observed; no flag mutation.",
+    "provider_readiness": "Current worker Gemini availability not verified. Existing dishwasher owner reports prior preflight worker site-video false/Gemini key absent; current read-only method/refresh requested. Historical lead, not current fact."
   }
 }
