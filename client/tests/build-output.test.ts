@@ -218,7 +218,7 @@ describe("build output", () => {
     expect(llms).toContain("## Public pages");
     expect(llms).toContain("https://tryblueprint.io/contact/site-operator");
     expect(llms).toContain("https://tryblueprint.io/contact/robot-team");
-    expect(llms).toContain("free invited evaluations only");
+    expect(llms).toContain("Applications remain pending until manual approval for a real site task");
     expect(llms).toContain("paid_evaluations_disabled");
     expect(llmsFull).toMatch(/simulation is not physical proof or a deployment guarantee/i);
     expect(llmsFull).toContain("Robot teams join by early access");
@@ -257,7 +257,7 @@ describe("build output", () => {
     expect(siteHtml).toContain("Loading your account and saved draft");
     expect(siteHtml).not.toContain('aria-label="Start a site capture"');
     expect(siteHtml).not.toContain('id="start-task"');
-    expect(siteHtml).toContain("Describe the work now. Add a phone video when you have recording permission. Starting is free; you do not need an approved budget.");
+    expect(siteHtml).toContain("Describe the work now. Add a phone video when you have recording permission. The initial assessment is free for invited beta participants.");
     expect(siteHtml).toContain("How this works");
     // The country comes from the address; its select opens only to correct it.
     expect(siteHtml).not.toContain('id="start-region"');
@@ -266,7 +266,7 @@ describe("build output", () => {
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
     expect(robotHtml).toContain("Test your robot on real site jobs.");
-    expect(robotHtml).toContain("Free evaluations for invited teams.");
+    expect(robotHtml).toContain("Task invitations follow manual review.");
     expect(robotHtml).toContain("Illustrative simulation view");
     expect(robotHtml).toContain("/illustrations/task-evaluation/03-humanoid-evaluation.webp");
     // The application is public; tasks and executable plans still wait for
