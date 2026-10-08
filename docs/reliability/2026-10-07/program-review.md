@@ -2458,3 +2458,45 @@ run its own exact-head required checks; old PR checks do not certify the merged
 current tree. The pinned assessment release stays unchanged through the sole
 owner's active run. This source clearance performs no merge/deployment,
 installation, activation, customer upload, spending or outreach authorization.
+
+
+## Independent canonical Pipeline deployment receipt — 0a17f52d
+
+Verified bounded canonical deployment of reviewed exact
+`0a17f52d23f233376b9944a6df49101491581f6c`. Attempt2 terminal receipt
+`3eca64d6bedfbe898d6b201e70d61373df3cf3c33455fbf0b34bc051c55d452b`
+records exit0 and completion at18:22:06.400 UTC. Actual installer stdout receipt
+`4d6c569f63ea6f50d7881b19da551288132757c63702f1aa956b6f2d9167bb22`
+(69,697 bytes) reports deployed/exact0a, installed official provenance
+`ece46dadd7c1da7be24bc2be48993951bbf5b218539dd75d4f1b47f0d0c14fbe`,
+canonical-full-lane verification and promotion eligibility. This is the same
+native official receipt independently downloaded in the preceding review;
+installer code and reviewed repair source continuity remain unchanged.
+
+Fresh authenticated host-read receipt
+`e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72`
+records observations at18:24:47.399 UTC with SSH exit0 and zero stderr. Source
+checkout and active release are clean exact0a. Loopback version returns200,
+exact0a and commit_proven:true; health returns200 and the intake service is active.
+Installed provenance is1,759 bytes with the official hash; installed deploy
+receipt has the same stdout hash and source/status. Before/after receipt fields
+preserve configured timer/path states. Fresh listener timer/service remain
+inactive without a next timer execution; the agent dispatcher timer remains
+disabled/inactive without a next execution. Existing installer-reported agent
+execution service activation is a separate service state, not paid dispatch
+proof. Provider-mutation and recorded-secret flags are false; no paid-run result
+is inferred from deployment metadata.
+
+The first attempt's exit2 is retained as an unmet Git-object prerequisite,
+not quietly erased. Diagnosis hash `179fd572` shows target object absent while
+source/active a56 remain clean and paused. Explicit source fetch receipt
+`cfa002fc` resolves target/origin identity to0a without a worktree reset, after
+which the canonical installer succeeds. This is a diagnosed prerequisite
+correction, not an arbitrary lucky retry or test bypass.
+
+Canonical deployed identity, installed official provenance, serving health and
+observed paused-state preservation are supported. No full customer preparation
+journey, callback delivery, customer failure notification, assessment usefulness,
+real provider execution, physical result, cost settlement or whole-program
+completion follows. Reviewer performed only local receipt/source inspection
+and made no production, data, provider or configuration changes.
