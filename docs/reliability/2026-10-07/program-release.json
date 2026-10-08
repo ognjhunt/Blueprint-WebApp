@@ -2300,7 +2300,9 @@
       "run": 37853905706,
       "state_at_2234": "test_running_seven_other_applicable_checks_pass",
       "prior_run": 37851991499,
-      "prior_failure": "free-beta-journey-contract_beforeEach_120s_timeout_unreproduced_not_declared_fixed"
+      "prior_failure": "free-beta-journey-contract_beforeEach_120s_timeout_unreproduced_not_declared_fixed",
+      "final_state": "FAILURE_same_setup_hook_timeout_recurred",
+      "finished_at": "2026-10-08T22:35:19Z"
     }
   },
   "current_release_candidates": {
@@ -2322,7 +2324,7 @@
     "PR978": {
       "head": "799c5fe7de1dbb4a79f327e3fe756f7886e3c0ef",
       "CI": 37853905706,
-      "state": "required_test_running"
+      "state": "required_test_failed_same_setup_hook_timeout_under_diagnosis"
     },
     "PR977": {
       "head": "52ad73eb99ca754cbf56a29e510e9bd768fc04c5",

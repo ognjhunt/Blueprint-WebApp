@@ -975,6 +975,33 @@
       "root_cause": "Fixed fixture/injected communications clock differs from Date.now inside publication verifier.",
       "next_action": "Freeze only Date in existing test hooks at same synthetic date, restore after each; preserve explicit expired-evidence negative cases. Reproduce existing cases and independent review before exact-head CI.",
       "new_case_credit": 0
+    },
+    {
+      "id": "REL-CI-FREE-BETA-IMPORT-HOOK-20261008",
+      "severity": "P2",
+      "invariant": "Required release checks execute the actual joined free-admission contract without hiding setup failures",
+      "owner": "queue_recovery",
+      "rootCause": "unresolved; parallel dynamic-route-import beforeEach failed120s on both978ed6 and799 required-CI related runs; isolated and instrumented archive controls passed, but archive no.git failures limit broader proof",
+      "attempts": [
+        {
+          "head": "ed6dce24342dd7584e32d4b8dc1461f6dd47f3b8",
+          "run": 37851991499,
+          "result": "FAILURE"
+        },
+        {
+          "head": "799c5fe7de1dbb4a79f327e3fe756f7886e3c0ef",
+          "run": 37853905706,
+          "result": "FAILURE",
+          "passed_checks": 4869,
+          "failed_checks": 1,
+          "skipped_checks": 6,
+          "failed_at": "beforeEach120s_before_assertions",
+          "private_log_sha256": "7c7e475c3a134ba760a4b2f036813943fc2603888972574bd0ae0d9f479f7f6c"
+        }
+      ],
+      "nextAction": "Reproduce exact related execution in real Git worktree and trace import/listen boundary; require observed cause and reviewed scoped repair if identified",
+      "releaseStatus": "PR978required_check_failed;no_merge_or_bypass",
+      "limitation": "Test infrastructure boundary not demonstrated customer defect; repeated timeout not declared causally fixed by isolated passes"
     }
   ],
   "dependencies": [
@@ -1204,7 +1231,7 @@
     "deployed_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
     "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
   },
-  "current_state_observed_at_utc": "2026-10-08T22:13:00Z",
+  "current_state_observed_at_utc": "2026-10-08T22:35:19Z",
   "historical_state_policy": "Original baseline/reproducer/source receipts are retained. A historical_state field preserves superseded status text when current state changes; original failed attempts are not erased.",
   "last_new_failure_observed_at_utc": "2026-10-08T21:47:57.021Z",
   "customer_financial_policy": {
