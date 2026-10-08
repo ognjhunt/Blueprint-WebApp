@@ -29,6 +29,39 @@ function base(overrides: Partial<Parameters<typeof projectTaskStatus>[0]> = {}) 
   };
 }
 
+describe("a persisted preview preparation failure", () => {
+  const failed = () => base({ briefDrafted: true, briefConfirmed: true,
+    coversScene: true, scenePreparationFailed: true });
+  it("distinguishes failed preview preparation from active assessment", () => {
+    const projected = projectTaskStatus(failed());
+    expect(projected.decision).toBe("footage_received");
+    expect(projected.headline).toMatch(/scene preview preparation could not finish/i);
+    expect(projected.stage).toBeNull();
+    expect(projected.operatorAction).toBeNull();
+  });
+  it("preserves withdrawal, brief and disposition gates", () => {
+    expect(projectTaskStatus({ ...failed(), consentRevoked: true }).headline).toMatch(/withdrawn/i);
+    expect(projectTaskStatus({ ...failed(), briefConfirmed: false }).decision).toBe("confirm_brief");
+    expect(projectTaskStatus({ ...failed(), disposition: "needs_conversation" }).decision).toBe("call_needed");
+    expect(projectTaskStatus({ ...failed(), disposition: "not_now" }).decision).toBe("not_now");
+    const unclaimed = projectTaskStatus({ ...failed(), disposition: "qualified", claimed: false });
+    expect(unclaimed.decision).toBe("save_account");
+    expect(unclaimed.headline).toMatch(/review the scene preview preparation issue/i);
+    expect(unclaimed.headline).not.toMatch(/start building/i);
+    expect(projectTaskStatus({ ...failed(), coversScene: false, missingViews: ["infeed"] }).decision).toBe("add_views");
+  });
+  it("preserves queued, observed and no-result screening runs", () => {
+    expect(projectTaskStatus({ ...failed(), screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 } }).decision).toBe("screening");
+    expect(projectTaskStatus({ ...failed(), screening: { teams: 1, queued: 0, running: 0, reported: 1, noResult: 0 } }).decision).toBe("results");
+    expect(projectTaskStatus({ ...failed(), screening: { teams: 1, queued: 0, running: 0, reported: 0, noResult: 1 } }).decision).toBe("results");
+  });
+  it("leaves a newer current ready state and account requirement usable", () => {
+    expect(projectTaskStatus({ ...failed(), scenePreparationFailed: false, scenePreviewReady: true }).headline).toMatch(/preview is ready/i);
+    expect(projectTaskStatus({ ...failed(), scenePreparationFailed: false, disposition: "qualified", claimed: false }).decision).toBe("save_account");
+    expect(taskStatusInputFrom({ briefDrafted: true, stage: null }).scenePreparationFailed).toBe(false);
+  });
+});
+
 describe("the decision ladder", () => {
   it("starts at received, with nothing asked of the operator", () => {
     const status = projectTaskStatus(base());

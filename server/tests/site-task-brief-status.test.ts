@@ -333,6 +333,9 @@ describe("GET /api/site-task-brief/:token/status", () => {
   });
 
   it("reads screening once a run is queued, and offers the claim link", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
+      world_reconstruction: { state: "failed", blocker: "provider_failed" },
+    });
     sharedFakeFirestoreState.docs.set("evaluationRuns/run_r1", {
       runId: "run_r1",
       teamId: "team-a",
@@ -350,6 +353,9 @@ describe("GET /api/site-task-brief/:token/status", () => {
   });
 
   it("reads results once a run reported without comparing it to other runs", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
+      world_reconstruction: { state: "failed", blocker: "provider_failed" },
+    });
     sharedFakeFirestoreState.docs.set("evaluationRuns/run_r1", {
       runId: "run_r1",
       teamId: "team-a",
@@ -425,6 +431,42 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, account_owner_uid: "uid-dana" });
     expect((await status()).body.claimUrl).toBeNull();
+  });
+
+  it("does not advertise ongoing preparation after a persisted reconstruction failure", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
+      world_reconstruction: { state: "failed", blocker: "provider_failed",
+        failure_reason: "private upstream detail https://private.example/token",
+        assets: { launchUrl: "https://viewer.example/stale" } },
+    });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const { code, body } = await status();
+    expect(code).toBe(200);
+    expect(body.status.decision).toBe("footage_received");
+    expect(body.status.headline).toMatch(/scene preview preparation could not finish/i);
+    expect(body.status.headline).not.toMatch(/we are preparing|private upstream|private\.example/);
+    expect(body.status.operatorAction).toBeNull();
+    expect(body.sceneViewUrl).toBeNull();
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect(storage.write).not.toHaveBeenCalled();
+    expect(deliverOutbox).not.toHaveBeenCalled();
+  });
+
+  it("uses a newer ready record even if old failure details remain", async () => {
+    const failed = { state: "failed", blocker: "provider_failed", failure_reason: "private upstream detail" };
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { world_reconstruction: failed });
+    expect((await status()).body.status.headline).toMatch(/scene preview preparation could not finish/i);
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { world_reconstruction: {
+      ...failed, state: "ready", assets: { launchUrl: "https://viewer.example/current" },
+    } });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const { body } = await status();
+    expect(body.status.headline).toMatch(/scene preview is ready/i);
+    expect(body.status.headline).not.toMatch(/could not finish|private upstream/);
+    expect(body.sceneViewUrl).toBe("https://viewer.example/current");
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect(storage.write).not.toHaveBeenCalled();
+    expect(deliverOutbox).not.toHaveBeenCalled();
   });
 });
 

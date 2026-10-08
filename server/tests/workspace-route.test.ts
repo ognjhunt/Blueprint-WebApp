@@ -266,6 +266,52 @@ async function api(
   });
 }
 describe("workspace access and projections", () => {
+  it("shows persisted reconstruction failure without exposing private provider details", async () => {
+    state.records.set("inboundRequests/task-1", { ...task(),
+      site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
+    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
+      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
+      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: "2026-09-18T00:00:00Z" });
+    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: {
+      state: "failed", blocker: "provider_failed", failure_reason: "private upstream detail",
+      assets: { launchUrl: "https://viewer.example/stale", thumbnailUrl: "https://viewer.example/stale.png" } } });
+    const before = structuredClone([...state.records]);
+    const response = await api("/tasks/task-1", "site-1");
+    expect(response.status).toBe(200);
+    const viewed = await response.json();
+    expect(viewed.readiness.decision).toBe("footage_received");
+    expect(viewed.readiness.headline).toMatch(/scene preview preparation could not finish/i);
+    expect(viewed.readiness.headline).not.toMatch(/we are preparing|private upstream/);
+    expect(viewed.readiness.operatorAction).toBeNull();
+    expect(viewed.sceneReady).toBe(false);
+    expect(viewed.thumbnailUrl).toBeNull();
+    expect([...state.records]).toEqual(before);
+    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
+    expect(state.messages).not.toHaveBeenCalled();
+  });
+  it("uses the current ready preview after a failed record is replaced", async () => {
+    state.records.set("inboundRequests/task-1", { ...task(),
+      site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
+    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
+      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
+      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: "2026-09-18T00:00:00Z" });
+    const failed = { state: "failed", blocker: "provider_failed", failure_reason: "private upstream detail" };
+    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: failed });
+    expect((await (await api("/tasks/task-1", "site-1")).json()).readiness.headline)
+      .toMatch(/scene preview preparation could not finish/i);
+    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: {
+      ...failed, state: "ready", assets: { launchUrl: "https://viewer.example/current",
+        thumbnailUrl: "https://viewer.example/current.png" },
+    } });
+    const before = structuredClone([...state.records]);
+    const viewed = await (await api("/tasks/task-1", "site-1")).json();
+    expect(viewed.readiness.headline).toMatch(/scene preview is ready/i);
+    expect(viewed.readiness.headline).not.toMatch(/could not finish|private upstream/);
+    expect(viewed.sceneReady).toBe(true);
+    expect(viewed.thumbnailUrl).toBe("https://viewer.example/current.png");
+    expect([...state.records]).toEqual(before);
+    expect(state.messages).not.toHaveBeenCalled();
+  });
   it("withholds persisted capture derivatives on the owner's return after withdrawal", async () => {
     state.records.set("inboundRequests/task-1", { ...task(), consent_revoked: true,
       site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
@@ -1039,6 +1085,9 @@ describe("site claim and listing control", () => {
 
 describe("agent screening runs on the site's task", () => {
   it("shows a reported run as an anonymised simulation row and moves the ladder to results", async () => {
+    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: {
+      state: "failed", blocker: "provider_failed",
+    } });
     state.records.set("inboundRequests/task-1", {
       ...task(),
       site_task_brief_confirmed_at: "2026-09-18T00:00:00Z",
