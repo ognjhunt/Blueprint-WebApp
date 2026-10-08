@@ -318,6 +318,7 @@ export default function AdminAgentConsole() {
   const [startupPackName, setStartupPackName] = useState("");
   const [startupPackDescription, setStartupPackDescription] = useState("");
   const [editingStartupPackId, setEditingStartupPackId] = useState<string | null>(null);
+  const [editingStartupPackVersion, setEditingStartupPackVersion] = useState<number | null>(null);
   const [opsDocumentTitle, setOpsDocumentTitle] = useState("");
   const [opsDocumentSourceFileUri, setOpsDocumentSourceFileUri] = useState("");
   const [openClawSmokeModel, setOpenClawSmokeModel] = useState("");
@@ -328,7 +329,10 @@ export default function AdminAgentConsole() {
       const response = await fetch("/api/admin/agent/sessions", {
         headers: await withAgentHeaders({}),
       });
-      if (!response.ok) throw new Error("Failed to fetch agent sessions");
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null);
+        throw new Error(`Failed to fetch agent sessions (${response.status})${typeof failure?.error === "string" ? `: ${failure.error.slice(0, 500)}` : ""}`);
+      }
       return response.json();
     },
   });
@@ -537,7 +541,10 @@ export default function AdminAgentConsole() {
         headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error("Failed to create session");
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null);
+        throw new Error(`Failed to create session (${response.status})${typeof failure?.error === "string" ? `: ${failure.error.slice(0, 500)}` : ""}`);
+      }
       return response.json() as Promise<{ ok: boolean; session: AgentSessionRecord }>;
     },
     onSuccess: (data) => {
@@ -567,6 +574,7 @@ export default function AdminAgentConsole() {
             storage_uri: run.storageUri,
           })),
         operatorNotes,
+        ...(editingStartupPackId ? { expectedVersion: editingStartupPackVersion } : {}),
       };
       const response = await fetch(
         editingStartupPackId
@@ -597,6 +605,7 @@ export default function AdminAgentConsole() {
       setStartupPackName("");
       setStartupPackDescription("");
       setEditingStartupPackId(null);
+      setEditingStartupPackVersion(null);
     },
   });
 
@@ -1426,6 +1435,7 @@ export default function AdminAgentConsole() {
                           className="text-xs text-runway-faint underline"
                           onClick={() => {
                             setEditingStartupPackId(pack.id);
+                            setEditingStartupPackVersion(pack.version);
                             setStartupPackName(pack.name);
                             setStartupPackDescription(pack.description || "");
                             setSelectedRepoDocs(pack.repoDocPaths || []);
@@ -1706,6 +1716,7 @@ export default function AdminAgentConsole() {
                       className="runway-cta-ghost ml-2 min-h-0 px-4 py-2 text-sm"
                       onClick={() => {
                         setEditingStartupPackId(null);
+                        setEditingStartupPackVersion(null);
                         setStartupPackName("");
                         setStartupPackDescription("");
                         setSelectedKnowledgePagePaths([]);
@@ -1943,6 +1954,11 @@ export default function AdminAgentConsole() {
                 )}
                 Create session
               </button>
+              {createSessionMutation.error ? (
+                <p role="alert" className="text-sm text-red-400">
+                  {createSessionMutation.error instanceof Error ? createSessionMutation.error.message : "Failed to create session"}
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -1952,6 +1968,11 @@ export default function AdminAgentConsole() {
               <h2 className="font-display text-lg font-semibold uppercase tracking-[0.005em] text-runway-text">Sessions</h2>
             </div>
             <div className="mt-4 space-y-2">
+              {sessionsQuery.error ? (
+                <p role="alert" className="text-sm text-red-400">
+                  {sessionsQuery.error instanceof Error ? sessionsQuery.error.message : "Failed to fetch agent sessions"}
+                </p>
+              ) : null}
               {sessionsQuery.isLoading ? (
                 <p className="text-sm text-runway-faint">Loading sessions...</p>
               ) : (sessionsQuery.data?.sessions || []).length === 0 ? (
