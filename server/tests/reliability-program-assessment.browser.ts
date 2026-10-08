@@ -44,15 +44,21 @@ const deferredParentWakes:(()=>void)[]=[];
 let responseIndex = 0;
 let chrome: ChildProcess | undefined;
 async function stopBrowser(signal: NodeJS.Signals = "SIGTERM") {
-  if (chrome && chrome.exitCode === null && chrome.signalCode === null) {
-    const stopped = new Promise<void>(resolve => chrome!.once("exit", () => resolve()));
-    if (signal === "SIGTERM" && context?.browser()) {
-      const session = await context.browser()!.newBrowserCDPSession();
-      await session.send("Browser.close").catch(() => chrome?.kill("SIGTERM"));
-    } else chrome.kill(signal);
+  const owned = chrome;
+  if (owned && owned.exitCode === null && owned.signalCode === null) {
+    const stopped = new Promise<void>(resolve => owned.once("exit", () => resolve()));
+    // This process handle was returned by our own spawn; never kill by name/port.
+    if (signal === "SIGTERM" && context?.browser()?.isConnected()) {
+      try {
+        const session = await context.browser()!.newBrowserCDPSession();
+        await session.send("Browser.close");
+      } catch { owned.kill("SIGTERM"); }
+    } else owned.kill(signal);
     await stopped;
   }
   await context?.browser()?.close().catch(() => undefined);
+  if (chrome === owned) chrome = undefined;
+  context = undefined!; page = undefined!;
 }
 async function openBrowser() {
   const profile = path.join(output, "profile");
@@ -233,11 +239,14 @@ if(restartOnly&&!workerPhase) describe("fresh worker restart joined customer pat
     await page.reload();await page.getByRole("heading",{name:"What remains uncertain",exact:true}).waitFor();
     const {hydrateAgentEvidence}=await import("../agents/private-evidence");const raw=await(database as any).collection("agentRuns").doc(recovered.job.run_id).get();
     const hydrated=await hydrateAgentEvidence(raw.data(),{collection:"agentRuns",id:recovered.job.run_id});expect(hydrated.artifacts.site_assessment_packet_sha256).toBe(recovered.job.packet_sha256);expect(hydrated.artifacts.capture_inference_reservations).toHaveLength(3);
+    await retainNativeAccounting(hydrated,retained,`${activeCase}-${repeat}`);
     expect(requestRows()).toHaveLength(1);expect(requestRows()[0][0]).toBe(`inboundRequests/${requestId}`);expect(providers.calls).toBe(0);expect(videoSpy).not.toHaveBeenCalled();
     const {deliverOutbox}=await import("../utils/captureOutbox");await deliverOutbox();await deliverOutbox();await refreshDocumentView();
     const notices=[...state.docs.values()].filter(row=>["task_received","video_received"].includes(row.kind as string)&&row.status==="sent");expect(notices.filter(row=>row.kind==="task_received")).toHaveLength(1);expect(notices.filter(row=>row.kind==="video_received")).toHaveLength(1);
     expect(providers.sent.filter(row=>row.to==="sdk-ui-003@example.com").map(row=>row.subject).sort()).toEqual(notices.map(row=>row.subject).sort());
     fs.writeFileSync(`${control}-customer-result.json`,JSON.stringify({requestId,job:recovered.job,run:hydrated,status:status.body,durable:durableSummary()},null,2));result="passed";
+  }catch(error){
+    fs.writeFileSync(path.join(retained,`SDK-UI-003-${repeat}-primary-error.txt`),String(error instanceof Error?error.stack:error));throw error;
   }finally{
     if(child&&child.exitCode===null)child.kill("SIGTERM");await refreshDocumentView();
     if(page&&!page.isClosed())await page.screenshot({path:path.join(retained,`SDK-UI-003-${repeat}-${result}.png`)}).catch(()=>{});
@@ -282,6 +291,7 @@ if(!restartOnly&&!workerPhase) describe("supplemental normal UI through native p
    const {hydrateAgentEvidence}=await import("../agents/private-evidence");const hydrated=await hydrateAgentEvidence(run.data(),{collection:"agentRuns",id:job[1].run_id as string});
    expect(hydrated.artifacts.source_admission).toMatchObject({advisory_job_id:job[0].split("/")[1],context_digest:job[1].context_digest,source_key:job[1].source_key});
    expect(hydrated.artifacts.site_assessment_packet_sha256).toBe(job[1].packet_sha256);expect(hydrated.artifacts.capture_inference_reservations).toHaveLength(3);
+    await retainNativeAccounting(hydrated,retained,`${activeCase}-${repeat}`);
    const status=await read();expect(status.http).toBe(200);expect(status.body.siteAdvisory.state).toBe("ready");expect(status.body.status.stage).not.toBe("completed");
    await page.reload(); await page.getByRole("heading",{name:"What remains uncertain",exact:true}).waitFor();
    expect(await page.locator("body").innerText()).toContain("Some job facts and interpretations remain unresolved.");expect(await page.locator("body").innerText()).not.toMatch(/raw_model_assessment|gs:\/\//);
@@ -294,6 +304,8 @@ if(!restartOnly&&!workerPhase) describe("supplemental normal UI through native p
    await queue.reconcileSiteAssessments();expect(providers.calls).toBe(2);expect(videoSpy).toHaveBeenCalledTimes(1);
    fs.writeFileSync(path.join(retained,`${id}-${repeat}-private-result.json`),JSON.stringify({job:job[1],run:hydrated,status:status.body,durable:durableSummary()},null,2));
    result="passed";
+  }catch(error){
+    fs.writeFileSync(path.join(retained,`${id}-${repeat}-primary-error.txt`),String(error instanceof Error?error.stack:error));throw error;
   }finally{
    await refreshDocumentView();if(page&&!page.isClosed()){await page.screenshot({path:path.join(retained,`${id}-${repeat}-${result}.png`)}).catch(()=>{});fs.writeFileSync(path.join(retained,`${id}-${repeat}-screen.txt`),await page.locator("body").innerText().catch(()=>"unavailable"));}
    await context?.tracing.stop({path:path.join(retained,`${id}-${repeat}-trace.zip`)}).catch(()=>{});
@@ -302,3 +314,23 @@ if(!restartOnly&&!workerPhase) describe("supplemental normal UI through native p
   }
  });
 });
+
+// Supplemental accounting-runtime observer; the three frozen journeys are unchanged.
+async function retainNativeAccounting(hydrated:any,directory:string,caseAttempt:string) {
+ const admission=hydrated.artifacts.source_admission;
+ const {humanDecisionDigest}=await import("../utils/human-reply-admission");
+ const ref=(database as any).collection("captureCoverageReviews").doc(`budget-${humanDecisionDigest({capture_id:admission.capture_id})}`);
+ const aggregate=(await ref.get()).data();const snapshots=await ref.collection("calls").get();
+ const calls=snapshots.docs.map((doc:any)=>({id:doc.id,...doc.data()}));expect(calls).toHaveLength(3);
+ for(const call of calls){expect(call.schema_version).toBe("capture_inference_call.v1");expect(call.id).toBe(call.admission_token);
+  expect(call.request_id).toBe(admission.request_id);expect(call.capture_id).toBe(admission.capture_id);expect(call.run_id).toBe(hydrated.id);
+  expect(call.context_digest).toBe(admission.context_digest);expect(call.video_sha256).toBe(admission.video_sha256);
+  expect(call.source_digest).toBe(humanDecisionDigest({kind:"browser_pending",key:admission.source_key}));
+  expect(["recorded","unknown"]).toContain(call.state);expect(call.raw_usage).not.toBeNull();expect(call.reserved_usd).toBeGreaterThan(0);
+  if(call.state==="recorded")expect(Number.isFinite(call.cost_estimate_usd)).toBe(true);else expect(call.cost_estimate_usd).toBeNull();
+ }
+ expect(calls.filter((call:any)=>call.provider==="openai")).toHaveLength(2);expect(calls.filter((call:any)=>call.provider==="gemini")).toHaveLength(1);
+ expect(aggregate.calls).toBe(3);expect(aggregate.pending_token).toBeNull();expect(aggregate.cap_usd).toBeNull();
+ expect(hydrated.artifacts.capture_inference_reservations.every((row:any)=>row.spending_gated===false&&row.cap_usd===null)).toBe(true);
+ fs.writeFileSync(path.join(directory,`${caseAttempt}-native-accounting.json`),JSON.stringify({aggregate,call_collection:ref.path+"/calls",calls,reservations:hydrated.artifacts.capture_inference_reservations},null,2));
+}
