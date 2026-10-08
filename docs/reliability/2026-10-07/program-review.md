@@ -1495,3 +1495,28 @@ configuration values. Their live observation can establish loaded admission
 configuration at startup, not a successful job, provider execution, result or
 customer delivery. No redundant test was added or rerun for this logging-only
 review; final required checks and deployed receipts must bind this new head.
+
+
+## Independent current-main integration review — c1d02f63
+
+Approved bounded candidate `c1d02f6313b1553ab7bf1bb0bc1c3d609caee8d9`,
+an explicit merge of approved advisory99ad80c0 and protected PR946 main
+`1b1d74ed8621e0d7081ed2d57bc4dca54c1ed136`. All nonshared imported
+preparation files byte-equal the reviewed946 parent; all nonshared advisory
+files byte-equal the reviewed99 parent. The two shared customer readers retain
+both the optional current preparation-status read and the separately authorized
+source-bound advisory projection. Film/withdrawal restrictions, owner-snapshot
+fences and existing primary status precedence remain. The shared status-test
+file preserves each parent's selected assertions.
+
+The same actual SDK/private-writer/customer-GET/SSR test and existing
+forward-worker controls execute on this exact combined source:15/15 pass in
+`output/reliability-program/advisory-producer-discovery/advisory-integrated-main.log`,
+SHA-256 `3a62075330e4ebed1b90aa4aff886878ec2b04b17354b3fd528a0f165bdcbc0c`.
+This adds no cases or journey credit and retains the earlier fake-database,
+scripted-provider, inline persistence and static-rendering limitations. No new
+framework or redundant suite was added by the reviewer. Exact final-head CI,
+merged/deployed identity, current live worker admission/provider state and
+observed affected customer behavior remain release verification gates. An older
+worker's disabled site-video flag or missing Gemini configuration is not silently
+promoted to current readiness; the loaded current process must be observed.
