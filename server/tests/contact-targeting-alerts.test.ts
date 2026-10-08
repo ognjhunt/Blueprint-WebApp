@@ -63,6 +63,19 @@ describe('existing contact/outbox safety', () => {
     await resumeNewJobFanout(); await resumeNewJobFanout();
     expect(alerts()).toHaveLength(1); expect(send).not.toHaveBeenCalled();
   });
+  it('treats partial registry rows as unknown and continues to a sourced sibling', async () => {
+    contact('partial@example.com'); contact('sibling@example.com');
+    (state.docs.get('inboundRequests/job')!.public_task_listing as any).details.targeting = {
+      categories: {}, requiredRecipient: { embodiments: ['arm'] },
+    };
+    state.docs.set('robotTeams/partial', { contactEmail: 'partial@example.com', capability: { embodiment: 'arm' } });
+    state.docs.set('robotTeams/empty', { contactEmail: 'sibling@example.com' });
+    state.docs.set('robotTeams/sourced', { contactEmail: 'sibling@example.com', capability: { embodiment: 'arm' },
+      fieldProvenance: { embodiment: { grade: 'self_reported', source: 'intake:sourced', observedAt: event } } });
+    await resumeNewJobFanout();
+    expect(alerts()).toHaveLength(1); expect(alerts()[0][1].to).toBe('sibling@example.com');
+    await deliverOutbox(); expect(send).toHaveBeenCalledTimes(1);
+  });
   it('pages beyond 500 and resumes after a partial page failure without duplicate intents', async () => {
     for (let i = 0; i < 605; i++) contact(`team${i}@example.com`);
     const transaction = vi.spyOn(db, 'runTransaction');

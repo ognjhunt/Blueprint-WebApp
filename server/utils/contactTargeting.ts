@@ -11,7 +11,7 @@ export function matchClauses(facts: TargetingFacts, clauses: TargetingClause[]):
   for (const clause of clauses) {
     if (!clause.values.length) continue;
     const fact = facts[clause.dimension];
-    if (!fact?.values?.length || !fact.provenance?.source || !fact.provenance.observedAt || fact.provenance.grade === 'inferred') {
+    if (!fact?.values?.length || !fact.provenance?.source || !Number.isFinite(Date.parse(fact.provenance.observedAt)) || !['measured', 'self_reported', 'published'].includes(fact.provenance.grade)) {
       unknown.push(clause.dimension); continue;
     }
     const values = new Set(fact.values.map(normalize));
@@ -33,8 +33,8 @@ export function categoryFacts(categories: TargetingCategories, source: string, o
 export function registryFacts(team: RobotTeamRecord): TargetingFacts {
   const fields = { embodiments: 'embodiment', taskFamilies: 'taskFamily', regions: 'deploymentRegions' } as const;
   return Object.fromEntries(Object.entries(fields).map(([dimension, field]) => [dimension, {
-    values: team.capability[field] ? [team.capability[field]!] : null,
-    provenance: team.fieldProvenance[field] ?? null,
+    values: typeof team?.capability?.[field] === 'string' && team.capability[field]!.trim() ? [team.capability[field]!] : null,
+    provenance: team?.fieldProvenance?.[field] ?? null,
   }]));
 }
 export function matchJob(preferences: UpdatePreferences, job: ListingTargeting, facts: TargetingFacts,

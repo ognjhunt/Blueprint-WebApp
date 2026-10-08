@@ -617,7 +617,7 @@ export function TaskBriefReview(props: {
             <details><summary>Alert targeting and data terms (optional)</summary>
               <p className="ms-field-hint">Exact comma-separated categories, reviewed as part of this public card. Leave unknown values blank. These terms do not grant access to private footage or verify robot performance.</p>
               {(["categories", "requiredRecipient"] as const).map(group => <fieldset key={group}><legend>{group === "categories" ? "Job categories" : "Required team categories"}</legend>
-                {targetingDimensions.map(dimension => <label key={dimension}><span>{dimension}</span><input maxLength={2400} value={listing.targeting?.[group][dimension]?.join(", ") ?? ""} onChange={event => {
+                {targetingDimensions.map(dimension => <label key={dimension}><span>{{ roles: "Roles", regions: "Regions", industries: "Industry focus", embodiments: "Embodiments", policyCategories: "Policy categories (e.g. WAM, VLA)", taskFamilies: "Job types", capabilities: "Capabilities" }[dimension]}</span><input maxLength={2400} value={listing.targeting?.[group][dimension]?.join(", ") ?? ""} onChange={event => {
                   const targeting = listing.targeting ?? { categories: {}, requiredRecipient: {} };
                   setListing({ ...listing, targeting: { ...targeting, [group]: { ...targeting[group], [dimension]: event.target.value.split(",").map(v => v.trim()).filter(Boolean) } } }); setListingConsent(false);
                 }} /></label>)}
