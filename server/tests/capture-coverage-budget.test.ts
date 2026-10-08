@@ -138,6 +138,67 @@ describe("programme-bound actual reservation transaction", () => {
       ] });
   });
   const sol = () => reserveCaptureCoverageInference(SITE_ASSESSMENT_MODEL, assessmentMetadata, "openai", {});
+  function reconcilePreProviderHistory() {
+    sharedFakeFirestoreState.docs.delete(path);
+    const id = "d".repeat(64), data = { requestId: "one", sceneId: "site-one", captureId: metadata.capture_id,
+      state: "waiting_prerequisite", attempts: 3, started_at: 123, claim_token: "historical-claim",
+      binding: { source, brief_digest: humanDecisionDigest(brief), capture_id: metadata.capture_id }, reason: null, finding: null };
+    sharedFakeFirestoreState.docs.set(`captureCoverageReviews/${id}`, data);
+    read(programmePath).capture_history_reconciliation = { schema_version: "capture_history_reconciliation.v1", status: "accepted",
+      receipt_sha256: `sha256:${"e".repeat(64)}`, source_commit: "f".repeat(40), reviewed_by: "synthetic-independent-reviewer",
+      authority_ref: "synthetic-history-approval", request_id: "one", capture_id: metadata.capture_id,
+      history_digest: humanDecisionDigest([{ review_id: id, ...data }]),
+      reviews: [{ review_id: id, attempts: 3, disposition: "verified_zero_provider" }] };
+    return id;
+  }
+  it("admits first paid reservation only for exactly accepted pre-provider history, without resetting attempts", async () => {
+    const id = reconcilePreProviderHistory();
+    const call = await sol(); await call.assertDispatchAllowed();
+    expect(read(budgetPath).calls).toBe(1);
+    expect(read(`captureCoverageReviews/${id}`).attempts).toBe(3);
+    expect(read(programmePath).slots[0].state).toBe("unknown");
+  });
+  it.each(["missing", "malformed", "unaccepted", "attempts", "binding", "running", "additional", "unknown_run", "metadata_only", "missing_row", "truncated"])("never excuses %s historical evidence", async defect => {
+    const id = reconcilePreProviderHistory(); const receipt = read(programmePath).capture_history_reconciliation;
+    if (defect === "missing" || defect === "metadata_only") delete read(programmePath).capture_history_reconciliation;
+    if (defect === "malformed") receipt.receipt_sha256 = "forged";
+    if (defect === "unaccepted") receipt.status = "proposed";
+    if (defect === "attempts") read(`captureCoverageReviews/${id}`).attempts = 4;
+    if (defect === "binding") read(`captureCoverageReviews/${id}`).binding.source.key = "changed";
+    if (defect === "running") read(`captureCoverageReviews/${id}`).state = "running";
+    if (defect === "additional") sharedFakeFirestoreState.docs.set(`captureCoverageReviews/${"c".repeat(64)}`,
+      { ...read(`captureCoverageReviews/${id}`), attempts: 1 });
+    if (defect === "missing_row") sharedFakeFirestoreState.docs.delete(`captureCoverageReviews/${id}`);
+    if (defect === "truncated") delete read(`captureCoverageReviews/${id}`).started_at;
+    if (defect === "unknown_run") sharedFakeFirestoreState.docs.set("agentRuns/unknown-old", {
+      task_kind: "site_video_evidence", status: "completed", metadata: { capture_id: metadata.capture_id } });
+    await expect(reserveCaptureCoverageInference(SITE_ASSESSMENT_MODEL,
+      { ...assessmentMetadata, capture_history_reconciliation: receipt }, "openai", {})).rejects.toThrow();
+    expect(read(budgetPath)).toBeUndefined();
+    expect(read(programmePath).slots[2].state).toBe("held");
+  });
+  it("rejects changed history and changed reconciliation immediately before dispatch without clearing pending", async () => {
+    const id = reconcilePreProviderHistory(); const call = await sol(); const pending = read(budgetPath).pending_token;
+    read(`captureCoverageReviews/${id}`).attempts = 4;
+    await expect(call.assertDispatchAllowed()).rejects.toThrow("inference_programme_history_changed");
+    read(`captureCoverageReviews/${id}`).attempts = 3;
+    read(programmePath).capture_history_reconciliation.receipt_sha256 = `sha256:${"c".repeat(64)}`;
+    await expect(call.assertDispatchAllowed()).rejects.toThrow("inference_programme_dispatch_changed");
+    expect(read(budgetPath).pending_token).toBe(pending);
+  });
+  it("rejects an SDK run added after reconciled reservation and before continuation", async () => {
+    reconcilePreProviderHistory(); const call = await sol(); const pending = read(budgetPath).pending_token;
+    sharedFakeFirestoreState.docs.set("agentRuns/unknown-old", { task_kind: "site_video_evidence", status: "completed",
+      metadata: { capture_id: metadata.capture_id } });
+    const dispatch = await call.assertDispatchAllowed().then(() => "allowed", error => error.message);
+    expect(read(budgetPath).pending_token).toBe(pending);
+    // Synthetic already-in-flight usage remains honestly recordable despite the refused dispatch.
+    await call.record({ input_tokens: 100, output_tokens: 10 });
+    const continuation = await sol().then(() => "allowed", error => error.message);
+    expect({ dispatch, continuation }).toEqual({ dispatch: "coverage_budget_historical_exposure_unresolved",
+      continuation: "coverage_budget_historical_exposure_unresolved" });
+    expect(read(budgetPath).calls).toBe(1);
+  });
   it("atomically reuses three held Sol slots without changing retained aggregate exposure and denies a fourth", async () => {
     const originals = structuredClone(read(programmePath).slots.slice(0, 2));
     for (let n = 0; n < 3; n++) {

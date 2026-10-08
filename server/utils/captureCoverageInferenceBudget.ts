@@ -1,4 +1,5 @@
-import { admitInferenceProgramme, hasInferenceProgramme, inferenceProgrammeId, inferenceProgrammeContextDigest, validateInferenceProgramme, inferenceProgrammeAuthorityDigest } from "./inferenceProgrammeAdmission";
+import type { Transaction } from "firebase-admin/firestore";
+import { admitInferenceProgramme, hasInferenceProgramme, inferenceProgrammeId, inferenceProgrammeContextDigest, validateInferenceProgramme, inferenceProgrammeAuthorityDigest, acceptsReconciledCaptureHistory } from "./inferenceProgrammeAdmission";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -6,6 +7,20 @@ import { SiteAssessmentBudget } from "../agents/adapters/site-assessment-budget"
 import { humanDecisionDigest } from "./human-reply-admission";
 import { hasCurrentRecordingConsent } from "./recordingConsent";
 import { hydrateAgentEvidence } from "../agents/private-evidence";
+
+/** Accepted zero-provider review history never authorizes a second or unknown SDK run. */
+async function assertReconciledRunHistory(tx: Transaction, captureId: string, runId: string, requestId: string) {
+  const [runs, assessments] = await Promise.all([
+    tx.get(db!.collection("agentRuns").where("metadata.capture_id", "==", captureId).limit(100)),
+    tx.get(db!.collection("agentRuns").where("task_kind", "==", "site_assessment").limit(100)),
+  ]);
+  if (runs.docs.length >= 100 || assessments.docs.length >= 100 || runs.docs.some(row => row.id !== runId))
+    throw new Error("coverage_budget_historical_exposure_unresolved");
+  const otherAssessments = await Promise.all(assessments.docs.filter(row => row.id !== runId).map(async row =>
+    hydrateAgentEvidence(row.data(), { collection: "agentRuns", id: row.id })));
+  if (otherAssessments.some(row => row.input?.input?.context?.request_id === requestId))
+    throw new Error("coverage_budget_historical_exposure_unresolved");
+}
 
 /** SDK assessment, each traversal and correction share one durable capture allowance. Brief
  * changes, queue retries and restarts never reset already reserved exposure.
@@ -56,6 +71,8 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
     }
     if (state && (state.capture_id !== captureId || !Number.isFinite(state.exposure_usd) || state.exposure_usd < 0
       || !Number.isSafeInteger(state.calls) || state.calls < 1)) throw new Error("coverage_budget_state_invalid");
+    if (state && programme?.capture_history_reconciliation)
+      await assertReconciledRunHistory(tx, captureId, assessmentRunId as string, requestId);
     if (!state) {
       const [prior, runs, assessments] = await Promise.all([
         tx.get(db!.collection("captureCoverageReviews").where("captureId", "==", captureId).limit(100)),
@@ -70,12 +87,17 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
         data: await hydrateAgentEvidence(row.data(), { collection: "agentRuns", id: row.id }) })));
       const currentRuns = coverageRuns.filter(row => row.data.status === "running"
         && row.data.metadata?.review_id === reviewId && row.data.metadata?.coverage_claim_token === claimToken);
+      const reconciledHistory = assessment && programmeRef && programme?.capture_history_reconciliation
+        ? acceptsReconciledCaptureHistory(programme, requestId, captureId, prior.docs.map(row => ({ id: row.id, data: row.data() }))) : false;
       // Never reinterpret pre-budget attempts as free. Their provider exposure
       // requires reconciliation before this new policy can admit another call.
       if ((!assessment && job.attempts !== 1) || prior.docs.length >= 100 || runs.docs.length >= 100 || assessments.docs.length >= 100
         || assessmentRuns.some(row => row.id !== assessmentRunId
           && row.data.input?.input?.context?.request_id === requestId)
-        || currentRuns.length > 1 || coverageRuns.length !== currentRuns.length || prior.docs.some(row => (assessment || row.id !== reviewId) && (row.data().attempts ?? 0) > 0)) {
+        || currentRuns.length > 1 || coverageRuns.length !== currentRuns.length
+        || (programme?.capture_history_reconciliation && (!reconciledHistory || runs.docs.some(row => row.id !== assessmentRunId)))
+        || (prior.docs.some(row => (assessment || row.id !== reviewId) && (row.data().attempts ?? 0) > 0)
+          && !reconciledHistory)) {
         throw new Error("coverage_budget_historical_exposure_unresolved");
       }
     }
@@ -120,6 +142,12 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
         const programme = validateInferenceProgramme(programmeSnap.data());
         if (programme.expires_at_ms <= Date.now()) throw new Error("inference_programme_expired");
         const privacy = request?.capture_privacy_source_bound_decision || request?.capture_privacy_screen;
+        if (programme.capture_history_reconciliation) {
+          await assertReconciledRunHistory(tx, captureId, assessmentRunId as string, admission.requestId);
+          const history = await tx.get(db!.collection("captureCoverageReviews").where("captureId", "==", captureId).limit(100));
+          if (!acceptsReconciledCaptureHistory(programme, admission.requestId, captureId,
+            history.docs.map(row => ({ id: row.id, data: row.data() })))) throw new Error("inference_programme_history_changed");
+        }
         const slot = programme.slots.find(row => row.id === admission.programmeAdmission!.slotId);
         if (state?.pending_token !== token || state.capture_id !== captureId || state.inference_program_id !== admission.programmeId
           || state.inference_programme_authority_digest !== admission.programmeAdmission!.authorityDigest
