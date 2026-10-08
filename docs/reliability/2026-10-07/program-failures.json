@@ -18,8 +18,15 @@
       "source": "server/utils/captureReviewRecovery.ts",
       "candidateRetest": "3/3 formerly failing starvation budget variants pass, neighboring recovery and all 150 cases green",
       "owner": "queue_recovery",
-      "releaseStatus": "code-tested; independent review, merge/deployment owned by coordinator",
-      "limitation": "Repeated-pass starvation while preceding leases remain held; this replay does not prove permanent loss under bounded normal leases. Serialized fake Firestore, not live index or process-restart proof."
+      "releaseStatus": "scoped_repair_independently_reviewed_merged_and_deployed_d8988ab3",
+      "limitation": "Repeated-pass starvation while preceding leases remain held; this replay does not prove permanent loss under bounded normal leases. Serialized fake Firestore, not live index or process-restart proof.",
+      "prior_release_status": "code-tested; independent review, merge/deployment owned by coordinator",
+      "release": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+        "reviewed_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+        "merged_and_deployed_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "deployed_verification_scope": "paired web/worker identity plus no-submit ordinary draft reload; offline/native case-specific retest retained separately"
+      }
     },
     {
       "id": "REL-QUEUE-002",
@@ -45,8 +52,15 @@
       "source": "server/utils/captureOutbox.ts",
       "candidateRetest": "12/12 formerly failing malformed-provider budget variants pass, valid acceptance/rejection/outcome-unknown and stale receipts remain green",
       "owner": "queue_recovery",
-      "releaseStatus": "code-tested; independent review, merge/deployment owned by coordinator",
-      "limitation": "Synthetic malformed-adapter counterexample; no evidence that production Resend has returned this malformed shape"
+      "releaseStatus": "scoped_repair_independently_reviewed_merged_and_deployed_d8988ab3",
+      "limitation": "Synthetic malformed-adapter counterexample; no evidence that production Resend has returned this malformed shape",
+      "prior_release_status": "code-tested; independent review, merge/deployment owned by coordinator",
+      "release": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+        "reviewed_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+        "merged_and_deployed_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "deployed_verification_scope": "paired web/worker identity plus no-submit ordinary draft reload; offline/native case-specific retest retained separately"
+      }
     },
     {
       "id": "TRANSPORT-DUPLICATE-001",
@@ -122,7 +136,14 @@
       ],
       "candidateRetest": "All3 same-length corruption cases pass; identical duplicate and generation-replacement neighbors pass; persisted bytes retain original SHA256",
       "limitations": "Synthetic byte fixtures prove transport integrity failure, not video-perception behavior. Repair does not recover or certify previously overwritten parts. No production records were faulted or migrated.",
-      "releaseStatus": "Scoped code-tested; independent review/integration checks/merge/deploy owned by coordinator"
+      "releaseStatus": "scoped_repair_independently_reviewed_merged_and_deployed_d8988ab3",
+      "prior_release_status": "Scoped code-tested; independent review/integration checks/merge/deploy owned by coordinator",
+      "release": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+        "reviewed_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+        "merged_and_deployed_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "deployed_verification_scope": "paired web/worker identity plus no-submit ordinary draft reload; offline/native case-specific retest retained separately"
+      }
     },
     {
       "id": "INTAKE-RETURN-001",
@@ -132,9 +153,16 @@
       "rootCause": "Draft, request and retry identity were only in mounted memory",
       "minimizedReproducer": "RETURN001/RETURN002/RETURN003, retained baseline three failing component cases; production GET-only draft reload also failed",
       "repair": "Account/authoring-scoped local draft and exact frozen submission; existing authorized same-ID renewal; fresh consent for new actions",
-      "candidateRetest": "90/90 catalog,127focused checks,8intercepted browser traces; production candidate pending",
+      "candidateRetest": "Final424 checks include original90 intake catalog;22 normalUI emulator journeys;12 API-intercepted browser cases; actual production ordinary four-field reload PASS exactd898 versus baseline lost draft.",
       "source": "a4a74c1d;089890f6",
-      "releaseStatus": "reviewed;not_merged_not_deployed"
+      "releaseStatus": "scoped_repair_independently_reviewed_merged_and_deployed_d8988ab3",
+      "prior_release_status": "reviewed;not_merged_not_deployed",
+      "release": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+        "reviewed_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+        "merged_and_deployed_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "deployed_verification_scope": "paired web/worker identity plus no-submit ordinary draft reload; offline/native case-specific retest retained separately"
+      }
     },
     {
       "id": "ASSESS-SOURCE-001",
@@ -146,7 +174,14 @@
       "repair": "Observed interval and source-kind admission guard",
       "candidateRetest": "15structural conditions pass;120packets pass; semantic truth remains unscored",
       "source": "58b2a958",
-      "releaseStatus": "reviewed;not_merged_not_deployed"
+      "releaseStatus": "scoped_repair_independently_reviewed_merged_and_deployed_d8988ab3",
+      "prior_release_status": "reviewed;not_merged_not_deployed",
+      "release": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+        "reviewed_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+        "merged_and_deployed_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "deployed_verification_scope": "paired web/worker identity plus no-submit ordinary draft reload; offline/native case-specific retest retained separately"
+      }
     },
     {
       "id": "NOTIFY-ENCRYPTED-001",
@@ -157,8 +192,15 @@
       "minimizedReproducer": "UI021 first fresh-worker receipt, encrypted recipient object accepted by permissive fake sink",
       "repair": "Existing decryptFieldValue unwraps destination and greeting at enqueue; encrypted canonical record remains unchanged. Missing key safely warns/skips, without claiming durable notification retry.",
       "candidateRetest": "Baseline2/4; candidate4/4 strict encrypted/legacy/withdrawn/unavailable-key fixtures. Coordinator115/115 access/outbox/notification checks. Strict native emulator UI006 baseline failed recipient type object; v3 candidate21/21 passed.",
-      "releaseStatus": "independently_reviewed;not_merged_not_deployed",
-      "source": "3d2f9acc"
+      "releaseStatus": "scoped_repair_independently_reviewed_merged_and_deployed_d8988ab3",
+      "source": "3d2f9acc",
+      "prior_release_status": "independently_reviewed;not_merged_not_deployed",
+      "release": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+        "reviewed_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+        "merged_and_deployed_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "deployed_verification_scope": "paired web/worker identity plus no-submit ordinary draft reload; offline/native case-specific retest retained separately"
+      }
     },
     {
       "id": "RETURN-FORCED-KILL-001",
@@ -167,11 +209,18 @@
       "invariant": "Return route survives supported interruptions",
       "rootCause": "Recent localStorage writes can disappear on forced Chromium kill before browser disk flush; backend acknowledged job and upload survive",
       "minimizedReproducer": "retained native SIGKILL automatic-local-return diagnostic-v4 failed; no local pending recovery button",
-      "repair": "No browser crash durability repair claimed; strict queued private-link recovery passes scored v3 UI021.",
-      "candidateRetest": "UI022 literal SIGKILL before held upload-write acknowledgement, same profile ordinary form return/original identity/exact fixture passes3 historical attempts plus final884 full-run attempt; additional final884 repeats in flight",
-      "releaseStatus": "native_checkpoint_reviewed;884 normalUI022 pass;merge_deployment_pending",
-      "nextAction": "Evaluate strict browser persistence or explicit current account/email recovery only if this supported-scope requirement is adopted; do not claim localStorage crash durability",
-      "limitation": "Owned synthetic video, Firestore emulator and fake objects/model/mail; native Chromium only; original pre-checkpoint3 failures retained by combined release owner, not independently rerun by this author"
+      "repair": "Strict IndexedDB checkpoint commit before new dispatch and hydration before new identity, with account retirement. Earlier private-link-only/no-repair conclusion is superseded by the matched native checkpoint result.",
+      "candidateRetest": "UI022: three matched pre-checkpoint SIGKILL failures versus three final candidate successes. Ordinary same-profile original-job return/exact fixture; no extra unique-case credit.",
+      "releaseStatus": "scoped_repair_independently_reviewed_merged_and_deployed_d8988ab3",
+      "nextAction": "Retain native Chromium supported-scope evidence; hardware/Safari/incognito remain untested. P2 UX and exact-successful-body snapshot follow-up remains separately owned.",
+      "limitation": "Owned synthetic video; actual Express/Firestore emulator; fake objects/provider/local mail. Not production upload/provider or universal browser certification.",
+      "prior_release_status": "native_checkpoint_reviewed;884 normalUI022 pass;merge_deployment_pending",
+      "release": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+        "reviewed_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+        "merged_and_deployed_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "deployed_verification_scope": "paired web/worker identity plus no-submit ordinary draft reload; offline/native case-specific retest retained separately"
+      }
     },
     {
       "id": "INTAKE-MULTITAB-001",
@@ -181,9 +230,16 @@
       "rootCause": "writeSiteCaptureRecovery overwrites pending authority; storage listener only adopts same mounted requestId",
       "minimizedReproducer": "Original author46e6b2ef: threehelperauthority/ack failures; exact two-tab CSRF/create-response-barrier browserbaseline2/2fails. Late-clear candidate failure retained with source-snapshot limitation.",
       "repair": "Origin WebLock latest-authority freeze; whole frozen row andackmonotonic; exact refusal-body release; captured-operation identity fencestaleack/refusal afterclear. No signedURLs/video persisted.",
-      "releaseStatus": "independently_reviewed;combined940source_and_release_pending",
+      "releaseStatus": "scoped_repair_independently_reviewed_merged_and_deployed_d8988ab3",
       "candidateRetest": "Exactd1033932 author/8ccc99cc integration133focused,12interceptedbrowser,12additional repeatattempts pass. Supplemental16offline+4browser; notadded300core.",
-      "source": "8ccc99cc;author d1033932f926ebcc8e873f2ccc6a07468af9634b"
+      "source": "8ccc99cc;author d1033932f926ebcc8e873f2ccc6a07468af9634b",
+      "prior_release_status": "independently_reviewed;combined940source_and_release_pending",
+      "release": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+        "reviewed_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+        "merged_and_deployed_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "deployed_verification_scope": "paired web/worker identity plus no-submit ordinary draft reload; offline/native case-specific retest retained separately"
+      }
     },
     {
       "id": "ASSESS-PROVENANCE-BASIS-001",
@@ -195,7 +251,14 @@
       "repair": "Candidate published-source guard already prevents this classification. Assessment owner investigating scoped provenance-placement prompt guidance; no output rewrite, automatic paid retry or claim of candidate model success.",
       "candidateRetest": "Exact private packet unchanged: baseline admitted; candidate rejected; no provider dispatch.",
       "limitation": "Safe rejection demonstrates admission behavior, not improved model interpretation or successful customer publication. Actual isolated advice remains provisional and candidate publication unproven.",
-      "releaseStatus": "guard_tested_prompt_behavior_awaiting_next_authorized_real_run"
+      "releaseStatus": "guard_reviewed_merged_deployed;prompt_behavior_awaiting_next_authorized_real_run",
+      "prior_release_status": "guard_tested_prompt_behavior_awaiting_next_authorized_real_run",
+      "release": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+        "reviewed_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+        "merged_and_deployed_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "deployed_verification_scope": "paired web/worker identity plus no-submit ordinary draft reload; offline/native case-specific retest retained separately"
+      }
     },
     {
       "id": "DURABILITY-VALIDATION-001",
@@ -207,8 +270,15 @@
       "source": "client/src/lib/siteCaptureDraft.ts",
       "owner": "combined release owner",
       "candidateRetest": "Identical independent helper counterexample and actual native Chromium two-store rollback pass on884;223 neighboring checks pass",
-      "releaseStatus": "independently_reviewed;merge_deployment_pending",
-      "limitation": "Isolated helper counterexample, not observed customer data loss"
+      "releaseStatus": "scoped_repair_independently_reviewed_merged_and_deployed_d8988ab3",
+      "limitation": "Isolated helper counterexample, not observed customer data loss",
+      "prior_release_status": "independently_reviewed;merge_deployment_pending",
+      "release": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+        "reviewed_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+        "merged_and_deployed_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "deployed_verification_scope": "paired web/worker identity plus no-submit ordinary draft reload; offline/native case-specific retest retained separately"
+      }
     },
     {
       "id": "COVERAGE-DURABLE-TASK-001",
@@ -219,9 +289,16 @@
       "repair": "Persist plain task kind/session/metadata/input; registry restores definition at execution",
       "source": "server/utils/captureCoverageReview.ts",
       "owner": "combined release owner",
-      "candidateRetest": "Producer shape regression plus final884300/22 coverage status layers pass; complete actualSDK publication remains separate gate",
-      "releaseStatus": "independently_reviewed;merge_deployment_pending",
-      "limitation": "Root normalUI mocks whole agent and disables final reading; root layer alone would not have found or proved this serialization repair"
+      "candidateRetest": "Actual isolated producer before/after serialization repair by combined owner; final core424/normalUI22 root layer separately passes. Root mocks whole agent; actual final customer qualification/publication remains unproven.",
+      "releaseStatus": "scoped_repair_independently_reviewed_merged_and_deployed_d8988ab3",
+      "limitation": "Root normalUI mocks whole agent and disables final reading; root layer alone would not have found or proved this serialization repair",
+      "prior_release_status": "independently_reviewed;merge_deployment_pending",
+      "release": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+        "reviewed_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+        "merged_and_deployed_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "deployed_verification_scope": "paired web/worker identity plus no-submit ordinary draft reload; offline/native case-specific retest retained separately"
+      }
     },
     {
       "id": "INTAKE-ACK-SNAPSHOT-001",
@@ -246,12 +323,64 @@
       "source": "client/src/components/site/SiteCaptureStart.tsx",
       "owner": "combined release owner",
       "repair": "Guard retainDraft until interactive; include interactive in method/region effect dependency. Canonicalbody validation unchanged.",
-      "releaseStatus": "FIXED;independent_review_approved;merged_d8988ab3;deployment_pending",
+      "releaseStatus": "scoped_repair_independently_reviewed_merged_and_deployed_d8988ab3",
       "limitation": "Native Chromium/WebLocks/IndexedDB with API-intercepted backend. The ordinary reload requires no clear race; no current customer incidence established.",
       "independent_baseline_sha256": "4bc9e942ae3fa55a444a9feda6dc11f4389ccef3db3622a7dc53341d416b2e4f",
       "probe_sha256": "eb038abd444dba850871355ec1aabdeeb3cd464c715ef1ed8b6dfb92e0ef3285",
       "candidateRevision": "8baba7d231c09fe5302af9016e60b75f287bee8d",
-      "candidateRetest": "Frozen independent ordinaryreload observer3/3PASS all4valuesBOTHstores/sameID/exactly1POST;232clientneighborsPASS; originalintercepted12/12 plus003004selected/repeats3eachPASS"
+      "candidateRetest": "Frozen independent ordinaryreload observer3/3PASS all4valuesBOTHstores/sameID/exactly1POST;232clientneighborsPASS; originalintercepted12/12 plus003004selected/repeats3eachPASS",
+      "prior_release_status": "FIXED;independent_review_approved;merged_d8988ab3;deployment_pending",
+      "release": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
+        "reviewed_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
+        "merged_and_deployed_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "deployed_verification_scope": "paired web/worker identity plus no-submit ordinary draft reload; offline/native case-specific retest retained separately"
+      }
+    },
+    {
+      "id": "ASSESS-STALE-APPLICABILITY-001",
+      "severity": "P1_for_affected_internal_advisory_assessment_path",
+      "invariant": "Confident consequential event/capability claims require actual supporting evidence; citation presence alone is insufficient",
+      "owner": "assessment_cases",
+      "minimizedReproducer": "V2-corrected-knowledge-current-spec",
+      "baselineRevision": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+      "runtimeSourceSha256": "67a51a0d7a2164464d07fe983522857c180eaf8caa6539d824eaf47a91a8d1c4",
+      "semanticCaseHash": "1d232863fd3dab545cf69ad32f0aac5f80e93cd1dad53b2792000f194e5c612f",
+      "baselineResult": "actual SDK Runner scripted packet admitted; synthetic source disproves claim",
+      "violatedClaim": "Known published current2m reach cites a record explicitly current:false with retained correction current1m.",
+      "releaseStatus": "in_progress_narrow_explicit_applicability_guard",
+      "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
+      "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations."
+    },
+    {
+      "id": "ASSESS-VIDEO-ENTAILMENT-001",
+      "severity": "P1_for_affected_internal_advisory_assessment_path",
+      "invariant": "Confident consequential event/capability claims require actual supporting evidence; citation presence alone is insufficient",
+      "owner": "assessment coordinator",
+      "minimizedReproducer": "V2-conflicting-owner-spec-video",
+      "baselineRevision": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+      "runtimeSourceSha256": "67a51a0d7a2164464d07fe983522857c180eaf8caa6539d824eaf47a91a8d1c4",
+      "semanticCaseHash": "414589b1f854d99d33dbfafbdcbffe4ad870d074f51ea69938f1024ea666f0de",
+      "baselineResult": "actual SDK Runner scripted packet admitted; synthetic source disproves claim",
+      "violatedClaim": "Observed completed bin stacking cites only bin-to-table movement; task completion not observable and owner/spec stacking absent.",
+      "releaseStatus": "OPEN_no_general_sentence_entailment_guard",
+      "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
+      "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations."
+    },
+    {
+      "id": "ASSESS-FIELD-ENTAILMENT-001",
+      "severity": "P1_for_affected_internal_advisory_assessment_path",
+      "invariant": "Confident consequential event/capability claims require actual supporting evidence; citation presence alone is insufficient",
+      "owner": "assessment coordinator",
+      "minimizedReproducer": "V5-admitted-field-wrong-claim",
+      "baselineRevision": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+      "runtimeSourceSha256": "67a51a0d7a2164464d07fe983522857c180eaf8caa6539d824eaf47a91a8d1c4",
+      "semanticCaseHash": "34d08adecdc8b5d74282d5230f758915ee909622ed9c1b3b6b0d4382c3bcff42",
+      "baselineResult": "actual SDK Runner scripted packet admitted; synthetic source disproves claim",
+      "violatedClaim": "Known published50m reach cites registry reachM:1 whose field provenance is otherwise qualified.",
+      "releaseStatus": "OPEN_qualified_source_does_not_entail_prose",
+      "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
+      "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations."
     }
   ],
   "dependencies": [
@@ -271,24 +400,44 @@
       "id": "DEP-JOINED",
       "owner": "coordinator",
       "state": "coverage_layer_executed;assessment_layer_unproven",
-      "detail": "21/21 strict normal-UI cases actual Express/Firestore emulator;20/20 additional fake-storage/worker traces. Fake objects/model/local mail throughout; final SDK assessment publication absent. Full pinned-file repetition in progress."
+      "detail": "22/22 normalUI actual Express/Firestore emulator plus20 additional in-memory worker traces;42 distinct layered traces. Fake objects/provider/local mail. Combined actual coverageSDK and qualification chain traced separately; final customer assessment publication remains unproven."
     },
     {
       "id": "DEP-LIVE-RUNTIME",
       "owner": "existing_dishwasher_task",
-      "state": "in_progress",
-      "detail": "Existing local Gemini and worker OpenAI split-stage host being reviewed; newapproved$5 single ledger. No extra provider budget/campaign."
+      "state": "partial_completed_Gemini_unknown_no_automatic_retry",
+      "detail": "One isolated actual Sol SDK call over provisional frame text completed; no continuous video or usable Gemini evidence. Gemini exposure/cost remains unknown with reserved headroom; no paid retry or real customer email. Current guard rejects unchanged baseline packet."
     }
   ],
   "coordination": {
     "parallel_pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
     "owner_chat_title": "Improve Blueprint reliability",
-    "status": "one combined release through PR940; local supplemental source not merged independently",
+    "status": "PR940 merged/deployed exactd898; supplemental runnable cases and receipts retained on company-owned coordinator branch",
     "count_policy": "Keep catalogs separate until semantic deduplication; do not add overlapping programs counts",
     "required_integration": "Preserve PR940 authentication/withdrawal/current-notification-authority/Pipeline fences and local scoped recovery/receipt uncertainty/upload-byte protections"
   },
   "scope_limits": [
     "Fresh repaired intake dispatch requires secure-origin WebLocks and usable localpersistence; absent capabilities refuse with supported-browser/contact guidance beforedispatch. Existingprivate-link routes andparallelcustomerconversations retainownauthorization.",
-    "No immediate-crash/incognito/Safari certification; currentproduction1b8memory-only hasno legacy persistentdraftwriter."
-  ]
+    "No immediate-crash/incognito/Safari certification; historical baseline1b8memory-only hasno legacy persistentdraftwriter."
+  ],
+  "joined_customer_path_observation": {
+    "observed_at_utc": "2026-10-08T06:49:48Z",
+    "owner_receipt": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940#issuecomment-6054210505",
+    "executed_boundaries": [
+      "ordinary intake/upload",
+      "durable emulator objects",
+      "actual extraction",
+      "coverage worker/native SDK with scripted HTTP",
+      "local notification sink",
+      "verified fixture ownership",
+      "ordinary brief confirmation with six unknown gates/null success metrics",
+      "actual Pipeline staging/11 object downloads/lease/default preflight"
+    ],
+    "outcome": "required preflight refusal",
+    "error_code": "website_scene_sponsorship_not_configured",
+    "http_status": 409,
+    "qualification": "needs_conversation",
+    "customer_assessment_publications": 0,
+    "claim_ceiling": "Real handlers/durability/SDK and Pipeline boundaries in isolated fixture with simulated providers; no fabricated qualifying facts/funding/completion. Final joined happy path remains unproven."
+  }
 }

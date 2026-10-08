@@ -4,11 +4,57 @@
     "baseline_sha": "1b8d810ec117b93fe52fd323be052ddafa7070db",
     "pull_request": "https://github.com/ognjhunt/Blueprint-WebApp/pull/940",
     "merge_status": "merged_after_required_PR_checks_and_independent_source_review",
-    "deployment_status": "main_branch_CI_and_existing_paired_exact_SHA_deployment_pending",
+    "deployment_status": "deployed_and_independently_verified_at_exact_merged_SHA",
     "reviewed_pr_head": "8baba7d231c09fe5302af9016e60b75f287bee8d",
     "merged_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
     "merged_at_utc": "2026-10-08T06:36:17Z",
-    "post_deployment_verified": false
+    "post_deployment_verified": true,
+    "required_main_ci": {
+      "run_id": 37738528838,
+      "conclusion": "success",
+      "sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37738528838"
+    },
+    "deployment_workflow": {
+      "run_id": 37739286731,
+      "conclusion": "success",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/37739286731",
+      "completed_at_utc": "2026-10-08T06:47:53Z"
+    },
+    "render_receipts": [
+      {
+        "role": "web",
+        "deployment_id": "dep-db3jnn2j9qps73fupnrg",
+        "status": "live",
+        "sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "finished_at_utc": "2026-10-08T06:47:44.423583Z"
+      },
+      {
+        "role": "worker",
+        "deployment_id": "dep-db3jnnegekts73f31qqg",
+        "status": "live",
+        "sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+        "finished_at_utc": "2026-10-08T06:47:31.617772Z"
+      }
+    ],
+    "independent_post_deployment": {
+      "started_at_utc": "2026-10-08T06:48:57.704Z",
+      "completed_at_utc": "2026-10-08T06:48:59.811Z",
+      "result": "presentation_passed",
+      "serving_sha_before": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+      "serving_sha_after": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+      "health_http": 200,
+      "ready_http": 200,
+      "four_draft_fields_retained": true,
+      "consent_unchecked": true,
+      "intake_mutations": 0,
+      "provider_calls": 0,
+      "notification_sends": 0,
+      "private_result_sha256": "89ca675c9e3198fe4721f237dd7f74de0fc9742c4cb258eeb996f0d07dac5417",
+      "screenshot_sha256": "6a59b9bbd4aef3cb9f898c7a217c0e0add22bbe0ea848c85539dc07df88a9294",
+      "script_sha256": "306b01bc00db0c0f4f383b68bc16c62d08010428919c0829611d1cd3e656803b",
+      "claim_ceiling": "Exact serving identity, paired deployment receipts, health/readiness and ordinary local-draft reload only; no production submission/upload/worker/assessment/notification path."
+    }
   },
   "pipeline": {
     "merged_required_stage_fix": "cc876af25389de934f57c08b33421987f9e3328d",
@@ -26,7 +72,21 @@
     },
     "private_raw_receipt_sha256": "3536b08a3a640d16acd8fad59f0587915838ba3e5710e586f13e17591bc51617",
     "command": "existing scripts/operator_door.py status (GET only; script sourced from current origin/main; existing credentials)",
-    "verification": "Independent authenticated operator status invokes host.version() -> configured intake version URL; serving identity matches active release and deployment receipt. No live required-stage fault or customer job was injected."
+    "verification": "Independent authenticated operator status invokes host.version() -> configured intake version URL; serving identity matches active release and deployment receipt. No live required-stage fault or customer job was injected.",
+    "test_fixture_followup": {
+      "pull_request": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2647",
+      "merged_sha": "4cb97edeb5fabcac30a14a4576a896a6a22941a3",
+      "main_required_ci": "success",
+      "production_promotion_run": 37734995667,
+      "production_promotion_state_at_0648_utc": "in_progress;shards0_and3_success;shards1_and2_in_progress",
+      "serving_identity_claim": "Last independent actual service GET remains cc876; do not substitute merge SHA for serving proof."
+    }
   },
-  "privacy": "Only sanitized deployment identity/receipt metadata; private operator status remains ignored."
+  "privacy": "Only sanitized deployment identity/receipt metadata; private operator status remains ignored.",
+  "portable_artifact_static_audit": {
+    "outcome": "pass",
+    "findings": 0,
+    "receipt_sha256": "2fbc657ed7df0c1538406e20bd470739d4d07f31261359f9e8e1e9bf3e81b6aa",
+    "claim_ceiling": "Static explicit canonical references only; not remote artifact access or complete migration."
+  }
 }
