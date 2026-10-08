@@ -10,7 +10,7 @@ import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentCon
 import { inferenceProgrammeContextDigest } from "../utils/inferenceProgrammeAdmission";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
-import { reserveCaptureCoverageInference } from "../utils/captureCoverageInferenceBudget";
+import { reserveCaptureCoverageInference, grantInferenceProgrammeTechnicalContinuation } from "../utils/captureCoverageInferenceBudget";
 const requestId="retry-fixture",captureId=`walkthrough-${requestId}`,oldRun="site-assessment-old",programmePath="inferencePrograms/retry-programme";
 const budgetPath=`captureCoverageReviews/budget-${humanDecisionDigest({capture_id:captureId})}`;
 const read=(path:string):any=>state.docs.get(path);
@@ -50,6 +50,11 @@ beforeEach(async()=>{
  read(`agentRuns/${oldRun}`).status="failed";read(`siteAssessmentJobs/${jobId}`).state="needs_review";raw.site_advisory.state="needs_review";
 });
 it("explicit retry preserves unknown full exposure and immutable old run, then permits only remaining held slots",async()=>{
+ vi.spyOn(Date,"now").mockReturnValue(read(programmePath).expires_at_ms+1);
+ try {
+ await expect(retry()).rejects.toThrow("advisory_retry_unavailable");
+ await grantInferenceProgrammeTechnicalContinuation({programmeId:"retry-programme",expectedAuthorityDigest:read(budgetPath).inference_programme_authority_digest,
+  continuationIdentity:"explicit-technical-window",authorityRef:"synthetic-authority",operatorRef:"synthetic-authorized-operator",effectiveExpiresAtMs:Date.now()+7200000});
  const old=structuredClone(read(`agentRuns/${oldRun}`)),before=structuredClone(read(budgetPath)),original=structuredClone(read(programmePath).slots.slice(0,2));
  expect(await describeSiteAssessmentRetry(requestId,access)).toEqual({available:true,job_id:jobId,run_id:oldRun});
  expect(read(budgetPath)).toEqual(before);
@@ -72,6 +77,7 @@ it("explicit retry preserves unknown full exposure and immutable old run, then p
  expect(read(budgetPath).pending_token).toBe(pending);
  expect(next.receipt.capture_exposure_usd).toBeCloseTo(0.66384);expect(read(budgetPath).calls).toBe(2);
  expect(read(programmePath).slots.filter((row:any)=>row.run_id===oldRun&&row.state==="unknown")).toHaveLength(1);
+ }finally{vi.restoreAllMocks();}
 });
 it.each(["access","withdrawal","source","context","expiry","cap","slot","running","unknown-run","history","missing-intent","duplicate-token"])("refuses %s without changing any accounting",async defect=>{
  if(defect==="access")read(`inboundRequests/${requestId}`).account_owner_uid="different-owner";
