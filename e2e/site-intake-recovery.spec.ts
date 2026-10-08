@@ -25,11 +25,11 @@ test("lost create response survives reload with the same private retry identity"
   await page.reload();
   await expect(page.locator("#start-task")).toHaveValue("Move sealed cartons onto a pallet");
   await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
-  await expect(page.getByRole("link", { name: "Review your job brief", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-recovery");
+  await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-recovery");
   expect(posts).toHaveLength(2);
   expect(posts[1]).toBe(posts[0]);
   await page.reload();
-  await expect(page.getByRole("link", { name: "Review your job brief", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-recovery");
+  await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-recovery");
   expect(posts).toHaveLength(2);
   await context.tracing.stop({ path: testInfo.outputPath("recovery-trace.zip") });
 });
@@ -76,7 +76,6 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
     await page.locator("#start-email").fill("qa@example.invalid");
     await page.locator("#start-company").fill("Owned synthetic QA");
     await page.locator("#start-method-upload").check();
-    await page.locator("#start-rights").check();
     await page.locator("#start-footage").setInputFiles(fixture);
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
     await expect.poll(() => interrupted).toBe(true);
@@ -88,7 +87,7 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
     expect(posts).toBe(1);
     if (receipt === "received-pending") {
       await expect(page.getByRole("heading", { name: "Video received. Processing is not confirmed." })).toBeVisible();
-      await expect(page.getByRole("link", { name: "Review your job brief", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart");
+      await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart");
     } else {
       await expect(page.getByRole("heading", { name: "Your job is saved. Check your video upload." })).toBeVisible();
       await expect(page.getByRole("link", { name: "Open the uploader", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart?video=existing");

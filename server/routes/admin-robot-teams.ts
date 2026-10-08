@@ -48,13 +48,66 @@ const router = Router();
 // could list every team.
 router.use(requireAdminRole);
 
+import { getBrief } from "../utils/siteTaskBrief";
+import { getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
+import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
+import { readPilotCalendarEvent } from "../utils/google-calendar";
+import { projectPilotCoordination } from "../utils/pilotCoordination";
+import { buildTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { pilotRecommendationEventId, pilotScheduledEventId } from "../utils/pilotRecommendationNotifications";
+import { humanDecisionDigest } from "../utils/human-reply-admission";
+import { projectCurrentSiteJobDecision, siteJobDecisionSourceDigest } from "../utils/siteJobDecision";
+import siteJobCommunicationsRouter from "./admin-site-job-communications";
+
+router.use(siteJobCommunicationsRouter);
+
+const decisionSchema = z.object({ sourceDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  recommendation: z.string().trim().min(8).max(2000), why: z.string().trim().min(8).max(2000),
+  decisiveUncertainty: z.string().trim().max(2000), nextAction: z.string().trim().min(8).max(2000),
+  question: z.object({ text: z.string().trim().min(8).max(1000), reason: z.string().trim().min(8).max(1000) }).strict().nullable().default(null),
+}).strict();
+
+/** Human judgment is useful before a provider is ready to propose a pilot. */
+router.post("/recommendations/:requestId/decision", async (req, res) => {
+  const parsed = decisionSchema.safeParse(req.body), actor = String(res.locals.firebaseUser?.uid ?? "").trim();
+  if (!parsed.success || !actor) return res.status(400).json({ error: "A named reviewer must record the recommendation, why, decisive uncertainty and Blueprint's next action against the current evidence." });
+  if (!db) return res.status(503).json({ error: "Store unavailable" });
+  const requestId = String(req.params.requestId), input = parsed.data;
+  try {
+    await db.runTransaction(async tx => {
+      const ref = db!.collection("inboundRequests").doc(requestId), current = (await tx.get(ref)).data();
+      const brief = (await tx.get(db!.collection("siteTaskBriefs").doc(requestId))).data() ?? null;
+      if (!current) throw new Error("job_missing");
+      const assessment = await loadCurrentSiteAdvisory(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: current.account_owner_uid ?? null });
+      if (siteJobDecisionSourceDigest(current, brief, assessment) !== input.sourceDigest) throw new Error("decision_source_changed");
+      if (current.customer_decision?.sourceDigest === input.sourceDigest
+        && humanDecisionDigest({ recommendation: current.customer_decision.recommendation, why: current.customer_decision.why,
+          decisiveUncertainty: current.customer_decision.decisiveUncertainty, nextAction: current.customer_decision.nextAction,
+          question: current.customer_decision.question ?? null }) === humanDecisionDigest({ recommendation: input.recommendation,
+          why: input.why, decisiveUncertainty: input.decisiveUncertainty, nextAction: input.nextAction, question: input.question })) return;
+      tx.update(ref, { customer_decision: { schemaVersion: "site_job_decision.v1", ...input,
+        reviewedBy: actor, reviewedAtIso: new Date().toISOString() }, customerAnswerReviewRequired: false,
+        customerAnswerNextOwner: "Blueprint", customerAnswerNextAction: input.nextAction });
+    });
+    return res.json({ ok: true });
+  } catch { return res.status(409).json({ error: "The job or assessment changed. Reload the current evidence before recording the decision." }); }
+});
+
 const recommendationSchema = z.object({
+  briefRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   teamId: z.string().trim().min(1).max(120),
   purpose: z.string().trim().min(8).max(400),
   siteProvides: z.string().trim().min(4).max(400),
   teamProvides: z.string().trim().min(4).max(400),
   pilotCost: z.string().trim().min(2).max(120),
   window: z.string().trim().min(2).max(120),
+  successCondition: z.string().trim().max(1000).default("Not yet agreed — confirm the measurable success condition."),
+  exclusions: z.string().trim().max(1000).default("Production deployment, purchases and private footage sharing require separate approval."),
+  costBasis: z.string().trim().max(600).default("Provisional; obtain the provider's written quote and applicable terms."),
+  sitePreparation: z.string().trim().max(1000).default("Not yet agreed."),
+  humanWork: z.string().trim().max(1000).default("Confirm setup, supervision, safety review and operator responsibilities."),
+  capabilityBasis: z.string().trim().max(1000).default("Proposed fit; no demonstrated performance on this job is established."),
+  providerCommitment: z.string().trim().max(600).default("Not confirmed. Interest does not reserve provider capacity."),
   uncertainties: z.string().trim().max(400).default(""),
   alternative: z.string().trim().max(400).default(""),
 }).strict();
@@ -83,11 +136,11 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
   if (!db) return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Store unavailable" });
   const store = db;
   const requestId = String(req.params.requestId);
-  const { teamId, ...plan } = parsed.data;
+  const { teamId, briefRevision, ...plan } = parsed.data;
   try {
     const team = await getRobotTeam(teamId);
-    if (!team || !RECOMMENDABLE_STATUSES.has(team.status)) {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: "Recommend a registered team that has applied or is engaged." });
+    if (!team || !RECOMMENDABLE_STATUSES.has(team.status) || (await getAccessRecordForEmail(team.accountEmail || team.contactEmail))?.status !== "approved") {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: "Recommend a registered, manually admitted team. Admission does not establish capability or availability." });
     }
     // Stable across Firestore callback retries. A lost HTTP response can also
     // retry an unchanged plan without replacing the recommendation it saved.
@@ -103,9 +156,11 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
       const current = await transaction.get(ref);
       if (!current.exists) return { status: "missing" } as const;
       const record = current.data()!;
+      const currentBrief = await transaction.get(store.collection("siteTaskBriefs").doc(requestId));
+      if ((briefRevision && briefRevision !== humanDecisionDigest(currentBrief.exists ? currentBrief.data() : null)) || (record.pilot_recommendation?.reviewRequired && !briefRevision)) return { status: "changed" } as const;
       if (record.pilot_booking) return { status: "booked" } as const;
       const previous = record.pilot_recommendation;
-      const samePlan = typeof previous?.id === "string"
+      const samePlan = !previous?.reviewRequired && typeof previous?.id === "string"
         && Object.entries({ teamId: team.id, teamName: team.name, ...plan })
           .every(([key, value]) => previous[key] === value);
       const recommendation = samePlan ? previous as typeof proposed : proposed;
@@ -154,14 +209,105 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
       }
       return { status: "ok", id: recommendation.id } as const;
     });
+    if (outcome.status === "changed") return res.status(409).json({ error: "The brief changed. Reload and review the proposal against the current job." });
     if (outcome.status === "missing") return res.status(HTTP_STATUS.NOT_FOUND).json({ ok: false, error: "Job not found" });
-    if (outcome.status === "booked") return res.status(HTTP_STATUS.CONFLICT).json({ ok: false, error: "This pilot is already booked." });
+    if (outcome.status === "booked") return res.status(HTTP_STATUS.CONFLICT).json({ ok: false, error: "This proposal has already been accepted; reconcile changes with the parties before replacing it." });
     if (outcome.status === "contact_missing") return res.status(HTTP_STATUS.CONFLICT).json({ ok: false, error: "Add a valid site contact email before recommending this pilot." });
     return res.json({ ok: true, id: outcome.id });
   } catch (error) {
     logger.error({ err: error, requestId }, "Failed to record a pilot recommendation");
     return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Unable to record the recommendation" });
   }
+});
+
+/** Prepare the existing manual proposal from the same private job; never auto-match or publish. */
+router.get("/recommendations/:requestId", async (req, res) => {
+  if (!db) return res.status(503).json({ error: "Store unavailable" });
+  const requestId = String(req.params.requestId);
+  try {
+    const record = (await db.collection("inboundRequests").doc(requestId).get()).data();
+    if (!record) return res.status(404).json({ error: "Job not found" });
+    const [brief, teams, assessment, interests] = await Promise.all([getBrief(requestId),
+      listMatchableRobotTeams({ statuses: ["applied", "engaged"] }),
+      loadCurrentSiteAdvisory(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: record.account_owner_uid ?? null }),
+      db.collection("inboundRequests").doc(requestId).collection("robotTeamInterest").limit(100).get()]);
+    const admitted = (await Promise.all(teams.map(async team => (await getAccessRecordForEmail(team.accountEmail || team.contactEmail))?.status === "approved" ? team : null))).filter(Boolean);
+    const terms = brief?.successCriteria;
+    res.set("Cache-Control", "no-store");
+    return res.json({ requestId, recommendation: record.pilot_recommendation ?? null,
+      decision: projectCurrentSiteJobDecision(record, brief, assessment), decisionSourceDigest: siteJobDecisionSourceDigest(record, brief, assessment),
+      customerConversation: Array.isArray(record.customerConversation) ? record.customerConversation : [],
+      customerClarification: record.site_task_clarification ?? null,
+      coordination: projectPilotCoordination(record), assessment,
+      teams: admitted.map(team => ({ id: team!.id, name: team!.name, capabilityDescription: team!.capabilityDescription ?? "No demonstrated capability recorded" })),
+      interests: interests.docs.map(doc => doc.data()),
+      draft: { purpose: brief?.summary ?? String(await decryptFieldValue(record.request?.taskStatement ?? "")),
+        successCondition: terms?.successDefinition ? `${terms.successDefinition}${terms.successRate != null ? `; at least ${terms.successRate}% successful cycles` : ""}${terms.cycleTimeSeconds != null ? `; no more than ${terms.cycleTimeSeconds} seconds per cycle` : ""}` : "",
+        siteProvides: "", teamProvides: "", pilotCost: "", window: "", sitePreparation: "", humanWork: "", costBasis: "", capabilityBasis: "", providerCommitment: "", exclusions: "Production deployment, purchases and private footage sharing require separate approval.", uncertainties: "", alternative: "" },
+      briefRevision: humanDecisionDigest(brief),
+      sources: { purpose: brief ? `siteTaskBriefs/${requestId}:summary` : `inboundRequests/${requestId}:request.taskStatement`, successCondition: terms?.successDefinition ? `siteTaskBriefs/${requestId}:successCriteria (site targets)` : null },
+      communications: { route: `/api/admin/robot-teams/jobs/${encodeURIComponent(requestId)}/communications`,
+        draftingEnabled: process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true", deliveryEnabled: process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "true" } });
+  } catch (error) { logger.error({ err: error, requestId }, "Proposal draft unavailable"); return res.status(503).json({ error: "Proposal draft unavailable" }); }
+});
+
+const agreementSchema = z.object({ agreedBy: z.string().trim().min(3).max(200), evidenceRef: z.string().url().max(1000).refine(value => value.startsWith("https://")) }).strict();
+const coordinationSchema = z.object({ recommendationId: z.string().min(1).max(120), calendarEventId: z.string().regex(/^[a-zA-Z0-9_-]{5,200}$/),
+  providerAgreement: agreementSchema, siteAgreement: agreementSchema, sitePreparation: z.string().trim().min(10).max(2000),
+  verifiedAgreements: z.literal(true) }).strict();
+
+/** Reconcile a changed brief without silently amending an accepted agreement. */
+router.post("/recommendations/:requestId/reconcile", async (req, res) => {
+  const parsed = z.object({ recommendationId: z.string().min(1).max(120), briefRevision: z.string().regex(/^[a-f0-9]{64}$/),
+    providerAgreement: agreementSchema, siteAgreement: agreementSchema, verifiedUnchangedScope: z.literal(true) }).strict().safeParse(req.body);
+  const actor = res.locals.firebaseUser?.uid;
+  if (!parsed.success || !actor) return res.status(400).json({ error: "A named reviewer must verify both parties' evidence that the accepted scope, cost and terms still cover the updated job. Changed agreements need their applicable new approval." });
+  if (!db) return res.status(503).json({ error: "Store unavailable" });
+  const requestId = String(req.params.requestId), input = parsed.data;
+  try {
+    await db.runTransaction(async tx => {
+      const ref = db!.collection("inboundRequests").doc(requestId), current = (await tx.get(ref)).data();
+      const brief = (await tx.get(db!.collection("siteTaskBriefs").doc(requestId))).data();
+      if (!current || current.pilot_booking?.recommendationId !== input.recommendationId || current.pilot_recommendation?.id !== input.recommendationId
+        || humanDecisionDigest(brief ?? null) !== input.briefRevision) throw new Error("reconciliation_changed");
+      if (!current.pilot_recommendation.reviewRequired) return;
+      tx.update(ref, { pilot_recommendation: { ...current.pilot_recommendation, reviewRequired: false,
+        reconciliation: { ...input, recordedBy: actor, recordedAtIso: new Date().toISOString() } } });
+    });
+    return res.json({ ok: true });
+  } catch { return res.status(409).json({ error: "The job changed or the accepted scope could not be reconciled. Reload before recording agreement evidence." }); }
+});
+
+/** Named staff record agreements already obtained under applicable authority. This sends no correspondence or calendar invitations. */
+router.post("/recommendations/:requestId/coordination", async (req, res) => {
+  const parsed = coordinationSchema.safeParse(req.body);
+  const recordedBy = res.locals.firebaseUser?.uid;
+  if (!parsed.success || !recordedBy) return res.status(400).json({ error: "Supply the exact accepted proposal, existing Calendar event, both parties' agreement evidence and agreed preparation responsibilities. A named reviewer must verify authority and agreement to this date and scope." });
+  if (!db) return res.status(503).json({ error: "Store unavailable" });
+  const store = db, requestId = String(req.params.requestId), input = parsed.data;
+  try {
+    const ref = store.collection("inboundRequests").doc(requestId);
+    const current = (await ref.get()).data();
+    if (!current?.pilot_booking || current.pilot_booking.recommendationId !== input.recommendationId || current.pilot_recommendation?.id !== input.recommendationId || current.pilot_recommendation.reviewRequired) return res.status(409).json({ error: "The current proposal must be accepted and reconciled first." });
+    const existing = current.pilot_booking.coordination;
+    const digest = humanDecisionDigest(input);
+    if (existing && existing.agreementDigest !== digest) return res.status(409).json({ error: "A commitment is already recorded. Resolve amendments with both parties before changing it." });
+    const calendar = await readPilotCalendarEvent(input.calendarEventId);
+    if (existing && (existing.startsAt !== calendar.startsAt || existing.endsAt !== calendar.endsAt)) return res.status(409).json({ error: "The Calendar date changed. Reconcile it with both parties; the existing commitment has not been overwritten." });
+    const agreement = { ...input, ...calendar, state: "scheduled", recordedBy, verifiedAt: new Date().toISOString(), agreementDigest: digest };
+    const outcome = await store.runTransaction(async tx => {
+      const snap = await tx.get(ref), record = snap.data();
+      if (!record || humanDecisionDigest({ proposal: record.pilot_recommendation, booking: record.pilot_booking }) !== humanDecisionDigest({ proposal: current.pilot_recommendation, booking: current.pilot_booking })) throw new Error("pilot_agreement_changed");
+      const to = String(await decryptFieldValue(record.contact?.email ?? "")).trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw new Error("site_contact_missing");
+      const notification = buildTaskLifecycleNotification({ requestId, milestone: "pilot_scheduled", eventId: pilotScheduledEventId(input.calendarEventId, to), to, captureUrl: captureUploadUrlFor(requestId, "owner") });
+      const noticeRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(notification.idempotencyKey), notice = await tx.get(noticeRef);
+      if (!record.pilot_booking.coordination) tx.update(ref, { pilot_booking: { ...record.pilot_booking, coordination: agreement } });
+      if (!notice.exists) tx.create(noticeRef, buildOutboxEntry(notification));
+      return projectPilotCoordination({ ...record, pilot_booking: { ...record.pilot_booking, coordination: existing ?? agreement } });
+    });
+    return res.json({ ok: true, coordination: outcome });
+  } catch (error) { logger.warn({ err: error, requestId }, "Pilot coordination evidence could not be verified"); return res.status(503).json({ error: "Calendar or agreement evidence could not be verified. The pilot remains in its recorded state; no new commitment or notice was created." }); }
 });
 
 /** The queue, oldest proposals first so nothing rots at the bottom. */

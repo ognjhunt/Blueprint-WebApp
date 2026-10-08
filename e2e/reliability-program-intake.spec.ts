@@ -31,14 +31,14 @@ test("UI-RETURN-001 lost create response, reload, recover original identity", as
   await page.reload();
   await expect(page.locator("#start-task")).toHaveValue("Move sealed cartons to the pallet");
   await page.getByRole("button", {name: "Recover saved job"}).click();
-  await expect(page.getByRole("link", {name: "Review your job brief"})).toHaveAttribute("href", fixtureLink);
+  await expect(page.getByRole("link", {name: "Open your job and assessment"})).toHaveAttribute("href", fixtureLink);
   expect(bodies).toHaveLength(2); expect(bodies[1]).toBe(bodies[0]);
 });
 test("UI-RETURN-002 close tab and return preserves draft, without renewing consent", async ({ page, context }) => {
-  await page.goto("/contact/site-operator"); await fill(page); await page.locator("#start-rights").check();
+  await page.goto("/contact/site-operator"); await fill(page);
   await page.close(); const returning = await context.newPage(); await returning.goto("/contact/site-operator");
   await expect(returning.locator("#start-task")).toHaveValue("Move sealed cartons to the pallet");
-  await expect(returning.locator("#start-rights")).not.toBeChecked();
+  await expect(returning.locator("#start-rights")).toHaveCount(0);
   await returning.getByRole("button", {name: "Clear this browser's draft"}).click();
   await expect(returning.getByRole("status").filter({hasText:"has been cleared"})).toBeVisible();
   await returning.reload(); await expect(returning.locator("#start-task")).toHaveValue("");
@@ -48,7 +48,7 @@ test("UI-RETURN-003 browser storage restore returns acknowledged same job and re
   await page.route(`**${create}`, route => {bodies.push(route.request().postData()!); return route.fulfill({json: {captureUrl: fixtureLink}});});
   await page.goto("/contact/site-operator"); await fill(page);
   await page.getByRole("button", {name: "Start free assessment"}).click();
-  await expect(page.getByRole("link", {name: "Review your job brief"})).toBeVisible();
+  await expect(page.getByRole("link", {name: "Open your job and assessment"})).toBeVisible();
   const saved = await page.context().storageState();
   // New context models browser shutdown with persisted origin localStorage.
   const restored = await browser.newContext({storageState: saved});
@@ -62,7 +62,7 @@ test("UI-RETURN-003 browser storage restore returns acknowledged same job and re
   });
   const returning = await restored.newPage(); await returning.goto(`${origin}/contact/site-operator`);
   await returning.getByRole("button", {name: "Return to saved job"}).click();
-  await expect(returning.getByRole("link", {name: "Review your job brief"})).toHaveAttribute("href", "/capture-upload/renewed-fixture");
+  await expect(returning.getByRole("link", {name: "Open your job and assessment"})).toHaveAttribute("href", "/capture-upload/renewed-fixture");
   expect(bodies[1]).toBe(bodies[0]); await restored.close();
 });
 test("UI-RETURN-004 authoring routes cannot inherit a different provider's draft or consent", async ({ page }) => {
@@ -86,7 +86,7 @@ test("UI-INTAKE-002 double click slow create dispatches one logical submission",
   await page.goto("/contact/site-operator"); await fill(page);
   await page.getByRole("button", {name: "Start free assessment"}).dblclick();
   await expect(page.getByRole("button", {name: "Working…"})).toBeDisabled();
-  finish(); await expect(page.getByRole("link", {name: "Review your job brief"})).toBeVisible(); expect(count).toBe(1);
+  finish(); await expect(page.getByRole("link", {name: "Open your job and assessment"})).toBeVisible(); expect(count).toBe(1);
 });
 test("UI-ACCESS-001 denied status cannot masquerade as upload receipt", async ({ page }) => {
   await page.route(`**${create}`, route => route.fulfill({json: {captureUrl: fixtureLink}}));
@@ -115,8 +115,8 @@ test("UI-CROSS-TAB-001 concurrent Start with delayed storage events shares exact
   await first.getByRole("button",{name:"Start free assessment"}).click();
   await expect(first.getByRole("button",{name:"Working…"})).toBeVisible();
   await second.getByRole("button",{name:"Start free assessment"}).click();
-  await expect(first.getByRole("link",{name:"Review your job brief"})).toBeVisible();
-  await expect(second.getByRole("link",{name:"Review your job brief"})).toBeVisible();
+  await expect(first.getByRole("link",{name:"Open your job and assessment"})).toBeVisible();
+  await expect(second.getByRole("link",{name:"Open your job and assessment"})).toBeVisible();
   expect(bodies).toHaveLength(2);expect(bodies[1]).toBe(bodies[0]);
   expect(await first.evaluate(()=>Object.entries(localStorage).find(([key])=>key.startsWith("bp-site-capture:"))?.[1]))
     .toBe(await second.evaluate(()=>Object.entries(localStorage).find(([key])=>key.startsWith("bp-site-capture:"))?.[1]));
@@ -133,7 +133,7 @@ test("UI-CROSS-TAB-002 stale edits after lost response preserve winner across re
   await second.locator("#start-task").fill("Stale edits must not replace frozen task");
   await second.reload();await expect(second.locator("#start-task")).toHaveValue("Move sealed cartons to the pallet");
   await second.getByRole("button",{name:"Recover saved job"}).click();
-  await expect(second.getByRole("link",{name:"Review your job brief"})).toBeVisible();
+  await expect(second.getByRole("link",{name:"Open your job and assessment"})).toBeVisible();
   expect(bodies).toHaveLength(2);expect(bodies[1]).toBe(bodies[0]);
 });
 
@@ -167,18 +167,17 @@ test("UI-CROSS-TAB-003 clear in another tab survives an old acknowledgement befo
   const fresh=await snapshot();finish();
   // A retired generation cannot retain an acknowledgement or present success.
   await expect(first.getByRole("alert")).toContainText("could not retain its confirmation");
-  await expect(first.getByRole("link",{name:"Review your job brief"})).toHaveCount(0);
+  await expect(first.getByRole("link",{name:"Open your job and assessment"})).toHaveCount(0);
   expect((await snapshot()).requestId).toBe(fresh.requestId);expect((await snapshot()).pending).toBeNull();
   expect(await snapshot()).toEqual(fresh);expect(await durableSnapshot()).toEqual(fresh);
   await second.reload();await expect(second.locator("#start-task")).toHaveValue("An explicitly new job after clearing");
   // Reload retains the actual checkpoint as well as displayed default values.
   await expect.poll(async()=>(await snapshot()).draft).toEqual(fresh.draft);
   await expect.poll(async()=>await durableSnapshot()).toEqual(await snapshot());
-  // An unsubmitted recording grant is never restored by recovery.
-  await expect(second.locator("#start-rights")).not.toBeChecked();
-  await second.locator("#start-rights").check();
+  // A phone capture has no recording grant to restore, so none appears here.
+  await expect(second.locator("#start-rights")).toHaveCount(0);
   await second.getByRole("button",{name:"Start free assessment"}).click();
-  await expect(second.getByRole("link",{name:"Review your job brief"})).toBeVisible();
+  await expect(second.getByRole("link",{name:"Open your job and assessment"})).toBeVisible();
   expect(bodies).toHaveLength(2);expect(JSON.parse(bodies[1]).requestId).toBe(fresh.requestId);
   expect(JSON.parse(bodies[1]).requestId).not.toBe(JSON.parse(bodies[0]).requestId);
   expect(JSON.parse(bodies[1]).taskStatement).toBe("An explicitly new job after clearing");
@@ -220,7 +219,7 @@ test("UI-RETURN-005 real browser termination during video transport returns to t
   try {
     const page=await first.newPage();await page.goto(`${origin}/contact/site-operator`);await fill(page);
     await page.locator("#start-method-upload").check();await page.locator("#start-footage").setInputFiles(video);
-    await page.locator("#start-rights").check();await page.getByRole("button",{name:"Start free assessment",exact:true}).click();
+    await page.getByRole("button",{name:"Start free assessment",exact:true}).click();
     await uploading; const saved=await first.storageState();
     await firstBrowser.close();
     const resumedBrowser=await chromium.launch(launch);const resumed=await resumedBrowser.newContext({storageState:saved});

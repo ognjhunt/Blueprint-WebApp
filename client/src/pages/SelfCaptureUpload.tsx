@@ -354,6 +354,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           operatorAnswers: data.brief.operatorAnswers ?? null,
           operatorUnknown: data.brief.operatorUnknown ?? null,
           pilotIntent: data.brief.pilotIntent ?? null,
+          confirmedBy: data.brief.confirmedBy ?? null,
         });
         setBriefConfirmed(Boolean(data.brief.confirmedAtIso));
         setSiteAccount(data.account ?? null);
@@ -640,26 +641,23 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </Helmet>
 
       <h1 style={{ fontSize: "34px", letterSpacing: "-1.2px", marginBottom: "12px" }}>
-        {link.status === "held" || descriptionFirst ? "Your job assessment" : saved ? "A few details about the job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Your job assessment"}
+        {link.status === "held" || descriptionFirst ? "Your job assessment" : saved ? "Your job assessment" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Your job assessment"}
       </h1>
 
+      {(link.status === "valid" || link.status === "held") && scope === "owner" && <RecommendedPilot token={token} />}
+      {(link.status !== "valid" || descriptionFirst) && statusCard}
       {descriptionFirst && (link.status === "valid" || link.status === "held") && (
-        <section aria-label="Review your job brief" style={{ marginBottom: "28px" }}>
-          <h2>Review your job brief</h2>
-          {brief ? <>
-            <p className="ms-field-hint">We drafted this from your description. Review and correct it now; you can add footage later.</p>
-            {briefConfirmed && !editingBrief ? <p>Your job brief is confirmed.{" "}
-              <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>Edit your answers</button>
-            </p> : <TaskBriefReview key={brief.successCriteria?.successDefinition ?? ""} token={token} brief={brief}
-              account={siteAccount} onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }} />}
-          </> : <p className="ms-field-hint">Your job description is saved. Your brief will appear here when it is ready. Keep this private link to return.</p>}
+        <section aria-label="Your job summary" style={{ marginBottom: "28px" }}>
+          <h2>Your job summary</h2>
+          {brief ? <><p>{brief.summary}</p><p className="ms-field-hint">Blueprint uses what you already supplied. Correct material mistakes below; confirmation is needed only for consequential claims or commitments.</p>
+            <details><summary>Correct job details (optional)</summary><TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount
+              onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }} /></details>
+          </> : <p className="ms-field-hint">Your job is saved. Blueprint will use the supplied information to prepare the next useful step and notify you of meaningful progress.</p>}
         </section>
       )}
 
       {/* A description keeps the brief first. A filming link keeps measured
           status beside the recorder; a held link explains its hold. */}
-      {(link.status !== "valid" || descriptionFirst) && statusCard}
-
       {link.status === "checking" && (
         <p style={{ color: "var(--ms-muted)" }}>Checking your link…</p>
       )}
@@ -825,22 +823,14 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 </p>
               )}
               {scope === "owner" && brief && (!briefConfirmed || editingBrief) && (
-                /* Open, not collapsed: this is the one step left, and a closed
-                   disclosure under a "you can close this page" card read as
-                   optional. */
-                <details open style={{ marginBottom: "8px" }}>
-                  <summary>{editingBrief ? "Edit your job brief" : "Next: check your job brief"}</summary>
-                  <p className="ms-field-hint">
-                    {brief.proposed.some((answer) => answer.basis !== "assumption")
-                      ? "We drafted this from what you sent. Correct anything wrong, then confirm."
-                      : "Answer a few questions about the job, then confirm."}{" "}
-                    That is what lets a robot team be matched to your site.
-                  </p>
+                <details open={editingBrief || undefined} style={{ marginBottom: "8px" }}>
+                  <summary>{editingBrief ? "Edit your job brief" : "Correct job details (optional)"}</summary>
+                  <p className="ms-field-hint">Your prefilled summary is available for material corrections. No confirmation is required to view your assessment or proposal. Consequential operating claims still need an authorized answer before we rely on them.</p>
                   <TaskBriefReview
-                    key={brief.successCriteria?.successDefinition ?? ""}
+                    key={token}
                     token={token}
                     brief={brief}
-                    account={siteAccount}
+                    account={siteAccount} optionalAccount
                     onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }}
                   />
                 </details>
@@ -1007,14 +997,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     {brief.proposed.some((answer) => answer.basis !== "assumption")
                       ? "We drafted this from what you sent."
                       : "A few questions about the job."}{" "}
-                    Film whenever you like — confirming the brief
-                    is what lets a robot team be matched to your site, before or after you film.
+                    Use the existing evidence first. Correct material mistakes here; we request additional information only when it changes an evaluation or proposed commitment.
                   </p>
                   <TaskBriefReview
-                    key={brief.successCriteria?.successDefinition ?? ""}
+                    key={token}
                     token={token}
                     brief={brief}
-                    account={siteAccount}
+                    account={siteAccount} optionalAccount
                     onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }}
                   />
                 </details>
@@ -1038,10 +1027,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           </div>}
         </>
       )}
-      {link.status === "valid" && scope === "owner" && <RecommendedPilot token={token} />}
-      {link.status === "valid" && scope === "owner" && !saved && <PublicTaskListing token={token} />}
+      {link.status === "valid" && scope === "owner" && <PublicTaskListing token={token} jobRevision={JSON.stringify(brief)} />}
       {!saved && (
-        <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: review your job brief. If you add footage, we check it before assessing provider fit and using a scene evaluation where it helps. Keep this link to follow progress.</p>
+        <p className="ms-field-hint" style={{ marginTop: "28px" }}>Blueprint prepares the next useful step from your job and existing evidence. We send meaningful progress and ask for action only when a missing fact or concrete commitment needs your input.</p>
       )}
       </div>
     </div>

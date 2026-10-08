@@ -31,6 +31,7 @@ export type TaskLifecycleMilestone = Extract<
   | "pilot_request"
   | "pilot_recommended"
   | "pilot_booked"
+  | "pilot_scheduled"
 >;
 
 /** A ready label without viewable assets is not a scene-ready milestone. */
@@ -61,11 +62,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   task_received: {
     subject: "We have your Blueprint job — here is your link",
-    body: (url) => `Thanks for sending us your job. This private link is where you review your job brief and follow everything that happens next. You can add footage later, once you have recording permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\nWe will email you each time something happens on your job.`,
+    body: (url) => `Thanks for sending us your job. This private link shows the same job and lets you correct details when needed. You can also reply to a job conversation without completing another form. You can add footage later, once you have recording permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\nBlueprint will follow through with meaningful findings and questions that need your input.`,
   },
   video_received: {
     subject: "We received your Blueprint walkthrough",
-    body: (url) => `Your walkthrough arrived safely. Next we check that it covers the work area and that nothing private is in view, then we build the scene. We will email you when that is done.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your walkthrough arrived safely. Blueprint will investigate the observed task and prepare a recommendation or concrete next step. Reconstruction and evaluation are used when they help that decision. We will ask only when a missing fact, permission or real commitment blocks progress.\n\nOpen your job:\n${url}`,
   },
   scene_ready: {
     subject: "Your Blueprint scene is ready to view",
@@ -77,11 +78,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   screening_cleared: {
     subject: "Your job cleared our screen",
-    body: (url, detail) => `Thanks for the call. Your job now clears our screen, so we will build your scene from your recording${detail ? ` ${detail}` : ""}.\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `The reviewed information now clears the recorded assessment blocker. Blueprint can continue the useful, authorized investigation${detail ? ` ${detail}` : ""}.\n\nOpen your job:\n${url}`,
   },
   screening_not_now: {
     subject: "An update on your Blueprint job",
-    body: (url) => `Thanks for the call. One answer still means a robot evaluation would not hold up at your site today, so we are not building a scene yet. Your job page shows what is in the way. When it changes, edit your answers there and we will screen the job again.\n\nOpen your job:\n${url}`,
+    body: (url) => `The reviewed information leaves a consequential assessment blocker unresolved. Your job page shows the reason and what is needed. Blueprint owns the follow-through; reply in your job conversation with a correction or use the optional job page when that information changes.\n\nOpen your job:\n${url}`,
   },
   screening_started: {
     subject: "A robot team picked up your job",
@@ -101,11 +102,15 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   pilot_recommended: {
     subject: "Your recommended pilot is ready",
-    body: (url, detail) => `We have one recommended pilot for your job${detail ? `: ${detail}` : ""}. Your job page shows the robot team, what the pilot tests, what you provide, the cost and dates, and what is still uncertain. If it looks right, book it there in one step. If not, reply and tell us why.\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `We have one recommended pilot for your job${detail ? `: ${detail}` : ""}. Your job page shows the robot team, what the pilot tests, what you provide, the cost basis, proposed timing and what is still uncertain. If it looks right, accept the proposal there. Provider and site agreement, the date and preparation responsibilities still need coordination. If not, reply and tell us why.\n\nOpen your job:\n${url}`,
   },
   pilot_booked: {
-    subject: "Your pilot is booked",
-    body: (url) => `Thanks. Your pilot is booked. We will coordinate the robot team, the dates and the site visit from here and email you when anything needs you.\n\nOpen your job:\n${url}`,
+    subject: "Your pilot proposal is accepted",
+    body: (url, detail) => `Your acceptance is recorded. The pilot is awaiting coordination: provider and site agreement, a confirmed date and agreed preparation responsibilities are still needed. No date is reserved yet. Blueprint owns that next step. ${detail === "invited_beta_free" ? "Blueprint beta coordination is free. Provider costs remain subject to the applicable proposal and agreement." : "Your previously agreed Blueprint fee remains due when the pilot is booked."}\n\nOpen your job:\n${url}`,
+  },
+  pilot_scheduled: {
+    subject: "Your pilot is scheduled",
+    body: (url) => `The provider and site agreement, date and preparation responsibilities have been recorded and checked against the calendar. Open your job for the agreed date and responsibilities.\n\nOpen your job:\n${url}`,
   },
 };
 

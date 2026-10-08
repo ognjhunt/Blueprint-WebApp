@@ -213,10 +213,13 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       history_access: await getCompanyHistoryAccess(task), model: task.model, model_provider: provider,
       video_bytes: { body: video.body, byteLength: video.body.length, contentType: video.contentType },
       max_output_tokens: budget.maxOutput, allowed_tools: task.tool_policy.allowed_actions,
+      assert_video_processing_allowed: async () => {
+        await host.assertActive(); await assertSourceCurrent();
+      },
       retained_video_sources: (priorPacket?.sources ?? []).filter((source: any) => source.kind === "video"
         && source.sha256 === videoSha && source.canonical_ref === videoRef),
       authorize_model_call: async (kind, model, request) => {
-        await host.assertActive(); await assertSourceCurrent(); await host.assertCostAllowed(); budget.authorize(kind, model, request);
+        await host.assertActive(); await assertSourceCurrent(); budget.authorize(kind, model, request);
         captureAdmission = await reserveCaptureCoverageInference(model, { capture_id: pending.capture_id,
           assessment_run_id: host.runId, assessment_request_id: input.context.request_id,
           assessment_video_sha256: videoSha,

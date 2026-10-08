@@ -22,14 +22,14 @@ const telemetry = (budget: SiteAssessmentBudget) => extractAgentCostTelemetry({ 
   provider: "openai_responses", model: "gpt-6.1-sol", artifacts: budget.artifacts() });
 
 describe("site assessment integration boundaries", () => {
-  it("retains cache-write exposure before admitting another paid call", () => {
+  it("retains cache-write exposure while calls continue without a spending cap", () => {
     vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD", "0.61");
     const budget = new SiteAssessmentBudget();
     budget.authorize("openai", "gpt-6.1-sol", {});
     budget.record("openai", "gpt-6.1-sol", { usage: { input_tokens: 100000, output_tokens: 8192 } });
     expect(budget.calls[0].cost_usd).toBeCloseTo(budget.calls[0].reserved_usd);
-    expect(() => budget.authorize("openai", "gpt-6.1-sol", {})).toThrow("inference_cost_cap");
-    expect(budget.calls).toHaveLength(1);
+    expect(() => budget.authorize("openai", "gpt-6.1-sol", {})).not.toThrow();
+    expect(budget.calls).toHaveLength(2);
   });
   it("reserves the full admitted Gemini input context", () => {
     const budget = new SiteAssessmentBudget();
@@ -59,14 +59,14 @@ describe("site assessment integration boundaries", () => {
     expect(row.conservative_spend_usd).toBeCloseTo(0.0035 + budget.calls[1].reserved_usd + budget.calls[2].reserved_usd);
     expect(budget.artifacts().provider_responses[2].response).toEqual({ text: "Incomplete", usage: null });
   });
-  it("stops ambiguous requests, unpriced models and cap overruns before provider calls", () => {
+  it("preserves configured model identity while cap and unknown-cost thresholds do not deny calls", () => {
     vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD", "0.4");
     const budget = new SiteAssessmentBudget();
     expect(() => budget.authorize("gemini", "gemini-3-pro")).toThrow("model_not_admitted");
-    expect(() => budget.authorize("gemini", "gemini-3.8-flash")).toThrow("inference_cost_cap");
+    expect(() => budget.authorize("gemini", "gemini-3.8-flash")).not.toThrow();
     budget.authorize("openai", "gpt-6.1-sol", {});
-    expect(() => budget.authorize("openai", "gpt-6.1-sol", {})).toThrow("cost_unresolved");
-    expect(budget.calls).toHaveLength(1);
-    expect(telemetry(budget).conservative_spend_usd).toBeCloseTo(budget.calls[0].reserved_usd);
+    expect(() => budget.authorize("openai", "gpt-6.1-sol", {})).not.toThrow();
+    expect(budget.calls).toHaveLength(3);
+    expect(telemetry(budget).conservative_spend_usd).toBeCloseTo(budget.calls.reduce((sum,call)=>sum+call.reserved_usd,0));
   });
 });

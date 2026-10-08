@@ -57,17 +57,6 @@ beforeEach(() => {
   ]) mock.mockClear();
 });
 
-/** The listing question is required; most tests answer it "not now". */
-function answerPilotIntent() {
-  fireEvent.change(screen.getByLabelText(/would you consider a physical pilot here/i), { target: { value: "yes" } });
-  fireEvent.change(screen.getByLabelText(/if a pilot meets the agreed targets/i), { target: { value: "this_site" } });
-}
-
-function chooseNotNow() {
-  answerPilotIntent();
-  fireEvent.click(screen.getByLabelText(/not now/i));
-}
-
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -124,9 +113,8 @@ describe("confirming a brief is an attestation", () => {
     render(<TaskBriefReview token="tok" brief={brief()} />);
 
     // Correct the one confirmable answer.
-    fireEvent.change(screen.getByLabelText(/change it/i), { target: { value: "reconfigured" } });
+    fireEvent.change(screen.getByLabelText(/between shifts/i), { target: { value: "reconfigured" } });
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana Okafor" } });
-    chooseNotNow();
     fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
 
     await waitFor(() => expect(screen.getByText(/that is confirmed/i)).toBeInTheDocument());
@@ -147,17 +135,16 @@ describe("confirming a brief is an attestation", () => {
 
     // The open question defaults to unset; choosing "not sure" records it as
     // unknown rather than looping or blocking.
-    const openSelect = screen.getByLabelText(/idle and clear|access|clear of untrained/i);
+    const openSelect = screen.getByLabelText(/distinct items/i);
     fireEvent.change(openSelect, { target: { value: "__unknown" } });
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
-    chooseNotNow();
     fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
 
     await waitFor(() => expect(screen.getByText(/that is confirmed/i)).toBeInTheDocument());
 
     const body = lastConfirmBody();
-    expect(body.unknown).toContain("accessWindow");
-    expect((body.answers as Record<string, string>).accessWindow).toBeUndefined();
+    expect(body.unknown).toContain("objectVariety");
+    expect((body.answers as Record<string, string>).objectVariety).toBeUndefined();
   });
 
   it("refuses to confirm without a name, because an attestation needs one", async () => {
@@ -185,7 +172,6 @@ describe("confirming a brief is an attestation", () => {
 
     render(<TaskBriefReview token="tok" brief={brief()} />);
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
-    chooseNotNow();
     fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
 
     await waitFor(() =>
@@ -201,81 +187,48 @@ const confirmed = (extra: Record<string, unknown> = {}) => ({
   json: async () => ({ ok: true, disposition: "qualified", stage: "capture_needed", nextAction: "Film it.", ...extra }),
 });
 
-describe("the same step decides the listing", () => {
-  it("records pilot intent separately from a deployment path", async () => {
+describe("bounded progressive review", () => {
+  it("saves a factual correction without requiring a goal or an account", async () => {
+    fetchMock.mockResolvedValueOnce(confirmed());
+    render(<TaskBriefReview token="tok" brief={brief({ successCriteria: null, confirmedBy: "Dana",
+      operatorAnswers: { sceneStability: "stable" } })} optionalAccount
+      account={{ claimed: false, email: "dana@acme.example", claimToken: "claim-tok" }} />);
+    expect(screen.queryByLabelText(/choose a password/i)).toBeNull();
+    expect(screen.getByLabelText(/also save this job to my account/i)).not.toBeChecked();
+    fireEvent.change(screen.getByLabelText(/between shifts/i), { target: { value: "minor_drift" } });
+    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody()).toMatchObject({ confirmedBy: "Dana", answers: { sceneStability: "minor_drift" } });
+    expect(lastConfirmBody()).not.toHaveProperty("successCriteria");
+    expect(authMocks.createUserWithEmailAndPassword).not.toHaveBeenCalled();
+    expect(authMocks.signInWithEmailAndPassword).not.toHaveBeenCalled();
+    expect(authMocks.workspaceRequest).not.toHaveBeenCalled();
+  });
+  it("confirms assessment without hypothetical pilot intent or publication", async () => {
     fetchMock.mockResolvedValueOnce(confirmed());
     render(<TaskBriefReview token="tok" brief={brief()} />);
+    expect(screen.queryByLabelText(/would you consider/i)).toBeNull();
+    expect(screen.queryByLabelText(/job type/i)).toBeNull();
+    expect(screen.queryByLabelText(/idle and clear/i)).toBeNull();
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
-    fireEvent.click(screen.getByLabelText(/not now/i));
     fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/pilot and deployment questions/i);
-    answerPilotIntent();
-    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
-    await waitFor(() => expect(screen.getByText(/that is confirmed/i)).toBeInTheDocument());
-    expect(lastConfirmBody().pilotIntent).toEqual({ pilotConsideration: "yes", deploymentPath: "this_site" });
+    await screen.findByText(/that is confirmed/i);
+    expect(lastConfirmBody().pilotIntent).toBeUndefined();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("task-listings"))).toBe(false);
   });
-
-  it("loads the operator's previous intent when editing the brief", () => {
+  it("retains recorded choices and permits corrections without repeating questions", () => {
+    const { rerender } = render(<TaskBriefReview token="tok" brief={brief({ operatorAnswers: { sceneStability: "stable" }, operatorUnknown: ["objectVariety"] })} />);
+    expect(screen.queryByText(/could not tell from what you sent/i)).toBeNull();
+    fireEvent.change(screen.getByLabelText(/between shifts/i), { target: { value: "reconfigured" } });
+    fireEvent.change(screen.getByLabelText(/successful cycle/i), { target: { value: "Customer's edited goal" } });
+    rerender(<TaskBriefReview token="tok" brief={brief({ summary: "Updated evidence", operatorAnswers: { sceneStability: "stable" }, successCriteria: { successDefinition: "Server's newer suggestion", successRate: 99, cycleTimeSeconds: 15, unknown: false } })} />);
+    expect(screen.getByLabelText(/between shifts/i)).toHaveValue("reconfigured");
+    expect(screen.getByLabelText(/successful cycle/i)).toHaveValue("Customer's edited goal");
+  });
+  it("loads the operator's recorded pilot preferences for optional correction", () => {
     render(<TaskBriefReview token="tok" brief={brief({ pilotIntent: { pilotConsideration: "evaluation_only", deploymentPath: "pilot_only" } })} />);
     expect(screen.getByLabelText(/would you consider a physical pilot here/i)).toHaveValue("evaluation_only");
     expect(screen.getByLabelText(/if a pilot meets the agreed targets/i)).toHaveValue("pilot_only");
-  });
-
-  it("will not confirm until the operator answers the listing question", async () => {
-    render(<TaskBriefReview token="tok" brief={brief()} />);
-    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
-    answerPilotIntent();
-    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/show this job to robot teams/i);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("publishes the reviewed card with a pilot price left unknown, after confirming", async () => {
-    fetchMock.mockResolvedValueOnce(confirmed()).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
-    render(<TaskBriefReview token="tok" brief={brief()} />);
-    fireEvent.click(screen.getByLabelText(/yes, list it/i));
-    fireEvent.change(screen.getByLabelText(/describe the job/i), { target: { value: "Move cartons onto a pallet" } });
-    fireEvent.change(screen.getByLabelText(/job type/i), { target: { value: "Palletizing" } });
-    fireEvent.change(screen.getByLabelText(/^price status$/i), { target: { value: "site_offer" } });
-    expect(screen.getByLabelText(/proposed pilot price/i)).toHaveValue("");
-    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
-    answerPilotIntent();
-
-    // Not without the review consent.
-    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/reviewed the public card/i);
-
-    fireEvent.click(screen.getByLabelText(/authorized to make it public/i));
-    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
-    await waitFor(() => expect(screen.getByText(/in the robot-team library/i)).toBeInTheDocument());
-
-    const listingCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/api/task-listings/owner/tok"));
-    const body = JSON.parse((listingCall![1] as { body: string }).body);
-    expect(body).toMatchObject({ enabled: true, consent: true, details: { title: "Move cartons onto a pallet", taskFamily: "Palletizing" } });
-    // An evaluation-only card carries no fee agreement.
-    expect(body.matchFee).toBeUndefined();
-    // The brief is confirmed first; the card follows it.
-    expect(String(fetchMock.mock.calls[0][0])).toContain("/confirm");
-  });
-
-  it("opens the card to pilot proposals with no fee step", async () => {
-    fetchMock.mockResolvedValueOnce(confirmed()).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
-    render(<TaskBriefReview token="tok" brief={brief()} />);
-    fireEvent.click(screen.getByLabelText(/yes, list it/i));
-    fireEvent.change(screen.getByLabelText(/describe the job/i), { target: { value: "Move cartons onto a pallet" } });
-    fireEvent.change(screen.getByLabelText(/job type/i), { target: { value: "Palletizing" } });
-    fireEvent.change(screen.getByLabelText(/pilot availability/i), { target: { value: "open" } });
-    expect(screen.getByText(/Any later work needs separately agreed scope and cost/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText(/authorized to make it public/i));
-    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
-    answerPilotIntent();
-
-    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
-    await waitFor(() => expect(screen.getByText(/in the robot-team library/i)).toBeInTheDocument());
-    const listingCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/api/task-listings/owner/tok"));
-    const body = JSON.parse((listingCall![1] as { body: string }).body);
-    expect(body).toMatchObject({ enabled: true, consent: true, details: { opportunity: "open" } });
-    expect(body.matchFee).toBeUndefined();
   });
 });
 
@@ -287,7 +240,6 @@ describe("the same step saves the site to an account", () => {
     authMocks.createUserWithEmailAndPassword.mockResolvedValueOnce(unverified);
     fetchMock.mockResolvedValueOnce(confirmed());
     render(<TaskBriefReview token="tok" brief={brief()} account={account} />);
-    chooseNotNow();
     fireEvent.change(screen.getByLabelText(/choose a password/i), { target: { value: "hunter22" } });
     fireEvent.click(screen.getByLabelText(/accept the/i));
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
@@ -304,7 +256,6 @@ describe("the same step saves the site to an account", () => {
     authMocks.signInWithGoogle.mockResolvedValueOnce({ email: "dana@acme.example", emailVerified: true });
     fetchMock.mockResolvedValueOnce(confirmed());
     render(<TaskBriefReview token="tok" brief={brief()} account={account} />);
-    chooseNotNow();
     fireEvent.click(screen.getByLabelText(/accept the/i));
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
     fireEvent.click(screen.getByRole("button", { name: /save with google/i }));
@@ -317,7 +268,6 @@ describe("the same step saves the site to an account", () => {
   it("confirms nothing when the account is for a different email", async () => {
     authMocks.signInWithGoogle.mockResolvedValueOnce({ email: "someone@else.example", emailVerified: true });
     render(<TaskBriefReview token="tok" brief={brief()} account={account} />);
-    chooseNotNow();
     fireEvent.click(screen.getByLabelText(/accept the/i));
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
     fireEvent.click(screen.getByRole("button", { name: /save with google/i }));

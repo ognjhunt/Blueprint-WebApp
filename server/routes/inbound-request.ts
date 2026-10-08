@@ -1,3 +1,6 @@
+import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
+import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
+import { newJobFanoutIntent } from "../utils/newJobAlerts";
 import { hasCurrentRecordingConsent } from "../utils/recordingConsent";
 import { hasCurrentDescriptionAuthority } from "../utils/descriptionAuthority";
 import { createInboundRequestWithReceipt } from "../utils/inboundRequestCommit";
@@ -1055,6 +1058,16 @@ export async function submitInboundRequest(req: Request, res: Response) {
       payload.siteLocationMetadata
     );
     const taskStatement = payload.taskStatement?.trim() || "";
+    let initialPublicListing: Record<string, unknown> | null = null;
+    if (payload.publicTaskListing != null) {
+      const grant = payload.publicTaskListing, details = taskListingSchema.safeParse(grant.details);
+      if (buyerType !== "site_operator" || grant.consent !== true || grant.statementVersion !== listingConsentVersion || !details.success
+        || JSON.stringify(details.data) !== JSON.stringify(taskListingSchema.parse(anonymizedOpportunityDraft(taskStatement)))) return res.status(400).json({ ok: false, message: "Review the generated anonymous summary or choose private handling before submitting." });
+      const approvedAtIso = new Date().toISOString();
+      initialPublicListing = { enabled: true, details: details.data, consentVersion: listingConsentVersion,
+        approvedAtIso, wentLiveIso: approvedAtIso, approvedBy: "initial_submission", thumbnailDigest: null, reviewRequired: false };
+    }
+
     const targetSiteType = payload.targetSiteType?.trim() || "";
     const displayCaptureMetadata = normalizeDisplayCaptureMetadata({
       payload,
@@ -1081,7 +1094,14 @@ export async function submitInboundRequest(req: Request, res: Response) {
     if (buyerType !== "site_operator" && !payload.lastName?.trim()) missingFields.push("lastName");
     if (!payload.company?.trim()) missingFields.push("company");
     if (!payload.email?.trim()) missingFields.push("email");
-    if (!taskStatement) missingFields.push("taskStatement");
+    // Footage can supply the observed task. A customer need not write a goal
+    // to open the same authorized capture job; a prose-only job still needs
+    // something useful to assess. Recording rights are validated below too.
+    const captureWithoutDescription = buyerType === "site_operator"
+      && payload.captureMode === "self_capture"
+      && payload.descriptionOnly !== true
+      && hasCurrentRecordingConsent(buildConsentAttestation(payload.consentAttestation));
+    if (!taskStatement && !captureWithoutDescription) missingFields.push("taskStatement");
     if (buyerType === "site_operator") {
       if (!siteName) missingFields.push("siteName");
       if (!siteLocation) missingFields.push("siteLocation");
@@ -1834,6 +1854,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
       milestone: "task_received", to: emailLower, captureUrl: receiptUrl }) : null;
     try {
       await createInboundRequestWithReceipt(db, requestRef, { ...encryptedInboundRequest,
+        ...(initialPublicListing ? { public_task_listing: initialPublicListing, newJobAlertFanout: newJobFanoutIntent(String(initialPublicListing.approvedAtIso)) } : {}),
         ...(buyerType === "site_operator" ? { briefReviewPending: true,
           briefReviewWork: { state: "pending", attempts: 0, dueAtMs: 0 } } : {}),
       }, firstReceipt);

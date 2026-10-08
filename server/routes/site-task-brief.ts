@@ -305,6 +305,8 @@ const SHOT_LABELS: Record<string, string> = {
  */
 function presentBrief(brief: SiteTaskBriefRecord) {
   return {
+    requestId: brief.requestId,
+    confirmedBy: brief.confirmedBy,
     summary: brief.summary,
     shotList: shotListFor(brief),
     captureMode: brief.captureMode,
@@ -313,6 +315,9 @@ function presentBrief(brief: SiteTaskBriefRecord) {
       value: answer.value,
       basis: answer.basis,
       reading: answer.reading,
+      ...(answer.confidence !== undefined ? { confidence: answer.confidence } : {}),
+      ...(answer.atSeconds !== undefined ? { atSeconds: answer.atSeconds } : {}),
+      ...(answer.sourceQuote ? { sourceQuote: answer.sourceQuote } : {}),
     })),
     unresolved: brief.unresolved,
     draftedFrom: brief.draftedFrom,
@@ -368,7 +373,11 @@ router.get("/:token", async (req: Request, res: Response) => {
     // for an owner link -- a film-only colleague sees the shot list to record
     // against, not a button that would 403. The film payload is also filtered:
     // our reading of the operator's answers stays with the owner's link.
-    const presented = payload.scope === "owner" ? presentBrief(brief) : presentBriefForFilming(brief);
+    const recorded = payload.scope === "owner" && db
+      ? (await db.collection("inboundRequests").doc(payload.requestId).get()).data() : null;
+    const recordedAnswers = { ...gateAnswersOnFile(recorded ?? {}), ...brief.operatorAnswers };
+    for (const id of brief.operatorUnknown ?? []) delete recordedAnswers[id];
+    const presented = payload.scope === "owner" ? presentBrief({ ...brief, operatorAnswers: recordedAnswers }) : presentBriefForFilming(brief);
     if (payload.supplement && db) {
       const supplement = (await db.collection("captureSupplements").doc(payload.captureId).get()).data();
       const views = supplement?.parent_coverage?.missing_coverage;
@@ -410,8 +419,9 @@ router.get("/:token/follow-up", async (req: Request, res: Response) => {
     const items = inventory?.items ?? [];
     const photosMissing = items.length === 0 || items.some((item) => item.images.length < 2);
     const eligible = FOLLOW_UP_IDS.filter((id) => {
-      if (id === "success_target") return !brief.successCriteria?.successDefinition;
+      if (id === "success_target") return !brief.successCriteria?.successDefinition && !brief.successCriteria?.unknown;
       if (id === "item_photos") return photosMissing;
+      if (id === "item_weight" || id === "item_make_model") return !brief.operatorTaskDetails?.[id];
       return true;
     });
 
@@ -717,7 +727,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       requestId: payload.requestId,
       confirmedBy: parsed.data.confirmedBy,
       operatorAnswers: answers,
-      operatorUnknown: (parsed.data.unknown ?? []).filter((id) => GATE_IDS.has(id)),
+      operatorUnknown: parsed.data.unknown?.filter((id) => GATE_IDS.has(id)),
       successCriteria: parsed.data.successCriteria,
       pilotIntent: parsed.data.pilotIntent,
     });

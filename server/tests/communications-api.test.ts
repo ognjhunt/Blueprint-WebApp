@@ -3,6 +3,7 @@ import { COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FRAMING_V1, COMMUNICATIO
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommunicationsAgentsAPI, COMMUNICATIONS_INSTRUCTIONS } from "../agents/communications-api";
+import { SITE_JOB_COMMUNICATIONS_PROFILE, SITE_JOB_COMMUNICATIONS_CONFIGURATION } from "../agents/communications-site-job-profile";
 import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, communicationsDigest } from "../agents/communications-contract";
 import { communicationsFixture, memoryFirestore } from "./fixtures/communications";
 import { reserveCommunicationsDraft } from "../agents/communications-draft-budget";
@@ -137,6 +138,21 @@ async function rejectedCreateFixture(options: { coverage?: "matching" | "incompl
 }
 
 describe("portable communications Agents API", () => {
+  it("uses the real saved agent API with a prospective tool-free customer-job configuration and no mailbox vaults", async () => {
+    const output = { ...communicationsFixture().output, outreachContract: null };
+    const f = apiFixture({ rawOutput: JSON.stringify(output) });
+    const result = await f.api.run({ ...f.params, checkpoint: { ...f.params.checkpoint, siteJobProfile: SITE_JOB_COMMUNICATIONS_PROFILE } });
+    const create = f.calls.find(call => call.path.endsWith("/agents/sessions") && call.init.method === "POST")!;
+    const body = JSON.parse(String(create.init.body));
+    expect(body.agent).toEqual(SITE_JOB_COMMUNICATIONS_CONFIGURATION);
+    expect(body.agent.tools).toEqual([]); expect(body).not.toHaveProperty("vault_ids");
+    expect(body.metadata.blueprint_communications_site_job_profile).toBe(SITE_JOB_COMMUNICATIONS_PROFILE);
+    expect(f.calls.some(call => /vault|gmail|history/.test(call.path))).toBe(false);
+    expect(result.output).toEqual(output); expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
+    const changed = apiFixture({ changedSaved: "instructions" });
+    await expect(changed.api.run({ ...changed.params, checkpoint: { ...changed.params.checkpoint, siteJobProfile: SITE_JOB_COMMUNICATIONS_PROFILE } })).rejects.toMatchObject({ code: "communications_saved_agent_definition_changed" });
+    expect(changed.calls.some(call => call.init.method === "POST")).toBe(false);
+  });
   it("binds a prospective provider spending limit to reservation, request, checkpoint and readback without relabeling old sessions", async () => {
     const f = apiFixture();
     const checkpoint = { ...f.params.checkpoint, sessionSpendLimitCents: 10 };
@@ -187,6 +203,7 @@ describe("portable communications Agents API", () => {
       return response;
     });
     expect((await f.api.run(f.params)).output).toEqual(f.output);
+
   });
   it("backs off transient saved GET failures within one new window without settling pending usage or creating another turn", async () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-03T00:00:00Z"));

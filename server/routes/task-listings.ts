@@ -4,20 +4,24 @@ import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { captureUploadUrlFor, verifyCaptureUploadToken } from "../utils/captureUploadToken";
-import { listingConsentVersion, taskListingSchema } from "../utils/taskListingDetails";
+import { listingConsentVersion, taskListingSchema, taskListingDraft } from "../utils/taskListingDetails";
+import { humanDecisionDigest } from "../utils/human-reply-admission";
+import { getBrief } from "../utils/siteTaskBrief";
+import { projectPilotCoordination } from "../utils/pilotCoordination";
 import { buildTaskLifecycleNotification, enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { newJobFanoutIntent } from "../utils/newJobAlerts";
 import { enqueueNewTaskAlerts } from "../utils/robotTeamAccessEmails";
-import { pilotFeeUsd } from "../../client/src/lib/evaluationPricing";
 import { TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
 
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION, type OutboxEntry } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
 import { pilotRecommendationEventId } from "../utils/pilotRecommendationNotifications";
+import { projectCurrentSiteJobDecision } from "../utils/siteJobDecision";
+import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
 
 const router = Router();
 router.use(rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false }));
-const grantSchema = z.object({ enabled: z.boolean(), consent: z.literal(true), details: taskListingSchema, thumbnailPng: z.string().max(800_000).nullable().optional(), thumbnailConsent: z.literal(true).optional() }).strict().refine(value => !value.thumbnailPng || value.thumbnailConsent === true);
+const grantSchema = z.object({ enabled: z.boolean(), consent: z.boolean(), details: taskListingSchema, expectedBriefRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(), thumbnailPng: z.string().max(800_000).nullable().optional(), thumbnailConsent: z.literal(true).optional() }).strict().refine(value => (!value.enabled || value.consent) && (!value.thumbnailPng || value.thumbnailConsent === true));
 
 router.route("/owner/:token")
   .all((req, res, next) => {
@@ -33,19 +37,26 @@ router.route("/owner/:token")
       if (!snap.exists) return res.status(404).json({ error: "Job not found" });
       res.set("Cache-Control", "no-store");
       const image = await db.collection("taskThumbnails").doc(res.locals.requestId).get();
+      const brief = await getBrief(res.locals.requestId);
+      const record = snap.data()!;
+      const assessment = await loadCurrentSiteAdvisory(res.locals.requestId, `walkthrough-${res.locals.requestId}`, { expectedOwnerUid: record.account_owner_uid ?? null });
       return res.json({
+        briefRevision: humanDecisionDigest(brief),
+        requestId: res.locals.requestId,
+        draft: taskListingDraft(brief),
         listing: snap.data()?.public_task_listing ?? null,
         thumbnailPng: image.data()?.pngBase64 ?? null,
         recommendation: snap.data()?.pilot_recommendation ?? null,
         booking: snap.data()?.pilot_booking ?? null,
+        coordination: projectPilotCoordination(snap.data()),
+        decision: projectCurrentSiteJobDecision(record, brief, assessment),
       });
     } catch { return res.status(503).json({ error: "Listing unavailable" }); }
   })
   .post(async (req, res) => {
     const parsed = grantSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Review the public card and approve its text." });
-    // Opening a card to pilot proposals costs nothing. The fee is agreed once,
-    // when the site books the pilot Blueprint recommends: no pilot, no fee.
+    // Drafting and publishing the reviewed card are free and distinct grants.
     if (!db) return res.status(503).json({ error: "Listing unavailable" });
     try {
       const ref = db.collection("inboundRequests").doc(res.locals.requestId);
@@ -59,6 +70,10 @@ router.route("/owner/:token")
       await db.runTransaction(async transaction => {
         const current = await transaction.get(ref);
         if (!current.exists) throw new Error("Task removed");
+        const brief = await transaction.get(db!.collection("siteTaskBriefs").doc(res.locals.requestId));
+        const revision = humanDecisionDigest(brief.exists ? brief.data() : null);
+        if (parsed.data.enabled && ((parsed.data.expectedBriefRevision && parsed.data.expectedBriefRevision !== revision)
+          || (current.data()?.public_task_listing?.reviewRequired && parsed.data.expectedBriefRevision !== revision))) throw new Error("listing_review_changed");
         const previousDigest = current.data()?.public_task_listing?.thumbnailDigest ?? null;
         wentLive = parsed.data.enabled && current.data()?.public_task_listing?.enabled !== true ? new Date().toISOString() : null;
         transaction.update(ref, {
@@ -66,7 +81,9 @@ router.route("/owner/:token")
           public_task_listing: {
           wentLiveIso: wentLive ?? current.data()?.public_task_listing?.wentLiveIso ?? null,
           enabled: parsed.data.enabled, details: parsed.data.details,
-          consentVersion: listingConsentVersion, approvedAtIso: new Date().toISOString(),
+          consentVersion: parsed.data.consent ? listingConsentVersion : null, approvedAtIso: parsed.data.consent ? new Date().toISOString() : null,
+          reviewRequired: !parsed.data.enabled && current.data()?.public_task_listing?.reviewRequired === true,
+          briefRevision: revision,
           approvedBy: "signed_owner_link",
           thumbnailDigest: parsed.data.thumbnailPng === null ? null : thumbnail?.digest ?? previousDigest,
         } });
@@ -82,22 +99,18 @@ router.route("/owner/:token")
           .catch(() => undefined);
       }
       return res.json({ ok: true });
-    } catch { return res.status(503).json({ error: "The public card was not saved. Try again." }); }
+    } catch (error) { if (error instanceof Error && error.message === "listing_review_changed") return res.status(409).json({ error: "Your job changed. Reopen its public card and review the changes before publishing." }); return res.status(503).json({ error: "The public card was not saved. Try again." }); }
   });
 
 const bookSchema = z.object({ recommendationId: z.string().min(1).max(120), authorized: z.literal(true) }).strict();
 
-/**
- * The site's one decision. Blueprint has already picked the team and scoped
- * the pilot; booking is the single approval, and it is where the fee is
- * agreed. A booking only ever binds the recommendation the site was shown.
- */
+/** The existing endpoint records proposal acceptance, not a physical booking. */
 router.post("/owner/:token/book", async (req, res) => {
   const token = verifyCaptureUploadToken(String(req.params.token));
-  if (!token || token.scope !== "owner") return res.status(403).json({ error: "Use the site owner's link to book this pilot." });
+  if (!token || token.scope !== "owner") return res.status(403).json({ error: "Use the site owner's link to accept this proposal." });
   const parsed = bookSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Confirm you are authorized to book this pilot." });
-  if (!db) return res.status(503).json({ error: "Booking unavailable" });
+  if (!parsed.success) return res.status(400).json({ error: "Confirm you are authorized to accept this proposal." });
+  if (!db) return res.status(503).json({ error: "Acceptance unavailable" });
   const store = db;
   try {
     const ref = store.collection("inboundRequests").doc(token.requestId);
@@ -110,12 +123,14 @@ router.post("/owner/:token/book", async (req, res) => {
       const recommendation = record?.pilot_recommendation;
       if (!current.exists || !recommendation) return "missing" as const;
       if (recommendation.id !== parsed.data.recommendationId) return "stale" as const;
+      if (recommendation.reviewRequired) return "stale" as const;
       const booking = record?.pilot_booking;
       if (booking && booking.recommendationId !== recommendation.id) return "stale" as const;
       const to = String(await decryptFieldValue(record?.contact?.email ?? "")).trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return "contact_missing" as const;
       const input = buildTaskLifecycleNotification({ requestId: token.requestId, milestone: "pilot_booked",
-        eventId: pilotRecommendationEventId(recommendation.id, to), to, captureUrl });
+        eventId: pilotRecommendationEventId(recommendation.id, to), to, captureUrl,
+        detail: !booking || booking.commercialBasis === "invited_beta_free" ? "invited_beta_free" : undefined });
       const intentRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(input.idempotencyKey);
       const intent = await transaction.get(intentRef);
       const legacyKey = `${token.requestId}:pilot_booked:${recommendation.id}`;
@@ -131,8 +146,8 @@ router.post("/owner/:token/book", async (req, res) => {
       // All reads precede writes. Confirmation failure rolls back a new
       // booking; a lost-response retry preserves its price, terms and date.
       if (!booking) transaction.update(ref, { pilot_booking: {
-        recommendationId: recommendation.id, amountUsd: pilotFeeUsd, termsVersion: TERMS_VERSION,
-        bookedAtIso, bookedBy: "signed_owner_link",
+        recommendationId: recommendation.id, amountUsd: 0, termsVersion: TERMS_VERSION, commercialBasis: "invited_beta_free",
+        acceptedAtIso: bookedAtIso, acceptedBy: "signed_owner_link", state: "awaiting_coordination",
       } });
       if (!existing) {
         // Old handlers still enqueue this key after their source write. Reserve
@@ -155,11 +170,11 @@ router.post("/owner/:token/book", async (req, res) => {
       }
       return "ok" as const;
     });
-    if (outcome === "missing") return res.status(404).json({ error: "There is no recommended pilot to book yet." });
+    if (outcome === "missing") return res.status(404).json({ error: "There is no pilot proposal to accept yet." });
     if (outcome === "stale") return res.status(409).json({ error: "This recommendation has changed. Reopen your job page to see the current one." });
-    if (outcome === "contact_missing") return res.status(409).json({ error: "A valid site contact email is needed to confirm this booking. Contact Blueprint to correct it." });
-    return res.json({ ok: true });
-  } catch { return res.status(503).json({ error: "We could not confirm the booking. Please try again." }); }
+    if (outcome === "contact_missing") return res.status(409).json({ error: "A valid site contact email is needed to confirm acceptance. Contact Blueprint to correct it." });
+    return res.json({ ok: true, coordination: projectPilotCoordination((await ref.get()).data()) });
+  } catch { return res.status(503).json({ error: "We could not confirm acceptance. Reopen your job page to check before retrying." }); }
 });
 
 export default router;

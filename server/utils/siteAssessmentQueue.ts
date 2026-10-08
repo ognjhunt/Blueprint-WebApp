@@ -204,7 +204,7 @@ export async function retrySiteAssessment(input: { requestId: string; expectedJo
       throw new Error("advisory_retry_unavailable");
     const next: SiteAssessmentJob = { ...job, state: "queued", run_id: runId, claim_id: null, packet_sha256: null,
       retry_history: archive.budgetUpdate.assessment_recoveries };
-    tx.set(archive.programmeRef, archive.programmeUpdate, { merge: true });
+    if (archive.callRef) tx.set(archive.callRef, archive.callUpdate, { merge: true });
     tx.set(archive.budgetRef, archive.budgetUpdate, { merge: true });
     tx.set(selected.ref, { state: next.state, run_id: runId, claim_id: null, packet_sha256: null,
       retry_history: next.retry_history, updated_at_ms: Date.now() }, { merge: true });

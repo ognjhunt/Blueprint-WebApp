@@ -41,9 +41,9 @@ export async function writeDurableSiteCaptureRecovery(key: string, value: SiteCa
       // Ordinary delayed writes cannot reopen a logout tombstone or replace another generation.
       if (!replaceIdentity && current && (current.retired || current.value?.requestId !== value.requestId
         || current.value?.retryToken !== value.retryToken)) { request.transaction!.abort(); return; }
-      const { task, location, email, company, method, region, regionManuallySet } = value.draft;
+      const { task, location, email, company, method, region, regionManuallySet, privateHandling } = value.draft;
       const canonical = { version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
-        draft: { task, location, email, company, method, region, regionManuallySet },
+        draft: { task, location, email, company, method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}) },
         pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null };
       store.put({ value: canonical, retired: false } satisfies DurableSiteCaptureRow, key); done(undefined);
     };

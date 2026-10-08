@@ -11,10 +11,10 @@ vi.mock("@/lib/siteCaptureDurability", () => ({
     const current = durability.rows.get(key);
     if (!replaceIdentity && current && (current.retired || current.value?.requestId !== value.requestId
       || current.value?.retryToken !== value.retryToken)) throw new Error("Fixture durability transaction aborted");
-    const { task, location, email, company, method, region, regionManuallySet } = value.draft;
+    const { task, location, email, company, method, region, regionManuallySet, privateHandling } = value.draft;
     durability.rows.set(key, { retired: false, value: {
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
-      draft: { task, location, email, company, method, region, regionManuallySet },
+      draft: { task, location, email, company, method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}) },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     } });
   },
@@ -38,7 +38,7 @@ function changeBody(value: SiteCaptureRecovery, property: string, replacement: u
   const body = JSON.parse(value.pending!.body); body[property] = replacement; value.pending!.body = JSON.stringify(body);
 }
 beforeEach(() => { durability.rows.clear(); localStorage.clear(); vi.spyOn(Date, "now").mockReturnValue(fixedTime); });
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 for (const item of catalog.cases.filter(item => item.layer === "local-storage-helper")) {
   it(`${item.id}: ${item.meaningful_condition}`, () => {
     const value: any = base(); let raw: string | null = null;
@@ -122,4 +122,15 @@ for (const item of catalog.cases.filter(item => item.layer === "local-storage-he
 }
 it("ACCESS-REGRESSION-031: real UID named anonymous cannot collide with the unauthenticated scope",()=>{
   expect(siteCaptureDraftKey("anonymous","default")).not.toBe(siteCaptureDraftKey(null,"default"));
+});
+
+it("retains private handling across local autosave and durable restoration without changing job identity", async () => {
+  vi.stubGlobal("navigator", { locks: { request: async (_name: string, action: () => unknown) => action() } });
+  const { writeSiteCaptureRecoveryDurably, hydrateSiteCaptureRecovery } = await import("@/lib/siteCaptureDraft");
+  const value = base(); value.draft.privateHandling = true;
+  expect(await writeSiteCaptureRecoveryDurably(key, value)).toBe(true);
+  expect(readSiteCaptureRecovery(key)?.draft.privateHandling).toBe(true);
+  localStorage.clear();
+  await hydrateSiteCaptureRecovery(key);
+  expect(readSiteCaptureRecovery(key)).toMatchObject({ requestId: value.requestId, retryToken: value.retryToken, draft: { privateHandling: true } });
 });
