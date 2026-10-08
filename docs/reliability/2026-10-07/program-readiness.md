@@ -1,6 +1,6 @@
 # Reliability decision: customer recovery deployed and verified; evaluation partial
 
-Updated 2026-10-08T23:20:00Z. The initial four-hour closeout was **PARTIAL**; the full reliability goal remains incomplete. Frozen counts/severity rules and explicit corrections are in `program-charter.md`; earlier failures and exact releases remain in Git, the ledger and trace index.
+Updated 2026-10-08T23:23:31Z. The initial four-hour closeout was **PARTIAL**; the full reliability goal remains incomplete. Frozen counts/severity rules and explicit corrections are in `program-charter.md`; earlier failures and exact releases remain in Git, the ledger and trace index.
 
 The human upgraded the existing web instance to 2 GB. Reviewed repairs #975–#979 are included in paired live **189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9**. Exact-main CI37856452795 and CI-gated Deploy37856783421 succeeded. An independent reviewer verified both native deployment receipts, source identity, plan and public version/health/readiness. Subsequent unrelated source work does not retroactively change this run's release identity.
 
@@ -8,7 +8,7 @@ The original owner clicked the normal saved-job retry once at23:08:34. Persisted
 
 The report remains **needs_operator_input**. It separates timestamped video observations, supplied owner statements, hypotheses and unknown measurements/capabilities. This is successful assessment publication, not physical execution, robot qualification or human-checked video accuracy. All seven robot-knowledge searches returned cursor errors; no knowledge source was obtained. The report acknowledges that limitation rather than concluding suitable robots do not exist. This is a concrete efficiency defect for offline replay and repair.
 
-Minute service-memory samples during the run reached approximately **462 MiB** on one 2 GB instance. No OOM/restart appeared in the bounded observation. Final post-completion observations are pending. Samples miss transient peaks; this does not clear the frozen peak/headroom/concurrency sizing gate. The observed successful run supplies no reason for another RAM upgrade.
+Independent final runtime review3a81d64d recomputed thirteen minute service-memory samples: maximum **491 MiB**, final approximately **399 MiB**, one 2 GB instance. The bounded event query returned zero failure/restart events. Samples miss transient peaks; this does not clear the frozen peak/headroom/concurrency sizing gate. The observed successful run supplies no reason for another RAM upgrade.
 
 | Decision | Current evidence |
 | --- | --- |
@@ -29,6 +29,6 @@ Executed coverage stays separate:
 
 The original customer Gemini uncertainty remains separate and unknown; no estimate is an invoice or refund. Current financial authority removes the old program spending/call gates. Source/consent/access, idempotency, cancellation, individual request timeouts and inspectable accounting remain. Existing Gemini 32768 output setting is unchanged; do not claim every provider's output is unbounded.
 
-The next concrete repair is the actual repeated robot-knowledge cursor failure, using retained observable calls and offline replay before any further model run. Complete current bounded runtime/notification readbacks. Independent review a0a42dd4 confirms packet digest, observable export and accounting; it does not independently re-download the raw private bundle or certify video truth. Actual advisory-ready notification enqueue/delivery is not established; no live test email was approved or sent. Additional lawfully usable reference sources/current checked labels and a frozen holdout are required before assessment usefulness can support a broader readiness decision.
+The next concrete repair is the actual repeated robot-knowledge cursor failure, using retained observable calls and offline replay before any further model run. Final bounded runtime and existing-outbox readbacks are retained. The outbox contains two earlier task/video send records and zero notices created or sent during this assessment; no scheduled check-in exists. A provider send receipt is not inbox-read proof. Independent review a0a42dd4 confirms packet digest, observable export and accounting; it does not independently re-download the raw private bundle or certify video truth. Actual advisory-ready notification enqueue/delivery is not established; no live test email was approved or sent. Additional lawfully usable reference sources/current checked labels and a frozen holdout are required before assessment usefulness can support a broader readiness decision.
 
 Use `program-replay.md`, frozen catalogs/reference manifest, trace index, failure ledger, release evidence and `program-review.md` for commands and hashes. Raw receipts remain in authorized private storage; summaries exclude credentials, bearer links, private capture IDs and footage. Temporary fault infrastructure is stopped. No zero-defect or production-assessment certification is supported.

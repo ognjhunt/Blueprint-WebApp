@@ -1341,5 +1341,22 @@
       "limit": "One evolving same-source recovery trace, with intake/upload on older code and final retry on189. Execution and durable publication do not establish human-checked perception truth, physical execution, robot fit or notifications. Periodic memory samples do not prove instantaneous peak/concurrency/leak freedom."
     },
     "causal_limit": "Same-source local SDK depth/arrays failure reproduced and fixed. The earlier cloud transaction payload/native cause was discarded; successful189 retry does not retrospectively recover it."
-  }
+  },
+  "normal_189_final_runtime": {
+    "receipt_sha256": "42a61a841d340c9766ecb04e14fa5e725c0d238c7e839d302ecab630384b9a19",
+    "independent_review": "3a81d64d",
+    "window_start": "2026-10-08T23:08:34.355Z",
+    "window_end": "2026-10-08T23:20:49.294Z",
+    "resolution_seconds": 60,
+    "sample_count": 13,
+    "maximum_sampled_memory_bytes": 514678800,
+    "maximum_sampled_memory_MiB": 490.84,
+    "last_sample_bytes": 418398200,
+    "last_sample_MiB": 399.02,
+    "reported_limit_bytes": 2147483600,
+    "instances": 1,
+    "bounded_returned_event_count": 0,
+    "scope": "Service-level minute samples, not instantaneous peak/assessment-only allocation. Later samples after confirmed terminalread support bounded post-run observation; early postcompletionlabel not separately certified. No concurrentcapacity/leak/zeroOOM universal claim; frozen peak/headroom sizing gate remains uncleared."
+  },
+  "updated_at_utc": "2026-10-08T23:23:31Z"
 }

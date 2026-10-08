@@ -2145,7 +2145,7 @@
     },
     "original_case_credit": 0
   },
-  "updated_at_utc": "2026-10-08T23:20:00Z",
+  "updated_at_utc": "2026-10-08T23:23:31Z",
   "paid_provider_actor_handoff": {
     "owner": "Existing local assessment-iteration task; original normal-UI provider actor explicitly held",
     "scope": "ONE same authorized MOV production SDK/Gemini fresh baseline, then ONE actual Sol saved-evidence comparison reusing Gemini output. Serial actor; no automatic paid retry; no customer writes.",
@@ -2570,5 +2570,41 @@
     "receipt_sha256": "fcc435cc56b050561db02b3c8ac4259fd07f6810bfc309e55d8ea96ac2fe9076",
     "limit": "One evolving actual same-source recovery case; no independent video/sample credit, no success from UIack or runningstate"
   },
-  "historical_verified_webapp_release_alias": "783feb64213e78b5c219763e2fb2232b8390ba1c"
+  "historical_verified_webapp_release_alias": "783feb64213e78b5c219763e2fb2232b8390ba1c",
+  "normal_189_final_runtime": {
+    "receipt_sha256": "42a61a841d340c9766ecb04e14fa5e725c0d238c7e839d302ecab630384b9a19",
+    "independent_review": "3a81d64d",
+    "window_start": "2026-10-08T23:08:34.355Z",
+    "window_end": "2026-10-08T23:20:49.294Z",
+    "resolution_seconds": 60,
+    "sample_count": 13,
+    "maximum_sampled_memory_bytes": 514678800,
+    "maximum_sampled_memory_MiB": 490.84,
+    "last_sample_bytes": 418398200,
+    "last_sample_MiB": 399.02,
+    "reported_limit_bytes": 2147483600,
+    "instances": 1,
+    "bounded_returned_event_count": 0,
+    "scope": "Service-level minute samples, not instantaneous peak/assessment-only allocation. Later samples after confirmed terminalread support bounded post-run observation; early postcompletionlabel not separately certified. No concurrentcapacity/leak/zeroOOM universal claim; frozen peak/headroom sizing gate remains uncleared."
+  },
+  "normal_189_final_notification_readback": {
+    "receipt_sha256": "f65d510eb0212e7d6cc47dbdfad0feb1ef04ea84a30896c5549f515e23b6fc35",
+    "matching_historical_notice_rows": 2,
+    "historic_kind_counts": {
+      "task_received": 1,
+      "video_received": 1
+    },
+    "recorded_historic_status": "sent",
+    "created_during_current_assessment": 0,
+    "sent_during_current_assessment": 0,
+    "scheduled_check_in_exists": false,
+    "current_finalize_emails_sent": 0,
+    "scope": "Exactexistingoutbox query only; recorded provider send is not inbox-read proof. No assessment-ready delivery or widercommunicationabsence claimed."
+  },
+  "normal_189_final_compact_export": {
+    "sha256": "a7a531fb3ee58df43267a44bf6c58305fdbe46d2fb80440f77e84463a1550d67",
+    "path": "/Users/nijelhunt_1/Documents/Codex/2026-10-07/task-3/dishwasher-isolated-analysis/reconciliation/normal-assessment-combined189-terminal-20261008.json",
+    "outcome": "normal_customer_same_job_assessment_completed",
+    "goal_completion": "partial assessmentquality/fulljourneycoverage; no humantruthscore/physicalpilot/readyemailproof"
+  }
 }
