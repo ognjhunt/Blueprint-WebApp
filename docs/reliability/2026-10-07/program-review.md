@@ -1481,3 +1481,17 @@ metadata, exact final-head CI, deployment and deployed affected behavior remain
 release gates. Prior caa51535 CI or PR947 deployment does not cover this new
 hook. No optional framework/tests, live provider call or production mutation was
 performed by the reviewer.
+
+
+## Independent startup admission log review — 99ad80c0
+
+Approved exact final PR948 source
+`99ad80c09ef1d73e49e16de849792f1b4c83f82a`, whose sole difference from
+approved ee3d72a1 computes the same forward-worker enable boolean once and logs
+it alongside the existing site-video enable boolean under a constant startup
+message. The original gate, queue hook, limits, stop fences and source/spending
+controls are unchanged. The two booleans expose no keys, URLs, customer IDs or
+configuration values. Their live observation can establish loaded admission
+configuration at startup, not a successful job, provider execution, result or
+customer delivery. No redundant test was added or rerun for this logging-only
+review; final required checks and deployed receipts must bind this new head.
