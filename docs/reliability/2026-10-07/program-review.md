@@ -2975,3 +2975,14 @@ peak memory, deployed Node behavior or complete OOM causality. One verified
 Buffer remains resident. No real video/provider/network or new journey credit
 is established; the affected live assessment and unknown charge still require
 separate observation. Neither source approval alone clears whole-program quality.
+
+
+Abandoned-recovery integration continuity: independently checked clean immutable
+`44ac4f54e4cbbf6531be20f272995cf50e29b356`, merging reviewedaa519244 with
+currentmaine9bb371680452845c6629f53b9786a219530aaab. Both owned helper files
+have empty byte diff from aa; the three-dot diff against e9 contains only those
+two paths,77 insertions/5 deletions. Current-main changes do not alter their
+source/context, private-writer or pending-capture interfaces. The aa bounded source
+approval therefore carries forward to44ac, with unchanged retained execution
+provenance and limitations. No test rerun or new execution/deployment proof is
+claimed; final protected checks and release verification remain separate.
