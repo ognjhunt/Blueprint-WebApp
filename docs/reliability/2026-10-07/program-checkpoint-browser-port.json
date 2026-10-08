@@ -55,7 +55,9 @@
       "failed": 1,
       "attempted": 2,
       "new_unique": 0,
-      "results_sha256": "3fc36d00cd5b4b5fe209f3f597d40932232101910bdd640b535b97f4b5d9cea7"
+      "results_sha256": "3fc36d00cd5b4b5fe209f3f597d40932232101910bdd640b535b97f4b5d9cea7",
+      "test_definition_sha256": "e000d9ee565f8242e0c64280e8a2308dcbab3a70edd1dd8d0697b15a6decff1b",
+      "test_definition_source": "native Playwright trace embedded source"
     },
     {
       "run": "diagnostic003",
@@ -63,7 +65,9 @@
       "failed": 1,
       "attempted": 1,
       "new_unique": 0,
-      "results_sha256": "8ad6988b7ec1a8b83bd221386a184b6b8a02e13bb3d83c8fb9122458df107e52"
+      "results_sha256": "8ad6988b7ec1a8b83bd221386a184b6b8a02e13bb3d83c8fb9122458df107e52",
+      "test_definition_sha256": "b57e62c5610dd9eaceae6fcc06112e1424a3f95fb24adbcf8851213bf3590cde",
+      "test_definition_source": "native Playwright trace embedded source"
     },
     {
       "run": "baseline-v2",
@@ -71,7 +75,9 @@
       "failed": 1,
       "attempted": 1,
       "new_unique": 0,
-      "results_sha256": "3bb2576826720b01f731a8c26e03cb578bb993d85d4c9dea3183c30766d73fc5"
+      "results_sha256": "3bb2576826720b01f731a8c26e03cb578bb993d85d4c9dea3183c30766d73fc5",
+      "test_definition_sha256": "2602ab648d99b70a0b2a393d02c4efc3fe144bc39359941540a610b8c6ca1023",
+      "test_definition_source": "native Playwright trace embedded source"
     }
   ],
   "status": "test-port complete; exact884 reload defect reproduced; candidate replay pending runtime repair"
