@@ -13,8 +13,8 @@ describe("current source-bound preparation projection", () => {
     ["awaiting_inputs", "needs more information"],
     ["authority_ended", "on hold"],
     ["unavailable", "could not verify"],
-  ])("%s does not claim preparation is continuing or complete", (state, phrase) => {
-    const status = projectTaskStatus({ ...base,
+  ])("%s remains visible without brief confirmation and does not claim success", (state, phrase) => {
+    const status = projectTaskStatus({ ...base, briefConfirmed: false,
       preparationStatus: { state, correlationId: reference } } as never);
     expect(status.decision).toBe("footage_received");
     expect(status.stage).toBeNull();
@@ -46,10 +46,9 @@ describe("current source-bound preparation projection", () => {
   it.each([
     [{ consentRevoked: true }, "withdrawn"],
     [{ briefDrafted: false }, "reading"],
-    [{ briefConfirmed: false }, "Check it"],
     [{ coversScene: false, missingViews: ["destination"] }, "coverage"],
     [{ disposition: "not_now" }, "Not yet"],
-    [{ disposition: "needs_conversation" }, "short call"],
+    [{ disposition: "needs_conversation" }, "specific open questions"],
     [{ claimed: false }, "Save it"],
   ])("preserves earlier consent, evidence and admission gates %j", (override, phrase) => {
     const status = projectTaskStatus({ ...base, ...override,

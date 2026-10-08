@@ -1,5 +1,6 @@
+import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { isLikelyPhone } from "@/lib/device";
-/** Start with a description; recording authority is separate. */
+/** Show the work; explanatory text is optional when capture is authorized. */
 import { useEffect, useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
@@ -8,7 +9,6 @@ import { LocationAutocomplete } from "@/components/site/LocationAutocomplete";
 import {
   captureRegionHeldNotice,
   captureRegionNotice,
-  captureRegionOptions,
   isApprovedCaptureRegion,
   type CaptureRegion,
 } from "@/data/captureResidency";
@@ -247,16 +247,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
   const [method, setMethod] = useState<"upload" | "phone" | "visit">(initial.draft.method);
   const selfRecording = method === "phone";
   const [region, setRegion] = useState<CaptureRegion | "">(initial.draft.region);
-  const regionManuallySet = useRef(initial.draft.regionManuallySet);
-  // The address answers the country, so the country is not a question on the
-  // page. It opens when the operator asks to correct it, or when a typed
-  // address never resolved to a country and we cannot go on without one.
-  const [countryOpen, setCountryOpen] = useState(Boolean(initial.draft.location && !initial.draft.region));
-  const [countryPrompted, setCountryPrompted] = useState(false);
-  const regionSelect = useRef<HTMLSelectElement>(null);
-  useEffect(() => {
-    if (countryPrompted) regionSelect.current?.focus();
-  }, [countryPrompted]);
+  // The address is the only place the country comes from. An address that does
+  // not resolve to one is flagged at Start, next to the address itself.
+  const [countryMissing, setCountryMissing] = useState(false);
   // Asked because it changes what we say next, not to route them into a
   // different funnel. Existing footage gets assessed for both purposes -- does
   // it explain the job, does it cover the scene -- and reused wherever it can be.
@@ -292,6 +285,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
   const rightsShown = method !== "visit";
   // The rights checkbox is tracked so the grant itself is transmitted — a
   // required-only checkbox was a legal act the server never heard about.
+  const [taskForPreview, setTaskForPreview] = useState(initial.draft.task);
+  const [privateHandling, setPrivateHandling] = useState(initial.draft.privateHandling ?? false);
+  const publicDraft = anonymizedOpportunityDraft(taskForPreview);
   const [consent, setConsent] = useState(false);
   const [claudeConsent, setClaudeConsent] = useState(false);
   const [solAgentsConsent, setSolAgentsConsent] = useState(false);
@@ -301,8 +297,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       || recovery.current.pending?.body !== other.pending?.body;
     recovery.current = other;
     requestId.current = other.requestId; retryToken.current = other.retryToken;
+    setPrivateHandling(other.draft.privateHandling ?? false); setTaskForPreview(other.draft.task);
     setMethod(other.draft.method); setRegion(other.draft.region);
-    regionManuallySet.current = other.draft.regionManuallySet;
     setPending(other.pending);
     if (changed && resetChanged) {
       setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
@@ -315,10 +311,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
     const field = (name: string) => String(data.get(name) ?? "");
     retain({ ...recovery.current, savedAt: Date.now(), draft: {
       task: field("startTask"), location: field("startLocation"), email: field("startEmail"), company: field("startCompany"),
-      method, region, regionManuallySet: regionManuallySet.current,
+      method, region, regionManuallySet: false, ...(privateHandling ? { privateHandling: true } : {}),
     } });
   }
-  useEffect(() => { retainDraft(); }, [interactive, method, region]);
+  useEffect(() => { retainDraft(); }, [interactive, method, region, privateHandling]);
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== storageKey || operationInFlight.current) return;
@@ -341,8 +337,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       recovery.current = fresh;
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setConsent(false); setClaudeConsent(false); setSolAgentsConsent(false);
-      setMethod("phone"); setRegion(""); regionManuallySet.current = false;
-      setCountryOpen(false); setFootage(null); setFootageError(null); setCaptureReceived(false);
+      setMethod("phone"); setRegion(""); setCountryMissing(false);
+      setPrivateHandling(false); setTaskForPreview("");
+      setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
       // A completion is visible only after both stores commit the fresh authority.
       setClearStatus("done");
@@ -363,11 +360,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       || (!retained && footageWanted && !consent)
       || (!retained && claudeAuthoringRequested && !claudeConsent)
       || (!retained && solAgentsRequested && !solAgentsConsent)) return;
-    // A typed address that never resolved to a country: ask now, once, rather
-    // than guess. The country decides whether we may collect footage at all.
+    // The address has to say which country it is in. The country decides whether
+    // we may collect footage at all, so we do not guess it.
     if (!retained && !region) {
-      setCountryOpen(true);
-      setCountryPrompted(true);
+      setCountryMissing(true);
+      document.querySelector<HTMLInputElement>("#start-location")?.focus();
       return;
     }
     if (!retained && footageWanted && !footage) return;
@@ -379,6 +376,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
     const read = (key: string) => String(savedAnswers ? savedAnswers[savedFields[key]] ?? "" : data.get(key) ?? "").trim();
     let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
+    if (!retained && !read("startTask") && !(consent && rightsShown)) {
+      setState({ status: "failed", message: "Add a video or a short explanation of the work. If you will film later, confirm the recording rights to start without an explanation." });
+      return;
+    }
 
     operationInFlight.current = true;
     setState({ status: "working" });
@@ -405,6 +406,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
           siteLocation: location,
           taskStatement: read("startTask"),
           taskDescription: read("startTask"),
+          ...(!privateHandling ? { publicTaskListing: { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(read("startTask")) } } : {}),
           // Deliberately empty. The screen used to live here; it now happens
           // with the footage rather than in front of it.
           siteTaskGates: {},
@@ -584,8 +586,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
         {!state.hasFootage && state.captureUrl && !captureReceived ? (
           <>
             <h2 style={{ marginTop: 0 }}>Your job description is saved.</h2>
-            <p className="ms-field-hint">Review and correct your job brief. You can add footage later, once you have recording permission.</p>
-            <p><a className="ms-button ms-button-large" href={state.captureUrl}>Review your job brief</a></p>
+            <p className="ms-field-hint">Blueprint is preparing the useful next step from what you supplied. Your summary is available for optional corrections; add footage only when it resolves a missing fact and you have permission.</p>
+            <p><a className="ms-button ms-button-large" href={state.captureUrl}>Open your job and assessment</a></p>
             {!state.regionApproved && <p className="ms-field-hint">{captureRegionHeldNotice}</p>}
             <p className="ms-field-hint">Keep this private link to return to your job. We will also email it to {state.email}.</p>
             <CaptureLiveStatus captureUrl={state.captureUrl} onCaptureReceived={() => void refreshReceivedVideo(state.captureUrl!)} />
@@ -611,10 +613,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
               </button></p>
             )}
             <p className="ms-field-hint">
-              Next, check your job brief. You can do that here or on the phone; it is the same page.
+              Your job page shows what we found and the next step. Correct the prefilled summary only where it matters; there is no required confirmation before viewing value.
             </p>
             <p style={{ marginTop: "20px" }}>
-              <a className="ms-button ms-button-large" href={state.captureUrl}>Review your job brief</a>
+              <a className="ms-button ms-button-large" href={state.captureUrl}>Open your job and assessment</a>
             </p>
             <CaptureLiveStatus captureUrl={state.captureUrl} />
           </>
@@ -697,12 +699,18 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       <ClearDraftControl status={clearStatus} onClear={forgetDraft} disabled={state.status === "working"} />
       <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} className="contents">
       <label htmlFor="start-task">
-        <span>What is the task?</span>
+        <span>Anything we should know? (optional)</span>
         <span className="ms-field-hint">
-          For example, “move sealed cartons from the conveyor onto a pallet.”
+          Show us the work; we'll assess the observed task. Add context or what you want to achieve if helpful. We'll ask only when a missing answer changes the recommendation.
         </span>
-        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} required maxLength={2000} rows={4} />
+        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} onChange={event => setTaskForPreview(event.target.value)} maxLength={2000} rows={4} />
       </label>
+
+      <div aria-label="Opportunity sharing">
+        <p>{privateHandling ? "This job will be handled privately; starting does not authorize a public listing. Blueprint uses the supplied information for your job assessment." : "Blueprint will create an anonymized opportunity listing so robot teams approved for beta can discover this job. By starting, you authorize publication of the generated summary below. Footage, reconstruction, exact location, contacts and sensitive operating details remain restricted."}</p>
+        <p aria-label="Generated public summary"><strong>{publicDraft.title}</strong> · {publicDraft.taskFamily}{publicDraft.objects ? ` · ${publicDraft.objects}` : ""}. Requirements not supplied or approved for sharing remain unknown.</p>
+        <label className="ms-check-row"><input name="startPrivateHandling" type="checkbox" checked={privateHandling} onChange={event => setPrivateHandling(event.target.checked)} />Keep this job private instead</label>
+      </div>
 
       {claudeAuthoringRequested && (
         <label htmlFor="start-claude-authoring" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
@@ -792,7 +800,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
         )
       ) : null}
 
-      {/* Show resolved country or the required fallback while entering the job location. */}
       <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
         <label htmlFor="start-location">
           <span>Where would the robot do this task?</span>
@@ -809,49 +816,24 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
             maxLength={300}
             placeholder={selfRecording || hasFootage ? "City or address" : "Street address"}
             onSelectionChange={(place) => {
-              if (!regionManuallySet.current) {
-                setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
-                if (place) setCountryOpen(!place.countryCode);
-              }
+              setCountryMissing(false);
+              setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
             }}
             onInputChange={(text) => {
-              if (regionManuallySet.current) return;
+              setCountryMissing(false);
               const country = inferLocationCountryCode(text);
               setRegion(country ? (country === "US" ? "us" : "non_us") : "");
-              setCountryOpen(!country && text.trim().length > 0);
             }}
           />
         </label>
 
-        {countryOpen ? (
-          <label htmlFor="start-region">
-            <span>Which country is the site in?</span>
-            <select
-              id="start-region"
-              name="startRegion"
-              ref={regionSelect}
-              value={region}
-              required
-              onChange={(event) => { regionManuallySet.current = !!event.target.value; setRegion(event.target.value as CaptureRegion); }}
-            >
-              <option value="">Choose country</option>
-              {captureRegionOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : region ? (
-          <p className="ms-field-hint" style={{ margin: 0 }}>
-            Country: {captureRegionOptions.find((option) => option.value === region)?.label}.{" "}
-            <button type="button" className="ms-text-link" style={{ font: "inherit" }} onClick={() => setCountryOpen(true)}>
-              Change
-            </button>
+        {countryMissing && !region && (
+          <p className="ms-error" role="alert" style={{ margin: 0 }}>
+            Add the country to the address, for example Sacramento, California, United States.
           </p>
-        ) : null}
+        )}
 
-        {(countryOpen || region === "non_us") && (
+        {region === "non_us" && (
           <p className="ms-field-hint" style={{ margin: 0 }}>{captureRegionNotice}</p>
         )}
       </div>

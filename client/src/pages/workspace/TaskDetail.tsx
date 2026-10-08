@@ -117,7 +117,7 @@ export default function TaskDetail() {
             <div className="ws-section" aria-label="Your task page">
               <p>
                 <strong>Your task page.</strong>{" "}
-                Review or edit your answers, add footage
+                Review or edit your answers, review a pilot proposal and follow coordination, or add footage
                 {task.sceneReady ? ", and open your scene" : ""}.
               </p>
               <button

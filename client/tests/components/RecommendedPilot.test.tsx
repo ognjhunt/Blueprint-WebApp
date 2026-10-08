@@ -29,12 +29,12 @@ describe("the recommended pilot", () => {
     expect(screen.getByText("Acme Robotics")).toBeInTheDocument();
     expect(screen.getByText("Shrink-wrapped cartons")).toBeInTheDocument();
 
-    const authorize = screen.getByLabelText(/authorized to book this pilot/i);
+    const authorize = screen.getByLabelText(/authorized to accept this proposal/i);
     expect(authorize).toBeRequired();
     fireEvent.click(authorize);
-    fireEvent.click(screen.getByRole("button", { name: /Book this pilot · \$2,500 Blueprint fee/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Accept proposal/ }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(/Booked/);
+    expect(await screen.findByRole("status")).toHaveTextContent(/Proposal accepted.*awaiting coordination/);
     expect(String(fetchMock.mock.calls[1][0])).toBe("/api/task-listings/owner/tok/book");
     expect(JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body)).toEqual({ recommendationId: "rec_1", authorized: true });
   });
@@ -42,14 +42,14 @@ describe("the recommended pilot", () => {
   it("shows a booked pilot without a button", async () => {
     fetchMock.mockResolvedValueOnce(loaded({ recommendationId: "rec_1" }));
     render(<RecommendedPilot token="tok" />);
-    expect(await screen.findByRole("status")).toHaveTextContent(/Booked/);
+    expect(await screen.findByRole("status")).toHaveTextContent(/Proposal accepted.*awaiting coordination/);
     expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("requires explicit authorization even for a programmatic form submission", async () => {
     fetchMock.mockResolvedValueOnce(loaded());
     render(<RecommendedPilot token="tok" />);
-    const button = await screen.findByRole("button", { name: /Book this pilot/ });
+    const button = await screen.findByRole("button", { name: /Accept proposal/ });
     fireEvent.submit(button.closest("form")!);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -57,15 +57,15 @@ describe("the recommended pilot", () => {
   it("does not mark a different recommendation as booked", async () => {
     fetchMock.mockResolvedValueOnce(loaded({ recommendationId: "previous_rec" }));
     render(<RecommendedPilot token="tok" />);
-    expect(await screen.findByRole("button", { name: /Book this pilot/ })).toBeVisible();
+    expect(await screen.findByRole("button", { name: /Accept proposal/ })).toBeVisible();
     expect(screen.queryByRole("status")).toBeNull();
   });
 
   it.each([null, { ok: false }])("requires a positive server acknowledgment (%s)", async acknowledgment => {
     fetchMock.mockResolvedValueOnce(loaded()).mockResolvedValueOnce({ ok: true, json: async () => acknowledgment });
     render(<RecommendedPilot token="tok" />);
-    fireEvent.click(await screen.findByRole("checkbox", { name: /authorized to book/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Book this pilot/ }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: /authorized to accept/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Accept proposal/ }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/could not confirm.*Reopen your job page/);
     expect(screen.queryByRole("status")).toBeNull();
   });
@@ -74,8 +74,8 @@ describe("the recommended pilot", () => {
     let rejectBooking!: (reason: Error) => void;
     fetchMock.mockResolvedValueOnce(loaded()).mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectBooking = reject; }));
     const { unmount } = render(<RecommendedPilot token="tok" />);
-    fireEvent.click(await screen.findByRole("checkbox", { name: /authorized to book/i }));
-    const form = screen.getByRole("button", { name: /Book this pilot/ }).closest("form")!;
+    fireEvent.click(await screen.findByRole("checkbox", { name: /authorized to accept/i }));
+    const form = screen.getByRole("button", { name: /Accept proposal/ }).closest("form")!;
     fireEvent.submit(form);
     fireEvent.submit(form);
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -85,7 +85,7 @@ describe("the recommended pilot", () => {
     unmount();
     fetchMock.mockResolvedValueOnce(loaded({ recommendationId: "rec_1" }));
     render(<RecommendedPilot token="tok" />);
-    expect(await screen.findByRole("status")).toHaveTextContent(/Booked/);
+    expect(await screen.findByRole("status")).toHaveTextContent(/Proposal accepted.*awaiting coordination/);
     expect(fetchMock.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(1);
   });
 
@@ -93,8 +93,8 @@ describe("the recommended pilot", () => {
     fetchMock.mockResolvedValueOnce(loaded()).mockResolvedValueOnce({ ok: false, status: 409,
       json: async () => ({ error: "This recommendation has changed. Reopen your job page to see the current one." }) });
     render(<RecommendedPilot token="tok" />);
-    fireEvent.click(await screen.findByRole("checkbox", { name: /authorized to book/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Book this pilot/ }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: /authorized to accept/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Accept proposal/ }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/recommendation has changed/);
     expect(screen.queryByRole("status")).toBeNull();
   });
@@ -103,31 +103,31 @@ describe("the recommended pilot", () => {
     let resolveSecond!: (value: unknown) => void;
     fetchMock.mockResolvedValueOnce(loaded()).mockImplementationOnce(() => new Promise(resolve => { resolveSecond = resolve; }));
     const { rerender } = render(<RecommendedPilot token="first" />);
-    fireEvent.click(await screen.findByRole("checkbox", { name: /authorized to book/i }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: /authorized to accept/i }));
     rerender(<RecommendedPilot token="second" />);
     expect(screen.queryByText("Acme Robotics")).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
     resolveSecond({ ok: true, json: async () => ({ recommendation: { ...recommendation, id: "rec_2", teamName: "Second team" }, booking: null }) });
     expect(await screen.findByText("Second team")).toBeVisible();
-    expect(screen.getByRole("checkbox", { name: /authorized to book/i })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /authorized to accept/i })).not.toBeChecked();
     fetchMock.mockResolvedValueOnce(loaded({ recommendationId: "rec_1" }));
     rerender(<RecommendedPilot token="first" />);
     expect(screen.queryByText("Second team")).toBeNull();
-    expect(await screen.findByRole("status")).toHaveTextContent(/Booked/);
+    expect(await screen.findByRole("status")).toHaveTextContent(/Proposal accepted.*awaiting coordination/);
   });
 
   it("ignores a late booking response from the previous private link", async () => {
     let resolveBooking!: (value: unknown) => void;
     fetchMock.mockResolvedValueOnce(loaded()).mockImplementationOnce(() => new Promise(resolve => { resolveBooking = resolve; }));
     const { rerender } = render(<RecommendedPilot token="first" />);
-    fireEvent.click(await screen.findByRole("checkbox", { name: /authorized to book/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Book this pilot/ }));
+    fireEvent.click(await screen.findByRole("checkbox", { name: /authorized to accept/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Accept proposal/ }));
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation: { ...recommendation, id: "rec_2" }, booking: null }) });
     rerender(<RecommendedPilot token="second" />);
-    await screen.findByRole("button", { name: /Book this pilot/ });
+    await screen.findByRole("button", { name: /Accept proposal/ });
     resolveBooking({ ok: true, json: async () => ({ ok: true }) });
-    await waitFor(() => expect(screen.getByRole("button", { name: /Book this pilot/ })).toBeVisible());
+    await waitFor(() => expect(screen.getByRole("button", { name: /Accept proposal/ })).toBeVisible());
     expect(screen.queryByRole("status")).toBeNull();
-    expect(screen.getByRole("checkbox", { name: /authorized to book/i })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /authorized to accept/i })).not.toBeChecked();
   });
 });

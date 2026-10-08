@@ -12,7 +12,50 @@ import {
 import { readConfiguredSceneThumbnail } from "../utils/configuredSceneThumbnail";
 import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
 
+import { z } from "zod";
+import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
+import { csrfProtection } from "../middleware/csrf";
+import { accessRecordId, getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
+import { getRobotTeam } from "../utils/robotTeamRegistry";
+import { humanDecisionDigest } from "../utils/human-reply-admission";
 const router = Router();
+const interestSchema = z.object({ state: z.enum(["interested", "declined", "committed"]),
+  inputs: z.string().trim().min(4).max(2000), recommendationId: z.string().max(120).optional(),
+  authorized: z.literal(true).optional() }).strict();
+router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, async (req, res) => {
+  const input = interestSchema.safeParse(req.body), user = res.locals.firebaseUser;
+  if (!input.success) return res.status(400).json({ error: "Give your decision and the proposal inputs you know." });
+  if (!user?.email || user.email_verified !== true) return res.status(403).json({ error: "Use your admitted team's verified account." });
+  if (!db) return res.status(503).json({ error: "Job unavailable" });
+  try {
+    const access = await getAccessRecordForEmail(user.email);
+    if (access?.status !== "approved") return res.status(403).json({ error: "Manual team admission is required." });
+    const taskId = String(req.params.taskId), ref = db.collection("inboundRequests").doc(taskId);
+    const source = (await ref.get()).data(), card = source && projectTaskBrowseCard(taskId, source as InboundRequest);
+    if (!card || card.opportunity !== "open") return res.status(409).json({ error: "This job is not open to proposals." });
+    const recommendation = source!.pilot_recommendation;
+    if (input.data.state === "committed") {
+      const team = recommendation && await getRobotTeam(recommendation.teamId);
+      if (!input.data.authorized || input.data.recommendationId !== recommendation?.id || recommendation.reviewRequired || !team
+        || String(team.accountEmail || team.contactEmail || "").toLowerCase() !== user.email.toLowerCase()) return res.status(409).json({ error: "Confirm only the current proposal for your registered team, with authority for its scope, cost and proposed timing." });
+    }
+    const row = { ...input.data, email: user.email.toLowerCase(), company: access.company, submittedBy: user.uid,
+      ...(input.data.state === "committed" ? { proposalDigest: humanDecisionDigest(recommendation), teamId: recommendation.teamId } : {}),
+      updatedAtIso: new Date().toISOString() };
+    await db.runTransaction(async tx => {
+      const current = (await tx.get(ref)).data();
+      if (!current || humanDecisionDigest(current.public_task_listing) !== humanDecisionDigest(source!.public_task_listing)
+        || !projectTaskBrowseCard(taskId, current as InboundRequest)
+        || (input.data.state === "committed" && humanDecisionDigest(current.pilot_recommendation) !== row.proposalDigest)) throw new Error("job_changed");
+      const interestRef = ref.collection("robotTeamInterest").doc(accessRecordId(user.email!));
+      const prior = (await tx.get(interestRef)).data();
+      if (prior && humanDecisionDigest({ ...prior, updatedAtIso: null }) === humanDecisionDigest({ ...row, updatedAtIso: null })) return;
+      tx.set(interestRef, row);
+    });
+    return res.json({ ok: true, state: input.data.state, nextAction: input.data.state === "committed" ? "Blueprint must still verify the site's agreement, confirmed date and preparation responsibilities." : "Blueprint will review your inputs. Interest reserves no capacity and creates no physical commitment." });
+  } catch { return res.status(409).json({ error: "The job changed or your decision could not be saved. Reopen the job before trying again." }); }
+});
+
 
 function queryString(value: unknown) {
   if (Array.isArray(value)) {

@@ -67,14 +67,15 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
     }
     await expect(page.locator("#start-email")).toHaveValue(`reliability-${index + 1}@example.invalid`);
     await expect(page.locator("#start-location")).toHaveValue(parameters.location);
-    await expect(page.getByText(parameters.location.startsWith("Austin") ? /Country: United States\./ : /Country: Outside the United States\./)).toBeVisible();
+    if (parameters.location.startsWith("Austin")) await expect(page.locator("#start-region")).toHaveCount(0);
+    else await expect(page.getByText(/During the beta we can only take walkthroughs/)).toBeVisible();
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
     if (parameters.boundary === "lost-response") {
       await expect(page.getByRole("alert")).toContainText("could not reach Blueprint");
       await page.reload();
       await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
     }
-    const privateLink = page.getByRole("link", { name: "Review your job brief", exact: true });
+    const privateLink = page.getByRole("link", { name: "Open your job and assessment", exact: true });
     await expect(privateLink).toBeVisible();
     const target = await privateLink.getAttribute("href");
     expect(target).toMatch(/\/capture-upload\//);
@@ -93,9 +94,9 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       page = await start();
       await page.goto("http://127.0.0.1:4181/contact/site-operator");
     }
-    await expect(page.getByRole("link", { name: "Review your job brief", exact: true })).toHaveAttribute("href", target!);
-    await page.getByRole("link", { name: "Review your job brief", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Review your job brief", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveAttribute("href", target!);
+    await page.getByRole("link", { name: "Open your job and assessment", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toBeVisible();
     // A real read of the persisted projection must still authorize this same route.
     const token = new URL(page.url()).pathname.split("/").pop()!;
     const response = await context!.request.get(`http://127.0.0.1:4181/api/site-task-brief/${encodeURIComponent(token)}`);

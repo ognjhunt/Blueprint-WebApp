@@ -17,7 +17,7 @@ export function TaskClarification({ token }: { token: string }) {
   if (request && !request.needed) return null;
   return <section aria-label="Answer screening questions">
     <h3>Answer in writing</h3>
-    <p>You can explain the open questions here. A reviewer will check your answers; you can also book a call.</p>
+    <p>Reply naturally to the job email conversation, or answer the relevant question here. Either answer stays with this job for Blueprint’s review; no new intake is needed.</p>
     {request?.questions.length ? <ul>{request.questions.map(question => <li key={question}>{question}</li>)}</ul> : null}
     <label htmlFor="screening-explanation">Your explanation</label>
     <textarea id="screening-explanation" value={explanation} maxLength={4000} rows={5} onChange={event => setExplanation(event.target.value)} />
@@ -27,7 +27,7 @@ export function TaskClarification({ token }: { token: string }) {
         const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ revision: request!.revision, explanation }) });
         if (!response.ok) throw new Error((await response.json()).error);
-        setStatus("Your explanation is saved for review. We will email you when there is an update.");
+        setStatus("Your explanation is saved for review. Blueprint will review it and follow through with the next useful step.");
       } catch (error) { setStatus(error instanceof Error ? error.message : "Could not save. Please retry."); }
       finally { setBusy(false); }
     }}>{busy ? "Saving…" : "Send explanation"}</button>
