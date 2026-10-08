@@ -701,6 +701,21 @@
       "candidate": "86budget/retrycontrols_and1scripted_handler_worker_joined_neighbor_pass;typecheck_graphify_portability_pass",
       "matched_baseline": "two_selected_final_controls_fail_on_pre_fix_runtime;84unselected_skipped_not_counted",
       "actual_invocation": "not_executed;original_expiry_digest_unknowns_cap_slots_preserved"
+    },
+    {
+      "id": "COMMS-DORMANT-SPEND-BINDING-001",
+      "severity": "P2_dormant_prospective_source;no_live_incidence",
+      "owner": "existing_communications_owner;independent_review/root_release",
+      "state": "independent_counterexample_demonstrated;author_repair_pending;PR966_not_merged",
+      "invariant": "Provider session readback cannot exceed the retained native reservation through incoherent checkpoint mutation",
+      "source_head": "a96e5939bd3ac0acbd9781a8c6a1d28e6fb2df95",
+      "counterexample": "original10cent reservation digest;changecheckpoint+providerlimit+providermetadata to11;actualfakeproviderAPIrun resolves instead of refusing",
+      "reproducer": "one_existingAPIfixture;1failed139unselectedskipped",
+      "review": "3859404a",
+      "log_sha256": "8596844c5a2bd1b6aac119e497eb8f02c55ab9e5503073493f0cd95579bf9bf5",
+      "scope": "dormantoptin source;no originalprogramme/helper sharedfiles;not a blanket release/customerlearningfreeze",
+      "paid_calls": 0,
+      "original_unique_case_credit": 0
     }
   ],
   "dependencies": [

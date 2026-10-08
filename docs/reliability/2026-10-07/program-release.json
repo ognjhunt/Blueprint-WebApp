@@ -296,6 +296,23 @@
       "observed": "three_shards_success;shard2_live;aggregate_and_official_provenance_pending",
       "canonical_current": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
       "not_restarted": true
+    },
+    "receipt_fence_followup_current": {
+      "sha": "0a17f52d23f233376b9944a6df49101491581f6c",
+      "promotion": 37808897987,
+      "promotion_conclusion": "success_4shards_plusCPU",
+      "official_provenance_run": 37819709003,
+      "official_provenance_conclusion": "success",
+      "official_artifact_id": 11568622637,
+      "official_receipt_sha256": "ece46dadd7c1da7be24bc2be48993951bbf5b218539dd75d4f1b47f0d0c14fbe",
+      "test_count": 34115,
+      "skipped_count": 0,
+      "independent_predeploy_review": "ce76a64d",
+      "first_deploy": "terminal_blocked_target_git_object_absent;activea56pausedcontrols_unchanged",
+      "diagnosis_sha256": "179fd5722eada84747e01398bd49cd1f389d5616a3f60cf504e16671fe2295b2",
+      "safe_prerequisite_fix": "fetch_existing_origin_main;object0a_andorigin_main_verified;HEADa56unchanged",
+      "fetch_receipt_sha256": "cfa002fce623df504a988c3509ae394d09dd46621dcfc81515e2b4f08c620757",
+      "second_deploy": "active_sameimmutable_source_andofficialprovenance_preserve_configured_controls"
     }
   },
   "privacy": "Only sanitized deployment identity/receipt metadata; private operator status remains ignored.",
@@ -1454,7 +1471,7 @@
     "claim_ceiling": "Exact source/paired native deployment and safe health/local-draft/clear UI. Does not establish a successful provider assessment."
   },
   "technical_expiry_followup": {
-    "state": "explicit_continuation_reviewed_86checks_and1scripted_joined_neighbor_pass;PR_CI_active;no_live_grant",
+    "state": "protected_merged;mainCI_SUCCESS;paired_deploy_active;no_live_grant",
     "expired_dispatch": "forbidden",
     "original_expiry_and_authority_digest": "preserved;changing_originalexpiry wouldbreakreceiptaccounting",
     "original_slots_cap_unknown_history": "unchanged",
@@ -1467,7 +1484,15 @@
     "author_receipt_sha256": "96d70f738e09e273cd0544fdc603eaee49991456b62ab1aa4d864ec46c8f0280",
     "integration_receipt_sha256": "fa07c68d31c577f49c64e08139899fee3947fdc6af772863b53c5394aa5fd31d",
     "operator_provenance_export_sha256": "14ea3b7ac29d44d9d4712312ec24124de4474a02dace72ce3627abcaa882d408",
-    "claim_ceiling": "Source approval/offline execution only; explicit original-authority-bound operator grant still requires exact reviewed paired live release and fresh canonical checks."
+    "claim_ceiling": "Source approval/offline execution only; explicit original-authority-bound operator grant still requires exact reviewed paired live release and fresh canonical checks.",
+    "merge_sha": "ae883831d7876da6632654b75026128dd6aa8450",
+    "merged_at_utc": "2026-10-08T17:51:17Z",
+    "required_PR_CI_conclusion": "success",
+    "main_CI": 37819768207,
+    "main_CI_conclusion": "success",
+    "deployment_workflow": 37820388566,
+    "merged_tree_matches_reviewed_head": true,
+    "CI_terminal_log_sha256": "001aa815185222686b7372b7d4b37cfeb6d2396f9fe298d03cb810fcc4611eea"
   },
   "historical_shared_1364_release": {
     "sha": "1364d24e489571bc971dbc247df5fa9e2ae7d0ac",
