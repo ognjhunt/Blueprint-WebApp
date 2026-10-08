@@ -32,6 +32,8 @@ export type CommunicationsJobRecord = CommunicationsJob & {
   state: typeof COMMUNICATIONS_JOB_STATES[number];
   attempts: number; checkpoint: CommunicationsCheckpoint; output?: CommunicationsOutput;
   lease?: { owner: string; until: number }; nextAttemptAt?: number; reason?: string;
+  manualDraftRequest?: { actorUid: string; requestDigest: string; sourceCommit: string; sessionSpendLimitCents: number;
+    state: "requested" | "completed" | "failed"; requestedAt: number; error?: string };
   automationPolicyVersion?: string;
   retryRequestedBy?: string;
   savedOutputRecovery?: CommunicationsSavedOutputRecovery;
@@ -42,7 +44,8 @@ export type CommunicationsJobRecord = CommunicationsJob & {
 /** Read before the caller writes. The stable first-touch claim also covers
  * legacy queue records and prevents duplicate model work across brief revisions. */
 export async function prepareCommunicationsEnqueue(tx: FirebaseFirestore.Transaction,
-  db: FirebaseFirestore.Firestore, input: Omit<CommunicationsJob, "jobId">, now: number) {
+  db: FirebaseFirestore.Firestore, input: Omit<CommunicationsJob, "jobId">, now: number, regeneration?: { expectedJobDigest: string }) {
+  if (input.regenerationOf && !regeneration) throw new Error("communications_regeneration_requires_owner_request");
   const job = communicationsJobSchema.parse({ ...input, jobId: communicationsDigest(input) });
   const root = db.doc(COMMUNICATIONS_ROOT), ref = root.collection("jobs").doc(job.jobId);
   const existing = await tx.get(ref);
@@ -53,7 +56,24 @@ export async function prepareCommunicationsEnqueue(tx: FirebaseFirestore.Transac
     const previous = legacy.docs.filter(doc => doc.data().intent === "outreach" && doc.id !== job.jobId && doc.data().state !== "superseded");
     if (legacy.size > 100) throw new Error("communications_first_touch_already_requested");
     const replaced: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+    let parentLedger: FirebaseFirestore.DocumentReference | null = null;
     for (const doc of previous) {
+      if (doc.id === job.regenerationOf) {
+        const parent = doc.data() as CommunicationsJobRecord;
+        const ledger = await tx.get(db.collection("action_ledger").doc(`communications_${doc.id}`));
+        const sent = await tx.get(root.collection("founderSendObservations").doc(doc.id));
+        const copy = await tx.get(root.collection("gmailDraftBindings").doc(doc.id));
+        const action = ledger.data();
+        if (communicationsDigest(parent) !== regeneration?.expectedJobDigest || parent.intent !== "outreach"
+          || parent.prospectId !== job.prospectId || !["blocked", "failed", "pending_approval"].includes(parent.state)
+          || ["writing", "unknown"].includes(copy.data()?.state)
+          || (parent.lease?.until ?? 0) > now || !claim.exists || claim.data()?.jobId !== parent.jobId || sent.exists
+          || (action && (action.status !== "pending_approval" || action.approved_by || action.approved_at || action.sent_at
+            || action.execution_attempts > 0 || action.last_execution_at))) throw new Error("communications_regeneration_source_changed");
+        if (ledger.exists) parentLedger = ledger.ref;
+        replaced.push(doc);
+        continue;
+      }
       const data = doc.data() as CommunicationsJobRecord;
       // Only proven pre-inference research/context failures can be replaced.
       // Unknown session ACKs, drafts, active jobs, opt-outs and sends remain fenced.
@@ -68,23 +88,27 @@ export async function prepareCommunicationsEnqueue(tx: FirebaseFirestore.Transac
     if (claim.exists && claim.data()?.jobId !== job.jobId && !replaced.some(doc => doc.id === claim.data()?.jobId)) {
       throw new Error("communications_first_touch_already_requested");
     }
+    if (job.regenerationOf && !existing.exists && !replaced.some(doc => doc.id === job.regenerationOf)) {
+      throw new Error("communications_regeneration_source_changed");
+    }
     const receipt = await tx.get(root.collection("sendReceipts").doc(communicationsDeliveryKey(job)));
-    if (!existing.exists && receipt.exists) throw new Error("communications_first_touch_already_requested");
+    if (receipt.exists && (!existing.exists || job.regenerationOf)) throw new Error("communications_first_touch_already_requested");
     const record = existing.exists ? existing.data() as CommunicationsJobRecord : { ...job, state: "queued" as const,
       attempts: 0, checkpoint: { createClaimedAt: null, sessionId: null, turnId: null } };
-    return { record, commit: () => {
+    return { record, created: !existing.exists, commit: () => {
       if (!claim.exists) tx.create(claimRef, { jobId: job.jobId, prospectId: job.prospectId, createdAt: now });
       else if (claim.data()?.jobId !== job.jobId) tx.set(claimRef, { jobId: job.jobId, prospectId: job.prospectId, createdAt: now });
       for (const doc of replaced) {
-        tx.update(doc.ref, { state: "superseded", reason: "verified_research_replaced_before_inference", replacedBy: job.jobId, updatedAt: now });
+        tx.update(doc.ref, { state: "superseded", reason: doc.id === job.regenerationOf ? "owner_requested_unsent_regeneration" : "verified_research_replaced_before_inference", replacedBy: job.jobId, updatedAt: now });
         tx.set(root.collection("refreshRequests").doc(doc.id), { state: "resolved", resolvedBy: job.jobId, resolvedAt: now }, { merge: true });
       }
+      if (parentLedger) tx.update(parentLedger, { status: "failed", last_execution_error: "draft_regenerated", updated_at: new Date(now) });
       if (!existing.exists) tx.create(ref, { ...record, createdAt: now, updatedAt: now });
     } };
   }
   const record = existing.exists ? existing.data() as CommunicationsJobRecord : { ...job, state: "queued" as const,
     attempts: 0, checkpoint: { createClaimedAt: null, sessionId: null, turnId: null } };
-  return { record, commit: () => { if (!existing.exists) tx.create(ref, { ...record, createdAt: now, updatedAt: now }); } };
+  return { record, created: !existing.exists, commit: () => { if (!existing.exists) tx.create(ref, { ...record, createdAt: now, updatedAt: now }); } };
 }
 
 /** Small private Firestore namespace; research/scheduler leases are never touched. */
@@ -143,6 +167,44 @@ export class CommunicationsStore {
     return this.db.runTransaction(async (tx) => {
       const queued = await prepareCommunicationsEnqueue(tx, this.db, input, this.now());
       queued.commit();
+      return queued.record;
+    });
+  }
+  async requestDraft(input: { prospectId: string; briefId: string; expectedBriefDigest: string; sessionSpendLimitCents: number;
+    sourceCommit: string; regenerationOf?: string; expectedJobDigest?: string }, actorUid: string) {
+    if (!actorUid || !/^[a-f0-9]{40}$/.test(input.sourceCommit) || !Number.isSafeInteger(input.sessionSpendLimitCents)
+      || input.sessionSpendLimitCents < 1 || input.sessionSpendLimitCents > Math.floor(Number.MAX_SAFE_INTEGER / 10000)) throw Error("communications_draft_request_invalid");
+    const brief = await this.brief(input.briefId), digest = communicationsDigest(brief);
+    if (brief.prospectId !== input.prospectId || digest !== input.expectedBriefDigest) throw Error("communications_draft_brief_changed");
+    const jobInput = { prospectId: input.prospectId, briefId: input.briefId, briefDigest: digest, intent: "outreach" as const,
+      inboundMessageId: null, ...(input.regenerationOf ? { regenerationOf: input.regenerationOf } : {}) };
+    const request = { actorUid, sourceCommit: input.sourceCommit, sessionSpendLimitCents: input.sessionSpendLimitCents };
+    const requestDigest = communicationsDigest({ job: jobInput, ...request });
+    return this.db.runTransaction(async tx => {
+      const prospectRef = this.db.collection("outboundProspects").doc(input.prospectId), source = await tx.get(prospectRef);
+      const canonical = await tx.get(this.db.doc(COMMUNICATIONS_ROOT).collection("briefs").doc(input.briefId));
+      const handoff = await tx.get(this.db.doc(COMMUNICATIONS_ROOT).collection("handoffs").doc(digest));
+      const suppression = await tx.get(this.db.collection("email_suppressions").doc(brief.contact.email.toLowerCase()));
+      if (!canonical.exists || communicationsDigest(communicationsBriefSchema.parse(canonical.data())) !== digest || !source.exists
+        || source.data()?.contactEmail?.toLowerCase() !== brief.contact.email.toLowerCase() || ["closed", "converted"].includes(source.data()?.stage)
+        || ["unknown", "opted_out"].includes(brief.consent.status) || suppression.data()?.global_suppressed === true
+        || suppression.data()?.suppressed_scopes?.some((scope: string) => ["all", "growth_campaign"].includes(scope))) throw Error("communications_draft_source_unavailable");
+      verifyCommunicationsHandoff(handoff.data(), brief);
+      const queued = await prepareCommunicationsEnqueue(tx, this.db, jobInput, this.now(),
+        input.regenerationOf ? { expectedJobDigest: input.expectedJobDigest ?? "" } : undefined);
+      if (queued.record.manualDraftRequest) {
+        if (queued.record.manualDraftRequest.requestDigest !== requestDigest) throw Error("communications_draft_request_changed");
+        return queued.record;
+      }
+      if (queued.record.checkpoint.createClaimedAt || queued.record.attempts || queued.record.state !== "queued") throw Error("communications_draft_requires_explicit_regeneration");
+      queued.record.manualDraftRequest = { ...request, requestDigest, state: "requested", requestedAt: this.now() };
+      queued.record.checkpoint.sessionSpendLimitCents = input.sessionSpendLimitCents;
+      queued.commit();
+      if (!queued.created) tx.set(this.jobs().doc(queued.record.jobId), { manualDraftRequest: queued.record.manualDraftRequest,
+        checkpoint: queued.record.checkpoint }, { merge: true });
+      tx.set(prospectRef.collection("communicationsEvents").doc(`requested_${requestDigest}`), {
+        type: "draft_generation_requested", jobId: queued.record.jobId, regenerationOf: input.regenerationOf ?? null,
+        requestedBy: actorUid, recordedAt: this.now(), sent: false });
       return queued.record;
     });
   }
@@ -408,7 +470,7 @@ export class CommunicationsStore {
     });
   }
   async recordReply(job: CommunicationsJob, message: ThreadMessage, fetchedAt = new Date(this.now()).toISOString()) {
-    const identity = communicationsJobSchema.parse(Object.fromEntries(["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId"]
+    const identity = communicationsJobSchema.parse(Object.fromEntries(["jobId", "prospectId", "briefId", "briefDigest", "intent", "inboundMessageId", "regenerationOf"]
       .map(key => [key, (job as any)[key]]))), received = Date.parse(message.receivedAt), observed = Date.parse(fetchedAt);
     if (identity.intent !== "reply" || identity.inboundMessageId !== message.gmailMessageId
       || !Number.isFinite(received) || !Number.isFinite(observed) || received > observed || observed > this.now()) {
@@ -448,7 +510,8 @@ export class CommunicationsStore {
    * reservation is separately atomic, and no send can be created here. */
   async finishAutomatic(job: CommunicationsJob, outcome: { state: "sent" | "auto_approved" | "failed"; reason?: string }) {
     const identity = communicationsJobSchema.parse({ jobId: job.jobId, prospectId: job.prospectId,
-      briefId: job.briefId, briefDigest: job.briefDigest, intent: job.intent, inboundMessageId: job.inboundMessageId });
+      briefId: job.briefId, briefDigest: job.briefDigest, intent: job.intent, inboundMessageId: job.inboundMessageId,
+      ...(job.regenerationOf ? { regenerationOf: job.regenerationOf } : {}) });
     const ref = this.jobs().doc(identity.jobId), ledgerId = `communications_${identity.jobId}`;
     const root = this.db.doc(COMMUNICATIONS_ROOT), sourceRef = this.db.collection("outboundProspects").doc(identity.prospectId);
     return this.db.runTransaction(async tx => {
@@ -595,7 +658,7 @@ export class CommunicationsStore {
     const due: string[] = [];
     for (const doc of snapshot.docs) {
       const data = doc.data();
-      if (data.savedOutputRecovery || data.retryRequestedBy === COMMUNICATIONS_SAVED_RECOVERY_REQUESTER) continue;
+      if (data.manualDraftRequest || data.savedOutputRecovery || data.retryRequestedBy === COMMUNICATIONS_SAVED_RECOVERY_REQUESTER) continue;
       if ((data.nextAttemptAt ?? 0) > this.now() || (data.lease?.until ?? 0) > this.now()) continue;
       if (data.attempts >= 3) { await this.claim(doc.id); continue; }
       if (due.length < limit) due.push(doc.id);
