@@ -32,6 +32,9 @@ const scenarios = [
   { id: "V5-published-is-not-measured", mode: "published_as_measured", steps: ["registry"], expectedError: "assessment_registry_source_basis_required", semanticOnly: false },
   { id: "V5-missing-named-provenance", mode: "missing_named_provenance", steps: ["registry"], expectedError: "assessment_registry_source_basis_required", semanticOnly: false },
   { id: "V5-admitted-field-wrong-claim", mode: "wrong_field_claim", steps: ["registry"], expectedError: null, semanticOnly: true },
+  { id: "V5-malformed-object-capability", mode: "object_capability", steps: ["registry"], expectedError: "assessment_registry_source_basis_required", semanticOnly: false },
+  { id: "V5-malformed-array-capability", mode: "array_capability", steps: ["registry"], expectedError: "assessment_registry_source_basis_required", semanticOnly: false },
+  { id: "V5-malformed-boolean-capability", mode: "boolean_capability", steps: ["registry"], expectedError: "assessment_registry_source_basis_required", semanticOnly: false },
 ];
 const codeSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const results: Array<Record<string, unknown>> = [];
@@ -55,12 +58,13 @@ afterAll(() => {
 describe("actual SDK source-primitive semantic diagnostics", () => {
   it.each(scenarios)("$id", async scenario => {
     const mode = scenario.mode;
-    const knownRegistry = ["estimate_control", "published_control", "measured_control", "self_reported_control", "published_as_measured", "missing_named_provenance", "wrong_field_claim"].includes(mode);
+    const knownRegistry = ["estimate_control", "published_control", "measured_control", "self_reported_control", "published_as_measured", "missing_named_provenance", "wrong_field_claim", "object_capability", "array_capability", "boolean_capability"].includes(mode);
     const inferred = ["inferred_registry", "inferred_estimate_control"].includes(mode);
     const team: RobotTeamRecord = { id: "fixture-team", name: "Synthetic Team", status: "prospect",
       capability: { reachM: knownRegistry ? 1 : inferred ? 3 : null, payloadCapacity: null },
       fieldProvenance: knownRegistry || inferred ? { reachM: { grade: inferred ? "inferred" : mode === "measured_control" ? "measured" : mode === "self_reported_control" ? "self_reported" : "published", source: mode === "missing_named_provenance" ? "" : "synthetic/specification", observedAt: "2026-01-01" } } : {},
       createdAt: "2026-01-01", updatedAt: "2026-01-01", capabilityDescription: "Synthetic registry record; no physical trial" };
+    if (["object_capability", "array_capability", "boolean_capability"].includes(mode)) team.capability.reachM = (mode === "object_capability" ? {} : mode === "array_capability" ? [] : true) as unknown as number;
     const record = mode === "empty_knowledge" ? historyRecord({})
       : mode === "stale_knowledge" ? historyRecord({ reachM: 2, correction: "Superseded: current model reach is 1 m; original 2 m must not be treated as current" }, false)
       : ["knowledge_published_control", "knowledge_measured_control"].includes(mode) ? historyRecord({ reachM: 1, basis: mode === "knowledge_measured_control" ? "measured synthetic fixture" : "published synthetic fixture" })
@@ -97,7 +101,7 @@ describe("actual SDK source-primitive semantic diagnostics", () => {
           if (mode === "inferred_estimate_control") assessment.estimates = [{ text: "A 3 m reach is inferred and needs verification", basis: "estimate", evidence: [registryRef] }];
           if (mode === "unknown_context_control") assessment.missing = [{ text: "The registry reach is unknown", basis: "unknown", evidence: [registryRef] }];
           if (["knowledge_published_control", "knowledge_measured_control"].includes(mode)) assessment.known = [{ text: "The synthetic record gives a 1 m reach", basis: mode === "knowledge_measured_control" ? "measured" : "published", evidence: [knowledgeRef] }];
-          if (["missing_named_provenance", "wrong_field_claim"].includes(mode)) assessment.known = [{ text: mode === "wrong_field_claim" ? "The robot has a published 50 m reach" : "The robot has a published 1 m reach", basis: "published", evidence: [registryRef] }];
+          if (["missing_named_provenance", "wrong_field_claim", "object_capability", "array_capability", "boolean_capability"].includes(mode)) assessment.known = [{ text: mode === "wrong_field_claim" ? "The robot has a published 50 m reach" : "The robot has a published 1 m reach", basis: "published", evidence: [registryRef] }];
           output = [{ type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text: JSON.stringify(assessment) }] }];
         }
         providerOutputs.push(output);

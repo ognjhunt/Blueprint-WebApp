@@ -337,9 +337,8 @@ export function validateAssessmentEvidence(assessment: SiteAssessment, sources: 
           // that the prose cites that field, gives its value, or entails robot fit.
           if (!Object.entries(record?.capability ?? {}).some(([field, fieldValue]) => {
             const provenance = record.fieldProvenance?.[field];
-            return fieldValue !== null && fieldValue !== undefined
-              && (typeof fieldValue !== "string" || Boolean(fieldValue.trim()))
-              && (typeof fieldValue !== "number" || Number.isFinite(fieldValue))
+            return ((typeof fieldValue === "string" && Boolean(fieldValue.trim()))
+              || (typeof fieldValue === "number" && Number.isFinite(fieldValue)))
               && typeof provenance?.source === "string" && provenance.source.trim()
               && (value.basis === "measured" ? provenance.grade === "measured" : isQuotableGrade(provenance.grade));
           })) throw new Error("assessment_registry_source_basis_required");
