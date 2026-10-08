@@ -56,8 +56,8 @@
       "terminal": "only terminal-success result creates output commit, completed ledger, then ack; blocked/failed required stage remains retryable"
     },
     {
-      "native_package": "capture_orchestrator -> site_package_orchestrator.run_qualification_pipeline -> website_task_evidence.prepare_website_task_descriptor using current WebApp task context/sponsorship -> real package -> webapp_sync.sync_webapp_pipeline_attachment",
-      "webapp_handler": "internal-pipeline.ts /attachments requires pipeline token, in-scope artifact URIs, upstream request/site/buyer/capture-job links and existing inbound bootstrap; computes state transition, persists attachments/qualification/readiness; claim invite assessment_ready is scene/catalog flow",
+      "native_package": "Website branch: capture_orchestrator -> site_package_orchestrator -> website task preparation/sponsorship -> prepare_website_scene_handoff -> signed prepared-scene POST -> taskEvaluationSceneIntakes.forward_pending -> actual processSceneIntakeQueue/native scene publication",
+      "webapp_handler": "Prepared-scene intake/queue handler persists and forwards source-bound native configuration. Qualification-stage completion with native_execution_complete:false is not completed customer evaluation; generic internal /attachments sync is a distinct branch.",
       "authority": "website sponsorship needs current confirmed task context, qualified triage (unless explicit isolated development authorization), claimed account and provider/rights binding. Internal cost controls do not ask customer for budget."
     },
     {
@@ -89,6 +89,18 @@
     {
       "earlier_shorthand": "loadSceneScreening(agentEvalRuns)",
       "correction": "Source module is agentEvalRuns.ts; actual Firestore collection constant is evaluationRuns."
+    },
+    {
+      "observed_at_utc": "2026-10-08T07:10:00Z",
+      "id": "WEBSITE-NATIVE-HANDOFF-CHAIN-002",
+      "prior_generic_package_statement": {
+        "native_package": "capture_orchestrator -> site_package_orchestrator.run_qualification_pipeline -> website_task_evidence.prepare_website_task_descriptor using current WebApp task context/sponsorship -> real package -> webapp_sync.sync_webapp_pipeline_attachment",
+        "webapp_handler": "internal-pipeline.ts /attachments requires pipeline token, in-scope artifact URIs, upstream request/site/buyer/capture-job links and existing inbound bootstrap; computes state transition, persists attachments/qualification/readiness; claim invite assessment_ready is scene/catalog flow",
+        "authority": "website sponsorship needs current confirmed task context, qualified triage (unless explicit isolated development authorization), claimed account and provider/rights binding. Internal cost controls do not ask customer for budget."
+      },
+      "correction": "Exact4cb website branch uses prepare_website_scene_handoff and requires website_intake_outbox.forward_pending, then returns qualification completed/native_execution_complete:false; generic /attachments branch is bypassed. Prepared-scene signedPOST persists taskEvaluationSceneIntakes.forward_pending; actual queue/native publication and reader evidence remain separately required.",
+      "source": "src/blueprint_pipeline/site_package_orchestrator.py website branch5340-5359 versus generic5614",
+      "effect": "Architecture claim correction; no case counts, thresholds, fixture labels or customer completion claim changed."
     }
   ],
   "isolated_checks": {
@@ -210,5 +222,42 @@
       }
     ]
   },
-  "bounded_missing_link": "Internal site_assessment packet retention is wired and source-protected, but customer UI dispatch/publication of that newer packet is absent in inspected source; existing customer brief/coverage/package/evaluation pipeline is a different supported chain. A joined full customer result requires actual retained package sync and/or evaluationRuns visible through existing reader; this diagnostic did not execute that joined chain."
+  "bounded_missing_link": "Internal site_assessment packet retention is wired and source-protected, but customer UI dispatch/publication of that newer packet is absent in inspected source; existing customer brief/coverage/package/evaluation pipeline is a different supported chain. A joined full customer result requires actual retained package sync and/or evaluationRuns visible through existing reader; this diagnostic did not execute that joined chain.",
+  "normal_ui_success_criteria_boundary": {
+    "pipeline_source_sha": "4cb97edeb5fabcac30a14a4576a896a6a22941a3",
+    "webapp_runtime": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
+    "normal_ui": "confirm requires/persists successCriteria object even when unknown/null, retaining operator_stated provenance",
+    "observed_cases": [
+      "Five clear owner gate answers plus unknown/null targets -> actual UI confirmation qualified -> exact compiler needs_input",
+      "Same clear gates plus explicit owner95percent/30seconds target -> qualified -> compiler needs_input",
+      "Legacy omitted target object -> intake_ready; current normal UI cannot produce omission"
+    ],
+    "sole_compiler_blocker": "website_owner_success_criteria_translation_required",
+    "actual_provider_mutations": 0,
+    "source_preparation": "compiler purpose scene_preparation/policy_candidates empty; robot/policy admission forbidden",
+    "downstream_risk": "Native publisher previously marked fixed development-control criteria confirmed; rigid owner-contract consumer can seal defaults as owner-confirmed. Upstream veto cannot safely disappear without preserving supplied unverified owner targets and proposal authority through canonical staging.",
+    "repair_state": "Suppliedunknown_explicit replayapproved, but exacta25releaseblocked: actuallegacyabsent/null native lineage can seal fixeddefaultsconfirmed/task_owner. Universalproposal_onlycorrectionunderindependentreview.",
+    "private_diagnostic_sha256": "6ff17f3460604638b354a0e9751f5503c7a5d8e93ffda9a650df88514c5c4846",
+    "status_evidence": "55 existing status checks pass; actual prepared-intake pending read remains assessing with no evaluationRuns. No false customer completion observed.",
+    "independent_review": {
+      "reviewed_head": "a25bddbe20c32bebfe77a97c640ea500097979e4",
+      "review_commit": "dceb9719",
+      "review_comment": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6054924151",
+      "result": "approved_narrow_scene_preparation_and_authority_preservation",
+      "baseline_same_cases": "4of4fail_at_prior_translation_veto",
+      "candidate_focused": "16of16pass",
+      "actual_adapter_authority_controls": "4of4pass_rigid_and_articulated_refuse_unconfirmed",
+      "manifest_sha256": "2a83f4b619fdcab9a8ddb92dbfe589905aae3e06d86c69af0c41b75e7d9e89fa",
+      "consumer_log_sha256": "90dd003715126404fa731591918637f7d72de354c56ca3b97a8d0409ac884814",
+      "limitations": "Isolated CPU modules with synthetic fixtures; not universal performance-route execution, GPU policies or customer completion"
+    },
+    "diagnostic_hash_correction": "Original715786 receipt retained; diagnostic subsequently includes repair reference, current full file hash explicit.",
+    "legacy_authority_finding": {
+      "impact": "P1_false_owner_performance_authority",
+      "reproduction": "Real staged required-owner flag and absent targets flow unchanged through native adapter to rigid seal; disposable nonzero support geometry then sealconfirmed/task_owner",
+      "initial_probe_limitation": "originalzero-thicknessgeometryblockretained; correctedexplicitownedsynthetictransportgeometry",
+      "comment": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6054895177",
+      "scope": "Current normal UI includesobject, but absence does not authorize invented fixeddefault confirmation; notphysicaloutcomeproof"
+    }
+  }
 }

@@ -348,14 +348,17 @@
       "semanticCaseHash": "1d232863fd3dab545cf69ad32f0aac5f80e93cd1dad53b2792000f194e5c612f",
       "baselineResult": "actual SDK Runner scripted packet admitted; synthetic source disproves claim",
       "violatedClaim": "Known published current2m reach cites a record explicitly current:false with retained correction current1m.",
-      "releaseStatus": "code_repaired_independently_reviewed_PR941_CI_in_progress_not_yet_merged_deployed",
+      "releaseStatus": "independently_reviewed_PR941_merged_deployed_exacteda83741",
       "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
       "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations.",
       "candidateCommit": "e048c74e7eeaf44996ce17a0e24b48d8d985104d",
       "candidateSourceSha256": "a889137a97af596aeeb4f90a320993bb7765e4bf43b8a03af232ea3460edcfba",
       "repair": "Reject known published claims citing explicitly boolean current:false knowledge; retain historical metadata/unknown/estimate; no age cutoff or sentence entailment.",
       "candidateRetest": "Exact unchanged30 SDK diagnostics:28 admission passes/2 other semantic false-admission defects. Seven controls baseline6/7 ->candidate7/7. Independent176/176 checks; original case hashes unchanged with explicit V9 expectation correction.",
-      "candidatePR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/941"
+      "candidatePR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/941",
+      "mergedSha": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c",
+      "deployedSha": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c",
+      "deployedVerification": "Paired LIVE receipts/exactservingidentity/health/draftreload; actualproductionadvisoryguardproviderworkflow not dispatched. Exact source guard counterexample independently passes offline."
     },
     {
       "id": "ASSESS-VIDEO-ENTAILMENT-001",
@@ -386,6 +389,35 @@
       "releaseStatus": "OPEN_qualified_source_does_not_entail_prose",
       "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
       "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations."
+    },
+    {
+      "id": "WEBSITE-OWNER-TARGET-PREPARATION-001",
+      "severity": "P1_for_affected_joined_scene_preparation_path",
+      "owner": "queue_recovery; independent_review; sole cloud release owner",
+      "invariant": "Normal confirmed customer work can advance through explicit safe preparation transitions; owner assertions cannot become verified performance or fixed defaults",
+      "baselineRevision": "4cb97edeb5fabcac30a14a4576a896a6a22941a3",
+      "rootCause": "Current UI always supplies successCriteria; preparation veto treats every supplied target object as requiring scorer translation before scene-only geometry. Legacy passing fixture omitted mandatory current-UI object. Native staged fixed defaults also use owner confirmed authority, requiring coherent preservation of the unverified owner targets rather than veto removal alone.",
+      "minimizedReproducer": "Actual owner-link confirm clear gate answers for unknown/null and explicit owner95percent/30seconds -> operator_stated qualified context -> actual registered geometric compiler -> sole translation_required needs_input. Legacy omitted context control intake_ready.",
+      "repair": "Permits existing scene-only/no-policy geometry preparation; preserves supplied targets as proposal_only/unverified through canonical staging. Independent actual rigid sealing and articulated confirmed-contract consumers refuse unverified authority. No universal gate claim.",
+      "releaseStatus": "changes_required_material_legacy_absent_target_authority_finding",
+      "claim_ceiling": "Disposable actual-handler/compiler/native-consumer proof; no paid provider, physical evaluation or customer happy-path completion.",
+      "candidateCommit": "a25bddbe20c32bebfe77a97c640ea500097979e4",
+      "candidatePR": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648",
+      "candidateRetest": "16 focused and108 neighboring checks pass; samefour unchanged prior-main cases fail. Cases overlap; no independent journey count added.",
+      "independentReview": {
+        "reviewed_head": "a25bddbe20c32bebfe77a97c640ea500097979e4",
+        "review_commit": "dceb9719",
+        "review_comment": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6054924151",
+        "result": "approved_narrow_scene_preparation_and_authority_preservation",
+        "baseline_same_cases": "4of4fail_at_prior_translation_veto",
+        "candidate_focused": "16of16pass",
+        "actual_adapter_authority_controls": "4of4pass_rigid_and_articulated_refuse_unconfirmed",
+        "manifest_sha256": "2a83f4b619fdcab9a8ddb92dbfe589905aae3e06d86c69af0c41b75e7d9e89fa",
+        "consumer_log_sha256": "90dd003715126404fa731591918637f7d72de354c56ca3b97a8d0409ac884814",
+        "limitations": "Isolated CPU modules with synthetic fixtures; not universal performance-route execution, GPU policies or customer completion"
+      },
+      "reviewCorrection": "Unknown/explicit staged targets refused correctly, but reallegacyabsent/null fixeddefaultsremainconfirmed/task_owner. Prior narrow approval does not authorize release ofa25; unchanged full-lineage counterexample retained bysolecloudowner, universalproposal_onlycandidate20checks passed pending exacthead review.",
+      "correctionComment": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6054973277"
     }
   ],
   "dependencies": [

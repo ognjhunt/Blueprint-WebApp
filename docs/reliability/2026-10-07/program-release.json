@@ -54,7 +54,9 @@
       "screenshot_sha256": "6a59b9bbd4aef3cb9f898c7a217c0e0add22bbe0ea848c85539dc07df88a9294",
       "script_sha256": "306b01bc00db0c0f4f383b68bc16c62d08010428919c0829611d1cd3e656803b",
       "claim_ceiling": "Exact serving identity, paired deployment receipts, health/readiness and ordinary local-draft reload only; no production submission/upload/worker/assessment/notification path."
-    }
+    },
+    "current_independently_verified_serving_sha": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c",
+    "initial940_receipts_are_historical": true
   },
   "pipeline": {
     "merged_required_stage_fix": "cc876af25389de934f57c08b33421987f9e3328d",
@@ -90,6 +92,32 @@
       "blockers": [],
       "private_raw_receipt_sha256": "c4063dcb63cc2a609f2729ce6f9a7a7b25a5890cf65c4e6051f6ceedb55826d1",
       "claim_ceiling": "deployed_service_identity_only; full4cbtestpromotion_success_does_not_change_serving_identity"
+    },
+    "owner_target_preparation_followup": {
+      "pull_request": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648",
+      "reviewed_head": "a25bddbe20c32bebfe77a97c640ea500097979e4",
+      "status_at_0730_utc": "open_independent_source_approval_and_selected_PR_CI_success",
+      "PR_ci_run": 37742335855,
+      "independent_review": {
+        "reviewed_head": "a25bddbe20c32bebfe77a97c640ea500097979e4",
+        "review_commit": "dceb9719",
+        "review_comment": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6054924151",
+        "result": "approved_narrow_scene_preparation_and_authority_preservation",
+        "baseline_same_cases": "4of4fail_at_prior_translation_veto",
+        "candidate_focused": "16of16pass",
+        "actual_adapter_authority_controls": "4of4pass_rigid_and_articulated_refuse_unconfirmed",
+        "manifest_sha256": "2a83f4b619fdcab9a8ddb92dbfe589905aae3e06d86c69af0c41b75e7d9e89fa",
+        "consumer_log_sha256": "90dd003715126404fa731591918637f7d72de354c56ca3b97a8d0409ac884814",
+        "limitations": "Isolated CPU modules with synthetic fixtures; not universal performance-route execution, GPU policies or customer completion"
+      },
+      "required_release": "new_merged_SHA_current_main_checks_full_production_deployment_promotion_all_shards_aggregate_canonical_provenance_then_protected_deploy_actual_serving_GET",
+      "source_and_replay_manifest_sha256": "2cd25fab12d53e9b3d5646c64bf1843075a69579d3e7068eed492cca543f1804",
+      "release_owner": "existing_cloud_coordinator_no_competing_root_promotion",
+      "claim_ceiling": "code_approved_not_deployed_until_actual_receipts",
+      "source_release_authorization": "withheld_for_exacta25_due_to_material_legacy_absent_target_authority_finding",
+      "status_correction": "Priorunknown_explicit_targetapprovalwas_scoped; legacyabsent/nullconfirmeddefaultsseal_task_owner_actualproducer_native_lineage. One-line universalproposal_onlycandidateunderindependentreview; no current newhead merge claim.",
+      "finding_comment": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6054895177",
+      "approval_correction_comment": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6054973277"
     }
   },
   "privacy": "Only sanitized deployment identity/receipt metadata; private operator status remains ignored.",
@@ -103,12 +131,59 @@
     "pull_request": "https://github.com/ognjhunt/Blueprint-WebApp/pull/941",
     "reviewed_head": "e048c74e7eeaf44996ce17a0e24b48d8d985104d",
     "parent_sha": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
-    "status": "independently_reviewed_required_PR_CI_in_progress",
-    "production_state": "Current exactserved d898 does not yet include this narrow applicability veto",
+    "status": "deployed_and_independently_verified_exact_merged_SHA",
+    "production_state": "Both web and worker LIVE exacteda; public version before/after, health/readiness and no-submit ordinary draft reload passed",
     "claim_ceiling": "Explicit stale-source current-known-fact rejection only; two proved synthetic entailment defects remain open.",
     "graphify_root_refresh": {
       "outcome": "pass",
       "receipt_sha256": "3dd634993f83819dc2934d57f86d2ccf595eef1fd133998dbf473c3495e679a0"
+    },
+    "merged_sha": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c",
+    "required_pr_ci": {
+      "run_id": 37740388325,
+      "result": "success; existing non-UI e2e context skipped by unchanged scope workflow"
+    },
+    "required_main_ci": {
+      "run_id": 37741000664,
+      "conclusion": "success",
+      "sha": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c"
+    },
+    "merged_at_utc": "2026-10-08T07:02:13Z",
+    "deployment_workflow": {
+      "run_id": 37741434386,
+      "conclusion": "success"
+    },
+    "render_receipts": [
+      {
+        "role": "web",
+        "deployment_id": "dep-db3k2360tbcc73fs114g",
+        "sha": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c",
+        "observed_status": "live",
+        "finished_at_utc": "2026-10-08T07:09:32.926147Z"
+      },
+      {
+        "role": "worker",
+        "deployment_id": "dep-db3k230m7kps73f0pfqg",
+        "sha": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c",
+        "observed_status": "live",
+        "finished_at_utc": "2026-10-08T07:09:55.459007Z"
+      }
+    ],
+    "post_deployment_smoke": {
+      "started_at_utc": "2026-10-08T07:10:41.144Z",
+      "completed_at_utc": "2026-10-08T07:10:43.342Z",
+      "outcome": "presentation_passed",
+      "before_after_sha": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c",
+      "health_http": 200,
+      "ready_http": 200,
+      "four_fields_retained": true,
+      "consent_unchecked": true,
+      "intake_mutations": 0,
+      "new_provider_calls": 0,
+      "notification_sends": 0,
+      "private_result_sha256": "c2b2aee36f4c2ae0fbf3cc1c8ea154374d4aaef1a95fdbac2f71845b90107847",
+      "screenshot_sha256": "6a59b9bbd4aef3cb9f898c7a217c0e0add22bbe0ea848c85539dc07df88a9294",
+      "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return only; no backend job, upload durability, assessment, worker or notification result proven."
     }
   }
 }

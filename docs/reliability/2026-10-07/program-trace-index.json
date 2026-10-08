@@ -901,5 +901,124 @@
       "new_unique_credit": 0,
       "provider_mode": "fake; native Express/Firestore emulator/browser/worker processes"
     }
+  },
+  "selected_scripted_semantic_repetitions": {
+    "summary_path": "output/reliability-program/semantic-selected-repeats/summary.json",
+    "summary_sha256": "1a8bfaebdde70f89ebe6d0e80667a52d2e58dc80850fe9e7d796d0e60e3bec7d",
+    "source_code_sha256": "a889137a97af596aeeb4f90a320993bb7765e4bf43b8a03af232ea3460edcfba",
+    "git_sha": "dceb971915793276249c00e7eb50b5fd0182369a",
+    "deployed_equivalent_runtime": "eda83741bd06026f9ad4e9e8fa16417bdc1d432c",
+    "label_version": "C-semantic-sdk.v9",
+    "layer": "actual_SDK_runner_tool_loop_no_storage",
+    "provider_mode": "scripted_model_and_video_callbacks",
+    "unique_selected_existing_cases": 3,
+    "new_unique_cases": 0,
+    "attempts": 9,
+    "semantic_defects_reproduced_on_each_attempt": 2,
+    "guard_rejection_conditions_passed_on_each_attempt": 1,
+    "model_judgment_accuracy_scored": 0,
+    "paid_calls": 0,
+    "repeats_are_scripted_determinism_not_natural_model_nondeterminism": true,
+    "limitations": "Unit harness passes because it asserts the retained known admissions; two false synthetic claims remain semantic failures, not successful quality cases. No storage/customer publication, live video perception or human labels.",
+    "cases": [
+      {
+        "caseId": "V2-corrected-knowledge-current-spec",
+        "semanticHash": "1d232863fd3dab545cf69ad32f0aac5f80e93cd1dad53b2792000f194e5c612f",
+        "attempts": 3,
+        "outcomes": [
+          {
+            "status": "passed",
+            "actual": "rejected",
+            "error": "assessment_known_published_source_not_current"
+          },
+          {
+            "status": "passed",
+            "actual": "rejected",
+            "error": "assessment_known_published_source_not_current"
+          },
+          {
+            "status": "passed",
+            "actual": "rejected",
+            "error": "assessment_known_published_source_not_current"
+          }
+        ],
+        "disagreement": 0,
+        "latency_ms": [
+          10.232708000000002,
+          10.291208000000097,
+          10.213124999999991
+        ]
+      },
+      {
+        "caseId": "V2-conflicting-owner-spec-video",
+        "semanticHash": "414589b1f854d99d33dbfafbdcbffe4ad870d074f51ea69938f1024ea666f0de",
+        "attempts": 3,
+        "outcomes": [
+          {
+            "status": "partial",
+            "actual": "assessment_packet_accepted",
+            "error": null
+          },
+          {
+            "status": "partial",
+            "actual": "assessment_packet_accepted",
+            "error": null
+          },
+          {
+            "status": "partial",
+            "actual": "assessment_packet_accepted",
+            "error": null
+          }
+        ],
+        "disagreement": 0,
+        "latency_ms": [
+          3.6936249999998836,
+          3.6924169999999776,
+          3.6884999999999764
+        ]
+      },
+      {
+        "caseId": "V5-admitted-field-wrong-claim",
+        "semanticHash": "34d08adecdc8b5d74282d5230f758915ee909622ed9c1b3b6b0d4382c3bcff42",
+        "attempts": 3,
+        "outcomes": [
+          {
+            "status": "partial",
+            "actual": "assessment_packet_accepted",
+            "error": null
+          },
+          {
+            "status": "partial",
+            "actual": "assessment_packet_accepted",
+            "error": null
+          },
+          {
+            "status": "partial",
+            "actual": "assessment_packet_accepted",
+            "error": null
+          }
+        ],
+        "disagreement": 0,
+        "latency_ms": [
+          3.2343329999998787,
+          3.190417000000025,
+          3.169750000000022
+        ]
+      }
+    ],
+    "receipts": [
+      {
+        "path": "output/reliability-program/semantic-selected-repeats/repeat1.json",
+        "sha256": "e9bec631eeeece61e02327b1ddd58a86fbf01ee6afb35d164866e6687bceacae"
+      },
+      {
+        "path": "output/reliability-program/semantic-selected-repeats/repeat2.json",
+        "sha256": "ab441d7f4afed113a47ce872ed70264bd28f7ee5c9b99fe0304fc2cab26d0d09"
+      },
+      {
+        "path": "output/reliability-program/semantic-selected-repeats/repeat3.json",
+        "sha256": "0d1277b8f27e83ddee57e1a0c1df4896660e2959874808276fda5724bc749674"
+      }
+    ]
   }
 }

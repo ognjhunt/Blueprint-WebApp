@@ -47,3 +47,9 @@ The isolated browser blocked2 automatic mutation requests and2 external requests
 - Executed script unchanged SHA256 `306b01bc00db0c0f4f383b68bc16c62d08010428919c0829611d1cd3e656803b`; supplemental checkout `bc9cf2a852be32f8e7c37d8cda039df8fea74c50`, production runtime byte-identical to mergedd898.
 
 Replay: `env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" node node_modules/tsx/dist/cli.mjs scripts/reliability/verify-deployed.ts --expected-sha d8988ab3f8bcfa16527d0a77ba168f1cde19f63c --mode candidate --output output/reliability-program/deployed-candidate-replay`.
+
+## Scoped stale-source release identity and regression smoke
+
+PR941 merged at `eda83741bd06026f9ad4e9e8fa16417bdc1d432c`; main CI37741000664 and paired deployment37741434386 passed. Independent Render reads found both web `dep-db3k2360tbcc73fs114g` and worker `dep-db3k230m7kps73f0pfqg` LIVE at that exact SHA. The unchanged no-submit draft-return smoke passed again from `2026-10-08T07:10:41.144Z` to `2026-10-08T07:10:43.342Z` with before/after identity, health/readiness200, four retainedfields and consentunchecked. Attempted intake mutations0; no uploaded evidence/provider/notification run. This is another attempt of the same productionpresentationcase, no added independentjourney.
+
+Protected result SHA256 `c2b2aee36f4c2ae0fbf3cc1c8ea154374d4aaef1a95fdbac2f71845b90107847`; screenshot SHA256 `6a59b9bbd4aef3cb9f898c7a217c0e0add22bbe0ea848c85539dc07df88a9294`. Guard behavior is supported by exact-source minimized offline/SDK replay and deployment identity; the production advisory-provider workflow was not dispatched by this smoke.

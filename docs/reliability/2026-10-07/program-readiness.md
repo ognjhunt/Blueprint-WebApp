@@ -1,7 +1,7 @@
 # Initial-window decision — scoped release verified; evaluation partial
 
 This is an interim decision, not full-goal completion. The initial closeout is
-2026-10-08 08:21:46 UTC. PR #940 is the sole combined WebApp release; the
+2026-10-08 08:21:46 UTC. PR #940 is the combined WebApp reliability release, followed by scoped stale-source PR941; the
 coordinator's separate branch retains runnable cases and independent receipts.
 Do not add the parallel owner's overlapping catalog/traces to these counts.
 
@@ -19,11 +19,9 @@ Twelve API-intercepted browser cases are a separate layer. Repeats and the older
 640 scheduler permutations add no unique journeys. These counts do not establish
 final SDK assessment publication or production provider reliability.
 
-The new semantic catalog has 120 genuinely distinct PROVISIONAL evidence states,
-with independently checked expectations and lineage. Semantic model evaluation
-is unscored. Earlier 120 topic-multiplied packets are only 15 structural source
-conditions; they are not another semantic dataset. The exact884 assessment SDK suite has27 passed structural admission diagnostics and three semantic partials. Source
-qualification cannot verify that a sentence matches a cited field or video event. The current SDK replay demonstrates three synthetic internal-advisory P1 counterexamples: a superseded specification presented as current, a completed video event absent from the admitted observations, and a 50 m capability claim citing a qualified 1 m field. These false claims were admitted by the current guard. The explicit stale-applicability repair is independently reviewed in PR941, with matched before/after checks; protected merge and deployment remain pending; the other two remain open assessment-quality defects. No current customer publication or live-model incidence is established.
+The new semantic catalog has 120 distinct PROVISIONAL evidence states, with independently checked expectations and lineage. Semantic model evaluation remains unscored. Earlier 120 topic-multiplied packets are only 15 structural source conditions and are not another semantic dataset.
+
+The same 30 scripted SDK diagnostics now have 28 structural admission passes and two demonstrated semantic defects. The baseline accepted a superseded specification as current, invented a completed video event absent from the admitted observations, and claimed 50 m reach from a qualified 1 m field. Deployed PR941 rejects the explicit superseded-source case. The false video event and wrong-field claim remain admitted and are P1 quality defects for the internal advisory path. This is synthetic source/packet evidence, not measured live-model incidence; no current customer publication is established. Qualified citations alone do not verify their sentences.
 
 One actual isolated Sol SDK call used eleven provisional sampled-frame textual
 observations of the one authorized dishwasher source. Its unchanged packet is
@@ -39,7 +37,7 @@ recorded simulations are explicitly separate. No accuracy denominator or
 statistical certification is claimed. Outdated human approval gates do not hold
 the engineering work; these are current evidence limits on quality claims.
 
-**Deployment:** WebApp web and worker both serve the exact merged d8988ab3 release. The no-submit production reload smoke passed at 06:48:57–06:48:59UTC; the same baseline smoke lost all fourfields. Deployment workflow37739286731 and required main CI37738528838 passed.
+**Deployment:** WebApp web and worker now serve exact merged eda83741 (PR941), which retains the reviewed PR940 d8988ab3 repairs. Both releases have independent paired receipts and no-submit draft-return smoke evidence. The no-submit production reload smoke passed at 06:48:57–06:48:59UTC; the same baseline smoke lost all fourfields. Deployment workflow37739286731 and required main CI37738528838 passed.
 Required-stage Pipeline code is deployed and its serving identity independently
 verified at cc876af25389de934f57c08b33421987f9e3328d. That read-only identity check
 does not prove a live customer Pipeline job. Exact WebApp merge/deployed receipts and the bounded post-deployment smoke are retained in `program-release.json` and `program-deployed-smoke.md`.
@@ -58,4 +56,10 @@ Private raw material remains in authorized ignored local storage and the sole
 assessment owner's company export/recovery manifest. No bearer links, credentials
 or raw customer footage belong in CI or public reports.
 
-The scoped PR941 candidate changes the same30 SDK diagnostics from27 structural admission passes/3 semantic defects to28 admission passes/2 remaining semantic defects. Seven separate applicability controls pass and an independent176-check replay passes. The V9 correction is explicit and all original30 semantic input hashes remain unchanged. These scripted callbacks do not provide real-model/video accuracy or additional independent sources.
+The scoped PR941 candidate changes the same 30 SDK diagnostics from 27 structural admission passes/3 semantic defects to 28 admission passes/2 remaining semantic defects. Seven separate applicability controls pass and an independent176-check replay passes. The V9 correction is explicit and all original30 semantic input hashes remain unchanged. These scripted callbacks do not provide real-model/video accuracy or additional independent sources.
+
+The Pipeline owner-target preparation repair in PR2648 is independently approved at exact a25bddbe; merge and exact-main production promotion/deployment remain pending. Normal-UI confirmation retains a mandatory success-criteria object, which the prior compiler blocked before geometry. The candidate retains owner targets as unverified proposals while allowing existing scene-only/no-policy preparation. Four actual rigid and articulated consumer controls refuse unconfirmed authority; baseline four cases fail and candidate16 focused checks pass. This is isolated CPU-module proof, with no full joined customer assessment or performance outcome claimed.
+
+Three selected SDK counterexamples were each replayed three additional times at the deployed-equivalent source hash. The stale-source rejection and both open false admissions reproduced on every scripted attempt, with no disagreement. These add zero unique cases and no natural-model nondeterminism or accuracy evidence; the harness passes by asserting the retained admissions, while the two semantic cases remain failures.
+
+A later independent full-lineage diagnostic found a material legacy absent/null target authority gap in Pipelinea25: fixed development defaults can seal as owner-confirmed through the actual native adapter. The earlier approval covers supplied unknown/explicit cases only. Release of a25 is on hold; a one-line universal proposal-only correction is passing scoped checks and undergoing new exact-head review. The original transport-limited probe and corrected synthetic geometry probe are retained, not hidden.
