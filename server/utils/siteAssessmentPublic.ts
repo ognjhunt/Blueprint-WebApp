@@ -20,8 +20,11 @@ const actions: Record<string, string> = {
   process_change: "Evaluate a workflow or fixture change after reviewing the requirements.",
   no_robot: "Keep manual work as an option while clarifying unresolved requirements.",
 };
-const scrub = (value: string) => value.replace(/(?:https?:\/\/|gs:\/\/)[^\s]+|Bearer\s+[^\s]+/gi, "[private reference omitted]");
-/** Re-render factual wording from selected retained evidence, never persisted free-form model prose. */
+const scrub = (value: string) => value.replace(/(?:https?:\/\/|gs:\/\/)[^\s]+|Bearer\s+[^\s]+|\b[^\s@]+@[^\s@]+\.[^\s@]+/gi, "[private reference omitted]");
+// Recommendations are proposals, never a receipt for completed work. Keep the
+// renderer's conservative fallback when raw action prose asserts fulfillment.
+const assertsFulfillment = (value: string) => /\b(?:is|are|was|were|has been|have been)\s+(?:(?:already|now|fully|successfully)\s+)*(?:completed?|scheduled|booked|published|approved|certified|guaranteed)\b/i.test(value);
+/** Facts use selected retained evidence; proposals and unanswered questions remain labeled reasoning. */
 export function projectCustomerSiteAdvisory(packet: Record<string, any>, correlationId: string, admittedDuration: number | null = null): SiteAdvisory {
   if (packet.schema_version !== "site_assessment.v2" || !Array.isArray(packet.sources) || packet.sources.length > 100
     || Buffer.byteLength(JSON.stringify(packet)) > 1_000_000) throw Error("site_advisory_packet_invalid");
@@ -29,8 +32,16 @@ export function projectCustomerSiteAdvisory(packet: Record<string, any>, correla
   const duration = packet.sources.find((source: any) => source.kind === "video")?.content?.duration_seconds
     ?? packet.video_duration_seconds ?? null;
   // Video interval validation needs the original admitted duration, supplied by the reader.
-  const rendered = renderSourceBoundAssessment(siteAssessmentSchema.parse(packet.raw_model_assessment), sources as any,
+  const raw = siteAssessmentSchema.parse(packet.raw_model_assessment);
+  const rendered = renderSourceBoundAssessment(raw, sources as any,
     admittedDuration ?? duration);
+  const privateReferences = [packet.request_id, ...packet.sources.flatMap((source: any) => [source.source_id, source.canonical_ref, source.sha256])]
+    .filter((value): value is string => typeof value === "string" && value.length > 0).sort((a, b) => b.length - a.length);
+  const customerText = (value: string): string | null => {
+    if (!value.trim() || value.length > 4000) return null;
+    for (const reference of privateReferences) value = value.split(reference).join("[private reference omitted]");
+    return scrub(value).trim();
+  };
   const result = empty("ready", correlationId);
   const titles: Record<string, string> = { job: "The job", objects_motions_conditions_variations: "What the evidence shows",
     operator_success: "The site's success criteria", known: "Supported information" };
@@ -38,7 +49,7 @@ export function projectCustomerSiteAdvisory(packet: Record<string, any>, correla
     const claims = ((rendered.assessment as any)[field] as any[]).filter(claim => claim.verification_status === "source_bound")
       .slice(0, 12).flatMap(claim => {
         if (typeof claim.text !== "string" || claim.text.length > 4000) return [];
-        return [{ text: scrub(claim.text), basis: claim.basis, verificationStatus: "source_bound" as const, evidence: claim.evidence.map((reference: any) => ({
+        return [{ text: customerText(claim.text)!, basis: claim.basis, verificationStatus: "source_bound" as const, evidence: claim.evidence.map((reference: any) => ({
           kind: reference.selector?.kind === "video_observation" ? "video" : reference.selector?.kind === "operator_statement" ? "operator" : "specification",
           atSeconds: reference.at_seconds ?? null,
         })) }];
@@ -48,8 +59,21 @@ export function projectCustomerSiteAdvisory(packet: Record<string, any>, correla
   result.unknowns = ["Video analysis and supplied statements are not independently verified measurements or proof of robot suitability."];
   if (rendered.verification.unverified_claims || rendered.verification.interpretation_claims || rendered.assessment.status === "needs_operator_input")
     result.unknowns.push("Some job facts and interpretations remain unresolved. Clarify them before choosing an approach.");
-  result.nextAction = rendered.assessment.status === "needs_operator_input" ? actions.ask_operator
-    : actions[rendered.assessment.next_action.kind] ?? actions.research;
+  for (const claim of rendered.assessment.missing) {
+    const text = customerText(claim.text);
+    if (text) result.unknowns.push(`${claim.basis === "estimate" ? "Estimate to check" : "Unresolved"}: ${text}`);
+  }
+  for (const question of rendered.assessment.questions) {
+    const text = customerText(question.question), consequence = customerText(question.decision_it_changes);
+    if (text && consequence) result.unknowns.push(`Question to resolve: ${text} Decision it changes: ${consequence}`);
+  }
+  const action = rendered.assessment.next_action;
+  const proposed = !rendered.verification.unverified_claims && action.kind === raw.next_action.kind
+    && !assertsFulfillment(raw.next_action.action) ? customerText(raw.next_action.action) : null;
+  result.nextAction = `Recommended next step (proposal): ${proposed ?? actions[action.kind] ?? actions.research}`;
+  const reason = customerText(action.why.text);
+  if (reason) result.nextAction += ` ${["unknown", "estimate"].includes(action.why.basis) ? "Reasoning to check" : "Why"}: ${reason}`;
+  result.unknowns = [...new Set(result.unknowns)];
   return result;
 }
 
