@@ -364,7 +364,7 @@
       "id": "ASSESS-VIDEO-ENTAILMENT-001",
       "severity": "P1_for_affected_internal_advisory_assessment_path",
       "invariant": "Confident consequential event/capability claims require actual supporting evidence; citation presence alone is insufficient",
-      "owner": "assessment coordinator",
+      "owner": "assessment_cases; independent_review; coordinator release ownership",
       "minimizedReproducer": "V2-conflicting-owner-spec-video",
       "baselineRevision": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
       "runtimeSourceSha256": "67a51a0d7a2164464d07fe983522857c180eaf8caa6539d824eaf47a91a8d1c4",
@@ -373,13 +373,21 @@
       "violatedClaim": "Observed completed bin stacking cites only bin-to-table movement; task completion not observable and owner/spec stacking absent.",
       "releaseStatus": "OPEN_no_general_sentence_entailment_guard",
       "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
-      "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations."
+      "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations.",
+      "currentBaselineReconfirmation": {
+        "revision": "d21721d94aad50c0314d2e10875c3b022841c689",
+        "diagnosis_sha256": "1fc7be060dbce23fdb6befc6b68fa80a9c5461f4a93f80749c74acb0eb7eb78d",
+        "results_sha256": "055469c1b5a72c047d8adec7d1cfd2edc26fc32bd7034e65a678d309de43219e",
+        "outcome": "Both unchanged minimizers still admitted;8existing SDK and1history/current-source controls pass",
+        "new_unique_case_credit": 0
+      },
+      "repairInProgress": "Versioned evidence selectors and source-derived factual publication; retain raw model packet, historical DTOs and explicit unverified/review-required recovery. Independent review includes decision/capability entailment, field qualification and observable/unknown boundaries. No approval, merge or deployment claimed."
     },
     {
       "id": "ASSESS-FIELD-ENTAILMENT-001",
       "severity": "P1_for_affected_internal_advisory_assessment_path",
       "invariant": "Confident consequential event/capability claims require actual supporting evidence; citation presence alone is insufficient",
-      "owner": "assessment coordinator",
+      "owner": "assessment_cases; independent_review; coordinator release ownership",
       "minimizedReproducer": "V5-admitted-field-wrong-claim",
       "baselineRevision": "d8988ab3f8bcfa16527d0a77ba168f1cde19f63c",
       "runtimeSourceSha256": "67a51a0d7a2164464d07fe983522857c180eaf8caa6539d824eaf47a91a8d1c4",
@@ -388,18 +396,26 @@
       "violatedClaim": "Known published50m reach cites registry reachM:1 whose field provenance is otherwise qualified.",
       "releaseStatus": "OPEN_qualified_source_does_not_entail_prose",
       "affected_scope": "new internal site_assessment adapter; customer status/publication bridge not found in current inspected chain",
-      "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations."
+      "limitation": "Scripted synthetic provider/source counterexample, not measured live-model incidence or real-video/human label. No customer assessment publication/database mutation. Does block assessment-quality readiness claim, not unrelated workflow engineering or existing customer conversations.",
+      "currentBaselineReconfirmation": {
+        "revision": "d21721d94aad50c0314d2e10875c3b022841c689",
+        "diagnosis_sha256": "1fc7be060dbce23fdb6befc6b68fa80a9c5461f4a93f80749c74acb0eb7eb78d",
+        "results_sha256": "055469c1b5a72c047d8adec7d1cfd2edc26fc32bd7034e65a678d309de43219e",
+        "outcome": "Both unchanged minimizers still admitted;8existing SDK and1history/current-source controls pass",
+        "new_unique_case_credit": 0
+      },
+      "repairInProgress": "Versioned evidence selectors and source-derived factual publication; retain raw model packet, historical DTOs and explicit unverified/review-required recovery. Independent review includes decision/capability entailment, field qualification and observable/unknown boundaries. No approval, merge or deployment claimed."
     },
     {
       "id": "WEBSITE-OWNER-TARGET-PREPARATION-001",
       "severity": "P1_for_affected_joined_scene_preparation_path",
-      "owner": "queue_recovery; independent_review; sole cloud release owner",
+      "owner": "queue_recovery; independent_review; coordinator release ownership after explicit transfer",
       "invariant": "Normal confirmed customer work can advance through explicit safe preparation transitions; owner assertions cannot become verified performance or fixed defaults",
       "baselineRevision": "4cb97edeb5fabcac30a14a4576a896a6a22941a3",
       "rootCause": "Current UI always supplies successCriteria; preparation veto treats every supplied target object as requiring scorer translation before scene-only geometry. Legacy passing fixture omitted mandatory current-UI object. Native staged fixed defaults also use owner confirmed authority, requiring coherent preservation of the unverified owner targets rather than veto removal alone.",
       "minimizedReproducer": "Actual owner-link confirm clear gate answers for unknown/null and explicit owner95percent/30seconds -> operator_stated qualified context -> actual registered geometric compiler -> sole translation_required needs_input. Legacy omitted context control intake_ready.",
       "repair": "Permits existing scene-only/no-policy geometry preparation; preserves supplied targets as proposal_only/unverified through canonical staging. Independent actual rigid sealing and articulated confirmed-contract consumers refuse unverified authority. No universal gate claim.",
-      "releaseStatus": "merged_a56_mainCI_pass_fullpromotion_inprogress_deploypending",
+      "releaseStatus": "deployed_a56_canonical_provenance_and_current_service_identity_independently_verified",
       "claim_ceiling": "Disposable actual-handler/compiler/native-consumer proof; no paid provider, physical evaluation or customer happy-path completion.",
       "candidateCommit": "a25bddbe20c32bebfe77a97c640ea500097979e4",
       "candidatePR": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648",
@@ -421,7 +437,16 @@
       "finalRepair": "Website-generated fixeddevelopmentauthorityuniversallyproposal_only, absent/null/supplied; sourcepreserved, separatetrulyconfirmedcontractsunchanged",
       "finalHead": "ff45e8f9ecfed4f6d5f2e10fa95d514036beca65",
       "finalIndependentReview": "f9e297a1:baseline2fails_candidate12pass; exactscopeandearlierfullsealattributionretained",
-      "mergedSHA": "a56f9d240058f038060bd6aa89efcef3ff5f12e5"
+      "mergedSHA": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+      "deployedSHA": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+      "deployedVerification": {
+        "canonical_receipt_sha256": "b6b5a1b896b0d9d89b0101a90d82c3c76da5e5bacd9fb3f97ee2bb2f0af5bb75",
+        "installed_official_provenance_sha256": "1782cee419a7c3ddf174b36097e51a2ead70ac03a91a6563307b4204ac6b0487",
+        "postdeploy_status_sha256": "dcd45c5729c42ca77d521e85b550faa7c4036f97cd22205ec0f818c0ec04caf4",
+        "serving_observed_utc": "2026-10-08T10:36:43.175865+00:00",
+        "claim_ceiling": "Canonical provenance and current deployed service identity; no affected customer job or assessment run invoked.",
+        "independent_review_commit": "74372f7d"
+      }
     },
     {
       "id": "ASSESS-STALE-PLACEMENT-001",

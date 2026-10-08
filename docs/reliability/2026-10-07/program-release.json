@@ -91,7 +91,8 @@
       "commit_proven": true,
       "blockers": [],
       "private_raw_receipt_sha256": "5839ce1626e2c6d0a43ae83dbb9f84bb6ed61126519da2c33bb4545ca0b2058c",
-      "claim_ceiling": "deployed_service_identity_only; a56owner_targetrepair_not_yet_serving"
+      "claim_ceiling": "deployed_service_identity_only; a56owner_targetrepair_not_yet_serving",
+      "historical": true
     },
     "owner_target_preparation_followup": {
       "pull_request": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648",
@@ -112,7 +113,7 @@
       },
       "required_release": "new_merged_SHA_current_main_checks_full_production_deployment_promotion_all_shards_aggregate_canonical_provenance_then_protected_deploy_actual_serving_GET",
       "source_and_replay_manifest_sha256": "2cd25fab12d53e9b3d5646c64bf1843075a69579d3e7068eed492cca543f1804",
-      "release_owner": "existing_cloud_coordinator_no_competing_root_promotion",
+      "release_owner": "local_reliability_coordinator_after_explicit_transfer",
       "claim_ceiling": "code_approved_not_deployed_until_actual_receipts",
       "source_release_authorization": "scoped_ff45_source_approved_currentchecks_pass_pendingprotectedmerge_exact_main_promotion_deploy",
       "status_correction": "Priorunknown_explicit_targetapprovalwas_scoped; legacyabsent/nullconfirmeddefaultsseal_task_owner_actualproducer_native_lineage. One-line universalproposal_onlycandidateunderindependentreview; no current newhead merge claim.",
@@ -178,9 +179,59 @@
           ],
           "aggregate_not_yet_reached": true,
           "deployment_not_claimed": true
-        }
+        },
+        "state": "success_all4shards_and_CPU_aggregate",
+        "completed_at_utc": "2026-10-08T08:37:32Z",
+        "canonical_provenance_run": 37751078761,
+        "canonical_provenance_state": "success",
+        "verified_cpu_test_count": 34079,
+        "program_unique_case_credit": 0
       },
-      "release_state": "code_complete_merged_promotion_in_progress_not_deployed"
+      "release_state": "deployed_and_independently_verified_canonical_service_identity",
+      "ownership_transfer_receipt": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6056790737",
+      "canonical_deploy_continuation": {
+        "official_artifact_id": 11537672527,
+        "official_archive_sha256": "f06b7031590f7aaedce32fee064d1590791699e6eeba6af483f27868284db7da",
+        "decoded_official_json_sha256": "1782cee419a7c3ddf174b36097e51a2ead70ac03a91a6563307b4204ac6b0487",
+        "artifact_recovery": "Existing local GitHub access downloaded and hash-verified official archive; no access expansion",
+        "host_recovery": "Authenticated existing provider inventory identified current host; existing strict SSH pin/key verified hostname. Old runbook address refused; no trust or key changed.",
+        "executed_tool_source": "Active4cb tool bytes independently match targeta56 Git",
+        "deploy_tool_sha256": "61b388edbaf6b9a72c6db07f7caca63b32d4e653b84c81d855e4b2c14644b770",
+        "staging_tool_sha256": "c8654fadabff2637922ec2e7cd72bb11d681f7512f8963b96c91809dd0548690",
+        "target": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+        "iteration": false,
+        "preserve_configured_controls_state": true,
+        "controls_before": "timer/path enabled but inactive",
+        "predeploy_locks_held": 0,
+        "predeploy_door_requests_pending_processing": 0,
+        "fresh_origin_main_target_verified": true,
+        "source_tree_clean": true,
+        "started_utc": "2026-10-08T10:18:00.720585+00:00",
+        "state": "deployed_and_current_service_identity_verified",
+        "private_evidence_folder": "output/reliability-program/pipeline-canonical-a56",
+        "completed_utc": "2026-10-08T10:36:07.586732+00:00",
+        "canonical_receipt_sha256": "b6b5a1b896b0d9d89b0101a90d82c3c76da5e5bacd9fb3f97ee2bb2f0af5bb75",
+        "installed_provenance_sha256": "1782cee419a7c3ddf174b36097e51a2ead70ac03a91a6563307b4204ac6b0487",
+        "postdeploy_host_read_sha256": "08a312a389b035adab2b555bfd191567f4ca19a4c3749ba043551f89fc55643c",
+        "authenticated_door_status_sha256": "dcd45c5729c42ca77d521e85b550faa7c4036f97cd22205ec0f818c0ec04caf4",
+        "postdeploy_observed_utc": "2026-10-08T10:36:43.175865+00:00",
+        "controls_after": "timer/path enabled but inactive; same as before",
+        "intake_after": "active/running",
+        "canonical_provenance_status": "verified",
+        "canonical_full_lane_verified": true,
+        "promotion_eligible": true,
+        "current_serving_source_commit": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+        "commit_proven": true,
+        "blockers": [],
+        "provider_mutation_performed": false,
+        "claim_ceiling": "Canonical provenance and current deployed service identity; no affected customer job or assessment run invoked.",
+        "independent_receipt_review": {
+          "commit": "74372f7d",
+          "outcome": "approved_bounded_deployed_identity_provenance_and_paused_state",
+          "claim_ceiling": "No customer assessment completion, quality or older launch artifact validity proved."
+        },
+        "public_sanitized_receipt": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2648#issuecomment-6058033866"
+      }
     },
     "sim_only_current_main_setup_failure": {
       "run_id": 37745039226,
@@ -199,9 +250,19 @@
     },
     "release_ownership_acknowledgment": {
       "owner": "existing_cloud_coordinator",
-      "state": "sole_owner_retained; no root competing deploy",
+      "state": "Transferred explicitly to local coordinator; former cloud owner ceased all deployment mutations",
       "executor": "Recovered07:59UTC according to owner",
-      "remaining_interface_issue": "canonical deployment interface; exact promotion still pending"
+      "remaining_interface_issue": "resolved through official artifact recovery and existing strictly trusted canonical host deployment; no iteration bypass"
+    },
+    "current_independent_identity": {
+      "observed_at_utc": "2026-10-08T10:36:43.175865+00:00",
+      "active_release_commit": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+      "serving_source_commit": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+      "commit_proven": true,
+      "blockers": [],
+      "private_raw_receipt_sha256": "dcd45c5729c42ca77d521e85b550faa7c4036f97cd22205ec0f818c0ec04caf4",
+      "canonical_receipt_sha256": "b6b5a1b896b0d9d89b0101a90d82c3c76da5e5bacd9fb3f97ee2bb2f0af5bb75",
+      "claim_ceiling": "Canonical provenance and current deployed service identity; no affected customer job or assessment run invoked."
     }
   },
   "privacy": "Only sanitized deployment identity/receipt metadata; private operator status remains ignored.",
