@@ -411,3 +411,38 @@ unattempted and repeats remain one condition. Old source hashes, create/upload
 and fresh-return transitions and final candidate restoration were independently
 checked. This reinforces a scoped crash-recovery repair, with emulator/fake
 provider limits; it does not resolve the separately reopened plain-draft P1.
+
+**Resolved: INTAKE-HYDRATION-AUTOSAVE-001 at
+`8baba7d231c09fe5302af9016e60b75f287bee8d`.** Client source approval is restored.
+The only production changes skip draft autosave while noninteractive and rerun
+that effect when interaction becomes available. Existing identity, consent,
+checkpoint and active-account fences remain; backend bytes are unchanged.
+Eight exact-head client files independently pass 232/232 checks, receipt SHA256
+`7cddf3cea7063b39920ec716b1b61db34fe7d892f76b2f0d191f12f64b8e96c8`.
+Presentation tests explicitly use contract fakes; static prerender tests require
+loading/no editable form/no intake requests plus an actual support route.
+
+The identical outcome observer was frozen and replayed on `88476cb8` before
+candidate execution. It records either refusal or success instead of awaiting
+the old bug's alert; original alert-specific probe and baseline are retained.
+This is an explicit observer correction with unchanged inputs/actions and
+acceptance: all four fields survive both stores, identity remains, and exactly
+one explicit Start succeeds. Observer SHA256 is
+`71941ffa2d19c66af080312acb735fae10bc3a6e4392f7c9e1934711b89f3655`.
+Baseline receipt `574161eb07126336bd49580de122b1e3df14611c21bfccd2bed8a957ddafca19`
+loses both drafts and refuses Start; candidate
+`d264f53777492b39b5cab9959b0c9a36263fe97d39cee20bdf9c873f2e77fc2f`
+retains both drafts and sends one successful request under the same identity.
+This native Chromium/WebLocks/IndexedDB proof uses intercepted APIs and establishes
+no durable backend/provider result. Final joined replay, required CI, merge,
+deployment and post-deployment verification remain distinct owner gates.
+
+The independent native ordinary-reload candidate was executed three times;
+all three retain both drafts, preserve identity and send exactly one successful
+request, with no disagreement. Private repeat summary SHA256 is
+`77e4a2606519a667e5a56f878248dcebffc31d6c2af7a287b5e0e8f9a5ba3982`.
+Identical observable outcome hashes are expected; repetitions are executions,
+not new independent cases or model-quality samples. No paid providers ran.
+The earlier test-only provenance followup `9e0e5a8d` is also approved: each
+diagnostic's declared source fingerprint matches its native trace's embedded
+test source, preserving the v1/v2 correction history without relabeling runs.
