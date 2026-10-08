@@ -1,0 +1,227 @@
+{
+  "schema": "blueprint.supplemental-journey-ui022.v1",
+  "reported_at": "2026-10-08T06:10:09.065060+00:00",
+  "case": {
+    "id": "UI-022",
+    "condition": "forced_termination_automatic_draft_upload_return",
+    "source": "generated-synthetic-transport-fixture",
+    "split": "development_regression",
+    "expected": "One durable intake and private return route; current persisted status; no repeated customer notification; upload evidence if applicable",
+    "hash": "db6b6e4c01e67dfbbabee2acb0c301b5511a0a9d4ba8ac77767a1de45996111e"
+  },
+  "original_unique": 21,
+  "original_definitions_hashes_preserved": true,
+  "supplemental_unique": 1,
+  "scored_attempts": 3,
+  "passed": 3,
+  "failed": 0,
+  "repeats_new_unique": 0,
+  "original21_attempted_in_selected_runs": 0,
+  "runtime_source": {
+    "source_git_sha": "f659ce4be730c59abba4f7ab96cffefb0ebf458e",
+    "files_sha256": {
+      "client/src/components/site/SiteCaptureStart.tsx": "068a191b3f8a048af64f04edc9acdf62c04ba2813d9b81c4d2ac9fde059f33cf",
+      "client/src/contexts/AuthContext.tsx": "bceeb8ea22c8791863e63d135268059db8c5d450428c5bdec3fcd25e9796ae4c",
+      "client/src/lib/siteCaptureDraft.ts": "baf30af57e4cde3acc2e513f73e5180f4862b5c9e15eaf3ec762c3d3747fea7a",
+      "client/src/lib/siteCaptureDurability.ts": "14cae68c96d26f791431ecdb000397bc42c38161cae1098788cd8fb1f6345087",
+      "server/agents/site-assessment.ts": "a65dc70bf980a24a7d57aa17c7ed86dbf7a8b67c311d1014bd6a06b0ea4eadec",
+      "server/middleware/verifyFirebaseToken.ts": "1d0702492364a325672eec2d837e013b099cc96f31497f2b9400f23f2c670ce8",
+      "server/routes/self-capture-uploads.ts": "3a16b1ae43546d9c04149687fbebc6f1e563c51a01074bd04cd4ef283eb268d5",
+      "server/routes/site-task-brief.ts": "94f1bd670795b3d67627c14f25b861e8f07c831d9db82943ddb320c2032d8656",
+      "server/routes/workspace.ts": "937aa55896f9d409f602031d9cb6da88ea67eeca092d6fefd6b7b2a6107efd12",
+      "server/utils/captureCoverageReview.ts": "6ead77441d464256ea03bf419ad4b2b73851ea910f793a5a139c84535cf80eb2",
+      "server/utils/captureOutbox.ts": "78a3bd1cc0b5ae3590cc879eac7291825694b9fb2f3dac866a0ca8e61a99d746",
+      "server/utils/captureParts.ts": "b61144375a5c184ccb926fc2325325741f455c6228e12cefe95f718465e41120",
+      "server/utils/captureReviewRecovery.ts": "0579855454da233462c7ba6883f0d34b0f32429b5b574decba93eb22ce2b427a",
+      "server/utils/robotTeamLibraryAccess.ts": "7be4af88e8ff1241c3de1d949d8148d7db7ea3dcf319917f66f7cf0cfed3b5b1",
+      "server/utils/taskEvaluationLaunchForwardWorker.ts": "e28dd01f00da51bc1af3064d96becdd8cdf9c250156f9e7000a49a5f70dfe519",
+      "server/utils/taskLifecycleNotificationAuthority.ts": "25ccd7aa963b4e1a041f6612f07281c98b72bb8da8d64ce10a301cc6980a3106",
+      "server/utils/taskLifecycleNotifications.ts": "cafe0c8ccd3a3e39c4bfcda3482ae0a316fe90662696f81bd58a6b9cbc180923",
+      "server/utils/taskStatusProjection.ts": "4883486be2600156ce89b3e3b4657db634c0832e77bd09cf88d21cd74594ba7f",
+      "server/utils/websiteTaskContext.ts": "95a6fc837d06573ba568151091873ef5fe95982dbb8d0fa56d0c7598aed76858"
+    },
+    "ui_git_sha": "9de35ded4ba4da7865ac86605a8a6ade922f554f",
+    "fixture_sha256": "908c2cce5ee5651488e49ddd02e399973e5b6d4a0b3c10d33f1ddc0716952408"
+  },
+  "harness_sha256": "5de9ebcdfc264d7083219b61793e1440130d26cb0c7571b6c4f6ab5dd8bc6b54",
+  "runs": [
+    {
+      "run_id": "journeys-20261008T060731799Z",
+      "catalog_path": "output/reliability-program/journeys/runs/journeys-20261008T060731799Z/catalog.json",
+      "catalog_sha256": "c35af1d255f676a112dffef5ec581dffb0591c67e29ebdfcf21450a284ca0c1f",
+      "results_path": "output/reliability-program/journeys/runs/journeys-20261008T060731799Z/results.json",
+      "results_sha256": "efadc52dd4d9480e3e5c66104801ddc6e5fe1e65f6d9e03c74ad9ac5358bce68",
+      "generated": 22,
+      "attempted": 1,
+      "passed": 1,
+      "failed": 0,
+      "unattempted": 21,
+      "evidence": [
+        {
+          "id": "UI-022",
+          "result": "passed",
+          "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+          "latency_ms": 6357,
+          "provider_calls_simulated": 1,
+          "notification_calls_local_sink": 4,
+          "browser_termination": "SIGKILL-before-held-object-write-acknowledgement-automatic-same-profile-draft-return",
+          "automatic_draft_return": {
+            "same_identity": true,
+            "pending": true,
+            "acknowledged": true
+          },
+          "uploaded_fixture_proof": {
+            "count": 1,
+            "bytes": 73564,
+            "sha256": "908c2cce5ee5651488e49ddd02e399973e5b6d4a0b3c10d33f1ddc0716952408"
+          },
+          "durable": {
+            "documents": 13,
+            "object_count": 4,
+            "document_sha256": "4e5efc3fc975a2631fe5014cab3768c592a8e065683fc7fc6893772247cc2c8e",
+            "objects_sha256": "c48e06a3e92098ee0031ed0b1d8be2c64d627328e5b7f520fb9a6c46e12845cb"
+          }
+        }
+      ]
+    },
+    {
+      "run_id": "journeys-20261008T060826783Z",
+      "catalog_path": "output/reliability-program/journeys/runs/journeys-20261008T060826783Z/catalog.json",
+      "catalog_sha256": "4ebafb8dcf3d56a7ba8dd606f226b7888d9047405c9fc8fc412379951264f482",
+      "results_path": "output/reliability-program/journeys/runs/journeys-20261008T060826783Z/results.json",
+      "results_sha256": "c9f0b3dc216937ff7088db0d827bb849de43560b3c93f63044ac2c9cec542c04",
+      "generated": 22,
+      "attempted": 1,
+      "passed": 1,
+      "failed": 0,
+      "unattempted": 21,
+      "evidence": [
+        {
+          "id": "UI-022",
+          "result": "passed",
+          "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+          "latency_ms": 6358,
+          "provider_calls_simulated": 1,
+          "notification_calls_local_sink": 4,
+          "browser_termination": "SIGKILL-before-held-object-write-acknowledgement-automatic-same-profile-draft-return",
+          "automatic_draft_return": {
+            "same_identity": true,
+            "pending": true,
+            "acknowledged": true
+          },
+          "uploaded_fixture_proof": {
+            "count": 1,
+            "bytes": 73564,
+            "sha256": "908c2cce5ee5651488e49ddd02e399973e5b6d4a0b3c10d33f1ddc0716952408"
+          },
+          "durable": {
+            "documents": 13,
+            "object_count": 4,
+            "document_sha256": "c3b507506f5fb9f9c827b05acbedea8cbe5b9ce4a1d1f4ff4469e4bef365c814",
+            "objects_sha256": "f13a27a28d8e8072f61ae5dc4ae1c562b4c1d1b6c0049835afd59381ffdaf116"
+          }
+        }
+      ]
+    },
+    {
+      "run_id": "journeys-20261008T060837604Z",
+      "catalog_path": "output/reliability-program/journeys/runs/journeys-20261008T060837604Z/catalog.json",
+      "catalog_sha256": "cff66bc938761f63cd47882f1a5a19533aa3a8954b1887f23bcaf198b1fc62dc",
+      "results_path": "output/reliability-program/journeys/runs/journeys-20261008T060837604Z/results.json",
+      "results_sha256": "d5ab3464c2070eafdb7ec7f4d4384c8e1b527958d761e37bc1c6f879871c72ac",
+      "generated": 22,
+      "attempted": 1,
+      "passed": 1,
+      "failed": 0,
+      "unattempted": 21,
+      "evidence": [
+        {
+          "id": "UI-022",
+          "result": "passed",
+          "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+          "latency_ms": 7297,
+          "provider_calls_simulated": 1,
+          "notification_calls_local_sink": 4,
+          "browser_termination": "SIGKILL-before-held-object-write-acknowledgement-automatic-same-profile-draft-return",
+          "automatic_draft_return": {
+            "same_identity": true,
+            "pending": true,
+            "acknowledged": true
+          },
+          "uploaded_fixture_proof": {
+            "count": 1,
+            "bytes": 73564,
+            "sha256": "908c2cce5ee5651488e49ddd02e399973e5b6d4a0b3c10d33f1ddc0716952408"
+          },
+          "durable": {
+            "documents": 13,
+            "object_count": 4,
+            "document_sha256": "80b9d2189cc17e7578b76f0c070d19ec1a4af3a58c9d12174484d781d575071f",
+            "objects_sha256": "69f8fd438418874dd4baaccdda63f09c0e5c913aa5c732f21b7193311af54ffe"
+          }
+        }
+      ]
+    }
+  ],
+  "retained_harness_failure": [
+    {
+      "run_id": "journeys-20261008T060646486Z",
+      "catalog_path": "output/reliability-program/journeys/runs/journeys-20261008T060646486Z/catalog.json",
+      "catalog_sha256": "3c1ac8edd77b7f33ca95c252ee5e1845ec85e05761e9b7d5a798ab7f22ffbfaf",
+      "results_path": "output/reliability-program/journeys/runs/journeys-20261008T060646486Z/results.json",
+      "results_sha256": "089cbfa1bafdfe674d01bcf81c12281cb415d3beb24570d86485d2dcc6f9c476",
+      "generated": 22,
+      "attempted": 1,
+      "passed": 0,
+      "failed": 1,
+      "unattempted": 21,
+      "evidence": [
+        {
+          "id": "UI-022",
+          "result": "failed",
+          "layer": "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider",
+          "latency_ms": 6800,
+          "provider_calls_simulated": 0,
+          "notification_calls_local_sink": 1,
+          "browser_termination": "SIGKILL-before-held-object-write-acknowledgement-automatic-same-profile-draft-return",
+          "automatic_draft_return": null,
+          "uploaded_fixture_proof": null,
+          "durable": {
+            "documents": 5,
+            "object_count": 4,
+            "document_sha256": "423fa2469eaae338a4c424a2fd8fdef7d0d64a3006e89a245ce259e892c1ecaa",
+            "objects_sha256": "504af0caca5449c906c5b41d486a560773389cf3873f69eb8e726dfd44a14b71"
+          }
+        }
+      ]
+    }
+  ],
+  "retained_setup_failure": {
+    "path": "output/reliability-program/ui022/attempt1.log",
+    "sha256": "d755405c222a2b25e33d7e04809652e49ec769712f2ca48a4cc7d9e6cea5d340",
+    "attempted": 0,
+    "reason": "Exact UI comparison found9de differs; fixture preparation stopped; missing fixture refused execution."
+  },
+  "correction": "Vitest browser visibility/inputValue assertions replace invalid Playwright matcher calls; expected outcomes and original21 hashes unchanged. Failed exploratory trace is not a product failure.",
+  "baseline_limit": "Cloud owner retains actual pre-checkpoint SIGKILL3/3 failure; this author did not rerun an exact pre-fix native baseline. Coordinator joins canonical baseline receipts separately.",
+  "replay": "env -i PATH=\"$PATH\" HOME=\"$HOME\" TMPDIR=\"${TMPDIR:-/tmp}\" NODE_ENV=test BLUEPRINT_DISABLE_LOCAL_ENV_BOOTSTRAP=true RELIABILITY_FIRESTORE_EMULATOR=1 FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 node node_modules/vitest/vitest.mjs run --config vitest.reliability-program.config.ts -t UI-022",
+  "layer": "normal UI/real Express/loopback Firestore emulator; fake objectstore/provider/local mail. No API interception, admin creation or email return shortcut.",
+  "limits": "Synthetic owned test pattern only. No production authentication/rules, real provider/email delivery, final assessment quality, Safari/incognito/hardware-power-loss proof.",
+  "checks": {
+    "typecheck_overlay": {
+      "result": "passed",
+      "path": "output/reliability-program/ui022/typecheck-overlay.log",
+      "sha256": "cac4641f604577738681f4f70c0ded3f441c0562d5814768106527214a0f49d4"
+    },
+    "typecheck_authored": {
+      "result": "passed",
+      "path": "output/reliability-program/ui022/typecheck-authored.log",
+      "sha256": "cac4641f604577738681f4f70c0ded3f441c0562d5814768106527214a0f49d4"
+    },
+    "graphify": {
+      "result": "passed",
+      "path": "output/reliability-program/ui022/graphify.log",
+      "sha256": "e0653331674ae75260ce11df1c3834f50f7a9ec49225585e45aebcbd65901a8e"
+    }
+  }
+}

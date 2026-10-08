@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { chromium, type BrowserContext, type Page } from "@playwright/test";
-import { state, resetStorage, reloadDocuments, reloadObjects, faults, durableSummary, database, emulatorMode, refreshDocumentView, clearEmulator, releaseVideoWrites } from "./helpers/reliability-local-storage";
+import { state, resetStorage, reloadDocuments, reloadObjects, faults, durableSummary, database, emulatorMode, refreshDocumentView, clearEmulator, releaseVideoWrites, bucket } from "./helpers/reliability-local-storage";
 
 const providers = vi.hoisted(() => ({ privacy: "cleared", calls: 0, errors: [] as string[], sent: [] as {to: string; subject: string}[] }));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
@@ -50,7 +50,11 @@ const cases = [
   ["UI-014", "missing_task"], ["UI-015", "invalid_video_extension"], ["UI-016", "double_click"],
   ["UI-017", "slow_create"], ["UI-018", "create_error_body"], ["UI-019", "lost_response_reload"],
   ["UI-020", "browser_termination_upload_return"], ["UI-021", "forced_termination_email_return_worker_restart"],
+  ["UI-022", "forced_termination_automatic_draft_upload_return"],
 ] as const;
+function interruptedUpload(kind: string) {
+  return ["browser_termination_upload_return", "forced_termination_email_return_worker_restart", "forced_termination_automatic_draft_upload_return"].includes(kind);
+}
 const traces: Record<string, unknown>[] = [];
 let server: Server, vite: ChildProcess;
 let activeCase = "", createError = false, loseReply = false, createDelay = 0;
@@ -110,7 +114,7 @@ async function fill(kind: string) {
     await page.locator("#start-region").selectOption(kind.includes("non_us") ? "non_us" : "us");
   }
   if (kind.startsWith("visit")) await page.locator("#start-method-visit").check();
-  if (kind.startsWith("upload") || (kind === "browser_termination_upload_return" || kind === "forced_termination_email_return_worker_restart") || kind === "invalid_video_extension") {
+  if (kind.startsWith("upload") || interruptedUpload(kind) || kind === "invalid_video_extension") {
     await page.locator("#start-method-upload").check();
     if (kind === "invalid_video_extension") await page.locator("#start-footage").setInputFiles({ name: "bad.txt", mimeType: "text/plain", buffer: Buffer.from("invalid") });
     else await page.locator("#start-footage").setInputFiles(fixture);
@@ -121,24 +125,24 @@ function requestRows() { return [...state.docs.entries()].filter(([key]) => key.
 
 beforeAll(async () => {
   fs.mkdirSync(retained, { recursive: true });
-  // v2 frozen definitions: production wiring and fixture faults corrected before scoring.
-  // Forced-kill automatic local draft loss is retained as a separate diagnostic;
-  // UI020 scores orderly shutdown; UI021 scores real killed-browser email recovery.
-  const sourcePaths = ["client/src/components/site/SiteCaptureStart.tsx", "client/src/lib/siteCaptureDraft.ts",
+  // Original21 definitions/hashes remain v3. Supplemental UI022 is a new
+  // forced-kill automatic draft-return condition, frozen before execution.
+  // UI020 remains orderly return; UI021 remains the separate email-return path.
+  const sourcePaths = ["client/src/components/site/SiteCaptureStart.tsx", "client/src/lib/siteCaptureDraft.ts", "client/src/lib/siteCaptureDurability.ts",
     "server/routes/inbound-request.ts", "server/routes/self-capture-uploads.ts", "server/routes/site-task-brief.ts",
     "server/utils/captureCoverageQueue.ts", "server/utils/captureCoverageReview.ts", "server/utils/captureReviewRecovery.ts", "server/utils/captureParts.ts", "server/utils/field-encryption.ts", "server/utils/captureOutbox.ts", "server/agents/tasks/capture-coverage.ts",
     "server/tests/helpers/reliability-local-storage.ts", "server/tests/reliability-program-journeys.browser.ts",
     "server/tests/reliability-program-worker-resume.browser.ts"];
-  const catalog = {schema: "blueprint.journey-catalog.v3", version: 3, frozen_at: new Date().toISOString(), run_id: runId, code_sha: execFileSync("git", ["rev-parse", "HEAD"], {encoding: "utf8"}).trim(),
+  const catalog = {schema: "blueprint.journey-catalog.v4", version: 4, original_catalog_version: 3, original_unique: 21, supplemental_unique: 1, frozen_at: new Date().toISOString(), run_id: runId, code_sha: execFileSync("git", ["rev-parse", "HEAD"], {encoding: "utf8"}).trim(),
     source_sha256: Object.fromEntries(sourcePaths.map(file => [file, createHash("sha256").update(fs.readFileSync(file)).digest("hex")])),
     fixture_sha256: createHash("sha256").update(fs.readFileSync(fixture)).digest("hex"),
     layer: emulatorMode ? "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider" : "normal-ui-real-express-file-backed-fakes-local-provider",
-    corrections: ["Match signed-link route registration, not added CSRF", "Distinct synthetic actors retain real rate limiter", "Correlate customer/operator receipt purposes", "Use actual browser_pending_delivery field and contract-valid provider fixture", "UI020 orderly native restart; SIGKILL automatic-local-return failure retained; UI021 separate email route", "Require actual upload response before final state; held UI checked against retained/not-processing semantics", "Strict recipient sink rejects encrypted objects; prior permissive delivery evidence invalidated"],
+    corrections: ["Match signed-link route registration, not added CSRF", "Distinct synthetic actors retain real rate limiter", "Correlate customer/operator receipt purposes", "Use actual browser_pending_delivery field and contract-valid provider fixture", "UI020 orderly native restart; SIGKILL automatic-local-return failure retained; UI021 separate email route", "Require actual upload response before final state; held UI checked against retained/not-processing semantics", "Strict recipient sink rejects encrypted objects; prior permissive delivery evidence invalidated", "Supplemental UI022 adds literal SIGKILL before held object-write acknowledgement followed by ordinary same-profile draft return; original21 definitions and hashes unchanged", "UI022 Vitest browser visibility/value matcher correction after retained Invalid Chai property harness failure; expectations unchanged"],
     cases: cases.map(([id, condition]) => ({id, condition, source: "generated-synthetic-transport-fixture", split: "development_regression",
       expected: condition.startsWith("missing_") || ["unknown_country", "invalid_video_extension", "create_error_body"].includes(condition)
         ? "Refuse safely without a durable intake" : condition === "upload_storage_unavailable" ? "One durable intake; video receipt unknown; safe status failure"
         : "One durable intake and private return route; current persisted status; no repeated customer notification; upload evidence if applicable",
-      hash: createHash("sha256").update(JSON.stringify({condition, version: 3})).digest("hex")}))};
+      hash: createHash("sha256").update(JSON.stringify({condition, version: id === "UI-022" ? 1 : 3})).digest("hex")}))};
   fs.writeFileSync(path.join(retained, "catalog.json"), JSON.stringify(catalog, null, 2));
   fs.writeFileSync(path.join(output, "catalog.json"), JSON.stringify(catalog, null, 2));
   vi.stubEnv("APP_URL", base); vi.stubEnv("VITE_PUBLIC_APP_URL", base);
@@ -191,8 +195,8 @@ beforeEach(async () => { await clearEmulator(); resetStorage(); providers.privac
 afterAll(async () => {
   await stopBrowser();
   vite?.kill("SIGTERM"); if (server) { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
-  const report = { schema: "blueprint.journey-results.v3", run_id: runId, code_hashes: JSON.parse(fs.readFileSync(path.join(retained, "catalog.json"), "utf8")).source_sha256, generated: cases.length,
-    attempted: traces.length, passed: traces.filter(t => t.result === "passed").length, failed: traces.filter(t => t.result === "failed").length,
+  const report = { schema: "blueprint.journey-results.v4", original_unique: 21, supplemental_unique: 1, run_id: runId, code_hashes: JSON.parse(fs.readFileSync(path.join(retained, "catalog.json"), "utf8")).source_sha256, generated: cases.length,
+    attempted: traces.length, unattempted: cases.length - traces.length, passed: traces.filter(t => t.result === "passed").length, failed: traces.filter(t => t.result === "failed").length,
     live_provider_calls: 0, live_cost_usd: 0, simulated_cost_usd: null, traces };
   fs.writeFileSync(path.join(retained, "results.json"), JSON.stringify(report, null, 2));
   fs.writeFileSync(path.join(output, "results.json"), JSON.stringify(report, null, 2));
@@ -202,7 +206,7 @@ afterAll(async () => {
 
 describe("normal customer UI joined to real handlers and disposable durable storage", () => {
   for (const [id, kind] of cases) it(`${id} ${kind}`, async () => {
-    activeCase = id; const started = Date.now(); let result = "failed"; let privateReturnUrl: string | undefined;
+    activeCase = id; const started = Date.now(); let result = "failed"; let privateReturnUrl: string | undefined; let automaticDraftReturn: { same_identity: boolean; pending: boolean; acknowledged: boolean } | undefined; let uploadedFixtureProof: { count: number; bytes: number; sha256: string } | undefined;
     try {
       await openBrowser(kind.includes("mobile")); await fill(kind);
       if (kind === "upload_privacy_held") providers.privacy = "held";
@@ -210,7 +214,7 @@ describe("normal customer UI joined to real handlers and disposable durable stor
       if (kind === "upload_manifest_retry") faults.manifestOnce = true;
       if (kind === "upload_storage_unavailable") faults.storageUnavailable = true;
       if (kind === "slow_create") createDelay = 300;
-      if ((kind === "browser_termination_upload_return" || kind === "forced_termination_email_return_worker_restart")) faults.holdVideoWrites = true;
+      if (interruptedUpload(kind)) faults.holdVideoWrites = true;
       if (kind === "create_error_body") createError = true;
       if (kind === "lost_response_reload") loseReply = true;
       const button = page.getByRole("button", { name: "Start free assessment", exact: true });
@@ -229,14 +233,25 @@ describe("normal customer UI joined to real handlers and disposable durable stor
           await page.reload();
           await page.getByRole("button", { name: /recover|return|resume|retry/i }).first().click();
           await vi.waitFor(async () => expect(await page.getByRole("heading", {name: "Your job description is saved."}).count()).toBeGreaterThan(0));
-        } else if ((kind === "browser_termination_upload_return" || kind === "forced_termination_email_return_worker_restart")) {
+        } else if (interruptedUpload(kind)) {
           await vi.waitFor(() => expect(faults.videoWriteReached).toBe(true), {timeout: 20_000});
           expect([...state.docs.values()].some(row => (row.browser_pending_delivery as {state?: string} | undefined)?.state === "published")).toBe(false);
           await stopBrowser(kind === "browser_termination_upload_return" ? "SIGTERM" : "SIGKILL"); releaseVideoWrites();
           await vi.waitFor(async () => {await refreshDocumentView(); expect([...state.docs.values()].some(row => row.browser_pending_delivery)).toBe(true);}, {timeout: 20_000});
           reloadDocuments(); reloadObjects(); await openBrowser();
           await page.goto(`${base}/contact/site-operator`);
-          if (kind === "browser_termination_upload_return") {
+          if (kind === "browser_termination_upload_return" || kind === "forced_termination_automatic_draft_upload_return") {
+            if (kind === "forced_termination_automatic_draft_upload_return") {
+              await vi.waitFor(async () => expect(await page.getByRole("button", {name: "Return to saved job"}).isVisible()).toBe(true), {timeout: 20_000});
+              const restored = await page.evaluate(() => {
+                const row = Object.entries(localStorage).find(([key]) => key === "bp-site-capture:v1:anonymous:default");
+                const value = row ? JSON.parse(row[1]) : null;
+                return { requestId: value?.requestId, pending: Boolean(value?.pending), acknowledged: value?.pending?.acknowledged === true };
+              });
+              automaticDraftReturn = {same_identity: restored.requestId === requestId, pending: restored.pending, acknowledged: restored.acknowledged};
+              expect(automaticDraftReturn).toEqual({same_identity:true,pending:true,acknowledged:true});
+              await vi.waitFor(async () => expect(await page.locator("#start-task").inputValue()).toBe("Inspect a synthetic test pattern. No robot capability is asserted."));
+            }
             await page.getByRole("button", {name: "Return to saved job"}).click();
           } else {
             const worker = await runFreshWorker("first");
@@ -256,7 +271,7 @@ describe("normal customer UI joined to real handlers and disposable durable stor
         if (kind.startsWith("upload")) {
           await vi.waitFor(() => expect(requests.some(row => row.method === "POST" && row.route === "/api/self-capture/uploads/[local-token]" && row.status >= 200)).toBe(true), {timeout: 20_000});
         }
-        if ((kind.startsWith("upload") && kind !== "upload_storage_unavailable") || (kind === "browser_termination_upload_return" || kind === "forced_termination_email_return_worker_restart")) {
+        if ((kind.startsWith("upload") && kind !== "upload_storage_unavailable") || interruptedUpload(kind)) {
           await vi.waitFor(async () => { await refreshDocumentView(); expect([...state.docs.keys()].some(key => key.startsWith("captureUploadSessions/") && Boolean(state.docs.get(key)?.browser_stored_upload || state.docs.get(key)?.browser_pending_delivery))).toBe(true); }, { timeout: 20_000 });
         }
         if (kind === "upload_manifest_retry") {
@@ -273,10 +288,20 @@ describe("normal customer UI joined to real handlers and disposable durable stor
         await refreshDocumentView();
         const statuses = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/") && !key.includes("/deliveryReceipts/"));
         for (const [, row] of statuses) {expect(typeof row.to).toBe("string"); expect(row.status).toBe("sent");}
-        if ((kind === "browser_termination_upload_return" || kind === "forced_termination_email_return_worker_restart") || kind.startsWith("upload_clear")) {
+        if (interruptedUpload(kind) || kind.startsWith("upload_clear")) {
           const coverageMail = statuses.filter(([,row]) => row.kind === "coverage_shortfall");
           expect(coverageMail).toHaveLength(1);
           expect(coverageMail[0][1].to).toBe(`${id.toLowerCase()}@example.com`);
+        }
+        if (kind === "forced_termination_automatic_draft_upload_return") {
+          const [objects] = await bucket.getFiles({prefix: ""});
+          const videos = objects.filter(object => /\.(mp4|mov)$/.test(object.name));
+          expect(videos).toHaveLength(1);
+          const [bytes] = await bucket.file(videos[0].name).download();
+          const sha256 = createHash("sha256").update(bytes).digest("hex");
+          expect(sha256).toBe(createHash("sha256").update(fs.readFileSync(fixture)).digest("hex"));
+          uploadedFixtureProof = {count:videos.length,bytes:bytes.length,sha256};
+          expect(providers.calls).toBe(1);
         }
         const taskMail = statuses.filter(([, row]) => row.kind === "task_received");
         const linkEligible = true; // Current description authority permits a read-only job link for every submitted region/method.
@@ -301,7 +326,7 @@ describe("normal customer UI joined to real handlers and disposable durable stor
           }
           expect(persistedStatus.http).toBe(200);
           expect(persistedStatus.body.status.stage).not.toBe("completed");
-          if ((kind === "browser_termination_upload_return" || kind === "forced_termination_email_return_worker_restart") || kind.startsWith("upload_clear")) {
+          if (interruptedUpload(kind) || kind.startsWith("upload_clear")) {
             expect(persistedStatus.body.captureReceived).toBe(true);
             expect([...state.docs.values()].some(row => (row.browser_pending_delivery as {state?: string} | undefined)?.state === "published")).toBe(true);
             expect([...state.docs.values()].some(row => (row.capture_coverage as {covers_scene?: boolean} | undefined)?.covers_scene === false)).toBe(true);
@@ -324,7 +349,8 @@ describe("normal customer UI joined to real handlers and disposable durable stor
         fs.writeFileSync(path.join(retained, `${id}-screen.txt`), await page.locator("body").innerText().catch(() => "unavailable"));
       }
       traces.push({ id, kind, result, layer: emulatorMode ? "normal-ui-real-express-firestore-emulator-fake-objectstore-local-provider" : "normal-ui-real-express-file-backed-fakes-local-provider", latency_ms: Date.now() - started,
-        provider_calls_simulated: providers.calls, notification_calls_local_sink: providers.sent.length, errors: [...providers.errors], browser_termination: kind === "browser_termination_upload_return" ? "orderly-CDP-browser-close-native-profile-mid-object-write" : kind === "forced_termination_email_return_worker_restart" ? "SIGKILL-queued-email-return-with-fresh-worker-process" : null,
+        provider_calls_simulated: providers.calls, notification_calls_local_sink: providers.sent.length, errors: [...providers.errors], browser_termination: kind === "browser_termination_upload_return" ? "orderly-CDP-browser-close-native-profile-mid-object-write" : kind === "forced_termination_email_return_worker_restart" ? "SIGKILL-queued-email-return-with-fresh-worker-process" : kind === "forced_termination_automatic_draft_upload_return" ? "SIGKILL-before-held-object-write-acknowledgement-automatic-same-profile-draft-return" : null,
+        automatic_draft_return: automaticDraftReturn ?? null, uploaded_fixture_proof: uploadedFixtureProof ?? null,
         transitions: [...requests], effects: [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/")).map(([,row]) => ({kind: row.kind, status: row.status, recipient: row.to === `${id.toLowerCase()}@example.com` ? "customer" : "other-local-sink"})), durable: durableSummary(), private_video_used: false });
       releaseVideoWrites(); await stopBrowser();
     }
