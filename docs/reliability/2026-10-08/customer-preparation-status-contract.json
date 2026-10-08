@@ -1,0 +1,113 @@
+{
+  "schema_version": "blueprint.reliability_interface_freeze.v1",
+  "frozen_at_utc": "2026-10-08T12:12:00Z",
+  "baseline": {
+    "webapp": "3f911025b68a17498f6ce924ae9e51cca7e8fb5b",
+    "pipeline": "a56f9d240058f038060bd6aa89efcef3ff5f12e5"
+  },
+  "scope": "Current source-bound preparation status, durable failure delivery and logical notification recovery; no customer budget gate or final-assessment substitution.",
+  "pipeline_read_route": {
+    "method": "POST",
+    "path": "/api/live-pipeline/website-preparation-status",
+    "admission": "Existing signed client HMAC timestamp nonce; trusted blueprint-webapp; selectors in signed body, never arbitrary root/path. Reuse authenticated server capture-root resolver.",
+    "selectors": [
+      "request_id",
+      "scene_id",
+      "capture_id",
+      "completion_marker_generation",
+      "producer_delivery_key",
+      "source_payload_sha256",
+      "task_context_digest"
+    ],
+    "result_schema": "website_preparation_status.v1",
+    "fields": [
+      "schema_version",
+      "request_id",
+      "scene_id",
+      "capture_id",
+      "completion_marker_generation",
+      "producer_delivery_key",
+      "source_payload_sha256",
+      "task_context_digest",
+      "attempt_count",
+      "revision",
+      "state",
+      "code",
+      "correlation_id",
+      "status_digest"
+    ],
+    "states": [
+      "preparing",
+      "awaiting_inputs",
+      "failed_retryable",
+      "authority_ended",
+      "handed_off"
+    ],
+    "codes": [
+      "preparation_in_progress",
+      "preparation_inputs_pending",
+      "preparation_retryable_failure",
+      "preparation_authority_ended",
+      "preparation_handed_off"
+    ],
+    "rules": [
+      "Read actual durable ledger and retained exact birth source/current task context; check revision again around identity verification, refuse unstable/unavailable binding.",
+      "No supplied path/root, arbitrary historical-source bootstrap, raw error/path/provider body, or returned owner personal details.",
+      "handed_off means source-stage handoff only, never assessment/native execution completion.",
+      "Missing or unconfigured source/status is unavailable/unknown, never zero or completed."
+    ]
+  },
+  "webapp_callback": {
+    "method": "POST",
+    "path": "/api/internal/pipeline/creator-captures/:captureId/preparation-status",
+    "admission": "Mandatory raw-body signed Pipeline timestamp/HMAC; legacy bearer fallback forbidden. Strict bounded JSON object.",
+    "rules": [
+      "Callback is a wake-up selector only; fetch latest Pipeline ledger status, not supplied failure truth or maxreceivedattempt.",
+      "Match current accepted browser pending/stored delivery or current bundle source, current marker/video and owner/rights/context. Historical pinned provenance alone is insufficient.",
+      "Revalidate current source/owner/rights/context in transaction; durable status and notification intent/pending-enqueue state must survive retry.",
+      "Same-source stale attempt/revision cannot replace newer status; genuine screening results and consent withdrawal keep precedence.",
+      "Fresh customer status polls and notification dispatch reread canonical current ledger; unavailable read cannot masquerade as current failure or successful processing."
+    ]
+  },
+  "delivery": {
+    "rules": [
+      "Persist source-bound pending status delivery only after ledger commit; network outside lease lock.",
+      "Delivery retry never reopens processing/provider stages or changes failure evidence.",
+      "Reuse existing listener/reconciliation loop; no new daemon, credential or infrastructure.",
+      "Retain delivery error as private metadata; local status/processing continues if transport fails."
+    ]
+  },
+  "notifications": {
+    "milestone": "preparation_needs_attention",
+    "logical_event_identity": "digest(request/capture/current producer delivery/task context/needs-attention milestone); processing retries do not create another logical notification",
+    "rules": [
+      "Existing durable outbox only; no direct send or new campaign.",
+      "Current source/rights/context plus canonical failed_retryable/awaiting_inputs rechecked at dispatch; raw error never included.",
+      "Tests only local sink/fake transport; no real customer email."
+    ]
+  },
+  "owners": {
+    "pipeline_api_ledger_and_delivery": "queue_recovery",
+    "webapp_new_consumer_and_transport_helpers": "intake_recovery",
+    "shared_projection_route_registration_notifications_integration_release": "root",
+    "independent_review": "independent_review"
+  },
+  "evidence_requirements": [
+    "Actual before-fix absent status transport preserved; no fake completion seed.",
+    "Matched producer through signed API/customer reader + local notification sink; persistence/restart/order/source/withdrawal controls.",
+    "Required checks and independent diff review before protected merge/deploy.",
+    "No new frozen coverage credit from reused cases; new regressions reported separately."
+  ],
+  "field_formats": {
+    "producer_delivery_key": "sha256: +64 lowercase hexadecimal",
+    "source_payload_sha256": "64 lowercase hexadecimal; actual worker ledger representation",
+    "correlation_id": "canonical sha256 digest bound to selectors/attempt/revision; not public display",
+    "public_correlationId": "host-derived bp-prep-16 lowercase hex from validated status digest"
+  },
+  "corrections": [
+    {
+      "at_utc": "2026-10-08T12:17:00Z",
+      "change": "Record actual worker hash formats and distinguish canonical correlation digest from public host-derived reference. No state, severity, target or acceptance threshold changed."
+    }
+  ]
+}
