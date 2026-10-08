@@ -1,3 +1,4 @@
+import { reserveCaptureCoverageInference } from "../../utils/captureCoverageInferenceBudget";
 import { createHash } from "node:crypto";
 import OpenAI from "openai";
 import { OpenAIProvider } from "@openai/agents";
@@ -53,6 +54,8 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
   const base = { provider: task.provider, runtime: task.runtime, model: task.model, tool_mode: task.tool_policy.mode,
     requires_human_review: true, requires_approval: false };
   const budget = new SiteAssessmentBudget();
+  let captureAdmission: Awaited<ReturnType<typeof reserveCaptureCoverageInference>> | undefined;
+  const captureReservations: unknown[] = [];
   let instance: Awaited<ReturnType<typeof createSiteAssessmentAgent>> | undefined;
   let sourceAdmission: Record<string, unknown> | null = null;
   try {
@@ -146,17 +149,22 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
         && source.sha256 === videoSha && source.canonical_ref === videoRef),
       authorize_model_call: async (kind, model, request) => {
         await host.assertActive(); await assertSourceCurrent(); await host.assertCostAllowed(); budget.authorize(kind, model, request);
+        captureAdmission = await reserveCaptureCoverageInference(model, { capture_id: pending.capture_id,
+          assessment_run_id: host.runId, assessment_request_id: input.context.request_id,
+          assessment_source: raw.capture_privacy_source_bound_decision?.producer_source }, kind, request);
+        captureReservations.push(captureAdmission.receipt);
       },
-      record_model_response: async (kind, model, response) => { budget.record(kind, model, response); },
+      record_model_response: async (kind, model, response) => { budget.record(kind, model, response);
+        await captureAdmission?.record((response as any)?.usage); captureAdmission = undefined; },
     });
     const packet = await instance.run();
     await host.assertActive();
     await assertSourceCurrent();
     return { ...base, status: "completed", output: packet.assessment,
-      artifacts: { site_assessment_packet: packet, site_assessment_packet_sha256: digest(packet), source_admission: sourceAdmission, ...budget.artifacts() } };
+      artifacts: { site_assessment_packet: packet, site_assessment_packet_sha256: digest(packet), source_admission: sourceAdmission, capture_inference_reservations: captureReservations, ...budget.artifacts() } };
   } catch (error) {
     const message = error instanceof Error && /^site_assessment_/.test(error.message) ? error.message.split(":")[0] : "site_assessment_failed";
     return { ...base, status: message === "site_assessment_cancelled" ? "cancelled" : "failed", error: message,
-      artifacts: { site_assessment_partial_evidence: instance?.evidence() ?? null, source_admission: sourceAdmission, ...budget.artifacts() } };
+      artifacts: { site_assessment_partial_evidence: instance?.evidence() ?? null, source_admission: sourceAdmission, capture_inference_reservations: captureReservations, ...budget.artifacts() } };
   }
 }
