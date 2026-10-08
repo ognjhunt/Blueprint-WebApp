@@ -1232,3 +1232,52 @@ identity and those local UI controls. No production failed record was created
 or mutated, so it does not execute the new failed-preview branch, the new
 preparation-status bridge, backend upload/worker behavior, delivery or assessment
 quality. No additional unique case/journey credit or provider effect is claimed.
+
+
+**Joined local preparation-failure replay approved within its frozen scope.**
+Reviewed test-only WebApp `4b31cd8886e0e11ee910cd768800f8b4ed54e8a5`
+(parent approved 54d), Pipeline exporter
+`c0e47eb639fbe775bade5b260218201a96eeab96` (runtime parent approved 29f),
+and the final retained three attempts. All original 362 linked file hashes and
+lengths matched manifest
+`d8b0bfcdb82615c59142ca0eb2a301553fa7064d3349b81bff1ad7846582df96`;
+after explicit reporting-only corrections, all 363 links match
+`2e29d90f2f0474e962ee1ccd3e88caee40606facfed83f4dce81fdd594a6d629`.
+All fourteen catalogued runtime/test/exporter hashes match immutable Git bytes.
+The final test hash remains
+`866cc7d77e9df0cfe80f4e37f0e7eecf701ec9867e6764dc726ba48746b66efe`;
+the definition did not change between the three final passes. This is one new
+supplemental semantic case, three attempts, zero added original program
+case/journey credit. Historical partials and explicit contract corrections
+remain retained rather than being upgraded to successful executions.
+
+The actual selected source staging/birth, default-skip website qualification
+branch, lease/ledger, signed FastAPI/Express read/callback and existing customer
+GET/outbox execute across local sockets. An actual reconstruction-pending
+handoff precedes an explicit qualification exception seam. First callback
+unavailability retains delivery; a signed current read and post-commit typed
+acceptance recover it. Each final retained real Pipeline ledger is
+failed_retryable, attempt one/revision two; delivery is acknowledged after two
+transport attempts with native completion false. The mock WebApp documents
+contain one sent logical notice, one attempt and one child delivery receipt.
+Changed current video yields safe customer 503 and rejects the obsolete callback;
+a separate restored-source withdrawal returns the saved/withdrawn receipt with
+summary/view unavailable. No raw operator/provider error becomes public copy.
+
+The restart distinction is explicit: Python child OS process stop/resume occurs;
+Express closes/rebinds its HTTP listener inside the same Node/Vitest process.
+WebApp persistence is a written/restored JSON checkpoint of an in-memory
+Firestore double. There is no Node OS restart, forced crash, real database
+durability or production object-store proof. Withdrawal follows the already-sent
+notice and demonstrates no additional delivery; pending-notice cancellation is
+covered by separate controls, not this joined assertion. The final source
+uses owned synthetic bytes/current-owner/context/object transports and a local
+mail sink. It does not execute normal UI intake, full qualification/materialization,
+native assessment, video perception, real inbox delivery or production mapping.
+
+Default CI without the external bridge explicitly skips this one test and earns
+zero execution credit. Required promotion/live verification remain root-owned
+gates. Retained source commands and portable JSON/log/source artifacts provide
+replay; no redundant suite was run during this trace review. Current independent
+process inspection found zero matching bridge Python processes. This is bounded
+local integration evidence, not a full customer assessment or readiness decision.
