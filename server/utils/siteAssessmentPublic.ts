@@ -27,18 +27,21 @@ const scrub = (value: string) => value.replace(/(?:https?:\/\/|gs:\/\/)[^\s]+|Be
 const firstClause = (value: string) => value.replace(/\s+/g, " ").split(/(?<=[.!?])\s+|;|\b(?:because|since|given that|therefore)\b/i)[0].trim();
 const assertionTerms = /\b(?:booked|scheduled|confirmed|completed|published|approved|certified|guaranteed|proven|passed|capable|safely|suitable|ready)\b/i;
 const assertionVerbs = /\b(?:is|are|was|were|has|have|had|can|cannot|could|will|would|does|did)\b/i;
-const questionForm = /^(?:what|which|when|where|how|who|does|do|is|are|can|could|would|will)\b/i;
+const questionForm = /^(?:what|which|how (?:many|much|long|often))\b/i;
+// Without clause-level citations, admit one task/requirement query, not a
+// relative clause or personal assertion smuggled into its premise.
+const hasSideClause = (value: string) => /[,;:]|\b(?:that|which|whose|where|when|we|they|I|he|she|it)\b/i.test(value);
 const requestClause = (value: string): string | null => {
   const text = firstClause(value);
   return /^(?:measure|confirm|inspect|check|research|investigate|compare|record|define|ask|identify|obtain|plan|prepare|consider|evaluate|test)\b/i.test(text)
-    && !assertionTerms.test(text) && !assertionVerbs.test(text) ? text : null;
+    && !hasSideClause(text) && !assertionTerms.test(text) && !assertionVerbs.test(text) ? text : null;
 };
 const uncertaintyClause = (value: string): string | null => {
   const text = firstClause(value);
   const remainder = text.replace(/\b(?:is|are|was|were)\s+(?:unknown|unverified|uncertain|unresolved|not (?:measured|established|provided|visible|observed|confirmed))\b/gi, "")
     .replace(/\b(?:could|would|may) change\b/gi, "");
   return /\b(?:unknown|unverified|uncertain|unresolved|not (?:measured|established|provided|visible|observed|confirmed)|(?:could|would|may) change)\b/i.test(text)
-    && !assertionTerms.test(remainder) && !assertionVerbs.test(remainder) ? text : null;
+    && !hasSideClause(text) && !assertionTerms.test(remainder) && !assertionVerbs.test(remainder) ? text : null;
 };
 /** Facts use selected retained evidence; proposals and unanswered questions remain labeled reasoning. */
 export function projectCustomerSiteAdvisory(packet: Record<string, any>, correlationId: string, admittedDuration: number | null = null): SiteAdvisory {
@@ -83,9 +86,10 @@ export function projectCustomerSiteAdvisory(packet: Record<string, any>, correla
   }
   for (const question of rendered.assessment.questions) {
     const clause = firstClause(question.question);
-    if (!questionForm.test(clause) || assertionTerms.test(clause)) continue;
+    if (!questionForm.test(clause) || hasSideClause(clause.replace(questionForm, "")) || assertionTerms.test(clause)) continue;
     const text = customerText(`${clause.replace(/[.!?]+$/, "")}?`), effect = firstClause(question.decision_it_changes);
-    const consequence = !assertionTerms.test(effect) && (/^(?:whether|which|what|how)\b/i.test(effect) || !assertionVerbs.test(effect))
+    const consequence = !hasSideClause(effect.replace(/^(?:whether|which|what|how)\b/i, "")) && !assertionTerms.test(effect)
+      && (/^(?:whether|which|what|how)\b/i.test(effect) || !assertionVerbs.test(effect))
       ? customerText(effect) : null;
     if (text) result.unknowns.push(`Question to resolve: ${text} ${consequence ? `Decision it changes: ${consequence}` : "Decision consequence remains unverified."}`);
   }
