@@ -321,7 +321,9 @@ export async function closeExpiredTaskEvaluationLaunches(
 }
 
 export function startTaskEvaluationLaunchForwardWorker() {
-  if (!truthy(process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED)) {
+  const enabled = truthy(process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED);
+  logger.info({ launchForwardWorkerEnabled: enabled, siteVideoEvidenceEnabled: isSiteVideoEvidenceEnabled() }, "Task Evaluation launch worker admission");
+  if (!enabled) {
     return () => undefined;
   }
   const intervalValue = Number(
