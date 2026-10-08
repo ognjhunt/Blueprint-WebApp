@@ -342,7 +342,8 @@ describe("explicit assessment retry", () => {
     await screen.findByText("The current assessment could not be retried. Your recording is saved. Check this page for the next step.");
     expect(screen.queryByText("private provider detail")).not.toBeInTheDocument();
     expect(await screen.findByText("Video received.")).toBeVisible();
-    expect(screen.getByText("Next: check your job brief")).toBeVisible();
+    expect(screen.getByText("Correct job details (optional)")).toBeVisible();
+    expect(screen.getByText("Correct job details (optional)").closest("details")).not.toHaveAttribute("open");
     expect(read.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(1);
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(videoUpload.retry).not.toHaveBeenCalled();
