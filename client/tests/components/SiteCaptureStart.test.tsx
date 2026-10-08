@@ -34,6 +34,8 @@ function photon(properties: Record<string, unknown>[]) {
 }
 
 beforeEach(() => {
+  window.localStorage.clear();
+  window.sessionStorage.clear();
   account.user = null;
   fetchMock.mockReset();
   upload.send.mockReset();

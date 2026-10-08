@@ -1,0 +1,829 @@
+{
+  "schema": "blueprint.reliability.intake-results.v1",
+  "baseline_revision": "1b8d810ec117b93fe52fd323be052ddafa7070db",
+  "catalog_sha256": "930f8b430a7ea8343162ec57af487bdf19733e105386fcb7fa1d656370d7628a",
+  "counts": {
+    "generated": 90,
+    "deduplicated": 90,
+    "attempted": 90,
+    "passed": 90,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "partially_executed": 0
+  },
+  "limits": [
+    "Local helper/component counts do not establish real-backend journey or production/provider evidence.",
+    "Browser storageState handoff is controlled persistence restoration; original file bytes are not retained.",
+    "Reused30 component cases must be deduplicated by source/full test name against other inventories."
+  ],
+  "cases": [
+    {
+      "id": "INTAKE-001",
+      "case_sha256": "e4dfe4f9b97f287b879c1c0a1289f1c7ca9868063c62fd89aceee2494915e425",
+      "status": "passed",
+      "duration_ms": 34.35708299999999,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-002",
+      "case_sha256": "e3da3b855b2c616dd6ade1ed7d407584640ad8e829c7bb91ceffa86788998a24",
+      "status": "passed",
+      "duration_ms": 100.70458399999995,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-003",
+      "case_sha256": "70421b8de67d757bcc234b08952ac0dbcf0a81dbb288f06fc1977a80e3c133b2",
+      "status": "passed",
+      "duration_ms": 18.55300000000011,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-004",
+      "case_sha256": "6a5f0462f90c8d959729663760260d1e604c05accda784d760c62a778f507379",
+      "status": "passed",
+      "duration_ms": 13.484040999999934,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-005",
+      "case_sha256": "50ee9afb65a2743251d4adc8416b5f9ac8e0577f332340ccd2d9aa1f787f3356",
+      "status": "passed",
+      "duration_ms": 8.547583000000031,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-006",
+      "case_sha256": "b16f7e9b839da55f0059721b75eea44fd43bc0b69a36b12544dd7f7213bd4c84",
+      "status": "passed",
+      "duration_ms": 8.21374999999989,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-007",
+      "case_sha256": "a085e9238f55ff1f6f17d5e91c740ced2f33a2df03f8a1adfb3b13cd752b830a",
+      "status": "passed",
+      "duration_ms": 7.147457999999915,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-008",
+      "case_sha256": "06b36fe2d44361c2247a72fa2835b477986db9b722e83c67e129195e71b2d56a",
+      "status": "passed",
+      "duration_ms": 6.186166999999841,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-009",
+      "case_sha256": "f38bc2c5bbdc916f0487a1beae6d3279c640de7c3e225f0f00059e42578f48a8",
+      "status": "passed",
+      "duration_ms": 6.653542000000016,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-010",
+      "case_sha256": "ce9de681d257b7c61e8e942302c44503f75b3b39e76aa5536fbce949b1895507",
+      "status": "passed",
+      "duration_ms": 5.625041999999894,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-011",
+      "case_sha256": "7d420b7da64b82be89f319aea24dd21a3936b74177a369c5232c68e81b1a9ca5",
+      "status": "passed",
+      "duration_ms": 5.306249999999864,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-012",
+      "case_sha256": "125c16edcc4638c880e41c4a3b66f198c4aab8e26f89fc7123df2562f5211657",
+      "status": "passed",
+      "duration_ms": 11.732208000000128,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-013",
+      "case_sha256": "9cffe56cce86199eb5a472061638ac66665c3dcbb3839c7f28c9e6945edaa81b",
+      "status": "passed",
+      "duration_ms": 33.45187499999997,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-014",
+      "case_sha256": "4eaaf9abcda362934e6c73a54fb867625a9981feb12a7fe6d05d8277bf5afc4b",
+      "status": "passed",
+      "duration_ms": 13.547459000000117,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-015",
+      "case_sha256": "ae0e3fa7d48637411782b3a4b9a987c9bb3eb200e3fb303defbd815800d2f75b",
+      "status": "passed",
+      "duration_ms": 277.535625,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-016",
+      "case_sha256": "4393488d5bb849b9a691e94c0de755bc6ee69b7524c8f4bd5d27f0d77188754f",
+      "status": "passed",
+      "duration_ms": 264.6567910000001,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-017",
+      "case_sha256": "5c84705ce65f255bfce30a7b7b26a304d8d8c7786fb84cab180519cdb6f8003d",
+      "status": "passed",
+      "duration_ms": 274.0507499999999,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-018",
+      "case_sha256": "72f393622545eaddd80172e6f472316b6e9f46acd5e308b2316eb3338d823b62",
+      "status": "passed",
+      "duration_ms": 15.435459000000264,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-019",
+      "case_sha256": "b32dad37fc63ed24ea3cee7b55270309c640686822e264927cea3d4d3f6a43e7",
+      "status": "passed",
+      "duration_ms": 275.21299999999974,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-020",
+      "case_sha256": "e39ef59f81e092a0bc21b990a5dc30ee13f08f2e8145363c3dd9ac8c79923520",
+      "status": "passed",
+      "duration_ms": 41.13299999999981,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-021",
+      "case_sha256": "83e7725c1d59c405811fc12bf21d21661e3dad81f74b0d34f7c3a5e37700cc54",
+      "status": "passed",
+      "duration_ms": 32.183624999999665,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-022",
+      "case_sha256": "b44ccb70466e51c73221da1c876573c0cfb16b397fd07b1b4e8acc074a92861b",
+      "status": "passed",
+      "duration_ms": 29.009459000000334,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-023",
+      "case_sha256": "dedb938dc98ac499771289a6a1e971623dce504570c136a25a51ac918e649738",
+      "status": "passed",
+      "duration_ms": 34.9587919999999,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-024",
+      "case_sha256": "9413d64fd158bf93f318bfa68d98cf6275859cd255f8973c27a43120ba8a8c64",
+      "status": "passed",
+      "duration_ms": 51.7478329999999,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-025",
+      "case_sha256": "1be9418f9c1254b48a9457e5752ce26c533e02ff07e122b8e38a5f2892e4406f",
+      "status": "passed",
+      "duration_ms": 32.28212500000018,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-026",
+      "case_sha256": "a1e3b5636e78515e735747efeebf24ea5cea9230c0e76a2806c58a7a7d126a04",
+      "status": "passed",
+      "duration_ms": 19.385291999999936,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-027",
+      "case_sha256": "c3c851597afa7a41aca2ecb30db18835c907960606e7afda096878212e9262e5",
+      "status": "passed",
+      "duration_ms": 12.939374999999927,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-028",
+      "case_sha256": "ef36f32b0722e89906b02b14049f709ddc3c48af2c66ac36a02332cd9fb41f07",
+      "status": "passed",
+      "duration_ms": 42.971542000001136,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-029",
+      "case_sha256": "dce3f7f6467ba0b68423e020287abb10ac27bd6e039baeef9398a552ce83fc1f",
+      "status": "passed",
+      "duration_ms": 14.558665999998993,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "INTAKE-030",
+      "case_sha256": "ed53fabf396d88cbc9a8c5228a8c4d868ab70c4983c6c29ed7b8cb717aa7af7b",
+      "status": "passed",
+      "duration_ms": 84.86004099999991,
+      "layer": "component/fake-api"
+    },
+    {
+      "id": "RETURN-STORAGE-001",
+      "case_sha256": "a3b2c518c5684177c3db2f0ab4b6b94277553cf652e5b03257b8db524d79382a",
+      "status": "passed",
+      "duration_ms": 5.00425000000007,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-002",
+      "case_sha256": "2aa3b86f62af749d270e6d1f54ea59b3a63b340c6fdeace61341625a5c6ca52a",
+      "status": "passed",
+      "duration_ms": 1.1498749999999518,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-003",
+      "case_sha256": "637e86b37bd0fa8f621eb17ccd13424c674f68ab348e37d7809ab1d26aa22a0f",
+      "status": "passed",
+      "duration_ms": 1.0973339999999325,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-004",
+      "case_sha256": "44e3d8bc6d117211b9aace60025abb7414511d10cf08d0d96555d591710835fc",
+      "status": "passed",
+      "duration_ms": 0.44529099999999744,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-005",
+      "case_sha256": "5bcb32af3b06f5a27b607a07957752b54860d1162b599276f884e7e6eb8af2a6",
+      "status": "passed",
+      "duration_ms": 0.6055419999999003,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-006",
+      "case_sha256": "f21c1180fd48f545bd7669c25575dc353e844890e6ac8dd84a0ed9059c8a6808",
+      "status": "passed",
+      "duration_ms": 0.6758750000000191,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-007",
+      "case_sha256": "ae6ba18742d8a0049854a3bba24325127f6ac3b38eba33f283fb180b24b87202",
+      "status": "passed",
+      "duration_ms": 0.8126670000000331,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-008",
+      "case_sha256": "1c008dd9ff3488d8e31037c8b1d96c2f13443b2ae82b1fad572c10dd10af8414",
+      "status": "passed",
+      "duration_ms": 0.4373750000000882,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-009",
+      "case_sha256": "20632daada403c2ccf0c65119f1e6665f9a3e2400b5fe9b478aa571add636b26",
+      "status": "passed",
+      "duration_ms": 1.021250000000009,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-010",
+      "case_sha256": "1e265c4ac57b34a9a0a05167122fa5ea0875a6aec81d4a45a17d40ff7f145565",
+      "status": "passed",
+      "duration_ms": 0.4644579999999223,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-011",
+      "case_sha256": "b8ad4232a8a77dfe0a424441b9c5f149f3677d625c90e14efecc206c9ded1d48",
+      "status": "passed",
+      "duration_ms": 0.3847090000000435,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-012",
+      "case_sha256": "5f55bf1e0016c7340f00e12f970aee860cfca45f82cd4a4992197c4a0249859a",
+      "status": "passed",
+      "duration_ms": 0.22679200000004585,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-013",
+      "case_sha256": "f9a8f040a1e5a6df7874dc21d43d1ee5f0f7a5b6a0286e341e8ed505b7d76c05",
+      "status": "passed",
+      "duration_ms": 0.23087500000008276,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-014",
+      "case_sha256": "e6c8fe80936a2894c0a80ddf4a1c69fd6a9ec8ec806100800d4b700d016744d5",
+      "status": "passed",
+      "duration_ms": 0.22374999999999545,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-015",
+      "case_sha256": "0f33b44b932c574e708ec6301ba192161c46517ad71770a7c37de130b0d4bcb6",
+      "status": "passed",
+      "duration_ms": 0.21729200000004312,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-016",
+      "case_sha256": "4010853fd1136e143f4e7da2d42a09c1e0b3794d54246d7d07ad374edf49b50a",
+      "status": "passed",
+      "duration_ms": 0.2619999999999436,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-017",
+      "case_sha256": "bc02efda948a79228c7c9696b6a7eccec14c7f5f4c03c2729c0b2ae45c3fbae5",
+      "status": "passed",
+      "duration_ms": 0.21862499999997453,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-018",
+      "case_sha256": "0e90dfe25d1d949b23dbf726ef55c887db3993ec89e2b2133711eaa7a807bbd0",
+      "status": "passed",
+      "duration_ms": 0.3454580000000078,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-019",
+      "case_sha256": "e2ec35aaf37826ca5220118fbb2830703d0b82bbdc3197c487e64f5cbe9c6b46",
+      "status": "passed",
+      "duration_ms": 0.34466699999995853,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-020",
+      "case_sha256": "bd9d4a8f5f70a5b6a6c3d3a041597190292851a03cf4ff3caaac174261ba8ba3",
+      "status": "passed",
+      "duration_ms": 0.24666600000000471,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-021",
+      "case_sha256": "2af0ce335867df6647d5aa5c4d75cb056308d9d52af0dbb2ea7311f50177f09f",
+      "status": "passed",
+      "duration_ms": 0.25604199999997945,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-022",
+      "case_sha256": "76e8acd58a29b759cc8d5ba832709514b0f8ca74c1b730f5865ea2c3ac00be13",
+      "status": "passed",
+      "duration_ms": 0.25508300000001327,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-023",
+      "case_sha256": "3c03e251b644696403ff07e70cd1a84dc4f0fb0deadbb4b67fee55a13cf37bcb",
+      "status": "passed",
+      "duration_ms": 0.24487499999997908,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-024",
+      "case_sha256": "cdb1a7040a1dce91e2a53cfe339a132fe5750d0daacf5a125240c770ad41c27d",
+      "status": "passed",
+      "duration_ms": 0.6829590000000962,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-025",
+      "case_sha256": "d4f8a37b1515688824f660d222350bafe73b0e4fdc77ab12ff11f08b27064fec",
+      "status": "passed",
+      "duration_ms": 0.26345900000001166,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-026",
+      "case_sha256": "c4ac150f2218f329a0d074b3ade8c07f43761f0dcf8049f48b004e64ab086597",
+      "status": "passed",
+      "duration_ms": 0.252207999999996,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-027",
+      "case_sha256": "80c852796e1594077cbe53120a7313fd31dd7ec5e5f820100d076c79df14533d",
+      "status": "passed",
+      "duration_ms": 0.256040999999982,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-028",
+      "case_sha256": "a35765e9dcc1c2f19420171006af9edc4270b98ba2ecbc2ed612b7d014dc11f8",
+      "status": "passed",
+      "duration_ms": 0.3499170000000049,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-029",
+      "case_sha256": "569e6265b8aea96edbe80ae603950f7a747de7a95a7146fc98ff7135984ce550",
+      "status": "passed",
+      "duration_ms": 0.41504200000008495,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "RETURN-STORAGE-030",
+      "case_sha256": "e2e32ee6fd9d82c5217155a7ab7857f717d01746c846b6096c545c82d7bcfc5b",
+      "status": "passed",
+      "duration_ms": 0.3377499999999145,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-001",
+      "case_sha256": "006dc9ed86360513d88cb953505b744d9842e8c971af3ef47db0721d578f5c1f",
+      "status": "passed",
+      "duration_ms": 0.6308339999999362,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-002",
+      "case_sha256": "7b38c313cf4cccef7dc94157f2208a683b6fb1e3ed567f0dd8949747b61e2532",
+      "status": "passed",
+      "duration_ms": 0.4809170000000904,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-003",
+      "case_sha256": "f592c3f377b5dcc594deb5cf30892afa51cdebbaf09911d4771266bfcef036b1",
+      "status": "passed",
+      "duration_ms": 0.42650000000003274,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-004",
+      "case_sha256": "8bdf7ae334dd0da3e28233c18e10e9777ab43a02a8ab9ca8fa3b482384d713b5",
+      "status": "passed",
+      "duration_ms": 0.8069169999999986,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-005",
+      "case_sha256": "28a729983e7f222766ac2a10e8832d55459cfb19a1093382096cccb6f513a030",
+      "status": "passed",
+      "duration_ms": 0.7037090000000035,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-006",
+      "case_sha256": "c486a7b756a54a841bdd1c1cbf94610c5fc36cacb5794a0352e6bfcd08c5384d",
+      "status": "passed",
+      "duration_ms": 0.499416999999994,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-007",
+      "case_sha256": "50f3bb418b5f4f4ae907d327e02eed28f39254f07d16f9f2c32fee01ace50da3",
+      "status": "passed",
+      "duration_ms": 0.45725000000004457,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-008",
+      "case_sha256": "3b0cef47d8d90c64ee3fabeda400a10aa53c2aca37418d67faff3af20ddb188e",
+      "status": "passed",
+      "duration_ms": 0.4252079999999978,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-009",
+      "case_sha256": "0f1f785764f26bf32ee939ca997011be53b2c4f022debdbfe09965a5d29a5e66",
+      "status": "passed",
+      "duration_ms": 0.40220799999997325,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-010",
+      "case_sha256": "d6834717db7e78aaf0a99982ad7875cb7dc41558a042866c0b2a72a67ff614c9",
+      "status": "passed",
+      "duration_ms": 0.4075830000000451,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-011",
+      "case_sha256": "60faced8a2283295f8f4d99a7fd07c498cdcf226f3969a7faa2afc21fa280099",
+      "status": "passed",
+      "duration_ms": 0.33016700000007404,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-012",
+      "case_sha256": "4188dcf86ed554cb4a9e15ed455cb79abd8acca1d12c746520e519a9f5c00e0d",
+      "status": "passed",
+      "duration_ms": 0.3256250000000591,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-013",
+      "case_sha256": "6da54e072c4bbc908dceb778911263cd2abbd1c89896e81960c5edd0a21065b4",
+      "status": "passed",
+      "duration_ms": 0.333582999999976,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-014",
+      "case_sha256": "d2dea7d5495d348d52c33517675637e4a4b08878cc9e20efaed4a6816520a031",
+      "status": "passed",
+      "duration_ms": 0.4655840000000353,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-015",
+      "case_sha256": "f357153ff7cbf378d3c197d1c068ba174916128094ac67954978f149e586d1e2",
+      "status": "passed",
+      "duration_ms": 0.4462499999999636,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-016",
+      "case_sha256": "11abe222521d05e2f44988b3a24cb7c23cec0df98b79238f15f79d96e07e590f",
+      "status": "passed",
+      "duration_ms": 0.42925000000002456,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-017",
+      "case_sha256": "21c232fdaa514f8aa2bedb812fe2e948b2fb34e1ba04a952e31d034adec3ec0b",
+      "status": "passed",
+      "duration_ms": 0.3439170000000331,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-018",
+      "case_sha256": "2895badeb0b072c62ef77a4e70e0385ce9c85c4af3fca3a2352e5cfa0d8eb5d8",
+      "status": "passed",
+      "duration_ms": 0.36712499999998727,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-019",
+      "case_sha256": "f74b1793073c752e88a776d1101a9df114acfd62e9a67a182d767bbea69dee9d",
+      "status": "passed",
+      "duration_ms": 0.41087500000003274,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-020",
+      "case_sha256": "e6c182babd88bec57db9b7b59922766b132005a4fe2253a7580e6da79223b746",
+      "status": "passed",
+      "duration_ms": 0.3433340000000271,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-021",
+      "case_sha256": "37552a20d76aeedcc02d08805bd1e8b173c187d69b366d35d71e0eca8623b268",
+      "status": "passed",
+      "duration_ms": 0.3541249999999536,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-022",
+      "case_sha256": "d22831d982d8df8641c86a21cc5e99d7a00775a3f408cdaadb52bd2bd85b6dac",
+      "status": "passed",
+      "duration_ms": 0.3446250000000646,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-023",
+      "case_sha256": "38b4b7907422e8b7dcf928e12f84e3e030cd0427706b1be24b683d547f6754b8",
+      "status": "passed",
+      "duration_ms": 0.4559590000000071,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-024",
+      "case_sha256": "983926717c4ad0695cbd10bdd2b89077d48cb69260da31ddc8a0cb8ce0564c87",
+      "status": "passed",
+      "duration_ms": 0.5551249999999754,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-025",
+      "case_sha256": "e462a77424a5dacc979197d0815dd824cd42935b0b0ed991f7a3965d3d7c2deb",
+      "status": "passed",
+      "duration_ms": 0.4306249999999636,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-026",
+      "case_sha256": "456f99975985c3a7ecf4c60c7ed2ec50583f46cf43e5dbf08f3e70d6dd9a2d74",
+      "status": "passed",
+      "duration_ms": 0.7245830000000524,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-027",
+      "case_sha256": "3f494a19484e102b1074c0e4a6982d8060362bb80dea0789c4a1861d8b0769c0",
+      "status": "passed",
+      "duration_ms": 0.8485840000000735,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-028",
+      "case_sha256": "be7000b94ae7d2c946b113d25a62342aedb4fbaf58bf75844fc38d6f1cb92145",
+      "status": "passed",
+      "duration_ms": 0.6728329999999687,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-029",
+      "case_sha256": "b603dd8801b1b678cbe88db9eaf40e3aaf78716121109097ffd8a7ba1c6e716a",
+      "status": "passed",
+      "duration_ms": 0.473041999999964,
+      "layer": "local-storage-helper"
+    },
+    {
+      "id": "ACCESS-STORAGE-030",
+      "case_sha256": "57c5bd3cf700871667afc279bb5160ef2800a1f12e66f6b71cac8f4ebe78a751",
+      "status": "passed",
+      "duration_ms": 0.38791700000001583,
+      "layer": "local-storage-helper"
+    }
+  ],
+  "receipts": [
+    {
+      "path": "output/reliability-program/intake/baseline.json",
+      "sha256": "874152c235c9345bcb393a8321d8979df58e5f3a75cf0a752593d445e4d28128",
+      "bytes": 17814,
+      "passed_checks": 0,
+      "failed_checks": 3,
+      "failed_suites": 1,
+      "skipped_checks": 0,
+      "success": false
+    },
+    {
+      "path": "output/reliability-program/intake/candidate-first.json",
+      "sha256": "065fe4b1aa313b3a71fdbe6722501736efa1cc19fc2ff48b6543bd99fe121b51",
+      "bytes": 84733,
+      "passed_checks": 33,
+      "failed_checks": 19,
+      "failed_suites": 3,
+      "skipped_checks": 0,
+      "success": false
+    },
+    {
+      "path": "output/reliability-program/intake/candidate-second.json",
+      "sha256": "069fc4a129a37661938b441d56622e09a622339c48a0b2171f2c50e208218a8a",
+      "bytes": 18035,
+      "passed_checks": 52,
+      "failed_checks": 0,
+      "failed_suites": 0,
+      "skipped_checks": 0,
+      "success": true
+    },
+    {
+      "path": "output/reliability-program/intake/catalog-final.json",
+      "sha256": "b43af3d6d2329992c5046d4ebe4bfcda2bb2e92b64e1fc2a8d644e6aed4ecb95",
+      "bytes": 32577,
+      "passed_checks": 112,
+      "failed_checks": 0,
+      "failed_suites": 0,
+      "skipped_checks": 0,
+      "success": true
+    },
+    {
+      "path": "output/reliability-program/intake/final-reviewed.json",
+      "sha256": "9800eb1ffc2e9a6999db7f6a2ab61f6bb4b0b2079d5eeb1e229ac4c9ffd5333a",
+      "bytes": 37424,
+      "passed_checks": 127,
+      "failed_checks": 0,
+      "failed_suites": 0,
+      "skipped_checks": 0,
+      "success": true
+    },
+    {
+      "path": "output/reliability-program/intake/browser-first-results.json",
+      "sha256": "7a6d6b0398890546e82439cace6330b840173b6bd9c0c804a93eed9c971e6e96",
+      "bytes": 17474,
+      "stats": {
+        "startTime": "2026-10-08T04:28:31.116Z",
+        "duration": 63421.933000000005,
+        "expected": 6,
+        "skipped": 0,
+        "unexpected": 1,
+        "flaky": 0
+      }
+    },
+    {
+      "path": "output/reliability-program/intake/browser/results.json",
+      "sha256": "35b2eddfd949594580a4c8e205a57017f3a7812f86e474bfbdc6a290fe163c28",
+      "bytes": 12759,
+      "stats": {
+        "startTime": "2026-10-08T04:31:39.053Z",
+        "duration": 29715.987999999998,
+        "expected": 7,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "path": "output/reliability-program/intake/browser-reviewed/results.json",
+      "sha256": "f12758e5e452bc440bd5e416bead55879c064292b9ccafdb4ae597e063c8dfa6",
+      "bytes": 19148,
+      "stats": {
+        "startTime": "2026-10-08T04:34:20.905Z",
+        "duration": 37790.2,
+        "expected": 7,
+        "skipped": 0,
+        "unexpected": 1,
+        "flaky": 0
+      }
+    },
+    {
+      "path": "output/reliability-program/intake/browser-termination/results.json",
+      "sha256": "81412624e3a207e0271d5be66a3e0f859699e8211e7d9c1497e7cc3d9098035d",
+      "bytes": 6905,
+      "stats": {
+        "startTime": "2026-10-08T04:35:41.563Z",
+        "duration": 5755.152,
+        "expected": 0,
+        "skipped": 0,
+        "unexpected": 1,
+        "flaky": 0
+      }
+    },
+    {
+      "path": "output/reliability-program/intake/browser-termination-final/results.json",
+      "sha256": "bbf6a77ce0d22fc5fec3bd82e26120233aa34cd07a41b29271ad1d58a1adeb51",
+      "bytes": 4150,
+      "stats": {
+        "startTime": "2026-10-08T04:36:48.792Z",
+        "duration": 9235.456,
+        "expected": 1,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "path": "output/reliability-program/intake/browser-final-eight/results.json",
+      "sha256": "7474c1b86ce0a6768f09913759fb9a7ef8b7cf8b3e6826d5ec5ffba35806720b",
+      "bytes": 14456,
+      "stats": {
+        "startTime": "2026-10-08T04:37:29.822Z",
+        "duration": 33779.195,
+        "expected": 8,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "path": "output/reliability-program/intake/typecheck-accepted.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "output/reliability-program/intake/graphify-reviewed.log",
+      "sha256": "edd61e58a670217f2e89435a3412f1703de30514b01aefc0471fa9676bb60bea",
+      "bytes": 2072
+    },
+    {
+      "path": "output/reliability-program/intake/browser-repeats/results.json",
+      "sha256": "292a61d18123af5780766fad5cec519c4fbb7cdda820e8fcf41f7eef26f1ad11",
+      "bytes": 6937,
+      "stats": {
+        "startTime": "2026-10-08T04:38:39.649Z",
+        "duration": 17029.506,
+        "expected": 3,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    {
+      "path": "output/reliability-program/intake/graphify-accepted.log",
+      "sha256": "a66db5ec1acdb089c7519548ac6d4f4a47b9c0f6e1346d22ac1523543f6d3a59",
+      "bytes": 2072
+    }
+  ],
+  "browser_counts": {
+    "distinct_cases": 8,
+    "final_passed": 8,
+    "final_failed": 0,
+    "final_skipped": 0,
+    "additional_selected_repeat_attempts": 3,
+    "repeats_add_distinct_cases": 0,
+    "layer": "customer-ui/intercepted-api-and-transport",
+    "real_backend_journeys": 0,
+    "live_provider_journeys": 0
+  },
+  "source_sha256": {
+    "client/src/components/site/SiteCaptureStart.tsx": "90e73f12c5d2fc72e8f56499b7837ed01b0f7eaf0d24f239025b592137e23a5d",
+    "client/src/lib/siteCaptureDraft.ts": "9362e28df170e41652ae3c5e56d27409368c13290be98f499f9b2018af580ed0",
+    "client/tests/components/SiteCaptureStart.recovery.test.tsx": "e262879258758f8a12ab23b5b8911aa48cd10b2f9188394fc7a0402127f026dc",
+    "client/tests/lib/siteCaptureDraft.reliability.test.ts": "e3af2098f1737e673dd523bd3acc8763ed589822a83f17b78b7a8d0212d5b05a",
+    "e2e/reliability-program-intake.spec.ts": "fe28123130a86e260c25ef9cd3eac8b8b3b460efe5d314875b4a4242f7da302c",
+    "playwright.reliability-intake.config.ts": "5b6be207881d3c0280b6c88dd7f0d6bc40fa896a3d9b79f5f48ce0264a0d671a"
+  }
+}
