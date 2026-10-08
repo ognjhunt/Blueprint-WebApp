@@ -660,3 +660,36 @@ The original a25 scope and correction history remain explicit. CPU module
 controls receive no new journey credit; no provider calls or shared QA mutations
 occurred. Required exact-head checks, protected merge/promotion/deployment and
 the actual joined customer outcome remain separate release-owner gates.
+
+
+**Scoped WebApp source approval: `a980884bb19a5481e2b9303db3c92a05d47fd048`, exact eda parent.**
+The two-file repair removes the known-only applicability restriction from the
+existing recursive factual-claim visitor. Literal boolean current:false on a
+knowledge source now rejects published claims across job, conditions, owner
+success, known, estimates, missing, nested approach reasons and next-action why.
+The known error code remains compatible. No source bytes, schema, date cutoff,
+string coercion, model or privacy/authorization surface is changed; unknown and
+estimate historical context remains available. Runtime SHA256
+`509fa43bb86fadcacccf4d3d9a8b219197d63c0a86e356145066b54ce9e3ed01`;
+exact placements test SHA256
+`ccfa1b2179081cb117036b1a435fbd103d502b107ca7813ff803da8b3f8c166d`.
+
+Independent replay of that identical test on unchanged eda reproduces seven
+non-known placement failures and eight passing controls; exact a980 passes
+15/15. Existing admission and thirty actual scripted SDK checks plus the base
+SDK case make the first candidate run 59/59. A separate source-mutation and
+cycle/provenance neighbor run passes 142/142. These are 201 executed checks,
+not 201 unique journeys or human-reviewed judgments. The first command also
+named an absent video-observations file; it received no coverage credit, and the
+actual cycle/provenance file ran in the separate neighbor run. Baseline JSON
+SHA256 `06c343fece1fba26760f8e5dfb951663f7486ec1ce3b22bdeaef871cc9114f42`;
+first candidate `ec0d9793d36bcfff0ec7e4313dec3efd46c5e780d3daedd113182e54196ed699`;
+neighbors `63c9b181859633a8ff874af38d1ac351bb3fb799dd3e6e1971256711daf8bec5`.
+Private replay metadata is under
+output/reliability-program/reviewer/published-applicability-a980.
+
+Approval covers this applicability defect in reviewed source. It does not prove
+prose entailment, video perception or robot suitability: the admitted synthetic
+video-event and robot-field counterexamples remain unresolved. No paid calls or
+live mutations occurred. Exact-head required checks, protected merge/deployment
+and deployed behavior remain separate release-owner evidence gates.
