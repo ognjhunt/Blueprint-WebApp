@@ -46,8 +46,18 @@ Agents also follow the nearest nested `AGENTS.md` when working under `client/`, 
   physical-outcome joining, or the bounded case study. Unrelated launch, growth,
   marketplace, city, post-training, humanoid, and general product polish is
   frozen.
-- Require every issue to name its ADP backlog item, day gate, observed blocker,
-  and completion artifact. Existing captures/scenes remain `development_only`
+- Explicit repo-owner instructions may authorize a bounded exception to this
+  work-priority freeze, including public polish. Record the owner instruction,
+  exact scope, and completion evidence in the issue or PR rather than inventing
+  an ADP blocker. [PR #955](https://github.com/ognjhunt/Blueprint-WebApp/pull/955#discussion_r4221128434)
+  records such authorization for cycling the illustrative robot scenes; the
+  merged scene retains pause/play. This does not authorize adjacent work or unfreeze a
+  product lane. Reliability, accessibility, security, rights/privacy, provenance,
+  truthful claims, and existing spending, send, and release controls still apply;
+  shared doctrine blocks and their lock remain unchanged.
+- For work without such an exception, require every issue to name its ADP
+  backlog item, day gate, observed blocker, and completion artifact.
+  Existing captures/scenes remain `development_only`
   and must never appear as partner or physical proof.
 - Keep Blueprint capture-first and real-site robot-evaluation/data-package first.
 - Do not reframe the company as qualification-first or model-checkpoint-first.
