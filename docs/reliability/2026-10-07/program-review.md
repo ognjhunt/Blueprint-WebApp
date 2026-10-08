@@ -2010,3 +2010,44 @@ admission, paid dispatch, settlement, returned assessment or notification.
 Those results and actual usage must be verified separately; retained historical
 unknown usage was neither erased nor converted to zero. No additional case or
 journey credit or full-program readiness follows from this import.
+
+
+## Independent preparation acknowledgement fence review — 3a2897bb
+
+Approved scoped source commit `3a2897bb36e9ef0273381eee0f5903f338467a99`,
+direct child of protected Pipeline91c1bc21. Two-file diff adds fresh canonical
+status comparison after the callback, then revision/attempt equality under the
+existing ledger lock before delivery is consumed. Networking remains outside
+the lock; typed acceptance, source/rights admission and provider behavior are
+unchanged. Exact runtime/test hashes are fbd117aa/1ded277b, matching retained
+manifest `3ba77be5a42cf70d8b1b0d43edb2c87b302a3d74db0f85a9ea3a082c5d679b55`.
+
+Retained baseline minimizer on the applicable byte-identical91/fe1 runtime
+fails both already-new revision transitions: an old valid acknowledgement
+consumes pending delivery despite a different canonical status digest/state.
+Baseline log hash is
+`05b5df19d11e6160cfd7021af591becc36c6825f2d2098383f3e48ec0d38c0ad`.
+The expanded candidate tests preserve these conditions, add a legitimately
+newer acknowledgement positive control and a change after the fresh snapshot.
+Reviewer independently executed those four controls:4 passed/32 deselected.
+Author retained36/36 focused checks, Ruff, compile and diff-check success;
+source, baseline and log hashes match. Baseline minimizer and expanded candidate
+test are separately retained definitions, not falsely claimed identical files.
+
+Every supported claim, heartbeat and finish writer uses the shared lock and
+`_commit_job_ledger`, which increments revision. Thus the under-lock revision
+and attempt fence covers state/source changes under that writer contract;
+redundant raw field comparisons are unnecessary. Arbitrary out-of-contract
+ledger rewrites or revision resets are not defended or claimed. A valid callback
+newer than preflight is accepted only when the fresh canonical snapshot agrees;
+an advance after that snapshot leaves delivery pending. A subsequently scanned
+new revision can still cause one redundant idempotent wake. Exactly-once
+transport is not claimed.
+
+Evidence executes actual birth/lease/status/reconciliation with synthetic
+fixtures and fake owner/context/callback transports. It establishes this
+receipt-ordering defect and repair, not customer incidence, live transport,
+assessment accuracy or native completion. No paid calls, production mutations
+or new original-case/journey credit occurred. Exact-head protected checks and
+promotion remain separate release gates;91 promotion cannot certify this new
+commit. No canonical deployment approval is given here.
