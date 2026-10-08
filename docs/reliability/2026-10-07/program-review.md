@@ -1449,3 +1449,35 @@ from approved advisory runtime7489 only in the reviewed test file from81e5;
 production byte continuity is confirmed. Connected offline execution approval
 above applies. Its required CI/release remain pending rather than being covered
 by PR947's deployment.
+
+
+## Independent launch-only advisory hook review — ee3d72a1
+
+Approved exact PR948 integrated source
+`ee3d72a12ce8fcf4e2a88a1bf354ec43d6f009d5`, reviewed advisory caa51535 plus
+author `23883ac4259e72acc805f1c25a96e7662c038bed`. Both changed hook/test
+files byte-equal the author commit. The existing production launch-only mode
+skips the broader ops scheduler, making its previous advisory hook unreachable.
+This scoped repair adds a lazy bounded `tickSiteAssessments(2)` inside the
+existing launch-forwarder initial/interval callback when site-video evidence is
+enabled. It introduces no timer, daemon, broad worker activation, outreach flag,
+provider allowance or historical backfill. Existing advisory active-pass and
+durable source/spending admission still control actual dispatch. The stop flag
+is checked both before the callback and after lazy import; failure logging uses
+a safe constant.
+
+The same selected existing worker-boundary assertion fails before the hook with
+zero advisory ticks (one attempted, six unattempted), baseline log SHA-256
+`6300a73afbaf48e1d6fc1b9e96c49197e2f1754171afac280997d6a1e15fd276`.
+Final existing file passes7/7, log
+`7f19a6a3cfbac9283c20118c4c57020d75416d51ae0edcbc9cfad2f6d8676e9a`;
+typecheck terminal log
+`cac4641f604577738681f4f70c0ded3f441c0562d5814768106527214a0f49d4`.
+These tests execute the actual forwarder loop with fake timers and an advisory
+queue spy; they prove disabled gating, enabled bounded interval invocation and
+no later tick after stop. Startup reachability is separately visible in existing
+`startWorker`, which calls this loop in launch-only mode. Live enable-flag/startup
+metadata, exact final-head CI, deployment and deployed affected behavior remain
+release gates. Prior caa51535 CI or PR947 deployment does not cover this new
+hook. No optional framework/tests, live provider call or production mutation was
+performed by the reviewer.
