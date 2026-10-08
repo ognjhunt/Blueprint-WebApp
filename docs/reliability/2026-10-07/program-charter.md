@@ -198,3 +198,10 @@ helper: unrepaired v1 unconditional writers were never deployed, so no legacy
 production persistent-writer incident is inferred. Floors/severity/acceptance
 criteria remain unchanged; sixteen new offline and four intercepted browser
 counterexamples are supplemental, not retroactive additions to the frozen300.
+
+
+## Source-backed architecture correction, 2026-10-08 06:26 UTC
+
+Exact WebApp PR940 c34 (runtime884) and Pipeline main4cb inspection separates the actual customer brief/coverage/evaluation projection from the newer `site_assessment` task. Customer creation persists brief review work; recovery runs `site_task_brief_reading`; operator confirmation retains operator-stated gates; source-bound upload publication queues `capture_coverage`; native handoff requires original-owner, finite generation-pinned membership, actual capture birth and required stages before attachments/evaluationRuns can justify status. The newer advisory assessment retains an internal packet and is not read by the inspected customer routes. Its structural/SDK diagnostics do not prove the actual customer assessment or create a missing projection.
+
+Coverage shortfall may coexist with a legitimately published upload source: its asynchronous finding does not by itself imply source admission is held. Actual retained source, consent, manifest/generation and required-stage proofs remain authoritative. The disposable installed-policy fixture passes4 existing isolated birth/authority checks; it is a QA fixture and not production policy or a joined customer success. Source hashes, guards and exact commands are in `program-prerequisites.json`. These corrections change architectural interpretation, not frozen case thresholds/counts.

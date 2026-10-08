@@ -1,0 +1,214 @@
+{
+  "schema_version": "blueprint-reliability-prerequisites.v1",
+  "created_at_utc": "2026-10-08T06:26:19.065715+00:00",
+  "scope": "Read-only source inspection plus four isolated existing policy/capture-birth tests. No active cloud fixture, provider, email, production database, installed /etc policy, or runtime source modified.",
+  "versions": {
+    "pipeline_origin_main": "4cb97edeb5fabcac30a14a4576a896a6a22941a3",
+    "pipeline_preserved_working_head": "b06417b07152616b6d8aef8420eb0934fb6ca97a",
+    "webapp_pr940_ref": "c34ce0be7595c7835a4825a1a980c030b3f9dcf5",
+    "webapp_runtime_identity_supplied_by_coordinator": "88476cb8bb367573e8cf5d1664721e9fac71b8d8"
+  },
+  "pipeline_policy": {
+    "reusable_fixture": "tests/test_scene_retirement_real_participants.py::access_fixture; specialized tests/test_capture_generation_birth.py::_fixture",
+    "authority": "access facade forwards _INSTALLED_POLICY, _POLICY_UID and _SERVICE_IDENTITY to lifetime leaf. Hermetic fixture explicitly binds disposable policy file, uid/gid=current user. Environment alone cannot redirect installed authority.",
+    "properties": [
+      "policy file0644, canonical owned no-follow path; valid canonical policy_digest",
+      "coordinator0755; generations0700 owned by executing uid; policy roots enroll storage container and same device",
+      "birth target absent, not precreated/adopted; exact bucket/scenes/scene/captures/capture path",
+      "signed original-owner observation and generation-pinned finite GCS membership acquired before birth; no local sidecar authority",
+      "actual selected membership hashes, generation, size and producer receipt; owner/consent freshness checked",
+      "birth durably retains original owner/delivery/membership before active generation and payload writes"
+    ],
+    "guard_sequence": [
+      "scene_retirement_policy_binding_unproven if foreign env policy or explicitly selected missing installed policy",
+      "absent installed policy and absent env means legacy reader may proceed, but birth_capture_member returns None",
+      "stage_selected_capture requires non-None birth, otherwise capture_original_birth_unavailable",
+      "listener wraps selected stage exception as capture_source_membership_unavailable_retryable before job lease; this outer code alone does not locate failing subguard",
+      "scene_retirement_birth_outside_roots / scene_capture_generation_store_unsafe / scene_capture_parent_unsafe / scene_capture_active_delivery_conflict remain consequential safeguards"
+    ],
+    "reuse_instruction": "Active QA owner should reuse access_fixture policy construction and binding in its own disposable harness; preserve its actual signed owner/GCS membership and actual handler worker. Do not substitute _fixture synthetic owner or seed final states into joined UI acceptance. No /etc writes. Existing exact snapshot test commands are retained in isolated_checks.command and authority_checks; run those in an exact current-source disposable checkout, with PYTHONDONTWRITEBYTECODE=1 and no production env."
+  },
+  "customer_chain": [
+    {
+      "producer": "routes/inbound-request.ts createInboundRequestWithReceipt + draftBrief/saveBrief",
+      "persisted": "inboundRequests briefReviewPending/briefReviewWork and siteTaskBriefs",
+      "worker": "opsAutomationScheduler capture_outbox run -> recoverCaptureReviews -> readBriefFromDescription -> runAgentTask(kind=site_task_brief_reading)",
+      "completion": "actual completed result with output -> mergeBriefProposals; token-fenced pending/completed/needs_review state"
+    },
+    {
+      "producer": "routes/site-task-brief.ts confirmation -> siteTaskBrief.confirmBrief",
+      "persisted": "confirmed operator_stated gates, site_task_triage, site_task_brief_confirmed_at; capture_coverage_pending",
+      "prerequisite": "actual supplied gate answers; confirmation does not attest unseen footage"
+    },
+    {
+      "producer": "routes/self-capture-uploads.ts finishStoredCapture -> current rights, exact write receipt/manifest -> source-bound privacy claim/decision -> writeCompletionMarker",
+      "persisted": "captureUploadSessions browser_pending_delivery held -> published only after actual publishBrowserDelivery; GCS producer receipt then CAS completion marker",
+      "ordering": "writeCompletionMarker enqueues coverage BEFORE publishing producer delivery/marker and setting pending published. Coverage finding is asynchronous and not a source publication prerequisite."
+    },
+    {
+      "worker": "captureCoverageQueue.reconcileCoverageReviews -> reviewCaptureCoverage -> runAgentTask(kind=capture_coverage)",
+      "persisted": "captureCoverageReviews source/brief digest lease+attempts; inboundRequests capture_coverage finding and review completion",
+      "completion": "actual finding with current consent/source/brief and claim fence; contradictory coverage or missing seen timestamp cannot authorize covered finding; shortfall may enqueue existing outbox notice"
+    },
+    {
+      "native_worker": "pubsub_handoff_listener.process_handoff_payload -> original-owner observation -> selected membership -> birth -> exact staged bytes -> durable lease -> run_e2e website qualification lane",
+      "required": "preflight/materialization prerequisites; capture_pipeline status completed and task_evaluation_supervisor non_spend_complete|advise_complete|shadow_complete|preauthorized_complete; optional agent_review not required",
+      "terminal": "only terminal-success result creates output commit, completed ledger, then ack; blocked/failed required stage remains retryable"
+    },
+    {
+      "native_package": "capture_orchestrator -> site_package_orchestrator.run_qualification_pipeline -> website_task_evidence.prepare_website_task_descriptor using current WebApp task context/sponsorship -> real package -> webapp_sync.sync_webapp_pipeline_attachment",
+      "webapp_handler": "internal-pipeline.ts /attachments requires pipeline token, in-scope artifact URIs, upstream request/site/buyer/capture-job links and existing inbound bootstrap; computes state transition, persists attachments/qualification/readiness; claim invite assessment_ready is scene/catalog flow",
+      "authority": "website sponsorship needs current confirmed task context, qualified triage (unless explicit isolated development authorization), claimed account and provider/rights binding. Internal cost controls do not ask customer for budget."
+    },
+    {
+      "reader": "site-task-brief.ts /:token/status and workspace.ts use taskStatusProjection plus siteTaskBriefs/inboundRequests/captureUploadSessions.world_reconstruction/evaluationRuns",
+      "meaning": "results derives retained per-team observed episodes or explicit no-result terminal runs, not agentRuns.site_assessment. Scene preview is reconstruction, not robot evaluation."
+    }
+  ],
+  "new_advisory_assessment": {
+    "dispatch": "admin-agent.ts requireAdminRole /sessions and /sessions/:id/control/start via createAgentSession/startAgentSessionRun; runtime.executeTask -> runSiteAssessmentTask",
+    "contract": "tasks/site-assessment.ts: One internal advisory assessment; no fulfillment or qualification changes. No site_scene_plan task name found in current WebApp server or Pipeline src.",
+    "prerequisites": [
+      "enabled video lane, db/storage, admitted openai_responses model and analyze_site_video read policy",
+      "real inbound site_operator request and decryption",
+      "pending.state published; current source-bound privacy proceeded with matching capture/source digest; current rights",
+      "exact manifest/video metadata generation,size,crc32c; manifest SHA; positive stored duration; video<=64MiB manifest<=64KiB",
+      "actual normal runtime-created running agentRun; cancellation/cost checks before calls and final completion",
+      "shared captureCoverageInferenceBudget retains existing exposure/calls/pending uncertainty across coverage and assessment; unknown usage/pending_token/historical exposure refuses next call",
+      "actual OpenAI Agents SDK output schema and validateAssessmentEvidence references/timestamps/provenance; published video citation invalid, operator statement remains operator_stated",
+      "final source facts and pending digest unchanged before final output; private evidence persisted through markRunStatus, artifacts.site_assessment_packet and packet hash"
+    ],
+    "reader_gap": "No customer status/workspace reader or automatic captureCoverageQueue dispatch of this newer site_assessment packet found in exact source. Treat an executed adapter packet as internal advisory output until actual customer publication wiring is separately shown. This is a distinct proof gap, not permission to handseed customer results.",
+    "semantic_limit": "Structural citation validation is not entailment or true video perception; scripted provider responses cannot establish assessment accuracy."
+  },
+  "corrections": [
+    {
+      "earlier_inference": "coverage shortfall add_views implies pending held and unavailable to adapter",
+      "correction": "False: actual writeCompletionMarker publishes before asynchronous coverage; inspect actual retained pending state and consent. Adapter does not directly require capture_coverage true."
+    },
+    {
+      "earlier_shorthand": "loadSceneScreening(agentEvalRuns)",
+      "correction": "Source module is agentEvalRuns.ts; actual Firestore collection constant is evaluationRuns."
+    }
+  ],
+  "isolated_checks": {
+    "schema_version": "prerequisite-isolated-policy-tests.v1",
+    "pipeline_sha": "4cb97edeb5fabcac30a14a4576a896a6a22941a3",
+    "layer": "actual Python capture birth functions, existing synthetic owner/membership and test-only owned installed-policy fixture; no provider/GCS/network execution",
+    "checks": [
+      "tests/test_capture_generation_birth.py::test_capture_birth_retains_original_proofs_before_empty_target",
+      "tests/test_capture_generation_birth.py::test_normal_capture_birth_prepares_absent_parent_under_owned_root"
+    ],
+    "exit_code": 0,
+    "temporary_snapshot": "/var/folders/7w/c3s8_n4n7l305ywhp9hnlz740000gp/T/blueprint-prereq-readonly-jqoym8qa",
+    "command": [
+      "python",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "tests/test_capture_generation_birth.py::test_capture_birth_retains_original_proofs_before_empty_target",
+      "tests/test_capture_generation_birth.py::test_normal_capture_birth_prepares_absent_parent_under_owned_root"
+    ],
+    "retained_snapshot_for_replay": true,
+    "authority_checks": [
+      "tests/test_scene_retirement_real_participants.py::test_foreign_environment_cannot_redirect_actual_participant",
+      "tests/test_scene_retirement_real_participants.py::test_genuinely_absent_installed_policy_preserves_actual_reader"
+    ],
+    "authority_exit_code": 0,
+    "attempted": 4,
+    "passed": 4
+  },
+  "source_hashes": {
+    "pipeline": [
+      {
+        "path": "src/blueprint_pipeline/task_evaluation_scene_retirement_lifetime.py",
+        "sha256": "c1814f05c66686e66781bba5c31978fa723a5b886ae9956f82f68ffbd2304dc8"
+      },
+      {
+        "path": "src/blueprint_pipeline/task_evaluation_scene_retirement_generations.py",
+        "sha256": "88a2863ec7e9ec0fe9cb6d5d4ee547339dd4e37f8d780cd51e9f8f21564326f5"
+      },
+      {
+        "path": "src/blueprint_pipeline/capture_delivery_staging.py",
+        "sha256": "fb22231a893f2ac9369888dba3ca496a3805a953ace4db6edfef8c12f916d8ee"
+      },
+      {
+        "path": "src/blueprint_pipeline/pubsub_handoff_scene_operations.py",
+        "sha256": "a25b222185db5ea303c9d280a3ed138522b99919a9197a01e2a4cc65b34413f6"
+      },
+      {
+        "path": "src/blueprint_pipeline/run_e2e.py",
+        "sha256": "357fbc614a7c41ae7e3a6f1a7246602b553dfd2b402e30bf984cc1eaf710b759"
+      },
+      {
+        "path": "src/blueprint_pipeline/site_package_orchestrator.py",
+        "sha256": "eb2131b46718609c869442f40d95e339513a78a7991df135a7360d5565531e4c"
+      },
+      {
+        "path": "tests/test_scene_retirement_real_participants.py",
+        "sha256": "8562ced9282867cc2fda272332f8adf25899ae4ebf2eff5ce8e16d90ded43d3b"
+      },
+      {
+        "path": "tests/test_capture_generation_birth.py",
+        "sha256": "9bf8c1091452a3cfa9bafa06411120ddc69d20e831996733f5fed4606c0ef2a0"
+      }
+    ],
+    "webapp": [
+      {
+        "path": "server/routes/self-capture-uploads.ts",
+        "sha256": "3a16b1ae43546d9c04149687fbebc6f1e563c51a01074bd04cd4ef283eb268d5"
+      },
+      {
+        "path": "server/utils/captureCoverageQueue.ts",
+        "sha256": "0eb2815b4b04547bc53535a22f5d7d4ad7f4f957b772895f91e795e0c412a2bb"
+      },
+      {
+        "path": "server/utils/captureCoverageReview.ts",
+        "sha256": "9c6cb1c7c404bdff29fc4e7978fd22bef4186295a0831a418870c48144d6d03b"
+      },
+      {
+        "path": "server/utils/captureReviewRecovery.ts",
+        "sha256": "0579855454da233462c7ba6883f0d34b0f32429b5b574decba93eb22ce2b427a"
+      },
+      {
+        "path": "server/utils/siteTaskBriefReading.ts",
+        "sha256": "7cc426bcb2c21e799490c20421570526797ecabcc85e13d49e72382f42116286"
+      },
+      {
+        "path": "server/utils/taskStatusProjection.ts",
+        "sha256": "4883486be2600156ce89b3e3b4657db634c0832e77bd09cf88d21cd74594ba7f"
+      },
+      {
+        "path": "server/utils/agentEvalRuns.ts",
+        "sha256": "3713c608f6e53210f8bb7b3927f302eb0f95b463d51d9c16a492d295bf89fe87"
+      },
+      {
+        "path": "server/routes/site-task-brief.ts",
+        "sha256": "94f1bd670795b3d67627c14f25b861e8f07c831d9db82943ddb320c2032d8656"
+      },
+      {
+        "path": "server/routes/workspace.ts",
+        "sha256": "937aa55896f9d409f602031d9cb6da88ea67eeca092d6fefd6b7b2a6107efd12"
+      },
+      {
+        "path": "server/agents/tasks/site-assessment.ts",
+        "sha256": "f81faf321331cab02f14ad02bdffb89bc1dbbead531ecd0b45bead579c6f5ad7"
+      },
+      {
+        "path": "server/agents/adapters/site-assessment.ts",
+        "sha256": "122f1e3d5fe6c797af94c1d53d83faebccbc79c2d723168625827521299b4153"
+      },
+      {
+        "path": "server/utils/captureCoverageInferenceBudget.ts",
+        "sha256": "4d331c2edb3b85b9dc0785a7aedf3ca9e1b0bc1889d54afd538824c0cc73e0ac"
+      },
+      {
+        "path": "server/agents/runtime.ts",
+        "sha256": "93c9ff1f4d54f713811d13e25b1823cc63948a3bc4a06339cfbb058d2495d141"
+      }
+    ]
+  },
+  "bounded_missing_link": "Internal site_assessment packet retention is wired and source-protected, but customer UI dispatch/publication of that newer packet is absent in inspected source; existing customer brief/coverage/package/evaluation pipeline is a different supported chain. A joined full customer result requires actual retained package sync and/or evaluationRuns visible through existing reader; this diagnostic did not execute that joined chain."
+}
