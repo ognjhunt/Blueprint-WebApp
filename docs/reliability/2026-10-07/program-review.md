@@ -1958,3 +1958,19 @@ requests were blocked, zero intake mutations attempted. This verifies deployed
 guard identity and local draft presentation only, not live provider availability,
 record attachment, customer upload durability or assessment perception.
 No paid call, production write or additional case credit occurred for review.
+
+
+## Independent replacement CI prerequisite ordering review — b18234b4
+
+Approved exact957 head
+`b18234b4b64adcc8c4d5ef6dba77f3137140616f`, direct child of reviewedc29f9c4c.
+Only the existing FFmpeg prerequisite step moves before the private-link browser
+step. The installation command, tests, assertions, dependency/service set and
+other workflow behavior are unchanged. Retained failing CI37802404014 log
+`13b318ccc16b7fb6445934724a6486a448d24cc2c822562089991d2da4d8d238`
+shows replacement fixture generation stopping at `spawnSync ffmpeg ENOENT`,
+with three existing private-link neighbors passing. This is a diagnosed missing
+prerequisite, not a customer transport result or an assertion bypass. The
+original failure remains retained; a fresh exact-head protected CI run is
+required. Current PR head matches b18234b4 with fresh checks queued at review.
+No additional suite, production action or deployment approval was performed.
