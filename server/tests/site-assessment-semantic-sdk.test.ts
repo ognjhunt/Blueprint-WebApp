@@ -101,20 +101,20 @@ describe("actual SDK source-primitive semantic diagnostics", () => {
         } else {
           const assessment = baseAssessment();
           const videoSource = JSON.stringify(request.input).match(/video:fixture-video:[a-f0-9]{12}/)?.[0] ?? "video:missing";
-          const registryRef = { source_id: "robotTeam:fixture-team", at_seconds: null };
-          const knowledgeRef = { source_id: "knowledge:fixture-spec", at_seconds: null };
+          const registryRef = { source_id: "robotTeam:fixture-team", at_seconds: null, selector: null };
+          const knowledgeRef = { source_id: "knowledge:fixture-spec", at_seconds: null, selector: null };
           if (["unknown_registry", "inferred_registry"].includes(mode)) assessment.known = [{ text: "The robot has a published 50 m reach", basis: "published", evidence: [registryRef] }];
           if (["empty_knowledge", "empty_search", "stale_knowledge"].includes(mode)) assessment.known = [{ text: mode === "stale_knowledge" ? "The robot currently has a 2 m reach" : "The robot has a published 50 m reach", basis: "published", evidence: [knowledgeRef] }];
-          if (mode === "conflict") assessment.job = [{ text: "The bin stacking task visibly completed successfully", basis: "observed", evidence: [{ source_id: videoSource, at_seconds: 8 }] }];
-          if (mode === "measurement") assessment.known = [{ text: "The bin mass is measured at 12 kg", basis: "measured", evidence: [{ source_id: videoSource, at_seconds: 8 }] }];
-          if (["operator_measured", "operator_stated_control"].includes(mode)) assessment.known = [{ text: "The owner reports measuring a 12 kg mass; this has not been independently verified", basis: mode === "operator_measured" ? "measured" : "operator_stated", evidence: [{ source_id: "operator:fixture-message", at_seconds: null }] }];
-          if (mode === "timing_control") assessment.job = [{ text: "The bin is visibly moving during the observed 8 to 12 second interval", basis: "observed", evidence: [{ source_id: videoSource, at_seconds: 8 }] }];
-          if (mode === "ruler_control") assessment.known = [{ text: "A ruler is visible beside the bin; calibration and a metric measurement remain unknown", basis: "observed", evidence: [{ source_id: videoSource, at_seconds: 8 }] }];
-          if (mode === "dimension_estimate_control") assessment.estimates = [{ text: "The bin may span about 1.3 m; no calibrated dimensions are available", basis: "estimate", evidence: [{ source_id: videoSource, at_seconds: 8 }] }];
+          if (mode === "conflict") assessment.job = [{ text: "The bin stacking task visibly completed successfully", basis: "observed", evidence: [{ source_id: videoSource, at_seconds: 8, selector: null }] }];
+          if (mode === "measurement") assessment.known = [{ text: "The bin mass is measured at 12 kg", basis: "measured", evidence: [{ source_id: videoSource, at_seconds: 8, selector: null }] }];
+          if (["operator_measured", "operator_stated_control"].includes(mode)) assessment.known = [{ text: "The owner reports measuring a 12 kg mass; this has not been independently verified", basis: mode === "operator_measured" ? "measured" : "operator_stated", evidence: [{ source_id: "operator:fixture-message", at_seconds: null, selector: null }] }];
+          if (mode === "timing_control") assessment.job = [{ text: "The bin is visibly moving during the observed 8 to 12 second interval", basis: "observed", evidence: [{ source_id: videoSource, at_seconds: 8, selector: null }] }];
+          if (mode === "ruler_control") assessment.known = [{ text: "A ruler is visible beside the bin; calibration and a metric measurement remain unknown", basis: "observed", evidence: [{ source_id: videoSource, at_seconds: 8, selector: null }] }];
+          if (mode === "dimension_estimate_control") assessment.estimates = [{ text: "The bin may span about 1.3 m; no calibrated dimensions are available", basis: "estimate", evidence: [{ source_id: videoSource, at_seconds: 8, selector: null }] }];
           if (["empty_exclusion", "unknown_exclusion", "no_reasons"].includes(mode)) assessment.approaches = [{ approach: "Any robot", disposition: "excluded",
             reasons: mode === "no_reasons" ? [] : [{ text: "No robot can perform this job because capability is unknown", basis: "unknown", evidence: mode === "unknown_exclusion" ? [registryRef] : [] }], remaining_checks: [] }];
           if (mode === "estimate_control") assessment.approaches = [{ approach: "Direct reach with the current fixture", disposition: "excluded",
-            reasons: [{ text: "Assuming the owner's 2 m reach requirement, the published 1 m reach leaves a gap; confirm a fixture alternative", basis: "estimate", evidence: [registryRef, { source_id: "operator:fixture-message", at_seconds: null }] }], remaining_checks: ["Check the owner's measurement and fixture alternatives"] }];
+            reasons: [{ text: "Assuming the owner's 2 m reach requirement, the published 1 m reach leaves a gap; confirm a fixture alternative", basis: "estimate", evidence: [registryRef, { source_id: "operator:fixture-message", at_seconds: null, selector: null }] }], remaining_checks: ["Check the owner's measurement and fixture alternatives"] }];
           if (mode === "manual_control") assessment.next_action = { kind: "no_robot", action: "Keep the task manual while requirements are clarified", why: { text: "Available robot capability is unknown", basis: "unknown", evidence: [] } };
           if (mode === "published_control") assessment.known = [{ text: "The synthetic record publishes a 1 m reach", basis: "published", evidence: [registryRef] }];
           if (["measured_control", "published_as_measured"].includes(mode)) assessment.known = [{ text: "The synthetic record measures a 1 m reach", basis: "measured", evidence: [registryRef] }];

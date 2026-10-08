@@ -19,29 +19,35 @@ const selector = z.object({
 // but cannot produce a source-bound fact in a newly returned v2 packet.
 const reference = z.object({ source_id: z.string(), at_seconds: z.number().nonnegative().nullable(),
   selector: selector.nullable().optional() });
-const claim = z.object({
-  text: z.string(),
-  basis: z.enum(["observed", "operator_stated", "published", "measured", "estimate", "unknown"]),
-  evidence: z.array(reference),
-});
-export const siteAssessmentSchema = z.object({
-  status: z.enum(["assessment", "needs_operator_input"]),
-  job: z.array(claim),
-  objects_motions_conditions_variations: z.array(claim),
-  operator_success: z.array(claim),
-  known: z.array(claim),
-  estimates: z.array(claim),
-  missing: z.array(claim),
-  approaches: z.array(z.object({
-    approach: z.string(), disposition: z.enum(["plausible", "excluded", "needs_evidence"]),
-    reasons: z.array(claim), remaining_checks: z.array(z.string()),
-  })),
-  next_action: z.object({
-    kind: z.enum(["ask_operator", "inspect_video", "measure", "research", "robot_trial", "process_change", "no_robot"]),
-    action: z.string(), why: claim,
-  }),
-  questions: z.array(z.object({ question: z.string(), decision_it_changes: z.string() })),
-});
+function assessmentSchema<Citation extends z.ZodTypeAny>(citation: Citation) {
+  const claim = z.object({
+    text: z.string(),
+    basis: z.enum(["observed", "operator_stated", "published", "measured", "estimate", "unknown"]),
+    evidence: z.array(citation),
+  });
+  return z.object({
+    status: z.enum(["assessment", "needs_operator_input"]),
+    job: z.array(claim),
+    objects_motions_conditions_variations: z.array(claim),
+    operator_success: z.array(claim),
+    known: z.array(claim),
+    estimates: z.array(claim),
+    missing: z.array(claim),
+    approaches: z.array(z.object({
+      approach: z.string(), disposition: z.enum(["plausible", "excluded", "needs_evidence"]),
+      reasons: z.array(claim), remaining_checks: z.array(z.string()),
+    })),
+    next_action: z.object({
+      kind: z.enum(["ask_operator", "inspect_video", "measure", "research", "robot_trial", "process_change", "no_robot"]),
+      action: z.string(), why: claim,
+    }),
+    questions: z.array(z.object({ question: z.string(), decision_it_changes: z.string() })),
+  });
+}
+export const siteAssessmentSchema = assessmentSchema(reference);
+// Fresh provider output must supply a nullable selector. Optional Zod fields
+// serialize to an unsupported `not` keyword in the installed Agents SDK.
+const siteAssessmentOutputSchema = assessmentSchema(reference.required({ selector: true }));
 export type SiteAssessment = z.infer<typeof siteAssessmentSchema>;
 
 const videoObservationSchema = z.object({
@@ -335,7 +341,7 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
     tools: options.allowed_tools ? tools.filter(tool => options.allowed_tools!.includes(tool.name)) : tools,
     modelSettings: { reasoning: { effort: "medium" }, parallelToolCalls: false, maxTokens: options.max_output_tokens ?? 8192, store: false,
       providerData: { service_tier: "default" } },
-    outputType: siteAssessmentSchema });
+    outputType: siteAssessmentOutputSchema });
   return {
     agent,
     evidence: () => ({ sources: [...sources.values()], tool_receipts: receipts }),
