@@ -693,3 +693,24 @@ prose entailment, video perception or robot suitability: the admitted synthetic
 video-event and robot-field counterexamples remain unresolved. No paid calls or
 live mutations occurred. Exact-head required checks, protected merge/deployment
 and deployed behavior remain separate release-owner evidence gates.
+
+
+**Supplemental filtered-replay accounting reviewed at `8dbd0b8f8fa3a74fae4968e105a8e66fe0be19e1`.**
+The seven-line reporting delta derives attempted stale controls from actual rows
+and lists generated-but-unattempted IDs. Production code, fixture states,
+labels and repeat selections are unchanged. Independent read-only validation
+of all three selected receipts confirms 120 generated/deduplicated, one
+attempted, 119 distinct unattempted, one invocation, and one partial semantic
+case; applicability controls are 1/1/0 attempted/passed/failed. Each rejects
+with the expected general stale-source error. Receipt hashes match the listed
+5e217dbc / a4f360f7 / 76edf083 prefixes; full baseline/candidate hashes remain
+3fcb3999 / 3cae823d. Semantic/input hashes and complete source/tool receipts
+match the same case in the prior full candidate run. The preliminary zero-test
+filters remain excluded and preserved, not counted as passed attempts.
+
+No new independent sample, natural-model call or truth score follows from the
+three repeats. The private receipts contain synthetic source packets; public
+documentation exposes only synthetic case IDs and hashes. Current readiness
+keeps full goal partial, two admitted entailment P1s open, reference-quality
+shortfalls explicit, and pending releases distinct from deployed evidence.
+No material reporting or privacy finding remains for this scoped correction.
