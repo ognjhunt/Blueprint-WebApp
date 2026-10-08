@@ -1444,5 +1444,79 @@
     "full_database_export_observed": false,
     "claim_ceiling": "Existing per-case state summaries and traces retained, not a full DB snapshot; replay uses fresh disposable fixtures",
     "other_owner_services_touched": false
+  },
+  "actual_pipeline_queue_cpu_prefix": {
+    "code_commit": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+    "manifest_private_path": "output/reliability-program/nextchain-a56/manifest.json",
+    "manifest_sha256": "04da09356c73b34d37039ec011273f9d4ab3389949cba648798d24a0c75ae4e1",
+    "attempted": 2,
+    "passed": 2,
+    "new_catalog_or_journey_credit": 0,
+    "layer": "Actual compiler/materializer/register/progression/publication byte-readback(faked objectstore)/file-backed queues/preparation worker/built-in CPU background stages; scripted fixture release authority. No Firestore emulator, actual signed WebApp route, model HTTP provider, authoring provider, native Isaac or GPU.",
+    "stage_status": "completed_prefix",
+    "stage_count": 2,
+    "whole_run_completed": false,
+    "provider_calls": 0,
+    "performance_owner_seal_calls": 0,
+    "fixture_release_identity_is_synthetic_not_live_promotion": true,
+    "finding": "No moved owner-seal geometry blocker demonstrated; safe preparation continues through actual queues, worker and first two CPU stages.",
+    "unexecuted": [
+      "Stage3 authoring",
+      "Stage5 genuine native import",
+      "Full six-stage configuration publication",
+      "Authenticated WebApp readback",
+      "Provider-zero closure",
+      "Customer-visible final result"
+    ]
+  },
+  "current_d217_frozen_core_replay": {
+    "checkout": "5f298b9cc014f7e75c49c9e60ca40f74654d6c26",
+    "production_equivalent": "d21721d94aad50c0314d2e10875c3b022841c689",
+    "command": [
+      "node",
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "server/tests/reliability-program-queue.test.ts",
+      "server/tests/reliability-program-transport-status.test.ts",
+      "server/tests/reliability-program-worker-journeys.test.ts",
+      "client/tests/components/SiteCaptureStart.durability.test.tsx",
+      "client/tests/components/SiteCaptureStart.recovery.test.tsx",
+      "client/tests/components/SiteCaptureStart.test.tsx",
+      "client/tests/contexts/AuthProviderRecoveryCleanup.test.tsx",
+      "client/tests/pages/Contact.test.tsx",
+      "client/tests/lib/siteCaptureDraft.crossTab.test.ts",
+      "client/tests/lib/siteCaptureDraft.reliability.test.ts",
+      "--maxWorkers=1",
+      "--minWorkers=1",
+      "--reporter=json",
+      "--outputFile=output/reliability-program/final-d217-core/vitest.json"
+    ],
+    "frozen_case_denominator": 300,
+    "new_unique_cases": 0,
+    "result_sha256": "76dc9312e3c9e4c9cae879590ee90eda3a8d70768cc579aec8485cb462f9a9dd",
+    "log_sha256": "0dad2dd53ea7806dd70e71c03b4aff36d9d9a1f9735a1c1053625583c30886c9",
+    "completed_utc": "2026-10-08T08:13:48.698836+00:00",
+    "checks": {
+      "attempted": 424,
+      "passed": 424,
+      "failed": 0,
+      "skipped": 0
+    },
+    "frozen_semantic_cases": {
+      "generated": 300,
+      "deduplicated": 300,
+      "attempted": 300,
+      "passed": 300,
+      "failed": 0,
+      "skipped": 0,
+      "blocked": 0,
+      "partial": 0
+    },
+    "production_source_diff": "",
+    "run_manifest_sha256": "c82cb90e032e3847f6b1d61057ece3af43107f4da6662c667d44f13b0e08c9b3",
+    "private_result_path": "output/reliability-program/final-d217-core/vitest.json",
+    "layer": "Offline components and fake database/provider handlers; no live provider, emulator, normal UI or production records",
+    "source_identity": "Local production code byte-equal to origin/main d217; supplemental program tests are on coordinator branch",
+    "unique_case_credit": 0
   }
 }

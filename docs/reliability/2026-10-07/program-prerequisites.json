@@ -265,5 +265,29 @@
       "CI": 37744246751,
       "state": "selectedPRgatepassed; currentheadreview/merge/promotion/deployseparate"
     }
+  },
+  "actual_queue_cpu_prefix_diagnostic": {
+    "code_commit": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+    "manifest_private_path": "output/reliability-program/nextchain-a56/manifest.json",
+    "manifest_sha256": "04da09356c73b34d37039ec011273f9d4ab3389949cba648798d24a0c75ae4e1",
+    "attempted": 2,
+    "passed": 2,
+    "new_catalog_or_journey_credit": 0,
+    "layer": "Actual compiler/materializer/register/progression/publication byte-readback(faked objectstore)/file-backed queues/preparation worker/built-in CPU background stages; scripted fixture release authority. No Firestore emulator, actual signed WebApp route, model HTTP provider, authoring provider, native Isaac or GPU.",
+    "stage_status": "completed_prefix",
+    "stage_count": 2,
+    "whole_run_completed": false,
+    "provider_calls": 0,
+    "performance_owner_seal_calls": 0,
+    "fixture_release_identity_is_synthetic_not_live_promotion": true,
+    "finding": "No moved owner-seal geometry blocker demonstrated; safe preparation continues through actual queues, worker and first two CPU stages.",
+    "unexecuted": [
+      "Stage3 authoring",
+      "Stage5 genuine native import",
+      "Full six-stage configuration publication",
+      "Authenticated WebApp readback",
+      "Provider-zero closure",
+      "Customer-visible final result"
+    ]
   }
 }

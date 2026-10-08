@@ -148,6 +148,17 @@
         "state_at_0749_utc": "in_progress"
       },
       "release_state": "code_complete_merged_promotion_in_progress_not_deployed"
+    },
+    "sim_only_current_main_setup_failure": {
+      "run_id": 37745039226,
+      "sha": "a56f9d240058f038060bd6aa89efcef3ff5f12e5",
+      "attempt1": "failure",
+      "failed_step": "Ensure ffmpeg is available",
+      "cause": "Ubuntu apt package downloads timed out after12min before tests ran",
+      "product_tests_executed": 0,
+      "disposition": "One unchanged failed-job retry triggered by coordinator; original attempt retained, no assertion weakening, no product nondeterminism claim",
+      "retry_result": "pending",
+      "source": "https://github.com/ognjhunt/BlueprintCapturePipeline/actions/runs/37745039226"
     }
   },
   "privacy": "Only sanitized deployment identity/receipt metadata; private operator status remains ignored.",
