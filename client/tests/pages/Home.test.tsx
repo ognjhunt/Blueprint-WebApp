@@ -22,14 +22,14 @@ describe("Site-led homepage", () => {
     expect(screen.queryByText(/Your criteria/)).not.toBeInTheDocument();
   });
 
-  it("shows the three steps without a click, ending in booking the recommended pilot", () => {
+  it("shows the three steps without a click, ending in agreement on the next step", () => {
     const { container } = render(<Home />);
     expect(container.querySelectorAll("details")).toHaveLength(0);
     const steps = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(steps).toHaveLength(3);
     expect(steps[0]).toHaveTextContent(/Show us the task.*Describe it or film it on your phone\./);
     expect(steps[1]).toHaveTextContent(/Review the evidence.*Understand what it supports and what is still unknown\./);
-    expect(steps[2]).toHaveTextContent(/Agree a next step.*Any later work has a separately agreed scope and cost\./);
+    expect(steps[2]).toHaveTextContent(/Agree on the next step.*Any later work has a separately agreed scope and cost\./);
   });
 
   it("keeps the example still while a keyboard user is inside it, even after the pointer leaves", () => {
