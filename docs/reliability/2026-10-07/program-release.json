@@ -3559,7 +3559,7 @@
       "recipient_delivery_observed": true,
       "one_mechanical_reply_observed": true,
       "reply_is_test_input_not_customer_task_facts": true,
-      "reply_import_and_assessment_continuation": "one test-input statement imported; current continuation running at retained checkpoint, sole master follows same handle",
+      "reply_import_and_assessment_continuation": "one test-input statement imported; real continuation completed; native grant/admission/dispatch remain release-gated",
       "new_failure": "Gmail rewrites Message-ID; stored requested RFC ID differs from acknowledged-message GET. Narrow receipt reconciliation PR1002; no resend.",
       "draft_recovered_canonical_sha256": "00fd83dd471ac69408af5509fc0f8e117fb54ed8dc76760d38275f380244d411",
       "sent_canonical_sha256": "374065f5d1ede88d12178743b6fe1082bd2c8f0947e0e6e7df035babfd492ac1",
@@ -3584,6 +3584,31 @@
         "current_pointer_job_run": "running",
         "paid_native_dispatch": false,
         "claim_ceiling": "Canonical retained real DB record joins; not completed continuation, current proposal, native admission, physical facts or model quality."
+      },
+      "reply_continuation_terminal": {
+        "observed_at": "2026-10-09T06:40:35.402Z",
+        "source": "cd7f979b90ccdac3853b90938e08d2950798f960",
+        "job_run": "completed",
+        "raw_status": "needs_operator_input",
+        "proposal": "current questions_pending=true; scene_preparation_only; robot_suitability_verified=false; physical_trial_authorized=false",
+        "calls": 13,
+        "provider_calls": {
+          "sol": 12,
+          "gemini": 1
+        },
+        "reservations": 13,
+        "unknown_usage": 0,
+        "usage_pricing_estimate_usd": 0.21155425,
+        "invoice_verified": false,
+        "terminal_compact_sha256": "5c31ca5f0e2eb630d6977a9ea6644a4377b43e01ac1173482e99ef2159f6593b",
+        "root_metadata_review_sha256": "700567b8716d56a0a31fc6846a8d164a140e5f084d506994f215c22ec6b4ddca",
+        "private_evidence_sha256": "de0699ae46f109c32492891f5aef58e35c2ef379606122d34aaac4e2c2b44dca",
+        "private_evidence_bytes": 366891,
+        "private_evidence_generation": "1791527867464922",
+        "root_generation_pinned_byte_review_sha256": "35c8c81e51f2b43d1dfcabce8efba7c6990e9a39191efef293daf75a9d5f860d",
+        "duplicate_reply_refresh": "master reports0newanswers/sameadmission; no new continuation queued",
+        "signed_native_transport_and_dispatch": false,
+        "claim_ceiling": "Actual continuation complete and private byte identity verified; current proposal must be reopened at native boundary. No human accuracy/criteria/physical completion claim."
       }
     },
     "fixture_corrections": {
@@ -3604,6 +3629,13 @@
       "receipt_sha256": "2d92ff7ceaa7ae22085c4dc6e983e3d89150e6d25c79d19228d89895b3328112",
       "execution_credit": 0,
       "qualification": "Read-only byte comparison;300 scored cases remain baseline execution, current context covered by separately reviewed changes/checks."
+    },
+    "latest_native_status": {
+      "canonical_commit": "0a17f52d23f233376b9944a6df49101491581f6c",
+      "door_version": "1.0.0",
+      "selected_route_installed": false,
+      "raw_receipt_sha256": "b1a3fcb3c457c3545873431f906c8f9f7428d3a68361691684a536fa16957ed9",
+      "sanitized_receipt_sha256": "a846c2854350a01da2273b53bee673da614603e247d85d735d5af22113e871c1"
     }
   }
 }
