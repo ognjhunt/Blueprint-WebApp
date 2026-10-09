@@ -1378,11 +1378,65 @@
         "native_only_skipped": 2
       },
       "fresh_CI": 37906702437,
-      "status": "source-reviewed,pushed,required_CI_active; not installed",
+      "status": "Source-reviewed; actual unchanged Linux restore PASS72.929s in official2271 shard1. Prior specific root cause remains unproven. Final containing candidate a682 CI37913024766 full shards running; no installation.",
       "actual_preceding_Linux_failure_root_cause_claim": false,
       "actual_failure_limitation": "Still unproven. Initial restore constructor failed before foreign-FD publication; synthetic starvation repair is separate and does not prove that original cause repaired. New fixed-category exhaustion counts will expose future failures without private PID/path/FD data or new reads.",
       "production_incident_claim": false,
       "new_unique_case_credit": 0
+    },
+    {
+      "id": "REL-NATIVE-FIXTURE-ALIAS-LEAK-20261009",
+      "severity": "P2 test isolation; required CI release-blocking",
+      "owner": "native evidence author; independent q reviewer; root sole native release",
+      "invariant": "Fixture disk measurements must not leak beyond fixture teardown; real ledger and disk-capacity policy remain enforced",
+      "observed": {
+        "head": "2271e3b766ce254ee0d7ed8957d8262f7cf409be",
+        "CI_run": 37906702437,
+        "failed_job": 113742683643,
+        "failed_checks": 3,
+        "executed_checks": 8869,
+        "official_artifact": 11606682121,
+        "official_zip_sha256": "207e8bc6517d8aaf7170bb28f7c81969e41f06a3b809f2a736432a27285d9f64",
+        "root_artifact_verification_sha256": "bb0ab90237abade4cbcd584e42553b9fdca5b31062f15cffedd6a444997df071"
+      },
+      "root_cause": "Concurrency test temporarily patches global disk-budget function; lazy stage-replay import captures that wrapper past teardown; following GC tests supply disk_usage again. Exact ordered case reproduced1PASS/3FAIL.",
+      "candidate": "a6822134cb1ca125c32a2c2e5d6170d9ab1fc12f",
+      "repair": "Four added test-only lines import before patch and explicitly register stage alias with monkeypatch teardown; production policy/assertions unchanged",
+      "same_ordered_retest": "4PASS22.499s on clean local commit; earlier dirty-checkout gate failure retained",
+      "status": "Independently source-clear and pushed; freshCI37913024766 impacted+actual Linux startup PASS, four full shards running; no merge/install.",
+      "production_incident_claim": false,
+      "new_unique_credit": 0,
+      "independent_review_sha256": "80f22c735c13bfabee7a95eebd6054b5edee9ea139f55d14270149b4d6ee522a",
+      "independent_same_ordered_retest": "4PASS21.775s",
+      "neighbors": "82PASS6.910s",
+      "canonical_required_gate": "9PASS38.277s; full CI still required"
+    },
+    {
+      "id": "REL-BROWSER-OBSERVER-TEARDOWN-20261009",
+      "severity": "P2 evaluation harness; prior acceptance blocker resolved for current22 V4",
+      "owner": "customer basics observer author; independent reviewer; root freeze",
+      "invariant": "Owned browser teardown cannot mask original assertions or contaminate following case/profile; retained traces distinguish attempted/unattempted",
+      "first_run_id": "journeys-20261009T092853565Z",
+      "observed": "Closed-CDP cleanup exception for UI018, ENOTEMPTY before UI019 body, subsequent UI020 entry timeout; UI018 original assertion cause unknown",
+      "first_root_receipt_sha256": "05ab2179d9d795b9dc14f575d85d4b2bb4a3b478b6487a53828b5dc4734965c2",
+      "raw_result": "21attempted/19PASS/2FAIL/1unattempted; Vitest19PASS/3FAIL. First run retained.",
+      "repair_scope": "Private test observer only: bounded recorded Chrome shutdown, original-error preservation and safe own-profile reset. No product/conditions/assertions change.",
+      "status": "Current V4 all22 independently accepted with no cleanup error. Both earlier failed runs preserved, original UI018 assertion remains UNKNOWN.",
+      "production_bug_claim": false,
+      "new_unique_credit": 0,
+      "root_cause_limit": "Historical failure Chrome PIDs not retained. Cleanup error and ENOTEMPTY are observed; contamination is inferred and original UI018 assertion UNKNOWN."
+    },
+    {
+      "id": "REL-BROWSER-CDP-READINESS-20261009",
+      "severity": "P2 evaluation harness; prior acceptance blocker resolved for current22 V4",
+      "owner": "customer basics author; independent reviewer; root freeze",
+      "observed": "V3 UI003 endpoint http://127.0.0.1:0; actual native raw empty-file contents not retained",
+      "root_cause_limit": "Existence-only wait plus Number(empty string)==0 explains port0 as an inference; actual-source isolated stub reproduces it, not a full native-before proof",
+      "repair": "Wait within original15s for integer port1..65535 and complete native UUID path; one connection, no retry; preserve old assertions and case definitions",
+      "status": "Reviewed correction V4 replay22PASS0FAIL0partial independently accepted; old port0 failure remains retained",
+      "production_bug_claim": false,
+      "new_unique_credit": 0,
+      "independent_execution_review_sha256": "360ea30915b62a40428092432dbc4a3468f50285c086b0b6db41f65ff59643f5"
     }
   ],
   "dependencies": [
@@ -1739,5 +1793,5 @@
     "bounded_returned_event_count": 0,
     "scope": "Service-level minute samples, not instantaneous peak/assessment-only allocation. Later samples after confirmed terminalread support bounded post-run observation; early postcompletionlabel not separately certified. No concurrentcapacity/leak/zeroOOM universal claim; frozen peak/headroom sizing gate remains uncleared."
   },
-  "updated_at_utc": "2026-10-09T07:44:37.150520+00:00"
+  "updated_at_utc": "2026-10-09T10:16:35.477365+00:00"
 }

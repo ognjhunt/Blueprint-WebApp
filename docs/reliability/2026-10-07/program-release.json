@@ -2177,7 +2177,7 @@
     },
     "original_case_credit": 0
   },
-  "updated_at_utc": "2026-10-09T07:44:37.150520+00:00",
+  "updated_at_utc": "2026-10-09T10:16:35.477365+00:00",
   "paid_provider_actor_handoff": {
     "owner": "Existing local assessment-iteration task; original normal-UI provider actor explicitly held",
     "scope": "ONE same authorized MOV production SDK/Gemini fresh baseline, then ONE actual Sol saved-evidence comparison reusing Gemini output. Serial actor; no automatic paid retry; no customer writes.",
@@ -3219,7 +3219,7 @@
     "operation_owner": "New original-job master owns shared Web operations; root retains native integration/release. Hypothesis actor owns one explicitly released short configuration/restart interval; no competing mutations.",
     "root_live_provider_or_config_or_send_effects": 0
   },
-  "current_release_checkpoint_key": "checkpoint_20261009T0729",
+  "current_release_checkpoint_key": "checkpoint_20261009T1006",
   "native2654_current_check": {
     "head": "eb4f2c8114cad789796bc1f56bb78935f0cfb53e",
     "ci": 37884251589,
@@ -3950,5 +3950,70 @@
       "new_cases_or_replay_credit": 0
     },
     "original_new_operation_stop_utc": "2026-10-09T12:24:35Z"
+  },
+  "checkpoint_20261009T0935": {
+    "recorded_at_utc": "2026-10-09T09:37:10.896089+00:00",
+    "web_exact_verified": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+    "native_candidate2271_CI": "Shard0 passed7947 official checks; actual Linux restore test is in still-running shard1. Shard3 failed3 fixture-order tests. Remaining CI must finish; no early release.",
+    "native_test_only_candidate": "a6822134cb1ca125c32a2c2e5d6170d9ab1fc12f",
+    "native_test_only_review": "actual four-line diff no material concern; exact final receipts/gates pending",
+    "current22_run": "First frozen owned-emulator run failed acceptance; detailed current trace entry retains86 raw files/consent/nested receipts. Successful UI021/UI022 scoped proof does not imply all22 pass.",
+    "code_merge_deploy_dispatch_status": "Web85744 already deployed/verified; native2655 unmerged/uninstalled/undispatched",
+    "full_goal": "PARTIAL; actual reference/human/holdout/native end-to-end constraints retained",
+    "native_exact_candidate": "a6822134cb1ca125c32a2c2e5d6170d9ab1fc12f",
+    "native_exact_candidate_CI": 37913024766,
+    "native_exact_candidate_CI_state": "pending at09:45",
+    "native_test_only_review_sha256": "80f22c735c13bfabee7a95eebd6054b5edee9ea139f55d14270149b4d6ee522a",
+    "native_root_source_artifact_validation_sha256": "7553176cb27a73b1c7224472f8b82eb3a75107c516544bbdbf434136cf786db7",
+    "fresh2271_actual_Linux_restore_test": "PASS72.929s, official shard1 artifact11607217301",
+    "fresh2271_actual_Linux_review_sha256": "11fc9212590e5508ef7206df318ad2b9ce9b04fb9068facb1cac2c87e058ad77",
+    "native_reviewed_local_gate": "9PASS38.277s/full suite still required",
+    "current22_v3_freeze_sha256": "9795933315e7c18cded5aa98e03132addbf99b08729fdcc01adbbddb477a90b2",
+    "current22_v3_review_sha256": "12372a5ae994a4fdefc215931466308438ed31f5712c38a77ce070aaa303903a",
+    "current22_second_replay": "authorized once; no result yet"
+  },
+  "checkpoint_20261009T1006": {
+    "recorded_at_utc": "2026-10-09T10:08:35.831816+00:00",
+    "web_verified_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+    "native_candidate": "a6822134cb1ca125c32a2c2e5d6170d9ab1fc12f",
+    "native_PR": 2655,
+    "CI": 37913024766,
+    "CI_state": "Impacted tests and real Linux startup SUCCESS; all four full shards running",
+    "merge_install_dispatch": false,
+    "prior2271_CI": {
+      "run": 37906702437,
+      "conclusion": "cancelled",
+      "full_shards_finished_naturally": 4,
+      "full_suite_failed_checks": 3,
+      "actual_Linux_restore": "PASS72.929s",
+      "only_cancelled_job": "late SBOM/license/provenance",
+      "cause": "Root pushed new reviewed commit before prior workflow fully ended; cancel-in-progress policy; future pushes wait for whole workflow terminal"
+    },
+    "release_schedule": "After checked merge, exact containing-main CI and mandatory production promotion may run concurrently; both must succeed and official provenance verify before native installation",
+    "current22_v3": {
+      "attempted": 22,
+      "passed": 21,
+      "failed": 1,
+      "partial": 0,
+      "results_sha256": "510739e7d48638e21f30b6044ef4427973095d51ba274d578c5480ffc102eab5",
+      "root_raw_binding_sha256": "aea20a50ca9fa03a08f3395d63377762300916eb2130fed65f692b9a8b559098"
+    },
+    "current22_v4": {
+      "status": "ACCEPTED_FROZEN22_LOCAL_EMULATOR_SCRIPTED_PROVIDER_REPLAY",
+      "observer_sha256": "6fd5696ffa5075dd07a1176ea01f7dd92fa45121fb3f9bb9988777f02c5172f9",
+      "independent_review_sha256": "b616460245b49b1382e4749722ce5bc1d315da50de18c895c49108bec73ef51c",
+      "root_freeze_sha256": "729c24342604a6a202ba731607ae0f88d8e7f479b17c060665e769a948fb58da",
+      "new_unique_credit": 0,
+      "attempted": 22,
+      "passed": 22,
+      "failed": 0,
+      "partially_executed": 0,
+      "results_sha256": "9ae2a09c5f40cf6e8137daef62d08a6f6b95f40083bbe5484bb1e026ae91d904",
+      "manifest_sha256": "9441951acf063a0116b08dcc78ce9df6d951f8802ad7c0c55f995829ef2df3a2",
+      "independent_execution_review_sha256": "360ea30915b62a40428092432dbc4a3468f50285c086b0b6db41f65ff59643f5",
+      "root_raw_validation_sha256": "bff5314deaa8221a13606c231a0875ebdef0e67a70cb91dc6b49c41232e3e38c",
+      "runtime_local_seconds": 95.35
+    },
+    "full_goal": "PARTIAL; reference truth/holdout/native joined completion unresolved"
   }
 }
