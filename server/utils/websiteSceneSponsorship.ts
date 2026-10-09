@@ -10,17 +10,22 @@ import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
+import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent, type AssessmentPreparationProposal } from "./siteAssessmentPreparation";
+import { advisoryContextDigest } from "./siteAssessmentContext";
 
 function continuationAuthority(authority: Record<string, any>, input: {
   brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
   captureId?: string; captureBinding?: Record<string, any>;
+  assessmentPreparationProposal?: AssessmentPreparationProposal;
 }) {
-  if (!input.captureBinding) return authority;
+  if (!input.captureBinding && (!input.assessmentPreparationProposal
+    || digest(authority.assessment_preparation_proposal ?? null) === digest(input.assessmentPreparationProposal))) return authority;
   const context = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record), {
     inventory: input.inventory, captureId: input.captureId, captureBinding: input.captureBinding });
   const { authority_digest: parentDigest, ...retained } = authority;
   const value = { ...retained, capture_id: context.capture_id, task_context_digest: context.context_digest,
-    continuation_parent_authority_digest: parentDigest };
+    ...(input.captureBinding ? { continuation_parent_authority_digest: parentDigest } : { assessment_parent_authority_digest: parentDigest }),
+    ...(input.assessmentPreparationProposal ? { assessment_preparation_proposal: input.assessmentPreparationProposal } : {}) };
   return { ...value, authority_digest: digest(value) };
 }
 
@@ -104,12 +109,21 @@ function developmentTestSiteAuthorized(record: Record<string, any>, contextDiges
 export function websiteSceneSponsorship(input: {
   requestId: string; brief: SiteTaskBriefRecord; record: Record<string, any>; now: number;
   inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, any>;
+  assessmentPreparationProposal?: AssessmentPreparationProposal;
 }) {
   const configured = policy();
   const rights = projectWebsiteCaptureRights(input.record);
   if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
   const context = projectWebsiteTaskContext(input.brief, rights, { inventory: input.inventory });
   if (!context.confirmed) throw new Error("website_task_context_not_confirmed");
+  const proposal = input.assessmentPreparationProposal;
+  if (proposal && (proposal.schema_version !== "site_assessment_preparation_proposal.v1"
+    || proposal.request_id !== input.requestId || proposal.capture_id !== `walkthrough-${input.requestId}`
+    || proposal.scope !== "scene_preparation_only" || proposal.physical_trial_authorized !== false
+    || proposal.robot_suitability_verified !== false || proposal.context_digest !== advisoryContextDigest(input.record, input.brief)
+    || input.record.site_advisory?.state !== "completed" || input.record.site_advisory.job_id !== proposal.job_id
+    || input.record.site_advisory.source_key !== proposal.source_key || input.record.site_advisory.context_digest !== proposal.context_digest))
+    throw new Error("website_assessment_preparation_binding_invalid");
   const managedConsent = input.record.request?.sol_agents_api_consent;
   const managedAgents = managedConsent !== undefined && managedConsent !== null;
   if (managedAgents && (managedConsent.granted !== true
@@ -141,14 +155,16 @@ export function websiteSceneSponsorship(input: {
     if (previous.expires_at_epoch <= input.now) throw new Error("consent_expired");
     return continuationAuthority(previous, input);
   }
-  // Blueprint pays for a scene only when our own screen says the site clears:
+  // The source-bound assessment may propose construction while site questions
+  // remain open. This does not update triage or qualify a robot deployment.
+  // Legacy/native intake retains its existing site screen:
   // a `not_now` site is blocked by an answer only the site can change, and a
   // `needs_conversation` site builds after the call records its outcome. The
   // refusal is typed so the Pipeline holds the capture and retries rather than
   // failing it. Checked when the grant is first made, never on an existing
   // grant, so spend already authorized still settles.
   if (input.record.site_task_triage?.disposition !== "qualified"
-    && !developmentSiteTest) {
+    && !developmentSiteTest && !input.assessmentPreparationProposal) {
     throw new Error("website_scene_site_not_qualified");
   }
   // And only once the site is saved to an account, so we know who we are
@@ -170,6 +186,7 @@ export function websiteSceneSponsorship(input: {
     schema_version: "website_scene_sponsorship.v1", sponsor: "blueprint",
     request_id: input.requestId, capture_id: context.capture_id, scene_id: context.scene_id,
     task_context_digest: context.context_digest, policy_digest: policyDigest,
+    ...(input.assessmentPreparationProposal ? { assessment_preparation_proposal: input.assessmentPreparationProposal } : {}),
     ...(developmentSiteTest ? { development_test_site: {
       claim_scope: "development_only", commercial_site_qualification: false,
       captured_room_readiness: false,
@@ -201,6 +218,7 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
   if (!db) throw new Error("website_capture_rights_store_unavailable");
   const store = db;
   const captureBinding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
+  const assessment = await loadAssessmentPreparationProposal(requestId, captureId);
   return storeTimeout(store.runTransaction(async transaction => {
     const ref = store.collection("inboundRequests").doc(requestId);
     const [request, brief, inventory] = await Promise.all([
@@ -210,13 +228,16 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
     if (!request.exists || !brief.exists) throw new Error("task_brief_missing");
     await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
     const record = request.data()!;
+    await assertAssessmentPreparationCurrent(transaction, assessment, record, {requestId, captureId});
     if (!create && !record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
     const authority = websiteSceneSponsorship({ requestId, record,
       brief: brief.data() as SiteTaskBriefRecord, inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+      ...(assessment ? { assessmentPreparationProposal: assessment.proposal } : {}),
       now: Date.now() / 1000 });
     if (!record.website_scene_sponsorship) transaction.update(ref, { website_scene_sponsorship: authority });
     return continuationAuthority(authority, { brief: brief.data() as SiteTaskBriefRecord, record,
-      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null, captureId, captureBinding });
+      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null, captureId, captureBinding,
+      ...(assessment ? { assessmentPreparationProposal: assessment.proposal } : {}) });
   }));
 }
 
@@ -440,6 +461,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
   if (!db) throw new Error("website_capture_rights_store_unavailable");
   const store = db;
   const captureBinding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
+  const assessment = await loadAssessmentPreparationProposal(requestId, captureId);
   return storeTimeout(store.runTransaction(async transaction => {
     const ref = store.collection("inboundRequests").doc(requestId);
     const [request, brief, inventory] = await Promise.all([
@@ -449,9 +471,11 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     if (!request.exists || !brief.exists) throw new Error("task_brief_missing");
     await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
     const record = request.data()!;
+    await assertAssessmentPreparationCurrent(transaction, assessment, record, {requestId, captureId});
     if (!record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
     const authority = websiteSceneSponsorship({ requestId, record,
       brief: brief.data() as SiteTaskBriefRecord, inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+      ...(assessment ? { assessmentPreparationProposal: assessment.proposal } : {}),
       captureId, captureBinding, now: Date.now() / 1000 });
     if (command.task_context_digest !== authority.task_context_digest)
       throw new Error("website_scene_sponsorship_binding_invalid");

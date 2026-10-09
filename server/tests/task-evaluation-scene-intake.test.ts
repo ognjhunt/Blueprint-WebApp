@@ -1723,6 +1723,18 @@ it("admits only explicitly authorized development surfaces without creating a se
   const fetcher = vi.fn(async (_url: any, init: any) =>
     new Response(JSON.stringify(accepted(JSON.parse(init.body)))));
   vi.stubGlobal("fetch", fetcher);
+  const rootDigest = stored()[1].root_sponsorship_digest;
+  expect(rootDigest).toBe(grant.authority_digest);
+  stored()[1].root_sponsorship_digest = sha("f");
+  await processSceneIntakeQueue();
+  expect(stored()[1].blocker).toBe("website_scene_sponsorship_binding_invalid");
+  expect(stored()[1].forward_attempt_count).toBe(0);
+  expect(fetcher).not.toHaveBeenCalled();
+  // Offline repair of the deliberately corrupted ledger restores the same
+  // original grant; no provider or second allowance is created.
+  stored()[1].root_sponsorship_digest = rootDigest;
+  stored()[1].state = "forward_pending";
+  stored()[1].next_forward_at_ms = 0;
   process.env.BLUEPRINT_WEBSITE_DEVELOPMENT_TEST_TASK_DIGESTS = "[]";
   await processSceneIntakeQueue();
   expect(stored()[1].blocker).toBe("website_scene_development_test_not_authorized");
