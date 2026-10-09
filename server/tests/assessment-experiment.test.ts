@@ -193,11 +193,20 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
     expect(factSchema.parse(clean.fact)).toEqual(fact);
     expect(clean).not.toHaveProperty("url");
     expect(clean.invalidFact.sources[0]).not.toHaveProperty("url");
-    for (const prefix of ["sk-", "AIza"]) {
-      const encodedKey = [...`${prefix}${"x".repeat(24)}`].map(char => `%${char.charCodeAt(0).toString(16)}`).join("");
-      for (const query of [encodedKey, encodedKey.replace(/%/g, "%25")]) {
-        const encodedFact = factSchema.parse({ ...fact, sources: [{ ...fact.sources[0], url: `https://example.invalid/public?q=${query}` }] });
-        expect(sanitizeExperiment(encodedFact).sources[0]).not.toHaveProperty("url");
+    // Synthetic credential shapes only; no provider-issued keys or live calls.
+    const credentials = [`sk-${"x".repeat(24)}`, `AIza${"x".repeat(24)}`,
+      ...["ghp", "gho", "ghu", "ghs", "ghr", "github_pat"].map(prefix => `${prefix}_${"x".repeat(36)}`),
+      ...["xoxb", "xoxa", "xoxp", "xoxr", "xoxs"].map(prefix => `${prefix}-${"x".repeat(24)}`),
+      ...["AKIA", "ASIA"].map(prefix => `${prefix}${"X".repeat(16)}`)];
+    for (const credential of credentials) {
+      const encodedKey = [...credential].map(char => `%${char.charCodeAt(0).toString(16)}`).join("");
+      for (const representation of [credential, encodedKey, encodedKey.replace(/%/g, "%25"), encodedKey.replace(/%/g, "%252525")]) {
+        for (const url of [`https://example.invalid/public?q=${representation}`, `https://example.invalid/public/${representation}`]) {
+          const credentialFact = factSchema.parse({ ...fact, sources: [{ ...fact.sources[0], url }, fact.sources[0]] });
+          const sanitized = sanitizeExperiment(credentialFact);
+          expect(sanitized.sources[0]).not.toHaveProperty("url");
+          expect(sanitized.sources[1]).toEqual(fact.sources[0]);
+        }
       }
     }
     expect(sanitizeExperiment({ content: { thought: true, text: "hidden" } })).toEqual({ content: null });
