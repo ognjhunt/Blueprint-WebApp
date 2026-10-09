@@ -49,7 +49,7 @@ async function account(page: Page, configured = false) {
           workspaceType: state.workspaceType,
           profile: state.profile,
           termsRequired: state.termsRequired,
-          access: { operations: true, capture: false },
+          access: { operations: false, capture: false },
         },
       });
     }
