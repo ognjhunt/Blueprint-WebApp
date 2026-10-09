@@ -1,6 +1,6 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-09T01:48:08.721505+00:00",
+  "updated_at_utc": "2026-10-09T02:56:10.169043+00:00",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 22,
@@ -2371,5 +2371,66 @@
     "repair": "Digest-bound first-admission marker on canonical customerStatements row, atomically with job, separate from bounded prompt refs; active/unavailable must not consume.",
     "provider_calls_in_reproducer": 0,
     "new_original_coverage_credit": 0
+  },
+  "current_offline_300_v2": {
+    "run_id": "current300-v2-20261009T023313Z",
+    "source_baseline": "2e9236963470472996dfc4a2993120d15506a65c",
+    "test_source_sha256": "9e6254a8d0a9e76d2504a425c950aebd8d7738452edfbf63340051d2d6ea3132",
+    "catalog_sha256": "52c53b3a70d40b16091d834d200562354be7a03913c963a51d970e9d04642032",
+    "correction_sha256": "479d9a6ca3454b322d9c05128a44734986f4ac9437a7d0394c356598d1ca8959",
+    "independent_freeze_ack_sha256": "a8eb732c3dee41eb240a3624d5760371b66c2de0beb3e9794bae67db7e97cf7c",
+    "results_sha256": "bb2d6bb159ca7e92f4f3e3a04161e97a014cdf4cdaebd8839fdda7dba7ce8acf",
+    "manifest_sha256": "57362b795208baad15b581379d34f6b83eb0b09a4d6bdfbec6770c9094944a72",
+    "independent_results_review_sha256": "5afb811f181eb3d85fa10b49f674026b1ab4926d5b5d0866e15822b11cf7ecb3",
+    "counts": {
+      "generated": 300,
+      "deduplicated": 300,
+      "attempted": 300,
+      "passed": 300,
+      "failed": 0,
+      "skipped": 0,
+      "blocked": 0,
+      "partially_executed": 0
+    },
+    "families": 10,
+    "per_family_passed": 30,
+    "supporting_assertions_passed": 376,
+    "elapsed_seconds": 44.301,
+    "scored_executions": 1,
+    "runtime": "Node22.21.1/Vitest3.2.7",
+    "layer": "Fake component/business handlers, storage/providers/notification sinks; no browser/emulator/live providers",
+    "new_unique_coverage_credit": 0,
+    "prior_partial": {
+      "results_sha256": "69305151307d85fe1d87879e58464b40ca6c9507d8511151be45472a7191a721",
+      "passed": 287,
+      "blocked_unattempted": 13
+    },
+    "preserved_setup_failures": "Development3pass/1fixture-observer fail; ENOSPC before launch; collector hash-field KeyError repaired mapping only on same raw records.",
+    "test_PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/994",
+    "test_commit": "6e0dfb6e1229bde89568087576b6cce69da0cce6",
+    "native_CI": 37876501282,
+    "native_state": "pending"
+  },
+  "actual_saved_owner_view_2e": {
+    "checks_passed": 35,
+    "checks_failed": 0,
+    "receipt_sha256": "6ae7f140e5112dba48ce3d31efc00e4d305c3e10d6240d3996f0451366896895",
+    "independent_review_sha256": "0ff860ca55ca7699131305d26e54834904f7cdffb64cf356c3d9981129937261",
+    "provider_calls": 0,
+    "new_unique_credit": 0,
+    "claim_ceiling": "Original accepted189 API/DOM/PNG/parity; no new perception, email or downstream dispatch"
+  },
+  "local_actual_assessment_run_totals_current6": {
+    "runs": 6,
+    "openai_recorded_calls": 38,
+    "gemini_recorded_calls": 3,
+    "recorded_calls": 41,
+    "known_usage_estimate_usd": 0.86204075,
+    "sixth_receipt_sha256": "e2ef4a41f6cdfe23bb1baf8bb3502f57b14d4c554de460f248362f6e73c22d44",
+    "sixth_openai": 5,
+    "sixth_gemini": 0,
+    "sixth_usage_estimate_usd": 0.20981,
+    "sixth_rounded_micro_usd": 209811,
+    "claim_ceiling": "Six correlated local runs of one source; separate from production eleven-call run and unknown historical charges. No invoice/perception certification."
   }
 }

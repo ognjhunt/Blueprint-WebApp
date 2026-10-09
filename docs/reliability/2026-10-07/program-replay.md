@@ -198,3 +198,15 @@ Eleven preserved smoke files and their hashes are at private `/Users/nijelhunt_1
 ## Current retention correction
 
 The 2026-10-09 preservation audit retained the frozen catalogs, source pins, original author result records and accepted189 live receipts outside worktrees. The exact final8b integrated300 JSON and original21/final22 coordinator browser result hashes were not located in nine checked output roots. Historical execution summaries are retained in company Git, but they cannot recreate missing raw traces. Use a fresh owned output directory/run ID for any replay, preserve its actual source and result hashes, and keep it separate from the original count and failures. The compact private audit and copied-file index are in `/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/evidence-preservation/`; see the current trace-index record for its hash and limits.
+
+## Current 300-case v2 replay
+
+The one scored current v2 execution passed 300 distinct cases, 30 in each of ten families, with 376 underlying assertions. The 13 explicitly versioned intake definitions replace obsolete observers; the other 287 case definitions and hashes remain unchanged. The prior 287-pass/13-blocked run and development fixture failure are retained. They are not additional independent cases.
+
+The retained private pinned replay helper requires checkout `6e0dfb6e1229bde89568087576b6cce69da0cce6`, the existing Node 22.21.1 dependencies, unchanged test hash, original source pins, and the reviewed private catalog hash. The helper binds its checkout to `/Users/nijelhunt_1/.codex/worktrees/reliability-customer-assessment-basics-20261008/Blueprint-WebApp`; preserve its owner and verify that exact checkout has the required HEAD. A different disposable checkout requires an explicitly recorded helper path correction, not an unrecorded substitution. Invoke:
+
+```bash
+python3 /Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/current-offline-replay/intake-current.v2/replay_current300_pinned6e.py
+```
+
+Helper SHA256: `b097b1129484267e8568ff645ea2d7cbf9a2c674c031f010921efe7b582a0be8`; catalog SHA256: `52c53b3a70d40b16091d834d200562354be7a03913c963a51d970e9d04642032`. It checks the exact source before running one existing Vitest child in a clean environment with local bootstrap disabled, then maps actual results to semantic case IDs. It writes new private outputs and never overwrites the scored receipt. No credentials, emulator, browser, model dispatch or external notification are used. Preparation and review of this portable helper are not another executed run. Retained scored result SHA256: `bb2d6bb159ca7e92f4f3e3a04161e97a014cdf4cdaebd8839fdda7dba7ce8acf`; independent mapping review SHA256: `5afb811f181eb3d85fa10b49f674026b1ab4926d5b5d0866e15822b11cf7ecb3`. Access to the authorized private catalog and unexpired retained artifacts is required; do not publish those raw files in CI.

@@ -1,5 +1,33 @@
 # Customer reliability program, frozen charter v1
 
+## Current-case correction, frozen 2026-10-09 02:26 UTC
+
+The original 300-case catalog and its historical results remain immutable. A
+fresh replay at deployed `2e923696` passed 287 cases and blocked 13 outdated
+intake observers; the blocked cases were not attempted and are not passes.
+Current merged country-resolution and recording-grant behavior is the policy
+being evaluated, without asserting an unavailable historical human approval.
+
+The independently checked `intake-current.v2` scoring input is frozen before
+its scored execution: catalog SHA-256
+`52c53b3a70d40b16091d834d200562354be7a03913c963a51d970e9d04642032`,
+correction SHA-256
+`479d9a6ca3454b322d9c05128a44734986f4ac9437a7d0394c356598d1ca8959`.
+It preserves all 287 unchanged definitions and explicitly supersedes 13
+definitions with versioned identifiers and meaningful expectations. The
+denominator remains 300 unique cases, 30 in each of ten families. Old and new
+versions are never added together as independent coverage.
+
+Cases 016, 021 and 029 require, respectively, denied place-details recovery
+through ordinary intake; missing recording grant despite a selected valid
+file; and an otherwise valid video-mode intake missing its file. They must
+check persisted pending-grant state and network effects where applicable.
+Case 028 strengthens the same positive grant assertion and terms version;
+that assertion creates no new independent case. Unscored fixture-development
+failures are retained separately. The independent exact-file freeze ACK
+accepts expectations only, not execution results. All original coverage,
+severity, quality, privacy and release thresholds below remain unchanged.
+
 Run: `reliability-program-20261007`. Owner/integration/release: Codex coordinator,
 chat `01a119be-86a2-7db2-b469-b8e1f6b11e4d`. Kickoff 2026-10-08 04:21:46 UTC
 (October 7, 11:21 PM America/Chicago). Initial closeout 08:21:46 UTC
@@ -221,3 +249,9 @@ Presentation observer correction, recorded2026-10-08T23:20:00Z: guarded deployed
 ### Customer-basics clarification before final slice evaluation (2026-10-09)
 
 The current owner relayed direct human direction to keep the full internal analysis internal. The earlier expandable-analysis draft is withdrawn and remains historical. The corrected existing customer DTO must exclude analysis paragraphs, retain admitted safe questions/uncertainty and proposed next step, and preserve the canonical report and current authority guards. Read-only exact durable records have no concise task/workflow title; do not invent one, extract a fabricated summary or require a new field. Show existing authorized saved-video/job identity with a generic heading where available. Specific task-title visibility and the existing one-of-three question admission limitation stay recorded P2. These explicit scope/expectation corrections precede final browser/production evaluation; they do not change original case counts, reference-quality floors or severity thresholds.
+
+## Explicit decision-basis v4 correction (recorded 2026-10-09 03:08 UTC)
+
+The original compatibility target was unsafe: a legacy rich-source alias could preserve a named approval after a new consequential unknown interpretation changed the canonical packet while leaving the public projection unchanged. The independent failing replay remains retained. Before v4 execution, acceptance correction `d076db1a9c5f3c927f9c4bf0cfb84c015327a0d72e605ff442ec5865c58bb2be` froze the replacement rule: match only the current private packet SHA and current renderer qualification SHA; accept no historical or reduced-projection alias. Unverifiable older approvals are withheld only where a named review is required. This deliberately abandons the original legacy-compatibility objective; it does not create a blanket customer-learning gate. Root records that already-frozen correction here without backdating this entry.
+
+137 focused checks and six independent actual-function checks passed on the v4 source. Required CI initially found one obsolete joined-reader fixture; that failure is preserved. The fixture retains its truthy assessment assertion and additionally excludes private decision metadata. Current exact-head required CI passed before protected merge. These checks do not establish deployed workflow or semantic video accuracy.

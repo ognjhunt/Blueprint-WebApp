@@ -1054,7 +1054,7 @@
       "invariant": "Customer progress and notification claims reflect demonstrated behavior.",
       "root_cause": "Shared copy promises email for every job event and says no need to return, despite no demonstrated advisory-ready notification enqueue/delivery.",
       "repair_scope": "Separate one-component wording repair to factual job-page updates; no new delivery infrastructure, customer email or shared release gate.",
-      "state": "protected_merged_paired_source_deployed_current_customer_DOM_readback_pending",
+      "state": "deployed_actual_saved_owner_DOM_verified",
       "before_evidence_sha256": "2f3043f687855431e85b93e2f980e910dc7012a1c0546f08e7aa3499efca44f8",
       "live_notice_receipt_sha256": "f65d510eb0212e7d6cc47dbdfad0feb1ef04ea84a30896c5549f515e23b6fc35",
       "new_unique_case_credit": 0,
@@ -1065,7 +1065,8 @@
       "main_CI": 37868200057,
       "actual_deploy": 37869026807,
       "release_receipt_sha256": "8945d573adcd218d1953643965370944fea56bd7223fcd4286425d082fbe3f72",
-      "delivery_proof": false
+      "delivery_proof": false,
+      "owner_view_receipt_sha256": "6ae7f140e5112dba48ce3d31efc00e4d305c3e10d6240d3996f0451366896895"
     },
     {
       "id": "REL-QUESTION-ASSERTION-TAIL-20261009",
@@ -1077,9 +1078,9 @@
       "root_cause": "Question form and assertion-keyword checks do not structurally validate coordinated declarations or plain capability/commitment auxiliaries.",
       "invariant": "Unanswered question labels cannot launder unsupported capability or booked-action assertions.",
       "evidence_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/question-diagnosis",
-      "state": "protected_merged_main_CI_and_true_automatic_paired_deployment_pending",
+      "state": "deployed_independent_source_metadata_and_saved_owner_view_verified",
       "repair_scope": "Question-only conservative grammar validation, no global Will/comma widening; safe admitted question remains, other presentation omissions tracked P2. No source/access/consent/DTO/canonical packet changes.",
-      "readiness_effect": "Affected semantic presentation gate is not clear. No assessment-quality beta recommendation; engineering privacy/copy repairs remain separately reviewable.",
+      "readiness_effect": "Question guard source and bounded same-customer projection verified; no model truth certification.",
       "new_original_coverage_credit": 0,
       "category": "semantic_projection",
       "classification_reason": "Deterministic unsupported capability/commitment can reach the customer projection; potentially consequential despite no observed leakage in accepted live case.",
@@ -1088,34 +1089,57 @@
       "independent_review_commit": "b87e800a",
       "required_CI": 37869364851,
       "receipt_sha256": "1b783b1fa0cc84c76934608a2fe8a020a9b8defbff94988c5ef8e8f8ce0baa57",
-      "merged_sha": "2e9236963470472996dfc4a2993120d15506a65c"
+      "merged_sha": "2e9236963470472996dfc4a2993120d15506a65c",
+      "main_CI": 37871423876,
+      "actual_deploy": 37871703651
     },
     {
       "id": "REL-DECISION-PRESENTATION-DIGEST-20261009",
       "severity": "P1",
       "owner": "coordinator/customer_basics",
       "invariant": "Presentation-only privacy changes cannot lose current named decisions; real source/rights/evidence changes still invalidate.",
-      "state": "synthetic_compatibility_failure_reproduced_scoped_repair_in_progress",
+      "state": "v4_strong_primary_independently_approved_fixture_followup_current_CI_pending",
       "actual_observation": "Reviewed v1 digest includes customer presentation DTO; privacy-only redaction hides a prior named decision on unchanged canonical evidence.",
       "scope": "Pure exact-function/schema/renderer replay;1 compatibility failure +11 invalidation controls; noDB/provider/customer mutation.",
       "actual_customer_incident_observed": false,
       "receipt_sha256": "3212ebad5eec3817fc157444bad8d8d3eba0a450cddd09f33ab44f575f8e2e90",
-      "repair_scope": "Same fenced private reader, stable server-only decision basis plus bounded exact historical basis matches; preserve public redaction and all current rights/source/run/packet/context checks. No approval migration.",
-      "new_original_coverage_credit": 0
+      "repair_scope": "Exact private packet/current qualification primary only; legacy aliases and historical presentation fallback deliberately removed after reproduced stale-approval failures.",
+      "new_original_coverage_credit": 0,
+      "approved_head": "b9bdf34f2e505a9b20fc4ddd4a55f9b03d90ca25",
+      "current_fixture_head": "80e26f3b851cf8d178d58de8e047dcc499cbeed7",
+      "source_review_sha256": "97a8f66835198b5ce6f1e2fa90f5b38d49eb676d042daff91fbacc7ad72e12bc",
+      "scope_limit": "Older reviews without current evidence identity withheld when required; no automatic approvals/migration/global learning gate."
     },
     {
       "id": "REL-REPLY-ADMISSION-ROLLOVER-20261009",
       "severity": "P2",
       "owner": "CLI reply-continuation owner",
       "invariant": "Unchanged replies cannot create duplicate logical assessments or restore older completed pointers.",
-      "state": "independent_source_clearance_withheld_repair_in_progress",
+      "state": "durable_admission_and_dependency_integration_independently_approved_current_CI_pending",
       "actual_observation": "Rolling last20 prompt references evict admitted reply identities; unchanged A11/B11 refresh can enqueue again or restore an older pointer.",
       "scope": "Independent exact-algorithm isolated replay; author subsequently reproduced actual queue refresh returning queued with saved=0. Author fail-first receipt not yet indexed by root.",
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/983",
       "reviewed_head": "6294199ce4007a03a1882b2861bdc93bd747f2d9",
       "repair": "Digest-bound first-admission marker on canonical customerStatements row, atomically with job, separate from bounded prompt refs; active/unavailable must not consume.",
-      "readiness_effect": "Source release withheld despite green old CI; queue fixture impact and repair require exact review/receipt.",
-      "new_original_coverage_credit": 0
+      "readiness_effect": "Source repair approved; native exact-head checks and deployment still required.",
+      "new_original_coverage_credit": 0,
+      "current_head": "83c4410fce1f4c963dfd241f04c1d4076c5e4066",
+      "independent_passed": 37,
+      "parent_passed": 137
+    },
+    {
+      "id": "REL-FACT-QUALIFICATION-20261009",
+      "severity": "P1",
+      "owner": "CLI assessment owner/coordinator",
+      "invariant": "A selected capability statement retains status, grade, limits, conflicts and source qualification.",
+      "root_cause": "Scalar facts.0.statement binding discarded containing qualification and could promote unsupported facts.",
+      "actual_observation": "Actual7 pre-fix failures/17passes; post-fix102 focused checks and independent review.",
+      "state": "protected_merged_paired_live_source_and_health_verified",
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/992",
+      "merge_sha": "1a23799fe61aebfa80132e206306aec635bd3c8b",
+      "source_review_sha256": "ee6905da2434ebb07a4cd58bc08995a4118fab69a659581d43298eda2f1d7976",
+      "actual_live_fabrication_observed": false,
+      "limitation": "Sanitized local replay missing source URLs cannot prove original production fact invalid; no new perception run."
     }
   ],
   "dependencies": [
