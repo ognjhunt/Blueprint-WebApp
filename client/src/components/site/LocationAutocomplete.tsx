@@ -242,6 +242,8 @@ export function LocationAutocomplete(props: {
   function useMyLocation() {
     if (!navigator.geolocation) { setLocationStatus("unavailable"); return; }
     const generation = ++locationGeneration.current;
+    // Clicking after a scroll is a fresh request even if the input kept focus.
+    allowRefresh.current = true;
     inputRef.current?.focus();
     setLocationStatus("loading");
     // Ask only after this click. Keep a rounded position in memory, never in
@@ -265,6 +267,7 @@ export function LocationAutocomplete(props: {
   function clearMyLocation() {
     locationGeneration.current += 1;
     nearbyOrigin.current = null;
+    allowRefresh.current = true;
     setLocationStatus("idle");
     refreshSuggestions();
   }

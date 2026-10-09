@@ -459,6 +459,25 @@ describe("the configured browser Maps key", () => {
       locationBias: { west: -125, east: -66, south: 24, north: 49 } });
   });
 
+  it("refreshes after a location click even when scrolling dismissed options but kept input focus", async () => {
+    const { fetchAutocompleteSuggestions } = googleFixture("1005 Crete Street, Durham, NC");
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 35.994, longitude: -78.899 } } as GeolocationPosition) } });
+    const input = field();
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: "1005 Crete" } });
+    await screen.findByRole("option");
+    fireEvent.scroll(window);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(input);
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    await screen.findByRole("option");
+    expect(fetchAutocompleteSuggestions).toHaveBeenLastCalledWith(expect.objectContaining({ origin: { lat: 35.994, lng: -78.899 } }));
+    fireEvent.scroll(window);
+    fireEvent.click(screen.getByRole("button", { name: "Clear location preference" }));
+    await screen.findByRole("option");
+    expect(fetchAutocompleteSuggestions).toHaveBeenLastCalledWith(expect.not.objectContaining({ origin: expect.anything() }));
+  });
+
   it.each([1, 2, 3])("leaves typing and suggestions usable when location fails (%i)", async (code) => {
     const { fetchAutocompleteSuggestions } = googleFixture("1005 Crete Street, Durham, NC");
     const getCurrentPosition = vi.fn((_success, error) => error({ code }));
