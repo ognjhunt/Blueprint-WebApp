@@ -38,6 +38,7 @@ import type { AgentResult, NormalizedAgentTask } from "../types";
 import { getCompanyHistoryAccess, openAiResponsesHistoryTools, runOperatorTool } from "../operator-tools";
 import { digest } from "../../research-learning/contract";
 import { outputCorrectionEvidence, outputCorrectionPrompt, usageCount } from "./output-correction";
+import { fetchPublicVideo } from "./public-video-fetch";
 
 /** Bounds what the worker holds in memory; the Files API itself takes far more. */
 const MAX_VIDEO_BYTES = 64 * 1024 * 1024;
@@ -359,7 +360,9 @@ function videoContentType(served: string | null, url: URL): string {
  */
 export async function openVideo(
   rawUrl: string,
-  fetcher: typeof fetch = fetch,
+  fetcher: typeof fetch = (input, init) => fetchPublicVideo(String(input), {
+    signal: init?.signal, validateUrl: assertFetchableVideoUrl,
+  }),
 ): Promise<VideoSource & { receipt: () => { bytes: number; sha256: string } }> {
   const url = assertFetchableVideoUrl(rawUrl);
   const controller = new AbortController();
@@ -468,6 +471,8 @@ export async function openVideo(
 
     return { body: bytes, byteLength: bytes.byteLength, contentType, receipt };
   } catch (error) {
+    // Header/type rejection must stop the owned transport as well as reads.
+    controller.abort();
     if (error instanceof GeminiVideoError) throw error;
     if (error instanceof Error && error.name === "AbortError") {
       throw new GeminiVideoError("video_fetch_timeout", "Task video link timed out");
