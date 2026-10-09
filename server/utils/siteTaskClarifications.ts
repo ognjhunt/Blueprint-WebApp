@@ -1,6 +1,6 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { humanDecisionDigest } from "./human-reply-admission";
-import { loadCurrentSiteAdvisory } from "./siteAssessmentPublic";
+import { loadCurrentSiteAssessmentView } from "./siteAssessmentPublic";
 import { projectCurrentSiteJobDecision } from "./siteJobDecision";
 import { gateFields } from "../../client/src/data/siteTaskQualification";
 
@@ -15,8 +15,8 @@ export async function readSiteClarification(requestId: string) {
     db.collection("siteTaskBriefs").doc(requestId).get()]);
   if (!request.exists || !brief.exists) throw new Error("clarification_missing");
   const value = request.data()!;
-  const assessment = await loadCurrentSiteAdvisory(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: value.account_owner_uid ?? null });
-  const decision = projectCurrentSiteJobDecision(value, brief.data(), assessment);
+  const assessment = await loadCurrentSiteAssessmentView(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: value.account_owner_uid ?? null });
+  const decision = projectCurrentSiteJobDecision(value, brief.data(), assessment.decisionAssessment, assessment.compatibleDecisionAssessments);
   return { revision: clarificationRevision(brief.data(), value),
     questions: decision?.question ? [`${decision.question.text} — ${decision.question.reason}`] : [...(value.site_task_triage?.open_questions || []),
       ...(value.site_task_triage?.unanswered_field_ids || []).flatMap((id: string) => {
@@ -36,7 +36,7 @@ export async function submitSiteClarification(requestId: string, revision: strin
   const ref = db.collection("inboundRequests").doc(requestId);
   const id = humanDecisionDigest({ requestId, revision, explanation: explanation.trim() });
   const currentOwner = (await ref.get()).data()?.account_owner_uid ?? null;
-  const assessment = await loadCurrentSiteAdvisory(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: currentOwner });
+  const assessment = await loadCurrentSiteAssessmentView(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: currentOwner });
   return db.runTransaction(async tx => {
     const responseRef = ref.collection("clarifications").doc(id);
     const [request, brief, prior] = await Promise.all([tx.get(ref),
@@ -44,7 +44,7 @@ export async function submitSiteClarification(requestId: string, revision: strin
     if (prior.exists) return { id, state: prior.data()!.state };
     const value = request.data();
     if (!value || !brief.exists || clarificationRevision(brief.data(), value) !== revision) throw new Error("clarification_revision_changed");
-    if (value.site_task_triage?.disposition !== "needs_conversation" && !projectCurrentSiteJobDecision(value, brief.data(), assessment)?.question) throw new Error("clarification_not_needed");
+    if (value.site_task_triage?.disposition !== "needs_conversation" && !projectCurrentSiteJobDecision(value, brief.data(), assessment.decisionAssessment, assessment.compatibleDecisionAssessments)?.question) throw new Error("clarification_not_needed");
     const response = { id, revision, explanation: explanation.trim(), state: "review_required",
       submitted_by: "owner_link", submitted_at: new Date().toISOString() };
     tx.create(responseRef, response);
