@@ -2,7 +2,7 @@ import { authAdmin, dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { isEmailSuppressed, recordEmailSuppression, buildUnsubscribeUrl } from "../utils/email-suppression";
 import { COMMUNICATIONS_HYPOTHESIS_GUIDANCE, COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_WRITING_GUIDANCE } from "./communications-instructions";
-import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_WRITING_QUALITY_VERSION, communicationsWritingSignals } from "./communications-outreach-quality";
+import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_FIRST_CONTACT_CONTEXT_GUIDANCE, LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_WRITING_QUALITY_VERSION, communicationsWritingSignals } from "./communications-outreach-quality";
 import { COMMUNICATIONS_HYPOTHESIS_PROFILE, COMMUNICATIONS_PERSONALIZED_PROFILE } from "./communications-saved-agent";
 import { COMMUNICATIONS_FRAMING_VERSION, communicationsLaunchFraming, communicationsFramingVersion,
   type CommunicationsFramingVersion } from "./communications-launch-framing";
@@ -333,14 +333,16 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       const sameRunDraftSave = deps.prepareDraftSave ? await deps.prepareDraftSave() : undefined;
       const founderGuidance = claimed.checkpoint.framingVersion && claimed.checkpoint.framingVersion !== COMMUNICATIONS_FRAMING_VERSION
         ? LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE : COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE;
+      const firstContactContext = job.intent === "outreach" && founderGuidance === COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE
+        ? `\n${COMMUNICATIONS_FIRST_CONTACT_CONTEXT_GUIDANCE}` : "";
       claimed.checkpoint = { ...claimed.checkpoint, executionWindow,
         ...(founderGuidance === COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE ? { writingProfile: COMMUNICATIONS_PERSONALIZED_PROFILE } : {}),
-        draftWritingGuidance: `${founderGuidance === COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE ? COMMUNICATIONS_WRITING_GUIDANCE.replace("The server adds the company identity, homepage and reply opt-out footer;", "The host renders the approved founder signature;") : COMMUNICATIONS_WRITING_GUIDANCE}\n${founderGuidance}`,
+        draftWritingGuidance: `${founderGuidance === COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE ? COMMUNICATIONS_WRITING_GUIDANCE.replace("The server adds the company identity, homepage and reply opt-out footer;", "The host renders the approved founder signature;") : COMMUNICATIONS_WRITING_GUIDANCE}\n${founderGuidance}${firstContactContext}`,
         unsentDraftFooterProfile: "founder-footerless-v2",
         framingVersion: communicationsFramingVersion(claimed.checkpoint.framingVersion) ?? COMMUNICATIONS_FRAMING_VERSION,
         ...(replyFollowup ? { replyFollowup } : {}),
         ...(evaluationReadiness ? { evaluationReadiness } : {}),
-        ...(sameRunDraftSave ? { sameRunDraftSave, unsentDraftFooterProfile: "founder-footerless-v2", draftWritingGuidance: `${founderGuidance === COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE ? COMMUNICATIONS_WRITING_GUIDANCE.replace("The server adds the company identity, homepage and reply opt-out footer;", "The host renders the approved founder signature;") : COMMUNICATIONS_WRITING_GUIDANCE}\n${founderGuidance}\nThis authorized run saves an eligible unsent Gmail draft immediately through the host's save_unsent_draft action. Return the authored plain draft; do not invent a Gmail ID or call a raw mail mutation. End the signature with Nijel Hunt followed by Blueprint on its own line. The host renders the approved founder block with separator, the existing linked logo, Nijel Hunt, Founder at Blueprint and Austin, TX; logo and company link directly to https://tryblueprint.io/ without a separate website line, tracking, a button, extra CTA or model-authored HTML. Success requires the host's actual unsent draft readback; sending still requires its separate authority.` } : {}),
+        ...(sameRunDraftSave ? { sameRunDraftSave, unsentDraftFooterProfile: "founder-footerless-v2", draftWritingGuidance: `${founderGuidance === COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE ? COMMUNICATIONS_WRITING_GUIDANCE.replace("The server adds the company identity, homepage and reply opt-out footer;", "The host renders the approved founder signature;") : COMMUNICATIONS_WRITING_GUIDANCE}\n${founderGuidance}${firstContactContext}\nThis authorized run saves an eligible unsent Gmail draft immediately through the host's save_unsent_draft action. Return the authored plain draft; do not invent a Gmail ID or call a raw mail mutation. End the signature with Nijel Hunt followed by Blueprint on its own line. The host renders the approved founder block with separator, the existing linked logo, Nijel Hunt, Founder at Blueprint and Austin, TX; logo and company link directly to https://tryblueprint.io/ without a separate website line, tracking, a button, extra CTA or model-authored HTML. Success requires the host's actual unsent draft readback; sending still requires its separate authority.` } : {}),
         ...(hypothesis ? { draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } : {}) };
       await deps.store.update(jobId, { checkpoint: claimed.checkpoint });
     }
