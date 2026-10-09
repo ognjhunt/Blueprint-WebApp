@@ -10,10 +10,12 @@ export function siteJobDecisionSourceDigest(record: Record<string, any>, brief: 
     proposal: record.pilot_recommendation ?? null });
 }
 
-export function projectCurrentSiteJobDecision(record: Record<string, any>, brief: unknown, assessment: unknown) {
+export function projectCurrentSiteJobDecision(record: Record<string, any>, brief: unknown, assessment: unknown, _compatibleAssessments: readonly unknown[] = []) {
   const decision = record.customer_decision;
   if (decision?.schemaVersion !== "site_job_decision.v1" || typeof decision.reviewedBy !== "string"
     || !decision.reviewedBy || !Number.isFinite(Date.parse(decision.reviewedAtIso))
+    // A reduced presentation hash is not approval authority. Keep the fourth
+    // argument source-compatible, but never treat a supplied alias as authority.
     || decision.sourceDigest !== siteJobDecisionSourceDigest(record, brief, assessment)) return null;
   return { recommendation: decision.recommendation, why: decision.why,
     decisiveUncertainty: decision.decisiveUncertainty, nextAction: decision.nextAction,

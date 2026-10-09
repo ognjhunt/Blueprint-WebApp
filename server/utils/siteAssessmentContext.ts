@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { assessmentCustomerStatementRefs } from './siteCustomerStatements';
 const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 /** Relevant request and optional owner context. Timestamps and inferred triage are not new facts. */
 export function advisoryContextDigest(record: Record<string, any>, brief: Record<string, any> | null): string {
@@ -9,7 +10,10 @@ export function advisoryContextDigest(record: Record<string, any>, brief: Record
   const owner = brief === null ? null : Object.fromEntries([
     'operatorTaskDetails', 'successCriteria', 'operatorAnswers',
   ].map(key => [key, brief[key] ?? null]));
-  return digest({ schema: 'site_assessment_context.v1', request, owner });
+  const customerStatements = assessmentCustomerStatementRefs(record);
+  // Preserve identities of existing jobs without newly admitted email evidence.
+  return digest({ schema: 'site_assessment_context.v1', request, owner,
+    ...(customerStatements.length ? { customerStatements } : {}) });
 }
 export function advisoryJobId(requestId: string, sourceKey: string, contextDigest: string): string {
   return `advisory-${digest({ schema: 'site_assessment_job.v1', requestId, sourceKey, contextDigest })}`;

@@ -4,12 +4,13 @@ import { createHash } from "node:crypto";
 import OpenAI from "openai";
 import { OpenAIProvider } from "@openai/agents";
 import { dbAdmin as db, storageAdmin } from "../../../client/src/lib/firebaseAdmin";
-import { decryptInboundRequestForAdmin, isEncryptedField } from "../../utils/field-encryption";
+import { decryptInboundRequestForAdmin, decryptFieldValue, isEncryptedField } from "../../utils/field-encryption";
 import { browserPendingDecisionKey, loadBrowserPending, type BrowserPending } from "../../utils/websiteBrowserPending";
 import { projectWebsiteCaptureRights } from "../../utils/websiteTaskContext";
 import { toSiteRequirement } from "../../utils/siteMatchRun";
 import { getBrief } from "../../utils/siteTaskBrief";
 import { advisoryContextDigest, assertAdvisoryJobBinding } from "../../utils/siteAssessmentContext";
+import { assessmentCustomerStatementRefs, loadAssessmentCustomerStatements } from "../../utils/siteCustomerStatements";
 import { verifiedPendingManifest, verifiedPendingMarker } from "../../utils/websiteBrowserUploadStatus";
 import { isSiteVideoEvidenceEnabled } from "../../config/env";
 import { hydrateAgentEvidence, requiresMutationReconciliation } from "../private-evidence";
@@ -34,6 +35,7 @@ const assessmentErrorCodes = new Set([
   "site_assessment_source_not_admitted", "site_assessment_lane_unavailable", "site_assessment_runtime_not_admitted",
   "site_assessment_video_read_not_allowed", "site_assessment_provider_domain_not_allowed", "site_assessment_request_not_found",
   "site_assessment_browser_capture_required", "site_assessment_source_changed", "site_assessment_context_changed",
+  "site_assessment_customer_statement_binding_invalid",
   "site_assessment_capture_size_invalid", "site_assessment_capture_identity_changed", "site_assessment_capture_size_changed",
   "site_assessment_current_source_unverified", "site_assessment_manifest_changed", "site_assessment_advisory_binding_changed",
   "site_assessment_conversation_binding_invalid", "site_assessment_conversation_request_mismatch", "site_assessment_video_evidence_missing",
@@ -196,6 +198,11 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       await assertCurrentSession(currentPending);
       const currentBrief = await getBrief(input.context.request_id);
       if (advisoryContextDigest(current, currentBrief) !== contextDigest) throw new Error("site_assessment_context_changed");
+      if (assessmentCustomerStatementRefs(current).length) {
+        const recipient = await decryptFieldValue(current.contact?.email ?? "");
+        if (typeof recipient !== "string") throw new Error("site_assessment_customer_statement_binding_invalid");
+        await loadAssessmentCustomerStatements(db!, input.context.request_id, current, recipient);
+      }
       bindBrowserAssessmentSource(input.context.request_id, current, currentPending, JSON.parse(manifestBytes.body.toString("utf8")));
       if (!(await verifiedPendingManifest(currentPending)) || !(await verifiedPendingMarker(currentPending))) {
         throw new Error("site_assessment_current_source_unverified");
@@ -215,6 +222,7 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       if (brief?.[field]) messages.push({ id: `brief:${field}`, text: JSON.stringify({ basis: "owner_stated_unverified", [field]: brief[field] }),
         source_ref: `siteTaskBriefs/${input.context.request_id}/${field}` });
     }
+    messages.push(...await loadAssessmentCustomerStatements(db, input.context.request_id, raw, request.contact.email));
     if (task.resume_from_run_id) {
       const priorRef = db.collection("agentRuns").doc(task.resume_from_run_id), prior = (await priorRef.get()).data();
       if (!prior || prior.session_id !== task.session_id || prior.task_kind !== "site_assessment" || prior.status !== "completed") throw new Error("site_assessment_conversation_binding_invalid");
