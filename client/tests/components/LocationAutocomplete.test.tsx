@@ -514,6 +514,21 @@ describe("the configured browser Maps key", () => {
     expect(fetchMock.mock.calls[0][0]).toContain("photon.komoot.io/reverse?");
   });
 
+  it.each([true, false])("fills address parts instead of the closest bus stop name (numbered address available: %s)", async (numbered) => {
+    googleFixture("Durham, NC");
+    const candidates = [
+      { name: "E Main St at Roxboro St (WB)", street: "East Main Street", city: "Durham", countrycode: "US" },
+      { name: "East Main Street", type: "street", city: "Durham", countrycode: "US" },
+      ...(numbered ? [{ name: "Nearby business", housenumber: "201", street: "East Main Street", city: "Durham", countrycode: "US" }] : []),
+    ];
+    fetchMock.mockResolvedValue(photonRaw(candidates));
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 35.9940321, longitude: -78.8986192 } } as GeolocationPosition) } });
+    const input = field();
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    await waitFor(() => expect(input).toHaveValue(`${numbered ? "201 " : ""}East Main Street, Durham`));
+    expect(input.value).not.toMatch(/bus|business|WB/i);
+  });
+
   it("falls back from a stalled Google reverse lookup and ignores its later answer", async () => {
     vi.useFakeTimers();
     googleFixture("Durham, NC");

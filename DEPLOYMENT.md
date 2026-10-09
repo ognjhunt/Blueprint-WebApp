@@ -175,7 +175,9 @@ extra per-option details requests are made for ranking.
 “Use my location” requests browser permission only after a click and fills the
 current address, with structured country data. It uses the browser Google
 geocoder when available (the browser key must allow Geocoding API), with the
-existing keyless Photon reverse lookup as a bounded fallback. The precise
+existing keyless Photon reverse lookup as a bounded fallback. The
+fallback lookup prefers a numbered street address within 200 m, then a street
+or city; it omits nearby business/transit stop names. The precise
 position is sent only for this lookup; the editable address can be saved in the
 form draft as usual. Later suggestions use a 50 km bias with coordinates rounded
 to three decimal places and kept only in component memory. Coordinates are
