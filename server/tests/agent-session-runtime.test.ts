@@ -85,6 +85,12 @@ const resolveStartupContext = vi.hoisted(() =>
 vi.mock("../agents/adapters/openai-responses", () => ({
   runOpenAIResponsesTask,
 }));
+const runAnthropicAgentSdkTask = vi.hoisted(() => vi.fn().mockResolvedValue({
+  status: "completed", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
+  model: "claude-haiku-5-5", tool_mode: "api", output: { summary: "Authorized fixture processed." },
+  requires_human_review: true, requires_approval: false,
+}));
+vi.mock("../agents/adapters/anthropic-agent-sdk", () => ({ runAnthropicAgentSdkTask }));
 const runSiteAssessmentTask = vi.hoisted(() => vi.fn());
 vi.mock("../agents/adapters/site-assessment", () => ({ runSiteAssessmentTask }));
 
@@ -272,6 +278,7 @@ beforeEach(() => {
 
 afterEach(() => {
   runOpenAIResponsesTask.mockClear();
+  runAnthropicAgentSdkTask.mockClear();
   runDeepSeekChatTask.mockClear();
   resolveStartupContext.mockClear();
   vi.unstubAllEnvs();
@@ -378,7 +385,13 @@ describe("agent session runtime", () => {
     expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
   }, 20_000);
 
-  it.each(["site_assessment", "capture_coverage", "capture_video_privacy", "inbound_qualification"] as const)("records %s execution without a rolling-spend approval or cost-evidence prerequisite", async kind => {
+  it.each([
+    ["site_assessment", "gpt-6-sol"],
+    ["capture_coverage", "gpt-6-sol"],
+    ["capture_video_privacy", "gpt-6-sol"],
+    ["inbound_qualification", "gpt-6-sol"],
+    ["inbound_qualification", "gpt-6-luna"],
+  ] as const)("records %s via %s without a rolling-spend approval or cost-evidence prerequisite", async (kind, model) => {
     privateStorage.available = true;
     const runtime = await import("../agents/runtime");
     const original = structuredClone(await runOpenAIResponsesTask.getMockImplementation()!());
@@ -395,11 +408,25 @@ describe("agent session runtime", () => {
       return { status: "completed", provider: task.provider, runtime: task.runtime, model: task.model,
         tool_mode: "api", requires_human_review: true, requires_approval: false, artifacts: { usage: { calls: 1, cost_usd: null } } };
     });
-    const result = await runtime.runAgentTask({ kind, provider: "openai_responses", runtime: "openai_responses",
+    // Explicit Sol keeps the OpenAI fixture stable; the Luna case must take
+    // the migrated native adapter while retaining the same accounting behavior.
+    const result = await runtime.runAgentTask({ kind, model, provider: "openai_responses", runtime: "openai_responses",
       input: { message: "Process this authorized fixture", context: { request_id: "one" } } }, { dispatchQueuedOnFinish: false });
     expect(result.status).toBe("completed");
-    if (kind === "site_assessment") expect(runSiteAssessmentTask).toHaveBeenCalledTimes(1);
-    else expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(1);
+    if (model === "gpt-6-luna") {
+      expect(runAnthropicAgentSdkTask).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+        kind, provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk", model: "claude-haiku-5-5",
+      }));
+      expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ provider: "anthropic_agent_sdk", model: "claude-haiku-5-5" });
+      expect([...fake.store.agentRuns.values()]).toContainEqual(expect.objectContaining({
+        task_kind: kind, provider: "anthropic_agent_sdk", model: "claude-haiku-5-5", status: "completed",
+      }));
+    } else {
+      if (kind === "site_assessment") expect(runSiteAssessmentTask).toHaveBeenCalledTimes(1);
+      else expect(runOpenAIResponsesTask).toHaveBeenCalledTimes(1);
+      expect(runAnthropicAgentSdkTask).not.toHaveBeenCalled();
+    }
     expect(result.artifacts?.inference_not_invoked).not.toBe(true);
     expect(fake.store.agentRuns.get(paid.id || [...fake.store.agentRuns.keys()][0])?.status).not.toBe("deleted");
   }, 20_000);
