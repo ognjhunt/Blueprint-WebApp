@@ -1,7 +1,9 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
+import { createHash } from "node:crypto";
 import { renderToStaticMarkup } from "react-dom/server";
+import * as assessmentRuntime from "../agents/site-assessment";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: {}, dbAdmin: null, storageAdmin: null }));
 import { projectCustomerSiteAdvisory, projectCurrentSiteAssessmentView } from "../utils/siteAssessmentPublic";
 import { projectCurrentSiteJobDecision, siteJobDecisionSourceDigest } from "../utils/siteJobDecision";
@@ -46,29 +48,77 @@ describe("reviewed decision survives customer-only redaction", () => {
     projectCurrentSiteJobDecision(record, brief, current.decisionAssessment, current.compatibleDecisionAssessments);
   it("retains the exact pre-basics named review without altering canonical evidence or exposing analysis", () => {
     const input = decisionPacket(), original = structuredClone(input), current = projectCurrentSiteAssessmentView(input, "synthetic-correlation", 30);
-    expect(siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, current.decisionAssessment)).toBe(legacyReviewDigest);
+    const { decisionEvidence, ...legacy } = current.decisionAssessment!;
+    expect(siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, legacy)).toBe(legacyReviewDigest);
+    expect(siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, current.decisionAssessment)).not.toBe(legacyReviewDigest);
+    expect(decisionEvidence).toMatchObject({ schemaVersion: "site_decision_evidence.v1", legacyReviewCompatible: true,
+      packetSha256: createHash("sha256").update(JSON.stringify(input)).digest("hex") });
     expect(reviewed()).toMatchObject({ nextAction: "Measure force", question: { text: "Which final state is required?" } });
     expect(current.customerAdvisory).toEqual(projectCustomerSiteAdvisory(input, "synthetic-correlation", 30));
-    expect(JSON.stringify(current.customerAdvisory)).not.toMatch(/Upper rack moves outward|Reasoning to check|decisionAssessment/);
+    expect(JSON.stringify(current.customerAdvisory)).not.toMatch(/Upper rack moves outward|Reasoning to check|decisionAssessment|decisionEvidence|packetSha256|qualificationSha256/);
     expect(input).toEqual(original);
   });
-  it("also retains an exact legitimate basics-era review, without allowing that alias for new primary writes", () => {
+  it("withholds redacted-era reviews whose immutable reviewed evidence identity was never stored", () => {
     const current = view();
-    expect(siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, current.compatibleDecisionAssessments[0])).toBe(basicsReviewDigest);
-    expect(reviewed(decisionRecord(basicsReviewDigest))).not.toBeNull();
+    expect(current.compatibleDecisionAssessments).toEqual([]);
+    expect(reviewed(decisionRecord(basicsReviewDigest))).toBeNull();
     expect(siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, current.decisionAssessment)).not.toBe(basicsReviewDigest);
     expect(reviewed(decisionRecord("b".repeat(64)))).toBeNull();
   });
-  it("matches the exact pre/post question-guard historical bases while keeping the unsafe question private", () => {
+  it("does not infer approval from either historical question-filtered presentation", () => {
     const input = decisionPacket();
     input.raw_model_assessment.questions = [{ question: "What payload can Robot X lift?", decision_it_changes: "Which payload requirement to investigate" }];
     const current = projectCurrentSiteAssessmentView(input, "synthetic-correlation", 30);
-    // Captured from actual3d6/eaeb projectors using the same synthetic source.
-    for (const [index, digest] of ["4ba59a14fc7e6ef45a8e0f877ded44ed012b001cb4826df7177e5275ab38d4c9", basicsReviewDigest].entries()) {
-      expect(siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, current.compatibleDecisionAssessments[index])).toBe(digest);
-      expect(reviewed(decisionRecord(digest), decisionBrief, current)).not.toBeNull();
+    // Captured actual3d6/eaeb digests lack immutable reviewed evidence identity.
+    for (const digest of ["4ba59a14fc7e6ef45a8e0f877ded44ed012b001cb4826df7177e5275ab38d4c9", basicsReviewDigest]) {
+      expect(reviewed(decisionRecord(digest), decisionBrief, current)).toBeNull();
     }
+    expect(current.compatibleDecisionAssessments).toEqual([]);
     expect(JSON.stringify(current.customerAdvisory)).not.toContain("Robot X");
+  });
+  it.each(["selector", "observation", "unsupported_question"] as const)("rejects the independent stale-alias counterexample: %s", kind => {
+    const input = decisionPacket();
+    input.raw_model_assessment.next_action = { kind: "research", action: "Check current specifications and unresolved evidence.",
+      why: { text: "Pull force remains unknown", basis: "unknown", evidence: [] } };
+    input.raw_model_assessment.questions = [{ question: "Which handle must be operated?", decision_it_changes: "Required interaction" }];
+    const before = projectCurrentSiteAssessmentView(input, "synthetic-correlation", 30);
+    const redactedDigest = siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, before.customerAdvisory);
+    const fullDigest = siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, before.decisionAssessment);
+    expect(reviewed(decisionRecord(fullDigest), decisionBrief, before)).not.toBeNull();
+    // No packet/qualification identity was recorded with the old reduced hash.
+    expect(reviewed(decisionRecord(redactedDigest), decisionBrief, before)).toBeNull();
+    const changed = structuredClone(input);
+    if (kind === "selector") changed.raw_model_assessment.job[0].evidence[0].selector = null as any;
+    if (kind === "observation") changed.sources[0].content.evidence.observations[0].finding = "Upper rack remains stationary";
+    if (kind === "unsupported_question") changed.raw_model_assessment.questions.push({ question: "What load is required and Robot X can lift 250 kg?", decision_it_changes: "Robot capability" });
+    const after = projectCurrentSiteAssessmentView(changed, "synthetic-correlation", 30);
+    expect(after.customerAdvisory).toEqual(before.customerAdvisory);
+    expect(siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, after.decisionAssessment)).not.toBe(fullDigest);
+    for (const digest of [redactedDigest, fullDigest]) {
+      expect(reviewed(decisionRecord(digest), decisionBrief, after)).toBeNull();
+      // Even an explicitly supplied lossy candidate is not a source authority.
+      expect(projectCurrentSiteJobDecision(decisionRecord(digest), decisionBrief, after.decisionAssessment, [before.customerAdvisory])).toBeNull();
+    }
+  });
+  it("invalidates qualification-only renderer changes while binding the same canonical packet", () => {
+    const input = decisionPacket(), original = structuredClone(input), before = projectCurrentSiteAssessmentView(input, "synthetic-correlation", 30);
+    const digest = siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, before.decisionAssessment);
+    const render = assessmentRuntime.renderSourceBoundAssessment;
+    const qualification = vi.spyOn(assessmentRuntime, "renderSourceBoundAssessment").mockImplementationOnce((...args) => {
+      const current = render(...args);
+      // Synthetic CURRENT policy qualification change, not a provider call:
+      // identical raw packet now has an unverified factual interpretation.
+      current.verification.unverified_claims++;
+      return current;
+    });
+    const after = projectCurrentSiteAssessmentView(input, "synthetic-correlation", 30);
+    qualification.mockRestore();
+    expect(input).toEqual(original);
+    expect(after.decisionAssessment?.decisionEvidence?.packetSha256).toBe(before.decisionAssessment?.decisionEvidence?.packetSha256);
+    expect(after.decisionAssessment?.decisionEvidence?.qualificationSha256).not.toBe(before.decisionAssessment?.decisionEvidence?.qualificationSha256);
+    expect(after.decisionAssessment?.decisionEvidence?.legacyReviewCompatible).toBe(false);
+    expect(reviewed(decisionRecord(digest), decisionBrief, after)).toBeNull();
+    expect(reviewed(decisionRecord(legacyReviewDigest), decisionBrief, after)).toBeNull();
   });
   it.each([
     ["request", (r: Record<string, any>) => { r.request.taskStatement = "Close the rack"; }],

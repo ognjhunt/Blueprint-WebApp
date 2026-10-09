@@ -48,7 +48,8 @@ describe("recording Blueprint's recommended pilot", () => {
     const { siteJobDecisionSourceDigest } = await import("../utils/siteJobDecision");
     const safe = { schemaVersion: "site_customer_advisory.v1" as const, state: "ready" as const, correlationId: "synthetic-correlation",
       sections: [], unknowns: ["Force remains unknown"], nextAction: "Measure pull force" };
-    const privateBasis = { ...safe, nextAction: "Internal rationale test paragraph", sections: [{ title: "Internal analysis test paragraph", claims: [] }] };
+    const privateBasis = { ...safe, nextAction: "Internal rationale test paragraph", sections: [{ title: "Internal analysis test paragraph", claims: [] }],
+      decisionEvidence: { schemaVersion: "site_decision_evidence.v1" as const, packetSha256: "a".repeat(64), qualificationSha256: "b".repeat(64), legacyReviewCompatible: false } };
     const load = vi.spyOn(advisory, "loadCurrentSiteAssessmentView").mockResolvedValue({ customerAdvisory: safe, decisionAssessment: privateBasis,
       compatibleDecisionAssessments: [safe] });
     const brief = { requestId: "req1", summary: "Open rack", unresolved: [], proposed: [], operatorAnswers: {}, operatorUnknown: [] };
@@ -59,11 +60,11 @@ describe("recording Blueprint's recommended pilot", () => {
       decisiveUncertainty: "Force", nextAction: "Measure pull force", question: { text: "Which final state is required?", reason: "Defines success" } };
     const admin = await (await fetch(`${base}/recommendations/req1`)).json();
     expect(admin.assessment).toEqual(safe); expect(admin.decision.nextAction).toBe("Measure pull force");
-    expect(JSON.stringify(admin)).not.toMatch(/Internal analysis test paragraph|Internal rationale test paragraph|compatibleDecisionAssessments|decisionAssessment/);
+    expect(JSON.stringify(admin)).not.toMatch(/Internal analysis test paragraph|Internal rationale test paragraph|compatibleDecisionAssessments|decisionAssessment|decisionEvidence|packetSha256|qualificationSha256/);
     const token = createCaptureUploadToken({ requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", scope: "owner" });
     const owner = await (await fetch(`${base}/owner/${token}`)).json();
     expect(owner.decision.question.text).toBe("Which final state is required?");
-    expect(JSON.stringify(owner)).not.toMatch(/Internal analysis test paragraph|Internal rationale test paragraph|compatibleDecisionAssessments|decisionAssessment/);
+    expect(JSON.stringify(owner)).not.toMatch(/Internal analysis test paragraph|Internal rationale test paragraph|compatibleDecisionAssessments|decisionAssessment|decisionEvidence|packetSha256|qualificationSha256/);
     const clarification = await (await import("../utils/siteTaskClarifications")).readSiteClarification("req1");
     expect(clarification).toMatchObject({ needed: true, questions: ["Which final state is required? — Defines success"] });
     expect(JSON.stringify(clarification)).not.toContain("Internal");
