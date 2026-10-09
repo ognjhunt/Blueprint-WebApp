@@ -45,7 +45,7 @@ export const capturePrivacyAnnex = [
   ["People in job footage", "We remove people from the frames used as input to reconstruction. This does not remove them from the original recording, which Blueprint and the listed processing providers may process for job review and frame preparation. You must have authority to submit the footage and provide any required notice or permissions to people shown."],
   ["Screens and paperwork", "Avoided when filming where practical, and blurred or removed when practical before buyer-facing use."],
   ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene."],
-  ["Buyer sharing", "Robot teams see the job card you approve and their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
+  ["Buyer sharing", "Robot teams approved for beta can see the anonymized job card authorized when you start the job; jobs previously marked private stay private. Robot teams also see their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
   ["Physical pilot records", "If the site and provider agree to share pilot outcomes with Blueprint, those permissions set what operating records we receive, who may see them, and the permitted uses. A simulation result does not become a physical result without actual trial evidence."],
 ];
 
@@ -213,7 +213,8 @@ export default function Privacy() {
         <h2>Who we share it with</h2>
         <p>
           We share personal information with the providers below, only for the function listed and under contract. A
-          site sees an alias for each robot team and its results; a robot team sees the job card a site approves.
+          site sees an alias for each robot team and its results; robot teams approved for beta see the anonymized
+          job card authorized when the site starts a job, unless that job was previously marked private.
           We may also disclose information when the law requires it, to protect people&rsquo;s safety or our rights, or
           as part of a merger or sale of the business, in which case this policy continues to apply to it.
         </p>
