@@ -6,7 +6,7 @@ vi.mock("googleapis", () => ({ google: { auth: { OAuth2: vi.fn(function () {
 }) }, gmail: vi.fn() } }));
 vi.mock("../agents/communications-contract", async original => ({ ...await original<any>(), FOUNDER_MAILBOX: "founder@business.example" }));
 import { google } from "googleapis";
-import { verifyFounderMailbox, readFounderThread, sendFounderMessage, findFounderSentMessage, existingFounderGmail, hasFounderPriorContact, readFounderSentReceipt, FounderSendReadbackError } from "../agents/communications-gmail";
+import { verifyFounderMailbox, verifyCustomerJobSender, readFounderThread, sendFounderMessage, findFounderSentMessage, existingFounderGmail, hasFounderPriorContact, readFounderSentReceipt, FounderSendReadbackError } from "../agents/communications-gmail";
 import { FOUNDER_GMAIL_BINDING_KEYS } from "../agents/communications-connection";
 import { getHumanReplyGmailStatus } from "../utils/human-reply-gmail";
 const mailbox = "founder@business.example";
@@ -25,6 +25,44 @@ beforeEach(() => {
   for (const key of FOUNDER_GMAIL_BINDING_KEYS) vi.stubEnv(key, "");
 });
 describe("existing founder Gmail binding (mocked)", () => {
+  it.each([undefined, "pending", "unrecognized"])("refuses an unverified hello alias %s without send", async status => {
+    const { gmail } = gmailFixture();
+    gmail.users.settings.sendAs.list.mockResolvedValue({ data: { sendAs: [{ sendAsEmail: mailbox, isPrimary: true },
+      { sendAsEmail: "hello@tryblueprint.io", verificationStatus: status }] } });
+    await expect(sendFounderMessage({ sender: "hello@tryblueprint.io", to: "ops@facility.example", subject: "Question", body: "Question", messageId: "<hello@example.com>" }, gmail)).rejects.toThrow("customer_job_sender_unverified_or_permission_missing");
+    expect(gmail.users.messages.send).not.toHaveBeenCalled();
+  });
+  it("uses verified hello From and Reply-To in the unchanged owner mailbox", async () => {
+    const { gmail } = gmailFixture();
+    gmail.users.settings.sendAs.list.mockResolvedValue({ data: { sendAs: [{ sendAsEmail: mailbox, isPrimary: true },
+      { sendAsEmail: "hello@tryblueprint.io", verificationStatus: "accepted" }] } });
+    expect(await verifyCustomerJobSender(gmail)).toEqual({ mailbox, sender: "hello@tryblueprint.io" });
+    expect(gmail.users.messages.send).not.toHaveBeenCalled();
+    await sendFounderMessage({ sender: "hello@tryblueprint.io", to: "ops@facility.example", subject: "Question", body: "Question", messageId: "<hello@example.com>" }, gmail);
+    const raw = Buffer.from(gmail.users.messages.send.mock.calls[0][0].requestBody.raw, "base64url").toString();
+    expect(raw).toContain("From: Blueprint <hello@tryblueprint.io>");
+    expect(raw).toContain("Reply-To: hello@tryblueprint.io");
+  });
+  it("verifies hello receipt without changing its owner mailbox or provider IDs", async () => {
+    const { gmail, message } = gmailFixture();
+    gmail.users.settings.sendAs.list.mockResolvedValue({ data: { sendAs: [{ sendAsEmail: mailbox, isPrimary: true },
+      { sendAsEmail: "hello@tryblueprint.io", verificationStatus: "accepted" }] } });
+    message.payload.headers[0].value = "Blueprint <hello@tryblueprint.io>";
+    message.payload.headers.push({ name: "Reply-To", value: "hello@tryblueprint.io" });
+    expect(await readFounderSentReceipt({ messageId: message.id, threadId: message.threadId, requestedRfcMessageId: "<test@business.example>" },
+      { sender: "hello@tryblueprint.io", to: "ops@facility.example", subject: "Packing question", body: "Synthetic body" }, gmail)).toMatchObject({ messageId: message.id, threadId: message.threadId });
+    expect(gmail.users.messages.send).not.toHaveBeenCalled();
+  });
+  it.each(["wrong_from", "wrong_reply_to"])("rejects hello readback %s", async kind => {
+    const { gmail, message } = gmailFixture();
+    gmail.users.settings.sendAs.list.mockResolvedValue({ data: { sendAs: [{ sendAsEmail: mailbox, isPrimary: true },
+      { sendAsEmail: "hello@tryblueprint.io", verificationStatus: "accepted" }] } });
+    message.payload.headers[0].value = kind === "wrong_from" ? mailbox : "Blueprint <hello@tryblueprint.io>";
+    message.payload.headers.push({ name: "Reply-To", value: kind === "wrong_reply_to" ? mailbox : "hello@tryblueprint.io" });
+    await expect(readFounderSentReceipt({ messageId: message.id, threadId: message.threadId, requestedRfcMessageId: "<test@business.example>" },
+      { sender: "hello@tryblueprint.io", to: "ops@facility.example", subject: "Packing question", body: "Synthetic body" }, gmail)).rejects.toThrow("gmail_send_receipt_content_mismatch");
+  });
+
   it("rechecks selected-job authority after awaited mailbox verification before sending", async () => {
     vi.useFakeTimers(); vi.setSystemTime(1000);
     try {

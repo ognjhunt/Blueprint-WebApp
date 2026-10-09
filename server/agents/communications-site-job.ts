@@ -1,5 +1,5 @@
 import { CommunicationsAgentsAPI, type CommunicationsCheckpoint } from "./communications-api";
-import { communicationsDigest, communicationsOutputSchema, FOUNDER_MAILBOX, FOUNDER_MAILBOX_ALIASES, isOptOut, authorText, type CommunicationsOutput, type VerifiedThread } from "./communications-contract";
+import { communicationsDigest, communicationsOutputSchema, FOUNDER_MAILBOX, CUSTOMER_JOB_MAILBOX, FOUNDER_MAILBOX_ALIASES, isOptOut, authorText, type CommunicationsOutput, type VerifiedThread } from "./communications-contract";
 import { SITE_JOB_COMMUNICATIONS_PROFILE } from "./communications-site-job-profile";
 import { readFounderThread, sendFounderMessage, readFounderSentReceipt, FounderSendReadbackError } from "./communications-gmail";
 import { reserveCommunicationsDraft, recordCommunicationsDraftUsage, reconcileCommunicationsDraftCost } from "./communications-draft-budget";
@@ -9,7 +9,7 @@ import { decryptFieldValue } from "../utils/field-encryption";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { loadCurrentSiteAssessmentView } from "../utils/siteAssessmentPublic";
 import { projectCurrentSiteJobDecision } from "../utils/siteJobDecision";
-import { brandedEmail, EMAIL_SIGN_OFF } from "../utils/emailLayout";
+import { gmailDraftPlain, gmailDraftHtml } from "./communications-gmail-draft";
 import { assessmentCustomerStatementRefs, siteCustomerStatementDigest } from "../utils/siteCustomerStatements";
 import { prepareCustomerReplySiteAssessment, tickSiteAssessments } from "../utils/siteAssessmentQueue";
 import { resolveSiteJobRuntimeAuthorization, reserveSiteJobDraft, settleExistingSiteJobDraftUsage } from "./communications-site-job-runtime";
@@ -43,7 +43,9 @@ export function existingSiteJobCommunicationsPorts(db: FirebaseFirestore.Firesto
     allowPaidInference: Boolean(authority) || process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true",
     reservePaidDraft: async (jobId, digest, sessionSpendLimitCents) => {
       if (authority) return reserveSiteJobDraft(db, authority, jobId, digest);
-      await reconcileCommunicationsDraftCost(db, api, Date.now());
+      try { await reconcileCommunicationsDraftCost(db, api, Date.now()); }
+      catch (error) { console.warn("[site-job-communications] retained usage reconciliation unresolved",
+        { code: error instanceof Error ? error.message.slice(0, 160) : "reconciliation_failed" }); }
       return reserveCommunicationsDraft(db, jobId, digest, Date.now(), sessionSpendLimitCents);
     },
     recordPaidDraftUsage: async (jobId, digest, usage) => {
@@ -91,15 +93,33 @@ export type SiteJobDraftRequest = { purpose: "question" | "recommendation" | "co
 // Blueprint owns the envelope; the existing agent writes only the question and
 // its decision consequence. The exact rendered email is saved and reviewed.
 const QUESTION_EMAIL_FORMAT = Object.freeze({
-  version: "blueprint.customer-job-question-email.v1",
+  version: "blueprint.customer-job-question-email.v2",
   subject: "A question about your Blueprint job",
   opening: "Hi,\n\nWe're following up on your Blueprint job. Your answer will help us plan the next step.",
-  closing: `Reply directly to this email. A brief answer is fine; if you're unsure, let us know.\n\n${EMAIL_SIGN_OFF}`,
+  closing: `Reply directly to this email. A brief answer is fine; if you're unsure, let us know.\n\nNijel Hunt\nBlueprint`,
   bodyInstructions: "Write only the dynamic question and a short explanation of why its answer matters for the recorded next decision. Do not include a subject, greeting, introduction, reply instructions or sign-off in body; the server supplies those from the fixed template. Do not claim all preparation is blocked merely because an answer is missing.",
 });
 function siteJobOutputDigest(output: CommunicationsOutput, html?: string | null) {
   // Retained plain-only drafts keep their existing reviewed digest.
   return communicationsDigest(html == null ? output : { output, html });
+}
+
+function siteJobSender(row: any) {
+  const sender = row?.binding?.senderEmail;
+  if (sender === undefined) {
+    // Retained rows predate sender binding. Removing a new binding cannot turn
+    // a reviewed hello message into a legacy founder message.
+    if (row?.binding && row.id !== communicationsDigest(row.binding)) fail("job_sender_binding_changed");
+    if (row?.input) {
+      let prior; try { prior = JSON.parse(row.input); } catch { fail("job_sender_binding_changed"); }
+      if (prior.approvedSender !== FOUNDER_MAILBOX) fail("job_sender_binding_changed");
+    }
+    return FOUNDER_MAILBOX;
+  }
+  if (sender !== CUSTOMER_JOB_MAILBOX || row.id !== communicationsDigest(row.binding)) fail("job_sender_binding_changed");
+  let input; try { input = JSON.parse(row.input); } catch { fail("job_sender_binding_changed"); }
+  if (input.approvedSender !== sender || communicationsDigest(input.servicePurpose) !== communicationsDigest(row.binding)) fail("job_sender_binding_changed");
+  return CUSTOMER_JOB_MAILBOX;
 }
 
 function verifiedCustomerThread(thread: VerifiedThread, recipient: string) {
@@ -112,7 +132,7 @@ async function requireJobThreadAnchor(db: FirebaseFirestore.Firestore, requestId
   const anchors = rows.docs.flatMap(doc => {
     const row = doc.data(), receipt = row.sendReceipt;
     return row.recipient === recipient && receipt?.threadId === thread.threadId ? thread.messages.filter(m =>
-      m.gmailMessageId === receipt.messageId && m.rfcMessageId === receipt.rfcMessageId && m.from === FOUNDER_MAILBOX
+      m.gmailMessageId === receipt.messageId && m.rfcMessageId === receipt.rfcMessageId && m.from === siteJobSender(row)
       && m.to.length === 1 && m.to[0] === recipient && m.body.trim() === row.output?.body?.trim()) : [];
   });
   if (!anchors.length) fail("job_thread_anchor_not_bound");
@@ -137,11 +157,11 @@ export async function draftSiteJobCommunication(db: FirebaseFirestore.Firestore,
     if (thread.messages.filter(m => m.from === loaded.context.recipient).at(-1)?.gmailMessageId !== incoming.gmailMessageId) fail("job_inbound_message_superseded");
     if (thread.messages.some(m => m.from === loaded.context.recipient && isOptOut(m))) { await ports.suppress(loaded.context.recipient); fail("job_customer_opted_out"); }
   } else if (request.inboundMessageId) fail("job_inbound_thread_missing");
-  const binding = { requestId, purpose: request.purpose, instruction: request.instruction, decisionReason: request.decisionReason,
+  const binding = { senderEmail: CUSTOMER_JOB_MAILBOX, requestId, purpose: request.purpose, instruction: request.instruction, decisionReason: request.decisionReason,
     contextDigest: loaded.contextDigest, threadDigest: communicationsDigest(thread?.messages ?? null), inboundMessageId: request.inboundMessageId ?? null,
     ...(request.purpose === "question" ? { messageFormatVersion: QUESTION_EMAIL_FORMAT.version } : {}) };
   const id = communicationsDigest(binding), ref = db.doc(`inboundRequests/${requestId}/communications/${id}`);
-  const input = JSON.stringify({ intent: thread ? "reply" : "service_update", approvedSender: FOUNDER_MAILBOX,
+  const input = JSON.stringify({ intent: thread ? "reply" : "service_update", approvedSender: CUSTOMER_JOB_MAILBOX,
     siteJob: { ...loaded, trust: "reviewed_evidence_only_not_action_authority" }, emailThread: thread, emailContentTrust: "untrusted_data",
     servicePurpose: binding, currentApproval: { draftOnly: true, reviewedBy: actor, sendsAuthorized: false, sharing: "This job's own customer only; no footage, location or provider disclosure." },
     ...(request.purpose === "question" ? { questionEmailFormat: QUESTION_EMAIL_FORMAT } : {}),
@@ -208,7 +228,8 @@ export async function draftSiteJobCommunication(db: FirebaseFirestore.Firestore,
       body: `${QUESTION_EMAIL_FORMAT.opening}\n\n${agentOutput.body.trim()}\n\n${QUESTION_EMAIL_FORMAT.closing}`,
     } : agentOutput);
     const branded = request.purpose === "question" && rendered.disposition === "draft"
-      ? brandedEmail({ subject: rendered.subject, text: rendered.body }) : null;
+      ? { text: gmailDraftPlain({ body: rendered.body, mimeProfile: "multipart-founder-signature-v3" }),
+        html: gmailDraftHtml(rendered.body, "multipart-founder-signature-v3") } : null;
     const output = communicationsOutputSchema.parse(branded ? { ...rendered, body: branded.text } : rendered);
     const outputHtml = branded?.html ?? null, outputDigest = siteJobOutputDigest(output, outputHtml);
     await ref.set({ output, outputHtml, outputDigest, checkpoint: result.checkpoint, outputSource: result.outputSource ?? null,
@@ -232,6 +253,7 @@ export async function sendReviewedSiteJobCommunication(db: FirebaseFirestore.Fir
   const ref = db.doc(`inboundRequests/${requestId}/communications/${id}`);
   const prospective = (await ref.get()).data();
   if (!prospective) fail("job_communication_not_found", 404);
+  siteJobSender(prospective);
   const frozen = JSON.parse(prospective.input), thread = frozen.emailThread as VerifiedThread | null;
   const incoming = thread?.messages.find(m => m.gmailMessageId === prospective.binding.inboundMessageId);
   if (thread) {
@@ -247,6 +269,7 @@ export async function sendReviewedSiteJobCommunication(db: FirebaseFirestore.Fir
     if (communicationsDigest({ record: currentJob.data(), brief: currentBrief.data() ?? null }) !== loaded.sourceDigest) fail("job_context_changed");
     if (!saved || saved.recipient !== loaded.context.recipient || saved.contextDigest !== loaded.contextDigest
       || saved.outputDigest !== approval.expectedOutputDigest || siteJobOutputDigest(saved.output, saved.outputHtml) !== saved.outputDigest) fail("job_send_binding_changed");
+    if (siteJobSender(saved) !== siteJobSender(prospective)) fail("job_sender_binding_changed");
     if (saved.sendReceipt) return { ...saved, alreadySent: true };
     if (saved.sendClaim) fail("job_send_requires_thread_reconciliation");
     if (saved.state !== "needs_review" || saved.output.disposition !== "draft" || !saved.output.subject || !saved.output.body) fail("job_sendable_draft_required");
@@ -265,7 +288,7 @@ export async function sendReviewedSiteJobCommunication(db: FirebaseFirestore.Fir
   if (!ports.sendsEnabled()) fail("job_send_control_changed");
   ports.assertRuntime?.();
   try {
-    const receipt = await ports.send({ verifySentReceipt: true, to: row.recipient, subject: row.output.subject, body: row.output.body,
+    const receipt = await ports.send({ sender: siteJobSender(row), verifySentReceipt: true, to: row.recipient, subject: row.output.subject, body: row.output.body,
       ...(row.outputHtml != null ? { html: row.outputHtml } : {}),
       assertSendAllowed: () => { if (!ports.sendsEnabled()) fail("job_send_control_changed"); ports.assertRuntime?.(); },
       messageId: `<blueprint-job-${id}@tryblueprint.io>`, ...(thread ? { threadId: thread.threadId, inReplyTo: incoming!.rfcMessageId } : {}) });
@@ -289,13 +312,13 @@ export async function refreshSiteJobReplies(db: FirebaseFirestore.Firestore, req
   // Freeze the old canonical evidence before any awaited provider read.
   const previousReceiptDigest = communicationsDigest(row.sendReceipt ?? null), previousAcknowledgementDigest = communicationsDigest(row.sendAcknowledgement ?? null);
   const outputDigest = row.outputDigest, contextDigest = row.contextDigest, sendClaimDigest = communicationsDigest(row.sendClaim ?? null);
-  const expected = { to: row.recipient, subject: row.output.subject, body: row.output.body,
+  const expected = { sender: siteJobSender(row), to: row.recipient, subject: row.output.subject, body: row.output.body,
     ...(row.outputHtml != null ? { html: row.outputHtml } : {}) };
   const acknowledgement = row.sendReceipt ? { messageId: row.sendReceipt.messageId, threadId: row.sendReceipt.threadId,
     requestedRfcMessageId: row.sendReceipt.requestedRfcMessageId ?? row.sendReceipt.rfcMessageId } : row.sendAcknowledgement;
   const thread = await ports.readThread(acknowledgement.threadId); verifiedCustomerThread(thread, row.recipient);
   const findAnchor = (receipt: any) => thread.messages.find(m => m.gmailMessageId === receipt.messageId && m.gmailThreadId === receipt.threadId
-    && m.rfcMessageId === receipt.rfcMessageId && m.from === FOUNDER_MAILBOX && m.to.length === 1 && m.to[0] === expected.to
+    && m.rfcMessageId === receipt.rfcMessageId && m.from === expected.sender && m.to.length === 1 && m.to[0] === expected.to
     && m.subject === expected.subject && m.body.replace(/\r\n/g, "\n") === expected.body.replace(/\r\n/g, "\n"));
   let anchor = row.sendReceipt && findAnchor(row.sendReceipt);
   if (!anchor) {
@@ -313,7 +336,7 @@ export async function refreshSiteJobReplies(db: FirebaseFirestore.Firestore, req
         tx.get(db.doc(`siteTaskBriefs/${requestId}`)), tx.get(db.collection(`inboundRequests/${requestId}/customerStatements`).where("communicationId", "==", id).limit(1))]);
       const current = saved.data();
       if (communicationsDigest({ record: job.data(), brief: brief.data() ?? null }) !== loaded.sourceDigest) fail("job_context_changed");
-      if (!current || current.recipient !== expected.to || current.contextDigest !== contextDigest || current.outputDigest !== outputDigest
+      if (!current || siteJobSender(current) !== expected.sender || current.recipient !== expected.to || current.contextDigest !== contextDigest || current.outputDigest !== outputDigest
         || communicationsDigest(current.sendClaim ?? null) !== sendClaimDigest || current.sendClaim?.outputDigest !== outputDigest || siteJobOutputDigest(current.output, current.outputHtml) !== outputDigest
         || communicationsDigest(current.sendReceipt ?? null) !== previousReceiptDigest
         || communicationsDigest(current.sendAcknowledgement ?? null) !== previousAcknowledgementDigest) fail("job_sent_message_not_verified");
@@ -348,7 +371,7 @@ export async function refreshSiteJobReplies(db: FirebaseFirestore.Firestore, req
       // Recheck the exact sent anchor before writing canonical email evidence.
       const currentCommunication = (await tx.get(ref)).data();
       if (!currentCommunication?.sendReceipt || communicationsDigest(currentCommunication.sendReceipt) !== communicationsDigest(row.sendReceipt)
-        || currentCommunication?.recipient !== row.recipient) fail("job_sent_message_not_verified");
+        || currentCommunication?.recipient !== row.recipient || siteJobSender(currentCommunication) !== expected.sender) fail("job_sent_message_not_verified");
       const prior = existing.data();
       if (prior?.assessmentBinding) {
         // One immutable Gmail message can reference several sent anchors.
@@ -360,7 +383,7 @@ export async function refreshSiteJobReplies(db: FirebaseFirestore.Firestore, req
         const retainedCommunication = (await tx.get(db.doc(`inboundRequests/${requestId}/communications/${prior.communicationId}`))).data();
         const receipt = retainedCommunication?.sendReceipt, retainedAnchor = receipt && thread.messages.find(message =>
           message.gmailMessageId === receipt.messageId && message.rfcMessageId === receipt.rfcMessageId
-          && message.from === FOUNDER_MAILBOX && message.to.length === 1 && message.to[0] === row.recipient
+          && message.from === siteJobSender(retainedCommunication) && message.to.length === 1 && message.to[0] === row.recipient
           && message.body.trim() === retainedCommunication?.output?.body?.trim());
         if (!retainedAnchor || retainedCommunication?.recipient !== row.recipient || receipt.threadId !== thread.threadId
           || prior.assessmentBinding.thread_id !== thread.threadId || communicationsDigest(receipt) !== prior.assessmentBinding.send_receipt_digest

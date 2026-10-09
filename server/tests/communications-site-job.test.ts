@@ -4,7 +4,7 @@ import { CommunicationsAgentsAPI } from "../agents/communications-api";
 import { draftSiteJobCommunication, loadSiteJobCommunicationsContext, refreshSiteJobReplies, sendReviewedSiteJobCommunication, type SiteJobCommunicationsPorts } from "../agents/communications-site-job";
 import { communicationsDigest, type CommunicationsOutput, type VerifiedThread } from "../agents/communications-contract";
 import { FounderSendReadbackError } from "../agents/communications-gmail";
-import { withTextFooter } from "../utils/emailLayout";
+import { gmailDraftPlain } from "../agents/communications-gmail-draft";
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
 import { loadAssessmentCustomerStatements } from "../utils/siteCustomerStatements";
 import { browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
@@ -26,7 +26,7 @@ function fixture() {
   ]));
   const agentOutput: CommunicationsOutput = { disposition: "draft", subject: "Your dish handling job", body: "What rate would make this useful for your operation? A target helps us decide which pilot test to recommend.",
     reason: "Different targets change the recommendation; video rate is not a required target.", usedFactIds: [], refreshFactIds: [], outreachContract: null, requiresHumanReview: true };
-  const output: CommunicationsOutput = { ...agentOutput, subject: "A question about your Blueprint job", body: withTextFooter("Hi,\n\nWe're following up on your Blueprint job. Your answer will help us plan the next step.\n\nWhat rate would make this useful for your operation? A target helps us decide which pilot test to recommend.\n\nReply directly to this email. A brief answer is fine; if you're unsure, let us know.\n\n— The Blueprint team") };
+  const output: CommunicationsOutput = { ...agentOutput, subject: "A question about your Blueprint job", body: gmailDraftPlain({ mimeProfile: "multipart-founder-signature-v3", body: "Hi,\n\nWe're following up on your Blueprint job. Your answer will help us plan the next step.\n\nWhat rate would make this useful for your operation? A target helps us decide which pilot test to recommend.\n\nReply directly to this email. A brief answer is fine; if you're unsure, let us know.\n\nNijel Hunt\nBlueprint" }) };
   const api = new CommunicationsAgentsAPI({ allowPaidInference: false });
   const run = vi.spyOn(api, "run").mockImplementation(async params => {
     const checkpoint = { ...params.checkpoint, createClaimedAt: "2026-10-08T17:00:00.000Z", sessionId: "simulated-existing-agent-session", turnId: "simulated-turn", requestDigest: "a".repeat(64) };
@@ -39,15 +39,27 @@ function fixture() {
   return { db, output, agentOutput, ports, run, request };
 }
 describe("inbound job communications uses the existing agent and actual email evidence", () => {
+  it.each(["changed", "removed", "changed_input"])("refuses %s reviewed hello sender before send", async kind => {
+    const f = fixture(), drafted = await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);
+    const row = f.db.records.get(`inboundRequests/job-1/communications/${drafted.id}`);
+    if (kind === "changed") row.binding.senderEmail = "nijel@tryblueprint.io";
+    if (kind === "removed") delete row.binding.senderEmail;
+    if (kind === "changed_input") { const input = JSON.parse(row.input); input.approvedSender = "nijel@tryblueprint.io"; row.input = JSON.stringify(input); }
+    await expect(sendReviewedSiteJobCommunication(f.db, "job-1", drafted.id, "operator-1", {
+      expectedContextDigest: drafted.contextDigest, expectedOutputDigest: drafted.outputDigest, reviewedSend: true }, f.ports)).rejects.toMatchObject({ code: "job_sender_binding_changed" });
+    expect(f.ports.send).not.toHaveBeenCalled(); expect(row.sendClaim).toBeUndefined();
+  });
+
   it("renders a fixed question email around changing agent content and reviews that exact email", async () => {
     const f = fixture(), first = await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);
     expect(first.output).toEqual(f.output);
     const saved = f.db.records.get(`inboundRequests/job-1/communications/${first.id}`);
-    expect(saved.outputFormatting).toEqual({ version: "blueprint.customer-job-question-email.v1", agentOutputDigest: communicationsDigest(f.agentOutput) });
+    expect(saved.outputFormatting).toEqual({ version: "blueprint.customer-job-question-email.v2", agentOutputDigest: communicationsDigest(f.agentOutput) });
     expect(saved.binding.messageFormatVersion).toBe(saved.outputFormatting.version);
     expect(first.outputHtml).toContain('src="https://tryblueprint.io/brand/email-mark.png"');
-    expect(first.outputHtml).toContain("#203d2e");
-    expect(first.outputHtml).toContain("Blueprint Robotics, Inc.");
+    expect(first.outputHtml).toContain("Founder at <a href=\"https://tryblueprint.io/\">Blueprint</a>");
+    expect(first.outputHtml).toContain("Austin, TX");
+    expect(first.output.body).not.toMatch(/Blueprint team|Durham|Business outreach|To opt out/);
     expect(first.outputDigest).toBe(communicationsDigest({ output: first.output, html: first.outputHtml }));
     expect(JSON.parse(f.run.mock.calls[0][0].input).questionEmailFormat.bodyInstructions).toContain("Write only the dynamic question");
     f.agentOutput.body = "What finished state should the job achieve? This defines what the evaluation should measure.";
@@ -60,7 +72,7 @@ describe("inbound job communications uses the existing agent and actual email ev
   it("preserves the verified incoming subject when a formatted question replies to an existing thread", async () => {
     const f = fixture(), drafted = await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);
     const sent = await sendReviewedSiteJobCommunication(f.db, "job-1", drafted.id, "operator-1", { expectedContextDigest: drafted.contextDigest, expectedOutputDigest: drafted.outputDigest, reviewedSend: true }, f.ports);
-    const anchor = { gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: sent.receipt.rfcMessageId, from: "nijel@tryblueprint.io", to: ["site@example.com"], subject: f.output.subject!, body: f.output.body!, receivedAt: "2026-10-08T17:01:00Z", inReplyTo: null, references: [] as string[] };
+    const anchor = { gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: sent.receipt.rfcMessageId, from: "hello@tryblueprint.io", to: ["site@example.com"], subject: f.output.subject!, body: f.output.body!, receivedAt: "2026-10-08T17:01:00Z", inReplyTo: null, references: [] as string[] };
     f.ports.readThread = async () => ({ mailbox: "nijel@tryblueprint.io", threadId: "thread-1", fetchedAt: "2026-10-08T17:03:00Z", messages: [anchor,
       { ...anchor, gmailMessageId: "in-1", rfcMessageId: "<in-1@example.com>", from: "site@example.com", to: ["nijel@tryblueprint.io"], subject: "Re: Site's chosen job subject", body: "We need help unloading.", receivedAt: "2026-10-08T17:02:00Z", inReplyTo: anchor.rfcMessageId, references: [anchor.rfcMessageId] }] });
     const reply = await draftSiteJobCommunication(f.db, "job-1", "operator-1", { ...await f.request(), threadId: "thread-1", inboundMessageId: "in-1" }, f.ports);
@@ -178,7 +190,7 @@ describe("inbound job communications uses the existing agent and actual email ev
     const sent = await sendReviewedSiteJobCommunication(f.db, "job-1", drafted.id, "operator-1", approval, f.ports);
     const row = f.db.records.get(`inboundRequests/job-1/communications/${drafted.id}`);
     const receipt = { ...sent.receipt, requestedRfcMessageId: sent.receipt.rfcMessageId, rfcMessageId: "<provider-rewritten@example.net>" };
-    const anchor = { gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: receipt.rfcMessageId, from: "nijel@tryblueprint.io", to: ["site@example.com"], subject: f.output.subject,
+    const anchor = { gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: receipt.rfcMessageId, from: "hello@tryblueprint.io", to: ["site@example.com"], subject: f.output.subject,
       body: f.output.body, receivedAt: "2026-10-08T17:01:00Z", inReplyTo: null, references: [] };
     f.ports.readThread = async () => ({ mailbox: "nijel@tryblueprint.io", threadId: "thread-1", fetchedAt: "2026-10-08T17:03:00Z", messages: [anchor,
       { ...anchor, gmailMessageId: "in-1", rfcMessageId: "<in-1@example.com>", from: "site@example.com", to: ["nijel@tryblueprint.io"], body: "A throughput target is still unknown.",
@@ -237,7 +249,7 @@ describe("inbound job communications uses the existing agent and actual email ev
     await expect(sendReviewedSiteJobCommunication(f.db, "job-1", drafted.id, "operator-1", approval, f.ports)).rejects.toMatchObject({ code: "job_send_requires_thread_reconciliation" });
     f.ports.readSentReceipt = vi.fn(async () => ({ ...acknowledgement, rfcMessageId: "<observed@example.net>" }));
     f.ports.readThread = async () => ({ mailbox: "nijel@tryblueprint.io", threadId: "thread-1", fetchedAt: "2026-10-08T17:03:00Z", messages: [{
-      gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: "<observed@example.net>", from: "nijel@tryblueprint.io", to: ["site@example.com"], subject: f.output.subject,
+      gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: "<observed@example.net>", from: "hello@tryblueprint.io", to: ["site@example.com"], subject: f.output.subject,
       body: f.output.body, receivedAt: "2026-10-08T17:01:00Z", inReplyTo: null, references: [] }] });
     expect(await refreshSiteJobReplies(f.db, "job-1", drafted.id, "operator-1", f.ports)).toMatchObject({ saved: 0 });
     expect(f.db.records.get(`inboundRequests/job-1/communications/${drafted.id}`)).toMatchObject({ state: "sent", sendReceipt: { ...acknowledgement, rfcMessageId: "<observed@example.net>" } });
@@ -246,7 +258,7 @@ describe("inbound job communications uses the existing agent and actual email ev
   it("saves genuine natural email answers once with provenance and leaves interpretation to Blueprint", async () => {
     const f = fixture(), drafted = await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);
     const sent = await sendReviewedSiteJobCommunication(f.db, "job-1", drafted.id, "operator-1", { expectedContextDigest: drafted.contextDigest, expectedOutputDigest: drafted.outputDigest, reviewedSend: true }, f.ports);
-    const anchor = { gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: sent.receipt.rfcMessageId, from: "nijel@tryblueprint.io", to: ["site@example.com"], subject: f.output.subject,
+    const anchor = { gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: sent.receipt.rfcMessageId, from: "hello@tryblueprint.io", to: ["site@example.com"], subject: f.output.subject,
       body: f.output.body, receivedAt: "2026-10-08T17:01:00Z", inReplyTo: null, references: [] };
     f.ports.readThread = async () => ({ mailbox: "nijel@tryblueprint.io", threadId: "thread-1", fetchedAt: "2026-10-08T17:03:00Z", messages: [anchor,
       { ...anchor, gmailMessageId: "in-1", rfcMessageId: "<in-1@example.com>", from: "site@example.com", to: ["nijel@tryblueprint.io"], body: "About 30 trays an hour would help. We do not approve a visit yet.",
@@ -287,7 +299,7 @@ describe("inbound job communications uses the existing agent and actual email ev
       f.db.records.set(`captureUploadSessions/${pending.capture_id}`, { browser_pending_delivery: pending });
       const drafted = await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);
       const sent = await sendReviewedSiteJobCommunication(f.db, "job-1", drafted.id, "operator-1", { expectedContextDigest: drafted.contextDigest, expectedOutputDigest: drafted.outputDigest, reviewedSend: true }, f.ports);
-      const anchor = { gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: sent.receipt.rfcMessageId, from: "nijel@tryblueprint.io",
+      const anchor = { gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: sent.receipt.rfcMessageId, from: "hello@tryblueprint.io",
         to: ["site@example.com"], subject: f.output.subject, body: f.output.body, receivedAt: "2026-10-08T17:01:00Z", inReplyTo: null, references: [] };
       f.ports.readThread = async () => ({ mailbox: "nijel@tryblueprint.io", threadId: "thread-1", fetchedAt: "2026-10-08T17:04:00Z", messages: [anchor,
         { ...anchor, gmailMessageId: "in-1", rfcMessageId: "<in-1@example.com>", from: "site@example.com", to: ["nijel@tryblueprint.io"],
@@ -318,7 +330,7 @@ describe("inbound job communications uses the existing agent and actual email ev
       // Reopening it through the second anchor cannot rewrite active evidence.
       const canonicalBefore = JSON.stringify([...f.db.records].filter(([path]) => path.includes("/customerStatements/")));
       f.db.records.get(`siteAssessmentJobs/${current.site_advisory.job_id}`).state = "running";
-      const secondId = "e".repeat(64), secondAnchor = { ...anchor, gmailMessageId: "out-2", rfcMessageId: "<out-2@tryblueprint.io>", receivedAt: "2026-10-08T17:01:30Z" };
+      const secondId = "e".repeat(64), secondAnchor = { ...anchor, from: "nijel@tryblueprint.io", gmailMessageId: "out-2", rfcMessageId: "<out-2@tryblueprint.io>", receivedAt: "2026-10-08T17:01:30Z" };
       f.db.records.set(`inboundRequests/job-1/communications/${secondId}`, { recipient: "site@example.com", output: f.output,
         sendReceipt: { threadId: "thread-1", messageId: "out-2", rfcMessageId: secondAnchor.rfcMessageId } });
       const firstThread = await f.ports.readThread("thread-1");
@@ -356,9 +368,9 @@ describe("inbound job communications uses the existing agent and actual email ev
         f.db.records.get("captureCoverageReviews/historical/calls/unknown")]);
       const drafted = await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);
       const sent = await sendReviewedSiteJobCommunication(f.db, "job-1", drafted.id, "operator-1", { expectedContextDigest: drafted.contextDigest, expectedOutputDigest: drafted.outputDigest, reviewedSend: true }, f.ports);
-      const anchor = { gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: sent.receipt.rfcMessageId, from: "nijel@tryblueprint.io",
+      const anchor = { gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: sent.receipt.rfcMessageId, from: "hello@tryblueprint.io",
         to: ["site@example.com"], subject: f.output.subject, body: f.output.body, receivedAt: "2026-10-08T17:01:00Z", inReplyTo: null, references: [] };
-      const secondId = "e".repeat(64), secondAnchor = { ...anchor, gmailMessageId: "out-2", rfcMessageId: "<out-2@tryblueprint.io>", receivedAt: "2026-10-08T17:01:30Z" };
+      const secondId = "e".repeat(64), secondAnchor = { ...anchor, from: "nijel@tryblueprint.io", gmailMessageId: "out-2", rfcMessageId: "<out-2@tryblueprint.io>", receivedAt: "2026-10-08T17:01:30Z" };
       f.db.records.set(`inboundRequests/job-1/communications/${secondId}`, { recipient: "site@example.com", output: f.output,
         sendReceipt: { threadId: "thread-1", messageId: "out-2", rfcMessageId: secondAnchor.rfcMessageId } });
       const replies = [anchor, secondAnchor].flatMap((question, group) => Array.from({ length: 11 }, (_, i) => ({ ...question,

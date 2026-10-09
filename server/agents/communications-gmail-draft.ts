@@ -379,7 +379,7 @@ export function gmailDraftPlain(content: { body: string; mimeProfile?: string })
   } else lines[index] = "Blueprint — https://tryblueprint.io/";
   return lines.join("\n");
 }
-function gmailDraftHtml(body: string, profile?: DraftContent["mimeProfile"]) {
+export function gmailDraftHtml(body: string, profile?: DraftContent["mimeProfile"]) {
   const escape = (value: string) => value.replace(/[&<>"']/g, character =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]!));
   if (profile === "multipart-founder-signature-v3") {
