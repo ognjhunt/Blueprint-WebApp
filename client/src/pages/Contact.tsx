@@ -1,7 +1,7 @@
 /**
  * Two public entry points. Keep the application after a concise team invitation,
  * the site form before supporting details, and keep
- * the invited initial assessment free, with later scope and cost agreed separately.
+ * the initial assessment free, with later scope and cost agreed separately.
  */
 import { useLocation } from "wouter";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
@@ -64,7 +64,7 @@ export default function Contact() {
     <>
       <SEO
         title="Show us a task | Blueprint"
-          description="Describe one recurring job for an initial evidence-backed assessment. The initial assessment is free for invited beta participants; later scope and cost are agreed separately."
+          description="Describe one recurring job for an initial evidence-backed assessment. The initial assessment is free during the beta; later scope and cost are agreed separately."
           canonical="/contact/site-operator"
       />
       <section className="ms-inquiry ms-container">

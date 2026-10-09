@@ -1,100 +1,167 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
-import { signInWithCustomToken, sendEmailVerification, type User } from "firebase/auth";
-import { Helmet } from "@/lib/helmet";
+import { createUserWithEmailAndPassword, getAuth, type User } from "firebase/auth";
 import { SEO } from "@/components/SEO";
-import { AuthLayout } from "@/components/auth/AuthLayout";
+import { AuthLayout, AuthSteps } from "@/components/auth/AuthLayout";
+import { useAuth } from "@/contexts/AuthContext";
+import { analyticsEvents, getSafeErrorType } from "@/lib/analytics";
+import { getDemandAttributionFromSearchParams, hasDemandAttribution } from "@/lib/demandAttribution";
+import { onboardingDestination } from "@/lib/onboardingDestination";
 import { workspaceRequest } from "@/lib/workspace";
-import { invitationRequest, type AccountInvitation } from "@/lib/accountInvitation";
-import { friendlyAuthError } from "@/lib/siteClaim";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
+import type { WorkspaceAccountSetup } from "@/types/workspace";
 
-/** Public URLs collect interest; only a current server-approved invitation shows credentials. */
+import RobotTeamSignUpFlow from "./RobotTeamSignUpFlow";
+
 export default function BusinessSignUpFlow() {
-  const [token] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("invitation") || "");
-  const [invitation, setInvitation] = useState<AccountInvitation | null>(null);
-  const [checking, setChecking] = useState(Boolean(token));
-  const [name, setName] = useState("");
-  const [organization, setOrganization] = useState("");
-  const [password, setPassword] = useState("");
-  const [terms, setTerms] = useState(false);
-  const [optionalUpdates, setOptionalUpdates] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
+  const persona = (params.get("buyerType") || params.get("persona") || "").replaceAll("-", "_");
+  return params.has("invitation") || persona === "robot_team" ? <RobotTeamSignUpFlow /> : <SiteSignUpFlow />;
+}
+
+function SiteSignUpFlow() {
+  const { currentUser } = useAuth();
   const account = useRef<User | null>(null);
   const pending = useRef(false);
-  const googleReady = useRef(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const [step, setStep] = useState(1);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [organization, setOrganization] = useState("");
+  const workspaceType = "site_operator";
+  const [optionalUpdates, setOptionalUpdates] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  // Static markup is replaced on client mount. Do not accept input that
+  // would be lost before React attaches the form's handlers.
+  const [interactive, setInteractive] = useState(false);
+  useEffect(() => { setInteractive(true); }, []);
+  const controlsDisabled = busy || !interactive;
+  const [error, setError] = useState("");
+  const [accountCreated, setAccountCreated] = useState(false);
+  const attribution = useMemo(() => getDemandAttributionFromSearchParams(new URLSearchParams(typeof window === "undefined" ? "" : window.location.search)), []);
+  const analytics = { buyerType: workspaceType, requestedLaneCount: 0, includesQualificationLane: false, companySize: "", budgetRange: "", referralSource: "", ...(hasDemandAttribution(attribution) ? { demandAttribution: attribution } : {}) };
   useEffect(() => {
-    if (!token) return;
-    let active = true;
-    invitationRequest<AccountInvitation>("inspect", token).then(data => {
-      if (!active) return;
-      setInvitation(data); setName(data.name); setOrganization(data.organization);
-      void import("@/lib/firebase").catch(() => undefined);
-    }).catch(failure => { if (active) setError(failure.message); }).finally(() => { if (active) setChecking(false); });
-    return () => { active = false; };
-  }, [token]);
+    analyticsEvents.businessSignupStarted({ defaultRequestedLane: "none", requestedLaneCount: 0, ...(hasDemandAttribution(attribution) ? { demandAttribution: attribution } : {}) });
+  }, [attribution]);
 
-  async function finish(user: User) {
-    if (!invitation || user.email?.trim().toLowerCase() !== invitation.email) throw new Error("Sign in with the email address on your Blueprint invitation.");
-    account.current = user;
-    await workspaceRequest(user, "/setup", "POST", { name: name.trim(), organization: organization.trim(), workspaceType: invitation.workspaceType, acceptedTerms: true, optionalUpdates });
-    if (!user.emailVerified) await sendEmailVerification(user, { url: new URL(invitation.returnTo, window.location.origin).toString() });
-    window.location.assign(invitation.returnTo);
-  }
-  async function submit(google: boolean) {
-    if (pending.current || !invitation) return;
-    setError("");
-    if (!terms || !name.trim() || !organization.trim()) { setError("Enter your name and organization, and accept the Terms and Privacy Policy."); return; }
-    if (!google && !account.current && password.length < 8) { setError("Use at least 8 characters for your password."); return; }
-    pending.current = true; setBusy(true);
-    try {
-      const firebase = await import("@/lib/firebase");
-      if (google) {
-        if (!googleReady.current) { await invitationRequest("redeem", token, { mode: "google", acceptedTerms: true }); googleReady.current = true; }
-        await finish(await firebase.signInWithGoogle());
-      } else {
-        let user = account.current;
-        if (!user) {
-          const data = await invitationRequest<{ customToken: string }>("redeem", token, { mode: "password", password, acceptedTerms: true });
-          user = (await signInWithCustomToken(firebase.auth, data.customToken)).user;
-          account.current = user; setPassword("");
-        }
-        await finish(user);
+  // Resume an unfinished signup after reload. Never overwrite an existing
+  // customer's workspace merely because they revisit the signup URL.
+  useEffect(() => {
+    if (!currentUser || pending.current) return;
+    let active = true;
+    account.current = currentUser;
+    setEmail(currentUser.email || "");
+    setName(currentUser.displayName || "");
+    setAccountCreated(true);
+    setStep(2);
+    setBusy(true);
+    workspaceRequest<WorkspaceAccountSetup>(currentUser, "/setup").then(data => {
+      if (!active) return;
+      if (data.workspaceType) window.location.assign(onboardingDestination(data.workspaceType, window.location.search, true));
+      else {
+        setName(data.profile.name || currentUser.displayName || "");
+        setOrganization(data.profile.organization || "");
       }
+    }).catch(() => {
+      if (active) setError("Your account is signed in. Complete your workspace details below, or open Settings to continue setup.");
+    }).finally(() => { if (active) setBusy(false); });
+    return () => { active = false; };
+  }, [currentUser]);
+
+  useEffect(() => { if (step === 2) heading.current?.focus(); }, [step]);
+
+  async function google() {
+    if (!interactive || pending.current) return;
+    pending.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const { signInWithGoogle } = await import("@/lib/firebase");
+      const user = await signInWithGoogle();
+      account.current = user;
+      setAccountCreated(true);
+      setEmail(user.email || "");
+      setName(user.displayName || "");
+      setStep(2);
+      const data = await workspaceRequest<WorkspaceAccountSetup>(user, "/setup");
+      if (data.workspaceType) { window.location.assign(onboardingDestination(data.workspaceType, window.location.search, true)); return; }
+      setName(data.profile.name || user.displayName || "");
+      setOrganization(data.profile.organization || "");
     } catch (failure: any) {
-      setError(failure.code === "auth/popup-blocked" && googleReady.current
-        ? "Your invitation is ready. Click Continue with Google again to open sign-in."
-        : friendlyAuthError(failure, "We could not finish account setup. Please try again."));
+      setError(failure.code === "auth/popup-closed-by-user" ? "Google sign-in was closed. Try again or use your email." : "Could not finish Google sign-in. Please try again.");
     } finally { pending.current = false; setBusy(false); }
   }
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!interactive || pending.current || busy) return;
+    setError("");
+    if (step === 1) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError("Enter a valid email address."); return; }
+      if (password.length < 8) { setError("Use at least 8 characters for your password."); return; }
+      setStep(2);
+      return;
+    }
+    if (!name.trim() || !organization.trim() || !workspaceType) { setError("Enter your name, organization, and workspace type."); return; }
+    if (!acceptedTerms) { setError("Accept the Terms and Privacy Policy to continue."); return; }
+    pending.current = true;
+    setBusy(true);
+    analyticsEvents.businessSignupSubmitted({ ...analytics, hasPhoneNumber: false, hasWorkflowContext: false, hasOperatingConstraints: false, hasPrivacySecurityConstraints: false, hasCommercializationPreference: false, hasKnownBlockers: false, hasTargetRobotTeam: false });
+    try {
+      if (!account.current) {
+        // Initialize the existing Firebase client; create credentials only once.
+        await import("@/lib/firebase");
+        const result = await createUserWithEmailAndPassword(getAuth(), email.trim(), password);
+        account.current = result.user;
+        setAccountCreated(true);
+        setPassword("");
+      }
+      const existing = await workspaceRequest<WorkspaceAccountSetup>(account.current, "/setup");
+      if (existing.workspaceType) { window.location.assign(onboardingDestination(existing.workspaceType, window.location.search, true)); return; }
+      await workspaceRequest(account.current, "/setup", "POST", {
+        name: name.trim(), organization: organization.trim(), workspaceType, acceptedTerms: true, optionalUpdates,
+      });
+      analyticsEvents.businessSignupCompleted(analytics);
+      // Reload the authoritative profile before entering the correct workspace.
+      // The public funnels are the front doors. A site goes to the capture
+      // form, a robot team to the task library; the workspace is where a task
+      // is followed once it exists, not a second intake.
+      window.location.assign(onboardingDestination(workspaceType, window.location.search));
+    } catch (failure: any) {
+      analyticsEvents.businessSignupFailed({ buyerType: workspaceType, requestedLaneCount: 0, stage: "account_creation", stepNumber: 2, errorType: getSafeErrorType(failure) });
+      if (account.current) setError("Your account is created, but workspace setup did not save. Your details are still here—try again.");
+      else if (failure.code === "auth/email-already-in-use") setError("An account with this email already exists. Sign in below to continue.");
+      else if (failure.code === "auth/weak-password") { setError("Choose a stronger password with at least 8 characters."); setStep(1); }
+      else setError("Could not create your account. Please try again.");
+    } finally { pending.current = false; setBusy(false); }
+  }
+
   return <>
-    <Helmet><meta name="referrer" content="no-referrer" /></Helmet>
-    <SEO noIndex title={`${invitation ? "Create your account" : "Request access"} | Blueprint`} description="Blueprint accounts are available by invitation after intake and approval." canonical="/signup/business" />
+    <SEO title="Create an account | Blueprint" description="Create your Blueprint site account. Robot-team access requires an invitation." canonical="/signup/business" />
     <AuthLayout>
-      <h1>{checking ? "Checking your invitation" : invitation ? "Create your account" : "Access by invitation"}</h1>
-      {!invitation ? <>
-        <p className="auth-description">{checking ? "We’re checking the approval for this email address." : "Start with your site task or register your robot team. We’ll invite you to create an account after the required review and approval."}</p>
-        {!checking && <div className="auth-form">
-          <a className="auth-primary" href="/contact/site-operator">Show us a task <ArrowRight size={18} aria-hidden="true" /></a>
-          <a className="auth-google" href="/contact/robot-team">Register robot-team interest</a>
-        </div>}
-      </> : <>
-        <p className="auth-description">Your {invitation.workspaceType === "robot_team" ? "robot team" : "site"} is approved. Use the email address on your invitation.</p>
-        <form className="auth-form auth-simple-signup" onSubmit={event => { event.preventDefault(); void submit(false); }} aria-busy={busy}>
-          <div><label htmlFor="email">Work email</label><input id="email" type="email" value={invitation.email} readOnly autoComplete="email" /></div>
-          <div><label htmlFor="contactName">Your name</label><input id="contactName" value={name} onChange={e => setName(e.target.value)} autoComplete="name" maxLength={160} disabled={busy} required /></div>
-          <div><label htmlFor="organizationName">Organization</label><input id="organizationName" value={organization} onChange={e => setOrganization(e.target.value)} autoComplete="organization" maxLength={160} disabled={busy} required /></div>
-          {!account.current && <div><label htmlFor="password">Password</label><div className="auth-password"><input id="password" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} minLength={8} autoComplete="new-password" disabled={busy} /><button type="button" disabled={busy} aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><p className="auth-signup-note">At least 8 characters. Skip this field to use Google.</p></div>}
-          <label className="auth-signup-consent"><input type="checkbox" checked={optionalUpdates} onChange={e => setOptionalUpdates(e.target.checked)} disabled={busy} /><span>Email me relevant jobs and Blueprint updates (optional). Unsubscribe anytime.</span></label>
-          <label className="auth-signup-consent"><input type="checkbox" checked={terms} onChange={e => setTerms(e.target.checked)} disabled={busy} /><span>I agree to the <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and am authorized to create this organization’s account.</span></label>
-          <button className="auth-primary" type="submit" disabled={busy}>{busy ? "Saving…" : account.current ? "Finish setup" : "Create account"}<ArrowRight size={18} aria-hidden="true" /></button>
-        </form>
-        <div className="auth-divider"><span>or</span></div>
-        <button className="auth-google" type="button" disabled={busy} onClick={() => void submit(true)}>Continue with Google</button>
-      </>}
-      {error && <div className="auth-error" role="alert">{error}</div>}
+      <h1 ref={heading} tabIndex={-1}>{step === 1 ? "Create an account" : "Set up your workspace"}</h1>
+      <p className="auth-description">{step === 1 ? "Start with your email. Set up your workspace next." : "A few details to set up your site account."}</p>
+      <AuthSteps currentStep={step} labels={["Account", "Workspace"]} />
+      <form className="auth-form auth-simple-signup" method="post" onSubmit={submit} noValidate aria-label={step === 1 ? "Account details" : "Workspace details"} aria-busy={busy}>
+        {step === 1 ? <>
+          <div><label htmlFor="email">Work email</label><input id="email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required disabled={controlsDisabled} /></div>
+          <div><label htmlFor="password">Password</label><div className="auth-password"><input id="password" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={8} value={password} onChange={e => setPassword(e.target.value)} required disabled={controlsDisabled} aria-describedby="signup-password-hint" /><button type="button" disabled={controlsDisabled} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><p id="signup-password-hint" className="auth-signup-note">At least 8 characters.</p></div>
+        </> : <>
+          <p className="auth-signup-email">{email}</p>
+          <div><label htmlFor="contactName">Your name</label><input id="contactName" autoComplete="name" maxLength={160} value={name} onChange={e => setName(e.target.value)} required disabled={controlsDisabled} /></div>
+          <div><label htmlFor="organizationName">Organization</label><input id="organizationName" autoComplete="organization" maxLength={160} value={organization} onChange={e => setOrganization(e.target.value)} required disabled={controlsDisabled} /></div>
+          <p className="auth-signup-note">Next, describe one recurring job and share footage. Your job page will track its assessment and pilot decisions.</p>
+          <label className="auth-signup-consent"><input type="checkbox" checked={optionalUpdates} onChange={e => setOptionalUpdates(e.target.checked)} disabled={controlsDisabled} /><span>Email me relevant new jobs and Blueprint updates (optional). Unsubscribe anytime. Account and current-job notices are separate.</span></label>
+          <label className="auth-signup-consent"><input type="checkbox" checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)} disabled={controlsDisabled} required /><span>I agree to the <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and am authorized to create this organization’s account.</span></label>
+        </>}
+        {error && <div className="auth-error" role="alert">{error}{accountCreated && <> <a href="/settings">Open Settings</a></>}</div>}
+        <div className="auth-signup-actions">{step === 2 && !accountCreated && <button className="auth-back" type="button" disabled={controlsDisabled} onClick={() => { setError(""); setStep(1); }}>← Back</button>}<button className="auth-primary" type="submit" disabled={controlsDisabled}>{busy ? "Saving…" : step === 1 ? "Continue" : accountCreated ? "Open workspace" : "Create account"}<ArrowRight size={18} aria-hidden="true" /></button></div>
+      </form>
+      {step === 1 && <><div className="auth-divider"><span>or</span></div><button className="auth-google" type="button" onClick={google} disabled={controlsDisabled}>Continue with Google</button></>}
+      <p className="auth-account-link">For robot teams: <a href="/contact/robot-team">Register interest for an invitation</a></p>
       <p className="auth-account-link">Already have an account? <a href="/sign-in">Sign in</a></p>
     </AuthLayout>
   </>;

@@ -12,8 +12,22 @@ for (const width of [1440, 390]) {
     await expect(page.getByLabel('Work email', { exact: true })).toHaveCount(0);
     await expect(page.getByLabel('Password', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: /Show us a task/ })).toHaveAttribute('href', '/contact/site-operator');
+    await expect(page.getByRole('link', { name: 'Create a site account' })).toHaveAttribute('href', '/signup/business');
     await expect(page.getByRole('link', { name: /Register robot-team interest/ })).toHaveAttribute('href', '/contact/robot-team');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
+for (const width of [1440, 390]) {
+  test(`site signup stays open at ${width}px without an invitation or staff approval`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/signup/business?buyerType=site_operator');
+    await expect(page.getByRole('heading', { name: 'Create an account', exact: true })).toBeVisible();
+    await page.getByLabel('Work email').fill('owner@example.com');
+    await page.getByLabel('Password', { exact: true }).fill('strongpass123');
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Set up your workspace' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Create account', exact: true })).toBeVisible();
+    await expect(page.getByText(/invite|screening|approval/)).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }

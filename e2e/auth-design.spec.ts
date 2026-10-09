@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 for (const width of [1440, 390]) {
   test(`auth routes share the minimal theme at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
-    for (const [path, heading] of [["/sign-in", "Sign in"], ["/signup/business", "Access by invitation"], ["/signup/business?buyerType=site_operator", "Access by invitation"], ["/forgot-password", "Reset your password"]]) {
+    for (const [path, heading] of [["/sign-in", "Sign in"], ["/signup/business", "Create an account"], ["/signup/business?buyerType=site_operator", "Create an account"], ["/forgot-password", "Reset your password"]]) {
       await page.goto(path);
       await expect(page.getByRole("heading", { level: 1, name: heading, exact: true })).toBeVisible();
       await expect(page.locator(".auth-shell")).toHaveCSS("background-color", "rgb(246, 245, 239)");
@@ -51,7 +51,7 @@ test("sign-in validates and links to account creation and recovery", async ({ pa
   await page.getByRole("link", { name: "Forgot password?" }).click();
   await expect(page).toHaveURL(/\/forgot-password$/);
   await page.getByRole("link", { name: "Back to sign in" }).click();
-  await page.getByRole("link", { name: "Request access" }).click();
+  await page.getByRole("link", { name: "Create an account" }).click();
   await expect(page).toHaveURL(/\/signup\/business$/);
-  await expect(page.getByRole("heading", { name: "Access by invitation", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create an account", exact: true })).toBeVisible();
 });

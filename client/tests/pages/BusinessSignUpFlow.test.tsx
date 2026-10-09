@@ -1,72 +1,125 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, cleanup } from "@testing-library/react";
 import BusinessSignUpFlow from "@/pages/BusinessSignUpFlow";
-const mocks = vi.hoisted(() => ({ invitation: vi.fn(), google: vi.fn(), custom: vi.fn(), verify: vi.fn(), workspace: vi.fn(), assign: vi.fn() }));
-vi.mock("@/lib/accountInvitation", () => ({ invitationRequest: mocks.invitation }));
-vi.mock("firebase/auth", () => ({ signInWithCustomToken: mocks.custom, sendEmailVerification: mocks.verify }));
-vi.mock("@/lib/firebase", () => ({ auth: {}, signInWithGoogle: mocks.google }));
-vi.mock("@/lib/workspace", () => ({ workspaceRequest: mocks.workspace, WorkspaceRequestError: class extends Error {} }));
-const user = { uid: "new-user", email: "team@example.com", displayName: "Team", emailVerified: false };
-const invitation = { email: user.email, name: "Team", organization: "Robot Co", workspaceType: "robot_team", returnTo: "/contact/robot-team" };
-function consent() { fireEvent.click(screen.getByRole("checkbox", { name: /I agree/ })); }
-async function openInvitation() { window.history.replaceState({}, "", "/signup/business?invitation=signed-invitation"); render(<BusinessSignUpFlow />); await screen.findByRole("heading", { name: "Create your account" }); }
+const mocks = vi.hoisted(() => ({ create: vi.fn(), google: vi.fn(), request: vi.fn(), assign: vi.fn(), currentUser: null as any }));
+vi.mock("@/lib/analytics", () => ({ analyticsEvents: { businessSignupStarted: vi.fn(), businessSignupSubmitted: vi.fn(), businessSignupCompleted: vi.fn(), businessSignupFailed: vi.fn() }, getSafeErrorType: () => "unknown" }));
+vi.mock("firebase/auth", () => ({ getAuth: () => ({}), createUserWithEmailAndPassword: mocks.create }));
+vi.mock("@/lib/firebase", () => ({ signInWithGoogle: mocks.google }));
+vi.mock("@/lib/workspace", () => ({ workspaceRequest: mocks.request }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: mocks.currentUser }) }));
+const user = { uid: "new-user", email: "team@example.com", displayName: "Test User" };
+const unconfigured = { workspaceType: null, profile: { name: "", organization: "", email: user.email }, termsRequired: true, access: { operations: false, capture: false } };
+function accountStep() {
+  fireEvent.change(screen.getByLabelText("Work email"), { target: { value: user.email } });
+  fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "strongpass123" } });
+  fireEvent.click(screen.getByRole("button", { name: "Continue", exact: true }));
+}
+function workspaceStep(role: "site_operator" = "site_operator") {
+  fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Test User" } });
+  fireEvent.change(screen.getByLabelText("Organization", { exact: true }), { target: { value: "Test Team" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: /I agree/ }));
+}
 beforeEach(() => {
-  cleanup(); vi.clearAllMocks(); window.history.replaceState({}, "", "/signup/business");
+  cleanup(); vi.clearAllMocks(); mocks.currentUser = null;
+  window.history.pushState({}, "", "/signup/business");
   vi.spyOn(window.location, "assign").mockImplementation(mocks.assign);
-  mocks.invitation.mockImplementation(async (path: string) => path === "inspect" ? invitation : { customToken: "server-created-session" });
-  mocks.custom.mockResolvedValue({ user }); mocks.google.mockResolvedValue({ ...user, emailVerified: true });
-  mocks.workspace.mockResolvedValue({ ok: true }); mocks.verify.mockResolvedValue(undefined);
+  mocks.create.mockResolvedValue({ user }); mocks.google.mockResolvedValue(user);
+  mocks.request.mockImplementation(async (_u, _path, method) => method === "POST" ? { ok: true } : unconfigured);
 });
-describe("invitation-only account creation", () => {
-  it("offers public intake without credentials or Google signup", () => {
+describe("minimal business signup", () => {
+  it("has two account fields, two workspace fields, and no approval step without legacy intake", () => {
     render(<BusinessSignUpFlow />);
-    expect(screen.getByRole("heading", { name: "Access by invitation" })).toBeVisible();
-    expect(screen.getByRole("link", { name: /Show us a task/ })).toHaveAttribute("href", "/contact/site-operator");
-    expect(screen.getByRole("link", { name: "Register robot-team interest" })).toHaveAttribute("href", "/contact/robot-team");
-    expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Continue with Google" })).not.toBeInTheDocument();
-    expect(mocks.invitation).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("textbox")).toHaveLength(1);
+    accountStep();
+    expect(screen.getAllByRole("textbox")).toHaveLength(2);
+    expect(screen.queryAllByRole("radio")).toHaveLength(0);
+    expect(screen.queryByText(/Requested lane|Proof path|Company size|Standardized benchmark|Commercialization boundary/)).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /Email me relevant/ })).not.toBeChecked();
+    expect(mocks.create).not.toHaveBeenCalled();
   });
-  it("keeps malformed/expired invitations out of the credential form", async () => {
-    mocks.invitation.mockRejectedValue(new Error("Account creation requires a current Blueprint invitation."));
-    window.history.replaceState({}, "", "/signup/business?invitation=invalid"); render(<BusinessSignUpFlow />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("current Blueprint invitation");
-    expect(screen.queryByLabelText("Password")).not.toBeInTheDocument(); expect(mocks.custom).not.toHaveBeenCalled();
+  it("saves optional updates only when explicitly checked", async () => {
+    render(<BusinessSignUpFlow />); accountStep(); workspaceStep();
+    fireEvent.click(screen.getByRole("checkbox", { name: /Email me relevant/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
+    await waitFor(() => expect(mocks.request).toHaveBeenCalledWith(user, "/setup", "POST", expect.objectContaining({ optionalUpdates: true })));
   });
-  it("locks identity and team type to the server invitation despite query overrides", async () => {
-    window.history.replaceState({}, "", "/signup/business?invitation=signed-invitation&buyerType=site_operator&email=attacker@example.com");
-    render(<BusinessSignUpFlow />); await screen.findByRole("heading", { name: "Create your account" });
-    expect(screen.getByLabelText("Work email")).toHaveValue(user.email); expect(screen.getByLabelText("Work email")).toHaveAttribute("readonly");
-    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+  for (const role of ["site_operator"] as const) {
+    it(`creates only an account and ${role} workspace, without a sales intake or permissions grant`, async () => {
+      render(<BusinessSignUpFlow />); accountStep(); workspaceStep(role);
+      fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
+      await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/site-operator"));
+      expect(mocks.create).toHaveBeenCalledTimes(1);
+      expect(mocks.request).toHaveBeenCalledWith(user, "/setup", "POST", { name: "Test User", organization: "Test Team", workspaceType: role, acceptedTerms: true, optionalUpdates: false });
+      expect(mocks.request.mock.calls.every(call => call[1] === "/setup")).toBe(true);
+    });
+  }
+  it("requires legal acceptance before creating credentials", () => {
+    render(<BusinessSignUpFlow />); accountStep(); workspaceStep(); fireEvent.click(screen.getByRole("checkbox", { name: /I agree/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Accept the Terms");
+    expect(mocks.create).not.toHaveBeenCalled();
   });
-  it("requires consent before either authentication method", async () => {
-    await openInvitation(); fireEvent.click(screen.getByRole("button", { name: "Create account" }));
-    expect(screen.getByRole("alert")).toHaveTextContent("accept the Terms");
-    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-    expect(mocks.invitation).toHaveBeenCalledTimes(1); expect(mocks.google).not.toHaveBeenCalled();
+  it("retries a failed workspace save without creating a second account or losing values", async () => {
+    let fail = true;
+    mocks.request.mockImplementation(async (_u, _path, method) => { if (method === "POST" && fail) throw Error("Unavailable"); return method === "POST" ? { ok: true } : unconfigured; });
+    render(<BusinessSignUpFlow />); accountStep(); workspaceStep();
+    fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
+    await screen.findByText(/Your account is created, but workspace setup did not save/);
+    expect(screen.getByLabelText("Organization", { exact: true })).toHaveValue("Test Team");
+    fail = false;
+    fireEvent.click(screen.getByRole("button", { name: "Open workspace", exact: true }));
+    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/site-operator"));
+    expect(mocks.create).toHaveBeenCalledTimes(1);
   });
-  it("redeems a password invitation through the server and then verifies email", async () => {
-    await openInvitation(); consent(); fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "strongpass123" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/robot-team"));
-    expect(mocks.invitation).toHaveBeenCalledWith("redeem", "signed-invitation", { mode: "password", password: "strongpass123", acceptedTerms: true });
-    expect(mocks.custom).toHaveBeenCalledWith({}, "server-created-session");
-    expect(mocks.workspace).toHaveBeenCalledWith(user, "/setup", "POST", { name: "Team", organization: "Robot Co", workspaceType: "robot_team", acceptedTerms: true, optionalUpdates: false });
-    expect(mocks.verify).toHaveBeenCalled();
+  it("prefills Google identity and requires workspace details and consent", async () => {
+    render(<BusinessSignUpFlow />); fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    await waitFor(() => expect(screen.getByLabelText("Your name")).toHaveValue("Test User"));
+    expect(screen.getByRole("checkbox", { name: /I agree/ })).not.toBeChecked();
+    expect(mocks.request.mock.calls.some(c => c[2] === "POST")).toBe(false);
+    workspaceStep();fireEvent.click(screen.getByRole("button", { name: "Open workspace" }));
+    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/site-operator"));
+    expect(mocks.create).not.toHaveBeenCalled();
   });
-  it("prepares only the invited Google identity and rejects a different Google email", async () => {
-    mocks.google.mockResolvedValue({ ...user, email: "other@example.com", emailVerified: true });
-    await openInvitation(); consent(); fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("email address on your Blueprint invitation");
-    expect(mocks.invitation).toHaveBeenCalledWith("redeem", "signed-invitation", { mode: "google", acceptedTerms: true });
-    expect(mocks.workspace).not.toHaveBeenCalled();
+  it("routes an existing Google customer to their workspace without changing its type", async () => {
+    mocks.request.mockResolvedValue({ ...unconfigured, workspaceType: "site_operator" });
+    render(<BusinessSignUpFlow />);fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/app"));
+    expect(mocks.request.mock.calls.some(c => c[2] === "POST")).toBe(false);
   });
-  it("retains the created account across a workspace retry without replacing credentials", async () => {
-    mocks.workspace.mockRejectedValueOnce(new Error("Try again"));
-    await openInvitation(); consent(); fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "strongpass123" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create account" })); await screen.findByRole("alert");
-    fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalled());
-    expect(mocks.custom).toHaveBeenCalledTimes(1); expect(mocks.invitation.mock.calls.filter(call => call[0] === "redeem")).toHaveLength(1);
+  it("honors site query links and keeps typed values when going back", () => {
+    window.history.pushState({}, "", "/signup/business?buyerType=site_operator&intent=pilot-opportunity");
+    render(<BusinessSignUpFlow />);accountStep();
+    expect(screen.queryAllByRole("radio")).toHaveLength(0);
+    fireEvent.change(screen.getByLabelText("Organization", { exact: true }), { target: { value: "Saved Team" } });
+    fireEvent.click(screen.getByRole("button", { name: /Back/ }));
+    expect(screen.getByLabelText("Work email")).toHaveValue(user.email);
+    fireEvent.click(screen.getByRole("button", { name: "Continue", exact: true }));
+    expect(screen.getByLabelText("Organization", { exact: true })).toHaveValue("Saved Team");
   });
+  it("resumes an authenticated unfinished account without asking for another password", async () => {
+    mocks.currentUser = user;
+    render(<BusinessSignUpFlow />);
+    await waitFor(() => expect(screen.getByLabelText("Your name")).toHaveValue("Test User"));
+    expect(screen.queryByLabelText("Password", { exact: true })).not.toBeInTheDocument();
+    workspaceStep();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Open workspace" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Open workspace" }));
+    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/site-operator"));
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+  it("does not overwrite a workspace after an ambiguous save succeeded", async () => {
+    let writes = 0;
+    mocks.request.mockImplementation(async (_u, _path, method) => {
+      if (method === "POST") { writes++; throw Error("Response lost"); }
+      return writes ? { ...unconfigured, workspaceType: "robot_team" } : unconfigured;
+    });
+    render(<BusinessSignUpFlow />); accountStep(); workspaceStep();
+    fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
+    await screen.findByText(/Your account is created, but workspace setup did not save/);
+    fireEvent.click(screen.getByRole("button", { name: "Open workspace", exact: true }));
+    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/app"));
+    expect(writes).toBe(1);
+    expect(mocks.create).toHaveBeenCalledTimes(1);
+  });
+
 });

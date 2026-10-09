@@ -54,7 +54,6 @@ import {
 } from "@/types/inbound-request";
 import AdminAgentConsole from "@/components/admin/AdminAgentConsole";
 import { SiteScreeningCallPanel } from "@/components/admin/SiteScreeningCallPanel";
-import { SiteAccountInvitationPanel } from "@/components/admin/SiteAccountInvitationPanel";
 import { OutreachApprovalReview, type OutreachApproval, type OutreachReviewSummary } from "@/components/admin/OutreachApprovalReview";
 import { FounderMailboxConnection } from "@/components/admin/FounderMailboxConnection";
 import { CommunicationsRecovery } from "@/components/admin/CommunicationsRecovery";
@@ -2799,9 +2798,6 @@ export default function AdminLeads() {
                   </button>
                 </div>
 
-                {selectedLead.request.buyerType === "site_operator" ? (
-                  <SiteAccountInvitationPanel key={selectedLead.requestId} requestId={selectedLead.requestId} />
-                ) : null}
                 {selectedLead.request.buyerType === "site_operator" ? (
                   <SiteScreeningCallPanel
                     requestId={selectedLead.requestId}

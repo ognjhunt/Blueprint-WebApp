@@ -257,7 +257,7 @@ router.post(
     const input = accountSetupSchema.parse(req.body);
     const { auth } = res.locals.workspaceAccount;
     const staff = await resolveAccessContext(res);
-    if (!staff.isOps && !await accountHasAdmission(text(auth.email).toLowerCase(), input.workspaceType))
+    if (input.workspaceType === "robot_team" && !staff.isOps && !await accountHasAdmission(text(auth.email).toLowerCase(), "robot_team"))
       refuse(403, "Complete intake and wait for Blueprint to approve your account invitation.", "account_invitation_required");
     const profileRef = db!.collection("users").doc(auth.uid);
     await db!.runTransaction(async (transaction) => {
@@ -306,6 +306,8 @@ router.use(
         "Choose a workspace type to get started.",
         "workspace_setup_required",
       );
+    if (user.buyerType === "robot_team" && !(await resolveAccessContext(res)).isOps && !await accountHasAdmission(text(auth.email).toLowerCase(), "robot_team"))
+      refuse(403, "Robot-team access requires Blueprint approval.", "account_invitation_required");
     res.locals.workspaceIdentity = {
       uid: auth.uid,
       email: text(auth.email).toLowerCase(),

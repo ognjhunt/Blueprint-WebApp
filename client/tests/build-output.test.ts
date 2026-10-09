@@ -106,10 +106,7 @@ describe("build output", () => {
     for (const route of ["sign-in", "forgot-password"]) {
       expect(fs.readFileSync(distPath(route, "index.html"), "utf8")).toContain('method="post"');
     }
-    const signup = fs.readFileSync(distPath("signup/business/index.html"), "utf8");
-    expect(signup).toContain("Access by invitation");
-    expect(signup).not.toContain('id="email"');
-    expect(signup).not.toContain('id="password"');
+    expect(fs.readFileSync(distPath("signup/business/index.html"), "utf8")).toContain('id="email"');
   });
 
   it("makes robot-team intake inspectable without waiting for JavaScript or a task lookup", () => {
@@ -239,7 +236,7 @@ describe("build output", () => {
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(homeHtml).toContain("Could a robot take over a repetitive task at your site?");
-    expect(homeHtml).toContain("Free initial assessment for invited beta participants.");
+    expect(homeHtml).toContain("Free initial assessment during the beta.");
     expect(homeHtml).toContain("One recommended pilot, on one page.");
     expect(homeHtml).toContain("Quoted by the robot team, paid to them");
     expect(homeHtml).not.toContain("The same task, in simulation.");

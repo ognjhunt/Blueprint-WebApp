@@ -43,9 +43,6 @@ vi.mock("../utils/captureOutbox", () => ({
 const notifySlackScreeningCallNeeded = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
 vi.mock("../utils/slack", () => ({ notifySlackScreeningCallNeeded }));
 
-const admission = vi.hoisted(() => vi.fn(async () => false));
-vi.mock("../utils/accountInvitations", () => ({ accountHasAdmission: admission }));
-
 const briefRouter = (await import("../routes/site-task-brief")).default;
 const { gateFields } = await import("../../client/src/data/siteTaskQualification");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
@@ -56,7 +53,6 @@ let server: Server;
 let baseUrl: string;
 
 beforeEach(async () => {
-  admission.mockResolvedValue(false);
   sharedFakeFirestoreState.docs.clear();
   notifySlackScreeningCallNeeded.mockClear();
   vi.mocked(enqueueOutbox).mockClear();
@@ -180,9 +176,6 @@ describe("the confirmation says what our screen decided", () => {
 
 describe("the brief tells the owner link whether the site is saved to an account", () => {
   it("offers a claim token bound to the submission's email until it is claimed", async () => {
-    const pending = await (await fetch(`${baseUrl}/api/site-task-brief/${tokenFor("owner")}`)).json();
-    expect(pending.account).toMatchObject({ invited: false, claimToken: null });
-    admission.mockResolvedValue(true);
     const owner = await (await fetch(`${baseUrl}/api/site-task-brief/${tokenFor("owner")}`)).json();
     expect(owner.account).toMatchObject({ claimed: false, email: "ops@acme.example" });
     expect(typeof owner.account.claimToken).toBe("string");
@@ -192,7 +185,7 @@ describe("the brief tells the owner link whether the site is saved to an account
 
     (sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>).account_owner_uid = "uid-1";
     const claimed = await (await fetch(`${baseUrl}/api/site-task-brief/${tokenFor("owner")}`)).json();
-    expect(claimed.account).toEqual({ claimed: true, invited: true, email: "ops@acme.example", claimToken: null });
+    expect(claimed.account).toEqual({ claimed: true, email: "ops@acme.example", claimToken: null });
   });
 });
 

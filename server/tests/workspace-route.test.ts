@@ -221,6 +221,7 @@ const setup = {
 };
 let server: Server, base: string;
 beforeEach(async () => {
+  admission.mockClear();
   admission.mockResolvedValue(true);
   state.records.clear();
   state.intakes.length = 0;
@@ -801,7 +802,7 @@ describe("account workspace setup", () => {
     admission.mockResolvedValue(false);
     vi.stubEnv("BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS", "0");
     const before = structuredClone([...state.records]);
-    for (const workspaceType of ["site_operator", "robot_team"]) {
+    for (const workspaceType of ["robot_team"]) {
       const response = await api("/setup", "site-1", { name: "Owner", organization: "Co", workspaceType, acceptedTerms: true });
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ code: "account_invitation_required" });
@@ -809,6 +810,17 @@ describe("account workspace setup", () => {
     expect([...state.records]).toEqual(before);
   });
 
+  it("allows a new site workspace without an invitation or intake prerequisites", async () => {
+    admission.mockResolvedValue(false);
+    const response = await api("/setup", "new-site", { name: "Owner", organization: "Site", workspaceType: "site_operator", acceptedTerms: true });
+    expect(response.status).toBe(200);
+    expect(admission).not.toHaveBeenCalled();
+    expect(state.records.get("users/new-site").buyerType).toBe("site_operator");
+  });
+  it("denies robot workspace access from a forged client profile", async () => {
+    admission.mockResolvedValue(false);
+    expect((await api("/", "robot-1")).status).toBe(403);
+  });
   it("keeps operations access visible from authenticated claims as well as the profile", async () => {
     state.records.set("users/operator", { name: "Ops User" });
     const response = await fetch(`${base}/setup`, {

@@ -64,7 +64,6 @@ import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
 import { loadSceneScreening } from "../utils/agentEvalRuns";
 import { FOLLOW_UP_IDS, FOLLOW_UP_QUESTIONS, selectFollowUps, type FollowUpId } from "../utils/siteTaskFollowUp";
 import { createSiteClaimToken } from "../utils/request-review-auth";
-import { accountHasAdmission } from "../utils/accountInvitations";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
@@ -207,24 +206,23 @@ function screeningOutcome(disposition: string): {
 /**
  * Whether the site is saved to an account yet, for the owner link only.
  *
- * Brief confirmation does not approve account access. Once staff invite the
- * operator, a claim token lets an existing verified account attach its site.
+ * Confirming the brief is where the operator saves the site to an account:
+ * Blueprint spends money on a scene only once a site has one. The claim token
+ * lets the confirmation screen attach the site in place; it binds to the
+ * submission's own email, so a forwarded owner link still cannot transfer it.
  */
 async function siteAccountFor(requestId: string): Promise<{
   claimed: boolean;
   email: string | null;
   claimToken: string | null;
-  invited: boolean;
 } | null> {
   const request = await readRequestForStatus(requestId).catch(() => null);
   if (!request) return null;
   const claimed = Boolean(request.account_owner_uid);
-  const invited = Boolean(request.contactEmail && await accountHasAdmission(request.contactEmail, "site_operator").catch(() => false));
   return {
     claimed,
     email: request.contactEmail?.toLowerCase() ?? null,
-    claimToken: claimed || !invited ? null : createSiteClaimToken(requestId),
-    invited,
+    claimToken: claimed ? null : createSiteClaimToken(requestId),
   };
 }
 
@@ -948,7 +946,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // Keep the optional claim from brief confirmation onward, including the
     // first visual scene. A reconstruction is not an evaluation result.
     const claimUrl =
-      Boolean(request?.contactEmail && await accountHasAdmission(request.contactEmail, "site_operator").catch(() => false)) &&
       (Boolean(request?.site_task_brief_confirmed_at) || sceneViewUrl
         || status.decision === "screening" || status.decision === "results") &&
       payload.scope !== "film" && !request?.account_owner_uid

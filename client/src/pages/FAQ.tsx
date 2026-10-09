@@ -53,7 +53,7 @@ export const faqItems = [
   {
     question: "How is Blueprint paid?",
     answer:
-      "The initial assessment is free for invited beta participants. Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. Robot teams participate by invitation within an agreed scope.",
+      "The initial assessment is free during the beta. Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. Robot teams participate by invitation within an agreed scope.",
   },
 ];
 

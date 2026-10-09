@@ -38,7 +38,7 @@ describe("public managed-pilot copy", () => {
 
     expect(container).toHaveTextContent(/Show us the task/i);
     expect(container).toHaveTextContent(/Review the evidence/i);
-    expect(container).toHaveTextContent(/Free initial assessment for invited beta participants/i);
+    expect(container).toHaveTextContent(/Free initial assessment during the beta/i);
     expect(container).toHaveTextContent(/Agree on the next step/i);
     expect(container).toHaveTextContent(/Any later work has a separately agreed scope and cost/i);
     for (const link of screen.getAllByRole("link", { name: "For robot teams" })) expect(link).toHaveAttribute("href", "/contact/robot-team");

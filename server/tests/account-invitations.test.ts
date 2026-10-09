@@ -8,17 +8,13 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await imp
 vi.mock("../utils/field-encryption", () => ({ decryptInboundRequestForAdmin: async (record: unknown) => record }));
 vi.mock("../utils/rate-limit-redis", () => ({ createRateLimitRedisStore: () => undefined }));
 import { createAccountInvitationToken, createSiteClaimToken, verifyAccountInvitationToken } from "../utils/request-review-auth";
-import { approveSiteAccount, accountHasAdmission, redeemAccountInvitation, resolveAccountInvitation, robotTeamAccountInvitation } from "../utils/accountInvitations";
+import { accountHasAdmission, redeemAccountInvitation, resolveAccountInvitation, robotTeamAccountInvitation } from "../utils/accountInvitations";
 import { accessRecordId, type RobotTeamAccessRecord } from "../utils/robotTeamEarlyAccess";
-import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
-import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import router from "../routes/account-invitations";
 import { csrfProtection } from "../middleware/csrf";
-import adminLeads from "../routes/admin-leads";
 const email = "team@robot.example";
 const approved: RobotTeamAccessRecord = { name: "Team", email, company: "Robot Co", website: null, robot: "Arm", workWanted: "Picking", region: null, status: "approved", appliedAtIso: "2026-10-01T00:00:00Z", updatedAtIso: "2026-10-09T00:00:00Z", decidedAtIso: "2026-10-09T00:00:00Z", decidedBy: "ops@example.com", decisionNote: "Reviewed" };
 const robotRef = `robotTeamAccess/${accessRecordId(email)}`;
-function source() { return { request: { buyerType: "site_operator", siteName: "Site", consent_attestation: { granted: true, statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: new Date().toISOString() } }, contact: { email, name: "Owner" }, site_task_brief_confirmed_at: new Date().toISOString(), site_task_triage: { disposition: "qualified" }, terms_acceptance: buildLegalAcceptanceRecord({ acceptedAt: new Date().toISOString() }) }; }
 beforeEach(() => {
   state.docs.clear(); vi.clearAllMocks();
   vi.stubEnv("BLUEPRINT_REQUEST_REVIEW_TOKEN_SECRET", "test-account-invitation-purpose-secret");
@@ -65,23 +61,10 @@ describe("approval before account creation", () => {
     expect(await redeemAccountInvitation(token, "google")).toEqual({ ready: true });
     expect(auth.createUser).not.toHaveBeenCalled(); expect(auth.createCustomToken).not.toHaveBeenCalled();
   });
-  it("requires site prerequisites before the manual approval can produce an invitation", async () => {
-    const record = source();
-    for (const patch of [{ site_task_brief_confirmed_at: null }, { site_task_triage: { disposition: "needs_conversation" } }, { terms_acceptance: null }, { consent_revoked: true }]) {
-      state.docs.set("inboundRequests/site-1", { ...record, ...patch });
-      await expect(approveSiteAccount("site-1", "ops@example.com")).rejects.toMatchObject({ status: 409 });
-      expect(await accountHasAdmission(email, "site_operator")).toBe(false);
-    }
-    expect(auth.createUser).not.toHaveBeenCalled();
-  });
-  it("keeps a confirmed site unadmitted until staff approve, then binds to its owner email", async () => {
-    state.docs.set("inboundRequests/site-1", source());
-    expect(await accountHasAdmission(email, "site_operator")).toBe(false);
-    const { token } = await approveSiteAccount("site-1", "ops@example.com");
-    expect(await accountHasAdmission(email, "site_operator")).toBe(true);
-    expect(await resolveAccountInvitation(token)).toMatchObject({ email, workspaceType: "site_operator", organization: "Site", returnTo: expect.stringMatching(/^\/claim\//) });
-    state.docs.set("inboundRequests/site-1", { ...source(), consent_revoked: true });
-    await expect(redeemAccountInvitation(token, "password", "password123")).rejects.toMatchObject({ status: 403 });
+  it("leaves sites open without approval or prerequisites", async () => {
+    state.docs.clear();
+    expect(await accountHasAdmission("new-site@example.com", "site_operator")).toBe(true);
+    expect(await accountHasAdmission("new-site@example.com", "robot_team")).toBe(false);
   });
 });
 describe("public invitation endpoints", () => {
@@ -89,7 +72,6 @@ describe("public invitation endpoints", () => {
   beforeEach(async () => {
     const app = express(); app.use(express.json());
     app.use((req, res, next) => { if (req.headers["x-staff"] === "1") res.locals.firebaseUser = { uid: "ops", email: "ops@example.com", ops: true }; next(); });
-    app.use("/leads", csrfProtection, adminLeads);
     app.use(csrfProtection, router); server = createServer(app);
     await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
     base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
@@ -99,21 +81,6 @@ describe("public invitation endpoints", () => {
   it("requires CSRF before any account is provisioned", async () => {
     const response = await post("redeem", { invitation: robotTeamAccountInvitation(approved), mode: "password", password: "password123", acceptedTerms: true }, { "x-csrf-token": "wrong" });
     expect(response.status).toBe(403);
-    expect(auth.createUser).not.toHaveBeenCalled();
-  });
-  it("requires staff review for sites, queues once, and revokes previously issued links", async () => {
-    state.docs.set("inboundRequests/site-1", source());
-    expect((await post("leads/site-1/account-invitation", { prerequisitesReviewed: true })).status).toBe(401);
-    expect((await post("leads/site-1/account-invitation", {}, { "x-staff": "1" })).status).toBe(400);
-    const first = await post("leads/site-1/account-invitation", { prerequisitesReviewed: true }, { "x-staff": "1" });
-    expect(first.status).toBe(200);
-    const { invitationUrl, enqueued } = await first.json();
-    expect(enqueued).toBe(true);
-    const token = new URL(invitationUrl).searchParams.get("invitation")!;
-    expect(await resolveAccountInvitation(token)).toMatchObject({ email, workspaceType: "site_operator" });
-    expect(await (await post("leads/site-1/account-invitation", { prerequisitesReviewed: true }, { "x-staff": "1" })).json()).toMatchObject({ enqueued: false });
-    expect((await post("leads/site-1/account-invitation/revoke", {}, { "x-staff": "1" })).status).toBe(200);
-    await expect(redeemAccountInvitation(token, "google")).rejects.toMatchObject({ status: 403 });
     expect(auth.createUser).not.toHaveBeenCalled();
   });
   it("denies signup without an invitation and rejects extra email/role overrides or absent terms", async () => {

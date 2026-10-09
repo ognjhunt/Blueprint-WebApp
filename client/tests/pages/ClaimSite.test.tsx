@@ -143,10 +143,10 @@ describe("ClaimSite", () => {
     );
   });
 
-  it("verifies an invited account before attach and refreshes its token on explicit retry", async () => {
+  it("verifies a new account before attach and refreshes its token on explicit retry", async () => {
     claimResponse();
     const created = user({ emailVerified: false });
-    mocks.signIn.mockResolvedValue({ user: created });
+    mocks.create.mockResolvedValue({ user: created });
     render(<ClaimSite />);
 
     await screen.findByRole("heading", { name: /keep track of packing line/i });
@@ -179,7 +179,7 @@ describe("ClaimSite", () => {
   it("still sends the verification email when recording the workspace is refused", async () => {
     claimResponse();
     const created = user({ emailVerified: false });
-    mocks.signIn.mockResolvedValue({ user: created });
+    mocks.create.mockResolvedValue({ user: created });
     mocks.workspaceRequest.mockRejectedValueOnce(new Error("refused"));
     render(<ClaimSite />);
 
@@ -343,6 +343,7 @@ describe("ClaimSite", () => {
     mocks.signIn.mockImplementationOnce(() => new Promise(resolve => { finishSignIn = resolve; }));
     const view = render(<ClaimSite />);
     await screen.findByRole("heading", { name: /keep track of packing line/i });
+    fireEvent.click(screen.getByRole("link", { name: /sign in instead/i }));
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "private-password" } });
     fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
