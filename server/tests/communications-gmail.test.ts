@@ -6,7 +6,7 @@ vi.mock("googleapis", () => ({ google: { auth: { OAuth2: vi.fn(function () {
 }) }, gmail: vi.fn() } }));
 vi.mock("../agents/communications-contract", async original => ({ ...await original<any>(), FOUNDER_MAILBOX: "founder@business.example" }));
 import { google } from "googleapis";
-import { verifyFounderMailbox, readFounderThread, sendFounderMessage, findFounderSentMessage, existingFounderGmail, hasFounderPriorContact } from "../agents/communications-gmail";
+import { verifyFounderMailbox, readFounderThread, sendFounderMessage, findFounderSentMessage, existingFounderGmail, hasFounderPriorContact, readFounderSentReceipt, FounderSendReadbackError } from "../agents/communications-gmail";
 import { FOUNDER_GMAIL_BINDING_KEYS } from "../agents/communications-connection";
 import { getHumanReplyGmailStatus } from "../utils/human-reply-gmail";
 const mailbox = "founder@business.example";
@@ -119,6 +119,46 @@ describe("existing founder Gmail binding (mocked)", () => {
     expect(await findFounderSentMessage("<test@business.example>", expected, gmail)).toMatchObject({ id: message.id });
     message.payload.body.data = Buffer.from("tampered").toString("base64url");
     await expect(findFounderSentMessage("<test@business.example>", expected, gmail)).rejects.toThrow("gmail_send_receipt_content_mismatch");
+  });
+  // Offline synthetic provider readback: Gmail can replace the requested RFC ID.
+  it("returns the observed RFC ID only after verifying the acknowledged sent message", async () => {
+    const { gmail, message } = gmailFixture();
+    gmail.users.messages.send.mockResolvedValueOnce({ data: { id: message.id, threadId: message.threadId } });
+    const receipt = await sendFounderMessage({ to: "ops@facility.example", subject: "Packing question", body: "Synthetic body",
+      messageId: "<requested@business.example>", verifySentReceipt: true }, gmail);
+    expect(receipt).toEqual({ messageId: message.id, threadId: message.threadId,
+      rfcMessageId: "<test@business.example>", requestedRfcMessageId: "<requested@business.example>" });
+    expect(gmail.users.messages.get).toHaveBeenCalledWith({ userId: "me", id: message.id, format: "full" });
+    expect(gmail.users.messages.list).not.toHaveBeenCalled();
+    expect(gmail.users.messages.send).toHaveBeenCalledTimes(1);
+  });
+  it.each(["id", "thread", "sent", "from", "to", "subject", "body", "html", "reply", "rfc"])("rejects altered %s on acknowledged-ID readback", async field => {
+    const { gmail, message } = gmailFixture();
+    const expected = { to: "ops@facility.example", subject: "Packing question", body: "Synthetic body", html: "<p>Synthetic body</p>", inReplyTo: "<incoming@facility.example>" };
+    const payload: any = message.payload;
+    payload.mimeType = "multipart/alternative";
+    payload.parts = [{ mimeType: "text/plain", body: payload.body }, { mimeType: "text/html", body: { data: Buffer.from(expected.html).toString("base64url") } }];
+    delete payload.body;
+    payload.headers.push({ name: "In-Reply-To", value: expected.inReplyTo });
+    if (field === "id") message.id = "different-message";
+    if (field === "thread") message.threadId = "different-thread";
+    if (field === "sent") message.labelIds = [];
+    if (["from", "to", "subject", "rfc"].includes(field)) payload.headers.find((h: any) => h.name.toLowerCase() === (field === "rfc" ? "message-id" : field)).value = field === "rfc" ? "" : "tampered@example.net";
+    if (field === "body" || field === "html") payload.parts[field === "body" ? 0 : 1].body.data = Buffer.from("tampered").toString("base64url");
+    if (field === "reply") payload.headers.find((h: any) => h.name === "In-Reply-To").value = "<different@example.net>";
+    await expect(readFounderSentReceipt({ messageId: "gmail-message-1", threadId: "gmail-thread-1", requestedRfcMessageId: "<requested@business.example>" }, expected, gmail))
+      .rejects.toThrow("gmail_send_receipt_content_mismatch");
+    expect(gmail.users.messages.send).not.toHaveBeenCalled(); expect(gmail.users.messages.list).not.toHaveBeenCalled();
+  });
+  it("retains known acknowledgement when readback fails and never sends twice", async () => {
+    const { gmail, message } = gmailFixture();
+    gmail.users.messages.send.mockResolvedValueOnce({ data: { id: message.id, threadId: message.threadId } });
+    gmail.users.messages.get.mockRejectedValueOnce(new Error("synthetic-read-failed"));
+    const operation = sendFounderMessage({ to: "ops@facility.example", subject: "Packing question", body: "Synthetic body",
+      messageId: "<requested@business.example>", verifySentReceipt: true }, gmail);
+    await expect(operation).rejects.toBeInstanceOf(FounderSendReadbackError);
+    await expect(operation).rejects.toMatchObject({ acknowledgement: { messageId: message.id, threadId: message.threadId, requestedRfcMessageId: "<requested@business.example>" } });
+    expect(gmail.users.messages.send).toHaveBeenCalledTimes(1);
   });
   it("refuses header injection and requires actual Gmail send IDs", async () => {
     const { gmail } = gmailFixture();
