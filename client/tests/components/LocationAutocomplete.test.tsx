@@ -2,12 +2,16 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resetClientEnvCacheForTests } from "@/lib/client-env";
+
 import { LocationAutocomplete } from "@/components/site/LocationAutocomplete";
 
 const fetchMock = vi.fn();
 
 beforeEach(() => {
   fetchMock.mockReset();
+  vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "");
+  resetClientEnvCacheForTests();
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -15,6 +19,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  resetClientEnvCacheForTests();
 });
 
 function photon(labels: { name?: string; city?: string; state?: string; country?: string }[]) {
@@ -327,5 +332,136 @@ describe("request races and accessible options", () => {
     await screen.findByRole("option");
     fireEvent.scroll(screen.getByRole("listbox"));
     expect(screen.getByRole("listbox")).toBeInTheDocument();
+  });
+});
+
+
+describe("the configured browser Maps key", () => {
+  function photonRaw(properties: Record<string, unknown>[]) {
+    return { ok: true, json: async () => ({ features: properties.map((props) => ({ properties: props })) }) };
+  }
+  function googleFixture(label: string, fetchFields = vi.fn(async () => ({
+    place: { addressComponents: [{ shortText: "GB", types: ["country"] }] },
+  }))) {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    resetClientEnvCacheForTests();
+    const prediction = {
+      text: { toString: () => label },
+      mainText: { toString: () => label.split(", ")[0] },
+      secondaryText: { toString: () => label.split(", ").slice(1).join(", ") },
+      toPlace: () => ({ fetchFields }),
+    };
+    const fetchAutocompleteSuggestions = vi.fn(async (_request: { input: string; sessionToken: object }) => ({ suggestions: [{ placePrediction: prediction }] }));
+    vi.stubGlobal("google", { maps: { places: {
+      AutocompleteSuggestion: { fetchAutocompleteSuggestions },
+      AutocompleteSessionToken: class {},
+    } } });
+    return { fetchFields, fetchAutocompleteSuggestions };
+  }
+
+  it("uses Places New and resolves country through session-linked details", async () => {
+    const { fetchFields, fetchAutocompleteSuggestions } = googleFixture("London, United Kingdom");
+    const onSelectionChange = vi.fn();
+    render(<LocationAutocomplete id="loc" name="startLocation" onSelectionChange={onSelectionChange} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "london" } });
+    fireEvent.click(await screen.findByRole("option", { name: "London United Kingdom" }));
+
+    await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith({
+      label: "London, United Kingdom", countryCode: "GB",
+    }));
+    expect(fetchFields).toHaveBeenCalledWith({ fields: ["addressComponents"] });
+    expect(fetchAutocompleteSuggestions).toHaveBeenCalledWith({ input: "london", sessionToken: expect.any(Object) });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not label a failed Google details lookup as US", async () => {
+    googleFixture("Paris, France", vi.fn().mockRejectedValue(new Error("REQUEST_DENIED")));
+    const onSelect = vi.fn();
+    render(<LocationAutocomplete id="loc" name="startLocation" onSelect={onSelect} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "paris" } });
+    fireEvent.click(await screen.findByRole("option", { name: "Paris France" }));
+
+    await waitFor(() => expect(onSelect).toHaveBeenCalledWith({ label: "Paris, France", countryCode: null }));
+  });
+
+  it("ignores Google details that resolve after the operator changes the text", async () => {
+    let resolveDetails: ((value: unknown) => void) | undefined;
+    googleFixture("Berlin, Germany", vi.fn().mockImplementation(() => new Promise((resolve) => { resolveDetails = resolve; })));
+    const onSelectionChange = vi.fn();
+    render(<LocationAutocomplete id="loc" name="startLocation" onSelectionChange={onSelectionChange} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "berlin" } });
+    fireEvent.click(await screen.findByRole("option", { name: "Berlin Germany" }));
+    await waitFor(() => expect(resolveDetails).toBeTypeOf("function"));
+    fireEvent.change(input, { target: { value: "Berlin manual" } });
+    await act(async () => { resolveDetails!({ place: { addressComponents: [{ shortText: "DE", types: ["country"] }] } }); });
+
+    await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith(null));
+    expect(onSelectionChange).not.toHaveBeenCalledWith({ label: "Berlin, Germany", countryCode: "DE" });
+  });
+
+  it("reuses a Google session while typing and starts a fresh one after a pick", async () => {
+    const { fetchAutocompleteSuggestions } = googleFixture("London, United Kingdom");
+    const input = field();
+    fireEvent.change(input, { target: { value: "lo" } });
+    await screen.findByRole("option");
+    const firstToken = fetchAutocompleteSuggestions.mock.calls[0][0].sessionToken;
+    fireEvent.change(input, { target: { value: "lond" } });
+    await screen.findByRole("option");
+    expect(fetchAutocompleteSuggestions.mock.calls[1][0].sessionToken).toBe(firstToken);
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.change(input, { target: { value: "london" } });
+    await screen.findByRole("option");
+    expect(fetchAutocompleteSuggestions.mock.calls[2][0].sessionToken).not.toBe(firstToken);
+  });
+
+  it("falls back promptly when Google rejects a request", async () => {
+    const { fetchAutocompleteSuggestions } = googleFixture("London, United Kingdom");
+    fetchAutocompleteSuggestions.mockRejectedValue(new Error("REQUEST_DENIED"));
+    fetchMock.mockResolvedValue(photonRaw([{ city: "Durham", street: "Crete Street", housenumber: "1005", country: "United States", countrycode: "US" }]));
+    const input = field();
+    fireEvent.change(input, { target: { value: "1005 crete" } });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.click(await screen.findByRole("option", { name: "1005 Crete Street, Durham, United States" }));
+    expect(input.value).toBe("1005 Crete Street, Durham, United States");
+  });
+
+  it("falls back when Google never answers without accepting its late response", async () => {
+    vi.useFakeTimers();
+    const { fetchAutocompleteSuggestions } = googleFixture("London, United Kingdom");
+    let complete: (value: unknown) => void = () => {};
+    fetchAutocompleteSuggestions.mockImplementation(() => new Promise((resolve) => { complete = resolve; }));
+    fetchMock.mockResolvedValue(photonRaw([{ name: "Durham" }]));
+    const input = field();
+    fireEvent.change(input, { target: { value: "durham" } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1350); });
+    expect(screen.getByRole("option", { name: "Durham" })).toBeInTheDocument();
+    await act(async () => { complete({ suggestions: [] }); });
+    expect(screen.getByRole("option", { name: "Durham" })).toBeInTheDocument();
+  });
+
+  it("closes immediately on selection even when country details are slow", async () => {
+    vi.useFakeTimers();
+    googleFixture("London, United Kingdom", vi.fn().mockImplementation(() => new Promise(() => {})));
+    const onSelect = vi.fn();
+    render(<LocationAutocomplete id="loc" name="startLocation" onSelect={onSelect} />);
+    const input = screen.getByRole("combobox") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "london" } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+    fireEvent.click(screen.getByRole("option"));
+    expect(input.value).toBe("London, United Kingdom");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    expect(onSelect).toHaveBeenCalledWith({ label: "London, United Kingdom", countryCode: null });
+  });
+
+  it("keeps zero Google results empty instead of mixing providers", async () => {
+    const { fetchAutocompleteSuggestions } = googleFixture("London, United Kingdom");
+    fetchAutocompleteSuggestions.mockResolvedValue({ suggestions: [] });
+    const input = field();
+    fireEvent.change(input, { target: { value: "unknown" } });
+    await waitFor(() => expect(fetchAutocompleteSuggestions).toHaveBeenCalled());
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

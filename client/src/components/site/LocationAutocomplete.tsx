@@ -1,5 +1,6 @@
-/** Server-side Google Places (New), with keyless/manual entry fallbacks. */
+/** Google Places (New), using a browser Maps key or a private server credential. */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getGoogleMapsApiKey } from "@/lib/client-env";
 
 interface Suggestion {
   label: string;
@@ -8,6 +9,7 @@ interface Suggestion {
   placeId?: string;
   mainText?: string;
   secondaryText?: string;
+  googlePrediction?: google.maps.places.PlacePrediction;
 }
 
 /** What the form is told when a suggestion is picked. */
@@ -43,6 +45,44 @@ async function photonSuggestions(query: string, signal: AbortSignal): Promise<Su
     }
   }
   return out;
+}
+
+let googleMapsLoad: Promise<boolean> | null = null;
+
+function googlePlaces() {
+  return typeof window !== "undefined" ? window.google?.maps?.places : undefined;
+}
+
+function loadGoogleMaps(key: string): Promise<boolean> {
+  if (googlePlaces()?.AutocompleteSuggestion) return Promise.resolve(true);
+  // Share the loader's script with other map components using the same key.
+  googleMapsLoad ??= import("@googlemaps/js-api-loader")
+    .then(({ Loader }) => new Loader({ apiKey: key, version: "weekly", libraries: ["places"] }).load())
+    .then(() => Boolean(googlePlaces()?.AutocompleteSuggestion))
+    .catch(() => false);
+  return googleMapsLoad;
+}
+
+async function browserSuggestions(input: string, sessionToken: google.maps.places.AutocompleteSessionToken): Promise<Suggestion[] | null> {
+  const places = googlePlaces();
+  if (!places?.AutocompleteSuggestion) return null;
+  const result = await within(places.AutocompleteSuggestion.fetchAutocompleteSuggestions({ input, sessionToken }), 1200, null);
+  return result?.suggestions.flatMap(({ placePrediction }) => placePrediction ? [{
+    label: placePrediction.text.toString(),
+    mainText: placePrediction.mainText?.toString(),
+    secondaryText: placePrediction.secondaryText?.toString(),
+    countryCode: null,
+    googlePrediction: placePrediction,
+  }] : []).slice(0, 5) ?? null;
+}
+
+async function browserCountryCode(prediction: google.maps.places.PlacePrediction): Promise<string | null> {
+  try {
+    const result = await within(prediction.toPlace().fetchFields({ fields: ["addressComponents"] }), 1500, null);
+    const country = result?.place.addressComponents?.find((part) => part.types.includes("country"));
+    const code = country?.shortText?.trim().toUpperCase() ?? "";
+    return /^[A-Z]{2}$/.test(code) ? code : null;
+  } catch { return null; }
 }
 
 /** Bound provider latency; clear the timer when the request finishes. */
@@ -115,7 +155,14 @@ export function LocationAutocomplete(props: {
   const abort = useRef<AbortController | null>(null);
   const selectionGeneration = useRef(0);
   const sessionToken = useRef<string | null>(null);
+  const browserSessionToken = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const focused = useRef(false);
+  const browserKey = getGoogleMapsApiKey();
+
+  useEffect(() => {
+    if (browserKey) void loadGoogleMaps(browserKey);
+  }, [browserKey]);
+
   function cancelQuery() {
     if (debounce.current !== null) window.clearTimeout(debounce.current);
     debounce.current = null;
@@ -128,8 +175,19 @@ export function LocationAutocomplete(props: {
       const controller = new AbortController();
       abort.current = controller;
       try {
-        sessionToken.current ??= crypto.randomUUID();
-        let results = await googleSuggestions(text, sessionToken.current, controller.signal);
+        let results: Suggestion[] | null = null;
+        if (browserKey) {
+          if (!googlePlaces()?.AutocompleteSuggestion) await within(loadGoogleMaps(browserKey), 800, false);
+          if (controller.signal.aborted) return;
+          const places = googlePlaces();
+          if (places?.AutocompleteSuggestion) {
+            browserSessionToken.current ??= new places.AutocompleteSessionToken();
+            results = await browserSuggestions(text, browserSessionToken.current);
+          }
+        } else {
+          sessionToken.current ??= crypto.randomUUID();
+          results = await googleSuggestions(text, sessionToken.current, controller.signal);
+        }
         if (controller.signal.aborted) return;
         // A denied or unavailable Google lookup must leave suggestions usable.
         if (results === null) {
@@ -148,7 +206,7 @@ export function LocationAutocomplete(props: {
         }
       }
     },
-    [],
+    [browserKey],
   );
 
   function onChange(text: string) {
@@ -174,16 +232,19 @@ export function LocationAutocomplete(props: {
     cancelQuery();
     const pickedSession = sessionToken.current;
     sessionToken.current = null;
+    browserSessionToken.current = null;
     setValue(suggestion.label);
     setSuggestions([]);
     setOpen(false);
     setActive(-1);
     let countryCode = suggestion.countryCode;
-    if (suggestion.placeId && pickedSession) {
+    if (suggestion.googlePrediction || (suggestion.placeId && pickedSession)) {
       // The visible location has already changed. Clear the prior inferred
       // country while structured details are pending, including on failure.
       props.onSelectionChange?.({ label: suggestion.label, countryCode: null });
-      countryCode = await googleCountryCode(suggestion.placeId, pickedSession);
+      countryCode = suggestion.googlePrediction
+        ? await browserCountryCode(suggestion.googlePrediction)
+        : await googleCountryCode(suggestion.placeId!, pickedSession!);
       if (selectionGeneration.current !== generation) return;
     }
     const place = { label: suggestion.label, countryCode };
@@ -311,7 +372,7 @@ export function LocationAutocomplete(props: {
               </li>
             ))}
           </ul>
-          {suggestions.some((suggestion) => suggestion.placeId) && (
+          {suggestions.some((suggestion) => suggestion.placeId || suggestion.googlePrediction) && (
             <div style={{ padding: "8px 12px", background: "var(--ms-surface, #fff)", textAlign: "right", borderRadius: "0 0 8px 8px" }}>
               <img src="https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png" alt="Powered by Google" width={120} height={14} />
             </div>
