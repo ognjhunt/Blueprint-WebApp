@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { createHash } from "node:crypto";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { memoryFirestore } from "./fixtures/communications";
 import { officialContactCases, officialResearchInput } from "./fixtures/official-contact-research";
@@ -24,7 +24,9 @@ async function admit(input = syntheticReviewedResearchInput(), db = memoryFirest
   const brief = outcome.briefId ? await store.brief(outcome.briefId) : null;
   return { db, snapshot, outcome, store, brief, deps };
 }
-afterEach(() => vi.unstubAllEnvs());
+// Keep source-expiry checks at the synthetic fixture time rather than the CI wall clock.
+beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(now); });
+afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
 describe("truthful authenticated report admission (offline, no paid calls or sends)", () => {
   it("stages an exactly bound contact-free stable CRM refresh and queues research without briefs/jobs",async()=>{
     const input=syntheticReviewedResearchInput(),row=Array(19).fill("");
