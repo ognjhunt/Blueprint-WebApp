@@ -3267,5 +3267,41 @@
     "minimum_shortfall": 11,
     "human_timestamp_labels": 0,
     "remaining": "Selected preview license/privacy/transform lineage and checked factual labels unresolved"
+  },
+  "current_offline300_v3": {
+    "source": "ab03ba85104969b818fef1a11ae670fe58689649",
+    "run": "current300-v3-ab03-20261009T054441Z",
+    "catalog_sha256": "52c53b3a70d40b16091d834d200562354be7a03913c963a51d970e9d04642032",
+    "frozen_manifest_sha256": "da4f2ebdfb427d0bc14ebb5ddc63ad2f5909bf42ab4406a600830298de183906",
+    "results_sha256": "0bb2bdff20b737b9144530257a0d6af758b545e43a3dea75376b6557fe77fcea",
+    "root_artifact_verification_sha256": "d60a2bd7c46496f0904cfa562d9136eb44bc3fa1fcdcaac5695609b580736369",
+    "generated": 300,
+    "deduplicated": 300,
+    "attempted": 300,
+    "passed": 300,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "partial": 0,
+    "assertions": 376,
+    "elapsed_offline_seconds": 20.215130375,
+    "new_unique_credit": 0,
+    "source_pins": 20,
+    "production_pins": 12,
+    "changed_production_pins": 1,
+    "layer": "Offline component/functions; fake API, database/object storage/providers and notification sinks. No browser/emulator/live-backend/provider claim.",
+    "historical_v2_preserved": true,
+    "observer_corrections": "Current committed observer; two extra sharing checks outside catalog and saved-private-handling fixture. Frozen 300 semantic definitions unchanged."
+  },
+  "comms1000_review": {
+    "head": "319ccf818fda445521b0b82c90581f756de9f901",
+    "root_exact_head_source_review_sha256": "b49682bee7de94c30d4fa7a1f36238e9086e1fa1a80bff4b11a9b3941bcb365f",
+    "status": "source_clear; master reports merge38af and healthy mainCI37890229655, actual deployment/reconciliation not yet root verified",
+    "claim": "Narrow neutral provider defaults; preserves charged checkpoint; no duplicate create/accounting reset. No live recovery/send proof."
+  },
+  "observer_fixture_correction": {
+    "original_sha256": "1bbb1a03ddfc60c125b36aa38a9613b003f58be639cedd1fbb3b4e708c878543",
+    "finding": "Timestamp text differed between attestation and capture rights; default positive correctly rejected. Fixture failure, not product defect.",
+    "status": "Original bytes and failed baseline retained; separately versioned correction requested before positive admission scoring. Rights equality unchanged."
   }
 }
