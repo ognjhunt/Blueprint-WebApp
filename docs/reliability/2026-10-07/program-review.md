@@ -3556,3 +3556,12 @@ archive/receipt changes are excluded from this approval and owned separately.
 No fixture/provider/customer/release mutation or external message occurred.
 The private review contains exact source/check limits; historical removed-
 checkout output paths were not claimed currently accessible.
+
+
+### Customer basics corrected source review
+
+Independent source clearance binds PR985 exact 0c58e1d50faee7b2594263f4a59fb02b6e5a7b53 and private review SHA df80685b24cf3be57dd18d310627a9c91a5cadb65c04cc8f7093060c284fb0ec. The ten-file diff keeps canonical analysis internal: public sections are empty, source-rendered paragraphs and next-action rationale are excluded, and the customer component exposes no full-report disclosure. Existing uncertainty/question/consequence, capability/commitment, redaction, reader authority and consent/source guards remain. Saved-owner identity uses the current public correlation reference only; no task title, filename, outcome or new action is invented.
+
+V3 receipt2f3043f6 and all19 linked artifacts/six source hashes match; corrected v2 receiptdb503f12/all26 artifacts remain valid for unchanged projector/component bytes. Five actual Vite-route conditions use intercepted synthetic APIs, with zero business writes. Logged54 existing checks plus two workspace checks and exact-source typecheck receipt are bounded fixture evidence, not live backend/provider proof or new journey credit. The retained observable reconstruction fails on4da analysis exposure and passes corrected projection; historical4da clearance was withdrawn under the clarified requirement.
+
+Concrete saved-job title remains absent (P2), and unchanged safety filters admit one of three retained question groups (P2); neither is called fixed. The sequential fixture file exactly equals reviewedc36, with assertions/mocks/120-second timeout unchanged; vendor work is excluded and prior stall mechanism remains hypothetical. Exact-head native check/build and other completed checks passed at the snapshot; test/E2E are still active, so protected release gates are separate. No deployment, model/perception truth, customer action or notification delivery is established. Existing absolute notification copy is a separate root-owned finding.
