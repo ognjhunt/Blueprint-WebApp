@@ -60,6 +60,15 @@ function SetupForm({
   const [acceptedTerms, setAcceptedTerms] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  if (workspaceType === "site_operator" && !account.access.operations
+    && (account.siteIntakeRequired === true || !account.workspaceType)) return (
+    <section className="ws-account-setup">
+      <h1>Start with your site and job</h1>
+      <p className="ws-muted">Show us the work. We’ll use your submitted details to set up the workspace and save the job to your account.</p>
+      <Link className="ws-primary" href="/contact/site-operator">Show us a task →</Link>
+      <button className="ws-link" type="button" onClick={() => setWorkspaceType("")}>Choose another workspace</button>
+    </section>
+  );
   return (
     <section className="ws-account-setup">
       {manage && (

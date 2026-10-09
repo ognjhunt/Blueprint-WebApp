@@ -48,6 +48,7 @@ type State =
   | {
       status: "done";
       captureUrl: string | null;
+      claimUrl: string | null;
       workspaceUrl: string | null;
       // Set when a signed-in account could not own the site (it is not a site
       // workspace) and the save fell back to the emailed link instead.
@@ -473,6 +474,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
 
       const result = (await response.json().catch(() => ({}))) as {
         captureUrl?: string | null;
+        claimUrl?: string | null;
         message?: string;
         error?: string;
       };
@@ -549,6 +551,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
           ? `This account is not a site workspace, so this site is saved to the link we email ${email}. You can claim it from that link later.`
           : null,
         captureUrl,
+        claimUrl: typeof result.claimUrl === "string" && /^\/claim\/[A-Za-z0-9_.-]+$/.test(result.claimUrl) ? result.claimUrl : null,
         selfRecording: frozen.value.draft.method !== "visit",
         email,
         regionApproved,
@@ -673,6 +676,12 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
             </p>
           </>
         )}
+        {!state.workspaceUrl && state.claimUrl && <section aria-label="Save this job to your account">
+          <h2>Keep track of this job</h2>
+          <p className="ms-field-hint">Your site and job are saved. Create an account with {state.email} to follow progress and review results. We’ll use the details you already supplied.</p>
+          <p><a className="ms-button ms-button-large" href={state.claimUrl}>Create an account for this job</a></p>
+          <p className="ms-field-hint">Already have an account? <a className="ms-text-link" href={`${state.claimUrl}?mode=signin`}>Sign in to save this job</a></p>
+        </section>}
       </div>
     );
   }

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Settings from "@/pages/workspace/Settings";
 vi.mock("@/contexts/AuthContext", () => ({
@@ -58,6 +58,11 @@ describe("unconfigured account settings", () => {
     expect(screen.getByLabelText("Your name")).toHaveValue("Capture Owner");
     expect(screen.getByLabelText("Organization")).toHaveValue("Company");
     expect(screen.getByLabelText("Workspace type")).toHaveValue("");
+    fireEvent.change(screen.getByLabelText("Workspace type"), { target: { value: "site_operator" } });
+    expect(screen.getByRole("heading", { name: "Start with your site and job" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Show us a task/ })).toHaveAttribute("href", "/contact/site-operator");
+    expect(screen.queryByLabelText("Organization")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Choose another workspace" }));
     expect(
       screen.getByRole("link", { name: /Open capture account/ }),
     ).toHaveAttribute("href", "/capture-app/account");

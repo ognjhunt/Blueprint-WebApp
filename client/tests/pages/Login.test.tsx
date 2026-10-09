@@ -33,7 +33,7 @@ describe("Minimal sign in", () => {
   it("retains the essential account and recovery links", async () => {
     render(<Login />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled());
-    expect(screen.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/signup/business");
+    expect(screen.getByRole("link", { name: "Show us a task" })).toHaveAttribute("href", "/contact/site-operator?source=sign-in");
     expect(screen.getByRole("link", { name: "Forgot password?" })).toHaveAttribute("href", "/forgot-password");
     expect(screen.queryByRole("link", { name: "Capture app access" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Secure Access Portal|Scope before signup/)).not.toBeInTheDocument();

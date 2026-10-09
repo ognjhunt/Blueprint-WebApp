@@ -48,7 +48,7 @@ import {
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const submitHref =
-  "/signup/business?buyerType=site_operator&intent=pilot-opportunity&source=governance";
+  "/contact/site-operator?intent=pilot-opportunity&source=governance";
 
 export default function Governance() {
   return (

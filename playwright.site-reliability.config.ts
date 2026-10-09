@@ -2,7 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: "site-private-link-reliability.spec.ts",
+  testMatch: ["site-private-link-reliability.spec.ts", "site-intake-first.spec.ts"],
   workers: 1,
   timeout: 30_000,
   expect: { timeout: 10_000 },

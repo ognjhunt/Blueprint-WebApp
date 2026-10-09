@@ -98,7 +98,7 @@ export default function FAQ() {
         eyebrow="Still have a question?"
         title="Show us the job."
         body="A short video and a plain-English description are enough to start the screening conversation."
-        primaryHref="/signup/business?buyerType=site_operator&intent=pilot-opportunity&source=faq"
+        primaryHref="/contact/site-operator?intent=pilot-opportunity&source=faq"
         primaryLabel="Submit a job"
         secondaryHref="/contact/robot-team?source=faq"
         secondaryLabel="Talk as a robot team"

@@ -34,7 +34,7 @@ const signupLinks = [
     Icon: Bot,
   },
   {
-    href: "/signup/business?buyerType=site_operator&source=header-signup",
+    href: "/contact/site-operator?source=header-signup",
     label: "Site operator",
     description: "Start with one task. We help assess fit, scope a measured pilot, and decide what follows.",
     Icon: ShieldCheck,

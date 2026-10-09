@@ -91,7 +91,9 @@ export function createSiteClaimToken(requestId: string, ttlSeconds = SITE_CLAIM_
 }
 
 export function verifySiteClaimToken(token: string) {
-  const [encodedPayload, signature] = String(token || "").split(".");
+  const parts = String(token || "").split(".");
+  if (parts.length !== 2) return null;
+  const [encodedPayload, signature] = parts;
   if (!encodedPayload || !signature) {
     return null;
   }
@@ -107,7 +109,8 @@ export function verifySiteClaimToken(token: string) {
     }
 
     const payload = JSON.parse(serializedPayload) as RequestReviewTokenPayload;
-    if (payload.kind !== "site_claim" || payload.exp * 1000 <= Date.now()) {
+    if (payload.kind !== "site_claim" || !Number.isFinite(payload.exp) || payload.exp * 1000 <= Date.now()
+      || typeof payload.requestId !== "string" || !/^[A-Za-z0-9_-]{1,120}$/.test(payload.requestId)) {
       return null;
     }
 

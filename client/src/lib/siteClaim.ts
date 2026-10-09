@@ -15,6 +15,8 @@ export interface ClaimContext {
   email: string | null;
   /** Seeds the organization name when the account is brand new. */
   siteName: string | null;
+  name?: string | null;
+  organization?: string | null;
 }
 
 /** Sets up a fresh site-operator workspace if needed, then attaches the site. */
@@ -28,7 +30,7 @@ export async function attachSiteClaim(
     return await workspaceRequest(user, "/claim", "POST", { token, acceptedTerms });
   } catch (error) {
     if (error instanceof WorkspaceRequestError && error.code === "workspace_setup_required") {
-      await setUpSiteWorkspace(user, context, acceptedTerms);
+      await setUpSiteWorkspace(user, context, acceptedTerms, token);
       return workspaceRequest(user, "/claim", "POST", { token, acceptedTerms });
     }
     throw error;
@@ -40,13 +42,14 @@ export async function attachSiteClaim(
  * verified, so the claim that follows the verification click needs nothing
  * else from the operator.
  */
-export async function setUpSiteWorkspace(user: User, context: ClaimContext, acceptedTerms: boolean) {
-  const name = context.email?.split("@")[0] || "Site operator";
+export async function setUpSiteWorkspace(user: User, context: ClaimContext, acceptedTerms: boolean, siteClaimToken: string) {
+  const name = context.name || user.displayName || context.email?.split("@")[0] || "Site operator";
   await workspaceRequest(user, "/setup", "POST", {
     name,
-    organization: context.siteName || "My site",
+    organization: context.organization || context.siteName || "My site",
     workspaceType: "site_operator",
     acceptedTerms,
+    siteClaimToken,
   });
 }
 

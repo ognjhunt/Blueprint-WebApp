@@ -51,7 +51,7 @@ import { serviceArea } from "@/data/serviceArea";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const submitHref =
-  "/signup/business?buyerType=site_operator&intent=pilot-opportunity&source=capture-visit";
+  "/contact/site-operator?intent=pilot-opportunity&source=capture-visit";
 
 export default function CaptureVisit() {
   return (

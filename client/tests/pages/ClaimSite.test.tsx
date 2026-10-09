@@ -6,13 +6,14 @@ const mocks = vi.hoisted(() => ({
   auth: { currentUser: null as any },
   create: vi.fn(),
   signIn: vi.fn(),
+  google: vi.fn(),
   sendVerification: vi.fn(),
   authChanged: null as null | ((user: any) => void),
   workspaceRequest: vi.fn(),
 }));
 
 vi.mock("wouter", () => ({ useParams: () => ({ token: mocks.token }) }));
-vi.mock("@/lib/firebase", () => ({ auth: mocks.auth }));
+vi.mock("@/lib/firebase", () => ({ auth: mocks.auth, signInWithGoogle: mocks.google }));
 vi.mock("firebase/auth", () => ({
   getAuth: () => mocks.auth,
   createUserWithEmailAndPassword: mocks.create,
@@ -238,12 +239,12 @@ describe("ClaimSite", () => {
     );
   });
 
-  it("keeps the terms checkbox for an unverified account even when site intake terms are current", async () => {
+  it("reuses the submitted terms while the account still verifies its email", async () => {
     claimResponse({ ...summary, siteTermsAcceptedCurrent: true });
     mocks.auth.currentUser = user({ emailVerified: false });
     render(<ClaimSite />);
     await screen.findByRole("heading", { name: /keep track of packing line/i });
-    expect(screen.getByRole("checkbox")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
   it("uses an existing current-version workspace acceptance when the site intake lacks one", async () => {
@@ -379,5 +380,43 @@ describe("ClaimSite", () => {
     expect(screen.queryByRole("heading", { name: /this site is yours/i })).not.toBeInTheDocument();
     expect(mocks.workspaceRequest).not.toHaveBeenCalledWith(expect.anything(), "/claim", "POST", expect.objectContaining({ token: "second-claim-token" }));
   });
+
+it("sets up a password account from submitted details and the signed job token", async () => {
+  claimResponse({ ...summary, siteTermsAcceptedCurrent: true, accountDefaults: { name: "Alex Owner", organization: "Actual Company" } } as any);
+  const created = user({ emailVerified: false }); mocks.create.mockResolvedValue({ user: created });
+  render(<ClaimSite />); await screen.findByRole("heading", { name: /keep track of packing line/i });
+  expect(screen.getByRole("textbox", { name: /work email/i })).toHaveAttribute("readonly");
+  expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+  fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+  await screen.findByRole("heading", { name: /check your inbox/i });
+  expect(mocks.workspaceRequest).toHaveBeenCalledWith(created, "/setup", "POST", { name: "Alex Owner", organization: "Actual Company", workspaceType: "site_operator", acceptedTerms: true, siteClaimToken: "claim-token-123" });
+});
+it("attaches Google sign-in to the submitted job without repeated intake or verification", async () => {
+  claimResponse({ ...summary, siteTermsAcceptedCurrent: true });
+  const signedIn = user(); mocks.google.mockResolvedValue(signedIn);
+  render(<ClaimSite />); fireEvent.click(await screen.findByRole("button", { name: "Continue with Google" }));
+  await screen.findByRole("heading", { name: /this site is yours/i });
+  expect(mocks.workspaceRequest).toHaveBeenCalledWith(signedIn, "/claim", "POST", { token: "claim-token-123", acceptedTerms: false });
+  expect(mocks.create).not.toHaveBeenCalled(); expect(mocks.sendVerification).not.toHaveBeenCalled();
+  expect(screen.getByRole("link", { name: "Open your job" })).toHaveAttribute("href", "/app/tasks/request-1");
+});
+it("refuses a Google account whose email differs from the submitted job", async () => {
+  claimResponse({ ...summary, siteTermsAcceptedCurrent: true }); mocks.google.mockResolvedValue(user({ email: "other@example.com" }));
+  render(<ClaimSite />); fireEvent.click(await screen.findByRole("button", { name: "Continue with Google" }));
+  await screen.findByText(/Use the Google account for the email you submitted/i);
+  expect(mocks.workspaceRequest).not.toHaveBeenCalled();
+});
+it("retries attachment with the account already created instead of creating a second identity", async () => {
+  claimResponse({ ...summary, siteTermsAcceptedCurrent: true });
+  const created = user(); mocks.create.mockResolvedValue({ user: created });
+  mocks.workspaceRequest.mockRejectedValueOnce(new Error("Temporarily unavailable"));
+  render(<ClaimSite />); await screen.findByRole("heading", { name: /keep track of packing line/i });
+  fireEvent.change(screen.getByLabelText(/password/i), { target: { value: "password123" } });
+  fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+  await screen.findByText("Temporarily unavailable");
+  fireEvent.submit(screen.getByRole("form", { name: /claim this site/i }));
+  await screen.findByRole("heading", { name: /this site is yours/i }); expect(mocks.create).toHaveBeenCalledTimes(1);
+});
 
 });

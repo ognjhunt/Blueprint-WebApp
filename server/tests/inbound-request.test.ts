@@ -54,7 +54,9 @@ describe("description authority independent from recording", () => {
       const response = await fetch(`${baseUrl}/`, { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...descriptionPayload(requestId), captureRegion }) });
       expect(response.status).toBe(201);
-      expect((await response.json()).captureUrl).toContain("/capture-upload/");
+      const savedResponse = await response.json();
+      expect(savedResponse.captureUrl).toContain("/capture-upload/");
+      expect(savedResponse.claimUrl).toContain("/claim/");
       const row = fs.readFileSync(devLogPath, "utf8").trim().split("\n").map(line => JSON.parse(line)).find(row => row.requestId === requestId);
       expect(row.request.description_authority).toMatchObject({ granted: true, statement_version: "2026-10-06.v1" });
       expect(row.request.description_authority.recorded_at_iso).toBeTruthy();

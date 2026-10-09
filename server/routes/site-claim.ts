@@ -36,6 +36,9 @@ router.get(
         snap.data() as never,
       )) as Record<string, any>;
       const request = (record.request ?? {}) as Record<string, any>;
+      if (request.buyerType !== "site_operator") return res.status(404).json({ error: "This job link is not valid." });
+      if (typeof record.contact?.email !== "string" || !record.contact.email.trim())
+        return res.status(404).json({ error: "This job link has no account email. Use your private job page instead." });
       return res.json({
         ok: true,
         requestId: payload.requestId,
@@ -44,6 +47,10 @@ router.get(
         // it — the holder of a valid link received that email anyway.
         claimEmail: typeof record.contact?.email === "string" ? record.contact.email : null,
         siteTermsAcceptedCurrent: isCurrentLegalAcceptance(record.terms_acceptance),
+        accountDefaults: {
+          name: [record.contact?.firstName, record.contact?.lastName].filter(value => typeof value === "string" && value.trim()).join(" ").trim().slice(0, 160),
+          organization: String(record.contact?.company || request.siteName || request.siteLocation || "").trim().slice(0, 160) || null,
+        },
         site: {
           siteName: request.siteName || null,
           siteLocation: request.siteLocation || null,

@@ -146,7 +146,9 @@ describe("atomic inbound request ownership", () => {
       expect(JSON.stringify(stored)).not.toContain(body.retryToken);
       const retry = await post();
       expect(retry.status).toBe(200);
-      expect((await retry.json()).captureUrl).toContain("/capture-upload/");
+      const recovered = await retry.json();
+      expect(recovered.captureUrl).toContain("/capture-upload/");
+      expect(recovered.claimUrl).toContain("/claim/");
       expect(sharedFakeFirestoreState.docs.get("inboundRequests/anonymous-retry")).toEqual(stored);
       expect((await post({ retryToken: "b".repeat(64) })).status).toBe(409);
       expect((await post({ retryToken: undefined })).status).toBe(409);

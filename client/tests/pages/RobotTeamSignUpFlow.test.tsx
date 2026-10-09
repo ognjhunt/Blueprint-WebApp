@@ -21,7 +21,7 @@ describe("invitation-only account creation", () => {
   it("offers public intake without credentials or Google signup", () => {
     render(<BusinessSignUpFlow />);
     expect(screen.getByRole("heading", { name: "Access by invitation" })).toBeVisible();
-    expect(screen.getByRole("link", { name: "Create a site account" })).toHaveAttribute("href", "/signup/business");
+    expect(screen.getByRole("link", { name: "Show us a site task" })).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.getByRole("link", { name: "Register robot-team interest" })).toHaveAttribute("href", "/contact/robot-team");
     expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Continue with Google" })).not.toBeInTheDocument();

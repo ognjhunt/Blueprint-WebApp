@@ -106,7 +106,10 @@ describe("build output", () => {
     for (const route of ["sign-in", "forgot-password"]) {
       expect(fs.readFileSync(distPath(route, "index.html"), "utf8")).toContain('method="post"');
     }
-    expect(fs.readFileSync(distPath("signup/business/index.html"), "utf8")).toContain('id="email"');
+    const signup = fs.readFileSync(distPath("signup/business/index.html"), "utf8");
+    expect(signup).toContain('href="/contact/site-operator"');
+    expect(signup).not.toContain('type="password"');
+    expect(signup).not.toContain('id="email"');
   });
 
   it("makes robot-team intake inspectable without waiting for JavaScript or a task lookup", () => {
