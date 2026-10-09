@@ -8,13 +8,14 @@ import { parseCommunicationsOutput } from "../agents/communications-output";
 import { buildCommunicationsInput, buildCommunicationsPayload } from "../agents/communications-worker";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 import { COMMUNICATIONS_FRAMING_VERSION } from "../agents/communications-launch-framing";
+import { COMMUNICATIONS_PERSONALIZED_PROFILE } from "../agents/communications-saved-agent";
 import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, communicationsWritingVariant, communicationsBatchRepetition, communicationsWritingSignals } from "../agents/communications-outreach-quality";
 
 describe("prospective founder outreach quality (offline fixtures)", () => {
   it.each(["named", "inbox", "dated", "future"] as const)("retains evidence and accepts a natural %s first reply through real input/parser/review", kind => {
     const f = founderOutreachFixture(kind), before = communicationsDigest(f.brief);
     const input = JSON.parse(buildCommunicationsInput(f.brief, null, "outreach", "pending_approval", undefined, undefined,
-      COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION));
+      COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION, undefined, undefined, COMMUNICATIONS_PERSONALIZED_PROFILE));
     expect(input.researchBrief).toEqual(f.brief);
     expect(input.firstTouchFraming).not.toHaveProperty("question");
     const variant = communicationsWritingVariant({ ...f.output, reason: "[writing-hypothesis:job-relevance] Evidence-backed relevance, no outcome yet." })!;

@@ -10,7 +10,7 @@ import { reserveCommunicationsDraft } from "../agents/communications-draft-budge
 import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION, COMMUNICATIONS_V2_INSTRUCTIONS, COMMUNICATIONS_V2_DEFINITION, COMMUNICATIONS_V3_INSTRUCTIONS, COMMUNICATIONS_V3_DEFINITION } from "../agents/communications-instructions";
 import { communicationsHypothesisConfiguration, communicationsHypothesisDefinition, COMMUNICATIONS_GMAIL_NOTION_FIREBASE_READ_DEFINITION,
   COMMUNICATIONS_GMAIL_NOTION_READ_DEFINITION, COMMUNICATIONS_GMAIL_READ_DEFINITION, COMMUNICATIONS_HISTORY_DEFINITION,
-  COMMUNICATIONS_HYPOTHESIS_PROFILE, COMMUNICATIONS_PERSONALIZED_PROFILE } from "../agents/communications-saved-agent";
+  COMMUNICATIONS_HYPOTHESIS_PROFILE, COMMUNICATIONS_PERSONALIZED_PROFILE, COMMUNICATIONS_PERSONALIZED_MODEL, communicationsPersonalizedConfiguration, communicationsPersonalizedDefinition } from "../agents/communications-saved-agent";
 import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
   COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_PROFILE } from "../agents/communications-saved-agent";
 
@@ -55,7 +55,7 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
     const path = new URL(String(url)).pathname + new URL(String(url)).search;
     calls.push({ path, init });
     if (options.http) return new Response("PRIVATE MUST NOT LEAK", { status: options.http });
-    if (path.includes("/models/")) return Response.json({ id: options.model ?? COMMUNICATIONS_MODEL });
+    if (path.includes("/models/")) return Response.json({ id: options.model ?? path.split("/").at(-1) });
     if (path.endsWith(`/agents/${COMMUNICATIONS_SAVED_AGENT_ID}`)) return Response.json(savedAgent);
     if (path.endsWith("/agents/sessions") || path.endsWith("/events")) {
       if (init.method === "POST" && path.endsWith("/agents/sessions")) {
@@ -638,7 +638,7 @@ describe("portable communications Agents API", () => {
   });
   it("does not fall back when Luna is absent", async () => {
     const f = apiFixture({ model: "gpt-6-sol" });
-    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "requested_luna_model_unavailable" });
+    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "requested_communications_model_unavailable" });
     expect(f.calls.some(call => call.init.method === "POST")).toBe(false);
   });
   it("checks the saved session's exact job binding", async () => {
@@ -1230,6 +1230,9 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
       framingVersion: COMMUNICATIONS_FRAMING_VERSION, writingProfile: COMMUNICATIONS_PERSONALIZED_PROFILE,
       ...(hypothesis ? { draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } : {}) } });
     const posted = JSON.parse(String(f.calls.find(call => call.init.method === "POST")!.init.body));
+    expect(posted.agent.model).toBe(COMMUNICATIONS_PERSONALIZED_MODEL);
+    expect(posted.agent.reasoning.effort).toBe("max");
+    expect(f.reservePaidDraft).toHaveBeenCalledWith(f.params.jobId, expect.any(String), undefined, COMMUNICATIONS_PERSONALIZED_MODEL);
     expect(posted.input).toBe(input);
     const consumed = JSON.parse(posted.input);
     expect(consumed.researchBrief).toEqual(brief);
@@ -1238,13 +1241,13 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
     expect(consumed.firstTouchPolicy).toContain("discovery-first");
     expect(consumed.firstTouchFraming.questionIsSuggestion).toBe(true);
     expect(consumed.firstTouchFraming).not.toHaveProperty("question");
-    expect(consumed.firstTouchPolicy).toContain("recipient-aware-writing-v4");
+    expect(consumed.firstTouchPolicy).toContain("recipient-aware-writing-v5");
     if (hypothesis) {
       expect(posted.agent.instructions).not.toContain(LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
       expect(consumed.firstTouchPolicy).toContain(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
       expect(posted.agent.instructions).toContain('version:"blueprint.outreach.v5"');
       expect(posted.agent.instructions).toContain("may overlap");
-      expect(result.outputSource?.definitionVersion).toBe("blueprint.communications-definition.v29");
+      expect(result.outputSource?.definitionVersion).toBe("blueprint.communications-definition.v41");
     }
     expect(posted.agent.instructions).toContain(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
     expect(posted.agent.instructions).not.toContain('Introduce "I\'m building Blueprint"');
@@ -1252,6 +1255,51 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
     expect(f.reservePaidDraft).toHaveBeenCalledOnce(); // Mock admission only; no provider/spend.
     expect(result.checkpoint.requestDigest).toBe(posted.metadata.blueprint_communications_request_digest);
     expect(result.output).toEqual(fixture.output);
+  });
+  it.each([[true, false], [false, true]])("reads archived Luna personalized sessions without inference, historical=%s previous=%s", async (historical, previousWriting) => {
+    const fixture = founderOutreachFixture("future");
+    (fixture.output.outreachContract as any).version = "blueprint.outreach.v5";
+    const f = apiFixture({ rawOutput: JSON.stringify(fixture.output) });
+    const result = await f.api.run({ ...f.params, checkpoint: { ...f.params.checkpoint,
+      writingProfile: COMMUNICATIONS_PERSONALIZED_PROFILE, draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } });
+    const configuration = communicationsPersonalizedConfiguration(COMMUNICATIONS_HISTORY_CONFIGURATION, true, historical, previousWriting);
+    const definition = communicationsPersonalizedDefinition(COMMUNICATIONS_HISTORY_DEFINITION, true, historical, previousWriting);
+    const checkpoint = { ...result.checkpoint, historyConfigurationDigest: communicationsDigest(configuration) };
+    const baseline = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const response = await baseline(url, init);
+      if (!String(url).endsWith("/session-1")) return response;
+      const session = await response.json();
+      session.agent = { ...session.agent, ...configuration };
+      Object.assign(session.metadata, { blueprint_communications_history_configuration_digest: checkpoint.historyConfigurationDigest,
+        blueprint_communications_definition: definition.version, blueprint_communications_instructions_digest: definition.instructionsDigest });
+      return Response.json(session);
+    });
+    const calls = f.calls.length, admissions = f.reservePaidDraft.mock.calls.length;
+    await expect(f.api.verifyExistingDraftSession(checkpoint, f.params.jobId, checkpoint.requestDigest!)).resolves.toBeTruthy();
+    await expect(f.api.reconcileSaved(checkpoint, f.params.jobId)).resolves.toMatchObject({ output: fixture.output });
+    expect(configuration.model).toBe(COMMUNICATIONS_MODEL);
+    expect(f.calls.slice(calls).every(call => (call.init.method ?? "GET") === "GET")).toBe(true);
+    expect(f.reservePaidDraft).toHaveBeenCalledTimes(admissions);
+  });
+  it.each(["wrong_model", "wrong_reasoning"])("rejects a tampered Sol session before another admission: %s", async kind => {
+    const fixture = founderOutreachFixture("future");
+    (fixture.output.outreachContract as any).version = "blueprint.outreach.v5";
+    const f = apiFixture({ rawOutput: JSON.stringify(fixture.output) });
+    const result = await f.api.run({ ...f.params, checkpoint: { ...f.params.checkpoint,
+      writingProfile: COMMUNICATIONS_PERSONALIZED_PROFILE, draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } });
+    const baseline = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const response = await baseline(url, init);
+      if (!String(url).endsWith("/session-1")) return response;
+      const session = await response.json();
+      if (kind === "wrong_model") session.agent.model = COMMUNICATIONS_MODEL;
+      else session.agent.reasoning.effort = "high";
+      return Response.json(session);
+    });
+    await expect(f.api.verifyExistingDraftSession(result.checkpoint, f.params.jobId, result.checkpoint.requestDigest!))
+      .rejects.toMatchObject({ code: "agents_existing_session_history_binding_mismatch" });
+    expect(f.reservePaidDraft).toHaveBeenCalledOnce();
   });
   it.each([null, false, "blueprint.outreach-framing.v4", "", {}])("rejects unsupported framing %j before provider or paid admission", async framingVersion => {
     const f = apiFixture(), checkpoint = { ...hypothesisCheckpoint(), framingVersion } as any;

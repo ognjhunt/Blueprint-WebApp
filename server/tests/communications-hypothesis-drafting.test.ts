@@ -111,7 +111,7 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(h.api.run).toHaveBeenCalledOnce();
     const [{ input, checkpoint, feedback }] = h.seen;
     expect(input.firstTouchPolicy).not.toContain(COMMUNICATIONS_FOUNDER_GUIDANCE);
-    expect(input.firstTouchPolicy).toContain("recipient-aware-writing-v4");
+    expect(input.firstTouchPolicy).toContain("recipient-aware-writing-v5");
     expect(input.researchBrief.qualification.openQuestions).toEqual(h.brief.qualification!.openQuestions);
     expect(checkpoint.draftProfile).toBe(COMMUNICATIONS_HYPOTHESIS_PROFILE);
     expect(checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_VERSION);
@@ -208,7 +208,7 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(outcome).toMatchObject({ state: "pending_approval" });
     const [{ input, checkpoint }] = h.seen;
     expect(input.firstTouchPolicy).not.toContain(COMMUNICATIONS_FOUNDER_GUIDANCE);
-    expect(input.firstTouchPolicy).toContain("recipient-aware-writing-v4");
+    expect(input.firstTouchPolicy).toContain("recipient-aware-writing-v5");
     expect(input.researchBrief).not.toHaveProperty("qualification");
     expect(checkpoint).not.toHaveProperty("draftProfile");
     const ledger = h.f.db.records.get(`action_ledger/communications_${h.verifiedJob.jobId}`);

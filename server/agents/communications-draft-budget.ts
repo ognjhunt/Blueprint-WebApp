@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { resolveBundleStorage } from "../utils/siteCaptureBundleStorage";
 import { communicationsDigest, COMMUNICATIONS_MODEL } from "./communications-contract";
+import { COMMUNICATIONS_PERSONALIZED_MODEL } from "./communications-saved-agent";
 import { firstContactCalendarDay } from "./communications-first-contact";
 import { COMMUNICATIONS_ROOT, COMMUNICATIONS_JOB_STATES } from "./communications-store";
 import type { CommunicationsAgentsAPI, CommunicationsCheckpoint, CommunicationsCancelledContinuation } from "./communications-api";
@@ -122,19 +123,30 @@ export const COMMUNICATIONS_DRAFT_BUDGET = Object.freeze({
   // regional premium. This is a soft estimate, never an invoice or hard cap.
   inputUsdPerMillion: 0.2475, outputUsdPerMillion: 0.55,
 });
+// Use the same conservative cache-write/regional estimate as the retained Luna policy.
+export const COMMUNICATIONS_SOL_DRAFT_BUDGET = Object.freeze({
+  ...COMMUNICATIONS_DRAFT_BUDGET, version: "blueprint.communications-draft-accounting.v2", model: COMMUNICATIONS_PERSONALIZED_MODEL,
+  rateDate: "2026-10-09", rateSource: "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+  inputUsdPerMillion: 2.75, outputUsdPerMillion: 11,
+});
+function draftPolicy(model: string) {
+  if (model === COMMUNICATIONS_PERSONALIZED_MODEL) return COMMUNICATIONS_SOL_DRAFT_BUDGET;
+  if (model === COMMUNICATIONS_MODEL) return COMMUNICATIONS_DRAFT_BUDGET;
+  throw new CommunicationsDraftBudgetError("communications_draft_accounting_model_unsupported");
+}
 export class CommunicationsDraftBudgetError extends Error {
   constructor(readonly code: string) { super(code); }
 }
 
-export function estimatedDraftMicros(usage: any): number | null {
+export function estimatedDraftMicros(usage: any, policy = COMMUNICATIONS_DRAFT_BUDGET): number | null {
   if (!usage || ![usage.input_tokens, usage.output_tokens, usage.total_tokens].every(Number.isSafeInteger)
     || usage.input_tokens < 0 || usage.output_tokens < 0 || usage.total_tokens !== usage.input_tokens + usage.output_tokens
     || (usage.input_tokens_details?.cached_tokens !== undefined && (!Number.isSafeInteger(usage.input_tokens_details.cached_tokens)
       || usage.input_tokens_details.cached_tokens < 0 || usage.input_tokens_details.cached_tokens > usage.input_tokens))
     || (usage.output_tokens_details?.reasoning_tokens !== undefined && (!Number.isSafeInteger(usage.output_tokens_details.reasoning_tokens)
       || usage.output_tokens_details.reasoning_tokens < 0 || usage.output_tokens_details.reasoning_tokens > usage.output_tokens))) return null;
-  const micros = Math.ceil(usage.input_tokens * COMMUNICATIONS_DRAFT_BUDGET.inputUsdPerMillion
-    + usage.output_tokens * COMMUNICATIONS_DRAFT_BUDGET.outputUsdPerMillion);
+  const micros = Math.ceil(usage.input_tokens * policy.inputUsdPerMillion
+    + usage.output_tokens * policy.outputUsdPerMillion);
   return Number.isSafeInteger(micros) && micros >= 0 ? micros : null;
 }
 
@@ -142,10 +154,10 @@ export function estimatedDraftMicros(usage: any): number | null {
  * ceiling. Historical holds remain untouched; the job/create claim prevents
  * duplicate provider effects independently of cost reporting. */
 export async function reserveCommunicationsDraft(db: FirebaseFirestore.Firestore, jobId: string, requestDigest: string, now: number,
-  sessionSpendLimitCents?: number) {
+  sessionSpendLimitCents?: number, model = COMMUNICATIONS_MODEL) {
   const started = performance.now(), clock = () => now + Math.max(0, performance.now() - started);
   const recurring = await recurringBudgetDirection(db, clock);
-  const policy = COMMUNICATIONS_DRAFT_BUDGET;
+  const policy = draftPolicy(model);
   const root = db.doc(COMMUNICATIONS_ROOT), id = communicationsDigest({ jobId }), day = firstContactCalendarDay(now);
   const ref = root.collection("draftBudgetAdmissions").doc(id), dayRef = root.collection("draftBudgetDays").doc(day);
   const stateRef = root.collection("draftBudgetState").doc("current");
@@ -212,7 +224,7 @@ export type CommunicationsRejectedCreateDraftBudgetClaim = {
  * The caller verifies owner direction, job/context and complete provider absence
  * before entering this transaction. No model-supplied proof grants admission. */
 export async function claimCommunicationsRejectedCreateDraftBudget(db: FirebaseFirestore.Firestore,
-  tx: FirebaseFirestore.Transaction, input: CommunicationsRejectedCreateDraftBudgetClaim, now: number) {
+  tx: FirebaseFirestore.Transaction, input: CommunicationsRejectedCreateDraftBudgetClaim, now: number, model = COMMUNICATIONS_MODEL) {
   const start = Date.parse(input.correctedCreateClaimedAt);
   if (!input.jobId || !input.ownerDirectionRef.trim()
     || [input.originalRequestDigest, input.originalCheckpointDigest, input.correctedRequestDigest,
@@ -241,7 +253,7 @@ export async function claimCommunicationsRejectedCreateDraftBudget(db: FirebaseF
     || !Number.isSafeInteger(retained) || retained < 0) {
     throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
   }
-  const policy = COMMUNICATIONS_DRAFT_BUDGET;
+  const policy = draftPolicy(model);
   tx.update(ref, { state: "usage_unknown", usageState: "unresolved", originalUsageState: "unresolved",
     correctedCreate: { version: "blueprint.communications-rejected-create-admission.v1", ...input,
       requestDigest: input.correctedRequestDigest, claimDigest, day, policy, policyDigest: communicationsDigest(policy),
@@ -328,7 +340,8 @@ async function writeDraftUsage(tx: FirebaseFirestore.Transaction, root: Firebase
   if (!daily || !Number.isSafeInteger(daily.estimatedModelMicros) || daily.estimatedModelMicros < 0) {
     throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
   }
-  const estimate = estimatedDraftMicros(usage);
+  if (!row.policy || communicationsDigest(row.policy) !== row.policyDigest) throw new CommunicationsDraftBudgetError("communications_draft_usage_binding_changed");
+  const estimate = estimatedDraftMicros(usage, row.policy);
   if (estimate === null) { tx.update(ref, { state: "usage_unknown", usageState: "unresolved", checkedAt: new Date(now).toISOString() }); return false; }
   const previous = row.estimatedModelMicros ?? 0, retained = Math.max(previous, estimate);
   const total = daily.estimatedModelMicros + retained - previous;
@@ -355,7 +368,7 @@ async function writeCorrectedDraftUsage(tx: FirebaseFirestore.Transaction, root:
     || !correction.claimDigest || !correction.policy || communicationsDigest(correction.policy) !== correction.policyDigest) {
     throw new CommunicationsDraftBudgetError("communications_draft_budget_state_invalid");
   }
-  const estimate = estimatedDraftMicros(usage);
+  const estimate = estimatedDraftMicros(usage, correction.policy);
   if (estimate === null) {
     tx.update(ref, { state: "usage_unknown", usageState: "unresolved", correctedCreate: { ...correction,
       state: "usage_unknown", usageState: "unresolved", checkedAt: new Date(now).toISOString() } });
