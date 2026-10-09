@@ -5,6 +5,7 @@ import { z } from "zod";
 import { SiteAssessmentBudget } from "./adapters/site-assessment-budget";
 import type { SiteAssessmentExperiment } from "./adapters/site-assessment";
 import { getGeminiVideoModel } from "./provider-config";
+import { factSchema as capabilityFactSchema, publicUrl } from "../research-learning/prior-research";
 
 export const experimentHash = (value: unknown) => createHash("sha256").update(JSON.stringify(value ?? null)).digest("hex");
 /** Map only exact configuration failures owned by this repo; arbitrary exception prose stays private. */
@@ -90,18 +91,40 @@ export function writeExperimentJson(file: string, value: unknown) {
 
 /** No signed access URLs, credentials, personal contacts or hidden reasoning in run records. */
 export function sanitizeExperiment(value: unknown): any {
+  return sanitizeExperimentValue(value);
+}
+
+function isSanitizedPublicEvidenceUrl(value: unknown): boolean {
+  const parsed = publicUrl.safeParse(value);
+  if (!parsed.success) return false;
+  // publicUrl validates at most four decoding rounds and rejects malformed encodings.
+  let decoded = parsed.data;
+  for (let attempt = 0; attempt <= 4; attempt++) {
+    if (/\b(?:sk|AIza)[-_A-Za-z0-9]{16,}\b/.test(decoded)) return false;
+    if (attempt < 4) decoded = decodeURIComponent(decoded);
+  }
+  return true;
+}
+
+function sanitizeExperimentValue(value: unknown, publicEvidenceSource = false): any {
   if (typeof value === "string") return value
     .replace(/https?:\/\/[^\s"<>]+/g, url => { try { const parsed = new URL(url); parsed.search = ""; parsed.hash = ""; parsed.username = ""; parsed.password = ""; return parsed.toString(); } catch { return "[redacted-url]"; } })
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted-email]")
     .replace(/\b(?:sk|AIza)[-_A-Za-z0-9]{16,}\b/g, "[redacted-key]");
   if (Array.isArray(value)) return value.filter(item => !(item && typeof item === "object"
-    && (/^(reasoning|thinking|thought|chain_of_thought)$/i.test(item.type ?? "") || item.thought === true))).map(sanitizeExperiment);
+    && (/^(reasoning|thinking|thought|chain_of_thought)$/i.test(item.type ?? "") || item.thought === true))).map(item => sanitizeExperimentValue(item));
   if (value && typeof value === "object") {
     const fields = value as Record<string, unknown>;
     if ((typeof fields.type === "string" && /^(reasoning|thinking|thought|chain_of_thought)$/i.test(fields.type)) || fields.thought === true) return null;
+    // Capability facts require their public citation URLs for qualification.
+    // Preserve only sources of a schema-valid fact; other URL fields stay excluded.
+    const capabilityFact = capabilityFactSchema.safeParse(fields).success;
     return Object.fromEntries(Object.entries(fields).filter(([key]) =>
-      !/^(authorization|cookie|headers|api.?key|secret|token|encrypted_content|reasoning|reasoning_content|chain_of_thought|thinking|thought|signed.?url|url)$/i.test(key))
-      .map(([key, item]) => [key, sanitizeExperiment(item)]));
+      !/^(authorization|cookie|headers|api.?key|secret|token|encrypted_content|reasoning|reasoning_content|chain_of_thought|thinking|thought|signed.?url|url)$/i.test(key)
+      || key === "url" && publicEvidenceSource && isSanitizedPublicEvidenceUrl(fields.url))
+      .map(([key, item]) => [key, key === "url" && publicEvidenceSource ? item
+        : key === "sources" && capabilityFact && Array.isArray(item)
+          ? item.map(source => sanitizeExperimentValue(source, true)) : sanitizeExperimentValue(item)]));
   }
   return value;
 }
