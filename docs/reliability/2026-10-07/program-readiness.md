@@ -8,7 +8,7 @@ The assessment remains **needs_operator_input**. Observations, owner assertions,
 
 Thirteen minute memory samples peaked at approximately **491 MiB** and ended near399 MiB on one2GBinstance. The bounded event read found no restart/failure. Those samples can miss transient peaks and do not establish true-peak headroom, leak absence or concurrent-load capacity. This successful run gives no observed reason for another RAM upgrade.
 
-Current production source is **1cd4fdac3f2214ed7a8c5dbabc80ccd23d688124**. Main CI37874527385 and actual deployment37874992598 succeeded with exact-SHA trigger and verification executed. Both Render services were independently read as LIVE at that SHA; public version/health/readiness returned200 with zero readiness blockers. This is source/health evidence, not a downstream job receipt.
+The earlier verified production source was **1cd4fdac3f2214ed7a8c5dbabc80ccd23d688124**. Main CI37874527385 and actual deployment37874992598 succeeded with exact-SHA trigger and verification executed. Both Render services were independently read as LIVE at that SHA; public version/health/readiness returned200 with zero readiness blockers. This is source/health evidence, not a downstream job receipt.
 
 Reviewed/deployed repairs now include bounded video-memory handling and abandoned-run recovery, cursor restart guidance, public privacy projection, factual progress copy, question-tail guards, fact qualification preservation and WebApp preparation admission. PR989's deployed2e source passed31 public/13 private projection checks. The original saved-owner API/DOM readback then passed **35/35 checks**: full internal analysis absent, safe questions and preparation caveat retained, optional details closed, factual job-page copy visible. Five linked API/DOM/PNG/before/after hashes were independently checked. Canonical completion, private evidence and all eleven accounting rows were unchanged; zero new model/upload/email operations. This is one existing journey, not35 independent cases.
 
@@ -46,3 +46,20 @@ Current financial authority removes the old program call/spending gates. Current
 Use program-replay.md, frozen catalogs/reference manifest, trace index, failure ledger, program-release.json and program-review.md for commands, versions and hashes. Raw footage, private capture identifiers, bearer links and credentials remain out of public artifacts. No temporary fault injection is enabled.
 
 At03:06 UTC, root protected-merged PR993 (`8f65cb86`), PR983 (`760a2b09`) and test-only PR994 (`0b9a1663`) after all nine required exact-head checks passed. Final containing main CI and paired deployment remain pending. Superseded main runs and conditional no-op deployments are not accepted as deployment receipts.
+
+
+## Verified checkpoint at 03:53 UTC
+
+Both services were independently verified LIVE at **f80ab497af4001e3c82fffacf62da3afd3ca8e96**. Main CI37878607036 and actual deploy37879471035 succeeded; the deploy trigger, exact-source verification and evidence upload actually executed. Public version/health/readiness checks passed. This release contains protected merges993/983/994/991/995; it establishes deployed source and health, not a new customer/provider/native result. Earlier conditional no-op deploy workflows are retained and excluded.
+
+The bounded, separately authorized communications operation ended blocked by a provider HTTP400 for unsupported session budget configuration. Its owner restored the temporary hypothesis flag FALSE on both services and retained unknown acceptance/cost; no draft output or email send was established. That operation is not dishwasher evidence or a new program outreach campaign.
+
+PR997 safe SDK failure diagnostics was independently reviewed, passed all nine required checks and protected-merged at **5dc3fb9282738303a7577771ecad4178c1167caa** (03:50:36 UTC). Deployment of this newer source is pending.
+
+Pipeline502's mandatory full promotion37874865400 and official provenance37878710411 passed. The 1759-byte official artifact is retained (SHA2569df2d1940fbaa621f652439dbaef765407bebdf29a2aae109d2b69dc291a9618); canonical installation remains pending because the current operator wrapper exposes only iteration installation. Draft PR2654 adds exact artifact transport and one selected original handoff operation through existing authenticated controls. Frozen candidate **1e916c4c366af9f6022b6d36f1acb795f9186189** passed340 isolated checks; independent whole-source review and required CI are active. No original-case dispatch occurred.
+
+A new isolated reproducer demonstrated that an empty JSON ledger, dangling ledger symlink or directory could bypass the selected first-attempt fence between precheck and lease claim. All three cases failed before the scoped held-lock existence check and pass afterward, with34 neighboring checks. The fake-lock reproducer does not establish a production incident. Existing ordinary retry semantics remain covered.
+
+A local diagnostic failure printed inherited environment values. Raw logs are restricted; subsequent test children use a clean environment. Public reports and PRs contain no raw values. This containment does not erase the original diagnostic exposure.
+
+The overall reliability decision remains **PARTIAL**: original downstream acceptance, current checked video labels, untouched holdout, and assessment-quality conclusions remain unresolved. Counts and source releases do not establish those outcomes.

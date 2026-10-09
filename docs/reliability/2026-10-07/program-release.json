@@ -3075,5 +3075,38 @@
     "required_CI": 37876501282,
     "state": "protected_merged_all9_required_checks_pass",
     "scope": "One existing intake test file, no production change. Frozen current300-v2 remains single scored execution; native suite does not add unique catalog cases."
+  },
+  "verified_checkpoint_20261009_0353": {
+    "deployed_web_sha": "f80ab497af4001e3c82fffacf62da3afd3ca8e96",
+    "main_ci": 37878607036,
+    "actual_deployment_run": 37879471035,
+    "web_deploy": "dep-db45v27lot8c73fu5bgg",
+    "worker_deploy": "dep-db45v27lot8c73fu5d90",
+    "root_metadata_receipt_sha256": "1f8f0439edcc8f085a993a12821fc56d1fbe21a8395d30a17f765b5bac91d432",
+    "deployment_artifact_sha256": "cf49e7bfd92578de67d4c4f362288d06fda76b65338418f842e2d6c5e736768d",
+    "public_health": "version exact; health200; ready200/blocker_count0",
+    "claim_ceiling": "Source and health only; no new customer/provider/native execution",
+    "merged_not_yet_deployed_997": {
+      "head": "704ee37d4a60ed59bd0c374a60c44a8070e6d115",
+      "merge_sha": "5dc3fb9282738303a7577771ecad4178c1167caa",
+      "merged_at": "2026-10-09T03:50:36Z",
+      "ci": 37879318671
+    },
+    "pipeline_operator_candidate": {
+      "pr": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2654",
+      "head": "1e916c4c366af9f6022b6d36f1acb795f9186189",
+      "isolated_passed": 340,
+      "review": "in_progress",
+      "required_ci": 37881195173,
+      "release": "not_merged_or_deployed",
+      "original_case_dispatches": 0
+    },
+    "pipeline502_promotion": {
+      "full_lane": 37874865400,
+      "official_provenance": 37878710411,
+      "artifact_sha256": "9df2d1940fbaa621f652439dbaef765407bebdf29a2aae109d2b69dc291a9618",
+      "artifact_bytes": 1759,
+      "canonical_installation": "pending"
+    }
   }
 }

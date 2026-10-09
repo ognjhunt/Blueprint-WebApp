@@ -1140,6 +1140,27 @@
       "source_review_sha256": "ee6905da2434ebb07a4cd58bc08995a4118fab69a659581d43298eda2f1d7976",
       "actual_live_fabrication_observed": false,
       "limitation": "Sanitized local replay missing source URLs cannot prove original production fact invalid; no new perception run."
+    },
+    {
+      "id": "REL-SELECTED-LEDGER-001",
+      "severity": "P1_affected_selected_dispatch",
+      "invariant": "No duplicate consequential effects when prior delivery history is uncertain",
+      "owner": "root_operator_integration",
+      "rootCause": "Truthiness-only first-attempt guard accepts actual reader empty mapping despite an existing ledger path under the lease lock",
+      "reproducer": "Parameterized actual reader/claim with fake lock: empty JSON object, dangling symlink, directory at ledger path. No live incident claim.",
+      "before": {
+        "source": "90e7a4c6e2108463c56db979732df2aead1775a9",
+        "failed": 3
+      },
+      "after": {
+        "source": "1e916c4c366af9f6022b6d36f1acb795f9186189",
+        "same_cases_passed": 3,
+        "neighboring_passed": 34,
+        "combined_passed": 340
+      },
+      "receipt_sha256": "7149ddf6f4100ec89004772a570b45553b687d70295c60017cc270fa982dab9d",
+      "release_status": "candidate_tested_review_and_CI_pending",
+      "pr": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2654"
     }
   ],
   "dependencies": [
