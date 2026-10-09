@@ -405,7 +405,11 @@ export function renderSourceBoundAssessment(raw: SiteAssessment, sources: Readon
     typeof value === "string" && Boolean(value.trim()) || typeof value === "number" && Number.isFinite(value) || typeof value === "boolean";
   const ownPath = (value: unknown, path: string[]): unknown => {
     for (const key of path) {
-      if (!value || typeof value !== "object" || Array.isArray(value) || !Object.prototype.hasOwnProperty.call(value, key)) return undefined;
+      if (!value || typeof value !== "object" || !Object.prototype.hasOwnProperty.call(value, key)) return undefined;
+      // Knowledge facts are arrays. Admit only canonical own indices, never
+      // array metadata, sparse slots, inherited values or alternate spellings.
+      if (Array.isArray(value) && (!/^(0|[1-9]\d*)$/.test(key)
+        || !Number.isSafeInteger(Number(key)) || Number(key) >= value.length)) return undefined;
       value = (value as Record<string, unknown>)[key];
     }
     return value;

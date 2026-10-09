@@ -85,6 +85,45 @@ describe("v2 source-derived factual rendering; provenance is not truth", () => {
       expect(result.assessment.known[0].text).not.toContain("50 m");
     }
   });
+  it("renders actual indexed knowledge statements without adopting model prose or promoting suitability", () => {
+    const current: Source = { source_id: "knowledge:indexed", kind: "knowledge", canonical_ref: "synthetic/current", sha256: "d".repeat(64), checked_at: null,
+      content: { current: true, content: { facts: [{ statement: "Vendor reports tote transfer" }, { statement: "Sectioned-off cells only" }] } } };
+    const raw = packet();
+    raw.known = [0, 1].map(index => ({ text: "Guaranteed dishwasher deployment", basis: "published" as const,
+      evidence: [{ source_id: current.source_id, at_seconds: null, selector: { ...fieldSelector("facts"), field_path: ["facts", String(index), "statement"] } }] }));
+    const before = structuredClone({ raw, current }), result = renderSourceBoundAssessment(raw, new Map([[current.source_id, current]]), null);
+    expect(result.verification).toMatchObject({ source_bound_claims: 2, unverified_claims: 0, decision_status: "advisory_review_required" });
+    expect(result.assessment.known[0].text).toBe('Fetched record states facts.0.statement: "Vendor reports tote transfer". This source statement does not establish site suitability.');
+    expect(result.assessment.known[1].text).toContain("Sectioned-off cells only");
+    expect(result.assessment.known.some(claim => claim.text.includes("Guaranteed"))).toBe(false);
+    expect({ raw, current }).toEqual(before);
+  });
+  it("denies noncanonical, named, missing and inherited array selectors", () => {
+    const facts = [{ statement: "A source statement" }, , { statement: "Another source statement" }];
+    const current: Source = { source_id: "knowledge:indexed", kind: "knowledge", canonical_ref: "synthetic/current", sha256: "d".repeat(64), checked_at: null,
+      content: { current: true, content: { facts } } };
+    for (const index of ["-1", "01", "1.0", "1e0", "1x", "length", "map", "constructor", "__proto__", "1", "3", "4294967295", "9007199254740992"]) {
+      const raw = packet();
+      raw.known = [{ text: "Guaranteed fit", basis: "published", evidence: [{ source_id: current.source_id, at_seconds: null,
+        selector: { ...fieldSelector("facts"), field_path: ["facts", index, "statement"] } }] }];
+      expect(renderSourceBoundAssessment(raw, new Map([[current.source_id, current]]), null).assessment.known[0]).toMatchObject({ basis: "unknown", verification_status: "unverified" });
+    }
+    const raw = packet();
+    raw.known = [{ text: "Array length is robot capability", basis: "published", evidence: [{ source_id: current.source_id, at_seconds: null,
+      selector: { ...fieldSelector("facts"), field_path: ["facts", "length"] } }] }];
+    expect(renderSourceBoundAssessment(raw, new Map([[current.source_id, current]]), null).assessment.known[0].basis).toBe("unknown");
+  });
+  it("denies indexed stale knowledge and cannot turn it into measured evidence", () => {
+    const old: Source = { source_id: "knowledge:indexed", kind: "knowledge", canonical_ref: "synthetic/old", sha256: "d".repeat(64), checked_at: null,
+      content: { current: false, content: { facts: [{ statement: "Historical vendor statement" }] } } };
+    const raw = packet();
+    raw.known = [{ text: "Current measured capability", basis: "published", evidence: [{ source_id: old.source_id, at_seconds: null,
+      selector: { ...fieldSelector("facts"), field_path: ["facts", "0", "statement"] } }] }];
+    const admitted = new Map([[old.source_id, old]]);
+    expect(() => renderSourceBoundAssessment(raw, admitted, null)).toThrow("assessment_known_published_source_not_current");
+    raw.known[0].basis = "measured";
+    expect(renderSourceBoundAssessment(raw, admitted, null).assessment.known[0]).toMatchObject({ basis: "unknown", verification_status: "unverified" });
+  });
   it("cannot turn video into a calibrated measurement even with a valid observation selector", () => {
     const raw = packet();
     raw.known = [{ text: "Measured dimension 1.3 m", basis: "measured", evidence: [{ source_id: video.source_id, at_seconds: 8, selector: videoSelector }] }];
