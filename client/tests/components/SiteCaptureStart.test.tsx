@@ -13,6 +13,7 @@ import { act, fireEvent, render as renderView, screen, waitFor } from "@testing-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
+import { siteCaptureDraftKey } from "@/lib/siteCaptureDraft";
 import { renderToString } from "react-dom/server";
 
 vi.mock("@/lib/analytics", () => ({ analyticsEvents: { contactFormSubmit: vi.fn(), contactFormError: vi.fn() } }));
@@ -206,6 +207,45 @@ describe("SiteCaptureStart and the country", () => {
     } finally { vi.unstubAllEnvs(); }
   });
 
+  it("recovers a denied Google country lookup by correcting the address", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    let resolveDetails: ((place: unknown, status: string) => void) | undefined;
+    vi.stubGlobal("google", { maps: { places: {
+      AutocompleteService: class {
+        getPlacePredictions(_request: unknown, callback: Function) {
+          callback([{ description: "Warehouse", place_id: "unresolved-fixture" }], "OK");
+        }
+      },
+      PlacesService: class {
+        getDetails(_request: unknown, callback: typeof resolveDetails) { resolveDetails = callback; }
+      },
+    } } });
+    fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => init?.method === "POST"
+      ? { ok: true, status: 200, json: async () => ({ captureUrl: "https://example.test/capture-upload/fixture.synthetic" }) } : photon([]));
+    try {
+      await renderReady(<SiteCaptureStart />);
+      fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
+      fireEvent.change(document.querySelector("#start-email")!, { target: { value: "fixture@example.invalid" } });
+      fireEvent.change(document.querySelector("#start-company")!, { target: { value: "Fixture company" } });
+      const location = document.querySelector("#start-location")!;
+      fireEvent.change(location, { target: { value: "Warehouse" } });
+      fireEvent.mouseDown(await screen.findByText("Warehouse"));
+      expect(resolveDetails).toBeTypeOf("function");
+      await act(async () => { resolveDetails!(null, "REQUEST_DENIED"); });
+      fireEvent.submit(screen.getByRole("form"));
+      expect(screen.getByText(/Add the country to the address/)).toBeInTheDocument();
+      expect(postsTo("/api/inbound-request")).toHaveLength(0);
+      expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
+      fireEvent.change(location, { target: { value: "Austin, TX" } });
+      fireEvent.submit(screen.getByRole("form"));
+      await screen.findByText("Your job description is saved.", { selector: "h2" });
+      expect(postsTo("/api/inbound-request")).toHaveLength(1);
+      expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body)).toMatchObject({
+        siteLocation: "Austin, TX", captureRegion: "us", descriptionOnly: true, consentAttestation: null,
+      });
+    } finally { vi.unstubAllEnvs(); }
+  });
+
   it("does not ask for a country up front", async () => {
     await renderReady(<SiteCaptureStart />);
     expect(region()).toBeNull();
@@ -326,6 +366,20 @@ it("asks one question about the video and offers no separate rights step", async
 
   fireEvent.click(screen.getByRole("radio", { name: "Upload a video now" }));
   expect(document.querySelector("#start-rights")).toBeNull();
+  fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  fireEvent.change(document.querySelector("#start-email")!, { target: { value: "fixture@example.invalid" } });
+  fireEvent.change(document.querySelector("#start-company")!, { target: { value: "Fixture company" } });
+  fireEvent.change(document.querySelector("#start-footage")!, {
+    target: { files: [new File(["synthetic"], "fixture.mov", { type: "video/quicktime" })] },
+  });
+  expect(fetchMock.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
+  expect(upload.send).not.toHaveBeenCalled();
+  const key = siteCaptureDraftKey(null, "default");
+  await waitFor(() => {
+    expect(JSON.parse(localStorage.getItem(key)!)).toMatchObject({ pending: null });
+    expect(durability.rows.get(key)?.value).toMatchObject({ pending: null });
+  });
 });
 
 it.each([["phone", "self_capture"], ["visit", "site_visit"]])("sends the capture mode for the chosen way (%s)", async (method, captureMode) => {
@@ -487,6 +541,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(JSON.parse(init.body)).toMatchObject({ captureMode: "self_capture", hasExistingFootage: true, captureRegion: "us", firstName: "", company: "Acme Foods" });
     expect(JSON.parse(init.body).filmerContact).toBeUndefined();
     expect(JSON.parse(init.body)).not.toHaveProperty("budgetBucket");
+    expect(JSON.parse(init.body).consentAttestation).toEqual({ granted: true, statementVersion: "2026-09-18.v1" });
     expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
     expect(screen.getByRole("link", { name: "Open your job and assessment" })).toHaveAttribute("href", captureUrl);
   });
@@ -563,13 +618,18 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(screen.queryByRole("img", { name: /film/i })).not.toBeInTheDocument();
   });
 
-  it("does not create a job or upload existing footage until a video is chosen", async () => {
+  it("does not create a job or freeze recording consent when upload mode has no file", async () => {
     answerPosts({ captureUrl }); await renderReady(<SiteCaptureStart />);
-    fireEvent.click(document.querySelector("#start-method-upload")!);
-    fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
-    fireEvent.submit(screen.getByRole("form"));
+    fillFor(null);
+    expect((document.querySelector("#start-footage") as HTMLInputElement).files).toHaveLength(0);
+    expect(screen.queryByText(/Add the country to the address/)).toBeNull();
     expect(upload.send).not.toHaveBeenCalled();
     expect(fetchMock.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
+    const key = siteCaptureDraftKey(null, "default");
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem(key)!)).toMatchObject({ pending: null });
+      expect(durability.rows.get(key)?.value).toMatchObject({ pending: null });
+    });
   });
 
   it("guards a repeated Start while the first intake is still saving", async () => {
