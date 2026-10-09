@@ -166,6 +166,21 @@ is unavailable. The server path validates and rate-limits address queries,
 omits address/session parameters from app logs, and returns `Cache-Control:
 no-store` with only sanitized failure codes for diagnosing configuration.
 
+Suggestions use a soft US location bias without country/area restrictions.
+Text relevance comes first; nearby matches (when enabled), then California and
+Texas, then other US matches break ties. All returned international options
+remain available, and a typed city/country can override the preference. No
+extra per-option details requests are made for ranking.
+
+“Use my location” requests browser permission only after a click, and biases
+matches within 50 km. Coordinates are rounded to three decimal places and kept
+only in component memory; they are sent to the suggestion provider (or the
+private Places proxy), never saved in cookies, drafts, analytics, or submissions.
+“Clear location preference” restores the default search. Denied/unavailable
+location leaves typing and autocomplete usable. `Permissions-Policy` permits
+same-origin geolocation only on `/contact/site-operator`, matching the site's
+full-page intake links; camera policy stays scoped to capture upload.
+
 ### iOS App + App Clip (server)
 The capture link (`/capture-upload/:token`) opens the Blueprint App Clip on an
 iPhone once it is published; everywhere else, and until then, it opens the

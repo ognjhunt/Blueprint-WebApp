@@ -27,4 +27,14 @@ describe("permissions policy", () => {
     expect(policy).toContain("microphone=(self)");
     expect(policy).toContain("geolocation=()");
   });
+
+  it("permits optional location only on the site intake document", () => {
+    for (const path of ["/contact/site-operator", "/contact/site-operator/"]) {
+      expect(permissionsPolicyForPath(path)).toContain("geolocation=(self)");
+      expect(permissionsPolicyForPath(path)).toContain("camera=()");
+    }
+    for (const path of ["/", "/contact/robot-team", "/contact/site-operator-extra", "/contact/site-operator/extra", "/api/location-autocomplete", "/admin"]) {
+      expect(permissionsPolicyForPath(path)).toContain("geolocation=()");
+    }
+  });
 });
