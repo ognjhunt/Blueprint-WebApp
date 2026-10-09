@@ -243,12 +243,14 @@ describe("contact-free pinned producer → communications contact fulfillment (o
     expect(f.deps.readContactPage).toHaveBeenCalledTimes(calls);
   });
 
-  it("retries a transient fetch with persisted backoff and a finite attempt count", async () => {
+  it("retries transient fetches beyond two attempts with persisted backoff", async () => {
     const f = setup(); f.deps.readContactPage.mockRejectedValue(new Error("contact_fetch_timeout"));
     await f.request(); await f.refresh(); expect(f.records("refreshRequests")[0]).toMatchObject({ state: "retry_wait", attempts: 1 });
     await f.refresh(); await f.refresh(); expect(f.deps.readContactPage).toHaveBeenCalledTimes(1);
     f.advance(300001); await f.refresh(); await f.refresh();
-    expect(f.records("refreshRequests")[0]).toMatchObject({ state: "terminal", attempts: 2 }); expect(f.deps.readContactPage).toHaveBeenCalledTimes(2);
+    expect(f.records("refreshRequests")[0]).toMatchObject({ state: "retry_wait", attempts: 2 }); expect(f.deps.readContactPage).toHaveBeenCalledTimes(2);
+    f.advance(300001); await f.refresh(); await f.refresh();
+    expect(f.records("refreshRequests")[0]).toMatchObject({ state: "retry_wait", attempts: 3 }); expect(f.deps.readContactPage).toHaveBeenCalledTimes(3);
   });
 
   it.each(["session", "ledger", "send", "active"])("preserves pre-existing first-touch %s fence during contact fulfillment", async kind => {

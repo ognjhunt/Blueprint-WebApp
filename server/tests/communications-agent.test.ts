@@ -688,8 +688,9 @@ describe("Blueprint-owned communications queue", () => {
   it("bounds recovery and prevents exhausted leases from starving queued work", async () => {
     const f = await setup();
     for (let i = 0; i < 7; i++) await f.db.doc(`${COMMUNICATIONS_ROOT}/jobs/exhausted-${i}`).set({ ...f.job, state: "running", attempts: 3, lease: { owner: "dead", until: communicationsNow - 1 } });
-    expect(await f.store.dueJobIds()).toEqual([f.job.jobId]);
-    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/exhausted-1`).state).toBe("blocked");
+    expect(await f.store.dueJobIds()).toContain(f.job.jobId);
+    expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/jobs/exhausted-1`).state).toBe("running");
+    expect((await f.store.claim("exhausted-1"))?.attempts).toBe(4);
     f.deps.api.run.mockRejectedValueOnce(new CommunicationsRuntimeError("agents_api_http_503", true));
     expect((await processCommunicationsJob(f.job.jobId, f.deps)).state).toBe("retry");
   });
@@ -761,7 +762,7 @@ describe("Blueprint-owned communications queue", () => {
     expect((await f.store.claim(f.job.jobId))?.attempts).toBe(2);
     expect(f.deps.api.run).not.toHaveBeenCalled();
   });
-  it.each(["active_lease", "exhausted", "unknown_create", "changed_brief", "closed", "pending_approval"])("refuses unsafe operator retry: %s", async kind => {
+  it.each(["active_lease", "unknown_create", "changed_brief", "closed", "pending_approval"])("refuses unsafe operator retry: %s", async kind => {
     const f = await setup(); const patch: any = { state: "blocked", attempts: 1 };
     if (kind === "active_lease") patch.lease = { owner: "active-owner", until: communicationsNow + 1000 };
     if (kind === "exhausted") patch.attempts = 3;

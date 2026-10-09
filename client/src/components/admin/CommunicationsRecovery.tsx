@@ -87,7 +87,7 @@ function SavedOutputRecovery({ job, onSelected, onRecovered }: { job: BlockedJob
     return false;
   };
   const recovery = useMutation({ retry: false, mutationFn: async () => {
-    if (!reviewed || !validPins || !job.sessionId || job.attempts >= 3 || job.leaseUntil > Date.now()) throw new Error("Review the original job and retained evidence pins first.");
+    if (!reviewed || !validPins || !job.sessionId || job.leaseUntil > Date.now()) throw new Error("Review the original job and retained evidence pins first.");
     const displayedSource = readiness.data?.sourceCommit, originalPins = { ...pins };
     const fresh = await readReadiness();
     if (!ready(fresh)) throw new Error("Owner runtime, compose capability, outreach controls or memory reserve is unavailable. Check readiness again.");
@@ -103,7 +103,7 @@ function SavedOutputRecovery({ job, onSelected, onRecovered }: { job: BlockedJob
         || saved?.savedOutputRecovery?.ownerAction) throw new Error("Original job context changed. Check recovery status before another action.");
     }
     if (!saved || !["blocked", "queued", "running", "retry", "pending_approval"].includes(saved.state)
-      || saved.attempts >= 3 || (saved.lease?.until ?? 0) > Date.now()) throw new Error("Original job context changed. Check recovery status before another action.");
+      || (saved.lease?.until ?? 0) > Date.now()) throw new Error("Original job context changed. Check recovery status before another action.");
     const result = await request(`/api/admin/outbound-prospects/${encodeURIComponent(job.prospectId)}/communications/${job.jobId}/recover-saved-draft`, {
       briefDigest: job.briefDigest, ...originalPins, sessionId: job.sessionId, expectedSourceCommit: fresh.sourceCommit,
     });
@@ -164,7 +164,7 @@ function SavedOutputRecovery({ job, onSelected, onRecovered }: { job: BlockedJob
     <label className="flex gap-2"><input type="checkbox" checked={reviewed} disabled={busy || Boolean(activeIntent) || !validPins || !ready(readiness.data) || readiness.isError}
       onChange={event => setReviewed(event.target.checked)} />I reviewed this original job, saved output and displayed source under the retained recovery authorization.</label>
     <button type="button" className="runway-cta-ghost min-h-0 px-3 py-2 text-sm" disabled={busy || Boolean(activeIntent) || !currentUser || !reviewed || !validPins
-      || !ready(readiness.data) || readiness.isError || job.attempts >= 3 || job.leaseUntil > Date.now()}
+      || !ready(readiness.data) || readiness.isError || job.leaseUntil > Date.now()}
       onClick={() => recovery.mutate()}>{recovery.isPending ? "Recovering saved output…" : "Recover saved output"}</button>
     <button type="button" className="runway-cta-ghost ml-2 min-h-0 px-3 py-2 text-sm" disabled={busy || !currentUser} onClick={() => status.mutate()}>Check recovery status</button>
     <button type="button" className="runway-cta-ghost ml-2 min-h-0 px-3 py-2 text-sm" disabled={busy || !activeIntent || intent?.cancelRequested}
@@ -179,7 +179,7 @@ function SavedOutputRecovery({ job, onSelected, onRecovered }: { job: BlockedJob
 function OwnerDraftRequest() {
   const { currentUser } = useAuth();
   const actor = useRef(currentUser?.uid); actor.current = currentUser?.uid;
-  const empty = { prospectId: "", briefId: "", expectedBriefDigest: "", expectedSourceCommit: "", sessionSpendLimitCents: "",
+  const empty = { prospectId: "", briefId: "", expectedBriefDigest: "", expectedSourceCommit: "",
     regenerationOf: "", expectedJobDigest: "" };
   const [input, setInput] = useState(empty);
   const [result, setResult] = useState<{ actorUid: string; message: string } | null>(null);
@@ -194,7 +194,7 @@ function OwnerDraftRequest() {
       const response = await fetch(`/api/admin/outbound-prospects/${encodeURIComponent(input.prospectId)}/communications/generate`, {
         method: "POST", credentials: "include", headers,
         body: JSON.stringify({ briefId: input.briefId, expectedBriefDigest: input.expectedBriefDigest,
-          expectedSourceCommit: input.expectedSourceCommit, sessionSpendLimitCents: Number(input.sessionSpendLimitCents),
+          expectedSourceCommit: input.expectedSourceCommit,
           ...(input.regenerationOf ? { regenerationOf: input.regenerationOf, expectedJobDigest: input.expectedJobDigest } : {}) }),
       });
       const body = await response.json();
@@ -204,12 +204,12 @@ function OwnerDraftRequest() {
         briefDigest: input.expectedBriefDigest, intent: "outreach", inboundMessageId: null,
         ...(input.regenerationOf ? { regenerationOf: input.regenerationOf } : {}) };
       const digest = await requestDigest({ job, actorUid: uid,
-        sourceCommit: input.expectedSourceCommit, sessionSpendLimitCents: Number(input.sessionSpendLimitCents) });
+        sourceCommit: input.expectedSourceCommit });
       const jobId = await requestDigest(job);
       if (actor.current !== uid) return;
       if (response.status !== 202 || body.ok !== true || body.jobId !== jobId || body.sent !== false || body.gmailDraftCreated !== false
         || body.request?.actorUid !== uid || body.request?.sourceCommit !== input.expectedSourceCommit
-        || body.request?.sessionSpendLimitCents !== Number(input.sessionSpendLimitCents) || body.request?.requestDigest !== digest
+        || body.request?.sessionSpendLimitCents !== undefined || body.request?.requestDigest !== digest
         || !["requested", "completed", "failed"].includes(body.request?.state)
         || body.executionPlacement !== "existing_background_worker") throw new Error("Draft acknowledgement could not be verified.");
       const status = body.request.state === "requested" ? "Request recorded for the existing worker; execution is not yet verified."
@@ -218,17 +218,14 @@ function OwnerDraftRequest() {
       setResult({ actorUid: uid, message: `Agent draft ${body.jobId}. ${status} No email was sent or copied to Gmail.` });
     },
   });
-  const limit = Number(input.sessionSpendLimitCents);
   const valid = /^[a-zA-Z0-9_.:-]{1,160}$/.test(input.prospectId) && /^[a-zA-Z0-9_.:-]{1,160}$/.test(input.briefId)
     && /^[a-f0-9]{64}$/.test(input.expectedBriefDigest) && /^[a-f0-9]{40}$/.test(input.expectedSourceCommit)
-    && /^[0-9]+$/.test(input.sessionSpendLimitCents) && Number.isSafeInteger(limit) && limit > 0
-    && limit <= Math.floor(Number.MAX_SAFE_INTEGER / 10000)
     && (!input.regenerationOf && !input.expectedJobDigest || hash.test(input.regenerationOf) && hash.test(input.expectedJobDigest));
   return <details className="mt-3 text-sm text-runway-body"><summary>Request an agent draft</summary>
-    <p className="mt-2">Use the admitted research brief and current deployed revision. This requests model work under the existing budget; the session limit is not an invoice guarantee. Only the configured founder owner can submit. Sending and Gmail copying are separate.</p>
+    <p className="mt-2">Use the admitted research brief and current deployed revision. This requests model work with usage and cost reporting. Only the configured founder owner can submit. Sending and Gmail copying are separate.</p>
     <form className="mt-2 space-y-2" onSubmit={event => { event.preventDefault(); if (valid && currentUser && !request.isPending) { setResult(null); request.mutate(); } }}>
       {([ ["prospectId", "Prospect ID"], ["briefId", "Reviewed brief ID"], ["expectedBriefDigest", "Reviewed brief digest"],
-        ["expectedSourceCommit", "Expected deployed revision"], ["sessionSpendLimitCents", "Session limit in cents"],
+        ["expectedSourceCommit", "Expected deployed revision"],
         ["regenerationOf", "Original unsent job ID (optional)"], ["expectedJobDigest", "Original job digest (required for replacement)"] ] as const).map(([key, label]) =>
         <label key={key} className="block">{label}<input className="block w-full border border-runway-line p-2" value={input[key]}
           disabled={request.isPending} required={key !== "regenerationOf" && key !== "expectedJobDigest"}
@@ -266,7 +263,7 @@ export function CommunicationsRecovery() {
         method: "POST", headers: await withCsrfHeader(await withFirebaseAuthHeaders(currentUser, { "Content-Type": "application/json" })),
         body: JSON.stringify({ briefDigest: job.briefDigest }),
       });
-      if (!response.ok) throw new Error("Job is not eligible. Recheck its current context, attempt budget and active lease.");
+      if (!response.ok) throw new Error("Job is not eligible. Recheck its current context, recorded attempts and active lease.");
     },
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: key }); },
   });
@@ -275,7 +272,7 @@ export function CommunicationsRecovery() {
     <button type="button" className="runway-cta-ghost min-h-0 px-3 py-2 text-sm" aria-expanded={expanded}
       onClick={() => setExpanded(!expanded)}>Review blocked communications jobs</button>
     {expanded && <div className="mt-3 space-y-3 text-sm text-runway-body">
-      <p>Review the same job and its retained context. An existing session uses saved-output recovery; its three-attempt budget and human send approval remain in force.</p>
+      <p>Review the same job and its retained context. An existing session uses saved-output recovery; its recorded attempts and human send approval remain in force.</p>
       {recovered && <p role="status">Saved output for {recovered.jobId} is in Approvals ({recovered.ledgerId}). Use the separate Save to Gmail Drafts action on that exact original revision. Nothing was sent.</p>}
       {jobs.isLoading && <p>Loading blocked jobs…</p>}
       {jobs.isError && <p role="alert">Could not read blocked jobs.</p>}
@@ -283,12 +280,12 @@ export function CommunicationsRecovery() {
       {jobs.data?.length === 0 && <p>No blocked communications jobs.</p>}
       {[...(jobs.data ?? []), ...(selected && !jobs.data?.some(job => job.jobId === selected.jobId) ? [selected] : [])].map(job => <div key={job.jobId} className="border border-runway-line p-3">
         <p>Prospect: {job.prospectId}</p><p>Job: {job.jobId}</p><p>{job.reason}</p>
-        <p>{job.attempts} of 3 attempts used.</p>
+        <p>{job.attempts} attempts recorded.</p>
         {job.sessionId ? <SavedOutputRecovery job={job} onSelected={() => setSelected(job)} onRecovered={(jobId, ledgerId) => {
           setRecovered({ jobId, ledgerId }); void queryClient.invalidateQueries({ queryKey: key });
           void queryClient.invalidateQueries({ queryKey: ["admin-action-queue", currentUser?.uid] });
         }} /> : <button type="button" className="runway-cta-ghost mt-2 min-h-0 px-3 py-2 text-sm"
-          disabled={!currentUser || retry.isPending || job.attempts >= 3 || job.leaseUntil > Date.now()}
+          disabled={!currentUser || retry.isPending || job.leaseUntil > Date.now()}
           onClick={() => retry.mutate(job)}>Retry job</button>}
       </div>)}
       {jobs.data && jobs.data.length >= 20 && <p>Showing up to 20 blocked jobs.</p>}

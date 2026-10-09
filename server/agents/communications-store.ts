@@ -33,7 +33,7 @@ export type CommunicationsJobRecord = CommunicationsJob & {
   state: typeof COMMUNICATIONS_JOB_STATES[number];
   attempts: number; checkpoint: CommunicationsCheckpoint; output?: CommunicationsOutput;
   lease?: { owner: string; until: number }; nextAttemptAt?: number; reason?: string;
-  manualDraftRequest?: { actorUid: string; requestDigest: string; sourceCommit: string; sessionSpendLimitCents: number;
+  manualDraftRequest?: { actorUid: string; requestDigest: string; sourceCommit: string; sessionSpendLimitCents?: number;
     state: "requested" | "completed" | "failed"; requestedAt: number; error?: string };
   automationPolicyVersion?: string;
   retryRequestedBy?: string;
@@ -171,15 +171,14 @@ export class CommunicationsStore {
       return queued.record;
     });
   }
-  async requestDraft(input: { prospectId: string; briefId: string; expectedBriefDigest: string; sessionSpendLimitCents: number;
+  async requestDraft(input: { prospectId: string; briefId: string; expectedBriefDigest: string; sessionSpendLimitCents?: number;
     sourceCommit: string; regenerationOf?: string; expectedJobDigest?: string }, actorUid: string) {
-    if (!actorUid || !/^[a-f0-9]{40}$/.test(input.sourceCommit) || !Number.isSafeInteger(input.sessionSpendLimitCents)
-      || input.sessionSpendLimitCents < 1 || input.sessionSpendLimitCents > Math.floor(Number.MAX_SAFE_INTEGER / 10000)) throw Error("communications_draft_request_invalid");
+    if (!actorUid || !/^[a-f0-9]{40}$/.test(input.sourceCommit) || input.sessionSpendLimitCents !== undefined) throw Error("communications_draft_request_invalid");
     const brief = await this.brief(input.briefId), digest = communicationsDigest(brief);
     if (brief.prospectId !== input.prospectId || digest !== input.expectedBriefDigest) throw Error("communications_draft_brief_changed");
     const jobInput = { prospectId: input.prospectId, briefId: input.briefId, briefDigest: digest, intent: "outreach" as const,
       inboundMessageId: null, ...(input.regenerationOf ? { regenerationOf: input.regenerationOf } : {}) };
-    const request = { actorUid, sourceCommit: input.sourceCommit, sessionSpendLimitCents: input.sessionSpendLimitCents };
+    const request = { actorUid, sourceCommit: input.sourceCommit };
     const requestDigest = communicationsDigest({ job: jobInput, ...request });
     return this.db.runTransaction(async tx => {
       const prospectRef = this.db.collection("outboundProspects").doc(input.prospectId), source = await tx.get(prospectRef);
@@ -199,7 +198,7 @@ export class CommunicationsStore {
         if (parent.checkpoint.createClaimedAt && parent.manualDraftRequest && !parent.output) {
           if (parent.briefId !== input.briefId || parent.briefDigest !== digest) throw Error("communications_draft_brief_changed");
           classifyRejected = await prepareRejectedBoundedDraftRegeneration(this.db, tx, parent, queued.record.jobId,
-            actorUid, input.sessionSpendLimitCents, this.now());
+            actorUid, this.now());
         }
       }
       if (queued.record.manualDraftRequest) {
@@ -207,7 +206,7 @@ export class CommunicationsStore {
         // An identical explicit retry can resume only a requeued native job.
         // Preserve charged checkpoints, attempts and the previous diagnostic.
         if (queued.record.manualDraftRequest.state === "failed" && queued.record.state === "queued"
-          && (queued.record.lease?.until ?? 0) <= this.now() && queued.record.attempts < 3
+          && (queued.record.lease?.until ?? 0) <= this.now()
           && queued.record.checkpoint.sessionSpendLimitCents === input.sessionSpendLimitCents) {
           queued.record.manualDraftRequest.state = "requested";
           tx.update(this.jobs().doc(queued.record.jobId), { "manualDraftRequest.state": "requested" });
@@ -216,7 +215,6 @@ export class CommunicationsStore {
       }
       if (queued.record.checkpoint.createClaimedAt || queued.record.attempts || queued.record.state !== "queued") throw Error("communications_draft_requires_explicit_regeneration");
       queued.record.manualDraftRequest = { ...request, requestDigest, state: "requested", requestedAt: this.now() };
-      queued.record.checkpoint.sessionSpendLimitCents = input.sessionSpendLimitCents;
       classifyRejected?.();
       queued.commit();
       if (!queued.created) tx.set(this.jobs().doc(queued.record.jobId), { manualDraftRequest: queued.record.manualDraftRequest,
@@ -233,11 +231,7 @@ export class CommunicationsStore {
       const snapshot = await tx.get(ref);
       if (!snapshot.exists) return null;
       const record = snapshot.data() as CommunicationsJobRecord;
-      if (record.attempts >= 3 && ["queued", "retry", "running"].includes(record.state) && (record.lease?.until ?? 0) <= this.now()) {
-        tx.update(ref, { state: "blocked", reason: "communications_recovery_exhausted", updatedAt: this.now() });
-        return null;
-      }
-      if (!["queued", "retry", "running"].includes(record.state) || record.attempts >= 3
+      if (!["queued", "retry", "running"].includes(record.state)
         || (record.nextAttemptAt ?? 0) > this.now() || (record.lease?.until ?? 0) > this.now()) return null;
       if (record.savedOutputRecovery || record.retryRequestedBy === COMMUNICATIONS_SAVED_RECOVERY_REQUESTER) {
         const pin = record.savedOutputRecovery;
@@ -284,7 +278,7 @@ export class CommunicationsStore {
         sessionReconciliationRequired: Boolean(record.checkpoint.createClaimedAt && !record.checkpoint.sessionId) };
     });
   }
-  /** Explicit operator recovery; retain identity, create claim and attempt budget. */
+  /** Explicit operator recovery; retain identity, create claim and recorded attempts. */
   async retryBlocked(input: { jobId: string; prospectId: string; briefDigest: string; requestedBy: string;
     savedOutputRecovery?: CommunicationsSavedOutputRecovery; expectedJobDigest?: string }) {
     if (!input.requestedBy.trim()) throw new Error("operator_identity_missing");
@@ -295,7 +289,6 @@ export class CommunicationsStore {
       if (input.expectedJobDigest && (!record || communicationsDigest(record) !== input.expectedJobDigest)) throw new Error("communications_retry_record_changed");
       if (!record || record.prospectId !== input.prospectId || record.briefDigest !== input.briefDigest) throw new Error("communications_retry_identity_mismatch");
       if (record.state !== "blocked" || (record.lease?.until ?? 0) > this.now()) throw new Error("communications_retry_state_or_lease_conflict");
-      if (record.attempts >= 3) throw new Error("communications_recovery_exhausted");
       if (record.checkpoint.createClaimedAt && !record.checkpoint.sessionId) throw new Error("session_create_requires_reconciliation");
       if (input.savedOutputRecovery && (input.requestedBy !== COMMUNICATIONS_SAVED_RECOVERY_REQUESTER
         || input.savedOutputRecovery.version !== "completed-saved-output-v1"
@@ -332,7 +325,7 @@ export class CommunicationsStore {
         || !record.checkpoint.createClaimedAt || !record.checkpoint.requestDigest
         || record.checkpoint.sessionId || record.checkpoint.turnId || record.checkpoint.rejectedCreateRecovery
         || communicationsDigest(record.checkpoint) !== expectedCheckpointDigest
-        || record.attempts >= 3 || (record.lease?.until ?? 0) > this.now()) {
+        || (record.lease?.until ?? 0) > this.now()) {
         throw new Error("communications_rejected_create_binding_changed");
       }
       const claimed = { ...record, state: "running" as const, attempts: record.attempts + 1,
@@ -465,17 +458,6 @@ export class CommunicationsStore {
     const data = ledger.data()!;
     return { state: data.status, ledgerId, approvedBy: data.approved_by ?? null,
       digest: data.outreach_semantic_review?.digest ?? null };
-  }
-  /** Budget holds happen before a fresh session POST and do not consume the
-   * recovery-attempt budget or discard discovered prospects. */
-  async deferDraftForBudget(jobId: string, reason: string) {
-    const ref = this.jobs().doc(jobId);
-    await this.db.runTransaction(async tx => {
-      const row = (await tx.get(ref)).data() as CommunicationsJobRecord | undefined;
-      if (!row || row.lease?.owner !== this.owner || row.checkpoint.createClaimedAt || row.checkpoint.sessionId) throw new Error("communications_budget_hold_context_changed");
-      tx.update(ref, { state: "queued", reason, attempts: Math.max(0, row.attempts - 1),
-        nextAttemptAt: this.now() + 15 * 60000, lease: { owner: this.owner, until: 0 }, updatedAt: this.now() });
-    });
   }
   /** Hypothesis drafts are off: the job waits, queued, with its attempt given back. Nothing else changes:
    * a create claim, session or checkpoint made before the flag went off is kept for when it is on again. */
@@ -679,7 +661,6 @@ export class CommunicationsStore {
       const data = doc.data();
       if (data.manualDraftRequest || data.savedOutputRecovery || data.retryRequestedBy === COMMUNICATIONS_SAVED_RECOVERY_REQUESTER) continue;
       if ((data.nextAttemptAt ?? 0) > this.now() || (data.lease?.until ?? 0) > this.now()) continue;
-      if (data.attempts >= 3) { await this.claim(doc.id); continue; }
       if (due.length < limit) due.push(doc.id);
     }
     return due;

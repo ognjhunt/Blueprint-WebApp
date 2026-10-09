@@ -8,7 +8,7 @@ vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () =
   readText: async () => { storage.afterRead?.(); return storage.raw; } }) }));
 import { memoryFirestore, communicationsNow, communicationsFixture, cancelledContinuationFixture } from "./fixtures/communications";
 import { reserveCommunicationsDraft, recordCommunicationsDraftUsage, reconcileCommunicationsDraftCost, estimatedDraftMicros,
-  COMMUNICATIONS_DRAFT_BUDGET, configuredCommunicationsDraftBudget, reconcileCommunicationsDraftSession,
+  COMMUNICATIONS_DRAFT_BUDGET, reconcileCommunicationsDraftSession,
   claimCommunicationsRejectedCreateDraftBudget, claimCommunicationsCancelledContinuationBudget,
   assertCommunicationsContinuationBudget, type CommunicationsRejectedCreateDraftBudgetClaim } from "../agents/communications-draft-budget";
 import { communicationsDigest } from "../agents/communications-contract";
@@ -61,19 +61,19 @@ describe("one owner-authorized phase inside the existing unresolved hold", () =>
     const claim = () => db.runTransaction((tx: any) => claimCommunicationsCancelledContinuationBudget(db, tx, f.phase, communicationsNow));
     return { ...f, db, id, path, day, claim };
   }
-  it("reserves 3.944666 additional soft dollars once without clearing/refunding original unknown cost", async () => {
+  it("records the authorized phase once without clearing/refunding original unknown cost", async () => {
     const f = continuationBudget(), original = structuredClone(f.db.records.get(f.path));
     await Promise.all([f.claim(), f.claim()]);
     expect(f.db.records.get(f.path)).toMatchObject({ ...original, cancelledContinuation: {
-      additionalAllowanceMicros: 3944666, baselineModelMicros: 55334, originalUnknownPolicyReservationUsd: 1,
+      baselineModelMicros: 55334, originalUnknownPolicyReservationUsd: 1,
       researchReservationUsd: 5, accountingComplete: false, invoiceVerified: false } });
     expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).admissions).toBe(3);
     expect(f.db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId).toBe(f.id);
-    await expect(reserveCommunicationsDraft(f.db, "other", digest, communicationsNow)).rejects.toThrow("cost_unresolved");
+    await expect(reserveCommunicationsDraft(f.db, "other", digest, communicationsNow)).resolves.toBeTruthy();
     await assertCommunicationsContinuationBudget(f.db, f.phase, communicationsNow);
     expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros).toBe(55334);
   });
-  it.each(["unknown_baseline", "wrong_original", "other_hold", "research_enabled", "research_target", "daily_ceiling", "wrong_day"])("refuses %s before a phase claim", async kind => {
+  it.each(["unknown_baseline", "wrong_original", "research_enabled", "wrong_day"])("refuses %s before a phase claim", async kind => {
     const f = continuationBudget(), row = f.db.records.get(f.path);
     if (kind === "unknown_baseline") delete row.correctedCreate.estimatedModelMicros;
     if (kind === "wrong_original") row.requestDigest = "9".repeat(64);
@@ -104,7 +104,7 @@ describe("one owner-authorized phase inside the existing unresolved hold", () =>
 beforeEach(() => vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", "2.5"));
 afterEach(() => vi.unstubAllEnvs());
 
-describe("retained recurring direction and one new draft slot", () => {
+describe("historical recurring provenance and uncapped accounting", () => {
   function recurring() {
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", "5");
     vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "false");
@@ -138,16 +138,12 @@ describe("retained recurring direction and one new draft slot", () => {
     return { ...f, db, id, path, day, authority, retain, phase,
       reserve: (job = "new-job", now = communicationsNow) => reserveCommunicationsDraft(db, job, digest, now) };
   }
-  it("serializes one new admission, retaining the original checkpoint/hold and counting known usage once", async () => {
-    const f = recurring(), held = structuredClone(f.db.records.get(f.path)), job = structuredClone(f.db.records.get(`${root}/jobs/${f.job.jobId}`));
-    const results = await Promise.allSettled([f.reserve("new-1"), f.reserve("new-2")]);
-    expect(results.filter(r => r.status === "fulfilled")).toHaveLength(1);
-    const id = (results.find(r => r.status === "fulfilled") as PromiseFulfilledResult<string>).value;
-    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id, recurringActiveAdmissionId: id });
-    expect(f.db.records.get(`${root}/draftBudgetAdmissions/${id}`)).toMatchObject({ recurringDirection: {
-      additionalAllowanceMicros: 3944666, retainedUnknownPolicyReservationMicros: 1000000, accountingComplete: false, invoiceVerified: false } });
-    expect(f.db.records.get(f.path)).toEqual(held); expect(f.db.records.get(`${root}/jobs/${f.job.jobId}`)).toEqual(job);
-    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros).toBe(55334);
+  it("admits distinct jobs without changing retained historical liabilities", async () => {
+    const f = recurring(), held = structuredClone(f.db.records.get(f.path)), control = structuredClone(f.db.records.get(`${root}/draftBudgetState/current`));
+    await Promise.all([f.reserve("new-1"), f.reserve("new-2")]);
+    expect(f.db.records.get(f.path)).toEqual(held);
+    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual(control);
+    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`)).toMatchObject({ admissions: 5, estimatedModelMicros: 55334 });
   });
   async function rejectedBounded() {
     const f = recurring(), fixture = communicationsFixture();
@@ -156,7 +152,13 @@ describe("retained recurring direction and one new draft slot", () => {
       briefDigest, intent: "outreach", inboundMessageId: null };
     const jobId = communicationsDigest(identity), base = "e".repeat(64);
     const requestDigest = communicationsDigest({ requestBaseDigest: base, sessionSpendLimitCents: 100 });
-    const admissionId = await reserveCommunicationsDraft(f.db, jobId, requestDigest, communicationsNow, 100);
+    const admissionId = communicationsDigest({ jobId });
+    const policy = { ...COMMUNICATIONS_DRAFT_BUDGET, softTargetUsd: 5 };
+    f.db.records.set(`${root}/draftBudgetAdmissions/${admissionId}`, { jobId, requestDigest, policy,
+      policyDigest: communicationsDigest(policy), day: f.day, state: "reserved", sessionSpendLimitCents: 100,
+      sessionReservationMicros: 1000000, recurringDirection: { digest: "a".repeat(64) } });
+    Object.assign(f.db.records.get(`${root}/draftBudgetState/current`), { recurringActiveAdmissionId: admissionId,
+      retainedSessionReservationsMicros: 1000000 });
     const binding = { jobId, requestDigest, inputDigest: "f".repeat(64), createClaimedAt: new Date(communicationsNow - 1000).toISOString(),
       sessionId: null, turnId: null };
     const bodyBase64 = Buffer.from(JSON.stringify({ error: { type: "invalid_request_error", code: "invalid_request_error",
@@ -178,7 +180,7 @@ describe("retained recurring direction and one new draft slot", () => {
     f.db.records.set(`${root}/firstTouches/${communicationsDeliveryKey(parent)}`, { jobId });
     const store = new CommunicationsStore(f.db, () => communicationsNow, "synthetic-worker");
     const input = { prospectId: brief.prospectId, briefId: brief.briefId, expectedBriefDigest: briefDigest,
-      sourceCommit: "a".repeat(40), sessionSpendLimitCents: 100, regenerationOf: jobId, expectedJobDigest: communicationsDigest(parent) };
+      sourceCommit: "a".repeat(40), regenerationOf: jobId, expectedJobDigest: communicationsDigest(parent) };
     return { ...f, parent, admissionId, input, store };
   }
   it("atomically classifies only the retained rejection and admits one deterministic owner replacement without refunding exposure", async () => {
@@ -193,15 +195,16 @@ describe("retained recurring direction and one new draft slot", () => {
         accountingComplete: false, invoiceVerified: false } });
     expect(f.db.records.get(`${root}/draftBudgetState/current`)).toMatchObject({ activeAdmissionId: f.id,
       recurringActiveAdmissionId: null, retainedSessionReservationsMicros: 1000000 });
-    const newId = await reserveCommunicationsDraft(f.db, outcomes[0].jobId, digest, communicationsNow, 100);
-    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toMatchObject({ recurringActiveAdmissionId: newId,
-      retainedSessionReservationsMicros: 2000000 });
+    const newId = await reserveCommunicationsDraft(f.db, outcomes[0].jobId, digest, communicationsNow);
+    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toMatchObject({ recurringActiveAdmissionId: null,
+      retainedSessionReservationsMicros: 1000000 });
+    expect(f.db.records.get(`${root}/draftBudgetAdmissions/${newId}`)).not.toHaveProperty("sessionSpendLimitCents");
     expect(f.db.records.get(f.path)).toEqual(oldLiability);
     await expect(recordCommunicationsDraftUsage(f.db, f.parent.jobId, f.parent.checkpoint.requestDigest, usage, communicationsNow))
       .rejects.toThrow("invoice_unresolved");
-    await expect(reserveCommunicationsDraft(f.db, "third", digest, communicationsNow, 100)).rejects.toThrow("cost_unresolved");
+    await expect(reserveCommunicationsDraft(f.db, "third", digest, communicationsNow)).resolves.toBeTruthy();
   });
-  it.each(["unknown", "partial", "different_error", "body_digest", "binding", "session", "limit", "owner", "checkpoint", "pointer", "unretained", "second_recovery"])
+  it.each(["unknown", "partial", "different_error", "body_digest", "binding", "session", "limit", "owner", "checkpoint", "pointer", "unretained"])
     ("preserves all records when rejected-create regeneration has %s evidence", async kind => {
       const f = await rejectedBounded(), parent = f.db.records.get(`${root}/jobs/${f.parent.jobId}`), cp = parent.checkpoint;
       if (kind === "unknown") { parent.reason = "agents_api_connection_unknown"; cp.httpFailure.status = 502; }
@@ -216,7 +219,7 @@ describe("retained recurring direction and one new draft slot", () => {
       if (kind === "body_digest") cp.httpEvidence.snapshot.response.bodyBase64 += "x";
       if (kind === "binding") cp.httpEvidence.snapshot.binding.inputDigest = "0".repeat(64);
       if (kind === "session") cp.sessionId = "existing-session";
-      if (kind === "limit") f.input.sessionSpendLimitCents = 101;
+      if (kind === "limit") (f.input as any).sessionSpendLimitCents = 101;
       if (kind === "owner") parent.manualDraftRequest.actorUid = "different-owner";
       if (kind === "pointer") f.db.records.get(`${root}/draftBudgetState/current`).recurringActiveAdmissionId = "other";
       if (kind === "unretained") cp.httpFailure.retention = "private_evidence_unavailable";
@@ -226,85 +229,17 @@ describe("retained recurring direction and one new draft slot", () => {
       await expect(f.store.requestDraft(f.input, "synthetic-owner")).rejects.toThrow();
       expect([...f.db.records]).toEqual(before);
     });
-  it("reserves the whole selected session limit, retains it after best-effort usage and prevents changed replay or daily oversubscription", async () => {
-    const f = recurring(), original = structuredClone(f.db.records.get(f.path));
-    const id = await reserveCommunicationsDraft(f.db, "bounded", digest, communicationsNow, 10);
-    expect(f.db.records.get(`${root}/draftBudgetAdmissions/${id}`)).toMatchObject({ sessionSpendLimitCents: 10, sessionReservationMicros: 100000 });
-    expect(await reserveCommunicationsDraft(f.db, "bounded", digest, communicationsNow, 10)).toBe(id);
-    await expect(reserveCommunicationsDraft(f.db, "bounded", digest, communicationsNow, 11)).rejects.toThrow("requires_reconciliation");
-    await expect(reserveCommunicationsDraft(f.db, "bounded", digest, communicationsNow)).rejects.toThrow("requires_reconciliation");
-    await recordCommunicationsDraftUsage(f.db, "bounded", digest, usage, communicationsNow);
-    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`)).toMatchObject({ retainedSessionReservationsMicros: 100000, estimatedModelMicros: 55334 + 358 });
-    await expect(reserveCommunicationsDraft(f.db, "too-large", digest, communicationsNow, 385)).rejects.toThrow("soft_target_reached");
-    await f.reserve("ordinary");
-    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).retainedSessionReservationsMicros).toBe(100000);
-    expect(f.db.records.get(f.path)).toEqual(original);
-  });
-  it("retains whole session exposure after midnight even after a terminal usage receipt clears the active pointer", async () => {
-    const f = recurring();
-    await reserveCommunicationsDraft(f.db, "crossing", digest, communicationsNow, 390);
-    await recordCommunicationsDraftUsage(f.db, "crossing", digest, usage, communicationsNow + 86400000);
-    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toMatchObject({ recurringActiveAdmissionId: null, retainedSessionReservationsMicros: 3900000 });
-    await expect(reserveCommunicationsDraft(f.db, "tomorrow", digest, communicationsNow + 86400000, 11)).rejects.toThrow("soft_target_reached");
-  });
-  it("replays only the identical pre-create claim and clears only its owned new pointer with monotonic usage", async () => {
-    const f = recurring(), id = await f.reserve(); expect(await f.reserve()).toBe(id);
-    await expect(reserveCommunicationsDraft(f.db, "new-job", "b".repeat(64), communicationsNow)).rejects.toThrow("requires_reconciliation");
-    await recordCommunicationsDraftUsage(f.db, "new-job", digest, usage, communicationsNow);
-    await recordCommunicationsDraftUsage(f.db, "new-job", digest, { input_tokens: 1, output_tokens: 0, total_tokens: 1 }, communicationsNow);
-    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id, recurringActiveAdmissionId: null });
-    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros).toBe(55334 + 358);
-    const later = await f.reserve("later"); await recordCommunicationsDraftUsage(f.db, "new-job", digest, usage, communicationsNow);
-    await recordCommunicationsDraftUsage(f.db, f.job.jobId, f.child.requestDigest, { input_tokens: 1, output_tokens: 0, total_tokens: 1 }, communicationsNow);
-    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id, recurringActiveAdmissionId: later });
-  });
-  it("keeps missing usage across a day boundary and stops at the remaining soft allowance without adding a result quota", async () => {
-    const f = recurring();
-    for (let i = 0; i < 6; i++) { await f.reserve(`known-${i}`); await recordCommunicationsDraftUsage(f.db, `known-${i}`, digest, usage, communicationsNow); }
+  it("never rewrites historical holds when usage is missing or later jobs are admitted", async () => {
+    const f = recurring(), held = structuredClone(f.db.records.get(f.path)), state = structuredClone(f.db.records.get(`${root}/draftBudgetState/current`));
     await f.reserve(); await recordCommunicationsDraftUsage(f.db, "new-job", digest, null, communicationsNow);
-    await expect(f.reserve("tomorrow", communicationsNow + 86400000)).rejects.toThrow("cost_unresolved");
-    const g = recurring(); g.db.records.get(`${root}/draftBudgetDays/${g.day}`).estimatedModelMicros = 4000000;
-    await expect(g.reserve()).rejects.toThrow("soft_target_reached");
-  });
-  it.each(["expired", "hash", "generation", "manual_grant", "unattended", "send", "checkpoint", "policy", "phase_pending", "phase_usage_unknown", "lease", "research", "auto_send", "baseline_missing", "other_unknown", "ref_race"])("refuses %s without a new claim", async kind => {
-    const f = recurring(), row = f.db.records.get(f.path), job = f.db.records.get(`${root}/jobs/${f.job.jobId}`);
-    if (kind === "expired") f.authority.expiresAt = new Date(communicationsNow).toISOString();
-    if (kind === "manual_grant") f.authority.version = "blueprint.communications-cancelled-continuation-authority.v1";
-    if (kind === "unattended") f.authority.direction.unattended.text = "";
-    if (kind === "send") f.authority.scope.sendsAuthorized = true;
-    f.retain();
-    if (kind === "hash") storage.raw += " ";
-    if (kind === "generation") storage.generation = "2";
-    if (kind === "checkpoint") job.checkpoint.requestDigest = "f".repeat(64);
-    if (kind === "policy") row.policy.softTargetUsd = 0;
-    if (kind === "phase_pending") job.cancelledContinuation.checkpoint.finalRepairSettled = false;
-    if (kind === "phase_usage_unknown") row.cancelledContinuation.usageState = "unresolved";
-    if (kind === "lease") job.lease.until = communicationsNow + 1;
-    if (kind === "research") f.db.records.get("blueprintDailyResearch/sites-first").config.soft_target_usd = 6;
-    if (kind === "auto_send") vi.stubEnv("BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED", "true");
-    if (kind === "baseline_missing") f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros = 0;
-    if (kind === "other_unknown") f.db.records.set(`${root}/draftBudgetAdmissions/unrelated`, { state: "usage_unknown" });
-    if (kind === "ref_race") storage.afterRead = () => { f.db.records.get(root).recurringDraftBudgetDirection.sha256 = "f".repeat(64); };
-    await expect(f.reserve()).rejects.toThrow();
-    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id });
-    expect(f.db.records.has(`${root}/draftBudgetAdmissions/${communicationsDigest({ jobId: "new-job" })}`)).toBe(false);
-  });
-  it.each(["storage", "transaction"])("refuses authority expiring during awaited %s instead of trusting the captured clock", async boundary => {
-    vi.useFakeTimers({ toFake: ["performance"] });
-    try {
-      const f = recurring(); f.authority.expiresAt = new Date(communicationsNow + 1000).toISOString(); f.retain();
-      if (boundary === "storage") storage.afterRead = () => vi.advanceTimersByTime(1001);
-      else {
-        const transact = f.db.runTransaction;
-        f.db.runTransaction = async (callback: any) => { vi.advanceTimersByTime(1001); return transact(callback); };
-      }
-      await expect(f.reserve()).rejects.toThrow();
-      expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id });
-      expect(f.db.records.has(`${root}/draftBudgetAdmissions/${communicationsDigest({ jobId: "new-job" })}`)).toBe(false);
-    } finally { vi.useRealTimers(); }
+    await f.reserve("tomorrow", communicationsNow + 86400000);
+    expect(f.db.records.get(f.path)).toEqual(held); expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual(state);
+    expect(f.db.records.get(`${root}/draftBudgetAdmissions/${communicationsDigest({ jobId: "new-job" })}`)).toMatchObject({ state: "usage_unknown", usageState: "unresolved" });
+    await expect(f.reserve()).rejects.toThrow("requires_reconciliation");
   });
   it("prioritizes the new active draft and observes expanded old-phase usage without the immutable old-child reader", async () => {
-    const f = recurring(); await f.reserve();
+    const f = recurring(); const freshId = await f.reserve();
+    f.db.records.get(`${root}/draftBudgetState/current`).recurringActiveAdmissionId = freshId;
     const cp = { sessionId: "new-session", requestDigest: digest };
     f.db.records.set(`${root}/jobs/new-job`, { checkpoint: cp });
     const api = { reconcileUsage: vi.fn(async () => usage), reconcileCancelledContinuationUsage: vi.fn(async () => ({ input_tokens: 1, output_tokens: 0, total_tokens: 1 })) };
@@ -312,6 +247,7 @@ describe("retained recurring direction and one new draft slot", () => {
     expect(api.reconcileUsage).toHaveBeenCalledWith(cp, "new-job"); expect(api.reconcileCancelledContinuationUsage).not.toHaveBeenCalled();
     Object.assign(f.checkpoint.rejectedCreateRecovery, { originalRequestDigest: f.checkpoint.requestDigest, correctedRequestDigest: f.child.requestDigest });
     f.db.records.get(`${root}/jobs/${f.job.jobId}`).checkpoint = f.checkpoint;
+    await f.db.doc(`${root}/draftBudgetState/current`).set({ recurringActiveAdmissionId: f.id }, { merge: true });
     await reconcileCommunicationsDraftCost(f.db, api, communicationsNow);
     expect(api.reconcileUsage).toHaveBeenCalledTimes(1);
     expect(api.reconcileCancelledContinuationUsage).toHaveBeenCalledWith(f.checkpoint, f.phase, f.job.jobId);
@@ -325,17 +261,16 @@ describe("retained recurring direction and one new draft slot", () => {
     await reconcileCommunicationsDraftSession(f.db, api, { jobId, prospectId: "new-prospect", briefDigest: digest,
       expectedCheckpointDigest: communicationsDigest(cp), sessionId: "existing-session", requestedBy: "synthetic-operator" }, communicationsNow);
     expect(f.db.records.get(`${root}/draftBudgetAdmissions/${id}`).state).toBe("usage_recorded");
-    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id, recurringActiveAdmissionId: null });
+    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual({ activeAdmissionId: f.id });
   });
 });
 
-describe("communications-only soft model target and serialized admissions", () => {
-  it("serializes fresh admissions and retains an unresolved in-flight reservation", async () => {
+describe("communications usage accounting without spend ceilings", () => {
+  it("records concurrent distinct admissions without a global spend gate", async () => {
     const db = memoryFirestore();
-    const results = await Promise.allSettled(["job-1", "job-2"].map(job => reserveCommunicationsDraft(db, job, digest, communicationsNow)));
-    expect(results.filter(row => row.status === "fulfilled")).toHaveLength(1);
-    expect(db.records.get(`${root}/draftBudgetDays/2026-09-30`)).toMatchObject({ admissions: 1, timezone: "America/Chicago", estimatedModelMicros: 0 });
-    await expect(reserveCommunicationsDraft(db, "job-3", digest, communicationsNow)).rejects.toThrow("cost_unresolved");
+    await Promise.all(["job-1", "job-2"].map(job => reserveCommunicationsDraft(db, job, digest, communicationsNow)));
+    expect(db.records.get(`${root}/draftBudgetDays/2026-09-30`)).toMatchObject({ admissions: 2, estimatedModelMicros: 0 });
+    await expect(reserveCommunicationsDraft(db, "job-3", digest, communicationsNow)).resolves.toBeTruthy();
   });
   it("reuses the same proven pre-create admission without counting twice, but fences a different request", async () => {
     const db = memoryFirestore(), first = await reserveCommunicationsDraft(db, "job-1", digest, communicationsNow);
@@ -356,40 +291,18 @@ describe("communications-only soft model target and serialized admissions", () =
     const db = memoryFirestore(); await reserveCommunicationsDraft(db, "job-1", digest, communicationsNow);
     expect(await recordCommunicationsDraftUsage(db, "job-1", digest, invalid, communicationsNow)).toBe(false);
     expect(estimatedDraftMicros(invalid)).toBeNull();
-    await expect(reserveCommunicationsDraft(db, "job-2", digest, communicationsNow + 86400000)).rejects.toThrow("cost_unresolved");
+    await expect(reserveCommunicationsDraft(db, "job-2", digest, communicationsNow + 86400000)).resolves.toBeTruthy();
   });
-  it("stops at the initial five admissions independently of discovery volume", async () => {
+  it("ignores retired dollar configuration and exceeds old daily counts while retaining actual cost", async () => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", "0");
     const db = memoryFirestore();
-    for (let i = 0; i < 5; i++) { await reserveCommunicationsDraft(db, `job-${i}`, digest, communicationsNow); await recordCommunicationsDraftUsage(db, `job-${i}`, digest, usage, communicationsNow); }
-    expect(COMMUNICATIONS_DRAFT_BUDGET.maxDailyAdmissions).toBe(5);
-    await expect(reserveCommunicationsDraft(db, "job-6", digest, communicationsNow)).rejects.toThrow("daily_admission_limit");
-    // UTC midnight during the user's evening does not provide another allowance.
-    await expect(reserveCommunicationsDraft(db, "job-6", digest, Date.parse("2026-10-01T01:00:00Z"))).rejects.toThrow("daily_admission_limit");
-    await expect(reserveCommunicationsDraft(db, "job-6", digest, Date.parse("2026-10-01T05:00:00Z"))).resolves.toBeTruthy();
-  });
-  it("refuses further calls once known cost reaches the soft target, without claiming an in-flight hard cap", async () => {
-    const db = memoryFirestore(); await db.doc(`${root}/draftBudgetDays/2026-09-30`).set({ admissions: 1, estimatedModelMicros: 2500000 });
-    await expect(reserveCommunicationsDraft(db, "job-2", digest, communicationsNow)).rejects.toThrow("soft_target_reached");
-  });
-  it.each(["", "0", "-1", "1e3", "01", "NaN", "Infinity", "0.0000001"])("refuses absent or invalid private target %s before admission", async value => {
-    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", value);
-    expect(() => configuredCommunicationsDraftBudget()).toThrow("communications_draft_target_not_configured");
-    const db = memoryFirestore();
-    await expect(reserveCommunicationsDraft(db, "job-1", digest, communicationsNow)).rejects.toThrow("communications_draft_target_not_configured");
-    expect(db.records.size).toBe(0);
-  });
-  it("binds a private configured target and refuses a changed pre-create reservation", async () => {
-    const db = memoryFirestore(); await reserveCommunicationsDraft(db, "job-1", digest, communicationsNow);
-    expect(db.records.get(`${root}/draftBudgetAdmissions/${communicationsDigest({ jobId: "job-1" })}`).policy.softTargetUsd).toBe(2.5);
-    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", "3");
-    await expect(reserveCommunicationsDraft(db, "job-1", digest, communicationsNow)).rejects.toThrow("reservation_requires_reconciliation");
-  });
-  it("keeps a pre-create budget-held prospect queued without consuming its recovery attempts", async () => {
-    const db = memoryFirestore(), store = new CommunicationsStore(db, () => communicationsNow, "budget-worker");
-    const job = await store.enqueue({ prospectId: "prospect-1", briefId: "brief-1", briefDigest: digest, intent: "outreach", inboundMessageId: null });
-    await store.claim(job.jobId); await store.deferDraftForBudget(job.jobId, "communications_draft_daily_admission_limit");
-    expect(db.records.get(`${root}/jobs/${job.jobId}`)).toMatchObject({ state: "queued", attempts: 0,
-      reason: "communications_draft_daily_admission_limit", nextAttemptAt: communicationsNow + 15 * 60000 });
+    db.records.set(`${root}/draftBudgetDays/2026-09-30`, { admissions: 500, estimatedModelMicros: 50000000 });
+    for (let i = 0; i < 8; i++) await reserveCommunicationsDraft(db, `job-${i}`, digest, communicationsNow);
+    expect(COMMUNICATIONS_DRAFT_BUDGET).not.toHaveProperty("softTargetUsd");
+    expect(COMMUNICATIONS_DRAFT_BUDGET).not.toHaveProperty("maxDailyAdmissions");
+    expect(db.records.get(`${root}/draftBudgetDays/2026-09-30`)).toMatchObject({ admissions: 508, estimatedModelMicros: 50000000 });
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", "1");
+    await expect(reserveCommunicationsDraft(db, "job-0", digest, communicationsNow)).resolves.toBeTruthy();
   });
   it("reconciles one actual saved root turn with reads and releases accounting only after verified usage", async () => {
     const db = memoryFirestore(); await reserveCommunicationsDraft(db, "job-1", digest, communicationsNow);
@@ -431,7 +344,7 @@ describe("communications-only soft model target and serialized admissions", () =
     const f = await unknownCreate(); f.api.verifyExistingDraftSession.mockResolvedValueOnce({ sessionId: f.input.sessionId, requestDigest: digest,
       turnId: "mock-root-turn", usage: invalid as any });
     expect(await reconcileCommunicationsDraftSession(f.db, f.api, f.input, communicationsNow)).toEqual({ state: "usage_unknown", sessionRecovered: true, costResolved: false });
-    await expect(reserveCommunicationsDraft(f.db, "other-job", digest, communicationsNow + 86400000)).rejects.toThrow("cost_unresolved");
+    await expect(reserveCommunicationsDraft(f.db, "other-job", digest, communicationsNow + 86400000)).resolves.toBeTruthy();
     expect(f.db.records.get(`${root}/draftBudgetDays/2026-09-30`)).toMatchObject({ admissions: 1, estimatedModelMicros: 0 });
   });
   it("exposes a crashed expired unknown-create job and leaves it blocked after GET-only accounting recovery", async () => {
@@ -487,7 +400,7 @@ describe("communications-only soft model target and serialized admissions", () =
     expect((await store.claim(job.jobId))?.attempts).toBe(2);
     expect(await reserveCommunicationsDraft(db, job.jobId, digest, communicationsNow)).toBe(admission);
     expect(db.records.get(`${root}/draftBudgetDays/2026-09-30`).admissions).toBe(1);
-    await expect(reserveCommunicationsDraft(db, "other-job", digest, communicationsNow)).rejects.toThrow("cost_unresolved");
+    await expect(reserveCommunicationsDraft(db, "other-job", digest, communicationsNow)).resolves.toBeTruthy();
   });
 });
 
@@ -516,10 +429,10 @@ describe("same-job confirmed rejected-create corrected budget slot", () => {
     expect(await claimCorrection(db)).toEqual({ admissionId: id });
     expect(db.records.get(`${root}/draftBudgetDays/2026-09-30`).admissions).toBe(2);
     await expect(claimCorrection(db, { ...correctionInput(), correctedRequestDigest: "f".repeat(64) })).rejects.toThrow("already_claimed");
-    await expect(reserveCommunicationsDraft(db, "different-job", digest, communicationsNow + 86400000)).rejects.toThrow("cost_unresolved");
+    await expect(reserveCommunicationsDraft(db, "different-job", digest, communicationsNow + 86400000)).resolves.toBeTruthy();
   });
 
-  it("adds corrected known usage monotonically while the original cost stays unknown and blocks other jobs", async () => {
+  it("adds corrected known usage monotonically while the original cost stays unknown without blocking other jobs", async () => {
     const db = memoryFirestore(), id = await reserveCommunicationsDraft(db, "job-1", digest, communicationsNow);
     await claimCorrection(db);
     expect(await recordCommunicationsDraftUsage(db, "job-1", "c".repeat(64), usage, communicationsNow)).toBe(false);
@@ -530,7 +443,7 @@ describe("same-job confirmed rejected-create corrected budget slot", () => {
     await recordCommunicationsDraftUsage(db, "job-1", "c".repeat(64), { input_tokens: 1, output_tokens: 0, total_tokens: 1 }, communicationsNow);
     expect(db.records.get(`${root}/draftBudgetDays/2026-09-30`).estimatedModelMicros).toBe(358);
     expect(db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId).toBe(id);
-    await expect(reserveCommunicationsDraft(db, "another-job", digest, communicationsNow)).rejects.toThrow("cost_unresolved");
+    await expect(reserveCommunicationsDraft(db, "another-job", digest, communicationsNow)).resolves.toBeTruthy();
     await expect(recordCommunicationsDraftUsage(db, "job-1", "f".repeat(64), usage, communicationsNow)).rejects.toThrow("usage_binding_changed");
   });
 
@@ -554,13 +467,13 @@ describe("same-job confirmed rejected-create corrected budget slot", () => {
     expect(db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId).toBe(id);
   });
 
-  it.each(["deadline", "wrong_original", "wrong_active", "policy_changed", "target_reached", "daily_limit"])
+  it.each(["deadline", "wrong_original", "wrong_active", "policy_changed"])
     ("rejects %s without mutating the original reservation", async kind => {
       const db = memoryFirestore(), id = await reserveCommunicationsDraft(db, "job-1", digest, communicationsNow), input = correctionInput();
       if (kind === "deadline") input.deadlineMs += 1;
       if (kind === "wrong_original") input.originalRequestDigest = "f".repeat(64);
-      if (kind === "wrong_active") db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId = "another";
-      if (kind === "policy_changed") vi.stubEnv("BLUEPRINT_COMMUNICATIONS_DRAFT_SOFT_TARGET_USD", "2.4");
+      if (kind === "wrong_active") { delete db.records.get(`${root}/draftBudgetAdmissions/${id}`).accountingOnly; db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId = "another"; }
+      if (kind === "policy_changed") db.records.get(`${root}/draftBudgetAdmissions/${id}`).policyDigest = "f".repeat(64);
       if (kind === "target_reached") db.records.get(`${root}/draftBudgetDays/2026-09-30`).estimatedModelMicros = 2500000;
       if (kind === "daily_limit") db.records.get(`${root}/draftBudgetDays/2026-09-30`).admissions = 5;
       const before = structuredClone(db.records.get(`${root}/draftBudgetAdmissions/${id}`));

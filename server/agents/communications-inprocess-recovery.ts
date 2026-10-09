@@ -74,7 +74,7 @@ export async function recoverCommunicationsDraftInProcess(input: Input, actorUid
     }
     if (!Number.isSafeInteger(original.lease?.until) || original.lease!.until < 0 || original.lease!.until > deps.now()) throw new Error("communications_saved_recovery_binding_changed");
     if ((!owned && communicationsDigest(original) !== input.expectedJobDigest)
-      || !["blocked", "queued", "running", "retry"].includes(original.state) || original.attempts >= 3
+      || !["blocked", "queued", "running", "retry"].includes(original.state)
       || (original.state !== "blocked" && !owned)) throw new Error("communications_saved_recovery_record_changed");
     const scopedDb = Object.create(deps.store.db) as typeof deps.store.db;
     let requirePin = owned;

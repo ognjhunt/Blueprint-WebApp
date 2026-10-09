@@ -230,10 +230,11 @@ describe("communications recovery in Blueprint", () => {
       method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer mock-firebase-token", "X-CSRF-Token": "mock-csrf" }, body: JSON.stringify({ briefDigest: job.briefDigest }),
     }));
   });
-  it("does not offer retry while the lease is active or the attempt budget is exhausted", async () => {
+  it("retains the active lease gate while permitting retry beyond three recorded attempts", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue(Response.json({ jobs: [{ ...job, leaseUntil: Date.now() + 60000 }, { ...job, jobId: "c".repeat(64), attempts: 3 }] }));
     page(); fireEvent.click(screen.getByRole("button", { name: "Review blocked communications jobs" }));
-    for (const button of await screen.findAllByRole("button", { name: "Retry job" })) expect(button).toBeDisabled();
+    const buttons = await screen.findAllByRole("button", { name: "Retry job" });
+    expect(buttons[0]).toBeDisabled(); expect(buttons[1]).toBeEnabled();
   });
   it("does not request or retry private jobs while signed out", () => {
     auth.useAuth.mockReturnValue({ currentUser: null });
@@ -246,7 +247,7 @@ describe("communications recovery in Blueprint", () => {
 
 function fillOwnerRequest() {
   for (const [name, value] of [["Prospect ID", job.prospectId], ["Reviewed brief ID", "hypothesis-owned"],
-    ["Reviewed brief digest", job.briefDigest], ["Expected deployed revision", runtime.sourceCommit], ["Session limit in cents", "100"]]) {
+    ["Reviewed brief digest", job.briefDigest], ["Expected deployed revision", runtime.sourceCommit]]) {
     fireEvent.change(screen.getByRole("textbox", { name }), { target: { value } });
   }
 }
@@ -257,7 +258,7 @@ describe("explicit founder draft request", () => {
       const sent = JSON.parse(String(init?.body));
       const identity = { prospectId: job.prospectId, briefId: sent.briefId, briefDigest: sent.expectedBriefDigest,
         intent: "outreach", inboundMessageId: null, regenerationOf: sent.regenerationOf };
-      const request = { actorUid: "ops-user", sourceCommit: sent.expectedSourceCommit, sessionSpendLimitCents: sent.sessionSpendLimitCents };
+      const request = { actorUid: "ops-user", sourceCommit: sent.expectedSourceCommit };
       const digest = (value: unknown) => createHash("sha256").update(canonical(value)).digest("hex");
       return Response.json({ ok: true, jobId: digest(identity), request: { ...request, requestDigest: digest({ job: identity, ...request }), state: "requested" },
         executionPlacement: "existing_background_worker", sent: false, gmailDraftCreated: false }, { status: 202 });
@@ -269,7 +270,7 @@ describe("explicit founder draft request", () => {
     fireEvent.click(screen.getByRole("button", { name: "Request agent draft" }));
     expect(await screen.findByRole("status")).toHaveTextContent(/Request recorded.*execution is not yet verified/);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({ regenerationOf: originalJob, expectedJobDigest: originalDigest, sessionSpendLimitCents: 100 });
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({ regenerationOf: originalJob, expectedJobDigest: originalDigest });
   });
   it("does no work on load and uses the existing authenticated owner endpoint only after explicit submission", async () => {
     const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue(ownerRequestAck());
@@ -280,7 +281,7 @@ describe("explicit founder draft request", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(`/api/admin/outbound-prospects/${job.prospectId}/communications/generate`, {
       method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Authorization: "Bearer mock-firebase-token", "X-CSRF-Token": "mock-csrf" },
-      body: JSON.stringify({ briefId: "hypothesis-owned", expectedBriefDigest: job.briefDigest, expectedSourceCommit: runtime.sourceCommit, sessionSpendLimitCents: 100 }),
+      body: JSON.stringify({ briefId: "hypothesis-owned", expectedBriefDigest: job.briefDigest, expectedSourceCommit: runtime.sourceCommit }),
     });
   });
   it.each(["completed", "failed"])("reports an existing %s request without claiming another worker attempt", async state => {
@@ -318,15 +319,14 @@ describe("explicit founder draft request", () => {
     await act(async () => { release(); });
     expect(fetchMock).not.toHaveBeenCalled(); expect(screen.getByRole("textbox", { name: "Prospect ID" })).toHaveValue("");
   });
-  it("rejects a zero session limit before any request", () => {
-    const fetchMock = vi.spyOn(global, "fetch");
+  it("offers no session spending-limit input", () => {
     page(); fireEvent.click(screen.getByText("Request an agent draft")); fillOwnerRequest();
-    fireEvent.change(screen.getByRole("textbox", { name: "Session limit in cents" }), { target: { value: "0" } });
-    expect(screen.getByRole("button", { name: "Request agent draft" })).toBeDisabled(); expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox", { name: "Session limit in cents" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Request agent draft" })).toBeEnabled();
   });
 });
 function ownerRequestAck(state = "requested") {
-  const request = { actorUid: "ops-user", sourceCommit: runtime.sourceCommit, sessionSpendLimitCents: 100 };
+  const request = { actorUid: "ops-user", sourceCommit: runtime.sourceCommit };
   const input = { prospectId: job.prospectId, briefId: "hypothesis-owned", briefDigest: job.briefDigest, intent: "outreach", inboundMessageId: null };
   const digest = createHash("sha256").update(canonical({ job: input, ...request })).digest("hex");
   const id = createHash("sha256").update(canonical(input)).digest("hex");

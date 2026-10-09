@@ -287,11 +287,6 @@ export async function runScreenContactRefresh(deps: ScreenIntakeDependencies) {
         const request = (await tx.get(doc.ref)).data();
         if (request?.kind !== SCREEN_CONTACT_KIND || !["pending", "retry_wait", "running"].includes(request.state)
           || (request.lease?.until ?? 0) > deps.now() || (request.nextAttemptAt ?? 0) > deps.now() || !hypothesisDraftsEnabled()) return null;
-        if ((request.attempts ?? 0) >= 2) {
-          tx.set(doc.ref, { state: "terminal", reason: "contact_refresh_attempts_exhausted", lease: { owner, until: 0 } }, { merge: true });
-          screenContactFailure(tx, root, request, "contact_refresh_attempts_exhausted", deps.now());
-          return null;
-        }
         const claimed: FirebaseFirestore.DocumentData = { ...request, state: "running", attempts: (request.attempts ?? 0) + 1, lease: { owner, until: deps.now() + 180000 },
           startedAt: deps.now() };
         tx.set(doc.ref, claimed);
@@ -315,7 +310,7 @@ export async function runScreenContactRefresh(deps: ScreenIntakeDependencies) {
         const reason = reasonOf(error, "contact_refresh_failed");
         if (reason === CONTACT_CLAIM_CHANGED) break;
         const restore = !hypothesisDraftsEnabled() || reason === HYPOTHESIS_DRAFTS_DISABLED;
-        const transient = /contact_fetch_(?:timeout|dns_timeout|incomplete|failed)|ECONN|ENOTFOUND|EAI_AGAIN/.test(reason) && claim.attempts < 2;
+        const transient = /contact_fetch_(?:timeout|dns_timeout|incomplete|failed)|ECONN|ENOTFOUND|EAI_AGAIN/.test(reason);
         await deps.db.runTransaction(async tx => {
           const current = (await tx.get(doc.ref)).data();
           if (current?.lease?.owner !== owner || current.state !== "running" || current.lease.until <= deps.now()) return;

@@ -200,39 +200,16 @@ describe("portable communications Agents API", () => {
     await expect(changed.api.run({ ...changed.params, checkpoint: { ...changed.params.checkpoint, siteJobProfile: SITE_JOB_COMMUNICATIONS_PROFILE } })).rejects.toMatchObject({ code: "communications_saved_agent_definition_changed" });
     expect(changed.calls.some(call => call.init.method === "POST")).toBe(false);
   });
-  it("binds a prospective provider spending limit to reservation, request, checkpoint and readback without relabeling old sessions", async () => {
-    const f = apiFixture();
-    const checkpoint = { ...f.params.checkpoint, sessionSpendLimitCents: 10 };
-    const result = await f.api.run({ ...f.params, checkpoint });
-    expect(f.reservePaidDraft).toHaveBeenCalledExactlyOnceWith("job-1", result.checkpoint.requestDigest, 10);
+  it("omits Blueprint spend_control on new creates and refuses to relabel a frozen bounded request", async () => {
+    const f = apiFixture(), result = await f.api.run(f.params);
     const posted = JSON.parse(String(f.calls.find(c => c.init.method === "POST")!.init.body));
-    expect(posted.spend_control).toEqual({ limit: 10 });
-    expect(posted.metadata.blueprint_communications_spend_limit_cents).toBe("10");
-    expect(result.checkpoint.sessionSpendLimitCents).toBe(10);
-    await expect(f.api.verifyExistingDraftSession(result.checkpoint, "job-1", result.checkpoint.requestDigest!)).resolves.toMatchObject({ sessionId: "session-1" });
-    await expect(f.api.verifyExistingDraftSession({ ...result.checkpoint, sessionSpendRequestBaseDigest: undefined }, "job-1", result.checkpoint.requestDigest!))
-      .rejects.toThrow("spend_limit_binding_mismatch");
-    await expect(f.api.run({ ...f.params, checkpoint: { ...result.checkpoint, sessionSpendLimitCents: 11 } }))
-      .rejects.toThrow("spend_limit_binding_mismatch");
-    const readback = f.fetchMock.getMockImplementation()!;
-    f.fetchMock.mockImplementation(async (url: any, init: any) => {
-      const response = await readback(url, init);
-      if (new URL(String(url)).pathname.endsWith("/session-1")) {
-        const session = await response.json();
-        return Response.json({ ...session, spend_control: { limit: 11 },
-          metadata: { ...session.metadata, blueprint_communications_spend_limit_cents: "11" } });
-      }
-      return response;
-    });
-    // Increasing both the checkpoint and provider setting cannot change the
-    // frozen create's limit without a different bound request/admission.
-    await expect(f.api.run({ ...f.params, checkpoint: { ...result.checkpoint, sessionSpendLimitCents: 11 } }))
-      .rejects.toThrow("spend_limit_binding_mismatch");
-    const old = apiFixture(), historical = await old.api.run(old.params);
-    expect(historical.checkpoint.sessionSpendLimitCents).toBeUndefined();
-    expect(JSON.parse(String(old.calls.find(c => c.init.method === "POST")!.init.body))).not.toHaveProperty("spend_control");
-    await expect(old.api.run({ ...old.params, checkpoint: { ...historical.checkpoint, sessionSpendLimitCents: 10 } }))
-      .rejects.toThrow("spend_limit_binding_mismatch");
+    expect(posted).not.toHaveProperty("spend_control");
+    expect(posted.metadata).not.toHaveProperty("blueprint_communications_spend_limit_cents");
+    expect(f.reservePaidDraft).toHaveBeenCalledExactlyOnceWith("job-1", result.checkpoint.requestDigest);
+    await expect(f.api.run({ ...f.params, checkpoint: { ...result.checkpoint, sessionSpendLimitCents: 10 } })).rejects.toThrow("spend_limit_binding_mismatch");
+    const bounded = apiFixture();
+    await expect(bounded.api.run({ ...bounded.params, checkpoint: { ...bounded.params.checkpoint, sessionSpendLimitCents: 10 } })).rejects.toThrow("historical_bounded_request_requires_reconciliation");
+    expect(bounded.calls.some(c => c.init.method === "POST")).toBe(false);
   });
   it.each([0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER])("rejects invalid session limit %s before any provider call", async limit => {
     const f = apiFixture();
@@ -765,7 +742,7 @@ describe("new-session bounded communications final repair", () => {
   const knownUsage = { input_tokens: 100, output_tokens: 20, total_tokens: 120,
     input_tokens_details: { cached_tokens: 10 }, output_tokens_details: { reasoning_tokens: 2 } };
   function repairFixture(options: { raw?: string; missingUsage?: boolean; unknown?: "accepted" | "absent";
-    alwaysInvalid?: boolean; wrongMessage?: boolean; evidence?: boolean; missingHistoryEvent?: boolean;
+    alwaysInvalid?: boolean; invalidRepairs?: number; wrongMessage?: boolean; evidence?: boolean; missingHistoryEvent?: boolean;
     historyAck?: "accepted" | "pending" | "deadline";
     beforeSave?: (checkpoint: any) => void } = {}) {
     const f = apiFixture({ rawOutput: options.raw ?? "not JSON", usage: knownUsage });
@@ -811,7 +788,7 @@ describe("new-session bounded communications final repair", () => {
           items.push({ id: `input-${id}`, type: "message", role: "user", turn_id: id,
             content: options.wrongMessage ? [{ type: "input_text", text: "different input" }] : event.input[0].content },
           { id: `final-${id}`, type: "message", role: "assistant", phase: "final_answer", status: "completed", turn_id: id,
-            content: [{ type: "output_text", text: options.alwaysInvalid ? "still invalid" : JSON.stringify(f.output) }] });
+            content: [{ type: "output_text", text: options.alwaysInvalid || submissions.length <= (options.invalidRepairs ?? 0) ? "still invalid" : JSON.stringify(f.output) }] });
         }
         if (options.unknown) throw Error("synthetic acknowledgment lost");
         return new Response(null, { status: 202 });
@@ -915,12 +892,14 @@ describe("new-session bounded communications final repair", () => {
       { turnId: "turn-1", usage: knownUsage }, { turnId: "turn-2", usage: null }]);
     expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", result.checkpoint.requestDigest, null);
   });
-  it("stops after two uniquely claimed corrections and preserves every invalid original", async () => {
-    const f = repairFixture({ alwaysInvalid: true });
-    await expect(f.api.run(f.params)).rejects.toMatchObject({ code: "communications_output_invalid", outputSource: { turnId: "turn-3" } });
-    expect(f.submissions).toHaveLength(2); expect(new Set(f.submissions.map(call => call.headers["Idempotency-Key"])).size).toBe(2);
-    expect(f.checkpoint().finalOutputSources).toHaveLength(3);
-    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", f.checkpoint().requestDigest, expect.objectContaining({ input_tokens: 300 }));
+  it("can repair beyond two turns while preserving unique claims and all original evidence", async () => {
+    const f = repairFixture({ invalidRepairs: 3 });
+    const result = await f.api.run(f.params);
+    expect(result.output).toEqual(f.output);
+    expect(f.submissions).toHaveLength(4);
+    expect(new Set(f.submissions.map(call => call.headers["Idempotency-Key"])).size).toBe(4);
+    expect(f.checkpoint().finalOutputSources).toHaveLength(5);
+    expect(f.recordPaidDraftUsage).toHaveBeenCalledExactlyOnceWith("job-1", f.checkpoint().requestDigest, expect.objectContaining({ input_tokens: 500 }));
   });
   it("refuses a different saved user message instead of treating a latest turn as the correction", async () => {
     const f = repairFixture({ wrongMessage: true });
