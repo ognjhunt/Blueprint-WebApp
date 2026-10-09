@@ -342,7 +342,6 @@ export function LocationAutocomplete(props: {
     locationGeneration.current += 1;
     addressAbort.current?.abort();
     nearbyOrigin.current = null;
-    setAddressSource(null);
     setLocationFeedback("nearby");
     allowRefresh.current = true;
     setLocationStatus("idle");

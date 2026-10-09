@@ -497,6 +497,7 @@ describe("the configured browser Maps key", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Clear location preference" }));
     expect(screen.getByRole("combobox")).toHaveValue("1005 Crete St, Durham, NC 27707, USA");
+    expect(screen.getAllByRole("img", { name: "Powered by Google" }).length).toBeGreaterThan(0);
   });
 
   it("uses the existing reverse provider when Google denies geocoding, without assuming the country", async () => {
