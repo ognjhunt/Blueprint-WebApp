@@ -604,38 +604,36 @@
     }
   },
   "current_verified_webapp_release": {
-    "checked_at_utc": "2026-10-09T06:23:45.813324+00:00",
     "services": [
       {
         "role": "web",
-        "id": "dep-db48edtg1s2s738k7f0g",
+        "id": "dep-db48in67bikc73dufsqg",
         "status": "live",
-        "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
-        "finishedAt": "2026-10-09T06:20:52.512282Z"
+        "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
+        "finishedAt": "2026-10-09T06:30:06.730254Z"
       },
       {
         "role": "worker",
-        "id": "dep-db48ee4s728c739ulj60",
+        "id": "dep-db48inbtqb8s73ef7660",
         "status": "live",
-        "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
-        "finishedAt": "2026-10-09T06:21:27.384842Z"
+        "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
+        "finishedAt": "2026-10-09T06:30:28.07402Z"
       }
     ],
-    "effects": "Purpose-built Render metadata reads only",
-    "37892316055": {
+    "37893239070": {
       "conclusion": "success",
-      "headSha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+      "headSha": "cd7f979b90ccdac3853b90938e08d2950798f960",
       "status": "completed"
     },
-    "37892834149": {
+    "37893609079": {
       "conclusion": "success",
-      "headSha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+      "headSha": "cd7f979b90ccdac3853b90938e08d2950798f960",
       "status": "completed"
     },
     "public": {
       "/version.json": {
         "http_status": 200,
-        "git_sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c"
+        "git_sha": "cd7f979b90ccdac3853b90938e08d2950798f960"
       },
       "/health": {
         "http_status": 200,
@@ -647,10 +645,12 @@
         "blocker_count": 0
       }
     },
-    "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
-    "claim_ceiling": "Exact paired source deployment and public health; original communications continuation and native preparation unverified",
-    "metadata_receipt_sha256": "c2c4191856bc5e5259d75087bf80d78e75dfeba6fae40419ca1a8a29e94c8dc4",
-    "official_receipt_sha256": "86beee036b6521720a9acdb53678f4bfbaede537b3c210af0abafbe21bcacea8"
+    "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
+    "checked_at_utc": "2026-10-09T06:34:09.457611+00:00",
+    "official_receipt_sha256": "201035789adb98dd51238421b4dcfe78fa2aaab99505a706ebef1c533ff533ba",
+    "claim_ceiling": "Exact paired source deployment/public health only; original reply import, assessment continuation and native execution unverified by this receipt",
+    "effects": "Render/Github/public GETs only; zero business/model/provider writes",
+    "metadata_receipt_sha256": "a5b63fb8b7c910e8298f88c9e1a7a6a69121733a435e383281db528f1769f8f3"
   },
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
@@ -1935,38 +1935,36 @@
     "claim_ceiling": "Read-only credential/model catalog access;not generation, currentcustomer assessment or video-quality proof. Historical401 andunknownexposure remain retained."
   },
   "current_verified_web_release": {
-    "checked_at_utc": "2026-10-09T06:23:45.813324+00:00",
     "services": [
       {
         "role": "web",
-        "id": "dep-db48edtg1s2s738k7f0g",
+        "id": "dep-db48in67bikc73dufsqg",
         "status": "live",
-        "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
-        "finishedAt": "2026-10-09T06:20:52.512282Z"
+        "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
+        "finishedAt": "2026-10-09T06:30:06.730254Z"
       },
       {
         "role": "worker",
-        "id": "dep-db48ee4s728c739ulj60",
+        "id": "dep-db48inbtqb8s73ef7660",
         "status": "live",
-        "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
-        "finishedAt": "2026-10-09T06:21:27.384842Z"
+        "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
+        "finishedAt": "2026-10-09T06:30:28.07402Z"
       }
     ],
-    "effects": "Purpose-built Render metadata reads only",
-    "37892316055": {
+    "37893239070": {
       "conclusion": "success",
-      "headSha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+      "headSha": "cd7f979b90ccdac3853b90938e08d2950798f960",
       "status": "completed"
     },
-    "37892834149": {
+    "37893609079": {
       "conclusion": "success",
-      "headSha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+      "headSha": "cd7f979b90ccdac3853b90938e08d2950798f960",
       "status": "completed"
     },
     "public": {
       "/version.json": {
         "http_status": 200,
-        "git_sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c"
+        "git_sha": "cd7f979b90ccdac3853b90938e08d2950798f960"
       },
       "/health": {
         "http_status": 200,
@@ -1978,10 +1976,12 @@
         "blocker_count": 0
       }
     },
-    "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
-    "claim_ceiling": "Exact paired source deployment and public health; original communications continuation and native preparation unverified",
-    "metadata_receipt_sha256": "c2c4191856bc5e5259d75087bf80d78e75dfeba6fae40419ca1a8a29e94c8dc4",
-    "official_receipt_sha256": "86beee036b6521720a9acdb53678f4bfbaede537b3c210af0abafbe21bcacea8"
+    "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
+    "checked_at_utc": "2026-10-09T06:34:09.457611+00:00",
+    "official_receipt_sha256": "201035789adb98dd51238421b4dcfe78fa2aaab99505a706ebef1c533ff533ba",
+    "claim_ceiling": "Exact paired source deployment/public health only; original reply import, assessment continuation and native execution unverified by this receipt",
+    "effects": "Render/Github/public GETs only; zero business/model/provider writes",
+    "metadata_receipt_sha256": "a5b63fb8b7c910e8298f88c9e1a7a6a69121733a435e383281db528f1769f8f3"
   },
   "current_normal_UI_same_job_retry": {
     "source_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
@@ -3333,6 +3333,55 @@
       "public_ready_http": 200,
       "blocker_count": 0,
       "observed_at_utc": "2026-10-09T02:56:10.169043+00:00"
+    },
+    {
+      "checked_at_utc": "2026-10-09T06:23:45.813324+00:00",
+      "services": [
+        {
+          "role": "web",
+          "id": "dep-db48edtg1s2s738k7f0g",
+          "status": "live",
+          "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+          "finishedAt": "2026-10-09T06:20:52.512282Z"
+        },
+        {
+          "role": "worker",
+          "id": "dep-db48ee4s728c739ulj60",
+          "status": "live",
+          "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+          "finishedAt": "2026-10-09T06:21:27.384842Z"
+        }
+      ],
+      "effects": "Purpose-built Render metadata reads only",
+      "37892316055": {
+        "conclusion": "success",
+        "headSha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+        "status": "completed"
+      },
+      "37892834149": {
+        "conclusion": "success",
+        "headSha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+        "status": "completed"
+      },
+      "public": {
+        "/version.json": {
+          "http_status": 200,
+          "git_sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c"
+        },
+        "/health": {
+          "http_status": 200,
+          "status": "healthy"
+        },
+        "/health/ready": {
+          "http_status": 200,
+          "status": "ready",
+          "blocker_count": 0
+        }
+      },
+      "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+      "claim_ceiling": "Exact paired source deployment and public health; original communications continuation and native preparation unverified",
+      "metadata_receipt_sha256": "c2c4191856bc5e5259d75087bf80d78e75dfeba6fae40419ca1a8a29e94c8dc4",
+      "official_receipt_sha256": "86beee036b6521720a9acdb53678f4bfbaede537b3c210af0abafbe21bcacea8"
     }
   ],
   "historical_current_verified_web_release": [
@@ -3404,6 +3453,55 @@
       "scope": "Current source and public health metadata. Research adoption controls/lease settlement are owned and not established by this receipt. Accepted normal assessment remains189; actual customer-basics API/DOM verified on3d6.",
       "private_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/status-update-copy/release-f88/metadata-readback.json",
       "private_receipt_sha256": "8945d573adcd218d1953643965370944fea56bd7223fcd4286425d082fbe3f72"
+    },
+    {
+      "checked_at_utc": "2026-10-09T06:23:45.813324+00:00",
+      "services": [
+        {
+          "role": "web",
+          "id": "dep-db48edtg1s2s738k7f0g",
+          "status": "live",
+          "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+          "finishedAt": "2026-10-09T06:20:52.512282Z"
+        },
+        {
+          "role": "worker",
+          "id": "dep-db48ee4s728c739ulj60",
+          "status": "live",
+          "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+          "finishedAt": "2026-10-09T06:21:27.384842Z"
+        }
+      ],
+      "effects": "Purpose-built Render metadata reads only",
+      "37892316055": {
+        "conclusion": "success",
+        "headSha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+        "status": "completed"
+      },
+      "37892834149": {
+        "conclusion": "success",
+        "headSha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+        "status": "completed"
+      },
+      "public": {
+        "/version.json": {
+          "http_status": 200,
+          "git_sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c"
+        },
+        "/health": {
+          "http_status": 200,
+          "status": "healthy"
+        },
+        "/health/ready": {
+          "http_status": 200,
+          "status": "ready",
+          "blocker_count": 0
+        }
+      },
+      "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+      "claim_ceiling": "Exact paired source deployment and public health; original communications continuation and native preparation unverified",
+      "metadata_receipt_sha256": "c2c4191856bc5e5259d75087bf80d78e75dfeba6fae40419ca1a8a29e94c8dc4",
+      "official_receipt_sha256": "86beee036b6521720a9acdb53678f4bfbaede537b3c210af0abafbe21bcacea8"
     }
   ],
   "checkpoint_20261009T0627": {
@@ -3466,7 +3564,13 @@
       "draft_recovered_canonical_sha256": "00fd83dd471ac69408af5509fc0f8e117fb54ed8dc76760d38275f380244d411",
       "sent_canonical_sha256": "374065f5d1ede88d12178743b6fe1082bd2c8f0947e0e6e7df035babfd492ac1",
       "claim_ceiling": "Real delivery/reply mechanics, not human task confirmation, criteria or assessment truth.",
-      "root_continuity_review_sha256": "0198c2b26fe5c60b82d66a4e22b3cde22dfc47310832553a9f3cd88b65f0e4b3"
+      "root_continuity_review_sha256": "0198c2b26fe5c60b82d66a4e22b3cde22dfc47310832553a9f3cd88b65f0e4b3",
+      "gmail_receipt_repair_release": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/1002",
+        "merge_sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
+        "paired_source_and_public_health_verified": true,
+        "actual_reply_import": "sole master owns; no import/continuation evidence in release receipt"
+      }
     },
     "fixture_corrections": {
       "original_context_fixture_sha256": "71194b0474901a90bfca519853f7919cb58b1d7780813b8d651279281fe24b57",
