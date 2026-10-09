@@ -604,46 +604,15 @@
     }
   },
   "current_verified_webapp_release": {
-    "schema": "blueprint.root-release-official-public-readback.v1",
-    "observed_at_utc": "2026-10-09T07:39:13.911451+00:00",
-    "head": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
-    "main_ci": 37899133625,
-    "automatic_deploy": 37899606295,
-    "official_artifact_id": 11602210828,
-    "official_sha256": "080305f5c316d230472f02eb92ceaff33099fea83d1204e28de85f491292a057",
-    "deploy_receipt": {
-      "web_render_deploy_id": "dep-db49h6jtqb8s73ei8v80",
-      "web_render_deploy_status": "live",
-      "web_render_commit": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
-      "worker_render_deploy_id": "dep-db49h6nlk1mc73fajdu0",
-      "worker_render_deploy_status": "live",
-      "worker_render_commit": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
-      "deploy_ref": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
-      "live_git_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
-      "health_status": 200,
-      "health_ready_status": 200,
-      "started_at": "2026-10-09T07:32:43Z",
-      "finished_at": "2026-10-09T07:35:47Z"
-    },
-    "public": {
-      "/version.json": {
-        "http": 200,
-        "git_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
-        "status": null
-      },
-      "/health": {
-        "http": 200,
-        "git_sha": null,
-        "status": "healthy"
-      },
-      "/health/ready": {
-        "http": 200,
-        "git_sha": null,
-        "status": "ready"
-      }
-    },
-    "effects": "Read-only exact-source/service health; no customer or provider mutation",
-    "live_handler_recovery": "Pending separate original-job master diagnostic"
+    "sha": "edf2baf9655a004d2be82785086cb0993ba9a9d2",
+    "PR": 1005,
+    "paired_live": true,
+    "main_ci": 37919120872,
+    "automatic_deploy": 37919633111,
+    "official_receipt_sha256": "aa3ea116ed2851c3f58be44e0a842df22453da23538be73a8e13f578a1fab373",
+    "root_receipt_sha256": "c6f2ae78c09557f09a344764f8749d3de10c6eac309dc829ff212c559e0d8355",
+    "observed_at_utc": "2026-10-09T10:58:38.698951+00:00",
+    "claim_ceiling": "Scoped source repair and exact paired deployment/public health, not measured RSS plateau, original OOM causation or fresh paid assessment"
   },
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
@@ -1928,46 +1897,15 @@
     "claim_ceiling": "Read-only credential/model catalog access;not generation, currentcustomer assessment or video-quality proof. Historical401 andunknownexposure remain retained."
   },
   "current_verified_web_release": {
-    "schema": "blueprint.root-release-official-public-readback.v1",
-    "observed_at_utc": "2026-10-09T07:39:13.911451+00:00",
-    "head": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
-    "main_ci": 37899133625,
-    "automatic_deploy": 37899606295,
-    "official_artifact_id": 11602210828,
-    "official_sha256": "080305f5c316d230472f02eb92ceaff33099fea83d1204e28de85f491292a057",
-    "deploy_receipt": {
-      "web_render_deploy_id": "dep-db49h6jtqb8s73ei8v80",
-      "web_render_deploy_status": "live",
-      "web_render_commit": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
-      "worker_render_deploy_id": "dep-db49h6nlk1mc73fajdu0",
-      "worker_render_deploy_status": "live",
-      "worker_render_commit": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
-      "deploy_ref": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
-      "live_git_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
-      "health_status": 200,
-      "health_ready_status": 200,
-      "started_at": "2026-10-09T07:32:43Z",
-      "finished_at": "2026-10-09T07:35:47Z"
-    },
-    "public": {
-      "/version.json": {
-        "http": 200,
-        "git_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
-        "status": null
-      },
-      "/health": {
-        "http": 200,
-        "git_sha": null,
-        "status": "healthy"
-      },
-      "/health/ready": {
-        "http": 200,
-        "git_sha": null,
-        "status": "ready"
-      }
-    },
-    "effects": "Read-only exact-source/service health; no customer or provider mutation",
-    "live_handler_recovery": "Pending separate original-job master diagnostic"
+    "sha": "edf2baf9655a004d2be82785086cb0993ba9a9d2",
+    "PR": 1005,
+    "paired_live": true,
+    "main_ci": 37919120872,
+    "automatic_deploy": 37919633111,
+    "official_receipt_sha256": "aa3ea116ed2851c3f58be44e0a842df22453da23538be73a8e13f578a1fab373",
+    "root_receipt_sha256": "c6f2ae78c09557f09a344764f8749d3de10c6eac309dc829ff212c559e0d8355",
+    "observed_at_utc": "2026-10-09T10:58:38.698951+00:00",
+    "claim_ceiling": "Scoped source repair and exact paired deployment/public health, not measured RSS plateau, original OOM causation or fresh paid assessment"
   },
   "current_normal_UI_same_job_retry": {
     "source_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
@@ -2177,7 +2115,7 @@
     },
     "original_case_credit": 0
   },
-  "updated_at_utc": "2026-10-09T10:16:35.477365+00:00",
+  "updated_at_utc": "2026-10-09T11:10:28.619636+00:00",
   "paid_provider_actor_handoff": {
     "owner": "Existing local assessment-iteration task; original normal-UI provider actor explicitly held",
     "scope": "ONE same authorized MOV production SDK/Gemini fresh baseline, then ONE actual Sol saved-evidence comparison reusing Gemini output. Serial actor; no automatic paid retry; no customer writes.",
@@ -3219,7 +3157,7 @@
     "operation_owner": "New original-job master owns shared Web operations; root retains native integration/release. Hypothesis actor owns one explicitly released short configuration/restart interval; no competing mutations.",
     "root_live_provider_or_config_or_send_effects": 0
   },
-  "current_release_checkpoint_key": "checkpoint_20261009T1006",
+  "current_release_checkpoint_key": "checkpoint_20261009T1110",
   "native2654_current_check": {
     "head": "eb4f2c8114cad789796bc1f56bb78935f0cfb53e",
     "ci": 37884251589,
@@ -4015,5 +3953,148 @@
       "runtime_local_seconds": 95.35
     },
     "full_goal": "PARTIAL; reference truth/holdout/native joined completion unresolved"
+  },
+  "checkpoint_20261009T1100": {
+    "recorded_at_utc": "2026-10-09T11:01:10.754526+00:00",
+    "goal_status": "active; initial window partial; broad assessment quality and native joined execution incomplete",
+    "web_pr": 1005,
+    "reviewed_head": "7e07778eff3b5bc178e4b08377c161d4b4fe9256",
+    "merged_deployed_sha": "edf2baf9655a004d2be82785086cb0993ba9a9d2",
+    "pr_ci": 37918285323,
+    "main_ci": 37919120872,
+    "automatic_deploy": 37919633111,
+    "paired_live": true,
+    "web_render_deploy": "dep-db4cc2ss728c73aakh60",
+    "worker_render_deploy": "dep-db4cc2rncjis73ci35g0",
+    "official_deploy_receipt_sha256": "aa3ea116ed2851c3f58be44e0a842df22453da23538be73a8e13f578a1fab373",
+    "independent_root_release_verification_sha256": "c6f2ae78c09557f09a344764f8749d3de10c6eac309dc829ff212c559e0d8355",
+    "public_version_health_ready": "Exact edf SHA and all200 at10:58:38Z",
+    "reader_repair": "Accepted unknown-length retention capped at64MiB; refuse first overflowing producer chunk without first arrayBuffer; copy accepted chunks before receipt hashing; bounded nonblocking cancellation preserves original error",
+    "independent_source_review_sha256": "e6ec4b9acb09c351ecedf7ff84ce065cc27d26c3e41fcab8950c6eeb53412a59",
+    "reader_checks": 30,
+    "claim_ceiling": "Scoped source repair and exact paired deployment/public health, not measured RSS plateau, original OOM causation or fresh paid assessment",
+    "original_model_reruns_for_this_release": 0,
+    "native_candidate": "a6822134cb1ca125c32a2c2e5d6170d9ab1fc12f",
+    "native_ci": 37913024766,
+    "native_last_observed_state": "Shards0/1/3 SUCCESS; shard2 active, whole workflow pending. Actual Linux restore73.247sPASS; all four fixture-order regressionsPASS in official shard3.",
+    "native_retained_shards1_and3_root_verification_sha256": "0d1da2a25bed0d7c6ffe9bf289cc9dcaf782edbfecffb234b4a8ec0ea26d1ce6",
+    "native_install_admission_dispatch": "Not performed; all unchanged release/authority gates remain",
+    "separate_legacy_video_egress": "Owned-local public302\u2192privateHTTP bypass demonstrated; independent reviewed candidate and finalchecks in progress, no source release yet",
+    "unchanged_counts": "300 offline unique;22 current replay definitions;120 scripted judgment definitions;1 rights-admitted reference;0 current checked human timestamp labels/untouched holdout",
+    "new_unique_credit": 0
+  },
+  "historical_before_edf_current_verified_webapp_release": {
+    "schema": "blueprint.root-release-official-public-readback.v1",
+    "observed_at_utc": "2026-10-09T07:39:13.911451+00:00",
+    "head": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+    "main_ci": 37899133625,
+    "automatic_deploy": 37899606295,
+    "official_artifact_id": 11602210828,
+    "official_sha256": "080305f5c316d230472f02eb92ceaff33099fea83d1204e28de85f491292a057",
+    "deploy_receipt": {
+      "web_render_deploy_id": "dep-db49h6jtqb8s73ei8v80",
+      "web_render_deploy_status": "live",
+      "web_render_commit": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "worker_render_deploy_id": "dep-db49h6nlk1mc73fajdu0",
+      "worker_render_deploy_status": "live",
+      "worker_render_commit": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "deploy_ref": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "live_git_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "health_status": 200,
+      "health_ready_status": 200,
+      "started_at": "2026-10-09T07:32:43Z",
+      "finished_at": "2026-10-09T07:35:47Z"
+    },
+    "public": {
+      "/version.json": {
+        "http": 200,
+        "git_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+        "status": null
+      },
+      "/health": {
+        "http": 200,
+        "git_sha": null,
+        "status": "healthy"
+      },
+      "/health/ready": {
+        "http": 200,
+        "git_sha": null,
+        "status": "ready"
+      }
+    },
+    "effects": "Read-only exact-source/service health; no customer or provider mutation",
+    "live_handler_recovery": "Pending separate original-job master diagnostic"
+  },
+  "historical_before_edf_current_verified_web_release": {
+    "schema": "blueprint.root-release-official-public-readback.v1",
+    "observed_at_utc": "2026-10-09T07:39:13.911451+00:00",
+    "head": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+    "main_ci": 37899133625,
+    "automatic_deploy": 37899606295,
+    "official_artifact_id": 11602210828,
+    "official_sha256": "080305f5c316d230472f02eb92ceaff33099fea83d1204e28de85f491292a057",
+    "deploy_receipt": {
+      "web_render_deploy_id": "dep-db49h6jtqb8s73ei8v80",
+      "web_render_deploy_status": "live",
+      "web_render_commit": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "worker_render_deploy_id": "dep-db49h6nlk1mc73fajdu0",
+      "worker_render_deploy_status": "live",
+      "worker_render_commit": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "deploy_ref": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "live_git_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "health_status": 200,
+      "health_ready_status": 200,
+      "started_at": "2026-10-09T07:32:43Z",
+      "finished_at": "2026-10-09T07:35:47Z"
+    },
+    "public": {
+      "/version.json": {
+        "http": 200,
+        "git_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+        "status": null
+      },
+      "/health": {
+        "http": 200,
+        "git_sha": null,
+        "status": "healthy"
+      },
+      "/health/ready": {
+        "http": 200,
+        "git_sha": null,
+        "status": "ready"
+      }
+    },
+    "effects": "Read-only exact-source/service health; no customer or provider mutation",
+    "live_handler_recovery": "Pending separate original-job master diagnostic"
+  },
+  "checkpoint_20261009T1110": {
+    "recorded_at_utc": "2026-10-09T11:10:28.619636+00:00",
+    "native_PR": 2655,
+    "merged_sha": "f7dc8fb8cc3e352b8c85eb7b2f9a6b57e3752b2c",
+    "merged_at": "2026-10-09T11:06:42Z",
+    "checked_exact_head": "a6822134cb1ca125c32a2c2e5d6170d9ab1fc12f",
+    "exact_PR_CI": 37913024766,
+    "PR_CI": "TerminalSUCCESS; all4shards+aggregate+requiredgate",
+    "parameterized_checks_passed": 34344,
+    "parameterized_failure_error_skip": 0,
+    "conditional_PR_SBoM": "SKIPPED under existing event policy, no PASS credit",
+    "official_artifact_custody_sha256": "acff003c1f79457b3f56076fdf203e182e69c68bb35dbab8c82bd084d90dc1e9",
+    "fresh_merge_guard_sha256": "7ab3bf396b4516b1dcd2e54e318d786caff07a2d1b926f00835c27612365f3e9",
+    "main_CI": 37921721328,
+    "production_promotion": 37921796618,
+    "promotion_reason": "production_deployment_promotion",
+    "same_exact_main": "Both runs verified f7dc8fb8cc3e352b8c85eb7b2f9a6b57e3752b2c",
+    "manual_POST_count": 1,
+    "native_install_admission_dispatch": 0,
+    "official_provenance": "Pending; both runsSUCCESS + current-source officialprovenance stillrequired beforeinstallation",
+    "egress_review": "SOURCE_CLEAR exact4files",
+    "egress_head": "d1e1609bc3836c1376f049de88dfda7b0cb94bf3",
+    "egress_independent_review_sha256": "744d3cc56b42e8877e333c5344e01d9305b52fe4df8a4582040364915619e0b6",
+    "egress_author_checks_passed": 98,
+    "egress_independent_probes_passed": 8,
+    "egress_original_unique_credit": 0,
+    "egress_deployment": "PR1006 published and attached; requiredCI and solemasterpairedrelease pending",
+    "original_stop_utc": "2026-10-09T12:24:35Z",
+    "egress_PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/1006"
   }
 }

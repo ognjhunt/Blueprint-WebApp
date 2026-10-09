@@ -1409,7 +1409,8 @@
       "independent_review_sha256": "80f22c735c13bfabee7a95eebd6054b5edee9ea139f55d14270149b4d6ee522a",
       "independent_same_ordered_retest": "4PASS21.775s",
       "neighbors": "82PASS6.910s",
-      "canonical_required_gate": "9PASS38.277s; full CI still required"
+      "canonical_required_gate": "9PASS38.277s; full CI still required",
+      "current_release": "PR2655 exacthead requiredCI37913024766SUCCESS, checkedmerged f7dc8fb8cc3e352b8c85eb7b2f9a6b57e3752b2c; mainCI/promotion/provenance/install pending"
     },
     {
       "id": "REL-BROWSER-OBSERVER-TEARDOWN-20261009",
@@ -1437,6 +1438,37 @@
       "production_bug_claim": false,
       "new_unique_credit": 0,
       "independent_execution_review_sha256": "360ea30915b62a40428092432dbc4a3468f50285c086b0b6db41f65ff59643f5"
+    },
+    {
+      "id": "REL-VIDEO-UNKNOWN-LENGTH-BOUNDS-20261009",
+      "severity": "P1 resource exhaustion on affected unknown-length legacy video path",
+      "owner": "customer basics; independent reviewer; original-job master release",
+      "observed": "Actual exported reader consumed finite66MiB synthetic response before rejecting; isolated accepted-stream contract required refusal at first over-limit chunk",
+      "root_cause": "arrayBuffer materialized unknown-length body before64MiB check",
+      "before": "Minimized early-stop assertionFAIL;66chunks plusEOF consumed and no cancellation",
+      "after": "Same casePASS at65thchunk;30scopedPASS including reused-buffer receipt integrity and nonsettling cancellation regressions",
+      "limitations": "No deliberate OOM, measured RSS or proof this caused original generation-bound SDK failure",
+      "status": "Independent source review cleared; PR1005 checked merged and paired LIVE edf; health/readiness200",
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/1005",
+      "merged_deployed_sha": "edf2baf9655a004d2be82785086cb0993ba9a9d2",
+      "independent_review_sha256": "e6ec4b9acb09c351ecedf7ff84ce065cc27d26c3e41fcab8950c6eeb53412a59",
+      "root_release_sha256": "c6f2ae78c09557f09a344764f8749d3de10c6eac309dc829ff212c559e0d8355",
+      "new_unique_credit": 0
+    },
+    {
+      "id": "REL-LEGACY-VIDEO-REDIRECT-EGRESS-20261009",
+      "severity": "P1 access boundary; release-blocking for affected arbitrary-URL path",
+      "owner": "customer basics author; independent reviewer; root integration",
+      "observed": "Actual exported openVideo plus injected public302/native redirect algorithm made one GET to actual owned loopbackHTTP server, admitted25synthetic bytes; direct private initial URL was refused",
+      "root_cause": "Initial URL validated, but automatic follow admitted later HTTP/private redirect without revalidation or public-address socket pin",
+      "status": "Independent SOURCE_CLEAR exact4files;98 scopedPASS and8 independentprobesPASS; requiredCI and security deployment pending",
+      "limits": "No production exploitation, real customer/provider connection or original SDK storage-path implication. Original dishwasher SDK used generation-bound storage bytes.",
+      "diagnosis_sha256": "2317b1eb038284edd3500f67ed554a4a9a1d1841cd29170f84dd93653f773abb",
+      "probe_sha256": "cae7eb63833b1bf8d297e3906e636c4484124071c39748e362bea4beb167410b",
+      "new_unique_credit": 0,
+      "independent_source_review_sha256": "744d3cc56b42e8877e333c5344e01d9305b52fe4df8a4582040364915619e0b6",
+      "head": "d1e1609bc3836c1376f049de88dfda7b0cb94bf3",
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/1006"
     }
   ],
   "dependencies": [
@@ -1666,7 +1698,7 @@
     "deployed_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
     "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
   },
-  "current_state_observed_at_utc": "2026-10-09T07:24:50.954226+00:00",
+  "current_state_observed_at_utc": "2026-10-09T11:01:10.754526+00:00",
   "historical_state_policy": "Original baseline/reproducer/source receipts are retained. A historical_state field preserves superseded status text when current state changes; original failed attempts are not erased.",
   "last_new_failure_observed_at_utc": "2026-10-08T21:47:57.021Z",
   "customer_financial_policy": {
@@ -1793,5 +1825,5 @@
     "bounded_returned_event_count": 0,
     "scope": "Service-level minute samples, not instantaneous peak/assessment-only allocation. Later samples after confirmed terminalread support bounded post-run observation; early postcompletionlabel not separately certified. No concurrentcapacity/leak/zeroOOM universal claim; frozen peak/headroom sizing gate remains uncleared."
   },
-  "updated_at_utc": "2026-10-09T10:16:35.477365+00:00"
+  "updated_at_utc": "2026-10-09T11:10:28.619636+00:00"
 }

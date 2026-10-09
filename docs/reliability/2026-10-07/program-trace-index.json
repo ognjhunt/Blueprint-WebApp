@@ -1,6 +1,6 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-09T10:16:35.477365+00:00",
+  "updated_at_utc": "2026-10-09T11:10:28.619636+00:00",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 22,
@@ -2597,5 +2597,29 @@
     "live_notification_delivery": 0,
     "accuracy_credit": 0,
     "limitations": "Native Chromium on local emulated DB, file-backed fake objects, scripted provider/local sink. No production durability/perception/human/real notification or new unique credit. Prior failed runs intact."
+  },
+  "video_reader_bounds_20261009": {
+    "source_base": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+    "candidate_merged_deployed": "edf2baf9655a004d2be82785086cb0993ba9a9d2",
+    "layer": "Actual exported reader, synthetic finite stream; independent code probes; paired deployment/public health separately",
+    "checks_passed": 30,
+    "independent_review_sha256": "e6ec4b9acb09c351ecedf7ff84ce065cc27d26c3e41fcab8950c6eeb53412a59",
+    "root_paired_release_sha256": "c6f2ae78c09557f09a344764f8749d3de10c6eac309dc829ff212c559e0d8355",
+    "live_model_runs": 0,
+    "new_unique_coverage_credit": 0,
+    "actual_RSS_measurement": false
+  },
+  "legacy_video_egress_diagnosis_20261009": {
+    "source": "7e07778eff3b5bc178e4b08377c161d4b4fe9256",
+    "layer": "Actual exported reader/native redirect algorithm, injected public302, actual owned loopbackHTTP destination",
+    "synthetic_bytes_admitted": 25,
+    "owned_private_gets": 1,
+    "diagnosis_sha256": "2317b1eb038284edd3500f67ed554a4a9a1d1841cd29170f84dd93653f773abb",
+    "probe_sha256": "cae7eb63833b1bf8d297e3906e636c4484124071c39748e362bea4beb167410b",
+    "production_exploit": false,
+    "new_unique_coverage_credit": 0,
+    "candidate_status": "Independent SOURCE_CLEAR exact4files;98 author checks and8 independent probesPASS; no deployed/TLS/liveprovider/newunique credit",
+    "independent_review_sha256": "744d3cc56b42e8877e333c5344e01d9305b52fe4df8a4582040364915619e0b6",
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/1006"
   }
 }
