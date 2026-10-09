@@ -199,7 +199,7 @@ describe("SiteCaptureStart and the country", () => {
       const location = document.querySelector("#start-location")!;
       fireEvent.change(location, { target: { value: "Austin TX" } });
       expectInferredUnitedStates();
-      fireEvent.pointerDown(await screen.findByText("Berlin, Germany"));
+      fireEvent.click(await screen.findByText("Berlin, Germany"));
       expect((location as HTMLInputElement).value).toBe("Berlin, Germany");
       expect(screen.queryByText(nonUsNotice)).toBeNull();
       fireEvent.submit(screen.getByRole("form"));
@@ -232,7 +232,7 @@ describe("SiteCaptureStart and the country", () => {
       fireEvent.change(document.querySelector("#start-company")!, { target: { value: "Fixture company" } });
       const location = document.querySelector("#start-location")!;
       fireEvent.change(location, { target: { value: "Warehouse" } });
-      fireEvent.pointerDown(await screen.findByText("Warehouse"));
+      fireEvent.click(await screen.findByText("Warehouse"));
       expect(resolveDetails).toBeTypeOf("function");
       await act(async () => { resolveDetails!(null); });
       fireEvent.submit(screen.getByRole("form"));
@@ -260,7 +260,7 @@ describe("SiteCaptureStart and the country", () => {
     await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "austin" } });
 
-    fireEvent.pointerDown(await screen.findByText("Austin, Texas, United States"));
+    fireEvent.click(await screen.findByText("Austin, Texas, United States"));
 
     await waitFor(expectInferredUnitedStates);
   });
@@ -270,7 +270,7 @@ describe("SiteCaptureStart and the country", () => {
     await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "munich" } });
 
-    fireEvent.pointerDown(await screen.findByText("Munich, Germany"));
+    fireEvent.click(await screen.findByText("Munich, Germany"));
 
     expect(await screen.findByText(nonUsNotice)).toBeInTheDocument();
   });
@@ -303,7 +303,7 @@ it("clears an inferred country when the address is edited", async () => {
   await renderReady(<SiteCaptureStart />);
   const location = document.querySelector("#start-location")!;
   fireEvent.change(location, { target: { value: "austin" } });
-  fireEvent.pointerDown(await screen.findByText("Austin"));
+  fireEvent.click(await screen.findByText("Austin"));
   expectInferredUnitedStates();
   fireEvent.change(location, { target: { value: "Berlin" } });
   expect(screen.queryByText(nonUsNotice)).toBeNull();
@@ -526,7 +526,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(document.querySelector("#start-footage")).not.toBeNull();
 
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "munich" } });
-    fireEvent.pointerDown(await screen.findByText("Munich, Germany"));
+    fireEvent.click(await screen.findByText("Munich, Germany"));
 
     await screen.findByText(/Hold on to the video for now/);
     expect(document.querySelector("#start-footage")).toBeNull();

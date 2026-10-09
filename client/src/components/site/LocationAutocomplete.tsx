@@ -316,11 +316,9 @@ export function LocationAutocomplete(props: {
                 id={`${props.id}-option-${index}`}
                 role="option"
                 aria-selected={index === active}
-                // Pointer events support touch and fire before the input's blur.
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  void choose(suggestion);
-                }}
+                // Keep focus until a click/tap; a touch scroll must not pick.
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={() => void choose(suggestion)}
                 onMouseEnter={() => setActive(index)}
                 style={{
                   padding: "10px 12px",

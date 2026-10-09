@@ -57,7 +57,7 @@ describe("suggestions from the free provider", () => {
     fireEvent.change(input, { target: { value: "durham" } });
 
     const option = await screen.findByText("Durham, North Carolina, United States");
-    fireEvent.pointerDown(option);
+    fireEvent.click(option);
     expect(input.value).toBe("Durham, North Carolina, United States");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
@@ -132,7 +132,7 @@ describe("reporting the chosen place", () => {
     const input = screen.getByRole("combobox");
     fireEvent.change(input, { target: { value: "munich" } });
 
-    fireEvent.pointerDown(await screen.findByText("Munich, Germany"));
+    fireEvent.click(await screen.findByText("Munich, Germany"));
 
     expect(onSelect).toHaveBeenCalledWith({ label: "Munich, Germany", countryCode: "DE" });
   });
@@ -143,7 +143,7 @@ describe("reporting the chosen place", () => {
     render(<LocationAutocomplete id="loc" name="startLocation" onSelect={onSelect} />);
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "somewhere" } });
 
-    fireEvent.pointerDown(await screen.findByText("Somewhere"));
+    fireEvent.click(await screen.findByText("Somewhere"));
 
     expect(onSelect).toHaveBeenCalledWith({ label: "Somewhere", countryCode: null });
   });
@@ -154,7 +154,7 @@ describe("reporting the chosen place", () => {
     render(<LocationAutocomplete id="loc" name="startLocation" onSelectionChange={onSelectionChange} />);
     const input = screen.getByRole("combobox");
     fireEvent.change(input, { target: { value: "munich" } });
-    fireEvent.pointerDown(await screen.findByText("Munich, Germany"));
+    fireEvent.click(await screen.findByText("Munich, Germany"));
     await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith({ label: "Munich, Germany", countryCode: "DE" }));
 
     fireEvent.change(input, { target: { value: "Munich, Bavaria" } });
@@ -187,7 +187,7 @@ describe("reporting the chosen place", () => {
     const onSelectionChange = vi.fn();
     render(<LocationAutocomplete id="loc" name="startLocation" onSelectionChange={onSelectionChange} />);
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "london" } });
-    fireEvent.pointerDown(await screen.findByRole("option", { name: "London United Kingdom" }));
+    fireEvent.click(await screen.findByRole("option", { name: "London United Kingdom" }));
 
     await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith({
       label: "London, United Kingdom", countryCode: "GB",
@@ -202,7 +202,7 @@ describe("reporting the chosen place", () => {
     const onSelect = vi.fn();
     render(<LocationAutocomplete id="loc" name="startLocation" onSelect={onSelect} />);
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "paris" } });
-    fireEvent.pointerDown(await screen.findByRole("option", { name: "Paris France" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Paris France" }));
 
     await waitFor(() => expect(onSelect).toHaveBeenCalledWith({ label: "Paris, France", countryCode: null }));
   });
@@ -214,7 +214,7 @@ describe("reporting the chosen place", () => {
     render(<LocationAutocomplete id="loc" name="startLocation" onSelectionChange={onSelectionChange} />);
     const input = screen.getByRole("combobox");
     fireEvent.change(input, { target: { value: "berlin" } });
-    fireEvent.pointerDown(await screen.findByRole("option", { name: "Berlin Germany" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Berlin Germany" }));
     fireEvent.change(input, { target: { value: "Berlin manual" } });
     resolveDetails({ place: { addressComponents: [{ shortText: "DE", types: ["country"] }] } });
 
@@ -244,7 +244,7 @@ describe("reporting the chosen place", () => {
     const input = field();
     fireEvent.change(input, { target: { value: "1005 crete" } });
     fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.pointerDown(await screen.findByRole("option", { name: "1005 Crete Street, Durham, United States" }));
+    fireEvent.click(await screen.findByRole("option", { name: "1005 Crete Street, Durham, United States" }));
     expect(input.value).toBe("1005 Crete Street, Durham, United States");
   });
 
@@ -270,7 +270,7 @@ describe("reporting the chosen place", () => {
     const input = screen.getByRole("combobox") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "london" } });
     await act(async () => { await vi.advanceTimersByTimeAsync(150); });
-    fireEvent.pointerDown(screen.getByRole("option"));
+    fireEvent.click(screen.getByRole("option"));
     expect(input.value).toBe("London, United Kingdom");
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
@@ -298,6 +298,18 @@ describe("request races and accessible options", () => {
     expect(input.getAttribute("aria-controls")).toBe(screen.getByRole("listbox").id);
     expect(input.getAttribute("aria-activedescendant")).toBe(option.id);
     fireEvent.keyDown(input, { key: "Enter" });
+    expect(input.value).toBe("Durham");
+  });
+
+  it("does not select at the start of a touch gesture", async () => {
+    fetchMock.mockResolvedValue(photon([{ name: "Durham" }]));
+    const input = field();
+    fireEvent.change(input, { target: { value: "durham" } });
+    const option = await screen.findByRole("option");
+    fireEvent.pointerDown(option, { pointerType: "touch" });
+    expect(input.value).toBe("durham");
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    fireEvent.click(option);
     expect(input.value).toBe("Durham");
   });
 
