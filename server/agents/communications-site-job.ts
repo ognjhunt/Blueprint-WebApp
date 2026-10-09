@@ -1,3 +1,4 @@
+import { logger } from "../logger";
 import { CommunicationsAgentsAPI, type CommunicationsCheckpoint } from "./communications-api";
 import { communicationsDigest, communicationsOutputSchema, FOUNDER_MAILBOX, CUSTOMER_JOB_MAILBOX, FOUNDER_MAILBOX_ALIASES, isOptOut, authorText, type CommunicationsOutput, type VerifiedThread } from "./communications-contract";
 import { SITE_JOB_COMMUNICATIONS_PROFILE } from "./communications-site-job-profile";
@@ -44,8 +45,8 @@ export function existingSiteJobCommunicationsPorts(db: FirebaseFirestore.Firesto
     reservePaidDraft: async (jobId, digest, sessionSpendLimitCents) => {
       if (authority) return reserveSiteJobDraft(db, authority, jobId, digest);
       try { await reconcileCommunicationsDraftCost(db, api, Date.now()); }
-      catch { console.warn("[site-job-communications] retained usage reconciliation unresolved",
-        { code: "communications_prior_usage_reconciliation_unresolved" }); }
+      catch { logger.warn({ code: "communications_prior_usage_reconciliation_unresolved" },
+        "Earlier cost remains unknown; retained accounting does not gate this draft"); }
       return reserveCommunicationsDraft(db, jobId, digest, Date.now(), sessionSpendLimitCents);
     },
     recordPaidDraftUsage: async (jobId, digest, usage) => {
