@@ -1161,6 +1161,32 @@
       "receipt_sha256": "7149ddf6f4100ec89004772a570b45553b687d70295c60017cc270fa982dab9d",
       "release_status": "candidate_tested_review_and_CI_pending",
       "pr": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2654"
+    },
+    {
+      "id": "REL-SELECTED-WAIT-20261009",
+      "severity": "P2",
+      "impact": "Successful bounded recovery command is falsely reported as failed to the operator; command success must remain separate from downstream completion",
+      "owner": "coordinator",
+      "status": "source-fixed-reviewed-ci-pending",
+      "baseline": "3c635bfc846a84698b17229754fed61ad68efc00",
+      "candidate": "eb4f2c8114cad789796bc1f56bb78935f0cfb53e",
+      "root_cause": "Selected wrapper uses outcome completed/exit_code0; generic CLI terminal success set excluded completed",
+      "reproducer": {
+        "layer": "actual loopback HTTP/CLI with isolated file spool",
+        "before_product_failed": 2,
+        "before_passed": 4,
+        "after_selected_passed": 6,
+        "all_client_passed": 60,
+        "harness_insertion_error_excluded": true
+      },
+      "fix": "Only selected-handoff completed with strict integer-zero exit succeeds; generic completed and historic unit rules unchanged",
+      "review_sha256": "f4a1b04c695bbafcbe78226b72cd93bdc0404599d057348346714ac4c65503b2",
+      "receipt_sha256": "842ffc5fd10655b6011f0fbb58796c11b11eb1ea5a3ee4a053f80ad71a0e7e15",
+      "pr": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2654",
+      "required_ci": 37884251589,
+      "deployed": false,
+      "native_recovery_executed": false,
+      "limitations": "No production incident or downstream job completion is inferred from this loopback reproducer"
     }
   ],
   "dependencies": [

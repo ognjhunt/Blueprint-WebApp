@@ -3141,5 +3141,23 @@
     "native_operational_receipt_sha256": "a62a71d0652219d24ef05557d9c0bddc85195ba95bfc383f5d9dd7c39274730c",
     "normal_entry_presentation_sha256": "ee06534bccf597e30cde1094256bd218e6340bde61511e1479b8887e4376585a",
     "original_raw_byte_verification_sha256": "791e2ec708c42c64402c4cbc0b7265551b1832c3f4d73d757765a2c65b0dcaa7"
+  },
+  "verified_checkpoint_20261009_0431": {
+    "pipeline_pr": 2654,
+    "head": "eb4f2c8114cad789796bc1f56bb78935f0cfb53e",
+    "required_ci": 37884251589,
+    "status": "pending",
+    "independent_review_sha256": "f4a1b04c695bbafcbe78226b72cd93bdc0404599d057348346714ac4c65503b2",
+    "selected_wait_receipt_sha256": "842ffc5fd10655b6011f0fbb58796c11b11eb1ea5a3ee4a053f80ad71a0e7e15",
+    "supersedes_head": "3c635bfc846a84698b17229754fed61ad68efc00",
+    "superseded_ci": 37882792895,
+    "canonical_installation": "not_started",
+    "original_selected_inspection": "not_started",
+    "original_dispatches": 0,
+    "operation_owners": {
+      "native_release_inspection_dispatch": "original reliability coordinator",
+      "original_ui_acceptance_provider": "new eight-hour master after explicit original-owner transfer"
+    },
+    "goal": "PARTIAL; reference quality and downstream acceptance unresolved"
   }
 }

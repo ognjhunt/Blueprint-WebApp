@@ -1,12 +1,26 @@
-# Reliability decision: successful customer retry; evaluation partial
+# Reliability decision: web release verified; evaluation partial
 
 Updated 2026-10-09. The initial four-hour closeout remains PARTIAL; the full goal is active. The frozen charter, explicit corrections and machine-readable receipts define the evidence ceiling.
+
+## Current status
+
+The latest verified paired WebApp release is **5cabf90a5851effc44211f9e8f3f5fd0c71e5ed5**. Both services were independently read LIVE; main CI37881597610 and actual deploy37882061692 succeeded with trigger, exact-SHA verification and evidence upload executed. Public version matched, health/readiness returned200 and readiness had zero blockers. Earlier1cd/f80/5dc references below describe historical checkpoints, not the current release.
+
+The normal saved-job SDK/Gemini assessment remains completed on **189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9**, with the assessment still **needs_operator_input**. The current web release proves deployed source and health, not a new assessment, downstream dispatch or model-quality improvement. There is **one** rights-admitted video, **zero** current checked human timestamp labels and no untouched holdout; the full goal remains **PARTIAL**.
+
+Native PR2654 is **SOURCE CLEAR** at **eb4f2c8114cad789796bc1f56bb78935f0cfb53e**. Its new required CI37884251589 is pending at this checkpoint and supersedes the3c candidate/CI snapshot below. Canonical installation and original selected recovery remain unverified; no Task Evaluation dispatch is claimed. The coordinator retains native/release ownership; original UI/provider continuation belongs to the explicitly transferred case owner.
+
+## Retained assessment evidence
 
 The normal saved-job retry on the upgraded 2 GB instance completed on **189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9**. One owner click at23:08:34 led to persisted completion at23:11:58 and canonical readback at23:13:16. Run, job and current pointer were completed. **10 Sol responses +1 Gemini video call** were recorded, with no pending slot; usage-derived estimate **$0.17061075**, not invoice. The private322791-byte evidence roundtrip matched its digest/generation/current source. There was no second intake, upload, automatic retry or email. Prior failed history and unknown charges remain separate.
 
 The assessment remains **needs_operator_input**. Observations, owner assertions, hypotheses and unknowns are distinguished. Completion proves neither physical execution nor robot qualification nor human-checked perception accuracy. Seven robot-knowledge searches failed on invented cursors; no knowledge records were obtained. Reviewed/deployed PR981 supplies explicit null-cursor restart arguments. Its actual argument regressions and scripted recovery passed; natural model uptake and savings remain unverified.
 
 Thirteen minute memory samples peaked at approximately **491 MiB** and ended near399 MiB on one2GBinstance. The bounded event read found no restart/failure. Those samples can miss transient peaks and do not establish true-peak headroom, leak absence or concurrent-load capacity. This successful run gives no observed reason for another RAM upgrade.
+
+## Historical release and repair context
+
+The following checkpoint statements retain their status at the time recorded; the current status above supersedes their pending-release and current-source language.
 
 The earlier verified production source was **1cd4fdac3f2214ed7a8c5dbabc80ccd23d688124**. Main CI37874527385 and actual deployment37874992598 succeeded with exact-SHA trigger and verification executed. Both Render services were independently read as LIVE at that SHA; public version/health/readiness returned200 with zero readiness blockers. This is source/health evidence, not a downstream job receipt.
 
@@ -33,9 +47,9 @@ Only **one** rights-admitted source is available versus the12–24 target, with 
 
 ## Readiness decision
 
-**Code-complete:** reviewed merged slices above; decision/reply integration and current intake test slice are protected-merged with exact-head required CI green; their containing deployment and native selected recovery remain in progress.
+**Code-complete:** reviewed WebApp slices, including decision/reply integration and the current intake test slice, are protected-merged with exact-head required CI green and included in verified5cab. Native2654 is source-clear at eb4f2c81; required CI37884251589, canonical installation and selected recovery remain pending. Source clearance alone is not release completion.
 
-**Deployed and verified:** successful normal SDK/Gemini assessment on189; actual saved-owner API/DOM behavior on2e; current1cd paired deployment/public health. No downstream dispatch result or new live-provider uplift on1cd.
+**Deployed and verified:** successful normal SDK/Gemini assessment on189; actual saved-owner API/DOM behavior on2e; current5cab paired deployment/public health. No downstream dispatch result or new live-provider uplift on5cab is established.
 
 **Evaluation:** partial. Current offline300 is repeatable and independently mapped; historical joined/emulator evidence and one actual production source remain distinct. Reference/holdout quality and full downstream acceptance are unresolved.
 
@@ -45,10 +59,14 @@ Current financial authority removes the old program call/spending gates. Current
 
 Use program-replay.md, frozen catalogs/reference manifest, trace index, failure ledger, program-release.json and program-review.md for commands, versions and hashes. Raw footage, private capture identifiers, bearer links and credentials remain out of public artifacts. No temporary fault injection is enabled.
 
+## Historical checkpoints
+
+These dated statements preserve earlier observations and failure receipts. Pending states below are historical and do not override the current status or newest native checkpoint.
+
 At03:06 UTC, root protected-merged PR993 (`8f65cb86`), PR983 (`760a2b09`) and test-only PR994 (`0b9a1663`) after all nine required exact-head checks passed. Final containing main CI and paired deployment remain pending. Superseded main runs and conditional no-op deployments are not accepted as deployment receipts.
 
 
-## Verified checkpoint at 03:53 UTC
+### Historical verified checkpoint at 03:53 UTC
 
 Both services were independently verified LIVE at **f80ab497af4001e3c82fffacf62da3afd3ca8e96**. Main CI37878607036 and actual deploy37879471035 succeeded; the deploy trigger, exact-source verification and evidence upload actually executed. Public version/health/readiness checks passed. This release contains protected merges993/983/994/991/995; it establishes deployed source and health, not a new customer/provider/native result. Earlier conditional no-op deploy workflows are retained and excluded.
 
@@ -65,6 +83,8 @@ A local diagnostic failure printed inherited environment values. Raw logs are re
 The overall reliability decision remains **PARTIAL**: original downstream acceptance, current checked video labels, untouched holdout, and assessment-quality conclusions remain unresolved. Counts and source releases do not establish those outcomes.
 
 
+### Historical verified checkpoint at 04:07 UTC
+
 At04:07 UTC, both services were independently read LIVE at **5cabf90a5851effc44211f9e8f3f5fd0c71e5ed5**, containing protected merges997 and996. Main CI37881597610 and actual deploy37882061692 succeeded; trigger, exact-SHA verification and evidence upload executed. Public version matched, health200/readiness200 with zero blockers. Artifact SHA256602e315f602ffcc6c3899349a2abaf76d5bfe02aae00d0845b2f62035c9fa2f0 and independent public readbackc1ac9f8b4fd4d6f29f21db1a8caaf217eda61647137b89f84d62595dadd91546 are retained. The superseded5dc deployment failed its stale-main check before mutation and is not a deployment receipt. The current automatic-deploy admission variable was observed TRUE; root changed no admission variable in this checkpoint.
 
 Native2654 first required CI37881195173 failed during full collection on an incorrect sibling-test import. The sparse local harness had omitted the existing test-package marker. Materializing that exact baseline marker reproduced one collection error and five neighboring import failures; five package-qualified imports now pass the same340 checks. Original failures and the sparse-harness limitation remain recorded. A separate diagnostic repair preserves exact committed duration telemetry before collection, with7 scoped checks passed; it does not manufacture a planned or executed full-suite receipt. Revised required CI and canonical installation remain open.
@@ -74,6 +94,14 @@ Read-only native observations found the operator healthy, intake active, eight s
 Local ENOSPC was relieved by removing only this task's unused ignored generated build output, after ownership/symlink/active-handle/CWD checks. Measured recovery233914368 bytes; source, dependencies and private evidence were preserved. Replay does not depend on that old generated bundle.
 
 
+### Historical source checkpoint at 04:16 UTC
+
 At04:16 UTC, final native2654 candidate **3c635bfc846a84698b17229754fed61ad68efc00** has whole-source clearance plus independent test-package/workflow follow-up clearances. Revised CI37882792895 is in progress; impacted tests/sentinels passed, full cross-cutting shards remain running. No canonical install or original dispatch is claimed. Exact original handoff/publication bytes were read by the existing case owner at their retained generations and independently hash/size/mode-checked by root: the earlier raw-byte dependency is resolved, with zero video/provider/write effects (root receipt791e2ec708c42c64402c4cbc0b7265551b1832c3f4d73d757765a2c65b0dcaa7).
 
 The live normal customer entry was additionally inspected in real Chrome at5cab: homepage link reached the resolved intake form, free-assessment button and sharing disclosure were present, and no budget/payment input appeared. No fields changed, submission/upload/terms acceptance/provider/send occurred; this presentation check receives zero new journey credit (private receiptee06534bccf597e30cde1094256bd218e6340bde61511e1479b8887e4376585a). The existing non-site-workspace account cannot establish Company behavior for a site-workspace identity.
+
+## Newest native source checkpoint
+
+Native2654 **eb4f2c8114cad789796bc1f56bb78935f0cfb53e** is source-clear with new required CI37884251589 pending. The minimized selected-CLI wait case first recorded2FAIL/4PASS, then passed6/6 after the scoped repair; the complete client suite passed60/60. Independent review receipt **f4a1b04c695bbafcbe78226b72cd93bdc0404599d057348346714ac4c65503b2** and selected-followup receipt **842ffc5fd10655b6011f0fbb58796c11b11eb1ea5a3ee4a053f80ad71a0e7e15** preserve the exact repair evidence. The prior3c source/CI and failures remain historical receipts; this checkpoint does not relabel them green.
+
+These are local CLI regression checks with **zero native operations**, not a selected original-case replay or deployment. They add no unique case, journey, reference label, provider usage or cost credit. Current verified web source remains5cab and the accepted assessment remains189. Original downstream acceptance, one-video reference limits, zero current checked human labels and missing untouched holdout keep the full goal **PARTIAL**.
