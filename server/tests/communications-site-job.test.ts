@@ -3,6 +3,7 @@ import { memoryFirestore } from "./fixtures/communications";
 import { CommunicationsAgentsAPI } from "../agents/communications-api";
 import { draftSiteJobCommunication, loadSiteJobCommunicationsContext, refreshSiteJobReplies, sendReviewedSiteJobCommunication, type SiteJobCommunicationsPorts } from "../agents/communications-site-job";
 import { communicationsDigest, type CommunicationsOutput, type VerifiedThread } from "../agents/communications-contract";
+import { FounderSendReadbackError } from "../agents/communications-gmail";
 import { withTextFooter } from "../utils/emailLayout";
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
 import { loadAssessmentCustomerStatements } from "../utils/siteCustomerStatements";
@@ -170,6 +171,77 @@ describe("inbound job communications uses the existing agent and actual email ev
     const again = await sendReviewedSiteJobCommunication(f.db, "job-1", drafted.id, "operator-1", approval, f.ports);
     expect(again.reused).toBe(true); expect(f.ports.send).toHaveBeenCalledTimes(1);
     expect(f.ports.send).toHaveBeenCalledWith(expect.objectContaining({ to: "site@example.com", body: f.output.body, html: drafted.outputHtml }));
+  });
+  async function rewrittenReceiptFixture() {
+    const f = fixture(), drafted = await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);
+    const approval = { expectedContextDigest: drafted.contextDigest, expectedOutputDigest: drafted.outputDigest, reviewedSend: true as const };
+    const sent = await sendReviewedSiteJobCommunication(f.db, "job-1", drafted.id, "operator-1", approval, f.ports);
+    const row = f.db.records.get(`inboundRequests/job-1/communications/${drafted.id}`);
+    const receipt = { ...sent.receipt, requestedRfcMessageId: sent.receipt.rfcMessageId, rfcMessageId: "<provider-rewritten@example.net>" };
+    const anchor = { gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: receipt.rfcMessageId, from: "nijel@tryblueprint.io", to: ["site@example.com"], subject: f.output.subject,
+      body: f.output.body, receivedAt: "2026-10-08T17:01:00Z", inReplyTo: null, references: [] };
+    f.ports.readThread = async () => ({ mailbox: "nijel@tryblueprint.io", threadId: "thread-1", fetchedAt: "2026-10-08T17:03:00Z", messages: [anchor,
+      { ...anchor, gmailMessageId: "in-1", rfcMessageId: "<in-1@example.com>", from: "site@example.com", to: ["nijel@tryblueprint.io"], body: "A throughput target is still unknown.",
+        receivedAt: "2026-10-08T17:02:00Z", inReplyTo: anchor.rfcMessageId, references: [anchor.rfcMessageId] }] });
+    f.ports.readSentReceipt = vi.fn(async () => receipt);
+    return { ...f, drafted, approval, row, receipt };
+  }
+  it("reconciles a provider-rewritten RFC ID before importing replies, preserving requested provenance", async () => {
+    const f = await rewrittenReceiptFixture();
+    expect(await refreshSiteJobReplies(f.db, "job-1", f.drafted.id, "operator-1", f.ports)).toMatchObject({ saved: 1 });
+    expect(f.ports.readSentReceipt).toHaveBeenCalledWith({ messageId: "out-1", threadId: "thread-1", requestedRfcMessageId: f.receipt.requestedRfcMessageId },
+      expect.objectContaining({ to: "site@example.com", subject: f.output.subject, body: f.output.body, html: f.drafted.outputHtml }));
+    expect(f.db.records.get(`inboundRequests/job-1/communications/${f.drafted.id}`).sendReceipt).toEqual(f.receipt);
+    const statement = [...f.db.records.entries()].find(([key]) => key.includes("/customerStatements/"))![1];
+    expect(statement.assessmentBinding).toMatchObject({ anchor_rfc_message_id: f.receipt.rfcMessageId, send_receipt_digest: communicationsDigest(f.receipt) });
+    expect(f.ports.send).toHaveBeenCalledTimes(1); expect(f.run).toHaveBeenCalledTimes(1);
+    const retained = JSON.stringify(statement);
+    expect(await refreshSiteJobReplies(f.db, "job-1", f.drafted.id, "operator-1", f.ports)).toMatchObject({ saved: 0 });
+    expect(f.ports.readSentReceipt).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify([...f.db.records.entries()].find(([key]) => key.includes("/customerStatements/"))![1])).toBe(retained);
+    expect(f.ports.send).toHaveBeenCalledTimes(1); expect(f.run).toHaveBeenCalledTimes(1);
+  });
+  it("leaves the old receipt and reply evidence untouched when same-ID readback fails", async () => {
+    const f = await rewrittenReceiptFixture(), previous = structuredClone(f.row.sendReceipt);
+    f.ports.readSentReceipt = vi.fn(async () => { throw new Error("gmail_send_receipt_content_mismatch"); });
+    await expect(refreshSiteJobReplies(f.db, "job-1", f.drafted.id, "operator-1", f.ports)).rejects.toThrow("gmail_send_receipt_content_mismatch");
+    expect(f.db.records.get(`inboundRequests/job-1/communications/${f.drafted.id}`).sendReceipt).toEqual(previous);
+    expect([...f.db.records.keys()].some(key => key.includes("/customerStatements/"))).toBe(false);
+    expect(f.ports.send).toHaveBeenCalledTimes(1); expect(f.run).toHaveBeenCalledTimes(1);
+  });
+  it.each(["receipt", "output", "html", "recipient", "context", "rights", "claim", "bound_statement"])("refuses concurrent or immutable %s changes during receipt recovery", async field => {
+    const f = await rewrittenReceiptFixture(), before = structuredClone(f.row.sendReceipt);
+    f.ports.readSentReceipt = async () => {
+      if (field === "receipt") f.row.sendReceipt.messageId = "other";
+      if (field === "output") f.row.output.body = "changed";
+      if (field === "html") f.row.outputHtml = "<p>changed</p>";
+      if (field === "recipient") f.db.records.get("inboundRequests/job-1").contact.email = "other@example.com";
+      if (field === "context") f.db.records.get("siteTaskBriefs/job-1").summary = "changed";
+      if (field === "rights") f.db.records.get("inboundRequests/job-1").consent_revoked = true;
+      if (field === "claim") f.row.sendClaim.approvedBy = "other";
+      if (field === "bound_statement") f.db.records.set("inboundRequests/job-1/customerStatements/existing", { communicationId: f.drafted.id, assessmentBinding: { send_receipt_digest: communicationsDigest(before) } });
+      return f.receipt;
+    };
+    await expect(refreshSiteJobReplies(f.db, "job-1", f.drafted.id, "operator-1", f.ports)).rejects.toMatchObject({ code: expect.stringMatching(/job_(context_changed|sent_message_not_verified|sent_receipt_already_bound)/) });
+    expect(f.row.sendReceipt.rfcMessageId).toBe(before.rfcMessageId);
+    expect(f.db.records.get("inboundRequests/job-1").customerConversation).toBeUndefined();
+  });
+  it("retains acknowledged IDs after readback failure and recovers through refresh without resending", async () => {
+    const f = fixture(), drafted = await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);
+    const acknowledgement = { messageId: "out-1", threadId: "thread-1", requestedRfcMessageId: `<blueprint-job-${drafted.id}@tryblueprint.io>` };
+    f.ports.send = vi.fn(async () => { throw new FounderSendReadbackError(acknowledgement); });
+    const approval = { expectedContextDigest: drafted.contextDigest, expectedOutputDigest: drafted.outputDigest, reviewedSend: true as const };
+    await expect(sendReviewedSiteJobCommunication(f.db, "job-1", drafted.id, "operator-1", approval, f.ports)).rejects.toThrow("gmail_send_acknowledged_readback_unverified");
+    const row = f.db.records.get(`inboundRequests/job-1/communications/${drafted.id}`);
+    expect(row).toMatchObject({ state: "send_ack_unknown", sendAcknowledgement: acknowledgement });
+    await expect(sendReviewedSiteJobCommunication(f.db, "job-1", drafted.id, "operator-1", approval, f.ports)).rejects.toMatchObject({ code: "job_send_requires_thread_reconciliation" });
+    f.ports.readSentReceipt = vi.fn(async () => ({ ...acknowledgement, rfcMessageId: "<observed@example.net>" }));
+    f.ports.readThread = async () => ({ mailbox: "nijel@tryblueprint.io", threadId: "thread-1", fetchedAt: "2026-10-08T17:03:00Z", messages: [{
+      gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: "<observed@example.net>", from: "nijel@tryblueprint.io", to: ["site@example.com"], subject: f.output.subject,
+      body: f.output.body, receivedAt: "2026-10-08T17:01:00Z", inReplyTo: null, references: [] }] });
+    expect(await refreshSiteJobReplies(f.db, "job-1", drafted.id, "operator-1", f.ports)).toMatchObject({ saved: 0 });
+    expect(f.db.records.get(`inboundRequests/job-1/communications/${drafted.id}`)).toMatchObject({ state: "sent", sendReceipt: { ...acknowledgement, rfcMessageId: "<observed@example.net>" } });
+    expect(f.ports.send).toHaveBeenCalledTimes(1);
   });
   it("saves genuine natural email answers once with provenance and leaves interpretation to Blueprint", async () => {
     const f = fixture(), drafted = await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);

@@ -111,9 +111,40 @@ export async function findFounderSentMessage(messageId: string, expected: { to: 
   return { id: message.id!, threadId: message.threadId };
 }
 
+export type FounderSendAcknowledgement = { messageId: string; threadId: string; requestedRfcMessageId: string };
+export class FounderSendReadbackError extends Error {
+  constructor(readonly acknowledgement: FounderSendAcknowledgement) { super("gmail_send_acknowledged_readback_unverified"); }
+}
+
+/** Read only the provider-acknowledged message, never search or resend. RFC IDs
+ * may be rewritten by Gmail; the reviewed MIME content and provider IDs cannot. */
+export async function readFounderSentReceipt(acknowledgement: FounderSendAcknowledgement,
+  expected: { to: string; subject: string; body: string; html?: string; inReplyTo?: string }, gmail?: gmail_v1.Gmail) {
+  gmail ??= await existingFounderGmail();
+  await verifyFounderMailbox(gmail);
+  const message = (await gmail.users.messages.get({ userId: "me", id: acknowledgement.messageId, format: "full" })).data;
+  const headers = message.payload?.headers, rfcMessageId = extractHeader(headers, "Message-ID");
+  const parts = (payload: gmail_v1.Schema$MessagePart | undefined | null, kind: string): string[] => !payload ? []
+    : [...(payload.mimeType === kind && payload.body?.data ? [Buffer.from(payload.body.data, "base64url").toString("utf8")] : []),
+      ...(payload.parts ?? []).flatMap(part => parts(part, kind))];
+  const plain = parts(message.payload, "text/plain"), html = parts(message.payload, "text/html");
+  const normalize = (value: string) => value.replace(/\r\n/g, "\n");
+  if (message.id !== acknowledgement.messageId || message.threadId !== acknowledgement.threadId || !message.labelIds?.includes("SENT")
+    || !rfcMessageId || !/^<[^<>\s]+>$/.test(rfcMessageId)
+    || addresses(extractHeader(headers, "From")).join() !== FOUNDER_MAILBOX
+    || addresses(extractHeader(headers, "To")).join() !== expected.to
+    || extractHeader(headers, "Cc") || extractHeader(headers, "Bcc")
+    || subjectText(extractHeader(headers, "Subject")) !== expected.subject
+    || plain.length !== 1 || normalize(plain[0]) !== normalize(expected.body)
+    || (expected.html !== undefined ? html.length !== 1 || normalize(html[0]) !== normalize(expected.html) : html.length !== 0)
+    || (extractHeader(headers, "In-Reply-To") ?? null) !== (expected.inReplyTo ?? null)) throw new Error("gmail_send_receipt_content_mismatch");
+  return { messageId: message.id, threadId: message.threadId, rfcMessageId, requestedRfcMessageId: acknowledgement.requestedRfcMessageId };
+}
+
 export async function sendFounderMessage(params: {
   to: string; subject: string; body: string; html?: string; messageId: string; threadId?: string; inReplyTo?: string;
   assertSendAllowed?: () => void;
+  verifySentReceipt?: boolean;
 }, gmail?: gmail_v1.Gmail) {
   if (!gmail) await requireFounderSendCapability();
   gmail ??= await existingFounderGmail();
@@ -141,6 +172,13 @@ export async function sendFounderMessage(params: {
     userId: "me", requestBody: { raw, ...(params.threadId ? { threadId: params.threadId } : {}) },
   });
   if (!response.data.id || !response.data.threadId) throw new Error("gmail_send_receipt_missing");
+  if (params.verifySentReceipt) {
+    const acknowledgement = { messageId: response.data.id, threadId: response.data.threadId, requestedRfcMessageId: params.messageId };
+    try {
+      if (params.threadId && response.data.threadId !== params.threadId) throw new Error("gmail_reply_thread_receipt_mismatch");
+      return await readFounderSentReceipt(acknowledgement, params, gmail);
+    } catch { throw new FounderSendReadbackError(acknowledgement); }
+  }
   if (params.threadId && response.data.threadId !== params.threadId) throw new Error("gmail_reply_thread_receipt_mismatch");
   return { messageId: response.data.id, threadId: response.data.threadId, rfcMessageId: params.messageId };
 }

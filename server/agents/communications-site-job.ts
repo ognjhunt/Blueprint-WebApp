@@ -1,7 +1,7 @@
 import { CommunicationsAgentsAPI, type CommunicationsCheckpoint } from "./communications-api";
 import { communicationsDigest, communicationsOutputSchema, FOUNDER_MAILBOX, FOUNDER_MAILBOX_ALIASES, isOptOut, authorText, type CommunicationsOutput, type VerifiedThread } from "./communications-contract";
 import { SITE_JOB_COMMUNICATIONS_PROFILE } from "./communications-site-job-profile";
-import { readFounderThread, sendFounderMessage } from "./communications-gmail";
+import { readFounderThread, sendFounderMessage, readFounderSentReceipt, FounderSendReadbackError } from "./communications-gmail";
 import { reserveCommunicationsDraft, recordCommunicationsDraftUsage, reconcileCommunicationsDraftCost } from "./communications-draft-budget";
 import { isEmailSuppressed, recordEmailSuppression } from "../utils/email-suppression";
 import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
@@ -20,6 +20,7 @@ export type SiteJobCommunicationsPorts = {
   api: Pick<CommunicationsAgentsAPI, "run" | "reconcileSaved">;
   readThread: (id: string) => Promise<VerifiedThread>;
   send: typeof sendFounderMessage;
+  readSentReceipt?: typeof readFounderSentReceipt;
   sendsEnabled: () => boolean;
   suppressed: (email: string) => Promise<boolean>;
   suppress: (email: string) => Promise<unknown>;
@@ -50,7 +51,7 @@ export function existingSiteJobCommunicationsPorts(db: FirebaseFirestore.Firesto
       return recordCommunicationsDraftUsage(db, jobId, digest, usage, Date.now());
     },
   });
-  return { api, readThread: readFounderThread, send: sendFounderMessage,
+  return { api, readThread: readFounderThread, send: sendFounderMessage, readSentReceipt: readFounderSentReceipt,
     sendsEnabled: () => authority ? communicationsDigest(resolveSiteJobRuntimeAuthorization(requestId, recipient)) === communicationsDigest(authority)
       : process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "true",
     ...(authority ? { assertRuntime: () => {
@@ -264,13 +265,16 @@ export async function sendReviewedSiteJobCommunication(db: FirebaseFirestore.Fir
   if (!ports.sendsEnabled()) fail("job_send_control_changed");
   ports.assertRuntime?.();
   try {
-    const receipt = await ports.send({ to: row.recipient, subject: row.output.subject, body: row.output.body,
+    const receipt = await ports.send({ verifySentReceipt: true, to: row.recipient, subject: row.output.subject, body: row.output.body,
       ...(row.outputHtml != null ? { html: row.outputHtml } : {}),
       assertSendAllowed: () => { if (!ports.sendsEnabled()) fail("job_send_control_changed"); ports.assertRuntime?.(); },
       messageId: `<blueprint-job-${id}@tryblueprint.io>`, ...(thread ? { threadId: thread.threadId, inReplyTo: incoming!.rfcMessageId } : {}) });
     await ref.set({ state: "sent", sendReceipt: receipt, sentAt: new Date(ports.now()).toISOString() }, { merge: true });
     return { sent: true, receipt };
-  } catch (error) { await ref.set({ state: "send_ack_unknown" }, { merge: true }); throw error; }
+  } catch (error) {
+    await ref.set({ state: "send_ack_unknown", ...(error instanceof FounderSendReadbackError ? { sendAcknowledgement: error.acknowledgement } : {}) }, { merge: true });
+    throw error;
+  }
 }
 
 /** Reads only the thread proved by the real agent-authored sent message. Replies
@@ -278,12 +282,49 @@ export async function sendReviewedSiteJobCommunication(db: FirebaseFirestore.Fir
 export async function refreshSiteJobReplies(db: FirebaseFirestore.Firestore, requestId: string, id: string, actor: string,
   ports = existingSiteJobCommunicationsPorts(db)) {
   if (!actor) fail("named_operator_required", 403);
-  const ref = db.doc(`inboundRequests/${requestId}/communications/${id}`), row = (await ref.get()).data();
+  const ref = db.doc(`inboundRequests/${requestId}/communications/${id}`);
+  let row: FirebaseFirestore.DocumentData = (await ref.get()).data() ?? fail("job_sent_thread_required");
   const loaded = await loadSiteJobCommunicationsContext(db, requestId);
-  if (!row?.sendReceipt || row.recipient !== loaded.context.recipient) fail("job_sent_thread_required");
-  const thread = await ports.readThread(row.sendReceipt.threadId); verifiedCustomerThread(thread, row.recipient);
-  const anchor = thread.messages.find(m => m.gmailMessageId === row.sendReceipt.messageId && m.rfcMessageId === row.sendReceipt.rfcMessageId
-    && m.from === FOUNDER_MAILBOX && m.to.length === 1 && m.to[0] === row.recipient && m.body.trim() === row.output.body.trim());
+  if (!row || !(row.sendReceipt || row.sendAcknowledgement) || row.recipient !== loaded.context.recipient) fail("job_sent_thread_required");
+  // Freeze the old canonical evidence before any awaited provider read.
+  const previousReceiptDigest = communicationsDigest(row.sendReceipt ?? null), previousAcknowledgementDigest = communicationsDigest(row.sendAcknowledgement ?? null);
+  const outputDigest = row.outputDigest, contextDigest = row.contextDigest, sendClaimDigest = communicationsDigest(row.sendClaim ?? null);
+  const expected = { to: row.recipient, subject: row.output.subject, body: row.output.body,
+    ...(row.outputHtml != null ? { html: row.outputHtml } : {}) };
+  const acknowledgement = row.sendReceipt ? { messageId: row.sendReceipt.messageId, threadId: row.sendReceipt.threadId,
+    requestedRfcMessageId: row.sendReceipt.requestedRfcMessageId ?? row.sendReceipt.rfcMessageId } : row.sendAcknowledgement;
+  const thread = await ports.readThread(acknowledgement.threadId); verifiedCustomerThread(thread, row.recipient);
+  const findAnchor = (receipt: any) => thread.messages.find(m => m.gmailMessageId === receipt.messageId && m.gmailThreadId === receipt.threadId
+    && m.rfcMessageId === receipt.rfcMessageId && m.from === FOUNDER_MAILBOX && m.to.length === 1 && m.to[0] === expected.to
+    && m.subject === expected.subject && m.body.replace(/\r\n/g, "\n") === expected.body.replace(/\r\n/g, "\n"));
+  let anchor = row.sendReceipt && findAnchor(row.sendReceipt);
+  if (!anchor) {
+    const frozenThread = row.input ? JSON.parse(row.input).emailThread as VerifiedThread | null : null;
+    const incoming = frozenThread?.messages.find(message => message.gmailMessageId === row.binding.inboundMessageId);
+    if (!row.input || !ports.readSentReceipt || loaded.context.captureConsentWithdrawn || !row.sendClaim
+      || row.sendClaim.outputDigest !== outputDigest || siteJobOutputDigest(row.output, row.outputHtml) !== outputDigest
+      || (frozenThread && (!incoming || acknowledgement.threadId !== frozenThread.threadId))) fail("job_sent_message_not_verified");
+    const receipt = await ports.readSentReceipt(acknowledgement, { ...expected, ...(incoming ? { inReplyTo: incoming.rfcMessageId } : {}) });
+    anchor = findAnchor(receipt);
+    if (!anchor || receipt.messageId !== acknowledgement.messageId || receipt.threadId !== acknowledgement.threadId
+      || receipt.requestedRfcMessageId !== acknowledgement.requestedRfcMessageId) fail("job_sent_message_not_verified");
+    row = await db.runTransaction(async tx => {
+      const [saved, job, brief, statements] = await Promise.all([tx.get(ref), tx.get(db.doc(`inboundRequests/${requestId}`)),
+        tx.get(db.doc(`siteTaskBriefs/${requestId}`)), tx.get(db.collection(`inboundRequests/${requestId}/customerStatements`).where("communicationId", "==", id).limit(1))]);
+      const current = saved.data();
+      if (communicationsDigest({ record: job.data(), brief: brief.data() ?? null }) !== loaded.sourceDigest) fail("job_context_changed");
+      if (!current || current.recipient !== expected.to || current.contextDigest !== contextDigest || current.outputDigest !== outputDigest
+        || communicationsDigest(current.sendClaim ?? null) !== sendClaimDigest || current.sendClaim?.outputDigest !== outputDigest || siteJobOutputDigest(current.output, current.outputHtml) !== outputDigest
+        || communicationsDigest(current.sendReceipt ?? null) !== previousReceiptDigest
+        || communicationsDigest(current.sendAcknowledgement ?? null) !== previousAcknowledgementDigest) fail("job_sent_message_not_verified");
+      // A retained statement's receipt binding is immutable, including legacy
+      // conversation copies. Never repair an anchor underneath admitted evidence.
+      if (!statements.empty || job.data()?.customerConversation?.some((statement: any) => statement.communicationId === id)) fail("job_sent_receipt_already_bound");
+      const update = { state: "sent", sendReceipt: receipt, sendReceiptReconciledAt: new Date(ports.now()).toISOString() };
+      tx.set(ref, update, { merge: true });
+      return { ...current, ...update };
+    });
+  }
   if (!anchor) fail("job_sent_message_not_verified");
   const replies = thread.messages.filter(m => m.from === row.recipient && Date.parse(m.receivedAt) > Date.parse(anchor.receivedAt)
     && (m.inReplyTo === anchor.rfcMessageId || m.references.includes(anchor.rfcMessageId)));
