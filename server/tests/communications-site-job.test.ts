@@ -39,11 +39,12 @@ function fixture() {
   return { db, output, agentOutput, ports, run, request };
 }
 describe("inbound job communications uses the existing agent and actual email evidence", () => {
-  it.each(["changed", "removed", "changed_input", "recomputed_legacy", "removed_whole_binding"])("refuses %s reviewed hello sender before send", async kind => {
+  it.each(["changed", "removed", "changed_input", "recomputed_legacy", "removed_whole_binding", "false_input", "zero_input", "null_input"])("refuses %s reviewed hello sender before send", async kind => {
     const f = fixture(), drafted = await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);
     const row = f.db.records.get(`inboundRequests/job-1/communications/${drafted.id}`);
     if (kind === "changed") row.binding.senderEmail = "nijel@tryblueprint.io";
     if (kind === "removed") delete row.binding.senderEmail;
+    if (["false_input", "zero_input", "null_input"].includes(kind)) { delete row.binding; delete row.id; row.input = kind === "false_input" ? false : kind === "zero_input" ? 0 : null; }
     if (kind === "removed_whole_binding") { delete row.binding; const input = JSON.parse(row.input); input.approvedSender = "nijel@tryblueprint.io"; delete input.servicePurpose; row.input = JSON.stringify(input); }
     if (kind === "recomputed_legacy") { delete row.binding.senderEmail; row.id = communicationsDigest(row.binding); const input = JSON.parse(row.input); input.approvedSender = "nijel@tryblueprint.io"; input.servicePurpose = row.binding; row.input = JSON.stringify(input); }
     if (kind === "changed_input") { const input = JSON.parse(row.input); input.approvedSender = "nijel@tryblueprint.io"; row.input = JSON.stringify(input); }

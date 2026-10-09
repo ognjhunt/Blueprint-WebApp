@@ -105,22 +105,25 @@ function siteJobOutputDigest(output: CommunicationsOutput, html?: string | null)
 }
 
 function siteJobSender(row: any, canonicalId: string): BlueprintMessageSender {
-  const sender = row?.binding?.senderEmail;
+  if (!row || typeof row !== "object" || Array.isArray(row)) fail("job_sender_binding_changed");
+  const complete = ["id", "input", "binding"].some(key => Object.hasOwn(row, key));
+  if (complete && (typeof row.input !== "string" || !row.input || !row.binding
+    || typeof row.binding !== "object" || Array.isArray(row.binding)
+    || row.id !== canonicalId || canonicalId !== communicationsDigest(row.binding))) fail("job_sender_binding_changed");
+  const sender = row.binding?.senderEmail;
   if (sender === undefined) {
     // Retained rows predate sender binding. Removing a new binding cannot turn
     // a reviewed hello message into a legacy founder message.
-    if ((row?.id || row?.input || row?.binding)
-      && (!row.binding || !row.input || row.id !== canonicalId || canonicalId !== communicationsDigest(row.binding))) fail("job_sender_binding_changed");
     if (row?.input) {
       let prior; try { prior = JSON.parse(row.input); } catch { fail("job_sender_binding_changed"); }
-      if (prior.approvedSender !== FOUNDER_MAILBOX
+      if (!prior || typeof prior !== "object" || Array.isArray(prior) || prior.approvedSender !== FOUNDER_MAILBOX
         || communicationsDigest(prior.servicePurpose ?? null) !== communicationsDigest(row.binding)) fail("job_sender_binding_changed");
     }
     return FOUNDER_MAILBOX;
   }
   if (sender !== CUSTOMER_JOB_MAILBOX || row.id !== canonicalId || canonicalId !== communicationsDigest(row.binding)) fail("job_sender_binding_changed");
   let input; try { input = JSON.parse(row.input); } catch { fail("job_sender_binding_changed"); }
-  if (input.approvedSender !== sender || communicationsDigest(input.servicePurpose) !== communicationsDigest(row.binding)) fail("job_sender_binding_changed");
+  if (!input || typeof input !== "object" || Array.isArray(input) || input.approvedSender !== sender || communicationsDigest(input.servicePurpose) !== communicationsDigest(row.binding)) fail("job_sender_binding_changed");
   return CUSTOMER_JOB_MAILBOX;
 }
 
