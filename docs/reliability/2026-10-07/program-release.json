@@ -3159,5 +3159,32 @@
       "original_ui_acceptance_provider": "new eight-hour master after explicit original-owner transfer"
     },
     "goal": "PARTIAL; reference quality and downstream acceptance unresolved"
+  },
+  "verified_checkpoint_20261009_0446": {
+    "web_pr": 998,
+    "head": "7486b3cb602bf1de1106ae4e0d7d01743e75ad30",
+    "merged_sha": "ecfafb18fd0871b465f8eb7663f8b98c7a196f0c",
+    "merged_at": "2026-10-09T04:46:17Z",
+    "pr_ci": 37884642182,
+    "required_passed": 9,
+    "optional_automatic_observation": "SKIPPED; not deployment",
+    "independent_source_review_sha256": "d317149e7e51e9114e5c5e3810e4f394cebfb48c7c9acea05991e726ed72f4a5",
+    "root_checkpoint_sha256": "ea6a425c93e855a0b781d80de6f3a7bcafe5749ac7b731cca1fc01302b1f5b67",
+    "main_ci": 37885432533,
+    "deployment": "pending",
+    "paid_or_config_or_send_actions": 0,
+    "premerge_extra_guard_failed": true,
+    "root_guard_error_retained": "Optional skipped check caused an exact-total-set assertion; shell did not halt. Required CI was SUCCESS before merge and separately reverified; future mutations must execute inside checked guard."
+  },
+  "reference_source_gap_audit_20261009": {
+    "receipt_sha256": "cd37271e586698c3bfebc9ef7a332fa27e651d70a2a2b9d539b3477be9ba641d",
+    "metadata_documents_pinned": 13,
+    "additional_admissible_real_sources": 0,
+    "current_real_sources": 1,
+    "minimum_source_shortfall": 11,
+    "current_human_timestamp_labels": 0,
+    "raw_clips_read": 0,
+    "scope": "Bounded specified repo fixtures/docs and authorized manifest only; excluded simulations and permission examples; not exhaustive private inventory",
+    "beta_quality": "PARTIAL; source scope and human labels unresolved"
   }
 }
