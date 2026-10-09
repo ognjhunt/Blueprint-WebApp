@@ -145,15 +145,23 @@ Launch-critical note:
 - `VITE_GOOGLE_APP_ID`
 - Optional: `VITE_GOOGLE_MAPS_API_KEY`
 
-The site-intake address field uses Google Places Autocomplete (New) when this
-browser key is configured at **build time**. Enable Maps JavaScript API and
-Places API (New) on its billing-enabled Google Cloud project. Restrict the key
-to those APIs and HTTP referrers `https://tryblueprint.io/*` and
-`https://www.tryblueprint.io/*` (plus an explicit preview/local origin when
-needed). Set the key on the Render **web service**, then rebuild through the
-normal CI-gated release; restarting alone cannot change Vite's bundled config.
-The field preloads Places, uses session tokens and structured country details,
-and retains keyless Photon suggestions and manual entry if Google is unavailable.
+The site-intake address field uses **server-side Places API (New)** through
+`/api/location-autocomplete`. It reads `GOOGLE_PLACES_API_KEY`, then the existing
+`GEMINI_API_KEY` / `GOOGLE_GENAI_API_KEY` (or their existing Gemini aliases) at
+runtime. A Gemini key works only when its billing-enabled Cloud project has
+Places API (New) enabled and the key's API/application restrictions permit
+server-side Places requests. The secret never enters the browser; **do not copy
+`GEMINI_API_KEY` into a `VITE_` variable**. No Maps JavaScript SDK or browser key
+is needed for this field. Other map components can still use the optional
+browser-restricted `VITE_GOOGLE_MAPS_API_KEY`.
+
+Address queries are rate-limited, bounded by provider timeouts, omitted from app
+request logs, and returned with `Cache-Control: no-store`. Autocomplete and the
+selected country's structured details share one session token. The field keeps
+keyless Photon suggestions and manual entry when Google is unavailable. The API
+returns only sanitized failure codes (`not_configured`, `api_not_enabled`,
+`key_expired`, `billing_disabled`, `request_denied`, `quota_exceeded`, or
+`provider_unavailable`) so a failed key can be diagnosed without disclosure.
 
 ### iOS App + App Clip (server)
 The capture link (`/capture-upload/:token`) opens the Blueprint App Clip on an

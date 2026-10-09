@@ -179,20 +179,15 @@ describe("SiteCaptureStart and the country", () => {
   });
 
   it("clears the prior inferred country while a new Google pick awaits details and ignores details after another edit", async () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
-    resetClientEnvCacheForTests();
     let resolveDetails: ((place: unknown) => void) | undefined;
-    vi.stubGlobal("google", { maps: { places: {
-      AutocompleteSuggestion: {
-        fetchAutocompleteSuggestions: async () => ({ suggestions: [{ placePrediction: {
-          text: { toString: () => "Berlin, Germany" },
-          toPlace: () => ({ fetchFields: () => new Promise((resolve) => { resolveDetails = resolve; }) }),
-        } }] }),
-      },
-      AutocompleteSessionToken: class {},
-    } } });
     try {
       signedIn({ workspaceType: "site_operator" }, []);
+      const previousFetch = fetchMock.getMockImplementation()!;
+      fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
+        if (url.startsWith("/api/location-autocomplete/country")) return { ok: true, json: () => new Promise((resolve) => { resolveDetails = resolve; }) };
+        if (url.startsWith("/api/location-autocomplete")) return { ok: true, json: async () => ({ suggestions: [{ label: "Berlin, Germany", placeId: "fixture-berlin" }] }) };
+        return previousFetch(url, init);
+      });
       await renderReady(<SiteCaptureStart />);
       await screen.findByText(/Saving to your workspace/);
       fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Slide the racks" } });
@@ -204,27 +199,21 @@ describe("SiteCaptureStart and the country", () => {
       expect(screen.queryByText(nonUsNotice)).toBeNull();
       fireEvent.submit(screen.getByRole("form"));
       expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
+      await waitFor(() => expect(resolveDetails).toBeTypeOf("function"));
       fireEvent.change(location, { target: { value: "Austin TX" } });
-      resolveDetails?.({ place: { addressComponents: [{ shortText: "DE", types: ["country"] }] } });
+      await act(async () => { resolveDetails?.({ countryCode: "DE" }); });
       await waitFor(expectInferredUnitedStates);
     } finally { vi.unstubAllEnvs(); }
   });
 
   it("recovers a denied Google country lookup by correcting the address", async () => {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
-    resetClientEnvCacheForTests();
     let resolveDetails: ((place: unknown) => void) | undefined;
-    vi.stubGlobal("google", { maps: { places: {
-      AutocompleteSuggestion: {
-        fetchAutocompleteSuggestions: async () => ({ suggestions: [{ placePrediction: {
-          text: { toString: () => "Warehouse" },
-          toPlace: () => ({ fetchFields: () => new Promise((resolve) => { resolveDetails = resolve; }) }),
-        } }] }),
-      },
-      AutocompleteSessionToken: class {},
-    } } });
-    fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => init?.method === "POST"
-      ? { ok: true, status: 200, json: async () => ({ captureUrl: "https://example.test/capture-upload/fixture.synthetic" }) } : photon([]));
+    fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
+      if (url.startsWith("/api/location-autocomplete/country")) return { ok: true, json: () => new Promise((resolve) => { resolveDetails = resolve; }) };
+      if (url.startsWith("/api/location-autocomplete")) return { ok: true, json: async () => ({ suggestions: [{ label: "Warehouse", placeId: "fixture-warehouse" }] }) };
+      return init?.method === "POST"
+        ? { ok: true, status: 200, json: async () => ({ captureUrl: "https://example.test/capture-upload/fixture.synthetic" }) } : photon([]);
+    });
     try {
       await renderReady(<SiteCaptureStart />);
       fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
@@ -233,8 +222,8 @@ describe("SiteCaptureStart and the country", () => {
       const location = document.querySelector("#start-location")!;
       fireEvent.change(location, { target: { value: "Warehouse" } });
       fireEvent.click(await screen.findByText("Warehouse"));
-      expect(resolveDetails).toBeTypeOf("function");
-      await act(async () => { resolveDetails!(null); });
+      await waitFor(() => expect(resolveDetails).toBeTypeOf("function"));
+      await act(async () => { resolveDetails!({ countryCode: null }); });
       fireEvent.submit(screen.getByRole("form"));
       expect(screen.getByText(/Add the country to the address/)).toBeInTheDocument();
       expect(postsTo("/api/inbound-request")).toHaveLength(0);
