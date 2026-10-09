@@ -34,7 +34,7 @@ import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding 
 import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
   validateWebsiteSponsoredProviderTerms,
   preparationSpendRequest, reserveWebsitePreparationSpend,
-  preparationSettlementRequest, settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
+  preparationSettlementRequest, settleWebsitePreparationSpend, retainedWebsiteScenePurpose, currentWebsiteSceneContext } from "../utils/websiteSceneSponsorship";
 import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand } from "../utils/taskEvaluationSceneIntake";
 import {
   enqueueTaskLifecycleNotification,
@@ -45,7 +45,7 @@ import { DEVELOPMENT_OFFERS, developmentOfferSchema } from "../utils/controlledD
 import { isCaptureOwnerPath, type CaptureOwnerBody } from "../utils/captureOwnerRawBody";
 import { observeWebsiteCaptureOwner } from "../utils/websiteCaptureOwnerObservation";
 import { withWebsiteOwnerDeps } from "../utils/websiteCaptureOwnerTransport";
-import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent } from "../utils/siteAssessmentPreparation";
+import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent, type PreparedAssessmentProposal } from "../utils/siteAssessmentPreparation";
 
 const router = Router();
 
@@ -83,7 +83,7 @@ async function persistReconstruction(
   captureId: string,
   record: WorldReconstructionRecord,
   requestId?: string | null,
-  contextEvidence?: { digest: string; captureBinding?: Record<string, any> },
+  contextEvidence?: { digest: string; captureBinding?: Record<string, any>; assessment?: PreparedAssessmentProposal | null },
 ) {
   if (!db) {
     return;
@@ -112,9 +112,10 @@ async function persistReconstruction(
       const brief = (await tx.get(db!.collection(TASK_BRIEFS_COLLECTION).doc(requestId))).data() as SiteTaskBriefRecord;
       const inventory = (await tx.get(db!.collection(TASK_ITEM_INVENTORY_COLLECTION).doc(requestId))).data() as TaskItemInventoryRecord | undefined;
       await assertWebsiteCaptureBindingInTransaction(tx, requestId, contextEvidence.captureBinding);
+      if (contextEvidence.assessment) await assertAssessmentPreparationCurrent(tx, contextEvidence.assessment, request ?? {}, {requestId, captureId});
       if (!brief || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
-        || projectWebsiteTaskContext(brief, projectWebsiteCaptureRights(request), { inventory, captureId,
-          captureBinding: contextEvidence.captureBinding }).context_digest !== contextEvidence.digest)
+        || currentWebsiteSceneContext({requestId, brief, record: request ?? {}, inventory, captureId,
+          captureBinding: contextEvidence.captureBinding, assessmentPreparationProposal: contextEvidence.assessment?.proposal }).context_digest !== contextEvidence.digest)
         throw new Error("website_visual_scene_context_changed");
       tx.set(ref, value, { merge: true });
     });
@@ -199,12 +200,14 @@ router.post("/creator-captures/:captureId/visual-scene", createPipelineSyncRateL
       const captureBinding = await resolveWebsiteCaptureBinding(body.request_id, body.scene_id, captureId);
       const brief = await getBrief(body.request_id);
       if (!brief) return res.status(404).json({ code: "task_brief_missing" });
-      const context = projectWebsiteTaskContext(brief, await loadWebsiteCaptureRights(body.request_id), {
-        inventory: await loadWebsiteTaskInventory(body.request_id), captureId, captureBinding });
-      if (!context.confirmed || context.context_digest !== body.task_context_digest
+      if (!db) return res.status(503).json({ code: "website_visual_scene_store_unavailable" });
+      const current = (await db.collection("inboundRequests").doc(body.request_id).get()).data() ?? {};
+      const assessment = retainedWebsiteScenePurpose(current) ? await loadAssessmentPreparationProposal(body.request_id, captureId) : null;
+      const context = currentWebsiteSceneContext({requestId: body.request_id, brief, record: current,
+        inventory: await loadWebsiteTaskInventory(body.request_id), captureId, captureBinding, assessmentPreparationProposal: assessment?.proposal });
+      if (context.context_digest !== body.task_context_digest
           || !context.capture_rights.derived_scene_generation_allowed)
         return res.status(409).json({ code: "website_visual_scene_context_changed" });
-      if (!db) return res.status(503).json({ code: "website_visual_scene_store_unavailable" });
       const record: WorldReconstructionRecord = {
         state: "ready", operationId: body.operation_id, worldId: body.world_id, model: body.model,
         preview: null, frameSelection: null, blocker: null, failureReason: null, updatedAtIso: new Date().toISOString(),
@@ -212,12 +215,12 @@ router.post("/creator-captures/:captureId/visual-scene", createPipelineSyncRateL
           thumbnailUrl: body.thumbnail_url, panoUrl: body.pano_url, caption: null, spzUrlsByDetail: {},
           colliderMeshUrl: null, splatPlyUrl: null, meshGlbUrl: null, meshExportOperationId: null },
       };
-      await persistReconstruction(captureId, record, body.request_id, { digest: body.task_context_digest, captureBinding });
+      await persistReconstruction(captureId, record, body.request_id, { digest: body.task_context_digest, captureBinding, assessment });
       await notifySceneReady(captureId, record);
       res.setHeader("Cache-Control", "no-store");
       return res.json({ state: "ready", world_id: body.world_id, task_context_digest: body.task_context_digest });
     } catch (error) {
-      if (error instanceof Error && /^(website_visual_scene_context_changed|task_context_capture_mismatch|website_capture_binding_)/.test(error.message))
+      if (error instanceof Error && /^(website_visual_scene_context_changed|website_scene_|website_assessment_preparation_|website_task_context_|source_revoked|consent_expired|task_context_capture_mismatch|website_capture_binding_)/.test(error.message))
         return res.status(409).json({ code: error.message });
       return res.status(503).json({ code: "website_visual_scene_unavailable" });
     }
@@ -228,7 +231,7 @@ const sponsoredSceneRequest = z.object({
   submission_id: z.string(), owner: z.object({ user_id: z.string(), organization_id: z.string() }).strict(),
   source: z.object({ kind: z.enum(["gaussian_splat", "mesh"]), binding_id: z.string(), content_digest: z.string() }).strict(),
   task: sceneIntakeCommand.shape.task, execution: sceneIntakeCommand.shape.execution,
-  consent: sceneIntakeCommand.shape.consent.extend({ rights_reference: z.string(),
+  consent: sceneIntakeCommand.shape.consent.extend({ task_confirmed: z.boolean(), rights_reference: z.string(),
     accepted_by: z.string(), accepted_at_epoch: z.number().finite().positive() }).strict(),
 }).strict();
 
@@ -238,11 +241,16 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
   `/creator-captures/:captureId/${operation}`, createPipelineSyncRateLimiter(), guard,
   async (req: Request, res: Response) => {
     const parsed = z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
-      scene_id: z.string(), ...(operation === "prepared-scene" ? { request: sponsoredSceneRequest } : {}),
+      scene_id: z.string(),
+      ...(operation === "scene-sponsorship" ? { purpose: z.literal("scene_preparation").optional(),
+        expected_task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/).optional(), create: z.literal(false).optional() } : {}),
+      ...(operation === "prepared-scene" ? { request: sponsoredSceneRequest } : {}),
       ...(operation === "preparation-spend" ? { spend: preparationSpendRequest } : {}),
       ...(operation === "preparation-settlement" ? { settlement: preparationSettlementRequest } : {}) })
       .strict().safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ code: "website_scene_request_invalid" });
+    if (!parsed.success || operation === "scene-sponsorship" && req.body.create === false
+      && (req.body.purpose !== "scene_preparation" || !req.body.expected_task_context_digest))
+      return res.status(400).json({ code: "website_scene_request_invalid" });
     const { request_id: requestId, scene_id: sceneId } = parsed.data;
     if (sceneId !== `site-${requestId}`) return res.status(409).json({ code: "task_context_capture_mismatch" });
     try {
@@ -253,7 +261,8 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       // it grants no new processing or dispatch authority.
       if (operation === "preparation-settlement") return res.json(await settleWebsitePreparationSpend(requestId,
         preparationSettlementRequest.parse(req.body.settlement)));
-      const authority = await loadWebsiteSceneSponsorship(requestId, operation === "scene-sponsorship", req.params.captureId);
+      const authority = await loadWebsiteSceneSponsorship(requestId, operation === "scene-sponsorship" && req.body.create !== false, req.params.captureId,
+        operation === "scene-sponsorship" ? { purpose: req.body.purpose, expected_task_context_digest: req.body.expected_task_context_digest } : undefined);
       res.setHeader("Cache-Control", "no-store");
       if (operation === "scene-sponsorship") return res.json(authority);
       if (operation === "preparation-spend") return res.json(await reserveWebsitePreparationSpend(requestId,
@@ -279,8 +288,9 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         await assertWebsiteCaptureBindingInTransaction(transaction, requestId, preparedBinding);
         await assertAssessmentPreparationCurrent(transaction, assessment, current ?? {}, {requestId, captureId: req.params.captureId});
         if (!projectWebsiteCaptureRights(current).derived_scene_generation_allowed) throw new Error("source_revoked");
-        if (!currentBrief || projectWebsiteTaskContext(currentBrief, projectWebsiteCaptureRights(current), {
-          inventory: currentInventory, captureId: req.params.captureId, captureBinding: preparedBinding }).context_digest !== authority.task_context_digest)
+        if (!currentBrief || currentWebsiteSceneContext({requestId, brief: currentBrief, record: current ?? {},
+          inventory: currentInventory, captureId: req.params.captureId, captureBinding: preparedBinding,
+          assessmentPreparationProposal: assessment?.proposal }).context_digest !== authority.task_context_digest)
           throw new Error("website_task_context_changed");
         if (prior.exists) {
           if (prior.data()?.request_digest !== sceneDigest(request)) throw new Error("idempotency_conflict");
@@ -329,6 +339,8 @@ router.post("/creator-captures/:captureId/task-item-evidence", createPipelineSyn
     const body = parsed.data, captureId = String(req.params.captureId);
     try {
       const captureBinding = await resolveWebsiteCaptureBinding(body.request_id, body.scene_id, captureId);
+      const before = (await db.collection("inboundRequests").doc(body.request_id).get()).data();
+      const assessment = retainedWebsiteScenePurpose(before) ? await loadAssessmentPreparationProposal(body.request_id, captureId) : null;
       await db.runTransaction(async tx => {
         const request = (await tx.get(db!.collection("inboundRequests").doc(body.request_id))).data();
         const brief = (await tx.get(db!.collection(TASK_BRIEFS_COLLECTION).doc(body.request_id))).data() as SiteTaskBriefRecord;
@@ -337,8 +349,10 @@ router.post("/creator-captures/:captureId/task-item-evidence", createPipelineSyn
         await assertWebsiteCaptureBindingInTransaction(tx, body.request_id, captureBinding);
         if (!brief || !inventory || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed)
           throw new Error("source_revoked");
-        const context = projectWebsiteTaskContext(brief, projectWebsiteCaptureRights(request), { inventory, captureId, captureBinding });
-        if (!context.confirmed || context.context_digest !== body.task_context_digest) throw new Error("website_item_evidence_context_changed");
+        if (assessment) await assertAssessmentPreparationCurrent(tx, assessment, request ?? {}, {requestId: body.request_id, captureId});
+        const context = currentWebsiteSceneContext({requestId: body.request_id, brief, record: request ?? {}, inventory,
+          captureId, captureBinding, assessmentPreparationProposal: assessment?.proposal });
+        if (context.context_digest !== body.task_context_digest) throw new Error("website_item_evidence_context_changed");
         if (new Set(body.items.map(row => row.item_id)).size !== body.items.length
           || body.items.length !== inventory.items.length) throw new Error("website_item_evidence_items_changed");
         for (const row of body.items) {
@@ -355,7 +369,7 @@ router.post("/creator-captures/:captureId/task-item-evidence", createPipelineSyn
       return res.json({ ok: true, evidence_digest: body.evidence_digest });
     } catch (error) {
       const code = error instanceof Error ? error.message : "website_item_evidence_unavailable";
-      return res.status(/^(source_revoked|task_context_capture_mismatch|website_item_evidence_|website_capture_binding_)/.test(code) ? 409 : 503).json({ code });
+      return res.status(/^(source_revoked|consent_expired|website_scene_|website_assessment_preparation_|website_task_context_|task_context_capture_mismatch|website_item_evidence_|website_capture_binding_)/.test(code) ? 409 : 503).json({ code });
     }
   });
 
@@ -435,7 +449,7 @@ router.post(
   guard,
   async (req: Request, res: Response) => {
     const parsed = z.object({ request_id: z.string().trim().min(1).max(200),
-      scene_id: z.string().trim().min(1).max(220) }).strict().safeParse(req.body);
+      scene_id: z.string().trim().min(1).max(220), purpose: z.literal("scene_preparation").optional() }).strict().safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ code: "task_context_request_invalid" });
     const { request_id: requestId, scene_id: sceneId } = parsed.data;
     if (sceneId !== `site-${requestId}`) {
@@ -448,7 +462,7 @@ router.post(
       res.setHeader("Cache-Control", "no-store");
       const inventory = await loadWebsiteTaskInventory(requestId);
       return res.json(projectWebsiteTaskContext(brief, await loadWebsiteCaptureRights(requestId), {
-        inventory, captureId: req.params.captureId, captureBinding }));
+        inventory, captureId: req.params.captureId, captureBinding, purpose: parsed.data.purpose }));
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
       if (code === "task_context_capture_mismatch" || code.startsWith("website_capture_binding_"))

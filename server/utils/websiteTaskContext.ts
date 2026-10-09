@@ -35,9 +35,10 @@ export async function loadWebsiteCaptureRights(requestId: string) {
 
 /** Minimal, current task snapshot. Never forwards owner contact or identity. */
 export function projectWebsiteTaskContext(brief: SiteTaskBriefRecord, captureRights?: ReturnType<typeof projectWebsiteCaptureRights>,
-  evidence?: { inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, unknown> }) {
+  evidence?: { inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, unknown>; purpose?: "scene_preparation" }) {
   const value = {
     schema_version: "website_site_task_context.v1",
+    ...(evidence?.purpose ? { purpose: evidence.purpose } : {}),
     request_id: brief.requestId,
     scene_id: `site-${brief.requestId}`,
     capture_id: evidence?.captureId ?? `walkthrough-${brief.requestId}`,

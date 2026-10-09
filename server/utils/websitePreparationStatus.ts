@@ -8,12 +8,14 @@ import { strictBoundedProofJson } from "./strictBoundedProofJson";
 import { observeWebsiteCaptureOwner } from "./websiteCaptureOwnerObservation";
 import { withWebsiteOwnerDeps } from "./websiteCaptureOwnerTransport";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { TASK_BRIEFS_COLLECTION, type SiteTaskBriefRecord } from "./siteTaskBrief";
 import { TASK_ITEM_INVENTORY_COLLECTION, type TaskItemInventoryRecord } from "./taskItemInventory";
 import { buildBrowserDelivery } from "./websiteCaptureDelivery";
 import { verifiedPendingManifest, verifiedPendingMarker } from "./websiteBrowserUploadStatus";
 import type { BrowserPending } from "./websiteBrowserPending";
+import { retainedWebsiteScenePurpose, currentWebsitePreparationStatusContext } from "./websiteSceneSponsorship";
+import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent, type PreparedAssessmentProposal } from "./siteAssessmentPreparation";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/);
 const sceneId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,124}$/);
@@ -45,7 +47,8 @@ export interface StoredWebsitePreparation {
   selector: WebsitePreparationSelector; status: WebsitePreparationReceipt;
   notification: { eventId: string; state: "pending" | "enqueued" } | null;
 }
-export interface PreparationAuthority { fingerprint: string; binding?: Record<string, any>; owner: string }
+export interface PreparationAuthority { fingerprint: string; binding?: Record<string, any>; owner: string | null;
+  preparation?: PreparedAssessmentProposal | null; sponsorshipDigest?: string }
 export interface WebsitePreparationDeps {
   readLedger(selector: WebsitePreparationSelector, signal?: AbortSignal): Promise<unknown>;
   verifyCurrent(selector: WebsitePreparationSelector, transaction?: FirebaseFirestore.Transaction, signal?: AbortSignal): Promise<PreparationAuthority>;
@@ -133,9 +136,14 @@ async function verifyCurrent(selector: WebsitePreparationSelector, transaction?:
   };
   const session = await get("captureUploadSessions", selector.capture_id);
   if (!session || session.browser_upload_reservation || session.browser_stored_upload) throw unavailable();
+  const request = await get("inboundRequests", selector.request_id);
+  const purpose = retainedWebsiteScenePurpose(request);
+  const preparation = purpose ? await loadAssessmentPreparationProposal(selector.request_id, selector.capture_id) : null;
+  if (transaction && purpose) await assertAssessmentPreparationCurrent(transaction, preparation, request ?? {},
+    {requestId: selector.request_id, captureId: selector.capture_id});
   const observed = await withWebsiteOwnerDeps(3_000, deps => observeWebsiteCaptureOwner({
     request_id: selector.request_id, scene_id: selector.scene_id, capture_id: selector.capture_id,
-    completion_marker_generation: selector.completion_marker_generation}, deps));
+    completion_marker_generation: selector.completion_marker_generation, ...(purpose ? {purpose} : {})}, deps));
   if (!observed.capture_rights.derived_scene_generation_allowed
     || observed.producer_delivery.delivery_key !== selector.producer_delivery_key) throw unavailable();
   // Historical pinned observer is deliberately insufficient: compare latest canonical marker and current session source.
@@ -165,14 +173,16 @@ async function verifyCurrent(selector: WebsitePreparationSelector, transaction?:
   const binding = await resolveWebsiteCaptureBinding(selector.request_id, selector.scene_id, selector.capture_id);
   if (transaction) await assertWebsiteCaptureBindingInTransaction(transaction, selector.request_id, binding);
   const brief = await get(TASK_BRIEFS_COLLECTION, selector.request_id) as SiteTaskBriefRecord;
-  const request = await get("inboundRequests", selector.request_id);
   const inventory = await get(TASK_ITEM_INVENTORY_COLLECTION, selector.request_id) as TaskItemInventoryRecord;
   if (projectWebsiteCaptureRights(request).consent_revoked) throw new Error("website_preparation_authority_ended");
-  if (!brief?.confirmedAtIso || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
-    || request?.account_owner_uid !== observed.capture_owner.user_id
-    || projectWebsiteTaskContext(brief, projectWebsiteCaptureRights(request), {inventory, captureId: selector.capture_id,
-      captureBinding: binding}).context_digest !== selector.task_context_digest) throw unavailable();
-  return {fingerprint: sourceFingerprint(session), binding, owner: observed.capture_owner.user_id};
+  const owner = typeof request?.account_owner_uid === "string" ? request.account_owner_uid : null;
+  if (!brief || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
+    || observed.purpose !== purpose || (purpose ? observed.capture_owner?.user_id ?? null : observed.capture_owner?.user_id) !== owner
+    || !purpose && owner === null
+    || currentWebsitePreparationStatusContext({requestId: selector.request_id, brief, record: request ?? {}, inventory,
+      captureId: selector.capture_id, captureBinding: binding, assessmentPreparationProposal: preparation?.proposal}).context_digest !== selector.task_context_digest) throw unavailable();
+  return {fingerprint: sourceFingerprint(session), binding, owner, preparation,
+    ...(purpose ? {sponsorshipDigest: request!.website_scene_sponsorship.authority_digest} : {})};
 }
 const defaultDeps: WebsitePreparationDeps = {
   readLedger: readCanonicalLedger, verifyCurrent,
@@ -189,10 +199,15 @@ const defaultDeps: WebsitePreparationDeps = {
       const brief = (await tx.get(store.collection(TASK_BRIEFS_COLLECTION).doc(selector.request_id))).data() as SiteTaskBriefRecord;
       const inventory = (await tx.get(store.collection(TASK_ITEM_INVENTORY_COLLECTION).doc(selector.request_id))).data() as TaskItemInventoryRecord;
       await assertWebsiteCaptureBindingInTransaction(tx, selector.request_id, authority.binding);
-      if (!session || sourceFingerprint(session) !== authority.fingerprint || !brief?.confirmedAtIso
-        || request?.account_owner_uid !== authority.owner || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
-        || projectWebsiteTaskContext(brief, projectWebsiteCaptureRights(request), {inventory, captureId: selector.capture_id,
-          captureBinding: authority.binding}).context_digest !== selector.task_context_digest) throw unavailable();
+      if (authority.preparation) await assertAssessmentPreparationCurrent(tx, authority.preparation, request ?? {},
+        {requestId: selector.request_id, captureId: selector.capture_id});
+      const owner = typeof request?.account_owner_uid === "string" ? request.account_owner_uid : null;
+      if (!session || sourceFingerprint(session) !== authority.fingerprint || !brief
+        || owner !== authority.owner || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
+        || authority.sponsorshipDigest !== undefined && request?.website_scene_sponsorship?.authority_digest !== authority.sponsorshipDigest
+        || currentWebsitePreparationStatusContext({requestId: selector.request_id, brief, record: request ?? {}, inventory,
+          captureId: selector.capture_id, captureBinding: authority.binding,
+          assessmentPreparationProposal: authority.preparation?.proposal}).context_digest !== selector.task_context_digest) throw unavailable();
       const preparation = mergeWebsitePreparationStatus(parseStored(session.website_preparation), selector, status);
       tx.set(ref, {website_preparation: preparation,
         website_preparation_notification_pending: preparation.notification?.state === "pending"}, {merge: true});

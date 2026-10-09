@@ -1,8 +1,9 @@
-/** Exact, bounded parser for Pipeline's four-field capture-owner observation request. */
+/** Exact, bounded parser for Pipeline's capture-owner observation request. */
 import express, { type Request, type RequestHandler } from "express";
 
 const pathPattern = /^\/api\/internal\/pipeline\/creator-captures\/[A-Za-z0-9._-]+\/capture-owner\/?$/;
-const keys = new Set(["request_id", "scene_id", "completion_marker_generation", "remaining_timeout_ms"]);
+const requiredKeys = ["request_id", "scene_id", "completion_marker_generation", "remaining_timeout_ms"];
+const keys = new Set([...requiredKeys, "purpose"]);
 const raw = express.raw({ type: "application/json", limit: 4096, inflate: false });
 
 export interface CaptureOwnerBody {
@@ -10,6 +11,7 @@ export interface CaptureOwnerBody {
   scene_id: string;
   completion_marker_generation: string;
   remaining_timeout_ms: number;
+  purpose?: "scene_preparation";
 }
 
 export function isCaptureOwnerPath(path: string): boolean { return pathPattern.test(path); }
@@ -63,13 +65,14 @@ export function decodeCaptureOwnerFlatJson(text: string): CaptureOwnerBody {
     if (text[at] === "}") throw new Error("capture_owner_json_invalid");
   }
   white();
-  if (at !== text.length || seen.size !== keys.size) throw new Error("capture_owner_json_invalid");
+  if (at !== text.length || requiredKeys.some(key => !seen.has(key))) throw new Error("capture_owner_json_invalid");
   const value = fields as unknown as CaptureOwnerBody;
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(value.request_id)
       || value.scene_id !== `site-${value.request_id}`
       || !/^[1-9][0-9]{0,19}$/.test(value.completion_marker_generation)
       || !Number.isInteger(value.remaining_timeout_ms)
-      || value.remaining_timeout_ms < 1 || value.remaining_timeout_ms > 10_000) {
+      || value.remaining_timeout_ms < 1 || value.remaining_timeout_ms > 10_000
+      || value.purpose !== undefined && value.purpose !== "scene_preparation") {
     throw new Error("capture_owner_json_invalid");
   }
   return value;
