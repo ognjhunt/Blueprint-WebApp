@@ -609,3 +609,9 @@ stale refresh, queue races/bounded recovery, actual thread correlation/injection
 newer opt-out, exact approval races, send suppression/identity races, Gmail
 permissions/header parsing and lost-ACK/no-resend behavior. No live emails,
 provider sessions or Gmail drafts were created by tests.
+
+### Customer-job sender and signature
+
+New customer-job messages freeze `hello@tryblueprint.io` in the reviewed input and job identity. They use the existing authenticated Nijel Gmail mailbox, require Google's accepted custom sendAs alias at send and receipt readback, and send `Blueprint <hello@tryblueprint.io>` with the same Reply-To. Personal outreach retains Nijel as its sender. Existing sent messages, receipts and legacy founder anchors are never relabeled. Question format v2 reuses the existing escaped founder-signature formatter; its rendered plain and HTML content remain part of the reviewed output digest.
+
+Source installation does not establish live mail readiness. Before enabling an independently authorized customer send, retain read-only evidence of the exact existing mailbox, accepted hello alias and monitored hello-to-owner-inbox delivery route; sendAs acceptance alone does not prove inbound routing. Missing alias/settings permission, unavailable or expired existing OAuth authority, or an unverified route is a readiness blocker. This change creates no mailbox, DNS record, credential, grant, send permission or test email. Replies are read only through the exact provider/RFC sent anchor for that job, with the existing recipient, opt-out and immutable statement checks.

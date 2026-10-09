@@ -1,7 +1,7 @@
 import { google, type gmail_v1 } from "googleapis";
 import { createHash } from "node:crypto";
 import { extractHeader, extractPlainTextBody } from "../utils/human-reply-gmail";
-import { FOUNDER_MAILBOX, type VerifiedThread, type ThreadMessage, FOUNDER_THREAD_MESSAGE_LIMIT } from "./communications-contract";
+import { FOUNDER_MAILBOX, CUSTOMER_JOB_MAILBOX, type VerifiedThread, type ThreadMessage, FOUNDER_THREAD_MESSAGE_LIMIT } from "./communications-contract";
 import { readFounderCredential, requireFounderSendCapability } from "./communications-oauth-store";
 import { FOUNDER_GMAIL_BINDING_KEYS } from "./communications-connection";
 
@@ -31,6 +31,22 @@ export async function verifyFounderMailbox(gmail?: gmail_v1.Gmail) {
     throw new Error("founder_sender_unverified_or_permission_missing");
   }
   return { mailbox: FOUNDER_MAILBOX, sender: FOUNDER_MAILBOX };
+}
+
+export type BlueprintMessageSender = typeof FOUNDER_MAILBOX | typeof CUSTOMER_JOB_MAILBOX;
+function messageSender(value?: BlueprintMessageSender): BlueprintMessageSender {
+  if (value === undefined || value === FOUNDER_MAILBOX) return FOUNDER_MAILBOX;
+  if (value === CUSTOMER_JOB_MAILBOX) return CUSTOMER_JOB_MAILBOX;
+  throw new Error("blueprint_sender_not_allowed");
+}
+/** Existing owner inbox only. An allowed alias is not verification evidence. */
+export async function verifyCustomerJobSender(gmail?: gmail_v1.Gmail) {
+  gmail ??= await existingFounderGmail();
+  await verifyFounderMailbox(gmail);
+  const aliases = await gmail.users.settings.sendAs.list({ userId: "me" });
+  if (!aliases.data.sendAs?.some(entry => entry.sendAsEmail?.trim().toLowerCase() === CUSTOMER_JOB_MAILBOX
+    && entry.verificationStatus === "accepted")) throw new Error("customer_job_sender_unverified_or_permission_missing");
+  return { mailbox: FOUNDER_MAILBOX, sender: CUSTOMER_JOB_MAILBOX };
 }
 
 export function addresses(value: string | null): string[] {
@@ -119,9 +135,11 @@ export class FounderSendReadbackError extends Error {
 /** Read only the provider-acknowledged message, never search or resend. RFC IDs
  * may be rewritten by Gmail; the reviewed MIME content and provider IDs cannot. */
 export async function readFounderSentReceipt(acknowledgement: FounderSendAcknowledgement,
-  expected: { to: string; subject: string; body: string; html?: string; inReplyTo?: string }, gmail?: gmail_v1.Gmail) {
+  expected: { to: string; subject: string; body: string; html?: string; inReplyTo?: string; sender?: BlueprintMessageSender }, gmail?: gmail_v1.Gmail) {
   gmail ??= await existingFounderGmail();
-  await verifyFounderMailbox(gmail);
+  const sender = messageSender(expected.sender);
+  if (sender === CUSTOMER_JOB_MAILBOX) await verifyCustomerJobSender(gmail);
+  else await verifyFounderMailbox(gmail);
   const message = (await gmail.users.messages.get({ userId: "me", id: acknowledgement.messageId, format: "full" })).data;
   const headers = message.payload?.headers, rfcMessageId = extractHeader(headers, "Message-ID");
   const parts = (payload: gmail_v1.Schema$MessagePart | undefined | null, kind: string): string[] => !payload ? []
@@ -131,7 +149,8 @@ export async function readFounderSentReceipt(acknowledgement: FounderSendAcknowl
   const normalize = (value: string) => value.replace(/\r\n/g, "\n");
   if (message.id !== acknowledgement.messageId || message.threadId !== acknowledgement.threadId || !message.labelIds?.includes("SENT")
     || !rfcMessageId || !/^<[^<>\s]+>$/.test(rfcMessageId)
-    || addresses(extractHeader(headers, "From")).join() !== FOUNDER_MAILBOX
+    || addresses(extractHeader(headers, "From")).join() !== sender
+    || (sender === CUSTOMER_JOB_MAILBOX && addresses(extractHeader(headers, "Reply-To")).join() !== sender)
     || addresses(extractHeader(headers, "To")).join() !== expected.to
     || extractHeader(headers, "Cc") || extractHeader(headers, "Bcc")
     || subjectText(extractHeader(headers, "Subject")) !== expected.subject
@@ -145,16 +164,19 @@ export async function sendFounderMessage(params: {
   to: string; subject: string; body: string; html?: string; messageId: string; threadId?: string; inReplyTo?: string;
   assertSendAllowed?: () => void;
   verifySentReceipt?: boolean;
+  sender?: BlueprintMessageSender;
 }, gmail?: gmail_v1.Gmail) {
   if (!gmail) await requireFounderSendCapability();
   gmail ??= await existingFounderGmail();
-  await verifyFounderMailbox(gmail);
+  const sender = messageSender(params.sender);
+  if (sender === CUSTOMER_JOB_MAILBOX) await verifyCustomerJobSender(gmail);
+  else await verifyFounderMailbox(gmail);
   for (const header of [params.to, params.subject, params.messageId, params.inReplyTo ?? ""]) {
     if (/[\r\n]/.test(header)) throw new Error("email_header_injection");
   }
   const boundary = `blueprint-${createHash("sha256").update(params.messageId).digest("hex")}`;
   const headers = [
-    `From: Nijel Hunt <${FOUNDER_MAILBOX}>`, `To: ${params.to}`, `Reply-To: ${FOUNDER_MAILBOX}`,
+    `From: ${sender === CUSTOMER_JOB_MAILBOX ? "Blueprint" : "Nijel Hunt"} <${sender}>`, `To: ${params.to}`, `Reply-To: ${sender}`,
     `Message-ID: ${params.messageId}`, `Subject: =?UTF-8?B?${Buffer.from(params.subject).toString("base64")}?=`,
     "MIME-Version: 1.0",
     ...(params.html !== undefined ? [`Content-Type: multipart/alternative; boundary="${boundary}"`]
