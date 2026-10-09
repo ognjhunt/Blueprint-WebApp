@@ -308,7 +308,7 @@ export async function refreshSiteJobReplies(db: FirebaseFirestore.Firestore, req
       }
       // Upgrade legacy records only from a fresh verified thread read, and
       // never overwrite a row already admitted to an assessment's context.
-      if (assessmentCustomerStatementRefs(current).some(value => value.statement_id === statementRef.id)) fail("job_sent_message_not_verified");
+      if (prior?.assessmentAdmission || assessmentCustomerStatementRefs(current).some(value => value.statement_id === statementRef.id)) fail("job_sent_message_not_verified");
       tx.set(statementRef, statement);
       const conversation = Array.isArray(current.customerConversation) ? current.customerConversation : [];
       const update: Record<string, unknown> = { customerConversation: [...conversation.filter(value => value?.messageId !== statement.messageId).slice(-19), statement],

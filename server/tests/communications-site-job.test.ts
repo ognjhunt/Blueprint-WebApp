@@ -236,6 +236,67 @@ describe("inbound job communications uses the existing agent and actual email ev
       expect(wake).toHaveBeenCalledTimes(1);
     } finally { wake.mockRestore(); }
   });
+  it("does not re-admit old replies after the model's 20-reference window rolls across sent questions", async () => {
+    vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "true");
+    const queue = await import("../utils/siteAssessmentQueue"), wake = vi.spyOn(queue, "tickSiteAssessments").mockResolvedValue();
+    try {
+      const f = fixture(), raw = f.db.records.get("inboundRequests/job-1");
+      raw.request.buyerType = "site_operator";
+      raw.request.consent_attestation = { granted: true, statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: "2026-10-08T17:00:00Z" };
+      const pending: BrowserPending = { schema_version: "website_browser_pending.v1", request_id: "job-1", scene_id: "site-job-1",
+        capture_id: "walkthrough-job-1", state: "published", completed_at_iso: "2026-10-08T17:00:00Z",
+        video: { object_name: "scenes/site-job-1/captures/walkthrough-job-1/raw/walkthrough.mp4", generation: "31", size_bytes: 7, crc32c: "AAAAAA==" },
+        manifest: { object_name: "scenes/site-job-1/captures/walkthrough-job-1/raw/manifest.json", generation: "32", size_bytes: 500,
+          crc32c: "AAAAAA==", sha256: `sha256:${"a".repeat(64)}` } };
+      const source = browserPendingDecisionKey(pending);
+      raw.capture_privacy_source_bound_decision = { capture_id: pending.capture_id, proceeded: true, eligibility: "unscreened", producer_source: { kind: "browser_pending", key: source } };
+      const context = advisoryContextDigest(raw, f.db.records.get("siteTaskBriefs/job-1")), initialId = advisoryJobId("job-1", source, context);
+      raw.site_advisory = { job_id: initialId, source_key: source, context_digest: context, state: "completed" };
+      f.db.records.set(`siteAssessmentJobs/${initialId}`, { schema_version: "site_assessment_job.v1", request_id: "job-1", capture_id: pending.capture_id,
+        source_key: source, context_digest: context, scene_id: pending.scene_id, state: "completed", run_id: "prior-assessment", claim_id: "original-claim" });
+      f.db.records.set("agentRuns/prior-assessment", { status: "completed", task_kind: "site_assessment" });
+      f.db.records.set("captureCoverageReviews/historical/calls/unknown", { state: "unknown", cost_estimate_usd: null });
+      f.db.records.set(`captureUploadSessions/${pending.capture_id}`, { browser_pending_delivery: pending });
+      const preserved = JSON.stringify([f.db.records.get(`siteAssessmentJobs/${initialId}`), f.db.records.get("agentRuns/prior-assessment"),
+        f.db.records.get("captureCoverageReviews/historical/calls/unknown")]);
+      const drafted = await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);
+      const sent = await sendReviewedSiteJobCommunication(f.db, "job-1", drafted.id, "operator-1", { expectedContextDigest: drafted.contextDigest, expectedOutputDigest: drafted.outputDigest, reviewedSend: true }, f.ports);
+      const anchor = { gmailMessageId: "out-1", gmailThreadId: "thread-1", rfcMessageId: sent.receipt.rfcMessageId, from: "nijel@tryblueprint.io",
+        to: ["site@example.com"], subject: f.output.subject, body: f.output.body, receivedAt: "2026-10-08T17:01:00Z", inReplyTo: null, references: [] };
+      const secondId = "e".repeat(64), secondAnchor = { ...anchor, gmailMessageId: "out-2", rfcMessageId: "<out-2@tryblueprint.io>", receivedAt: "2026-10-08T17:01:30Z" };
+      f.db.records.set(`inboundRequests/job-1/communications/${secondId}`, { recipient: "site@example.com", output: f.output,
+        sendReceipt: { threadId: "thread-1", messageId: "out-2", rfcMessageId: secondAnchor.rfcMessageId } });
+      const replies = [anchor, secondAnchor].flatMap((question, group) => Array.from({ length: 11 }, (_, i) => ({ ...question,
+        gmailMessageId: `reply-${group}-${i}`, rfcMessageId: `<reply-${group}-${i}@example.com>`, from: "site@example.com", to: ["nijel@tryblueprint.io"],
+        body: `Site answer ${group}-${i}; evaluation criteria remain unverified.`, receivedAt: `2026-10-08T17:0${group + 2}:${String(i).padStart(2, "0")}Z`,
+        inReplyTo: question.rfcMessageId, references: [question.rfcMessageId] })));
+      f.ports.readThread = async () => ({ mailbox: "nijel@tryblueprint.io", threadId: "thread-1", fetchedAt: "2026-10-08T17:04:00Z", messages: [anchor, secondAnchor, ...replies] });
+      const complete = () => {
+        const current = f.db.records.get("inboundRequests/job-1"), job = f.db.records.get(`siteAssessmentJobs/${current.site_advisory.job_id}`);
+        job.state = "completed"; current.site_advisory.state = "completed";
+        f.db.records.set(`agentRuns/${job.run_id}`, { status: "completed", task_kind: "site_assessment" });
+      };
+      expect(await refreshSiteJobReplies(f.db, "job-1", drafted.id, "operator-1", f.ports)).toMatchObject({ saved: 11, assessmentContinuation: "queued" });
+      complete();
+      expect(await refreshSiteJobReplies(f.db, "job-1", secondId, "operator-1", f.ports)).toMatchObject({ saved: 11, assessmentContinuation: "queued" });
+      complete();
+      const current = f.db.records.get("inboundRequests/job-1"), currentBefore = JSON.stringify(current);
+      const canonicalBefore = JSON.stringify([...f.db.records].filter(([path]) => path.includes("/customerStatements/")));
+      expect(current.site_assessment_customer_statements).toHaveLength(20);
+      expect([...f.db.records].filter(([path, row]) => path.includes("/customerStatements/") && row.assessmentAdmission)).toHaveLength(22);
+      expect(await loadAssessmentCustomerStatements(f.db, "job-1", current, "site@example.com")).toHaveLength(20);
+      for (const id of [drafted.id, secondId, drafted.id, secondId]) {
+        expect(await refreshSiteJobReplies(f.db, "job-1", id, "operator-1", f.ports)).toMatchObject({ saved: 0, assessmentContinuation: "already_current" });
+        expect(JSON.stringify(f.db.records.get("inboundRequests/job-1"))).toBe(currentBefore);
+      }
+      expect(JSON.stringify([...f.db.records].filter(([path]) => path.includes("/customerStatements/")))).toBe(canonicalBefore);
+      expect(JSON.stringify([f.db.records.get(`siteAssessmentJobs/${initialId}`), f.db.records.get("agentRuns/prior-assessment"),
+        f.db.records.get("captureCoverageReviews/historical/calls/unknown")])).toBe(preserved);
+      expect([...f.db.records.keys()].filter(path => path.startsWith("siteAssessmentJobs/"))).toHaveLength(3);
+      expect(wake).toHaveBeenCalledTimes(2);
+      expect(f.run).toHaveBeenCalledTimes(1); expect(f.ports.send).toHaveBeenCalledTimes(1);
+    } finally { wake.mockRestore(); }
+  });
   it("retries a known pre-provider failure on the same row and reads a retained session without another create", async () => {
     const f = fixture(), request = await f.request();
     f.run.mockRejectedValueOnce(new Error("communications_inference_disabled"));

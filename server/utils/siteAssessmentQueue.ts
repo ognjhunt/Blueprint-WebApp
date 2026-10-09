@@ -9,7 +9,8 @@ import { automationBatch } from "./automationBatch";
 import { prepareAssessmentRecovery, assertAssessmentRecoveryReplay, prepareAssessmentAbandonment, hasRecentAssessmentProgress } from "./captureCoverageInferenceBudget";
 import { humanDecisionDigest } from "./human-reply-admission";
 import { logger } from "../logger";
-import { assessmentCustomerStatementRefs, type SiteCustomerStatementRef } from "./siteCustomerStatements";
+import { assessmentCustomerStatementRefs, siteCustomerStatementDigest, type SiteCustomerStatementRef } from "./siteCustomerStatements";
+import { communicationsDigest } from "../agents/communications-contract";
 
 export const SITE_ASSESSMENT_JOBS = "siteAssessmentJobs";
 type State = "queued" | "running" | "completed" | "needs_review" | "authority_ended";
@@ -69,8 +70,31 @@ export async function prepareCustomerReplySiteAssessment(store: FirebaseFirestor
   if (!isSiteVideoEvidenceEnabled()) return none("disabled");
   const refs = assessmentCustomerStatementRefs(record);
   assessmentCustomerStatementRefs({ site_assessment_customer_statements: statements });
-  if (!statements.length || statements.every(statement => refs.some(ref => ref.statement_id === statement.statement_id
-    && ref.digest === statement.digest))) return none("already_current");
+  if (!statements.length) return none("already_current");
+  // Prompt refs are a rolling window, not durable deduplication authority.
+  // Keep the first admission on each immutable canonical email statement in
+  // the same transaction as its job, without growing the request document.
+  const selectedRefs = new Map(refs.map(ref => [ref.statement_id, ref]));
+  for (const statement of statements) {
+    if (selectedRefs.has(statement.statement_id) && selectedRefs.get(statement.statement_id)!.digest !== statement.digest)
+      throw new Error("site_assessment_customer_statement_binding_invalid");
+    selectedRefs.set(statement.statement_id, statement);
+  }
+  const rows = await Promise.all([...selectedRefs.values()].map(async statement => {
+    const ref = store.doc(`inboundRequests/${requestId}/customerStatements/${statement.statement_id}`);
+    const row = (await tx.get(ref)).data(), admission = row?.assessmentAdmission;
+    if (!row || siteCustomerStatementDigest(row) !== statement.digest
+      || communicationsDigest({ messageId: row.messageId }) !== statement.statement_id
+      || (admission !== undefined && (!admission || typeof admission !== "object" || Array.isArray(admission)
+        || admission.schema_version !== "site_customer_statement_admission.v1" || admission.statement_digest !== statement.digest
+        || !/^advisory-[a-f0-9]{64}$/.test(admission.job_id ?? "") || typeof admission.source_key !== "string" || !admission.source_key
+        || Object.keys(admission).some(key => !["schema_version", "statement_digest", "job_id", "source_key"].includes(key)))))
+      throw new Error("site_assessment_customer_statement_binding_invalid");
+    return { ref, statement, admission };
+  }));
+  const admitted = new Set([...refs.map(ref => ref.statement_id), ...rows.filter(row => row.admission).map(row => row.statement.statement_id)]);
+  const fresh = statements.filter(statement => !admitted.has(statement.statement_id));
+  if (!fresh.length) return none("already_current");
   const previousId = record.site_advisory?.job_id;
   if (typeof previousId !== "string" || !/^advisory-[a-f0-9]{64}$/.test(previousId)) return none("source_unavailable");
   const captureId = `walkthrough-${requestId}`;
@@ -88,8 +112,7 @@ export async function prepareCustomerReplySiteAssessment(store: FirebaseFirestor
   if (!pending) return none("source_unavailable");
   const oldRun = (await tx.get(store.doc(`agentRuns/${previous.run_id}`))).data();
   if (oldRun?.status !== "completed" || oldRun.task_kind !== "site_assessment") return none("waiting_for_assessment");
-  const incomingIds = new Set(statements.map(statement => statement.statement_id));
-  const nextRefs = [...refs.filter(ref => !incomingIds.has(ref.statement_id)), ...statements].slice(-20);
+  const nextRefs = [...refs, ...fresh].slice(-20);
   const nextRecord = { ...record, site_assessment_customer_statements: nextRefs };
   const contextDigest = advisoryContextDigest(nextRecord, brief), job = queuedJob(pending, contextDigest);
   if (!currentAuthority(job, nextRecord, brief, sessionSnap.data())) return none("source_unavailable");
@@ -100,6 +123,11 @@ export async function prepareCustomerReplySiteAssessment(store: FirebaseFirestor
     throw new Error("site_assessment_customer_statement_binding_invalid");
   return { state: "queued" as const, job_id: id, commit: () => {
     if (!existing.exists) tx.set(jobRef, { ...selected, created_at_ms: Date.now() });
+    for (const row of rows) if (!row.admission) tx.set(row.ref, { assessmentAdmission: {
+      schema_version: "site_customer_statement_admission.v1", statement_digest: row.statement.digest,
+      job_id: refs.some(ref => ref.statement_id === row.statement.statement_id) ? previousId : id,
+      source_key: job.source_key,
+    } }, { merge: true });
     tx.set(store.doc(`inboundRequests/${requestId}`), { site_assessment_customer_statements: nextRefs,
       site_advisory: pointer(id, selected) }, { merge: true });
   } };
