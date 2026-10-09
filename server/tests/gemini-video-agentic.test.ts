@@ -3,6 +3,9 @@ import { createHash } from "node:crypto";
 import { analyseAgenticVideo, openVideo, runGeminiVideoTask } from "../agents/adapters/gemini-video";
 import { captureVideoPrivacyTask } from "../agents/tasks/capture-video-privacy";
 
+const publicVideoFetch = vi.hoisted(() => vi.fn());
+vi.mock("../agents/adapters/public-video-fetch", () => ({ fetchPublicVideo: publicVideoFetch }));
+
 const bytes = Buffer.from("fixture-video");
 const input = { apiKey: "test-key", model: "gemini-3.8-flash", prompt: "Inspect the task.",
   video: { body: bytes, byteLength: bytes.byteLength, contentType: "video/mp4" } };
@@ -166,6 +169,7 @@ describe("agentic video provider contract", () => {
           "content-length": String(bytes.byteLength) } })
         : google(url, init));
     vi.stubGlobal("fetch", fetcher);
+    publicVideoFetch.mockImplementation((url, options) => fetcher(url, { signal: options.signal }));
     vi.stubEnv("GEMINI_API_KEY", "test-key");
     try {
       const result = await runGeminiVideoTask({
@@ -181,6 +185,7 @@ describe("agentic video provider contract", () => {
       expect(body.contents[0].parts[1].media_processing).toBe("STATIC");
       expect(body.generationConfig.maxOutputTokens).toBe(8_192);
     } finally {
+      publicVideoFetch.mockReset();
       vi.unstubAllGlobals();
       vi.unstubAllEnvs();
     }
