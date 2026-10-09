@@ -391,7 +391,9 @@ export function JobCommunications({ user, requestId }: { user: User | null; requ
       {loaded.communications.map((row: any) => <section key={row.id}><h4>{row.purpose}: {row.state}</h4>
         {row.output && <><p>{row.output.subject}</p><p style={{ whiteSpace: "pre-wrap" }}>{row.output.body}</p></>}
         {row.outputHtml && <iframe title="Branded customer email preview" sandbox="" srcDoc={row.outputHtml} style={{ width: "100%", minHeight: 520, border: "1px solid #dcdfd4" }} />}
-        {row.failureCode && <p role="alert">{row.failureCode}</p>}
+        {row.failureCode && (["needs_review", "needs_context", "send_claimed", "send_ack_unknown", "sent"].includes(row.state)
+          ? <details><summary>Previous draft issue</summary><p>{row.failureCode}</p></details>
+          : <p role="alert">{row.failureCode}</p>)}
         {row.state === "needs_review" && <><label className="ms-check-row"><input type="checkbox" checked={approved[row.id] ?? false} onChange={event => setApproved({ ...approved, [row.id]: event.target.checked })} />I reviewed this exact recipient and message and have authority to send it. No new disclosure, cost or commitment is authorized by this control.</label>
           <button type="button" className="ms-button" disabled={busy || !loaded.deliveryEnabled || !approved[row.id]} onClick={() => void run(async () => {
             await action(`/${encodeURIComponent(row.id)}/approve-send`, { expectedOutputDigest: row.outputDigest, expectedContextDigest: loaded.contextDigest, reviewedSend: true });
