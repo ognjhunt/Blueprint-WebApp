@@ -207,3 +207,33 @@ describe("authoritative original website capture owner read", () => {
       capture_id: "walkthrough-r1", completion_marker_generation: "100" }, deps)).rejects.toThrow();
   });
 });
+
+it("v2 DATA-only unclaimed observer requires explicit purpose and digests null ownership without a sponsor substitute",async()=>{
+  const baseline=fixture();const input={request_id:"r1",scene_id:"site-r1",capture_id:"walkthrough-r1",completion_marker_generation:"100"};
+  const before=await observeWebsiteCaptureOwner(input,baseline.deps);
+  expect(before.observation_digest).toBe("sha256:95eee2973c38d4e7a26e5b368099029dfb42290023987222f3c391e0bbacd78b");
+  expect(before).not.toHaveProperty("purpose");
+  const f=fixture();const original=f.deps.readRequest;
+  f.deps.readRequest=async()=>{const value=await original();const data={...value.data} as any;delete data.account_owner_uid;return {...value,data};};
+  await expect(observeWebsiteCaptureOwner(input,f.deps)).rejects.toThrow("owner_identity_invalid");
+  const observed=await observeWebsiteCaptureOwner({...input,purpose:"scene_preparation"} as any,f.deps);
+  expect(observed.capture_owner).toBeNull();expect(observed.purpose).toBe("scene_preparation");
+  const source=Object.fromEntries(["purpose","request_id","scene_id","capture_id","bucket","raw_prefix_uri","capture_owner",
+    "ownership_record","consent_attestation","capture_rights","completion_marker","producer_delivery"].map(key=>[key,observed[key]]));
+  expect(observed.source_projection_digest).toBe(crossRuntimeDigest(source));
+  const {observation_digest,...response}=observed;expect(observation_digest).toBe(crossRuntimeDigest(response));
+  const {purpose,...withoutPurpose}=source;expect(crossRuntimeDigest(withoutPurpose)).not.toBe(observed.source_projection_digest);
+  expect(JSON.stringify(observed)).not.toContain("blueprint-preparation");
+});
+it.each([null,"evaluation","",true])("v2 observer refuses unsupported purpose %s",async(purpose)=>{
+  const f=fixture();await expect(observeWebsiteCaptureOwner({request_id:"r1",scene_id:"site-r1",capture_id:"walkthrough-r1",
+    completion_marker_generation:"100",purpose} as any,f.deps)).rejects.toThrow("owner_request_invalid");
+});
+it("v2 DATA-only preserves a real claimed owner and refuses malformed identities",async()=>{
+  const input={request_id:"r1",scene_id:"site-r1",capture_id:"walkthrough-r1",completion_marker_generation:"100",purpose:"scene_preparation"} as any;
+  expect((await observeWebsiteCaptureOwner(input,fixture().deps)).capture_owner).toEqual({user_id:"uid-owner",basis:"inboundRequests.account_owner_uid"});
+  for(const value of ["",123,false]) {const f=fixture();const read=f.deps.readRequest;
+    f.deps.readRequest=async()=>{const row=await read();return {...row,data:{...row.data,account_owner_uid:value} as any};};
+    await expect(observeWebsiteCaptureOwner(input,f.deps)).rejects.toThrow("owner_identity_invalid");
+  }
+});

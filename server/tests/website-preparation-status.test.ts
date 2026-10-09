@@ -3,6 +3,7 @@ import { createServer, type Server } from "node:http";
 import express from "express";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createHash } from "node:crypto";
+import { advisoryContextDigest } from "../utils/siteAssessmentContext";
 import { buildBrowserDelivery } from "../utils/websiteCaptureDelivery";
 import { projectWebsiteTaskContext, projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
@@ -17,7 +18,7 @@ import { canNotifyCurrentWebsitePreparationIssue, drainPendingWebsitePreparation
 // Production verifier controls use in-memory Firestore/GCS and a retained observer projection.
 // No real database, credentials, transport, provider or mail is used.
 const runtime = vi.hoisted(() => ({records: new Map<string, any>(), objects: new Map<string, {metadata: any; bytes: Buffer}>(),
-  observation: null as any, beforeTransaction: null as (() => void) | null, txReads: [] as string[], txWrites: 0}));
+  observation: null as any, beforeTransaction: null as (() => void) | null, txReads: [] as string[], txWrites: 0, prepared: null as any, observationInputs: [] as any[]}));
 vi.mock("../../client/src/lib/firebaseAdmin", async original => {
   const actual = await original<typeof import("../../client/src/lib/firebaseAdmin")>();
   const snap = (key: string) => ({exists: runtime.records.has(key), data: () => runtime.records.get(key)});
@@ -51,7 +52,16 @@ vi.mock("../../client/src/lib/firebaseAdmin", async original => {
   }}};
 });
 vi.mock("../utils/websiteCaptureOwnerTransport", () => ({withWebsiteOwnerDeps:async (_ms:number,action:(deps:any)=>Promise<unknown>)=>action({})}));
-vi.mock("../utils/websiteCaptureOwnerObservation", () => ({observeWebsiteCaptureOwner:async()=>runtime.observation}));
+vi.mock("../utils/websiteCaptureOwnerObservation", () => ({observeWebsiteCaptureOwner:async(input:any)=>{runtime.observationInputs.push(input);return runtime.observation;}}));
+
+vi.mock("../utils/siteAssessmentPreparation", () => ({
+  loadAssessmentPreparationProposal:async()=>runtime.prepared,
+  assertAssessmentPreparationCurrent:async(tx:any,prepared:any)=>{
+    const request=(await tx.get({key:"inboundRequests/r1"})).data();
+    if (!prepared || request?.site_advisory?.state!=="completed"
+      || request.site_advisory.job_id!==prepared.proposal.job_id) throw Error("website_assessment_preparation_pending");
+  },
+}));
 
 const selector: WebsitePreparationSelector = {request_id: "r1", scene_id: "site-r1", capture_id: "walkthrough-r1",
   completion_marker_generation: "90071992547409931", producer_delivery_key: `sha256:${"a".repeat(64)}`,
@@ -222,7 +232,7 @@ describe("source-bound preparation contract v1: local isolated replay",()=>{
 });
 
 function productionFixture() {
-  runtime.records.clear();runtime.objects.clear();runtime.beforeTransaction=null;runtime.txReads=[];runtime.txWrites=0;
+  runtime.records.clear();runtime.objects.clear();runtime.beforeTransaction=null;runtime.txReads=[];runtime.txWrites=0;runtime.prepared=null;runtime.observationInputs=[];
   const sha=(bytes:Buffer)=>`sha256:${createHash("sha256").update(bytes).digest("hex")}`;
   const request={account_owner_uid:"owner1",request:{buyerType:"site_operator",capture_mode:"self_capture",consent_attestation:{
     granted:true,statement_version:"2026-09-18.v1",recorded_at_iso:"2026-09-29T00:00:00.000Z"}}};
@@ -346,4 +356,49 @@ describe("explicit supplementary rotating-notification scan control",()=>{
     expect(enqueue).toHaveBeenCalledTimes(1);
     expect(runtime.records.get("captureUploadSessions/walkthrough-r1").website_preparation_notification_pending).toBe(false);
   });
+});
+
+function purposeStatusFixture() {
+  const f=productionFixture();delete (f.request as any).account_owner_uid;(f.brief as any).confirmedAtIso=null;
+  const proposal={schema_version:"site_assessment_preparation_proposal.v1",request_id:"r1",capture_id:"walkthrough-r1",
+    job_id:`advisory-${"d".repeat(64)}`,run_id:"synthetic-run",source_key:`sha256:${"e".repeat(64)}`,
+    context_digest:advisoryContextDigest(f.request,f.brief),packet_sha256:"a".repeat(64),questions_pending:true,scope:"scene_preparation_only",
+    robot_suitability_verified:false,physical_trial_authorized:false};
+  runtime.prepared={proposal,reads:[]};
+  const context=projectWebsiteTaskContext(f.brief as never,projectWebsiteCaptureRights(f.request),{purpose:"scene_preparation"} as any);
+  const value={schema_version:"website_scene_sponsorship.v1",sponsor:"blueprint",purpose:"scene_preparation",request_id:"r1",
+    capture_id:"walkthrough-r1",scene_id:"site-r1",task_context_digest:context.context_digest,
+    policy_digest:`sha256:${"b".repeat(64)}`,assessment_preparation_proposal:proposal,authoring_provider:"openai",
+    owner:{user_id:"blueprint",organization_id:"blueprint"},preparation_max_total_spend_usd:2,upstream_max_spend_usd:1,
+    max_total_spend_usd:1,max_paid_attempts:1,expires_at_epoch:1,
+    consent:{rights_reference:crossRuntimeDigest(context.capture_rights),provider_terms_reference:`sha256:${"c".repeat(64)}`,
+      accepted_by:"blueprint",accepted_at_epoch:0,private_processing_authorized:true,provider_training_authorized:false,
+      task_confirmed:false,spend_authorized:true}};
+  (f.request as any).site_advisory={job_id:proposal.job_id,state:"completed",source_key:proposal.source_key,context_digest:proposal.context_digest};
+  (f.request as any).website_scene_sponsorship={...value,authority_digest:crossRuntimeDigest(value)};
+  runtime.observation={...runtime.observation,purpose:"scene_preparation",capture_owner:null};
+  const selected={...f.selected,task_context_digest:context.context_digest};
+  vi.stubGlobal("fetch",vi.fn(async()=>new Response(JSON.stringify(receipt("authority_ended",1,3,selected)))));
+  return {...f,selected};
+}
+it("v2 status preserves source proof and null owner on an expired prep-only grant without new execution",async()=>{
+  const f=purposeStatusFixture();await syncWebsitePreparationStatus(f.selected);
+  expect(runtime.observationInputs[0]).toMatchObject({purpose:"scene_preparation"});
+  expect(runtime.records.get("captureUploadSessions/walkthrough-r1").website_preparation.status.state).toBe("authority_ended");
+  expect((f.request as any).website_scene_sponsorship.expires_at_epoch).toBe(1);
+  expect(f.request).not.toHaveProperty("account_owner_uid");
+});
+it("v2 status requires a real current prep grant and proposal rather than purpose alone",async()=>{
+  for(const mutate of [()=>{runtime.prepared=null;},()=>{runtime.records.get("inboundRequests/r1").website_scene_sponsorship.authority_digest=`sha256:${"0".repeat(64)}`;},
+    ()=>{runtime.records.get("inboundRequests/r1").site_advisory.state="queued";}]) {
+    const f=purposeStatusFixture();mutate();await expect(syncWebsitePreparationStatus(f.selected)).rejects.toThrow();expect(runtime.txWrites).toBe(0);
+  }
+});
+it("v2 status transaction refuses concurrent proposal/authority/account changes",async()=>{
+  for(const mutate of [()=>{runtime.records.get("inboundRequests/r1").site_advisory.state="queued";},
+    ()=>{runtime.records.get("inboundRequests/r1").website_scene_sponsorship.max_total_spend_usd=2;},
+    ()=>{runtime.records.get("inboundRequests/r1").account_owner_uid="new-owner";}]) {
+    const f=purposeStatusFixture();runtime.beforeTransaction=mutate;
+    await expect(syncWebsitePreparationStatus(f.selected)).rejects.toThrow();expect(runtime.txWrites).toBe(0);
+  }
 });

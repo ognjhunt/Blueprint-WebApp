@@ -74,3 +74,11 @@ describe("capture owner exact early body", () => {
     } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
   });
 });
+
+it("v2 parser accepts only the explicit preparation DATA mode while retaining four required fields",()=>{
+  const preparation=valid.replace(" }",', "purpose":"scene_preparation" }');
+  expect(decodeCaptureOwnerFlatJson(preparation)).toMatchObject({purpose:"scene_preparation"});
+  for(const value of [preparation.replace("scene_preparation","evaluation"),preparation.replace('"purpose":"scene_preparation"','"purpose":null'),
+    preparation.replace('"purpose":"scene_preparation"','"purpose":"scene_preparation","purpose":"scene_preparation"'),
+    preparation.replace('"remaining_timeout_ms":3000, ',"")]) expect(()=>decodeCaptureOwnerFlatJson(value)).toThrow();
+});

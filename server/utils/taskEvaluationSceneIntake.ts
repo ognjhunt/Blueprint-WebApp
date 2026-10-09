@@ -6,8 +6,11 @@ import type { Response } from "express";
 import { resolveExecutionAccessContext } from "./access-control";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
-  validateWebsiteSponsoredProviderTerms } from "./websiteSceneSponsorship";
+  validateWebsiteSponsoredProviderTerms, currentWebsiteSceneContext } from "./websiteSceneSponsorship";
 import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent } from "./siteAssessmentPreparation";
+import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
+import type { SiteTaskBriefRecord } from "./siteTaskBrief";
+import type { TaskItemInventoryRecord } from "./taskItemInventory";
 
 export { sceneCanonicalJson, sceneDigest };
 
@@ -797,6 +800,8 @@ export async function processSceneIntakeQueue(limit = 10) {
               ? await loadAssessmentPreparationProposal(record.website_request_id, record.source_session_id) : null;
             if (assessment && sceneDigest(assessment.proposal) !== sceneDigest(sponsoredAuthority?.assessment_preparation_proposal))
               throw new Error("website_assessment_preparation_pending");
+            const captureBinding = record.website_request_id
+              ? await resolveWebsiteCaptureBinding(record.website_request_id, `site-${record.website_request_id}`, record.source_session_id) : undefined;
             // Count a possibly dispatched POST, not a failed local precheck or
             // a read-only status poll. Reservation failures stay conservative.
             deliveryReserved = true;
@@ -810,8 +815,18 @@ export async function processSceneIntakeQueue(limit = 10) {
                   throw new Error("revocation_requested_before_delivery");
                 if (record.website_request_id) {
                   const request = (await transaction.get(db!.collection("inboundRequests").doc(record.website_request_id))).data();
+                  const brief = (await transaction.get(db!.collection("siteTaskBriefs").doc(record.website_request_id))).data() as SiteTaskBriefRecord;
+                  const inventory = (await transaction.get(db!.collection("siteTaskItemInventories").doc(record.website_request_id))).data() as TaskItemInventoryRecord | undefined;
+                  await assertWebsiteCaptureBindingInTransaction(transaction, record.website_request_id, captureBinding);
                   await assertAssessmentPreparationCurrent(transaction, assessment, request ?? {},
                     {requestId: record.website_request_id, captureId: record.source_session_id});
+                  const rootDigest = sponsoredAuthority?.assessment_parent_authority_digest
+                    ?? sponsoredAuthority?.continuation_parent_authority_digest ?? sponsoredAuthority?.authority_digest;
+                  if (request?.website_scene_sponsorship?.authority_digest !== rootDigest || !brief
+                    || currentWebsiteSceneContext({requestId: record.website_request_id, brief, record: request ?? {}, inventory,
+                      captureId: record.source_session_id, captureBinding,
+                      assessmentPreparationProposal: assessment?.proposal}).context_digest !== sponsoredAuthority?.task_context_digest)
+                    throw new Error("website_scene_sponsorship_binding_invalid");
                 }
                 transaction.update(row.ref, {
                   forwarding_started: true,
