@@ -240,7 +240,7 @@ describe("build output", () => {
     expect(homeHtml).toContain("One recommended pilot, on one page.");
     expect(homeHtml).toContain("Quoted by the robot team, paid to them");
     expect(homeHtml).not.toContain("The same task, in simulation.");
-    expect(homeHtml).toContain("Agree a next step");
+    expect(homeHtml).toContain("Agree on the next step");
     expect(homeHtml).not.toContain("Join the robot-team beta");
     expect(homeHtml).not.toContain("/illustrations/task-evaluation/02-arm-evaluation.webp");
     expect(homeHtml).not.toContain("No pilot, no fee.");

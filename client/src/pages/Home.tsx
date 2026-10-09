@@ -27,7 +27,7 @@ export default function Home() {
         <ol className="ms-steps">
           <li><p className="ms-step-head"><span className="ms-step-number">01</span><span className="ms-step-rule" aria-hidden="true" /><span>Show us the task</span></p><p>Describe it or film it on your phone.</p></li>
           <li><p className="ms-step-head"><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>Review the evidence</span></p><p>Understand what it supports and what is still unknown.</p></li>
-          <li><p className="ms-step-head"><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Agree a next step</span></p><p>Any later work has a separately agreed scope and cost.</p></li>
+          <li><p className="ms-step-head"><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Agree on the next step</span></p><p>Any later work has a separately agreed scope and cost.</p></li>
         </ol>
         <a className="ms-method-link" href="/how-it-works#warehouse-task">See the warehouse walkthrough <ArrowRight size={16} aria-hidden="true" /></a>
       </section>

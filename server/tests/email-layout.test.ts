@@ -24,8 +24,8 @@ describe("the branded email layout", () => {
 
   it("gives both parts the same company identity", () => {
     const message = brandedEmail({ subject: "s", text: "Body." });
-    expect(message.text).toBe("Body.\n\n--\nBlueprint Robotics, Inc. · 1005 Crete St, Durham, NC 27707\nhttps://tryblueprint.io");
-    expect(message.html).toContain("Blueprint Robotics, Inc. · 1005 Crete St, Durham, NC 27707");
+    expect(message.text).toBe("Body.\n\n--\nBlueprint Robotics, Inc. · 6801 Burnet Rd, Austin, TX 78757\nhttps://tryblueprint.io");
+    expect(message.html).toContain("Blueprint Robotics, Inc. · 6801 Burnet Rd, Austin, TX 78757");
     expect(withTextFooter(message.text)).toBe(message.text);
   });
 
@@ -60,7 +60,7 @@ describe("the branded email layout", () => {
     const withoutImages = message.html.replace(/<img\b[^>]*>/g, "");
     expect(withoutImages).toMatch(/class="email-wordmark"[^>]*>Blueprint<\/td>/);
     expect(withoutImages).toContain("Your walkthrough arrived safely.");
-    expect(withoutImages).toContain("1005 Crete St, Durham, NC 27707");
+    expect(withoutImages).toContain("6801 Burnet Rd, Austin, TX 78757");
     expect(message.html).toContain('src="https://tryblueprint.io/brand/email-mark.png" alt="" width="35" height="35"');
   });
 
