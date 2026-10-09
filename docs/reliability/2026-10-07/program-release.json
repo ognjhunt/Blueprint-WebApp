@@ -3890,5 +3890,65 @@
     "judgment_successor_definition_sha256": "1e2242ffbef6e12fa780b21fd91da6118751d1a2af9a3f193b3d40dfd1aa16b3",
     "judgment_successor_freeze_sha256": "964a68bad37280b3852b2464c25d99b563e1a73bdcd6d56a7280cbea7d99d278",
     "judgment_successor_independent_review_sha256": "f609578be8a9c4fb0f99e43e1d3ba76d421c6c315e1e4e3b867242c1c0385550"
+  },
+  "checkpoint_20261009T0846": {
+    "observed_at_utc": "2026-10-09T08:46:29.027616+00:00",
+    "pipeline_candidate": "2271e3b766ce254ee0d7ed8957d8262f7cf409be",
+    "parent": "0d11c21db6355cfdc25fc3d55bcc0700f48dd355",
+    "PR": 2655,
+    "exact_head_CI_run": 37906702437,
+    "CI_state": "in_progress; exact PR head/event verified; impact plan passed",
+    "independent_verdict": "SOURCE_CLEAR",
+    "independent_review_sha256": "1e2e434ac628c69019dc5c7be09527149761e8c73b36b39a4eaa4e1d627fe8b6",
+    "author_receipt_sha256": "f36e95ca3003e9051bfa70641a4afb08e580bd2e5b08da0bc83be6e8cf40f08c",
+    "required_local_gate_sha256": "8a8ffd51f1d9726725e1a2db06d7ec7c03b1cd835d25e46a5471ed0138ee16b1",
+    "minimized_before": {
+      "source": "0d11",
+      "failed": 3,
+      "layer": "isolated syscall fixtures"
+    },
+    "scoped_after": {
+      "passed": 238,
+      "skipped_native_Linux": 2,
+      "seconds": 40.26
+    },
+    "independent_after": {
+      "passed": 92,
+      "skipped_native_Linux": 2,
+      "seconds": 1.67
+    },
+    "local_gate": {
+      "passed": 9,
+      "seconds": 38.607,
+      "limit_seconds": 120,
+      "full_suite_required": true
+    },
+    "actual_Linux_failure_cause": "Still unproven. Initial restore constructor failed before foreign-FD publication; synthetic starvation repair is separate and does not prove that original cause repaired. New fixed-category exhaustion counts will expose future failures without private PID/path/FD data or new reads.",
+    "native_status_readback": {
+      "active_commit": "0a17f52d23f233376b9944a6df49101491581f6c",
+      "door_version": "1.0.0",
+      "pending": 0,
+      "processing": 0,
+      "intake_service": "active/running",
+      "deployed_version_lookup": "unknown: TimeoutError",
+      "raw_sha256": "b35f9bcae218216452070ca5287f35e02b086a4a8b07a48f480f6bc9daac86d5",
+      "sanitized_sha256": "e4740a39bdc14a5f626f7b35f5fe7453e27009d220f32369f261cdf13d21a519"
+    },
+    "native_merge_install_dispatch_performed": false,
+    "current300_source_continuity": {
+      "target": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "frozen_pins": 20,
+      "same_frozen_pins": 19,
+      "additional_trace_generator_pins": 2,
+      "same_union_pins": 21,
+      "union_pins": 22,
+      "changed_file": "server/utils/websiteTaskContext.ts",
+      "change": "Optional purpose in task projection; exercised capture-rights helpers unchanged",
+      "receipt_sha256": "fa1ce86ba614d8cb555b807a5980adda01edac04260d0605964b5b1c56ad9d7d",
+      "root_verification": "All22 exact-target source bytes matched receipt",
+      "claim_ceiling": "Continuity of declared inputs and inspected functions, not full transitive dependency closure or fresh85744 execution; existing300 remains frozenab03",
+      "new_cases_or_replay_credit": 0
+    },
+    "original_new_operation_stop_utc": "2026-10-09T12:24:35Z"
   }
 }

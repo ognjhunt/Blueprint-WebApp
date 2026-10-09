@@ -1356,6 +1356,33 @@
       "next_action": "Inspect exact retained process evidence and existing open PR2628/2534; reproduce applicable boundary and independently review any minimal repair; no lucky rerun or changed assertion",
       "production_incident_claim": false,
       "new_unique_case_credit": 0
+    },
+    {
+      "id": "REL-NATIVE-REFERENCE-STARVATION-20261009",
+      "severity": "P2 refusal precision/availability; source repair requires full Linux CI",
+      "owner": "native evidence author; coordinator release; independent q reviewer",
+      "invariant": "Earlier incomplete process cannot suppress a later conclusive positive reference, while incomplete passes never authorize clearance",
+      "root_cause": "Loop broke its whole scan at earlier transient PID/descriptor churn, so later positive references could be starved across all3attempts",
+      "before": {
+        "head": "0d11c21db6355cfdc25fc3d55bcc0700f48dd355",
+        "minimized_failed": 3,
+        "layer": "synthetic syscall fixtures"
+      },
+      "repair": "Continue later PIDs with pass-wide incomplete flag; unchanged clock, shared budgets, fatal errors and 3attempts. Bounded fixedreason counts preserve exhausted-census failure evidence.",
+      "candidate": "2271e3b766ce254ee0d7ed8957d8262f7cf409be",
+      "independent_review_sha256": "1e2e434ac628c69019dc5c7be09527149761e8c73b36b39a4eaa4e1d627fe8b6",
+      "checks": {
+        "scoped_passed": 238,
+        "independent_passed": 92,
+        "local_gate_passed": 9,
+        "native_only_skipped": 2
+      },
+      "fresh_CI": 37906702437,
+      "status": "source-reviewed,pushed,required_CI_active; not installed",
+      "actual_preceding_Linux_failure_root_cause_claim": false,
+      "actual_failure_limitation": "Still unproven. Initial restore constructor failed before foreign-FD publication; synthetic starvation repair is separate and does not prove that original cause repaired. New fixed-category exhaustion counts will expose future failures without private PID/path/FD data or new reads.",
+      "production_incident_claim": false,
+      "new_unique_case_credit": 0
     }
   ],
   "dependencies": [
