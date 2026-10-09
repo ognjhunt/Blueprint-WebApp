@@ -43,7 +43,7 @@ const uncertaintyClause = (value: string): string | null => {
   return /\b(?:unknown|unverified|uncertain|unresolved|not (?:measured|established|provided|visible|observed|confirmed)|(?:could|would|may) change)\b/i.test(text)
     && !hasSideClause(text) && !assertionTerms.test(remainder) && !assertionVerbs.test(remainder) ? text : null;
 };
-/** Facts use selected retained evidence; proposals and unanswered questions remain labeled reasoning. */
+/** Customer basics only; the canonical analysis and factual evidence remain internal. */
 export function projectCustomerSiteAdvisory(packet: Record<string, any>, correlationId: string, admittedDuration: number | null = null): SiteAdvisory {
   if (packet.schema_version !== "site_assessment.v2" || !Array.isArray(packet.sources) || packet.sources.length > 100
     || Buffer.byteLength(JSON.stringify(packet)) > 1_000_000) throw Error("site_advisory_packet_invalid");
@@ -62,25 +62,16 @@ export function projectCustomerSiteAdvisory(packet: Record<string, any>, correla
     return scrub(value).trim();
   };
   const result = empty("ready", correlationId);
-  const titles: Record<string, string> = { job: "The job", objects_motions_conditions_variations: "What the evidence shows",
-    operator_success: "The site's success criteria", known: "Supported information" };
-  for (const [field, title] of Object.entries(titles)) {
-    const claims = ((rendered.assessment as any)[field] as any[]).filter(claim => claim.verification_status === "source_bound")
-      .slice(0, 12).flatMap(claim => {
-        if (typeof claim.text !== "string" || claim.text.length > 4000) return [];
-        return [{ text: customerText(claim.text)!, basis: claim.basis, verificationStatus: "source_bound" as const, evidence: claim.evidence.map((reference: any) => ({
-          kind: reference.selector?.kind === "video_observation" ? "video" : reference.selector?.kind === "operator_statement" ? "operator" : "specification",
-          atSeconds: reference.at_seconds ?? null,
-        })) }];
-      });
-    if (claims.length) result.sections.push({ title, claims });
-  }
+  // The existing brief owns the customer's task and outcome corrections.
+  // Do not return the model-rendered job, findings, or source paragraphs here.
   result.unknowns = ["Video analysis and supplied statements are not independently verified measurements or proof of robot suitability."];
-  if (rendered.verification.unverified_claims || rendered.verification.interpretation_claims || rendered.assessment.status === "needs_operator_input")
+  if (rendered.assessment.missing.length || rendered.verification.unverified_claims || rendered.verification.interpretation_claims || rendered.assessment.status === "needs_operator_input")
     result.unknowns.push("Some job facts and interpretations remain unresolved. Clarify them before choosing an approach.");
   for (const claim of rendered.assessment.missing) {
-    const retained = (claim as any).verification_status === "source_bound" ? claim.text
-      : claim.basis === "unknown" ? uncertaintyClause(claim.text) : null;
+    // Source binding does not turn an internal evidence paragraph into a
+    // customer question. Every missing fact must fit the same safe form.
+    const retained = claim.basis === "unknown" || (claim as any).verification_status === "source_bound"
+      ? uncertaintyClause(claim.text) : null;
     const text = retained && customerText(retained);
     if (text) result.unknowns.push(`Unresolved: ${text}`);
   }
@@ -97,9 +88,6 @@ export function projectCustomerSiteAdvisory(packet: Record<string, any>, correla
   const proposed = !rendered.verification.unverified_claims && action.kind === raw.next_action.kind
     ? requestClause(raw.next_action.action) : null;
   result.nextAction = `Recommended next step (proposal): ${(proposed && customerText(proposed)) || actions[action.kind] || actions.research}`;
-  const retainedReason = ["unknown", "estimate"].includes(action.why.basis) ? uncertaintyClause(action.why.text) : action.why.text;
-  const reason = retainedReason && customerText(retainedReason);
-  if (reason) result.nextAction += ` ${["unknown", "estimate"].includes(action.why.basis) ? "Reasoning to check" : "Why"}: ${reason}`;
   result.unknowns = [...new Set(result.unknowns)];
   return result;
 }

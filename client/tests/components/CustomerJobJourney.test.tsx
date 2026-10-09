@@ -96,7 +96,8 @@ it("joins the existing job, bounded review, proposal acceptance and evidence-gat
     const draft = await (await request("/api/admin/robot-teams/recommendations/req-1")).json();
     expect(draft.assessment, JSON.stringify(draft)).toBeTruthy();
     const assessment = render(<SiteAdvisoryReport advisory={draft.assessment} />);
-    expect(screen.getByText(/A carton moves onto the pallet/)).toBeInTheDocument();
+    expect(screen.getByText("Your job assessment")).toBeInTheDocument();
+    expect(screen.queryByText(/A carton moves onto the pallet/)).toBeNull();
     expect(screen.queryByText(/Untrusted prose/)).toBeNull(); assessment.unmount();
     expect(draft.sources.successCondition).toMatch(/siteTaskBriefs\/req-1/);
     expect(draft.teams).toHaveLength(1);
