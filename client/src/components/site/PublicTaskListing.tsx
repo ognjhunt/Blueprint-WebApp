@@ -57,7 +57,7 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
   const field = (key: Exclude<keyof TaskListingDetails, "targeting">, label: string, maxLength: number, required = false) =>
     <label key={key}>{label}<input value={details[key] ?? ""} maxLength={maxLength} minLength={key === "title" ? 8 : undefined} required={required}
       onChange={e => { dirty.current = true; setDetails({ ...details, [key]: e.target.value }); setConsent(false); setState("idle"); }} /></label>;
-  return <details className="ms-task-interest"><summary>Manage opportunity sharing</summary>
+  return <details className="ms-task-interest"><summary>Manage opportunity sharing (optional)</summary>
     <p className="ms-field-hint">Starting a job publishes an anonymized card for robot teams approved for beta, unless the job was previously marked private. Edit or hide it here. Your contact details, full footage and scene stay private. Use a general region and leave out identifying details.</p>
     <p className="ms-field-hint">This card belongs to the same job. {sources.title ? "The title comes from your job brief. " : ""}{sources.cycleTarget ? "The cycle target comes from your stated success criteria, not an observed video rate. " : ""}Review changes for public use; saving a private draft does not publish it.</p>
     {reviewRequired && <p role="alert">Your brief changed. The card is hidden for renewed review; your public edits are retained.</p>}
