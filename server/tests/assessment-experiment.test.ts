@@ -4,7 +4,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentErrorCode, experimentHash, experimentVersions, openExperimentLedger,
+import OpenAI from "openai";
+import { ModelBehaviorError } from "@openai/agents";
+import { z } from "zod";
+import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentErrorCode, experimentFailure, experimentHash, experimentVersions, openExperimentLedger,
   sanitizeExperiment, validateExperimentRetention, validateSavedEvidence, writeExperimentJson } from "../agents/assessment-experiment";
 import { SiteAssessmentBudget } from "../agents/adapters/site-assessment-budget";
 
@@ -21,6 +24,40 @@ const open = (file: string, runId = "synthetic-run", mode: "fresh-video" | "save
 afterEach(() => { vi.unstubAllEnvs(); dirs.splice(0).forEach(dir => fs.rmSync(dir, { recursive: true })); });
 
 describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUALITY EVIDENCE", () => {
+  it("retains real SDK timeout and model-contract classes without retaining private exception text", () => {
+    expect(experimentFailure(new OpenAI.APIConnectionTimeoutError())).toMatchObject({ exception_class: "APIConnectionTimeoutError" });
+    const failure = experimentFailure(new ModelBehaviorError("PRIVATE synthetic contract details"));
+    expect(failure.exception_class).toBe("ModelBehaviorError");
+    expect(JSON.stringify(failure)).not.toContain("PRIVATE");
+  });
+  it("preserves a safe original cause and stops at one level without evaluating exception getters", () => {
+    const cause = Object.assign(new OpenAI.APIConnectionTimeoutError(), { cause: new Error("PRIVATE nested cause") });
+    const error = Object.assign(new Error("site_assessment_runtime_not_admitted"), { cause });
+    Object.defineProperty(error, "status", { get() { throw Error("PRIVATE getter must not run"); } });
+    expect(experimentFailure(error)).toMatchObject({ code: "site_assessment_runtime_not_admitted", http_status: null,
+      cause: { exception_class: "APIConnectionTimeoutError" } });
+    expect(experimentFailure(error).cause).not.toHaveProperty("cause");
+    const ownedCause = Object.assign(new Error("experiment_failed"), { cause: new Error("site_assessment_source_changed") });
+    expect(experimentFailure(ownedCause).cause?.code).toBe("site_assessment_source_changed");
+    error.cause = error;
+    expect(experimentFailure(error).cause).toBeUndefined();
+  });
+  it("omits a cause's accessor issues without invoking the getter and keeps real schema paths", () => {
+    const cause = new z.ZodError([]), getter = vi.fn(() => { throw Error("PRIVATE issues getter"); });
+    Object.defineProperty(cause, "issues", { get: getter });
+    const failure = experimentFailure(Object.assign(new Error("experiment_failed"), { cause }));
+    expect(failure.cause).toMatchObject({ exception_class: "ZodError" });
+    expect(failure.cause?.issues).toBeUndefined();
+    expect(getter).not.toHaveBeenCalled();
+    const parsed = z.object({ count: z.number() }).safeParse({ count: "invalid" });
+    expect(experimentFailure(parsed.error).issues).toEqual([{ path: ["count"], code: "invalid_type" }]);
+  });
+  it("still records a failure when prototype lookup throws or a proxy has been revoked", () => {
+    const hostile = new Proxy(new Error("experiment_failed"), { getPrototypeOf() { throw Error("PRIVATE prototype trap"); } });
+    expect(experimentFailure(hostile)).toMatchObject({ code: "experiment_failed", exception_class: "Error" });
+    const revoked = Proxy.revocable(new Error("PRIVATE revoked error"), {}); revoked.revoke();
+    expect(experimentFailure(revoked.proxy)).toMatchObject({ code: "experiment_failed", exception_class: "Error" });
+  });
   it("identifies exact owned encryption configuration failures without exposing arbitrary prose", () => {
     expect(experimentErrorCode("KMS key name is required for KMS decryption.")).toBe("experiment_kms_configuration_missing");
     expect(experimentErrorCode("FIELD_ENCRYPTION_MASTER_KEY is required when KMS is not configured.")).toBe("experiment_local_encryption_key_missing");
@@ -175,6 +212,7 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
       const result = JSON.parse(fs.readFileSync(path.join(output, "run.json"), "utf8"));
       expect(result.provider_call_may_have_happened).toBe(false);
       expect(fs.readFileSync(path.join(output, "summary.md"), "utf8")).toContain("Error:");
+      expect(fs.readFileSync(path.join(output, "summary.md"), "utf8")).toContain(`Exception: ${result.error?.exception_class ?? "none"}`);
       return result;
     };
     expect(command("fresh-video", []).error.code).toBe("experiment_openai_credential_missing");

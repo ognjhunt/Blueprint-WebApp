@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
 import { z } from "zod";
-import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentErrorCode, experimentVersions, openExperimentLedger, experimentRetention,
+import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentFailure as failure, experimentVersions, openExperimentLedger, experimentRetention,
   sanitizeExperiment, validateSavedEvidence, writeExperimentJson } from "../server/agents/assessment-experiment";
 
 const help = `Usage:
@@ -33,30 +33,6 @@ function codeIdentity() {
     .map(file => [file, sha(fs.readFileSync(file))]);
   return { commit: git("rev-parse", "HEAD").trim(), dirty: Boolean(status), patch_sha256: sha(git("diff", "HEAD") + JSON.stringify(untracked)),
     node: process.version, sdk_version: readJson(path.resolve("node_modules/@openai/agents/package.json")).version };
-}
-function failure(error: unknown) {
-  const own = (key: string) => { try { return error && typeof error === "object" ? Object.getOwnPropertyDescriptor(error, key)?.value : undefined; } catch { return undefined; } };
-  const status = own("status"), code = own("code"), cause = own("cause");
-  const row = error instanceof Error ? error : Error("experiment_unknown_error");
-  // Never retain arbitrary exception prose/stack/body. Owned codes and schema paths are enough to repair input.
-  const ownMessage = own("message");
-  const message = experimentErrorCode(ownMessage);
-  const providerCode = typeof code === "string" && /^(gemini_video_[a-z0-9_]+|invalid_request_error|rate_limit_exceeded|context_length_exceeded|invalid_api_key|insufficient_quota|server_error|model_not_found|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN)$/.test(code) ? code : null;
-  return { code: message, provider_error_code: providerCode,
-    http_status: typeof status === "number" && Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
-    cause: cause && cause !== error ? failureWithoutCause(cause) : undefined,
-    exception_class: row instanceof z.ZodError ? "ZodError" : row instanceof SyntaxError ? "SyntaxError" : row instanceof TypeError ? "TypeError" : "Error",
-    issues: row instanceof z.ZodError ? row.issues.map(issue => ({ path: issue.path, code: issue.code })) : undefined,
-    system_code: ["ENOENT", "EEXIST", "EACCES"].includes(code) ? code : undefined };
-}
-
-function failureWithoutCause(error: unknown) {
-  // Cause may cycle or have hostile getters. Only its own status/code/builtin class is retained.
-  const copy = error instanceof TypeError ? new TypeError("experiment_cause_unavailable")
-    : error instanceof SyntaxError ? new SyntaxError("experiment_cause_unavailable") : new Error("experiment_cause_unavailable");
-  for (const key of ["status", "code"]) { try { const value = Object.getOwnPropertyDescriptor(error, key)?.value;
-    if (value !== undefined) Object.defineProperty(copy, key, { value }); } catch {} }
-  return failure(copy);
 }
 
 async function main() {
@@ -181,8 +157,9 @@ async function main() {
     writeExperimentJson(path.join(output, "run.json"), sanitizeExperiment(run));
     const packet = run.result?.artifacts?.site_assessment_packet;
     if (packet) writeExperimentJson(path.join(output, "assessment.json"), sanitizeExperiment(packet.assessment));
+    const failureRecord = run.error ?? run.accounting_read_error ?? run.accounting_close_error;
     const code = run.error?.code ?? run.accounting_read_error?.code ?? run.accounting_close_error?.code ?? run.accounting?.pause_reason ?? run.result?.error ?? "none";
-    fs.writeFileSync(path.join(output, "summary.md"), `Mode: ${run.mode}\nStatus: ${run.status}\nStage: ${run.stage}\nError: ${code}\nWall time: ${run.wall_ms} ms\nProvider call may have happened: ${run.provider_call_may_have_happened}\nCost status: ${run.cost_status}\nKnown usage price estimate: ${run.result?.artifacts?.inference_reservation?.known_reported_cost_usd ?? "unavailable"}\nUnknown reserved exposure: ${run.result?.artifacts?.inference_reservation?.unknown_usage_reserved_cost_usd ?? "see accounting records"}\n${run.mode === "saved-evidence" ? "Reuses fixed Gemini evidence; does not retest upload, perception or full integration. Still invokes paid production Sol.\n" : "No upload/customer acceptance or independently verified model quality is established by this experiment.\n"}`, { mode: 0o600 });
+    fs.writeFileSync(path.join(output, "summary.md"), `Mode: ${run.mode}\nStatus: ${run.status}\nStage: ${run.stage}\nError: ${code}\nException: ${failureRecord?.exception_class ?? "none"}\nHTTP status: ${failureRecord?.http_status ?? "unavailable"}\nCause: ${failureRecord?.cause?.code ?? "none"} (${failureRecord?.cause?.exception_class ?? "none"})\nWall time: ${run.wall_ms} ms\nProvider call may have happened: ${run.provider_call_may_have_happened}\nCost status: ${run.cost_status}\nKnown usage price estimate: ${run.result?.artifacts?.inference_reservation?.known_reported_cost_usd ?? "unavailable"}\nUnknown reserved exposure: ${run.result?.artifacts?.inference_reservation?.unknown_usage_reserved_cost_usd ?? "see accounting records"}\n${run.mode === "saved-evidence" ? "Reuses fixed Gemini evidence; does not retest upload, perception or full integration. Still invokes paid production Sol.\n" : "No upload/customer acceptance or independently verified model quality is established by this experiment.\n"}`, { mode: 0o600 });
     console.log(`${run.status}: ${code}. Inspect ${path.join(output, "summary.md")}`);
   }
 }
