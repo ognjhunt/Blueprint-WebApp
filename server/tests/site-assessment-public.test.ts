@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ default: {}, dbAdmin: null, storageAdmin: null }));
-import { projectCustomerSiteAdvisory } from "../utils/siteAssessmentPublic";
+import { projectCustomerSiteAdvisory, projectCurrentSiteAssessmentView } from "../utils/siteAssessmentPublic";
+import { projectCurrentSiteJobDecision, siteJobDecisionSourceDigest } from "../utils/siteJobDecision";
 import { SiteAdvisoryReport } from "../../client/src/components/site/SiteAdvisoryReport";
 import type { SiteAssessment } from "../agents/site-assessment";
 
@@ -18,6 +19,91 @@ const assessment = (): SiteAssessment => ({ status: "assessment", job: [observed
   next_action: { kind: "measure", action: "Measure the pull force at the upper rack's handle before selecting a gripper.", why: observed() } });
 const packet = (raw = assessment()) => ({ schema_version: "site_assessment.v2", request_id: "private-request-fixture", sources: [structuredClone(video)], raw_model_assessment: raw });
 const project = (raw = assessment()) => projectCustomerSiteAdvisory(packet(raw), "bp-advisory-test", 30);
+
+// Historical values captured by running the pre-basics projector on this
+// synthetic packet. They must not be derived from the implementation under test.
+const legacyReviewDigest = "130fa2a1c1adc89e27077d9a847b6a6bc78a47e71b86fd6fd0f7b7d2d565a94c";
+const basicsReviewDigest = "4a7d2f322735e01ae79867598eef22eec134feb9d1748bb6eb7424799e16ada9";
+const decisionPacket = () => ({ schema_version: "site_assessment.v2", request_id: "synthetic-request", sources: [{
+  source_id: "synthetic-video", kind: "video", canonical_ref: "gs://synthetic.invalid/video", sha256: "a".repeat(64), checked_at: null,
+  content: { duration_seconds: 30, evidence: { summary: "Rack movement", observations: [{ category: "motion", finding: "Upper rack moves outward",
+    basis: "observed", start_seconds: 8, end_seconds: 10, uncertainty: "Force unmeasured" }], not_observable: ["Robot performance"] } },
+}], raw_model_assessment: { ...assessment(), job: [{ text: "Rack movement", basis: "observed", evidence: [{ source_id: "synthetic-video", at_seconds: 8,
+  selector: { kind: "video_observation", observation_index: 0, field_path: null } }] }], next_action: { kind: "measure", action: "Measure rack pull force.",
+  why: { text: "Pull force remains unknown", basis: "unknown", evidence: [] } } } });
+const decisionBrief = { summary: "Open the rack", confirmedAtIso: "2026-09-01T00:00:00Z" };
+const decisionRecord = (sourceDigest = legacyReviewDigest): Record<string, any> => ({ request: { taskStatement: "Open the rack",
+  consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-01T00:00:00Z" } },
+  site_advisory: { job_id: "synthetic-job", state: "completed", source_key: "source-a", context_digest: "context-a" },
+  customerConversation: [], site_task_clarification: null, pilot_recommendation: null,
+  customer_decision: { schemaVersion: "site_job_decision.v1", sourceDigest, reviewedBy: "synthetic-reviewer", reviewedAtIso: "2026-09-02T00:00:00Z",
+    recommendation: "Obtain pull force measurements", why: "A measurement is needed", decisiveUncertainty: "Pull force", nextAction: "Measure force",
+    question: { text: "Which final state is required?", reason: "Defines success" } } });
+
+describe("reviewed decision survives customer-only redaction", () => {
+  const view = () => projectCurrentSiteAssessmentView(decisionPacket(), "synthetic-correlation", 30);
+  const reviewed = (record = decisionRecord(), brief = decisionBrief, current = view()) =>
+    projectCurrentSiteJobDecision(record, brief, current.decisionAssessment, current.compatibleDecisionAssessments);
+  it("retains the exact pre-basics named review without altering canonical evidence or exposing analysis", () => {
+    const input = decisionPacket(), original = structuredClone(input), current = projectCurrentSiteAssessmentView(input, "synthetic-correlation", 30);
+    expect(siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, current.decisionAssessment)).toBe(legacyReviewDigest);
+    expect(reviewed()).toMatchObject({ nextAction: "Measure force", question: { text: "Which final state is required?" } });
+    expect(current.customerAdvisory).toEqual(projectCustomerSiteAdvisory(input, "synthetic-correlation", 30));
+    expect(JSON.stringify(current.customerAdvisory)).not.toMatch(/Upper rack moves outward|Reasoning to check|decisionAssessment/);
+    expect(input).toEqual(original);
+  });
+  it("also retains an exact legitimate basics-era review, without allowing that alias for new primary writes", () => {
+    const current = view();
+    expect(siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, current.compatibleDecisionAssessments[0])).toBe(basicsReviewDigest);
+    expect(reviewed(decisionRecord(basicsReviewDigest))).not.toBeNull();
+    expect(siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, current.decisionAssessment)).not.toBe(basicsReviewDigest);
+    expect(reviewed(decisionRecord("b".repeat(64)))).toBeNull();
+  });
+  it("matches the exact pre/post question-guard historical bases while keeping the unsafe question private", () => {
+    const input = decisionPacket();
+    input.raw_model_assessment.questions = [{ question: "What payload can Robot X lift?", decision_it_changes: "Which payload requirement to investigate" }];
+    const current = projectCurrentSiteAssessmentView(input, "synthetic-correlation", 30);
+    // Captured from actual3d6/eaeb projectors using the same synthetic source.
+    for (const [index, digest] of ["4ba59a14fc7e6ef45a8e0f877ded44ed012b001cb4826df7177e5275ab38d4c9", basicsReviewDigest].entries()) {
+      expect(siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, current.compatibleDecisionAssessments[index])).toBe(digest);
+      expect(reviewed(decisionRecord(digest), decisionBrief, current)).not.toBeNull();
+    }
+    expect(JSON.stringify(current.customerAdvisory)).not.toContain("Robot X");
+  });
+  it.each([
+    ["request", (r: Record<string, any>) => { r.request.taskStatement = "Close the rack"; }],
+    ["withdrawal", (r: Record<string, any>) => { r.request.consent_attestation.withdrawn_at_iso = "2026-09-03T00:00:00Z"; }],
+    ["context", (r: Record<string, any>) => { r.site_advisory.context_digest = "context-b"; }],
+    ["source", (r: Record<string, any>) => { r.site_advisory.source_key = "source-b"; }],
+    ["stage", (r: Record<string, any>) => { r.site_advisory.state = "needs_review"; }],
+    ["answer", (r: Record<string, any>) => { r.customerConversation.push({ text: "Close the rack" }); }],
+    ["clarification", (r: Record<string, any>) => { r.site_task_clarification = { explanation: "Different final state" }; }],
+    ["proposal", (r: Record<string, any>) => { r.pilot_recommendation = { state: "proposed" }; }],
+  ] as const)("invalidates a real %s change for both historical review bases", (_kind, edit) => {
+    for (const digest of [legacyReviewDigest, basicsReviewDigest]) {
+      const record = decisionRecord(digest); edit(record); expect(reviewed(record)).toBeNull();
+    }
+  });
+  it("invalidates changed brief and canonical observation, despite keeping the same private projection format", () => {
+    expect(reviewed(decisionRecord(), { ...decisionBrief, summary: "Different work" })).toBeNull();
+    const changed = decisionPacket(); changed.sources[0].content.evidence.observations[0].finding = "Upper rack remains stationary";
+    expect(reviewed(decisionRecord(), decisionBrief, projectCurrentSiteAssessmentView(changed, "synthetic-correlation", 30))).toBeNull();
+  });
+  it("uses current evidence qualifications for every historical presentation, never old unsafe bindings", () => {
+    const changed = decisionPacket();
+    changed.raw_model_assessment.job[0].evidence[0].selector = null as any;
+    const current = projectCurrentSiteAssessmentView(changed, "synthetic-correlation", 30);
+    expect(current.decisionAssessment?.sections).toEqual([]);
+    for (const digest of [legacyReviewDigest, basicsReviewDigest]) expect(reviewed(decisionRecord(digest), decisionBrief, current)).toBeNull();
+  });
+  it.each(["unavailable", "authority_ended"] as const)("does not retain a ready review when the current reader is %s", state => {
+    const unavailable = { ...view().customerAdvisory!, state, sections: [], unknowns: [], nextAction: null };
+    expect(projectCurrentSiteJobDecision(decisionRecord(), decisionBrief, unavailable)).toBeNull();
+  });
+  it.each([{ reviewedBy: "" }, { reviewedAtIso: "bad-date" }, { schemaVersion: "other" }])("preserves named-human/schema/timestamp checks: %s", changes => {
+    const record = decisionRecord(); Object.assign(record.customer_decision, changes); expect(reviewed(record)).toBeNull();
+  });
+});
 
 describe("customer advisory decision details through the existing DTO", () => {
   it("preserves the specific safe proposed action while keeping analysis and rationale internal", () => {
@@ -111,6 +197,41 @@ describe("customer advisory decision details through the existing DTO", () => {
     const result = project(raw);
     expect(result.nextAction).toContain("Measure the pull force at the upper rack's handle.");
     expect(result.unknowns.join(" ")).toContain("How many rack operations are required per hour?");
+  });
+  it.each([
+    ["What load is required and Robot X can lift 250 kg?", "Robot X can lift 250 kg"],
+    ["What sequence is required and the pilot will start tomorrow?", "the pilot will start tomorrow"],
+    ["What pull force is required and the force is 20 N?", "the force is 20 N"],
+    ["What sequence is required and the pilot is tomorrow?", "the pilot is tomorrow"],
+    ["What load is required but Robot X could lift 250 kg?", "Robot X could lift 250 kg"],
+    ["What sequence is required or the pilot would start tomorrow?", "the pilot would start tomorrow"],
+    ["What load is required and Robot X lifts 250 kg?", "Robot X lifts 250 kg"],
+    ["What sequence is required and the pilot starts tomorrow?", "the pilot starts tomorrow"],
+    ["What load and Robot X lifts 250 kg should be tested?", "Robot X lifts 250 kg"],
+    ["What handles and the pilot starts tomorrow need inspection?", "the pilot starts tomorrow"],
+    ["What rack load Robot X can lift must be tested?", "Robot X can lift"],
+    ["What sequence the pilot will complete must be tested?", "the pilot will complete"],
+    ["What load is required Robot X is available?", "Robot X is available"],
+  ])("rejects embedded or coordinated declarative assertions while preserving a safe sibling: %s", (question, forbidden) => {
+    const raw = assessment(); raw.questions = [
+      { question, decision_it_changes: "Which test requirement to clarify" },
+      { question: "Which rack handle must be operated?", decision_it_changes: "Which contact point to investigate" },
+    ];
+    const input = packet(raw), original = structuredClone(input);
+    const result = projectCustomerSiteAdvisory(input, "bp-advisory-test", 30), text = result.unknowns.join(" ");
+    expect(text).not.toContain(forbidden);
+    expect(text).toContain("Which rack handle must be operated?");
+    expect(result.sections).toEqual([]);
+    expect(input).toEqual(original);
+  });
+  it.each([
+    "What load is required and how many operations are needed?",
+    "What handles and rack endpoints need inspection?",
+    "What exact sequence and final state should the test achieve?",
+    "How many rack operations must finish each hour?",
+  ])("retains supported direct questions, repeated interrogatives and noun lists: %s", question => {
+    const raw = assessment(); raw.questions = [{ question, decision_it_changes: "Which requirement to clarify" }];
+    expect(project(raw).unknowns.join(" ")).toContain(question);
   });
   it("leaves the original private packet intact and does not add API fields", () => {
     const raw = assessment(); raw.missing = [observed()];

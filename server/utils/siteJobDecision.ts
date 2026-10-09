@@ -10,11 +10,12 @@ export function siteJobDecisionSourceDigest(record: Record<string, any>, brief: 
     proposal: record.pilot_recommendation ?? null });
 }
 
-export function projectCurrentSiteJobDecision(record: Record<string, any>, brief: unknown, assessment: unknown) {
+export function projectCurrentSiteJobDecision(record: Record<string, any>, brief: unknown, assessment: unknown, compatibleAssessments: readonly unknown[] = []) {
   const decision = record.customer_decision;
   if (decision?.schemaVersion !== "site_job_decision.v1" || typeof decision.reviewedBy !== "string"
     || !decision.reviewedBy || !Number.isFinite(Date.parse(decision.reviewedAtIso))
-    || decision.sourceDigest !== siteJobDecisionSourceDigest(record, brief, assessment)) return null;
+    || ![assessment, ...compatibleAssessments].some(current =>
+      decision.sourceDigest === siteJobDecisionSourceDigest(record, brief, current))) return null;
   return { recommendation: decision.recommendation, why: decision.why,
     decisiveUncertainty: decision.decisiveUncertainty, nextAction: decision.nextAction,
     question: decision.question ?? null, reviewedAtIso: decision.reviewedAtIso };

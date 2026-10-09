@@ -50,7 +50,7 @@ router.use(requireAdminRole);
 
 import { getBrief } from "../utils/siteTaskBrief";
 import { getAccessRecordForEmail } from "../utils/robotTeamEarlyAccess";
-import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
+import { loadCurrentSiteAssessmentView } from "../utils/siteAssessmentPublic";
 import { readPilotCalendarEvent } from "../utils/google-calendar";
 import { projectPilotCoordination } from "../utils/pilotCoordination";
 import { buildTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
@@ -78,8 +78,8 @@ router.post("/recommendations/:requestId/decision", async (req, res) => {
       const ref = db!.collection("inboundRequests").doc(requestId), current = (await tx.get(ref)).data();
       const brief = (await tx.get(db!.collection("siteTaskBriefs").doc(requestId))).data() ?? null;
       if (!current) throw new Error("job_missing");
-      const assessment = await loadCurrentSiteAdvisory(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: current.account_owner_uid ?? null });
-      if (siteJobDecisionSourceDigest(current, brief, assessment) !== input.sourceDigest) throw new Error("decision_source_changed");
+      const assessment = await loadCurrentSiteAssessmentView(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: current.account_owner_uid ?? null });
+      if (siteJobDecisionSourceDigest(current, brief, assessment.decisionAssessment) !== input.sourceDigest) throw new Error("decision_source_changed");
       if (current.customer_decision?.sourceDigest === input.sourceDigest
         && humanDecisionDigest({ recommendation: current.customer_decision.recommendation, why: current.customer_decision.why,
           decisiveUncertainty: current.customer_decision.decisiveUncertainty, nextAction: current.customer_decision.nextAction,
@@ -229,16 +229,16 @@ router.get("/recommendations/:requestId", async (req, res) => {
     if (!record) return res.status(404).json({ error: "Job not found" });
     const [brief, teams, assessment, interests] = await Promise.all([getBrief(requestId),
       listMatchableRobotTeams({ statuses: ["applied", "engaged"] }),
-      loadCurrentSiteAdvisory(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: record.account_owner_uid ?? null }),
+      loadCurrentSiteAssessmentView(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: record.account_owner_uid ?? null }),
       db.collection("inboundRequests").doc(requestId).collection("robotTeamInterest").limit(100).get()]);
     const admitted = (await Promise.all(teams.map(async team => (await getAccessRecordForEmail(team.accountEmail || team.contactEmail))?.status === "approved" ? team : null))).filter(Boolean);
     const terms = brief?.successCriteria;
     res.set("Cache-Control", "no-store");
     return res.json({ requestId, recommendation: record.pilot_recommendation ?? null,
-      decision: projectCurrentSiteJobDecision(record, brief, assessment), decisionSourceDigest: siteJobDecisionSourceDigest(record, brief, assessment),
+      decision: projectCurrentSiteJobDecision(record, brief, assessment.decisionAssessment, assessment.compatibleDecisionAssessments), decisionSourceDigest: siteJobDecisionSourceDigest(record, brief, assessment.decisionAssessment),
       customerConversation: Array.isArray(record.customerConversation) ? record.customerConversation : [],
       customerClarification: record.site_task_clarification ?? null,
-      coordination: projectPilotCoordination(record), assessment,
+      coordination: projectPilotCoordination(record), assessment: assessment.customerAdvisory,
       teams: admitted.map(team => ({ id: team!.id, name: team!.name, capabilityDescription: team!.capabilityDescription ?? "No demonstrated capability recorded" })),
       interests: interests.docs.map(doc => doc.data()),
       draft: { purpose: brief?.summary ?? String(await decryptFieldValue(record.request?.taskStatement ?? "")),

@@ -210,9 +210,33 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const html = renderToStaticMarkup(createElement(SiteAdvisoryReport, {advisory: body.siteAdvisory}));
     expect(html).not.toContain("Video at 2 s"); expect(html).not.toContain("Full assessment and evidence");
     expect(html).not.toMatch(/PRIVATE|robot success|gs:\/\//);
-    raw.consent_revoked = true;
+    const { loadCurrentSiteAssessmentView } = await import("../utils/siteAssessmentPublic");
+    const view = await loadCurrentSiteAssessmentView(requestId, captureId);
+    expect(view.customerAdvisory).toEqual(body.siteAdvisory);
+    expect(JSON.stringify(view.decisionAssessment)).toContain("A carton moves");
+    expect(Object.keys(body.siteAdvisory).sort()).toEqual(["schemaVersion", "state", "correlationId", "sections", "unknowns", "nextAction"].sort());
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    const transact = sharedFakeFirestore.runTransaction.bind(sharedFakeFirestore);
+    for (const key of [`inboundRequests/${requestId}`, `siteTaskBriefs/${requestId}`, `captureUploadSessions/${captureId}`,
+      `siteAssessmentJobs/${jobId}`, "agentRuns/synthetic-advisory-run"]) {
+      const current = structuredClone(sharedFakeFirestoreState.docs.get(key)!);
+      const transaction = vi.spyOn(sharedFakeFirestore, "runTransaction").mockImplementationOnce(callback => {
+        sharedFakeFirestoreState.docs.set(key, { ...current, changedDuringRead: true });
+        return transact(callback);
+      });
+      const changed = await loadCurrentSiteAssessmentView(requestId, captureId);
+      expect(changed.customerAdvisory?.state, key).toBe("unavailable");
+      expect(changed.decisionAssessment?.sections).toEqual([]);
+      expect(changed.compatibleDecisionAssessments).toEqual([]);
+      transaction.mockRestore(); sharedFakeFirestoreState.docs.set(key, current);
+    }
+    const wrongOwner = await loadCurrentSiteAssessmentView(requestId, captureId, { expectedOwnerUid: "another-owner" });
+    expect(wrongOwner.customerAdvisory?.state).toBe("unavailable");
+    expect(wrongOwner.compatibleDecisionAssessments).toEqual([]);
+    sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`)!.consent_revoked = true;
     const withdrawn = await (await read()).json(); expect(withdrawn.siteAdvisory.state).toBe("authority_ended");
     expect(withdrawn.siteAdvisory.sections).toEqual([]); expect(withdrawn.status.headline).toContain("withdrawn");
+    expect((await loadCurrentSiteAssessmentView(requestId, captureId)).compatibleDecisionAssessments).toEqual([]);
   });
 
   it.each(["stored", "held", "published"] as const)("acknowledges %s browser bytes without a processing marker", async (kind) => {
