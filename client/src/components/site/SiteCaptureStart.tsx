@@ -282,9 +282,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
   }
   // The video is only taken from a site we are cleared to receive it from.
   const footageWanted = hasFootage && region !== "non_us";
-  const [taskForPreview, setTaskForPreview] = useState(initial.draft.task);
+  // Honor privacy choices retained by earlier versions of this form.
   const [privateHandling, setPrivateHandling] = useState(initial.draft.privateHandling ?? false);
-  const publicDraft = anonymizedOpportunityDraft(taskForPreview);
   const [claudeConsent, setClaudeConsent] = useState(false);
   const [solAgentsConsent, setSolAgentsConsent] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -293,7 +292,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       || recovery.current.pending?.body !== other.pending?.body;
     recovery.current = other;
     requestId.current = other.requestId; retryToken.current = other.retryToken;
-    setPrivateHandling(other.draft.privateHandling ?? false); setTaskForPreview(other.draft.task);
+    setPrivateHandling(other.draft.privateHandling ?? false);
     setMethod(other.draft.method); setRegion(other.draft.region);
     setPending(other.pending);
     if (changed && resetChanged) {
@@ -334,7 +333,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setClaudeConsent(false); setSolAgentsConsent(false);
       setMethod("phone"); setRegion(""); setCountryMissing(false);
-      setPrivateHandling(false); setTaskForPreview("");
+      setPrivateHandling(false);
       setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
       // A completion is visible only after both stores commit the fresh authority.
@@ -697,14 +696,12 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
         <span className="ms-field-hint">
           Show us the work; we'll assess the observed task. Add context or what you want to achieve if helpful. We'll ask only when a missing answer changes the recommendation.
         </span>
-        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} onChange={event => setTaskForPreview(event.target.value)} maxLength={2000} rows={4} />
+        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={4} />
       </label>
 
-      <div aria-label="Opportunity sharing">
-        <p>{privateHandling ? "This job will be handled privately; starting does not authorize a public listing. Blueprint uses the supplied information for your job assessment." : "Blueprint will create an anonymized opportunity listing so robot teams approved for beta can discover this job. By starting, you authorize publication of the generated summary below. Footage, reconstruction, exact location, contacts and sensitive operating details remain restricted."}</p>
-        <p aria-label="Generated public summary"><strong>{publicDraft.title}</strong> · {publicDraft.taskFamily}{publicDraft.objects ? ` · ${publicDraft.objects}` : ""}. Requirements not supplied or approved for sharing remain unknown.</p>
-        <label className="ms-check-row"><input name="startPrivateHandling" type="checkbox" checked={privateHandling} onChange={event => setPrivateHandling(event.target.checked)} />Keep this job private instead</label>
-      </div>
+      <p className="ms-field-hint" aria-label="Opportunity sharing">
+        {privateHandling ? "This job will be handled privately; starting does not authorize a public listing. Blueprint uses the supplied information for your job assessment." : "Blueprint will create an anonymized opportunity listing so robot teams approved for beta can discover this job. By starting, you authorize publication of the generated summary."}
+      </p>
 
       {claudeAuthoringRequested && (
         <label htmlFor="start-claude-authoring" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>

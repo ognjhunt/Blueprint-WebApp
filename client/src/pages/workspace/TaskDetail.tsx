@@ -218,11 +218,11 @@ export default function TaskDetail() {
                   <p className="ws-muted">Closed. The job is off the library and no new runs can start.</p>
                 ) : !task.listing?.approved ? (
                   <p className="ws-muted">
-                    Not listed. You choose on your job page whether robot teams can see a card for this job.
+                    Not listed. Manage sharing on your job page to review and publish a card, or keep it hidden.
                   </p>
                 ) : task.listing.live ? (
                   <>
-                    <p>Listed. Robot teams on Blueprint can see the card you approved and start evaluation runs. Your job page shows the card as they see it.</p>
+                    <p>Listed. Robot teams approved for beta can see the anonymized card authorized for this job and start evaluation runs. Your job page lets you review, edit or hide the card.</p>
                     <div className="ws-form-actions">
                       <button
                         className="ws-link"

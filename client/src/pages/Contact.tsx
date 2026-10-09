@@ -44,7 +44,7 @@ export default function Contact() {
           <TaskBrowse />
           <details className="ms-task-interest ms-visitor-detail">
             <summary>What happens after applying?</summary>
-            <p>We review your robot's capabilities against a real site task, then email the next step. Your application remains pending until manual approval. Applying or creating an account does not grant access; approved teams can see job details sites chose to share.</p>
+            <p>We review your robot's capabilities against a real site task, then email the next step. Your application remains pending until manual approval. Applying or creating an account does not grant access. Approved teams see anonymized cards authorized when sites start a job; sites can edit or hide them afterward.</p>
             <p>You confirm the configuration, price, timing and site conditions before a customer sees your offer.</p>
             <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. Executable submissions use a policy endpoint or container; compatibility must be checked for the specific task.</p>
             <p>Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. An invitation does not guarantee a run, introduction, or deployment.</p>

@@ -88,7 +88,7 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
     </details>}
     {libraryEmpty && <div className="ms-task-empty">
       <h2>The first site jobs are being prepared.</h2>
-      <p>Sites film their own jobs and choose whether to share them with robot teams. We email you as soon as a site lists a new job.</p>
+      <p>Sites authorize an anonymized job card when starting, except for jobs already marked private, and can edit or hide it later. We email you when a new job is listed.</p>
     </div>}
     {state === "ready" && items.length > 0 && <>
       <p className="ms-field-hint">{filtered.length} {filtered.length === 1 ? "job" : "jobs"} · Details shared by site owners. A past job can remain available for evaluation.</p>

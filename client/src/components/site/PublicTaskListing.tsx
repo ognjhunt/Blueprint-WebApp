@@ -5,7 +5,7 @@ import { type TaskListingDetails, opportunityLabels } from "@/types/taskBrowse";
 import { TaskFacts } from "./TaskFacts";
 const blank: TaskListingDetails = { title: "", taskFamily: "", siteType: "", region: "", objects: "", cycleTarget: "", pilotTiming: "", pilotBudget: "", pilotPriceStatus: "target_budget", pilotConditions: "", ongoingTarget: "", opportunity: "not_seeking" };
 
-/** Public text is a separate, explicit grant. A capture grant never populates this. */
+/** Listing authorization is separate from capture rights; reviewed edits retain their own consent. */
 export function PublicTaskListing(props: { token: string; jobRevision?: string }) {
   return <PublicTaskListingForToken key={props.token} {...props} />;
 }
@@ -58,7 +58,7 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
     <label key={key}>{label}<input value={details[key] ?? ""} maxLength={maxLength} minLength={key === "title" ? 8 : undefined} required={required}
       onChange={e => { dirty.current = true; setDetails({ ...details, [key]: e.target.value }); setConsent(false); setState("idle"); }} /></label>;
   return <details className="ms-task-interest"><summary>Manage opportunity sharing (optional)</summary>
-    <p className="ms-field-hint">Optional. Share only the text and thumbnail you approve below. Your contact details, full footage and scene stay private. Use a general region and leave out identifying details.</p>
+    <p className="ms-field-hint">Starting a job publishes an anonymized card for robot teams approved for beta, unless the job was previously marked private. Edit or hide it here. Your contact details, full footage and scene stay private. Use a general region and leave out identifying details.</p>
     <p className="ms-field-hint">This card belongs to the same job. {sources.title ? "The title comes from your job brief. " : ""}{sources.cycleTarget ? "The cycle target comes from your stated success criteria, not an observed video rate. " : ""}Review changes for public use; saving a private draft does not publish it.</p>
     {reviewRequired && <p role="alert">Your brief changed. The card is hidden for renewed review; your public edits are retained.</p>}
     {state === "loading" ? <p role="status">Loading your card…</p> : state === "load_error" ? <p role="alert">Your card could not be loaded. Reopen this page to try again.</p> :

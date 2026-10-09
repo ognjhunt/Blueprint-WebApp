@@ -64,7 +64,7 @@ export const dataControls: readonly DataControl[] = [
     id: "hosted-not-downloadable",
     claim: "Site files are hosted, not downloadable — including for robot teams.",
     mechanism:
-      "Evaluations run on our infrastructure against your hosted testbed. A counterparty sees results and the anonymized profile you approved, not your files. If you opt into the opportunity network, the listing is anonymized by default and named detail is released only at a shortlist stage you approve.",
+      "Evaluations run on our infrastructure against your hosted testbed. A counterparty sees results and the anonymized profile you authorized, not your files. Starting a job authorizes an anonymized listing for approved beta robot teams unless the job was previously marked private; site owners can edit or hide it afterward. Named detail is released only at a shortlist stage you approve.",
     enforcedBy: "Blueprint-WebApp permissioned access tiers",
   },
   {
