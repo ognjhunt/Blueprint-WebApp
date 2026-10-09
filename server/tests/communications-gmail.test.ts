@@ -25,6 +25,20 @@ beforeEach(() => {
   for (const key of FOUNDER_GMAIL_BINDING_KEYS) vi.stubEnv(key, "");
 });
 describe("existing founder Gmail binding (mocked)", () => {
+  it("rechecks selected-job authority after awaited mailbox verification before sending", async () => {
+    vi.useFakeTimers(); vi.setSystemTime(1000);
+    try {
+      const { gmail } = gmailFixture();
+      gmail.users.settings.sendAs.list.mockImplementationOnce(async () => {
+        await Promise.resolve(); vi.setSystemTime(2000);
+        return { data: { sendAs: [{ sendAsEmail: mailbox, verificationStatus: "accepted" }] } };
+      });
+      await expect(sendFounderMessage({ to: "ops@facility.example", subject: "Packing question", body: "Synthetic test question",
+        messageId: "<expiry@business.example>", assertSendAllowed: () => { if (Date.now() >= 2000) throw new Error("job_runtime_authorization_unavailable"); },
+      }, gmail)).rejects.toThrow("job_runtime_authorization_unavailable");
+      expect(gmail.users.messages.send).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); }
+  });
   it("requires existing OAuth and never accepts browser login as API binding", async () => {
     await expect(existingFounderGmail()).rejects.toThrow("founder_gmail_binding_missing");
   });
