@@ -3108,5 +3108,32 @@
       "artifact_bytes": 1759,
       "canonical_installation": "pending"
     }
+  },
+  "verified_checkpoint_20261009_0407": {
+    "deployed_sha": "5cabf90a5851effc44211f9e8f3f5fd0c71e5ed5",
+    "main_ci": 37881597610,
+    "actual_deployment_run": 37882061692,
+    "web_deploy": "dep-db46f07lk1mc73f0oiqg",
+    "worker_deploy": "dep-db46f0bbc2fs73apmb4g",
+    "artifact_sha256": "602e315f602ffcc6c3899349a2abaf76d5bfe02aae00d0845b2f62035c9fa2f0",
+    "public_readback_sha256": "c1ac9f8b4fd4d6f29f21db1a8caaf217eda61647137b89f84d62595dadd91546",
+    "verified_scope": "Both live deployment identities and public version/health/readiness; source release only",
+    "root_changed_admission": false,
+    "automatic_deploy_admission_observed": true,
+    "superseded5dc_deploy": {
+      "run": 37881585606,
+      "failed_before_mutation": "stale main after admission"
+    },
+    "native_ci_followup": {
+      "current_head": "b52ec2fd0595d136137326c48e86761b66850351",
+      "first_run": 37881195173,
+      "first_outcome": "collection failure retained",
+      "actual_test_package_scoped_passed": 340,
+      "workflow_diagnostic_passed": 7,
+      "production_source_unchanged": true,
+      "required_new_ci": "not_started_pending_workflow_review"
+    },
+    "native_metadata_receipt_sha256": "f1fa894e43d1a34b773c5277d8c7de3b8b9549a19c2950d564fb6ce018d70093",
+    "native_operational_receipt_sha256": "a62a71d0652219d24ef05557d9c0bddc85195ba95bfc383f5d9dd7c39274730c"
   }
 }
