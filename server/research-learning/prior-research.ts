@@ -56,7 +56,7 @@ const rowSchema = z.object({ crmId: id, organization: safeText(200), prospectTyp
   canonical: z.object({ prospectId: id.nullable(), siteId: id.nullable(), taskId: id.nullable(), caseId: id.nullable() }).strict(),
 }).strict();
 const companySchema = z.object({ companyId: id, name: safeText(200), roles: z.array(safeText(120)).max(20), sourcePageIds: unique }).strict();
-const factSchema = z.object({ factId: id, field: safeText(120), statement: safeText(), status: z.enum(["reviewed", "conflicted", "unsupported", "unknown"]),
+export const factSchema = z.object({ factId: id, field: safeText(120), statement: safeText(), status: z.enum(["reviewed", "conflicted", "unsupported", "unknown"]),
   evidenceLevel: z.enum(["vendor_claim", "demonstrated_capability", "named_deployment", "current_availability", "unknown"]),
   confidence: z.enum(["low", "medium", "high", "unknown"]), freshnessDays: z.number().int().min(1).max(90),
   taskTags: z.array(safeText(120)).max(20), geographyTags: z.array(safeText(120)).max(20), sourcePageIds: unique,
