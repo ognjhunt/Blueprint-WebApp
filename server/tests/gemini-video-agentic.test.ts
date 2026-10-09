@@ -263,6 +263,128 @@ describe("opening the clip", () => {
     expect(video.receipt().sha256).toBe(createHash("sha256").update(clip).digest("hex"));
   });
 
+  it("cancels an undeclared clip at the first overflowing chunk without reading later data", async () => {
+    const chunk = new Uint8Array(1024 * 1024);
+    let pulls = 0, cancellations = 0, reachedEof = false, readLaterSentinel = false;
+    const response = new Response(new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (pulls === 66) { reachedEof = true; controller.close(); return; }
+        pulls++;
+        if (pulls === 66) readLaterSentinel = true;
+        controller.enqueue(chunk);
+      },
+      cancel() { cancellations++; },
+    }, { highWaterMark: 0 }), { headers: { "content-type": "video/mp4" } });
+    const arrayBuffer = vi.spyOn(response, "arrayBuffer");
+    const fetcher = vi.fn(async () => response);
+    await expect(openVideo("https://example.com/clip.mp4", fetcher)).rejects.toMatchObject({ code: "video_too_large" });
+    expect({ pulls, cancellations, reachedEof, readLaterSentinel, arrayBufferCalls: arrayBuffer.mock.calls.length })
+      .toEqual({ pulls: 65, cancellations: 1, reachedEof: false, readLaterSentinel: false, arrayBufferCalls: 0 });
+  });
+
+  it("admits exactly 64MiB without a declared length and preserves its bytes and hash", async () => {
+    const chunk = new Uint8Array(1024 * 1024).fill(7);
+    const expectedHash = createHash("sha256");
+    for (let count = 0; count < 64; count++) expectedHash.update(chunk);
+    let pulls = 0, cancellations = 0;
+    const response = new Response(new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (pulls === 64) { controller.close(); return; }
+        pulls++; controller.enqueue(chunk);
+      },
+      cancel() { cancellations++; },
+    }, { highWaterMark: 0 }), { headers: { "content-type": "video/mp4" } });
+    const video = await openVideo("https://example.com/clip.mp4", vi.fn(async () => response));
+    expect(Buffer.isBuffer(video.body)).toBe(true);
+    expect(video.byteLength).toBe(64 * 1024 * 1024);
+    expect(createHash("sha256").update(video.body as Buffer).digest("hex")).toBe(expectedHash.copy().digest("hex"));
+    expect(video.receipt()).toEqual({ bytes: 64 * 1024 * 1024, sha256: expectedHash.digest("hex") });
+    expect(pulls).toBe(64); expect(cancellations).toBe(0);
+  });
+
+  it("reports an empty undeclared body without a grant of usable evidence", async () => {
+    await expect(openVideo("https://example.com/clip.mp4", vi.fn(async () => new Response(null, {
+      headers: { "content-type": "video/mp4" },
+    })))).rejects.toMatchObject({ code: "video_empty" });
+  });
+
+  it("preserves admitted bytes when an undeclared source reuses its chunk buffer", async () => {
+    const chunk = new Uint8Array([1, 2, 3, 4]);
+    let pulls = 0;
+    const response = new Response(new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (pulls++ === 0) controller.enqueue(chunk);
+        else { chunk.fill(9); controller.close(); }
+      },
+    }, { highWaterMark: 0 }), { headers: { "content-type": "video/mp4" } });
+    const video = await openVideo("https://example.com/clip.mp4", vi.fn(async () => response));
+    expect(video.body).toEqual(Buffer.from([1, 2, 3, 4]));
+    expect(video.receipt().sha256).toBe(createHash("sha256").update(video.body as Buffer).digest("hex"));
+  });
+
+  it("returns the oversized error and aborts transport when cancellation never settles", async () => {
+    let signal: AbortSignal | null | undefined;
+    let cancellations = 0;
+    let pulls = 0;
+    const chunk = new Uint8Array(1024 * 1024);
+    const response = new Response(new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (pulls === 66) { controller.close(); return; }
+        pulls++; controller.enqueue(chunk);
+      },
+      cancel() { cancellations++; return new Promise<void>(() => {}); },
+    }, { highWaterMark: 0 }), { headers: { "content-type": "video/mp4" } });
+    const fetcher = vi.fn(async (_url: string, init: RequestInit = {}) => { signal = init.signal; return response; });
+    const outcome = openVideo("https://example.com/clip.mp4", fetcher).then(
+      () => ({ code: "unexpected_success" }),
+      (error: { code: string }) => ({ code: error.code }),
+    );
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const result = await Promise.race([outcome, new Promise<{ code: string }>(resolve => {
+        timer = setTimeout(() => resolve({ code: "cancellation_stalled" }), 500);
+      })]);
+      expect(result).toEqual({ code: "video_too_large" });
+      expect(cancellations).toBe(1);
+      expect(pulls).toBe(65);
+      expect(signal?.aborted).toBe(true);
+    } finally { clearTimeout(timer); }
+  });
+
+  it.each(["Error", "AbortError"])("preserves an undeclared body %s diagnosis", async name => {
+    const error = new Error("fixture source read failed"); error.name = name;
+    const response = new Response(new ReadableStream<Uint8Array>({
+      pull(controller) { controller.error(error); },
+    }, { highWaterMark: 0 }), { headers: { "content-type": "video/mp4" } });
+    await expect(openVideo("https://example.com/clip.mp4", vi.fn(async () => response)))
+      .rejects.toMatchObject({ code: name === "AbortError" ? "video_fetch_timeout" : "video_fetch_failed" });
+  });
+
+  it("preserves the oversized error when source cancellation also fails", async () => {
+    const response = new Response(new ReadableStream<Uint8Array>({
+      pull(controller) { controller.enqueue(new Uint8Array(64 * 1024 * 1024 + 1)); },
+      cancel() { throw new Error("fixture cancellation failed"); },
+    }, { highWaterMark: 0 }), { headers: { "content-type": "video/mp4" } });
+    await expect(openVideo("https://example.com/clip.mp4", vi.fn(async () => response)))
+      .rejects.toMatchObject({ code: "video_too_large" });
+  });
+
+  it("retains the original 60-second fetch timeout while an undeclared body stalls", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetcher = vi.fn(async (_url: string, init: RequestInit = {}) => new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          init.signal!.addEventListener("abort", () => {
+            const error = new Error("fixture aborted"); error.name = "AbortError"; controller.error(error);
+          }, { once: true });
+        },
+      }, { highWaterMark: 0 }), { headers: { "content-type": "video/mp4" } }));
+      const rejected = expect(openVideo("https://example.com/clip.mp4", fetcher)).rejects.toMatchObject({ code: "video_fetch_timeout" });
+      await vi.advanceTimersByTimeAsync(60_000);
+      await rejected;
+    } finally { vi.useRealTimers(); }
+  });
+
   it("reads a stored upload served as generic bytes by its extension, and still refuses a web page", async () => {
     const video = await openVideo("https://storage.googleapis.com/b/scenes/s/captures/c/raw/walkthrough.mov?X-Goog-Signature=x",
       served(clip, { "content-type": "application/octet-stream", "content-length": String(clip.length) }));
