@@ -12,6 +12,8 @@
 import { act, fireEvent, render as renderView, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resetClientEnvCacheForTests } from "@/lib/client-env";
+
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { siteCaptureDraftKey } from "@/lib/siteCaptureDraft";
 import { renderToString } from "react-dom/server";
@@ -63,6 +65,7 @@ function photon(properties: Record<string, unknown>[]) {
 }
 
 beforeEach(() => {
+  resetClientEnvCacheForTests();
   durability.rows.clear();
   vi.stubGlobal("navigator", { userAgent: navigator.userAgent, locks: { request: async (_key: string, action: () => unknown) => action() } });
   window.localStorage.clear();
@@ -177,16 +180,16 @@ describe("SiteCaptureStart and the country", () => {
 
   it("clears the prior inferred country while a new Google pick awaits details and ignores details after another edit", async () => {
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
-    let resolveDetails: ((place: unknown, status: string) => void) | undefined;
+    resetClientEnvCacheForTests();
+    let resolveDetails: ((place: unknown) => void) | undefined;
     vi.stubGlobal("google", { maps: { places: {
-      AutocompleteService: class {
-        getPlacePredictions(_request: unknown, callback: Function) {
-          callback([{ description: "Berlin, Germany", place_id: "berlin-id" }], "OK");
-        }
+      AutocompleteSuggestion: {
+        fetchAutocompleteSuggestions: async () => ({ suggestions: [{ placePrediction: {
+          text: { toString: () => "Berlin, Germany" },
+          toPlace: () => ({ fetchFields: () => new Promise((resolve) => { resolveDetails = resolve; }) }),
+        } }] }),
       },
-      PlacesService: class {
-        getDetails(_request: unknown, callback: typeof resolveDetails) { resolveDetails = callback; }
-      },
+      AutocompleteSessionToken: class {},
     } } });
     try {
       signedIn({ workspaceType: "site_operator" }, []);
@@ -196,29 +199,29 @@ describe("SiteCaptureStart and the country", () => {
       const location = document.querySelector("#start-location")!;
       fireEvent.change(location, { target: { value: "Austin TX" } });
       expectInferredUnitedStates();
-      fireEvent.mouseDown(await screen.findByText("Berlin, Germany"));
+      fireEvent.pointerDown(await screen.findByText("Berlin, Germany"));
       expect((location as HTMLInputElement).value).toBe("Berlin, Germany");
       expect(screen.queryByText(nonUsNotice)).toBeNull();
       fireEvent.submit(screen.getByRole("form"));
       expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
       fireEvent.change(location, { target: { value: "Austin TX" } });
-      resolveDetails?.({ address_components: [{ short_name: "DE", types: ["country"] }] }, "OK");
+      resolveDetails?.({ place: { addressComponents: [{ shortText: "DE", types: ["country"] }] } });
       await waitFor(expectInferredUnitedStates);
     } finally { vi.unstubAllEnvs(); }
   });
 
   it("recovers a denied Google country lookup by correcting the address", async () => {
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
-    let resolveDetails: ((place: unknown, status: string) => void) | undefined;
+    resetClientEnvCacheForTests();
+    let resolveDetails: ((place: unknown) => void) | undefined;
     vi.stubGlobal("google", { maps: { places: {
-      AutocompleteService: class {
-        getPlacePredictions(_request: unknown, callback: Function) {
-          callback([{ description: "Warehouse", place_id: "unresolved-fixture" }], "OK");
-        }
+      AutocompleteSuggestion: {
+        fetchAutocompleteSuggestions: async () => ({ suggestions: [{ placePrediction: {
+          text: { toString: () => "Warehouse" },
+          toPlace: () => ({ fetchFields: () => new Promise((resolve) => { resolveDetails = resolve; }) }),
+        } }] }),
       },
-      PlacesService: class {
-        getDetails(_request: unknown, callback: typeof resolveDetails) { resolveDetails = callback; }
-      },
+      AutocompleteSessionToken: class {},
     } } });
     fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => init?.method === "POST"
       ? { ok: true, status: 200, json: async () => ({ captureUrl: "https://example.test/capture-upload/fixture.synthetic" }) } : photon([]));
@@ -229,9 +232,9 @@ describe("SiteCaptureStart and the country", () => {
       fireEvent.change(document.querySelector("#start-company")!, { target: { value: "Fixture company" } });
       const location = document.querySelector("#start-location")!;
       fireEvent.change(location, { target: { value: "Warehouse" } });
-      fireEvent.mouseDown(await screen.findByText("Warehouse"));
+      fireEvent.pointerDown(await screen.findByText("Warehouse"));
       expect(resolveDetails).toBeTypeOf("function");
-      await act(async () => { resolveDetails!(null, "REQUEST_DENIED"); });
+      await act(async () => { resolveDetails!(null); });
       fireEvent.submit(screen.getByRole("form"));
       expect(screen.getByText(/Add the country to the address/)).toBeInTheDocument();
       expect(postsTo("/api/inbound-request")).toHaveLength(0);
@@ -257,7 +260,7 @@ describe("SiteCaptureStart and the country", () => {
     await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "austin" } });
 
-    fireEvent.mouseDown(await screen.findByText("Austin, Texas, United States"));
+    fireEvent.pointerDown(await screen.findByText("Austin, Texas, United States"));
 
     await waitFor(expectInferredUnitedStates);
   });
@@ -267,7 +270,7 @@ describe("SiteCaptureStart and the country", () => {
     await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "munich" } });
 
-    fireEvent.mouseDown(await screen.findByText("Munich, Germany"));
+    fireEvent.pointerDown(await screen.findByText("Munich, Germany"));
 
     expect(await screen.findByText(nonUsNotice)).toBeInTheDocument();
   });
@@ -300,7 +303,7 @@ it("clears an inferred country when the address is edited", async () => {
   await renderReady(<SiteCaptureStart />);
   const location = document.querySelector("#start-location")!;
   fireEvent.change(location, { target: { value: "austin" } });
-  fireEvent.mouseDown(await screen.findByText("Austin"));
+  fireEvent.pointerDown(await screen.findByText("Austin"));
   expectInferredUnitedStates();
   fireEvent.change(location, { target: { value: "Berlin" } });
   expect(screen.queryByText(nonUsNotice)).toBeNull();
@@ -523,7 +526,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     expect(document.querySelector("#start-footage")).not.toBeNull();
 
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "munich" } });
-    fireEvent.mouseDown(await screen.findByText("Munich, Germany"));
+    fireEvent.pointerDown(await screen.findByText("Munich, Germany"));
 
     await screen.findByText(/Hold on to the video for now/);
     expect(document.querySelector("#start-footage")).toBeNull();
