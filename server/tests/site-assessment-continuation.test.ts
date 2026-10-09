@@ -54,10 +54,12 @@ describe('assessment continuation policy (scripted SDK, no provider dispatch)', 
     const packet = await agent.run();
     expect(history.mock.calls[0].slice(0, 2)).toEqual(['search_company_history', { query: invalid.query, filters: { kind: 'hypothesis' }, page_size: 20 }]);
     expect(history.mock.calls[1][1]).toHaveProperty('cursor', invalid.cursor);
-    expect(packet.tool_receipts[1].result).toMatchObject({ ok: false, error: 'company_history_cursor_changed', retry_arguments: { ...invalid, cursor: null } });
-    expect((packet.tool_receipts[1].result as any).action).toContain('cursor: null');
+    expect(packet.tool_receipts[1].result).toMatchObject({ ok: true,
+      pagination_recovery: { status: 'completed', initial_result: { ok: false, error: 'company_history_cursor_changed' }, retry_arguments: { ...invalid, cursor: null } } });
     expect(history.mock.calls[2][1]).toEqual({ query: invalid.query, filters: { city: 'Chicago', company: 'fixture-company', kind: 'hypothesis' }, page_size: 20 });
-    expect(packet.tool_receipts.map(row => (row.result as any).ok)).toEqual([true, false, true]);
+    expect(history).toHaveBeenCalledTimes(4);
+    expect(history.mock.calls[3][1]).toEqual(history.mock.calls[2][1]);
+    expect(packet.tool_receipts.map(row => (row.result as any).ok)).toEqual([true, true, true]);
     expect(packet.sources.some(row => row.kind === 'operator')).toBe(false);
   });
   it('continues past twelve SDK turns while new evidence remains available', async () => {

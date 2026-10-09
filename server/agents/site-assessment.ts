@@ -311,9 +311,35 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
           const value = optional(args[key as "city"]); return value ? [[key, value]] : [];
         }));
         const cursor = optional(args.cursor);
+        const search = { query: args.query, filters, page_size: 20 };
+        assertDeadline();
         const result = await history("search_company_history",
-          { query: args.query, filters, page_size: 20, ...(cursor ? { cursor } : {}) }, options.history_access) as Record<string, unknown>;
-        if (result?.ok === false && ["company_history_cursor_changed", "company_history_ranking_changed"].includes(String(result.error))) {
+          { ...search, ...(cursor ? { cursor } : {}) }, options.history_access) as Record<string, unknown>;
+        const restartable = result?.ok === false && (result.error === "company_history_cursor_changed"
+          || result.error === "company_history_ranking_changed");
+        if (restartable && cursor?.trim()) {
+          // Retain the first result before a deadline check or another await. This is
+          // one SDK invocation with two backend attempts, not a fabricated success.
+          const recovery = { status: "not_started", initial_result: result, retry_arguments: { ...args, cursor: null } };
+          const receiptIndex = receipts.length;
+          retained("search_robot_knowledge", args, { ...result, pagination_recovery: recovery });
+          assertDeadline();
+          receipts[receiptIndex].result = { ...result, pagination_recovery: { ...recovery, status: "started" } };
+          let restarted: Record<string, unknown>;
+          try {
+            // The backend rechecks the same authority and scope. Any existing
+            // authorized embedding work remains governed by its own controls.
+            restarted = await history("search_company_history", search, options.history_access) as Record<string, unknown>;
+          } catch {
+            receipts[receiptIndex].result = { ...result, pagination_recovery: { ...recovery,
+              status: "failed", error: "site_assessment_history_retry_failed" } };
+            throw new Error("site_assessment_history_retry_failed");
+          }
+          const recovered = { ...restarted, pagination_recovery: { ...recovery, status: "completed" } };
+          receipts[receiptIndex].result = recovered;
+          return recovered;
+        }
+        if (restartable) {
           return retained("search_robot_knowledge", args, { ...result,
             action: "Call search_robot_knowledge again with these retry_arguments and literal JSON cursor: null. The rejected cursor is not usable; keep the same query and filters.",
             retry_arguments: { ...args, cursor: null } });
