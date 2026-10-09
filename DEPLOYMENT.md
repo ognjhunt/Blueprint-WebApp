@@ -145,23 +145,26 @@ Launch-critical note:
 - `VITE_GOOGLE_APP_ID`
 - Optional: `VITE_GOOGLE_MAPS_API_KEY`
 
-The site-intake address field uses **server-side Places API (New)** through
-`/api/location-autocomplete`. It reads `GOOGLE_PLACES_API_KEY`, then the existing
-`GEMINI_API_KEY` / `GOOGLE_GENAI_API_KEY` (or their existing Gemini aliases) at
-runtime. A Gemini key works only when its billing-enabled Cloud project has
-Places API (New) enabled and the key's API/application restrictions permit
-server-side Places requests. The secret never enters the browser; **do not copy
-`GEMINI_API_KEY` into a `VITE_` variable**. No Maps JavaScript SDK or browser key
-is needed for this field. Other map components can still use the optional
-browser-restricted `VITE_GOOGLE_MAPS_API_KEY`.
+The site-intake address field prefers **Google Places Autocomplete (New) in the
+browser** when `VITE_GOOGLE_MAPS_API_KEY` is configured at build time. The key
+must allow Maps JavaScript API and Places API (New), with billing enabled.
+Restrict this browser key to those APIs and referrers `https://tryblueprint.io/*`
+and `https://www.tryblueprint.io/*` (plus explicit preview/local origins when
+needed). Set it on the Render **web service** and rebuild through the normal
+CI-gated release. Places loads when the field mounts, before typing begins.
 
-Address queries are rate-limited, bounded by provider timeouts, omitted from app
-request logs, and returned with `Cache-Control: no-store`. Autocomplete and the
-selected country's structured details share one session token. The field keeps
-keyless Photon suggestions and manual entry when Google is unavailable. The API
-returns only sanitized failure codes (`not_configured`, `api_not_enabled`,
-`key_expired`, `billing_disabled`, `request_denied`, `quota_exceeded`, or
-`provider_unavailable`) so a failed key can be diagnosed without disclosure.
+Without a browser Maps key, the field uses `/api/location-autocomplete`, which
+reads `GOOGLE_PLACES_API_KEY`, then `GEMINI_API_KEY` / `GOOGLE_GENAI_API_KEY` (or
+their existing aliases) at runtime. That private server credential must allow
+server-side Places API (New) on its billing-enabled project. **Never copy a
+private Gemini key into a `VITE_` variable.** The browser path uses only the
+explicitly configured browser Maps key and never receives a server secret.
+
+Both Google paths use session tokens and structured country details, a 150 ms
+debounce, bounded provider waits, and keyless Photon/manual fallback if Google
+is unavailable. The server path validates and rate-limits address queries,
+omits address/session parameters from app logs, and returns `Cache-Control:
+no-store` with only sanitized failure codes for diagnosing configuration.
 
 ### iOS App + App Clip (server)
 The capture link (`/capture-upload/:token`) opens the Blueprint App Clip on an
