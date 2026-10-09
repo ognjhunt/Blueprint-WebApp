@@ -7,6 +7,7 @@ import { resolveExecutionAccessContext } from "./access-control";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
   validateWebsiteSponsoredProviderTerms } from "./websiteSceneSponsorship";
+import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent } from "./siteAssessmentPreparation";
 
 export { sceneCanonicalJson, sceneDigest };
 
@@ -733,7 +734,14 @@ export async function processSceneIntakeQueue(limit = 10) {
           let sponsoredAuthority: Awaited<ReturnType<typeof loadWebsiteSceneSponsorship>> | null = null;
           if (record.website_request_id) {
             const authority = await loadWebsiteSceneSponsorship(record.website_request_id, false, record.source_session_id);
-            if (record.sponsorship_digest !== authority.authority_digest)
+            const rootDigest = authority.assessment_parent_authority_digest
+              ?? authority.continuation_parent_authority_digest ?? authority.authority_digest;
+            // A fresh advisory proposal cannot renew or replace the immutable
+            // source/task/provider/owner allowance. Validate the existing exact
+            // request below and retain the root binding across proposal refreshes.
+            if (record.root_sponsorship_digest !== undefined && record.root_sponsorship_digest !== rootDigest
+              || record.sponsorship_digest !== authority.authority_digest
+              && (record.root_sponsorship_digest ?? record.sponsorship_digest) !== rootDigest)
               throw new Error("website_scene_sponsorship_binding_invalid");
             validateWebsiteSponsoredIntake(record.request, authority);
             sponsored = true;
@@ -785,6 +793,10 @@ export async function processSceneIntakeQueue(limit = 10) {
             }
             if (sponsoredAuthority) validateWebsiteSponsoredProviderTerms(record.command, sponsoredAuthority);
             else validateSceneProviderTerms(record.command);
+            const assessment = record.website_request_id
+              ? await loadAssessmentPreparationProposal(record.website_request_id, record.source_session_id) : null;
+            if (assessment && sceneDigest(assessment.proposal) !== sceneDigest(sponsoredAuthority?.assessment_preparation_proposal))
+              throw new Error("website_assessment_preparation_pending");
             // Count a possibly dispatched POST, not a failed local precheck or
             // a read-only status poll. Reservation failures stay conservative.
             deliveryReserved = true;
@@ -796,6 +808,11 @@ export async function processSceneIntakeQueue(limit = 10) {
                   latest.data()?.revocation_requested
                 )
                   throw new Error("revocation_requested_before_delivery");
+                if (record.website_request_id) {
+                  const request = (await transaction.get(db!.collection("inboundRequests").doc(record.website_request_id))).data();
+                  await assertAssessmentPreparationCurrent(transaction, assessment, request ?? {},
+                    {requestId: record.website_request_id, captureId: record.source_session_id});
+                }
                 transaction.update(row.ref, {
                   forwarding_started: true,
                   forward_attempt_count: record.forward_attempt_count + 1,
@@ -815,6 +832,9 @@ export async function processSceneIntakeQueue(limit = 10) {
       } catch (error) {
         const rawCode =
           error instanceof Error ? error.message : "forward_failed";
+        // This typed refusal is issued before the marker write and POST.
+        // Ambiguous transaction/transport failures keep their conservative count.
+        if (rawCode === "website_assessment_preparation_pending") deliveryReserved = false;
         const code =
           [
             "saved_execution_setup_required",
@@ -842,6 +862,7 @@ export async function processSceneIntakeQueue(limit = 10) {
             "website_scene_development_test_not_authorized",
             "revocation_requested_before_delivery",
           ].includes(rawCode) || /^pipeline_intake_http_[0-9]{3}$/.test(rawCode) || rawCode.startsWith("website_scene_sponsorship_")
+            || rawCode.startsWith("website_assessment_preparation_")
             ? rawCode
             : "pipeline_transport_failed";
         const terminal = [
