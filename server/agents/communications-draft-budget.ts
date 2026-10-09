@@ -4,6 +4,65 @@ import { COMMUNICATIONS_ROOT, COMMUNICATIONS_JOB_STATES } from "./communications
 import type { CommunicationsAgentsAPI, CommunicationsCheckpoint, CommunicationsCancelledContinuation } from "./communications-api";
 import { createHash } from "node:crypto";
 import { resolveBundleStorage } from "../utils/siteCaptureBundleStorage";
+import { hydrateAgentEvidence } from "./private-evidence";
+import { outputTextDigest } from "./communications-output";
+import type { CommunicationsJobRecord } from "./communications-store";
+
+/** A fully retained validation rejection establishes no accepted session, not
+ * a zero invoice. Retire only its active slot while keeping its whole exposure.
+ * The owner regeneration and this classification commit in one transaction. */
+export async function prepareRejectedBoundedDraftRegeneration(db: FirebaseFirestore.Firestore,
+  tx: FirebaseFirestore.Transaction, parent: CommunicationsJobRecord, replacementJobId: string,
+  actorUid: string, limit: number, now: number) {
+  const checkpoint = parent.checkpoint, failure = checkpoint.httpFailure, binding = failure?.binding;
+  const fail = () => new CommunicationsDraftBudgetError("communications_rejected_create_reconciliation_required");
+  if (parent.regenerationOf || parent.state !== "blocked" || parent.reason !== "agents_api_http_400"
+    || parent.attempts !== 1 || (parent.lease?.until ?? 0) > now || parent.output || parent.cancelledContinuation
+    || checkpoint.rejectedCreateRecovery || !checkpoint.createClaimedAt || checkpoint.sessionId || checkpoint.turnId
+    || checkpoint.draftProfile !== "outreach-ready-hypothesis-v1" || checkpoint.sessionSpendLimitCents !== limit
+    || !/^[a-f0-9]{64}$/.test(checkpoint.sessionSpendRequestBaseDigest ?? "")
+    || checkpoint.requestDigest !== communicationsDigest({ requestBaseDigest: checkpoint.sessionSpendRequestBaseDigest,
+      sessionSpendLimitCents: limit })
+    || parent.manualDraftRequest?.actorUid !== actorUid || parent.manualDraftRequest.state !== "failed"
+    || parent.manualDraftRequest.sessionSpendLimitCents !== limit || !Number.isSafeInteger(limit) || limit < 1
+    || !failure || failure.retention !== "retained" || failure.status !== 400 || failure.method !== "POST"
+    || failure.capture !== "complete" || !binding || binding.jobId !== parent.jobId
+    || binding.requestDigest !== checkpoint.requestDigest || binding.createClaimedAt !== checkpoint.createClaimedAt
+    || binding.sessionId !== null || binding.turnId !== null || !/^[a-f0-9]{64}$/.test(binding.inputDigest ?? "")
+    || !checkpoint.httpEvidence) throw fail();
+  const hydrated = await hydrateAgentEvidence(checkpoint.httpEvidence, { collection: "agentCheckpoints",
+    id: `communications-http:${parent.jobId}:${communicationsDigest(binding)}` });
+  const snapshot = hydrated.snapshot as any, response = snapshot?.response;
+  if (snapshot?.version !== 1 || communicationsDigest(snapshot.binding) !== communicationsDigest(binding)
+    || response?.status !== 400 || response.method !== "POST" || response.path !== "/agents/sessions"
+    || response.capture !== "complete" || response.bytes !== failure.bytes || response.bodyDigest !== failure.bodyDigest
+    || typeof response.bodyBase64 !== "string" || outputTextDigest(response.bodyBase64) !== failure.bodyDigest
+    || Buffer.from(response.bodyBase64, "base64").byteLength !== failure.bytes || !response.requestId) throw fail();
+  let error;
+  try { error = JSON.parse(Buffer.from(response.bodyBase64, "base64").toString("utf8")).error; } catch { throw fail(); }
+  // Deliberately exact: timeout/transport loss, partial capture, 5xx and other
+  // 400 errors do not establish this pre-create validation rejection.
+  if (error?.type !== "invalid_request_error" || error.code !== "invalid_request_error" || error.param !== "spend_control"
+    || error.message !== "Session budget configuration is not enabled") throw fail();
+  const root = db.doc(COMMUNICATIONS_ROOT), id = communicationsDigest({ jobId: parent.jobId });
+  const ref = root.collection("draftBudgetAdmissions").doc(id), stateRef = root.collection("draftBudgetState").doc("current");
+  const [saved, state] = await Promise.all([tx.get(ref), tx.get(stateRef)]), row = saved.data(), control = state.data();
+  const reservation = limit * 10000, retained = control?.retainedSessionReservationsMicros;
+  if (!row || row.jobId !== parent.jobId || row.requestDigest !== checkpoint.requestDigest || !row.recurringDirection
+    || row.sessionSpendLimitCents !== limit || row.sessionReservationMicros !== reservation
+    || !Number.isSafeInteger(reservation) || !Number.isSafeInteger(retained) || retained < reservation
+    || !row.policy || communicationsDigest(row.policy) !== row.policyDigest || row.correctedCreate || row.sessionRecovery
+    || row.rejectedCreateClassification || row.state !== "reserved" || control?.recurringActiveAdmissionId !== id) throw fail();
+  const classification = { version: "bounded-create-rejection-v1", replacementJobId, actorUid,
+    originalCheckpointDigest: communicationsDigest(checkpoint), requestDigest: checkpoint.requestDigest,
+    responseBodyDigest: failure.bodyDigest, providerRequestId: response.requestId,
+    classification: "definitive_pre_create_validation_rejection", classifiedAt: new Date(now).toISOString(),
+    retainedExposureMicros: reservation, accountingComplete: false, invoiceVerified: false };
+  return () => {
+    tx.update(ref, { state: "create_rejected", usageState: "unresolved", rejectedCreateClassification: classification });
+    tx.set(stateRef, { recurringActiveAdmissionId: null }, { merge: true });
+  };
+}
 
 export type CommunicationsRecurringBudgetDirection = {
   version: "blueprint.communications-recurring-budget-direction.v1"; owner: "Nijel Hunt"; approvedAt: string; expiresAt: string;
@@ -328,6 +387,7 @@ export async function recordCommunicationsDraftUsage(db: FirebaseFirestore.Fires
   return db.runTransaction(async tx => {
     const [saved, state] = await Promise.all([tx.get(ref), tx.get(stateRef)]), row = saved.data();
     if (!saved.exists || row?.jobId !== jobId) throw new CommunicationsDraftBudgetError("communications_draft_usage_binding_changed");
+    if (row.rejectedCreateClassification) throw new CommunicationsDraftBudgetError("communications_rejected_create_invoice_unresolved");
     if (row.correctedCreate?.requestDigest === requestDigest) return writeCorrectedDraftUsage(tx, root, ref, stateRef, id, row, state.data(), usage, now);
     if (row.requestDigest !== requestDigest) throw new CommunicationsDraftBudgetError("communications_draft_usage_binding_changed");
     return writeDraftUsage(tx, root, ref, stateRef, id, row, state.data(), usage, now);

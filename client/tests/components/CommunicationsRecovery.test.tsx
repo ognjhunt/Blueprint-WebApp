@@ -251,6 +251,26 @@ function fillOwnerRequest() {
   }
 }
 describe("explicit founder draft request", () => {
+  it("binds both replacement pins in the authenticated request and verifies the replacement acknowledgement", async () => {
+    const originalJob = "1".repeat(64), originalDigest = "2".repeat(64);
+    const fetchMock = vi.spyOn(global, "fetch").mockImplementation(async (_url, init) => {
+      const sent = JSON.parse(String(init?.body));
+      const identity = { prospectId: job.prospectId, briefId: sent.briefId, briefDigest: sent.expectedBriefDigest,
+        intent: "outreach", inboundMessageId: null, regenerationOf: sent.regenerationOf };
+      const request = { actorUid: "ops-user", sourceCommit: sent.expectedSourceCommit, sessionSpendLimitCents: sent.sessionSpendLimitCents };
+      const digest = (value: unknown) => createHash("sha256").update(canonical(value)).digest("hex");
+      return Response.json({ ok: true, jobId: digest(identity), request: { ...request, requestDigest: digest({ job: identity, ...request }), state: "requested" },
+        executionPlacement: "existing_background_worker", sent: false, gmailDraftCreated: false }, { status: 202 });
+    });
+    page(); fireEvent.click(screen.getByText("Request an agent draft")); fillOwnerRequest();
+    fireEvent.change(screen.getByRole("textbox", { name: "Original unsent job ID (optional)" }), { target: { value: originalJob } });
+    expect(screen.getByRole("button", { name: "Request agent draft" })).toBeDisabled();
+    fireEvent.change(screen.getByRole("textbox", { name: "Original job digest (required for replacement)" }), { target: { value: originalDigest } });
+    fireEvent.click(screen.getByRole("button", { name: "Request agent draft" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(/Request recorded.*execution is not yet verified/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({ regenerationOf: originalJob, expectedJobDigest: originalDigest, sessionSpendLimitCents: 100 });
+  });
   it("does no work on load and uses the existing authenticated owner endpoint only after explicit submission", async () => {
     const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue(ownerRequestAck());
     page(); expect(fetchMock).not.toHaveBeenCalled();
