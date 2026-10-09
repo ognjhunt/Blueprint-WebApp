@@ -162,11 +162,11 @@ it("joins failed provider admission, explicit owner retry, durable worker and sa
       expect(programme.slots.reduce((total:number, slot:any) => total + slot.reserved_micro_usd, 0)).toBe(4_964_928);
     }
     const response=await read();expect(response.status).toBe(200);const body=await response.json();
-    expect(body.siteAdvisory?.state).toBe("ready");expect(JSON.stringify(body.siteAdvisory)).toContain("A carton moves");
+    expect(body.siteAdvisory?.state).toBe("ready");expect(body.siteAdvisory.sections).toEqual([]);expect(JSON.stringify(body.siteAdvisory)).not.toContain("A carton moves");
     expect(JSON.stringify(body.siteAdvisory)).not.toMatch(/PRIVATE|fabricated|gs:\/\/|signed-no-fetch|raw_model_assessment/);
     const {renderToStaticMarkup}=await import("react-dom/server");const {createElement}=await import("react");
     const {SiteAdvisoryReport}=await import("../../client/src/components/site/SiteAdvisoryReport");
-    const html=renderToStaticMarkup(createElement(SiteAdvisoryReport,{advisory:body.siteAdvisory}));expect(html).toContain("Video analysis");expect(html).toContain("A carton moves");
+    const html=renderToStaticMarkup(createElement(SiteAdvisoryReport,{advisory:body.siteAdvisory}));expect(html).not.toContain("A carton moves");expect(html).not.toContain("Full assessment and evidence");
     await reconcileSiteAssessments();expect(calls).toBe(3);
     // The actual private SDK result survived, but the final job/pointer commit
     // was lost. Ordinary owner polling must recover it without paid replay.

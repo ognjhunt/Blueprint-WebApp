@@ -202,13 +202,13 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const read = () => fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
     const response = await read(); expect(response.status).toBe(200);
     const body = await response.json(); expect(body.siteAdvisory?.state).toBe("ready");
-    expect(JSON.stringify(body.siteAdvisory)).toContain("A carton moves");
+    expect(body.siteAdvisory.sections).toEqual([]);expect(JSON.stringify(body.siteAdvisory)).not.toContain("A carton moves");
     expect(JSON.stringify(body.siteAdvisory)).not.toMatch(/PRIVATE|gs:\/\/|raw_model_assessment|robot success/);
     const { renderToStaticMarkup } = await import("react-dom/server");
     const { createElement } = await import("react");
     const { SiteAdvisoryReport } = await import("../../client/src/components/site/SiteAdvisoryReport");
     const html = renderToStaticMarkup(createElement(SiteAdvisoryReport, {advisory: body.siteAdvisory}));
-    expect(html).toContain("Video analysis"); expect(html).toContain("Video at 2 s");
+    expect(html).not.toContain("Video at 2 s"); expect(html).not.toContain("Full assessment and evidence");
     expect(html).not.toMatch(/PRIVATE|robot success|gs:\/\//);
     raw.consent_revoked = true;
     const withdrawn = await (await read()).json(); expect(withdrawn.siteAdvisory.state).toBe("authority_ended");

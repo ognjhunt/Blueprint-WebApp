@@ -20,10 +20,12 @@ const packet = (raw = assessment()) => ({ schema_version: "site_assessment.v2", 
 const project = (raw = assessment()) => projectCustomerSiteAdvisory(packet(raw), "bp-advisory-test", 30);
 
 describe("customer advisory decision details through the existing DTO", () => {
-  it("preserves the specific proposed action with rationale rendered from the actual source", () => {
+  it("preserves the specific safe proposed action while keeping analysis and rationale internal", () => {
     const result = project();
     expect(result.nextAction).toContain("Recommended next step (proposal): Measure the pull force at the upper rack's handle");
-    expect(result.nextAction).toContain("Why: Video analysis reports at 8–10 s: The upper rack slides outward");
+    expect(result.nextAction).not.toContain("Why:");
+    expect(result.sections).toEqual([]);
+    expect(JSON.stringify(result)).not.toContain("The upper rack slides outward");
     expect(JSON.stringify(result)).not.toContain("A robot has already passed");
     expect(result).toMatchObject({ schemaVersion: "site_customer_advisory.v1", state: "ready", correlationId: "bp-advisory-test" });
   });
@@ -38,7 +40,7 @@ describe("customer advisory decision details through the existing DTO", () => {
     expect(html).toContain("How many rack operations must finish each hour?");
     expect(html).toContain("Whether a slower assisted workflow could meet your production requirement");
     expect(html).toContain("Confirm the required hourly rate");
-    expect(result.nextAction).toContain("Reasoning to check: A rate target could change the workflow recommendation");
+    expect(result.nextAction).not.toContain("Reasoning to check:");
     expect(html).not.toContain("Clarify unresolved job facts and success criteria.");
   });
   it("retains safe questions while refusing the raw recommendation when factual bindings failed", () => {
@@ -111,8 +113,11 @@ describe("customer advisory decision details through the existing DTO", () => {
     expect(result.unknowns.join(" ")).toContain("How many rack operations are required per hour?");
   });
   it("leaves the original private packet intact and does not add API fields", () => {
-    const input = packet(), original = structuredClone(input);
+    const raw = assessment(); raw.missing = [observed()];
+    const input = packet(raw), original = structuredClone(input);
     const result = projectCustomerSiteAdvisory(input, "bp-advisory-test", 30);
+    expect(JSON.stringify(result)).not.toContain("The upper rack slides outward");
+    expect(result.unknowns.join(" ")).toContain("Some job facts and interpretations remain unresolved");
     expect(input).toEqual(original);
     expect(Object.keys(result).sort()).toEqual(["schemaVersion", "state", "correlationId", "sections", "unknowns", "nextAction"].sort());
   });
