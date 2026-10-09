@@ -1054,13 +1054,18 @@
       "invariant": "Customer progress and notification claims reflect demonstrated behavior.",
       "root_cause": "Shared copy promises email for every job event and says no need to return, despite no demonstrated advisory-ready notification enqueue/delivery.",
       "repair_scope": "Separate one-component wording repair to factual job-page updates; no new delivery infrastructure, customer email or shared release gate.",
-      "state": "independently_reviewed_required_native_checks_pending",
+      "state": "protected_merged_paired_source_deployed_current_customer_DOM_readback_pending",
       "before_evidence_sha256": "2f3043f687855431e85b93e2f980e910dc7012a1c0546f08e7aa3499efca44f8",
       "live_notice_receipt_sha256": "f65d510eb0212e7d6cc47dbdfad0feb1ef04ea84a30896c5549f515e23b6fc35",
       "new_unique_case_credit": 0,
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/988",
-      "candidate": "843c42dc3b1e0822c452edad7c26b3b7f55152c7",
-      "candidate_receipt_sha256": "72cea939bd4119cfef46e8c23d74300282335a606556ae05d6bff15f1cd4e0c3"
+      "candidate": "56c0589fcc16155282beabbe8bb217938e9272ac",
+      "candidate_receipt_sha256": "72cea939bd4119cfef46e8c23d74300282335a606556ae05d6bff15f1cd4e0c3",
+      "merge_sha": "f88a7e5d5f6e44424f25d971cf39fbab417706e8",
+      "main_CI": 37868200057,
+      "actual_deploy": 37869026807,
+      "release_receipt_sha256": "8945d573adcd218d1953643965370944fea56bd7223fcd4286425d082fbe3f72",
+      "delivery_proof": false
     },
     {
       "id": "REL-QUESTION-ASSERTION-TAIL-20261009",
@@ -1072,12 +1077,45 @@
       "root_cause": "Question form and assertion-keyword checks do not structurally validate coordinated declarations or plain capability/commitment auxiliaries.",
       "invariant": "Unanswered question labels cannot launder unsupported capability or booked-action assertions.",
       "evidence_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/question-diagnosis",
-      "state": "minimized_red_cases_retained_scoped_guard_repair_in_progress",
+      "state": "protected_merged_main_CI_and_true_automatic_paired_deployment_pending",
       "repair_scope": "Question-only conservative grammar validation, no global Will/comma widening; safe admitted question remains, other presentation omissions tracked P2. No source/access/consent/DTO/canonical packet changes.",
       "readiness_effect": "Affected semantic presentation gate is not clear. No assessment-quality beta recommendation; engineering privacy/copy repairs remain separately reviewable.",
       "new_original_coverage_credit": 0,
       "category": "semantic_projection",
-      "classification_reason": "Deterministic unsupported capability/commitment can reach the customer projection; potentially consequential despite no observed leakage in accepted live case."
+      "classification_reason": "Deterministic unsupported capability/commitment can reach the customer projection; potentially consequential despite no observed leakage in accepted live case.",
+      "candidate": "eaeb08c9e3889b7ff97979073015b66d77533de3",
+      "candidate_validation": "31 public +13 actual private projection conditions, types/diff PASS. Earlier red cases preserved; question-only structural repair, no widened action/consent/evidence/DTO guards.",
+      "independent_review_commit": "b87e800a",
+      "required_CI": 37869364851,
+      "receipt_sha256": "1b783b1fa0cc84c76934608a2fe8a020a9b8defbff94988c5ef8e8f8ce0baa57",
+      "merged_sha": "2e9236963470472996dfc4a2993120d15506a65c"
+    },
+    {
+      "id": "REL-DECISION-PRESENTATION-DIGEST-20261009",
+      "severity": "P1",
+      "owner": "coordinator/customer_basics",
+      "invariant": "Presentation-only privacy changes cannot lose current named decisions; real source/rights/evidence changes still invalidate.",
+      "state": "synthetic_compatibility_failure_reproduced_scoped_repair_in_progress",
+      "actual_observation": "Reviewed v1 digest includes customer presentation DTO; privacy-only redaction hides a prior named decision on unchanged canonical evidence.",
+      "scope": "Pure exact-function/schema/renderer replay;1 compatibility failure +11 invalidation controls; noDB/provider/customer mutation.",
+      "actual_customer_incident_observed": false,
+      "receipt_sha256": "3212ebad5eec3817fc157444bad8d8d3eba0a450cddd09f33ab44f575f8e2e90",
+      "repair_scope": "Same fenced private reader, stable server-only decision basis plus bounded exact historical basis matches; preserve public redaction and all current rights/source/run/packet/context checks. No approval migration.",
+      "new_original_coverage_credit": 0
+    },
+    {
+      "id": "REL-REPLY-ADMISSION-ROLLOVER-20261009",
+      "severity": "P2",
+      "owner": "CLI reply-continuation owner",
+      "invariant": "Unchanged replies cannot create duplicate logical assessments or restore older completed pointers.",
+      "state": "independent_source_clearance_withheld_repair_in_progress",
+      "actual_observation": "Rolling last20 prompt references evict admitted reply identities; unchanged A11/B11 refresh can enqueue again or restore an older pointer.",
+      "scope": "Independent exact-algorithm isolated replay; author subsequently reproduced actual queue refresh returning queued with saved=0. Author fail-first receipt not yet indexed by root.",
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/983",
+      "reviewed_head": "6294199ce4007a03a1882b2861bdc93bd747f2d9",
+      "repair": "Digest-bound first-admission marker on canonical customerStatements row, atomically with job, separate from bounded prompt refs; active/unavailable must not consume.",
+      "readiness_effect": "Source release withheld despite green old CI; queue fixture impact and repair require exact review/receipt.",
+      "new_original_coverage_credit": 0
     }
   ],
   "dependencies": [
@@ -1434,5 +1472,5 @@
     "bounded_returned_event_count": 0,
     "scope": "Service-level minute samples, not instantaneous peak/assessment-only allocation. Later samples after confirmed terminalread support bounded post-run observation; early postcompletionlabel not separately certified. No concurrentcapacity/leak/zeroOOM universal claim; frozen peak/headroom sizing gate remains uncleared."
   },
-  "updated_at_utc": "2026-10-09T00:56:35.564730+00:00"
+  "updated_at_utc": "2026-10-09T01:48:08.721505+00:00"
 }

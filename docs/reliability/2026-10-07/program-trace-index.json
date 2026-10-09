@@ -1,6 +1,6 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-09T00:56:35.564730+00:00",
+  "updated_at_utc": "2026-10-09T01:48:08.721505+00:00",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 22,
@@ -1830,63 +1830,72 @@
   },
   "current_verified_web_release_readback": {
     "schema": "reliability_release_metadata_readback.v1",
-    "observed_at_utc": "2026-10-09T00:09:02.342555+00:00",
-    "sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+    "observed_at_utc": "2026-10-09T01:42:21.254318+00:00",
+    "sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
     "public": {
       "version.json": {
         "http_status": 200,
         "body": {
-          "service": "blueprint-webapp",
-          "version": "1.0.0",
-          "git_sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
-          "built_at_iso": "2026-10-08T23:42:37.283Z"
+          "git_sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
+          "built_at_iso": "2026-10-09T01:34:15.312Z"
         }
       },
       "health": {
         "http_status": 200,
         "body": {
           "status": "healthy",
-          "timestamp": "2026-10-09T00:09:03.075Z"
+          "timestamp": "2026-10-09T01:42:21.085Z"
         }
       },
       "health/ready": {
         "http_status": 200,
         "body": {
           "status": "ready",
-          "blocker_count": 0,
-          "timestamp": "2026-10-09T00:09:03.254Z"
+          "timestamp": "2026-10-09T01:42:21.222Z",
+          "blocker_count": 0
         }
       }
     },
     "native_reads": {
-      "source": "purpose-built Render get_deploy responses freshly inspected during this turn; normalized fixed metadata",
-      "web": {
-        "id": "dep-db42kgg473hc73cecnbg",
-        "status": "live",
-        "sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
-        "finished_at_utc": "2026-10-08T23:44:10.960907Z"
+      "source": "Fresh purpose-built Render list_deploys normalized metadata",
+      "historical_web": {
+        "id": "dep-db4417jncjis73bn9npg",
+        "status_at_read": "deactivated",
+        "sha": "f88a7e5d5f6e44424f25d971cf39fbab417706e8",
+        "finishedAt": "2026-10-09T01:19:43.974694Z"
       },
-      "worker": {
-        "id": "dep-db42kgp42hec73fho1t0",
-        "status": "live",
-        "sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
-        "finished_at_utc": "2026-10-08T23:44:55.089293Z"
+      "historical_worker": {
+        "id": "dep-db4417ss728c739fsg20",
+        "status_at_read": "deactivated",
+        "sha": "f88a7e5d5f6e44424f25d971cf39fbab417706e8",
+        "finishedAt": "2026-10-09T01:20:22.854634Z"
+      },
+      "current_web": {
+        "id": "dep-db448rjncjis73bo5oh0",
+        "status_at_read": "live",
+        "sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
+        "finishedAt": "2026-10-09T01:35:48.417655Z"
+      },
+      "current_worker": {
+        "id": "dep-db448rss728c739gokeg",
+        "status_at_read": "live",
+        "sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
+        "finishedAt": "2026-10-09T01:36:32.523015Z"
       }
     },
     "main_CI": {
-      "id": 37860325293,
-      "headSha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+      "id": 37869841900,
+      "headSha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
       "conclusion": "success"
     },
     "deployment_workflow": {
-      "id": 37860839878,
-      "headSha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+      "id": 37870335076,
+      "headSha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
       "conclusion": "success"
     },
-    "scope": "Source and health verification only. Accepted normal customer assessment executed on189, not a new15 provider trial.",
-    "independent_review": "2231976a",
-    "private_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/release15-final/metadata-readback.json",
-    "private_receipt_sha256": "2c114491d5822ac0ac694c663b07d6164957b07ca8ab178bc45d35f12476299d"
+    "scope": "Current source and public health metadata. Research adoption controls/lease settlement are owned and not established by this receipt. Accepted normal assessment remains189; actual customer-basics API/DOM verified on3d6.",
+    "private_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/status-update-copy/release-f88/metadata-readback.json",
+    "private_receipt_sha256": "8945d573adcd218d1953643965370944fea56bd7223fcd4286425d082fbe3f72"
   },
   "current_normal_UI_same_job_retry": {
     "source_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
@@ -2175,7 +2184,7 @@
   },
   "customer_basics_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/985",
-    "state": "protected_merged_main_CI_and_automatic_paired_deployment_pending",
+    "state": "deployed_and_actual_saved_owner_API_DOM_verified",
     "historical_head": "4da12aaacfe2c3448b452f270e009e8f4bdd1c18",
     "corrected_head": "eabb4c52a2a5727482b45a3eb145aeb2df9ecf7e",
     "historical_receipt_sha256": "34565941dc86fcc83d33ccb507e220d9b0de9fc926cf072926f5885ffb0e11b9",
@@ -2206,23 +2215,161 @@
     "final_review_sha256": "df80685b24cf3be57dd18d310627a9c91a5cadb65c04cc8f7093060c284fb0ec",
     "final_review_commit": "72373ca34100864ca127f9d186845e578b0a3d7f",
     "final_native_CI": 37865792440,
-    "final_checks": "54 existing checks in four scoped suites plus two workspace checks and exact-source typecheck PASS; native E2E/build/check/rules/release-scope/threeGraphify passed at snapshot; native test still running.",
+    "final_checks": "54 existing scoped tests +2 workspace checks/types PASS; native all9 applicable SUCCESS.",
     "final_browser_layer": "Five normal Vite route conditions with intercepted synthetic APIs PASS, zero businesswrites; separate from earlier20SSR component renders; no original journey/provider/accuracy credit.",
     "merged_sha": "3d6bc3894b9811a808dd45adc0445f73ceb865e6",
     "merged_at_utc": "2026-10-09T00:49:13Z",
-    "final_native_CI_status": "SUCCESS: all nine applicable required checks on exact0c58; no bypass or blind rerun"
+    "final_native_CI_status": "SUCCESS: all nine applicable required checks on exact0c58; no bypass or blind rerun",
+    "main_CI": 37866699114,
+    "actual_automatic_deploy": 37867518201,
+    "main_and_deploy_conclusions": "SUCCESS; exact trigger and verify executed. Earlier37866800557 was a no-op observer with skipped trigger/verify, not deployment proof.",
+    "release_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/customer-basics/release3d6/metadata-readback.json",
+    "release_receipt_sha256": "f68d1600a69435697f5c9fa332ee84f58eda655dd57d6d0e446018b8ce95ca02",
+    "actual_saved_owner_readback_sha256": "e6c94a8895af5fff407b005496d5ef770b0e8f0fede38ae1ef7e2e0f12841b71",
+    "actual_saved_owner_readback": "31/31 checks PASS on3d6; same issued owner route GET200, public sections empty/API+DOM no full internal analysis; corrections/sharing/details closed;11 canonical/accounting fields unchanged;zero writes/provider/retry/email. Independent6links review40d1c002/e515c9ec7db381d0d06fb9fb428935d6ef04a23f0496ef65338bcc90e7dab896.",
+    "subsequent_compatibility_finding": {
+      "state": "synthetic_compatibility_failure_reproduced_scoped_repair_in_progress",
+      "source_PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/985",
+      "receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/decision-digest-diagnosis/receipt.json",
+      "receipt_sha256": "3212ebad5eec3817fc157444bad8d8d3eba0a450cddd09f33ab44f575f8e2e90",
+      "mode": "Pure exact-function/schema/renderer replay;1 compatibility failure +11 invalidation controls; noDB/provider/customer mutation.",
+      "root_cause": "Reviewed v1 digest includes customer presentation DTO; privacy-only redaction hides a prior named decision on unchanged canonical evidence.",
+      "actual_customer_incident_observed": false,
+      "repair_owner": "customer_basics; root integration; communications caller remains CLI owned",
+      "scope": "Same fenced private reader, stable server-only decision basis plus bounded exact historical basis matches; preserve public redaction and all current rights/source/run/packet/context checks. No approval migration."
+    }
   },
   "status_update_copy_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/988",
-    "candidate": "843c42dc3b1e0822c452edad7c26b3b7f55152c7",
+    "candidate": "56c0589fcc16155282beabbe8bb217938e9272ac",
     "scope": "One shared NextTaskUpdate component/comment: factual job-page progress replaces absolute each-event email guarantee. No API/state/delivery behavior changes.",
     "receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/status-update-copy/receipt.json",
     "receipt_sha256": "72cea939bd4119cfef46e8c23d74300282335a606556ae05d6bff15f1cd4e0c3",
     "independent_review_commit": "f5bc8815",
     "independent_review_sha256": "b97e06554691c3d2b306556ae6d9bf20a26bee45108fa9b52048f315382b84cd",
     "local_checks": "41 existing checks in three suites PASS; actual Vite intercepted-API preview confirms copy, zero business writes; baseline observer mismatch retained.",
-    "state": "independently_reviewed_required_native_checks_pending",
+    "state": "protected_merged_required_CI_and_paired_deployment_source_verified_current_owner_DOM_not_yet_observed",
     "new_unique_case_credit": 0,
-    "delivery_proof": false
+    "delivery_proof": false,
+    "historical_candidate": "843c42dc3b1e0822c452edad7c26b3b7f55152c7",
+    "merged_sha": "f88a7e5d5f6e44424f25d971cf39fbab417706e8",
+    "merged_at_utc": "2026-10-09T01:07:11Z",
+    "exact_candidate_CI": 37867491666,
+    "main_CI": 37868200057,
+    "actual_automatic_deploy": 37869026807,
+    "native_conclusions": "SUCCESS; exact trigger+verify executed. Historical f88 pair now deactivated after live containing7cb.",
+    "rebase_receipt_sha256": "12c0ea4df99a92b09f1dae799b6a12325fa6996269dfc2cd5c03a67b425d8a13",
+    "final_source_review_commit": "634fc144",
+    "final_source_review_sha256": "2beaa6dbbb6a1a4ff5d6d7b4b50e19a501773ba722fa5693c3f51bbfd5892b7a",
+    "release_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/status-update-copy/release-f88/metadata-readback.json",
+    "release_receipt_sha256": "8945d573adcd218d1953643965370944fea56bd7223fcd4286425d082fbe3f72",
+    "old_native_failure": "843 CI37866579046/test113614699505 retained120s hook failure,9236PASS/1FAIL/7SKIP; rebased onto canonical reviewed fixture rather than unchanged lucky rerun.",
+    "copy_blob": "cfb8a7f3851e4ae5de8f7814da8d5ba67865ede8",
+    "independent_release_review": {
+      "commit": "a443afc5",
+      "sha256": "f3a53e7ee7a4202d429b09fec9402171aaf904f8074168769a3a746000708dfe",
+      "scope": "Fresh GitHub workflow/source ancestry/hash verification plus normalized coordinator native/public receipt; no reviewer new nativeAPI/customerDOM/provider proof."
+    }
+  },
+  "historical_15_verified_web_release": {
+    "schema": "reliability_release_metadata_readback.v1",
+    "observed_at_utc": "2026-10-09T00:09:02.342555+00:00",
+    "sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+    "public": {
+      "version.json": {
+        "http_status": 200,
+        "body": {
+          "service": "blueprint-webapp",
+          "version": "1.0.0",
+          "git_sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+          "built_at_iso": "2026-10-08T23:42:37.283Z"
+        }
+      },
+      "health": {
+        "http_status": 200,
+        "body": {
+          "status": "healthy",
+          "timestamp": "2026-10-09T00:09:03.075Z"
+        }
+      },
+      "health/ready": {
+        "http_status": 200,
+        "body": {
+          "status": "ready",
+          "blocker_count": 0,
+          "timestamp": "2026-10-09T00:09:03.254Z"
+        }
+      }
+    },
+    "native_reads": {
+      "source": "purpose-built Render get_deploy responses freshly inspected during this turn; normalized fixed metadata",
+      "web": {
+        "id": "dep-db42kgg473hc73cecnbg",
+        "status": "live",
+        "sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+        "finished_at_utc": "2026-10-08T23:44:10.960907Z"
+      },
+      "worker": {
+        "id": "dep-db42kgp42hec73fho1t0",
+        "status": "live",
+        "sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+        "finished_at_utc": "2026-10-08T23:44:55.089293Z"
+      }
+    },
+    "main_CI": {
+      "id": 37860325293,
+      "headSha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+      "conclusion": "success"
+    },
+    "deployment_workflow": {
+      "id": 37860839878,
+      "headSha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+      "conclusion": "success"
+    },
+    "scope": "Source and health verification only. Accepted normal customer assessment executed on189, not a new15 provider trial.",
+    "independent_review": "2231976a",
+    "private_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/release15-final/metadata-readback.json",
+    "private_receipt_sha256": "2c114491d5822ac0ac694c663b07d6164957b07ca8ab178bc45d35f12476299d"
+  },
+  "question_guard_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/989",
+    "candidate": "eaeb08c9e3889b7ff97979073015b66d77533de3",
+    "state": "protected_merged_main_CI_and_true_automatic_paired_deployment_pending",
+    "required_CI": 37869364851,
+    "required_checks": "All8 applicable SUCCESS; conditional E2E/observer skipped, not UI passes.",
+    "receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/question-diagnosis/first-repair-20261009/nominal-frozen-final-receipt.json",
+    "receipt_sha256": "1b783b1fa0cc84c76934608a2fe8a020a9b8defbff94988c5ef8e8f8ce0baa57",
+    "independent_review_commit": "b87e800a",
+    "independent_review_sha256": "a976c3018ef1a6e4e6e03fadeb6030ed941dc768ff7d212e501a3773e25102af",
+    "checks": "31 public +13 actual private projection conditions, types/diff PASS. Earlier red cases preserved; question-only structural repair, no widened action/consent/evidence/DTO guards.",
+    "live_limit": "No forbidden tail observed in accepted customer report. Only1of3 retained raw questions admitted; omissions remain P2.",
+    "new_original_coverage_credit": 0,
+    "merged_sha": "2e9236963470472996dfc4a2993120d15506a65c",
+    "merged_at_utc": "2026-10-09T01:46:50Z",
+    "research_window": "Explicitly settled incomplete by own owner01:45:53.505Z, expires_at_ms0/heartbeatstopped/allcontrols+sixrowsunchanged/sourceCASfalse; receipt83a1fdfeb782d697eef94cace132c054b25ffe72590549e3a98a9c17405a8604. Missing76-hash readback not adopted as complete; no old incident freeze."
+  },
+  "reviewed_decision_compatibility_followup": {
+    "state": "synthetic_compatibility_failure_reproduced_scoped_repair_in_progress",
+    "source_PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/985",
+    "receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/decision-digest-diagnosis/receipt.json",
+    "receipt_sha256": "3212ebad5eec3817fc157444bad8d8d3eba0a450cddd09f33ab44f575f8e2e90",
+    "mode": "Pure exact-function/schema/renderer replay;1 compatibility failure +11 invalidation controls; noDB/provider/customer mutation.",
+    "root_cause": "Reviewed v1 digest includes customer presentation DTO; privacy-only redaction hides a prior named decision on unchanged canonical evidence.",
+    "actual_customer_incident_observed": false,
+    "repair_owner": "customer_basics; root integration; communications caller remains CLI owned",
+    "scope": "Same fenced private reader, stable server-only decision basis plus bounded exact historical basis matches; preserve public redaction and all current rights/source/run/packet/context checks. No approval migration."
+  },
+  "reply_continuation_admission_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/983",
+    "reviewed_head": "6294199ce4007a03a1882b2861bdc93bd747f2d9",
+    "state": "independent_source_clearance_withheld_repair_in_progress",
+    "required_old_CI": 37867929222,
+    "required_old_CI_result": "All9 SUCCESS; does not resolve source finding",
+    "finding": "Rolling last20 prompt references evict admitted reply identities; unchanged A11/B11 refresh can enqueue again or restore an older pointer.",
+    "evidence": "Independent exact-algorithm isolated replay; author subsequently reproduced actual queue refresh returning queued with saved=0. Author fail-first receipt not yet indexed by root.",
+    "repair_owner": "CLI reply-continuation owner",
+    "repair": "Digest-bound first-admission marker on canonical customerStatements row, atomically with job, separate from bounded prompt refs; active/unavailable must not consume.",
+    "provider_calls_in_reproducer": 0,
+    "new_original_coverage_credit": 0
   }
 }
