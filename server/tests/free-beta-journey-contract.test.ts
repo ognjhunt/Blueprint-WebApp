@@ -115,7 +115,7 @@ it("retains correction lineage through actual free admission and signed failed-r
     state.docs.set(`users/${uid}`, { buyerType, name: uid, email: `${uid}@example.test`,
       acceptedTerms: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION });
   }
-  state.docs.set(`robotTeamAccess/${accessRecordId(`${ROBOT}@example.test`)}`, { status: "approved" });
+  state.docs.set(`robotTeamAccess/${accessRecordId(`${ROBOT}@example.test`)}`, { status: "approved", decidedBy: "fixture-ops", decidedAtIso: "2026-10-09T00:00:00Z" });
   state.docs.set(`robotTeams/${TEAM}`, { id: TEAM, name: "Fixture robot team", status: "self_registered",
     accountUid: ROBOT, accountEmail: `${ROBOT}@example.test`, capability: {}, fieldProvenance: {},
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
