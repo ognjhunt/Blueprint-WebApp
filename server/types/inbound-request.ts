@@ -1318,6 +1318,8 @@ export interface LeadRoutingRule {
 
 // Response from submitInboundRequest endpoint
 export interface SubmitInboundRequestResponse {
+  /** Signed link to account setup for this saved site job. */
+  claimUrl?: string | null;
   ok: boolean;
   requestId: string;
   siteSubmissionId?: string;

@@ -306,7 +306,7 @@ export function TaskBriefReview(props: {
         setAccountOutcome({ status: "saved" });
         return;
       }
-      await setUpSiteWorkspace(user, context, terms);
+      await setUpSiteWorkspace(user, context, terms, props.account!.claimToken!);
       await sendAccountVerification(user, claimVerificationUrl(props.account!.claimToken!));
       setAccountOutcome({ status: "verify", user });
     } catch (claimError) {

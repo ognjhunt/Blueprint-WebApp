@@ -3,13 +3,14 @@ import { useLocation } from "wouter";
 
 interface MarketingRedirectProps {
   to: string;
+  preserveQuery?: boolean;
 }
 
-export function MarketingRedirect({ to }: MarketingRedirectProps) {
+export function MarketingRedirect({ to, preserveQuery = true }: MarketingRedirectProps) {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    const search = typeof window !== "undefined" ? window.location.search : "";
+    const search = preserveQuery && typeof window !== "undefined" ? window.location.search : "";
     const incomingHash = typeof window !== "undefined" ? window.location.hash : "";
     // Split the target so a forwarded query lands BEFORE any hash in `to`
     // (e.g. `/for-robot-teams#intake` or `/#how-it-works`); appending the
@@ -21,7 +22,7 @@ export function MarketingRedirect({ to }: MarketingRedirectProps) {
     setLocation(`${toBase}${separator}${query}${toHash || incomingHash}`, {
       replace: true,
     });
-  }, [setLocation, to]);
+  }, [setLocation, to, preserveQuery]);
 
   return null;
 }

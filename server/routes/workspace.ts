@@ -189,6 +189,7 @@ const accountSetupSchema = z
     organization: short,
     acceptedTerms: z.boolean().optional(),
     optionalUpdates: z.boolean().optional(),
+    siteClaimToken: z.string().min(1).max(4000).optional(),
   })
   .strict();
 function currentTermsAccepted(user: Record<string, any>) {
@@ -248,7 +249,10 @@ router.get(
   "/setup",
   handle(async (_req, res) => {
     const { user, auth } = res.locals.workspaceAccount;
-    return res.json(accountProjection(user, auth));
+    const owned = user.buyerType === "site_operator"
+      ? await db!.collection("inboundRequests").where("account_owner_uid", "==", auth.uid).limit(1).get()
+      : null;
+    return res.json({ ...accountProjection(user, auth), siteIntakeRequired: !owned?.docs.length });
   }),
 );
 router.post(
@@ -259,22 +263,48 @@ router.post(
     const staff = await resolveAccessContext(res);
     if (input.workspaceType === "robot_team" && !staff.isOps && !await accountHasAdmission(text(auth.email).toLowerCase(), "robot_team"))
       refuse(403, "Complete intake and wait for Blueprint to approve your account invitation.", "account_invitation_required");
+    // Existing owners can edit settings without recovering an old link. This
+    // proof comes from server-owned jobs, never a client-writable profile.
+    const existingSite = input.workspaceType === "site_operator" && !staff.isOps && !input.siteClaimToken
+      ? (await db!.collection("inboundRequests").where("account_owner_uid", "==", auth.uid).limit(1).get()).docs[0]?.id
+      : null;
     const profileRef = db!.collection("users").doc(auth.uid);
     await db!.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(profileRef),
         user = object(snapshot.data());
+      let siteIntake: Record<string, any> | null = null;
+      let siteIntakeId: string | null = null;
+      if (input.workspaceType === "site_operator" && !staff.isOps) {
+        const claim = input.siteClaimToken ? verifySiteClaimToken(input.siteClaimToken) : existingSite ? { requestId: existingSite } : null;
+        if (!claim) refuse(403, "Show us your site and job first, then create your account from the saved job.", "site_intake_required");
+        const source = await transaction.get(db!.collection("inboundRequests").doc(claim.requestId));
+        if (!source.exists) refuse(403, "This job link is no longer available. Start with your site and job.", "site_intake_required");
+        siteIntake = await decodeWorkspaceRequest(source.data() as InboundRequestStored);
+        siteIntakeId = claim.requestId;
+        if (object(siteIntake.request).buyerType !== "site_operator") refuse(403, "Start with your site and job.", "site_intake_required");
+        if (siteIntake.account_owner_uid !== auth.uid && (!text(auth.email) || text(object(siteIntake.contact).email).toLowerCase() !== text(auth.email).toLowerCase()))
+          refuse(403, "Use the email address you submitted with this job.", "claim_email_mismatch");
+        if (text(siteIntake.account_owner_uid) && siteIntake.account_owner_uid !== auth.uid)
+          refuse(409, "Someone has already claimed this site.", "site_already_claimed");
+      }
       const needsTerms = !currentTermsAccepted(user);
-      if (needsTerms && input.acceptedTerms !== true)
+      const intakeTermsApply = Boolean(auth.email_verified === true && siteIntake && isCurrentLegalAcceptance(siteIntake.terms_acceptance));
+      if (needsTerms && !intakeTermsApply && input.acceptedTerms !== true)
         refuse(
           400,
           "Accept the Terms and Privacy Policy to set up your workspace.",
           "workspace_terms_required",
         );
       const now = admin.firestore.FieldValue.serverTimestamp();
+      const reuseSiteDetails = Boolean(siteIntake && input.siteClaimToken && !user.workspaceSetupCompletedAt);
+      const submittedName = [siteIntake?.contact?.firstName, siteIntake?.contact?.lastName]
+        .filter(value => typeof value === "string" && value.trim() && !["there", "—"].includes(value.trim().toLowerCase()))
+        .join(" ").trim().slice(0, 160);
+      const submittedOrganization = text(siteIntake?.contact?.company || siteIntake?.request?.siteName || siteIntake?.request?.siteLocation).trim().slice(0, 160);
       const patch = {
-        name: input.name,
-        organizationName: input.organization,
-        company: input.organization,
+        name: reuseSiteDetails && submittedName ? submittedName : input.name,
+        organizationName: reuseSiteDetails && submittedOrganization ? submittedOrganization : input.organization,
+        company: reuseSiteDetails && submittedOrganization ? submittedOrganization : input.organization,
         buyerType: input.workspaceType,
         workspaceSetupCompletedAt: now,
         ...(!user.updatePreferences && input.optionalUpdates !== undefined ? { updatePreferences: buildUpdatePreferences({ newsletter: input.optionalUpdates, newJobAlerts: input.optionalUpdates, interests: {}, declaredCategories: {}, requirements: {} }, "signup") } : {}),
@@ -286,7 +316,8 @@ router.post(
               acceptedTerms: true,
               termsVersion: TERMS_VERSION,
               privacyVersion: PRIVACY_VERSION,
-              termsAcceptance: buildLegalAcceptanceRecord({ acceptedAt: now }),
+              termsAcceptance: intakeTermsApply ? siteIntake!.terms_acceptance : buildLegalAcceptanceRecord({ acceptedAt: now }),
+              ...(intakeTermsApply ? { termsAcceptanceSource: { kind: "site_capture_intake", requestId: siteIntakeId } } : {}),
             }
           : {}),
       };
@@ -840,6 +871,7 @@ router.post(
         claimed_at_iso: new Date().toISOString(),
       });
       const profilePatch = {
+        ...(caller.role === "site_operator" ? { finishedOnboarding: true, onboardingStep: "completed" } : {}),
         ...(!text(user.structuredIntakeRequestId)
           ? { structuredIntakeRequestId: payload.requestId } : {}),
         ...(needsTerms ? {

@@ -1,18 +1,15 @@
-import { test, expect } from '@playwright/test';
-test('site signup is open without an invitation or staff approval', async ({ page }) => {
-  await page.goto('/signup/business');
-  await expect(page.getByRole('heading', { name: 'Create an account', exact: true })).toBeVisible();
-  await expect(page.getByLabel('Work email')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
+import { test, expect } from "@playwright/test";
+test("site signup starts with the existing intake automatically", async ({ page }) => {
+  await page.goto("/signup/business");
+  await expect(page).toHaveURL(/\/contact\/site-operator$/);
+  await expect(page.locator("#start-task")).toBeVisible();
+  await expect(page.getByLabel("Password", { exact: true })).toHaveCount(0);
 });
-test('site signup creates no invitation or screening step', async ({ page }) => {
+test("legacy site signup preserves job intent without an invitation or staff approval", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/signup/business?buyerType=site_operator&intent=pilot-opportunity');
-  await expect(page.getByRole('heading', { name: 'Create an account', exact: true })).toBeVisible();
-  await page.getByLabel('Work email').fill('owner@example.com');
-  await page.getByLabel('Password', { exact: true }).fill('strongpass123');
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Set up your workspace' })).toBeVisible();
-  await expect(page.getByRole('radio')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Create account', exact: true })).toBeVisible();
+  await page.goto("/signup/business?buyerType=site_operator&intent=pilot-opportunity");
+  await expect(page).toHaveURL(/\/contact\/site-operator\?intent=pilot-opportunity$/);
+  await expect(page.locator("#start-task")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start free assessment", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue with Google" })).toHaveCount(0);
 });

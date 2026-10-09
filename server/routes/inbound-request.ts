@@ -26,7 +26,7 @@ import { logger } from "../logger";
 import { isValidEmailAddress } from "../utils/validation";
 import { getRateLimitRedisClient } from "../utils/rate-limit-redis";
 import { encryptInboundRequestForStorage } from "../utils/field-encryption";
-import { createRequestReviewToken } from "../utils/request-review-auth";
+import { createRequestReviewToken, createSiteClaimToken } from "../utils/request-review-auth";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
 import {
   inferHandoffChannel,
@@ -241,6 +241,11 @@ function intakeRetryTokenHash(value: unknown): string | null {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
+/** Issued automatically after intake, never contingent on qualification or staff review. */
+function siteClaimUrl(buyerType: string, requestId: string, owned = false): string | null {
+  return buyerType === "site_operator" && !owned ? `/claim/${createSiteClaimToken(requestId)}` : null;
+}
+
 function mayRecoverSubmission(
   existing: InboundRequest,
   requestedOwner: string | undefined,
@@ -260,6 +265,7 @@ function recoveredSubmission(existing: InboundRequest): SubmitInboundRequestResp
     requestId: existing.requestId,
     siteSubmissionId: existing.site_submission_id || existing.requestId,
     status: existing.status,
+    claimUrl: siteClaimUrl(existing.request?.buyerType || "", existing.requestId, Boolean((existing as unknown as Record<string, unknown>).account_owner_uid)),
     // A retry reads the saved decision. Changed answers must never lift a
     // region hold or convert another buyer type into a capture invitation.
     captureUrl: siteCaptureUrl(existing.request?.buyerType || "", existing.requestId, existing.request?.capture_region ?? null,
@@ -1655,6 +1661,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         siteSubmissionId: payload.requestId,
         status: "submitted",
         message: "Development mode: request saved locally and notifications were skipped.",
+        claimUrl: siteClaimUrl(buyerType, payload.requestId),
         // The dev fallback rehearses the production contract, and production
         // hands the capture link back in this response. Omitting it here let
         // the local path drift from the one real sites take.
@@ -2296,6 +2303,7 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
       requestId: payload.requestId,
       siteSubmissionId: payload.requestId,
       status: "submitted",
+      claimUrl: siteClaimUrl(buyerType, payload.requestId, Boolean(res.locals.workspaceIntake?.account_owner_uid)),
       captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion, hasCurrentDescriptionAuthority(descriptionAuthority)),
     } satisfies SubmitInboundRequestResponse);
   } catch (error) {

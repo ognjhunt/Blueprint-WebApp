@@ -120,6 +120,7 @@ export type WorkspaceSnapshot = {
 
 export type WorkspaceAccountSetup = {
   workspaceType: WorkspaceRole | null;
+  siteIntakeRequired?: boolean;
   profile: { name: string; organization: string; email: string; updatePreferences?: UpdatePreferences | null };
   termsRequired: boolean;
   access: { operations: boolean; capture: boolean };

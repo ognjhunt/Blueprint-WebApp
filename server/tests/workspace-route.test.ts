@@ -810,12 +810,52 @@ describe("account workspace setup", () => {
     expect([...state.records]).toEqual(before);
   });
 
-  it("allows a new site workspace without an invitation or intake prerequisites", async () => {
+  it("creates a site workspace automatically from its submitted job without approval", async () => {
     admission.mockResolvedValue(false);
-    const response = await api("/setup", "new-site", { name: "Owner", organization: "Site", workspaceType: "site_operator", acceptedTerms: true });
+    state.records.set("inboundRequests/submitted-job", { ...task(), account_owner_uid: null,
+      qualification_state: "not_now", contact: { email: "new-site@example.com" } });
+    const response = await api("/setup", "new-site", { name: "Owner", organization: "Site", workspaceType: "site_operator", acceptedTerms: true, siteClaimToken: createSiteClaimToken("submitted-job") });
     expect(response.status).toBe(200);
     expect(admission).not.toHaveBeenCalled();
     expect(state.records.get("users/new-site").buyerType).toBe("site_operator");
+  });
+  it("reuses submitted identity and organization across every fresh site account entry point", async () => {
+    state.records.set("inboundRequests/submitted-job", { ...task(), account_owner_uid: null, contact: { email: "new-site@example.com", firstName: "Alex", lastName: "Owner", company: "Actual Company" } });
+    expect((await api("/setup", "new-site", { name: "new-site", organization: "My site", workspaceType: "site_operator", acceptedTerms: true, siteClaimToken: createSiteClaimToken("submitted-job") })).status).toBe(200);
+    expect(state.records.get("users/new-site")).toMatchObject({ name: "Alex Owner", organizationName: "Actual Company", company: "Actual Company" });
+  });
+  it("lets an existing site owner edit workspace settings without the original link", async () => {
+    state.records.set("inboundRequests/existing-job", task());
+    const response = await api("/setup", "site-1", { name: "Updated Owner", organization: "Updated Site", workspaceType: "site_operator", acceptedTerms: true });
+    expect(response.status).toBe(200);
+    expect(state.records.get("users/site-1").organizationName).toBe("Updated Site");
+    expect(await (await api("/setup", "site-1")).json()).toMatchObject({ siteIntakeRequired: false });
+  });
+  it("requires a matching saved job even when a client profile already selects sites", async () => {
+    state.records.set("users/new-site", { buyerType: "site_operator" });
+    const payload = { name: "Owner", organization: "Site", workspaceType: "site_operator", acceptedTerms: true };
+    for (const siteClaimToken of [undefined, "invalid", createSiteClaimToken("task-1", -1), createSiteClaimToken("missing"), `${createSiteClaimToken("task-1")}.extra`]) {
+      expect((await api("/setup", "new-site", { ...payload, siteClaimToken })).status).toBe(403);
+    }
+    expect(state.records.get("users/new-site")).toEqual({ buyerType: "site_operator" });
+  });
+  it("refuses another email, a robot intake, and a job already owned by someone else", async () => {
+    const payload = { name: "Owner", organization: "Site", workspaceType: "site_operator", acceptedTerms: true, siteClaimToken: createSiteClaimToken("source-job") };
+    state.records.set("inboundRequests/source-job", { ...task(), account_owner_uid: null, contact: { email: "other@example.com" } });
+    expect((await api("/setup", "new-site", payload)).status).toBe(403);
+    state.records.set("inboundRequests/source-job", { ...task(), account_owner_uid: null, request: { buyerType: "robot_team" }, contact: { email: "new-site@example.com" } });
+    expect((await api("/setup", "new-site", payload)).status).toBe(403);
+    state.records.set("inboundRequests/source-job", { ...task(), contact: { email: "new-site@example.com" } });
+    expect((await api("/setup", "new-site", payload)).status).toBe(409);
+    expect(state.records.has("users/new-site")).toBe(false);
+  });
+  it("reuses current intake terms for a verified matching account without another question", async () => {
+    const terms = buildLegalAcceptanceRecord({ acceptedAt: "2026-10-09T00:00:00Z" });
+    state.records.set("inboundRequests/source-job", { ...task(), account_owner_uid: null, contact: { email: "new-site@example.com" }, terms_acceptance: terms });
+    const result = await api("/setup", "new-site", { name: "Owner", organization: "Site", workspaceType: "site_operator", siteClaimToken: createSiteClaimToken("source-job") });
+    expect(result.status).toBe(200);
+    expect(state.records.get("users/new-site")).toMatchObject({ termsAcceptance: terms, termsAcceptanceSource: { kind: "site_capture_intake", requestId: "source-job" } });
+    expect(state.records.get("inboundRequests/source-job").account_owner_uid).toBeNull();
   });
   it("denies robot workspace access from a forged client profile", async () => {
     admission.mockResolvedValue(false);
@@ -963,10 +1003,12 @@ describe("account workspace setup", () => {
         })
       ).status,
     ).toBe(401);
+    state.records.set("inboundRequests/new-job", { ...task(), account_owner_uid: null, contact: { email: "new-user@example.com" } });
     expect(
       (
         await api("/setup", "new-user", {
           name: "New User",
+          siteClaimToken: createSiteClaimToken("new-job"),
           organization: "Company",
           workspaceType: "site_operator",
           acceptedTerms: true,

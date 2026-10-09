@@ -863,3 +863,14 @@ it.each([true, false])("keeps the sharing notice concise and honors saved privat
   expect(Boolean(body.publicTaskListing)).toBe(!privateHandling);
   if (!privateHandling) expect(body.publicTaskListing).toMatchObject({ consent: true, statementVersion: "public-task-card-v1", details: { title: "Dish handling opportunity" } });
 });
+
+it("offers account setup only after the site and job have been saved", async () => {
+  fetchMock.mockResolvedValue({ ok: true, json: async () => ({ captureUrl: "/capture-upload/job.saved", claimUrl: "/claim/job.signed" }) });
+  await renderReady(<SiteCaptureStart />);
+  expect(screen.queryByRole("link", { name: "Create an account for this job" })).not.toBeInTheDocument();
+  fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } }); fillAndSubmit();
+  expect(await screen.findByRole("link", { name: "Create an account for this job" })).toHaveAttribute("href", "/claim/job.signed");
+  expect(screen.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", "/claim/job.signed?mode=signin");
+  expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
+  expect(postsTo("/api/inbound-request")).toHaveLength(1);
+});

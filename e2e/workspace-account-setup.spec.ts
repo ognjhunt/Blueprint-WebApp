@@ -49,7 +49,7 @@ async function account(page: Page, configured = false) {
           workspaceType: state.workspaceType,
           profile: state.profile,
           termsRequired: state.termsRequired,
-          access: { operations: true, capture: false },
+          access: { operations: false, capture: false },
         },
       });
     }
@@ -104,19 +104,15 @@ for (const type of ["site_operator", "robot_team"] as const) {
       .getByLabel("Organization", { exact: true })
       .fill("Workspace Company");
     await page.getByLabel("Workspace type", { exact: true }).selectOption(type);
-    await page.getByRole("checkbox").check();
-    await page.screenshot({
-      path: info.outputPath("account-setup.png"),
-      fullPage: true,
-    });
-    await page
-      .getByRole("button", {
-        name:
-          type === "site_operator"
-            ? "Continue to site setup →"
-            : "Continue to robot setup →",
-      })
-      .click();
+    if (type === "site_operator") {
+      await expect(page.getByRole("heading", { name: "Start with your site and job" })).toBeVisible();
+      await expect(page.getByLabel("Organization", { exact: true })).toHaveCount(0);
+      await page.getByRole("link", { name: "Show us a task →" }).click();
+    } else {
+      await page.getByRole("checkbox").check();
+      await page.screenshot({ path: info.outputPath("account-setup.png"), fullPage: true });
+      await page.getByRole("button", { name: "Continue to robot setup →" }).click();
+    }
     await expect(page).toHaveURL(
       type === "site_operator"
         ? /\/contact\/site-operator$/
@@ -135,8 +131,8 @@ for (const type of ["site_operator", "robot_team"] as const) {
         exact: true,
       }),
     ).toBeVisible();
-    expect(state.workspaceType).toBe(type);
-    expect(state.profile.organization).toBe("Workspace Company");
+    expect(state.workspaceType).toBe(type === "site_operator" ? null : type);
+    expect(state.profile.organization).toBe(type === "site_operator" ? "Existing Company" : "Workspace Company");
   });
 }
 test("Settings offers setup and a failed save keeps editable values", async ({

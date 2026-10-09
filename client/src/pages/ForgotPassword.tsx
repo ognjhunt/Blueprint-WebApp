@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { AuthLayout } from "@/components/auth/AuthLayout";
+import { withCsrfHeader } from "@/lib/csrf";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -13,8 +14,11 @@ export default function ForgotPassword() {
     if (isLoading) return;
     setIsLoading(true);
     try {
-      const { auth, sendPasswordResetEmail } = await import("@/lib/firebase");
-      await sendPasswordResetEmail(auth, email.trim());
+      await fetch("/api/password-reset", {
+        method: "POST", credentials: "include",
+        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ email: email.trim() }),
+      });
     } catch {
       // Keep the same response for every outcome to avoid account enumeration.
     } finally { setIsSubmitted(true); setIsLoading(false); }

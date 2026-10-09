@@ -13,7 +13,7 @@
  * the claim completes in place. No state to reason about afterwards — if the
  * attach fails, nothing was claimed and the error says so.
  */
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useParams } from "wouter";
 import { ArrowRight, Check } from "lucide-react";
 import {
@@ -25,7 +25,7 @@ import {
   type User,
 } from "firebase/auth";
 import { AuthLayout } from "@/components/auth/AuthLayout";
-import { auth } from "@/lib/firebase";
+import { auth, signInWithGoogle } from "@/lib/firebase";
 import { workspaceRequest } from "@/lib/workspace";
 import type { WorkspaceAccountSetup } from "@/types/workspace";
 import { attachSiteClaim, claimVerificationUrl, friendlyAuthError, setUpSiteWorkspace } from "@/lib/siteClaim";
@@ -37,6 +37,7 @@ interface ClaimSummary {
   alreadyClaimed: boolean;
   claimEmail: string | null;
   siteTermsAcceptedCurrent: boolean;
+  accountDefaults?: { name: string; organization: string | null };
   site: {
     siteName: string | null;
     siteLocation: string | null;
@@ -56,7 +57,12 @@ type Stage =
 function attachClaim(token: string, user: User, summary: ClaimSummary, terms: boolean) {
   // A fresh account gets the workspace setup the claim implies; the site is
   // the organization context, so it seeds the name.
-  return attachSiteClaim(token, user, { email: summary.claimEmail, siteName: summary.site.siteName }, terms);
+  return attachSiteClaim(token, user, accountContext(summary), terms);
+}
+
+function accountContext(summary: ClaimSummary) {
+  return { email: summary.claimEmail, siteName: summary.site.siteName,
+    name: summary.accountDefaults?.name, organization: summary.accountDefaults?.organization };
 }
 
 const verificationActionUrl = claimVerificationUrl;
@@ -77,12 +83,14 @@ function ClaimSiteForToken({ token }: { token: string }) {
   const [stage, setStage] = useState<Stage>({ status: "loading" });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"create" | "signin">("create");
+  const [mode, setMode] = useState<"create" | "signin">(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "signin" ? "signin" : "create");
   const [terms, setTerms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authUser, setAuthUser] = useState<User | null>(() => auth.currentUser);
   const [accountTermsCurrent, setAccountTermsCurrent] = useState(false);
+  const pending = useRef(false);
+  const createdAccount = useRef<User | null>(null);
 
   useEffect(() => onAuthStateChanged(auth, (user) => {
     setAuthUser(user);
@@ -178,26 +186,37 @@ function ClaimSiteForToken({ token }: { token: string }) {
     };
   }, [stage, authUser, token]);
 
-  async function claim(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy || stage.status !== "ready") return;
+  async function claim(event?: FormEvent<HTMLFormElement>, google = false) {
+    event?.preventDefault();
+    if (pending.current || busy || stage.status !== "ready") return;
     const summary = stage.summary;
+    if (!summary.claimEmail || email.trim().toLowerCase() !== summary.claimEmail.trim().toLowerCase()) {
+      setError("Use the email address you submitted with this job."); return;
+    }
+    if (!(summary.siteTermsAcceptedCurrent || accountTermsCurrent) && !terms) {
+      setError("Accept the Terms and Privacy Policy to save this job."); return;
+    }
+    pending.current = true;
     setBusy(true);
     setError(null);
     try {
-      const existing = authUser || auth.currentUser;
+      const existing = createdAccount.current || authUser || auth.currentUser;
       const user =
         existing && existing.email?.toLowerCase() === email.trim().toLowerCase()
           ? existing
+          : google ? await signInWithGoogle()
           : mode === "create"
             ? (await createUserWithEmailAndPassword(getAuth(), email.trim(), password)).user
             : (await signInWithEmailAndPassword(getAuth(), email.trim(), password)).user;
+      if (user.email?.toLowerCase() !== summary.claimEmail.toLowerCase()) throw new Error("Use the Google account for the email you submitted with this job.");
+      createdAccount.current = user;
+      setPassword("");
       if (!user.emailVerified) {
         // Record the workspace and the terms just accepted now, while they are
         // on this page: the claim that follows the verification link runs on
         // its own and has no checkbox to read. A refusal here leaves the form
         // path, which reports the real error.
-        await setUpSiteWorkspace(user, { email: summary.claimEmail, siteName: summary.site.siteName }, terms)
+        await setUpSiteWorkspace(user, accountContext(summary), terms || summary.siteTermsAcceptedCurrent, token)
           .catch(() => undefined);
         await sendEmailVerification(user, { url: verificationActionUrl(token) });
         setStage({ status: "verify", summary, user });
@@ -208,6 +227,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
     } catch (submitError) {
       setError(friendlyAuthError(submitError, "We could not complete the claim. Please try again."));
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   }
@@ -302,8 +322,8 @@ function ClaimSiteForToken({ token }: { token: string }) {
           listing at any time — pausing removes it from what robot teams can assess, and your
           footage and rights are unchanged.
         </p>
-        <a className="ms-button ms-button-large" href="/app">
-          Open your workspace <ArrowRight size={18} aria-hidden="true" />
+        <a className="ms-button ms-button-large" href={`/app/tasks/${encodeURIComponent(stage.summary.requestId)}`}>
+          Open your job <ArrowRight size={18} aria-hidden="true" />
         </a>
       </Shell>
     );
@@ -326,30 +346,27 @@ function ClaimSiteForToken({ token }: { token: string }) {
     authUser && authUser.email?.toLowerCase() === email.trim().toLowerCase(),
   );
   const priorAcceptanceApplies = Boolean(
-    authUser?.emailVerified &&
-    authUser.email?.toLowerCase() === stage.summary.claimEmail?.toLowerCase() &&
-    (stage.summary.siteTermsAcceptedCurrent || accountTermsCurrent),
+    stage.summary.siteTermsAcceptedCurrent || accountTermsCurrent,
   );
   return (
     <Shell>
-      <p className="ms-eyebrow">Claim your site</p>
+      <p className="ms-eyebrow">Your job is saved</p>
       <h1>Keep track of {site.siteName || "your site"}.</h1>
       <p className="ms-field-hint">
         {site.taskStatement
           ? `Claim the workspace for “${site.taskStatement}” to follow its progress and review results when they are available.`
-          : "Claim the workspace to follow job progress and review results when they are available."}
+          : "Create an account or sign in to follow job progress and review results when they are available."}
       </p>
       <p className="ms-field-hint">
-        Claiming attaches the site to your account — it is how you see results, control whether the
-        site is listed, and pause it anytime.
+        We’ll attach this site and job to your account using the details you already supplied.
+        You can review results, control the listing, and pause it anytime.
       </p>
 
       <form className="ms-form" onSubmit={claim} aria-label="Claim this site">
         <label htmlFor="claim-email">
           <span>Work email</span>
           <span className="ms-field-hint">
-            Use {stage.summary.claimEmail ? `(${stage.summary.claimEmail})` : "the address the invite came to"} — the
-            site attaches to the email that received this link.
+            The email you submitted with this job. Use the same address to save it to your account.
           </span>
           <input
             id="claim-email"
@@ -358,7 +375,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
             required
             autoComplete="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            readOnly
           />
         </label>
         {!matchingSignedInUser && <label htmlFor="claim-password">
@@ -400,7 +417,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
           </p>
         )}
         <button className="ms-button ms-button-large" type="submit" disabled={busy}>
-          {busy ? "Claiming…" : "Claim this site"}
+          {busy ? "Saving…" : matchingSignedInUser ? "Save job to my account" : mode === "create" ? "Create account and save job" : "Sign in and save job"}
           <ArrowRight size={20} aria-hidden="true" />
         </button>
         <p className="ms-form-note">
@@ -417,6 +434,10 @@ function ClaimSiteForToken({ token }: { token: string }) {
           </a>
         </p>
       </form>
+      {!matchingSignedInUser && <>
+        <div className="auth-divider"><span>or</span></div>
+        <button className="auth-google" type="button" disabled={busy} onClick={() => void claim(undefined, true)}>Continue with Google</button>
+      </>}
     </Shell>
   );
 }

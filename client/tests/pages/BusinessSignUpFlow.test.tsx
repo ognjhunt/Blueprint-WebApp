@@ -1,125 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import BusinessSignUpFlow from "@/pages/BusinessSignUpFlow";
-const mocks = vi.hoisted(() => ({ create: vi.fn(), google: vi.fn(), request: vi.fn(), assign: vi.fn(), currentUser: null as any }));
-vi.mock("@/lib/analytics", () => ({ analyticsEvents: { businessSignupStarted: vi.fn(), businessSignupSubmitted: vi.fn(), businessSignupCompleted: vi.fn(), businessSignupFailed: vi.fn() }, getSafeErrorType: () => "unknown" }));
-vi.mock("firebase/auth", () => ({ getAuth: () => ({}), createUserWithEmailAndPassword: mocks.create }));
-vi.mock("@/lib/firebase", () => ({ signInWithGoogle: mocks.google }));
-vi.mock("@/lib/workspace", () => ({ workspaceRequest: mocks.request }));
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: mocks.currentUser }) }));
-const user = { uid: "new-user", email: "team@example.com", displayName: "Test User" };
-const unconfigured = { workspaceType: null, profile: { name: "", organization: "", email: user.email }, termsRequired: true, access: { operations: false, capture: false } };
-function accountStep() {
-  fireEvent.change(screen.getByLabelText("Work email"), { target: { value: user.email } });
-  fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "strongpass123" } });
-  fireEvent.click(screen.getByRole("button", { name: "Continue", exact: true }));
-}
-function workspaceStep(role: "site_operator" = "site_operator") {
-  fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Test User" } });
-  fireEvent.change(screen.getByLabelText("Organization", { exact: true }), { target: { value: "Test Team" } });
-  fireEvent.click(screen.getByRole("checkbox", { name: /I agree/ }));
-}
-beforeEach(() => {
-  cleanup(); vi.clearAllMocks(); mocks.currentUser = null;
-  window.history.pushState({}, "", "/signup/business");
-  vi.spyOn(window.location, "assign").mockImplementation(mocks.assign);
-  mocks.create.mockResolvedValue({ user }); mocks.google.mockResolvedValue(user);
-  mocks.request.mockImplementation(async (_u, _path, method) => method === "POST" ? { ok: true } : unconfigured);
-});
-describe("minimal business signup", () => {
-  it("has two account fields, two workspace fields, and no approval step without legacy intake", () => {
+vi.mock("@/components/auth/AuthLayout", () => ({ AuthLayout: ({ children }: any) => <main>{children}</main> }));
+vi.mock("@/pages/RobotTeamSignUpFlow", () => ({ default: () => <div>Robot invitation flow</div> }));
+vi.mock("@/pages/MarketingRedirect", () => ({ MarketingRedirect: ({to, preserveQuery}: any) => <a href={to} data-preserve-query={String(preserveQuery)}>Continue to your job</a> }));
+beforeEach(() => window.history.replaceState({}, "", "/signup/business"));
+describe("intake-first site signup", () => {
+  it.each(["", "?buyerType=site_operator", "?persona=site-operator"])("starts with the site and job rather than credentials (%s)", query => {
+    window.history.replaceState({}, "", `/signup/business${query}`);
     render(<BusinessSignUpFlow />);
-    expect(screen.getAllByRole("textbox")).toHaveLength(1);
-    accountStep();
-    expect(screen.getAllByRole("textbox")).toHaveLength(2);
-    expect(screen.queryAllByRole("radio")).toHaveLength(0);
-    expect(screen.queryByText(/Requested lane|Proof path|Company size|Standardized benchmark|Commercialization boundary/)).not.toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: /Email me relevant/ })).not.toBeChecked();
-    expect(mocks.create).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: "Continue to your job" })).toHaveAttribute("href", "/contact/site-operator");
+    expect(screen.getByRole("link", { name: "Continue to your job" })).toHaveAttribute("data-preserve-query", "false");
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
-  it("saves optional updates only when explicitly checked", async () => {
-    render(<BusinessSignUpFlow />); accountStep(); workspaceStep();
-    fireEvent.click(screen.getByRole("checkbox", { name: /Email me relevant/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
-    await waitFor(() => expect(mocks.request).toHaveBeenCalledWith(user, "/setup", "POST", expect.objectContaining({ optionalUpdates: true })));
-  });
-  for (const role of ["site_operator"] as const) {
-    it(`creates only an account and ${role} workspace, without a sales intake or permissions grant`, async () => {
-      render(<BusinessSignUpFlow />); accountStep(); workspaceStep(role);
-      fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
-      await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/site-operator"));
-      expect(mocks.create).toHaveBeenCalledTimes(1);
-      expect(mocks.request).toHaveBeenCalledWith(user, "/setup", "POST", { name: "Test User", organization: "Test Team", workspaceType: role, acceptedTerms: true, optionalUpdates: false });
-      expect(mocks.request.mock.calls.every(call => call[1] === "/setup")).toBe(true);
-    });
-  }
-  it("requires legal acceptance before creating credentials", () => {
-    render(<BusinessSignUpFlow />); accountStep(); workspaceStep(); fireEvent.click(screen.getByRole("checkbox", { name: /I agree/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
-    expect(screen.getByRole("alert")).toHaveTextContent("Accept the Terms");
-    expect(mocks.create).not.toHaveBeenCalled();
-  });
-  it("retries a failed workspace save without creating a second account or losing values", async () => {
-    let fail = true;
-    mocks.request.mockImplementation(async (_u, _path, method) => { if (method === "POST" && fail) throw Error("Unavailable"); return method === "POST" ? { ok: true } : unconfigured; });
-    render(<BusinessSignUpFlow />); accountStep(); workspaceStep();
-    fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
-    await screen.findByText(/Your account is created, but workspace setup did not save/);
-    expect(screen.getByLabelText("Organization", { exact: true })).toHaveValue("Test Team");
-    fail = false;
-    fireEvent.click(screen.getByRole("button", { name: "Open workspace", exact: true }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/site-operator"));
-    expect(mocks.create).toHaveBeenCalledTimes(1);
-  });
-  it("prefills Google identity and requires workspace details and consent", async () => {
-    render(<BusinessSignUpFlow />); fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-    await waitFor(() => expect(screen.getByLabelText("Your name")).toHaveValue("Test User"));
-    expect(screen.getByRole("checkbox", { name: /I agree/ })).not.toBeChecked();
-    expect(mocks.request.mock.calls.some(c => c[2] === "POST")).toBe(false);
-    workspaceStep();fireEvent.click(screen.getByRole("button", { name: "Open workspace" }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/site-operator"));
-    expect(mocks.create).not.toHaveBeenCalled();
-  });
-  it("routes an existing Google customer to their workspace without changing its type", async () => {
-    mocks.request.mockResolvedValue({ ...unconfigured, workspaceType: "site_operator" });
-    render(<BusinessSignUpFlow />);fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/app"));
-    expect(mocks.request.mock.calls.some(c => c[2] === "POST")).toBe(false);
-  });
-  it("honors site query links and keeps typed values when going back", () => {
-    window.history.pushState({}, "", "/signup/business?buyerType=site_operator&intent=pilot-opportunity");
-    render(<BusinessSignUpFlow />);accountStep();
-    expect(screen.queryAllByRole("radio")).toHaveLength(0);
-    fireEvent.change(screen.getByLabelText("Organization", { exact: true }), { target: { value: "Saved Team" } });
-    fireEvent.click(screen.getByRole("button", { name: /Back/ }));
-    expect(screen.getByLabelText("Work email")).toHaveValue(user.email);
-    fireEvent.click(screen.getByRole("button", { name: "Continue", exact: true }));
-    expect(screen.getByLabelText("Organization", { exact: true })).toHaveValue("Saved Team");
-  });
-  it("resumes an authenticated unfinished account without asking for another password", async () => {
-    mocks.currentUser = user;
+  it("preserves intake attribution without forwarding credentials or an arbitrary redirect", () => {
+    window.history.replaceState({}, "", "/signup/business?source=faq&utm_campaign=beta&email=private@example.com&returnTo=https://other.test");
     render(<BusinessSignUpFlow />);
-    await waitFor(() => expect(screen.getByLabelText("Your name")).toHaveValue("Test User"));
-    expect(screen.queryByLabelText("Password", { exact: true })).not.toBeInTheDocument();
-    workspaceStep();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Open workspace" })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: "Open workspace" }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/site-operator"));
-    expect(mocks.create).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: "Continue to your job" })).toHaveAttribute("href", "/contact/site-operator?source=faq&utm_campaign=beta");
   });
-  it("does not overwrite a workspace after an ambiguous save succeeded", async () => {
-    let writes = 0;
-    mocks.request.mockImplementation(async (_u, _path, method) => {
-      if (method === "POST") { writes++; throw Error("Response lost"); }
-      return writes ? { ...unconfigured, workspaceType: "robot_team" } : unconfigured;
-    });
-    render(<BusinessSignUpFlow />); accountStep(); workspaceStep();
-    fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
-    await screen.findByText(/Your account is created, but workspace setup did not save/);
-    fireEvent.click(screen.getByRole("button", { name: "Open workspace", exact: true }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/app"));
-    expect(writes).toBe(1);
-    expect(mocks.create).toHaveBeenCalledTimes(1);
+  it("resumes a signed job claim without another intake", () => {
+    window.history.replaceState({}, "", "/signup/business?returnTo=%2Fclaim%2Fsigned.job-token");
+    render(<BusinessSignUpFlow />);
+    expect(screen.getByRole("link", { name: "Continue to your job" })).toHaveAttribute("href", "/claim/signed.job-token");
   });
-
+  it.each(["?buyerType=robot_team", "?persona=robot-team", "?invitation=token&buyerType=site_operator"])("keeps robot invitations authoritative (%s)", query => {
+    window.history.replaceState({}, "", `/signup/business${query}`);
+    render(<BusinessSignUpFlow />);
+    expect(screen.getByText("Robot invitation flow")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
 });

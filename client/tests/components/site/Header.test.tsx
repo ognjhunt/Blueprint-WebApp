@@ -77,7 +77,7 @@ describe("Header", () => {
     );
     expect(screen.getByRole("link", { name: /^Sign up: Site operator$/i })).toHaveAttribute(
       "href",
-      "/signup/business?buyerType=site_operator&source=header-signup",
+      "/contact/site-operator?source=header-signup",
     );
   });
 

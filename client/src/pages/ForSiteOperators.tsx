@@ -26,7 +26,7 @@ import { serviceArea } from "@/data/serviceArea";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const submitHref =
-  "/signup/business?buyerType=site_operator&intent=pilot-opportunity&source=for-site-operators";
+  "/contact/site-operator?intent=pilot-opportunity&source=for-site-operators";
 
 const siteSteps = [
   {
