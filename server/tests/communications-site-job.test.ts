@@ -8,11 +8,15 @@ import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentCon
 import { loadAssessmentCustomerStatements } from "../utils/siteCustomerStatements";
 import { browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
+import * as decisions from "../utils/siteJobDecision";
 
 vi.mock("../utils/field-encryption", () => ({ decryptFieldValue: async (v: unknown) => v }));
-const advisory = vi.hoisted(() => ({ load: vi.fn(async () => ({ schemaVersion: "site_customer_advisory.v1", state: "unavailable", correlationId: null, sections: [], unknowns: [] as string[], nextAction: null as string | null })) }));
-vi.mock("../utils/siteAssessmentPublic", () => ({ loadCurrentSiteAdvisory: advisory.load }));
-afterEach(() => { advisory.load.mockClear(); vi.unstubAllEnvs(); });
+const advisory = vi.hoisted(() => ({ load: vi.fn(async () => ({ schemaVersion: "site_customer_advisory.v1", state: "unavailable", correlationId: null, sections: [], unknowns: [] as string[], nextAction: null as string | null })),
+  basis: null as Record<string, any> | null, compatible: [] as Record<string, any>[] }));
+vi.mock("../utils/siteAssessmentPublic", () => ({ loadCurrentSiteAdvisory: advisory.load,
+  loadCurrentSiteAssessmentView: async () => { const customer = await advisory.load(); return { customerAdvisory: customer,
+    decisionAssessment: advisory.basis ?? customer, compatibleDecisionAssessments: advisory.compatible }; } }));
+afterEach(() => { advisory.load.mockClear(); advisory.basis = null; advisory.compatible = []; vi.unstubAllEnvs(); });
 function fixture() {
   const db = memoryFirestore(new Map([
     ["inboundRequests/job-1", { contact: { email: "site@example.com" }, request: { taskStatement: "Unload dishes" }, siteTaskGates: { sameTask: "yes" },
@@ -109,6 +113,25 @@ describe("inbound job communications uses the existing agent and actual email ev
     expect(input).not.toHaveProperty("researchBrief"); expect(input.currentApproval.sendsAuthorized).toBe(false);
     expect(f.ports.send).not.toHaveBeenCalled();
     expect(f.db.records.get(`inboundRequests/job-1/communications/${first.id}`).checkpoint.sessionId).toBe("simulated-existing-agent-session");
+  });
+  it("matches decisions against internal bases but sends only the safe customer advisory to the model", async () => {
+    const f = fixture(), current = { schemaVersion: "site_customer_advisory.v1", state: "ready", correlationId: null, sections: [],
+      unknowns: ["What finished state defines success?"], nextAction: "Resolve the required acceptance facts." };
+    const prior = { ...current, unknowns: ["PRIVATE_INTERNAL_DECISION_BASIS"] };
+    advisory.basis = prior; advisory.compatible = [{ ...prior, unknowns: ["PRIVATE_COMPATIBLE_DECISION_BASIS"] }];
+    advisory.load.mockResolvedValue(current);
+    const project = vi.spyOn(decisions, "projectCurrentSiteJobDecision");
+    try {
+      await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);
+      expect(project).toHaveBeenLastCalledWith(f.db.records.get("inboundRequests/job-1"), f.db.records.get("siteTaskBriefs/job-1"), prior, advisory.compatible);
+      const input = f.run.mock.calls[0][0].input;
+      expect(JSON.parse(input).siteJob.context.assessment).toEqual(current);
+      expect(input).not.toContain("PRIVATE_INTERNAL_DECISION_BASIS");
+      expect(input).not.toContain("PRIVATE_COMPATIBLE_DECISION_BASIS");
+      expect(f.ports.send).not.toHaveBeenCalled();
+    } finally {
+      project.mockRestore(); advisory.load.mockResolvedValue({ schemaVersion: "site_customer_advisory.v1", state: "unavailable", correlationId: null, sections: [], unknowns: [], nextAction: null });
+    }
   });
   it("omits revoked derived facts and stale decisions from an agent's context", async () => {
     const f = fixture(), job = f.db.records.get("inboundRequests/job-1");

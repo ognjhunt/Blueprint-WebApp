@@ -7,7 +7,7 @@ import { isEmailSuppressed, recordEmailSuppression } from "../utils/email-suppre
 import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { decryptFieldValue } from "../utils/field-encryption";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
-import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
+import { loadCurrentSiteAssessmentView } from "../utils/siteAssessmentPublic";
 import { projectCurrentSiteJobDecision } from "../utils/siteJobDecision";
 import { brandedEmail, EMAIL_SIGN_OFF } from "../utils/emailLayout";
 import { assessmentCustomerStatementRefs, siteCustomerStatementDigest } from "../utils/siteCustomerStatements";
@@ -44,15 +44,16 @@ export function existingSiteJobCommunicationsPorts(db: FirebaseFirestore.Firesto
     suppress: to => recordEmailSuppression({ email: to, scope: "all", reason: "recipient_opt_out", source: "site_job_communications_reply" }), now: Date.now };
 }
 
-/** Private operating details and media URLs never enter this customer-only
- * adapter. The operator reviews the exact bounded context before drafting. */
+/** Private operating details and media URLs never enter customer model/email
+ * context. The operator reviews the exact bounded context before drafting. */
 export async function loadSiteJobCommunicationsContext(db: FirebaseFirestore.Firestore, requestId: string) {
   const [job, brief] = await Promise.all([db.doc(`inboundRequests/${requestId}`).get(), db.doc(`siteTaskBriefs/${requestId}`).get()]);
   if (!job.exists) fail("job_not_found", 404);
   const record = job.data()!, rawBrief = brief.data(), revoked = projectWebsiteCaptureRights(record).consent_revoked, b = revoked ? null : rawBrief;
   const recipient = email(await decryptFieldValue(record.contact?.email ?? ""));
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) fail("job_customer_contact_missing", 422);
-  const assessment = !revoked ? await loadCurrentSiteAdvisory(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: record.account_owner_uid ?? null }) : null;
+  const view = !revoked ? await loadCurrentSiteAssessmentView(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: record.account_owner_uid ?? null }) : null;
+  const assessment = view?.customerAdvisory ?? null;
   const context = { requestId, recipient, captureConsentWithdrawn: revoked, taskStatement: String(await decryptFieldValue(record.request?.taskStatement ?? record.request?.taskDescription ?? "")),
     brief: b ? { summary: b.summary ?? null, proposed: b.proposed ?? [], unresolved: b.unresolved ?? [], successCriteria: b.successCriteria ?? null,
       confirmedBy: b.confirmedBy ?? null, confirmedAtIso: b.confirmedAtIso ?? null, operatorAnswers: b.operatorAnswers ?? {}, operatorUnknown: b.operatorUnknown ?? [] } : null,
@@ -60,7 +61,8 @@ export async function loadSiteJobCommunicationsContext(db: FirebaseFirestore.Fir
     // its questions/unknowns are proposals, never launch or send authority.
     assessment: assessment?.state === "ready" ? assessment : null,
     answers: revoked ? {} : gateAnswersOnFile(record), recommendation: revoked ? null : record.pilot_recommendation ?? null,
-    acceptance: record.pilot_booking ?? null, decision: revoked ? null : projectCurrentSiteJobDecision(record, b, assessment),
+    acceptance: record.pilot_booking ?? null, decision: revoked ? null : projectCurrentSiteJobDecision(record, b,
+      view?.decisionAssessment ?? null, view?.compatibleDecisionAssessments ?? []),
     customerStatements: Array.isArray(record.customerConversation) ? record.customerConversation.slice(-20) : [] };
   return { context, contextDigest: communicationsDigest(context), sourceRef: `inboundRequests/${requestId}`,
     sourceDigest: communicationsDigest({ record, brief: rawBrief ?? null }) };
