@@ -5,7 +5,7 @@ import { dbAdmin, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { resolveExecutionAccessContext } from "../utils/access-control";
 import { isEmailSuppressed } from "../utils/email-suppression";
 import { reviewedResearchInputSchema, reviewedResearchPublication, stageReviewedResearch, REVIEWED_RESEARCH_ROOT } from "../agents/communications-reviewed-research";
-import { admitPublishedResearch } from "../agents/communications-intake";
+import { admitPublishedResearch, admitReviewedReportHypothesis } from "../agents/communications-intake";
 import { readExistingResearchSnapshot } from "../agents/communications-research";
 
 const router = Router();
@@ -65,8 +65,13 @@ router.post("/research-admissions", async (req, res) => {
     fields: parsed.error.issues.map(issue => ({ path: issue.path.join("."), repair: issue.message })) });
   try {
     const now = Date.now();
-    const snapshot = await stageReviewedResearch(dbAdmin, parsed.data, access.uid, now);
-    const outcome = await admitPublishedResearch(snapshot, parsed.data.candidate.candidate_key, {
+    const snapshot = await stageReviewedResearch(dbAdmin, parsed.data, access.uid, now, async digest => {
+      if (!storageAdmin) throw new Error("reviewed_research_document_store_unavailable");
+      const [bytes] = await storageAdmin.bucket().file(`research/artifacts/sha256/${digest}/source`).download();
+      return bytes;
+    });
+    const admit = parsed.data.hypothesis ? admitReviewedReportHypothesis : admitPublishedResearch;
+    const outcome = await admit(snapshot, parsed.data.candidate.candidate_key, {
       db: dbAdmin, now: () => Date.now(), readResearch: (date, admissionId) => readExistingResearchSnapshot(dbAdmin!, date, admissionId),
       isSuppressed: email => isEmailSuppressed(email, "growth_campaign"),
     });
