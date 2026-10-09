@@ -1461,14 +1461,31 @@
       "owner": "customer basics author; independent reviewer; root integration",
       "observed": "Actual exported openVideo plus injected public302/native redirect algorithm made one GET to actual owned loopbackHTTP server, admitted25synthetic bytes; direct private initial URL was refused",
       "root_cause": "Initial URL validated, but automatic follow admitted later HTTP/private redirect without revalidation or public-address socket pin",
-      "status": "Independent SOURCE_CLEAR exact4files;98 scopedPASS and8 independentprobesPASS; requiredCI and security deployment pending",
-      "limits": "No production exploitation, real customer/provider connection or original SDK storage-path implication. Original dishwasher SDK used generation-bound storage bytes.",
+      "status": "Independent source and fixture follow-up reviews cleared; exact successor CI passed; PR1006 checked merged and paired LIVE bdd with fresh health/readiness200",
+      "limits": "No production exploitation was observed. Isolated probe made no real customer/provider connection; original SDK storage path was not implicated. Original dishwasher SDK used generation-bound storage bytes.",
       "diagnosis_sha256": "2317b1eb038284edd3500f67ed554a4a9a1d1841cd29170f84dd93653f773abb",
       "probe_sha256": "cae7eb63833b1bf8d297e3906e636c4484124071c39748e362bea4beb167410b",
       "new_unique_credit": 0,
       "independent_source_review_sha256": "744d3cc56b42e8877e333c5344e01d9305b52fe4df8a4582040364915619e0b6",
-      "head": "d1e1609bc3836c1376f049de88dfda7b0cb94bf3",
-      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/1006"
+      "head": "76f71c1ea3f2e898c4997f700531aa2457ea0665",
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/1006",
+      "merged_deployed_sha": "bdd8ed4e26af9f6e4a68d25ef0985fdb984f0a14",
+      "root_release_sha256": "25508c975ad76351ace8a8070cb3338b9d7f86511cf402430beba9eda1c94513",
+      "fixture_followup_review_sha256": "0c41e257b56807a2f1cf7d4594fbb8fa83dcdc4b2130791cfc63c35efeeaedbf"
+    },
+    {
+      "id": "REL-NATIVE-MAIN-CENSUS-CHURN-20261009",
+      "severity": "Release-blocking native required-check failure; actual customer harm not demonstrated",
+      "owner": "customer basics diagnosis; independent reviewer; root native release",
+      "observed": "Exact merged f7 main shard1 failed one real Linux restore acceptance case; promotion same-source passing copy cannot clear current-main failure",
+      "root_cause": "Unknown which processes caused incomplete census; current safety refusal is justified by incomplete evidence",
+      "diagnostic_counts": "Restore refused historical_generation_process_unknown after all three bounded census attempts were incomplete. Attempt1 pid_census_changed1; attempts2/3 pid_open_disappeared2 each. Exact PID/FD identities not retained and root cause remains under diagnosis.",
+      "status": "Bounded source/fixture diagnosis complete; no justified causal repair. Native required gate remains failed; no native operations.",
+      "CI": 37921721328,
+      "job": 113791786647,
+      "new_unique_credit": 0,
+      "offline_receipt_sha256": "4134107084426848c629af022a990489642ae6fe00930aa53f049dcd1f3810fa",
+      "smallest_next_step": "Bounded at-failure PID/open ownership evidence on verified disposable Linux via an existing supported diagnostic channel; current counters cannot establish causation"
     }
   ],
   "dependencies": [
@@ -1825,5 +1842,5 @@
     "bounded_returned_event_count": 0,
     "scope": "Service-level minute samples, not instantaneous peak/assessment-only allocation. Later samples after confirmed terminalread support bounded post-run observation; early postcompletionlabel not separately certified. No concurrentcapacity/leak/zeroOOM universal claim; frozen peak/headroom sizing gate remains uncleared."
   },
-  "updated_at_utc": "2026-10-09T11:10:28.619636+00:00"
+  "updated_at_utc": "2026-10-09T11:59:35.417403+00:00"
 }

@@ -604,15 +604,16 @@
     }
   },
   "current_verified_webapp_release": {
-    "sha": "edf2baf9655a004d2be82785086cb0993ba9a9d2",
-    "PR": 1005,
+    "sha": "bdd8ed4e26af9f6e4a68d25ef0985fdb984f0a14",
+    "PR": 1006,
+    "reviewed_head": "76f71c1ea3f2e898c4997f700531aa2457ea0665",
     "paired_live": true,
-    "main_ci": 37919120872,
-    "automatic_deploy": 37919633111,
-    "official_receipt_sha256": "aa3ea116ed2851c3f58be44e0a842df22453da23538be73a8e13f578a1fab373",
-    "root_receipt_sha256": "c6f2ae78c09557f09a344764f8749d3de10c6eac309dc829ff212c559e0d8355",
-    "observed_at_utc": "2026-10-09T10:58:38.698951+00:00",
-    "claim_ceiling": "Scoped source repair and exact paired deployment/public health, not measured RSS plateau, original OOM causation or fresh paid assessment"
+    "main_ci": 37925204510,
+    "automatic_deploy": 37925733711,
+    "official_receipt_sha256": "441c82c8d707567ad5602086c5f9aac223017a28e4e12c8d50985f4f99f0a4f7",
+    "root_receipt_sha256": "25508c975ad76351ace8a8070cb3338b9d7f86511cf402430beba9eda1c94513",
+    "observed_at_utc": "2026-10-09T11:57:24Z",
+    "claim_ceiling": "Reviewed source paired deployment and public health/version only; no new model/video/customer/native run or accuracy proof"
   },
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
@@ -1897,15 +1898,16 @@
     "claim_ceiling": "Read-only credential/model catalog access;not generation, currentcustomer assessment or video-quality proof. Historical401 andunknownexposure remain retained."
   },
   "current_verified_web_release": {
-    "sha": "edf2baf9655a004d2be82785086cb0993ba9a9d2",
-    "PR": 1005,
+    "sha": "bdd8ed4e26af9f6e4a68d25ef0985fdb984f0a14",
+    "PR": 1006,
+    "reviewed_head": "76f71c1ea3f2e898c4997f700531aa2457ea0665",
     "paired_live": true,
-    "main_ci": 37919120872,
-    "automatic_deploy": 37919633111,
-    "official_receipt_sha256": "aa3ea116ed2851c3f58be44e0a842df22453da23538be73a8e13f578a1fab373",
-    "root_receipt_sha256": "c6f2ae78c09557f09a344764f8749d3de10c6eac309dc829ff212c559e0d8355",
-    "observed_at_utc": "2026-10-09T10:58:38.698951+00:00",
-    "claim_ceiling": "Scoped source repair and exact paired deployment/public health, not measured RSS plateau, original OOM causation or fresh paid assessment"
+    "main_ci": 37925204510,
+    "automatic_deploy": 37925733711,
+    "official_receipt_sha256": "441c82c8d707567ad5602086c5f9aac223017a28e4e12c8d50985f4f99f0a4f7",
+    "root_receipt_sha256": "25508c975ad76351ace8a8070cb3338b9d7f86511cf402430beba9eda1c94513",
+    "observed_at_utc": "2026-10-09T11:57:24Z",
+    "claim_ceiling": "Reviewed source paired deployment and public health/version only; no new model/video/customer/native run or accuracy proof"
   },
   "current_normal_UI_same_job_retry": {
     "source_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
@@ -3157,7 +3159,7 @@
     "operation_owner": "New original-job master owns shared Web operations; root retains native integration/release. Hypothesis actor owns one explicitly released short configuration/restart interval; no competing mutations.",
     "root_live_provider_or_config_or_send_effects": 0
   },
-  "current_release_checkpoint_key": "checkpoint_20261009T1110",
+  "current_release_checkpoint_key": "checkpoint_20261009T1200",
   "native2654_current_check": {
     "head": "eb4f2c8114cad789796bc1f56bb78935f0cfb53e",
     "ci": 37884251589,
@@ -4096,5 +4098,100 @@
     "egress_deployment": "PR1006 published and attached; requiredCI and solemasterpairedrelease pending",
     "original_stop_utc": "2026-10-09T12:24:35Z",
     "egress_PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/1006"
+  },
+  "historical_before_bdd_current_verified_webapp_release": {
+    "sha": "edf2baf9655a004d2be82785086cb0993ba9a9d2",
+    "PR": 1005,
+    "paired_live": true,
+    "main_ci": 37919120872,
+    "automatic_deploy": 37919633111,
+    "official_receipt_sha256": "aa3ea116ed2851c3f58be44e0a842df22453da23538be73a8e13f578a1fab373",
+    "root_receipt_sha256": "c6f2ae78c09557f09a344764f8749d3de10c6eac309dc829ff212c559e0d8355",
+    "observed_at_utc": "2026-10-09T10:58:38.698951+00:00",
+    "claim_ceiling": "Scoped source repair and exact paired deployment/public health, not measured RSS plateau, original OOM causation or fresh paid assessment"
+  },
+  "historical_before_bdd_current_verified_web_release": {
+    "sha": "edf2baf9655a004d2be82785086cb0993ba9a9d2",
+    "PR": 1005,
+    "paired_live": true,
+    "main_ci": 37919120872,
+    "automatic_deploy": 37919633111,
+    "official_receipt_sha256": "aa3ea116ed2851c3f58be44e0a842df22453da23538be73a8e13f578a1fab373",
+    "root_receipt_sha256": "c6f2ae78c09557f09a344764f8749d3de10c6eac309dc829ff212c559e0d8355",
+    "observed_at_utc": "2026-10-09T10:58:38.698951+00:00",
+    "claim_ceiling": "Scoped source repair and exact paired deployment/public health, not measured RSS plateau, original OOM causation or fresh paid assessment"
+  },
+  "checkpoint_20261009T1200": {
+    "recorded_at_utc": "2026-10-09T11:59:35.417403+00:00",
+    "web_release": {
+      "sha": "bdd8ed4e26af9f6e4a68d25ef0985fdb984f0a14",
+      "PR": 1006,
+      "reviewed_head": "76f71c1ea3f2e898c4997f700531aa2457ea0665",
+      "paired_live": true,
+      "main_ci": 37925204510,
+      "automatic_deploy": 37925733711,
+      "official_receipt_sha256": "441c82c8d707567ad5602086c5f9aac223017a28e4e12c8d50985f4f99f0a4f7",
+      "root_receipt_sha256": "25508c975ad76351ace8a8070cb3338b9d7f86511cf402430beba9eda1c94513",
+      "observed_at_utc": "2026-10-09T11:57:24Z",
+      "claim_ceiling": "Reviewed source paired deployment and public health/version only; no new model/video/customer/native run or accuracy proof"
+    },
+    "web_original_PR_CI": {
+      "run": 37922036791,
+      "head": "d1e1609bc3836c1376f049de88dfda7b0cb94bf3",
+      "conclusion": "FAILURE",
+      "checks": {
+        "passed": 5045,
+        "failed": 20,
+        "skipped": 6
+      },
+      "cause": "Two older provider fixture suites mocked global fetch; protected Node HTTPS transport reached fixture HTTP404 before old provider assertions. This failed execution is preserved."
+    },
+    "web_fixture_followup": {
+      "head": "76f71c1ea3f2e898c4997f700531aa2457ea0665",
+      "change": "12 additive lines in two existing test files route fixture downloads through the injected seam; all old assertions/response bytes unchanged. No production changes.",
+      "scoped_pass": 147,
+      "independent_overlapping_pass": 61,
+      "independent_review_sha256": "0c41e257b56807a2f1cf7d4594fbb8fa83dcdc4b2130791cfc63c35efeeaedbf",
+      "successor_CI": 37924503583,
+      "conclusion": "SUCCESS",
+      "new_unique_credit": 0
+    },
+    "local_public_transport_read": {
+      "observed_at": "2026-10-09T11:38:33Z",
+      "HTTP": 200,
+      "bytes": 161,
+      "latency_ms": 232,
+      "authorized_TLS": "TLS1.3",
+      "pinned_socket_matched": true,
+      "root_receipt_sha256": "17e39741c5e26c2c8803866dd9232ec4b0bcd5d5375ab11d8327587a87a61856",
+      "claim_ceiling": "One actual local protected-helper public JSON read, not deployed helper, video journey, private-redirect attack or accuracy",
+      "new_unique_credit": 0
+    },
+    "native_merged_sha": "f7dc8fb8cc3e352b8c85eb7b2f9a6b57e3752b2c",
+    "native_main_CI": {
+      "run": 37921721328,
+      "conclusion": "FAILURE",
+      "failed_job": 113791786647,
+      "failed_test": "tests/test_registered_feature_linux.py::test_actual_registered_disk_diagnostic_delete_offload_and_restore",
+      "cause": "Restore refused historical_generation_process_unknown after all three bounded census attempts were incomplete. Attempt1 pid_census_changed1; attempts2/3 pid_open_disappeared2 each. Exact PID/FD identities not retained and root cause remains under diagnosis.",
+      "other_three_shards": "SUCCESS"
+    },
+    "native_production_promotion": {
+      "run": 37921796618,
+      "state": "Still running at this checkpoint; whole terminal success not claimed"
+    },
+    "native_install_admission_dispatch": 0,
+    "native_release_gate": "Failed current-main required gate blocks install even if promotion succeeds. No skips, weaker safety checks or blind rerun.",
+    "original_stop_utc": "2026-10-09T12:24:35Z",
+    "full_goal": "PARTIAL: reference quality/holdout and native joined completion remain unproved; engineering proceeds independently",
+    "native_main_official_custody_sha256": "5b2e4f21950d7d5763c953a53449786bef8c7f27e850e2af3281891e5cfe68e8",
+    "native_main_root_all_official_bindings_sha256": "b4d6b9a70d57fa5364356ec575dda4735c514c6d9fa5f72a51d2ec7441295903",
+    "native_offline_diagnosis": {
+      "scoped_checks_passed": 6,
+      "layer": "Actual source with syscall fixtures, not Linux host execution",
+      "receipt_sha256": "4134107084426848c629af022a990489642ae6fe00930aa53f049dcd1f3810fa",
+      "conclusion": "Recorded incomplete3pass census reproduces justified UNKNOWN; stable complete census clears. No identified process owner or justified causal repair.",
+      "new_unique_credit": 0
+    }
   }
 }
