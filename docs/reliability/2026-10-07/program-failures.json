@@ -1286,9 +1286,10 @@
       "independent_closure_checks_pass": 4,
       "independent_source_review": "SOURCE_CLEAR",
       "fresh_CI": 37898059529,
-      "status": "reviewed source repair pushed; full fresh CI active; not installed",
+      "status": "same repaired read-boundary cases passed actual full shard2; fresh overall CI failed unrelated native restore-scan test; not installed",
       "production_auth_incident_claim": false,
-      "new_unique_case_credit": 0
+      "new_unique_case_credit": 0,
+      "actual_repaired_shard_job": 113716657690
     },
     {
       "id": "REL-JUDGMENT-EXPECTATION-CONFLICT-GAP-20261009",
@@ -1301,6 +1302,60 @@
       "thresholds_moved": false,
       "production_release_dependency": false,
       "independent_receipt_sha256": "6e0087e217d7fb9b35f85dcd9e68131b064a7d6dc8dac5a1bdd5b91fe788dbd9"
+    },
+    {
+      "id": "REL-NATIVE-RESTORE-CENSUS-UNKNOWN-20261009",
+      "severity": "P2 availability/diagnostic precision; required CI release-blocking",
+      "owner": "native evidence/repair owner; coordinator sole native release owner",
+      "invariant": "Uncertain process references block destructive restore, and conclusive live references should remain observable",
+      "root_cause": "Unresolved: actual three-pass process census did not establish a complete stable view; no source repair claimed",
+      "observed": {
+        "observed_at_utc": "2026-10-09T08:24:00Z",
+        "pipeline_head": "0d11c21db6355cfdc25fc3d55bcc0700f48dd355",
+        "pull_request": 2655,
+        "exact_head_CI_run": 37898059529,
+        "conclusion": "failure",
+        "failed_shard": 0,
+        "failed_job": 113716657592,
+        "passed_shards": [
+          1,
+          2,
+          3
+        ],
+        "actual_failed_test": "tests/test_registered_feature_linux.py::test_actual_registered_disk_diagnostic_delete_offload_and_restore",
+        "actual_result": {
+          "failed": 1,
+          "passed": 7991,
+          "deselected": 9,
+          "seconds": 2795.24
+        },
+        "actual_refusal": "experiment_diagnostic_references_unknown",
+        "expected_refusal": "experiment_diagnostic_process_reference",
+        "causal_code": "historical_generation_process_unknown",
+        "safety_observation": "Restore remained blocked. Cleanup groupdel stderr is secondary, not cause.",
+        "private_receipt_sha256": "28020254e9d7f16e132572ec363e123f3109ca5815d0057f2c97bc2756e59d34",
+        "official_artifact_id": 11603822413,
+        "official_artifact_sha256": "b41a86f2d9b139452bfac74b9acf4963912cda8795a96682b5a77b6537ddec1f",
+        "native_merge_install_dispatch_performed": false,
+        "release_status": "required_CI_blocked_diagnosis_active",
+        "remaining_release_chain": [
+          "reviewed scoped diagnosis/repair",
+          "all exact-head required checks",
+          "checked merge",
+          "final containing-main checks",
+          "mandatory full production promotion",
+          "official release provenance",
+          "existing door upgrade and canonical deployment",
+          "fresh current selected inspection and business sponsorship admission",
+          "one original source-bound preparation dispatch"
+        ],
+        "same_original_new_operation_deadline_utc": "2026-10-09T12:24:35Z",
+        "business_vs_access_authority": "Existing original source-bound preparation/business sponsorship through approved handlers is authorized; new security/IAM/OAuth/access grants are not. Current signed source/proposal/rights checks remain required.",
+        "judgment_successor_status": "18 replacements proposed; draft1 independent review requires removing sufficiency confound before freeze; zero execution credit"
+      },
+      "next_action": "Inspect exact retained process evidence and existing open PR2628/2534; reproduce applicable boundary and independently review any minimal repair; no lucky rerun or changed assertion",
+      "production_incident_claim": false,
+      "new_unique_case_credit": 0
     }
   ],
   "dependencies": [

@@ -3843,5 +3843,52 @@
     "ready_http": 200,
     "owner_original_ui_receipt_sha256": "9031fc369c8320e7d50b751c89bc0b212bda483124e941493aba7325d11d3f32",
     "limits": "Independent service/source/health readback; original UI observed by separate master actor; no customer/provider/config mutation or native proof"
+  },
+  "checkpoint_20261009T0824": {
+    "observed_at_utc": "2026-10-09T08:24:00Z",
+    "pipeline_head": "0d11c21db6355cfdc25fc3d55bcc0700f48dd355",
+    "pull_request": 2655,
+    "exact_head_CI_run": 37898059529,
+    "conclusion": "failure",
+    "failed_shard": 0,
+    "failed_job": 113716657592,
+    "passed_shards": [
+      1,
+      2,
+      3
+    ],
+    "actual_failed_test": "tests/test_registered_feature_linux.py::test_actual_registered_disk_diagnostic_delete_offload_and_restore",
+    "actual_result": {
+      "failed": 1,
+      "passed": 7991,
+      "deselected": 9,
+      "seconds": 2795.24
+    },
+    "actual_refusal": "experiment_diagnostic_references_unknown",
+    "expected_refusal": "experiment_diagnostic_process_reference",
+    "causal_code": "historical_generation_process_unknown",
+    "safety_observation": "Restore remained blocked. Cleanup groupdel stderr is secondary, not cause.",
+    "private_receipt_sha256": "28020254e9d7f16e132572ec363e123f3109ca5815d0057f2c97bc2756e59d34",
+    "official_artifact_id": 11603822413,
+    "official_artifact_sha256": "b41a86f2d9b139452bfac74b9acf4963912cda8795a96682b5a77b6537ddec1f",
+    "native_merge_install_dispatch_performed": false,
+    "release_status": "required_CI_blocked_diagnosis_active",
+    "remaining_release_chain": [
+      "reviewed scoped diagnosis/repair",
+      "all exact-head required checks",
+      "checked merge",
+      "final containing-main checks",
+      "mandatory full production promotion",
+      "official release provenance",
+      "existing door upgrade and canonical deployment",
+      "fresh current selected inspection and business sponsorship admission",
+      "one original source-bound preparation dispatch"
+    ],
+    "same_original_new_operation_deadline_utc": "2026-10-09T12:24:35Z",
+    "business_vs_access_authority": "Existing original source-bound preparation/business sponsorship through approved handlers is authorized; new security/IAM/OAuth/access grants are not. Current signed source/proposal/rights checks remain required.",
+    "judgment_successor_status": "18 provisional successor definitions independently accepted and coordinator frozen; 42 arms; zero attempted/scored; adapter/comparator required before execution",
+    "judgment_successor_definition_sha256": "1e2242ffbef6e12fa780b21fd91da6118751d1a2af9a3f193b3d40dfd1aa16b3",
+    "judgment_successor_freeze_sha256": "964a68bad37280b3852b2464c25d99b563e1a73bdcd6d56a7280cbea7d99d278",
+    "judgment_successor_independent_review_sha256": "f609578be8a9c4fb0f99e43e1d3ba76d421c6c315e1e4e3b867242c1c0385550"
   }
 }
