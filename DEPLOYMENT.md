@@ -145,6 +145,16 @@ Launch-critical note:
 - `VITE_GOOGLE_APP_ID`
 - Optional: `VITE_GOOGLE_MAPS_API_KEY`
 
+The site-intake address field uses Google Places Autocomplete (New) when this
+browser key is configured at **build time**. Enable Maps JavaScript API and
+Places API (New) on its billing-enabled Google Cloud project. Restrict the key
+to those APIs and HTTP referrers `https://tryblueprint.io/*` and
+`https://www.tryblueprint.io/*` (plus an explicit preview/local origin when
+needed). Set the key on the Render **web service**, then rebuild through the
+normal CI-gated release; restarting alone cannot change Vite's bundled config.
+The field preloads Places, uses session tokens and structured country details,
+and retains keyless Photon suggestions and manual entry if Google is unavailable.
+
 ### iOS App + App Clip (server)
 The capture link (`/capture-upload/:token`) opens the Blueprint App Clip on an
 iPhone once it is published; everywhere else, and until then, it opens the
