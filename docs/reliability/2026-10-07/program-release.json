@@ -2163,7 +2163,7 @@
     },
     "original_case_credit": 0
   },
-  "updated_at_utc": "2026-10-09T07:24:50.954226+00:00",
+  "updated_at_utc": "2026-10-09T07:33:34.437610+00:00",
   "paid_provider_actor_handoff": {
     "owner": "Existing local assessment-iteration task; original normal-UI provider actor explicitly held",
     "scope": "ONE same authorized MOV production SDK/Gemini fresh baseline, then ONE actual Sol saved-evidence comparison reusing Gemini output. Serial actor; no automatic paid retry; no customer writes.",
@@ -3719,12 +3719,20 @@
       "portability": true,
       "graphify": true,
       "final_checks_sha256": "1daa62a8daadb5de8594420c7966480cf42af0771dfd55a87f16b7574b9c9399",
-      "independent_review": "pending",
-      "required_ci": "in_progress",
+      "independent_review": "SOURCE_CLEAR",
+      "required_ci": 37898576877,
       "deployed": false,
       "live_handler_recovery_verified": false,
       "paid_repeat": false,
-      "claim_ceiling": "Actual SDK handler with scripted model/isolated backend; source repair does not establish live uptake or video truth"
+      "claim_ceiling": "Actual SDK handler with scripted model/isolated backend; source repair does not establish live uptake or video truth",
+      "independent_review_sha256": "e2f40e62fb2f917b7c674de1e06c430851ad1d39c409d0d69f725da7bdfcacb8",
+      "applicable_checks_passed": 8,
+      "conditional_E2E": "SKIPPED; no execution credit",
+      "merge_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "merged_at_utc": "2026-10-09T07:27:33Z",
+      "main_ci": 37899133625,
+      "main_ci_status": "in_progress",
+      "root_merge_readback_sha256": "d2c11ac0a1052cf7bda5ee8ce2fb258c324f50aec39566a7f5bcdca8b98070d8"
     },
     "current_judgment120": {
       "source": "cd7f979b90ccdac3853b90938e08d2950798f960",
@@ -3751,6 +3759,16 @@
       "counts_not_360": "Three120 catalogs overlap/different layers; separate counts, no addition as journeys",
       "holdout": "All synthetic source groups exposed; no untouched holdout"
     },
-    "readiness": "Full goal PARTIAL; completed original2GB assessment and real reply continuation,300offline current replay and120judgment structural replay; real reference truth and native joined completion not proven"
+    "readiness": "Full goal PARTIAL; completed original2GB assessment and real reply continuation,300offline current replay and120judgment structural replay; real reference truth and native joined completion not proven",
+    "native2654_final_main_CI": {
+      "run": 37892136563,
+      "head": "5e30409ed983962b226efd0f9cee25e4ae18514d",
+      "status": "completed",
+      "conclusion": "success",
+      "full_shards_success": 4,
+      "aggregate_success": true,
+      "installed": false,
+      "claim": "Historical containing-main required CI; final preparation-containing main must be checked separately"
+    }
   }
 }
