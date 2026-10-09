@@ -7,6 +7,11 @@ import { createHash } from "node:crypto";
 
 const videoSelector = { kind: "video_observation" as const, observation_index: 0, field_path: null };
 const fieldSelector = (field: string) => ({ kind: "qualified_field" as const, observation_index: null, field_path: [field] });
+const knowledgeFact = (statement: string) => ({ factId: "synthetic-fact", field: "task", statement, status: "reviewed",
+  evidenceLevel: "vendor_claim", confidence: "medium", freshnessDays: 30, taskTags: ["handling"], geographyTags: [], sourcePageIds: [],
+  sources: [{ url: "https://example.invalid/spec", sourceCheckedAt: "2026-10-01", revalidatedAt: null,
+    publicationDate: "2026-09-01", classification: "vendor_claim", publisher: "Synthetic vendor" }],
+  limits: ["Controlled cell only"], conflicts: [] });
 const video = { source_id: "video:fixture", kind: "video" as const, canonical_ref: "synthetic/video", sha256: "b".repeat(64), checked_at: null,
   content: { evidence: { summary: "Rack movement", observations: [
     { category: "motion", finding: "Rack slides outward", basis: "observed", start_seconds: 8, end_seconds: 10, uncertainty: "Full cycle completion is not established" },
@@ -87,19 +92,67 @@ describe("v2 source-derived factual rendering; provenance is not truth", () => {
   });
   it("renders actual indexed knowledge statements without adopting model prose or promoting suitability", () => {
     const current: Source = { source_id: "knowledge:indexed", kind: "knowledge", canonical_ref: "synthetic/current", sha256: "d".repeat(64), checked_at: null,
-      content: { current: true, content: { facts: [{ statement: "Vendor reports tote transfer" }, { statement: "Sectioned-off cells only" }] } } };
+      content: { current: true, content: { facts: [knowledgeFact("Vendor reports tote transfer"), knowledgeFact("Sectioned-off cells only")] } } };
     const raw = packet();
     raw.known = [0, 1].map(index => ({ text: "Guaranteed dishwasher deployment", basis: "published" as const,
       evidence: [{ source_id: current.source_id, at_seconds: null, selector: { ...fieldSelector("facts"), field_path: ["facts", String(index), "statement"] } }] }));
     const before = structuredClone({ raw, current }), result = renderSourceBoundAssessment(raw, new Map([[current.source_id, current]]), null);
     expect(result.verification).toMatchObject({ source_bound_claims: 2, unverified_claims: 0, decision_status: "advisory_review_required" });
-    expect(result.assessment.known[0].text).toBe('Fetched record states facts.0.statement: "Vendor reports tote transfer". This source statement does not establish site suitability.');
+    expect(result.assessment.known[0].text).toContain('Fetched record states facts.0.statement: "Vendor reports tote transfer".');
+    expect(result.assessment.known[0].text).toContain('"evidenceLevel":"vendor_claim"');
+    expect(result.assessment.known[0].text).toContain("Controlled cell only");
+    expect(result.assessment.known[0].text).toContain("2026-10-01");
+    expect(result.assessment.known[0].text).toContain("2026-09-01");
     expect(result.assessment.known[1].text).toContain("Sectioned-off cells only");
     expect(result.assessment.known.some(claim => claim.text.includes("Guaranteed"))).toBe(false);
     expect({ raw, current }).toEqual(before);
   });
+  it.each(["unsupported", "conflicted", "unknown", "missing", "unknown_grade"])("does not promote an indexed %s capability statement into a supported fact", status => {
+    const fact: any = knowledgeFact("Vendor capability claim");
+    if (status === "missing") delete fact.status;
+    else if (status === "unknown_grade") fact.evidenceLevel = "unknown";
+    else fact.status = status;
+    const current: Source = { source_id: "knowledge:qualified", kind: "knowledge", canonical_ref: "synthetic/current", sha256: "d".repeat(64), checked_at: null,
+      content: { current: true, content: { facts: [fact] } } };
+    const raw = packet();
+    raw.known = [{ text: "Deploy immediately", basis: "published", evidence: [{ source_id: current.source_id, at_seconds: null,
+      selector: { ...fieldSelector("facts"), field_path: ["facts", "0", "statement"] } }] }];
+    const before = structuredClone({ raw, current });
+    const result = renderSourceBoundAssessment(raw, new Map([[current.source_id, current]]), null);
+    expect(result.assessment.known[0]).toMatchObject({ basis: "unknown", verification_status: "unverified" });
+    expect(result.verification.source_bound_claims).toBe(0);
+    expect({ raw, current }).toEqual(before);
+  });
+  it("retains conflicts and qualifications even when selecting a nested source leaf", () => {
+    const fact = { ...knowledgeFact("Vendor capability claim"), conflicts: ["Independent test did not reproduce the claim"] };
+    const current: Source = { source_id: "knowledge:qualified", kind: "knowledge", canonical_ref: "synthetic/current", sha256: "d".repeat(64), checked_at: null,
+      content: { current: true, content: { facts: [fact] } } };
+    const raw = packet();
+    raw.known = [{ text: "No conflicts", basis: "published", evidence: [{ source_id: current.source_id, at_seconds: null,
+      selector: { ...fieldSelector("facts"), field_path: ["facts", "0", "sources", "0", "url"] } }] }];
+    const before = structuredClone({ raw, current });
+    const result = renderSourceBoundAssessment(raw, new Map([[current.source_id, current]]), null);
+    expect(result.assessment.known[0].verification_status).toBe("source_bound");
+    expect(result.assessment.known[0].text).toContain("Independent test did not reproduce");
+    expect(result.assessment.known[0].text).toContain("Controlled cell only");
+    expect(result.assessment.known[0].text).toContain('"confidence":"medium"');
+    expect({ raw, current }).toEqual(before);
+  });
+  it.each(["source_url", "limit_text"])("does not render private %s metadata from a reviewed fact", field => {
+    const fact = knowledgeFact("Vendor capability claim");
+    if (field === "source_url") fact.sources[0].url = "https://example.invalid/spec?signature=synthetic";
+    else fact.limits = ["Authorization: synthetic-private-value"];
+    const current: Source = { source_id: "knowledge:private", kind: "knowledge", canonical_ref: "synthetic/current", sha256: "d".repeat(64), checked_at: null,
+      content: { current: true, content: { facts: [fact] } } };
+    const raw = packet();
+    raw.known = [{ text: "Published capability", basis: "published", evidence: [{ source_id: current.source_id, at_seconds: null,
+      selector: { ...fieldSelector("facts"), field_path: ["facts", "0", "statement"] } }] }];
+    const result = renderSourceBoundAssessment(raw, new Map([[current.source_id, current]]), null);
+    expect(result.assessment.known[0]).toMatchObject({ basis: "unknown", verification_status: "unverified" });
+    expect(JSON.stringify(result.assessment)).not.toMatch(/signature=synthetic|Authorization: synthetic/);
+  });
   it("denies noncanonical, named, missing and inherited array selectors", () => {
-    const facts = [{ statement: "A source statement" }, , { statement: "Another source statement" }];
+    const facts = [knowledgeFact("A source statement"), , knowledgeFact("Another source statement")];
     const current: Source = { source_id: "knowledge:indexed", kind: "knowledge", canonical_ref: "synthetic/current", sha256: "d".repeat(64), checked_at: null,
       content: { current: true, content: { facts } } };
     for (const index of ["-1", "01", "1.0", "1e0", "1x", "length", "map", "constructor", "__proto__", "1", "3", "4294967295", "9007199254740992"]) {
@@ -115,7 +168,7 @@ describe("v2 source-derived factual rendering; provenance is not truth", () => {
   });
   it("denies indexed stale knowledge and cannot turn it into measured evidence", () => {
     const old: Source = { source_id: "knowledge:indexed", kind: "knowledge", canonical_ref: "synthetic/old", sha256: "d".repeat(64), checked_at: null,
-      content: { current: false, content: { facts: [{ statement: "Historical vendor statement" }] } } };
+      content: { current: false, content: { facts: [knowledgeFact("Historical vendor statement")] } } };
     const raw = packet();
     raw.known = [{ text: "Current measured capability", basis: "published", evidence: [{ source_id: old.source_id, at_seconds: null,
       selector: { ...fieldSelector("facts"), field_path: ["facts", "0", "statement"] } }] }];

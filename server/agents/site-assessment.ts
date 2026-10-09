@@ -4,6 +4,7 @@ import { z } from "zod";
 import { analyseAgenticVideo, openVideo, GeminiVideoError } from "./adapters/gemini-video";
 import { getGeminiVideoModel } from "./provider-config";
 import { runCompanyHistoryTool, type CompanyHistoryAccess } from "../research-learning/company-history";
+import { factSchema as capabilityFactSchema } from "../research-learning/prior-research";
 import { isQuotableGrade, listMatchableRobotTeams, toMatchCandidate } from "../utils/robotTeamRegistry";
 import { matchRobotTeam, type SiteRequirement } from "../../client/src/lib/robotMatch";
 
@@ -446,7 +447,17 @@ export function renderSourceBoundAssessment(raw: SiteAssessment, sources: Readon
       const record = source.content as { content?: unknown; current?: unknown };
       if (record.current === false) return null;
       const value = ownPath(record.content, binding.field_path);
-      return scalar(value) ? `Fetched record states ${binding.field_path.join(".")}: ${JSON.stringify(value)}. This source statement does not establish site suitability.` : null;
+      if (!scalar(value)) return null;
+      let qualification = "";
+      if (binding.field_path[0] === "facts") {
+        // A scalar leaf cannot shed the containing capability fact's reviewed
+        // status, evidence grade, limits, conflicts, scope or source dates.
+        const fact = capabilityFactSchema.safeParse(ownPath(record.content, binding.field_path.slice(0, 2)));
+        if (!fact.success || fact.data.status !== "reviewed" || fact.data.evidenceLevel === "unknown") return null;
+        const { statement: _statement, ...qualified } = fact.data;
+        qualification = ` Recorded fact qualification: ${JSON.stringify(qualified)}.`;
+      }
+      return `Fetched record states ${binding.field_path.join(".")}: ${JSON.stringify(value)}.${qualification} This source statement does not establish site suitability.`;
     }
     return null;
   };
