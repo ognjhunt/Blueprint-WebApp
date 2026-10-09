@@ -2162,5 +2162,15 @@
     "receipt_path": "/Users/nijelhunt_1/.codex/worktrees/dc17/Blueprint-WebApp/output/reliability-program/customer-policy/39-release-receipt.json",
     "receipt_sha256": "fc098c4b82b06443b3dcaced65e1ad0bd3a16544c7001b4f2a9b5d00120f86ed",
     "limits": "Source/pair/plan/health. Customerretry and measured cloudmemory peak are separate; no full beta/referenceaccuracy proof."
+  },
+  "evidence_preservation_followup": {
+    "observed_at_utc": "2026-10-09T00:15:48.651185+00:00",
+    "audit_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/evidence-preservation/audit.json",
+    "sha256": "ff54c3daed86b00598a2cb7cbab186cb5c7bf0a6619cbe5eddcb31ce31baf0fd",
+    "preserved_result_files": 31,
+    "scope": "Existing small result JSON/log files copied with original/copy hashes outside worktrees; no regenerated execution records.",
+    "survives": "Frozen300 catalogs/120mutations/reference-rights manifest and pinned replay sources in Git; retained author intake/queue/transport/worker/judgment records; exact accepted189 terminal/observable/runtime/notices and release15 readback.",
+    "not_located": "Exact final8b integrated300 result and original21/final22 coordinator browser result hashes were not located in the nine named surviving output roots checked. One older intake browser result path has differing bytes; its expected hash is not silently substituted.",
+    "claim_limit": "Historical counts and prior committed execution summaries remain unchanged. Those summaries/source pins do not replace missing exact raw execution evidence or prove a new replay. Fresh runs must use new run IDs and separate current-source records; no extra unique case credit."
   }
 }
