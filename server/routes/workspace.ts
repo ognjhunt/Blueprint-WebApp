@@ -296,10 +296,15 @@ router.post(
           "workspace_terms_required",
         );
       const now = admin.firestore.FieldValue.serverTimestamp();
+      const reuseSiteDetails = Boolean(siteIntake && input.siteClaimToken && !user.workspaceSetupCompletedAt);
+      const submittedName = [siteIntake?.contact?.firstName, siteIntake?.contact?.lastName]
+        .filter(value => typeof value === "string" && value.trim() && !["there", "—"].includes(value.trim().toLowerCase()))
+        .join(" ").trim().slice(0, 160);
+      const submittedOrganization = text(siteIntake?.contact?.company || siteIntake?.request?.siteName || siteIntake?.request?.siteLocation).trim().slice(0, 160);
       const patch = {
-        name: input.name,
-        organizationName: input.organization,
-        company: input.organization,
+        name: reuseSiteDetails && submittedName ? submittedName : input.name,
+        organizationName: reuseSiteDetails && submittedOrganization ? submittedOrganization : input.organization,
+        company: reuseSiteDetails && submittedOrganization ? submittedOrganization : input.organization,
         buyerType: input.workspaceType,
         workspaceSetupCompletedAt: now,
         ...(!user.updatePreferences && input.optionalUpdates !== undefined ? { updatePreferences: buildUpdatePreferences({ newsletter: input.optionalUpdates, newJobAlerts: input.optionalUpdates, interests: {}, declaredCategories: {}, requirements: {} }, "signup") } : {}),

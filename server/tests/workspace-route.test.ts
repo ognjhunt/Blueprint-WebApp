@@ -819,6 +819,11 @@ describe("account workspace setup", () => {
     expect(admission).not.toHaveBeenCalled();
     expect(state.records.get("users/new-site").buyerType).toBe("site_operator");
   });
+  it("reuses submitted identity and organization across every fresh site account entry point", async () => {
+    state.records.set("inboundRequests/submitted-job", { ...task(), account_owner_uid: null, contact: { email: "new-site@example.com", firstName: "Alex", lastName: "Owner", company: "Actual Company" } });
+    expect((await api("/setup", "new-site", { name: "new-site", organization: "My site", workspaceType: "site_operator", acceptedTerms: true, siteClaimToken: createSiteClaimToken("submitted-job") })).status).toBe(200);
+    expect(state.records.get("users/new-site")).toMatchObject({ name: "Alex Owner", organizationName: "Actual Company", company: "Actual Company" });
+  });
   it("lets an existing site owner edit workspace settings without the original link", async () => {
     state.records.set("inboundRequests/existing-job", task());
     const response = await api("/setup", "site-1", { name: "Updated Owner", organization: "Updated Site", workspaceType: "site_operator", acceptedTerms: true });
