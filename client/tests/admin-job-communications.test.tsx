@@ -22,6 +22,42 @@ describe("existing customer communications assessment handoff — offline", () =
     expect(screen.getByText("Send exact reviewed agent message")).toBeDisabled();
     expect(request).toHaveBeenCalledTimes(1);
   });
+  async function loadFailureState(state: string, failureCode: string | null = "agents_existing_session_history_binding_mismatch") {
+    const row = { id: "retained-communication", purpose: "question", state, failureCode,
+      output: { subject: "A question", body: "What final state defines success?" },
+      ...(state === "sent" ? { sendReceipt: { messageId: "synthetic-sent", threadId: "synthetic-thread", rfcMessageId: "<observed@example.invalid>" }, answerReceived: true } : {}) };
+    const loaded = { context: { recipient: "fixture@example.invalid", assessment: { unknowns: [] } }, contextDigest: "a".repeat(64),
+      communications: [row], draftingEnabled: false, deliveryEnabled: false };
+    const request = vi.fn(async () => ({ ok: true, json: async () => loaded }));
+    vi.stubGlobal("fetch", request);
+    render(<JobCommunications user={null} requestId="fixture-job" />);
+    fireEvent.click(screen.getByText("Load current customer context and drafts"));
+    await screen.findByText(`question: ${state}`);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls[0]).toEqual([expect.stringMatching(/\/communications$/), expect.objectContaining({ method: "GET" })]);
+    return row;
+  }
+  it.each(["needs_review", "needs_context", "send_claimed", "send_ack_unknown", "sent"])("retains a previous draft error as history after advancing to %s", async state => {
+    const row = await loadFailureState(state);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    const disclosure = screen.getByText("Previous draft issue").closest("details")!;
+    expect(disclosure).not.toHaveAttribute("open");
+    expect(disclosure).toHaveTextContent(row.failureCode!);
+    expect(screen.getByRole("heading", { name: `question: ${state}` })).toBeInTheDocument();
+    expect(row.failureCode).toBe("agents_existing_session_history_binding_mismatch");
+    if (state === "sent") expect(screen.getByText("Read customer replies into this job")).toBeEnabled();
+    if (state === "needs_review") expect(screen.getByText("Send exact reviewed agent message")).toBeDisabled();
+  });
+  it.each(["draft_requires_recovery", "drafting", "unrecognized_state"])("keeps the retained failure visible as an alert in unresolved %s", async state => {
+    await loadFailureState(state);
+    expect(screen.getByRole("alert")).toHaveTextContent("agents_existing_session_history_binding_mismatch");
+    expect(screen.queryByText("Previous draft issue")).not.toBeInTheDocument();
+  });
+  it("shows no failure disclosure or alert when no failure was retained", async () => {
+    await loadFailureState("sent", null);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText("Previous draft issue")).not.toBeInTheDocument();
+  });
   it("lets an operator use the current question without drafting or sending on load", async () => {
     const question = "Question to resolve: What final state defines success? Decision consequence remains unverified.";
     const loaded = { context: { recipient: "fixture@example.invalid", assessment: { unknowns: [question] } },
