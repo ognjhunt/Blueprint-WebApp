@@ -75,11 +75,19 @@ const uncertaintyClause = (value: string): string | null => {
   return /\b(?:unknown|unverified|uncertain|unresolved|not (?:measured|established|provided|visible|observed|confirmed)|(?:could|would|may) change)\b/i.test(text)
     && !hasSideClause(text) && !assertionTerms.test(remainder) && !assertionVerbs.test(remainder) ? text : null;
 };
-type AssessmentPresentation = "customer" | "legacy_v1" | "basics_985" | "basics_989";
+type AssessmentPresentation = "customer" | "legacy_v1";
+type SiteDecisionAssessment = SiteAdvisory & {
+  decisionEvidence?: {
+    schemaVersion: "site_decision_evidence.v1";
+    packetSha256: string;
+    qualificationSha256: string;
+    legacyReviewCompatible: boolean;
+  };
+};
 /** Internal only: never spread this view into a customer response or model context. */
 export type CurrentSiteAssessmentView = {
   customerAdvisory: SiteAdvisory | null;
-  decisionAssessment: SiteAdvisory | null;
+  decisionAssessment: SiteDecisionAssessment | null;
   compatibleDecisionAssessments: readonly (SiteAdvisory | null)[];
 };
 const decisionView = (advisory: SiteAdvisory | null): CurrentSiteAssessmentView => ({
@@ -138,7 +146,7 @@ function projectSiteAssessment({ raw, rendered, customerText }: ReturnType<typeo
     if (text) result.unknowns.push(`Unresolved: ${text}`);
   }
   for (const question of rendered.assessment.questions) {
-    const guarded = presentation === "customer" || presentation === "basics_989";
+    const guarded = presentation === "customer";
     const clause = guarded ? questionClause(question.question) : firstClause(question.question);
     if (!clause || !guarded && (!questionForm.test(clause)
       || hasSideClause(clause.replace(questionForm, "")) || assertionTerms.test(clause))) continue;
@@ -170,10 +178,16 @@ export function projectCustomerSiteAdvisory(packet: Record<string, any>, correla
 export function projectCurrentSiteAssessmentView(packet: Record<string, any>, correlationId: string, admittedDuration: number | null = null): CurrentSiteAssessmentView {
   const prepared = prepareSiteAssessment(packet, admittedDuration);
   const customerAdvisory = projectSiteAssessment(prepared, correlationId, "customer");
+  const legacy = projectSiteAssessment(prepared, correlationId, "legacy_v1");
   return { customerAdvisory,
-    decisionAssessment: projectSiteAssessment(prepared, correlationId, "legacy_v1"),
-    compatibleDecisionAssessments: [projectSiteAssessment(prepared, correlationId, "basics_985"),
-      projectSiteAssessment(prepared, correlationId, "basics_989")] };
+    decisionAssessment: { ...legacy, decisionEvidence: {
+      schemaVersion: "site_decision_evidence.v1", packetSha256: hash(packet), qualificationSha256: hash(prepared.rendered),
+      legacyReviewCompatible: prepared.rendered.verification.unverified_claims === 0
+        && legacy.sections.some(section => section.claims.some(claim => claim.verificationStatus === "source_bound")),
+    } },
+    // Reduced historical DTOs lack an immutable reviewed evidence identity.
+    // Their hashes cannot establish unchanged qualifications; fail closed.
+    compatibleDecisionAssessments: [] };
 }
 
 /** Reader is observational; caller establishes owner-token or account authority before invoking it. */
