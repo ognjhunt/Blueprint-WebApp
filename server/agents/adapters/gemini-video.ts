@@ -424,9 +424,38 @@ export async function openVideo(
       return { body: measured, byteLength: declaredLength, contentType, receipt };
     }
 
-    const bytes = Buffer.from(await response.arrayBuffer());
-    read = bytes.byteLength;
-    hash.update(bytes);
+    // Without a declared length, enforce the cap before retaining each chunk.
+    // arrayBuffer() would consume and allocate the entire response first.
+    const chunks: Uint8Array[] = [];
+    const reader = response.body?.getReader();
+    if (reader) {
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (read + value.byteLength > MAX_VIDEO_BYTES) {
+            throw new GeminiVideoError("video_too_large", `Task video exceeds the ${MAX_VIDEO_BYTES / 1024 / 1024}MB limit`);
+          }
+          read += value.byteLength;
+          // A producer can reuse its buffer on the next read. Retain the same
+          // immutable bytes that the receipt hashes, after checking the cap.
+          const retained = Buffer.from(value);
+          hash.update(retained);
+          chunks.push(retained);
+        }
+      } catch (error) {
+        // Stop later data; cancellation failure must not replace the original
+        // size, transport or timeout diagnosis.
+        // Underlying cancellation can stall; do not await it before reporting
+        // the original error. Abort the owned HTTP request as well.
+        void reader.cancel().catch(() => undefined);
+        controller.abort();
+        throw error;
+      } finally {
+        reader.releaseLock();
+      }
+    }
+    const bytes = Buffer.concat(chunks, read);
     if (bytes.byteLength === 0) {
       throw new GeminiVideoError("video_empty", "Task video link returned no data");
     }
