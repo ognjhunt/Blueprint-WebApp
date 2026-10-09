@@ -300,7 +300,7 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
     }),
     tool({ name: "search_robot_knowledge", description: "Search the authorized company corpus, including capability research, sites/tasks, history and available documents. Start with cursor null; page only with the exact returned next_cursor for the same query and filters. On company_history_cursor_changed restart with cursor null. Use null for unused filters; broad capability research need not share the site's city or company. Fetch selected original records before citing. Missing access/data is not no robots.",
       parameters: z.object({ query: z.string().max(4000), city: z.string().nullable(), task: z.string().nullable(),
-        company: z.string().nullable(), kind: z.string().nullable(), cursor: z.string().nullable().describe("Null for a new or restarted search; otherwise the exact next_cursor returned for this unchanged query and filters. Never invent a cursor.") }),
+        company: z.string().nullable(), kind: z.string().nullable(), cursor: z.string().nullable().describe("Use literal JSON null for a first page or restarted search. Otherwise use only the exact next_cursor returned for this unchanged query and filters. Never send a placeholder such as <opaque next_cursor> or invent a page token.") }),
       execute: async args => {
         if (!options.history_access) return retained("search_robot_knowledge", args, { ok: false, error: "knowledge_scope_unavailable" });
         // Some valid SDK responses spell nullable fields as the string "null".
@@ -310,8 +310,14 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
           const value = optional(args[key as "city"]); return value ? [[key, value]] : [];
         }));
         const cursor = optional(args.cursor);
-        return retained("search_robot_knowledge", args, await history("search_company_history",
-          { query: args.query, filters, page_size: 20, ...(cursor ? { cursor } : {}) }, options.history_access));
+        const result = await history("search_company_history",
+          { query: args.query, filters, page_size: 20, ...(cursor ? { cursor } : {}) }, options.history_access) as Record<string, unknown>;
+        if (result?.ok === false && ["company_history_cursor_changed", "company_history_ranking_changed"].includes(String(result.error))) {
+          return retained("search_robot_knowledge", args, { ...result,
+            action: "Call search_robot_knowledge again with these retry_arguments and literal JSON cursor: null. The rejected cursor is not usable; keep the same query and filters.",
+            retry_arguments: { ...args, cursor: null } });
+        }
+        return retained("search_robot_knowledge", args, result);
       },
     }),
     tool({ name: "fetch_robot_knowledge", description: "Fetch one original authorized record by the exact record_id returned by search. Inspect source hash, original check date, scope, corrections and unknowns; cite the returned source_id.",
@@ -399,7 +405,11 @@ export function renderSourceBoundAssessment(raw: SiteAssessment, sources: Readon
     typeof value === "string" && Boolean(value.trim()) || typeof value === "number" && Number.isFinite(value) || typeof value === "boolean";
   const ownPath = (value: unknown, path: string[]): unknown => {
     for (const key of path) {
-      if (!value || typeof value !== "object" || Array.isArray(value) || !Object.prototype.hasOwnProperty.call(value, key)) return undefined;
+      if (!value || typeof value !== "object" || !Object.prototype.hasOwnProperty.call(value, key)) return undefined;
+      // Knowledge facts are arrays. Admit only canonical own indices, never
+      // array metadata, sparse slots, inherited values or alternate spellings.
+      if (Array.isArray(value) && (!/^(0|[1-9]\d*)$/.test(key)
+        || !Number.isSafeInteger(Number(key)) || Number(key) >= value.length)) return undefined;
       value = (value as Record<string, unknown>)[key];
     }
     return value;
