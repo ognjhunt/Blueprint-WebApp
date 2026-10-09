@@ -27,6 +27,20 @@ async function setup(status = "pending_approval") {
 beforeEach(() => { vi.clearAllMocks(); vi.useFakeTimers(); vi.setSystemTime(communicationsNow); vi.mocked(communicationsSendBlocker).mockResolvedValue(null); vi.mocked(reconcileCommunicationsSend).mockResolvedValue(null); });
 afterEach(() => vi.useRealTimers());
 describe("communications in existing Blueprint approval flow", () => {
+  it("refuses approval of a footerless draft before send controls or mocked sender", async () => {
+    const f = await setup();
+    f.payload.transportBody = f.payload.body.trimEnd();
+    f.payload.communicationsDraftOnly = "founder-footerless-v2";
+    const review = reviewCommunicationsPayload(f.payload, communicationsNow);
+    expect(review.hardChecksPassed).toBe(true);
+    const semantic = { digest: review.digest, checks: Object.fromEntries(Object.keys(review.semanticReviewRequired).map(key => [key, "pass"])) };
+    await f.db.doc("action_ledger/ledger-1").update({ action_payload: f.payload });
+    expect(await approveAction("ledger-1", "owner@example.com", semantic)).toMatchObject({ state: "pending_approval" });
+    expect(executeCommunicationsSend).not.toHaveBeenCalled();
+    expect(f.db.records.get("action_ledger/ledger-1").approved_by).toBeUndefined();
+    delete f.payload.communicationsDraftOnly;
+    expect(reviewCommunicationsPayload(f.payload, communicationsNow).blockers).toContain("transport_body_changed");
+  });
   it("requires every exact semantic decision and honors disabled sending", async () => {
     const f = await setup();
     expect((await approveAction("ledger-1", "owner@example.com")).state).toBe("pending_approval");

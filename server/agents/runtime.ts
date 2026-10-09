@@ -1673,9 +1673,10 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     }
   }
 
+  const accountingOnly = ["site_assessment", "capture_coverage", "capture_video_privacy", "inbound_qualification"].includes(normalizedTask.kind);
   let preRunCostStop;
   try {
-    preRunCostStop = await evaluatePreRunCostStop({
+    if (!accountingOnly) preRunCostStop = await evaluatePreRunCostStop({
       task: normalizedTaskForLogs,
       runId,
       sessionId: options?.sessionId || normalizedTask.session_id || null,
@@ -1766,6 +1767,7 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
       if (run?.data()?.status !== "running") throw new Error("site_assessment_run_not_active");
     };
     const result = await executeTask(normalizedTask, { runId, assertActive, assertCostAllowed: async () => {
+      if (accountingOnly) return;
       const check = await evaluatePreRunCostStop({ task: normalizedTaskForLogs, runId,
         sessionId: options?.sessionId || normalizedTask.session_id || null });
       if (check?.stopped) throw new Error("site_assessment_runtime_cost_stop");
@@ -1894,12 +1896,14 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
     }
 
     if (spendAlert) {
-      const summary = `Agent spend ${spendAlert.status} threshold in ${spendAlert.windowKey}: $${spendAlert.window.cost_usd.toFixed(4)}.`;
+      const summary = accountingOnly
+        ? `Recorded agent spend in ${spendAlert.windowKey}: $${spendAlert.window.cost_usd.toFixed(4)}; spending does not gate this customer assessment.`
+        : `Agent spend ${spendAlert.status} threshold in ${spendAlert.windowKey}: $${spendAlert.window.cost_usd.toFixed(4)}.`;
       await logRunEvent(normalizedTaskForLogs, {
         runId,
         sessionId: options?.sessionId || normalizedTask.session_id || null,
         actionKey: "agent.run.cost_guardrail",
-        status: spendAlert.status === "stop" ? "failed" : "info",
+        status: !accountingOnly && spendAlert.status === "stop" ? "failed" : "info",
         summary,
         metadata: {
           cost_telemetry: costTelemetry,
@@ -1910,8 +1914,8 @@ export async function runAgentTask<TInput = unknown, TOutput = unknown>(
         await recordRuntimeEvent({
           session_id: options.sessionId,
           run_id: runId,
-          kind: `run.cost_guardrail.${spendAlert.status}`,
-          status: spendAlert.status === "stop" ? "error" : "warning",
+          kind: accountingOnly ? "run.cost.recorded" : `run.cost_guardrail.${spendAlert.status}`,
+          status: accountingOnly ? "info" : spendAlert.status === "stop" ? "error" : "warning",
           summary,
           metadata: {
             cost_telemetry: costTelemetry,

@@ -30,6 +30,7 @@
  * site revokes by unsharing, exactly as `taskVideoField` promises, and that
  * promise stays true only if we never keep a second copy.
  */
+import { reserveCaptureCoverageInference } from "../../utils/captureCoverageInferenceBudget";
 import { createHash } from "node:crypto";
 import type { ZodType } from "zod";
 
@@ -60,7 +61,6 @@ const FILE_ACTIVE_TIMEOUT_MS = 3 * 60_000;
 const FILE_POLL_INTERVAL_MS = 2_000;
 
 type UploadedVideo = { name: string; uri: string; mimeType: string };
-
 /**
  * Hand the clip to Gemini's Files API and wait until it can be read.
  *
@@ -70,15 +70,30 @@ type UploadedVideo = { name: string; uri: string; mimeType: string };
  * so the only copy that outlives the call is the one the site uploaded to us.
  */
 /**
- * The clip as it goes to Gemini. A body whose length the link declared is a
- * stream, piped from storage into the upload without ever being held: on the
- * website's 512MB instance a 60MB phone clip held twice (once read, once
- * copied by fetch for the upload) was enough to kill the process.
+ * The clip as it goes to Gemini. Linked clips with a declared length stream
+ * from storage; the source-verified SDK path retains one Buffer. Upload that
+ * Buffer as bounded views so fetch does not make another full media copy.
  */
 export interface VideoSource {
   body: Buffer | ReadableStream<Uint8Array>;
   byteLength: number;
   contentType: string;
+}
+
+function videoUploadBody(body: VideoSource["body"]): ReadableStream<Uint8Array> {
+  if (!Buffer.isBuffer(body)) return body;
+  let offset = 0;
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (offset === body.byteLength) {
+        controller.close();
+        return;
+      }
+      const end = Math.min(offset + 64 * 1024, body.byteLength);
+      controller.enqueue(body.subarray(offset, end));
+      offset = end;
+    },
+  }, { highWaterMark: 0 });
 }
 
 async function uploadVideoFile(input: {
@@ -111,7 +126,7 @@ async function uploadVideoFile(input: {
       "Content-Length": String(input.video.byteLength),
     },
     signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
-    body: input.video.body,
+    body: videoUploadBody(input.video.body),
     duplex: "half",
   } as RequestInit);
   if (!finish.ok) {
@@ -160,6 +175,8 @@ export async function analyseAgenticVideo(input: {
   processingMode?: "AGENTIC" | "STATIC";
   samplingFps?: number;
   maxOutputTokens?: number;
+  /** Recheck source/consent after upload, immediately before generation. */
+  beforeGenerate?: () => Promise<void>;
 }, fetcher: typeof fetch = fetch, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))) {
   const video = await uploadVideoFile(input, fetcher, sleep);
   try {
@@ -170,28 +187,32 @@ export async function analyseAgenticVideo(input: {
 }
 
 async function generateFromVideo(input: { apiKey: string; model: string; prompt: string;
-  processingMode?: "AGENTIC" | "STATIC"; samplingFps?: number; maxOutputTokens?: number },
+  processingMode?: "AGENTIC" | "STATIC"; samplingFps?: number; maxOutputTokens?: number;
+  beforeGenerate?: () => Promise<void> },
   video: UploadedVideo, fetcher: typeof fetch) {
   const processingMode = input.processingMode ?? "AGENTIC";
+  const model = input.model, apiKey = input.apiKey;
+  // Source rechecks cannot change the frozen generation request.
+  const generationRequest = {
+    contents: [{ role: "user", parts: [
+      { text: input.prompt },
+      { file_data: { mime_type: video.mimeType, file_uri: video.uri }, media_processing: processingMode,
+        ...(processingMode === "STATIC" && input.samplingFps ? { video_metadata: { fps: input.samplingFps } } : {}) },
+    ] }],
+    // 8192 truncated a retained real review; preserve the existing combined
+    // answer/reasoning allowance rather than shrinking it to fit a test budget.
+    generationConfig: { responseMimeType: "application/json", temperature: 0,
+      maxOutputTokens: input.maxOutputTokens ?? MAX_OUTPUT_TOKENS },
+  };
+  const generationBody = JSON.stringify(generationRequest);
+  await input.beforeGenerate?.();
   const response = await fetcher(
-    `${GEMINI_API}/v1beta/models/${encodeURIComponent(input.model)}:generateContent`,
+    `${GEMINI_API}/v1beta/models/${encodeURIComponent(model)}:generateContent`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": input.apiKey },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [
-          { text: input.prompt },
-          { file_data: { mime_type: video.mimeType, file_uri: video.uri }, media_processing: processingMode,
-            ...(processingMode === "STATIC" && input.samplingFps
-              ? { video_metadata: { fps: input.samplingFps } } : {}) },
-        ] }],
-        // Agentic media processing and the model's reasoning spend this budget
-        // before the answer does. At 8192 the first real review of a 30s phone
-        // clip stopped short of its answer.
-        generationConfig: { responseMimeType: "application/json", temperature: 0,
-          maxOutputTokens: input.maxOutputTokens ?? MAX_OUTPUT_TOKENS },
-      }),
+      body: generationBody,
     },
   );
   // Do not include upstream error bodies: they can echo source URLs or tokens.
@@ -225,7 +246,7 @@ async function generateFromVideo(input: { apiKey: string; model: string; prompt:
     content: candidate.content,
     processing: { mode: processingMode.toLowerCase(), media_tool_calls: calls, media_tool_responses: responses,
       ...(processingMode === "STATIC" ? { sampling_fps_requested: input.samplingFps ?? null } : {}),
-      model_version: payload.modelVersion ?? input.model },
+      model_version: payload.modelVersion ?? model },
   };
 }
 
@@ -487,9 +508,16 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     };
   }
 
+  let coverageAdmission: Awaited<ReturnType<typeof reserveCaptureCoverageInference>> | undefined;
+  const coverageReservations: unknown[] = [];
+  const authorizeCoverage = async () => {
+    if (task.kind !== "capture_coverage") return;
+    coverageAdmission = await reserveCaptureCoverageInference(task.model, task.metadata);
+    coverageReservations.push(coverageAdmission.receipt);
+  };
   const receipts: Array<Record<string, unknown>> = [], usageSamples: Array<Record<string, unknown>> = [];
   const historyCalls: Array<Record<string, unknown>> = [];
-  const artifacts: Record<string, unknown> = { output_repairs: receipts, usage_samples: usageSamples, company_history_tool_calls: historyCalls };
+  const artifacts: Record<string, unknown> = { output_repairs: receipts, usage_samples: usageSamples, company_history_tool_calls: historyCalls, coverage_inference_reservations: coverageReservations };
   const historyAccess = await getCompanyHistoryAccess(task);
   const historyTools = historyAccess ? openAiResponsesHistoryTools : [];
   let retainedVideo: Awaited<ReturnType<typeof openVideo>> | undefined;
@@ -512,11 +540,14 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     const prompt = task.definition.build_prompt(task.input);
     const deadline = Date.now() + ANALYSIS_TIMEOUT_MS;
     let remainingOutput = task.definition.video_max_output_tokens ?? MAX_OUTPUT_TOKENS;
+    await authorizeCoverage();
     const response = await analyseAgenticVideo({ apiKey, model: task.model,
       prompt, video,
       processingMode: task.definition.video_processing_mode ?? "AGENTIC",
       samplingFps: task.definition.video_sampling_fps,
       maxOutputTokens: task.definition.video_max_output_tokens });
+    await coverageAdmission?.record(response.usage);
+    coverageAdmission = undefined;
     const { bytes: videoBytes, sha256: videoSha256 } = video.receipt();
     Object.assign(artifacts, { video_bytes: videoBytes, video_content_type: video.contentType,
       video_sha256: videoSha256, video_processing: response.processing,
@@ -531,6 +562,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     const continueText = async () => {
       if (!promptComplete || !outputComplete || !totalComplete) throw new GeminiVideoError("output_correction_usage_unavailable", "Retained input and output usage must be known before another request");
       if (Date.now() >= deadline || remainingOutput <= 0) throw new GeminiVideoError("output_correction_budget_exhausted", "Original runtime or aggregate output budget exhausted");
+      await authorizeCoverage();
       try {
         const continuation = await fetch(`${GEMINI_API}/v1beta/models/${encodeURIComponent(task.model)}:generateContent`, {
           method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
@@ -543,6 +575,8 @@ export async function runGeminiVideoTask<TInput, TOutput>(
         });
         if (!continuation.ok) throw new GeminiVideoError("gemini_output_correction_provider_failed", `Gemini returned HTTP ${continuation.status}`);
         const payload = await continuation.json() as { candidates?: Array<{ finishReason?: string; content?: { parts?: VideoResponsePart[] } }>; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number } };
+        await coverageAdmission?.record(payload.usageMetadata);
+        coverageAdmission = undefined;
         responseParts = payload.candidates?.[0]?.content?.parts ?? [];
         rawText = responseParts.filter(part => !part.thought && typeof part.text === "string").map(part => part.text).join("\n");
         retainUsage(payload.usageMetadata);
@@ -624,6 +658,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     };
   } catch (error) {
     if (error instanceof GeminiVideoError && error.evidence) {
+      await coverageAdmission?.record(error.evidence.usage).catch(() => undefined);
       rawText = error.evidence.text;
       retainUsage(error.evidence.usage);
     }

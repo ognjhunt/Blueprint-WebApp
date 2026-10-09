@@ -6,7 +6,11 @@ import { buildCacheFriendlyPrompt } from "./prompt-cache";
 /** The existing admin session records the supplied conversation, never a URL. */
 export const siteAssessmentTaskInput = z.object({
   message: z.string().min(1).max(8000),
-  context: z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/) }).strict(),
+  context: z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
+    advisory_job_id: z.string().regex(/^advisory-[a-f0-9]{64}$/).optional(),
+    advisory_claim_id: z.string().min(1).max(120).optional(),
+  }).strict().refine(context => Boolean(context.advisory_job_id) === Boolean(context.advisory_claim_id),
+    { message: "advisory_job_and_claim_required_together" }),
 }).strict();
 export const assessmentReadActions = ["analyze_site_video", "search_robot_knowledge", "fetch_robot_knowledge", "read_robot_registry"];
 export const siteAssessmentTask: StructuredTaskDefinition<z.infer<typeof siteAssessmentTaskInput>, z.infer<typeof siteAssessmentSchema>> = {
@@ -25,8 +29,9 @@ export const siteAssessmentTask: StructuredTaskDefinition<z.infer<typeof siteAss
   build_outcome_contract: () => ({
     objective: "Assess one admitted site's job using video, operator statements and sourced robot evidence.",
     success_criteria: ["Return the six assessment sections, including uncertainties and a useful next action."],
-    self_checks: ["Cite admitted evidence; preserve missing facts and the no-robot option."],
-    proof_requirements: ["Retain source provenance, tool receipts and provider accounting."],
+    self_checks: ["Select admitted observations or qualified fields; factual text is rendered from sources, while unbound interpretations remain unverified.",
+      "Preserve missing facts and the no-robot option; a source-bound report is not proof of robot suitability."],
+    proof_requirements: ["Retain site_assessment.v2 source-bound output, raw unverified model prose, source provenance, tool receipts and provider accounting."],
     pass_threshold: 0.75, bounded_scope: "One internal advisory assessment; no fulfillment or qualification changes.",
   }),
 };

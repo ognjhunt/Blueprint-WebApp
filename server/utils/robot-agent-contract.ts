@@ -231,7 +231,6 @@ export function buildRobotAgentAccessManifest() {
         "company",
         "roleTitle",
         "email",
-        "budgetBucket",
         "taskStatement",
         "targetSiteTypeOrSiteNameOrLocation",
         "proofPathPreference",

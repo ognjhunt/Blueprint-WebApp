@@ -4,7 +4,7 @@ import {
 } from "./communications-contract";
 import { reviewOutreachDraft, OUTREACH_SEMANTIC_CHECKS, type OutreachReviewResult } from "./outreach-review";
 import { appendCommercialEmailFooter } from "../utils/email-suppression";
-import { appendCommunicationsFooter, appendFirstContactFooter } from "./communications-first-contact-footer";
+import { appendCommunicationsFooter, appendFirstContactFooter, appendUnsentDraftFooter } from "./communications-first-contact-footer";
 import { siteReplyPromiseBlockers } from "./communications-readiness";
 
 export const COMMUNICATIONS_REPLY_CHECKS = {
@@ -44,11 +44,14 @@ export function reviewCommunicationsPayload(payload: Record<string, unknown>, no
     || payload.transportBody === appendCommunicationsFooter(output.body, brief.contact.email, scope));
   let firstContactFooter = false;
   if (!knownFooter) {
-    try { firstContactFooter = [false, true].some(legacy =>
-      payload.transportBody === appendFirstContactFooter(output.body, brief.contact.email, savedPostalLine, legacy)); }
+    try { firstContactFooter = payload.transportBody === appendUnsentDraftFooter(output.body, brief.contact.email, savedPostalLine)
+      || [false, true].some(legacy =>
+        payload.transportBody === appendFirstContactFooter(output.body, brief.contact.email, savedPostalLine, legacy)); }
     catch { /* Missing owner config refuses new automatic sends, never import. */ }
   }
-  if (!knownFooter && !firstContactFooter) blockers.push("transport_body_changed");
+  const unsentOnly = payload.communicationsDraftOnly === "founder-footerless-v2"
+    && payload.transportBody === output.body.trimEnd();
+  if (!knownFooter && !firstContactFooter && !unsentOnly) blockers.push("transport_body_changed");
   if (job.prospectId !== brief.prospectId || job.briefId !== brief.briefId || job.briefDigest !== communicationsDigest(brief)) {
     blockers.push("research_brief_mismatch");
   }
@@ -59,7 +62,8 @@ export function reviewCommunicationsPayload(payload: Record<string, unknown>, no
     || output.usedFactIds.some((ref) => !brief.facts.some((fact) => fact.id === ref))) blockers.push("used_fact_missing");
   // First-contact wording is chosen from known task/site context by the writer
   // and reviewed semantically. Its contract still anchors the exact one question.
-  if (job.intent === "outreach" && (output.body.match(/\?/g) || []).length !== 1) blockers.push("learning_question_mismatch");
+  if (job.intent === "outreach" && (["blueprint.outreach.v5", "blueprint.outreach.v6"].includes(output.outreachContract?.version ?? "")
+    ? (output.body.match(/[?\uFF1F\u061F]/g) || []).length > 1 : (output.body.match(/\?/g) || []).length !== 1)) blockers.push("learning_question_mismatch");
   if (job.intent === "outreach") {
     if (thread || job.inboundMessageId || brief.priorConversation) blockers.push("first_touch_has_prior_thread");
     if (communicationsDigest(payload.outreachContext) !== communicationsDigest(brief.outreachContext)

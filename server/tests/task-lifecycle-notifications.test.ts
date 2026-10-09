@@ -43,7 +43,7 @@ describe("task lifecycle notifications", () => {
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:video_received") as Record<string, unknown>;
     expect(row.to).toBe("owner@example.com");
     expect(row.kind).toBe("video_received");
-    expect(row.body).toMatch(/covers the work area and that nothing private is in view/i);
+    expect(row.body).toMatch(/investigate the observed task and prepare a recommendation/i);
     expect(row.body).toMatch(/\/capture-upload\//);
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(1);
   });
@@ -76,7 +76,7 @@ describe("task lifecycle notifications", () => {
     await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "task_received" });
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:task_received") as Record<string, string>;
     expect(row.body).toMatch(/\/capture-upload\//);
-    expect(row.body).toMatch(/each time something happens/i);
+    expect(row.body).toMatch(/meaningful findings and questions that need your input/i);
   });
 
   it("does not enqueue without an authoritative owner contact", async () => {
@@ -98,4 +98,27 @@ it("recovers a persisted ready scene notice without another controller poll", as
   expect(sharedFakeFirestoreState.docs.get("captureUploadSessions/capture-1")).toMatchObject({ scene_notification_pending: false });
   await reconcileSceneReadyNotifications();
   expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.endsWith(":scene_ready"))).toHaveLength(1);
+});
+
+describe('withdrawal fences capture-derived notices without suppressing recovery',()=>{
+ it.each(['video_received','scene_ready','screening_cleared','screening_started','results_ready','run_no_result'] as const)('does not enqueue %s after persisted withdrawal',async milestone=>{
+  sharedFakeFirestoreState.docs.set('inboundRequests/req-1',{contact:{email:'encrypted:owner@example.com'},request:{consent_attestation:{granted:false,withdrawn_at_iso:'2026-10-08T00:00:00Z'}}});
+  expect(await enqueueTaskLifecycleNotification({requestId:'req-1',milestone})).toEqual({enqueued:false,reason:'consent_withdrawn'});
+  expect([...sharedFakeFirestoreState.docs.keys()].some(key=>key.startsWith('captureOutbox/'))).toBe(false);
+ });
+ it('keeps the original intake receipt while derived generation is withdrawn',async()=>{
+  sharedFakeFirestoreState.docs.set('inboundRequests/req-1',{contact:{email:'encrypted:owner@example.com'},consent_revoked:true});
+  expect((await enqueueTaskLifecycleNotification({requestId:'req-1',milestone:'task_received'})).enqueued).toBe(true);
+ });
+ it('checks missing and legacy capture notice sources at the dispatch transaction boundary',async()=>{
+  const {taskLifecycleNotificationIsCurrent}=await import('../utils/taskLifecycleNotificationAuthority');
+  const {sharedFakeFirestore}=await import('./helpers/fake-firestore');
+  expect(await taskLifecycleNotificationIsCurrent({requestId:'missing',kind:'assessment_ready'})).toBe(false);
+  sharedFakeFirestoreState.docs.set('inboundRequests/req-1',{consent_revoked:true});
+  await sharedFakeFirestore.runTransaction(async transaction=>{
+   for(const kind of ['brief_confirmed','coverage_shortfall','assessment_ready','input_needed'] as const)
+    expect(await taskLifecycleNotificationIsCurrent({requestId:'req-1',kind},transaction)).toBe(false);
+   expect(await taskLifecycleNotificationIsCurrent({requestId:'req-1',kind:'fresh_link'},transaction)).toBe(true);
+  });
+ });
 });

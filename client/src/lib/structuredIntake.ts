@@ -284,7 +284,6 @@ function buildProofReadyDecision(
       met: Boolean(input.proofPathPreference && input.proofPathPreference !== "need_guidance"),
     },
     { key: "requested_lane", met: requestedLanes.length > 0 },
-    { key: "budget_or_procurement_range", met: Boolean(input.budgetBucket) },
   ];
 
   if (input.proofPathPreference === "exact_site_required") {

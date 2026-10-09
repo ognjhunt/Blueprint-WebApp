@@ -18,6 +18,11 @@ import type { Server } from "node:http";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
+const preparation = vi.hoisted(() => ({ read: vi.fn(async () => ({
+  state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
+})) }));
+vi.mock("../utils/websitePreparationStatus", () => ({ loadCurrentWebsitePreparationStatus: preparation.read }));
+
 const storage = vi.hoisted(() => ({
   objects: new Map<string, { generation: string; size: string; crc32c: string; bytes?: Buffer }>(),
   failure: null as Error | null,
@@ -115,6 +120,25 @@ async function status() {
 }
 
 describe("GET /api/site-task-brief/:token/status", () => {
+  it("PREP-UI-001 shows verified preparation failure through the customer handler", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const { code, body } = await status();
+    expect(code).toBe(200);
+    expect(preparation.read).toHaveBeenCalledWith("req-1", "cap-1");
+    expect(body.status).toMatchObject({ decision: "footage_received", stage: null, operatorAction: null });
+    expect(body.status.headline).toContain("Job preparation encountered a problem.");
+    expect(body.status.headline).toContain("bp-prep-1234567890abcdef");
+    expect(body.status.headline).not.toMatch(/are preparing|results are in/i);
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect(enqueueOutbox).not.toHaveBeenCalled();
+  });
+  it("PREP-UI-002 keeps preparation readback outside film-link scope", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
+    const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
+    expect((await fetch(`${baseUrl}/api/site-task-brief/${film}/status`)).status).toBe(200);
+    expect(preparation.read).not.toHaveBeenCalled();
+  });
   function savedRecording(kind: "stored" | "held" | "published", scope: "owner" | "film" = "owner") {
     const identity = { requestId: "req-1", sceneId: "site-req-1", captureId: "walkthrough-req-1" };
     const objectName = `scenes/${identity.sceneId}/captures/${identity.captureId}/raw/walkthrough.mp4`;
@@ -143,6 +167,78 @@ describe("GET /api/site-task-brief/:token/status", () => {
     return { token: createCaptureUploadToken({ ...identity, scope }), objectName };
   }
 
+  it("publishes only the current source-bound advisory through the owner status handler and suppresses it after withdrawal", async () => {
+    const saved = savedRecording("published");
+    const requestId = "req-1", captureId = "walkthrough-req-1";
+    const session = sharedFakeFirestoreState.docs.get(`captureUploadSessions/${captureId}`)!;
+    const pending = session.browser_pending_delivery;
+    const bytes = Buffer.from(JSON.stringify({ request_id: requestId, scene_id: "site-req-1", capture_id: captureId,
+      video_uri: pending.video.object_name, duration_seconds: 10,
+      capture_rights: { derived_scene_generation_allowed: true, consent_status: "granted", consent_revoked: false } }));
+    pending.manifest = { ...pending.manifest, size_bytes: bytes.length, sha256: `sha256:${createHash("sha256").update(bytes).digest("hex")}` };
+    storage.objects.set(pending.manifest.object_name, { generation: "18", size: String(bytes.length), crc32c: "AAAAAA==", bytes });
+    const { buildBrowserDelivery } = await import("../utils/websiteCaptureDelivery");
+    const delivery = buildBrowserDelivery({ requestId, sceneId: pending.scene_id, captureId,
+      rawPrefix: pending.video.object_name.slice(0, pending.video.object_name.lastIndexOf("/")), video: pending.video,
+      manifest: pending.manifest, completedAtIso: pending.completed_at_iso });
+    for (const [name, content] of [[`${delivery.record.raw_prefix}/capture_upload_complete.json`, delivery.markerBytes],
+      [delivery.objectName, delivery.recordBytes]] as const) storage.objects.set(name, { generation: "19", size: String(content.length), crc32c: "AAAAAA==", bytes: content });
+    const { browserPendingDecisionKey } = await import("../utils/websiteBrowserPending");
+    const { advisoryContextDigest, advisoryJobId } = await import("../utils/siteAssessmentContext");
+    const raw = sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`)!;
+    const brief = sharedFakeFirestoreState.docs.get(`siteTaskBriefs/${requestId}`) ?? null;
+    const sourceKey = browserPendingDecisionKey(pending), context = advisoryContextDigest(raw, brief), jobId = advisoryJobId(requestId, sourceKey, context);
+    raw.site_advisory = { job_id: jobId, source_key: sourceKey, context_digest: context, state: "completed" };
+    raw.capture_privacy_source_bound_decision = { proceeded: true, eligibility: "approved", capture_id: captureId, producer_source: {kind: "browser_pending", key: sourceKey} };
+    const videoRef = `gs://${process.env.BLUEPRINT_CAPTURE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com"}/${pending.video.object_name}#generation=${pending.video.generation}`;
+    const packet = { schema_version: "site_assessment.v2", request_id: requestId, sources: [{ source_id: "video:synthetic", kind: "video", canonical_ref: videoRef, sha256: "a".repeat(64),
+      content: { evidence: {summary: "Carton movement", observations: [{category: "motion", finding: "A carton moves", basis: "observed", start_seconds: 1, end_seconds: 3, uncertainty: "Hands partly occluded"}], not_observable: ["weight"]} } }],
+      raw_model_assessment: { status: "assessment", job: [{text: "PRIVATE fabricated robot success", basis: "observed", evidence: [{source_id: "video:synthetic", at_seconds: 2, selector: {kind: "video_observation", observation_index: 0, field_path: null}}]}],
+        objects_motions_conditions_variations: [], operator_success: [], known: [], estimates: [], missing: [], approaches: [], questions: [], next_action: {kind: "measure", action: "PRIVATE dispatch robot", why: {text: "Unknown weight", basis: "unknown", evidence: []}} } };
+    sharedFakeFirestoreState.docs.set(`siteAssessmentJobs/${jobId}`, { schema_version: "site_assessment_job.v1", request_id: requestId, source_key: sourceKey, context_digest: context, state: "completed", run_id: "synthetic-advisory-run", packet_sha256: createHash("sha256").update(JSON.stringify(packet)).digest("hex") });
+    sharedFakeFirestoreState.docs.set("agentRuns/synthetic-advisory-run", {task_kind: "site_assessment", status: "completed", artifacts: {site_assessment_packet: packet,
+      source_admission: {schema_version: "site_assessment_source.v1", request_id: requestId, capture_id: captureId, source_key: sourceKey, context_digest: context, advisory_job_id: jobId,
+        video_ref: videoRef, video_sha256: "a".repeat(64), video_bytes: pending.video.size_bytes, manifest: pending.manifest, duration_seconds: 10} } });
+    const read = () => fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
+    const response = await read(); expect(response.status).toBe(200);
+    const body = await response.json(); expect(body.siteAdvisory?.state).toBe("ready");
+    expect(body.siteAdvisory.sections).toEqual([]);expect(JSON.stringify(body.siteAdvisory)).not.toContain("A carton moves");
+    expect(JSON.stringify(body.siteAdvisory)).not.toMatch(/PRIVATE|gs:\/\/|raw_model_assessment|robot success/);
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { createElement } = await import("react");
+    const { SiteAdvisoryReport } = await import("../../client/src/components/site/SiteAdvisoryReport");
+    const html = renderToStaticMarkup(createElement(SiteAdvisoryReport, {advisory: body.siteAdvisory}));
+    expect(html).not.toContain("Video at 2 s"); expect(html).not.toContain("Full assessment and evidence");
+    expect(html).not.toMatch(/PRIVATE|robot success|gs:\/\//);
+    const { loadCurrentSiteAssessmentView } = await import("../utils/siteAssessmentPublic");
+    const view = await loadCurrentSiteAssessmentView(requestId, captureId);
+    expect(view.customerAdvisory).toEqual(body.siteAdvisory);
+    expect(JSON.stringify(view.decisionAssessment)).toContain("A carton moves");
+    expect(Object.keys(body.siteAdvisory).sort()).toEqual(["schemaVersion", "state", "correlationId", "sections", "unknowns", "nextAction"].sort());
+    const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+    const transact = sharedFakeFirestore.runTransaction.bind(sharedFakeFirestore);
+    for (const key of [`inboundRequests/${requestId}`, `siteTaskBriefs/${requestId}`, `captureUploadSessions/${captureId}`,
+      `siteAssessmentJobs/${jobId}`, "agentRuns/synthetic-advisory-run"]) {
+      const current = structuredClone(sharedFakeFirestoreState.docs.get(key)!);
+      const transaction = vi.spyOn(sharedFakeFirestore, "runTransaction").mockImplementationOnce(callback => {
+        sharedFakeFirestoreState.docs.set(key, { ...current, changedDuringRead: true });
+        return transact(callback);
+      });
+      const changed = await loadCurrentSiteAssessmentView(requestId, captureId);
+      expect(changed.customerAdvisory?.state, key).toBe("unavailable");
+      expect(changed.decisionAssessment?.sections).toEqual([]);
+      expect(changed.compatibleDecisionAssessments).toEqual([]);
+      transaction.mockRestore(); sharedFakeFirestoreState.docs.set(key, current);
+    }
+    const wrongOwner = await loadCurrentSiteAssessmentView(requestId, captureId, { expectedOwnerUid: "another-owner" });
+    expect(wrongOwner.customerAdvisory?.state).toBe("unavailable");
+    expect(wrongOwner.compatibleDecisionAssessments).toEqual([]);
+    sharedFakeFirestoreState.docs.get(`inboundRequests/${requestId}`)!.consent_revoked = true;
+    const withdrawn = await (await read()).json(); expect(withdrawn.siteAdvisory.state).toBe("authority_ended");
+    expect(withdrawn.siteAdvisory.sections).toEqual([]); expect(withdrawn.status.headline).toContain("withdrawn");
+    expect((await loadCurrentSiteAssessmentView(requestId, captureId)).compatibleDecisionAssessments).toEqual([]);
+  });
+
   it.each(["stored", "held", "published"] as const)("acknowledges %s browser bytes without a processing marker", async (kind) => {
     const saved = savedRecording(kind);
     const before = structuredClone([...sharedFakeFirestoreState.docs]);
@@ -167,7 +263,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
     expect(await response.json()).toMatchObject({ captureReceived: true,
       processingHold: { code: "capture_processing_not_authorized" },
-      status: { headline: "Your video is saved. Processing is on hold until its existing consent can be verified.", operatorAction: null } });
+      status: { headline: "Your video is saved. Recording consent was withdrawn. Capture-derived review and the scene preview are unavailable.", operatorAction: null } });
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(storage.write).not.toHaveBeenCalled();
     expect(deliverOutbox).not.toHaveBeenCalled();
@@ -195,7 +291,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const response = await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`);
     expect(await response.json()).toMatchObject({ captureReceived: true, uploadState: "processing_ready",
       processingHold: { code: "capture_processing_not_authorized" },
-      status: { headline: "Your video is saved. Processing is on hold until its existing consent can be verified.", operatorAction: null } });
+      status: { headline: "Your video is saved. Recording consent was withdrawn. Capture-derived review and the scene preview are unavailable.", operatorAction: null } });
     expect(storage.write).not.toHaveBeenCalled();
     expect(deliverOutbox).not.toHaveBeenCalled();
   });
@@ -321,18 +417,22 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.claimUrl).toMatch(/\/claim\/.+/);
   });
 
-  it("offers no claim before the brief is confirmed", async () => {
+  it("shows known assessment status without mandatory confirmation while retaining claim controls", async () => {
     const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
     const { site_task_brief_confirmed_at: _confirmed, ...unconfirmed } = record;
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", unconfirmed);
 
     const { body } = await status();
 
-    expect(body.status.decision).toBe("confirm_brief");
+    expect(body.status.decision).toBe("assessing");
+    expect(body.status.operatorAction).toBeNull();
     expect(body.claimUrl ?? null).toBeNull();
   });
 
   it("reads screening once a run is queued, and offers the claim link", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
+      world_reconstruction: { state: "failed", blocker: "provider_failed" },
+    });
     sharedFakeFirestoreState.docs.set("evaluationRuns/run_r1", {
       runId: "run_r1",
       teamId: "team-a",
@@ -344,12 +444,15 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const { body } = await status();
 
     expect(body.status.decision).toBe("screening");
-    expect(body.status.headline).toContain("queued for 1 robot team");
-    expect(body.status.headline).toContain("Execution has not started");
+    expect(body.status.headline).toContain("Robot screening has not started");
+    expect(body.status.headline).toContain("Results are not available yet");
     expect(body.claimUrl).toMatch(/\/claim\/.+/);
   });
 
   it("reads results once a run reported without comparing it to other runs", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
+      world_reconstruction: { state: "failed", blocker: "provider_failed" },
+    });
     sharedFakeFirestoreState.docs.set("evaluationRuns/run_r1", {
       runId: "run_r1",
       teamId: "team-a",
@@ -383,6 +486,22 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.claimUrl ?? null).toBeNull();
   });
 
+  it("withholds a derived scene preview after recording consent is withdrawn", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
+      world_reconstruction: { state: "ready", assets: { launchUrl: "https://viewer.example/withdrawn" } },
+    });
+    const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, consent_revoked: true });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const { body } = await status();
+    expect(body.sceneViewUrl).toBeNull();
+    expect(body.status.headline).toMatch(/withdrawn/i);
+    expect(body.status.headline).not.toMatch(/preview is ready|preparing|screening|results are in/i);
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect(storage.write).not.toHaveBeenCalled();
+    expect(deliverOutbox).not.toHaveBeenCalled();
+  });
+
   it("projects a persisted safe scene viewer only to the owner link", async () => {
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
       world_reconstruction: {
@@ -409,6 +528,42 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, account_owner_uid: "uid-dana" });
     expect((await status()).body.claimUrl).toBeNull();
+  });
+
+  it("does not advertise ongoing preparation after a persisted reconstruction failure", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
+      world_reconstruction: { state: "failed", blocker: "provider_failed",
+        failure_reason: "private upstream detail https://private.example/token",
+        assets: { launchUrl: "https://viewer.example/stale" } },
+    });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const { code, body } = await status();
+    expect(code).toBe(200);
+    expect(body.status.decision).toBe("footage_received");
+    expect(body.status.headline).toMatch(/scene preview preparation could not finish/i);
+    expect(body.status.headline).not.toMatch(/we are preparing|private upstream|private\.example/);
+    expect(body.status.operatorAction).toBeNull();
+    expect(body.sceneViewUrl).toBeNull();
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect(storage.write).not.toHaveBeenCalled();
+    expect(deliverOutbox).not.toHaveBeenCalled();
+  });
+
+  it("uses a newer ready record even if old failure details remain", async () => {
+    const failed = { state: "failed", blocker: "provider_failed", failure_reason: "private upstream detail" };
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { world_reconstruction: failed });
+    expect((await status()).body.status.headline).toMatch(/scene preview preparation could not finish/i);
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { world_reconstruction: {
+      ...failed, state: "ready", assets: { launchUrl: "https://viewer.example/current" },
+    } });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const { body } = await status();
+    expect(body.status.headline).toMatch(/scene preview is ready/i);
+    expect(body.status.headline).not.toMatch(/could not finish|private upstream/);
+    expect(body.sceneViewUrl).toBe("https://viewer.example/current");
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect(storage.write).not.toHaveBeenCalled();
+    expect(deliverOutbox).not.toHaveBeenCalled();
   });
 });
 

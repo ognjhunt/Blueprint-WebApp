@@ -3,7 +3,7 @@ import { z } from "zod";
 import { communicationsDigest, type CommunicationsBrief } from "./communications-contract";
 import { assessedPublicContact, assessedSiteGeography, sourceAssessmentSchema } from "./communications-source-assessment";
 import { sameOperatorUrl, assertContactUnknowns } from "./communications-contact-evidence";
-import { evaluateLeadVerification, leadIdentityKey, leadTaskSourceSupports, requireVerifiedLead } from "./lead-verification";
+import { evaluateLeadVerification, evaluateOutreachTier, OUTREACH_EVIDENCE_VERSION, outreachQuoteProver, leadIdentityKey, leadTaskSourceSupports, requireVerifiedLead } from "./lead-verification";
 
 export const REVIEWED_RESEARCH_ROOT = "blueprintCommunications/default/reviewedResearch";
 export const COMMUNICATIONS_CRM_ID = "1n95Ih0Swc-q-kZyUaDHoZh6SVzxvf_zt-CRR7i39bWY";
@@ -22,7 +22,20 @@ const evidence = z.object({ claim: text, quote: text, url, publisher: text,
 }).strict();
 /** A truthful report and selected evidence. No fabricated API run or projection
  * receipt is accepted; server identity and review time are not request fields. */
+const reviewedHypothesisSchema = z.object({
+  authorizationReference: text,
+  recipient: z.object({ name: text, role: text }).strict().optional(),
+  authorizationExpiresAt: z.string().datetime({ offset: true }),
+  // Actual retrieved UTF-8 page/extraction bytes, never invented tool events.
+  retainedSources: z.array(z.object({ url, rawBase64: z.string().min(1).max(1000000), sha256: digest,
+    format: z.enum(["page_text", "document_text"]),
+    document: z.object({ sha256: digest, page: z.number().int().positive(), operator: text,
+      authorshipQuote: text, corroborationEvidenceIndex: z.number().int().nonnegative(),
+      extractionReview: z.object({ method: z.literal("visual_page_review"), rationale: text }).strict() }).strict().optional(),
+  }).strict()).min(1).max(16),
+}).strict();
 export const reviewedResearchInputSchema = z.object({
+  hypothesis: reviewedHypothesisSchema.optional(),
   date: z.string().date(),
   artifact: z.object({ kind: z.enum(["codex_report", "hosted_research"]), reference: text,
     sourceRecordUrl: url, rawBase64: z.string().min(1).max(1000000), sha256: digest }).strict(),
@@ -81,10 +94,14 @@ export function validateReviewedResearch(inputValue: unknown, now: number) {
     return (sameSite && (!rowOrganization || rowOrganization === organization)) || (!rowAddress && !row[3] && (rowOrganization === organization
       || (input.assessment.contact && (row[5] ?? "").toLowerCase().includes(input.assessment.contact.email.toLowerCase()))));
   })) throw new Error("reviewed_research_crm_duplicate_requires_refresh");
-  const contact = input.assessment.contact ? assessedPublicContact(input.candidate, input.assessment) : null;
+  const contact = input.assessment.contact ? reviewedPublicContact(input, now) : null;
   if (!contact) assertContactUnknowns(input.candidate, true);
   if (!contact && (input.assessment.resolvedGaps.length || input.assessment.conflicts.length)) throw new Error("reviewed_research_contact_gap_unresolved");
   const geography = assessedSiteGeography(input.candidate, input.assessment);
+  if (input.hypothesis) {
+    if (contact && !fresh(contact.sourceCheckedAt, now) || !fresh(geography.sourceCheckedAt, now)) throw new Error("reviewed_research_current_source_missing");
+    reviewedHypothesisTier(input, now); return input;
+  }
   const task = input.candidate.evidence.find(entry => entry.role === "task" && ["operator", "independent"].includes(entry.classification) && entry.claim_kind === "fact"
     && entry.visibility === "public" && entry.assertion_scope === "current_operational" && (sameOperatorUrl(entry.url, input.candidate.organization_url)
       || leadTaskSourceSupports(input, entry)));
@@ -97,12 +114,21 @@ export function validateReviewedResearch(inputValue: unknown, now: number) {
 /** Called only after server-verified admin authentication (or existing Admin
  * service authority). The actor/time are derived there, never approved=true. */
 export async function stageReviewedResearch(db: FirebaseFirestore.Firestore, inputValue: unknown,
-  actor: string, now: number) {
+  actor: string, now: number, readArtifact?: (digest: string) => Promise<Buffer>) {
   if (!actor.trim()) throw new Error("reviewed_research_authenticated_actor_missing");
   const parsed = reviewedResearchInputSchema.parse(inputValue);
-  const verification = requireVerifiedLead(parsed, now);
+  const documents = parsed.hypothesis?.retainedSources.filter(item => item.document) ?? [];
+  const documentVerification: ReturnType<typeof documentReviewReceipt>[] = [];
+  for (const item of documents) {
+    if (!readArtifact) throw new Error("reviewed_research_document_reader_missing");
+    const raw = await readArtifact(item.document!.sha256);
+    if (sha256(raw) !== item.document!.sha256) throw new Error("reviewed_research_document_changed");
+    documentVerification.push(documentReviewReceipt(item, actor, now, raw.length));
+  }
+  const verification = parsed.hypothesis ? reviewedHypothesisTier(parsed, now) : requireVerifiedLead(parsed, now);
   const input = validateReviewedResearch(parsed, now);
   const packet = { candidate: input.candidate, assessment: input.assessment,
+    ...(input.hypothesis ? { hypothesis: input.hypothesis } : {}),
     ...(input.refresh ? { refresh: input.refresh } : {}),
     ...(input.leadVerification !== undefined ? { leadVerification: input.leadVerification } : {}), artifact: {
     kind: input.artifact.kind, reference: input.artifact.reference, sourceRecordUrl: input.artifact.sourceRecordUrl,
@@ -114,8 +140,11 @@ export async function stageReviewedResearch(db: FirebaseFirestore.Firestore, inp
     packet_digest: packetDigest, raw_output_digest: input.artifact.sha256, packet,
     review: { reviewer_reference: `authenticated:${actor}`, reviewed_at: new Date(now).toISOString(),
       packet_digest: packetDigest, accepted_keys: [input.candidate.candidate_key],
-      source_support_verified: true, crm_rechecked: true, summary: input.assessment.rationale,
-      lead_verification: verification },
+      source_support_verified: true, crm_rechecked: true,
+      ...(documents.length ? { document_verification: documentVerification } : {}), summary: input.assessment.rationale,
+      lead_verification: verification,
+      ...(input.hypothesis ? { draft_authorization: { actor, reference: input.hypothesis.authorizationReference,
+        recordedAt: new Date(now).toISOString(), expiresAt: input.hypothesis.authorizationExpiresAt, sendsAuthorized: false } } : {}) },
     admission_id: admissionId, source_record_id: sourceRecordId };
   const snapshot = { schema_version: "blueprint.reviewed-research-snapshot.v1", row: { ...row,
     packet: { ...packet, crm: { ...packet.crm, rows: packet.crm.rows.map(cells => ({ cells })) } } },
@@ -174,6 +203,7 @@ export function reviewedResearchPublication(snapshot: any, origin: Communication
     || sha256(Buffer.from(snapshot.files?.artifact ?? "", "base64")) !== origin.rawArtifactDigest) throw new Error("reviewed_research_source_changed");
   const input = validateReviewedResearch({ date: row.date, artifact: { ...packet.artifact, rawBase64: snapshot.files.artifact, sha256: row.raw_output_digest },
     candidate: packet.candidate, assessment: packet.assessment, crm: packet.crm,
+    ...(packet.hypothesis ? { hypothesis: packet.hypothesis } : {}),
     ...(packet.refresh ? { refresh: packet.refresh } : {}),
     ...(packet.leadVerification !== undefined ? { leadVerification: packet.leadVerification } : {}) }, Date.parse(row.review.reviewed_at));
   const admissionId = communicationsDigest({ packetDigest: row.packet_digest, rawArtifactDigest: row.raw_output_digest });
@@ -182,13 +212,23 @@ export function reviewedResearchPublication(snapshot: any, origin: Communication
       site: researchIdentityText(input.candidate.site), address: researchIdentityText(input.candidate.location) });
   if (admissionId !== origin.admissionId || row.source_record_id !== (input.refresh?.sheetsProspectId ?? `reviewed:${identityKey}`)
     || row.run_key !== `reviewed-report:${admissionId}` || packet.candidate.candidate_key !== origin.candidateKey) throw new Error("reviewed_research_identity_changed");
-  const verification = evaluateLeadVerification(input.candidate, input.leadVerification ?? null, Date.now());
+  for (const item of input.hypothesis?.retainedSources.filter(item => item.document) ?? []) {
+    const proof = row.review.document_verification?.filter((value: any) => value.documentSha256 === item.document!.sha256 && value.textSha256 === item.sha256);
+    if (proof?.length !== 1 || !Number.isSafeInteger(proof[0].byteLength) || proof[0].byteLength < 1
+      || communicationsDigest(proof[0]) !== communicationsDigest(documentReviewReceipt(item,
+        row.review.reviewer_reference.slice("authenticated:".length), Date.parse(row.review.reviewed_at), proof[0].byteLength))) {
+      throw new Error("reviewed_research_document_changed");
+    }
+  }
+  const verification = input.hypothesis ? reviewedHypothesisTier(input, Date.parse(row.review.reviewed_at))
+    : evaluateLeadVerification(input.candidate, input.leadVerification ?? null, Date.now());
   if (packet.leadVerification !== undefined && communicationsDigest(row.review.lead_verification?.assessment ?? null)
     !== communicationsDigest(packet.leadVerification)) throw new Error("reviewed_research_source_changed");
   const source = { version: "blueprint.communications-reviewed-source.v1", provenance: packet.artifact,
     admissionId, runKey: row.run_key, date: row.date, candidateKey: origin.candidateKey,
     packetDigest: origin.packetDigest, rawArtifactDigest: origin.rawArtifactDigest,
     candidate: input.candidate, assessment: input.assessment,
+    ...(input.hypothesis ? { reviewedHypothesis: input.hypothesis } : {}),
     ...(input.leadVerification !== undefined ? { leadVerification: input.leadVerification } : {}), researchReview: row.review, qaArtifactDigest: communicationsDigest(row.review),
     // Compatibility binding names; this is explicitly a staged record, not a Sheets row.
     sheetsId: COMMUNICATIONS_CRM_ID, sheetsProspectId: row.source_record_id,
@@ -196,4 +236,71 @@ export function reviewedResearchPublication(snapshot: any, origin: Communication
     sourceRecordUrl: packet.artifact.sourceRecordUrl, sheetsReceipt: null, notionReceipt: null };
   return { row, candidate: input.candidate, selected: [input.candidate], source, verification,
     recordReceipt: source.recordReceipt, sheetsReceipt: null, notionReceipt: null };
+}
+
+/** The authenticated reviewer attests the actual rendered page/extraction.
+ * Server download proves binary identity only, not PDF text or authorship. */
+function documentReviewReceipt(item: NonNullable<ReviewedResearchInput["hypothesis"]>["retainedSources"][number], actor: string, now: number, byteLength: number) {
+  const document = item.document!;
+  return { documentSha256: document.sha256, textSha256: item.sha256, url: item.url, page: document.page, byteLength,
+    verification: "binary_hash_and_authenticated_visual_review", extractionReview: { ...document.extractionReview,
+      actor, reviewedAt: new Date(now).toISOString() } };
+}
+/** Retained report-source bytes are direct evidence, not fabricated Parallel calls. */
+export function reviewedHypothesisEvidence(input: ReviewedResearchInput) {
+  if (!input.hypothesis) throw new Error("reviewed_research_hypothesis_missing");
+  const pages = input.hypothesis.retainedSources.map(item => {
+    const bytes = Buffer.from(item.rawBase64, "base64");
+    if (bytes.toString("base64") !== item.rawBase64 || sha256(bytes) !== item.sha256) throw new Error("reviewed_research_evidence_changed");
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    return { url: item.url, text, tool_result_sha256: item.sha256 };
+  });
+  return { schema_version: OUTREACH_EVIDENCE_VERSION, state: "retained" as const, pages, excerpts: [], refused: 0 };
+}
+export function reviewedHypothesisTier(input: ReviewedResearchInput, now: number) {
+  if (!input.hypothesis || !fresh((input.leadVerification as any)?.assessed_at, now)
+    || Date.parse(input.hypothesis.authorizationExpiresAt) <= now) throw new Error("reviewed_research_hypothesis_authorization_expired");
+  const evidence = reviewedHypothesisEvidence(input), prove = outreachQuoteProver(evidence);
+  if (input.candidate.evidence.some(entry => !prove(entry.quote, entry.url))) throw new Error("reviewed_research_quote_unproven");
+  const result = evaluateOutreachTier([input.candidate], { [input.candidate.candidate_key]: input.leadVerification }, now, {}, evidence).results[0];
+  if (result.tier !== "outreach_ready") throw new Error(`reviewed_research_hypothesis_not_ready:${result.outreach_ready.blockers.join(",")}`);
+  return result;
+}
+/** A company-authored document may be hosted by a public authority. Keep this
+ * exception confined to retained, authenticated hypothesis reports; preserve its
+ * original publication date and corroborate the selected professional role. */
+export function reviewedPublicContact(input: ReviewedResearchInput, now: number) {
+  const person = input.hypothesis?.recipient, selected = input.assessment.contact;
+  if (person) {
+    const prove = outreachQuoteProver(reviewedHypothesisEvidence(input));
+    if (!selected || selected.selection.kind !== "professional_person"
+      || researchIdentityText(person.role) !== researchIdentityText(selected.selection.role)
+      || !input.candidate.evidence.some(entry => entry.claim_kind === "fact" && entry.assertion_scope === "current_operational"
+        && ["operator", "independent"].includes(entry.classification)
+        && fresh(entry.source_checked_at, now) && prove(entry.quote, entry.url)
+        && researchIdentityText(entry.quote).includes(researchIdentityText(person.name))
+        && researchIdentityText(entry.quote).includes(researchIdentityText(person.role)))) throw new Error("reviewed_research_recipient_unproven");
+  }
+  try { return assessedPublicContact(input.candidate, input.assessment); }
+  catch (error) {
+    const selected = input.assessment.contact, entry = selected && input.candidate.evidence[selected.evidenceIndex];
+    const retained = input.hypothesis?.retainedSources.find(item => item.url === entry?.url && item.format === "document_text" && item.document);
+    const doc = retained?.document, corroboration = doc && input.candidate.evidence[doc.corroborationEvidenceIndex];
+    const prove = input.hypothesis && outreachQuoteProver(reviewedHypothesisEvidence(input));
+    if (!selected || !entry || !doc || !prove || entry.role !== "contact" || entry.retrieval !== "operator_document"
+      || entry.classification !== "operator" || entry.claim_kind !== "fact" || entry.visibility !== "public"
+      || researchIdentityText(doc.operator) !== researchIdentityText(input.candidate.organization)
+      || !prove(entry.quote, entry.url) || !prove(doc.authorshipQuote, entry.url)
+      || !researchIdentityText(doc.authorshipQuote).includes(researchIdentityText(doc.operator))
+      || !corroboration || doc.corroborationEvidenceIndex === selected.evidenceIndex || corroboration.url === entry.url
+      || corroboration.assertion_scope !== "current_operational" || !["operator", "independent"].includes(corroboration.classification)
+      || corroboration.claim_kind !== "fact" || !fresh(corroboration.source_checked_at, now)
+      || !prove(corroboration.quote, corroboration.url)
+      || !researchIdentityText(corroboration.quote).includes(researchIdentityText(selected.selection.role))
+      || !input.hypothesis?.recipient || !researchIdentityText(entry.quote).includes(researchIdentityText(input.hypothesis.recipient.name))
+      || !researchIdentityText(corroboration.quote).includes(researchIdentityText(input.hypothesis.recipient.name))) throw error;
+    const checked = assessedPublicContact(input.candidate, input.assessment, selected.evidenceIndex);
+    return { ...checked, sourceUrl: entry.url, sourceCheckedAt: entry.source_checked_at,
+      evidenceDigest: communicationsDigest({ entry, assessment: input.assessment, document: doc, retainedDigest: retained!.sha256, corroboration }) };
+  }
 }

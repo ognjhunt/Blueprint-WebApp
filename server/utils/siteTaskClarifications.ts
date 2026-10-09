@@ -1,9 +1,12 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { humanDecisionDigest } from "./human-reply-admission";
+import { loadCurrentSiteAssessmentView } from "./siteAssessmentPublic";
+import { projectCurrentSiteJobDecision } from "./siteJobDecision";
+import { gateFields } from "../../client/src/data/siteTaskQualification";
 
 export function clarificationRevision(brief: unknown, request: Record<string, any>) {
   return humanDecisionDigest({ brief, answers: request.siteTaskGates,
-    triage: request.site_task_triage, confirmed: Boolean(request.site_task_brief_confirmed_at) });
+    triage: request.site_task_triage, decision: request.customer_decision, confirmed: Boolean(request.site_task_brief_confirmed_at) });
 }
 
 export async function readSiteClarification(requestId: string) {
@@ -12,9 +15,15 @@ export async function readSiteClarification(requestId: string) {
     db.collection("siteTaskBriefs").doc(requestId).get()]);
   if (!request.exists || !brief.exists) throw new Error("clarification_missing");
   const value = request.data()!;
+  const assessment = await loadCurrentSiteAssessmentView(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: value.account_owner_uid ?? null });
+  const decision = projectCurrentSiteJobDecision(value, brief.data(), assessment.decisionAssessment, assessment.compatibleDecisionAssessments);
   return { revision: clarificationRevision(brief.data(), value),
-    questions: value.site_task_triage?.open_questions || [],
-    needed: value.site_task_triage?.disposition === "needs_conversation",
+    questions: decision?.question ? [`${decision.question.text} — ${decision.question.reason}`] : [...(value.site_task_triage?.open_questions || []),
+      ...(value.site_task_triage?.unanswered_field_ids || []).flatMap((id: string) => {
+        const field = gateFields.find(field => field.id === id);
+        return field ? [`${field.question} — Needed before ${field.blocks === "capture" ? "scene preparation" : "robot evaluation"}; it does not establish pilot willingness or authority.`] : [];
+      })],
+    needed: Boolean(decision?.question) || value.site_task_triage?.disposition === "needs_conversation",
     response: value.site_task_clarification || null };
 }
 
@@ -26,6 +35,8 @@ export async function submitSiteClarification(requestId: string, revision: strin
   }
   const ref = db.collection("inboundRequests").doc(requestId);
   const id = humanDecisionDigest({ requestId, revision, explanation: explanation.trim() });
+  const currentOwner = (await ref.get()).data()?.account_owner_uid ?? null;
+  const assessment = await loadCurrentSiteAssessmentView(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: currentOwner });
   return db.runTransaction(async tx => {
     const responseRef = ref.collection("clarifications").doc(id);
     const [request, brief, prior] = await Promise.all([tx.get(ref),
@@ -33,7 +44,7 @@ export async function submitSiteClarification(requestId: string, revision: strin
     if (prior.exists) return { id, state: prior.data()!.state };
     const value = request.data();
     if (!value || !brief.exists || clarificationRevision(brief.data(), value) !== revision) throw new Error("clarification_revision_changed");
-    if (value.site_task_triage?.disposition !== "needs_conversation" || !value.site_task_brief_confirmed_at) throw new Error("clarification_not_needed");
+    if (value.site_task_triage?.disposition !== "needs_conversation" && !projectCurrentSiteJobDecision(value, brief.data(), assessment.decisionAssessment, assessment.compatibleDecisionAssessments)?.question) throw new Error("clarification_not_needed");
     const response = { id, revision, explanation: explanation.trim(), state: "review_required",
       submitted_by: "owner_link", submitted_at: new Date().toISOString() };
     tx.create(responseRef, response);

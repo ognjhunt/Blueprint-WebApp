@@ -49,6 +49,8 @@ import { selfCaptureObjectPath } from "./captureUploadToken";
 import { getBrief } from "./siteTaskBrief";
 import { commitTaskUpdate } from "./taskUpdateCommitment";
 import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
+import { decryptFieldValue } from "./field-encryption";
+import type { ContactInfoStored } from "../types/inbound-request";
 
 /** Long enough for a model to fetch the video, short enough not to be a handle. */
 const SIGNED_URL_TTL_MS = 30 * 60 * 1000;
@@ -120,6 +122,7 @@ export interface CoverageFinding {
 export async function reviewCaptureCoverage(params: {
   binding?: { source: unknown; brief_digest: string; capture_id: string };
   reviewId?: string;
+  claimToken?: string;
   requestId: string;
   sceneId: string;
   captureId: string;
@@ -172,16 +175,16 @@ export async function reviewCaptureCoverage(params: {
     }
     if (!output) {
     const result = await runAgentTask<CaptureCoverageInput, CaptureCoverageOutput>({
-      ...captureCoverageTask,
+      kind: captureCoverageTask.kind,
       session_key: `capture_coverage:${params.reviewId || params.captureId}`,
-      metadata: { capture_id: params.captureId, review_id: params.reviewId || null },
+      metadata: { capture_id: params.captureId, review_id: params.reviewId || null, coverage_claim_token: params.claimToken || null },
       input: {
         videoUrl,
         supplementaryViewsOnly: additive,
         taskSummary: brief.summary,
         requestedViews,
       },
-    } as never);
+    });
     output = (result?.output as CaptureCoverageOutput) ?? null;
     }
   } catch (error) {
@@ -224,8 +227,14 @@ export async function reviewCaptureCoverage(params: {
   if (!finding.coversScene && finding.missingCoverage.length) {
     try {
       const snap = await db?.collection("inboundRequests").doc(params.requestId).get();
-      const contact = (snap?.data()?.contact as { email?: string; firstName?: string } | undefined) ?? undefined;
-      if (contact?.email) {
+      const storedContact = snap?.data()?.contact as Partial<ContactInfoStored> | undefined;
+      // Intake retains encrypted contact fields. Decrypt only the notification
+      // destination and greeting; never rewrite the canonical contact record.
+      const contact = storedContact?.email ? {
+        email: await decryptFieldValue(storedContact.email),
+        firstName: storedContact.firstName ? await decryptFieldValue(storedContact.firstName) : undefined,
+      } : undefined;
+      if (typeof contact?.email === "string" && contact.email.trim()) {
         await commitTaskUpdate({
           requestId: params.requestId,
           to: contact.email,

@@ -285,6 +285,9 @@ describe("AdminAgentConsole", () => {
     renderConsole();
 
     expect((await screen.findAllByText(/Ops thread/i)).length).toBeGreaterThan(0);
+    expect(fetch).toHaveBeenCalledWith("/api/admin/agent/sessions", expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: "Bearer fixture-admin-token" }),
+    }));
     const selectedSessionCard = await screen.findByRole("heading", { name: /Selected session/i });
     const selectedSessionPanel = selectedSessionCard.parentElement;
     expect(selectedSessionPanel).not.toBeNull();
@@ -326,7 +329,7 @@ describe("AdminAgentConsole", () => {
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/admin/agent/sessions/session-1/messages",
-        expect.objectContaining({ method: "POST" }),
+        expect.objectContaining({ method: "POST", headers: expect.objectContaining({ Authorization: "Bearer fixture-admin-token" }) }),
       );
     });
 
@@ -348,4 +351,76 @@ describe("AdminAgentConsole", () => {
       );
     });
   }, 15000);
+  it("sends the version selected for editing with a prompt update", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    const pack = { id: "pack-1", name: "Test prompt", version: 7, operatorNotes: "Before", repoDocPaths: [], knowledgePagePaths: [], blueprintIds: [], documentIds: [], externalSources: [], creativeContexts: [] };
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input) === "/api/admin/agent/context/options") {
+        const response = await original(input, init);
+        const data = await response.json();
+        return new Response(JSON.stringify({ ...data, startupPacks: [pack] }));
+      }
+      if (String(input) === "/api/admin/agent/startup-packs/pack-1") {
+        return new Response(JSON.stringify({ ok: true, startupPack: { ...pack, version: 8 } }));
+      }
+      return original(input, init);
+    });
+    renderConsole();
+    fireEvent.click(await screen.findByRole("button", { name: /^Edit$/ }));
+    fireEvent.change(screen.getByPlaceholderText("Operator notes for this session"), { target: { value: "After" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Update startup pack$/ }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/admin/agent/startup-packs/pack-1", expect.objectContaining({
+      method: "PATCH", body: expect.stringContaining('"expectedVersion":7'),
+    })));
+    const call = vi.mocked(fetch).mock.calls.find(([url]) => String(url) === "/api/admin/agent/startup-packs/pack-1")!;
+    expect(JSON.parse(String(call[1]?.body)).operatorNotes).toBe("After");
+  });
+
+  it("authenticates session creation without starting an inference run", async () => {
+    renderConsole();
+    await screen.findAllByText(/Ops thread/i);
+    fireEvent.click(screen.getByRole("button", { name: /^Create session$/i }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/admin/agent/sessions", expect.objectContaining({
+      method: "POST", headers: expect.objectContaining({ Authorization: "Bearer fixture-admin-token" }),
+    })));
+    expect(vi.mocked(fetch).mock.calls.some(([url, init]) => String(url).endsWith("/messages") && init?.method === "POST")).toBe(false);
+  });
+
+  it("shows the rejected session response without retrying creation or running inference", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === "/api/admin/agent/sessions" && init?.method === "POST"
+      ? Promise.resolve(new Response(JSON.stringify({ error: "Invalid CSRF token" }), { status: 403 }))
+      : original(input, init));
+    renderConsole();
+    await screen.findAllByText(/Ops thread/i);
+    fireEvent.click(screen.getByRole("button", { name: /^Create session$/i }));
+    expect(await screen.findByText("Failed to create session (403): Invalid CSRF token")).toHaveAttribute("role", "alert");
+    expect(vi.mocked(fetch).mock.calls.filter(([url, init]) => String(url) === "/api/admin/agent/sessions" && init?.method === "POST")).toHaveLength(1);
+    expect(vi.mocked(fetch).mock.calls.some(([url, init]) => String(url).endsWith("/messages") && init?.method === "POST")).toBe(false);
+  });
+
+  it("shows session-list failures instead of presenting them only as an empty list", async () => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === "/api/admin/agent/sessions" && !init?.method
+      ? Promise.resolve(new Response(JSON.stringify({ error: "Admin access required" }), { status: 403 }))
+      : original(input, init));
+    renderConsole();
+    expect(await screen.findByText("Failed to fetch agent sessions (403): Admin access required")).toHaveAttribute("role", "alert");
+    expect(vi.mocked(fetch).mock.calls.some(([url, init]) => String(url) === "/api/admin/agent/sessions" && init?.method === "POST")).toBe(false);
+  });
+
+  it.each(["site_assessment.v1", "site_assessment.v2"])("labels retained %s assessment output without upgrading its bytes", async schema_version => {
+    const original = vi.mocked(fetch).getMockImplementation()!;
+    const assessment = { known: [{ text: "Retained synthetic claim", basis: "published", evidence: [] }] };
+    const retained = JSON.stringify({ ok: true, runs: [{ id: "assessment-1", session_id: "session-1", task_kind: "site_assessment", status: "completed",
+      output: assessment, artifacts: { site_assessment_packet: { schema_version, assessment } }, input: {}, metadata: {},
+      created_at: "2026-01-01", updated_at: "2026-01-01" }] });
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === "/api/admin/agent/sessions/session-1/runs"
+      ? Promise.resolve(new Response(retained)) : original(input, init));
+    renderConsole();
+    expect(await screen.findByText(schema_version === "site_assessment.v1" ? /Legacy assessment: factual wording/ : /Source-bound facts report selected source data/)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Retained synthetic claim/)).length).toBeGreaterThan(0);
+    expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
+  });
+
 });

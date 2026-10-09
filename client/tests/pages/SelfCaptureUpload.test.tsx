@@ -88,40 +88,61 @@ describe("description first owner return", () => {
       return mockFetch()(input);
     });
   }
+  it("keeps account claiming available inside optional corrections without gating the summary", async () => {
+    const fetcher = ownerFetch(false);
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => String(input) === `/api/site-task-brief/${TOKEN}`
+      ? Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner", account: { claimed: false, email: "owner@example.test", claimToken: "synthetic-claim-token" },
+        brief: { summary: "Pack cartons", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } }) })
+      : fetcher(input)));
+    render(<SelfCaptureUpload />);
+    await screen.findByRole("heading", { name: "Your job summary" });
+    expect(screen.getByText("Correct job details (optional)").closest("details")).not.toHaveAttribute("open");
+    fireEvent.click(screen.getByText("Correct job details (optional)"));
+    expect(screen.queryByLabelText("Choose a password")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Also save this job to my account (optional)"));
+    expect(screen.getByLabelText("Choose a password")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "This is right — confirm and save" })).toBeInTheDocument();
+    expect(videoUpload.send).not.toHaveBeenCalled();
+  });
   it("preserves saved pilot plans on return, through an interrupted correction and retry", async () => {
     let attempts = 0;
+    let savedPilotIntent = { pilotConsideration: "subject_to_review", deploymentPath: "multiple_sites" };
     const fetcher = ownerFetch(true);
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({
         ready: true, scope: "owner", brief: { summary: "Pack cartons", captureMode: "self_capture", proposed: [], unresolved: [],
           confirmedAtIso: "2026-10-01T00:00:00Z", successCriteria: { unknown: true },
-          pilotIntent: { pilotConsideration: "subject_to_review", deploymentPath: "multiple_sites" } },
+          pilotIntent: savedPilotIntent },
       }) });
       if (url.endsWith("/confirm")) {
         attempts++;
+        if (attempts === 2) savedPilotIntent = JSON.parse(init!.body as string).pilotIntent;
         return attempts === 1 ? Promise.reject(new Error("interrupted save")) : Promise.resolve({ ok: true,
           json: async () => ({ disposition: "needs_conversation", stage: "description_received", nextAction: "Review the open questions", stillNeeded: [], beforeRecording: [] }) });
       }
       return fetcher(input, init);
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(<SelfCaptureUpload />);
-    fireEvent.click(await screen.findByRole("button", { name: "Edit your answers" }));
+    const first = render(<SelfCaptureUpload />);
+    fireEvent.click(await screen.findByText("Correct job details (optional)"));
+    fireEvent.click(screen.getByText("Your recorded pilot preferences (optional corrections)"));
     expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("subject_to_review");
     expect(screen.getByRole("combobox", { name: /what could happen next/ })).toHaveValue("multiple_sites");
     fireEvent.change(screen.getByRole("combobox", { name: /would you consider a physical pilot/ }), { target: { value: "evaluation_only" } });
     fireEvent.change(screen.getByRole("textbox", { name: /Your name/ }), { target: { value: "Synthetic Operator" } });
-    fireEvent.click(screen.getByRole("radio", { name: "Not now" }));
     fireEvent.click(screen.getByRole("button", { name: "This is right — confirm it" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/could not reach Blueprint/);
     expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("evaluation_only");
     fireEvent.click(screen.getByRole("button", { name: "This is right — confirm it" }));
-    await screen.findByText("Your job brief is confirmed.");
+    await screen.findByRole("heading", { name: "Your job summary" });
     const posts = fetchMock.mock.calls.filter(call => String(call[0]).endsWith("/confirm"));
     expect(posts).toHaveLength(2);
     expect(JSON.parse(posts[1][1]!.body as string).pilotIntent).toEqual({ pilotConsideration: "evaluation_only", deploymentPath: "multiple_sites" });
-    fireEvent.click(screen.getByRole("button", { name: "Edit your answers" }));
+    first.unmount();
+    render(<SelfCaptureUpload />);
+    fireEvent.click(await screen.findByText("Correct job details (optional)"));
+    fireEvent.click(screen.getByText("Your recorded pilot preferences (optional corrections)"));
     expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("evaluation_only");
     expect(screen.getByRole("combobox", { name: /what could happen next/ })).toHaveValue("multiple_sites");
     expect(videoUpload.send).not.toHaveBeenCalled();
@@ -138,7 +159,7 @@ describe("description first owner return", () => {
       return fetcher(input, init);
     }));
     const { rerender } = render(<SelfCaptureUpload />);
-    await screen.findByText("Your job brief is confirmed.");
+    await screen.findByRole("heading", { name: "Your job summary" });
     await screen.findByText("Previous private assessment");
     route.token = "second-token";
     rerender(<SelfCaptureUpload />);
@@ -149,15 +170,15 @@ describe("description first owner return", () => {
     expect(screen.queryByRole("button", { name: /Choose or record|Upload a video|Confirm recording permission/ })).toBeNull();
     route.token = TOKEN;
     rerender(<SelfCaptureUpload />);
-    await screen.findByText("Your job brief is confirmed.");
+    await screen.findByRole("heading", { name: "Your job summary" });
     expect(screen.queryByText("This link was withdrawn.")).toBeNull();
   });
   it.each(["", PHONE_UA])("shows the brief before optional recording even if footage is allowed (%s)", async ua => {
     setUserAgent(ua);
     vi.stubGlobal("fetch", ownerFetch(false));
     render(<SelfCaptureUpload />);
-    await screen.findByText("Your job brief is confirmed.");
-    expect(screen.getByRole("heading", { name: "Review your job brief" })).toBeVisible();
+    await screen.findByRole("heading", { name: "Your job summary" });
+    expect(screen.getByRole("heading", { name: "Your job summary" })).toBeVisible();
     expect(screen.queryByRole("img", { name: /phone|recorder/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Choose or record|Upload a video|Open the camera/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Add footage when you are ready (optional)" }));
@@ -168,8 +189,8 @@ describe("description first owner return", () => {
     const fetcher = ownerFetch(true);
     vi.stubGlobal("fetch", fetcher);
     render(<SelfCaptureUpload />);
-    await screen.findByText("Your job brief is confirmed.");
-    expect(screen.getByRole("heading", { name: "Review your job brief" })).toBeVisible();
+    await screen.findByRole("heading", { name: "Your job summary" });
+    expect(screen.getByRole("heading", { name: "Your job summary" })).toBeVisible();
     fireEvent.click(screen.getByText("Add footage when you have permission (optional)"));
     const button = screen.getByRole("button", { name: "Confirm recording permission" });
     expect(button).toBeDisabled();
@@ -302,6 +323,65 @@ describe("retained video processing recovery", () => {
   });
 });
 
+describe("explicit assessment retry", () => {
+  const jobId = `advisory-${"a".repeat(64)}`, runId = `site-assessment-${"b".repeat(64)}`;
+  function retryFetch(options: { available?: boolean; scope?: string; state?: string; jobId?: string | null; post?: () => Promise<unknown> } = {}) {
+    return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/csrf") return Promise.resolve({ ok: true, json: async () => ({ csrfToken: "synthetic-qa" }) });
+      if (url.endsWith("/advisory-retry")) return options.post?.() ?? Promise.resolve({ ok: false, status: 409, json: async () => ({ error: "private provider detail" }) });
+      if (url.includes("second-token")) return Promise.resolve({ ok: false, json: async () => ({ error: "This link was withdrawn." }) });
+      if (url === `/api/self-capture/uploads/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({ ok: true, state: "open", accepts: ["mov", "mp4"], captureReceived: true, uploadState: "processing_ready" }) });
+      if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: options.scope ?? "owner", brief: { summary: "Pack cartons", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } }) });
+      if (url === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({ scope: options.scope ?? "owner", captureReceived: true,
+        status: { decision: "confirm_brief", headline: "Review your job brief.", operatorAction: null, missingViews: [] },
+        siteAdvisory: { schemaVersion: "site_customer_advisory.v1", state: options.state ?? "needs_review", correlationId: "bp-advisory-aaaaaaaaaaaaaaaa", sections: [], unknowns: [], nextAction: null },
+        assessment_retry_available: options.available, assessment_job_id: options.jobId === undefined ? jobId : options.jobId, assessment_run_id: runId,
+      }) });
+      return mockFetch()(input);
+    });
+  }
+  it.each([
+    { available: false }, {}, { available: true, scope: "film" },
+    { available: true, state: "queued" }, { available: true, jobId: null },
+  ])("does not offer an unauthorized or inapplicable retry %j", async options => {
+    const read = retryFetch(options); vi.stubGlobal("fetch", read);
+    render(<SelfCaptureUpload />);
+    await screen.findByRole("heading", { name: "Your job assessment" });
+    expect(screen.queryByRole("button", { name: "Try assessment again" })).not.toBeInTheDocument();
+    expect(read.mock.calls.some(call => String(call[0]).endsWith("/advisory-retry"))).toBe(false);
+  });
+  it("keeps the acknowledged video and brief through a current-source retry refusal", async () => {
+    const read = retryFetch({ available: true }); vi.stubGlobal("fetch", read);
+    render(<SelfCaptureUpload />);
+    fireEvent.click(await screen.findByRole("button", { name: "Try assessment again" }));
+    await screen.findByText("The current assessment could not be retried. Your recording is saved. Check this page for the next step.");
+    expect(screen.queryByText("private provider detail")).not.toBeInTheDocument();
+    expect(await screen.findByText("Video received.")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Your saved job" })).toBeVisible();
+    expect(screen.getByText("Job reference: bp-advisory-aaaaaaaaaaaaaaaa")).toBeVisible();
+    expect(screen.getByText("Correct job details (optional)")).toBeVisible();
+    expect(screen.getByText("Correct job details (optional)").closest("details")).not.toHaveAttribute("open");
+    expect(read.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(1);
+    expect(videoUpload.send).not.toHaveBeenCalled();
+    expect(videoUpload.retry).not.toHaveBeenCalled();
+  });
+  it("ignores an old retry acknowledgement when another private link opens", async () => {
+    let finish!: (value: unknown) => void;
+    const read = retryFetch({ available: true, post: () => new Promise(resolve => { finish = resolve; }) });
+    vi.stubGlobal("fetch", read);
+    const { rerender } = render(<SelfCaptureUpload />);
+    fireEvent.click(await screen.findByRole("button", { name: "Try assessment again" }));
+    await waitFor(() => expect(read.mock.calls.some(call => String(call[0]).endsWith("/advisory-retry"))).toBe(true));
+    route.token = "second-token"; rerender(<SelfCaptureUpload />);
+    await screen.findByText("This link was withdrawn.");
+    finish({ ok: true, json: async () => ({ ok: true, state: "queued", job_id: jobId, run_id: "new-run" }) });
+    await waitFor(() => expect(screen.queryByText(/Your assessment retry is recorded/)).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Try assessment again" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Your video is saved and its job assessment is queued.")).not.toBeInTheDocument();
+  });
+});
+
 describe("SelfCaptureUpload by device", () => {
   it("shows a phone handoff and no camera on a desktop", async () => {
     setUserAgent(
@@ -346,7 +426,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
   const DESKTOP_UA =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";
 
-  it("shows the saved layout with the brief open on a laptop, instead of the QR code", async () => {
+  it("shows the saved layout with optional corrections on a laptop, instead of the QR code", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
@@ -375,11 +455,11 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     }));
     render(<SelfCaptureUpload />);
 
-    await screen.findByRole("heading", { name: "A few details about the job" });
+    await screen.findByRole("heading", { name: "Your job assessment" });
     expect(screen.queryByRole("heading", { name: "Point your phone at this." })).not.toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "What would a good result look like?" })).toBeInTheDocument();
-    const details = screen.getByText("Next: check your job brief").closest("details")!;
-    expect(details.open).toBe(true);
+    const details = screen.getByText("Correct job details (optional)").closest("details")!;
+    expect(details.open).toBe(false);
     expect(screen.queryByRole("button", { name: "Add another video" })).not.toBeInTheDocument();
   });
 

@@ -46,8 +46,18 @@ Agents also follow the nearest nested `AGENTS.md` when working under `client/`, 
   physical-outcome joining, or the bounded case study. Unrelated launch, growth,
   marketplace, city, post-training, humanoid, and general product polish is
   frozen.
-- Require every issue to name its ADP backlog item, day gate, observed blocker,
-  and completion artifact. Existing captures/scenes remain `development_only`
+- Explicit repo-owner instructions may authorize a bounded exception to this
+  work-priority freeze, including public polish. Record the owner instruction,
+  exact scope, and completion evidence in the issue or PR rather than inventing
+  an ADP blocker. [PR #955](https://github.com/ognjhunt/Blueprint-WebApp/pull/955#discussion_r4221128434)
+  records such authorization for cycling the illustrative robot scenes; the
+  merged scene retains pause/play. This does not authorize adjacent work or unfreeze a
+  product lane. Reliability, accessibility, security, rights/privacy, provenance,
+  truthful claims, and existing spending, send, and release controls still apply;
+  shared doctrine blocks and their lock remain unchanged.
+- For work without such an exception, require every issue to name its ADP
+  backlog item, day gate, observed blocker, and completion artifact.
+  Existing captures/scenes remain `development_only`
   and must never appear as partner or physical proof.
 - Keep Blueprint capture-first and real-site robot-evaluation/data-package first.
 - Do not reframe the company as qualification-first or model-checkpoint-first.
@@ -94,6 +104,9 @@ Public Launch Ready and Operational Launch Ready are separate standards. Public 
   deletion approvals, idempotency/duplicate effects, opt-outs, and the current
   draft-only/no-send direction. This autonomy rule does not authorize new spend,
   broader access, external sends or another approval framework.
+- Free intake and assessment require no customer-supplied budget or per-run spending
+  approval. Provider cost limits are automatic internal Blueprint controls.
+  Never turn an internal test spending limit into a step for sites.
 
 - Preserve truthful product language around hosted sessions, captures, rights, and provenance.
 - Prefer only edits that strengthen Arm Decision Proof partner intake,
@@ -107,6 +120,9 @@ Public Launch Ready and Operational Launch Ready are separate standards. Public 
 - For autonomous-loop closeouts, use `docs/autonomous-loop-evidence-checklist-2026-05-03.md` before claiming `done`, `blocked`, or `awaiting_human_decision`.
 - For onboarding or policy work, keep repo docs as canonical drafts, mirror into Notion only for human review/visibility, and mark legal/HR/payroll/benefits material as requiring counsel/PEO review when applicable.
 - For repo work, start with `git status --short`; inspect dirty and untracked files before editing and preserve unrelated work.
+- Keep one accountable engineering owner through the requested end-to-end outcome. Tests, PRs, merges, deployments, and release handoffs are intermediate evidence; completion requires the actual inspectable product result or an exact external action that prevents it. Coordination with a separate release owner does not transfer this accountability.
+- Repair the existing supported journey with the smallest necessary changes. Do not substitute extra scaffolding, user-visible subthreads, or repeated handoff loops for completing the authorized work.
+- Report observed progress and concrete blockers. Do not give completion estimates unsupported by evidence.
 
 ## Provider portability is a permanent engineering rule
 

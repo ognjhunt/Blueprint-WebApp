@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test.skip(process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH !== "1", "Requires isolated fixture identity");
 
 for (const width of [390, 1440]) {
-  test(`invited site return, correction, retry and pilot booking at ${width}px`, async ({ page }) => {
+  test(`invited site return, correction, retry and proposal acceptance at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const unexpected: string[] = [];
     const posts: { path: string; body: Record<string, unknown> }[] = [];
@@ -82,21 +82,24 @@ for (const width of [390, 1440]) {
     await page.goto("/contact/site-operator");
     await page.locator("#start-task").fill("Move sealed cartons from conveyor to pallet.");
     await page.locator("#start-location").fill("Austin, TX");
-    await expect(page.getByText(/Country: United States\./)).toBeVisible();
     await expect(page.locator("#start-region")).toHaveCount(0);
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
     await expect(page.getByText("Your job description is saved.", { exact: true })).toBeVisible();
-    await page.getByRole("link", { name: "Review your job brief", exact: true }).click();
+    await page.getByRole("link", { name: "Open your job and assessment", exact: true }).click();
+    await page.getByText("Correct job details (optional)", { exact: true }).click();
+    await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
     await expect(page.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("subject_to_review");
     await page.locator("#confirm-name").fill("Synthetic site owner");
-    await page.getByRole("radio", { name: "Not now", exact: true }).check();
     await page.locator("#pilot-consideration").selectOption("evaluation_only");
     await page.getByRole("button", { name: "This is right — confirm it", exact: true }).click();
-    await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toBeVisible();
-    await page.getByRole("button", { name: "Edit your answers", exact: true }).click();
+    await expect(page.getByText(/that is confirmed/i)).toBeVisible();
+    await page.reload();
+    await page.getByText("Correct job details (optional)", { exact: true }).click();
+    await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
     await expect(page.locator("#pilot-consideration")).toHaveValue("evaluation_only");
     await page.reload();
-    await page.getByRole("button", { name: "Edit your answers", exact: true }).click();
+    await page.getByText("Correct job details (optional)", { exact: true }).click();
+    await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
     await expect(page.locator("#pilot-consideration")).toHaveValue("evaluation_only");
     await expect(page.locator("#deployment-path")).toHaveValue("multiple_sites");
     expect(posts.filter(entry => /recording-consent|uploads\/synthetic-owner$/.test(entry.path))).toHaveLength(0);
@@ -114,11 +117,11 @@ for (const width of [390, 1440]) {
     await page.reload();
     await expect(page.getByRole("heading", { name: "Your recommended pilot" })).toBeVisible();
     await expect(page.getByText("Physical cycle time remains unmeasured", { exact: true })).toBeVisible();
-    await page.getByRole("checkbox", { name: /authorized to book this pilot/ }).check();
-    await page.getByRole("button", { name: /Book this pilot · \$2,500 Blueprint fee/ }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Booked." })).toBeVisible();
+    await page.getByRole("checkbox", { name: /authorized to accept this proposal/ }).check();
+    await page.getByRole("button", { name: /Accept proposal/ }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Proposal accepted · awaiting coordination." })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("status").filter({ hasText: "Booked." })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Proposal accepted · awaiting coordination." })).toBeVisible();
     expect(posts.filter(entry => entry.path.endsWith("/book"))).toHaveLength(1);
 
     withdrawn = true;

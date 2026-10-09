@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { createHash } from "node:crypto";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { previewResearchCommunications, approveResearchCommunications } from "../agents/communications-producer";
 import { communicationsDigest } from "../agents/communications-contract";
@@ -9,6 +9,10 @@ import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communicatio
 import { processCommunicationsJob } from "../agents/communications-worker";
 import { communicationsNow, memoryFirestore } from "./fixtures/communications";
 import { publishedResearchFixture } from "./fixtures/published-research";
+
+// Keep fixed synthetic evidence and production-default Date reads on one clock.
+beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(communicationsNow); });
+afterEach(() => { vi.useRealTimers(); });
 
 function setup() {
   const fixture = publishedResearchFixture();

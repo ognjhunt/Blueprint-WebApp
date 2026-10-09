@@ -60,6 +60,9 @@ afterEach(() => { vi.restoreAllMocks(); });
 
 beforeEach(() => {
   sharedFakeFirestoreState.docs.clear();
+  sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { request: { consent_attestation: {
+    granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-01-01T00:00:00Z",
+  } } });
   sendEmailMock.mockReset();
   recommendationIsCurrent.mockReset().mockResolvedValue(true);
 });
@@ -314,6 +317,9 @@ describe("seeded concurrent delivery schedules", () => {
     let providerCalls = 0;
     for (let seed = 1; seed <= 640; seed++) {
       sharedFakeFirestoreState.docs.clear();
+      sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { request: { consent_attestation: {
+        granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-01-01T00:00:00Z",
+      } } });
       sendEmailMock.mockReset();
       let random = seed;
       const next = () => { random = (Math.imul(random, 1664525) + 1013904223) >>> 0; return random; };

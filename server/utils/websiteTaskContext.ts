@@ -8,7 +8,8 @@ import type { TaskItemInventoryRecord } from "./taskItemInventory";
 export function projectWebsiteCaptureRights(record: Record<string, any> | undefined) {
   const request = record?.request ?? {};
   const attestation = request.consent_attestation;
-  const revoked = [record, request, record?.capture_rights].some(value =>
+  const revoked = Boolean(attestation?.revoked_at_iso || attestation?.withdrawn_at_iso)
+    || [record, request, record?.capture_rights].some(value =>
     value?.consent_revoked === true || Boolean(value?.consent_revoked_at)
     || value?.consent_status === "revoked" || value?.future_processing_allowed === false);
   const granted = !revoked && hasCurrentRecordingConsent(attestation);

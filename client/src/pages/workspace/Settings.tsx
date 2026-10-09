@@ -1,3 +1,4 @@
+import { UpdatePreferencesForm } from "@/components/workspace/UpdatePreferencesForm";
 import { useState } from "react";
 import { Link, useSearch } from "wouter";
 import { AppShell } from "@/components/blueprint/app/AppShell";
@@ -101,6 +102,7 @@ function WorkspaceSettings() {
               </button>
             </div>
           </form>
+          <UpdatePreferencesForm preferences={query.data?.profile.updatePreferences} pending={action.pending} save={input => { void action.perform("/update-preferences", input, undefined, "PATCH"); }} />
           <section className="ws-section">
             <h2>Security</h2>
             <dl className="ws-facts">

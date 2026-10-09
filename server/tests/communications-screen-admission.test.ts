@@ -69,7 +69,9 @@ describe("site-screen admission (synthetic, offline)", () => {
     vi.stubEnv(HYPOTHESIS_DRAFTS_FLAG, "true"); const f = setup(index);
     await recordScreenHypotheses(f.snapshot, f.deps); await admitScreenHypothesis(f.snapshot, f.siteKey, f.deps); await runScreenContactRefresh(f.deps);
     const brief = f.records("briefs")[0], job = f.records("jobs")[0];
-    const api = { run: vi.fn(async () => ({ output: hypothesisDraft(brief), checkpoint: job.checkpoint, usage: {} })), cancel: vi.fn(), reconcileSaved: vi.fn() };
+    const output = hypothesisDraft(brief);
+    (output.outreachContract as any).version = "blueprint.outreach.v5";
+    const api = { run: vi.fn(async () => ({ output, checkpoint: job.checkpoint, usage: {} })), cancel: vi.fn(), reconcileSaved: vi.fn() };
     const verifyMailbox = vi.fn(), sendAutomatic = vi.fn();
     const result: any = await processCommunicationsJob(job.jobId, { ...f.deps, store: new CommunicationsStore(f.db, f.deps.now), api,
       verifyMailbox, readThread: vi.fn(), suppress: vi.fn(), sendAutomatic });

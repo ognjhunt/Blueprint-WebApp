@@ -1,0 +1,72 @@
+# Historical inspection job; retained for audit, not an active workflow.
+  incident-inspect:
+    name: Read exact incident instance and admission receipts
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.incident_inspect == 'true' &&
+      github.repository == 'ognjhunt/Blueprint-WebApp' &&
+      github.event.inputs.ref == 'c4db1d2f61970efda3a226c9715345718a2064f5'
+    steps:
+      # Inline, reviewed code only: no checkout, install, arbitrary endpoint,
+      # credential output or mutation. The existing deploy job is excluded.
+      - name: GET only the two known instance inventories and three admission flags
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { mkdirSync, writeFileSync } from 'node:fs';
+          import { createHash } from 'node:crypto';
+          const key = process.env.RENDER_API_KEY;
+          if (!key) throw Error('existing_render_binding_unavailable');
+          const worker = 'srv-d9t8gg1t0dsc73am9q70', web = 'srv-d4vnmk3e5dus73aiohk0';
+          const requests = [
+            ['worker-instances', worker, 'instances'], ['web-instances', web, 'instances'],
+            ['daily-enabled', worker, 'env-vars/BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED'],
+            ['communications-enabled', worker, 'env-vars/BLUEPRINT_COMMUNICATIONS_WORKER_ENABLED'],
+            ['web-ops-enabled', web, 'env-vars/BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB'],
+          ];
+          const directory = `${process.env.RUNNER_TEMP}/communications-incident-inventory`;
+          mkdirSync(directory, { mode: 0o700 });
+          const receipts = [];
+          for (const [name, service, path] of requests) {
+            const url = `https://api.render.com/v1/services/${service}/${path}`;
+            const response = await fetch(url, { method: 'GET', redirect: 'error', signal: AbortSignal.timeout(20000), headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' } });
+            const raw = Buffer.from(await response.arrayBuffer());
+            if (raw.length > 1_000_000 || ![200, 404].includes(response.status)) throw Error('incident_get_unavailable');
+            let body; try { body = JSON.parse(raw); } catch { throw Error('incident_get_json_unavailable'); }
+            const fields = value => value && typeof value === 'object' ? Object.keys(value).slice(0, 16).map(field => /^[a-zA-Z][a-zA-Z0-9_]{0,64}$/.test(field) ? field : 'unrecognized_field') : [];
+            console.log(JSON.stringify({ name, status: response.status, responseKind: Array.isArray(body) ? 'array' : body === null ? 'null' : typeof body,
+              fieldNames: fields(body), firstRowFieldNames: Array.isArray(body) ? fields(body[0]) : [],
+              rawBodySha256: createHash('sha256').update(raw).digest('hex') }));
+            if (path === 'instances') {
+              if (response.status !== 200 || !Array.isArray(body) || body.length > 1000 || body.some(row => !row || typeof row.id !== 'string' || !row.id.startsWith(`${service}-`) || row.id.length > 200 || typeof row.createdAt !== 'string' || !Number.isFinite(Date.parse(row.createdAt))
+                || (row.status !== undefined && (typeof row.status !== 'string' || row.status.length > 64))
+                || (row.ready !== undefined && typeof row.ready !== 'boolean')
+                || Object.keys(row).some(field => !['id', 'createdAt', 'status', 'ready'].includes(field)))) throw Error('instance_response_shape_unverified');
+            } else if (response.status === 200) {
+              if (body?.key !== path.slice('env-vars/'.length) || !['false', 'true', '0', '1'].includes(body.value) || Object.keys(body).some(field => !['key', 'value'].includes(field))) throw Error('fixed_flag_response_shape_unverified');
+            } else {
+              // Keep authenticated absence without retaining arbitrary error bytes.
+              body = null;
+            }
+            const rawBodySha256 = createHash('sha256').update(raw).digest('hex');
+            const receipt = { method: 'GET', url, status: response.status, body, observedAtMs: Date.now(), rawBodySha256,
+              requestId: response.headers.get('render-request-id'), responseDate: response.headers.get('date') };
+            if (response.status === 200) writeFileSync(`${directory}/${name}-body.json`, raw, { mode: 0o600, flag: 'wx' });
+            receipts.push({ name, ...receipt });
+          }
+          const packet = { schema: 'blueprint.render-incident-ci-receipts.v1', incident: 'lap259-20261006', parentThread: '01a0fe81-486b-7714-9e81-983a66bd80c4',
+            sourceCommit: process.env.GITHUB_SHA, workflowRef: process.env.GITHUB_WORKFLOW_REF, runId: process.env.GITHUB_RUN_ID, runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+            authentication: 'existing_repository_render_api_key', readOnly: true, receipts };
+          const bytes = JSON.stringify(packet, null, 2) + '\n';
+          writeFileSync(`${directory}/receipts.json`, bytes, { mode: 0o600, flag: 'wx' });
+          console.log(JSON.stringify({ ok: true, readOnly: true, receiptCount: receipts.length, packetSha256: createHash('sha256').update(bytes).digest('hex') }));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: communications-incident-inventory-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/communications-incident-inventory
+          if-no-files-found: error
+          retention-days: 1
+

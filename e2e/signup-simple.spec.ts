@@ -69,6 +69,6 @@ test('site signups point at the capture form, not a second intake', async ({ pag
   await page.getByRole('button', { name: 'Continue', exact: true }).click();
   await expect(page.getByLabel('Plan a robot pilot for my site')).toBeChecked();
   await expect(page.getByRole('textbox')).toHaveCount(2);
-  await expect(page.getByRole('checkbox')).not.toBeChecked();
+  await expect(page.getByRole('checkbox', { name: /I agree/ })).not.toBeChecked();
   await expect(page.getByText(/describe one recurring job and share footage/)).toBeVisible();
 });

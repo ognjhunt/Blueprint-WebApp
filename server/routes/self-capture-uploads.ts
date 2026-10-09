@@ -70,6 +70,7 @@ import {
   siteCaptureBundleClaimed,
 } from "../utils/siteCaptureUploadIdentity";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
+import { retrySiteAssessment, tickSiteAssessments } from "../utils/siteAssessmentQueue";
 import { notifySlackFootageNeedsReview } from "../utils/slack";
 import { buildBrowserDelivery, capturedWriteIdentity, captureWriteFailureDiagnostic, publishBrowserDelivery,
   type CaptureWriteStage, type WrittenObject, type WrittenManifest } from "../utils/websiteCaptureDelivery";
@@ -908,6 +909,41 @@ router.post("/:token/recording-consent", async (req: Request, res: Response) => 
   }
 });
 
+/** Explicit owner action. The durable helper retains uncertain exposure and
+ * admits only the remaining slots of the already-authorized programme. */
+router.post("/:token/advisory-retry", async (req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store");
+  const token = String(req.params.token || ""), payload = verifyCaptureUploadToken(token);
+  if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
+  if (payload.scope !== "owner" || payload.supplement || payload.captureId !== `walkthrough-${payload.requestId}`
+    || payload.sceneId !== `site-${payload.requestId}`) return res.status(403).json({
+    code: "advisory_retry_not_authorized", error: "Use the job owner's current link to retry this assessment." });
+  const input = z.object({ expected_job_id: z.string().regex(/^advisory-[a-f0-9]{64}$/),
+    expected_run_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/), retry_identity: z.string().uuid() }).strict().safeParse(req.body);
+  if (!input.success) return res.status(400).json({ code: "advisory_retry_invalid",
+    error: "Refresh this job page to recover its assessment and retry identity, then try again." });
+  try {
+    const outcome = await retrySiteAssessment({ requestId: payload.requestId,
+      expectedJobId: input.data.expected_job_id, expectedRunId: input.data.expected_run_id, retryIdentity: input.data.retry_identity,
+      assertAccess: (freshRequest: Record<string, any>) => {
+        const current = verifyCaptureUploadToken(token);
+        if (!current || current.scope !== "owner" || current.supplement || current.requestId !== payload.requestId
+          || current.captureId !== payload.captureId || current.sceneId !== payload.sceneId
+          || !projectWebsiteCaptureRights(freshRequest).derived_scene_generation_allowed) throw Error("advisory_retry_not_authorized");
+      } });
+    const response = res.json({ ok: true, ...outcome });
+    if (outcome.state === "queued" || outcome.state === "running")
+      void tickSiteAssessments(1).catch(() => logger.warn("Site advisory retry wake unavailable"));
+    return response;
+  } catch (error) {
+    const code = error instanceof Error && ["advisory_retry_unavailable", "advisory_retry_conflict", "advisory_retry_not_authorized"].includes(error.message)
+      ? error.message : "advisory_retry_unavailable";
+    const status = code === "advisory_retry_not_authorized" ? 403 : error instanceof Error && error.message === "advisory_retry_conflict" ? 409
+      : error instanceof Error && error.message === "advisory_retry_unavailable" ? 409 : 503;
+    return res.status(status).json({ code, error: "Your recording is saved. We could not restart this assessment. Refresh this job page and check its status." });
+  }
+});
+
 /** Replay a retained producer, never upload bytes or grant a new paid run. */
 router.post("/:token/processing-retry", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
@@ -1277,6 +1313,10 @@ router.put(
         body: part.buffer,
       });
     } catch (error) {
+      if (error instanceof Error && error.message === "capture_part_conflict") {
+        return res.status(409).json({ code: "capture_part_conflict", retryAllowed: false,
+          error: "This recording differs from the upload already saved. Use the original video to resume. If you no longer have the original recording, contact hello@tryblueprint.io with your job link for help." });
+      }
       logger.error(
         { error, captureId: payload.captureId, index },
         "Could not store a capture part",

@@ -509,12 +509,13 @@ describe("Blueprint agent CLI", () => {
         targetSiteType: "grocery retail",
         proofPathPreference: "exact_site_required",
       },
-      missingRequiredFields: expect.arrayContaining(["firstName", "lastName", "company", "roleTitle", "email", "budgetBucket"]),
+      missingRequiredFields: expect.arrayContaining(["firstName", "lastName", "company", "roleTitle", "email"]),
       submitInstructions: {
         explicitSubmitRequired: true,
         defaultWrites: false,
       },
     });
+    expect(payload.missingRequiredFields).not.toContain("budgetBucket");
     const contactUrl = new URL(payload.contactUrl, "https://tryblueprint.io");
     expect(contactUrl.searchParams.get("path")).toBe("new-capture");
     expect(contactUrl.searchParams.get("buyerType")).toBe("robot_team");

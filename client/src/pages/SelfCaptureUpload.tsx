@@ -1,3 +1,5 @@
+import type { SiteAdvisory } from "@/types/siteAdvisory";
+import { SiteAdvisoryReport } from "@/components/site/SiteAdvisoryReport";
 import { isLikelyPhone } from "@/lib/device";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { RecommendedPilot } from "@/components/site/RecommendedPilot";
@@ -33,6 +35,10 @@ import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo
 
 /** Mirrors the server's `projectTaskStatus`; the shared truth about where a task stands. */
 type TaskStatus = {
+  siteAdvisory?: SiteAdvisory | null;
+  assessment_retry_available?: boolean;
+  assessment_job_id?: string | null;
+  assessment_run_id?: string | null;
   decision: string;
   headline: string;
   operatorAction: string | null;
@@ -52,6 +58,21 @@ type TaskStatus = {
   /** Coverage is checked automatically; false means a person reviews it. */
   footageReviewAutomated?: boolean;
 };
+
+const retryUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function retainedAssessmentRetryIdentity(jobId: string, runId: string): string {
+  // Only opaque server IDs and a bounded UUID; never store the private link.
+  const key = `blueprint.site-assessment.retry.v1:${jobId}:${runId}`;
+  try {
+    const raw = sessionStorage.getItem(key);
+    const value = raw && raw.length < 256 ? JSON.parse(raw) : null;
+    if (retryUuid.test(value?.identity ?? "") && typeof value?.created === "number"
+      && value.created <= Date.now() && value.created > Date.now() - 7 * 24 * 60 * 60 * 1000) return value.identity;
+  } catch { /* The current page keeps its intent if browser storage is denied. */ }
+  const identity = crypto.randomUUID();
+  try { sessionStorage.setItem(key, JSON.stringify({ identity, created: Date.now() })); } catch { /* Memory fallback below. */ }
+  return identity;
+}
 import { useRoute } from "wouter";
 
 import { Helmet } from "@/lib/helmet";
@@ -103,6 +124,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const selectedFile = useRef<File | null>(null);
   const operationInFlight = useRef(false);
   const [retryingProcessing, setRetryingProcessing] = useState(false);
+  const [retryingAssessment, setRetryingAssessment] = useState(false);
+  const [assessmentRetryMessage, setAssessmentRetryMessage] = useState<string | null>(null);
+  const assessmentRetryIntent = useRef<{ key: string; identity: string } | null>(null);
+  const [statusRefresh, setStatusRefresh] = useState(0);
   const [addingFootage, setAddingFootage] = useState(false);
   const [recordingConsent, setRecordingConsent] = useState(false);
   const [savingConsent, setSavingConsent] = useState(false);
@@ -257,6 +282,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   })();
   /** Where the task stands, for the operator who has no account to check. */
   const [status, setStatus] = useState<TaskStatus | null>(null);
+  const currentStatus = useRef(status);
+  currentStatus.current = status;
 
   // Whether the camera button below is worth anything on this device. A coarse
   // check on purpose: the cost of being wrong is one extra QR code on a phone,
@@ -287,6 +314,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     selectedFile.current = null;
     operationInFlight.current = false;
     setRetryingProcessing(false);
+    setRetryingAssessment(false);
+    setAssessmentRetryMessage(null);
+    assessmentRetryIntent.current = null;
     setAddingFootage(false);
     setRecordingConsent(false);
     setSavingConsent(false);
@@ -324,6 +354,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           operatorAnswers: data.brief.operatorAnswers ?? null,
           operatorUnknown: data.brief.operatorUnknown ?? null,
           pilotIntent: data.brief.pilotIntent ?? null,
+          confirmedBy: data.brief.confirmedBy ?? null,
         });
         setBriefConfirmed(Boolean(data.brief.confirmedAtIso));
         setSiteAccount(data.account ?? null);
@@ -437,6 +468,60 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     }
   }
 
+  async function retryAssessment() {
+    const selected = currentStatus.current;
+    const jobId = selected?.assessment_job_id, runId = selected?.assessment_run_id;
+    if (operationInFlight.current || scope !== "owner" || link.status !== "valid"
+      || selected?.siteAdvisory?.state !== "needs_review" || selected.assessment_retry_available !== true
+      || !jobId || !runId || jobId.length > 160 || runId.length > 160) return;
+    operationInFlight.current = true;
+    const generation = linkGeneration.current;
+    const stillCurrent = () => linkGeneration.current === generation
+      && currentStatus.current?.assessment_job_id === jobId
+      && currentStatus.current?.assessment_run_id === runId
+      && currentStatus.current.assessment_retry_available === true
+      && currentStatus.current.siteAdvisory?.state === "needs_review";
+    setRetryingAssessment(true);
+    setAssessmentRetryMessage(null);
+    try {
+      const key = `${jobId}:${runId}`;
+      if (assessmentRetryIntent.current?.key !== key) assessmentRetryIntent.current = {
+        key, identity: retainedAssessmentRetryIdentity(jobId, runId),
+      };
+      const headers = await withCsrfHeader({ "Content-Type": "application/json" });
+      if (!stillCurrent()) return;
+      const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/advisory-retry`, {
+        method: "POST", headers,
+        body: JSON.stringify({ expected_job_id: jobId, expected_run_id: runId, retry_identity: assessmentRetryIntent.current.identity }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!stillCurrent()) return;
+      if (!response.ok || result?.ok !== true || result.job_id !== jobId || typeof result.run_id !== "string" || result.run_id.length > 160
+        || !["queued", "running", "completed", "needs_review"].includes(result.state)) {
+        setAssessmentRetryMessage(response.status === 409 || response.status === 403 || response.status === 404
+          ? "The current assessment could not be retried. Your recording is saved. Check this page for the next step."
+          : "We could not confirm the retry. Your recording is saved. Check this page or try again.");
+        return;
+      }
+      const state = result.state === "completed" ? "needs_review" : result.state;
+      setStatus(previous => previous?.siteAdvisory ? { ...previous,
+        assessment_retry_available: false, assessment_run_id: result.run_id,
+        siteAdvisory: { ...previous.siteAdvisory, state },
+      } : previous);
+      setAssessmentRetryMessage(result.state === "queued" || result.state === "running"
+        ? "Your assessment retry is recorded. Your recording is saved; keep this page to follow progress."
+        : "Your assessment retry is recorded. Check the current assessment below; your recording is saved.");
+    } catch {
+      if (stillCurrent()) setAssessmentRetryMessage("We could not confirm the retry. Your recording is saved. Check this page or try again.");
+    } finally {
+      if (linkGeneration.current === generation) {
+        operationInFlight.current = false;
+        setRetryingAssessment(false);
+        setStatusRefresh(current => current + 1);
+      }
+    }
+  }
+
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
@@ -446,17 +531,22 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         const data = await response.json();
         if (alive && response.ok && data?.status) setStatus({
           ...data.status,
+          siteAdvisory: data.siteAdvisory ?? null,
+          assessment_retry_available: data.scope === "owner" && data.assessment_retry_available === true,
+          assessment_job_id: typeof data.assessment_job_id === "string" ? data.assessment_job_id : null,
+          assessment_run_id: typeof data.assessment_run_id === "string" ? data.assessment_run_id : null,
           claimUrl: data.claimUrl ?? null,
           sceneViewUrl: data.sceneViewUrl ?? null,
           captureReceived: data.captureReceived === true,
           footageReviewAutomated: data.footageReviewAutomated !== false,
         });
-      } catch { /* The capture remains usable during a status outage. */ }
+      else if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null);
+      } catch { if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null); }
       if (alive) timer = setTimeout(poll, 6000);
     }
     void poll();
     return () => { alive = false; clearTimeout(timer); };
-  }, [token, upload.status, briefConfirmed]);
+  }, [token, upload.status, briefConfirmed, statusRefresh]);
 
   const accepts =
     link.status === "valid" ? link.accepts.map((item) => `.${item}`).join(",") : ".mov,.mp4";
@@ -483,6 +573,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         background: "var(--ms-paper)",
       }}
     >
+      {saved && scope === "owner" && status.siteAdvisory?.correlationId
+        && status.siteAdvisory.state !== "authority_ended" && <>
+        <h2>Your saved job</h2>
+        <p>Job reference: {status.siteAdvisory.correlationId}</p>
+      </>}
       <strong>{upload.status === "processing_pending" || upload.status === "held"
         ? "Your video is saved."
         : existingVideoOnly && !saved && upload.status !== "done" && status.decision !== "add_views"
@@ -494,6 +589,14 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         </p>
       )}
       <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />
+      <SiteAdvisoryReport advisory={status.siteAdvisory} />
+      {scope === "owner" && link.status === "valid" && status.siteAdvisory?.state === "needs_review"
+        && status.assessment_retry_available === true && status.assessment_job_id && status.assessment_run_id && (
+        <p><button type="button" className="ms-button" disabled={retryingAssessment || operationInFlight.current} onClick={() => void retryAssessment()}>
+          {retryingAssessment ? "Requesting assessment retry…" : "Try assessment again"}
+        </button></p>
+      )}
+      {assessmentRetryMessage && <p role="status">{assessmentRetryMessage}</p>}
       {status.sceneViewUrl && (
         <p style={{ margin: "10px 0 0" }}>
           <a className="ms-text-link" href={status.sceneViewUrl} target="_blank" rel="noreferrer">
@@ -543,26 +646,23 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </Helmet>
 
       <h1 style={{ fontSize: "34px", letterSpacing: "-1.2px", marginBottom: "12px" }}>
-        {link.status === "held" || descriptionFirst ? "Your job assessment" : saved ? "A few details about the job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Your job assessment"}
+        {link.status === "held" || descriptionFirst ? "Your job assessment" : saved ? "Your job assessment" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Your job assessment"}
       </h1>
 
+      {(link.status === "valid" || link.status === "held") && scope === "owner" && <RecommendedPilot token={token} />}
+      {(link.status !== "valid" || descriptionFirst) && statusCard}
       {descriptionFirst && (link.status === "valid" || link.status === "held") && (
-        <section aria-label="Review your job brief" style={{ marginBottom: "28px" }}>
-          <h2>Review your job brief</h2>
-          {brief ? <>
-            <p className="ms-field-hint">We drafted this from your description. Review and correct it now; you can add footage later.</p>
-            {briefConfirmed && !editingBrief ? <p>Your job brief is confirmed.{" "}
-              <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>Edit your answers</button>
-            </p> : <TaskBriefReview key={brief.successCriteria?.successDefinition ?? ""} token={token} brief={brief}
-              account={siteAccount} onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }} />}
-          </> : <p className="ms-field-hint">Your job description is saved. Your brief will appear here when it is ready. Keep this private link to return.</p>}
+        <section aria-label="Your job summary" style={{ marginBottom: "28px" }}>
+          <h2>Your job summary</h2>
+          {brief ? <><p>{brief.summary}</p><p className="ms-field-hint">Blueprint uses what you already supplied. Correct material mistakes below; confirmation is needed only for consequential claims or commitments.</p>
+            <details><summary>Correct job details (optional)</summary><TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount
+              onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }} /></details>
+          </> : <p className="ms-field-hint">Your job is saved. Blueprint will use the supplied information to prepare the next useful step and notify you of meaningful progress.</p>}
         </section>
       )}
 
       {/* A description keeps the brief first. A filming link keeps measured
           status beside the recorder; a held link explains its hold. */}
-      {(link.status !== "valid" || descriptionFirst) && statusCard}
-
       {link.status === "checking" && (
         <p style={{ color: "var(--ms-muted)" }}>Checking your link…</p>
       )}
@@ -668,7 +768,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           {descriptionFirst && <button type="button" className="ms-text-link" aria-expanded={addingFootage}
             onClick={() => setAddingFootage(current => !current)}>Add footage when you are ready (optional)</button>}
           {(!descriptionFirst || addingFootage) && <div>
-          {!saved && (
+          {(!saved || upload.status === "done") && (
             <input
               ref={inputRef}
               type="file"
@@ -699,6 +799,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     : "A few answers can help define the job while review continues."}
                 </p>
               </div>
+              {upload.status === "done" && (
+                <p>
+                  <button type="button" className="ms-text-link" onClick={() => inputRef.current?.click()}>
+                    Upload a new recording
+                  </button>
+                </p>
+              )}
               {upload.status === "processing_pending" && upload.processingRetryAvailable && (
                 <p><button type="button" className="ms-button" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
                   {retryingProcessing ? "Retrying processing…" : "Retry processing"}
@@ -721,22 +828,14 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 </p>
               )}
               {scope === "owner" && brief && (!briefConfirmed || editingBrief) && (
-                /* Open, not collapsed: this is the one step left, and a closed
-                   disclosure under a "you can close this page" card read as
-                   optional. */
-                <details open style={{ marginBottom: "8px" }}>
-                  <summary>{editingBrief ? "Edit your job brief" : "Next: check your job brief"}</summary>
-                  <p className="ms-field-hint">
-                    {brief.proposed.some((answer) => answer.basis !== "assumption")
-                      ? "We drafted this from what you sent. Correct anything wrong, then confirm."
-                      : "Answer a few questions about the job, then confirm."}{" "}
-                    That is what lets a robot team be matched to your site.
-                  </p>
+                <details open={editingBrief || undefined} style={{ marginBottom: "8px" }}>
+                  <summary>{editingBrief ? "Edit your job brief" : "Correct job details (optional)"}</summary>
+                  <p className="ms-field-hint">Your prefilled summary is available for material corrections. No confirmation is required to view your assessment or proposal. Consequential operating claims still need an authorized answer before we rely on them.</p>
                   <TaskBriefReview
-                    key={brief.successCriteria?.successDefinition ?? ""}
+                    key={token}
                     token={token}
                     brief={brief}
-                    account={siteAccount}
+                    account={siteAccount} optionalAccount
                     onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }}
                   />
                 </details>
@@ -903,14 +1002,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     {brief.proposed.some((answer) => answer.basis !== "assumption")
                       ? "We drafted this from what you sent."
                       : "A few questions about the job."}{" "}
-                    Film whenever you like — confirming the brief
-                    is what lets a robot team be matched to your site, before or after you film.
+                    Use the existing evidence first. Correct material mistakes here; we request additional information only when it changes an evaluation or proposed commitment.
                   </p>
                   <TaskBriefReview
-                    key={brief.successCriteria?.successDefinition ?? ""}
+                    key={token}
                     token={token}
                     brief={brief}
-                    account={siteAccount}
+                    account={siteAccount} optionalAccount
                     onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }}
                   />
                 </details>
@@ -934,10 +1032,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           </div>}
         </>
       )}
-      {link.status === "valid" && scope === "owner" && <RecommendedPilot token={token} />}
-      {link.status === "valid" && scope === "owner" && !saved && <PublicTaskListing token={token} />}
+      {link.status === "valid" && scope === "owner" && <PublicTaskListing token={token} jobRevision={JSON.stringify(brief)} />}
       {!saved && (
-        <p className="ms-field-hint" style={{ marginTop: "28px" }}>Next: review your job brief. If you add footage, we check it before assessing provider fit and using a scene evaluation where it helps. Keep this link to follow progress.</p>
+        <p className="ms-field-hint" style={{ marginTop: "28px" }}>Blueprint prepares the next useful step from your job and existing evidence. We send meaningful progress and ask for action only when a missing fact or concrete commitment needs your input.</p>
       )}
       </div>
     </div>

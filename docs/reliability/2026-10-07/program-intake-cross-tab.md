@@ -1,0 +1,22 @@
+# Cross-tab recovery slice
+
+The P1 reproducer showed that stale browser drafts could erase a frozen submission and acknowledgements could regress. On exact author baseline `46e6b2ef`, all three minimized helper cases failed, and both final Chromium multi-tab reproductions failed. This runtime had never been deployed; the verified production baseline was memory-only. An independent reviewer then found explicit clear followed by an old acknowledgement resurrecting the old draft in an uncommitted candidate. That diagnostic has a retained receipt but no exact executed source snapshot, so it is reviewer-observed evidence rather than exact-commit before/after proof.
+
+All UI writes now share the same account/authoring-scoped origin Web Lock. The critical section reads current authority and freezes the whole body, identity, token, endpoint and draft before dispatch. Network operations happen after the lock is released. Stale writes cannot replace a pending row or a fresh identity installed by explicit clear; acknowledged state is monotonic. A definitive refusal can release only its matching unacknowledged body. Late replies use the operation's captured authority. Losing tabs adopt the winner, and cannot attach their selected File or new consent to it. Browser clear still does not cancel or delete a saved server job.
+
+Fresh creation now requires secure modern Web Locks and available origin persistence, an explicit coordinator product decision. Failure occurs before dispatch and gives supported-browser/local-storage and `hello@tryblueprint.io` starting guidance; an existing private link is mentioned conditionally. Existing private-link upload paths and customer conversations keep their prior permissions. Tested scope is Chromium and the existing mobile emulation, with no Safari, private-session persistence or abrupt-crash durability claim. No migration of memory-only forms already open on production is established.
+
+| Evidence | Observed result |
+| --- | --- |
+| Final frozen supplemental offline catalog | 16/16 pass; 14 helper plus two component cases |
+| Full focused regression suite | 133/133 checks pass; checks are not independent journeys |
+| Full intercepted browser suite | 12/12 distinct cases pass; eight original plus four supplemental |
+| Selected supplemental browser repetitions | 12/12 additional attempts pass: four cases repeated three times each, four total executions per case including the full run |
+| Required source checks | Typecheck and Graphify refresh pass |
+| Independent review | Actual diff and neighboring clear race reviewed; coordinator retains final approval and integration/release ownership |
+
+The four supplemental browser cases exercise actual Chromium localStorage/Web Locks with intercepted APIs: overlapping normal UI starts, stale edits after a lost response and reload, clear during a held create response followed by a fresh explicit start, and a simulated missing-Web-Locks capability fault. They establish client recovery behavior, not backend persistence, live notification delivery, final assessment quality, provider execution or deployed behavior. Repeats add no unique coverage. The original 90-case intake inventory is unchanged; these 16 offline cases are supplemental.
+
+The versioned catalog and receipts are in `program-intake-cross-tab.json`, including exact commands, source fingerprints, counts, private receipt paths and hashes. Original failed exploratory runs remain: the first repair cleared the winning tab's selected File and broke retry, and two concurrent-case harness attempts had physical-click/CSRF-cache timing defects. The corrected harness holds create replies until both ordinary UI submissions are in flight; exact-body assertions remain. Catalog v2 explicitly records the corrections and expanded denominator before final scoring.
+
+Raw evidence is retained privately under the author worktree's ignored `output/reliability-program/intake/cross-tab/`; the reviewer clear diagnostic remains under the integration worktree's ignored reviewer output. Formats are JSON, UTF-8 logs and Playwright trace ZIP. The program charter caps raw retention at 30 days; the coordinator owns retention and release receipt joining. No real customer fixture, provider dispatch, paid call or email send was used. This slice is code-complete with scoped evaluation evidence; merge, deployment and verified release remain coordinator-owned gates.

@@ -90,6 +90,12 @@ export interface SceneScreening {
   noResult: number;
 }
 
+/** A fresh, source-bound Pipeline ledger observation; no final robot verdict. */
+export interface TaskPreparationStatus {
+  state: "preparing" | "awaiting_inputs" | "failed_retryable" | "authority_ended" | "handed_off" | "unavailable";
+  correlationId: string | null;
+}
+
 interface TaskStatusInput {
   briefDrafted: boolean;
   briefConfirmed: boolean;
@@ -100,9 +106,14 @@ interface TaskStatusInput {
   supplementWouldFinish: boolean;
   /** The walkthrough's completion marker exists. Absent on older callers. */
   hasStoredCapture?: boolean;
+  /** Recording withdrawal overrides retained derived evidence on every surface. */
+  consentRevoked?: boolean;
   /** False when no automated footage review runs, so a person reviews it. */
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
+  /** Current persisted preview reconstruction failed; not a robot-run verdict. */
+  scenePreparationFailed?: boolean;
+  preparationStatus?: TaskPreparationStatus | null;
   /** Runs against the scene, when the caller looked. Absent means it did not. */
   screening?: SceneScreening | null;
   /**
@@ -130,6 +141,16 @@ function countLabel(count: number, noun: string): string {
  */
 export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const base = { stage: input.stage, missingViews: input.missingViews, nextUpdateIso: input.nextUpdateIso };
+  if (input.consentRevoked) {
+    return {
+      decision: input.hasStoredCapture ? "footage_received" : "received",
+      stage: null,
+      headline: `${input.hasStoredCapture ? "Your video is saved. " : ""}Recording consent was withdrawn. Capture-derived review and the scene preview are unavailable.`,
+      operatorAction: null,
+      missingViews: [],
+      nextUpdateIso: null,
+    };
+  }
 
   // Coverage measured a shortfall we can name. This is the most actionable
   // state and it takes priority: it is a specific, cheap thing they can do.
@@ -150,15 +171,6 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       decision: "received",
       headline: "We have your job and are reading what you sent.",
       operatorAction: null,
-    };
-  }
-
-  if (!input.briefConfirmed) {
-    return {
-      ...base,
-      decision: "confirm_brief",
-      headline: "We drafted your job brief. Check it and correct anything we got wrong.",
-      operatorAction: "Review and confirm the brief.",
     };
   }
 
@@ -190,8 +202,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "screening",
       headline: screening.running === 0
-        ? `Screening is queued for ${countLabel(screening.teams, "robot team")}. Execution has not started.`
-        : `${countLabel(screening.teams, "robot team")} ${screening.teams === 1 ? "is" : "are"} being screened against your scene.${screening.queued > 0 ? ` ${countLabel(screening.queued, "run")} still waiting to start.` : ""}`,
+        ? "Robot screening has not started. Results are not available yet."
+        : "Robot screening is in progress. Results are not available yet.",
       operatorAction: null,
     };
   }
@@ -212,10 +224,10 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "call_needed",
       headline:
-        "A short call settles the last questions before we build your scene. The agenda is already written.",
+        "Some operating details still affect the assessment. Review the specific open questions in your job details; facts you cannot establish can remain unknown.",
       operatorAction: input.bookingUrl
-        ? `Book a 30-minute call: ${input.bookingUrl}`
-        : "We will reach out to book a 30-minute call.",
+        ? `You can discuss the remaining questions here: ${input.bookingUrl}`
+        : "Answer the consequential questions in your job details.",
     };
   }
 
@@ -225,8 +237,44 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "save_account",
-      headline: "Your job clears our screen. Save it to your account and we start building your scene.",
+      headline: input.scenePreparationFailed
+        ? "Your job clears our screen. Save it to your account so our team can review the scene preview preparation issue."
+        : "Your job clears our screen. Save it to your account and we start building your scene.",
       operatorAction: "Save this site to your account and verify your email.",
+    };
+  }
+
+  // Preparation is its own required-stage observation. A viewable preview
+  // cannot settle it, and a source-stage handoff cannot become a robot result.
+  const preparation = input.preparationStatus;
+  if (preparation && preparation.state !== "handed_off") {
+    const reference = /^bp-prep-[a-f0-9]{16}$/.test(preparation.correlationId || "")
+      ? ` Reference: ${preparation.correlationId}.` : "";
+    const headlines: Record<Exclude<TaskPreparationStatus["state"], "handed_off">, string> = {
+      preparing: "We are preparing your job. Keep your original recording.",
+      awaiting_inputs: "Job preparation needs more information. Keep your original recording; our team needs to review it.",
+      failed_retryable: "Job preparation encountered a problem. Keep your original recording; our team needs to review it.",
+      authority_ended: "Processing is on hold while our team checks its authorization. Keep your original recording.",
+      unavailable: "Your recording is saved. We could not verify the latest preparation status. Keep your original recording and check again shortly.",
+    };
+    return {
+      ...base,
+      decision: preparation.state === "preparing" ? "assessing" : "footage_received",
+      stage: preparation.state === "preparing" ? input.stage : null,
+      headline: headlines[preparation.state] + reference,
+      operatorAction: null,
+    };
+  }
+
+  // A recorded preview failure is distinct from coverage and from robot-run
+  // results above. Do not claim ongoing preparation or expose provider errors.
+  if (input.scenePreparationFailed) {
+    return {
+      ...base,
+      decision: "footage_received",
+      stage: null,
+      headline: "Scene preview preparation could not finish. Our team needs to review it. Keep your original recording.",
+      operatorAction: null,
     };
   }
 
@@ -267,6 +315,15 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
+  if (!input.briefConfirmed) {
+    return {
+      ...base,
+      decision: "confirm_brief",
+      headline: "Your prefilled job summary is available. Correct material mistakes if needed; you can view the assessment without confirming it.",
+      operatorAction: null,
+    };
+  }
+
   return {
     ...base,
     decision: "record",
@@ -290,8 +347,12 @@ export function taskStatusInputFrom(record: {
   briefDrafted: boolean;
   /** The walkthrough's completion marker exists — footage is in, unreviewed. */
   hasStoredCapture?: boolean;
+  /** Recording withdrawal overrides retained derived evidence on every surface. */
+  consentRevoked?: boolean;
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
+  scenePreparationFailed?: boolean;
+  preparationStatus?: TaskPreparationStatus | null;
   stage: ReadinessStage | null;
   screening?: SceneScreening | null;
   site_task_triage?: { disposition?: string | null } | null;
@@ -302,8 +363,11 @@ export function taskStatusInputFrom(record: {
   const coverage = record.capture_coverage;
   return {
     hasStoredCapture: Boolean(record.hasStoredCapture),
+    consentRevoked: record.consentRevoked === true,
     ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
     scenePreviewReady: Boolean(record.scenePreviewReady),
+    scenePreparationFailed: record.scenePreparationFailed === true,
+    preparationStatus: record.preparationStatus ?? null,
     briefDrafted: record.briefDrafted,
     briefConfirmed: Boolean(record.site_task_brief_confirmed_at),
     stage: record.stage,

@@ -149,6 +149,27 @@ describe("retained recurring direction and one new draft slot", () => {
     expect(f.db.records.get(f.path)).toEqual(held); expect(f.db.records.get(`${root}/jobs/${f.job.jobId}`)).toEqual(job);
     expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros).toBe(55334);
   });
+  it("reserves the whole selected session limit, retains it after best-effort usage and prevents changed replay or daily oversubscription", async () => {
+    const f = recurring(), original = structuredClone(f.db.records.get(f.path));
+    const id = await reserveCommunicationsDraft(f.db, "bounded", digest, communicationsNow, 10);
+    expect(f.db.records.get(`${root}/draftBudgetAdmissions/${id}`)).toMatchObject({ sessionSpendLimitCents: 10, sessionReservationMicros: 100000 });
+    expect(await reserveCommunicationsDraft(f.db, "bounded", digest, communicationsNow, 10)).toBe(id);
+    await expect(reserveCommunicationsDraft(f.db, "bounded", digest, communicationsNow, 11)).rejects.toThrow("requires_reconciliation");
+    await expect(reserveCommunicationsDraft(f.db, "bounded", digest, communicationsNow)).rejects.toThrow("requires_reconciliation");
+    await recordCommunicationsDraftUsage(f.db, "bounded", digest, usage, communicationsNow);
+    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`)).toMatchObject({ retainedSessionReservationsMicros: 100000, estimatedModelMicros: 55334 + 358 });
+    await expect(reserveCommunicationsDraft(f.db, "too-large", digest, communicationsNow, 385)).rejects.toThrow("soft_target_reached");
+    await f.reserve("ordinary");
+    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).retainedSessionReservationsMicros).toBe(100000);
+    expect(f.db.records.get(f.path)).toEqual(original);
+  });
+  it("retains whole session exposure after midnight even after a terminal usage receipt clears the active pointer", async () => {
+    const f = recurring();
+    await reserveCommunicationsDraft(f.db, "crossing", digest, communicationsNow, 390);
+    await recordCommunicationsDraftUsage(f.db, "crossing", digest, usage, communicationsNow + 86400000);
+    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toMatchObject({ recurringActiveAdmissionId: null, retainedSessionReservationsMicros: 3900000 });
+    await expect(reserveCommunicationsDraft(f.db, "tomorrow", digest, communicationsNow + 86400000, 11)).rejects.toThrow("soft_target_reached");
+  });
   it("replays only the identical pre-create claim and clears only its owned new pointer with monotonic usage", async () => {
     const f = recurring(), id = await f.reserve(); expect(await f.reserve()).toBe(id);
     await expect(reserveCommunicationsDraft(f.db, "new-job", "b".repeat(64), communicationsNow)).rejects.toThrow("requires_reconciliation");

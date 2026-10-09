@@ -3,20 +3,21 @@ import { COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FRAMING_V1, COMMUNICATIO
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommunicationsAgentsAPI, COMMUNICATIONS_INSTRUCTIONS } from "../agents/communications-api";
+import { SITE_JOB_COMMUNICATIONS_PROFILE, SITE_JOB_COMMUNICATIONS_CONFIGURATION } from "../agents/communications-site-job-profile";
 import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, communicationsDigest } from "../agents/communications-contract";
 import { communicationsFixture, memoryFirestore } from "./fixtures/communications";
 import { reserveCommunicationsDraft } from "../agents/communications-draft-budget";
 import { LEGACY_COMMUNICATIONS_INSTRUCTIONS, LEGACY_COMMUNICATIONS_DEFINITION, COMMUNICATIONS_DEFINITION, COMMUNICATIONS_V2_INSTRUCTIONS, COMMUNICATIONS_V2_DEFINITION, COMMUNICATIONS_V3_INSTRUCTIONS, COMMUNICATIONS_V3_DEFINITION } from "../agents/communications-instructions";
 import { communicationsHypothesisConfiguration, communicationsHypothesisDefinition, COMMUNICATIONS_GMAIL_NOTION_FIREBASE_READ_DEFINITION,
   COMMUNICATIONS_GMAIL_NOTION_READ_DEFINITION, COMMUNICATIONS_GMAIL_READ_DEFINITION, COMMUNICATIONS_HISTORY_DEFINITION,
-  COMMUNICATIONS_HYPOTHESIS_PROFILE } from "../agents/communications-saved-agent";
+  COMMUNICATIONS_HYPOTHESIS_PROFILE, COMMUNICATIONS_PERSONALIZED_PROFILE } from "../agents/communications-saved-agent";
 import { COMMUNICATIONS_SAVED_AGENT_ID, COMMUNICATIONS_SAVED_CONFIGURATION,
   COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_PROFILE } from "../agents/communications-saved-agent";
 
 import { hydrateAgentEvidence } from "../agents/private-evidence";
 import { HYPOTHESIS_DRAFTS_FLAG } from "../agents/communications-hypothesis-controls";
 import { buildCommunicationsInput } from "../agents/communications-worker";
-import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE } from "../agents/communications-outreach-quality";
+import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE } from "../agents/communications-outreach-quality";
 import { founderOutreachFixture } from "./fixtures/founder-outreach";
 import { communicationsMcpCallAllowed } from "../agents/communications-saved-agent";
 const httpStorage = vi.hoisted(() => ({ enabled: false, fail: false, objects: new Map<string, string>() }));
@@ -40,6 +41,7 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
   let requestDigest = "a".repeat(64), pageNumber = 0;
   let savedBinding = false;
   let sessionAgent: any = null, sessionMetadata: any = null, sessionVaults: string[] = [];
+  let sessionSpendControl: unknown;
   const agentId = () => savedBinding ? COMMUNICATIONS_SAVED_AGENT_ID : "agent-1";
   const savedAgent = { id: COMMUNICATIONS_SAVED_AGENT_ID, ...structuredClone(COMMUNICATIONS_SAVED_CONFIGURATION) };
   if (options.changedSaved === "instructions") savedAgent.instructions += " Changed";
@@ -61,11 +63,13 @@ function apiFixture(options: { reconnect?: boolean; idle?: boolean; model?: stri
         requestDigest = body.metadata.blueprint_communications_request_digest;
         sessionAgent = { id: COMMUNICATIONS_SAVED_AGENT_ID, ...body.agent }; sessionMetadata = body.metadata; sessionVaults = body.vault_ids ?? [];
         savedBinding = true;
+        sessionSpendControl = body.spend_control;
       }
       return new Response(stream.map(event => `data: ${JSON.stringify(event)}\n\n`).join(""), { headers: { "Content-Type": "text/event-stream" } });
     }
     if (path.endsWith("/session-1")) return Response.json({ id: "session-1", status: "idle", agent: savedBinding ? sessionAgent : { id: "agent-1", model: options.model ?? COMMUNICATIONS_MODEL,
       instructions: options.instructions ?? COMMUNICATIONS_INSTRUCTIONS, service_tier: "default", tools: [], multi_agent: { enabled: false } }, environment: { type: "none" }, vault_ids: sessionVaults,
+      ...(sessionSpendControl === undefined ? {} : { spend_control: sessionSpendControl }),
       metadata: options.missingMetadata ? {} : sessionMetadata ?? { blueprint_communications_job: "job-1", role: "communications", blueprint_communications_request_digest: requestDigest,
         ...(savedBinding ? { blueprint_communications_saved_agent: COMMUNICATIONS_SAVED_AGENT_ID,
           blueprint_communications_configuration_digest: COMMUNICATIONS_SAVED_CONFIGURATION_DIGEST, COMMUNICATIONS_HISTORY_CONFIGURATION, COMMUNICATIONS_HISTORY_PROFILE } : {}) } });
@@ -134,6 +138,73 @@ async function rejectedCreateFixture(options: { coverage?: "matching" | "incompl
 }
 
 describe("portable communications Agents API", () => {
+  it("uses the real saved agent API with a prospective tool-free customer-job configuration and no mailbox vaults", async () => {
+    const output = { ...communicationsFixture().output, outreachContract: null };
+    const f = apiFixture({ rawOutput: JSON.stringify(output) });
+    const result = await f.api.run({ ...f.params, checkpoint: { ...f.params.checkpoint, siteJobProfile: SITE_JOB_COMMUNICATIONS_PROFILE } });
+    const create = f.calls.find(call => call.path.endsWith("/agents/sessions") && call.init.method === "POST")!;
+    const body = JSON.parse(String(create.init.body));
+    expect(body.agent).toEqual(SITE_JOB_COMMUNICATIONS_CONFIGURATION);
+    expect(body.agent.tools).toEqual([]); expect(body).not.toHaveProperty("vault_ids");
+    expect(body.metadata.blueprint_communications_site_job_profile).toBe(SITE_JOB_COMMUNICATIONS_PROFILE);
+    expect(f.calls.some(call => /vault|gmail|history/.test(call.path))).toBe(false);
+    expect(result.output).toEqual(output); expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
+    const changed = apiFixture({ changedSaved: "instructions" });
+    await expect(changed.api.run({ ...changed.params, checkpoint: { ...changed.params.checkpoint, siteJobProfile: SITE_JOB_COMMUNICATIONS_PROFILE } })).rejects.toMatchObject({ code: "communications_saved_agent_definition_changed" });
+    expect(changed.calls.some(call => call.init.method === "POST")).toBe(false);
+  });
+  it("binds a prospective provider spending limit to reservation, request, checkpoint and readback without relabeling old sessions", async () => {
+    const f = apiFixture();
+    const checkpoint = { ...f.params.checkpoint, sessionSpendLimitCents: 10 };
+    const result = await f.api.run({ ...f.params, checkpoint });
+    expect(f.reservePaidDraft).toHaveBeenCalledExactlyOnceWith("job-1", result.checkpoint.requestDigest, 10);
+    const posted = JSON.parse(String(f.calls.find(c => c.init.method === "POST")!.init.body));
+    expect(posted.spend_control).toEqual({ limit: 10 });
+    expect(posted.metadata.blueprint_communications_spend_limit_cents).toBe("10");
+    expect(result.checkpoint.sessionSpendLimitCents).toBe(10);
+    await expect(f.api.verifyExistingDraftSession(result.checkpoint, "job-1", result.checkpoint.requestDigest!)).resolves.toMatchObject({ sessionId: "session-1" });
+    await expect(f.api.verifyExistingDraftSession({ ...result.checkpoint, sessionSpendRequestBaseDigest: undefined }, "job-1", result.checkpoint.requestDigest!))
+      .rejects.toThrow("spend_limit_binding_mismatch");
+    await expect(f.api.run({ ...f.params, checkpoint: { ...result.checkpoint, sessionSpendLimitCents: 11 } }))
+      .rejects.toThrow("spend_limit_binding_mismatch");
+    const readback = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const response = await readback(url, init);
+      if (new URL(String(url)).pathname.endsWith("/session-1")) {
+        const session = await response.json();
+        return Response.json({ ...session, spend_control: { limit: 11 },
+          metadata: { ...session.metadata, blueprint_communications_spend_limit_cents: "11" } });
+      }
+      return response;
+    });
+    // Increasing both the checkpoint and provider setting cannot change the
+    // frozen create's limit without a different bound request/admission.
+    await expect(f.api.run({ ...f.params, checkpoint: { ...result.checkpoint, sessionSpendLimitCents: 11 } }))
+      .rejects.toThrow("spend_limit_binding_mismatch");
+    const old = apiFixture(), historical = await old.api.run(old.params);
+    expect(historical.checkpoint.sessionSpendLimitCents).toBeUndefined();
+    expect(JSON.parse(String(old.calls.find(c => c.init.method === "POST")!.init.body))).not.toHaveProperty("spend_control");
+    await expect(old.api.run({ ...old.params, checkpoint: { ...historical.checkpoint, sessionSpendLimitCents: 10 } }))
+      .rejects.toThrow("spend_limit_binding_mismatch");
+  });
+  it.each([0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER])("rejects invalid session limit %s before any provider call", async limit => {
+    const f = apiFixture();
+    await expect(f.api.run({ ...f.params, checkpoint: { ...f.params.checkpoint, sessionSpendLimitCents: limit } }))
+      .rejects.toThrow("session_spend_limit_invalid");
+    expect(f.fetchMock).not.toHaveBeenCalled(); expect(f.reservePaidDraft).not.toHaveBeenCalled();
+  });
+  it.each([{ limit: null }, {}])("retains historical uncapped readback compatibility for %j", async spendControl => {
+    const f = apiFixture(), original = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const response = await original(url, init);
+      if (new URL(String(url)).pathname.endsWith("/session-1")) {
+        return Response.json({ ...await response.json(), spend_control: spendControl });
+      }
+      return response;
+    });
+    expect((await f.api.run(f.params)).output).toEqual(f.output);
+
+  });
   it("backs off transient saved GET failures within one new window without settling pending usage or creating another turn", async () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-03T00:00:00Z"));
     const f = apiFixture({ usage: { input_tokens: 3, output_tokens: 2, total_tokens: 5 } });
@@ -1121,27 +1192,37 @@ describe("outreach-ready hypothesis session definitions (hypothesis jobs only)",
   });
   it.each([false, true])("sends the real assembled founder guidance to the generator, hypothesis=%s", async hypothesis => {
     const fixture = hypothesis ? founderOutreachFixture("future") : communicationsFixture();
+    (fixture.output.outreachContract as any).version = hypothesis ? "blueprint.outreach.v5" : "blueprint.outreach.v6";
     const f = apiFixture({ rawOutput: JSON.stringify(fixture.output) }), { brief } = fixture;
     const input = buildCommunicationsInput(brief, null, "outreach", "pending_approval", undefined, undefined,
-      COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION);
+      COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION, undefined, undefined, COMMUNICATIONS_PERSONALIZED_PROFILE);
+    const historicalInput = JSON.parse(buildCommunicationsInput(brief, null, "outreach", "pending_approval", undefined, undefined,
+      COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION));
+    expect(historicalInput.firstTouchPolicy).toContain(LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
+    expect(historicalInput.firstTouchFraming.guidance).not.toBe(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
     const result = await f.api.run({ ...f.params, input, checkpoint: { ...f.params.checkpoint,
-      framingVersion: COMMUNICATIONS_FRAMING_VERSION,
+      framingVersion: COMMUNICATIONS_FRAMING_VERSION, writingProfile: COMMUNICATIONS_PERSONALIZED_PROFILE,
       ...(hypothesis ? { draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE } : {}) } });
     const posted = JSON.parse(String(f.calls.find(call => call.init.method === "POST")!.init.body));
     expect(posted.input).toBe(input);
     const consumed = JSON.parse(posted.input);
     expect(consumed.researchBrief).toEqual(brief);
     expect(consumed.writingGuidance).toBe(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
-    expect(consumed.firstTouchPolicy).toContain("Learn why in a follow-up");
-    expect(consumed.firstTouchPolicy).toContain("without mechanically enumerating all three");
+    expect(consumed.firstTouchPolicy).not.toContain("Learn why in a follow-up");
+    expect(consumed.firstTouchPolicy).toContain("discovery-first");
     expect(consumed.firstTouchFraming.questionIsSuggestion).toBe(true);
-    expect(consumed.firstTouchFraming.question).not.toContain("why");
+    expect(consumed.firstTouchFraming).not.toHaveProperty("question");
+    expect(consumed.firstTouchPolicy).toContain("recipient-aware-writing-v4");
     if (hypothesis) {
-      expect(posted.agent.instructions).toContain(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
-      expect(posted.agent.instructions).toContain('version:"blueprint.outreach.v4"');
-      expect(posted.agent.instructions).toContain("Anchors may overlap naturally");
-      expect(result.outputSource?.definitionVersion).toBe("blueprint.communications-definition.v21");
+      expect(posted.agent.instructions).not.toContain(LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
+      expect(consumed.firstTouchPolicy).toContain(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
+      expect(posted.agent.instructions).toContain('version:"blueprint.outreach.v5"');
+      expect(posted.agent.instructions).toContain("may overlap");
+      expect(result.outputSource?.definitionVersion).toBe("blueprint.communications-definition.v29");
     }
+    expect(posted.agent.instructions).toContain(COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE);
+    expect(posted.agent.instructions).not.toContain('Introduce "I\'m building Blueprint"');
+    expect(posted.metadata.blueprint_communications_writing_profile).toBe(COMMUNICATIONS_PERSONALIZED_PROFILE);
     expect(f.reservePaidDraft).toHaveBeenCalledOnce(); // Mock admission only; no provider/spend.
     expect(result.checkpoint.requestDigest).toBe(posted.metadata.blueprint_communications_request_digest);
     expect(result.output).toEqual(fixture.output);

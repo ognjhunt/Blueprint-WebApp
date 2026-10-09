@@ -120,6 +120,15 @@ describe("coverage continuation", () => {
   const params = { requestId: "req", sceneId: "scene", captureId: "capture" };
   const request = { consent_attestation: { granted: true, statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: "2026-01-01T00:00:00Z" } };
   function privacy() { return { capture_id: "capture", proceeded: true, producer_source: { kind: "app_bundle_completion", key: "source" } }; }
+  it.each(["programme-one", null, "invalid/id"])("does not let historical programme presence %s block authorized coverage", async programme => {
+    put("inboundRequests/req", { request, inference_program_id: programme, capture_privacy_source_bound_decision: privacy() });
+    put("siteTaskBriefs/req", { summary: "Task" }); review.mockResolvedValue({ coversScene: true });
+    await enqueueCoverageReview(params); await reconcileCoverageReviews();
+    expect(review).toHaveBeenCalledExactlyOnceWith(expect.anything());
+    expect([...state.docs.keys()].filter(key => key.startsWith("captureCoverageReviews/"))).toHaveLength(1);
+    expect(read("inboundRequests/req").capture_coverage_pending).toBe(false);
+    expect(read("inboundRequests/req").inference_program_id).toBe(programme);
+  });
   it("waits for a late brief, then completes only once", async () => {
     put("inboundRequests/req", { request, capture_privacy_source_bound_decision: privacy() });
     await enqueueCoverageReview(params); await reconcileCoverageReviews(); expect(review).not.toHaveBeenCalled();

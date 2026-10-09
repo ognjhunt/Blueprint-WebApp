@@ -28,3 +28,11 @@ export function appendFirstContactFooter(text: string, email: string, savedPosta
   if (!postalLine || !footer.includes(COMPANY_POSTAL_LINE)) throw new Error("first_contact_postal_footer_unavailable");
   return text.trimEnd() + footer.replace(COMPANY_POSTAL_LINE, postalLine);
 }
+
+/** Unsent commercial drafts can be sent manually, so their delivery bytes use
+ * the same approved runtime identity and a plain reply opt-out. */
+export function appendUnsentDraftFooter(text: string, email: string, savedPostalLine?: string) {
+  return text.trimEnd() + appendFirstContactFooter("", email, savedPostalLine).replace(
+    "If you’d rather I don’t follow up, just let me know.",
+    "Commercial outreach. Reply “no thanks” to stop all marketing emails from Blueprint.");
+}

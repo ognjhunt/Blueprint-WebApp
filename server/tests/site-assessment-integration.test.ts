@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { bindBrowserAssessmentSource, SiteAssessmentBudget } from "../agents/adapters/site-assessment";
+import { assessmentModelContext, bindBrowserAssessmentSource, SiteAssessmentBudget } from "../agents/adapters/site-assessment";
 import { browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { extractAgentCostTelemetry } from "../utils/agentCostTelemetry";
@@ -22,6 +22,35 @@ const telemetry = (budget: SiteAssessmentBudget) => extractAgentCostTelemetry({ 
   provider: "openai_responses", model: "gpt-6.1-sol", artifacts: budget.artifacts() });
 
 describe("site assessment integration boundaries", () => {
+  it("omits job hints only for an explicit diagnostic while preserving source identity and original input", () => {
+    const input = { request_id: "one", operator_messages: [{ id: "owner", text: "Named task", source_ref: "stored-owner" }],
+      task_instruction: "Named host task", prior_assessment: { status: "assessment" } as any,
+      video: { source_id: "walkthrough-one", source_ref: "gs://admitted-source#generation=1", url: "", sha256: "a".repeat(64), duration_seconds: 30 },
+      site_requirement: { spec: { job: "named" }, serviceArea: "named", taskFamily: "named",
+        location: { label: "named", city: "named", state: "named", country: "named" } } };
+    expect(assessmentModelContext(input)).toBe(input);
+    const diagnostic = assessmentModelContext(input, "video-only");
+    expect(diagnostic.request_id).toBe(input.request_id); expect(diagnostic.video).toBe(input.video);
+    expect(diagnostic.operator_messages).toEqual([]); expect(diagnostic.prior_assessment).toBeUndefined();
+    expect(diagnostic.task_instruction).toBeUndefined(); expect(diagnostic.site_requirement).toEqual({ spec: {}, serviceArea: null,
+      taskFamily: null, location: { label: null, city: null, state: null, country: null } });
+    expect(input.operator_messages[0].text).toBe("Named task");
+    expect(() => assessmentModelContext(input, "replace-video" as any)).toThrow("experiment_model_context_invalid");
+  });
+  it("retains cache-write exposure while calls continue without a spending cap", () => {
+    vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD", "0.61");
+    const budget = new SiteAssessmentBudget();
+    budget.authorize("openai", "gpt-6.1-sol", {});
+    budget.record("openai", "gpt-6.1-sol", { usage: { input_tokens: 100000, output_tokens: 8192 } });
+    expect(budget.calls[0].cost_usd).toBeCloseTo(budget.calls[0].reserved_usd);
+    expect(() => budget.authorize("openai", "gpt-6.1-sol", {})).not.toThrow();
+    expect(budget.calls).toHaveLength(2);
+  });
+  it("reserves the full admitted Gemini input context", () => {
+    const budget = new SiteAssessmentBudget();
+    budget.authorize("gemini", "gemini-3.8-flash");
+    expect(budget.calls[0].reserved_usd).toBeCloseTo((1048576 * 1.5 + 32768 * 7.5) / 1e6);
+  });
   it("admits only the current published browser source with both original and current rights", () => {
     expect(bindBrowserAssessmentSource("one", record(), pending, manifest).duration_seconds).toBe(30.1);
     expect(() => bindBrowserAssessmentSource("two", record(), pending, manifest)).toThrow("source_not_admitted");
@@ -34,25 +63,31 @@ describe("site assessment integration boundaries", () => {
     const budget = new SiteAssessmentBudget();
     budget.authorize("openai", "gpt-6.1-sol", {});
     budget.record("openai", "gpt-6.1-sol", { usage: { input_tokens: 1000, output_tokens: 100 } });
-    expect(telemetry(budget).conservative_spend_usd).toBeCloseTo(0.003);
+    expect(telemetry(budget).conservative_spend_usd).toBeCloseTo(0.0035);
     budget.authorize("openai", "gpt-6.1-sol", {});
     budget.record("openai", "gpt-6.1-sol", { output: [], usage: null });
     budget.authorize("gemini", "gemini-3.8-flash");
     budget.record("gemini", "gemini-3.8-flash", { text: "Incomplete", usage: null });
     const row = telemetry(budget);
-    expect(row.spend_accounting_status).toBe("reserved_unknown");
-    expect(row.spend_reservation?.unknown_calls).toBe(2);
-    expect(row.conservative_spend_usd).toBeCloseTo(0.003 + budget.calls[1].reserved_usd + budget.calls[2].reserved_usd);
+    expect(row.spend_accounting_status).toBe("unresolved");
+    expect(row.spend_reservation).toBeNull();
+    expect(row.conservative_spend_usd).toBeNull();
+    expect(budget.artifacts().known_usage_subtotals.estimated_total_cost_usd).toBeCloseTo(0.0035);
+    expect(budget.artifacts().inference_reservation.unknown_usage_reserved_cost_usd)
+      .toBeCloseTo(budget.calls[1].reserved_usd + budget.calls[2].reserved_usd);
     expect(budget.artifacts().provider_responses[2].response).toEqual({ text: "Incomplete", usage: null });
   });
-  it("stops ambiguous requests, unpriced models and cap overruns before provider calls", () => {
+  it("preserves configured model identity while cap and unknown-cost thresholds do not deny calls", () => {
     vi.stubEnv("BLUEPRINT_OPENAI_AGENT_MAX_INFERENCE_COST_USD", "0.4");
     const budget = new SiteAssessmentBudget();
     expect(() => budget.authorize("gemini", "gemini-3-pro")).toThrow("model_not_admitted");
-    expect(() => budget.authorize("gemini", "gemini-3.8-flash")).toThrow("inference_cost_cap");
+    expect(() => budget.authorize("gemini", "gemini-3.8-flash")).not.toThrow();
     budget.authorize("openai", "gpt-6.1-sol", {});
-    expect(() => budget.authorize("openai", "gpt-6.1-sol", {})).toThrow("cost_unresolved");
-    expect(budget.calls).toHaveLength(1);
-    expect(telemetry(budget).conservative_spend_usd).toBeCloseTo(budget.calls[0].reserved_usd);
+    expect(() => budget.authorize("openai", "gpt-6.1-sol", {})).not.toThrow();
+    expect(budget.calls).toHaveLength(3);
+    expect(telemetry(budget).conservative_spend_usd).toBeNull();
+    expect(telemetry(budget).spend_accounting_status).toBe("unresolved");
+    expect(budget.artifacts().inference_reservation.unknown_usage_reserved_cost_usd)
+      .toBeCloseTo(budget.calls.reduce((sum,call)=>sum+call.reserved_usd,0));
   });
 });

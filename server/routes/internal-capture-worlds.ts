@@ -45,6 +45,7 @@ import { DEVELOPMENT_OFFERS, developmentOfferSchema } from "../utils/controlledD
 import { isCaptureOwnerPath, type CaptureOwnerBody } from "../utils/captureOwnerRawBody";
 import { observeWebsiteCaptureOwner } from "../utils/websiteCaptureOwnerObservation";
 import { withWebsiteOwnerDeps } from "../utils/websiteCaptureOwnerTransport";
+import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent } from "../utils/siteAssessmentPreparation";
 
 const router = Router();
 
@@ -245,13 +246,18 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
     const { request_id: requestId, scene_id: sceneId } = parsed.data;
     if (sceneId !== `site-${requestId}`) return res.status(409).json({ code: "task_context_capture_mismatch" });
     try {
+      res.setHeader("Cache-Control", "no-store");
+      // Accounting for an already admitted call must remain possible when
+      // assessment/source authority ends. The settlement checks the original
+      // allocation, provider, task digest, quote and exact idempotent receipt;
+      // it grants no new processing or dispatch authority.
+      if (operation === "preparation-settlement") return res.json(await settleWebsitePreparationSpend(requestId,
+        preparationSettlementRequest.parse(req.body.settlement)));
       const authority = await loadWebsiteSceneSponsorship(requestId, operation === "scene-sponsorship", req.params.captureId);
       res.setHeader("Cache-Control", "no-store");
       if (operation === "scene-sponsorship") return res.json(authority);
       if (operation === "preparation-spend") return res.json(await reserveWebsitePreparationSpend(requestId,
         preparationSpendRequest.parse(req.body.spend), req.params.captureId));
-      if (operation === "preparation-settlement") return res.json(await settleWebsitePreparationSpend(requestId,
-        preparationSettlementRequest.parse(req.body.settlement)));
       const request = sponsoredSceneRequest.parse(req.body.request);
       validateWebsiteSponsoredIntake(request, authority);
       const { accepted_by: _acceptedBy, accepted_at_epoch: _acceptedAt, ...consent } = request.consent;
@@ -262,12 +268,16 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       const id = `scene-${sceneDigest({ owner: request.owner, submission_id: request.submission_id }).slice(7)}`;
       const ref = db.collection(SCENE_INTAKE_COLLECTION).doc(id);
       const preparedBinding = await resolveWebsiteCaptureBinding(requestId, sceneId, req.params.captureId);
+      const assessment = await loadAssessmentPreparationProposal(requestId, req.params.captureId);
+      if (assessment && sceneDigest(assessment.proposal) !== sceneDigest(authority.assessment_preparation_proposal))
+        throw new Error("website_assessment_preparation_pending");
       await db.runTransaction(async transaction => {
         const prior = await transaction.get(ref);
         const current = (await transaction.get(db!.collection("inboundRequests").doc(requestId))).data();
         const currentBrief = (await transaction.get(db!.collection(TASK_BRIEFS_COLLECTION).doc(requestId))).data() as SiteTaskBriefRecord;
         const currentInventory = (await transaction.get(db!.collection(TASK_ITEM_INVENTORY_COLLECTION).doc(requestId))).data() as TaskItemInventoryRecord | undefined;
         await assertWebsiteCaptureBindingInTransaction(transaction, requestId, preparedBinding);
+        await assertAssessmentPreparationCurrent(transaction, assessment, current ?? {}, {requestId, captureId: req.params.captureId});
         if (!projectWebsiteCaptureRights(current).derived_scene_generation_allowed) throw new Error("source_revoked");
         if (!currentBrief || projectWebsiteTaskContext(currentBrief, projectWebsiteCaptureRights(current), {
           inventory: currentInventory, captureId: req.params.captureId, captureBinding: preparedBinding }).context_digest !== authority.task_context_digest)
@@ -279,7 +289,9 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         transaction.create(ref, {
           owner_user_id: request.owner.user_id, organization_id: request.owner.organization_id,
           source_session_id: request.submission_id, website_request_id: requestId,
-          sponsorship_digest: authority.authority_digest, command, command_digest: sceneDigest(command),
+          sponsorship_digest: authority.authority_digest,
+          root_sponsorship_digest: current!.website_scene_sponsorship.authority_digest,
+          command, command_digest: sceneDigest(command),
           request, request_digest: sceneDigest(request), state: "forward_pending",
           forward_attempt_count: 0, next_forward_at_ms: 0, created_at_iso: new Date().toISOString(),
         });
@@ -287,7 +299,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       return res.status(202).json({ id, request_digest: sceneDigest(request), state: "forward_pending" });
     } catch (error) {
       const code = error instanceof Error ? error.message : "website_scene_sponsorship_unavailable";
-      const known = /^(website_scene_|website_task_context_|website_capture_binding_|task_context_capture_mismatch$|source_revoked$|consent_expired$|task_brief_missing$|idempotency_conflict$|provider_terms_not_configured_or_changed$)/.test(code);
+      const known = /^(website_scene_|website_assessment_preparation_|website_task_context_|website_capture_binding_|task_context_capture_mismatch$|source_revoked$|consent_expired$|task_brief_missing$|idempotency_conflict$|provider_terms_not_configured_or_changed$)/.test(code);
       return res.status(known ? 409 : 503).json({ code: known ? code : "website_scene_sponsorship_unavailable" });
     }
   },

@@ -3,6 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { createSiteClaimToken } from "../utils/request-review-auth";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
 import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
@@ -12,6 +13,10 @@ const state = vi.hoisted(() => ({
   intakes: [] as any[],
   notices: vi.fn(async () => ({ enqueued: true })),
 }));
+const preparation = vi.hoisted(() => ({ read: vi.fn(async () => ({
+  state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
+})) }));
+vi.mock("../utils/websitePreparationStatus", () => ({ loadCurrentWebsitePreparationStatus: preparation.read }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({
   enqueueTaskLifecycleNotification: state.notices,
 }));
@@ -266,6 +271,92 @@ async function api(
   });
 }
 describe("workspace access and projections", () => {
+  it("PREP-UI-003 shows verified preparation failure only to the current owner", async () => {
+    state.records.set("inboundRequests/task-1", { ...task(),
+      site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
+    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
+      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
+      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: "2026-09-18T00:00:00Z" });
+    state.records.set("captureUploadSessions/walkthrough-task-1", { website_preparation: { selector: {} } });
+    const before = structuredClone([...state.records]);
+    const viewed = await (await api("/tasks/task-1", "site-1")).json();
+    expect(viewed.readiness).toMatchObject({ decision: "footage_received", stage: null, operatorAction: null });
+    expect(viewed.readiness.headline).toContain("Job preparation encountered a problem.");
+    expect(preparation.read).toHaveBeenCalledWith("task-1", "walkthrough-task-1");
+    preparation.read.mockClear();
+    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
+    expect(preparation.read).not.toHaveBeenCalled();
+    expect([...state.records]).toEqual(before);
+    expect(state.messages).not.toHaveBeenCalled();
+  });
+  it("shows persisted reconstruction failure without exposing private provider details", async () => {
+    state.records.set("inboundRequests/task-1", { ...task(),
+      site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
+    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
+      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
+      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: "2026-09-18T00:00:00Z" });
+    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: {
+      state: "failed", blocker: "provider_failed", failure_reason: "private upstream detail",
+      assets: { launchUrl: "https://viewer.example/stale", thumbnailUrl: "https://viewer.example/stale.png" } } });
+    const before = structuredClone([...state.records]);
+    const response = await api("/tasks/task-1", "site-1");
+    expect(response.status).toBe(200);
+    const viewed = await response.json();
+    expect(viewed.readiness.decision).toBe("footage_received");
+    expect(viewed.readiness.headline).toMatch(/scene preview preparation could not finish/i);
+    expect(viewed.readiness.headline).not.toMatch(/we are preparing|private upstream/);
+    expect(viewed.readiness.operatorAction).toBeNull();
+    expect(viewed.sceneReady).toBe(false);
+    expect(viewed.thumbnailUrl).toBeNull();
+    expect([...state.records]).toEqual(before);
+    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
+    expect(state.messages).not.toHaveBeenCalled();
+  });
+  it("uses the current ready preview after a failed record is replaced", async () => {
+    state.records.set("inboundRequests/task-1", { ...task(),
+      site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
+    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
+      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
+      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: "2026-09-18T00:00:00Z" });
+    const failed = { state: "failed", blocker: "provider_failed", failure_reason: "private upstream detail" };
+    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: failed });
+    expect((await (await api("/tasks/task-1", "site-1")).json()).readiness.headline)
+      .toMatch(/scene preview preparation could not finish/i);
+    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: {
+      ...failed, state: "ready", assets: { launchUrl: "https://viewer.example/current",
+        thumbnailUrl: "https://viewer.example/current.png" },
+    } });
+    const before = structuredClone([...state.records]);
+    const viewed = await (await api("/tasks/task-1", "site-1")).json();
+    expect(viewed.readiness.headline).toMatch(/scene preview is ready/i);
+    expect(viewed.readiness.headline).not.toMatch(/could not finish|private upstream/);
+    expect(viewed.sceneReady).toBe(true);
+    expect(viewed.thumbnailUrl).toBe("https://viewer.example/current.png");
+    expect([...state.records]).toEqual(before);
+    expect(state.messages).not.toHaveBeenCalled();
+  });
+  it("withholds persisted capture derivatives on the owner's return after withdrawal", async () => {
+    state.records.set("inboundRequests/task-1", { ...task(), consent_revoked: true,
+      site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });
+    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Derived reading",
+      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
+      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: "2026-09-18T00:00:00Z" });
+    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: { state: "ready",
+      assets: { launchUrl: "https://viewer.example/withdrawn", thumbnailUrl: "https://viewer.example/withdrawn.png" } } });
+    state.records.set("evaluationRuns/run-withdrawn", { runId: "run-withdrawn",teamId: "team",sceneId: "task-1",
+      state: "completed",result: { observed: { episodesRun: 10, episodesSucceeded: 8 } } });
+    const before = structuredClone([...state.records]);
+    const response = await api("/tasks/task-1", "site-1");
+    expect(response.status).toBe(200);
+    const viewed = await response.json();
+    expect(viewed.thumbnailUrl).toBeNull();
+    expect(viewed.sceneReady).toBe(false);
+    expect(viewed.results).toEqual([]);
+    expect(viewed.readiness.headline).toMatch(/consent was withdrawn/i);
+    expect(viewed.readiness.stage).toBeNull();
+    expect([...state.records]).toEqual(before);
+    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
+  });
   it("records only the owner's withdrawal, cancels queued work, and never claims deletion", async () => {
     state.records.set("inboundRequests/task-1", { ...task(), capture_coverage_pending: true, coverageReviewPending: true });
     state.records.set("evaluationRuns/run", { runId: "run", sceneId: "task-1", state: "requested", dispatchPending: true });
@@ -1017,6 +1108,9 @@ describe("site claim and listing control", () => {
 
 describe("agent screening runs on the site's task", () => {
   it("shows a reported run as an anonymised simulation row and moves the ladder to results", async () => {
+    state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: {
+      state: "failed", blocker: "provider_failed",
+    } });
     state.records.set("inboundRequests/task-1", {
       ...task(),
       site_task_brief_confirmed_at: "2026-09-18T00:00:00Z",
@@ -1083,6 +1177,14 @@ describe("capture-first workspace intake", () => {
     captureMode: "self_capture", captureRegion: "us", hasExistingFootage: false,
     consentAttestation: { granted: true, statementVersion: "2026-09-18.v1" },
   };
+  it("accepts authorized capture without a required description or goal while refusing empty prose", async () => {
+    expect((await api("/capture-start", "site-1", { ...capture, taskStatement: "", hasExistingFootage: true })).status).toBe(201);
+    expect(state.intakes.at(-1).body).toMatchObject({ taskStatement: "", taskDescription: "", hasExistingFootage: true,
+      consentAttestation: capture.consentAttestation, siteTaskGates: {}, siteTaskSpec: {} });
+    expect((await api("/capture-start", "site-1", { ...capture, taskStatement: "", descriptionOnly: true,
+      consentAttestation: null, acceptedTerms: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" } })).status).toBe(400);
+    expect((await api("/capture-start", "site-1", { ...capture, taskStatement: "", consentAttestation: null })).status).toBe(400);
+  });
   it("preserves explicit Terms and description authority for a signed-in prose submission", async () => {
     const descriptionAuthority = { granted: true, statementVersion: "2026-10-06.v1" };
     const response = await api("/capture-start", "site-1", { ...capture, descriptionOnly: true,
@@ -1090,6 +1192,12 @@ describe("capture-first workspace intake", () => {
     expect(response.status).toBe(201);
     expect(state.intakes.at(-1)).toMatchObject({ body: { acceptedTerms: true, descriptionOnly: true,
       descriptionAuthority, consentAttestation: null, email: "site-1@example.com" }, metadata: { account_owner_uid: "site-1" } });
+  });
+  it("carries the approved anonymized listing grant through signed-in intake", async () => {
+    const publicTaskListing = { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(capture.taskStatement) };
+    expect((await api("/capture-start", "site-1", { ...capture, publicTaskListing })).status).toBe(201);
+    expect(state.intakes.at(-1).body.publicTaskListing).toEqual(publicTaskListing);
+    expect((await api("/capture-start", "site-1", { ...capture, publicTaskListing: { ...publicTaskListing, consent: false } })).status).toBe(400);
   });
   it("binds new capture to the authenticated account, ignoring forged identity and permissions", async () => {
     const response = await api("/capture-start", "site-1", { ...capture, email: "forged@example.com", account_owner_uid: "site-2", siteTaskGates: { cleared: true } });

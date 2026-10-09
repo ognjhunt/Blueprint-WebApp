@@ -54,9 +54,14 @@ beforeEach(async () => {
     if (url.hostname !== "127.0.0.1") throw new Error("External network forbidden in journey contract");
     return originalFetch(input, init);
   });
-  const [{ default: workspace }, { default: pipeline }] = await Promise.all([
-    import("../routes/workspace"), import("../routes/internal-agent-run-settlement"),
-  ]);
+  console.log("journey_setup_routes_started", Date.now(), process.version);
+  // The route graphs share cyclic run/result modules. Await their evaluation
+  // separately so Vitest's mocked dynamic importer cannot wait on both graphs.
+  const { default: workspace } = await import("../routes/workspace");
+  console.log("journey_setup_workspace_loaded", Date.now());
+  const { default: pipeline } = await import("../routes/internal-agent-run-settlement");
+  console.log("journey_setup_pipeline_loaded", Date.now());
+  console.log("journey_setup_routes_loaded", Date.now());
   const app = express();
   app.use(express.json());
   // This substitutes Firebase's verified token, not the workspace's actual
@@ -70,6 +75,7 @@ beforeEach(async () => {
   app.use("/api/internal/pipeline", pipeline);
   server = createServer(app);
   await new Promise<void>(resolve => server!.listen(0, "127.0.0.1", resolve));
+  console.log("journey_setup_listening", Date.now());
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 });
 afterEach(async () => {

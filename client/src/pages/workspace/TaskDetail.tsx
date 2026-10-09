@@ -1,3 +1,4 @@
+import { SiteAdvisoryReport } from "@/components/site/SiteAdvisoryReport";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
@@ -110,11 +111,13 @@ export default function TaskDetail() {
             </div>
           )}
 
+          <SiteAdvisoryReport advisory={query.error ? null : task.siteAdvisory} />
+
           {!task.archived && (
             <div className="ws-section" aria-label="Your task page">
               <p>
                 <strong>Your task page.</strong>{" "}
-                Review or edit your answers, add footage
+                Review or edit your answers, review a pilot proposal and follow coordination, or add footage
                 {task.sceneReady ? ", and open your scene" : ""}.
               </p>
               <button

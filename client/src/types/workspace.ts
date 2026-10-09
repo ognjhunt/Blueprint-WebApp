@@ -1,3 +1,5 @@
+import type { UpdatePreferences } from "./updatePreferences";
+import type { SiteAdvisory } from "./siteAdvisory";
 import type { RobotDescription } from "./robotDescription";
 import type { SitePilotIntent, SiteVisitAnswer } from "@/data/sitePilotIntent";
 export type WorkspaceRole = "site_operator" | "robot_team";
@@ -46,6 +48,7 @@ export type CaptureVisit = {
   canMessage: boolean;
 };
 export type WorkspaceTask = {
+  siteAdvisory?: SiteAdvisory | null;
   recordingPermissionWithdrawn?: boolean;
   recordingWithdrawalStatus?: string | null;
   id: string;
@@ -109,7 +112,7 @@ export type WorkspaceEvaluation = WorkspaceResult & {
 };
 export type WorkspaceSnapshot = {
   role: WorkspaceRole;
-  profile: { name: string; organization: string; email: string };
+  profile: { name: string; organization: string; email: string; updatePreferences?: UpdatePreferences | null };
   tasks: WorkspaceTask[];
   evaluations: WorkspaceEvaluation[];
   setups: RobotSetup[];
@@ -117,7 +120,7 @@ export type WorkspaceSnapshot = {
 
 export type WorkspaceAccountSetup = {
   workspaceType: WorkspaceRole | null;
-  profile: { name: string; organization: string; email: string };
+  profile: { name: string; organization: string; email: string; updatePreferences?: UpdatePreferences | null };
   termsRequired: boolean;
   access: { operations: boolean; capture: boolean };
 };

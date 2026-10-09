@@ -28,7 +28,7 @@ describe("brand polish QA harness contract", () => {
         "Live availability, rights, and fulfillment are confirmed per site/request.",
       ),
     ).toEqual([]);
-    const canonicalPaths = ["/how-it-works", "/pricing", "/", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"];
+    const canonicalPaths = ["/how-it-works", "/beta", "/", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"];
     expect(harness.publicQaRoutes.slice(0, canonicalPaths.length).map((route: { path: string }) => route.path)).toEqual(canonicalPaths);
     for (const route of harness.publicQaRoutes) expect(canonicalPaths).toContain(route.canonicalPath);
     expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/for-robot-teams")).toMatchObject({

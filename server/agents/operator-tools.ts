@@ -1,5 +1,6 @@
 import type { AgentTaskKind } from "./types";
 import type { CompanyHistoryAccess } from "../research-learning/company-history";
+import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 
 // Task kind only excludes customer/media lanes. The actual scope and original
 // expiry come from the existing private owner-controlled read binding, never
@@ -9,7 +10,6 @@ const companyTaskKinds = new Set<AgentTaskKind>(["operator_thread", "adp_run_ope
 export async function getCompanyHistoryAccess(task: { kind: AgentTaskKind }): Promise<CompanyHistoryAccess | null> {
   if (!companyTaskKinds.has(task.kind)) return null;
   try {
-    const { dbAdmin } = await import("../../client/src/lib/firebaseAdmin");
     if (!dbAdmin) return null;
     const retained = (await dbAdmin.doc("blueprintDailyResearch/sites-first").get()).data()?.learning;
     const { boundResearchHistoryControl } = await import("../research-learning/research-worker-host");

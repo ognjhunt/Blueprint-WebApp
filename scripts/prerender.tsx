@@ -15,7 +15,7 @@ import { queryClient } from "../client/src/lib/queryClient";
 import { AuthProvider } from "../client/src/contexts/AuthContext";
 import { SiteLayout } from "../client/src/components/site/SiteLayout";
 import HowItWorks from "../client/src/pages/HowItWorks";
-import Pricing from "../client/src/pages/Pricing";
+import Beta from "../client/src/pages/Beta";
 import About from "../client/src/pages/About";
 import Home from "../client/src/pages/Home";
 import Contact from "../client/src/pages/Contact";
@@ -88,7 +88,7 @@ const PrerenderFallbackSummary = () => (
 const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
   { path: "/how-it-works", component: HowItWorks },
-  { path: "/pricing", component: Pricing },
+  { path: "/beta", component: Beta },
   { path: "/about", component: About },
   { path: "/sites", component: Sites },
   { path: "/contact/robot-team", component: Contact },

@@ -1,3 +1,7 @@
+import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
+import { updatePreferencesInputSchema } from "../../client/src/types/updatePreferences";
+import { buildUpdatePreferences, savedUpdatePreferences, bindVerifiedPreferenceAccount } from "../utils/updatePreferences";
+import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
 import type { WorkspaceResult } from "../../client/src/types/workspace";
 import { isBlueprintFundedRun } from "../utils/freeBeta";
 import { logger } from "../logger";
@@ -35,8 +39,10 @@ import {
   projectAgentRunResult,
 } from "../utils/workspace-projection";
 import { getBrief } from "../utils/siteTaskBrief";
+import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
+import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
 import { listRunsForScene, loadSceneScreening } from "../utils/agentEvalRuns";
 import type {
   InboundRequestStored,
@@ -58,7 +64,7 @@ import { listRunsForTeam } from "../utils/agentRunResults";
 import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from "../utils/robotTeamAgentKeys";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
-import { resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
+import { accessRecordId, resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
 import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 
 const router = Router();
@@ -180,6 +186,7 @@ const accountSetupSchema = z
     name: short,
     organization: short,
     acceptedTerms: z.boolean().optional(),
+    optionalUpdates: z.boolean().optional(),
   })
   .strict();
 function currentTermsAccepted(user: Record<string, any>) {
@@ -265,6 +272,7 @@ router.post(
         company: input.organization,
         buyerType: input.workspaceType,
         workspaceSetupCompletedAt: now,
+        ...(!user.updatePreferences && input.optionalUpdates !== undefined ? { updatePreferences: buildUpdatePreferences({ newsletter: input.optionalUpdates, newJobAlerts: input.optionalUpdates, interests: {}, declaredCategories: {}, requirements: {} }, "signup") } : {}),
         ...(!snapshot.exists
           ? { uid: auth.uid, email: text(auth.email), createdDate: now }
           : {}),
@@ -280,6 +288,7 @@ router.post(
       if (snapshot.exists) transaction.update(profileRef, patch);
       else transaction.set(profileRef, patch);
     });
+    if (auth.email_verified === true && auth.email) await bindVerifiedPreferenceAccount(auth.uid, auth.email);
     return res.json({ ok: true, workspaceType: input.workspaceType });
   }),
 );
@@ -457,6 +466,8 @@ async function applicationResults(task: WorkspaceTask, projectedRunIds: Readonly
 }
 async function hydrateTask(requestId: string, record: Record<string, any>) {
   const task = projectWorkspaceTask(requestId, record);
+  const consentRevoked = projectWebsiteCaptureRights(record).consent_revoked;
+  task.recordingPermissionWithdrawn = consentRevoked;
   const jobs = await db!
     .collection("capture_jobs")
     .where("buyer_request_id", "==", requestId)
@@ -491,11 +502,11 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
   // this response will show, including when the optional run read fails.
   let runs: Awaited<ReturnType<typeof listRunsForScene>> = [];
   try {
-    runs = await listRunsForScene(requestId);
+    if (!consentRevoked) runs = await listRunsForScene(requestId);
   } catch {
     // Preserve application history when the optional run list is unavailable.
   }
-  task.results = await applicationResults(task, new Set(runs.map((run) => run.runId)));
+  task.results = consentRevoked ? [] : await applicationResults(task, new Set(runs.map((run) => run.runId)));
   task.results.push(...runs.map((run) => projectAgentRunResult(run, task.id, task.terms)));
   if (
     task.results.some((result) => result.successRate !== null) &&
@@ -528,7 +539,9 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     }
     const captureSession = await db!.collection("captureUploadSessions").doc(`walkthrough-${requestId}`).get();
     const reconstruction = captureSession.data()?.world_reconstruction;
-    const scenePreviewReady = reconstruction?.state === "ready"
+    const preparationStatus = !consentRevoked && captureSession.data()?.website_preparation
+      ? await loadCurrentWebsitePreparationStatus(requestId, `walkthrough-${requestId}`) : null;
+    const scenePreviewReady = !consentRevoked && reconstruction?.state === "ready"
       && [reconstruction?.assets?.launchUrl, reconstruction?.assets?.panoUrl].some((value: unknown) => {
         try { const url = new URL(String(value || "")); return url.protocol === "https:" && !url.username && !url.password; }
         catch { return false; }
@@ -540,7 +553,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
       try { const url = new URL(String(value || "")); return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null; }
       catch { return null; }
     };
-    task.thumbnailUrl = (reconstruction?.state === "ready" ? httpsUrl(reconstruction?.assets?.thumbnailUrl) : null)
+    task.thumbnailUrl = consentRevoked ? null : (reconstruction?.state === "ready" ? httpsUrl(reconstruction?.assets?.thumbnailUrl) : null)
       ?? (/^[a-f0-9]{64}$/.test(String(record.public_task_listing?.thumbnailDigest ?? "")) && record.public_task_listing?.enabled === true
         ? `/api/site-worlds/tasks/${encodeURIComponent(requestId)}/thumbnail` : null);
     task.readiness = projectTaskStatus(
@@ -549,7 +562,10 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         capture_coverage: (record.capture_coverage as never) ?? null,
         site_task_next_update_iso: (record.site_task_next_update_iso as string | null) ?? null,
         briefDrafted: Boolean(brief),
+        consentRevoked,
         scenePreviewReady,
+        scenePreparationFailed: reconstruction?.state === "failed",
+        preparationStatus,
         stage,
         screening: await loadSceneScreening(requestId).catch(() => null),
         site_task_triage: (record.site_task_triage as { disposition?: string | null } | undefined) ?? null,
@@ -562,6 +578,12 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     task.readiness = null;
   }
 
+  task.siteAdvisory = consentRevoked ? null : await loadCurrentSiteAdvisory(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: record.account_owner_uid ?? null });
+  if (task.siteAdvisory?.state === "queued" || task.siteAdvisory?.state === "running") {
+    void import("../utils/siteAssessmentQueue").then(({ tickSiteAssessments }) => tickSiteAssessments(1))
+      .catch(() => logger.warn("Site advisory workspace return wake unavailable"));
+  }
+  if (consentRevoked) task.status = "Recording consent withdrawn";
   return task;
 }
 async function listSetups(uid: string): Promise<RobotSetup[]> {
@@ -597,6 +619,7 @@ router.get(
             caller.user.organization,
         ) || text(caller.user.name),
       email: caller.email,
+      updatePreferences: savedUpdatePreferences(caller.user.updatePreferences),
     };
     if (caller.role === "site_operator") {
       return res.json({
@@ -1010,7 +1033,8 @@ router.post(
     const input = z.object({
       requestId: id,
       siteLocation: z.string().trim().min(1).max(300),
-      taskStatement: z.string().trim().min(1).max(2000),
+      taskStatement: z.string().trim().max(2000).default(""),
+      publicTaskListing: z.object({ consent: z.literal(true), statementVersion: z.literal(listingConsentVersion), details: taskListingSchema }).strict().optional(),
       captureMode: z.enum(["self_capture", "site_visit"]),
       captureRegion: z.enum(["us", "non_us"]),
       hasExistingFootage: z.boolean(),
@@ -1024,6 +1048,10 @@ router.post(
       solAgentsApiConsent: z.object({ granted: z.literal(true),
         statementVersion: z.literal("2026-09-24.v1") }).optional(),
       honeypot: z.string().optional(),
+    }).refine(input => Boolean(input.taskStatement)
+      || (input.captureMode === "self_capture" && input.descriptionOnly !== true
+        && input.consentAttestation?.granted === true), {
+      path: ["taskStatement"], message: "Add a video or describe the work before requesting a description-only assessment.",
     }).parse(req.body);
     res.locals.workspaceIntake = {
       account_owner_uid: identity(res).uid,
@@ -1188,6 +1216,19 @@ router.post(
       }).catch((error) => logger.warn({ error, requestId: input.opportunityId }, "Could not queue the pilot-request email"));
   }),
 );
+router.patch("/update-preferences", handle(async (req, res) => {
+  const caller = identity(res);
+  if (!caller.verified) refuse(403, "Verify your email to save update preferences.");
+  const preferences = buildUpdatePreferences(updatePreferencesInputSchema.parse(req.body), "settings");
+  const userRef = db!.collection("users").doc(caller.uid);
+  await db!.runTransaction(async tx => {
+    const contactRef = db!.collection("robotTeamAccess").doc(accessRecordId(caller.email));
+    const contact = await tx.get(contactRef);
+    tx.update(userRef, { updatePreferences: preferences });
+    if (contact.exists) tx.update(contactRef, { preferencesAccountUid: caller.uid, newJobAlertsOptIn: preferences.newJobAlerts });
+  });
+  return res.json({ ok: true });
+}));
 router.patch(
   "/profile",
   handle(async (req, res) => {

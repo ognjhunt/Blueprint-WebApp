@@ -251,7 +251,7 @@ describe("the booking link has one home", () => {
   });
 
   it("falls back to the published link", () => {
-    expect(bookingUrl()).toBe("https://calendly.com/blueprintar/30min");
+    expect(bookingUrl()).toBe("https://calendly.com/blueprintrobotics/30min");
   });
 
   it("takes configuration without a redeploy of the copy", () => {

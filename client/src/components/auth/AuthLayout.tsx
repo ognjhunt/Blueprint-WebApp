@@ -1,4 +1,5 @@
 import type { PropsWithChildren } from "react";
+import { RobotScene } from "@/components/site/PilotPreview";
 
 export function AuthLayout({ children, wide = false }: PropsWithChildren<{ wide?: boolean }>) {
   return (
@@ -10,7 +11,7 @@ export function AuthLayout({ children, wide = false }: PropsWithChildren<{ wide?
       <div className="auth-body">
         <main id="main-content" className="auth-content">{children}</main>
         <aside className="auth-art" aria-label="Illustrative robotics scene">
-          <img src="/images/site-led/auth/packing.webp" width="1024" height="1536" alt="Illustration of a humanoid packing a carton at a warehouse bench" loading="lazy" />
+          <RobotScene />
           <span>Illustrative scene</span>
         </aside>
       </div>

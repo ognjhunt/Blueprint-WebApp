@@ -30,6 +30,7 @@ export default function BusinessSignUpFlow() {
   const [name, setName] = useState("");
   const [organization, setOrganization] = useState("");
   const [workspaceType, setWorkspaceType] = useState<WorkspaceType>(initialWorkspace);
+  const [optionalUpdates, setOptionalUpdates] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -121,7 +122,7 @@ export default function BusinessSignUpFlow() {
       const existing = await workspaceRequest<WorkspaceAccountSetup>(account.current, "/setup");
       if (existing.workspaceType) { window.location.assign(onboardingDestination(existing.workspaceType, window.location.search, true)); return; }
       await workspaceRequest(account.current, "/setup", "POST", {
-        name: name.trim(), organization: organization.trim(), workspaceType, acceptedTerms: true,
+        name: name.trim(), organization: organization.trim(), workspaceType, acceptedTerms: true, optionalUpdates,
       });
       analyticsEvents.businessSignupCompleted(analytics);
       // Reload the authoritative profile before entering the correct workspace.
@@ -142,7 +143,7 @@ export default function BusinessSignUpFlow() {
     <SEO title="Create an account | Blueprint" description="Create your Blueprint account, then set up your site or robot team." canonical="/signup/business" />
     <AuthLayout>
       <h1 ref={heading} tabIndex={-1}>{step === 1 ? "Create an account" : "Set up your workspace"}</h1>
-      <p className="auth-description">{step === 1 ? "Start with your email. Set up your workspace next." : "A few details, then you’re in."}</p>
+      <p className="auth-description">{step === 1 ? "Start with your email. Set up your workspace next." : "A few details to set up your account. Robot-team access is approved separately."}</p>
       <AuthSteps currentStep={step} labels={["Account", "Workspace"]} />
       <form className="auth-form auth-simple-signup" method="post" onSubmit={submit} noValidate aria-label={step === 1 ? "Account details" : "Workspace details"} aria-busy={busy}>
         {step === 1 ? <>
@@ -156,7 +157,8 @@ export default function BusinessSignUpFlow() {
             <label><input type="radio" name="workspaceType" value="site_operator" checked={workspaceType === "site_operator"} onChange={() => setWorkspaceType("site_operator")} required /><span>Plan a robot pilot for my site</span></label>
             <label><input type="radio" name="workspaceType" value="robot_team" checked={workspaceType === "robot_team"} onChange={() => setWorkspaceType("robot_team")} required /><span>Assess site jobs for my robots</span></label>
           </fieldset>
-          <p className="auth-signup-note">{workspaceType === "site_operator" ? "Next, describe one recurring job and share footage. Your job page will track its assessment and pilot decisions." : workspaceType === "robot_team" ? "Next, review approved site jobs and confirm what your team can support." : "Next, start with a job or the job library."}</p>
+          <p className="auth-signup-note">{workspaceType === "site_operator" ? "Next, describe one recurring job and share footage. Your job page will track its assessment and pilot decisions." : workspaceType === "robot_team" ? "Creating an account does not approve robot-team access. Register interest on the existing robot-team page; invitations are manual when a real site task fits. Already approved? Use your approved email and verify it." : "Next, start with a job or the job library."}</p>
+          <label className="auth-signup-consent"><input type="checkbox" checked={optionalUpdates} onChange={e => setOptionalUpdates(e.target.checked)} disabled={controlsDisabled} /><span>Email me relevant new jobs and Blueprint updates (optional). Unsubscribe anytime. Account and current-job notices are separate.</span></label>
           <label className="auth-signup-consent"><input type="checkbox" checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)} disabled={controlsDisabled} required /><span>I agree to the <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and am authorized to create this organization’s account.</span></label>
         </>}
         {error && <div className="auth-error" role="alert">{error}{accountCreated && <> <a href="/settings">Open Settings</a></>}</div>}

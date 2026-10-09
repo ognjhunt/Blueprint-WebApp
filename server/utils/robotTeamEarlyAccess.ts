@@ -2,7 +2,7 @@
  * Early access for robot teams.
  *
  * Blueprint opens to robot teams a few at a time. Until a team is approved
- * (by a person, or by the fit checklist for a clear fit) it sees no site tasks: not
+ * (by a person for the invited beta) it sees no site tasks: not
  * the library, not a plan, not the site catalog. Approval is by verified
  * email, recorded server-side in a collection clients cannot read or write,
  * because a flag on `users/{uid}` would be client-writable.
@@ -13,6 +13,8 @@ import { createHash } from "node:crypto";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import type { UpdatePreferences } from "../../client/src/types/updatePreferences";
+import { buildUpdatePreferences } from "./updatePreferences";
 import type { AccessFit } from "./robotTeamAccessFit";
 import { getRobotTeam } from "./robotTeamRegistry";
 
@@ -21,6 +23,7 @@ export const ROBOT_TEAM_ACCESS_COLLECTION = "robotTeamAccess";
 export type RobotTeamAccessStatus = "applied" | "approved" | "declined";
 
 export interface RobotTeamAccessApplication {
+  optionalUpdates?: boolean;
   name: string;
   email: string;
   company: string;
@@ -36,6 +39,9 @@ export interface RobotTeamAccessApplication {
 
 export interface RobotTeamAccessRecord extends RobotTeamAccessApplication {
   /** "invite" when a person granted access after a call, rather than on an application. */
+  updatePreferences?: UpdatePreferences;
+  preferencesAccountUid?: string;
+  newJobAlertsOptIn?: boolean;
   source?: "application" | "invite";
   /** The fit checklist as it stood on the latest application. */
   fit?: AccessFit | null;
@@ -65,7 +71,7 @@ const APP_URL = () => (process.env.APP_URL || "https://tryblueprint.io").replace
 
 export const EARLY_ACCESS_REQUIRED = {
   error:
-    "Blueprint is in early access for robot teams. Site tasks are shown to approved teams only; apply and your application will be reviewed.",
+    "Blueprint is in early access for robot teams. Site tasks are shown to approved teams only; register interest for manual review when a real task fits.",
   code: "early_access_required",
   get apply() {
     return `${APP_URL()}/contact/robot-team`;
@@ -112,6 +118,10 @@ export async function recordAccessApplication(
     const prior = existing.exists ? (existing.data() as RobotTeamAccessRecord) : null;
     const record: RobotTeamAccessRecord = {
       ...application,
+      newJobAlertsOptIn: prior?.newJobAlertsOptIn ?? (!prior && application.optionalUpdates === true),
+      ...(prior?.updatePreferences ? { updatePreferences: prior.updatePreferences } : !prior && application.optionalUpdates !== undefined
+        ? { updatePreferences: buildUpdatePreferences({ newsletter: application.optionalUpdates, newJobAlerts: application.optionalUpdates, interests: {}, declaredCategories: {}, requirements: {} }, "application") } : {}),
+      ...(prior?.preferencesAccountUid ? { preferencesAccountUid: prior.preferencesAccountUid } : {}),
       email,
       testSite: application.testSite ?? null,
       pilotPackage: application.pilotPackage ?? null,
@@ -172,6 +182,9 @@ export async function inviteRobotTeam(params: {
     const prior = existing.exists ? (existing.data() as RobotTeamAccessRecord) : null;
     if (prior?.status === "approved") return { record: prior, created: false, alreadyApproved: true };
     const record: RobotTeamAccessRecord = {
+      ...(prior?.updatePreferences ? { updatePreferences: prior.updatePreferences } : {}),
+      ...(prior?.preferencesAccountUid ? { preferencesAccountUid: prior.preferencesAccountUid } : {}),
+      newJobAlertsOptIn: prior?.newJobAlertsOptIn ?? false,
       name: params.name,
       email,
       company: params.company,

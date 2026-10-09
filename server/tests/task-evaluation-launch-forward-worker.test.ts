@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const authority = vi.hoisted(()=>({enabled:true}));
+const authority = vi.hoisted(()=>({enabled:true, advisoryTick: vi.fn()}));
+vi.mock("../utils/siteAssessmentQueue", () => ({tickSiteAssessments: authority.advisoryTick}));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, authAdmin:{getUser:async()=>({customClaims:{admin:authority.enabled},disabled:false})} }));
 
 import {
@@ -15,6 +16,7 @@ import {
   forwardStoredPolicyCanaryRun,
   forwardStoredTaskEvaluationLaunch,
   validateStoredTaskEvaluationLaunch,
+  startTaskEvaluationLaunchForwardWorker,
 } from "../utils/taskEvaluationLaunchForwardWorker";
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
@@ -246,4 +248,24 @@ describe("Task Evaluation launch forward worker", () => {
       },
     });
   });
+});
+
+
+it("launch-only loop ticks enabled customer advisory without broad automation and stops with the worker", async () => {
+  vi.useFakeTimers();
+  vi.stubEnv("BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED", "true");
+  vi.stubEnv("BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_ONLY_WORKER", "true");
+  vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "false");
+  authority.advisoryTick.mockClear();
+  const stop=startTaskEvaluationLaunchForwardWorker();
+  try {
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(authority.advisoryTick).not.toHaveBeenCalled();
+    vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "true");
+    await vi.advanceTimersByTimeAsync(55_000);
+    expect(authority.advisoryTick).toHaveBeenCalledExactlyOnceWith(2);
+    stop();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(authority.advisoryTick).toHaveBeenCalledTimes(1);
+  } finally {stop();vi.useRealTimers();vi.unstubAllEnvs();}
 });

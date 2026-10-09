@@ -1,3 +1,4 @@
+import { jobAlertIsCurrent, resumeNewJobFanout, type JobAlertContext } from "./newJobAlerts";
 import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpdateIsCurrent } from "./taskStatusUpdates";
 /**
  * Durable delivery for site lifecycle and evaluation notices once enqueued.
@@ -16,6 +17,7 @@ import { enqueueDueTaskStatusUpdates, acknowledgeTaskStatusUpdate, taskStatusUpd
 import { createHash, randomUUID } from "node:crypto";
 import { automationBatch } from "./automationBatch";
 import { pilotRecommendationNotificationIsCurrent } from "./pilotRecommendationNotifications";
+import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { sendEmail } from "./email";
@@ -31,6 +33,7 @@ export type OutboxKind =
   | "task_received"
   | "video_received"
   | "scene_ready"
+  | "preparation_needs_attention"
   | "listing_live"
   | "screening_cleared"
   | "screening_not_now"
@@ -41,6 +44,7 @@ export type OutboxKind =
   /** Blueprint's one recommended pilot, and the site booking it. */
   | "pilot_recommended"
   | "pilot_booked"
+  | "pilot_scheduled"
   | "brief_confirmed"
   | "coverage_shortfall"
   | "assessment_ready"
@@ -67,6 +71,9 @@ export interface OutboxEntry {
   subject: string;
   body: string;
   replyTo?: string | null;
+  /** Exact source/context event identity for preparation dispatch authority. */
+  preparationEventId?: string;
+  jobAlert?: JobAlertContext;
   status: OutboxStatus;
   attempts: number;
   createdAtIso: string;
@@ -80,10 +87,14 @@ const DELIVERY_LEASE_MS = 5 * 60 * 1000;
 
 // Bind the claim to the exact message, including the private owner link.
 function messageDigest(entry: OutboxEntry): string {
-  return createHash("sha256").update(JSON.stringify([
+  const fields = [
     entry.idempotencyKey, entry.requestId, entry.kind, entry.to,
     entry.subject, entry.body, entry.replyTo ?? null,
-  ])).digest("hex");
+  ];
+  // Preserve the exact historical tuple for every existing retained lease.
+  if (entry.preparationEventId !== undefined) fields.push(entry.preparationEventId);
+  if (entry.jobAlert !== undefined) fields.push(JSON.stringify(entry.jobAlert));
+  return createHash("sha256").update(JSON.stringify(fields)).digest("hex");
 }
 
 /** Expiry permits another claim only before the durable dispatch marker.
@@ -114,7 +125,7 @@ function nowIso() {
  * asking. Delivery retries use the same durable intent.
  */
 export type OutboxInput = Pick<OutboxEntry,
-  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo">;
+  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo" | "preparationEventId" | "jobAlert">;
 
 /** Build a durable intent for an owning business transaction. This function
  * performs no I/O; callers create the row atomically with their state change. */
@@ -186,6 +197,10 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     await reconcileSceneReadyNotifications(limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile scene-ready notices"); }
   try {
+    const { reconcileWebsitePreparationNotifications } = await import("./taskLifecycleNotifications");
+    await reconcileWebsitePreparationNotifications(Math.min(limit, 1));
+  } catch { logger.warn({ code: "website_preparation_reconcile_unavailable" }, "Could not reconcile preparation notices"); }
+  try {
     const { reconcileAgentRunResultNotifications } = await import("./agentRunResultNotifications");
     await reconcileAgentRunResultNotifications(limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile evaluation-result notices"); }
@@ -193,6 +208,8 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const { reconcileTaskEvaluationNotificationRetries } = await import("./taskEvaluationNotificationRetry");
     await reconcileTaskEvaluationNotificationRetries(db, limit);
   } catch (error) { logger.warn({ error }, "Could not reconcile notification acknowledgements"); }
+  try { await resumeNewJobFanout(limit); }
+  catch (error) { logger.warn({ error }, "New-job fanout will resume on a later tick"); }
   await reconcileOutboxDeliveries(limit);
   const snapshot = await db
     .collection(CAPTURE_OUTBOX_COLLECTION)
@@ -229,7 +246,12 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
       // A source read/decrypt failure leaves a recoverable pre-dispatch claim;
       // an obsolete notice is cancelled without consuming a send attempt.
       const currentRecommendation = await pilotRecommendationNotificationIsCurrent(entry, tx);
-      if (!currentNotice || !currentRecommendation) {
+      // Withdrawal can race a retained producer or a claim. Read its current
+      // authority before the durable dispatch marker; in-flight receipts below
+      // still describe the provider effect and are never recast as cancelled.
+      const currentCaptureNotice = await taskLifecycleNotificationIsCurrent(entry, tx);
+      const currentJobAlert = await jobAlertIsCurrent(entry, tx);
+      if (!currentNotice || !currentRecommendation || !currentCaptureNotice || !currentJobAlert) {
         tx.set(doc.ref, { status: "cancelled" }, { merge: true });
         return false;
       }
@@ -242,6 +264,16 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     try {
       result = await sendEmail({ to: entry.to, subject: entry.subject,
         text: message.text, html: message.html, replyTo: entry.replyTo ?? undefined });
+      // Provider adapters cross an untrusted response boundary. A truthy
+      // acceptance without a usable provider receipt is not a completed send.
+      // Keep that possible effect unknown rather than retrying it or allowing
+      // malformed/null output to strand an unobserved dispatch exception.
+      if (!result || typeof result.sent !== "boolean"
+        || (result.sent && (typeof result.provider !== "string" || !result.provider.trim()
+          || typeof result.messageId !== "string" || !result.messageId.trim()))) {
+        result = { sent: false, provider: null, messageId: null,
+          outcome: "unknown", error: new Error("delivery_provider_receipt_invalid") };
+      }
     } catch (error) {
       result = { sent: false, provider: null, messageId: null, error, outcome: "unknown" };
     }

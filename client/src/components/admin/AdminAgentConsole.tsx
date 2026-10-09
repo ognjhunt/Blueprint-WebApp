@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 
 import { withCsrfHeader } from "@/lib/csrf";
+import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import { useAuth } from "@/contexts/AuthContext";
 import AdpAgentTasksPanel from "./AdpAgentTasksPanel";
 import type {
   AgentCheckpointRecord,
@@ -273,6 +275,9 @@ type CacheEfficiencyResponse = {
 };
 
 export default function AdminAgentConsole() {
+  const { currentUser } = useAuth();
+  const withAgentHeaders = async (headers: Record<string, string> = {}) =>
+    withCsrfHeader(await withFirebaseAuthHeaders(currentUser, headers));
   const queryClient = useQueryClient();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [title, setTitle] = useState("Ops agent thread");
@@ -313,6 +318,7 @@ export default function AdminAgentConsole() {
   const [startupPackName, setStartupPackName] = useState("");
   const [startupPackDescription, setStartupPackDescription] = useState("");
   const [editingStartupPackId, setEditingStartupPackId] = useState<string | null>(null);
+  const [editingStartupPackVersion, setEditingStartupPackVersion] = useState<number | null>(null);
   const [opsDocumentTitle, setOpsDocumentTitle] = useState("");
   const [opsDocumentSourceFileUri, setOpsDocumentSourceFileUri] = useState("");
   const [openClawSmokeModel, setOpenClawSmokeModel] = useState("");
@@ -321,9 +327,12 @@ export default function AdminAgentConsole() {
     queryKey: ["admin-agent-sessions"],
     queryFn: async () => {
       const response = await fetch("/api/admin/agent/sessions", {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
-      if (!response.ok) throw new Error("Failed to fetch agent sessions");
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null);
+        throw new Error(`Failed to fetch agent sessions (${response.status})${typeof failure?.error === "string" ? `: ${failure.error.slice(0, 500)}` : ""}`);
+      }
       return response.json();
     },
   });
@@ -332,7 +341,7 @@ export default function AdminAgentConsole() {
     queryKey: ["admin-agent-cache-efficiency"],
     queryFn: async () => {
       const response = await fetch("/api/admin/agent/cache-efficiency?hours=24&limit=500", {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch cache efficiency telemetry");
       const payload = await response.json();
@@ -351,7 +360,7 @@ export default function AdminAgentConsole() {
     queryKey: ["admin-agent-context-options"],
     queryFn: async () => {
       const response = await fetch("/api/admin/agent/context/options", {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch startup context options");
       return response.json();
@@ -363,7 +372,7 @@ export default function AdminAgentConsole() {
     enabled: Boolean(activeSessionId),
     queryFn: async () => {
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}`, {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch agent session");
       return response.json();
@@ -375,7 +384,7 @@ export default function AdminAgentConsole() {
     enabled: Boolean(activeSessionId),
     queryFn: async () => {
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/runs`, {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch agent runs");
       return response.json();
@@ -389,7 +398,7 @@ export default function AdminAgentConsole() {
       const response = await fetch(
         `/api/admin/agent/sessions/${activeSessionId}/action-logs`,
         {
-          headers: await withCsrfHeader({}),
+          headers: await withAgentHeaders({}),
         },
       );
       if (!response.ok) throw new Error("Failed to fetch action logs");
@@ -402,7 +411,7 @@ export default function AdminAgentConsole() {
     enabled: Boolean(activeSessionId),
     queryFn: async () => {
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/events`, {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch runtime events");
       return response.json();
@@ -414,7 +423,7 @@ export default function AdminAgentConsole() {
     enabled: Boolean(activeSessionId),
     queryFn: async () => {
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/checkpoints`, {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch checkpoints");
       return response.json();
@@ -426,7 +435,7 @@ export default function AdminAgentConsole() {
     enabled: Boolean(activeSessionId),
     queryFn: async () => {
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/compactions`, {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch compactions");
       return response.json();
@@ -437,7 +446,7 @@ export default function AdminAgentConsole() {
     queryKey: ["admin-agent-openclaw-connectivity"],
     queryFn: async () => {
       const response = await fetch("/api/admin/agent/runtime/connectivity", {
-        headers: await withCsrfHeader({}),
+        headers: await withAgentHeaders({}),
       });
       if (!response.ok) throw new Error("Failed to fetch agent runtime connectivity");
       return response.json();
@@ -529,10 +538,13 @@ export default function AdminAgentConsole() {
       };
       const response = await fetch("/api/admin/agent/sessions", {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error("Failed to create session");
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null);
+        throw new Error(`Failed to create session (${response.status})${typeof failure?.error === "string" ? `: ${failure.error.slice(0, 500)}` : ""}`);
+      }
       return response.json() as Promise<{ ok: boolean; session: AgentSessionRecord }>;
     },
     onSuccess: (data) => {
@@ -562,6 +574,7 @@ export default function AdminAgentConsole() {
             storage_uri: run.storageUri,
           })),
         operatorNotes,
+        ...(editingStartupPackId ? { expectedVersion: editingStartupPackVersion } : {}),
       };
       const response = await fetch(
         editingStartupPackId
@@ -569,7 +582,7 @@ export default function AdminAgentConsole() {
           : "/api/admin/agent/startup-packs",
         {
           method: editingStartupPackId ? "PATCH" : "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          headers: await withAgentHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(payload),
         },
       );
@@ -592,6 +605,7 @@ export default function AdminAgentConsole() {
       setStartupPackName("");
       setStartupPackDescription("");
       setEditingStartupPackId(null);
+      setEditingStartupPackVersion(null);
     },
   });
 
@@ -599,7 +613,7 @@ export default function AdminAgentConsole() {
     mutationFn: async () => {
       const response = await fetch("/api/admin/agent/documents", {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           title: opsDocumentTitle,
           sourceFileUri: opsDocumentSourceFileUri,
@@ -648,7 +662,7 @@ export default function AdminAgentConsole() {
         `/api/admin/agent/sessions/${activeSessionId}/messages`,
         {
           method: "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          headers: await withAgentHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(body),
         },
       );
@@ -671,7 +685,7 @@ export default function AdminAgentConsole() {
     mutationFn: async (runId: string) => {
       const response = await fetch(`/api/admin/agent/runs/${runId}/approve`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
       });
       if (!response.ok) throw new Error("Failed to approve run");
       return response.json();
@@ -689,7 +703,7 @@ export default function AdminAgentConsole() {
     mutationFn: async (runId: string) => {
       const response = await fetch(`/api/admin/agent/runs/${runId}/cancel`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
       });
       if (!response.ok) throw new Error("Failed to cancel run");
       return response.json();
@@ -707,7 +721,7 @@ export default function AdminAgentConsole() {
     mutationFn: async () => {
       const response = await fetch("/api/admin/agent/runtime/smoke-test", {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           model: openClawSmokeModel.trim() || undefined,
           includeArtifactProbe: true,
@@ -725,7 +739,7 @@ export default function AdminAgentConsole() {
 
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/fork`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           phase,
           source_run_id: runs[0]?.id,
@@ -754,7 +768,7 @@ export default function AdminAgentConsole() {
       if (!activeSessionId) throw new Error("No session selected");
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/start`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ message: message.trim() || "Start the bounded task." }),
       });
       if (!response.ok) throw new Error("Failed to start session");
@@ -773,7 +787,7 @@ export default function AdminAgentConsole() {
       if (!activeSessionId) throw new Error("No session selected");
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/interrupt`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ reason: "Interrupted by operator from managed runtime console" }),
       });
       if (!response.ok) throw new Error("Failed to interrupt session");
@@ -790,7 +804,7 @@ export default function AdminAgentConsole() {
       if (!activeSessionId) throw new Error("No session selected");
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/steer`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ message: steerMessage }),
       });
       if (!response.ok) throw new Error("Failed to steer session");
@@ -809,7 +823,7 @@ export default function AdminAgentConsole() {
       if (!activeSessionId) throw new Error("No session selected");
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/resume`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ checkpoint_id: checkpointId }),
       });
       if (!response.ok) throw new Error("Failed to resume session");
@@ -827,7 +841,7 @@ export default function AdminAgentConsole() {
       if (!activeSessionId) throw new Error("No session selected");
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/cancel`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ reason: "Cancelled from managed runtime console" }),
       });
       if (!response.ok) throw new Error("Failed to cancel session");
@@ -844,7 +858,7 @@ export default function AdminAgentConsole() {
     mutationFn: async () => {
       const response = await fetch("/api/admin/agent/delegations", {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           title: delegationTitle,
           message: delegationMessage,
@@ -870,7 +884,7 @@ export default function AdminAgentConsole() {
       if (!activeSessionId) throw new Error("No session selected");
       const response = await fetch(`/api/admin/agent/sessions/${activeSessionId}/control/compact`, {
         method: "POST",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAgentHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ phase: compactPhase }),
       });
       if (!response.ok) throw new Error("Failed to compact session");
@@ -898,7 +912,7 @@ export default function AdminAgentConsole() {
         profileEditorId ? `/api/admin/agent/profiles/${profileEditorId}` : "/api/admin/agent/profiles",
         {
           method: profileEditorId ? "PATCH" : "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          headers: await withAgentHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(payload),
         },
       );
@@ -935,7 +949,7 @@ export default function AdminAgentConsole() {
           : "/api/admin/agent/environments",
         {
           method: environmentEditorId ? "PATCH" : "POST",
-          headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+          headers: await withAgentHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(payload),
         },
       );
@@ -1421,6 +1435,7 @@ export default function AdminAgentConsole() {
                           className="text-xs text-runway-faint underline"
                           onClick={() => {
                             setEditingStartupPackId(pack.id);
+                            setEditingStartupPackVersion(pack.version);
                             setStartupPackName(pack.name);
                             setStartupPackDescription(pack.description || "");
                             setSelectedRepoDocs(pack.repoDocPaths || []);
@@ -1701,6 +1716,7 @@ export default function AdminAgentConsole() {
                       className="runway-cta-ghost ml-2 min-h-0 px-4 py-2 text-sm"
                       onClick={() => {
                         setEditingStartupPackId(null);
+                        setEditingStartupPackVersion(null);
                         setStartupPackName("");
                         setStartupPackDescription("");
                         setSelectedKnowledgePagePaths([]);
@@ -1938,6 +1954,11 @@ export default function AdminAgentConsole() {
                 )}
                 Create session
               </button>
+              {createSessionMutation.error ? (
+                <p role="alert" className="text-sm text-red-400">
+                  {createSessionMutation.error instanceof Error ? createSessionMutation.error.message : "Failed to create session"}
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -1947,6 +1968,11 @@ export default function AdminAgentConsole() {
               <h2 className="font-display text-lg font-semibold uppercase tracking-[0.005em] text-runway-text">Sessions</h2>
             </div>
             <div className="mt-4 space-y-2">
+              {sessionsQuery.error ? (
+                <p role="alert" className="text-sm text-red-400">
+                  {sessionsQuery.error instanceof Error ? sessionsQuery.error.message : "Failed to fetch agent sessions"}
+                </p>
+              ) : null}
               {sessionsQuery.isLoading ? (
                 <p className="text-sm text-runway-faint">Loading sessions...</p>
               ) : (sessionsQuery.data?.sessions || []).length === 0 ? (
@@ -2529,6 +2555,13 @@ export default function AdminAgentConsole() {
                         </p>
                         <p className="mt-2">{run.outcome_contract.objective}</p>
                       </div>
+                    ) : null}
+                    {run.task_kind === "site_assessment" && run.output ? (
+                      <p className="mt-3 text-xs text-runway-mute">
+                        {(run.artifacts?.site_assessment_packet as any)?.schema_version === "site_assessment.v2"
+                          ? "Source-bound facts report selected source data. Unbound factual claims remain unknown. Proposed approaches, checks and questions are unverified interpretations. Decisions and recommendations require evidence review; video perception and robot suitability remain unverified. Raw model wording is retained as unverified interpretation."
+                          : "Legacy assessment: factual wording was not bound to individual observations or specification fields. Treat its claims as unverified; retained records remain unchanged."}
+                      </p>
                     ) : null}
                     {run.output ? (
                       <pre className="runway-num mt-3 overflow-x-auto border border-runway-line bg-runway-black p-3 text-xs text-runway-mute">

@@ -1,17 +1,18 @@
 // @vitest-environment node
+import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 import { memoryFirestore } from "./fixtures/communications";
 import { officialContactCases, officialResearchInput } from "./fixtures/official-contact-research";
 import { syntheticReviewedResearchInput, syntheticLeadVerification } from "./fixtures/lead-verification";
 import { stageReviewedResearch, validateReviewedResearch, reviewedResearchPublication, researchIdentityText, REVIEWED_RESEARCH_ROOT } from "../agents/communications-reviewed-research";
-import { admitPublishedResearch } from "../agents/communications-intake";
-import { readExistingResearchSnapshot, researchPublicationSource, verifyPublishedResearch } from "../agents/communications-research";
+import { admitPublishedResearch, admitReviewedReportHypothesis } from "../agents/communications-intake";
+import { readExistingResearchSnapshot, researchPublicationSource, verifyPublishedResearch, verifyPublishedHypothesisForDraft } from "../agents/communications-research";
 import { compileAutomaticFirstContact, firstContactGeography, verifyFirstContactSource } from "../agents/communications-first-contact";
 import { CommunicationsStore, COMMUNICATIONS_ROOT } from "../agents/communications-store";
 import { communicationsDigest } from "../agents/communications-contract";
 import { contactPageText } from "../agents/communications-contact-resolution";
-import { requireVerifiedLead } from "../agents/lead-verification";
+import { requireVerifiedLead, verificationDigest } from "../agents/lead-verification";
 
 const now = Date.parse("2026-10-01T21:05:00Z");
 async function admit(input = syntheticReviewedResearchInput(), db = memoryFirestore()) {
@@ -276,5 +277,100 @@ describe("truthful authenticated report admission (offline, no paid calls or sen
     expect(read.verification).toMatchObject({ status: "unresolved", assessment: null });
     expect(read.source).not.toHaveProperty("leadVerification");
     expect(() => requireVerifiedLead(read.source, now)).toThrow("lead_verification_required");
+  });
+});
+
+function syntheticReviewedHypothesis() {
+  const input = syntheticReviewedResearchInput(), assessment: any = input.leadVerification;
+  assessment.claims.human_workflow = { status: "unresolved", reason: "This offline fixture does not establish a human workflow.", source_refs: [] };
+  const sources = [...input.candidate.evidence.map(entry => ({ url: entry.url, text: entry.quote })),
+    ...assessment.sources.map((source: any) => ({ url: source.url, text: source.quote }))];
+  return { ...input, hypothesis: { authorizationReference: "synthetic:authenticated-draft-only-request",
+    authorizationExpiresAt: "2026-10-03T00:00:00Z", retainedSources: sources.map(source => {
+      const bytes = Buffer.from(source.text);
+      return { url: source.url, rawBase64: bytes.toString("base64"), sha256: createHash("sha256").update(bytes).digest("hex"), format: "page_text" as const };
+    }) } };
+}
+describe("reviewed report hypotheses (existing offline fixture, no provider/Gmail)", () => {
+  it("admits unknown human workflow only as a draft-only hypothesis and rechecks immutable evidence", async () => {
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_HYPOTHESIS_DRAFTS_ENABLED", "true");
+    const input = syntheticReviewedHypothesis(), db = memoryFirestore();
+    const snapshot = await stageReviewedResearch(db, input, "server-authenticated-admin", now);
+    const deps = { db, now: () => now, readResearch: async () => snapshot, isSuppressed: async () => false };
+    const outcome: any = await admitReviewedReportHypothesis(snapshot, input.candidate.candidate_key, deps);
+    const store = new CommunicationsStore(db, () => now), brief = await store.brief(outcome.briefId), handoff = await store.handoff(brief);
+    expect(outcome).toMatchObject({ state: "admitted", label: "hypothesis", sendsAuthorized: false, sessionCreated: false });
+    expect(brief.qualification?.openChecks).toContain("manual_workflow");
+    expect(handoff).toMatchObject({ sheetsReceipt: null, notionReceipt: null, recordReceipt: expect.stringContaining("firestore:") });
+    expect(verifyPublishedHypothesisForDraft(snapshot, brief, handoff, null, now).briefDigest).toBe(outcome.briefDigest);
+    expect(() => verifyPublishedResearch(snapshot, brief, handoff, undefined, now)).toThrow("outreach_ready_hypothesis_draft_only");
+    expect(await admitReviewedReportHypothesis(snapshot, input.candidate.candidate_key, deps)).toEqual(outcome);
+    const changed = structuredClone(snapshot); changed.row.packet.hypothesis.retainedSources[0].rawBase64 = Buffer.from("changed").toString("base64");
+    expect(() => verifyPublishedHypothesisForDraft(changed, brief, handoff, null, now)).toThrow();
+    expect(() => verifyPublishedHypothesisForDraft(snapshot, brief, handoff, null, Date.parse("2026-10-03T00:00:01Z"))).toThrow();
+  });
+  it.each(["quote", "digest", "authorization", "assessment"])("refuses unsupported reviewed hypothesis %s before persistence", async kind => {
+    const input: any = syntheticReviewedHypothesis();
+    if (kind === "quote") input.hypothesis.retainedSources = input.hypothesis.retainedSources.slice(1);
+    if (kind === "digest") input.hypothesis.retainedSources[0].sha256 = "a".repeat(64);
+    if (kind === "authorization") input.hypothesis.authorizationExpiresAt = "2026-10-01T20:00:00Z";
+    if (kind === "assessment") input.leadVerification.claims.operator.status = "unresolved";
+    const db = memoryFirestore(); await expect(stageReviewedResearch(db, input, "server-authenticated-admin", now)).rejects.toThrow();
+    expect(db.records.size).toBe(0);
+  });
+  it("binds an authority-hosted operator document and preserves its historical publication date", async () => {
+    const input: any = syntheticReviewedHypothesis(), candidate = input.candidate;
+    const quote = "Synthetic fixture operator names Jane Example as its Plant Manager and lists operations@facility.example for business inquiries.";
+    candidate.evidence[1] = { ...candidate.evidence[1], url: "https://authority.example/operator-application.pdf", quote,
+      source_date: "2024-10-16", assertion_scope: "as_of_background", retrieval: "operator_document" };
+    candidate.evidence.push({ ...candidate.evidence[0], role: "background", classification: "independent", url: "https://directory.example/operator",
+      quote: "Synthetic fixture operator lists Jane Example as the Plant Manager for its packing facility." });
+    input.assessment.contact.selection.role = "Plant Manager";
+    input.assessment.contact.selection.kind = "professional_person";
+    input.hypothesis.recipient = { name: "Jane Example", role: "Plant Manager" };
+    input.leadVerification.candidate_digest = verificationDigest(candidate);
+    const document = Buffer.from("Explicitly invented operator application bytes; offline document proof fixture only.");
+    const documentDigest = createHash("sha256").update(document).digest("hex");
+    input.hypothesis.retainedSources = [...candidate.evidence.map((entry: any) => ({ url: entry.url, text: entry.quote })),
+      ...input.leadVerification.sources.map((entry: any) => ({ url: entry.url, text: entry.quote }))].map((entry: any, index: number) => {
+        const bytes = Buffer.from(entry.text);
+        return { url: entry.url, rawBase64: bytes.toString("base64"), sha256: createHash("sha256").update(bytes).digest("hex"),
+          format: index === 1 ? "document_text" : "page_text", ...(index === 1 ? { document: { sha256: documentDigest,
+            page: 1, operator: candidate.organization, authorshipQuote: quote, corroborationEvidenceIndex: 3,
+            extractionReview: { method: "visual_page_review", rationale: "Synthetic offline authenticated visual review; no actual document or operator." } } } : {}) };
+      });
+    await expect(stageReviewedResearch(memoryFirestore(), input, "authenticated-fixture", now)).rejects.toThrow("document_reader_missing");
+    await expect(stageReviewedResearch(memoryFirestore(), input, "authenticated-fixture", now, async () => Buffer.from("different bytes"))).rejects.toThrow("document_changed");
+    const db = memoryFirestore(), snapshot = await stageReviewedResearch(db, input, "authenticated-fixture", now, async digest => {
+      expect(digest).toBe(documentDigest); return document;
+    });
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_HYPOTHESIS_DRAFTS_ENABLED", "true");
+    const outcome: any = await admitReviewedReportHypothesis(snapshot, candidate.candidate_key, { db, now: () => now,
+      readResearch: async () => snapshot, isSuppressed: async () => false });
+    const store = new CommunicationsStore(db), brief = await store.brief(outcome.briefId);
+    expect(brief.contact).toMatchObject({ sourceUrl: candidate.evidence[1].url, recipient: { name: "Jane Example", role: "Plant Manager" } });
+    expect(snapshot.row.packet.candidate.evidence[1]).toMatchObject({ source_date: "2024-10-16", assertion_scope: "as_of_background" });
+    expect(verifyPublishedHypothesisForDraft(snapshot, brief, await store.handoff(brief), null, now).briefDigest).toBe(outcome.briefDigest);
+    const historicalOnly: any = structuredClone(input); historicalOnly.candidate.evidence[3].assertion_scope = "as_of_background";
+    historicalOnly.leadVerification.candidate_digest = verificationDigest(historicalOnly.candidate);
+    await expect(stageReviewedResearch(memoryFirestore(), historicalOnly, "authenticated-fixture", now, async () => document)).rejects.toThrow("recipient_unproven");
+    const wrongRole: any = structuredClone(input); wrongRole.hypothesis.recipient.role = "Purchasing Director";
+    await expect(stageReviewedResearch(memoryFirestore(), wrongRole, "authenticated-fixture", now, async () => document)).rejects.toThrow("recipient_unproven");
+    const tampered = structuredClone(snapshot); tampered.row.review.document_verification[0].page = 2;
+    expect(() => verifyPublishedHypothesisForDraft(tampered, brief, { ...brief.qualityReview, version: "blueprint.communications-handoff.v1",
+      briefDigest: outcome.briefDigest, recordReceipt: `firestore:${REVIEWED_RESEARCH_ROOT}/${snapshot.row.admission_id}`, sheetsReceipt: null, notionReceipt: null }, null, now)).toThrow();
+    const changed: any = structuredClone(input); changed.hypothesis.recipient.name = "Other Person";
+    await expect(stageReviewedResearch(memoryFirestore(), changed, "authenticated-fixture", now, async () => document)).rejects.toThrow();
+  });
+  it("keeps the existing flag and suppression brakes without promoting an unverified lead", async () => {
+    const input = syntheticReviewedHypothesis(), db = memoryFirestore(), snapshot = await stageReviewedResearch(db, input, "server-authenticated-admin", now);
+    const deps = { db, now: () => now, readResearch: async () => snapshot, isSuppressed: async () => true };
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_HYPOTHESIS_DRAFTS_ENABLED", "false");
+    expect(await admitReviewedReportHypothesis(snapshot, input.candidate.candidate_key, deps)).toMatchObject({ state: "not_admitted", reasons: ["hypothesis_drafts_disabled"] });
+    expect([...db.records.keys()].some(key => /\/(?:briefs|jobs)\//.test(key))).toBe(false);
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_HYPOTHESIS_DRAFTS_ENABLED", "true");
+    await expect(admitReviewedReportHypothesis(snapshot, input.candidate.candidate_key, deps)).rejects.toThrow("recipient_suppressed");
+    expect((await admitPublishedResearch(snapshot, input.candidate.candidate_key, deps)).state).toBe("needs_research");
+    expect([...db.records.keys()].some(key => /\/(?:briefs|jobs)\//.test(key))).toBe(false);
   });
 });

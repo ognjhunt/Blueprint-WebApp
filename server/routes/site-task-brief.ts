@@ -1,3 +1,5 @@
+import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
+import { describeSiteAssessmentRetry } from "../utils/siteAssessmentQueue";
 /**
  * The brief an operator reads, and the confirmation that makes it binding.
  *
@@ -46,6 +48,7 @@ import {
   projectTaskStatus,
   taskStatusInputFrom,
 } from "../utils/taskStatusProjection";
+import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue, decryptInboundRequestForAdmin } from "../utils/field-encryption";
@@ -54,6 +57,7 @@ import { runSiteMatch } from "../utils/siteMatchRun";
 import type { InboundRequest, InboundRequestStored, SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { describeBrowserUpload } from "../utils/websiteBrowserUploadStatus";
+import { projectWebsiteCaptureRights, loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { storedCaptureMarkerExists } from "../utils/captureParts";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
@@ -66,6 +70,28 @@ import { notifySlackScreeningCallNeeded } from "../utils/slack";
 import { EMAIL_SIGN_OFF, emailGreeting } from "../utils/emailLayout";
 
 const router = Router();
+
+// Status and same-inbox renewal remain inspectable after withdrawal. Every
+// other signed-link operation reads or derives capture material, or changes
+// its review. Mixed-source brief/item data cannot safely be separated here.
+router.use("/:token", async (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  if (req.path === "/status" || req.path === "/fresh-link") return next();
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) return next(); // Existing handlers retain invalid/scope errors.
+  try {
+    const rights = await loadWebsiteCaptureRights(payload.requestId);
+    if (rights.consent_revoked) return res.status(409).json({
+      code: "capture_processing_not_authorized",
+      error: "Recording consent was withdrawn. Capture-derived review and changes are unavailable. Your job is retained; contact Blueprint if you need help.",
+    });
+    return next();
+  } catch {
+    return res.status(503).json({ code: "capture_authorization_unavailable",
+      error: "Recording permission could not be checked. Keep your original files and try again shortly." });
+  }
+});
+
 
 router.get("/:token/clarification", async (req, res) => {
   const payload = verifyCaptureUploadToken(String(req.params.token));
@@ -110,6 +136,7 @@ async function readRequestForStatus(requestId: string): Promise<{
   account_owner_uid?: string | null;
   site_task_triage?: { disposition?: string | null } | null;
   siteName?: string | null;
+  captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
 } | null> {
   if (!db) return null;
   const snap = await db.collection("inboundRequests").doc(requestId).get();
@@ -127,6 +154,7 @@ async function readRequestForStatus(requestId: string): Promise<{
   const contactEmail = await plain(contact?.email);
   const contactFirstName = await plain(contact?.firstName);
   return {
+    captureRights: projectWebsiteCaptureRights(data),
     siteTaskGates: gateAnswersOnFile(data),
     site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
     capture_coverage: (data.capture_coverage as never) ?? null,
@@ -277,6 +305,8 @@ const SHOT_LABELS: Record<string, string> = {
  */
 function presentBrief(brief: SiteTaskBriefRecord) {
   return {
+    requestId: brief.requestId,
+    confirmedBy: brief.confirmedBy,
     summary: brief.summary,
     shotList: shotListFor(brief),
     captureMode: brief.captureMode,
@@ -285,6 +315,9 @@ function presentBrief(brief: SiteTaskBriefRecord) {
       value: answer.value,
       basis: answer.basis,
       reading: answer.reading,
+      ...(answer.confidence !== undefined ? { confidence: answer.confidence } : {}),
+      ...(answer.atSeconds !== undefined ? { atSeconds: answer.atSeconds } : {}),
+      ...(answer.sourceQuote ? { sourceQuote: answer.sourceQuote } : {}),
     })),
     unresolved: brief.unresolved,
     draftedFrom: brief.draftedFrom,
@@ -340,7 +373,11 @@ router.get("/:token", async (req: Request, res: Response) => {
     // for an owner link -- a film-only colleague sees the shot list to record
     // against, not a button that would 403. The film payload is also filtered:
     // our reading of the operator's answers stays with the owner's link.
-    const presented = payload.scope === "owner" ? presentBrief(brief) : presentBriefForFilming(brief);
+    const recorded = payload.scope === "owner" && db
+      ? (await db.collection("inboundRequests").doc(payload.requestId).get()).data() : null;
+    const recordedAnswers = { ...gateAnswersOnFile(recorded ?? {}), ...brief.operatorAnswers };
+    for (const id of brief.operatorUnknown ?? []) delete recordedAnswers[id];
+    const presented = payload.scope === "owner" ? presentBrief({ ...brief, operatorAnswers: recordedAnswers }) : presentBriefForFilming(brief);
     if (payload.supplement && db) {
       const supplement = (await db.collection("captureSupplements").doc(payload.captureId).get()).data();
       const views = supplement?.parent_coverage?.missing_coverage;
@@ -382,8 +419,9 @@ router.get("/:token/follow-up", async (req: Request, res: Response) => {
     const items = inventory?.items ?? [];
     const photosMissing = items.length === 0 || items.some((item) => item.images.length < 2);
     const eligible = FOLLOW_UP_IDS.filter((id) => {
-      if (id === "success_target") return !brief.successCriteria?.successDefinition;
+      if (id === "success_target") return !brief.successCriteria?.successDefinition && !brief.successCriteria?.unknown;
       if (id === "item_photos") return photosMissing;
+      if (id === "item_weight" || id === "item_make_model") return !brief.operatorTaskDetails?.[id];
       return true;
     });
 
@@ -689,7 +727,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       requestId: payload.requestId,
       confirmedBy: parsed.data.confirmedBy,
       operatorAnswers: answers,
-      operatorUnknown: (parsed.data.unknown ?? []).filter((id) => GATE_IDS.has(id)),
+      operatorUnknown: parsed.data.unknown?.filter((id) => GATE_IDS.has(id)),
       successCriteria: parsed.data.successCriteria,
       pilotIntent: parsed.data.pilotIntent,
     });
@@ -864,10 +902,15 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       ? (captureSession.data()?.world_reconstruction as Record<string, any> | undefined)
       : undefined;
     const sceneViewUrl =
-      payload.scope !== "film" && reconstruction?.state === "ready"
+      Boolean(request) && !request?.captureRights.consent_revoked && payload.scope !== "film" && reconstruction?.state === "ready"
         ? safeSceneViewUrl(reconstruction?.assets?.launchUrl)
           || safeSceneViewUrl(reconstruction?.assets?.panoUrl)
         : null;
+    // Presence is only a readback hint. The stored failure itself is never
+    // customer truth: verify current Pipeline/source/rights/context again.
+    const preparationStatus = payload.scope !== "film" && !request?.captureRights.consent_revoked
+      && captureSession?.data()?.website_preparation
+      ? await loadCurrentWebsitePreparationStatus(payload.requestId, payload.captureId) : null;
 
     const status = projectTaskStatus(
       taskStatusInputFrom({
@@ -876,10 +919,13 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         site_task_next_update_iso: request?.site_task_next_update_iso ?? null,
         briefDrafted: Boolean(brief),
         hasStoredCapture,
+        consentRevoked: request?.captureRights.consent_revoked,
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady: Boolean(sceneViewUrl),
+        scenePreparationFailed: reconstruction?.state === "failed",
+        preparationStatus,
         stage,
-        screening,
+        screening: request?.captureRights.consent_revoked ? null : screening,
         site_task_triage: request?.site_task_triage ?? null,
         bookingUrl: bookingUrl(),
         account_owner_uid: request?.account_owner_uid ?? null,
@@ -889,7 +935,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // Retention alone is not an active review or permission to process. The
     // desktop must show the same hold as the phone while preserving the saved
     // receipt (and must never ask for a replacement recording in that state).
-    if (status.decision === "footage_received" && (upload.processingHold || uploadState !== "processing_ready")) {
+    if (!request?.captureRights.consent_revoked && reconstruction?.state !== "failed" && !preparationStatus
+      && status.decision === "footage_received" && (upload.processingHold || uploadState !== "processing_ready")) {
       status.headline = upload.processingHold?.detail
         ?? "Your video is saved. Processing has not been confirmed. Keep your original video; you do not need to record or upload it again.";
       status.operatorAction = null;
@@ -905,9 +952,39 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
         : null;
 
+    const siteAdvisory = payload.scope === "owner"
+      ? await loadCurrentSiteAdvisory(payload.requestId, payload.captureId, { expectedOwnerUid: request?.account_owner_uid ?? null }) : null;
+    // Availability is a read-only inspection of the same durable authority
+    // the explicit retry uses. An advisory failure alone never grants a run.
+    const noRetry = { available: false, job_id: null, run_id: null };
+    let retry: { available: boolean; job_id: string | null; run_id: string | null } = noRetry;
+    if (payload.scope === "owner" && !payload.supplement && request && !request.captureRights.consent_revoked
+      && payload.captureId === `walkthrough-${payload.requestId}` && payload.sceneId === `site-${payload.requestId}`
+      && siteAdvisory?.state === "needs_review") {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        retry = await Promise.race([describeSiteAssessmentRetry(payload.requestId, fresh => {
+          const current = verifyCaptureUploadToken(String(req.params.token || ""));
+          if (!current || current.scope !== "owner" || current.supplement || current.requestId !== payload.requestId
+            || current.captureId !== payload.captureId || current.sceneId !== payload.sceneId
+            || (fresh.account_owner_uid ?? null) !== (request.account_owner_uid ?? null)
+            || !projectWebsiteCaptureRights(fresh).derived_scene_generation_allowed) throw Error("advisory_retry_not_authorized");
+        }), new Promise<typeof retry>(resolve => { timer = setTimeout(() => resolve(noRetry), 4000); })]);
+      } catch { retry = noRetry; }
+      finally { clearTimeout(timer); }
+    }
+    if (siteAdvisory?.state === "queued" || siteAdvisory?.state === "running") {
+      // Only an authorized, current-source read can wake the existing queue.
+      void import("../utils/siteAssessmentQueue").then(({ tickSiteAssessments }) => tickSiteAssessments(1))
+        .catch(() => logger.warn("Site advisory return-visit wake unavailable"));
+    }
     return res.status(200).json({
       ok: true,
       scope: payload.scope,
+      siteAdvisory,
+      assessment_retry_available: retry.available,
+      assessment_job_id: retry.available ? retry.job_id : null,
+      assessment_run_id: retry.available ? retry.run_id : null,
       status,
       // Retention only: a saved recording does not prove processing started.
       captureReceived: hasStoredCapture,
@@ -916,7 +993,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       // Whether coverage is checked automatically or by a person, so the page
       // says which one happens.
       footageReviewAutomated: isSiteVideoEvidenceEnabled(),
-      summary: brief?.summary ?? null,
+      summary: request?.captureRights.consent_revoked ? null : brief?.summary ?? null,
       claimUrl,
       sceneViewUrl,
     });

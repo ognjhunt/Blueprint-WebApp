@@ -33,7 +33,7 @@
 
 import { getConfiguredEnvValue } from "../config/env";
 
-const DEFAULT_BOOKING_URL = "https://calendly.com/blueprintar/30min";
+const DEFAULT_BOOKING_URL = "https://calendly.com/blueprintrobotics/30min";
 
 /**
  * The booking URL, from config where set.

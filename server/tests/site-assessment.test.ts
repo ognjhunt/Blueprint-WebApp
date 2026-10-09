@@ -14,6 +14,7 @@ describe("site assessment agent", () => {
     const question = "What actually moves?";
     const model: Model = {
       async getResponse(request): Promise<ModelResponse> {
+        expect(request.modelSettings.providerData).toMatchObject({ service_tier: "default" });
         turn++;
         const call = (name: string, args: unknown) => ({ type: "function_call" as const, callId: `call-${turn}`,
           name, arguments: JSON.stringify(args) });
@@ -26,11 +27,11 @@ describe("site assessment agent", () => {
         const source_id = state.match(/video:capture-one:[a-f0-9]{12}/)![0];
         const assessment: SiteAssessment = {
           status: "needs_operator_input",
-          job: [{ text: "The rack slides; dish loading is not shown.", basis: "observed", evidence: [{ source_id, at_seconds: 8 }] }],
+          job: [{ text: "The rack slides; dish loading is not shown.", basis: "observed", evidence: [{ source_id, at_seconds: 8, selector: null }] }],
           objects_motions_conditions_variations: [], operator_success: [], known: [], estimates: [],
           missing: [{ text: "Operator acceptance threshold", basis: "unknown", evidence: [] }], approaches: [],
           next_action: { kind: "ask_operator", action: "Confirm the intended job and acceptance threshold.",
-            why: { text: "The intended job is not established by rack movement alone.", basis: "estimate", evidence: [{ source_id, at_seconds: 8 }] } },
+            why: { text: "The intended job is not established by rack movement alone.", basis: "estimate", evidence: [{ source_id, at_seconds: 8, selector: null }] } },
           questions: [{ question: "Is the job rack operation or loading dishes, and what counts as acceptable?", decision_it_changes: "Task boundary and success criteria" }],
         };
         return response([{ type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text: JSON.stringify(assessment) }] }]);

@@ -1,5 +1,6 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { processSceneIntakeQueue } from "./taskEvaluationSceneIntake";
 import { resolveExecutionAccessContext } from "./access-control";
 import type { Response } from "express";
@@ -7,7 +8,7 @@ import {
   CANONICAL_TASK_EVALUATION_ALLOCATOR,
   forwardTaskEvaluationLaunch,
 } from "./taskEvaluationLaunchContract";
-import { canonicalArtifactDigest } from "./taskCandidateContract";
+import { canonicalArtifactDigest, stableJson } from "./taskCandidateContract";
 import { withTaskEvaluationLaunchStoreTimeout } from "./taskEvaluationLaunchStore";
 
 const COLLECTION = "taskEvaluationLaunches";
@@ -210,13 +211,25 @@ export async function processTaskEvaluationLaunchForwardQueue(limit = 10) {
       ? await forwardStoredPolicyCanaryRun(record)
       : await forwardStoredTaskEvaluationLaunch(record);
     if (result.skipped) continue;
-    await withTaskEvaluationLaunchStoreTimeout(
-      doc.ref.set({
+    // Forwarding is an asynchronous, digest-bound intake operation. A Pipeline
+    // terminal callback may already have advanced this record while the HTTP
+    // response was in flight; applying a stale queue snapshot must not reopen
+    // it or bind the receipt to a successor request. Concurrent queue passes
+    // likewise only apply the response to the state/attempt they observed.
+    const applied = await withTaskEvaluationLaunchStoreTimeout(db.runTransaction(async transaction => {
+      const current = (await transaction.get(doc.ref)).data();
+      if (!current || current.state !== record.state
+        || current.request_digest !== record.request_digest
+        || stableJson(current.request ?? null) !== stableJson(record.request ?? null)
+        || Number(current.forward_attempt_count || 0) !== Number(record.forward_attempt_count || 0)
+        || current.terminal_receipt) return false;
+      transaction.set(doc.ref, {
         ...result,
         updated_at_iso: new Date().toISOString(),
-      }, { merge: true }),
-    );
-    processed += 1;
+      }, { merge: true });
+      return true;
+    }));
+    if (applied) processed += 1;
   }
   return { status: "completed", processed };
 }
@@ -308,7 +321,14 @@ export async function closeExpiredTaskEvaluationLaunches(
 }
 
 export function startTaskEvaluationLaunchForwardWorker() {
-  if (!truthy(process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED)) {
+  const enabled = truthy(process.env.BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED);
+  logger.info({
+    launchForwardWorkerEnabled: enabled,
+    siteVideoEvidenceEnabled: isSiteVideoEvidenceEnabled(),
+    openAiCredentialConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
+    geminiCredentialConfigured: ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_AI_STUDIO_API_KEY"].some(key => Boolean(process.env[key]?.trim())),
+  }, "Task Evaluation launch worker admission");
+  if (!enabled) {
     return () => undefined;
   }
   const intervalValue = Number(
@@ -317,7 +337,15 @@ export function startTaskEvaluationLaunchForwardWorker() {
   const intervalMs = Number.isFinite(intervalValue) && intervalValue >= 10_000
     ? intervalValue
     : 60_000;
+  let stopped = false;
   const run = () => {
+    if (stopped) return;
+    // This loop also runs when the broader ops scheduler is intentionally off.
+    if (isSiteVideoEvidenceEnabled()) {
+      void import("./siteAssessmentQueue").then(({ tickSiteAssessments }) => { if (!stopped) tickSiteAssessments(2); }).catch(() => {
+        logger.warn("Site advisory worker tick unavailable");
+      });
+    }
     void processSceneIntakeQueue().catch((error) => {
       logger.error({ err: error }, "Task Evaluation scene intake reconciliation failed");
     });
@@ -334,6 +362,7 @@ export function startTaskEvaluationLaunchForwardWorker() {
   const initial = setTimeout(run, 5_000);
   const interval = setInterval(run, intervalMs);
   return () => {
+    stopped = true;
     clearTimeout(initial);
     clearInterval(interval);
   };

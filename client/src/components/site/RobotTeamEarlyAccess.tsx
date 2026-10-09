@@ -39,6 +39,7 @@ function ApplicationForm({ email }: { email: string | null }) {
         workWanted: read("workWanted"),
         testSite: read("testSite") || undefined,
         acceptedTerms: true,
+        optionalUpdates: data.get("optionalUpdates") === "on",
       });
       setState(status === "approved" ? "approved" : "sent");
     } catch (failure) {
@@ -60,7 +61,7 @@ function ApplicationForm({ email }: { email: string | null }) {
     return (
       <div className="ms-task-empty" role="status">
         <h2>Application received.</h2>
-        <p>A person reads every application. We will email you with the next step.</p>
+        <p>Your interest is saved and approval is pending. We review teams manually and invite them when a real site task fits. No account or integration is needed now.</p>
       </div>
     );
   }
@@ -81,11 +82,12 @@ function ApplicationForm({ email }: { email: string | null }) {
       <label>A site or customer you would want to test at <span className="ms-field-hint">(optional)</span>
         <input disabled={!interactive} name="testSite" placeholder="e.g. the warehouse you are piloting with" maxLength={300} />
       </label>
+      <label className="ms-check-row"><input type="checkbox" name="optionalUpdates" disabled={!interactive} /> Email me relevant new jobs and Blueprint updates (optional). Unsubscribe anytime. Application notices are separate.</label>
       <p className="ms-field-hint">
         By applying, you agree to our <a href={TERMS_URL}>Terms of Service</a> and <a href={PRIVACY_URL}>Privacy Policy</a>.
       </p>
       {error && <p role="alert">{error} You can also <a href="mailto:hello@tryblueprint.io">email us your company, robot and the work you want to pursue</a>.</p>}
-      <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Sending…" : "Apply for early access"}</button>
+      <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Sending…" : "Register interest"}</button>
       <noscript><p>Enable JavaScript to apply here, or email your company, robot and the work you want to pursue to <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p></noscript>
     </form>
   );
@@ -125,7 +127,7 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
     return (
       <div className="ms-task-empty">
         <h2>Your application is in review.</h2>
-        <p>A person reads every application. We will email{email ? ` ${email}` : " you"} with the next step.</p>
+        <p>Approval is pending. We review teams manually and email{email ? ` ${email}` : " you"} if a real site task fits. Creating an account does not approve access.</p>
       </div>
     );
   }
@@ -142,9 +144,9 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
   return (
     <section aria-label="Early access" className="ms-early-access">
       <div className="ms-task-empty">
-        <h2>Apply for early access.</h2>
+        <h2>Register interest.</h2>
         <p>
-          No policy upload or integration needed.
+          Tell us about your robot and the work you want to test. Invitations are manual, when a real site task fits. No policy upload or integration needed.
         </p>
       </div>
       <ApplicationForm email={email} />

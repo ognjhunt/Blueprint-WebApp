@@ -143,3 +143,45 @@ Saved item reads continue through progressing provider cursors rather than an
 arbitrary page quota. Resource/deadline exhaustion returns a recovery diagnostic,
 never a partial success or a new paid create. Pending usage remains unknown with
 the original reservation held; it does not prevent retaining the completed draft.
+
+### Authenticated reviewed-report hypotheses
+
+An explicit `hypothesis` on the existing reviewed-report request stages a
+**draft-only** hypothesis. Omitting it retains the verified-lead path and its
+unchanged `requireVerifiedLead` check. The hypothesis branch recomputes the
+existing outreach tier from the candidate's digest-bound assessment and actual
+retained UTF-8 page or extracted-document bytes (`rawBase64`, SHA-256, URL and
+format). Quotes must match that retained text. These are direct source exports,
+not invented Parallel calls, QA turns or publication receipts. Human workflow,
+automation, fit and interest may remain unresolved; contradictions, unusable
+operator/site/task support, stale evidence and duplicates remain blocked.
+
+The authenticated request explicitly records its authorization reference and
+expiry. The server binds that request to its actual actor and recording time,
+and the brief pins the protected Firestore record plus authorization digest.
+It does not claim a Pipeline cloud direction or create external publication.
+Readback and every draft verification recompute the tier at current time and
+bind the report, source bytes, assessment, recipient, handoff and qualification.
+Sheets and Notion receipts stay null. Canonical prospect/brief/handoff/job
+creation is atomic and duplicate checked; admitted entities are labelled
+`research_hypothesis` with `sendAuthority: none`.
+
+An operator-authored document on another host needs retained extraction text,
+original document SHA-256/page/authorship evidence, an explicit authenticated
+visual-page extraction review and separate fresh public
+corroboration of the selected professional's name and role. Admission verifies
+the original document bytes from the existing content-addressed company bucket.
+The protected receipt binds the binary hash, extraction hash, URL, page, actual
+authenticated reviewer/time and review rationale. The server verifies the binary
+hash; it does not independently extract PDF text or establish authorship. The
+reviewer must have actually inspected that page and extraction. Readback rechecks
+this precise review binding. Contact provenance
+keeps the real host and original publication date. This exception applies only
+to this explicit reviewed-report hypothesis path and retains existing contact
+restrictions, unknown-gap checks and suppression controls.
+
+The default-off hypothesis brake remains unchanged. This admission creates no
+model session, Gmail draft or send, grants no access, and provides no spending
+allowance. Actual inference still requires the existing native budget admission
+and worker checks. Existing charged checkpoints and historical reports retain
+their original bindings.

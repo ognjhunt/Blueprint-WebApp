@@ -66,8 +66,8 @@ describe("Render deploy-on-green contract", () => {
     expect(deployWorkflow).toContain('main_head=$(gh api "repos/${REPO}/commits/main" --jq .sha)');
     expect(deployWorkflow).toContain('if [ "${deploy_ref}" != "${main_head}" ]; then');
     expect(deployWorkflow).toContain('echo "stale=true" >> "${GITHUB_OUTPUT}"');
-    // Both deploy steps and the evidence upload stand down for a stale completion.
-    expect(deployWorkflow.match(/if: steps\.ref\.outputs\.stale != 'true'/g)?.length).toBe(2);
+    // Checkout, predecessor capture, deploy and verification all stand down for stale completion.
+    expect(deployWorkflow.match(/if: steps\.ref\.outputs\.stale != 'true'/g)?.length).toBe(4);
     expect(deployWorkflow).toContain("if: always() && steps.ref.outputs.stale != 'true'");
     expect(deploymentDoc).toContain("Only main's current head deploys automatically");
   });

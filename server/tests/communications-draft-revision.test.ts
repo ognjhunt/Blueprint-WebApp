@@ -52,6 +52,17 @@ function fixture(intent: "outreach" | "reply" = "outreach") {
 }
 
 describe("authenticated draft revision", () => {
+  it.each(["outreach", "reply"] as const)("keeps a footerless %s revision unsent without postal configuration", async intent => {
+    const f = fixture(intent), ledger = f.db.records.get(f.ledgerPath);
+    ledger.action_payload.communicationsDraftOnly = "founder-footerless-v2";
+    ledger.action_payload.transportBody = ledger.action_payload.body.trimEnd();
+    vi.stubEnv("BLUEPRINT_COMMUNICATIONS_FIRST_CONTACT_POSTAL_LINE", "");
+    const review = reviewCommunicationsPayload(ledger.action_payload, communicationsNow);
+    const result = await reviseCommunicationsDraft(f.db, f.ledgerId, "owner", { ...f.input, expectedReviewDigest: review.digest }, communicationsNow);
+    expect(result).toMatchObject({ state: "pending_approval", sent: false, modelSessionCreated: false });
+    expect(f.db.records.get(f.ledgerPath).action_payload.transportBody).toBe(f.input.output.body.trimEnd());
+    expect(f.db.records.get(f.ledgerPath).approval_reason).toBe("footerless_draft_requires_delivery_review");
+  });
   it("repairs unsafe wording and unknown fact references without new inference, authority or delivery", async () => {
     const f = fixture(), oldJob = structuredClone(f.savedJob), oldSource = structuredClone(f.db.records.get(f.sourcePath));
     expect(reviewCommunicationsPayload(f.payload, communicationsNow).blockers).toEqual(expect.arrayContaining(["used_fact_missing", "pressure_or_guarantee"]));

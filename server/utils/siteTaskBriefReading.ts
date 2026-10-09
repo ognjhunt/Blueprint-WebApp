@@ -102,6 +102,8 @@ export function proposalsFromReading(
       value: proposal.value,
       basis: stated ? "description" : "assumption",
       reading: stated ? `You wrote "${quote}". ${proposal.reading}`.trim() : proposal.reading,
+      confidence: proposal.confidence,
+      ...(quote ? { sourceQuote: quote } : {}),
     });
   }
 
@@ -134,7 +136,9 @@ export function proposalsFromFootage(
       fieldId: field.id,
       value,
       basis: "observation",
-      reading: `${observation.observation} (at ${clockLabel(moment.at_seconds)})`,
+      reading: `Observed in this clip: ${observation.observation} (at ${clockLabel(moment.at_seconds)}). This does not establish the answer for other cycles or shifts, or grant site authority.`,
+      confidence: observation.confidence,
+      atSeconds: moment.at_seconds,
     });
   }
 

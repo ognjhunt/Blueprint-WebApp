@@ -509,7 +509,9 @@ const createStartupPackSchema = z.object({
   visibility: z.enum(["private", "workspace", "org"]).optional(),
 });
 
-const updateStartupPackSchema = createStartupPackSchema.partial();
+const updateStartupPackSchema = createStartupPackSchema.partial().extend({
+  expectedVersion: z.number().int().positive().optional(),
+});
 
 const createOpsDocumentSchema = z.object({
   title: z.string().min(1).max(200),
@@ -934,7 +936,11 @@ router.get("/startup-packs", requireAdminRole, async (req: Request, res: Respons
 
 router.get("/startup-packs/:id", requireAdminRole, async (req: Request, res: Response) => {
   try {
-    const startupPack = await getStartupPack(req.params.id);
+    const version = req.query.version === undefined ? undefined : Number(req.query.version);
+    if (version !== undefined && (!Number.isSafeInteger(version) || version < 1)) {
+      return res.status(400).json({ ok: false, error: "Invalid startup pack version" });
+    }
+    const startupPack = await getStartupPack(req.params.id, version);
     if (!startupPack) {
       return res.status(404).json({ ok: false, error: "Startup pack not found" });
     }
@@ -989,6 +995,7 @@ router.patch("/startup-packs/:id", requireAdminRole, async (req: Request, res: R
     const payload = updateStartupPackSchema.parse(req.body ?? {});
     const actor = await resolveAccessContext(res);
     const startupPack = await updateStartupPack(req.params.id, {
+      expected_version: payload.expectedVersion,
       name: payload.name,
       description: payload.description,
       repo_doc_paths: payload.repoDocPaths,
@@ -1019,6 +1026,7 @@ router.patch("/startup-packs/:id", requireAdminRole, async (req: Request, res: R
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to update startup pack";
+    if (message === "startup_pack_version_conflict") return res.status(409).json({ ok: false, error: message });
     return res.status(400).json({ ok: false, error: message });
   }
 });

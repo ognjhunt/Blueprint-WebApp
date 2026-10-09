@@ -16,6 +16,8 @@
  */
 
 export interface ClientRuntimeConfig {
+  /** Monotonic revision; zero identifies legacy/default configuration. */
+  revision: number;
   /** Minimum capture-client version allowed to run. "0.0.0" = no floor. */
   minSupportedVersion: string;
   /** Hard stop: clients should refuse to operate and show an update/blocked screen. */
@@ -34,6 +36,7 @@ export const CLIENT_RUNTIME_CONFIG_COLLECTION = "appConfig";
 export const CLIENT_RUNTIME_CONFIG_DOC_ID = "clientRuntime";
 
 export const DEFAULT_CLIENT_RUNTIME_CONFIG: ClientRuntimeConfig = {
+  revision: 0,
   minSupportedVersion: "0.0.0",
   killSwitch: false,
   maintenanceMode: false,
@@ -128,6 +131,7 @@ export function normalizeClientRuntimeConfig(
     killSwitch: asBool(data.killSwitch, DEFAULT_CLIENT_RUNTIME_CONFIG.killSwitch),
     maintenanceMode: asBool(data.maintenanceMode, DEFAULT_CLIENT_RUNTIME_CONFIG.maintenanceMode),
     message,
+    revision: Number.isSafeInteger(data.revision) && Number(data.revision) >= 0 ? Number(data.revision) : 0,
     updatedAt: asIso(data.updatedAt),
     updatedBy: typeof data.updatedBy === "string" ? data.updatedBy : null,
   };

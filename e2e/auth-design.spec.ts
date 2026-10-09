@@ -18,10 +18,30 @@ for (const width of [1440, 390]) {
       await expect(page.locator("#main-content")).toHaveCount(1);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await expect(page.getByText(/Access Control Suite|Why Exact-Site Context Matters|Secure Access Portal/)).toHaveCount(0);
-      if (width === 1440) await expect(page.locator(".auth-art img")).toBeVisible();
+      if (width === 1440) await expect(page.locator(".auth-art .robot-scene")).toBeVisible();
     }
   });
 }
+
+test("the auth robot scene moves on to the next example after one loop", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/sign-in");
+  const scene = page.locator(".auth-art .robot-scene > svg");
+  await expect(scene).toHaveAttribute("aria-label", "Illustration of the warehouse example");
+  await expect(scene).toHaveAttribute("aria-label", /Illustration of the café example/, { timeout: 20_000 });
+});
+
+test("the auth robot scene can be paused and played again", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/sign-in");
+  const pause = page.locator(".auth-art").getByRole("button", { name: "Pause robot animation" });
+  await expect(pause).toBeVisible();
+  await pause.click();
+  const play = page.locator(".auth-art").getByRole("button", { name: "Play robot animation" });
+  await expect(play).toBeVisible();
+  await play.click();
+  await expect(page.locator(".auth-art").getByRole("button", { name: "Pause robot animation" })).toBeVisible();
+});
 
 test("sign-in validates and links to account creation and recovery", async ({ page }) => {
   await page.goto("/sign-in");

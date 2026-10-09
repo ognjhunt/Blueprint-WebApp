@@ -31,7 +31,7 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
         <a className="ms-brand" href="/" aria-label="Blueprint home"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
         <nav className="ms-desktop-nav" aria-label="Main navigation">
           <a href="/how-it-works">How it works</a>
-          <a href="/pricing">Pricing</a>
+          <a href="/beta">Beta program</a>
           <a href="/contact/robot-team">For robot teams</a>
           {primary}
         </nav>
@@ -41,7 +41,7 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
         {menuOpen && (
           <nav id="ms-mobile-nav" className="ms-mobile-nav" aria-label="Mobile navigation" onClick={() => setMenuOpen(false)} onKeyDown={(event) => { if (event.key === "Escape") { setMenuOpen(false); menuButton.current?.focus(); } }}>
             <a href="/how-it-works">How it works</a>
-            <a href="/pricing">Pricing</a>
+            <a href="/beta">Beta program</a>
             <a href="/contact/robot-team">For robot teams</a>
             {primary}
           </nav>

@@ -18,7 +18,7 @@ import { configuredFounderSentObserverPorts, evaluateFounderSentThread, founderS
   FOUNDER_SENT_OBSERVER_FLAG, type FounderSentThread } from "../agents/communications-founder-sent-observer";
 import { admitFounderSentCommunicationsReplies, runCommunicationsReplyIntake } from "../agents/communications-reply-intake";
 import { communicationsSendBlocker, executeCommunicationsSend } from "../agents/communications-send";
-import { mirrorCommunicationsGmailDraft } from "../agents/communications-gmail-draft";
+import { mirrorCommunicationsGmailDraft, gmailDraftPlain } from "../agents/communications-gmail-draft";
 import { reviseCommunicationsDraft } from "../agents/communications-draft-revision";
 import { firstContactRecipientKey } from "../agents/communications-first-contact";
 import { processCommunicationsJob, startCommunicationsQueueLoop } from "../agents/communications-worker";
@@ -84,6 +84,9 @@ describe("founder-sent draft observation (all providers faked)", () => {
   it.each(["exact", "edited"])("records an %s founder send as hashes and ids only, without a receipt or approval", async kind => {
     const f = setup(), ledger = structuredClone(f.db.records.get(f.paths.ledger)), job = structuredClone(f.db.records.get(`${f.root}/jobs/${f.job.jobId}`));
     const sent = f.thread.messages[0];
+    f.binding.content.mimeProfile = kind === "exact" ? "multipart-founder-signature-v3" : "multipart-signature-link-v2";
+    f.binding.content.body = `${f.payload.body}\n\nThanks,\nNijel Hunt\nBlueprint`;
+    sent.body = gmailDraftPlain(f.binding.content);
     if (kind === "edited") sent.body = sent.body.replace("Is packing a relevant job to discuss?", "Would packing be worth a short call?");
     // Unsent drafts (even mislabelled SENT) and messages sent before the copy
     // existed are never evidence.

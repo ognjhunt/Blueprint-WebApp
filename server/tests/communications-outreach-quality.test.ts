@@ -8,7 +8,7 @@ import { parseCommunicationsOutput } from "../agents/communications-output";
 import { buildCommunicationsInput, buildCommunicationsPayload } from "../agents/communications-worker";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 import { COMMUNICATIONS_FRAMING_VERSION } from "../agents/communications-launch-framing";
-import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, communicationsBatchRepetition, communicationsWritingSignals } from "../agents/communications-outreach-quality";
+import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, communicationsWritingVariant, communicationsBatchRepetition, communicationsWritingSignals } from "../agents/communications-outreach-quality";
 
 describe("prospective founder outreach quality (offline fixtures)", () => {
   it.each(["named", "inbox", "dated", "future"] as const)("retains evidence and accepts a natural %s first reply through real input/parser/review", kind => {
@@ -16,14 +16,36 @@ describe("prospective founder outreach quality (offline fixtures)", () => {
     const input = JSON.parse(buildCommunicationsInput(f.brief, null, "outreach", "pending_approval", undefined, undefined,
       COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION));
     expect(input.researchBrief).toEqual(f.brief);
+    expect(input.firstTouchFraming).not.toHaveProperty("question");
+    const variant = communicationsWritingVariant({ ...f.output, reason: "[writing-hypothesis:job-relevance] Evidence-backed relevance, no outcome yet." })!;
+    expect(variant).toMatchObject({ hypothesisId: "job-relevance", interpretationOnly: true });
+    const changed = communicationsWritingVariant({ ...f.output, reason: "[writing-hypothesis:job-relevance]", subject: "A different supported angle" })!;
+    expect(changed.variantId).not.toBe(variant.variantId);
+    expect(changed.subjectVariantId).not.toBe(variant.subjectVariantId);
+    expect(changed.bodyVariantId).toBe(variant.bodyVariantId);
+    expect(communicationsWritingVariant(f.output)).toBeNull();
     expect(input.firstTouchPolicy).toContain("Unknown automation, manual work");
     expect(input.firstTouchPolicy).toContain("recipient-site conflicts remain held");
-    expect(input.firstTouchPolicy).toContain("A dated announcement is dated background");
-    const { output } = parseCommunicationsOutput(JSON.stringify(f.output));
+    expect(input.firstTouchPolicy).toContain("Keep dated announcements dated");
+    // Prospective profile keeps the same recorded evidence, with flexible ordering and subject punctuation.
+    const prospective = structuredClone(f.output);
+    (prospective.outreachContract as any).version = "blueprint.outreach.v5";
+    prospective.subject += "?";
+    if (kind === "future") {
+      const contract = prospective.outreachContract as any;
+      const original = contract.questions[0].question, request = original.replace(/\?$/, ".");
+      contract.questions[0].question = request;
+      contract.opening.relevance = request; contract.recipientChoice = request;
+      prospective.body = prospective.body.replace(original, "");
+      const firstBreak = prospective.body.indexOf("\n\n");
+      prospective.body = prospective.body.slice(0, firstBreak) + "\n\n" + request + prospective.body.slice(firstBreak);
+    }
+    const { output } = parseCommunicationsOutput(JSON.stringify(prospective));
     const payload = buildCommunicationsPayload(f.job, f.brief, null, output, false, null);
     expect(reviewCommunicationsPayload(payload, communicationsNow)).toMatchObject({ hardChecksPassed: true, blockers: [] });
     expect(communicationsDigest(f.brief)).toBe(before);
-    expect(output.body.match(/\?/g)).toHaveLength(1);
+    if (kind === "future") expect(output.body.match(/\?/g)).toBeNull();
+    else expect(output.body.match(/\?/g)).toHaveLength(1);
     expect(output.body).toContain("Thanks,\nNijel Hunt\nBlueprint");
     expect(output.body).not.toMatch(/done by hand|labor savings|ready to deploy|and if so, why|That could mean/);
     expect(communicationsWritingSignals(output.body, f.brief.boundedJob)).toEqual([]);
@@ -32,7 +54,7 @@ describe("prospective founder outreach quality (offline fixtures)", () => {
       expect(output.body).toContain("2020 announcement");
       expect(input.researchBrief.facts[0]).toMatchObject({ publishedAt: "2020-03-01", assertionScope: "as_of_background" });
     }
-    if (kind === "future") expect(output.body).toContain("just to prepare for later");
+    if (kind === "future") expect(output.body).toContain("help plan for later");
   });
   it.each([
     ["a person guessed for a general inbox", "Hi Alex,", "hypothesis_recipient_greeting_mismatch"],
@@ -42,6 +64,7 @@ describe("prospective founder outreach quality (offline fixtures)", () => {
     ["a deployment-ready solution", "We are ready to deploy.", "discovery_cannot_promise_qualified_match_or_capacity"],
   ])("holds %s through real validation", (_name, text, blocker) => {
     const f = founderOutreachFixture("inbox"), output = structuredClone(f.output);
+    (output.outreachContract as any).version = "blueprint.outreach.v5";
     output.body = text.startsWith("Hi ") ? output.body.replace("Hi machining team,", text) : output.body + "\n\n" + text;
     const review = reviewCommunicationsPayload(buildCommunicationsPayload(f.job, f.brief, null, output, false, null), communicationsNow);
     expect(review.blockers).toContain(blocker);

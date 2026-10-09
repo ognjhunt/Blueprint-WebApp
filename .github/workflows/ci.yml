@@ -15,6 +15,19 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  release-scope:
+    runs-on: ubuntu-latest
+    outputs:
+      scope: ${{ steps.scope.outputs.scope }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: scope
+        env:
+          RELEASE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/release/checks.mjs scope
+
   # Validation commands gate CI; diagnostic artifact uploads are optional
   # because GitHub can reject them when the repository storage quota is full.
   check:
@@ -162,10 +175,13 @@ jobs:
           git diff --exit-code
 
   test:
+    needs: release-scope
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -176,8 +192,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm run test:coverage
+      - name: Run changed-file tests and required safety checks
+        env:
+          RELEASE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: node scripts/release/checks.mjs test
 
       - name: Verify tests did not mutate tracked files
         run: |
@@ -200,6 +218,8 @@ jobs:
           retention-days: 7
 
   e2e:
+    needs: release-scope
+    if: needs.release-scope.outputs.scope == 'full'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -262,6 +282,9 @@ jobs:
       - name: Verify private site links and retained capture handoff
         run: npm run test:site-reliability:browser
 
+      - name: Verify scoped intake recovery and cross-tab authority
+        run: npx playwright test --config playwright.reliability-intake.config.ts
+
       - name: Upload Playwright report
         if: ${{ always() && hashFiles('playwright-report/**') != '' }}
         continue-on-error: true
@@ -318,7 +341,8 @@ jobs:
   deployment-admission:
     name: Observe automatic deployment admission
     needs: [check, rules-emulator, test, e2e, build]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    # Observe holds even when content-only browser checks were intentionally skipped.
     runs-on: ubuntu-latest
     permissions: {}
     steps:

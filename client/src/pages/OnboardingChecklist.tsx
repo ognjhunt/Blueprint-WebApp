@@ -237,7 +237,7 @@ export default function OnboardingChecklist() {
             id: "package-path",
             title: "Define the evaluation decision",
             description:
-              "Describe the site-task, decision, candidates when applicable, thresholds, false-safe consequence, budget, deadline, evidence, and restrictions.",
+              "Describe the site-task, decision, candidates when applicable, thresholds, false-safe consequence, deadline, evidence, and restrictions.",
             completed: Boolean(
               progress.packageOrHostedPathSelected ||
               progress.defineSiteSubmission,
@@ -271,7 +271,7 @@ export default function OnboardingChecklist() {
             id: "procurement",
             title: "Add procurement context",
             description:
-              "Budget range, timing, and blockers help Blueprint decide whether a call accelerates the request.",
+              "Timing and blockers help Blueprint decide whether a call accelerates the request.",
             completed: Boolean(progress.procurementReviewed),
             icon: CreditCard,
             action: {
