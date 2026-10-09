@@ -3125,15 +3125,21 @@
       "failed_before_mutation": "stale main after admission"
     },
     "native_ci_followup": {
-      "current_head": "b52ec2fd0595d136137326c48e86761b66850351",
+      "current_head": "3c635bfc846a84698b17229754fed61ad68efc00",
       "first_run": 37881195173,
       "first_outcome": "collection failure retained",
       "actual_test_package_scoped_passed": 340,
       "workflow_diagnostic_passed": 7,
       "production_source_unchanged": true,
-      "required_new_ci": "not_started_pending_workflow_review"
+      "required_new_ci": 37882792895,
+      "workflow_review_sha256": "b6113ade9c230f25769e2aed0dc9faaeee2acbf5afa345401e9d05f2f9b6125c",
+      "test_import_review_sha256": "576edeaa1bc2adc28bd858d7d45e03467e3c4df2569ba2d3ec3e62835923be0a",
+      "required_new_ci_status": "in_progress",
+      "original_dispatches": 0
     },
     "native_metadata_receipt_sha256": "f1fa894e43d1a34b773c5277d8c7de3b8b9549a19c2950d564fb6ce018d70093",
-    "native_operational_receipt_sha256": "a62a71d0652219d24ef05557d9c0bddc85195ba95bfc383f5d9dd7c39274730c"
+    "native_operational_receipt_sha256": "a62a71d0652219d24ef05557d9c0bddc85195ba95bfc383f5d9dd7c39274730c",
+    "normal_entry_presentation_sha256": "ee06534bccf597e30cde1094256bd218e6340bde61511e1479b8887e4376585a",
+    "original_raw_byte_verification_sha256": "791e2ec708c42c64402c4cbc0b7265551b1832c3f4d73d757765a2c65b0dcaa7"
   }
 }
