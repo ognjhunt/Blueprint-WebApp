@@ -55,6 +55,12 @@ let base: string;
 beforeEach(async () => {
   sharedFakeFirestoreState.docs.clear();
   sendEmail.mockClear();
+  const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
+  // These account-management tests start with explicitly approved teams.
+  for (const uid of ["robot-owner", "someone-else"]) {
+    const email = `${uid}@example.com`;
+    sharedFakeFirestoreState.docs.set(`robotTeamAccess/${accessRecordId(email)}`, { email, status: "approved", decidedBy: "fixture-ops", decidedAtIso: "2026-10-09T00:00:00Z" });
+  }
   sharedFakeFirestoreState.docs.set("users/robot-owner", { buyerType: "robot_team", organizationName: "Acme Robotics" });
   sharedFakeFirestoreState.docs.set("users/someone-else", { buyerType: "robot_team" });
   const { default: agentTeam } = await import("../routes/agent-team");

@@ -236,7 +236,7 @@ describe("build output", () => {
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(homeHtml).toContain("Could a robot take over a repetitive task at your site?");
-    expect(homeHtml).toContain("Free initial assessment for invited beta participants.");
+    expect(homeHtml).toContain("Free initial assessment during the beta.");
     expect(homeHtml).toContain("One recommended pilot, on one page.");
     expect(homeHtml).toContain("Quoted by the robot team, paid to them");
     expect(homeHtml).not.toContain("The same task, in simulation.");

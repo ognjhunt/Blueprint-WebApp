@@ -8,7 +8,7 @@ describe("Site-led homepage", () => {
     render(<Home />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Could a robot take over a repetitive task at your site?");
     expect(screen.getByRole("link", { name: "Show us a task" })).toHaveAttribute("href", "/contact/site-operator");
-    expect(screen.getByText("Free initial assessment for invited beta participants.")).toBeInTheDocument();
+    expect(screen.getByText("Free initial assessment during the beta.")).toBeInTheDocument();
     // Robot teams reach their own page from the nav, not from the homepage.
     expect(screen.queryByRole("link", { name: /robot-team beta|early access/i })).not.toBeInTheDocument();
     // One example of the deliverable, clearly marked, instead of staged imagery.

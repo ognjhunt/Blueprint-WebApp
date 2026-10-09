@@ -865,7 +865,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       </>}
 
       <p className="ms-form-note">
-        Initial assessment is free for invited beta participants. <a href="/beta#scope">Later scope and cost are agreed separately</a>. By selecting Start free assessment,
+        Initial assessment is free during the beta. <a href="/beta#scope">Later scope and cost are agreed separately</a>. By selecting Start free assessment,
         you agree to our <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and{" "}
         <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and confirm: “{DESCRIPTION_AUTHORITY_STATEMENT}”
       </p>

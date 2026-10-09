@@ -11,15 +11,15 @@ import { workspaceRequest } from "@/lib/workspace";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import type { WorkspaceAccountSetup } from "@/types/workspace";
 
-type WorkspaceType = "site_operator" | "robot_team" | "";
-function initialWorkspace(): WorkspaceType {
-  if (typeof window === "undefined") return "";
-  const params = new URLSearchParams(window.location.search);
-  const value = (params.get("buyerType") || params.get("persona") || "").replaceAll("-", "_");
-  return value === "site_operator" || value === "robot_team" ? value : "";
-}
+import RobotTeamSignUpFlow from "./RobotTeamSignUpFlow";
 
 export default function BusinessSignUpFlow() {
+  const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
+  const persona = (params.get("buyerType") || params.get("persona") || "").replaceAll("-", "_");
+  return params.has("invitation") || persona === "robot_team" ? <RobotTeamSignUpFlow /> : <SiteSignUpFlow />;
+}
+
+function SiteSignUpFlow() {
   const { currentUser } = useAuth();
   const account = useRef<User | null>(null);
   const pending = useRef(false);
@@ -29,7 +29,7 @@ export default function BusinessSignUpFlow() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [organization, setOrganization] = useState("");
-  const [workspaceType, setWorkspaceType] = useState<WorkspaceType>(initialWorkspace);
+  const workspaceType = "site_operator";
   const [optionalUpdates, setOptionalUpdates] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -140,10 +140,10 @@ export default function BusinessSignUpFlow() {
   }
 
   return <>
-    <SEO title="Create an account | Blueprint" description="Create your Blueprint account, then set up your site or robot team." canonical="/signup/business" />
+    <SEO title="Create an account | Blueprint" description="Create your Blueprint site account. Robot-team access requires an invitation." canonical="/signup/business" />
     <AuthLayout>
       <h1 ref={heading} tabIndex={-1}>{step === 1 ? "Create an account" : "Set up your workspace"}</h1>
-      <p className="auth-description">{step === 1 ? "Start with your email. Set up your workspace next." : "A few details to set up your account. Robot-team access is approved separately."}</p>
+      <p className="auth-description">{step === 1 ? "Start with your email. Set up your workspace next." : "A few details to set up your site account."}</p>
       <AuthSteps currentStep={step} labels={["Account", "Workspace"]} />
       <form className="auth-form auth-simple-signup" method="post" onSubmit={submit} noValidate aria-label={step === 1 ? "Account details" : "Workspace details"} aria-busy={busy}>
         {step === 1 ? <>
@@ -153,11 +153,7 @@ export default function BusinessSignUpFlow() {
           <p className="auth-signup-email">{email}</p>
           <div><label htmlFor="contactName">Your name</label><input id="contactName" autoComplete="name" maxLength={160} value={name} onChange={e => setName(e.target.value)} required disabled={controlsDisabled} /></div>
           <div><label htmlFor="organizationName">Organization</label><input id="organizationName" autoComplete="organization" maxLength={160} value={organization} onChange={e => setOrganization(e.target.value)} required disabled={controlsDisabled} /></div>
-          <fieldset className="auth-workspace-choice" disabled={controlsDisabled}><legend>I’m here to</legend>
-            <label><input type="radio" name="workspaceType" value="site_operator" checked={workspaceType === "site_operator"} onChange={() => setWorkspaceType("site_operator")} required /><span>Plan a robot pilot for my site</span></label>
-            <label><input type="radio" name="workspaceType" value="robot_team" checked={workspaceType === "robot_team"} onChange={() => setWorkspaceType("robot_team")} required /><span>Assess site jobs for my robots</span></label>
-          </fieldset>
-          <p className="auth-signup-note">{workspaceType === "site_operator" ? "Next, describe one recurring job and share footage. Your job page will track its assessment and pilot decisions." : workspaceType === "robot_team" ? "Creating an account does not approve robot-team access. Register interest on the existing robot-team page; invitations are manual when a real site task fits. Already approved? Use your approved email and verify it." : "Next, start with a job or the job library."}</p>
+          <p className="auth-signup-note">Next, describe one recurring job and share footage. Your job page will track its assessment and pilot decisions.</p>
           <label className="auth-signup-consent"><input type="checkbox" checked={optionalUpdates} onChange={e => setOptionalUpdates(e.target.checked)} disabled={controlsDisabled} /><span>Email me relevant new jobs and Blueprint updates (optional). Unsubscribe anytime. Account and current-job notices are separate.</span></label>
           <label className="auth-signup-consent"><input type="checkbox" checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)} disabled={controlsDisabled} required /><span>I agree to the <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and am authorized to create this organization’s account.</span></label>
         </>}
@@ -165,6 +161,7 @@ export default function BusinessSignUpFlow() {
         <div className="auth-signup-actions">{step === 2 && !accountCreated && <button className="auth-back" type="button" disabled={controlsDisabled} onClick={() => { setError(""); setStep(1); }}>← Back</button>}<button className="auth-primary" type="submit" disabled={controlsDisabled}>{busy ? "Saving…" : step === 1 ? "Continue" : accountCreated ? "Open workspace" : "Create account"}<ArrowRight size={18} aria-hidden="true" /></button></div>
       </form>
       {step === 1 && <><div className="auth-divider"><span>or</span></div><button className="auth-google" type="button" onClick={google} disabled={controlsDisabled}>Continue with Google</button></>}
+      <p className="auth-account-link">For robot teams: <a href="/contact/robot-team">Register interest for an invitation</a></p>
       <p className="auth-account-link">Already have an account? <a href="/sign-in">Sign in</a></p>
     </AuthLayout>
   </>;

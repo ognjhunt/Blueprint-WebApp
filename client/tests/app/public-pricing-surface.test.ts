@@ -78,7 +78,7 @@ describe("the public surface carries one pricing model", () => {
     expect(appRoutes.find(route => route.path === "/beta")?.layout).toBe("public");
     expect(fs.existsSync(path.join(repoRoot, "client/src/pages/Pricing.tsx"))).toBe(true);
     const answer = faqItems.find(item => item.question === "How is Blueprint paid?")?.answer;
-    expect(answer).toContain("free for invited beta participants");
+    expect(answer).toContain("free during the beta");
     expect(answer).toContain("agreed separately before proceeding");
     expect(answer).not.toMatch(/\$2,500|No pilot, no fee/);
   });

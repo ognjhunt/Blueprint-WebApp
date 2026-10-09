@@ -2,6 +2,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { enqueueOutbox } from "./captureOutbox";
 import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
+import { robotTeamAccountInvitation } from "./accountInvitations";
 import {
   accessRecordId,
   ROBOT_TEAM_ACCESS_COLLECTION,
@@ -49,7 +50,7 @@ export function accessReceivedEmail(
   };
 }
 
-export function accessApprovedEmail(record: Pick<RobotTeamAccessRecord, "name" | "email" | "source">) {
+export function accessApprovedEmail(record: RobotTeamAccessRecord) {
   const base = APP_URL();
   const invited = record.source === "invite";
   const call = founderCallUrl();
@@ -63,7 +64,8 @@ export function accessApprovedEmail(record: Pick<RobotTeamAccessRecord, "name" |
         : "Your team is approved for the invited Blueprint beta.",
       "",
       `Create your account with this email address (${record.email}), or sign in if you already have one:`,
-      `${base}/signup/business?buyerType=robot_team`,
+      `${base}/signup/business?invitation=${encodeURIComponent(robotTeamAccountInvitation(record))}`,
+      "This invitation is bound to your approved email and expires in seven days.",
       "",
       "Once your email is verified, the job library shows the site jobs open to your team:",
       `${base}/contact/robot-team`,

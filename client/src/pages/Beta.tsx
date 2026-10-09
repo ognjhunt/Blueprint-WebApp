@@ -1,7 +1,7 @@
 import { SEO } from "@/components/SEO";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
-const description = "A limited, invited beta for real sites and tasks. Get a free initial assessment grounded in the evidence you share.";
+const description = "An open beta for real sites and tasks. Get a free initial assessment grounded in the evidence you share.";
 
 export default function Beta() {
   return (
@@ -13,7 +13,7 @@ export default function Beta() {
       <article className="ms-legal ms-container">
         <p className="ms-eyebrow">Beta program</p>
         <h1>Start with one real task.</h1>
-        <p>We’re inviting a limited group of sites and robot teams to help shape Blueprint around real work. The starting point is a useful initial task assessment, grounded in the evidence you share.</p>
+        <p>Sites can start immediately. Robot teams participate by invitation to help shape Blueprint around real work. The starting point is a useful initial task assessment, grounded in the evidence you share.</p>
         <section>
           <h2>What do I provide?</h2>
           <p>Bring a recurring task at a real site, the outcome you want, and a short video you have permission to share or a conversation about the work. We’ll ask for feedback on the assessment and follow-up to clarify gaps or discuss next steps.</p>
@@ -25,7 +25,7 @@ export default function Beta() {
         </section>
         <section id="scope">
           <h2>What does it cost?</h2>
-          <p>The initial assessment is free for invited participants. Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. Participating does not commit you to that work or include a free physical deployment.</p>
+          <p>The initial assessment is free during the beta. Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. Participating does not commit you to that work or include a free physical deployment.</p>
         </section>
         <section>
           <h2>What is experimental?</h2>

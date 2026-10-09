@@ -68,7 +68,7 @@ function libraryLine(library: Library | undefined) {
  */
 function InviteTeam({ onInvited, send }: {
   onInvited: () => Promise<void>;
-  send: (body: Record<string, string>) => Promise<Response>;
+  send: (body: Record<string, unknown>) => Promise<Response>;
 }) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "already" | "error">("idle");
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -76,10 +76,11 @@ function InviteTeam({ onInvited, send }: {
     const form = event.currentTarget;
     const data = new FormData(form);
     const read = (key: string) => String(data.get(key) ?? "").trim();
+    if (!window.confirm("I reviewed the team’s capabilities, task fit, and prerequisites and approve its invitation.")) return;
     setState("sending");
     try {
       const response = await send({
-        name: read("name"), email: read("email"), company: read("company"),
+        name: read("name"), email: read("email"), company: read("company"), prerequisitesReviewed: true,
         ...(read("note") ? { note: read("note") } : {}),
       });
       if (!response.ok) throw new Error(String(response.status));
@@ -119,6 +120,7 @@ function InviteTeam({ onInvited, send }: {
 export default function AdminRobotTeamAccess() {
   const { currentUser } = useAuth();
   const queryClient = useQueryClient();
+  const [invitationUrl, setInvitationUrl] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const query = useQuery({
@@ -134,7 +136,7 @@ export default function AdminRobotTeamAccess() {
     },
   });
 
-  async function sendInvite(body: Record<string, string>) {
+  async function sendInvite(body: Record<string, unknown>) {
     return fetch("/api/admin/robot-team-access/invites", {
       method: "POST",
       credentials: "include",
@@ -143,7 +145,18 @@ export default function AdminRobotTeamAccess() {
     });
   }
 
+  async function refreshInvitation(application: Application) {
+    setError(null);
+    try {
+      const response = await fetch(`/api/admin/robot-team-access/${application.id}/invitation`, { method: "POST", credentials: "include", headers: await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({})) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not refresh the invitation.");
+      setInvitationUrl(data.invitationUrl);
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Could not refresh the invitation."); }
+  }
+
   async function decide(application: Application, status: "approved" | "declined") {
+    if (status === "approved" && !window.confirm("I reviewed the team’s capabilities, task fit, and prerequisites and approve its invitation.")) return;
     const note = window.prompt(
       status === "approved"
         ? "Optional note (internal). Approving emails them how to create their account."
@@ -161,7 +174,7 @@ export default function AdminRobotTeamAccess() {
         method: "POST",
         credentials: "include",
         headers: await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" })),
-        body: JSON.stringify({ status, ...(note.trim() ? { note: note.trim() } : {}), ...(notify === undefined ? {} : { notify }) }),
+        body: JSON.stringify({ status, prerequisitesReviewed: status === "approved", ...(note.trim() ? { note: note.trim() } : {}), ...(notify === undefined ? {} : { notify }) }),
       });
       if (!response.ok) throw new Error(`The decision was not saved (${response.status})`);
       await queryClient.invalidateQueries({ queryKey: ["admin-robot-team-access"] });
@@ -199,6 +212,7 @@ export default function AdminRobotTeamAccess() {
           <Card pad="lg" className="mt-8"><p className="text-runway-mute">No applications yet.</p></Card>
         ) : null}
 
+        {invitationUrl && <p role="status" className="mb-4 break-all text-sm"><a href={invitationUrl} className="underline">Open approved account invitation</a> · valid for seven days</p>}
         <section className="mt-8 grid gap-4" aria-label="Early-access applications">
           {query.data?.applications.map((application) => (
             <Card key={application.id} pad="lg" className="flex flex-col gap-5">
@@ -238,6 +252,7 @@ export default function AdminRobotTeamAccess() {
               ) : null}
               {application.decisionNote ? <p className="border border-runway-line bg-runway-black p-3 text-sm text-runway-body">{application.decisionNote}{application.decidedBy ? ` — ${application.decidedBy}` : ""}</p> : null}
               <div className="flex flex-wrap gap-3 border-t border-line pt-4">
+                {application.status === "approved" && <Button variant="secondary" onClick={() => void refreshInvitation(application)}>Get invitation link</Button>}
                 <Button variant="secondary" iconLeft={<Check />} disabled={updating === application.id || application.status === "approved"} onClick={() => decide(application, "approved")}>Approve</Button>
                 <Button variant="danger" iconLeft={<X />} disabled={updating === application.id || application.status === "declined"} onClick={() => decide(application, "declined")}>Not yet</Button>
                 {updating === application.id ? <span className="inline-flex items-center gap-2 text-sm text-runway-mute"><Clock3 className="h-4 w-4" />Saving…</span> : null}

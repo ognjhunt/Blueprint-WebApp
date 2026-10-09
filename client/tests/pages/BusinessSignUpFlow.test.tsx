@@ -14,10 +14,9 @@ function accountStep() {
   fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "strongpass123" } });
   fireEvent.click(screen.getByRole("button", { name: "Continue", exact: true }));
 }
-function workspaceStep(role: "site_operator" | "robot_team" = "robot_team") {
+function workspaceStep(role: "site_operator" = "site_operator") {
   fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Test User" } });
   fireEvent.change(screen.getByLabelText("Organization", { exact: true }), { target: { value: "Test Team" } });
-  fireEvent.click(screen.getByLabelText(role === "robot_team" ? "Assess site jobs for my robots" : "Plan a robot pilot for my site"));
   fireEvent.click(screen.getByRole("checkbox", { name: /I agree/ }));
 }
 beforeEach(() => {
@@ -28,12 +27,12 @@ beforeEach(() => {
   mocks.request.mockImplementation(async (_u, _path, method) => method === "POST" ? { ok: true } : unconfigured);
 });
 describe("minimal business signup", () => {
-  it("has two account fields, two workspace fields, and one role choice without legacy intake", () => {
+  it("has two account fields, two workspace fields, and no approval step without legacy intake", () => {
     render(<BusinessSignUpFlow />);
     expect(screen.getAllByRole("textbox")).toHaveLength(1);
     accountStep();
     expect(screen.getAllByRole("textbox")).toHaveLength(2);
-    expect(screen.getAllByRole("radio")).toHaveLength(2);
+    expect(screen.queryAllByRole("radio")).toHaveLength(0);
     expect(screen.queryByText(/Requested lane|Proof path|Company size|Standardized benchmark|Commercialization boundary/)).not.toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: /Email me relevant/ })).not.toBeChecked();
     expect(mocks.create).not.toHaveBeenCalled();
@@ -44,11 +43,11 @@ describe("minimal business signup", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
     await waitFor(() => expect(mocks.request).toHaveBeenCalledWith(user, "/setup", "POST", expect.objectContaining({ optionalUpdates: true })));
   });
-  for (const role of ["robot_team", "site_operator"] as const) {
+  for (const role of ["site_operator"] as const) {
     it(`creates only an account and ${role} workspace, without a sales intake or permissions grant`, async () => {
       render(<BusinessSignUpFlow />); accountStep(); workspaceStep(role);
       fireEvent.click(screen.getByRole("button", { name: "Create account", exact: true }));
-      await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith(role === "robot_team" ? "/contact/robot-team" : "/contact/site-operator"));
+      await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/site-operator"));
       expect(mocks.create).toHaveBeenCalledTimes(1);
       expect(mocks.request).toHaveBeenCalledWith(user, "/setup", "POST", { name: "Test User", organization: "Test Team", workspaceType: role, acceptedTerms: true, optionalUpdates: false });
       expect(mocks.request.mock.calls.every(call => call[1] === "/setup")).toBe(true);
@@ -69,7 +68,7 @@ describe("minimal business signup", () => {
     expect(screen.getByLabelText("Organization", { exact: true })).toHaveValue("Test Team");
     fail = false;
     fireEvent.click(screen.getByRole("button", { name: "Open workspace", exact: true }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/robot-team"));
+    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/site-operator"));
     expect(mocks.create).toHaveBeenCalledTimes(1);
   });
   it("prefills Google identity and requires workspace details and consent", async () => {
@@ -78,7 +77,7 @@ describe("minimal business signup", () => {
     expect(screen.getByRole("checkbox", { name: /I agree/ })).not.toBeChecked();
     expect(mocks.request.mock.calls.some(c => c[2] === "POST")).toBe(false);
     workspaceStep();fireEvent.click(screen.getByRole("button", { name: "Open workspace" }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/robot-team"));
+    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/site-operator"));
     expect(mocks.create).not.toHaveBeenCalled();
   });
   it("routes an existing Google customer to their workspace without changing its type", async () => {
@@ -90,7 +89,7 @@ describe("minimal business signup", () => {
   it("honors site query links and keeps typed values when going back", () => {
     window.history.pushState({}, "", "/signup/business?buyerType=site_operator&intent=pilot-opportunity");
     render(<BusinessSignUpFlow />);accountStep();
-    expect(screen.getByLabelText("Plan a robot pilot for my site")).toBeChecked();
+    expect(screen.queryAllByRole("radio")).toHaveLength(0);
     fireEvent.change(screen.getByLabelText("Organization", { exact: true }), { target: { value: "Saved Team" } });
     fireEvent.click(screen.getByRole("button", { name: /Back/ }));
     expect(screen.getByLabelText("Work email")).toHaveValue(user.email);
@@ -105,7 +104,7 @@ describe("minimal business signup", () => {
     workspaceStep();
     await waitFor(() => expect(screen.getByRole("button", { name: "Open workspace" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Open workspace" }));
-    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/robot-team"));
+    await waitFor(() => expect(mocks.assign).toHaveBeenCalledWith("/contact/site-operator"));
     expect(mocks.create).not.toHaveBeenCalled();
   });
   it("does not overwrite a workspace after an ambiguous save succeeded", async () => {

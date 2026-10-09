@@ -3,7 +3,7 @@ import { PilotPreview } from "@/components/site/PilotPreview";
 import { SEO } from "@/components/SEO";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
 
-const description = "Could a robot take over a repetitive task at your site? Show us the task. We assess the evidence and help you decide what to explore next. Free initial assessment for invited beta participants.";
+const description = "Could a robot take over a repetitive task at your site? Show us the task. We assess the evidence and help you decide what to explore next. Free initial assessment during the beta.";
 
 export default function Home() {
   return (
@@ -17,7 +17,7 @@ export default function Home() {
               <div className="ms-task-hero-links">
                 <a className="ms-button" href="/contact/site-operator">Show us a task <ArrowRight size={21} strokeWidth={1.5} aria-hidden="true" /></a>
               </div>
-              <p className="ms-task-hero-start">Free initial assessment for invited beta participants.</p>
+              <p className="ms-task-hero-start">Free initial assessment during the beta.</p>
             </div>
           </div>
           <PilotPreview />

@@ -4,7 +4,7 @@ test("historical pricing leads to invited beta scope with one action", async ({ 
   await page.goto("/pricing");
   await expect(page).toHaveURL(/\/beta$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Start with one real task.");
-  await expect(page.getByText(/The initial assessment is free for invited participants/)).toBeVisible();
+  await expect(page.getByText(/The initial assessment is free during the beta/)).toBeVisible();
   await expect(page.getByText(/Any later evaluation, integration, or physical pilot/)).toBeVisible();
   await expect(page.locator("article .ms-button")).toHaveCount(1);
   await expect(page.locator("article")).not.toContainText("$2,500");

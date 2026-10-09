@@ -33,7 +33,7 @@ export default function About() {
         <h1>We start with one real job.</h1>
         <p className="ms-about-lead">
           Blueprint helps a business describe one recurring job and review an initial assessment
-          grounded in the available evidence. Our limited, invited beta asks what is supported,
+          grounded in the available evidence. Our beta asks what is supported,
           what is uncertain, and what a useful next step would be.
         </p>
 

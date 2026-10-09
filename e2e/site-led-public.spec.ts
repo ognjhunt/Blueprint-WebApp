@@ -101,7 +101,7 @@ test("old pricing reaches the beta page with one CTA and separately agreed later
   await page.goto("/pricing?source=legacy-review#scope");
   await expect(page).toHaveURL(/\/beta\?source=legacy-review#scope$/);
   await expect(page.locator("h1")).toHaveText("Start with one real task.");
-  await expect(page.getByText(/The initial assessment is free for invited participants/)).toBeVisible();
+  await expect(page.getByText(/The initial assessment is free during the beta/)).toBeVisible();
   await expect(page.getByText(/Any later evaluation, integration, or physical pilot/)).toBeVisible();
   await expect(page.locator("article .ms-button")).toHaveCount(1);
   await expect(page.getByRole("link", { name: "Discuss a task" })).toHaveAttribute("href", "/contact/site-operator?source=beta");

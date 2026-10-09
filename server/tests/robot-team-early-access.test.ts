@@ -244,7 +244,7 @@ describe("the review queue", () => {
     return fetch(`${base}/api/admin/robot-team-access/${id}/decision`, {
       method: "POST",
       headers: { "content-type": "application/json", Authorization: `Bearer ${token}`, ...CSRF },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, prerequisitesReviewed: status === "approved" }),
     });
   }
 
@@ -264,7 +264,7 @@ describe("the review queue", () => {
     expect(await response.json()).toMatchObject({ application: { status: "approved", decidedBy: "ops@tryblueprint.io" } });
     const approvals = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_access_approved"));
     expect(approvals).toHaveLength(1);
-    expect(String((approvals[0][1] as { body: string }).body)).toMatch(/signup\/business\?buyerType=robot_team/);
+    expect(String((approvals[0][1] as { body: string }).body)).toMatch(/signup\/business\?invitation=/);
 
     listedSite("site-1");
     tokens.set("ada", { uid: "u1", email: "ada@arm.example", email_verified: true });
@@ -353,7 +353,7 @@ describe("inviting a team after a call", () => {
   const invite = (token: string, body: Record<string, unknown>) => fetch(`${base}/api/admin/robot-team-access/invites`, {
     method: "POST",
     headers: { "content-type": "application/json", Authorization: `Bearer ${token}`, ...CSRF },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, prerequisitesReviewed: true }),
   });
 
   it("grants that email access, sends one sign-up email, and is staff-only", async () => {
