@@ -31,6 +31,7 @@ import waitlistHandler from "./routes/waitlist";
 import healthRouter from "./routes/health";
 import errorsRouter from "./routes/errors";
 import siteContentRouter from "./routes/site-content";
+import locationAutocompleteRouter from "./routes/location-autocomplete";
 import agentAccessRouter from "./routes/agent-access";
 import agentTeamRouter from "./routes/agent-team";
 import adminFreeEvaluationsRouter from "./routes/admin-free-evaluations";
@@ -117,6 +118,7 @@ export function registerRoutes(app: Express) {
 
   // Public content summary for external tooling.
   app.use("/api/site-content", siteContentRouter);
+  app.use("/api/location-autocomplete", locationAutocompleteRouter);
   app.use("/api/agent-access", agentAccessRouter);
   // Team-scoped agent surface: registration, discovery, planning and budgeted
   // spend. Auth is a revocable per-team agent key, not a person's session, and

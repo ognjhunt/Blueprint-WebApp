@@ -1,12 +1,13 @@
-/** Google Places (New), with keyless suggestions and manual entry as fallbacks. */
+/** Server-side Google Places (New), with keyless/manual entry fallbacks. */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getGoogleMapsApiKey } from "@/lib/client-env";
 
 interface Suggestion {
   label: string;
   /** ISO 3166-1 alpha-2, upper case, when the provider knows it. */
   countryCode: string | null;
-  googlePrediction?: google.maps.places.PlacePrediction;
+  placeId?: string;
+  mainText?: string;
+  secondaryText?: string;
 }
 
 /** What the form is told when a suggestion is picked. */
@@ -44,25 +45,6 @@ async function photonSuggestions(query: string, signal: AbortSignal): Promise<Su
   return out;
 }
 
-// Places loads when the field mounts, before the user starts typing. The SDK's
-// loader is shared with other Maps consumers, avoiding duplicate script loads.
-let googleMapsLoad: Promise<boolean> | null = null;
-
-function googlePlaces() {
-  return typeof window !== "undefined" ? window.google?.maps?.places : undefined;
-}
-
-function loadGoogleMaps(key: string): Promise<boolean> {
-  if (googlePlaces()?.AutocompleteSuggestion) return Promise.resolve(true);
-  if (!googleMapsLoad) {
-    googleMapsLoad = import("@googlemaps/js-api-loader")
-      .then(({ Loader }) => new Loader({ apiKey: key, version: "weekly", libraries: ["places"] }).load())
-      .then(() => Boolean(googlePlaces()?.AutocompleteSuggestion))
-      .catch(() => false);
-  }
-  return googleMapsLoad;
-}
-
 /** Bound provider latency; clear the timer when the request finishes. */
 function within<T>(request: Promise<T>, milliseconds: number, fallback: T): Promise<T> {
   return new Promise((resolve) => {
@@ -72,37 +54,42 @@ function within<T>(request: Promise<T>, milliseconds: number, fallback: T): Prom
 }
 
 async function googleSuggestions(
-  query: string,
-  sessionToken: google.maps.places.AutocompleteSessionToken,
+  input: string,
+  sessionToken: string,
+  signal: AbortSignal,
 ): Promise<Suggestion[] | null> {
-  const places = googlePlaces();
-  if (!places?.AutocompleteSuggestion) return null;
   try {
-    const result = await within(
-      places.AutocompleteSuggestion.fetchAutocompleteSuggestions({ input: query, sessionToken }),
-      1200,
-      null,
-    );
-    return result?.suggestions.flatMap(({ placePrediction }) => placePrediction ? [{
-      label: placePrediction.text.toString(),
-      countryCode: null,
-      googlePrediction: placePrediction,
-    }] : []).slice(0, 5) ?? null;
+    const query = new URLSearchParams({ input, sessionToken });
+    const result = await within((async () => {
+      const response = await fetch(`/api/location-autocomplete?${query}`, { signal, cache: "no-store" });
+      if (!response.ok) return null;
+      const data = await response.json() as { suggestions?: Omit<Suggestion, "countryCode">[] };
+      return Array.isArray(data.suggestions)
+        ? data.suggestions.map((suggestion) => ({ ...suggestion, countryCode: null })).slice(0, 5)
+        : null;
+    })(), 1500, null);
+    return result;
   } catch {
     return null;
   }
 }
 
-/** Details use the prediction's billing session and authoritative country. */
-async function googleCountryCode(prediction: google.maps.places.PlacePrediction): Promise<string | null> {
+/** The selected place's details terminate the same Google billing session. */
+async function googleCountryCode(placeId: string, sessionToken: string): Promise<string | null> {
+  const controller = new AbortController();
   try {
-    const place = prediction.toPlace();
-    const result = await within(place.fetchFields({ fields: ["addressComponents"] }), 1500, null);
-    const country = result?.place.addressComponents?.find((part) => part.types.includes("country"));
-    const code = country?.shortText?.trim().toUpperCase() ?? "";
-    return /^[A-Z]{2}$/.test(code) ? code : null;
+    return await within((async () => {
+      const query = new URLSearchParams({ placeId, sessionToken });
+      const response = await fetch(`/api/location-autocomplete/country?${query}`, { signal: controller.signal, cache: "no-store" });
+      if (!response.ok) return null;
+      const data = await response.json() as { countryCode?: string };
+      const code = data.countryCode?.trim().toUpperCase() ?? "";
+      return /^[A-Z]{2}$/.test(code) ? code : null;
+    })(), 1500, null);
   } catch {
     return null;
+  } finally {
+    controller.abort();
   }
 }
 
@@ -127,14 +114,8 @@ export function LocationAutocomplete(props: {
   const debounce = useRef<number | null>(null);
   const abort = useRef<AbortController | null>(null);
   const selectionGeneration = useRef(0);
-  const sessionToken = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+  const sessionToken = useRef<string | null>(null);
   const focused = useRef(false);
-  const googleKey = getGoogleMapsApiKey();
-
-  useEffect(() => {
-    if (googleKey) void loadGoogleMaps(googleKey);
-  }, [googleKey]);
-
   function cancelQuery() {
     if (debounce.current !== null) window.clearTimeout(debounce.current);
     debounce.current = null;
@@ -147,18 +128,10 @@ export function LocationAutocomplete(props: {
       const controller = new AbortController();
       abort.current = controller;
       try {
-        let results: Suggestion[] | null = null;
-        if (googleKey && !googlePlaces()?.AutocompleteSuggestion) {
-          await within(loadGoogleMaps(googleKey), 800, false);
-          if (controller.signal.aborted) return;
-        }
-        const places = googleKey ? googlePlaces() : undefined;
-        if (places?.AutocompleteSuggestion) {
-          sessionToken.current ??= new places.AutocompleteSessionToken();
-          results = await googleSuggestions(text, sessionToken.current);
-        }
+        sessionToken.current ??= crypto.randomUUID();
+        let results = await googleSuggestions(text, sessionToken.current, controller.signal);
         if (controller.signal.aborted) return;
-        // No Google key, or Google could not answer: the free provider.
+        // A denied or unavailable Google lookup must leave suggestions usable.
         if (results === null) {
           results = await photonSuggestions(text, controller.signal);
         }
@@ -175,7 +148,7 @@ export function LocationAutocomplete(props: {
         }
       }
     },
-    [googleKey],
+    [],
   );
 
   function onChange(text: string) {
@@ -199,17 +172,18 @@ export function LocationAutocomplete(props: {
   async function choose(suggestion: Suggestion) {
     const generation = ++selectionGeneration.current;
     cancelQuery();
+    const pickedSession = sessionToken.current;
     sessionToken.current = null;
     setValue(suggestion.label);
     setSuggestions([]);
     setOpen(false);
     setActive(-1);
     let countryCode = suggestion.countryCode;
-    if (suggestion.googlePrediction) {
+    if (suggestion.placeId && pickedSession) {
       // The visible location has already changed. Clear the prior inferred
       // country while structured details are pending, including on failure.
       props.onSelectionChange?.({ label: suggestion.label, countryCode: null });
-      countryCode = await googleCountryCode(suggestion.googlePrediction);
+      countryCode = await googleCountryCode(suggestion.placeId, pickedSession);
       if (selectionGeneration.current !== generation) return;
     }
     const place = { label: suggestion.label, countryCode };
@@ -326,18 +300,18 @@ export function LocationAutocomplete(props: {
                   background: index === active ? "var(--ms-hover, #f3f4f6)" : "transparent",
                 }}
               >
-                {suggestion.googlePrediction?.mainText ? (
+                {suggestion.mainText ? (
                   <>
-                    <span style={{ display: "block", fontWeight: 500 }}>{suggestion.googlePrediction.mainText.toString()}</span>
+                    <span style={{ display: "block", fontWeight: 500 }}>{suggestion.mainText}</span>
                     <span style={{ display: "block", fontSize: "0.85em", color: "var(--ms-muted, #667085)", marginTop: "3px" }}>
-                      {suggestion.googlePrediction.secondaryText?.toString()}
+                      {suggestion.secondaryText}
                     </span>
                   </>
                 ) : suggestion.label}
               </li>
             ))}
           </ul>
-          {suggestions.some((suggestion) => suggestion.googlePrediction) && (
+          {suggestions.some((suggestion) => suggestion.placeId) && (
             <div style={{ padding: "8px 12px", background: "var(--ms-surface, #fff)", textAlign: "right", borderRadius: "0 0 8px 8px" }}>
               <img src="https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png" alt="Powered by Google" width={120} height={14} />
             </div>

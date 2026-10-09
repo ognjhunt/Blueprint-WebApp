@@ -1,15 +1,6 @@
 // @vitest-environment jsdom
-/**
- * The location field suggests, and never gets in the way of typing.
- *
- * No Google key is set in tests, so this exercises the free-provider path and,
- * most importantly, the floor: a provider that errors leaves a working text
- * field, and short input never queries at all.
- */
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { resetClientEnvCacheForTests } from "@/lib/client-env";
 
 import { LocationAutocomplete } from "@/components/site/LocationAutocomplete";
 
@@ -17,8 +8,6 @@ const fetchMock = vi.fn();
 
 beforeEach(() => {
   fetchMock.mockReset();
-  vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "");
-  resetClientEnvCacheForTests();
   vi.stubGlobal("fetch", fetchMock);
 });
 
@@ -26,7 +15,6 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
-  resetClientEnvCacheForTests();
 });
 
 function photon(labels: { name?: string; city?: string; state?: string; country?: string }[]) {
@@ -48,7 +36,7 @@ describe("suggestions from the free provider", () => {
 
     const option = await screen.findByText("Durham, North Carolina, United States");
     expect(option).toBeInTheDocument();
-    expect(String(fetchMock.mock.calls[0][0])).toContain("photon.komoot.io");
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("photon.komoot.io"))).toBe(true);
   });
 
   it("fills the field with the chosen suggestion and closes the list", async () => {
@@ -163,22 +151,21 @@ describe("reporting the chosen place", () => {
     expect(onSelectionChange).toHaveBeenLastCalledWith(null);
   });
 
-  function googleFixture(label: string, fetchFields = vi.fn(async () => ({
-    place: { addressComponents: [{ shortText: "GB", types: ["country"] }] },
-  }))) {
-    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
-    resetClientEnvCacheForTests();
-    const prediction = {
-      text: { toString: () => label },
-      mainText: { toString: () => label.split(", ")[0] },
-      secondaryText: { toString: () => label.split(", ").slice(1).join(", ") },
-      toPlace: () => ({ fetchFields }),
-    };
-    const fetchAutocompleteSuggestions = vi.fn(async (_request: { input: string; sessionToken: object }) => ({ suggestions: [{ placePrediction: prediction }] }));
-    vi.stubGlobal("google", { maps: { places: {
-      AutocompleteSuggestion: { fetchAutocompleteSuggestions },
-      AutocompleteSessionToken: class {},
-    } } });
+  function googleFixture(label: string, fetchFields = vi.fn(async () => ({ countryCode: "GB" }))) {
+    const fetchAutocompleteSuggestions = vi.fn(async (_request: { input: string; sessionToken: string }) => ({
+      suggestions: [{ label, placeId: "fixture-place", mainText: label.split(", ")[0], secondaryText: label.split(", ").slice(1).join(", ") }],
+    }));
+    fetchMock.mockImplementation(async (url: string) => {
+      const parsed = new URL(url, "https://example.test");
+      if (parsed.pathname === "/api/location-autocomplete/country") {
+        return { ok: true, json: () => fetchFields() };
+      }
+      if (parsed.pathname === "/api/location-autocomplete") {
+        const request = { input: parsed.searchParams.get("input")!, sessionToken: parsed.searchParams.get("sessionToken")! };
+        return { ok: true, json: () => fetchAutocompleteSuggestions(request) };
+      }
+      return photonRaw([{ city: "Durham", street: "Crete Street", housenumber: "1005", country: "United States", countrycode: "US" }]);
+    });
     return { fetchFields, fetchAutocompleteSuggestions };
   }
 
@@ -192,9 +179,13 @@ describe("reporting the chosen place", () => {
     await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith({
       label: "London, United Kingdom", countryCode: "GB",
     }));
-    expect(fetchFields).toHaveBeenCalledWith({ fields: ["addressComponents"] });
-    expect(fetchAutocompleteSuggestions).toHaveBeenCalledWith({ input: "london", sessionToken: expect.any(Object) });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchFields).toHaveBeenCalled();
+    const predictionQuery = new URL(fetchMock.mock.calls[0][0], "https://example.test").searchParams;
+    const detailsQuery = new URL(fetchMock.mock.calls[1][0], "https://example.test").searchParams;
+    expect(detailsQuery.get("sessionToken")).toBe(predictionQuery.get("sessionToken"));
+    expect(detailsQuery.get("placeId")).toBe("fixture-place");
+    expect(fetchAutocompleteSuggestions).toHaveBeenCalledWith({ input: "london", sessionToken: expect.any(String) });
+    expect(fetchMock.mock.calls.every(([url]) => String(url).startsWith("/api/location-autocomplete"))).toBe(true);
   });
 
   it("does not label a failed Google details lookup as US", async () => {
@@ -208,15 +199,16 @@ describe("reporting the chosen place", () => {
   });
 
   it("ignores Google details that resolve after the operator changes the text", async () => {
-    let resolveDetails: (value: unknown) => void = () => {};
+    let resolveDetails: ((value: unknown) => void) | undefined;
     googleFixture("Berlin, Germany", vi.fn().mockImplementation(() => new Promise((resolve) => { resolveDetails = resolve; })));
     const onSelectionChange = vi.fn();
     render(<LocationAutocomplete id="loc" name="startLocation" onSelectionChange={onSelectionChange} />);
     const input = screen.getByRole("combobox");
     fireEvent.change(input, { target: { value: "berlin" } });
     fireEvent.click(await screen.findByRole("option", { name: "Berlin Germany" }));
+    await waitFor(() => expect(resolveDetails).toBeTypeOf("function"));
     fireEvent.change(input, { target: { value: "Berlin manual" } });
-    resolveDetails({ place: { addressComponents: [{ shortText: "DE", types: ["country"] }] } });
+    await act(async () => { resolveDetails!({ countryCode: "DE" }); });
 
     await waitFor(() => expect(onSelectionChange).toHaveBeenLastCalledWith(null));
     expect(onSelectionChange).not.toHaveBeenCalledWith({ label: "Berlin, Germany", countryCode: "DE" });
@@ -240,7 +232,6 @@ describe("reporting the chosen place", () => {
   it("falls back promptly when Google rejects a request", async () => {
     const { fetchAutocompleteSuggestions } = googleFixture("London, United Kingdom");
     fetchAutocompleteSuggestions.mockRejectedValue(new Error("REQUEST_DENIED"));
-    fetchMock.mockResolvedValue(photonRaw([{ city: "Durham", street: "Crete Street", housenumber: "1005", country: "United States", countrycode: "US" }]));
     const input = field();
     fireEvent.change(input, { target: { value: "1005 crete" } });
     fireEvent.keyDown(input, { key: "ArrowDown" });
@@ -253,13 +244,12 @@ describe("reporting the chosen place", () => {
     const { fetchAutocompleteSuggestions } = googleFixture("London, United Kingdom");
     let complete: (value: unknown) => void = () => {};
     fetchAutocompleteSuggestions.mockImplementation(() => new Promise((resolve) => { complete = resolve; }));
-    fetchMock.mockResolvedValue(photonRaw([{ name: "Durham" }]));
     const input = field();
     fireEvent.change(input, { target: { value: "durham" } });
-    await act(async () => { await vi.advanceTimersByTimeAsync(1350); });
-    expect(screen.getByRole("option", { name: "Durham" })).toBeInTheDocument();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1650); });
+    expect(screen.getByRole("option", { name: "1005 Crete Street, Durham, United States" })).toBeInTheDocument();
     await act(async () => { complete({ suggestions: [] }); });
-    expect(screen.getByRole("option", { name: "Durham" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "1005 Crete Street, Durham, United States" })).toBeInTheDocument();
   });
 
   it("closes immediately on selection even when country details are slow", async () => {
@@ -284,7 +274,7 @@ describe("reporting the chosen place", () => {
     fireEvent.change(input, { target: { value: "unknown" } });
     await waitFor(() => expect(fetchAutocompleteSuggestions).toHaveBeenCalled());
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls).toHaveLength(1);
   });
 });
 
