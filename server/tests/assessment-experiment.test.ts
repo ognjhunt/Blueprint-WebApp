@@ -10,6 +10,7 @@ import { z } from "zod";
 import { captureSavedEvidence, compareAssessmentRuns, experimentCostStatus, experimentErrorCode, experimentFailure, experimentHash, experimentVersions, openExperimentLedger,
   sanitizeExperiment, validateExperimentRetention, validateSavedEvidence, writeExperimentJson } from "../agents/assessment-experiment";
 import { SiteAssessmentBudget } from "../agents/adapters/site-assessment-budget";
+import { factSchema } from "../research-learning/prior-research";
 
 // Synthetic contract fixture only. Never exported as a real-evidence cache or model-quality result.
 const source = { request_id: "synthetic-one", capture_id: "walkthrough-synthetic-one", source_key: "synthetic-source",
@@ -176,13 +177,22 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
     expect(experimentCostStatus({ ...lostResponse, allocation_close_error: {} })).toBe("experiment_ledger_reconciliation_required");
   });
   it("redacts access URLs, secrets, personal emails and hidden reasoning without fabricating zero usage", () => {
+    const fact = factSchema.parse({ factId: "synthetic-fact", field: "task_claim", statement: "Synthetic public claim",
+      status: "reviewed", evidenceLevel: "vendor_claim", confidence: "unknown", freshnessDays: 1,
+      taskTags: [], geographyTags: [], sourcePageIds: [], sources: [{ url: "https://example.invalid/public?document=review#section",
+        sourceCheckedAt: "2026-09-29", revalidatedAt: null, publicationDate: null, classification: "vendor", publisher: null }],
+      limits: [], conflicts: [] });
     const clean = sanitizeExperiment({ authorization: "private", url: "https://example.invalid/signed?key=secret", text: "See https://example.invalid/x?token=secret and synthetic@example.invalid",
       output: [{ type: "reasoning", encrypted_content: "hidden" }, { type: "thinking", content: "hidden" },
         { thought: true, text: "hidden" }, { type: "message", content: "visible", reasoning_content: "hidden",
-          chain_of_thought: "hidden", thinking: "hidden" }], usage: { reasoning_tokens: 42 } });
+          chain_of_thought: "hidden", thinking: "hidden" }], usage: { reasoning_tokens: 42 }, fact,
+      invalidFact: { ...fact, sources: [{ ...fact.sources[0], url: "https://example.invalid/signed?token=secret" }] } });
     expect(JSON.stringify(clean)).not.toContain("secret"); expect(JSON.stringify(clean)).not.toContain("hidden");
     expect(clean.text).toContain("[redacted-email]"); expect(clean.usage.reasoning_tokens).toBe(42);
     expect(clean.output).toEqual([{ type: "message", content: "visible" }]);
+    expect(factSchema.parse(clean.fact)).toEqual(fact);
+    expect(clean).not.toHaveProperty("url");
+    expect(clean.invalidFact.sources[0]).not.toHaveProperty("url");
     expect(sanitizeExperiment({ content: { thought: true, text: "hidden" } })).toEqual({ content: null });
   });
   it("shows material section differences and cost/latency without asserting quality", () => {
