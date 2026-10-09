@@ -97,7 +97,7 @@ export async function runCommunicationsSavedDraftRecovery(deps: CommunicationsDe
     if (!canContinue()) return afterJobId;
     const rejected = job.state === "blocked" && job.reason === "agents_native_mcp_call_binding_mismatch";
     const resumed = ["queued", "running"].includes(job.state) && job.reason === "operator_retry_requested" && job.retryRequestedBy === requester;
-    if ((!rejected && !resumed) || (rejected ? job.attempts !== 1 : ![1, 2].includes(job.attempts))
+    if ((!rejected && !resumed)
       || job.checkpoint?.framingVersion !== COMMUNICATIONS_FRAMING_VERSION
       || !job.checkpoint.sessionId || !job.checkpoint.turnId || !job.checkpoint.requestDigest
       || !Number.isSafeInteger(job.lease?.until) || job.lease!.until < 0 || job.lease!.until > deps.now()) continue;
@@ -520,19 +520,13 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     if (error instanceof CommunicationsRuntimeError && error.outputSource) {
       await deps.store.update(jobId, { reason: error.code, ...{ outputSource: error.outputSource } });
     }
-    if (error instanceof CommunicationsDraftBudgetError
-      && ["communications_draft_cost_unresolved", "communications_draft_daily_admission_limit", "communications_draft_soft_target_reached"].includes(error.code)
-      && !claimed.checkpoint.createClaimedAt && !claimed.checkpoint.sessionId) {
-      await deps.store.deferDraftForBudget(jobId, error.code);
-      return { state: "queued", reason: error.code, sent: false };
-    }
     const code = error instanceof CommunicationsRuntimeError ? error.code
       : error instanceof Error && /^[a-z_][a-z0-9_:,.-]*$/.test(error.message) ? error.message : "communications_context_or_permission_unavailable";
     if (code === HYPOTHESIS_DRAFTS_DISABLED) {
       await deps.store.deferHypothesisDraft(jobId, code);
       return { state: "queued", reason: code, sent: false };
     }
-    const retry = !continuation && error instanceof CommunicationsRuntimeError && error.retryable && claimed.attempts < 3;
+    const retry = !continuation && error instanceof CommunicationsRuntimeError && error.retryable;
     if (retry) await deps.store.update(jobId, { state: "retry", reason: code, nextAttemptAt: deps.now() + claimed.attempts * 15000 });
     else await deps.store.finish(job, "blocked", code);
     return { state: retry ? "retry" : "blocked", reason: code };
@@ -727,7 +721,8 @@ export function startCommunicationsWorker(): () => Promise<void> {
   const allowPaidInference = process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true";
   const api: CommunicationsAgentsAPI = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference,
     reservePaidDraft: async (jobId, digest, sessionSpendLimitCents) => {
-      await reconcileCommunicationsDraftCost(db, api, Date.now());
+      try { await reconcileCommunicationsDraftCost(db, api, Date.now()); }
+      catch { logger.warn({ code: "communications_prior_usage_reconciliation_unavailable" }, "Earlier cost remains unknown; retained accounting does not gate this draft"); }
       return reserveCommunicationsDraft(db, jobId, digest, Date.now(), sessionSpendLimitCents);
     },
     recordPaidDraftUsage: (jobId, digest, usage) => recordCommunicationsDraftUsage(db, jobId, digest, usage, Date.now()),
@@ -787,7 +782,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
   }, copyDrafts: canContinue => ordinaryWorker ? runCommunicationsGmailDraftCopies(db, undefined, undefined, canContinue) : Promise.resolve(), processJobs: ordinaryWorker && allowPaidInference });
 }
 
-/** Explicit owner requests use the existing job, lease, budget and learning
+/** Explicit owner requests use the existing job, lease, accounting and learning
  * path. Scheduled intake, sends and Gmail copies remain separately gated. */
 async function runRequestedCommunicationsDrafts(db: FirebaseFirestore.Firestore, deps: CommunicationsDependencies, canContinue: () => boolean) {
   const page = await db.doc("blueprintCommunications/default").collection("jobs").where("manualDraftRequest.state", "==", "requested").limit(5).get();
@@ -814,7 +809,7 @@ async function runRequestedCommunicationsDrafts(db: FirebaseFirestore.Firestore,
         || current.checkpoint.sessionSpendLimitCents !== request.sessionSpendLimitCents
         || jobId !== communicationsDigest(identity)
         || request.requestDigest !== communicationsDigest({ job: identity, actorUid: request.actorUid,
-          sourceCommit: request.sourceCommit, sessionSpendLimitCents: request.sessionSpendLimitCents })) throw Error("communications_draft_request_changed");
+          sourceCommit: request.sourceCommit, ...(request.sessionSpendLimitCents !== undefined ? { sessionSpendLimitCents: request.sessionSpendLimitCents } : {}) })) throw Error("communications_draft_request_changed");
       if (!canContinue()) throw Error("communications_draft_worker_not_admitted");
     };
     try {
@@ -825,7 +820,8 @@ async function runRequestedCommunicationsDrafts(db: FirebaseFirestore.Firestore,
         fetch: async (url, init) => { await assertCurrent(); return fetch(url, init); },
         reservePaidDraft: async (jobId, digest, cents) => {
           await assertCurrent();
-          await reconcileCommunicationsDraftCost(db, api, deps.now());
+          try { await reconcileCommunicationsDraftCost(db, api, deps.now()); }
+          catch { logger.warn({ code: "communications_prior_usage_reconciliation_unavailable" }, "Earlier cost remains unknown; retained accounting does not gate this draft"); }
           await assertCurrent();
           return reserveCommunicationsDraft(db, jobId, digest, deps.now(), cents);
         }, recordPaidDraftUsage: (jobId, digest, usage) => recordCommunicationsDraftUsage(db, jobId, digest, usage, deps.now()),

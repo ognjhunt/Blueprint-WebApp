@@ -173,7 +173,13 @@ describe("automatic recovery of the old native-reader rejection", () => {
     expect(f.fetch).toHaveBeenCalledTimes(calls);
     expect(f.db.records.get(`${COMMUNICATIONS_ROOT}/draftBudgetAdmissions/${f.id}`).estimatedModelMicros).toBe(cost);
   });
-  it.each(["running", "wrong_binding", "invalid_output", "other_reason", "active_lease", "missing_session", "second_attempt"])("holds %s without creating another session", async kind => {
+  it("recovers saved output beyond the former attempt cap without inference or sends", async () => {
+    const f = await held(); f.db.records.get(f.path).attempts = 5;
+    await runCommunicationsSavedDraftRecovery(f.worker);
+    expect(f.db.records.get(f.path)).toMatchObject({ state: "pending_approval", attempts: 6 });
+    expect(f.run).not.toHaveBeenCalled(); expect(f.reserve).not.toHaveBeenCalled(); expect(f.sendAutomatic).not.toHaveBeenCalled();
+  });
+  it.each(["running", "wrong_binding", "invalid_output", "other_reason", "active_lease", "missing_session"])("holds %s without creating another session", async kind => {
     const f = await held({ terminal: kind !== "running", mutateSession: kind === "wrong_binding", invalidOutput: kind === "invalid_output" });
     const row = f.db.records.get(f.path);
     if (kind === "other_reason") row.reason = "context_missing";

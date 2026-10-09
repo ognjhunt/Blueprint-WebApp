@@ -515,7 +515,6 @@ export async function runCommunicationsContactRefresh(deps: IntakeDependencies) 
         // A hypothesis contact waits, unclaimed, while hypothesis drafts are off.
         if (request.label === "hypothesis" && !hypothesisDraftsEnabled()) return null;
         const waitingForAgent = request.state === "agent_research_wait" || request.waitingForAgent === true;
-        if (!waitingForAgent && (request.attempts ?? 0) >= 2) { tx.set(doc.ref, { state: "terminal", reason: "contact_refresh_attempts_exhausted", lease: { owner, until: 0 } }, { merge: true }); return null; }
         const claimed: FirebaseFirestore.DocumentData = { ...request, owner: "blueprint-communications-agent", kind: "public_contact_resolution", state: "running",
           attempts: (request.attempts ?? 0) + (waitingForAgent ? 0 : 1),
           waitingForAgent, lease: { owner, until: deps.now() + 180000 }, startedAt: deps.now() };
@@ -585,7 +584,7 @@ export async function runCommunicationsContactRefresh(deps: IntakeDependencies) 
         // Another pass settled this hypothesis request, or handed it to the research owner, while this worker
         // read pages. It is no longer this worker's: no contact research is asked for and nothing is written.
         if (claim.label === "hypothesis" && reason === CONTACT_CLAIM_CHANGED) break;
-        const transient = /contact_fetch_(?:timeout|dns_timeout|incomplete|failed)|ECONN|ENOTFOUND|EAI_AGAIN/.test(reason) && claim.attempts < 2;
+        const transient = /contact_fetch_(?:timeout|dns_timeout|incomplete|failed)|ECONN|ENOTFOUND|EAI_AGAIN/.test(reason);
         const researchQueued = !transient && source && prospectId && await deps.requestContactResearch?.(source, prospectId, reason);
         await deps.db.runTransaction(async tx => {
           const current = (await tx.get(doc.ref)).data();

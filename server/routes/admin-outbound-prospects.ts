@@ -253,7 +253,7 @@ router.post("/:prospectId/communications/generate", async (req: Request, res: Re
   if (!db) return res.status(503).json({ error: "communications_store_unavailable" });
   const parsed = z.object({
     briefId: z.string().regex(/^[a-zA-Z0-9_.:-]{1,160}$/), expectedBriefDigest: z.string().regex(/^[a-f0-9]{64}$/),
-    expectedSourceCommit: z.string().regex(/^[a-f0-9]{40}$/), sessionSpendLimitCents: z.number().int().positive().max(Math.floor(Number.MAX_SAFE_INTEGER / 10000)),
+    expectedSourceCommit: z.string().regex(/^[a-f0-9]{40}$/),
     regenerationOf: z.string().regex(/^[a-f0-9]{64}$/).optional(), expectedJobDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   }).strict().refine(value => Boolean(value.regenerationOf) === Boolean(value.expectedJobDigest)).safeParse(req.body);
   const prospectId = String(req.params.prospectId ?? "");

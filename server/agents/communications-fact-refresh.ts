@@ -18,9 +18,6 @@ export async function runCommunicationsFactRefresh(db: FirebaseFirestore.Firesto
       // Job request IDs are hex job IDs, which sort before every `intake_` ID, so none waits behind them.
       if (!value || !value.job || typeof value.job !== "object") return null;
       if (!["pending", "running"].includes(value.state) || (value.leaseUntil || 0) > now()) return null;
-      if ((value.attempts || 0) >= 3) {
-        tx.update(row.ref, { state: "unresolved", reason: "source_refresh_attempts_exhausted", completedAt: now() }); return null;
-      }
       tx.update(row.ref, { state: "running", claim, leaseUntil: now() + 120_000, attempts: (value.attempts || 0) + 1 });
       return value;
     });

@@ -51,7 +51,7 @@ function assertOriginalJob(job: CommunicationsJobRecord | undefined, input: Comm
     && pin?.rawOutputSha256 === input.rawOutputSha256 && pin.checkpointDigest === communicationsDigest(job.checkpoint);
   if (owned && job.state === "pending_approval" && job.outputSource?.rawOutputSha256 === input.rawOutputSha256) return;
   if (!owned && (communicationsDigest(job) !== input.expectedJobDigest || communicationsDigest(job.checkpoint) !== input.expectedCheckpointDigest)) fail("binding_changed");
-  if (!Number.isSafeInteger(job.lease?.until) || job.lease!.until < 0 || job.lease!.until > now || job.attempts >= 3
+  if (!Number.isSafeInteger(job.lease?.until) || job.lease!.until < 0 || job.lease!.until > now
     || !["blocked", "queued", "running", "retry", "pending_approval"].includes(job.state) || (!owned && job.state !== "blocked")) fail("record_changed");
 }
 /** Owner auth/CSRF and existing compose consent precede this transaction in Web.
