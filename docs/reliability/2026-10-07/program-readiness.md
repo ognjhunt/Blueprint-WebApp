@@ -4,11 +4,11 @@ Updated 2026-10-09. The initial four-hour closeout remains PARTIAL; the full goa
 
 ## Current status
 
-The latest verified paired WebApp release is **5cabf90a5851effc44211f9e8f3f5fd0c71e5ed5**. Both services were independently read LIVE; main CI37881597610 and actual deploy37882061692 succeeded with trigger, exact-SHA verification and evidence upload executed. Public version matched, health/readiness returned200 and readiness had zero blockers. Earlier1cd/f80/5dc references below describe historical checkpoints, not the current release.
+The latest independently verified paired WebApp release is **ab03ba85104969b818fef1a11ae670fe58689649**. Both services were read LIVE at that SHA; main CI37887531038 and actual deploy37888240410 succeeded. The downloaded official deployment receipt matched its retained SHA. At05:35 UTC public version matched, health/readiness returned200 and readiness had zero blockers. Earlier5cab/ecfaf references are historical checkpoints. The original-job master owns shared Web configuration, question drafting and sending; the coordinator retains native integration/release ownership.
 
 The normal saved-job SDK/Gemini assessment remains completed on **189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9**, with the assessment still **needs_operator_input**. The current web release proves deployed source and health, not a new assessment, downstream dispatch or model-quality improvement. There is **one** rights-admitted video, **zero** current checked human timestamp labels and no untouched holdout; the full goal remains **PARTIAL**.
 
-Native PR2654 is **SOURCE CLEAR** at **eb4f2c8114cad789796bc1f56bb78935f0cfb53e**. Its new required CI37884251589 is pending at this checkpoint and supersedes the3c candidate/CI snapshot below. Canonical installation and original selected recovery remain unverified; no Task Evaluation dispatch is claimed. The coordinator retains native/release ownership; original UI/provider continuation belongs to the explicitly transferred case owner.
+Native PR2654 is **SOURCE CLEAR** at **eb4f2c8114cad789796bc1f56bb78935f0cfb53e**. Its required CI37884251589 is in progress: impacted tests passed and four full shards are running. Superseded3c CI37882792895 finished CANCELLED at workflow level, with all four full shards and their aggregate successful; those subjobs do not prove the current eb4 head. Canonical installation and original selected recovery remain unverified; no Task Evaluation dispatch is claimed. The coordinator retains native/release ownership; original UI/provider continuation belongs to the explicitly transferred case owner.
 
 ## Retained assessment evidence
 
@@ -47,9 +47,9 @@ Only **one** rights-admitted source is available versus the12–24 target, with 
 
 ## Readiness decision
 
-**Code-complete:** reviewed WebApp slices, including decision/reply integration and the current intake test slice, are protected-merged with exact-head required CI green and included in verified5cab. Native2654 is source-clear at eb4f2c81; required CI37884251589, canonical installation and selected recovery remain pending. Source clearance alone is not release completion.
+**Code-complete:** reviewed WebApp slices, including decision/reply integration and the current intake test slice, are protected-merged with exact-head required CI green and included in verifiedab03. Native2654 is source-clear at eb4f2c81; required CI37884251589, canonical installation and selected recovery remain pending. Source clearance alone is not release completion.
 
-**Deployed and verified:** successful normal SDK/Gemini assessment on189; actual saved-owner API/DOM behavior on2e; current5cab paired deployment/public health. No downstream dispatch result or new live-provider uplift on5cab is established.
+**Deployed and verified:** successful normal SDK/Gemini assessment on189; actual saved-owner API/DOM behavior on2e; currentab03 paired deployment/public health. No downstream dispatch result or new live-provider uplift onab03 is established.
 
 **Evaluation:** partial. Current offline300 is repeatable and independently mapped; historical joined/emulator evidence and one actual production source remain distinct. Reference/holdout quality and full downstream acceptance are unresolved.
 
@@ -116,3 +116,10 @@ The source repair preserves the original rejection checkpoint and unresolved res
 A fresh bounded reference-source metadata audit pins13 documents and admits zero additional real videos. Six simulation recordings and synthetic fixtures remain excluded from the real-source denominator; sample rights sheets and public robot-video inventories do not establish reusable permission. One real source remains11 short of the12-source floor, and current human timestamp labels remain0. Private receipt SHA256 **cd37271e586698c3bfebc9ef7a332fa27e651d70a2a2b9d539b3477be9ba641d** records the search limits. This quality dependency does not hold unrelated repairs or ordinary learning.
 
 The original-case owner's fresh metadata readback preserves unconfirmed task facts and absent success criteria. Source audit found confirmation guards at multiple preparation boundaries. A first-validator-only relaxation would be insufficient and unsafe; a truthful preparation-only contract must preserve false/null/unknown and keep evaluation/physical authorization strict. No confirmation or criteria has been fabricated, and no native inspection or dispatch has occurred.
+
+
+### Current preparation and reference checkpoint at 05:35 UTC
+
+Shared purpose contract v2 was frozen before source edits (fixture SHA71194b0474901a90bfca519853f7919cb58b1d7780813b8d651279281fe24b57). Separate Web/native repairs are using failing-before/fixed-after cases. Pending preparation must keep confirmation false, timestamp null and missing criteria unknown; authenticated current grant/proposal and source/rights/owner checks remain mandatory, and evaluation stays strict. No live preparation or evaluation is claimed.
+
+Three primary public publishers were inspected for additional lawful references. DROID offers metadata for12 distinct preview episodes totaling608709bytes; data licensing and release face-blurring are documented, while exact selected-preview privacy/transform lineage remains unresolved. No footage was acquired or admitted and no human labels were added. The reference shortfall remains11, not silently reduced.

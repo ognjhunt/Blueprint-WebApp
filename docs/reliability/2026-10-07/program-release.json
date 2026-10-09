@@ -2193,7 +2193,7 @@
     },
     "original_case_credit": 0
   },
-  "updated_at_utc": "2026-10-09T03:08:00Z",
+  "updated_at_utc": "2026-10-09T05:35:19Z",
   "paid_provider_actor_handoff": {
     "owner": "Existing local assessment-iteration task; original normal-UI provider actor explicitly held",
     "scope": "ONE same authorized MOV production SDK/Gemini fresh baseline, then ONE actual Sol saved-evidence comparison reusing Gemini output. Serial actor; no automatic paid retry; no customer writes.",
@@ -3171,7 +3171,7 @@
     "independent_source_review_sha256": "d317149e7e51e9114e5c5e3810e4f394cebfb48c7c9acea05991e726ed72f4a5",
     "root_checkpoint_sha256": "ea6a425c93e855a0b781d80de6f3a7bcafe5749ac7b731cca1fc01302b1f5b67",
     "main_ci": 37885432533,
-    "deployment": "pending",
+    "deployment": "verified-paired-ecfaf",
     "paid_or_config_or_send_actions": 0,
     "premerge_extra_guard_failed": true,
     "root_guard_error_retained": "Optional skipped check caused an exact-total-set assertion; shell did not halt. Required CI was SUCCESS before merge and separately reverified; future mutations must execute inside checked guard."
@@ -3186,5 +3186,86 @@
     "raw_clips_read": 0,
     "scope": "Bounded specified repo fixtures/docs and authorized manifest only; excluded simulations and permission examples; not exhaustive private inventory",
     "beta_quality": "PARTIAL; source scope and human labels unresolved"
+  },
+  "verified_checkpoint_20261009_0504": {
+    "schema": "blueprint.reliability.provider-release-readback.v1",
+    "deployed_sha": "ecfafb18fd0871b465f8eb7663f8b98c7a196f0c",
+    "observed_utc": "2026-10-09T05:04:24Z",
+    "web": {
+      "id": "dep-db477op42hec73ablj30",
+      "status": "live",
+      "sha": "ecfafb18fd0871b465f8eb7663f8b98c7a196f0c",
+      "finished_at": "2026-10-09T04:58:19.140166Z"
+    },
+    "worker": {
+      "id": "dep-db477orncjis73c244q0",
+      "status": "live",
+      "sha": "ecfafb18fd0871b465f8eb7663f8b98c7a196f0c",
+      "finished_at": "2026-10-09T04:59:07.595193Z"
+    },
+    "main_ci": 37885432533,
+    "actual_deploy": 37886161188,
+    "official_artifact_sha256": "20e3469eadfee5e7e8eac2463a01964e1340661f1a3a67120ce24942276bb30e",
+    "public_readback_sha256": "4c5689ec3c06546f7fe6a7af45bc4553ad0bd79377bbc8a89de78ca8332f7d6b",
+    "claim": "Source+pairedidentity+publichealth only, not providerfeature/newcase/notification/TaskEvaluation proof",
+    "web_operation_transfer": "Released after verified998 to original-jobmaster for999 and its authorizedcase; native remains originalcoordinator",
+    "root_live_provider_or_config_or_send_effects": 0
+  },
+  "verified_checkpoint_20261009_0535": {
+    "schema": "blueprint.reliability.provider-release-readback.v1",
+    "deployed_sha": "ab03ba85104969b818fef1a11ae670fe58689649",
+    "observed_utc": "2026-10-09T05:35:19Z",
+    "web": {
+      "id": "dep-db47k3e0tbcc73de4qf0",
+      "status": "live",
+      "sha": "ab03ba85104969b818fef1a11ae670fe58689649",
+      "finished_at": "2026-10-09T05:24:33.672338Z"
+    },
+    "worker": {
+      "id": "dep-db47k3jbc2fs73atd51g",
+      "status": "live",
+      "sha": "ab03ba85104969b818fef1a11ae670fe58689649",
+      "finished_at": "2026-10-09T05:25:24.041015Z"
+    },
+    "main_ci": 37887531038,
+    "actual_deploy": 37888240410,
+    "official_artifact_sha256": "ef64879012946a2f347693ac8868cabc11f540136e90036348dac5c7c3e221b8",
+    "public_readback_sha256": "c29e0b4024e24e359a96365e997291cfbde507a834980b8b4c4db334dd7869e6",
+    "claim": "Source+paired identity+public health only. No question send, reply acceptance, Task Evaluation or video-quality claim.",
+    "operation_owner": "New original-job master owns shared Web operations; root retains native integration/release. Hypothesis actor owns one explicitly released short configuration/restart interval; no competing mutations.",
+    "root_live_provider_or_config_or_send_effects": 0
+  },
+  "current_release_checkpoint_key": "verified_checkpoint_20261009_0535",
+  "native2654_current_check": {
+    "head": "eb4f2c8114cad789796bc1f56bb78935f0cfb53e",
+    "ci": 37884251589,
+    "status": "in_progress",
+    "impacted_tests": "success",
+    "full_shards": "four in_progress",
+    "canonical_install": "unexecuted",
+    "superseded_3c_ci": {
+      "run": 37882792895,
+      "top_level": "cancelled",
+      "four_shards_and_aggregate": "success",
+      "reason": "workflow supersession; not current-head proof"
+    }
+  },
+  "preparation_contract_v2": {
+    "status": "frozen_before_source_edits",
+    "synthetic_fixture_sha256": "71194b0474901a90bfca519853f7919cb58b1d7780813b8d651279281fe24b57",
+    "scope": "Purpose-only pending preparation; unchanged default digests; separate current authenticated grant/proposal; actual false/null facts retained; strict evaluation.",
+    "implementation": "disjoint Web/native TDD in progress; no live preparation/evaluation proof"
+  },
+  "public_reference_discovery": {
+    "receipt_sha256": "0e81b43b2bd45396ba8947322a78e31712f34e5c78b73368436a42fd5298767c",
+    "sources_checked": 3,
+    "DROID_distinct_episode_metadata": 12,
+    "preview_content_length_total_bytes": 608709,
+    "raw_video_bytes_acquired": 0,
+    "new_admitted_references": 0,
+    "current_admitted": 1,
+    "minimum_shortfall": 11,
+    "human_timestamp_labels": 0,
+    "remaining": "Selected preview license/privacy/transform lineage and checked factual labels unresolved"
   }
 }
