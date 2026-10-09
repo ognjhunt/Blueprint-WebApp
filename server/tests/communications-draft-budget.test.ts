@@ -8,7 +8,7 @@ vi.mock("../utils/siteCaptureBundleStorage", () => ({ resolveBundleStorage: () =
   readText: async () => { storage.afterRead?.(); return storage.raw; } }) }));
 import { memoryFirestore, communicationsNow, communicationsFixture, cancelledContinuationFixture } from "./fixtures/communications";
 import { reserveCommunicationsDraft, recordCommunicationsDraftUsage, reconcileCommunicationsDraftCost, estimatedDraftMicros,
-  COMMUNICATIONS_DRAFT_BUDGET, reconcileCommunicationsDraftSession,
+  COMMUNICATIONS_DRAFT_BUDGET, COMMUNICATIONS_SOL_DRAFT_BUDGET, reconcileCommunicationsDraftSession,
   claimCommunicationsRejectedCreateDraftBudget, claimCommunicationsCancelledContinuationBudget,
   assertCommunicationsContinuationBudget, type CommunicationsRejectedCreateDraftBudgetClaim } from "../agents/communications-draft-budget";
 import { communicationsDigest } from "../agents/communications-contract";
@@ -17,6 +17,22 @@ const root = "blueprintCommunications/default", digest = "a".repeat(64);
 const usage = { input_tokens: 1000, output_tokens: 200, total_tokens: 1200,
   input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 100 } };
 
+describe("model-bound draft accounting", () => {
+  it("prices new Sol admissions at Sol rates and retains Luna accounting on historical admissions", async () => {
+    const db = memoryFirestore();
+    const luna = await reserveCommunicationsDraft(db, "luna-job", digest, communicationsNow);
+    const sol = await reserveCommunicationsDraft(db, "sol-job", digest, communicationsNow, undefined, "gpt-6.1-sol");
+    const before = structuredClone(db.records.get(`${root}/draftBudgetAdmissions/${luna}`));
+    await reserveCommunicationsDraft(db, "luna-job", digest, communicationsNow, undefined, "gpt-6.1-sol");
+    expect(db.records.get(`${root}/draftBudgetAdmissions/${luna}`)).toEqual(before);
+    await recordCommunicationsDraftUsage(db, "luna-job", digest, usage, communicationsNow);
+    await recordCommunicationsDraftUsage(db, "sol-job", digest, usage, communicationsNow);
+    expect(db.records.get(`${root}/draftBudgetAdmissions/${luna}`)).toMatchObject({
+      policy: COMMUNICATIONS_DRAFT_BUDGET, policyDigest: communicationsDigest(COMMUNICATIONS_DRAFT_BUDGET), estimatedModelMicros: 358 });
+    expect(db.records.get(`${root}/draftBudgetAdmissions/${sol}`)).toMatchObject({
+      policy: COMMUNICATIONS_SOL_DRAFT_BUDGET, policyDigest: communicationsDigest(COMMUNICATIONS_SOL_DRAFT_BUDGET), estimatedModelMicros: 4950 });
+  });
+});
 describe("durable saved-output recovery discovery", () => {
   it.each(["blocked", "queued", "running", "retry", "pending_approval"])("retains the owned %s handoff on reload without changing business state", async state => {
     const f = communicationsFixture(), db = memoryFirestore();

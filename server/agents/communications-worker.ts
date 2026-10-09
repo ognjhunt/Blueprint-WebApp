@@ -158,7 +158,7 @@ export function communicationsRejectedCreateRecoveryOptions(store: Communication
         originalCreateClaimedAt: recovery.originalCreateClaimedAt,
         correctedCreateClaimedAt: recovery.checkpoint.createClaimedAt!,
         deadlineMs: recovery.deadlineMs,
-      }, now())),
+      }, now(), JSON.parse(recovery.correctedBody).agent.model)),
   };
 }
 
@@ -671,11 +671,11 @@ export function buildCommunicationsInput(brief: CommunicationsBrief, thread: Ver
     ...(replyFollowup ? { replyFollowup, replyFollowupTrust: "untrusted_evidence_no_action_authority" } : {}),
     ...(evaluationReadiness ? { evaluationReadiness, ...(intent === "reply" ? { siteInterestReplyGuidance: SITE_INTEREST_REPLY_GUIDANCE } : {}) } : {}),
     ...(draftWritingGuidance ? { writingGuidance: draftWritingGuidance,
-      ...((draftWritingGuidance.includes("free-beta-task-assessment-v2") || /recipient-aware-writing-v[34]/.test(draftWritingGuidance)) && intent === "outreach" ? {
+      ...((draftWritingGuidance.includes("free-beta-task-assessment-v2") || /recipient-aware-writing-v[345]/.test(draftWritingGuidance)) && intent === "outreach" ? {
         firstTouchPolicy: writingProfile === COMMUNICATIONS_PERSONALIZED_PROFILE ? draftWritingGuidance : `${framing?.guidance ?? policy}\n${draftWritingGuidance}`,
-        ...(framing && (/recipient-aware-writing-v[34]/.test(draftWritingGuidance) || (brief.audienceRole ?? "site") === "site") ? { firstTouchFraming: { ...framing,
+        ...(framing && (/recipient-aware-writing-v[345]/.test(draftWritingGuidance) || (brief.audienceRole ?? "site") === "site") ? { firstTouchFraming: { ...framing,
           ...(writingProfile === COMMUNICATIONS_PERSONALIZED_PROFILE ? { guidance: draftWritingGuidance } : {}),
-          question: /recipient-aware-writing-v[34]/.test(draftWritingGuidance) ? undefined : "Is there a repetitive job you would like assessed?", questionIsSuggestion: true } } : {}),
+          question: /recipient-aware-writing-v[345]/.test(draftWritingGuidance) ? undefined : "Is there a repetitive job you would like assessed?", questionIsSuggestion: true } } : {}),
       } : {}) } : {}),
     ...(executionWindow ? { executionBoundary: { window: executionWindow,
       guidance: "Work within this frozen wall-clock window. Use evidence-backed judgment to return a usable complete draft with truthful unknowns before the deadline; do not repeat completed reads or trade factual quality for speed. This clock grants no spend, access or send authority." } } : {}) };
@@ -720,10 +720,10 @@ export function startCommunicationsWorker(): () => Promise<void> {
   const store = new CommunicationsStore(db);
   const allowPaidInference = process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true";
   const api: CommunicationsAgentsAPI = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference,
-    reservePaidDraft: async (jobId, digest, sessionSpendLimitCents) => {
+    reservePaidDraft: async (jobId, digest, sessionSpendLimitCents, model) => {
       try { await reconcileCommunicationsDraftCost(db, api, Date.now()); }
       catch { logger.warn({ code: "communications_prior_usage_reconciliation_unavailable" }, "Earlier cost remains unknown; retained accounting does not gate this draft"); }
-      return reserveCommunicationsDraft(db, jobId, digest, Date.now(), sessionSpendLimitCents);
+      return reserveCommunicationsDraft(db, jobId, digest, Date.now(), sessionSpendLimitCents, model);
     },
     recordPaidDraftUsage: (jobId, digest, usage) => recordCommunicationsDraftUsage(db, jobId, digest, usage, Date.now()),
   });
@@ -818,12 +818,12 @@ async function runRequestedCommunicationsDrafts(db: FirebaseFirestore.Firestore,
       await requireFounderDraftCapability(); await deps.verifyMailbox(); await assertCurrent();
       const api: CommunicationsAgentsAPI = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference: true,
         fetch: async (url, init) => { await assertCurrent(); return fetch(url, init); },
-        reservePaidDraft: async (jobId, digest, cents) => {
+        reservePaidDraft: async (jobId, digest, cents, model) => {
           await assertCurrent();
           try { await reconcileCommunicationsDraftCost(db, api, deps.now()); }
           catch { logger.warn({ code: "communications_prior_usage_reconciliation_unavailable" }, "Earlier cost remains unknown; retained accounting does not gate this draft"); }
           await assertCurrent();
-          return reserveCommunicationsDraft(db, jobId, digest, deps.now(), cents);
+          return reserveCommunicationsDraft(db, jobId, digest, deps.now(), cents, model);
         }, recordPaidDraftUsage: (jobId, digest, usage) => recordCommunicationsDraftUsage(db, jobId, digest, usage, deps.now()),
       });
       const result = await processCommunicationsJob(original.jobId, { ...deps, api,

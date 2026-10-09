@@ -108,6 +108,11 @@ export type OutreachPersonalizedValueContract = z.infer<typeof outreachPersonali
 export const OUTREACH_PERSONALIZED_CONTRACT_VERSION = "blueprint.outreach.v5" as const;
 export const outreachPersonalizedContractSchema = outreachFounderContractSchema.extend({
   version: z.literal(OUTREACH_PERSONALIZED_CONTRACT_VERSION),
+  // A prospective request can qualify a site/workflow or learn interest.
+  // These labels describe what it asks, never evidence that a check passed.
+  questions: z.array(z.object({ question: text,
+    checks: z.array(z.enum(OPEN_CHECKS)).min(1).max(OPEN_CHECKS.length),
+  }).strict()).length(1),
 }).strict();
 export type OutreachPersonalizedContract = z.infer<typeof outreachPersonalizedContractSchema>;
 
@@ -202,7 +207,8 @@ function reviewHypothesisOutreachDraft(draft: OutreachDraft): OutreachReviewResu
     ? communicationsLaunchFraming(draft.framingContext, COMMUNICATIONS_FRAMING_V2).question : published;
   if (launch && !draft.framingContext) blockers.push("launch_framing_context_missing");
   if (asked.question !== expected) blockers.push(launch ? "launch_question_mismatch" : "hypothesis_question_not_published");
-  if (asked.checks.length !== 1 || asked.checks[0] !== (launch ? "interest" : answered)) blockers.push("hypothesis_question_checks_mismatch");
+  if (personalized ? new Set(asked.checks).size !== asked.checks.length
+    : asked.checks.length !== 1 || asked.checks[0] !== (launch ? "interest" : answered)) blockers.push("hypothesis_question_checks_mismatch");
   if (!draft.body.includes(expected)) blockers.push("hypothesis_question_missing_from_body");
   if (personalized ? (draft.body.match(QUESTION_MARKS) || []).length > 1 : (draft.body.match(QUESTION_MARKS) || []).length !== 1) blockers.push("exactly_one_initial_question_required");
   if (!personalized && natural && (!asked.question.endsWith("?") || (asked.question.match(QUESTION_MARKS) || []).length !== 1)) blockers.push("exactly_one_initial_question_required");

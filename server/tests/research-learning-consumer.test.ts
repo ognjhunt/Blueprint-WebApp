@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { digest, LEARNING_ROOT, makeEvent, type EventInput } from "../research-learning/contract";
 import { openResearchLearningSession, type ConsumerBinding, type ConsumerSelection } from "../research-learning/consumer";
 import { verifySourceSnapshot } from "../research-learning/prior-research";
@@ -16,6 +16,9 @@ import { makeBusinessHistory } from "../research-learning/business-history";
 import { resolvePublicContact } from "../agents/communications-contact-resolution";
 
 const now = "2026-10-01T22:00:00.000Z";
+// Nested source validation must use the same synthetic clock as the consumer binding.
+beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(now); });
+afterEach(() => vi.useRealTimers());
 const query = { taskTags: ["folding"], regionTags: ["Sacramento"], companyIds: [], capabilityIds: [], pageSize: 1, cursor: null };
 function fixture(role: ConsumerBinding["role"] = "daily_research") {
   const memory = learningMemoryFirestore();

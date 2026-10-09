@@ -378,7 +378,7 @@ describe("Blueprint-owned communications queue", () => {
     f.deps.api.run.mockImplementation(async (params: any) => {
       const input = JSON.parse(params.input);
       expect(input.firstTouchFraming).toEqual({ ...framing, guidance: input.writingGuidance, question: undefined, questionIsSuggestion: true });
-      expect(input.firstTouchPolicy).toContain("recipient-aware-writing-v4");
+      expect(input.firstTouchPolicy).toContain("recipient-aware-writing-v5");
       expect(input.firstTouchPolicy).toContain("Do not promise completed evaluation");
       expect(input.firstTouchPolicy).not.toContain("$2,500");
       expect(input.firstTouchPolicy).not.toContain("only when the site books Blueprint's recommended pilot");
