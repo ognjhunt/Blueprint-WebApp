@@ -11,9 +11,26 @@ export function SiteAdvisoryReport({ advisory }: { advisory: SiteAdvisory | null
     {["needs_review", "unavailable"].includes(advisory.state) && <p><a href="mailto:hello@tryblueprint.io">Contact Blueprint about this job</a></p>}
     {advisory.correlationId && <small>Reference: {advisory.correlationId}</small>}
   </section>;
+  const job = advisory.sections.find(section => section.title === "The job");
+  const outcome = advisory.sections.find(section => section.title === "The site's success criteria")?.claims
+    .filter(claim => claim.basis === "operator_stated" && claim.evidence.some(item => item.kind === "operator")) ?? [];
   return <section aria-label="Job advisory assessment">
     <h2>Your job assessment</h2>
-    {advisory.sections.map(section => <div key={section.title}><h3>{section.title}</h3>
+    {job?.claims.length ? <div><h3>The job</h3>{job.claims.map((claim, index) => <div key={index}>
+      <small>{basis[claim.basis]}</small><p>{claim.text}</p>
+      {claim.evidence.filter(item => item.kind === "video" && item.atSeconds !== null).map((item, at) => <small key={at}>Video at {item.atSeconds} s</small>)}
+    </div>)}</div> : null}
+    {outcome.length > 0 && <div><h3>Your desired outcome</h3><ul>
+      {outcome.map((claim, index) => <li key={index}>{claim.text}</li>)}
+    </ul><small>From the site's supplied information.</small></div>}
+    {advisory.unknowns.length > 0 && <div><h3>What we still need to know</h3><ul>
+      {advisory.unknowns.map(text => <li key={text}>{text.replace(/^(Question to resolve:|Unresolved:)\s*/, "")}</li>)}
+    </ul></div>}
+    {advisory.nextAction && <div><h3>Next step to consider</h3><p>{advisory.nextAction.replace(/^Recommended next step \(proposal\):\s*/, "")}</p>
+      <small>This is a proposed next step, not a recorded outcome.</small></div>}
+    <p>Need to correct a detail? <a href="mailto:hello@tryblueprint.io">Contact Blueprint about this job</a>.</p>
+    <details><summary>Full assessment and evidence</summary>
+    {advisory.sections.filter(section => section !== job).map(section => <div key={section.title}><h3>{section.title}</h3>
       {section.claims.map((claim, index) => <div key={index}><strong>{basis[claim.basis]}</strong><p>{claim.text}</p>
         {claim.evidence.filter(item => item.kind === "video" && item.atSeconds !== null).map((item, at) => <small key={at}>Video at {item.atSeconds} s</small>)}
       </div>)}
@@ -21,6 +38,7 @@ export function SiteAdvisoryReport({ advisory }: { advisory: SiteAdvisory | null
     <h3>What remains uncertain</h3>
     {advisory.unknowns.map(text => <p key={text}>{text}</p>)}
     {advisory.nextAction && <><h3>Next step</h3><p>{advisory.nextAction}</p></>}
+    </details>
     {["needs_review", "unavailable"].includes(advisory.state) && <p><a href="mailto:hello@tryblueprint.io">Contact Blueprint about this job</a></p>}
     {advisory.correlationId && <small>Reference: {advisory.correlationId}</small>}
   </section>;
