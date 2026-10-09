@@ -3437,7 +3437,17 @@
       "required_ci": 37893246094,
       "required_ci_status": "in_progress at checkpoint",
       "installed": false,
-      "case_credit": 0
+      "case_credit": 0,
+      "mandatory_local_gate": {
+        "runner": "blueprint_pipeline.impacted_test_selection",
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0,
+        "timeout_seconds": 120,
+        "pytest_seconds": 40.36,
+        "requires_full_suite": true,
+        "receipt_sha256": "be020f66f7f623e5ebd5e30a0ceb93ed5323b1387d025c47d83770aca23696f0"
+      }
     },
     "native_release_gate": "Final merged current-main CI, mandatory production_deployment_promotion Full Test Lane and official production provenance precede existing-door upgrade/canonical install. No current selected recovery or paid dispatch proof.",
     "current_canonical_pipeline": "0a17f52d23f233376b9944a6df49101491581f6c",
@@ -3455,7 +3465,8 @@
       "new_failure": "Gmail rewrites Message-ID; stored requested RFC ID differs from acknowledged-message GET. Narrow receipt reconciliation PR1002; no resend.",
       "draft_recovered_canonical_sha256": "00fd83dd471ac69408af5509fc0f8e117fb54ed8dc76760d38275f380244d411",
       "sent_canonical_sha256": "374065f5d1ede88d12178743b6fe1082bd2c8f0947e0e6e7df035babfd492ac1",
-      "claim_ceiling": "Real delivery/reply mechanics, not human task confirmation, criteria or assessment truth."
+      "claim_ceiling": "Real delivery/reply mechanics, not human task confirmation, criteria or assessment truth.",
+      "root_continuity_review_sha256": "0198c2b26fe5c60b82d66a4e22b3cde22dfc47310832553a9f3cd88b65f0e4b3"
     },
     "fixture_corrections": {
       "original_context_fixture_sha256": "71194b0474901a90bfca519853f7919cb58b1d7780813b8d651279281fe24b57",
@@ -3463,6 +3474,18 @@
       "corrections": "v1 timestamp textual mismatch; v2 browser receipt filename mismatched raw generation; both failed runs preserved as fixture failures, not production bugs. v3 frozen before final score, strict-default baseline passes.",
       "original_failures_retained": true
     },
-    "readiness": "Evaluation partial. One rights-admitted real source, zero current checked human timestamp labels; no untouched holdout or native joined-path completion. Public clips remain provisional development candidates; no reference-floor credit."
+    "readiness": "Evaluation partial. One rights-admitted real source, zero current checked human timestamp labels; no untouched holdout or native joined-path completion. Public clips remain provisional development candidates; no reference-floor credit.",
+    "offline_source_continuity": {
+      "executed_sha": "ab03ba85104969b818fef1a11ae670fe58689649",
+      "compared_sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+      "unchanged_pins": 19,
+      "pins": 20,
+      "changed": [
+        "server/utils/websiteTaskContext.ts"
+      ],
+      "receipt_sha256": "2d92ff7ceaa7ae22085c4dc6e983e3d89150e6d25c79d19228d89895b3328112",
+      "execution_credit": 0,
+      "qualification": "Read-only byte comparison;300 scored cases remain baseline execution, current context covered by separately reviewed changes/checks."
+    }
   }
 }
