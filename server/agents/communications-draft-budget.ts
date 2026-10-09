@@ -138,15 +138,19 @@ export class CommunicationsDraftBudgetError extends Error {
   constructor(readonly code: string) { super(code); }
 }
 
-export function estimatedDraftMicros(usage: any, policy = COMMUNICATIONS_DRAFT_BUDGET): number | null {
+export function estimatedDraftMicros(usage: any, policy: { model: string; inputUsdPerMillion: number; outputUsdPerMillion: number } = COMMUNICATIONS_DRAFT_BUDGET): number | null {
   if (!usage || ![usage.input_tokens, usage.output_tokens, usage.total_tokens].every(Number.isSafeInteger)
     || usage.input_tokens < 0 || usage.output_tokens < 0 || usage.total_tokens !== usage.input_tokens + usage.output_tokens
     || (usage.input_tokens_details?.cached_tokens !== undefined && (!Number.isSafeInteger(usage.input_tokens_details.cached_tokens)
       || usage.input_tokens_details.cached_tokens < 0 || usage.input_tokens_details.cached_tokens > usage.input_tokens))
     || (usage.output_tokens_details?.reasoning_tokens !== undefined && (!Number.isSafeInteger(usage.output_tokens_details.reasoning_tokens)
       || usage.output_tokens_details.reasoning_tokens < 0 || usage.output_tokens_details.reasoning_tokens > usage.output_tokens))) return null;
-  const micros = Math.ceil(usage.input_tokens * policy.inputUsdPerMillion
-    + usage.output_tokens * policy.outputUsdPerMillion);
+  // Sol prices the full request above 272K input tokens at 2x input/cache
+  // and 1.5x output rates. When only cumulative usage is available, apply
+  // the tier to the aggregate conservatively; this remains an estimate, not an invoice.
+  const longContext = policy.model === COMMUNICATIONS_PERSONALIZED_MODEL && usage.input_tokens > 272000;
+  const micros = Math.ceil(usage.input_tokens * policy.inputUsdPerMillion * (longContext ? 2 : 1)
+    + usage.output_tokens * policy.outputUsdPerMillion * (longContext ? 1.5 : 1));
   return Number.isSafeInteger(micros) && micros >= 0 ? micros : null;
 }
 

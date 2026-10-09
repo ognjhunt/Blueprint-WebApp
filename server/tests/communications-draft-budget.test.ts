@@ -18,6 +18,27 @@ const usage = { input_tokens: 1000, output_tokens: 200, total_tokens: 1200,
   input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 100 } };
 
 describe("model-bound draft accounting", () => {
+  it.each([[272000, 750200], [272001, 1499306]])("applies Sol's full-request tier at %s input tokens", (input, expected) => {
+    const tokens = { ...usage, input_tokens: input, total_tokens: input + usage.output_tokens,
+      input_tokens_details: { cached_tokens: input } };
+    expect(estimatedDraftMicros(tokens, COMMUNICATIONS_SOL_DRAFT_BUDGET)).toBe(expected);
+    expect(estimatedDraftMicros(tokens, COMMUNICATIONS_DRAFT_BUDGET))
+      .toBe(Math.ceil(input * 0.2475 + usage.output_tokens * 0.55));
+  });
+  it("records conservative long-context aggregate usage in the admission and daily total without changing its policy", async () => {
+    const db = memoryFirestore(), input = 300000;
+    const id = await reserveCommunicationsDraft(db, "sol-long-job", digest, communicationsNow, undefined, "gpt-6.1-sol");
+    const before = structuredClone(db.records.get(`${root}/draftBudgetAdmissions/${id}`));
+    const cumulative = { ...usage, input_tokens: input, total_tokens: input + usage.output_tokens };
+    await recordCommunicationsDraftUsage(db, "sol-long-job", digest, cumulative, communicationsNow);
+    const row = db.records.get(`${root}/draftBudgetAdmissions/${id}`);
+    expect(row).toMatchObject({ estimatedModelMicros: 1653300, policy: before.policy, policyDigest: before.policyDigest });
+    expect(db.records.get(`${root}/draftBudgetDays/${row.day}`).estimatedModelMicros).toBe(1653300);
+    await recordCommunicationsDraftUsage(db, "sol-long-job", digest, usage, communicationsNow);
+    expect(db.records.get(`${root}/draftBudgetAdmissions/${id}`).estimatedModelMicros).toBe(1653300);
+    expect(db.records.get(`${root}/draftBudgetDays/${row.day}`).estimatedModelMicros).toBe(1653300);
+  });
+
   it("prices new Sol admissions at Sol rates and retains Luna accounting on historical admissions", async () => {
     const db = memoryFirestore();
     const luna = await reserveCommunicationsDraft(db, "luna-job", digest, communicationsNow);
