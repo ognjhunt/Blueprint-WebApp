@@ -604,53 +604,39 @@
     }
   },
   "current_verified_webapp_release": {
-    "services": [
-      {
-        "role": "web",
-        "id": "dep-db48in67bikc73dufsqg",
-        "status": "live",
-        "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
-        "finishedAt": "2026-10-09T06:30:06.730254Z"
-      },
-      {
-        "role": "worker",
-        "id": "dep-db48inbtqb8s73ef7660",
-        "status": "live",
-        "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
-        "finishedAt": "2026-10-09T06:30:28.07402Z"
-      }
-    ],
-    "37893239070": {
-      "conclusion": "success",
-      "headSha": "cd7f979b90ccdac3853b90938e08d2950798f960",
-      "status": "completed"
+    "schema": "blueprint.root-release-readback.v1",
+    "observed_at_utc": "2026-10-09T07:22:13.311976+00:00",
+    "head": "0e6173667cc5e56136b080017ea04ebcffe75b94",
+    "main_ci": {
+      "run": 37896209362,
+      "status": "completed",
+      "conclusion": "success"
     },
-    "37893609079": {
-      "conclusion": "success",
-      "headSha": "cd7f979b90ccdac3853b90938e08d2950798f960",
-      "status": "completed"
+    "automatic_deploy": {
+      "run": 37897015615,
+      "status": "completed",
+      "conclusion": "success"
     },
-    "public": {
-      "/version.json": {
-        "http_status": 200,
-        "git_sha": "cd7f979b90ccdac3853b90938e08d2950798f960"
+    "retained_owner_official_artifact_sha256": "5646bf19f19abe3dcca188c9903725d3583f9a2d657b4c6d2b51446aa94775b7",
+    "independent_render_readback": {
+      "web": {
+        "deploy": "dep-db494c5g1s2s738me8sg",
+        "status": "live",
+        "head": "0e6173667cc5e56136b080017ea04ebcffe75b94",
+        "finished_at": "2026-10-09T07:07:36.380892Z"
       },
-      "/health": {
-        "http_status": 200,
-        "status": "healthy"
-      },
-      "/health/ready": {
-        "http_status": 200,
-        "status": "ready",
-        "blocker_count": 0
+      "worker": {
+        "deploy": "dep-db494cbtqb8s73egvbm0",
+        "status": "live",
+        "head": "0e6173667cc5e56136b080017ea04ebcffe75b94",
+        "finished_at": "2026-10-09T07:08:11.150471Z"
       }
     },
-    "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
-    "checked_at_utc": "2026-10-09T06:34:09.457611+00:00",
-    "official_receipt_sha256": "201035789adb98dd51238421b4dcfe78fa2aaab99505a706ebef1c533ff533ba",
-    "claim_ceiling": "Exact paired source deployment/public health only; original reply import, assessment continuation and native execution unverified by this receipt",
-    "effects": "Render/Github/public GETs only; zero business/model/provider writes",
-    "metadata_receipt_sha256": "a5b63fb8b7c910e8298f88c9e1a7a6a69121733a435e383281db528f1769f8f3"
+    "public_version_matches": true,
+    "health_http": 200,
+    "ready_http": 200,
+    "owner_original_ui_receipt_sha256": "9031fc369c8320e7d50b751c89bc0b212bda483124e941493aba7325d11d3f32",
+    "limits": "Independent service/source/health readback; original UI observed by separate master actor; no customer/provider/config mutation or native proof"
   },
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
@@ -1935,53 +1921,39 @@
     "claim_ceiling": "Read-only credential/model catalog access;not generation, currentcustomer assessment or video-quality proof. Historical401 andunknownexposure remain retained."
   },
   "current_verified_web_release": {
-    "services": [
-      {
-        "role": "web",
-        "id": "dep-db48in67bikc73dufsqg",
-        "status": "live",
-        "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
-        "finishedAt": "2026-10-09T06:30:06.730254Z"
-      },
-      {
-        "role": "worker",
-        "id": "dep-db48inbtqb8s73ef7660",
-        "status": "live",
-        "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
-        "finishedAt": "2026-10-09T06:30:28.07402Z"
-      }
-    ],
-    "37893239070": {
-      "conclusion": "success",
-      "headSha": "cd7f979b90ccdac3853b90938e08d2950798f960",
-      "status": "completed"
+    "schema": "blueprint.root-release-readback.v1",
+    "observed_at_utc": "2026-10-09T07:22:13.311976+00:00",
+    "head": "0e6173667cc5e56136b080017ea04ebcffe75b94",
+    "main_ci": {
+      "run": 37896209362,
+      "status": "completed",
+      "conclusion": "success"
     },
-    "37893609079": {
-      "conclusion": "success",
-      "headSha": "cd7f979b90ccdac3853b90938e08d2950798f960",
-      "status": "completed"
+    "automatic_deploy": {
+      "run": 37897015615,
+      "status": "completed",
+      "conclusion": "success"
     },
-    "public": {
-      "/version.json": {
-        "http_status": 200,
-        "git_sha": "cd7f979b90ccdac3853b90938e08d2950798f960"
+    "retained_owner_official_artifact_sha256": "5646bf19f19abe3dcca188c9903725d3583f9a2d657b4c6d2b51446aa94775b7",
+    "independent_render_readback": {
+      "web": {
+        "deploy": "dep-db494c5g1s2s738me8sg",
+        "status": "live",
+        "head": "0e6173667cc5e56136b080017ea04ebcffe75b94",
+        "finished_at": "2026-10-09T07:07:36.380892Z"
       },
-      "/health": {
-        "http_status": 200,
-        "status": "healthy"
-      },
-      "/health/ready": {
-        "http_status": 200,
-        "status": "ready",
-        "blocker_count": 0
+      "worker": {
+        "deploy": "dep-db494cbtqb8s73egvbm0",
+        "status": "live",
+        "head": "0e6173667cc5e56136b080017ea04ebcffe75b94",
+        "finished_at": "2026-10-09T07:08:11.150471Z"
       }
     },
-    "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
-    "checked_at_utc": "2026-10-09T06:34:09.457611+00:00",
-    "official_receipt_sha256": "201035789adb98dd51238421b4dcfe78fa2aaab99505a706ebef1c533ff533ba",
-    "claim_ceiling": "Exact paired source deployment/public health only; original reply import, assessment continuation and native execution unverified by this receipt",
-    "effects": "Render/Github/public GETs only; zero business/model/provider writes",
-    "metadata_receipt_sha256": "a5b63fb8b7c910e8298f88c9e1a7a6a69121733a435e383281db528f1769f8f3"
+    "public_version_matches": true,
+    "health_http": 200,
+    "ready_http": 200,
+    "owner_original_ui_receipt_sha256": "9031fc369c8320e7d50b751c89bc0b212bda483124e941493aba7325d11d3f32",
+    "limits": "Independent service/source/health readback; original UI observed by separate master actor; no customer/provider/config mutation or native proof"
   },
   "current_normal_UI_same_job_retry": {
     "source_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
@@ -2191,7 +2163,7 @@
     },
     "original_case_credit": 0
   },
-  "updated_at_utc": "2026-10-09T06:25:43.295739+00:00",
+  "updated_at_utc": "2026-10-09T07:24:50.954226+00:00",
   "paid_provider_actor_handoff": {
     "owner": "Existing local assessment-iteration task; original normal-UI provider actor explicitly held",
     "scope": "ONE same authorized MOV production SDK/Gemini fresh baseline, then ONE actual Sol saved-evidence comparison reusing Gemini output. Serial actor; no automatic paid retry; no customer writes.",
@@ -3233,7 +3205,7 @@
     "operation_owner": "New original-job master owns shared Web operations; root retains native integration/release. Hypothesis actor owns one explicitly released short configuration/restart interval; no competing mutations.",
     "root_live_provider_or_config_or_send_effects": 0
   },
-  "current_release_checkpoint_key": "verified_checkpoint_20261009_0535",
+  "current_release_checkpoint_key": "checkpoint_20261009T0729",
   "native2654_current_check": {
     "head": "eb4f2c8114cad789796bc1f56bb78935f0cfb53e",
     "ci": 37884251589,
@@ -3382,6 +3354,55 @@
       "claim_ceiling": "Exact paired source deployment and public health; original communications continuation and native preparation unverified",
       "metadata_receipt_sha256": "c2c4191856bc5e5259d75087bf80d78e75dfeba6fae40419ca1a8a29e94c8dc4",
       "official_receipt_sha256": "86beee036b6521720a9acdb53678f4bfbaede537b3c210af0abafbe21bcacea8"
+    },
+    {
+      "services": [
+        {
+          "role": "web",
+          "id": "dep-db48in67bikc73dufsqg",
+          "status": "live",
+          "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
+          "finishedAt": "2026-10-09T06:30:06.730254Z"
+        },
+        {
+          "role": "worker",
+          "id": "dep-db48inbtqb8s73ef7660",
+          "status": "live",
+          "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
+          "finishedAt": "2026-10-09T06:30:28.07402Z"
+        }
+      ],
+      "37893239070": {
+        "conclusion": "success",
+        "headSha": "cd7f979b90ccdac3853b90938e08d2950798f960",
+        "status": "completed"
+      },
+      "37893609079": {
+        "conclusion": "success",
+        "headSha": "cd7f979b90ccdac3853b90938e08d2950798f960",
+        "status": "completed"
+      },
+      "public": {
+        "/version.json": {
+          "http_status": 200,
+          "git_sha": "cd7f979b90ccdac3853b90938e08d2950798f960"
+        },
+        "/health": {
+          "http_status": 200,
+          "status": "healthy"
+        },
+        "/health/ready": {
+          "http_status": 200,
+          "status": "ready",
+          "blocker_count": 0
+        }
+      },
+      "sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
+      "checked_at_utc": "2026-10-09T06:34:09.457611+00:00",
+      "official_receipt_sha256": "201035789adb98dd51238421b4dcfe78fa2aaab99505a706ebef1c533ff533ba",
+      "claim_ceiling": "Exact paired source deployment/public health only; original reply import, assessment continuation and native execution unverified by this receipt",
+      "effects": "Render/Github/public GETs only; zero business/model/provider writes",
+      "metadata_receipt_sha256": "a5b63fb8b7c910e8298f88c9e1a7a6a69121733a435e383281db528f1769f8f3"
     }
   ],
   "historical_current_verified_web_release": [
@@ -3637,5 +3658,99 @@
       "raw_receipt_sha256": "b1a3fcb3c457c3545873431f906c8f9f7428d3a68361691684a536fa16957ed9",
       "sanitized_receipt_sha256": "a846c2854350a01da2273b53bee673da614603e247d85d735d5af22113e871c1"
     }
+  },
+  "checkpoint_20261009T0729": {
+    "observed_at_utc": "2026-10-09T07:24:50.954226+00:00",
+    "goal_status": "active; full evaluation partial",
+    "web": {
+      "merged_deployed_sha": "0e6173667cc5e56136b080017ea04ebcffe75b94",
+      "main_ci": 37896209362,
+      "automatic_deploy": 37897015615,
+      "paired_live_public_verified": true,
+      "root_receipt_sha256": "d847ac4a6e2fdddfd6b86e13bf26e5db322ef94daf106a1080011303596a4506",
+      "owner_original_UI_history_projection_verified": true,
+      "owner_UI_receipt_sha256": "9031fc369c8320e7d50b751c89bc0b212bda483124e941493aba7325d11d3f32"
+    },
+    "native2655": {
+      "pr": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2655",
+      "failed_head": "bd2ce605020aaa3f1a19fe81c8c3fa8e9a92baf5",
+      "failed_required_run": 37893246094,
+      "actual_failed_shard": 2,
+      "actual_failed_tests": 2,
+      "local_same_cases_before_failed": 2,
+      "root_cause": "Read-only contracts imported active authority/dispatch modules",
+      "candidate": "0d11c21db6355cfdc25fc3d55bcc0700f48dd355",
+      "source_only_delta_files": 13,
+      "test_or_guard_changes": 0,
+      "scoped_pass": 140,
+      "canonical_local_gate_pass": 9,
+      "canonical_local_gate_seconds": 42.417,
+      "independent_review": "SOURCE_CLEAR",
+      "independent_receipt_sha256": "e97cd13d9f8d4e56a8f31c62d3212f5e8e154c08fa2d62dbb210373971be5e2e",
+      "fresh_required_ci": 37898059529,
+      "ci_state": "in_progress; changed-surface gate started; full shards pending at07:22:50Z",
+      "installed": false,
+      "remaining": [
+        "exact current candidate full required CI",
+        "checked merge and final current-main checks",
+        "mandatory production promotion",
+        "official provenance",
+        "canonical door upgrade/install",
+        "fresh original selected preparation authority and bounded dispatch"
+      ]
+    },
+    "knowledge1004": {
+      "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/1004",
+      "head": "ab9526683cc13df3004eb0674680e33788d22b36",
+      "before": {
+        "tests": 15,
+        "pass": 9,
+        "fail": 6
+      },
+      "after_same_cases": {
+        "tests": 15,
+        "pass": 15
+      },
+      "expanded_scope": {
+        "tests": 111,
+        "pass": 111
+      },
+      "typecheck": true,
+      "portability": true,
+      "graphify": true,
+      "final_checks_sha256": "1daa62a8daadb5de8594420c7966480cf42af0771dfd55a87f16b7574b9c9399",
+      "independent_review": "pending",
+      "required_ci": "in_progress",
+      "deployed": false,
+      "live_handler_recovery_verified": false,
+      "paid_repeat": false,
+      "claim_ceiling": "Actual SDK handler with scripted model/isolated backend; source repair does not establish live uptake or video truth"
+    },
+    "current_judgment120": {
+      "source": "cd7f979b90ccdac3853b90938e08d2950798f960",
+      "generated": 120,
+      "deduplicated": 120,
+      "attempted": 120,
+      "structural_pass": 72,
+      "structural_fail": 0,
+      "truth_partial_unscored": 48,
+      "accuracy_denominator": 0,
+      "invocations": 264,
+      "selected_repeated_cases": 72,
+      "repeats_each": 3,
+      "stale_controls": 12,
+      "live_provider_dispatch": 0,
+      "raw_video_reads": 0,
+      "new_unique_case_credit": 0,
+      "preserved_initial_schema_failure": true,
+      "explicit_selector_null_correction_frozen_before_replay": true,
+      "artifact_manifest_files": 35,
+      "root_bytes_case_identity_verification_sha256": "411ae6f084215719e2711152354d2951bcca83553929b766190ecc6481e76790",
+      "author_integrity_sha256": "91759e394ef32d3c16c575fae2410b85fa0b3077177b392de449b4c1a6d9a345",
+      "current_closeout_sha256": "56254b29a99fde8c45700aaded537b565409605c74db0a9f20375b208764d1de",
+      "counts_not_360": "Three120 catalogs overlap/different layers; separate counts, no addition as journeys",
+      "holdout": "All synthetic source groups exposed; no untouched holdout"
+    },
+    "readiness": "Full goal PARTIAL; completed original2GB assessment and real reply continuation,300offline current replay and120judgment structural replay; real reference truth and native joined completion not proven"
   }
 }

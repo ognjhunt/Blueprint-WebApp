@@ -1032,7 +1032,7 @@
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/981",
       "CI": 37859788980,
       "release_status": "protected_merged_required_CI_success_paired_LIVE_public_verified",
-      "live_uptake": "unverified; no additional paid run planned",
+      "live_uptake": "Earlier prompt-only live recovery disproven by actual nine failures; deterministic handler repair reviewed/CI/deployment gates pending",
       "new_unique_case_credit": 0,
       "merge_sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
       "main_CI": 37860325293,
@@ -1043,7 +1043,41 @@
       "last_native_observed_at": "2026-10-09T00:09:02.342555+00:00",
       "last_native_status": "live",
       "deployment_conclusion": "success",
-      "independent_release_review": "2231976a"
+      "independent_release_review": "2231976a",
+      "post_release_actual_failure": {
+        "deployed_source": "cd7f979b90ccdac3853b90938e08d2950798f960",
+        "actual_search_failures": 9,
+        "successful_search_or_fetch": 0,
+        "explicit_literal_null_instructions_not_followed": true,
+        "zero_new_unique_journey_credit": true
+      },
+      "scoped_handler_repair": {
+        "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/1004",
+        "head": "ab9526683cc13df3004eb0674680e33788d22b36",
+        "before": {
+          "tests": 15,
+          "pass": 9,
+          "fail": 6
+        },
+        "after_same_cases": {
+          "tests": 15,
+          "pass": 15
+        },
+        "expanded_scope": {
+          "tests": 111,
+          "pass": 111
+        },
+        "typecheck": true,
+        "portability": true,
+        "graphify": true,
+        "final_checks_sha256": "1daa62a8daadb5de8594420c7966480cf42af0771dfd55a87f16b7574b9c9399",
+        "independent_review": "pending",
+        "required_ci": "in_progress",
+        "deployed": false,
+        "live_handler_recovery_verified": false,
+        "paid_repeat": false,
+        "claim_ceiling": "Actual SDK handler with scripted model/isolated backend; source repair does not establish live uptake or video truth"
+      }
     },
     {
       "id": "REL-STATUS-EMAIL-PROMISE-20261009",
@@ -1205,7 +1239,34 @@
       "pr": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2655",
       "status": "same_reproducer_passes_independently; complete_source_review_clear; required_CI_and_release_pending",
       "production_incident_claim": false,
-      "program_unique_case_credit": 0
+      "program_unique_case_credit": 0,
+      "current_release_candidate": "0d11c21db6355cfdc25fc3d55bcc0700f48dd355",
+      "independent_current_review_sha256": "e97cd13d9f8d4e56a8f31c62d3212f5e8e154c08fa2d62dbb210373971be5e2e"
+    },
+    {
+      "id": "REL-PREP-READONLY-IMPORT-CLOSURE-20261009",
+      "severity": "P2 architecture isolation; required CI blocks affected release",
+      "owner": "native author; coordinator release",
+      "invariant": "Read-only control modules do not reach active workers",
+      "root_cause": "New contract edges reached website preparation authority and active scene dispatch workers",
+      "actual_CI": {
+        "head": "bd2ce605020aaa3f1a19fe81c8c3fa8e9a92baf5",
+        "run": 37893246094,
+        "shard": 2,
+        "failed": 2,
+        "passed": 8651,
+        "deselected": 26
+      },
+      "same_cases_before_failed": 2,
+      "repair": "Pure contract and path extraction, unchanged consequential authority reopening/fresh expiry; no test/assertion edits",
+      "candidate": "0d11c21db6355cfdc25fc3d55bcc0700f48dd355",
+      "local_neighbors_pass": 140,
+      "independent_closure_checks_pass": 4,
+      "independent_source_review": "SOURCE_CLEAR",
+      "fresh_CI": 37898059529,
+      "status": "reviewed source repair pushed; full fresh CI active; not installed",
+      "production_auth_incident_claim": false,
+      "new_unique_case_credit": 0
     }
   ],
   "dependencies": [
@@ -1435,7 +1496,7 @@
     "deployed_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
     "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
   },
-  "current_state_observed_at_utc": "2026-10-09T06:25:43.295739+00:00",
+  "current_state_observed_at_utc": "2026-10-09T07:24:50.954226+00:00",
   "historical_state_policy": "Original baseline/reproducer/source receipts are retained. A historical_state field preserves superseded status text when current state changes; original failed attempts are not erased.",
   "last_new_failure_observed_at_utc": "2026-10-08T21:47:57.021Z",
   "customer_financial_policy": {
@@ -1562,5 +1623,5 @@
     "bounded_returned_event_count": 0,
     "scope": "Service-level minute samples, not instantaneous peak/assessment-only allocation. Later samples after confirmed terminalread support bounded post-run observation; early postcompletionlabel not separately certified. No concurrentcapacity/leak/zeroOOM universal claim; frozen peak/headroom sizing gate remains uncleared."
   },
-  "updated_at_utc": "2026-10-09T06:25:43.295739+00:00"
+  "updated_at_utc": "2026-10-09T07:24:50.954226+00:00"
 }
