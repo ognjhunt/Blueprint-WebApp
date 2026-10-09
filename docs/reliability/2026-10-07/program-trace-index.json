@@ -1,6 +1,6 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-09T02:56:10.169043+00:00",
+  "updated_at_utc": "2026-10-09T07:44:37.150520+00:00",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 22,
@@ -1829,73 +1829,46 @@
     "costs": "Localfake timings/usage stay separate; productionprovideracceptance/chargeunknownsnotzero."
   },
   "current_verified_web_release_readback": {
-    "schema": "reliability_release_metadata_readback.v1",
-    "observed_at_utc": "2026-10-09T01:42:21.254318+00:00",
-    "sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
+    "schema": "blueprint.root-release-official-public-readback.v1",
+    "observed_at_utc": "2026-10-09T07:39:13.911451+00:00",
+    "head": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+    "main_ci": 37899133625,
+    "automatic_deploy": 37899606295,
+    "official_artifact_id": 11602210828,
+    "official_sha256": "080305f5c316d230472f02eb92ceaff33099fea83d1204e28de85f491292a057",
+    "deploy_receipt": {
+      "web_render_deploy_id": "dep-db49h6jtqb8s73ei8v80",
+      "web_render_deploy_status": "live",
+      "web_render_commit": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "worker_render_deploy_id": "dep-db49h6nlk1mc73fajdu0",
+      "worker_render_deploy_status": "live",
+      "worker_render_commit": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "deploy_ref": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "live_git_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+      "health_status": 200,
+      "health_ready_status": 200,
+      "started_at": "2026-10-09T07:32:43Z",
+      "finished_at": "2026-10-09T07:35:47Z"
+    },
     "public": {
-      "version.json": {
-        "http_status": 200,
-        "body": {
-          "git_sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
-          "built_at_iso": "2026-10-09T01:34:15.312Z"
-        }
+      "/version.json": {
+        "http": 200,
+        "git_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+        "status": null
       },
-      "health": {
-        "http_status": 200,
-        "body": {
-          "status": "healthy",
-          "timestamp": "2026-10-09T01:42:21.085Z"
-        }
+      "/health": {
+        "http": 200,
+        "git_sha": null,
+        "status": "healthy"
       },
-      "health/ready": {
-        "http_status": 200,
-        "body": {
-          "status": "ready",
-          "timestamp": "2026-10-09T01:42:21.222Z",
-          "blocker_count": 0
-        }
+      "/health/ready": {
+        "http": 200,
+        "git_sha": null,
+        "status": "ready"
       }
     },
-    "native_reads": {
-      "source": "Fresh purpose-built Render list_deploys normalized metadata",
-      "historical_web": {
-        "id": "dep-db4417jncjis73bn9npg",
-        "status_at_read": "deactivated",
-        "sha": "f88a7e5d5f6e44424f25d971cf39fbab417706e8",
-        "finishedAt": "2026-10-09T01:19:43.974694Z"
-      },
-      "historical_worker": {
-        "id": "dep-db4417ss728c739fsg20",
-        "status_at_read": "deactivated",
-        "sha": "f88a7e5d5f6e44424f25d971cf39fbab417706e8",
-        "finishedAt": "2026-10-09T01:20:22.854634Z"
-      },
-      "current_web": {
-        "id": "dep-db448rjncjis73bo5oh0",
-        "status_at_read": "live",
-        "sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
-        "finishedAt": "2026-10-09T01:35:48.417655Z"
-      },
-      "current_worker": {
-        "id": "dep-db448rss728c739gokeg",
-        "status_at_read": "live",
-        "sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
-        "finishedAt": "2026-10-09T01:36:32.523015Z"
-      }
-    },
-    "main_CI": {
-      "id": 37869841900,
-      "headSha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
-      "conclusion": "success"
-    },
-    "deployment_workflow": {
-      "id": 37870335076,
-      "headSha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
-      "conclusion": "success"
-    },
-    "scope": "Current source and public health metadata. Research adoption controls/lease settlement are owned and not established by this receipt. Accepted normal assessment remains189; actual customer-basics API/DOM verified on3d6.",
-    "private_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/status-update-copy/release-f88/metadata-readback.json",
-    "private_receipt_sha256": "8945d573adcd218d1953643965370944fea56bd7223fcd4286425d082fbe3f72"
+    "effects": "Read-only exact-source/service health; no customer or provider mutation",
+    "live_handler_recovery": "Pending separate original-job master diagnostic"
   },
   "current_normal_UI_same_job_retry": {
     "source_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
@@ -2432,5 +2405,115 @@
     "sixth_usage_estimate_usd": 0.20981,
     "sixth_rounded_micro_usd": 209811,
     "claim_ceiling": "Six correlated local runs of one source; separate from production eleven-call run and unknown historical charges. No invoice/perception certification."
-  }
+  },
+  "current_judgment_replay_20261009": {
+    "source": "cd7f979b90ccdac3853b90938e08d2950798f960",
+    "generated": 120,
+    "deduplicated": 120,
+    "attempted": 120,
+    "structural_pass": 72,
+    "structural_fail": 0,
+    "truth_partial_unscored": 48,
+    "accuracy_denominator": 0,
+    "invocations": 264,
+    "selected_repeated_cases": 72,
+    "repeats_each": 3,
+    "stale_controls": 12,
+    "live_provider_dispatch": 0,
+    "raw_video_reads": 0,
+    "new_unique_case_credit": 0,
+    "preserved_initial_schema_failure": true,
+    "explicit_selector_null_correction_frozen_before_replay": true,
+    "artifact_manifest_files": 35,
+    "root_bytes_case_identity_verification_sha256": "411ae6f084215719e2711152354d2951bcca83553929b766190ecc6481e76790",
+    "author_integrity_sha256": "91759e394ef32d3c16c575fae2410b85fa0b3077177b392de449b4c1a6d9a345",
+    "current_closeout_sha256": "56254b29a99fde8c45700aaded537b565409605c74db0a9f20375b208764d1de",
+    "counts_not_360": "Three120 catalogs overlap/different layers; separate counts, no addition as journeys",
+    "holdout": "All synthetic source groups exposed; no untouched holdout",
+    "independent_expectations_review": {
+      "receipt_sha256": "6e0087e217d7fb9b35f85dcd9e68131b064a7d6dc8dac5a1bdd5b91fe788dbd9",
+      "source_author": false,
+      "review_tier": "Independent agent logical expectation review, not human video labels",
+      "material_catalog_limitations": {
+        "conflicting_inputs_agree": 12,
+        "reordered_negatives_malformed_interval": 6
+      },
+      "truth_labels_or_thresholds_changed": false
+    }
+  },
+  "current_offline300_v3": {
+    "source": "ab03ba85104969b818fef1a11ae670fe58689649",
+    "run": "current300-v3-ab03-20261009T054441Z",
+    "catalog_sha256": "52c53b3a70d40b16091d834d200562354be7a03913c963a51d970e9d04642032",
+    "frozen_manifest_sha256": "da4f2ebdfb427d0bc14ebb5ddc63ad2f5909bf42ab4406a600830298de183906",
+    "results_sha256": "0bb2bdff20b737b9144530257a0d6af758b545e43a3dea75376b6557fe77fcea",
+    "root_artifact_verification_sha256": "d60a2bd7c46496f0904cfa562d9136eb44bc3fa1fcdcaac5695609b580736369",
+    "generated": 300,
+    "deduplicated": 300,
+    "attempted": 300,
+    "passed": 300,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "partial": 0,
+    "assertions": 376,
+    "elapsed_offline_seconds": 20.215130375,
+    "new_unique_credit": 0,
+    "source_pins": 20,
+    "production_pins": 12,
+    "changed_production_pins": 1,
+    "layer": "Offline component/functions; fake API, database/object storage/providers and notification sinks. No browser/emulator/live-backend/provider claim.",
+    "historical_v2_preserved": true,
+    "observer_corrections": "Current committed observer; two extra sharing checks outside catalog and saved-private-handling fixture. Frozen 300 semantic definitions unchanged."
+  },
+  "knowledge_handler_live_boundary": {
+    "pr": "https://github.com/ognjhunt/Blueprint-WebApp/pull/1004",
+    "head": "ab9526683cc13df3004eb0674680e33788d22b36",
+    "before": {
+      "tests": 15,
+      "pass": 9,
+      "fail": 6
+    },
+    "after_same_cases": {
+      "tests": 15,
+      "pass": 15
+    },
+    "expanded_scope": {
+      "tests": 111,
+      "pass": 111
+    },
+    "typecheck": true,
+    "portability": true,
+    "graphify": true,
+    "final_checks_sha256": "1daa62a8daadb5de8594420c7966480cf42af0771dfd55a87f16b7574b9c9399",
+    "independent_review": "SOURCE_CLEAR",
+    "required_ci": 37898576877,
+    "deployed": true,
+    "live_handler_recovery_verified": true,
+    "paid_repeat": false,
+    "claim_ceiling": "Deployed SDK tool pagination recovery verified through real current scoped backend. Zero matching records does not establish robot incapability; no live assessment-quality uplift or native result.",
+    "independent_review_sha256": "e2f40e62fb2f917b7c674de1e06c430851ad1d39c409d0d69f725da7bdfcacb8",
+    "applicable_checks_passed": 8,
+    "conditional_E2E": "SKIPPED; no execution credit",
+    "merge_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+    "merged_at_utc": "2026-10-09T07:27:33Z",
+    "main_ci": 37899133625,
+    "main_ci_status": "completed_success",
+    "root_merge_readback_sha256": "d2c11ac0a1052cf7bda5ee8ce2fb258c324f50aec39566a7f5bcdca8b98070d8",
+    "automatic_deploy": 37899606295,
+    "paired_live_sha": "85744c3a7980844f5e00d10b9e97f0e2f1616377",
+    "official_deploy_artifact_id": 11602210828,
+    "official_deploy_sha256": "080305f5c316d230472f02eb92ceaff33099fea83d1204e28de85f491292a057",
+    "root_release_readback_sha256": "9793cc0eb8201139dd7febf9907d856894add931b23824080a68e54dcccfb2a0",
+    "live_receipt_sha256": "f9f860cff057a19c9496cf651cce107e12bc526755090dd5e7a6e5110ca498fd",
+    "root_live_receipt_review_sha256": "a3e4cfcb9e088303e52667b2da205965d39349db6ac91f7371a998d9f7a9e3fd",
+    "live_sdk_receipts": 1,
+    "live_backend_attempts": 2,
+    "live_matching_records": 0,
+    "live_semantic_status": "unavailable_no_embedding_authority",
+    "new_model_or_embedding_calls": 0,
+    "original_proposal_unchanged": true,
+    "customer_or_business_writes": 0
+  },
+  "claim_ceiling": "Historical42 journeys remain22 emulator normal UI+20 fake worker; intercepted tests separate. Current300offline and120judgment replay do not create additional unique cases or production journeys; live tool boundary adds no end-to-end journey/accuracy credit."
 }
