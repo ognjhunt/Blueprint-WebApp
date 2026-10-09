@@ -40,6 +40,17 @@ const questionClause = (value: string): string | null => {
   if (/\b(?:has|have|had|can|cannot|could|will|would|does|did|may|might|shall)\b/i.test(text)) return null;
   const clauses = text.split(/\b(?:and|or|but|yet|nor)\b/i).map(clause => clause.trim());
   const requirementPredicate = /\b(?:is|are|was|were|must|should|needs?|requires?)\b/i;
+  if (clauses.length > 1 && !requirementPredicate.test(clauses[0])) {
+    // Before a shared predicate, retain only these simple requirement noun
+    // lists and request forms. Other compound premises remain unresolved.
+    const last = clauses.at(-1)!, predicate = requirementPredicate.exec(last);
+    if (!predicate || !/^(?:should the test achieve|needs? inspection)[.!?]*$/i.test(last.slice(predicate.index))) return null;
+    const nouns = clauses.map((clause, index) => {
+      const nominal = index === clauses.length - 1 ? clause.slice(0, predicate.index) : clause;
+      return (index === 0 ? nominal.replace(questionForm, "") : nominal).trim();
+    });
+    if (!nouns.every(noun => /^(?:exact )?(?:sequence|final state|handles?|rack endpoints?)$/i.test(noun))) return null;
+  }
   let predicateSeen = false;
   for (const [index, clause] of clauses.entries()) {
     // Noun lists before a shared predicate remain supported. After a

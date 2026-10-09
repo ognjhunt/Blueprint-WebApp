@@ -121,6 +121,8 @@ describe("customer advisory decision details through the existing DTO", () => {
     ["What sequence is required or the pilot would start tomorrow?", "the pilot would start tomorrow"],
     ["What load is required and Robot X lifts 250 kg?", "Robot X lifts 250 kg"],
     ["What sequence is required and the pilot starts tomorrow?", "the pilot starts tomorrow"],
+    ["What load and Robot X lifts 250 kg should be tested?", "Robot X lifts 250 kg"],
+    ["What handles and the pilot starts tomorrow need inspection?", "the pilot starts tomorrow"],
     ["What rack load Robot X can lift must be tested?", "Robot X can lift"],
     ["What sequence the pilot will complete must be tested?", "the pilot will complete"],
     ["What load is required Robot X is available?", "Robot X is available"],
