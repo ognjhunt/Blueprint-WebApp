@@ -3159,7 +3159,7 @@
     "operation_owner": "New original-job master owns shared Web operations; root retains native integration/release. Hypothesis actor owns one explicitly released short configuration/restart interval; no competing mutations.",
     "root_live_provider_or_config_or_send_effects": 0
   },
-  "current_release_checkpoint_key": "checkpoint_20261009T1200",
+  "current_release_checkpoint_key": "checkpoint_20261009T1225",
   "native2654_current_check": {
     "head": "eb4f2c8114cad789796bc1f56bb78935f0cfb53e",
     "ci": 37884251589,
@@ -4193,5 +4193,47 @@
       "conclusion": "Recorded incomplete3pass census reproduces justified UNKNOWN; stable complete census clears. No identified process owner or justified causal repair.",
       "new_unique_credit": 0
     }
+  },
+  "checkpoint_20261009T1225": {
+    "recorded_at_utc": "2026-10-09T12:27:26.861960+00:00",
+    "original_processing_stop_utc": "2026-10-09T12:24:35Z",
+    "closeout": "PARTIAL; no new original processing; accepted isolated CI preserved",
+    "current_verified_web_sha": "bdd8ed4e26af9f6e4a68d25ef0985fdb984f0a14",
+    "native_main_CI": {
+      "run": 37921721328,
+      "sha": "f7dc8fb8cc3e352b8c85eb7b2f9a6b57e3752b2c",
+      "conclusion": "FAILURE; one incomplete-census safety refusal; cause UNKNOWN"
+    },
+    "native_production_promotion": {
+      "run": 37921796618,
+      "same_sha": true,
+      "conclusion": "SUCCESS",
+      "completed_at": "2026-10-09T12:16:02Z",
+      "proof_ceiling": "Whole terminal job metadata verified; passing promotion cannot override failed main. Official artifact/provenance collection not yet adopted by root at closeout."
+    },
+    "native_observer_PR": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2656",
+    "native_observer_head": "97578b2c37a20c9fd7dcbd5dde8e969a0f2eb368",
+    "native_observer_published_at": "2026-10-09T12:24:22Z",
+    "native_observer_CI": {
+      "run": 37929811403,
+      "created_at": "2026-10-09T12:24:25Z",
+      "state": "IN_PROGRESS at closeout; no terminal claim"
+    },
+    "native_observer_scope": "Two test files; diagnostic omission fixed, original census cause not repaired. All old assertions/scanner/workflows/3 attempts/5-second guard preserved. Python observation overhead can perturb timing.",
+    "native_observer_checks": {
+      "passed": 97,
+      "failed": 0,
+      "errors": 0,
+      "actual_Linux_skipped_locally": 2,
+      "ruff": "PASS",
+      "diff_check": "PASS",
+      "new_unique_credit": 0
+    },
+    "native_observer_independent_review_sha256": "b0c63c515508a9eeb064c7612eaca9edba7fd2a995e08a72c684a83ab5972b8a",
+    "native_observer_final_manifest_sha256": "ddeadb579cfe6b0d1b907bc32ab87464ceea141bf34f98e3ea1fe9fec595507c",
+    "native_observer_reviewed_counterexample": "Combined packet9326B violated8192 limit; final8150B with explicit truncation, original exception/hooks preserved. Diagnostic time is last-budget-tick offset, not syscall latency.",
+    "native_upgrade_install_original_admission_dispatch": 0,
+    "customer_budget_removal": "Separate master-coordinated source work in progress; not relabeled completed or live. No new unlimited paid run or processing-window extension authorized.",
+    "full_program": "PARTIAL; source quality/reference/holdout and native joined completion remain incomplete; no general beta/robot-fit claim"
   }
 }
