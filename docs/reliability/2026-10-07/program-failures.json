@@ -1054,10 +1054,30 @@
       "invariant": "Customer progress and notification claims reflect demonstrated behavior.",
       "root_cause": "Shared copy promises email for every job event and says no need to return, despite no demonstrated advisory-ready notification enqueue/delivery.",
       "repair_scope": "Separate one-component wording repair to factual job-page updates; no new delivery infrastructure, customer email or shared release gate.",
-      "state": "source_repair_in_progress",
+      "state": "independently_reviewed_required_native_checks_pending",
       "before_evidence_sha256": "2f3043f687855431e85b93e2f980e910dc7012a1c0546f08e7aa3499efca44f8",
       "live_notice_receipt_sha256": "f65d510eb0212e7d6cc47dbdfad0feb1ef04ea84a30896c5549f515e23b6fc35",
-      "new_unique_case_credit": 0
+      "new_unique_case_credit": 0,
+      "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/988",
+      "candidate": "843c42dc3b1e0822c452edad7c26b3b7f55152c7",
+      "candidate_receipt_sha256": "72cea939bd4119cfef46e8c23d74300282335a606556ae05d6bff15f1cd4e0c3"
+    },
+    {
+      "id": "REL-QUESTION-ASSERTION-TAIL-20261009",
+      "severity": "P1",
+      "owner": "coordinator/customer_question_diagnosis",
+      "source_head": "0c58e1d50faee7b2594263f4a59fb02b6e5a7b53",
+      "actual_observation": "Actual schema -> factual binding renderer -> current public projection accepts two synthetic question tails asserting robot lift capability and future pilot commitment. Two frozen forbidden-assertion expectations fail; two source/adjacent controls pass; existing14public tests pass and miss these variants.",
+      "live_scope": "No such leakage observed in retained customer report; minimized synthetic fixture has two source-bound claims, zero unverified claims. This is an existing guard gap, not introduced by985.",
+      "root_cause": "Question form and assertion-keyword checks do not structurally validate coordinated declarations or plain capability/commitment auxiliaries.",
+      "invariant": "Unanswered question labels cannot launder unsupported capability or booked-action assertions.",
+      "evidence_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/question-diagnosis",
+      "state": "minimized_red_cases_retained_scoped_guard_repair_in_progress",
+      "repair_scope": "Question-only conservative grammar validation, no global Will/comma widening; safe admitted question remains, other presentation omissions tracked P2. No source/access/consent/DTO/canonical packet changes.",
+      "readiness_effect": "Affected semantic presentation gate is not clear. No assessment-quality beta recommendation; engineering privacy/copy repairs remain separately reviewable.",
+      "new_original_coverage_credit": 0,
+      "category": "semantic_projection",
+      "classification_reason": "Deterministic unsupported capability/commitment can reach the customer projection; potentially consequential despite no observed leakage in accepted live case."
     }
   ],
   "dependencies": [
@@ -1414,5 +1434,5 @@
     "bounded_returned_event_count": 0,
     "scope": "Service-level minute samples, not instantaneous peak/assessment-only allocation. Later samples after confirmed terminalread support bounded post-run observation; early postcompletionlabel not separately certified. No concurrentcapacity/leak/zeroOOM universal claim; frozen peak/headroom sizing gate remains uncleared."
   },
-  "updated_at_utc": "2026-10-09T00:44:43.281614+00:00"
+  "updated_at_utc": "2026-10-09T00:56:35.564730+00:00"
 }

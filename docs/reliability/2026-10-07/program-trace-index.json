@@ -1,6 +1,6 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-09T00:44:43.281614+00:00",
+  "updated_at_utc": "2026-10-09T00:56:35.564730+00:00",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 22,
@@ -2211,5 +2211,18 @@
     "merged_sha": "3d6bc3894b9811a808dd45adc0445f73ceb865e6",
     "merged_at_utc": "2026-10-09T00:49:13Z",
     "final_native_CI_status": "SUCCESS: all nine applicable required checks on exact0c58; no bypass or blind rerun"
+  },
+  "status_update_copy_followup": {
+    "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/988",
+    "candidate": "843c42dc3b1e0822c452edad7c26b3b7f55152c7",
+    "scope": "One shared NextTaskUpdate component/comment: factual job-page progress replaces absolute each-event email guarantee. No API/state/delivery behavior changes.",
+    "receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/status-update-copy/receipt.json",
+    "receipt_sha256": "72cea939bd4119cfef46e8c23d74300282335a606556ae05d6bff15f1cd4e0c3",
+    "independent_review_commit": "f5bc8815",
+    "independent_review_sha256": "b97e06554691c3d2b306556ae6d9bf20a26bee45108fa9b52048f315382b84cd",
+    "local_checks": "41 existing checks in three suites PASS; actual Vite intercepted-API preview confirms copy, zero business writes; baseline observer mismatch retained.",
+    "state": "independently_reviewed_required_native_checks_pending",
+    "new_unique_case_credit": 0,
+    "delivery_proof": false
   }
 }
