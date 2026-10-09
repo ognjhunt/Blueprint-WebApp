@@ -2,6 +2,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
+// Provider-only fixtures keep their existing fetch fake at the new download
+// seam. Public DNS/TLS/redirect controls have separate transport coverage.
+vi.mock("../agents/adapters/public-video-fetch", () => ({
+  fetchPublicVideo: (url: string, { signal }: { signal?: AbortSignal | null }) => globalThis.fetch(url, { signal }),
+}));
+
 const create = vi.hoisted(() => vi.fn());
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
 // This suite isolates output correction from the company-history tool phase.

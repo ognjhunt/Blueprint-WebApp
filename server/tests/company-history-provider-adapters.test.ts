@@ -3,6 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { digest } from "../research-learning/contract";
 
+// Provider-only fixtures keep their existing fetch fake at the new download
+// seam. Public DNS/TLS/redirect controls have separate transport coverage.
+vi.mock("../agents/adapters/public-video-fetch", () => ({
+  fetchPublicVideo: (url: string, { signal }: { signal?: AbortSignal | null }) => globalThis.fetch(url, { signal }),
+}));
+
 const { anthropicCreate, historyRun, retained } = vi.hoisted(() => ({ anthropicCreate: vi.fn(), historyRun: vi.fn(), retained: {learning:null as any} }));
 vi.mock("../../client/src/lib/firebaseAdmin",()=>({dbAdmin:{doc:()=>({get:async()=>({data:()=>({learning:retained.learning})})})}}));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create: anthropicCreate }; } }));
