@@ -143,15 +143,9 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
 
   return (
     <section aria-label="Early access" className="ms-early-access">
-      <div className="ms-task-empty">
-        <h2>Register interest.</h2>
-        <p>
-          Tell us about your robot and the work you want to test. Invitations are manual, when a real site task fits. No policy upload or integration needed.
-        </p>
-      </div>
       <ApplicationForm email={email} />
       {!access?.signedIn && (
-        <p className="ms-field-hint">
+        <p className="ms-field-hint ms-early-access-account">
           Already approved? <a href={SIGN_UP_URL}>Create your account</a> with the approved email, or <a href="/sign-in">sign in</a>.
         </p>
       )}

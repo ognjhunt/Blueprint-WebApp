@@ -21,7 +21,7 @@ export default function Beta() {
         <section>
           <h2>What do I receive?</h2>
           <p>Our goal is to help you get a suitable robot working on a real task at your site. We start by assessing whether robotics could help, what the evidence supports, and what still needs checking.</p>
-          <p>If there’s a promising fit and a suitable robot team is available, we can help connect you and work toward an on-site pilot. Scope, success criteria, responsibilities and costs are agreed separately before proceeding. An assessment doesn’t guarantee a robot or deployment.</p>
+          <p style={{ marginTop: "1em" }}>If there’s a promising fit and a suitable robot team is available, we can help connect you and work toward an on-site pilot. Scope, success criteria, responsibilities and costs are agreed separately before proceeding. An assessment doesn’t guarantee a robot or deployment.</p>
         </section>
         <section id="scope">
           <h2>What does it cost?</h2>

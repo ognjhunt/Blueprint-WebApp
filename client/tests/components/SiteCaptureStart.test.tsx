@@ -39,10 +39,10 @@ vi.mock("@/lib/siteCaptureDurability", () => ({
     const current = durability.rows.get(key);
     if (!replaceIdentity && current && (current.retired || current.value?.requestId !== value.requestId
       || current.value?.retryToken !== value.retryToken)) throw new Error("Fixture durability transaction aborted");
-    const { task, location, email, company, method, region, regionManuallySet } = value.draft;
+    const { task, location, email, company, method, region, regionManuallySet, privateHandling } = value.draft;
     durability.rows.set(key, { retired: false, value: {
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
-      draft: { task, location, email, company, method, region, regionManuallySet },
+      draft: { task, location, email, company, method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}) },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     } });
   },
@@ -787,14 +787,23 @@ it("RETURN-PERSISTED-RELOAD-001 keeps restored fields in both stores before subm
     retryToken: previous.retryToken, taskStatement: "Restored task"});
 });
 
-it.each([true, false])("discloses the generated public summary and honors private handling (private: %s)", async privateHandling => {
+it.each([true, false])("keeps the sharing notice concise and honors saved private handling (private: %s)", async privateHandling => {
+  if (privateHandling) {
+    const { newSiteCaptureRecovery } = await import("@/lib/siteCaptureDraft");
+    const saved = newSiteCaptureRecovery();
+    saved.draft.privateHandling = true;
+    localStorage.setItem("bp-site-capture:v1:anonymous:default", JSON.stringify(saved));
+  }
   fetchMock.mockImplementation(async () => ({ ok: true, json: async () => ({ captureUrl: "https://tryblueprint.io/capture-upload/fixture", captureRegion: "us" }) }));
   await renderReady(<SiteCaptureStart />);
   fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Acme at 123 High Street slides dishwasher racks" } });
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.test" } });
-  expect(screen.getByLabelText("Generated public summary")).not.toHaveTextContent(/Acme|123 High/);
-  if (privateHandling) fireEvent.click(screen.getByLabelText(/keep this job private instead/i));
+  expect(screen.queryByLabelText("Generated public summary")).not.toBeInTheDocument();
+  expect(screen.queryByRole("checkbox", { name: /keep this job private instead/i })).not.toBeInTheDocument();
+  const sharing = screen.getByLabelText("Opportunity sharing");
+  expect(sharing).toHaveClass("ms-field-hint");
+  expect(sharing).toHaveTextContent(privateHandling ? /handled privately/ : /By starting, you authorize publication of the generated summary\./);
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("link", { name: "Open your job and assessment" });
   const submitted = postsTo("/api/inbound-request")[0];

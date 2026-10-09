@@ -478,6 +478,7 @@
 .ms-choice .ms-check-row input { margin-top: 0; }
 .ms-form input[type="radio"], .ms-form input[type="checkbox"] { accent-color: var(--ms-green); }
 .ms-task-empty { padding-block: 20px; }
+.ms-early-access-account { margin-top: 25px; }
 .ms-capture-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-block: 20px; }
 @media (max-width: 600px) { .ms-task-filters { grid-template-columns: 1fr; gap: 12px; } .ms-task-page { padding-top: 24px; } }
 
