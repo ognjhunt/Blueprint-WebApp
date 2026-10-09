@@ -112,6 +112,41 @@ describe("customer advisory decision details through the existing DTO", () => {
     expect(result.nextAction).toContain("Measure the pull force at the upper rack's handle.");
     expect(result.unknowns.join(" ")).toContain("How many rack operations are required per hour?");
   });
+  it.each([
+    ["What load is required and Robot X can lift 250 kg?", "Robot X can lift 250 kg"],
+    ["What sequence is required and the pilot will start tomorrow?", "the pilot will start tomorrow"],
+    ["What pull force is required and the force is 20 N?", "the force is 20 N"],
+    ["What sequence is required and the pilot is tomorrow?", "the pilot is tomorrow"],
+    ["What load is required but Robot X could lift 250 kg?", "Robot X could lift 250 kg"],
+    ["What sequence is required or the pilot would start tomorrow?", "the pilot would start tomorrow"],
+    ["What load is required and Robot X lifts 250 kg?", "Robot X lifts 250 kg"],
+    ["What sequence is required and the pilot starts tomorrow?", "the pilot starts tomorrow"],
+    ["What load and Robot X lifts 250 kg should be tested?", "Robot X lifts 250 kg"],
+    ["What handles and the pilot starts tomorrow need inspection?", "the pilot starts tomorrow"],
+    ["What rack load Robot X can lift must be tested?", "Robot X can lift"],
+    ["What sequence the pilot will complete must be tested?", "the pilot will complete"],
+    ["What load is required Robot X is available?", "Robot X is available"],
+  ])("rejects embedded or coordinated declarative assertions while preserving a safe sibling: %s", (question, forbidden) => {
+    const raw = assessment(); raw.questions = [
+      { question, decision_it_changes: "Which test requirement to clarify" },
+      { question: "Which rack handle must be operated?", decision_it_changes: "Which contact point to investigate" },
+    ];
+    const input = packet(raw), original = structuredClone(input);
+    const result = projectCustomerSiteAdvisory(input, "bp-advisory-test", 30), text = result.unknowns.join(" ");
+    expect(text).not.toContain(forbidden);
+    expect(text).toContain("Which rack handle must be operated?");
+    expect(result.sections).toEqual([]);
+    expect(input).toEqual(original);
+  });
+  it.each([
+    "What load is required and how many operations are needed?",
+    "What handles and rack endpoints need inspection?",
+    "What exact sequence and final state should the test achieve?",
+    "How many rack operations must finish each hour?",
+  ])("retains supported direct questions, repeated interrogatives and noun lists: %s", question => {
+    const raw = assessment(); raw.questions = [{ question, decision_it_changes: "Which requirement to clarify" }];
+    expect(project(raw).unknowns.join(" ")).toContain(question);
+  });
   it("leaves the original private packet intact and does not add API fields", () => {
     const raw = assessment(); raw.missing = [observed()];
     const input = packet(raw), original = structuredClone(input);
