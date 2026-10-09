@@ -243,3 +243,51 @@ describe("communications recovery in Blueprint", () => {
     expect(screen.queryByRole("button", { name: "Retry job" })).not.toBeInTheDocument();
   });
 });
+
+function fillOwnerRequest() {
+  for (const [name, value] of [["Prospect ID", job.prospectId], ["Reviewed brief ID", "hypothesis-owned"],
+    ["Reviewed brief digest", job.briefDigest], ["Expected deployed revision", runtime.sourceCommit], ["Session limit in cents", "100"]]) {
+    fireEvent.change(screen.getByRole("textbox", { name }), { target: { value } });
+  }
+}
+describe("explicit founder draft request", () => {
+  it("does no work on load and uses the existing authenticated owner endpoint only after explicit submission", async () => {
+    const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue(Response.json({ ok: true, jobId: job.jobId,
+      executionPlacement: "existing_background_worker", sent: false, gmailDraftCreated: false }, { status: 202 }));
+    page(); expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Request an agent draft")); fillOwnerRequest();
+    expect(fetchMock).not.toHaveBeenCalled(); fireEvent.click(screen.getByRole("button", { name: "Request agent draft" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(`Requested agent draft ${job.jobId}`);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(`/api/admin/outbound-prospects/${job.prospectId}/communications/generate`, {
+      method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Authorization: "Bearer mock-firebase-token", "X-CSRF-Token": "mock-csrf" },
+      body: JSON.stringify({ briefId: "hypothesis-owned", expectedBriefDigest: job.briefDigest, expectedSourceCommit: runtime.sourceCommit, sessionSpendLimitCents: 100 }),
+    });
+  });
+  it("retains a denied or disconnected request without automatically dispatching again", async () => {
+    const fetchMock = vi.spyOn(global, "fetch").mockRejectedValue(new Error("synthetic acknowledgement lost"));
+    page(); fireEvent.click(screen.getByText("Request an agent draft")); fillOwnerRequest();
+    fireEvent.click(screen.getByRole("button", { name: "Request agent draft" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Check the existing job/);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+    expect(fetchMock).toHaveBeenCalledTimes(1); expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+  it("stops before POST if the owner changes while authentication is resolving", async () => {
+    let release!: () => void;
+    auth.getIdToken.mockImplementationOnce(() => new Promise(resolve => { release = () => resolve("old-owner-token"); }));
+    const fetchMock = vi.spyOn(global, "fetch");
+    const view = page(); fireEvent.click(screen.getByText("Request an agent draft")); fillOwnerRequest();
+    fireEvent.click(screen.getByRole("button", { name: "Request agent draft" }));
+    await waitFor(() => expect(auth.getIdToken).toHaveBeenCalled());
+    auth.useAuth.mockReturnValue({ currentUser: { uid: "different-owner", getIdToken: auth.getIdToken } });
+    view.rerender(<QueryClientProvider client={new QueryClient()}><CommunicationsRecovery /></QueryClientProvider>);
+    await act(async () => { release(); });
+    expect(fetchMock).not.toHaveBeenCalled(); expect(screen.getByRole("textbox", { name: "Prospect ID" })).toHaveValue("");
+  });
+  it("rejects a zero session limit before any request", () => {
+    const fetchMock = vi.spyOn(global, "fetch");
+    page(); fireEvent.click(screen.getByText("Request an agent draft")); fillOwnerRequest();
+    fireEvent.change(screen.getByRole("textbox", { name: "Session limit in cents" }), { target: { value: "0" } });
+    expect(screen.getByRole("button", { name: "Request agent draft" })).toBeDisabled(); expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
