@@ -122,6 +122,26 @@ it.each(["gpt-6.1-sol-agents-api", "gpt-6-sol-agents-api"])(
 );
 
 describe("SiteCaptureStart and the country", () => {
+  it("retains the filled current address across reload even when the prior address had the same country", async () => {
+    fetchMock.mockResolvedValue(photon([{ housenumber: "200", street: "East Main Street", city: "Durham", state: "NC", country: "United States", countrycode: "US" }]));
+    vi.stubGlobal("navigator", { ...navigator, geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 35.9940321, longitude: -78.8986192 } } as GeolocationPosition) } });
+    const view = await renderReady(<SiteCaptureStart />);
+    const input = document.querySelector("#start-location")!;
+    fireEvent.change(input, { target: { value: "Austin, TX" } });
+    expectInferredUnitedStates();
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    const address = "200 East Main Street, Durham, NC, United States";
+    await waitFor(() => expect(input).toHaveValue(address));
+    const key = siteCaptureDraftKey(null, "default");
+    await waitFor(() => expect(durability.rows.get(key)?.value.draft).toMatchObject({ location: address, region: "us" }));
+    expect(JSON.stringify(durability.rows.get(key))).not.toMatch(/"(?:latitude|longitude|lat|lng)"/);
+    view.unmount();
+    await renderReady(<SiteCaptureStart />);
+    expect(document.querySelector("#start-location")).toHaveValue(address);
+    expect(screen.getByRole("button", { name: "Use my location" })).toBeInTheDocument();
+    expectInferredUnitedStates();
+  });
+
   it.each(["Austin, TX", "austin tx", "Austin, Texas, United States", "Austin, TX 78701"])("recognizes an explicit US job location before Start (%s)", async (location) => {
     await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });

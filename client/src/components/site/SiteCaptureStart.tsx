@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureLiveStatus } from "@/components/site/CaptureLiveStatus";
-import { LocationAutocomplete } from "@/components/site/LocationAutocomplete";
+import { LocationAutocomplete, type ChosenPlace } from "@/components/site/LocationAutocomplete";
 import {
   captureRegionHeldNotice,
   captureRegionNotice,
@@ -301,13 +301,14 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       setFootage(null); setResetVersion(value => value + 1);
     }
   }
-  function retainDraft() {
+  function retainDraft(place?: ChosenPlace) {
     if (!interactive || clearStatus === "working" || recoveryUnavailable || recovery.current.pending || !formRef.current) return;
     const data = new FormData(formRef.current);
     const field = (name: string) => String(data.get(name) ?? "");
     retain({ ...recovery.current, savedAt: Date.now(), draft: {
-      task: field("startTask"), location: field("startLocation"), email: field("startEmail"), company: field("startCompany"),
-      method, region, regionManuallySet: false, ...(privateHandling ? { privateHandling: true } : {}),
+      task: field("startTask"), location: place ? place.label : field("startLocation"), email: field("startEmail"), company: field("startCompany"),
+      method, region: place ? (place.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "") : region,
+      regionManuallySet: false, ...(privateHandling ? { privateHandling: true } : {}),
     } });
   }
   useEffect(() => { retainDraft(); }, [interactive, method, region, privateHandling]);
@@ -817,6 +818,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
           onSelectionChange={(place) => {
             setCountryMissing(false);
             setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
+            // A programmatic fill may keep the same region and emit no form
+            // change. Retain the chosen value directly in that case too.
+            if (place) retainDraft(place);
           }}
           onInputChange={(text) => {
             setCountryMissing(false);
