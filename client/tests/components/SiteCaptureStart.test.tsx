@@ -287,6 +287,15 @@ it("asks where the robot would do the task, not where the video was filmed", asy
   expect(label).not.toHaveTextContent(/filmed/i);
 });
 
+it("keeps location controls out of the address field's spoken label", async () => {
+  await renderReady(<SiteCaptureStart />);
+  const input = screen.getByRole("combobox", { name: "Where would the robot do this task?", exact: true });
+  fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+  expect(screen.getByRole("status", { name: "Location preference" })).toHaveTextContent("Couldn’t find your location");
+  expect(input).toHaveAccessibleName("Where would the robot do this task?");
+  expect(input.closest("label")).toBeNull();
+});
+
 it("clears an inferred country when the address is edited", async () => {
   fetchMock.mockResolvedValue(photon([{ name: "Austin", countrycode: "US" }]));
   await renderReady(<SiteCaptureStart />);

@@ -797,24 +797,24 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
           {!(selfRecording || hasFootage) && (
             <span className="ms-field-hint">We are sending someone to film it, so we need the street address.</span>
           )}
-          <LocationAutocomplete
-            id="start-location"
-            name="startLocation"
-            defaultValue={recovery.current.draft.location}
-            required
-            maxLength={300}
-            placeholder={selfRecording || hasFootage ? "City or address" : "Street address"}
-            onSelectionChange={(place) => {
-              setCountryMissing(false);
-              setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
-            }}
-            onInputChange={(text) => {
-              setCountryMissing(false);
-              const country = inferLocationCountryCode(text);
-              setRegion(country ? (country === "US" ? "us" : "non_us") : "");
-            }}
-          />
         </label>
+        <LocationAutocomplete
+          id="start-location"
+          name="startLocation"
+          defaultValue={recovery.current.draft.location}
+          required
+          maxLength={300}
+          placeholder={selfRecording || hasFootage ? "City or address" : "Street address"}
+          onSelectionChange={(place) => {
+            setCountryMissing(false);
+            setRegion(place?.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "");
+          }}
+          onInputChange={(text) => {
+            setCountryMissing(false);
+            const country = inferLocationCountryCode(text);
+            setRegion(country ? (country === "US" ? "us" : "non_us") : "");
+          }}
+        />
 
         {countryMissing && !region && (
           <p className="ms-error" role="alert" style={{ margin: 0 }}>
