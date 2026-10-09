@@ -109,10 +109,12 @@ function siteJobSender(row: any, canonicalId: string): BlueprintMessageSender {
   if (sender === undefined) {
     // Retained rows predate sender binding. Removing a new binding cannot turn
     // a reviewed hello message into a legacy founder message.
-    if (row?.binding && (row.id !== canonicalId || canonicalId !== communicationsDigest(row.binding))) fail("job_sender_binding_changed");
+    if ((row?.id || row?.input || row?.binding)
+      && (!row.binding || !row.input || row.id !== canonicalId || canonicalId !== communicationsDigest(row.binding))) fail("job_sender_binding_changed");
     if (row?.input) {
       let prior; try { prior = JSON.parse(row.input); } catch { fail("job_sender_binding_changed"); }
-      if (prior.approvedSender !== FOUNDER_MAILBOX) fail("job_sender_binding_changed");
+      if (prior.approvedSender !== FOUNDER_MAILBOX
+        || communicationsDigest(prior.servicePurpose ?? null) !== communicationsDigest(row.binding)) fail("job_sender_binding_changed");
     }
     return FOUNDER_MAILBOX;
   }
