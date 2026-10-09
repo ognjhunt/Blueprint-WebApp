@@ -94,6 +94,40 @@ async function browserCountryCode(prediction: google.maps.places.PlacePrediction
   } catch { return null; }
 }
 
+/** Resolve the clicked position once, keeping structured country data. */
+async function currentAddress(origin: LocationOrigin, browserKey: string | null, signal: AbortSignal): Promise<(ChosenPlace & { source: "google" | "photon" }) | null> {
+  if (browserKey) {
+    const place = await within((async () => {
+      try {
+        await loadGoogleMaps(browserKey);
+        if (signal.aborted || !window.google?.maps?.importLibrary) return null;
+        const { Geocoder } = await google.maps.importLibrary("geocoding") as google.maps.GeocodingLibrary;
+        const response = await new Geocoder().geocode({ location: origin });
+        const result = response.results.find((item) => !item.types.includes("plus_code"));
+        if (!result?.formatted_address) return null;
+        const code = result.address_components.find((part) => part.types.includes("country"))?.short_name?.toUpperCase() ?? "";
+        return { label: result.formatted_address, countryCode: /^[A-Z]{2}$/.test(code) ? code : null, source: "google" as const };
+      } catch { return null; }
+    })(), 1500, null);
+    if (place || signal.aborted) return place;
+  }
+  // The existing keyless provider also supports reverse lookup. A denied Maps
+  // geocoding key must not turn a successful GPS result into an empty field.
+  return within((async () => {
+    try {
+      const params = new URLSearchParams({ lat: String(origin.lat), lon: String(origin.lng), limit: "1", lang: "en" });
+      const response = await fetch(`https://photon.komoot.io/reverse?${params}`, { signal, cache: "no-store" });
+      if (!response.ok) return null;
+      const data = await response.json() as { features?: { properties?: Record<string, unknown> }[] };
+      const properties = data.features?.[0]?.properties;
+      if (!properties) return null;
+      const label = photonLabel(properties);
+      const code = typeof properties.countrycode === "string" ? properties.countrycode.trim().toUpperCase() : "";
+      return label ? { label, countryCode: /^[A-Z]{2}$/.test(code) ? code : null, source: "photon" as const } : null;
+    } catch { return null; }
+  })(), 2000, null);
+}
+
 /** Bound provider latency; clear the timer when the request finishes. */
 function within<T>(request: Promise<T>, milliseconds: number, fallback: T): Promise<T> {
   return new Promise((resolve) => {
@@ -173,7 +207,11 @@ export function LocationAutocomplete(props: {
   const allowRefresh = useRef(false);
   const nearbyOrigin = useRef<LocationOrigin | null>(null);
   const locationGeneration = useRef(0);
-  const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "nearby" | "denied" | "unavailable">("idle");
+  const locationFillGeneration = useRef(0);
+  const addressAbort = useRef<AbortController | null>(null);
+  const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "resolving" | "nearby" | "denied" | "unavailable">("idle");
+  const [locationFeedback, setLocationFeedback] = useState<"nearby" | "filled" | "not-found">("nearby");
+  const [addressSource, setAddressSource] = useState<"google" | "photon" | null>(null);
   const browserKey = getGoogleMapsApiKey();
 
   useEffect(() => {
@@ -242,37 +280,79 @@ export function LocationAutocomplete(props: {
   function useMyLocation() {
     if (!navigator.geolocation) { setLocationStatus("unavailable"); return; }
     const generation = ++locationGeneration.current;
+    const fillGeneration = locationFillGeneration.current;
+    addressAbort.current?.abort();
+    cancelQuery();
+    setSuggestions([]);
+    setOpen(false);
+    setActive(-1);
     // Clicking after a scroll is a fresh request even if the input kept focus.
     allowRefresh.current = true;
     inputRef.current?.focus();
     setLocationStatus("loading");
-    // Ask only after this click. Keep a rounded position in memory, never in
-    // cookies, the saved form draft, analytics, or the submitted site record.
+    // Ask only after this click. Use the precise position only for this reverse
+    // lookup; keep a rounded search preference in memory, never in a draft.
     try {
-      navigator.geolocation.getCurrentPosition((position) => {
+      navigator.geolocation.getCurrentPosition(async (position) => {
         if (generation !== locationGeneration.current) return;
         const { latitude, longitude } = position.coords;
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
           setLocationStatus("unavailable"); return;
         }
         nearbyOrigin.current = { lat: Math.round(latitude * 1000) / 1000, lng: Math.round(longitude * 1000) / 1000 };
+        if (fillGeneration === locationFillGeneration.current) {
+          setLocationStatus("resolving");
+          const controller = new AbortController();
+          addressAbort.current = controller;
+          const place = await currentAddress({ lat: latitude, lng: longitude }, browserKey, controller.signal);
+          controller.abort();
+          if (generation !== locationGeneration.current) return;
+          if (fillGeneration === locationFillGeneration.current && place) {
+            selectionGeneration.current += 1;
+            cancelQuery();
+            allowRefresh.current = false;
+            sessionToken.current = null;
+            browserSessionToken.current = null;
+            setValue(place.label);
+            setSuggestions([]);
+            setOpen(false);
+            setActive(-1);
+            setLocationFeedback("filled");
+            setAddressSource(place.source);
+            setLocationStatus("nearby");
+            const chosen = { label: place.label, countryCode: place.countryCode };
+            props.onSelect?.(chosen);
+            props.onSelectionChange?.(chosen);
+            return;
+          }
+          setLocationFeedback(fillGeneration === locationFillGeneration.current ? "not-found" : "nearby");
+        } else setLocationFeedback("nearby");
         setLocationStatus("nearby");
+        // A click can scroll the page before the asynchronous GPS callback.
+        // Resume after that scroll, but respect a later Escape or selection.
+        if (fillGeneration === locationFillGeneration.current) allowRefresh.current = true;
         refreshSuggestions();
       }, (error) => {
         if (generation === locationGeneration.current) setLocationStatus(error.code === 1 ? "denied" : "unavailable");
-      }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300_000 });
+      }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 });
     } catch { setLocationStatus("unavailable"); }
   }
 
   function clearMyLocation() {
     locationGeneration.current += 1;
+    addressAbort.current?.abort();
     nearbyOrigin.current = null;
+    setAddressSource(null);
+    setLocationFeedback("nearby");
     allowRefresh.current = true;
     setLocationStatus("idle");
     refreshSuggestions();
   }
 
   function onChange(text: string) {
+    locationFillGeneration.current += 1;
+    setAddressSource(null);
+    setLocationFeedback("nearby");
     selectionGeneration.current += 1;
     cancelQuery();
     focused.current = true;
@@ -292,6 +372,9 @@ export function LocationAutocomplete(props: {
   }
 
   async function choose(suggestion: Suggestion) {
+    locationFillGeneration.current += 1;
+    setAddressSource(null);
+    setLocationFeedback("nearby");
     const generation = ++selectionGeneration.current;
     allowRefresh.current = false;
     cancelQuery();
@@ -321,6 +404,7 @@ export function LocationAutocomplete(props: {
     return () => {
       selectionGeneration.current += 1;
       locationGeneration.current += 1;
+      addressAbort.current?.abort();
       cancelQuery();
     };
   }, []);
@@ -344,6 +428,7 @@ export function LocationAutocomplete(props: {
 
   function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Escape") {
+      locationFillGeneration.current += 1;
       cancelQuery();
       allowRefresh.current = false;
       setOpen(false);
@@ -452,18 +537,22 @@ export function LocationAutocomplete(props: {
         </div>
       )}
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "6px 12px", marginTop: "8px", fontSize: "0.85em" }}>
-        <button ref={locationButton} type="button" className="ms-text-link" disabled={locationStatus === "loading"}
+        <button ref={locationButton} type="button" className="ms-text-link" disabled={locationStatus === "loading" || locationStatus === "resolving"}
           onPointerDown={(event) => event.preventDefault()}
           onClick={locationStatus === "nearby" ? clearMyLocation : useMyLocation}
-          style={{ background: "none", border: 0, padding: "4px 0", cursor: locationStatus === "loading" ? "wait" : "pointer", font: "inherit" }}>
-          {locationStatus === "nearby" ? "Clear location preference" : locationStatus === "loading" ? "Finding your location…" : "Use my location"}
+          style={{ background: "none", border: 0, padding: "4px 0", cursor: locationStatus === "loading" || locationStatus === "resolving" ? "wait" : "pointer", font: "inherit" }}>
+          {locationStatus === "nearby" ? "Clear location preference" : locationStatus === "loading" ? "Finding your location…" : locationStatus === "resolving" ? "Finding your address…" : "Use my location"}
         </button>
         <span id={`${props.id}-location-hint`} role="status" aria-label="Location preference" style={{ color: "var(--ms-muted, #667085)" }}>
-          {locationStatus === "nearby" ? "Nearby matches first. You can still choose any address." :
+          {locationStatus === "nearby" ? locationFeedback === "filled" ? "Current address filled. Check it before continuing." :
+            locationFeedback === "not-found" ? "Couldn’t fill your address. Type an address; nearby matches come first." : "Nearby matches first. You can still choose any address." :
+            locationStatus === "loading" || locationStatus === "resolving" ? "You can keep typing while we look it up." :
             locationStatus === "denied" ? "Location permission is off. You can still type any address." :
             locationStatus === "unavailable" ? "Couldn’t find your location. You can still type any address." :
-            "Optional · Prefer nearby addresses"}
+            "Optional · Fill your current address"}
         </span>
+        {addressSource === "google" && <img src="https://maps.gstatic.com/mapfiles/api-3/images/powered-by-google-on-white3.png" alt="Powered by Google" width={120} height={14} />}
+        {addressSource === "photon" && <a href="https://www.openstreetmap.org/copyright" style={{ color: "var(--ms-muted, #667085)", fontSize: "0.85em" }}>© OpenStreetMap</a>}
       </div>
     </div>
   );

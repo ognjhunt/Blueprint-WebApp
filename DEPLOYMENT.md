@@ -172,12 +172,18 @@ Texas, then other US matches break ties. All returned international options
 remain available, and a typed city/country can override the preference. No
 extra per-option details requests are made for ranking.
 
-“Use my location” requests browser permission only after a click, and biases
-matches within 50 km. Coordinates are rounded to three decimal places and kept
-only in component memory; they are sent to the suggestion provider (or the
-private Places proxy), never saved in cookies, drafts, analytics, or submissions.
-“Clear location preference” restores the default search. Denied/unavailable
-location leaves typing and autocomplete usable. `Permissions-Policy` permits
+“Use my location” requests browser permission only after a click and fills the
+current address, with structured country data. It uses the browser Google
+geocoder when available (the browser key must allow Geocoding API), with the
+existing keyless Photon reverse lookup as a bounded fallback. The precise
+position is sent only for this lookup; the editable address can be saved in the
+form draft as usual. Later suggestions use a 50 km bias with coordinates rounded
+to three decimal places and kept only in component memory. Coordinates are
+never saved in cookies, drafts, analytics, or submissions. Manual edits, Escape,
+selection, and unmount prevent a late lookup from replacing newer input.
+“Clear location preference” restores the default search without erasing the
+address. Denied/unavailable location or reverse lookup leaves typing and
+autocomplete usable. `Permissions-Policy` permits
 same-origin geolocation only on `/contact/site-operator`, matching the site's
 full-page intake links; camera policy stays scoped to capture upload.
 

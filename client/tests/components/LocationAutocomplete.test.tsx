@@ -205,12 +205,14 @@ describe("reporting the chosen place", () => {
 
   it("passes opted-in coordinates to the private proxy and clears them from later lookups", async () => {
     googleFixture("1005 Crete Street, Durham, NC");
-    const getCurrentPosition = vi.fn((success) => success({ coords: { latitude: 35.9940321, longitude: -78.8986192 } }));
+    const getCurrentPosition = vi.fn();
     vi.stubGlobal("navigator", { geolocation: { getCurrentPosition } });
     const input = field();
     fireEvent.change(input, { target: { value: "1005 Crete" } });
     await screen.findByRole("option");
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    fireEvent.change(input, { target: { value: "1005 Crete Street" } });
+    await act(async () => { getCurrentPosition.mock.calls[0][0]({ coords: { latitude: 35.9940321, longitude: -78.8986192 } }); });
     await screen.findByRole("option");
     let params = new URL(fetchMock.mock.calls.at(-1)![0], "https://example.test").searchParams;
     expect(params.get("lat")).toBe("35.994");
@@ -446,7 +448,7 @@ describe("the configured browser Maps key", () => {
     const token = fetchAutocompleteSuggestions.mock.calls[0][0].sessionToken;
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
     expect(getCurrentPosition).toHaveBeenCalledOnce();
-    expect(getCurrentPosition.mock.calls[0][2]).toEqual({ enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
+    expect(getCurrentPosition.mock.calls[0][2]).toEqual({ enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
     fireEvent.change(input, { target: { value: "1005 Crete Street" } });
     await act(async () => { getCurrentPosition.mock.calls[0][0]({ coords: { latitude: 35.9940321, longitude: -78.8986192 } }); });
     await screen.findByRole("option");
@@ -478,6 +480,105 @@ describe("the configured browser Maps key", () => {
     expect(fetchAutocompleteSuggestions).toHaveBeenLastCalledWith(expect.not.objectContaining({ origin: expect.anything() }));
   });
 
+  it("fills an empty field from Google geocoding and reports the authoritative country", async () => {
+    googleFixture("1005 Crete Street, Durham, NC");
+    const geocode = vi.fn(async () => ({ results: [{ formatted_address: "1005 Crete St, Durham, NC 27707, USA", types: ["street_address"],
+      address_components: [{ types: ["country"], short_name: "US" }] }] }));
+    Object.assign(window.google.maps, { importLibrary: vi.fn(async () => ({ Geocoder: class { geocode = geocode; } })) });
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 35.9940321, longitude: -78.8986192 } } as GeolocationPosition) } });
+    const onSelectionChange = vi.fn();
+    render(<LocationAutocomplete id="loc" name="startLocation" onSelectionChange={onSelectionChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("1005 Crete St, Durham, NC 27707, USA"));
+    expect(onSelectionChange).toHaveBeenLastCalledWith({ label: "1005 Crete St, Durham, NC 27707, USA", countryCode: "US" });
+    expect(geocode).toHaveBeenCalledWith({ location: { lat: 35.9940321, lng: -78.8986192 } });
+    expect(screen.getByRole("status")).toHaveTextContent("Current address filled. Check it before continuing.");
+    expect(screen.getByRole("img", { name: "Powered by Google" })).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Clear location preference" }));
+    expect(screen.getByRole("combobox")).toHaveValue("1005 Crete St, Durham, NC 27707, USA");
+  });
+
+  it("uses the existing reverse provider when Google denies geocoding, without assuming the country", async () => {
+    googleFixture("Toronto, Canada");
+    Object.assign(window.google.maps, { importLibrary: vi.fn(async () => ({ Geocoder: class { geocode = vi.fn().mockRejectedValue(new Error("REQUEST_DENIED")); } })) });
+    fetchMock.mockResolvedValue(photonRaw([{ housenumber: "1005", street: "Centre Street", city: "Toronto", country: "Canada", countrycode: "ca" }]));
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 43.65, longitude: -79.38 } } as GeolocationPosition) } });
+    const onSelect = vi.fn();
+    render(<LocationAutocomplete id="loc" name="startLocation" onSelect={onSelect} />);
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("1005 Centre Street, Toronto, Canada"));
+    expect(onSelect).toHaveBeenLastCalledWith({ label: "1005 Centre Street, Toronto, Canada", countryCode: "CA" });
+    expect(screen.getByRole("link", { name: "© OpenStreetMap" })).toBeInTheDocument();
+    expect(fetchMock.mock.calls[0][0]).toContain("photon.komoot.io/reverse?");
+  });
+
+  it("falls back from a stalled Google reverse lookup and ignores its later answer", async () => {
+    vi.useFakeTimers();
+    googleFixture("Durham, NC");
+    let complete: (response: unknown) => void = () => {};
+    Object.assign(window.google.maps, { importLibrary: vi.fn(async () => ({ Geocoder: class { geocode = () => new Promise(resolve => { complete = resolve; }); } })) });
+    fetchMock.mockResolvedValue(photonRaw([{ housenumber: "200", street: "East Main Street", city: "Durham", countrycode: "US" }]));
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 35.994, longitude: -78.899 } } as GeolocationPosition) } });
+    const input = field();
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500); });
+    expect(input).toHaveValue("200 East Main Street, Durham");
+    await act(async () => { complete({ results: [{ formatted_address: "Late Google address", types: ["street_address"], address_components: [] }] }); });
+    expect(input).toHaveValue("200 East Main Street, Durham");
+  });
+
+  it("stops a stalled fallback lookup and leaves the empty field usable", async () => {
+    vi.useFakeTimers();
+    googleFixture("Durham, NC");
+    fetchMock.mockImplementation(() => new Promise(() => {}));
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 35.994, longitude: -78.899 } } as GeolocationPosition) } });
+    const input = field();
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    expect(screen.getByRole("button", { name: "Clear location preference" })).toBeEnabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Couldn’t fill your address");
+    expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true);
+    fireEvent.change(input, { target: { value: "My address" } });
+    expect(input).toHaveValue("My address");
+  });
+
+  it.each(["edit", "escape", "unmount"])("does not replace the input after a late current-address lookup (%s)", async (action) => {
+    googleFixture("Durham, NC");
+    let complete: (response: unknown) => void = () => {};
+    const geocode = vi.fn(() => new Promise(resolve => { complete = resolve; }));
+    Object.assign(window.google.maps, { importLibrary: vi.fn(async () => ({ Geocoder: class { geocode = geocode; } })) });
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (success: PositionCallback) => success({ coords: { latitude: 35.994, longitude: -78.899 } } as GeolocationPosition) } });
+    const onSelect = vi.fn();
+    const view = render(<LocationAutocomplete id="loc" name="startLocation" defaultValue="Existing address" onSelect={onSelect} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    await waitFor(() => expect(geocode).toHaveBeenCalled());
+    if (action === "edit") fireEvent.change(input, { target: { value: "My newer address" } });
+    if (action === "escape") fireEvent.keyDown(input, { key: "Escape" });
+    if (action === "unmount") view.unmount();
+    await act(async () => { complete({ results: [{ formatted_address: "Stale address", types: ["street_address"], address_components: [] }] }); });
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(input).toHaveValue(action === "edit" ? "My newer address" : "Existing address");
+  });
+
+  it("keeps nearby autocomplete usable when the reverse lookup returns no address after a click scroll", async () => {
+    const { fetchAutocompleteSuggestions } = googleFixture("1005 Crete Street, Durham, NC");
+    fetchMock.mockResolvedValue(photonRaw([]));
+    const getCurrentPosition = vi.fn();
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition } });
+    const input = field();
+    fireEvent.change(input, { target: { value: "1005 Crete" } });
+    await screen.findByRole("option");
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    fireEvent.scroll(window);
+    await act(async () => { getCurrentPosition.mock.calls[0][0]({ coords: { latitude: 35.994, longitude: -78.899 } }); });
+    await screen.findByRole("option");
+    expect(input).toHaveValue("1005 Crete");
+    expect(screen.getByRole("status")).toHaveTextContent("Couldn’t fill your address");
+    expect(fetchAutocompleteSuggestions).toHaveBeenLastCalledWith(expect.objectContaining({ origin: { lat: 35.994, lng: -78.899 } }));
+  });
+
   it.each([1, 2, 3])("leaves typing and suggestions usable when location fails (%i)", async (code) => {
     const { fetchAutocompleteSuggestions } = googleFixture("1005 Crete Street, Durham, NC");
     const getCurrentPosition = vi.fn((_success, error) => error({ code }));
@@ -501,10 +602,13 @@ describe("the configured browser Maps key", () => {
     await screen.findByRole("option");
     fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
     if (action === "escape") fireEvent.keyDown(input, { key: "Escape" });
-    if (action === "selection") fireEvent.click(screen.getByRole("option"));
+    if (action === "selection") {
+      fireEvent.change(input, { target: { value: "1005 Crete Street" } });
+      fireEvent.click(await screen.findByRole("option"));
+    }
     if (action === "unmount") view.unmount();
     await act(async () => { getCurrentPosition.mock.calls[0][0]({ coords: { latitude: 35.994, longitude: -78.899 } }); });
-    expect(fetchAutocompleteSuggestions).toHaveBeenCalledOnce();
+    expect(fetchAutocompleteSuggestions).toHaveBeenCalledTimes(action === "selection" ? 2 : 1);
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 
