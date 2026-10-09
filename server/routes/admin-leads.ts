@@ -1,4 +1,8 @@
 import { Request, Response, Router } from "express";
+import { AccountInvitationError, approveSiteAccount, siteAccountPrerequisites, SITE_ACCOUNT_ACCESS_COLLECTION } from "../utils/accountInvitations";
+import { accessRecordId } from "../utils/robotTeamEarlyAccess";
+import { EMAIL_SIGN_OFF, emailGreeting } from "../utils/emailLayout";
+import { enqueueOutbox } from "../utils/captureOutbox";
 import admin, { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { logger } from "../logger";
@@ -80,6 +84,52 @@ import {
 } from "../utils/buyerOutcomes";
 
 const router = Router();
+
+router.get("/:requestId/account-invitation", requireAdmin, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  try {
+    if (!db) return res.status(503).json({ error: "Account invitations are temporarily unavailable." });
+    const source = await db.collection("inboundRequests").doc(req.params.requestId).get();
+    if (!source.exists) return res.status(404).json({ error: "Site submission not found." });
+    const record = await decryptInboundRequestForAdmin(source.data() as never) as Record<string, any>;
+    const admission = (await db.collection(SITE_ACCOUNT_ACCESS_COLLECTION).doc(accessRecordId(String(record.contact?.email || ""))).get()).data();
+    return res.json({ missing: siteAccountPrerequisites(record), approved: admission?.status === "approved" && admission.requestId === req.params.requestId });
+  } catch { return res.status(503).json({ error: "Could not check site prerequisites." }); }
+});
+router.post("/:requestId/account-invitation", requireAdmin, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  if (req.body?.prerequisitesReviewed !== true) return res.status(400).json({ error: "Confirm that the site's prerequisites and authority were reviewed." });
+  try {
+    const user = res.locals.firebaseUser!;
+    const { admission, token } = await approveSiteAccount(req.params.requestId, String(user.email || user.uid));
+    const base = (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
+    const invitationUrl = `${base}/signup/business?invitation=${encodeURIComponent(token)}`;
+    // The explicit staff invitation action owns this send; status polling never sends.
+    const receipt = await enqueueOutbox({ idempotencyKey: `site-account-invitation:${req.params.requestId}:${admission.revision}`, requestId: req.params.requestId,
+      kind: "site_account_invitation", to: admission.email, subject: "Your Blueprint account invitation",
+      body: `${emailGreeting()}\n\nYour site is approved for a Blueprint account. Create your account with ${admission.email}:\n\nCreate your account:\n${invitationUrl}\n\nThis invitation expires in seven days. If you already have an account, sign in at ${base}/sign-in.\n\n${EMAIL_SIGN_OFF}`, replyTo: "hello@tryblueprint.io" });
+    return res.json({ invitationUrl, enqueued: receipt.enqueued });
+  } catch (error) {
+    if (error instanceof AccountInvitationError) return res.status(error.status).json({ error: error.message, code: error.code });
+    return res.status(503).json({ error: "The invitation could not be completed. Try again to recover the saved approval." });
+  }
+});
+
+router.post("/:requestId/account-invitation/revoke", requireAdmin, async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  try {
+    if (!db) return res.status(503).json({ error: "Account invitations are temporarily unavailable." });
+    const source = await db.collection("inboundRequests").doc(req.params.requestId).get();
+    if (!source.exists) return res.status(404).json({ error: "Site submission not found." });
+    const record = await decryptInboundRequestForAdmin(source.data() as never) as Record<string, any>;
+    const ref = db.collection(SITE_ACCOUNT_ACCESS_COLLECTION).doc(accessRecordId(String(record.contact?.email || "")));
+    await db.runTransaction(async transaction => {
+      const admission = (await transaction.get(ref)).data();
+      if (admission?.requestId === req.params.requestId) transaction.set(ref, { ...admission, status: "revoked", revokedAtIso: new Date().toISOString(), revokedBy: res.locals.firebaseUser!.email || res.locals.firebaseUser!.uid });
+    });
+    return res.json({ revoked: true });
+  } catch { return res.status(503).json({ error: "Could not revoke the invitation." }); }
+});
 
 const CSV_FORMULA_PREFIX = /^[=+\-@]/;
 const CAPTURE_HANDOFF_TRUTH_BOUNDARY =

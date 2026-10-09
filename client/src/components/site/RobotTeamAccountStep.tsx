@@ -11,7 +11,6 @@ import { useEffect, useState } from "react";
 import type { User } from "firebase/auth";
 
 import {
-  createPasswordAccount,
   currentAuthUser,
   sendAccountVerification,
   signInPasswordAccount,
@@ -40,7 +39,7 @@ export function RobotTeamAccountStep(props: {
   const [step, setStep] = useState<Step>({ status: "form" });
   const [email, setEmail] = useState(props.email);
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"create" | "signin">("create");
+
   const [terms, setTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,7 +82,7 @@ export function RobotTeamAccountStep(props: {
 
   async function start(google: boolean) {
     if (!terms) {
-      setError("Accept the Terms and Privacy Policy to create your account.");
+      setError("Accept the Terms and Privacy Policy to finish account setup.");
       return;
     }
     if (!google && password.length < MIN_PASSWORD_LENGTH) {
@@ -98,9 +97,7 @@ export function RobotTeamAccountStep(props: {
         ? existing
         : google
           ? await signInWithGoogleAccount()
-          : mode === "create"
-            ? await createPasswordAccount(email.trim(), password)
-            : await signInPasswordAccount(email.trim(), password);
+          : await signInPasswordAccount(email.trim(), password);
       await finish(user);
     } catch (startError) {
       setError(friendlyAuthError(startError, "We could not set up your account."));
@@ -142,7 +139,7 @@ export function RobotTeamAccountStep(props: {
 
   return (
     <fieldset style={{ border: "1px solid var(--ms-rule)", padding: "14px", margin: "16px 0" }}>
-      <legend style={{ padding: "0 6px", fontWeight: 600 }}>Create your account to run these</legend>
+      <legend style={{ padding: "0 6px", fontWeight: 600 }}>Sign in with your approved account</legend>
       <p className="ms-field-hint" style={{ marginTop: 0 }}>
         The plan is free to look at. Running it needs a Blueprint account, so we know who we are
         working with. Your agent can take it from there with a key from your account settings.
@@ -158,28 +155,17 @@ export function RobotTeamAccountStep(props: {
         />
       </label>
       <label htmlFor="team-account-password">
-        <span>{mode === "create" ? "Choose a password" : "Your password"}</span>
+        <span>Your password</span>
         <input
           id="team-account-password"
           type="password"
           minLength={MIN_PASSWORD_LENGTH}
-          autoComplete={mode === "create" ? "new-password" : "current-password"}
+          autoComplete="current-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
       </label>
-      <p className="ms-form-note">
-        <a
-          className="ms-text-link"
-          href="#"
-          onClick={(event) => {
-            event.preventDefault();
-            setMode(mode === "create" ? "signin" : "create");
-          }}
-        >
-          {mode === "create" ? "I already have an account" : "Create a new account instead"}
-        </a>
-      </p>
+      <p className="ms-form-note">New accounts use the invitation Blueprint sends after approval. <a className="ms-text-link" href="/signup/business">Request access</a></p>
       <label className="ms-check-row">
         <input type="checkbox" checked={terms} onChange={(event) => setTerms(event.target.checked)} />
         <span>
@@ -193,7 +179,7 @@ export function RobotTeamAccountStep(props: {
         disabled={step.status === "working"}
         onClick={() => void start(false)}
       >
-        {step.status === "working" ? "Setting up…" : mode === "create" ? "Create account and continue" : "Sign in and continue"}
+        {step.status === "working" ? "Setting up…" : "Sign in and continue"}
       </button>
       <button
         className="ms-button"

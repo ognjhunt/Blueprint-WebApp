@@ -11,6 +11,9 @@ import { z } from "zod";
 
 import { logger } from "../logger";
 import { requireAdminRole } from "../middleware/requireAdminRole";
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { robotTeamAccountInvitation } from "../utils/accountInvitations";
+import type { RobotTeamAccessRecord } from "../utils/robotTeamEarlyAccess";
 import { autoApproveMinimumTasks, OPEN_LIBRARY_SUGGESTED_AT_TASKS } from "../utils/robotTeamAccessFit";
 import { enqueueAccessEmail } from "../utils/robotTeamAccessEmails";
 import {
@@ -58,6 +61,7 @@ const decisionSchema = z
     note: z.string().trim().max(2000).optional(),
     /** Declines only: false to reply personally instead of the standard email. */
     notify: z.boolean().optional(),
+    prerequisitesReviewed: z.boolean().optional(),
   })
   .strict();
 
@@ -67,6 +71,7 @@ router.post("/:id/decision", async (req: Request, res: Response) => {
   if (!parsed.success || !/^[a-f0-9]{64}$/.test(id)) {
     return res.status(400).json({ error: "Send status approved or declined for a known application." });
   }
+  if (parsed.data.status === "approved" && parsed.data.prerequisitesReviewed !== true) return res.status(400).json({ error: "Review the team's prerequisites and confirm approval before inviting it." });
   try {
     const record = await decideAccessApplication({
       id,
@@ -96,6 +101,7 @@ const inviteSchema = z
     email: z.string().trim().email().max(320),
     company: z.string().trim().min(1).max(160),
     note: z.string().trim().max(2000).optional(),
+    prerequisitesReviewed: z.literal(true),
   })
   .strict();
 
@@ -126,6 +132,18 @@ router.post("/invites", async (req: Request, res: Response) => {
     logger.error({ error }, "Could not invite a robot team");
     return res.status(503).json({ error: "The invite could not be saved" });
   }
+});
+
+/** Refresh an expired link without changing the person's admission decision. */
+router.post("/:id/invitation", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const id = String(req.params.id || "");
+  if (!db || !/^[a-f0-9]{64}$/.test(id)) return res.status(400).json({ error: "Use a known robot-team application." });
+  try {
+    const record = (await db.collection("robotTeamAccess").doc(id).get()).data() as RobotTeamAccessRecord | undefined;
+    if (!record || record.status !== "approved") return res.status(403).json({ error: "Approve the team before issuing an invitation." });
+    return res.json({ invitationUrl: `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/signup/business?invitation=${encodeURIComponent(robotTeamAccountInvitation(record))}` });
+  } catch { return res.status(503).json({ error: "Could not create the invitation link." }); }
 });
 
 export default router;

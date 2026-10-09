@@ -35,6 +35,41 @@ function signPayload(serializedPayload: string) {
   return crypto.createHmac("sha256", getSecret()).update(serializedPayload).digest("base64url");
 }
 
+export interface AccountInvitationPayload {
+  kind: "account_invitation";
+  email: string;
+  workspaceType: "site_operator" | "robot_team";
+  sourceId: string;
+  revision: string;
+  exp: number;
+}
+
+/** A separate purpose prevents a review/claim link from authorizing signup. */
+export function createAccountInvitationToken(
+  invitation: Omit<AccountInvitationPayload, "kind" | "exp">,
+  ttlSeconds = 60 * 60 * 24 * 7,
+) {
+  const serialized = JSON.stringify({ ...invitation, kind: "account_invitation", exp: Math.floor(Date.now() / 1000) + ttlSeconds });
+  return `${toBase64Url(serialized)}.${signPayload(serialized)}`;
+}
+
+export function verifyAccountInvitationToken(token: string): AccountInvitationPayload | null {
+  try {
+    const parts = String(token || "").split(".");
+    if (parts.length !== 2) return null;
+    const serialized = fromBase64Url(parts[0]);
+    const actual = Buffer.from(parts[1]), expected = Buffer.from(signPayload(serialized));
+    if (actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)) return null;
+    const payload = JSON.parse(serialized) as AccountInvitationPayload;
+    if (payload.kind !== "account_invitation" || !Number.isFinite(payload.exp) || payload.exp * 1000 <= Date.now()
+      || !["site_operator", "robot_team"].includes(payload.workspaceType)
+      || typeof payload.email !== "string" || !payload.email.includes("@")
+      || typeof payload.sourceId !== "string" || !payload.sourceId || payload.sourceId.includes("/")
+      || typeof payload.revision !== "string" || !payload.revision) return null;
+    return payload;
+  } catch { return null; }
+}
+
 export function createRequestReviewToken(requestId: string, ttlSeconds = 60 * 60 * 24 * 14) {
   const payload: RequestReviewTokenPayload = {
     kind: "request_review",

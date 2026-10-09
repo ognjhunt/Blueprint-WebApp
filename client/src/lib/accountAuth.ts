@@ -22,12 +22,8 @@ export async function signInWithGoogleAccount(): Promise<User> {
   return signInWithGoogle();
 }
 
-export async function createPasswordAccount(email: string, password: string): Promise<User> {
-  const [{ auth }, { createUserWithEmailAndPassword }] = await Promise.all([
-    import("@/lib/firebase"),
-    import("firebase/auth"),
-  ]);
-  return (await createUserWithEmailAndPassword(auth, email, password)).user;
+export async function createPasswordAccount(_email: string, _password: string): Promise<User> {
+  throw new Error("Use the account invitation Blueprint sent after approval. Account creation is available only through that invitation.");
 }
 
 export async function signInPasswordAccount(email: string, password: string): Promise<User> {

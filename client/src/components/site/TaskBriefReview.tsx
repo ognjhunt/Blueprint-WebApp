@@ -13,7 +13,6 @@ import {
   setUpSiteWorkspace,
 } from "@/lib/siteClaim";
 import {
-  createPasswordAccount,
   currentAuthUser,
   sendAccountVerification,
   signInPasswordAccount,
@@ -53,6 +52,7 @@ export interface SiteAccount {
   claimed: boolean;
   email: string | null;
   claimToken: string | null;
+  invited?: boolean;
 }
 
 type AccountOutcome =
@@ -115,10 +115,10 @@ export function TaskBriefReview(props: {
   const [deploymentPath, setDeploymentPath] = useState<SitePilotIntent["deploymentPath"] | "">(props.brief.pilotIntent?.deploymentPath ?? "");
 
   // Saving the site to an account. Skipped when it is already claimed.
-  const accountAvailable = Boolean(props.account && !props.account.claimed && props.account.claimToken);
+  const accountAvailable = Boolean(props.account?.invited && !props.account.claimed && props.account.claimToken);
   const [saveAccount, setSaveAccount] = useState(!props.optionalAccount);
   const needsAccount = accountAvailable && saveAccount;
-  const [accountMode, setAccountMode] = useState<"create" | "signin">("create");
+
   const [password, setPassword] = useState("");
   const [terms, setTerms] = useState(false);
   const [signedIn, setSignedIn] = useState<User | null>(null);
@@ -217,9 +217,7 @@ export function TaskBriefReview(props: {
       user = await signInWithGoogleAccount();
     } else {
       if (password.length < MIN_PASSWORD_LENGTH) throw new Error(`Choose a password of ${MIN_PASSWORD_LENGTH} characters or more.`);
-      user = accountMode === "create"
-        ? await createPasswordAccount(ownerEmail!, password)
-        : await signInPasswordAccount(ownerEmail!, password);
+      user = await signInPasswordAccount(ownerEmail!, password);
     }
     if (user.email?.toLowerCase() !== ownerEmail) {
       throw new Error(`Use the account for ${ownerEmail}, the email this job was submitted with.`);
@@ -535,28 +533,17 @@ export function TaskBriefReview(props: {
                 {ownerEmail}, the email you sent this job from.
               </p>
               <label htmlFor="account-password">
-                <span>{accountMode === "create" ? "Choose a password" : "Your password"}</span>
+                <span>Your password</span>
                 <input
                   id="account-password"
                   type="password"
                   minLength={MIN_PASSWORD_LENGTH}
-                  autoComplete={accountMode === "create" ? "new-password" : "current-password"}
+                  autoComplete="current-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                 />
               </label>
-              <p className="ms-form-note">
-                <a
-                  className="ms-text-link"
-                  href="#"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    setAccountMode(accountMode === "create" ? "signin" : "create");
-                  }}
-                >
-                  {accountMode === "create" ? "I already have an account" : "Create a new account instead"}
-                </a>
-              </p>
+              <p className="ms-form-note">Create your account through the invitation Blueprint sends after approval. <a className="ms-text-link" href="/signup/business">Request access</a></p>
               <label className="ms-check-row">
                 <input type="checkbox" checked={terms} onChange={(event) => setTerms(event.target.checked)} />
                 <span>

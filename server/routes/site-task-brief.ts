@@ -64,6 +64,7 @@ import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
 import { loadSceneScreening } from "../utils/agentEvalRuns";
 import { FOLLOW_UP_IDS, FOLLOW_UP_QUESTIONS, selectFollowUps, type FollowUpId } from "../utils/siteTaskFollowUp";
 import { createSiteClaimToken } from "../utils/request-review-auth";
+import { accountHasAdmission } from "../utils/accountInvitations";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { notifySlackScreeningCallNeeded } from "../utils/slack";
@@ -215,6 +216,7 @@ async function siteAccountFor(requestId: string): Promise<{
   claimed: boolean;
   email: string | null;
   claimToken: string | null;
+  invited: boolean;
 } | null> {
   const request = await readRequestForStatus(requestId).catch(() => null);
   if (!request) return null;
@@ -223,6 +225,7 @@ async function siteAccountFor(requestId: string): Promise<{
     claimed,
     email: request.contactEmail?.toLowerCase() ?? null,
     claimToken: claimed ? null : createSiteClaimToken(requestId),
+    invited: Boolean(request.contactEmail && await accountHasAdmission(request.contactEmail, "site_operator").catch(() => false)),
   };
 }
 
@@ -946,6 +949,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // Keep the optional claim from brief confirmation onward, including the
     // first visual scene. A reconstruction is not an evaluation result.
     const claimUrl =
+      Boolean(request?.contactEmail && await accountHasAdmission(request.contactEmail, "site_operator").catch(() => false)) &&
       (Boolean(request?.site_task_brief_confirmed_at) || sceneViewUrl
         || status.decision === "screening" || status.decision === "results") &&
       payload.scope !== "film" && !request?.account_owner_uid

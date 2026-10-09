@@ -18,6 +18,9 @@ import type { Server } from "node:http";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
+const admission = vi.hoisted(() => vi.fn(async () => true));
+vi.mock("../utils/accountInvitations", () => ({ accountHasAdmission: admission }));
+
 const preparation = vi.hoisted(() => ({ read: vi.fn(async () => ({
   state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
 })) }));
@@ -79,6 +82,7 @@ const token = () =>
   createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1" });
 
 beforeEach(async () => {
+  admission.mockResolvedValue(true);
   vi.clearAllMocks();
   storage.objects.clear();
   storage.failure = null;

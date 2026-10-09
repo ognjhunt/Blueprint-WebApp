@@ -192,8 +192,8 @@ describe("bounded progressive review", () => {
     fetchMock.mockResolvedValueOnce(confirmed());
     render(<TaskBriefReview token="tok" brief={brief({ successCriteria: null, confirmedBy: "Dana",
       operatorAnswers: { sceneStability: "stable" } })} optionalAccount
-      account={{ claimed: false, email: "dana@acme.example", claimToken: "claim-tok" }} />);
-    expect(screen.queryByLabelText(/choose a password/i)).toBeNull();
+      account={{ claimed: false, invited: true, email: "dana@acme.example", claimToken: "claim-tok" }} />);
+    expect(screen.queryByLabelText(/your password/i)).toBeNull();
     expect(screen.getByLabelText(/also save this job to my account/i)).not.toBeChecked();
     fireEvent.change(screen.getByLabelText(/between shifts/i), { target: { value: "minor_drift" } });
     fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
@@ -233,20 +233,20 @@ describe("bounded progressive review", () => {
 });
 
 describe("the same step saves the site to an account", () => {
-  const account = { claimed: false, email: "dana@acme.example", claimToken: "claim-tok" };
+  const account = { claimed: false, invited: true, email: "dana@acme.example", claimToken: "claim-tok" };
   const unverified = { email: "dana@acme.example", emailVerified: false, reload: vi.fn(), getIdToken: vi.fn() };
 
-  it("creates the account first, then sends one verification click that finishes the claim", async () => {
-    authMocks.createUserWithEmailAndPassword.mockResolvedValueOnce(unverified);
+  it("signs into the approved account, then verifies its email before the claim", async () => {
+    authMocks.signInWithEmailAndPassword.mockResolvedValueOnce(unverified);
     fetchMock.mockResolvedValueOnce(confirmed());
     render(<TaskBriefReview token="tok" brief={brief()} account={account} />);
-    fireEvent.change(screen.getByLabelText(/choose a password/i), { target: { value: "hunter22" } });
+    fireEvent.change(screen.getByLabelText(/your password/i), { target: { value: "hunter22" } });
     fireEvent.click(screen.getByLabelText(/accept the/i));
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
     fireEvent.click(screen.getByRole("button", { name: /confirm and save$/i }));
 
     await waitFor(() => expect(screen.getByText(/check your inbox/i)).toBeInTheDocument());
-    expect(authMocks.createUserWithEmailAndPassword).toHaveBeenCalledWith("dana@acme.example", "hunter22");
+    expect(authMocks.signInWithEmailAndPassword).toHaveBeenCalledWith("dana@acme.example", "hunter22");
     // Workspace and terms are set up now, so the verification click is the last step.
     expect(authMocks.workspaceRequest).toHaveBeenCalledWith(unverified, "/setup", "POST", expect.objectContaining({ workspaceType: "site_operator", acceptedTerms: true }));
     expect(authMocks.sendEmailVerification).toHaveBeenCalledWith(unverified, expect.stringMatching(/\/claim\/claim-tok\?auto=1$/));

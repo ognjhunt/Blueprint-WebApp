@@ -177,7 +177,7 @@ export default function Login() {
         <a className="auth-forgot" href="/forgot-password">Forgot password?</a>
         <button type="submit" className="auth-primary" disabled={isLoading}>{isLoading ? <><Loader2 size={18} className="animate-spin" aria-hidden="true" />Signing in…</> : <>Sign in<ArrowRight size={18} aria-hidden="true" /></>}</button>
       </form>
-      <p className="auth-account-link">New to Blueprint? <a href="/signup/business">Create an account</a></p>
+      <p className="auth-account-link">New to Blueprint? <a href="/signup/business">Request access</a></p>
     </AuthLayout>
   );
 }

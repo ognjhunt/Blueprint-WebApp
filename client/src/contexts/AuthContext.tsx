@@ -762,6 +762,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       case "auth/network-request-failed":
         return "Network error occurred. Please check your connection";
       case ACCESS_DENIED_CODE:
+      case "auth/admin-restricted-operation":
+      case "auth/operation-not-allowed":
       case "permission-denied":
         return "Blueprint access is currently invite-only. Please request an invitation to continue.";
       case USER_DATA_MISSING_CODE:

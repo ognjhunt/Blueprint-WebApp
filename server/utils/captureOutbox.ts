@@ -58,6 +58,7 @@ export type OutboxKind =
   | "robot_team_access_received"
   | "robot_team_access_approved"
   | "robot_team_access_not_yet"
+  | "site_account_invitation"
   /** To approved robot teams, when a site lists a new task card. */
   | "robot_team_new_task";
 

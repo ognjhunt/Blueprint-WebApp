@@ -52,6 +52,7 @@ export function SiteScreeningCallPanel({
       setNote("");
       queryClient.invalidateQueries({ queryKey: ["admin-submission-detail"] });
       queryClient.invalidateQueries({ queryKey: ["site-task-clarification", requestId] });
+      queryClient.invalidateQueries({ queryKey: ["site-account-invitation", requestId] });
     },
   });
 

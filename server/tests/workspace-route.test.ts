@@ -13,6 +13,9 @@ const state = vi.hoisted(() => ({
   intakes: [] as any[],
   notices: vi.fn(async () => ({ enqueued: true })),
 }));
+const admission = vi.hoisted(() => vi.fn(async () => true));
+vi.mock("../utils/accountInvitations", () => ({ accountHasAdmission: admission }));
+
 const preparation = vi.hoisted(() => ({ read: vi.fn(async () => ({
   state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
 })) }));
@@ -218,6 +221,7 @@ const setup = {
 };
 let server: Server, base: string;
 beforeEach(async () => {
+  admission.mockResolvedValue(true);
   state.records.clear();
   state.intakes.length = 0;
   state.messages.mockReset().mockResolvedValue({ state: "pending_approval" });
@@ -793,6 +797,18 @@ describe("workspace requests and lifecycle", () => {
 });
 
 describe("account workspace setup", () => {
+  it("rejects unapproved accounts despite self-selected profile types or an open library", async () => {
+    admission.mockResolvedValue(false);
+    vi.stubEnv("BLUEPRINT_ROBOT_TEAM_EARLY_ACCESS", "0");
+    const before = structuredClone([...state.records]);
+    for (const workspaceType of ["site_operator", "robot_team"]) {
+      const response = await api("/setup", "site-1", { name: "Owner", organization: "Co", workspaceType, acceptedTerms: true });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "account_invitation_required" });
+    }
+    expect([...state.records]).toEqual(before);
+  });
+
   it("keeps operations access visible from authenticated claims as well as the profile", async () => {
     state.records.set("users/operator", { name: "Ops User" });
     const response = await fetch(`${base}/setup`, {

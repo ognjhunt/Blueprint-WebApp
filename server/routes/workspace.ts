@@ -65,6 +65,8 @@ import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from ".
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { accessRecordId, resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
+import { accountHasAdmission } from "../utils/accountInvitations";
+import { resolveAccessContext } from "../utils/access-control";
 import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 
 const router = Router();
@@ -177,7 +179,7 @@ function requireRole(res: Response, role: "site_operator" | "robot_team") {
     );
 }
 
-// Workspace setup is available to every authenticated account, including legacy
+// Setup inspection is available to every authenticated account, including legacy
 // operations/capture accounts. It only changes customer profile fields; existing
 // roles, claims, rights, assignments and records are never inferred or replaced.
 const accountSetupSchema = z
@@ -254,6 +256,9 @@ router.post(
   handle(async (req, res) => {
     const input = accountSetupSchema.parse(req.body);
     const { auth } = res.locals.workspaceAccount;
+    const staff = await resolveAccessContext(res);
+    if (!staff.isOps && !await accountHasAdmission(text(auth.email).toLowerCase(), input.workspaceType))
+      refuse(403, "Complete intake and wait for Blueprint to approve your account invitation.", "account_invitation_required");
     const profileRef = db!.collection("users").doc(auth.uid);
     await db!.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(profileRef),

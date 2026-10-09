@@ -1,3 +1,4 @@
+import { redactInvitationUrl } from "./invitationPrivacy";
 import {
   getDemandAttributionFromSearchParams,
   hasDemandAttribution,
@@ -157,6 +158,8 @@ function ensureGaLoaded() {
 
   window.gtag("config", GA_MEASUREMENT_ID, {
     anonymize_ip: true,
+    page_location: redactInvitationUrl(window.location.href),
+    page_referrer: redactInvitationUrl(document.referrer),
     cookie_flags: "SameSite=None;Secure",
   });
 
@@ -184,8 +187,8 @@ async function ingestFirstPartyEvent(
         sessionId: getAnalyticsSessionId(),
         pagePath: page?.path || window.location.pathname,
         pageTitle: page?.title || document.title,
-        currentUrl: window.location.href,
-        referrer: document.referrer || null,
+        currentUrl: redactInvitationUrl(window.location.href),
+        referrer: redactInvitationUrl(document.referrer) || null,
         experiments: getActiveExperimentAssignments(),
         properties: parameters || {},
         attribution: currentDemandAttribution(),
@@ -221,6 +224,14 @@ async function ensurePostHogLoaded(consent: AnalyticsConsent | null | undefined)
     autocapture: true,
     capture_pageview: true,
     capture_pageleave: true,
+    before_send: event => {
+      if (!event) return event;
+      const properties = { ...event.properties };
+      for (const key of Object.keys(properties)) {
+        if (typeof properties[key] === "string") properties[key] = redactInvitationUrl(properties[key]);
+      }
+      return { ...event, properties };
+    },
     persistence: normalized.analytics ? "localStorage+cookie" : "memory",
     opt_out_capturing_by_default: !normalized.analytics,
   });
@@ -270,7 +281,9 @@ export function updateAnalyticsConsent(consent: AnalyticsConsent | null | undefi
 export function trackPageView(path: string, title?: string) {
   if (window.gtag && hasConfiguredGa()) {
     window.gtag("event", "page_view", {
-      page_path: path,
+      page_path: redactInvitationUrl(path),
+      page_location: redactInvitationUrl(window.location.href),
+      page_referrer: redactInvitationUrl(document.referrer),
       page_title: title,
     });
   }
@@ -279,7 +292,7 @@ export function trackPageView(path: string, title?: string) {
     posthogClient.capture("$pageview", {
       path,
       title,
-      current_url: window.location.href,
+      current_url: redactInvitationUrl(window.location.href),
     });
   }
 

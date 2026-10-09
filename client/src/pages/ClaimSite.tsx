@@ -17,7 +17,6 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useParams } from "wouter";
 import { ArrowRight, Check } from "lucide-react";
 import {
-  createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
   sendEmailVerification,
@@ -77,7 +76,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
   const [stage, setStage] = useState<Stage>({ status: "loading" });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"create" | "signin">("create");
+
   const [terms, setTerms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +85,6 @@ function ClaimSiteForToken({ token }: { token: string }) {
 
   useEffect(() => onAuthStateChanged(auth, (user) => {
     setAuthUser(user);
-    if (user) setMode("signin");
   }), []);
 
   const claimEmail = stage.status === "ready" ? stage.summary.claimEmail : null;
@@ -115,7 +113,6 @@ function ClaimSiteForToken({ token }: { token: string }) {
       }
       setStage({ status: "ready", summary: body });
       if (body.claimEmail) setEmail(body.claimEmail);
-      if (auth.currentUser) setMode("signin");
     } catch {
       setStage({
         status: "load-error",
@@ -137,7 +134,6 @@ function ClaimSiteForToken({ token }: { token: string }) {
         }
         setStage({ status: "ready", summary: body });
         if (body.claimEmail) setEmail(body.claimEmail);
-        if (auth.currentUser) setMode("signin");
       } catch {
         if (live) {
           setStage({
@@ -189,9 +185,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
       const user =
         existing && existing.email?.toLowerCase() === email.trim().toLowerCase()
           ? existing
-          : mode === "create"
-            ? (await createUserWithEmailAndPassword(getAuth(), email.trim(), password)).user
-            : (await signInWithEmailAndPassword(getAuth(), email.trim(), password)).user;
+          : (await signInWithEmailAndPassword(getAuth(), email.trim(), password)).user;
       if (!user.emailVerified) {
         // Record the workspace and the terms just accepted now, while they are
         // on this page: the claim that follows the verification link runs on
@@ -364,9 +358,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
         {!matchingSignedInUser && <label htmlFor="claim-password">
           <span>Password</span>
           <span className="ms-field-hint">
-            {mode === "create"
-              ? `Choose one — ${MIN_PASSWORD_LENGTH} characters or more.`
-              : "The one your account already uses."}
+            The one your account already uses.
           </span>
           <input
             id="claim-password"
@@ -374,7 +366,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
             type="password"
             required
             minLength={MIN_PASSWORD_LENGTH}
-            autoComplete={mode === "create" ? "new-password" : "current-password"}
+            autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
@@ -404,17 +396,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
           <ArrowRight size={20} aria-hidden="true" />
         </button>
         <p className="ms-form-note">
-          {mode === "create" ? "Already have an account?" : "New here?"}{" "}
-          <a
-            className="ms-text-link"
-            href="#"
-            onClick={(event) => {
-              event.preventDefault();
-              setMode(mode === "create" ? "signin" : "create");
-            }}
-          >
-            {mode === "create" ? "Sign in instead" : "Create one"}
-          </a>
+          New accounts require a Blueprint invitation after approval. <a className="ms-text-link" href="/signup/business">Request access</a>
         </p>
       </form>
     </Shell>

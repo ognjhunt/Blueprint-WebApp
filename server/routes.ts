@@ -1,5 +1,6 @@
 import taskListingsRouter from "./routes/task-listings";
 import robotTeamAccessRouter from "./routes/robot-team-access";
+import accountInvitationsRouter from "./routes/account-invitations";
 import adminRobotTeamAccessRouter from "./routes/admin-robot-team-access";
 import type { Express } from "express";
 import createCheckoutSessionHandler from "./routes/api/create-checkout-session";
@@ -167,6 +168,7 @@ export function registerRoutes(app: Express) {
   app.use("/api/task-listings", taskListingsRouter);
   // Robot-team early access: the public application, and the review queue.
   app.use("/api/robot-team-access", csrfProtection, robotTeamAccessRouter);
+  app.use("/api/account-invitations", csrfProtection, accountInvitationsRouter);
   app.use(
     "/api/admin/robot-team-access",
     csrfProtection,
