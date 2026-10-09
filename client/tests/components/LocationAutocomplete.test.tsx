@@ -203,6 +203,25 @@ describe("reporting the chosen place", () => {
     await waitFor(() => expect(onSelect).toHaveBeenCalledWith({ label: "Paris, France", countryCode: null }));
   });
 
+  it("passes opted-in coordinates to the private proxy and clears them from later lookups", async () => {
+    googleFixture("1005 Crete Street, Durham, NC");
+    const getCurrentPosition = vi.fn((success) => success({ coords: { latitude: 35.9940321, longitude: -78.8986192 } }));
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition } });
+    const input = field();
+    fireEvent.change(input, { target: { value: "1005 Crete" } });
+    await screen.findByRole("option");
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    await screen.findByRole("option");
+    let params = new URL(fetchMock.mock.calls.at(-1)![0], "https://example.test").searchParams;
+    expect(params.get("lat")).toBe("35.994");
+    expect(params.get("lng")).toBe("-78.899");
+    fireEvent.click(screen.getByRole("button", { name: "Clear location preference" }));
+    await screen.findByRole("option");
+    params = new URL(fetchMock.mock.calls.at(-1)![0], "https://example.test").searchParams;
+    expect(params.has("lat")).toBe(false);
+    expect(params.has("lng")).toBe(false);
+  });
+
   it("ignores Google details that resolve after the operator changes the text", async () => {
     let resolveDetails: ((value: unknown) => void) | undefined;
     googleFixture("Berlin, Germany", vi.fn().mockImplementation(() => new Promise((resolve) => { resolveDetails = resolve; })));
@@ -370,7 +389,8 @@ describe("the configured browser Maps key", () => {
       label: "London, United Kingdom", countryCode: "GB",
     }));
     expect(fetchFields).toHaveBeenCalledWith({ fields: ["addressComponents"] });
-    expect(fetchAutocompleteSuggestions).toHaveBeenCalledWith({ input: "london", sessionToken: expect.any(Object) });
+    expect(fetchAutocompleteSuggestions).toHaveBeenCalledWith({ input: "london", sessionToken: expect.any(Object), region: "us",
+      locationBias: { west: -125, east: -66, south: 24, north: 49 } });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -413,6 +433,60 @@ describe("the configured browser Maps key", () => {
     fireEvent.change(input, { target: { value: "london" } });
     await screen.findByRole("option");
     expect(fetchAutocompleteSuggestions.mock.calls[2][0].sessionToken).not.toBe(firstToken);
+  });
+
+  it("requests location only on click, rounds the position, and can clear it", async () => {
+    const { fetchAutocompleteSuggestions } = googleFixture("1005 Crete Street, Durham, NC");
+    const getCurrentPosition = vi.fn();
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition } });
+    const input = field();
+    fireEvent.change(input, { target: { value: "1005 Crete" } });
+    await screen.findByRole("option");
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+    const token = fetchAutocompleteSuggestions.mock.calls[0][0].sessionToken;
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
+    expect(getCurrentPosition.mock.calls[0][2]).toEqual({ enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
+    fireEvent.change(input, { target: { value: "1005 Crete Street" } });
+    await act(async () => { getCurrentPosition.mock.calls[0][0]({ coords: { latitude: 35.9940321, longitude: -78.8986192 } }); });
+    await screen.findByRole("option");
+    expect(fetchAutocompleteSuggestions).toHaveBeenLastCalledWith({ input: "1005 Crete Street", sessionToken: token, region: "us",
+      locationBias: { center: { lat: 35.994, lng: -78.899 }, radius: 50000 }, origin: { lat: 35.994, lng: -78.899 } });
+    expect(input.value).toBe("1005 Crete Street");
+    fireEvent.click(screen.getByRole("button", { name: "Clear location preference" }));
+    await screen.findByRole("option");
+    expect(fetchAutocompleteSuggestions).toHaveBeenLastCalledWith({ input: "1005 Crete Street", sessionToken: token, region: "us",
+      locationBias: { west: -125, east: -66, south: 24, north: 49 } });
+  });
+
+  it.each([1, 2, 3])("leaves typing and suggestions usable when location fails (%i)", async (code) => {
+    const { fetchAutocompleteSuggestions } = googleFixture("1005 Crete Street, Durham, NC");
+    const getCurrentPosition = vi.fn((_success, error) => error({ code }));
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition } });
+    const input = field();
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    expect(screen.getByRole("status")).toHaveTextContent(code === 1 ? "Location permission is off" : "Couldn’t find your location");
+    fireEvent.change(input, { target: { value: "1005 Crete" } });
+    await screen.findByRole("option");
+    expect(fetchAutocompleteSuggestions).toHaveBeenLastCalledWith(expect.objectContaining({ locationBias: { west: -125, east: -66, south: 24, north: 49 } }));
+    expect(input.value).toBe("1005 Crete");
+  });
+
+  it.each(["escape", "selection", "unmount"])("does not reopen dismissed suggestions after a late location result (%s)", async (action) => {
+    const { fetchAutocompleteSuggestions } = googleFixture("1005 Crete Street, Durham, NC");
+    const getCurrentPosition = vi.fn();
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition } });
+    const view = render(<LocationAutocomplete id="loc" name="startLocation" />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "1005 Crete" } });
+    await screen.findByRole("option");
+    fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+    if (action === "escape") fireEvent.keyDown(input, { key: "Escape" });
+    if (action === "selection") fireEvent.click(screen.getByRole("option"));
+    if (action === "unmount") view.unmount();
+    await act(async () => { getCurrentPosition.mock.calls[0][0]({ coords: { latitude: 35.994, longitude: -78.899 } }); });
+    expect(fetchAutocompleteSuggestions).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 
   it("falls back promptly when Google rejects a request", async () => {

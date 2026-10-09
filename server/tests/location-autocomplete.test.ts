@@ -53,10 +53,34 @@ describe("server-side Places autocomplete", () => {
     expect(JSON.stringify(payload)).not.toContain("private");
     expect(providerFetch).toHaveBeenCalledWith("https://places.googleapis.com/v1/places:autocomplete", expect.objectContaining({
       method: "POST", headers: expect.objectContaining({ "X-Goog-Api-Key": "private-server-fixture-key",
-        "X-Goog-FieldMask": "suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat" }),
-      body: JSON.stringify({ input: "1005 Crete Street", sessionToken: token, languageCode: "en" }),
+        "X-Goog-FieldMask": "suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat,suggestions.placePrediction.distanceMeters" }),
+      body: JSON.stringify({ input: "1005 Crete Street", sessionToken: token, languageCode: "en", regionCode: "us",
+        locationBias: { rectangle: { low: { latitude: 24, longitude: -125 }, high: { latitude: 49, longitude: -66 } } } }),
       signal: expect.any(AbortSignal),
     }));
+  });
+
+  it("biases toward an optional rounded position without restricting international matches", async () => {
+    provider({ suggestions: [{ placePrediction: { placeId: "canadian-place", text: { text: "1005 Crete Street, Toronto, Canada" }, distanceMeters: 32000 } }] });
+    const response = await get("", { input: "1005 Crete Street", sessionToken: token, lat: "35.9940321", lng: "-78.8986192" });
+    expect(response.status).toBe(200);
+    expect((await response.json()).suggestions[0]).toMatchObject({ placeId: "canadian-place", distanceMeters: 32000 });
+    const body = JSON.parse(providerFetch.mock.calls[0][1].body);
+    expect(body).toMatchObject({ origin: { latitude: 35.994, longitude: -78.899 },
+      locationBias: { circle: { center: { latitude: 35.994, longitude: -78.899 }, radius: 50000 } } });
+    expect(body).not.toHaveProperty("includedRegionCodes");
+    expect(body).not.toHaveProperty("locationRestriction");
+  });
+
+  it.each([
+    { lat: "35.99" }, { lng: "-78.89" }, { lat: "", lng: "" },
+    { lat: "91", lng: "0" }, { lat: "0", lng: "-181" },
+    { lat: "NaN", lng: "0" }, { lat: "0", lng: "Infinity" },
+  ])("rejects invalid position parameters before calling Places (%j)", async (position) => {
+    const response = await get("", { input: "Crete", sessionToken: token, ...position } as Record<string, string>);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ code: "invalid_location" });
+    expect(providerFetch).not.toHaveBeenCalled();
   });
 
   it("terminates the same billing session with structured country details only", async () => {
@@ -118,6 +142,7 @@ describe("server-side Places autocomplete", () => {
 
   it("removes address and session parameters from app logs", () => {
     expect(privateWorkLogPath(`/api/location-autocomplete?input=private-address&sessionToken=${token}`)).toBe("/api/location-autocomplete");
+    expect(privateWorkLogPath(`/api/location-autocomplete?lat=35.994&lng=-78.899&input=private-address&sessionToken=${token}`)).toBe("/api/location-autocomplete");
     expect(privateWorkLogPath(`/api/location-autocomplete/country?placeId=private-place&sessionToken=${token}`)).toBe("/api/location-autocomplete/country");
   });
 

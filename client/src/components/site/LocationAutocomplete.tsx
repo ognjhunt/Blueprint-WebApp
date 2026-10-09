@@ -1,6 +1,7 @@
 /** Google Places (New), using a browser Maps key or a private server credential. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getGoogleMapsApiKey } from "@/lib/client-env";
+import { NEARBY_RADIUS_METERS, US_LOCATION_BIAS, rankLocations, type LocationOrigin } from "@/lib/location-preferences";
 
 interface Suggestion {
   label: string;
@@ -9,6 +10,7 @@ interface Suggestion {
   placeId?: string;
   mainText?: string;
   secondaryText?: string;
+  distanceMeters?: number | null;
   googlePrediction?: google.maps.places.PlacePrediction;
 }
 
@@ -28,8 +30,10 @@ function photonLabel(props: Record<string, unknown>): string {
   return parts.filter((part, index) => part !== parts[index - 1]).join(", ");
 }
 
-async function photonSuggestions(query: string, signal: AbortSignal): Promise<Suggestion[]> {
-  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`;
+async function photonSuggestions(query: string, signal: AbortSignal, origin: LocationOrigin | null): Promise<Suggestion[]> {
+  const params = new URLSearchParams({ q: query, limit: "5" });
+  if (origin) { params.set("lat", String(origin.lat)); params.set("lon", String(origin.lng)); }
+  const url = `https://photon.komoot.io/api/?${params}`;
   const response = await fetch(url, { signal });
   if (!response.ok) return [];
   const data = (await response.json()) as { features?: { properties?: Record<string, unknown> }[] };
@@ -63,14 +67,19 @@ function loadGoogleMaps(key: string): Promise<boolean> {
   return googleMapsLoad;
 }
 
-async function browserSuggestions(input: string, sessionToken: google.maps.places.AutocompleteSessionToken): Promise<Suggestion[] | null> {
+async function browserSuggestions(input: string, sessionToken: google.maps.places.AutocompleteSessionToken, origin: LocationOrigin | null): Promise<Suggestion[] | null> {
   const places = googlePlaces();
   if (!places?.AutocompleteSuggestion) return null;
-  const result = await within(places.AutocompleteSuggestion.fetchAutocompleteSuggestions({ input, sessionToken }), 1200, null);
+  const result = await within(places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+    input, sessionToken, region: "us",
+    locationBias: origin ? { center: origin, radius: NEARBY_RADIUS_METERS } : US_LOCATION_BIAS,
+    ...(origin ? { origin } : {}),
+  }), 1200, null);
   return result?.suggestions.flatMap(({ placePrediction }) => placePrediction ? [{
     label: placePrediction.text.toString(),
     mainText: placePrediction.mainText?.toString(),
     secondaryText: placePrediction.secondaryText?.toString(),
+    distanceMeters: placePrediction.distanceMeters,
     countryCode: null,
     googlePrediction: placePrediction,
   }] : []).slice(0, 5) ?? null;
@@ -97,9 +106,11 @@ async function googleSuggestions(
   input: string,
   sessionToken: string,
   signal: AbortSignal,
+  origin: LocationOrigin | null,
 ): Promise<Suggestion[] | null> {
   try {
     const query = new URLSearchParams({ input, sessionToken });
+    if (origin) { query.set("lat", String(origin.lat)); query.set("lng", String(origin.lng)); }
     const result = await within((async () => {
       const response = await fetch(`/api/location-autocomplete?${query}`, { signal, cache: "no-store" });
       if (!response.ok) return null;
@@ -157,6 +168,12 @@ export function LocationAutocomplete(props: {
   const sessionToken = useRef<string | null>(null);
   const browserSessionToken = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const focused = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const locationButton = useRef<HTMLButtonElement>(null);
+  const allowRefresh = useRef(false);
+  const nearbyOrigin = useRef<LocationOrigin | null>(null);
+  const locationGeneration = useRef(0);
+  const [locationStatus, setLocationStatus] = useState<"idle" | "loading" | "nearby" | "denied" | "unavailable">("idle");
   const browserKey = getGoogleMapsApiKey();
 
   useEffect(() => {
@@ -182,19 +199,19 @@ export function LocationAutocomplete(props: {
           const places = googlePlaces();
           if (places?.AutocompleteSuggestion) {
             browserSessionToken.current ??= new places.AutocompleteSessionToken();
-            results = await browserSuggestions(text, browserSessionToken.current);
+            results = await browserSuggestions(text, browserSessionToken.current, nearbyOrigin.current);
           }
         } else {
           sessionToken.current ??= crypto.randomUUID();
-          results = await googleSuggestions(text, sessionToken.current, controller.signal);
+          results = await googleSuggestions(text, sessionToken.current, controller.signal, nearbyOrigin.current);
         }
         if (controller.signal.aborted) return;
         // A denied or unavailable Google lookup must leave suggestions usable.
         if (results === null) {
-          results = await photonSuggestions(text, controller.signal);
+          results = await photonSuggestions(text, controller.signal, nearbyOrigin.current);
         }
         if (!controller.signal.aborted) {
-          setSuggestions(results);
+          setSuggestions(rankLocations(text, results, Boolean(nearbyOrigin.current)));
           setOpen(focused.current && results.length > 0);
           setActive(-1);
         }
@@ -209,10 +226,54 @@ export function LocationAutocomplete(props: {
     [browserKey],
   );
 
+  function refreshSuggestions() {
+    cancelQuery();
+    setSuggestions([]);
+    setOpen(false);
+    setActive(-1);
+    const text = inputRef.current?.value.trim() ?? "";
+    if (document.activeElement === locationButton.current) {
+      allowRefresh.current = true;
+      inputRef.current?.focus();
+    }
+    if (text.length >= 2 && focused.current && allowRefresh.current) void query(text);
+  }
+
+  function useMyLocation() {
+    if (!navigator.geolocation) { setLocationStatus("unavailable"); return; }
+    const generation = ++locationGeneration.current;
+    inputRef.current?.focus();
+    setLocationStatus("loading");
+    // Ask only after this click. Keep a rounded position in memory, never in
+    // cookies, the saved form draft, analytics, or the submitted site record.
+    try {
+      navigator.geolocation.getCurrentPosition((position) => {
+        if (generation !== locationGeneration.current) return;
+        const { latitude, longitude } = position.coords;
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+          setLocationStatus("unavailable"); return;
+        }
+        nearbyOrigin.current = { lat: Math.round(latitude * 1000) / 1000, lng: Math.round(longitude * 1000) / 1000 };
+        setLocationStatus("nearby");
+        refreshSuggestions();
+      }, (error) => {
+        if (generation === locationGeneration.current) setLocationStatus(error.code === 1 ? "denied" : "unavailable");
+      }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300_000 });
+    } catch { setLocationStatus("unavailable"); }
+  }
+
+  function clearMyLocation() {
+    locationGeneration.current += 1;
+    nearbyOrigin.current = null;
+    setLocationStatus("idle");
+    refreshSuggestions();
+  }
+
   function onChange(text: string) {
     selectionGeneration.current += 1;
     cancelQuery();
     focused.current = true;
+    allowRefresh.current = true;
     setSuggestions([]);
     setOpen(false);
     setActive(-1);
@@ -229,6 +290,7 @@ export function LocationAutocomplete(props: {
 
   async function choose(suggestion: Suggestion) {
     const generation = ++selectionGeneration.current;
+    allowRefresh.current = false;
     cancelQuery();
     const pickedSession = sessionToken.current;
     sessionToken.current = null;
@@ -255,6 +317,7 @@ export function LocationAutocomplete(props: {
   useEffect(() => {
     return () => {
       selectionGeneration.current += 1;
+      locationGeneration.current += 1;
       cancelQuery();
     };
   }, []);
@@ -269,6 +332,7 @@ export function LocationAutocomplete(props: {
       // Scrolling the options must not dismiss them.
       if (event.target instanceof Element && document.getElementById(`${props.id}-options`)?.contains(event.target)) return;
       cancelQuery();
+      allowRefresh.current = false;
       setOpen(false);
     };
     window.addEventListener("scroll", close, { passive: true, capture: true });
@@ -278,6 +342,7 @@ export function LocationAutocomplete(props: {
   function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Escape") {
       cancelQuery();
+      allowRefresh.current = false;
       setOpen(false);
       return;
     }
@@ -301,6 +366,7 @@ export function LocationAutocomplete(props: {
   return (
     <div style={{ position: "relative" }}>
       <input
+        ref={inputRef}
         id={props.id}
         name={props.name}
         type="text"
@@ -311,6 +377,7 @@ export function LocationAutocomplete(props: {
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
+        aria-describedby={`${props.id}-location-hint`}
         aria-controls={open ? `${props.id}-options` : undefined}
         aria-activedescendant={open && active >= 0 ? `${props.id}-option-${active}` : undefined}
         placeholder={props.placeholder}
@@ -318,17 +385,19 @@ export function LocationAutocomplete(props: {
         onKeyDown={onKeyDown}
         onBlur={() => {
           focused.current = false;
+          allowRefresh.current = false;
           cancelQuery();
           setOpen(false);
         }}
         onFocus={() => {
           focused.current = true;
+          allowRefresh.current = true;
           if (suggestions.length > 0) setOpen(true);
         }}
         style={{ width: "100%" }}
       />
       {open && suggestions.length > 0 && (
-        <div style={{ position: "absolute", zIndex: 20, left: 0, right: 0 }}>
+        <div style={{ position: "absolute", zIndex: 20, top: "100%", left: 0, right: 0 }}>
           <ul
             id={`${props.id}-options`}
             role="listbox"
@@ -379,6 +448,20 @@ export function LocationAutocomplete(props: {
           )}
         </div>
       )}
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "6px 12px", marginTop: "8px", fontSize: "0.85em" }}>
+        <button ref={locationButton} type="button" className="ms-text-link" disabled={locationStatus === "loading"}
+          onPointerDown={(event) => event.preventDefault()}
+          onClick={locationStatus === "nearby" ? clearMyLocation : useMyLocation}
+          style={{ background: "none", border: 0, padding: "4px 0", cursor: locationStatus === "loading" ? "wait" : "pointer", font: "inherit" }}>
+          {locationStatus === "nearby" ? "Clear location preference" : locationStatus === "loading" ? "Finding your location…" : "Use my location"}
+        </button>
+        <span id={`${props.id}-location-hint`} role="status" aria-label="Location preference" style={{ color: "var(--ms-muted, #667085)" }}>
+          {locationStatus === "nearby" ? "Nearby matches first. You can still choose any address." :
+            locationStatus === "denied" ? "Location permission is off. You can still type any address." :
+            locationStatus === "unavailable" ? "Couldn’t find your location. You can still type any address." :
+            "Optional · Prefer nearby addresses"}
+        </span>
+      </div>
     </div>
   );
 }

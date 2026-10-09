@@ -1,8 +1,8 @@
 /**
  * The camera is a permission, not a default.
  *
- * `Permissions-Policy` here denies every powerful feature everywhere — except
- * the one page whose entire job is filming the work area. A flat `camera=()`
+ * Powerful features are scoped to their opt-in surfaces: filming the work area
+ * and preferring nearby addresses on site intake. A flat `camera=()`
  * header once banned the camera site-wide including on `/capture-upload`, so
  * the guided recorder failed its permission check on every browser that honors
  * the policy, the visitor read "camera access was blocked", and the file-picker
@@ -13,5 +13,6 @@
 export function permissionsPolicyForPath(path: string): string {
   const camera =
     path === "/capture-upload" || path.startsWith("/capture-upload/") ? "(self)" : "()";
-  return `camera=${camera}, microphone=(self), geolocation=(), interest-cohort=()`;
+  const geolocation = path.replace(/\/$/, "") === "/contact/site-operator" ? "(self)" : "()";
+  return `camera=${camera}, microphone=(self), geolocation=${geolocation}, interest-cohort=()`;
 }

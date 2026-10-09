@@ -50,15 +50,26 @@ router.get("/", async (req, res) => {
     res.status(400).json({ code: "invalid_query" });
     return;
   }
+  const hasOrigin = req.query.lat !== undefined || req.query.lng !== undefined;
+  const coordinate = (value: unknown) => typeof value === "string" && value.trim() !== "" ? Number(value) : NaN;
+  const latitude = coordinate(req.query.lat);
+  const longitude = coordinate(req.query.lng);
+  if (hasOrigin && (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180)) {
+    res.status(400).json({ code: "invalid_location" }); return;
+  }
+  const origin = hasOrigin ? { latitude: Math.round(latitude * 1000) / 1000, longitude: Math.round(longitude * 1000) / 1000 } : null;
   const key = placesKey();
   if (!key) { res.status(503).json({ code: "not_configured" }); return; }
   try {
     const result = await placesRequest("places:autocomplete", key,
-      "suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat",
-      { input, sessionToken, languageCode: "en" });
+      "suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat,suggestions.placePrediction.distanceMeters",
+      { input, sessionToken, languageCode: "en", regionCode: "us",
+        locationBias: origin ? { circle: { center: origin, radius: 50_000 } } : { rectangle: { low: { latitude: 24, longitude: -125 }, high: { latitude: 49, longitude: -66 } } },
+        ...(origin ? { origin } : {}),
+      });
     if (!result.ok) { res.status(502).json({ code: result.code }); return; }
     const suggestions = (result.payload.suggestions ?? []).flatMap((item: {
-      placePrediction?: { placeId?: string; text?: { text?: string }; structuredFormat?: { mainText?: { text?: string }; secondaryText?: { text?: string } } };
+      placePrediction?: { placeId?: string; text?: { text?: string }; distanceMeters?: number; structuredFormat?: { mainText?: { text?: string }; secondaryText?: { text?: string } } };
     }) => {
       const prediction = item.placePrediction;
       if (!prediction?.placeId || !placePattern.test(prediction.placeId) || !prediction.text?.text) return [];
@@ -67,6 +78,7 @@ router.get("/", async (req, res) => {
         placeId: prediction.placeId,
         mainText: prediction.structuredFormat?.mainText?.text ?? prediction.text.text,
         secondaryText: prediction.structuredFormat?.secondaryText?.text ?? "",
+        ...(typeof prediction.distanceMeters === "number" && Number.isFinite(prediction.distanceMeters) && prediction.distanceMeters >= 0 ? { distanceMeters: prediction.distanceMeters } : {}),
       }];
     }).slice(0, 5);
     res.json({ suggestions });
