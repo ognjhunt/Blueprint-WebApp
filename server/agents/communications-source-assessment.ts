@@ -24,19 +24,21 @@ export type SourceAssessment = z.infer<typeof sourceAssessmentSchema>;
 export const qualifiedSourceContact = (source: any) => source.assessment
   ? assessedPublicContact(source.candidate, source.assessment) : publishedPublicContact(source.candidate);
 
-function operatorEvidence(candidate: any, index: number, role: string) {
+function operatorEvidence(candidate: any, index: number, role: string, documentIndex?: number) {
   const entry = candidate.evidence?.[index];
   if (!entry || entry.role !== role || entry.classification !== "operator" || entry.claim_kind !== "fact"
-    || entry.origin !== "live" || entry.assertion_scope !== "current_operational"
+    || entry.origin !== "live" || !(entry.assertion_scope === "current_operational"
+      || index === documentIndex && role === "contact" && entry.assertion_scope === "as_of_background")
     || entry.visibility !== "public" || !["rendered", "static", "operator_document"].includes(entry.retrieval)
-    || !sameOperatorUrl(entry.url, candidate.organization_url)) throw new Error("source_assessment_operator_evidence_invalid");
+    || !(sameOperatorUrl(entry.url, candidate.organization_url)
+      || index === documentIndex && role === "contact" && entry.retrieval === "operator_document")) throw new Error("source_assessment_operator_evidence_invalid");
   return entry;
 }
 
-export function assessedPublicContact(candidate: any, value: unknown) {
+export function assessedPublicContact(candidate: any, value: unknown, documentIndex?: number) {
   if ((value as any)?.contact === null) throw new Error("verified_public_business_contact_missing");
   const assessment = sourceAssessmentSchema.parse(value), selected = assessment.contact;
-  const entry = operatorEvidence(candidate, selected.evidenceIndex, "contact");
+  const entry = operatorEvidence(candidate, selected.evidenceIndex, "contact", documentIndex);
   const emails = (entry.quote.match(/[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) ?? []).map((x: string) => x.toLowerCase());
   // Purpose belongs to this visible excerpt and route, not the email's domain.
   if (!emails.includes(selected.email.toLowerCase()) || new Set(emails).size !== 1

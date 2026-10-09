@@ -11,7 +11,7 @@ import { communicationsDigest, OUTREACH_READY_OWNER_DECISION_REFERENCE, outreach
 import { publishedPeople, publishedPublicContact } from "./communications-contact-evidence";
 import { verifyContactResolution, verifyHypothesisContactResolution, type HypothesisPersonEvidence } from "./communications-contact-resolution";
 import { qualifiedSourceContact } from "./communications-source-assessment";
-import { REVIEWED_RESEARCH_ROOT, reviewedResearchPublication } from "./communications-reviewed-research";
+import { REVIEWED_RESEARCH_ROOT, reviewedResearchPublication, reviewedHypothesisTier, reviewedHypothesisEvidence, reviewedPublicContact } from "./communications-reviewed-research";
 
 export type ResearchSnapshotReader = (date: string, admissionId?: string) => Promise<unknown>;
 // The research owner owns the pinned Store, its blobs and scheduler. This reader
@@ -405,6 +405,7 @@ function snapshotFile(snapshot: any, date: string, name: string): Buffer | null 
  * and the tier recomputed by the TypeScript mirror at `now`, which must equal the published tier block
  * exactly. Any difference refuses, so this never admits what Pipeline did not publish. */
 export function hypothesisPublicationSource(snapshot: any, candidateKey: string, now: number) {
+  if (snapshot?.row?.packet?.hypothesis) return reviewedReportHypothesisSource(snapshot, candidateKey, now);
   const published = researchPublicationHypotheses(snapshot);
   if (published.state === "invalid") throw new Error(published.reason);
   const entry = published.state === "recorded" ? published.entries.find(item => item.candidateKey === candidateKey) : undefined;
@@ -496,7 +497,7 @@ export function hypothesisFacts(source: HypothesisSource): CommunicationsBrief["
 export function hypothesisQualification(source: HypothesisSource): NonNullable<CommunicationsBrief["qualification"]> {
   const direction = source.hypothesis.direction;
   return { tier: "outreach_ready", label: "hypothesis", openChecks: source.hypothesis.openChecks as any, openQuestions: source.hypothesis.openQuestions,
-    ownerDecision: { reference: OUTREACH_READY_OWNER_DECISION_REFERENCE, direction: { uri: direction.uri, generation: direction.generation, sha256: direction.sha256 } },
+    ownerDecision: { reference: source.admissionId ? direction.approvalReference : OUTREACH_READY_OWNER_DECISION_REFERENCE, direction: { uri: direction.uri, generation: direction.generation, sha256: direction.sha256 } },
     sendsAuthorized: false };
 }
 
@@ -505,6 +506,7 @@ export function hypothesisQualification(source: HypothesisSource): NonNullable<C
  * and contact proof to it. It grants no send authority: verifyPublishedResearch still refuses the brief. */
 export function verifyPublishedHypothesisForDraft(snapshot: any, brief: CommunicationsBrief, approval: unknown, contactProof: unknown, now = Date.now()) {
   if (!brief?.qualification) throw new Error("research_hypothesis_brief_required");
+  if (brief.researchOrigin.admissionId) return verifyReviewedReportHypothesis(snapshot, brief, approval, now);
   const handoff = verifyCommunicationsHandoff(approval, brief), origin = brief.researchOrigin, row = snapshot?.row;
   if (origin.admissionId || Object.hasOwn(origin, "screenAdmissionId") || origin.contactEvidenceKind !== "public_source_resolution"
     || !origin.sourceDigest || !origin.contactEvidenceDigest) throw new Error("research_hypothesis_origin_invalid");
@@ -528,4 +530,60 @@ export function verifyPublishedHypothesisForDraft(snapshot: any, brief: Communic
     || brief.boundedJob !== source.candidate.task) throw new Error("brief_fact_not_in_published_research");
   return { runKey: row.run_key, packetDigest: row.packet_digest, sheetsReceipt: source.sheetsReceipt, notionReceipt: source.notionReceipt,
     briefDigest: communicationsDigest(brief) };
+}
+
+/** Authenticated reviewed reports have their own actual persistence/authorization
+ * records. They never pretend to be a Pipeline QA run or Sheets publication. */
+export function reviewedReportHypothesisSource(snapshot: any, candidateKey: string, now: number) {
+  const row = snapshot?.row;
+  const origin = { admissionId: row?.admission_id, date: row?.date, candidateKey,
+    packetDigest: row?.packet_digest, rawArtifactDigest: row?.raw_output_digest };
+  const publication = reviewedResearchPublication(snapshot, origin), packet = row.packet;
+  const input = { ...packet, date: row.date, artifact: { ...packet.artifact, rawBase64: snapshot.files.artifact, sha256: row.raw_output_digest } };
+  const result = reviewedHypothesisTier(input, now), authorization = row.review.draft_authorization;
+  if (!authorization || authorization.actor !== row.review.reviewer_reference.slice("authenticated:".length)
+    || authorization.reference !== packet.hypothesis.authorizationReference || authorization.recordedAt !== row.review.reviewed_at
+    || authorization.expiresAt !== packet.hypothesis.authorizationExpiresAt || authorization.sendsAuthorized !== false
+    || communicationsDigest(result.outreach_ready) !== communicationsDigest(row.review.lead_verification?.outreach_ready)) {
+    throw new Error("reviewed_research_hypothesis_authorization_changed");
+  }
+  const block = result.outreach_ready;
+  const direction = { uri: publication.source.recordReceipt, generation: String(Date.parse(authorization.recordedAt)),
+    sha256: communicationsDigest(authorization), approvalReference: authorization.reference, validUntil: authorization.expiresAt };
+  const source = { ...publication.source, admissionId: origin.admissionId, leadVerification: input.leadVerification,
+    hypothesis: { tier: "outreach_ready" as const, label: "hypothesis" as const, ruleVersion: block.rule_version,
+      openChecks: block.open_checks, openQuestions: block.open_questions, validUntil: input.leadVerification.valid_until,
+      provingSources: block.proving_sources, tierEvidence: outreachEvidenceSummary(reviewedHypothesisEvidence(input)), direction },
+    sheetsPlanDigest: null };
+  return { source, entry: { openChecks: block.open_checks, openQuestions: block.open_questions }, personEvidence: [] as HypothesisPersonEvidence[] };
+}
+export function reviewedReportContact(snapshot: any, now: number) {
+  const row = snapshot.row, packet = row.packet;
+  const input = { ...packet, date: row.date, artifact: { ...packet.artifact, rawBase64: snapshot.files.artifact, sha256: row.raw_output_digest } };
+  const contact = reviewedPublicContact(input, now), person = packet.hypothesis.recipient;
+  if (person) {
+    const evidence = packet.candidate.evidence[packet.assessment.contact.evidenceIndex];
+    if (!outreachQuoteProver(reviewedHypothesisEvidence(input))(evidence.quote, evidence.url)
+      || !evidence.quote.normalize("NFKC").toLowerCase().includes(person.name.normalize("NFKC").toLowerCase())) throw new Error("reviewed_research_recipient_unproven");
+  }
+  return { ...contact, recipient: person ? { kind: "named_person" as const, name: person.name, role: person.role, sourceUrl: contact.sourceUrl } : { kind: "inbox" as const,
+      addressee: packet.assessment.contact.selection.role, person: null } };
+}
+function verifyReviewedReportHypothesis(snapshot: any, brief: CommunicationsBrief, approval: unknown, now: number) {
+  const handoff = verifyCommunicationsHandoff(approval, brief), origin = brief.researchOrigin;
+  const { source } = reviewedReportHypothesisSource(snapshot, origin.candidateKey, now), contact = reviewedReportContact(snapshot, now);
+  if (origin.admissionId !== source.admissionId || origin.date !== source.date || origin.packetDigest !== source.packetDigest
+    || origin.rawArtifactDigest !== source.rawArtifactDigest || origin.sourceDigest !== communicationsDigest(source)
+    || origin.contactEvidenceKind !== "published_evidence" || origin.contactEvidenceDigest !== contact.evidenceDigest
+    || brief.contact.email.toLowerCase() !== contact.email || brief.contact.sourceUrl !== contact.sourceUrl
+    || brief.contact.sourceCheckedAt !== contact.sourceCheckedAt || brief.contact.scope !== contact.scope
+    || communicationsDigest(brief.contact.recipient ?? null) !== communicationsDigest(contact.recipient ?? null)
+    || communicationsDigest(brief.contact.resolvedMissingContactGaps ?? []) !== communicationsDigest(contact.resolvedGaps)
+    || brief.consent.status !== "public_business_contact" || handoff.recordReceipt !== source.recordReceipt
+    || handoff.sheetsReceipt !== null || handoff.notionReceipt !== null
+    || communicationsDigest(brief.qualification) !== communicationsDigest(hypothesisQualification(source))
+    || brief.contact.learningQuestion !== source.hypothesis.openQuestions[0]
+    || communicationsDigest(brief.facts) !== communicationsDigest(hypothesisFacts(source))
+    || brief.facilityName !== source.candidate.organization || brief.boundedJob !== source.candidate.task) throw new Error("reviewed_research_hypothesis_binding_changed");
+  return { runKey: source.runKey, packetDigest: source.packetDigest, sheetsReceipt: null, notionReceipt: null, briefDigest: communicationsDigest(brief) };
 }

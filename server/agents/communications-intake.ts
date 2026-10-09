@@ -8,7 +8,7 @@ import { resolveHypothesisContact, resolvePublicContact, verifyContactResolution
 import type { ContactPageReader } from "./communications-contact-fetch";
 import { previewResearchCommunications, type CommunicationsResearchInput } from "./communications-producer";
 import { hypothesisFacts, hypothesisPublicationSource, hypothesisQualification, publishedHypothesesDeclared, researchPublicationHypotheses,
-  researchPublicationSource, verifyPublishedResearch, type HypothesisSource, type ResearchSnapshotReader } from "./communications-research";
+  researchPublicationSource, reviewedReportHypothesisSource, reviewedReportContact, verifyPublishedHypothesisForDraft, verifyPublishedResearch, type HypothesisSource, type ResearchSnapshotReader } from "./communications-research";
 import { recipientLookupAddresses } from "../utils/outboundProspects";
 import { COMMUNICATIONS_ROOT, CommunicationsStore, prepareCommunicationsEnqueue } from "./communications-store";
 import { firstContactLearningQuestion } from "./communications-first-contact";
@@ -344,7 +344,7 @@ async function hypothesisBeforeContact(snapshot: any, candidateKey: string, deps
 }
 
 /** The hypothesis brief before review metadata: published facts, the one question, the owner direction. */
-function hypothesisBriefProposal(source: HypothesisSource, contact: ReturnType<typeof verifyHypothesisContactResolution>, prospectId: string, key: string) {
+function hypothesisBriefProposal(source: HypothesisSource, contact: ReturnType<typeof verifyHypothesisContactResolution> | ReturnType<typeof reviewedReportContact>, prospectId: string, key: string) {
   const facts = hypothesisFacts(source);
   return { version: "blueprint.communications-brief.v1" as const, revision: 1, prospectId, siteId: `research-site:${key}`,
     taskId: `research-task:${key}`, teamIds: [], caseId: `research-case:${key}`, capabilityIds: [],
@@ -654,4 +654,68 @@ export async function runCommunicationsIntake(deps: IntakeDependencies) {
     throw error;
   }
   await runCommunicationsContactRefresh(deps);
+}
+
+/** Reviewed-report hypotheses use the same CRM, suppression, queue and immutable
+ * source checks, with actual Firestore receipts and no external publication. */
+export async function admitReviewedReportHypothesis(snapshot: any, candidateKey: string, deps: IntakeDependencies) {
+  const identity = sourceIdentity(snapshot?.row ?? {}, candidateKey), intakeId = communicationsDigest(identity);
+  if (!hypothesisDraftsEnabled()) return { ...identity, intakeId, state: "not_admitted", reasons: [HYPOTHESIS_DRAFTS_DISABLED],
+    draftJobCreated: false, sendsAuthorized: false, sent: false, sessionCreated: false };
+  const { source } = reviewedReportHypothesisSource(snapshot, candidateKey, deps.now());
+  const contact = reviewedReportContact(snapshot, deps.now()), key = bindingKey(source), prospectId = `research-${key}`;
+  if (await deps.isSuppressed(contact.email)) throw new Error("recipient_suppressed");
+  const proposal = hypothesisBriefProposal(source, contact, prospectId, key);
+  const brief = communicationsBriefSchema.parse({ ...proposal,
+    briefId: `hypothesis-${communicationsDigest({ proposal, sourceDigest: communicationsDigest(source) })}`,
+    researchOrigin: { ...proposal.researchOrigin, admissionId: source.admissionId, contactEvidenceKind: "published_evidence" },
+    qualityReview: { state: "approved", reviewedBy: snapshot.row.review.reviewer_reference,
+      reviewedAt: snapshot.row.review.reviewed_at, sourceRecordUrl: source.sourceRecordUrl } });
+  const stale = briefRefreshReasons(brief, deps.now());
+  if (stale.length) throw new Error(`research_adapter_review_required:${stale.join(",")}`);
+  const digest = communicationsDigest(brief), root = deps.db.doc(COMMUNICATIONS_ROOT);
+  const handoff = { version: "blueprint.communications-handoff.v1", ...brief.qualityReview, briefDigest: digest,
+    recordReceipt: source.recordReceipt, sheetsReceipt: null, notionReceipt: null };
+  verifyPublishedHypothesisForDraft(snapshot, brief, handoff, null, deps.now());
+  const queries = hypothesisCrmQueries(deps, source, contact.email), prospectRef = deps.db.collection("outboundProspects").doc(prospectId);
+  const intakeRef = root.collection("intake").doc(intakeId), bindingRef = root.collection("researchBindings").doc(key);
+  return deps.db.runTransaction(async tx => {
+    const [intake, prospect, binding, existing, bound, named, holders] = await Promise.all([tx.get(intakeRef), tx.get(prospectRef),
+      tx.get(bindingRef), tx.get(root.collection("briefs").doc(brief.briefId)), tx.get(queries.bound), tx.get(queries.named), tx.get(queries.holders!)]);
+    const conflict = hypothesisCrmConflictIn(source, prospectId, binding.data()?.prospectId, bound, named, holders);
+    if (conflict) throw new Error(conflict);
+    if (intake.data()?.state === "admitted") {
+      if (!existing.exists || communicationsDigest(existing.data()) !== digest || prospect.data()?.stage !== "drafted"
+        || prospect.data()?.contactedAtIso || binding.data()?.prospectId !== prospectId
+        || intake.data()?.briefDigest !== digest) throw new Error("research_adapter_immutable_conflict");
+      const [savedHandoff, savedSource] = await Promise.all([tx.get(root.collection("handoffs").doc(digest)),
+        tx.get(root.collection("researchSources").doc(digest))]);
+      verifyPublishedHypothesisForDraft(snapshot, brief, savedHandoff.data(), null, deps.now());
+      if (savedSource.data()?.briefDigest !== digest || communicationsDigest(savedSource.data()?.source) !== communicationsDigest(source)) {
+        throw new Error("research_adapter_immutable_conflict");
+      }
+      return intake.data()!;
+    }
+    if (prospect.exists || binding.exists || existing.exists) throw new Error("outreach_ready_candidate_already_known");
+    const queued = await prepareCommunicationsEnqueue(tx, deps.db, { prospectId, briefId: brief.briefId, briefDigest: digest,
+      intent: "outreach", inboundMessageId: null }, deps.now());
+    if (queued.record.state === "superseded") throw new Error("communications_research_admission_superseded");
+    const outcome = { ...identity, intakeId, state: "admitted", label: "hypothesis", publishedTier: "outreach_ready", prospectId,
+      briefId: brief.briefId, briefDigest: digest, sourceDigest: communicationsDigest(source), jobId: queued.record.jobId,
+      admittedAt: deps.now(), owner: "blueprint-communications-agent", draftJobCreated: true, eligibleForOutreach: false,
+      sendsAuthorized: false, sent: false, sessionCreated: false, gmailDraftCreated: false };
+    tx.create(root.collection("briefs").doc(brief.briefId), brief);
+    tx.create(root.collection("handoffs").doc(digest), handoff);
+    tx.create(root.collection("researchSources").doc(digest), { briefDigest: digest, source, label: "hypothesis", contactSourceIdentifiesRecipient: true });
+    tx.create(bindingRef, { prospectId, sheetsId: source.sheetsId, sheetsProspectId: source.sheetsProspectId });
+    tx.create(prospectRef, { facilityName: source.candidate.organization, facilityAddress: source.candidate.location,
+      facilitySite: source.candidate.site, locationSource: "reviewed_research_location_not_verified_street_address",
+      contactEmail: contact.email, hypothesisedTask: source.candidate.task, stage: "drafted", contactedAtIso: null,
+      inferredGates: {}, gateAnswerSources: {}, observations: brief.outreachContext.observations,
+      createdAtIso: new Date(deps.now()).toISOString(), siteId: brief.siteId, taskId: brief.taskId, caseId: brief.caseId,
+      researchPublicationId: source.sheetsProspectId, entityAdmission: "research_hypothesis", qualificationTier: "outreach_ready",
+      sendAuthority: "none", communicationsContextReview: { briefId: brief.briefId, briefDigest: digest } });
+    queued.commit(); tx.set(intakeRef, outcome);
+    return outcome;
+  });
 }
