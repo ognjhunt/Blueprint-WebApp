@@ -3559,7 +3559,7 @@
       "recipient_delivery_observed": true,
       "one_mechanical_reply_observed": true,
       "reply_is_test_input_not_customer_task_facts": true,
-      "reply_import_and_assessment_continuation": "pending; sole original-job master owns",
+      "reply_import_and_assessment_continuation": "one test-input statement imported; current continuation running at retained checkpoint, sole master follows same handle",
       "new_failure": "Gmail rewrites Message-ID; stored requested RFC ID differs from acknowledged-message GET. Narrow receipt reconciliation PR1002; no resend.",
       "draft_recovered_canonical_sha256": "00fd83dd471ac69408af5509fc0f8e117fb54ed8dc76760d38275f380244d411",
       "sent_canonical_sha256": "374065f5d1ede88d12178743b6fe1082bd2c8f0947e0e6e7df035babfd492ac1",
@@ -3570,6 +3570,20 @@
         "merge_sha": "cd7f979b90ccdac3853b90938e08d2950798f960",
         "paired_source_and_public_health_verified": true,
         "actual_reply_import": "sole master owns; no import/continuation evidence in release receipt"
+      },
+      "reply_import_checkpoint": {
+        "observed_at": "2026-10-09T06:36:15.021Z",
+        "source_receipt_sha256": "dfd722a6771591e8a8d3789e1ba6e72386cbea63957e941830d29ca5e68d1b12",
+        "independent_metadata_checks_passed": 13,
+        "independent_receipt_sha256": "951e1487c1c1b6c7586f3f1d322cc837a45749a537ae1a2a28010b00278e4e84",
+        "imported_statements": 1,
+        "test_input_label": true,
+        "confirmation_null": true,
+        "success_criteria_present": false,
+        "operator_details_present": false,
+        "current_pointer_job_run": "running",
+        "paid_native_dispatch": false,
+        "claim_ceiling": "Canonical retained real DB record joins; not completed continuation, current proposal, native admission, physical facts or model quality."
       }
     },
     "fixture_corrections": {
