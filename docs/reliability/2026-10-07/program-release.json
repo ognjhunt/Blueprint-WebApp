@@ -2748,7 +2748,7 @@
   },
   "customer_basics_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/985",
-    "state": "exact_final_source_independent_review_cleared_required_test_pending",
+    "state": "protected_merged_main_CI_and_automatic_paired_deployment_pending",
     "historical_head": "4da12aaacfe2c3448b452f270e009e8f4bdd1c18",
     "corrected_head": "eabb4c52a2a5727482b45a3eb145aeb2df9ecf7e",
     "historical_receipt_sha256": "34565941dc86fcc83d33ccb507e220d9b0de9fc926cf072926f5885ffb0e11b9",
@@ -2786,6 +2786,9 @@
     "final_review_commit": "72373ca34100864ca127f9d186845e578b0a3d7f",
     "final_native_CI": 37865792440,
     "final_checks": "54 existing checks in four scoped suites plus two workspace checks and exact-source typecheck PASS; native E2E/build/check/rules/release-scope/threeGraphify passed at snapshot; native test still running.",
-    "final_browser_layer": "Five normal Vite route conditions with intercepted synthetic APIs PASS, zero businesswrites; separate from earlier20SSR component renders; no original journey/provider/accuracy credit."
+    "final_browser_layer": "Five normal Vite route conditions with intercepted synthetic APIs PASS, zero businesswrites; separate from earlier20SSR component renders; no original journey/provider/accuracy credit.",
+    "merged_sha": "3d6bc3894b9811a808dd45adc0445f73ceb865e6",
+    "merged_at_utc": "2026-10-09T00:49:13Z",
+    "final_native_CI_status": "SUCCESS: all nine applicable required checks on exact0c58; no bypass or blind rerun"
   }
 }
