@@ -1159,8 +1159,10 @@
         "combined_passed": 340
       },
       "receipt_sha256": "7149ddf6f4100ec89004772a570b45553b687d70295c60017cc270fa982dab9d",
-      "release_status": "candidate_tested_review_and_CI_pending",
-      "pr": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2654"
+      "release_status": "reviewed_exact_head_required_CI_passed_checked_merged_5e; canonical_deployment_pending",
+      "pr": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2654",
+      "merge_sha": "5e30409ed983962b226efd0f9cee25e4ae18514d",
+      "deployed": false
     },
     {
       "id": "REL-SELECTED-WAIT-20261009",
@@ -1186,7 +1188,24 @@
       "required_ci": 37884251589,
       "deployed": false,
       "native_recovery_executed": false,
-      "limitations": "No production incident or downstream job completion is inferred from this loopback reproducer"
+      "limitations": "No production incident or downstream job completion is inferred from this loopback reproducer",
+      "release_status": "reviewed_exact_head_required_CI_passed_checked_merged_5e; canonical_deployment_pending",
+      "merge_sha": "5e30409ed983962b226efd0f9cee25e4ae18514d"
+    },
+    {
+      "id": "REL-PREP-ASYNC-EXPIRY-20261009",
+      "severity": "P1_affected_pending_preparation_intake",
+      "owner": "native preparation author; coordinator release owner",
+      "invariant": "Consequential intake must use currently valid authority after awaited signed reads",
+      "root_cause": "Candidate checked expiry before signed reads; time could cross expiry before stage issuance",
+      "reproducer": "Actual isolated intake with fake signed readers advancing clock past grant expiry",
+      "before_sha256": "2c91f3ecb68c6d66ac300ec1726b2b293416ece13c2881408f696d01ad398f5d",
+      "after_sha256": "a7a3b9f9a7d59caa98f77a9d8e39972f58ace28fa9d3bc6abfaa1d5b2982a187",
+      "candidate": "bd2ce605020aaa3f1a19fe81c8c3fa8e9a92baf5",
+      "pr": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2655",
+      "status": "same_reproducer_passes_independently; complete_source_review_clear; required_CI_and_release_pending",
+      "production_incident_claim": false,
+      "program_unique_case_credit": 0
     }
   ],
   "dependencies": [
@@ -1416,7 +1435,7 @@
     "deployed_sha": "0a17f52d23f233376b9944a6df49101491581f6c",
     "postdeploy_host_read_sha256": "e6f0f1cebc0d2bbdb4c717c469be1a768c59a4ca3f6edc397d0ec1d1a781cb72"
   },
-  "current_state_observed_at_utc": "2026-10-08T23:20:00Z",
+  "current_state_observed_at_utc": "2026-10-09T06:25:43.295739+00:00",
   "historical_state_policy": "Original baseline/reproducer/source receipts are retained. A historical_state field preserves superseded status text when current state changes; original failed attempts are not erased.",
   "last_new_failure_observed_at_utc": "2026-10-08T21:47:57.021Z",
   "customer_financial_policy": {
@@ -1543,5 +1562,5 @@
     "bounded_returned_event_count": 0,
     "scope": "Service-level minute samples, not instantaneous peak/assessment-only allocation. Later samples after confirmed terminalread support bounded post-run observation; early postcompletionlabel not separately certified. No concurrentcapacity/leak/zeroOOM universal claim; frozen peak/headroom sizing gate remains uncleared."
   },
-  "updated_at_utc": "2026-10-09T01:48:08.721505+00:00"
+  "updated_at_utc": "2026-10-09T06:25:43.295739+00:00"
 }

@@ -604,35 +604,53 @@
     }
   },
   "current_verified_webapp_release": {
-    "schema": "reliability.release.metadata.v1",
-    "observed_at": "2026-10-09 02:49:33 UTC",
-    "sha": "1cd4fdac3f2214ed7a8c5dbabc80ccd23d688124",
-    "main_ci": 37874527385,
-    "actual_deploy": 37874992598,
+    "checked_at_utc": "2026-10-09T06:23:45.813324+00:00",
     "services": [
       {
         "role": "web",
-        "id": "dep-db4545m0tbcc73d5lbn0",
+        "id": "dep-db48edtg1s2s738k7f0g",
         "status": "live",
-        "sha": "1cd4fdac3f2214ed7a8c5dbabc80ccd23d688124",
-        "finishedAt": "2026-10-09T02:34:09.22224Z"
+        "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+        "finishedAt": "2026-10-09T06:20:52.512282Z"
       },
       {
         "role": "worker",
-        "id": "dep-db4545rtqb8s73e40r8g",
+        "id": "dep-db48ee4s728c739ulj60",
         "status": "live",
-        "sha": "1cd4fdac3f2214ed7a8c5dbabc80ccd23d688124",
-        "finishedAt": "2026-10-09T02:34:52.96912Z"
+        "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+        "finishedAt": "2026-10-09T06:21:27.384842Z"
       }
     ],
-    "claim_ceiling": "Exact source deployment and public health only; no downstream dispatch or new provider run.",
-    "metadata_receipt_sha256": "aa1c8d50cc5b3c410c919248e87f28207881adec7502183b60eea5925543cc1c",
-    "public_version_http": 200,
-    "public_version_sha": "1cd4fdac3f2214ed7a8c5dbabc80ccd23d688124",
-    "public_health_http": 200,
-    "public_ready_http": 200,
-    "blocker_count": 0,
-    "observed_at_utc": "2026-10-09T02:56:10.169043+00:00"
+    "effects": "Purpose-built Render metadata reads only",
+    "37892316055": {
+      "conclusion": "success",
+      "headSha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+      "status": "completed"
+    },
+    "37892834149": {
+      "conclusion": "success",
+      "headSha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+      "status": "completed"
+    },
+    "public": {
+      "/version.json": {
+        "http_status": 200,
+        "git_sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c"
+      },
+      "/health": {
+        "http_status": 200,
+        "status": "healthy"
+      },
+      "/health/ready": {
+        "http_status": 200,
+        "status": "ready",
+        "blocker_count": 0
+      }
+    },
+    "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+    "claim_ceiling": "Exact paired source deployment and public health; original communications continuation and native preparation unverified",
+    "metadata_receipt_sha256": "c2c4191856bc5e5259d75087bf80d78e75dfeba6fae40419ca1a8a29e94c8dc4",
+    "official_receipt_sha256": "86beee036b6521720a9acdb53678f4bfbaede537b3c210af0abafbe21bcacea8"
   },
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
@@ -1917,73 +1935,53 @@
     "claim_ceiling": "Read-only credential/model catalog access;not generation, currentcustomer assessment or video-quality proof. Historical401 andunknownexposure remain retained."
   },
   "current_verified_web_release": {
-    "schema": "reliability_release_metadata_readback.v1",
-    "observed_at_utc": "2026-10-09T01:42:21.254318+00:00",
-    "sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
+    "checked_at_utc": "2026-10-09T06:23:45.813324+00:00",
+    "services": [
+      {
+        "role": "web",
+        "id": "dep-db48edtg1s2s738k7f0g",
+        "status": "live",
+        "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+        "finishedAt": "2026-10-09T06:20:52.512282Z"
+      },
+      {
+        "role": "worker",
+        "id": "dep-db48ee4s728c739ulj60",
+        "status": "live",
+        "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+        "finishedAt": "2026-10-09T06:21:27.384842Z"
+      }
+    ],
+    "effects": "Purpose-built Render metadata reads only",
+    "37892316055": {
+      "conclusion": "success",
+      "headSha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+      "status": "completed"
+    },
+    "37892834149": {
+      "conclusion": "success",
+      "headSha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+      "status": "completed"
+    },
     "public": {
-      "version.json": {
+      "/version.json": {
         "http_status": 200,
-        "body": {
-          "git_sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
-          "built_at_iso": "2026-10-09T01:34:15.312Z"
-        }
+        "git_sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c"
       },
-      "health": {
+      "/health": {
         "http_status": 200,
-        "body": {
-          "status": "healthy",
-          "timestamp": "2026-10-09T01:42:21.085Z"
-        }
+        "status": "healthy"
       },
-      "health/ready": {
+      "/health/ready": {
         "http_status": 200,
-        "body": {
-          "status": "ready",
-          "timestamp": "2026-10-09T01:42:21.222Z",
-          "blocker_count": 0
-        }
+        "status": "ready",
+        "blocker_count": 0
       }
     },
-    "native_reads": {
-      "source": "Fresh purpose-built Render list_deploys normalized metadata",
-      "historical_web": {
-        "id": "dep-db4417jncjis73bn9npg",
-        "status_at_read": "deactivated",
-        "sha": "f88a7e5d5f6e44424f25d971cf39fbab417706e8",
-        "finishedAt": "2026-10-09T01:19:43.974694Z"
-      },
-      "historical_worker": {
-        "id": "dep-db4417ss728c739fsg20",
-        "status_at_read": "deactivated",
-        "sha": "f88a7e5d5f6e44424f25d971cf39fbab417706e8",
-        "finishedAt": "2026-10-09T01:20:22.854634Z"
-      },
-      "current_web": {
-        "id": "dep-db448rjncjis73bo5oh0",
-        "status_at_read": "live",
-        "sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
-        "finishedAt": "2026-10-09T01:35:48.417655Z"
-      },
-      "current_worker": {
-        "id": "dep-db448rss728c739gokeg",
-        "status_at_read": "live",
-        "sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
-        "finishedAt": "2026-10-09T01:36:32.523015Z"
-      }
-    },
-    "main_CI": {
-      "id": 37869841900,
-      "headSha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
-      "conclusion": "success"
-    },
-    "deployment_workflow": {
-      "id": 37870335076,
-      "headSha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
-      "conclusion": "success"
-    },
-    "scope": "Current source and public health metadata. Research adoption controls/lease settlement are owned and not established by this receipt. Accepted normal assessment remains189; actual customer-basics API/DOM verified on3d6.",
-    "private_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/status-update-copy/release-f88/metadata-readback.json",
-    "private_receipt_sha256": "8945d573adcd218d1953643965370944fea56bd7223fcd4286425d082fbe3f72"
+    "sha": "6c5e71511c35f1751019682cd32ee4f426a11b9c",
+    "claim_ceiling": "Exact paired source deployment and public health; original communications continuation and native preparation unverified",
+    "metadata_receipt_sha256": "c2c4191856bc5e5259d75087bf80d78e75dfeba6fae40419ca1a8a29e94c8dc4",
+    "official_receipt_sha256": "86beee036b6521720a9acdb53678f4bfbaede537b3c210af0abafbe21bcacea8"
   },
   "current_normal_UI_same_job_retry": {
     "source_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
@@ -2193,7 +2191,7 @@
     },
     "original_case_credit": 0
   },
-  "updated_at_utc": "2026-10-09T05:35:19Z",
+  "updated_at_utc": "2026-10-09T06:25:43.295739+00:00",
   "paid_provider_actor_handoff": {
     "owner": "Existing local assessment-iteration task; original normal-UI provider actor explicitly held",
     "scope": "ONE same authorized MOV production SDK/Gemini fresh baseline, then ONE actual Sol saved-evidence comparison reusing Gemini output. Serial actor; no automatic paid retry; no customer writes.",
@@ -3303,5 +3301,168 @@
     "original_sha256": "1bbb1a03ddfc60c125b36aa38a9613b003f58be639cedd1fbb3b4e708c878543",
     "finding": "Timestamp text differed between attestation and capture rights; default positive correctly rejected. Fixture failure, not product defect.",
     "status": "Original bytes and failed baseline retained; separately versioned correction requested before positive admission scoring. Rights equality unchanged."
+  },
+  "historical_current_verified_webapp_release": [
+    {
+      "schema": "reliability.release.metadata.v1",
+      "observed_at": "2026-10-09 02:49:33 UTC",
+      "sha": "1cd4fdac3f2214ed7a8c5dbabc80ccd23d688124",
+      "main_ci": 37874527385,
+      "actual_deploy": 37874992598,
+      "services": [
+        {
+          "role": "web",
+          "id": "dep-db4545m0tbcc73d5lbn0",
+          "status": "live",
+          "sha": "1cd4fdac3f2214ed7a8c5dbabc80ccd23d688124",
+          "finishedAt": "2026-10-09T02:34:09.22224Z"
+        },
+        {
+          "role": "worker",
+          "id": "dep-db4545rtqb8s73e40r8g",
+          "status": "live",
+          "sha": "1cd4fdac3f2214ed7a8c5dbabc80ccd23d688124",
+          "finishedAt": "2026-10-09T02:34:52.96912Z"
+        }
+      ],
+      "claim_ceiling": "Exact source deployment and public health only; no downstream dispatch or new provider run.",
+      "metadata_receipt_sha256": "aa1c8d50cc5b3c410c919248e87f28207881adec7502183b60eea5925543cc1c",
+      "public_version_http": 200,
+      "public_version_sha": "1cd4fdac3f2214ed7a8c5dbabc80ccd23d688124",
+      "public_health_http": 200,
+      "public_ready_http": 200,
+      "blocker_count": 0,
+      "observed_at_utc": "2026-10-09T02:56:10.169043+00:00"
+    }
+  ],
+  "historical_current_verified_web_release": [
+    {
+      "schema": "reliability_release_metadata_readback.v1",
+      "observed_at_utc": "2026-10-09T01:42:21.254318+00:00",
+      "sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
+      "public": {
+        "version.json": {
+          "http_status": 200,
+          "body": {
+            "git_sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
+            "built_at_iso": "2026-10-09T01:34:15.312Z"
+          }
+        },
+        "health": {
+          "http_status": 200,
+          "body": {
+            "status": "healthy",
+            "timestamp": "2026-10-09T01:42:21.085Z"
+          }
+        },
+        "health/ready": {
+          "http_status": 200,
+          "body": {
+            "status": "ready",
+            "timestamp": "2026-10-09T01:42:21.222Z",
+            "blocker_count": 0
+          }
+        }
+      },
+      "native_reads": {
+        "source": "Fresh purpose-built Render list_deploys normalized metadata",
+        "historical_web": {
+          "id": "dep-db4417jncjis73bn9npg",
+          "status_at_read": "deactivated",
+          "sha": "f88a7e5d5f6e44424f25d971cf39fbab417706e8",
+          "finishedAt": "2026-10-09T01:19:43.974694Z"
+        },
+        "historical_worker": {
+          "id": "dep-db4417ss728c739fsg20",
+          "status_at_read": "deactivated",
+          "sha": "f88a7e5d5f6e44424f25d971cf39fbab417706e8",
+          "finishedAt": "2026-10-09T01:20:22.854634Z"
+        },
+        "current_web": {
+          "id": "dep-db448rjncjis73bo5oh0",
+          "status_at_read": "live",
+          "sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
+          "finishedAt": "2026-10-09T01:35:48.417655Z"
+        },
+        "current_worker": {
+          "id": "dep-db448rss728c739gokeg",
+          "status_at_read": "live",
+          "sha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
+          "finishedAt": "2026-10-09T01:36:32.523015Z"
+        }
+      },
+      "main_CI": {
+        "id": 37869841900,
+        "headSha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
+        "conclusion": "success"
+      },
+      "deployment_workflow": {
+        "id": 37870335076,
+        "headSha": "7cb8e2db9f1aeb3688f2e07b3e85301c54769e18",
+        "conclusion": "success"
+      },
+      "scope": "Current source and public health metadata. Research adoption controls/lease settlement are owned and not established by this receipt. Accepted normal assessment remains189; actual customer-basics API/DOM verified on3d6.",
+      "private_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/status-update-copy/release-f88/metadata-readback.json",
+      "private_receipt_sha256": "8945d573adcd218d1953643965370944fea56bd7223fcd4286425d082fbe3f72"
+    }
+  ],
+  "checkpoint_20261009T0627": {
+    "observed_at_utc": "2026-10-09T06:25:43.295739+00:00",
+    "goal_status": "active; initial-window partial; full readiness incomplete",
+    "native2654": {
+      "pr": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2654",
+      "reviewed_head": "eb4f2c8114cad789796bc1f56bb78935f0cfb53e",
+      "required_ci": 37884251589,
+      "required_ci_conclusion": "success",
+      "merge_sha": "5e30409ed983962b226efd0f9cee25e4ae18514d",
+      "merged_at": "2026-10-09T06:10:05Z",
+      "guard_receipt_sha256": "e40329fea4177fc805e7ff3a2358844ca80d609c95f14489408df666e15bc911",
+      "installed": false
+    },
+    "native_preparation": {
+      "pr": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2655",
+      "head": "bd2ce605020aaa3f1a19fe81c8c3fa8e9a92baf5",
+      "files": 27,
+      "source_files": 21,
+      "tests": 4,
+      "synthetic_fixtures": 2,
+      "scoped_tests_passed": 316,
+      "scope_modules": 20,
+      "scope_seconds": 144.79,
+      "scope_qualification": "20-module cross-contract diagnostic; not the mandated bounded120s impacted gate",
+      "independent_tests_passed": 12,
+      "independent_review": "SOURCE_CLEAR; complete diff",
+      "independent_receipt_sha256": "61b1bceb3f1aab2526e2363f3e9cab042338d6a35b091b4e107ff98b45987e61",
+      "author_receipt_sha256": "859389f520e841ddd05c22251be4e74acf23bdab283b2b54ee5165220117b4a8",
+      "required_ci": 37893246094,
+      "required_ci_status": "in_progress at checkpoint",
+      "installed": false,
+      "case_credit": 0
+    },
+    "native_release_gate": "Final merged current-main CI, mandatory production_deployment_promotion Full Test Lane and official production provenance precede existing-door upgrade/canonical install. No current selected recovery or paid dispatch proof.",
+    "current_canonical_pipeline": "0a17f52d23f233376b9944a6df49101491581f6c",
+    "original_communications": {
+      "recovered_same_charged_turn": true,
+      "new_luna_drafting_turns": 1,
+      "additional_recovery_model_calls": 0,
+      "usage_estimate_usd": 0.002428,
+      "invoice_verified": false,
+      "one_reviewed_question_sent": true,
+      "recipient_delivery_observed": true,
+      "one_mechanical_reply_observed": true,
+      "reply_is_test_input_not_customer_task_facts": true,
+      "reply_import_and_assessment_continuation": "pending; sole original-job master owns",
+      "new_failure": "Gmail rewrites Message-ID; stored requested RFC ID differs from acknowledged-message GET. Narrow receipt reconciliation PR1002; no resend.",
+      "draft_recovered_canonical_sha256": "00fd83dd471ac69408af5509fc0f8e117fb54ed8dc76760d38275f380244d411",
+      "sent_canonical_sha256": "374065f5d1ede88d12178743b6fe1082bd2c8f0947e0e6e7df035babfd492ac1",
+      "claim_ceiling": "Real delivery/reply mechanics, not human task confirmation, criteria or assessment truth."
+    },
+    "fixture_corrections": {
+      "original_context_fixture_sha256": "71194b0474901a90bfca519853f7919cb58b1d7780813b8d651279281fe24b57",
+      "current_owner_fixture_sha256": "3fc7aad1b627c5a3d715fbd23ffa6137744b2e169fe2f1a7db681f0109c1a8a2",
+      "corrections": "v1 timestamp textual mismatch; v2 browser receipt filename mismatched raw generation; both failed runs preserved as fixture failures, not production bugs. v3 frozen before final score, strict-default baseline passes.",
+      "original_failures_retained": true
+    },
+    "readiness": "Evaluation partial. One rights-admitted real source, zero current checked human timestamp labels; no untouched holdout or native joined-path completion. Public clips remain provisional development candidates; no reference-floor credit."
   }
 }
