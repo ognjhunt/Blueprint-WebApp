@@ -11,6 +11,17 @@ export const SITE_JOB_COMMUNICATIONS_CONFIGURATION_DIGEST = communicationsDigest
 export function verifiedSiteJobCommunicationsAgent(agent: any) {
   const { id: _id, ...configuration } = agent ?? {};
   const relevant = Object.fromEntries(Object.keys(SITE_JOB_COMMUNICATIONS_CONFIGURATION).map(key => [key, configuration[key]]));
+  // The provider's session GET expands these three omitted settings to their
+  // neutral defaults. Compare a copied view; retain the exact original agent,
+  // request configuration and checkpoint digest. Unknown settings still fail.
+  for (const [field, key] of [["reasoning", "summary"], ["multi_agent", "max_concurrent_subagents"]]) {
+    if (relevant[field]?.[key] === null) {
+      relevant[field] = { ...relevant[field] }; delete relevant[field][key];
+    }
+  }
+  if (relevant.text?.format && communicationsDigest(relevant.text.format) === communicationsDigest({ type: "text" })) {
+    relevant.text = { ...relevant.text }; delete relevant.text.format;
+  }
   if (communicationsDigest(relevant) !== SITE_JOB_COMMUNICATIONS_CONFIGURATION_DIGEST) throw new Error("job_communications_agent_configuration_changed");
   return SITE_JOB_COMMUNICATIONS_DEFINITION;
 }

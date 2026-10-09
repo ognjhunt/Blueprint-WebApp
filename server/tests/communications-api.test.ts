@@ -3,7 +3,7 @@ import { COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FRAMING_V1, COMMUNICATIO
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommunicationsAgentsAPI, COMMUNICATIONS_INSTRUCTIONS } from "../agents/communications-api";
-import { SITE_JOB_COMMUNICATIONS_PROFILE, SITE_JOB_COMMUNICATIONS_CONFIGURATION } from "../agents/communications-site-job-profile";
+import { SITE_JOB_COMMUNICATIONS_PROFILE, SITE_JOB_COMMUNICATIONS_CONFIGURATION, SITE_JOB_COMMUNICATIONS_CONFIGURATION_DIGEST, verifiedSiteJobCommunicationsAgent } from "../agents/communications-site-job-profile";
 import { COMMUNICATIONS_MODEL, COMMUNICATIONS_PROJECT, communicationsDigest } from "../agents/communications-contract";
 import { communicationsFixture, memoryFirestore } from "./fixtures/communications";
 import { reserveCommunicationsDraft } from "../agents/communications-draft-budget";
@@ -138,6 +138,53 @@ async function rejectedCreateFixture(options: { coverage?: "matching" | "incompl
 }
 
 describe("portable communications Agents API", () => {
+  const observedSiteDefaults = (agent: any) => ({ ...agent, reasoning: { ...agent.reasoning, summary: null },
+    text: { ...agent.text, format: { type: "text" } }, multi_agent: { ...agent.multi_agent, max_concurrent_subagents: null } });
+  it("accepts the three observed provider defaults without rewriting the frozen site configuration or readback", () => {
+    const readback = observedSiteDefaults(structuredClone(SITE_JOB_COMMUNICATIONS_CONFIGURATION)), before = structuredClone(readback);
+    expect(() => verifiedSiteJobCommunicationsAgent(readback)).not.toThrow();
+    expect(readback).toEqual(before);
+    expect(communicationsDigest(SITE_JOB_COMMUNICATIONS_CONFIGURATION)).toBe(SITE_JOB_COMMUNICATIONS_CONFIGURATION_DIGEST);
+    expect(communicationsDigest(readback)).not.toBe(SITE_JOB_COMMUNICATIONS_CONFIGURATION_DIGEST);
+  });
+  it.each([
+    ["model", (a: any) => { a.model = "another-model"; }],
+    ["instructions", (a: any) => { a.instructions += "Changed instruction"; }],
+    ["effort", (a: any) => { a.reasoning.effort = "low"; }],
+    ["summary", (a: any) => { a.reasoning.summary = "detailed"; }],
+    ["verbosity", (a: any) => { a.text.verbosity = "high"; }],
+    ["format", (a: any) => { a.text.format = { type: "json_object" }; }],
+    ["format extension", (a: any) => { a.text.format = { type: "text", schema: {} }; }],
+    ["tools", (a: any) => { a.tools = [{ type: "mcp" }]; }],
+    ["multi-agent", (a: any) => { a.multi_agent.enabled = true; }],
+    ["concurrency", (a: any) => { a.multi_agent.max_concurrent_subagents = 2; }],
+    ["service tier", (a: any) => { a.service_tier = "priority"; }],
+    ["unknown nested setting", (a: any) => { a.reasoning.unreviewed = null; }],
+  ])("rejects meaningful or unknown site-agent changes: %s", (_label, change) => {
+    const readback = observedSiteDefaults(structuredClone(SITE_JOB_COMMUNICATIONS_CONFIGURATION)); change(readback);
+    expect(() => verifiedSiteJobCommunicationsAgent(readback)).toThrow("job_communications_agent_configuration_changed");
+  });
+  it("reconciles the same charged site session through GET only when provider defaults appear on readback", async () => {
+    const output = { ...communicationsFixture().output, outreachContract: null }, f = apiFixture({ rawOutput: JSON.stringify(output), usage: { input_tokens: 8331, output_tokens: 664, total_tokens: 8995 } });
+    const first = await f.api.run({ ...f.params, checkpoint: { ...f.params.checkpoint, siteJobProfile: SITE_JOB_COMMUNICATIONS_PROFILE } });
+    const originalCheckpoint = structuredClone(first.checkpoint), baseline = f.fetchMock.getMockImplementation()!;
+    f.fetchMock.mockImplementation(async (url: any, init: any) => {
+      const response = await baseline(url, init);
+      if (new URL(String(url)).pathname.endsWith("/session-1")) { const session = await response.json(); return Response.json({ ...session, agent: observedSiteDefaults(session.agent) }); }
+      return response;
+    });
+    const before = f.calls.length, recovered = new CommunicationsAgentsAPI({ apiKey: "mock-never-real", allowPaidInference: false,
+      fetch: f.fetchMock as any, recordPaidDraftUsage: f.recordPaidDraftUsage });
+    const result = await recovered.reconcileSaved(originalCheckpoint, "job-1", f.params.saveCheckpoint);
+    expect(result?.output).toEqual(output);
+    expect(result?.checkpoint.sessionId).toBe(first.checkpoint.sessionId);
+    expect(result?.checkpoint.requestDigest).toBe(first.checkpoint.requestDigest);
+    expect(result?.checkpoint.historyConfigurationDigest).toBe(SITE_JOB_COMMUNICATIONS_CONFIGURATION_DIGEST);
+    expect(f.calls.slice(before).every(call => !call.init.method || call.init.method === "GET")).toBe(true);
+    expect(f.calls.filter(call => call.init.method === "POST")).toHaveLength(1);
+    expect(f.reservePaidDraft).toHaveBeenCalledTimes(1);
+    expect(f.recordPaidDraftUsage).toHaveBeenLastCalledWith("job-1", first.checkpoint.requestDigest, { input_tokens: 8331, output_tokens: 664, total_tokens: 8995 });
+  });
   it("uses the real saved agent API with a prospective tool-free customer-job configuration and no mailbox vaults", async () => {
     const output = { ...communicationsFixture().output, outreachContract: null };
     const f = apiFixture({ rawOutput: JSON.stringify(output) });
