@@ -81,7 +81,6 @@ type SiteDecisionAssessment = SiteAdvisory & {
     schemaVersion: "site_decision_evidence.v1";
     packetSha256: string;
     qualificationSha256: string;
-    legacyReviewCompatible: boolean;
   };
 };
 /** Internal only: never spread this view into a customer response or model context. */
@@ -93,8 +92,7 @@ export type CurrentSiteAssessmentView = {
 const decisionView = (advisory: SiteAdvisory | null): CurrentSiteAssessmentView => ({
   customerAdvisory: advisory, decisionAssessment: advisory, compatibleDecisionAssessments: [],
 });
-/** Frozen v1 presentation, evaluated against the CURRENT schema and evidence renderer.
- * Privacy-only presentation changes cannot revoke a review; changed evidence still can. */
+/** Prepare the CURRENT schema and evidence qualifications once for both views. */
 function prepareSiteAssessment(packet: Record<string, any>, admittedDuration: number | null) {
   if (packet.schema_version !== "site_assessment.v2" || !Array.isArray(packet.sources) || packet.sources.length > 100
     || Buffer.byteLength(JSON.stringify(packet)) > 1_000_000) throw Error("site_advisory_packet_invalid");
@@ -182,10 +180,8 @@ export function projectCurrentSiteAssessmentView(packet: Record<string, any>, co
   return { customerAdvisory,
     decisionAssessment: { ...legacy, decisionEvidence: {
       schemaVersion: "site_decision_evidence.v1", packetSha256: hash(packet), qualificationSha256: hash(prepared.rendered),
-      legacyReviewCompatible: prepared.rendered.verification.unverified_claims === 0
-        && legacy.sections.some(section => section.claims.some(claim => claim.verificationStatus === "source_bound")),
     } },
-    // Reduced historical DTOs lack an immutable reviewed evidence identity.
+    // Historical presentation DTOs lack an immutable reviewed evidence identity.
     // Their hashes cannot establish unchanged qualifications; fail closed.
     compatibleDecisionAssessments: [] };
 }

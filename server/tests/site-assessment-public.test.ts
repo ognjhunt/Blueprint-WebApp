@@ -42,18 +42,20 @@ const decisionRecord = (sourceDigest = legacyReviewDigest): Record<string, any> 
     recommendation: "Obtain pull force measurements", why: "A measurement is needed", decisiveUncertainty: "Pull force", nextAction: "Measure force",
     question: { text: "Which final state is required?", reason: "Defines success" } } });
 
-describe("reviewed decision survives customer-only redaction", () => {
+describe("reviewed decision requires current private evidence identity", () => {
   const view = () => projectCurrentSiteAssessmentView(decisionPacket(), "synthetic-correlation", 30);
   const reviewed = (record = decisionRecord(), brief = decisionBrief, current = view()) =>
     projectCurrentSiteJobDecision(record, brief, current.decisionAssessment, current.compatibleDecisionAssessments);
-  it("retains the exact pre-basics named review without altering canonical evidence or exposing analysis", () => {
+  it("withholds the old unbound review and accepts a current bound review without exposing analysis", () => {
     const input = decisionPacket(), original = structuredClone(input), current = projectCurrentSiteAssessmentView(input, "synthetic-correlation", 30);
     const { decisionEvidence, ...legacy } = current.decisionAssessment!;
     expect(siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, legacy)).toBe(legacyReviewDigest);
     expect(siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, current.decisionAssessment)).not.toBe(legacyReviewDigest);
-    expect(decisionEvidence).toMatchObject({ schemaVersion: "site_decision_evidence.v1", legacyReviewCompatible: true,
+    expect(decisionEvidence).toMatchObject({ schemaVersion: "site_decision_evidence.v1",
       packetSha256: createHash("sha256").update(JSON.stringify(input)).digest("hex") });
-    expect(reviewed()).toMatchObject({ nextAction: "Measure force", question: { text: "Which final state is required?" } });
+    expect(reviewed()).toBeNull();
+    const strongDigest = siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, current.decisionAssessment);
+    expect(reviewed(decisionRecord(strongDigest), decisionBrief, current)).toMatchObject({ nextAction: "Measure force", question: { text: "Which final state is required?" } });
     expect(current.customerAdvisory).toEqual(projectCustomerSiteAdvisory(input, "synthetic-correlation", 30));
     expect(JSON.stringify(current.customerAdvisory)).not.toMatch(/Upper rack moves outward|Reasoning to check|decisionAssessment|decisionEvidence|packetSha256|qualificationSha256/);
     expect(input).toEqual(original);
@@ -100,6 +102,40 @@ describe("reviewed decision survives customer-only redaction", () => {
       expect(projectCurrentSiteJobDecision(decisionRecord(digest), decisionBrief, after.decisionAssessment, [before.customerAdvisory])).toBeNull();
     }
   });
+  it("rejects legacy fallback when a consequential interpretation was absent from its presentation digest", () => {
+    const input = decisionPacket();
+    input.raw_model_assessment.next_action = { kind: "research", action: "Check current specifications and unresolved evidence.",
+      why: { text: "Pull force remains unknown", basis: "unknown", evidence: [] } };
+    const before = projectCurrentSiteAssessmentView(input, "synthetic-correlation", 30);
+    const { decisionEvidence: _beforeBinding, ...oldPresentation } = before.decisionAssessment!;
+    const oldDigest = siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, oldPresentation);
+    const strongDigest = siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, before.decisionAssessment);
+    expect(reviewed(decisionRecord(strongDigest), decisionBrief, before)).not.toBeNull();
+    // V4 acceptance correction: old presentation alone never proves immutable
+    // reviewed packet/qualification identity, even before a known mutation.
+    expect(reviewed(decisionRecord(oldDigest), decisionBrief, before)).toBeNull();
+    const changed = structuredClone(input);
+    changed.raw_model_assessment.known.push({ text: "Robot X can lift 250 kg", basis: "unknown", evidence: [] });
+    const after = projectCurrentSiteAssessmentView(changed, "synthetic-correlation", 30);
+    const { decisionEvidence: _afterBinding, ...changedPresentation } = after.decisionAssessment!;
+    expect(changedPresentation).toEqual(oldPresentation);
+    expect(after.customerAdvisory).toEqual(before.customerAdvisory);
+    expect(_afterBinding?.packetSha256).not.toBe(_beforeBinding?.packetSha256);
+    expect(_afterBinding?.qualificationSha256).not.toBe(_beforeBinding?.qualificationSha256);
+    for (const digest of [oldDigest, strongDigest]) {
+      expect(reviewed(decisionRecord(digest), decisionBrief, after)).toBeNull();
+      expect(projectCurrentSiteJobDecision(decisionRecord(digest), decisionBrief, after.decisionAssessment, [oldPresentation])).toBeNull();
+    }
+  });
+  it("preserves a current bound review when only operational metadata outside the evidence basis changes", () => {
+    const current = view(), digest = siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, current.decisionAssessment);
+    const record = decisionRecord(digest);
+    expect(reviewed(record, decisionBrief, current)).not.toBeNull();
+    record.updated_at = "2026-09-03T00:00:00Z";
+    record.operator_diagnostics = { inspected: true };
+    expect(siteJobDecisionSourceDigest(record, decisionBrief, current.decisionAssessment)).toBe(digest);
+    expect(reviewed(record, decisionBrief, current)).not.toBeNull();
+  });
   it("invalidates qualification-only renderer changes while binding the same canonical packet", () => {
     const input = decisionPacket(), original = structuredClone(input), before = projectCurrentSiteAssessmentView(input, "synthetic-correlation", 30);
     const digest = siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, before.decisionAssessment);
@@ -116,7 +152,6 @@ describe("reviewed decision survives customer-only redaction", () => {
     expect(input).toEqual(original);
     expect(after.decisionAssessment?.decisionEvidence?.packetSha256).toBe(before.decisionAssessment?.decisionEvidence?.packetSha256);
     expect(after.decisionAssessment?.decisionEvidence?.qualificationSha256).not.toBe(before.decisionAssessment?.decisionEvidence?.qualificationSha256);
-    expect(after.decisionAssessment?.decisionEvidence?.legacyReviewCompatible).toBe(false);
     expect(reviewed(decisionRecord(digest), decisionBrief, after)).toBeNull();
     expect(reviewed(decisionRecord(legacyReviewDigest), decisionBrief, after)).toBeNull();
   });
@@ -129,29 +164,35 @@ describe("reviewed decision survives customer-only redaction", () => {
     ["answer", (r: Record<string, any>) => { r.customerConversation.push({ text: "Close the rack" }); }],
     ["clarification", (r: Record<string, any>) => { r.site_task_clarification = { explanation: "Different final state" }; }],
     ["proposal", (r: Record<string, any>) => { r.pilot_recommendation = { state: "proposed" }; }],
-  ] as const)("invalidates a real %s change for both historical review bases", (_kind, edit) => {
-    for (const digest of [legacyReviewDigest, basicsReviewDigest]) {
-      const record = decisionRecord(digest); edit(record); expect(reviewed(record)).toBeNull();
-    }
+  ] as const)("invalidates a real %s change for a previously accepted current review", (_kind, edit) => {
+    const current = view(), digest = siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, current.decisionAssessment);
+    expect(reviewed(decisionRecord(digest), decisionBrief, current)).not.toBeNull();
+    const record = decisionRecord(digest); edit(record); expect(reviewed(record, decisionBrief, current)).toBeNull();
   });
   it("invalidates changed brief and canonical observation, despite keeping the same private projection format", () => {
-    expect(reviewed(decisionRecord(), { ...decisionBrief, summary: "Different work" })).toBeNull();
+    const digest = siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, view().decisionAssessment);
+    expect(reviewed(decisionRecord(digest))).not.toBeNull();
+    expect(reviewed(decisionRecord(digest), { ...decisionBrief, summary: "Different work" })).toBeNull();
     const changed = decisionPacket(); changed.sources[0].content.evidence.observations[0].finding = "Upper rack remains stationary";
-    expect(reviewed(decisionRecord(), decisionBrief, projectCurrentSiteAssessmentView(changed, "synthetic-correlation", 30))).toBeNull();
+    expect(reviewed(decisionRecord(digest), decisionBrief, projectCurrentSiteAssessmentView(changed, "synthetic-correlation", 30))).toBeNull();
   });
   it("uses current evidence qualifications for every historical presentation, never old unsafe bindings", () => {
     const changed = decisionPacket();
     changed.raw_model_assessment.job[0].evidence[0].selector = null as any;
     const current = projectCurrentSiteAssessmentView(changed, "synthetic-correlation", 30);
     expect(current.decisionAssessment?.sections).toEqual([]);
-    for (const digest of [legacyReviewDigest, basicsReviewDigest]) expect(reviewed(decisionRecord(digest), decisionBrief, current)).toBeNull();
+    for (const digest of [legacyReviewDigest, basicsReviewDigest, siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, view().decisionAssessment)]) expect(reviewed(decisionRecord(digest), decisionBrief, current)).toBeNull();
   });
   it.each(["unavailable", "authority_ended"] as const)("does not retain a ready review when the current reader is %s", state => {
     const unavailable = { ...view().customerAdvisory!, state, sections: [], unknowns: [], nextAction: null };
-    expect(projectCurrentSiteJobDecision(decisionRecord(), decisionBrief, unavailable)).toBeNull();
+    const digest = siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, view().decisionAssessment);
+    expect(reviewed(decisionRecord(digest))).not.toBeNull();
+    expect(projectCurrentSiteJobDecision(decisionRecord(digest), decisionBrief, unavailable)).toBeNull();
   });
   it.each([{ reviewedBy: "" }, { reviewedAtIso: "bad-date" }, { schemaVersion: "other" }])("preserves named-human/schema/timestamp checks: %s", changes => {
-    const record = decisionRecord(); Object.assign(record.customer_decision, changes); expect(reviewed(record)).toBeNull();
+    const digest = siteJobDecisionSourceDigest(decisionRecord(), decisionBrief, view().decisionAssessment);
+    const record = decisionRecord(digest); expect(reviewed(record)).not.toBeNull();
+    Object.assign(record.customer_decision, changes); expect(reviewed(record)).toBeNull();
   });
 });
 

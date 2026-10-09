@@ -49,7 +49,7 @@ describe("recording Blueprint's recommended pilot", () => {
     const safe = { schemaVersion: "site_customer_advisory.v1" as const, state: "ready" as const, correlationId: "synthetic-correlation",
       sections: [], unknowns: ["Force remains unknown"], nextAction: "Measure pull force" };
     const privateBasis = { ...safe, nextAction: "Internal rationale test paragraph", sections: [{ title: "Internal analysis test paragraph", claims: [] }],
-      decisionEvidence: { schemaVersion: "site_decision_evidence.v1" as const, packetSha256: "a".repeat(64), qualificationSha256: "b".repeat(64), legacyReviewCompatible: false } };
+      decisionEvidence: { schemaVersion: "site_decision_evidence.v1" as const, packetSha256: "a".repeat(64), qualificationSha256: "b".repeat(64) } };
     const load = vi.spyOn(advisory, "loadCurrentSiteAssessmentView").mockResolvedValue({ customerAdvisory: safe, decisionAssessment: privateBasis,
       compatibleDecisionAssessments: [safe] });
     const brief = { requestId: "req1", summary: "Open rack", unresolved: [], proposed: [], operatorAnswers: {}, operatorUnknown: [] };
