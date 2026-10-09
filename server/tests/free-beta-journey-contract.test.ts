@@ -55,9 +55,12 @@ beforeEach(async () => {
     return originalFetch(input, init);
   });
   console.log("journey_setup_routes_started", Date.now(), process.version);
-  const [{ default: workspace }, { default: pipeline }] = await Promise.all([
-    import("../routes/workspace").then(m => {console.log("journey_setup_workspace_loaded", Date.now());return m;}), import("../routes/internal-agent-run-settlement").then(m => {console.log("journey_setup_pipeline_loaded", Date.now());return m;}),
-  ]);
+  // The route graphs share cyclic run/result modules. Await their evaluation
+  // separately so Vitest's mocked dynamic importer cannot wait on both graphs.
+  const { default: workspace } = await import("../routes/workspace");
+  console.log("journey_setup_workspace_loaded", Date.now());
+  const { default: pipeline } = await import("../routes/internal-agent-run-settlement");
+  console.log("journey_setup_pipeline_loaded", Date.now());
   console.log("journey_setup_routes_loaded", Date.now());
   const app = express();
   app.use(express.json());

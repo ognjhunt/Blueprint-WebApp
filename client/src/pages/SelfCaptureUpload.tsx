@@ -573,6 +573,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         background: "var(--ms-paper)",
       }}
     >
+      {saved && scope === "owner" && status.siteAdvisory?.correlationId
+        && status.siteAdvisory.state !== "authority_ended" && <>
+        <h2>Your saved job</h2>
+        <p>Job reference: {status.siteAdvisory.correlationId}</p>
+      </>}
       <strong>{upload.status === "processing_pending" || upload.status === "held"
         ? "Your video is saved."
         : existingVideoOnly && !saved && upload.status !== "done" && status.decision !== "add_views"
