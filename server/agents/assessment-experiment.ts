@@ -15,6 +15,58 @@ export function experimentErrorCode(message: unknown) {
   return typeof message === "string" && /^(experiment_|inference_programme_|site_assessment_|assessment_|gemini_video_)[a-z0-9_]+$/.test(message)
     ? message : "experiment_failed";
 }
+
+const inspectableExceptionClasses = new Set([
+  "Error", "SyntaxError", "TypeError", "ZodError", "OpenAIError", "APIError", "APIConnectionError", "APIConnectionTimeoutError",
+  "APIUserAbortError", "BadRequestError", "AuthenticationError", "PermissionDeniedError", "NotFoundError", "ConflictError",
+  "UnprocessableEntityError", "RateLimitError", "InternalServerError", "AgentsError", "SystemError", "UserError", "ModelBehaviorError",
+  "InvalidToolInputError", "ToolCallError", "GuardrailExecutionError", "InputGuardrailTripwireTriggered", "OutputGuardrailTripwireTriggered", "MaxTurnsExceededError",
+]);
+function exceptionClass(error: unknown) {
+  try {
+    const constructor = error && typeof error === "object"
+      ? Object.getOwnPropertyDescriptor(Object.getPrototypeOf(error), "constructor")?.value : undefined;
+    const name = typeof constructor === "function" ? Object.getOwnPropertyDescriptor(constructor, "name")?.value : undefined;
+    if (typeof name === "string" && inspectableExceptionClasses.has(name)) return name;
+  } catch {}
+  return "Error";
+}
+function schemaIssues(value: unknown) {
+  try {
+    if (!Array.isArray(value)) return undefined;
+    return Object.entries(Object.getOwnPropertyDescriptors(value)).flatMap(([index, descriptor]) => {
+      try {
+        if (!/^\d+$/.test(index) || !("value" in descriptor) || !descriptor.value || typeof descriptor.value !== "object") return [];
+        const path = Object.getOwnPropertyDescriptor(descriptor.value, "path")?.value;
+        const code = Object.getOwnPropertyDescriptor(descriptor.value, "code")?.value;
+        if (!Array.isArray(path) || !Object.values(z.ZodIssueCode).includes(code)) return [];
+        const parts = Object.getOwnPropertyDescriptors(path) as Record<string, PropertyDescriptor>;
+        const entries = Object.entries(parts).filter(([key]) => /^\d+$/.test(key));
+        if (entries.length !== parts.length?.value || entries.some(([, part]) => !("value" in part)
+          || !(typeof part.value === "string" || typeof part.value === "number" && Number.isFinite(part.value)))) return [];
+        return [{ path: entries.map(([, part]) => part.value), code }];
+      } catch { return []; }
+    });
+  } catch { return undefined; }
+}
+
+/** Keep repairable provider/SDK identity, never private exception prose, headers, state or stack. */
+export function experimentFailure(error: unknown, includeCause = true) {
+  const own = (key: string) => { try { return error && typeof error === "object" ? Object.getOwnPropertyDescriptor(error, key)?.value : undefined; } catch { return undefined; } };
+  const status = own("status"), code = own("code"), cause = own("cause");
+  const kind = exceptionClass(error);
+  // Never retain arbitrary exception prose/stack/body. Owned codes and schema paths are enough to repair input.
+  const ownMessage = own("message");
+  const message = experimentErrorCode(ownMessage);
+  const providerCode = typeof code === "string" && /^(gemini_video_[a-z0-9_]+|invalid_request_error|rate_limit_exceeded|context_length_exceeded|invalid_api_key|insufficient_quota|server_error|model_not_found|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN)$/.test(code) ? code : null;
+  return { code: message, provider_error_code: providerCode,
+    http_status: typeof status === "number" && Number.isInteger(status) && status >= 100 && status <= 599 ? status : null,
+    ...(includeCause && cause && cause !== error ? { cause: experimentFailure(cause, false) } : {}),
+    exception_class: kind,
+    issues: kind === "ZodError" ? schemaIssues(own("issues")) : undefined,
+    system_code: ["ENOENT", "EEXIST", "EACCES"].includes(code) ? code : undefined };
+}
+
 const sha = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 export const experimentRetention = z.object({ local_evidence_allowed: z.literal(true),
