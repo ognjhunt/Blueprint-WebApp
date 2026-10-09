@@ -115,13 +115,23 @@ async function currentAddress(origin: LocationOrigin, browserKey: string | null,
   // geocoding key must not turn a successful GPS result into an empty field.
   return within((async () => {
     try {
-      const params = new URLSearchParams({ lat: String(origin.lat), lon: String(origin.lng), limit: "1", lang: "en" });
+      const params = new URLSearchParams({ lat: String(origin.lat), lon: String(origin.lng), limit: "5", radius: "0.2", lang: "en" });
       const response = await fetch(`https://photon.komoot.io/reverse?${params}`, { signal, cache: "no-store" });
       if (!response.ok) return null;
       const data = await response.json() as { features?: { properties?: Record<string, unknown> }[] };
-      const properties = data.features?.[0]?.properties;
+      const candidates: Record<string, unknown>[] = (data.features ?? []).map(({ properties = {} }) => ({
+        ...properties,
+        street: properties.street || (properties.type === "street" ? properties.name : undefined),
+        city: properties.city || (properties.type === "city" ? properties.name : undefined),
+      }));
+      const hasText = (properties: Record<string, unknown>, key: string) => typeof properties[key] === "string" && Boolean((properties[key] as string).trim());
+      const properties = candidates.find((item) => hasText(item, "housenumber") && hasText(item, "street"))
+        ?? candidates.find((item) => hasText(item, "street"))
+        ?? candidates.find((item) => hasText(item, "city"));
       if (!properties) return null;
-      const label = photonLabel(properties);
+      // A nearby bus stop or business can be the first result. Fill address
+      // parts, without importing that point of interest's display name.
+      const label = photonLabel({ ...properties, name: "" });
       const code = typeof properties.countrycode === "string" ? properties.countrycode.trim().toUpperCase() : "";
       return label ? { label, countryCode: /^[A-Z]{2}$/.test(code) ? code : null, source: "photon" as const } : null;
     } catch { return null; }
