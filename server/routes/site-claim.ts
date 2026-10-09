@@ -48,7 +48,9 @@ router.get(
         claimEmail: typeof record.contact?.email === "string" ? record.contact.email : null,
         siteTermsAcceptedCurrent: isCurrentLegalAcceptance(record.terms_acceptance),
         accountDefaults: {
-          name: [record.contact?.firstName, record.contact?.lastName].filter(value => typeof value === "string" && value.trim()).join(" ").trim().slice(0, 160),
+          name: [record.contact?.firstName, record.contact?.lastName]
+            .filter(value => typeof value === "string" && value.trim() && !["there", "—"].includes(value.trim().toLowerCase()))
+            .join(" ").trim().slice(0, 160),
           organization: String(record.contact?.company || request.siteName || request.siteLocation || "").trim().slice(0, 160) || null,
         },
         site: {

@@ -54,6 +54,10 @@ it("prefills identity and organization from the submitted job", async () => {
   store.get.mockResolvedValue({ exists: true, data: () => ({ request: { buyerType: "site_operator", siteName: "Site" }, contact: { email: "fixture@example.test", firstName: "Alex", lastName: "Owner", company: "Actual Company" } }) });
   expect((await read()).json).toHaveBeenCalledWith(expect.objectContaining({ accountDefaults: { name: "Alex Owner", organization: "Actual Company" } }));
 });
+it("does not replace an account's identity with an omitted intake name", async () => {
+  store.get.mockResolvedValue({ exists: true, data: () => ({ request: { buyerType: "site_operator", siteName: "Site" }, contact: { email: "fixture@example.test", firstName: "there", lastName: "—" } }) });
+  expect((await read()).json).toHaveBeenCalledWith(expect.objectContaining({ accountDefaults: { name: "", organization: "Site" } }));
+});
 it.each([{ request: { buyerType: "robot_team" }, contact: { email: "fixture@example.test" } }, { request: { buyerType: "site_operator" }, contact: {} }])("does not offer site account creation for an unusable job", async record => {
   store.get.mockResolvedValue({ exists: true, data: () => record });
   expect((await read()).status).toHaveBeenCalledWith(404);
