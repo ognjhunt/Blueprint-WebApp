@@ -17,6 +17,7 @@ import { automaticFirstContactEnabled, firstContactAuthority, verifyFirstContact
 import { firstContactPostalLine } from "./communications-first-contact-footer";
 import { reviewCommunicationsPayload } from "./communications-review";
 import { outputTextDigest, type CommunicationsOutputSource } from "./communications-output";
+import { prepareRejectedBoundedDraftRegeneration } from "./communications-draft-budget";
 
 export const COMMUNICATIONS_ROOT = "blueprintCommunications/default";
 export const COMMUNICATIONS_SAVED_RECOVERY_REQUESTER = "communications worker (completed saved-session recovery)";
@@ -192,6 +193,15 @@ export class CommunicationsStore {
       verifyCommunicationsHandoff(handoff.data(), brief);
       const queued = await prepareCommunicationsEnqueue(tx, this.db, jobInput, this.now(),
         input.regenerationOf ? { expectedJobDigest: input.expectedJobDigest ?? "" } : undefined);
+      let classifyRejected: (() => void) | undefined;
+      if (input.regenerationOf && queued.created) {
+        const parent = (await tx.get(this.jobs().doc(input.regenerationOf))).data() as CommunicationsJobRecord;
+        if (parent.checkpoint.createClaimedAt && parent.manualDraftRequest && !parent.output) {
+          if (parent.briefId !== input.briefId || parent.briefDigest !== digest) throw Error("communications_draft_brief_changed");
+          classifyRejected = await prepareRejectedBoundedDraftRegeneration(this.db, tx, parent, queued.record.jobId,
+            actorUid, input.sessionSpendLimitCents, this.now());
+        }
+      }
       if (queued.record.manualDraftRequest) {
         if (queued.record.manualDraftRequest.requestDigest !== requestDigest) throw Error("communications_draft_request_changed");
         // An identical explicit retry can resume only a requeued native job.
@@ -207,6 +217,7 @@ export class CommunicationsStore {
       if (queued.record.checkpoint.createClaimedAt || queued.record.attempts || queued.record.state !== "queued") throw Error("communications_draft_requires_explicit_regeneration");
       queued.record.manualDraftRequest = { ...request, requestDigest, state: "requested", requestedAt: this.now() };
       queued.record.checkpoint.sessionSpendLimitCents = input.sessionSpendLimitCents;
+      classifyRejected?.();
       queued.commit();
       if (!queued.created) tx.set(this.jobs().doc(queued.record.jobId), { manualDraftRequest: queued.record.manualDraftRequest,
         checkpoint: queued.record.checkpoint }, { merge: true });

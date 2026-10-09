@@ -179,7 +179,8 @@ function SavedOutputRecovery({ job, onSelected, onRecovered }: { job: BlockedJob
 function OwnerDraftRequest() {
   const { currentUser } = useAuth();
   const actor = useRef(currentUser?.uid); actor.current = currentUser?.uid;
-  const empty = { prospectId: "", briefId: "", expectedBriefDigest: "", expectedSourceCommit: "", sessionSpendLimitCents: "" };
+  const empty = { prospectId: "", briefId: "", expectedBriefDigest: "", expectedSourceCommit: "", sessionSpendLimitCents: "",
+    regenerationOf: "", expectedJobDigest: "" };
   const [input, setInput] = useState(empty);
   const [result, setResult] = useState<{ actorUid: string; message: string } | null>(null);
   useEffect(() => { setInput(empty); setResult(null); }, [currentUser?.uid]);
@@ -193,13 +194,15 @@ function OwnerDraftRequest() {
       const response = await fetch(`/api/admin/outbound-prospects/${encodeURIComponent(input.prospectId)}/communications/generate`, {
         method: "POST", credentials: "include", headers,
         body: JSON.stringify({ briefId: input.briefId, expectedBriefDigest: input.expectedBriefDigest,
-          expectedSourceCommit: input.expectedSourceCommit, sessionSpendLimitCents: Number(input.sessionSpendLimitCents) }),
+          expectedSourceCommit: input.expectedSourceCommit, sessionSpendLimitCents: Number(input.sessionSpendLimitCents),
+          ...(input.regenerationOf ? { regenerationOf: input.regenerationOf, expectedJobDigest: input.expectedJobDigest } : {}) }),
       });
       const body = await response.json();
       if (actor.current !== uid) return;
       if (!response.ok) throw new Error(body.error ?? "Draft request was not accepted.");
       const job = { prospectId: input.prospectId, briefId: input.briefId,
-        briefDigest: input.expectedBriefDigest, intent: "outreach", inboundMessageId: null };
+        briefDigest: input.expectedBriefDigest, intent: "outreach", inboundMessageId: null,
+        ...(input.regenerationOf ? { regenerationOf: input.regenerationOf } : {}) };
       const digest = await requestDigest({ job, actorUid: uid,
         sourceCommit: input.expectedSourceCommit, sessionSpendLimitCents: Number(input.sessionSpendLimitCents) });
       const jobId = await requestDigest(job);
@@ -219,14 +222,17 @@ function OwnerDraftRequest() {
   const valid = /^[a-zA-Z0-9_.:-]{1,160}$/.test(input.prospectId) && /^[a-zA-Z0-9_.:-]{1,160}$/.test(input.briefId)
     && /^[a-f0-9]{64}$/.test(input.expectedBriefDigest) && /^[a-f0-9]{40}$/.test(input.expectedSourceCommit)
     && /^[0-9]+$/.test(input.sessionSpendLimitCents) && Number.isSafeInteger(limit) && limit > 0
-    && limit <= Math.floor(Number.MAX_SAFE_INTEGER / 10000);
+    && limit <= Math.floor(Number.MAX_SAFE_INTEGER / 10000)
+    && (!input.regenerationOf && !input.expectedJobDigest || hash.test(input.regenerationOf) && hash.test(input.expectedJobDigest));
   return <details className="mt-3 text-sm text-runway-body"><summary>Request an agent draft</summary>
     <p className="mt-2">Use the admitted research brief and current deployed revision. This requests model work under the existing budget; the session limit is not an invoice guarantee. Only the configured founder owner can submit. Sending and Gmail copying are separate.</p>
     <form className="mt-2 space-y-2" onSubmit={event => { event.preventDefault(); if (valid && currentUser && !request.isPending) { setResult(null); request.mutate(); } }}>
       {([ ["prospectId", "Prospect ID"], ["briefId", "Reviewed brief ID"], ["expectedBriefDigest", "Reviewed brief digest"],
-        ["expectedSourceCommit", "Expected deployed revision"], ["sessionSpendLimitCents", "Session limit in cents"] ] as const).map(([key, label]) =>
+        ["expectedSourceCommit", "Expected deployed revision"], ["sessionSpendLimitCents", "Session limit in cents"],
+        ["regenerationOf", "Original unsent job ID (optional)"], ["expectedJobDigest", "Original job digest (required for replacement)"] ] as const).map(([key, label]) =>
         <label key={key} className="block">{label}<input className="block w-full border border-runway-line p-2" value={input[key]}
-          disabled={request.isPending} required onChange={event => setInput(previous => ({ ...previous, [key]: event.target.value }))} /></label>)}
+          disabled={request.isPending} required={key !== "regenerationOf" && key !== "expectedJobDigest"}
+          onChange={event => setInput(previous => ({ ...previous, [key]: event.target.value }))} /></label>)}
       <button type="submit" className="runway-cta-ghost px-3 py-2" disabled={!currentUser || !valid || request.isPending}>
         {request.isPending ? "Requesting draft…" : "Request agent draft"}</button>
     </form>

@@ -149,6 +149,83 @@ describe("retained recurring direction and one new draft slot", () => {
     expect(f.db.records.get(f.path)).toEqual(held); expect(f.db.records.get(`${root}/jobs/${f.job.jobId}`)).toEqual(job);
     expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros).toBe(55334);
   });
+  async function rejectedBounded() {
+    const f = recurring(), fixture = communicationsFixture();
+    const brief = { ...fixture.brief, prospectId: "bounded-prospect", briefId: "bounded-brief" };
+    const briefDigest = communicationsDigest(brief), identity = { prospectId: brief.prospectId, briefId: brief.briefId,
+      briefDigest, intent: "outreach", inboundMessageId: null };
+    const jobId = communicationsDigest(identity), base = "e".repeat(64);
+    const requestDigest = communicationsDigest({ requestBaseDigest: base, sessionSpendLimitCents: 100 });
+    const admissionId = await reserveCommunicationsDraft(f.db, jobId, requestDigest, communicationsNow, 100);
+    const binding = { jobId, requestDigest, inputDigest: "f".repeat(64), createClaimedAt: new Date(communicationsNow - 1000).toISOString(),
+      sessionId: null, turnId: null };
+    const bodyBase64 = Buffer.from(JSON.stringify({ error: { type: "invalid_request_error", code: "invalid_request_error",
+      param: "spend_control", message: "Session budget configuration is not enabled" } })).toString("base64");
+    const response = { status: 400, method: "POST", path: "/agents/sessions", capture: "complete",
+      requestId: "synthetic-request", bytes: Buffer.from(bodyBase64, "base64").length, bodyBase64,
+      bodyDigest: createHash("sha256").update(bodyBase64).digest("hex") };
+    const parent: any = { ...identity, jobId, state: "blocked", reason: "agents_api_http_400", attempts: 1, lease: { until: 0 },
+      manualDraftRequest: { actorUid: "synthetic-owner", state: "failed", sessionSpendLimitCents: 100 },
+      checkpoint: { createClaimedAt: binding.createClaimedAt, sessionId: null, turnId: null, requestDigest,
+        sessionSpendRequestBaseDigest: base, sessionSpendLimitCents: 100, draftProfile: "outreach-ready-hypothesis-v1",
+        httpFailure: { ...response, binding, retention: "retained" }, httpEvidence: { snapshot: { version: 1, binding: structuredClone(binding), response } } } };
+    f.db.records.set(`${root}/jobs/${jobId}`, parent);
+    f.db.records.set(`${root}/briefs/${brief.briefId}`, brief);
+    f.db.records.set(`${root}/handoffs/${briefDigest}`, { ...fixture.handoff, briefDigest });
+    f.db.records.set(`outboundProspects/${brief.prospectId}`, { contactEmail: brief.contact.email, stage: "drafted" });
+    // Stable first-touch claim must be present for the original owner job.
+    const { communicationsDeliveryKey } = await import("../agents/communications-contract");
+    f.db.records.set(`${root}/firstTouches/${communicationsDeliveryKey(parent)}`, { jobId });
+    const store = new CommunicationsStore(f.db, () => communicationsNow, "synthetic-worker");
+    const input = { prospectId: brief.prospectId, briefId: brief.briefId, expectedBriefDigest: briefDigest,
+      sourceCommit: "a".repeat(40), sessionSpendLimitCents: 100, regenerationOf: jobId, expectedJobDigest: communicationsDigest(parent) };
+    return { ...f, parent, admissionId, input, store };
+  }
+  it("atomically classifies only the retained rejection and admits one deterministic owner replacement without refunding exposure", async () => {
+    const f = await rejectedBounded(), originalCheckpoint = structuredClone(f.parent.checkpoint);
+    const oldLiability = structuredClone(f.db.records.get(f.path));
+    const outcomes = await Promise.all([f.store.requestDraft(f.input, "synthetic-owner"), f.store.requestDraft(f.input, "synthetic-owner")]);
+    expect(outcomes[0].jobId).toBe(outcomes[1].jobId);
+    const old = f.db.records.get(`${root}/jobs/${f.parent.jobId}`);
+    expect(old.checkpoint).toEqual(originalCheckpoint); expect(old).toMatchObject({ state: "superseded", replacedBy: outcomes[0].jobId });
+    expect(f.db.records.get(`${root}/draftBudgetAdmissions/${f.admissionId}`)).toMatchObject({ state: "create_rejected", usageState: "unresolved",
+      sessionReservationMicros: 1000000, rejectedCreateClassification: { replacementJobId: outcomes[0].jobId,
+        accountingComplete: false, invoiceVerified: false } });
+    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toMatchObject({ activeAdmissionId: f.id,
+      recurringActiveAdmissionId: null, retainedSessionReservationsMicros: 1000000 });
+    const newId = await reserveCommunicationsDraft(f.db, outcomes[0].jobId, digest, communicationsNow, 100);
+    expect(f.db.records.get(`${root}/draftBudgetState/current`)).toMatchObject({ recurringActiveAdmissionId: newId,
+      retainedSessionReservationsMicros: 2000000 });
+    expect(f.db.records.get(f.path)).toEqual(oldLiability);
+    await expect(recordCommunicationsDraftUsage(f.db, f.parent.jobId, f.parent.checkpoint.requestDigest, usage, communicationsNow))
+      .rejects.toThrow("invoice_unresolved");
+    await expect(reserveCommunicationsDraft(f.db, "third", digest, communicationsNow, 100)).rejects.toThrow("cost_unresolved");
+  });
+  it.each(["unknown", "partial", "different_error", "body_digest", "binding", "session", "limit", "owner", "checkpoint", "pointer", "unretained", "second_recovery"])
+    ("preserves all records when rejected-create regeneration has %s evidence", async kind => {
+      const f = await rejectedBounded(), parent = f.db.records.get(`${root}/jobs/${f.parent.jobId}`), cp = parent.checkpoint;
+      if (kind === "unknown") { parent.reason = "agents_api_connection_unknown"; cp.httpFailure.status = 502; }
+      if (kind === "partial") cp.httpFailure.capture = "partial";
+      if (kind === "different_error") {
+        const r = cp.httpEvidence.snapshot.response;
+        r.bodyBase64 = Buffer.from(JSON.stringify({ error: { type: "invalid_request_error", code: "invalid_request_error",
+          param: "input", message: "Other validation error" } })).toString("base64");
+        r.bytes = Buffer.from(r.bodyBase64, "base64").length; r.bodyDigest = createHash("sha256").update(r.bodyBase64).digest("hex");
+        cp.httpFailure.bytes = r.bytes; cp.httpFailure.bodyDigest = r.bodyDigest;
+      }
+      if (kind === "body_digest") cp.httpEvidence.snapshot.response.bodyBase64 += "x";
+      if (kind === "binding") cp.httpEvidence.snapshot.binding.inputDigest = "0".repeat(64);
+      if (kind === "session") cp.sessionId = "existing-session";
+      if (kind === "limit") f.input.sessionSpendLimitCents = 101;
+      if (kind === "owner") parent.manualDraftRequest.actorUid = "different-owner";
+      if (kind === "pointer") f.db.records.get(`${root}/draftBudgetState/current`).recurringActiveAdmissionId = "other";
+      if (kind === "unretained") cp.httpFailure.retention = "private_evidence_unavailable";
+      if (kind === "second_recovery") parent.regenerationOf = "0".repeat(64);
+      f.input.expectedJobDigest = kind === "checkpoint" ? "0".repeat(64) : communicationsDigest(parent);
+      const before = structuredClone([...f.db.records]);
+      await expect(f.store.requestDraft(f.input, "synthetic-owner")).rejects.toThrow();
+      expect([...f.db.records]).toEqual(before);
+    });
   it("reserves the whole selected session limit, retains it after best-effort usage and prevents changed replay or daily oversubscription", async () => {
     const f = recurring(), original = structuredClone(f.db.records.get(f.path));
     const id = await reserveCommunicationsDraft(f.db, "bounded", digest, communicationsNow, 10);
