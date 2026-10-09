@@ -12,6 +12,7 @@ import { projectCurrentSiteJobDecision } from "../utils/siteJobDecision";
 import { brandedEmail, EMAIL_SIGN_OFF } from "../utils/emailLayout";
 import { assessmentCustomerStatementRefs, siteCustomerStatementDigest } from "../utils/siteCustomerStatements";
 import { prepareCustomerReplySiteAssessment, tickSiteAssessments } from "../utils/siteAssessmentQueue";
+import { resolveSiteJobRuntimeAuthorization, reserveSiteJobDraft, settleExistingSiteJobDraftUsage } from "./communications-site-job-runtime";
 
 /** The existing communications agent, attached to an inbound job rather than an
  * invented outbound research prospect. No send or paid-call authority is added. */
@@ -23,23 +24,38 @@ export type SiteJobCommunicationsPorts = {
   suppressed: (email: string) => Promise<boolean>;
   suppress: (email: string) => Promise<unknown>;
   now: () => number;
+  assertRuntime?: () => void;
 };
 export class SiteJobCommunicationsError extends Error {
   constructor(readonly code: string, readonly status = 409) { super(code); }
 }
 function fail(code: string, status = 409): never { throw new SiteJobCommunicationsError(code, status); }
 const email = (value: unknown) => String(value ?? "").trim().toLowerCase();
-export function existingSiteJobCommunicationsPorts(db: FirebaseFirestore.Firestore): SiteJobCommunicationsPorts {
+export function siteJobCommunicationsRuntimeFlags(requestId: string, recipient: string) {
+  const scoped = Boolean(resolveSiteJobRuntimeAuthorization(requestId, recipient));
+  return { deliveryEnabled: scoped || process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "true",
+    draftingEnabled: scoped || process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true" };
+}
+export function existingSiteJobCommunicationsPorts(db: FirebaseFirestore.Firestore, requestId = "", recipient = ""): SiteJobCommunicationsPorts {
+  const authority = resolveSiteJobRuntimeAuthorization(requestId, recipient);
   const api = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY,
-    allowPaidInference: process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true",
+    allowPaidInference: Boolean(authority) || process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true",
     reservePaidDraft: async (jobId, digest, sessionSpendLimitCents) => {
+      if (authority) return reserveSiteJobDraft(db, authority, jobId, digest);
       await reconcileCommunicationsDraftCost(db, api, Date.now());
       return reserveCommunicationsDraft(db, jobId, digest, Date.now(), sessionSpendLimitCents);
     },
-    recordPaidDraftUsage: (jobId, digest, usage) => recordCommunicationsDraftUsage(db, jobId, digest, usage, Date.now()),
+    recordPaidDraftUsage: async (jobId, digest, usage) => {
+      if (await settleExistingSiteJobDraftUsage(db, requestId, jobId, digest, usage)) return;
+      return recordCommunicationsDraftUsage(db, jobId, digest, usage, Date.now());
+    },
   });
   return { api, readThread: readFounderThread, send: sendFounderMessage,
-    sendsEnabled: () => process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "true",
+    sendsEnabled: () => authority ? communicationsDigest(resolveSiteJobRuntimeAuthorization(requestId, recipient)) === communicationsDigest(authority)
+      : process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "true",
+    ...(authority ? { assertRuntime: () => {
+      if (communicationsDigest(resolveSiteJobRuntimeAuthorization(requestId, recipient)) !== communicationsDigest(authority)) fail("job_runtime_authorization_unavailable");
+    } } : {}),
     suppressed: to => isEmailSuppressed(to, "lifecycle"),
     suppress: to => recordEmailSuppression({ email: to, scope: "all", reason: "recipient_opt_out", source: "site_job_communications_reply" }), now: Date.now };
 }
@@ -102,8 +118,9 @@ async function requireJobThreadAnchor(db: FirebaseFirestore.Firestore, requestId
   return anchors;
 }
 export async function draftSiteJobCommunication(db: FirebaseFirestore.Firestore, requestId: string, actor: string,
-  request: SiteJobDraftRequest, ports = existingSiteJobCommunicationsPorts(db)) {
+  request: SiteJobDraftRequest, injectedPorts?: SiteJobCommunicationsPorts) {
   const loaded = await loadSiteJobCommunicationsContext(db, requestId);
+  const ports = injectedPorts ?? existingSiteJobCommunicationsPorts(db, requestId, loaded.context.recipient);
   if (!actor || request.reviewedCustomerContext !== true || loaded.contextDigest !== request.expectedContextDigest) fail("job_context_review_required");
   if (loaded.context.captureConsentWithdrawn) fail("job_capture_authority_withdrawn");
   if (await ports.suppressed(loaded.context.recipient)) fail("job_customer_suppressed");
@@ -162,6 +179,7 @@ export async function draftSiteJobCommunication(db: FirebaseFirestore.Firestore,
       : output.usedFactIds.some(id => !allowed.has(id)) ? [{ code: "job_fact_not_bound", path: "usedFactIds", message: "Use only recorded proposed field IDs, or an empty list when using the task statement or proposal." }] : null;
   };
   const assertCurrent = async () => {
+    ports.assertRuntime?.();
     const fresh = await loadSiteJobCommunicationsContext(db, requestId);
     if (fresh.sourceDigest !== loaded.sourceDigest || fresh.contextDigest !== loaded.contextDigest || fresh.context.captureConsentWithdrawn) fail("job_context_changed");
     if (await ports.suppressed(loaded.context.recipient)) fail("job_customer_suppressed");
@@ -171,6 +189,7 @@ export async function draftSiteJobCommunication(db: FirebaseFirestore.Firestore,
       if (currentThread.messages.some(m => m.from === loaded.context.recipient && isOptOut(m))) { await ports.suppress(loaded.context.recipient); fail("job_customer_opted_out"); }
       if (communicationsDigest(currentThread.messages) !== binding.threadDigest) fail("job_reply_thread_changed_requires_review");
     }
+    ports.assertRuntime?.();
   };
   try {
     await assertCurrent();
@@ -202,9 +221,10 @@ export async function draftSiteJobCommunication(db: FirebaseFirestore.Firestore,
 }
 
 export async function sendReviewedSiteJobCommunication(db: FirebaseFirestore.Firestore, requestId: string, id: string, actor: string,
-  approval: { expectedOutputDigest: string; expectedContextDigest: string; reviewedSend: true }, ports = existingSiteJobCommunicationsPorts(db)) {
-  if (!ports.sendsEnabled()) fail("communications_send_disabled", 503);
+  approval: { expectedOutputDigest: string; expectedContextDigest: string; reviewedSend: true }, injectedPorts?: SiteJobCommunicationsPorts) {
   const loaded = await loadSiteJobCommunicationsContext(db, requestId);
+  const ports = injectedPorts ?? existingSiteJobCommunicationsPorts(db, requestId, loaded.context.recipient);
+  if (!ports.sendsEnabled()) fail("communications_send_disabled", 503);
   if (!actor || approval.reviewedSend !== true || loaded.contextDigest !== approval.expectedContextDigest) fail("job_context_review_required");
   if (loaded.context.captureConsentWithdrawn) fail("job_capture_authority_withdrawn");
   if (await ports.suppressed(loaded.context.recipient)) fail("job_customer_suppressed");
@@ -241,9 +261,12 @@ export async function sendReviewedSiteJobCommunication(db: FirebaseFirestore.Fir
     if (communicationsDigest(fresh.messages) !== row.binding.threadDigest
       || fresh.messages.filter(m => m.from === loaded.context.recipient).at(-1)?.gmailMessageId !== incoming?.gmailMessageId) fail("job_reply_thread_changed_requires_review");
   }
+  if (!ports.sendsEnabled()) fail("job_send_control_changed");
+  ports.assertRuntime?.();
   try {
     const receipt = await ports.send({ to: row.recipient, subject: row.output.subject, body: row.output.body,
       ...(row.outputHtml != null ? { html: row.outputHtml } : {}),
+      assertSendAllowed: () => { if (!ports.sendsEnabled()) fail("job_send_control_changed"); ports.assertRuntime?.(); },
       messageId: `<blueprint-job-${id}@tryblueprint.io>`, ...(thread ? { threadId: thread.threadId, inReplyTo: incoming!.rfcMessageId } : {}) });
     await ref.set({ state: "sent", sendReceipt: receipt, sentAt: new Date(ports.now()).toISOString() }, { merge: true });
     return { sent: true, receipt };

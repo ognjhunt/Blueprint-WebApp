@@ -2,7 +2,7 @@ import { Router, type Response } from "express";
 import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { requireAdminRole } from "../middleware/requireAdminRole";
-import { draftSiteJobCommunication, loadSiteJobCommunicationsContext, refreshSiteJobReplies, sendReviewedSiteJobCommunication, SiteJobCommunicationsError } from "../agents/communications-site-job";
+import { draftSiteJobCommunication, loadSiteJobCommunicationsContext, refreshSiteJobReplies, sendReviewedSiteJobCommunication, siteJobCommunicationsRuntimeFlags, SiteJobCommunicationsError } from "../agents/communications-site-job";
 
 /** Mount only behind the existing Firebase auth + CSRF admin route boundary. */
 const router = Router();
@@ -26,7 +26,7 @@ router.get("/jobs/:requestId/communications", async (req, res) => {
     return res.json({ ok: true, ...context, communications: rows.docs.map(doc => { const row = doc.data(); return { id: doc.id, purpose: row.binding?.purpose,
       state: row.state, output: row.output ?? null, outputHtml: row.outputHtml ?? null, outputDigest: row.outputDigest ?? null, contextDigest: row.contextDigest, sendReceipt: row.sendReceipt ?? null,
       answerReceived: row.answerReceived ?? false, failureCode: row.failureCode ?? null }; }),
-      deliveryEnabled: process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "true", draftingEnabled: process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true" });
+      ...siteJobCommunicationsRuntimeFlags(String(req.params.requestId), context.context.recipient) });
   } catch (error) { return failure(res, error); }
 });
 router.post("/jobs/:requestId/communications/draft", async (req, res) => {

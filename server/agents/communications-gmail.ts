@@ -113,6 +113,7 @@ export async function findFounderSentMessage(messageId: string, expected: { to: 
 
 export async function sendFounderMessage(params: {
   to: string; subject: string; body: string; html?: string; messageId: string; threadId?: string; inReplyTo?: string;
+  assertSendAllowed?: () => void;
 }, gmail?: gmail_v1.Gmail) {
   if (!gmail) await requireFounderSendCapability();
   gmail ??= await existingFounderGmail();
@@ -133,6 +134,9 @@ export async function sendFounderMessage(params: {
   const content = params.html !== undefined ? `${part("plain", params.body)}${part("html", params.html)}--${boundary}--\r\n`
     : Buffer.from(params.body).toString("base64");
   const raw = Buffer.from(headers.join("\r\n") + "\r\n\r\n" + content).toString("base64url");
+  // Caller authority can expire during credential and mailbox reads. The
+  // selected customer-job path checks it again at the actual send boundary.
+  params.assertSendAllowed?.();
   const response = await gmail.users.messages.send({
     userId: "me", requestBody: { raw, ...(params.threadId ? { threadId: params.threadId } : {}) },
   });
