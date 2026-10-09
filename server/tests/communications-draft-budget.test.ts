@@ -145,6 +145,41 @@ describe("historical recurring provenance and uncapped accounting", () => {
     expect(f.db.records.get(`${root}/draftBudgetState/current`)).toEqual(control);
     expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`)).toMatchObject({ admissions: 5, estimatedModelMicros: 55334 });
   });
+  it.each(["expired", "malformed", "scope", "worker_scope", "send_scope", "generation", "hash", "root_changed", "original_changed", "pointer_changed", "receipt_expired_during_read"])("rejects retained recurring permission %s without admission", async kind => {
+    const f = recurring();
+    if (kind === "expired") f.authority.expiresAt = new Date(communicationsNow - 1).toISOString();
+    if (kind === "scope") f.authority.scope.newDraftSessionsAuthorized = false;
+    if (kind === "worker_scope") f.authority.scope.recurringWorkersAuthorized = false;
+    if (kind === "send_scope") f.authority.scope.sendsAuthorized = true;
+    if (kind === "receipt_expired_during_read") f.authority.expiresAt = new Date(communicationsNow + 30).toISOString();
+    f.retain();
+    if (kind === "receipt_expired_during_read") storage.afterRead = () => { const end = performance.now() + 40; while (performance.now() < end) {} };
+    if (kind === "pointer_changed") f.db.records.get(`${root}/draftBudgetState/current`).activeAdmissionId = "other";
+    if (kind === "malformed") storage.raw = "{bad";
+    if (kind === "generation") storage.generation = "2";
+    if (kind === "hash") f.db.records.get(root).recurringDraftBudgetDirection.sha256 = "f".repeat(64);
+    if (kind === "root_changed") storage.afterRead = () => { f.db.records.get(root).recurringDraftBudgetDirection.sha256 = "f".repeat(64); };
+    if (kind === "original_changed") f.db.records.get(`${root}/jobs/${f.job.jobId}`).checkpoint.requestDigest = "f".repeat(64);
+    await expect(f.reserve()).rejects.toThrow();
+    expect(f.db.records.has(`${root}/draftBudgetAdmissions/${communicationsDigest({ jobId: "new-job" })}`)).toBe(false);
+    expect(f.db.records.get(`${root}/draftBudgetDays/${f.day}`).admissions).toBe(3);
+    storage.afterRead = undefined;
+  });
+  it("binds uncapped admission replay to the immutable permission receipt", async () => {
+    const f = recurring(); await f.reserve();
+    const id = communicationsDigest({ jobId: "new-job" }), row = f.db.records.get(`${root}/draftBudgetAdmissions/${id}`);
+    expect(row.recurringDirection.digest).toBe(communicationsDigest(f.authority));
+    await expect(f.reserve()).resolves.toBe(id);
+    row.recurringDirection.digest = "f".repeat(64);
+    await expect(f.reserve()).rejects.toThrow("communications_draft_reservation_requires_reconciliation");
+  });
+  it("does not enforce historical numeric allocations on new authorized accounting", async () => {
+    const f = recurring(); f.authority.allocation.communicationsReservationUsd = 0; f.authority.allocation.researchReservationUsd = 0;
+    f.authority.allocation.maxCombinedDailyUsd = 0; f.retain();
+    f.db.records.get(`${root}/draftBudgetDays/${f.day}`).estimatedModelMicros = 50000000;
+    f.db.records.get(`${root}/draftBudgetDays/${f.day}`).admissions = 508;
+    await expect(f.reserve()).resolves.toBeTruthy();
+  });
   async function rejectedBounded() {
     const f = recurring(), fixture = communicationsFixture();
     const brief = { ...fixture.brief, prospectId: "bounded-prospect", briefId: "bounded-brief" };
