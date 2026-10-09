@@ -94,6 +94,18 @@ export function sanitizeExperiment(value: unknown): any {
   return sanitizeExperimentValue(value);
 }
 
+function isSanitizedPublicEvidenceUrl(value: unknown): boolean {
+  const parsed = publicUrl.safeParse(value);
+  if (!parsed.success) return false;
+  // publicUrl validates at most four decoding rounds and rejects malformed encodings.
+  let decoded = parsed.data;
+  for (let attempt = 0; attempt <= 4; attempt++) {
+    if (/\b(?:sk|AIza)[-_A-Za-z0-9]{16,}\b/.test(decoded)) return false;
+    if (attempt < 4) decoded = decodeURIComponent(decoded);
+  }
+  return true;
+}
+
 function sanitizeExperimentValue(value: unknown, publicEvidenceSource = false): any {
   if (typeof value === "string") return value
     .replace(/https?:\/\/[^\s"<>]+/g, url => { try { const parsed = new URL(url); parsed.search = ""; parsed.hash = ""; parsed.username = ""; parsed.password = ""; return parsed.toString(); } catch { return "[redacted-url]"; } })
@@ -109,8 +121,7 @@ function sanitizeExperimentValue(value: unknown, publicEvidenceSource = false): 
     const capabilityFact = capabilityFactSchema.safeParse(fields).success;
     return Object.fromEntries(Object.entries(fields).filter(([key]) =>
       !/^(authorization|cookie|headers|api.?key|secret|token|encrypted_content|reasoning|reasoning_content|chain_of_thought|thinking|thought|signed.?url|url)$/i.test(key)
-      || key === "url" && publicEvidenceSource && publicUrl.safeParse(fields.url).success
-        && typeof fields.url === "string" && !/\b(?:sk|AIza)[-_A-Za-z0-9]{16,}\b/.test(fields.url))
+      || key === "url" && publicEvidenceSource && isSanitizedPublicEvidenceUrl(fields.url))
       .map(([key, item]) => [key, key === "url" && publicEvidenceSource ? item
         : key === "sources" && capabilityFact && Array.isArray(item)
           ? item.map(source => sanitizeExperimentValue(source, true)) : sanitizeExperimentValue(item)]));

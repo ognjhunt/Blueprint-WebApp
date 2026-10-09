@@ -193,6 +193,13 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
     expect(factSchema.parse(clean.fact)).toEqual(fact);
     expect(clean).not.toHaveProperty("url");
     expect(clean.invalidFact.sources[0]).not.toHaveProperty("url");
+    for (const prefix of ["sk-", "AIza"]) {
+      const encodedKey = [...`${prefix}${"x".repeat(24)}`].map(char => `%${char.charCodeAt(0).toString(16)}`).join("");
+      for (const query of [encodedKey, encodedKey.replace(/%/g, "%25")]) {
+        const encodedFact = factSchema.parse({ ...fact, sources: [{ ...fact.sources[0], url: `https://example.invalid/public?q=${query}` }] });
+        expect(sanitizeExperiment(encodedFact).sources[0]).not.toHaveProperty("url");
+      }
+    }
     expect(sanitizeExperiment({ content: { thought: true, text: "hidden" } })).toEqual({ content: null });
   });
   it("shows material section differences and cost/latency without asserting quality", () => {
