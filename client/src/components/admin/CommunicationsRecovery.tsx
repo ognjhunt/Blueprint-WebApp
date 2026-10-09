@@ -198,9 +198,21 @@ function OwnerDraftRequest() {
       const body = await response.json();
       if (actor.current !== uid) return;
       if (!response.ok) throw new Error(body.error ?? "Draft request was not accepted.");
-      if (response.status !== 202 || body.ok !== true || !body.jobId || body.sent !== false || body.gmailDraftCreated !== false
+      const job = { prospectId: input.prospectId, briefId: input.briefId,
+        briefDigest: input.expectedBriefDigest, intent: "outreach", inboundMessageId: null };
+      const digest = await requestDigest({ job, actorUid: uid,
+        sourceCommit: input.expectedSourceCommit, sessionSpendLimitCents: Number(input.sessionSpendLimitCents) });
+      const jobId = await requestDigest(job);
+      if (actor.current !== uid) return;
+      if (response.status !== 202 || body.ok !== true || body.jobId !== jobId || body.sent !== false || body.gmailDraftCreated !== false
+        || body.request?.actorUid !== uid || body.request?.sourceCommit !== input.expectedSourceCommit
+        || body.request?.sessionSpendLimitCents !== Number(input.sessionSpendLimitCents) || body.request?.requestDigest !== digest
+        || !["requested", "completed", "failed"].includes(body.request?.state)
         || body.executionPlacement !== "existing_background_worker") throw new Error("Draft acknowledgement could not be verified.");
-      setResult({ actorUid: uid, message: `Requested agent draft ${body.jobId}. The existing worker will process this request. No email was sent or copied to Gmail.` });
+      const status = body.request.state === "requested" ? "Request recorded for the existing worker; execution is not yet verified."
+        : body.request.state === "completed" ? "Existing request is completed. Inspect its saved draft; no new attempt was requested."
+        : "Existing request is failed. Inspect its retained diagnostic; no new attempt was requested.";
+      setResult({ actorUid: uid, message: `Agent draft ${body.jobId}. ${status} No email was sent or copied to Gmail.` });
     },
   });
   const limit = Number(input.sessionSpendLimitCents);

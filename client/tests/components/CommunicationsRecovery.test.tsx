@@ -252,17 +252,31 @@ function fillOwnerRequest() {
 }
 describe("explicit founder draft request", () => {
   it("does no work on load and uses the existing authenticated owner endpoint only after explicit submission", async () => {
-    const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue(Response.json({ ok: true, jobId: job.jobId,
-      executionPlacement: "existing_background_worker", sent: false, gmailDraftCreated: false }, { status: 202 }));
+    const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue(ownerRequestAck());
     page(); expect(fetchMock).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText("Request an agent draft")); fillOwnerRequest();
     expect(fetchMock).not.toHaveBeenCalled(); fireEvent.click(screen.getByRole("button", { name: "Request agent draft" }));
-    expect(await screen.findByRole("status")).toHaveTextContent(`Requested agent draft ${job.jobId}`);
+    expect(await screen.findByRole("status")).toHaveTextContent(/Request recorded.*execution is not yet verified/);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(`/api/admin/outbound-prospects/${job.prospectId}/communications/generate`, {
       method: "POST", credentials: "include", headers: { "Content-Type": "application/json", Authorization: "Bearer mock-firebase-token", "X-CSRF-Token": "mock-csrf" },
       body: JSON.stringify({ briefId: "hypothesis-owned", expectedBriefDigest: job.briefDigest, expectedSourceCommit: runtime.sourceCommit, sessionSpendLimitCents: 100 }),
     });
+  });
+  it.each(["completed", "failed"])("reports an existing %s request without claiming another worker attempt", async state => {
+    const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue(ownerRequestAck(state));
+    page(); fireEvent.click(screen.getByText("Request an agent draft")); fillOwnerRequest();
+    fireEvent.click(screen.getByRole("button", { name: "Request agent draft" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(`Existing request is ${state}`);
+    expect(screen.getByRole("status")).toHaveTextContent(/no new attempt was requested/); expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it("rejects an acknowledgement whose source-bound request digest differs", async () => {
+    const response = ownerRequestAck(); const body = await response.json(); body.request.requestDigest = "0".repeat(64);
+    vi.spyOn(global, "fetch").mockResolvedValue(Response.json(body, { status: 202 }));
+    page(); fireEvent.click(screen.getByText("Request an agent draft")); fillOwnerRequest();
+    fireEvent.click(screen.getByRole("button", { name: "Request agent draft" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/acknowledgement could not be verified/);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
   it("retains a denied or disconnected request without automatically dispatching again", async () => {
     const fetchMock = vi.spyOn(global, "fetch").mockRejectedValue(new Error("synthetic acknowledgement lost"));
@@ -291,3 +305,11 @@ describe("explicit founder draft request", () => {
     expect(screen.getByRole("button", { name: "Request agent draft" })).toBeDisabled(); expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+function ownerRequestAck(state = "requested") {
+  const request = { actorUid: "ops-user", sourceCommit: runtime.sourceCommit, sessionSpendLimitCents: 100 };
+  const input = { prospectId: job.prospectId, briefId: "hypothesis-owned", briefDigest: job.briefDigest, intent: "outreach", inboundMessageId: null };
+  const digest = createHash("sha256").update(canonical({ job: input, ...request })).digest("hex");
+  const id = createHash("sha256").update(canonical(input)).digest("hex");
+  return Response.json({ ok: true, jobId: id, request: { ...request, requestDigest: digest, state },
+    executionPlacement: "existing_background_worker", sent: false, gmailDraftCreated: false }, { status: 202 });
+}
