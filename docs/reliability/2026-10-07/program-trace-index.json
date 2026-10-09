@@ -1,6 +1,6 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-09T00:09:02.342555+00:00",
+  "updated_at_utc": "2026-10-09T00:44:43.281614+00:00",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 22,
@@ -2175,7 +2175,7 @@
   },
   "customer_basics_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/985",
-    "state": "draft_requirement_correction_independent_review_and_required_checks_pending",
+    "state": "exact_final_source_independent_review_cleared_required_test_pending",
     "historical_head": "4da12aaacfe2c3448b452f270e009e8f4bdd1c18",
     "corrected_head": "eabb4c52a2a5727482b45a3eb145aeb2df9ecf7e",
     "historical_receipt_sha256": "34565941dc86fcc83d33ccb507e220d9b0de9fc926cf072926f5885ffb0e11b9",
@@ -2184,8 +2184,8 @@
     "scoped_candidate": "ExistingDTO shape unchanged; analysis sections empty; safe admittedquestions/unknowns and proposednextstep only. Canonicalinternalreport/source/consent/accounting immutable. Existingpublic exposure assertions corrected; safety/workflow/race assertions retained.",
     "known_limits": [
       "Only1of3 retained rawquestiongroups passes existingguard; no guardloosening or modelsummary.",
-      "Saved-owner brief is collapsed and no concise existinglabel is yet verified; visible-task requirement remains under repair before release.",
-      "20componentSSRChromiumrenderexecutions (9syntheticconditions plusone retainedprojection at2viewports), zero network, notlivebackend journeys/newcoverage."
+      "20componentSSRChromiumrenderexecutions (9syntheticconditions plusone retainedprojection at2viewports), zero network, notlivebackend journeys/newcoverage.",
+      "No concise existing task title or durable original filename exists in current admitted source; generic saved-job heading/current advisory reference shown without opening corrections. Concrete task title remains P2/source-data limitation."
     ],
     "reproducer": "Actual retained observable report baseline4da fails analysis-absence check; corrected projection passes; no customer/provider mutation.",
     "local_checks": "55 existing neighboring tests and exactfinalsource typecheck PASS. Later visible-task/fixture changes require new exacthead review/checks.",
@@ -2199,6 +2199,14 @@
       "sha256": "79022ff55d62c688943a0f8c4bf9ba7902049ee923c8778a49b01ac37b8448f0"
     },
     "shared_fixture_custody": "PR982 owner explicitly acknowledged zerolease/merge/deploy/repin active and handoff of exactreviewedc36 fixturehunk into985. Their vendor repair stays separate; duplicatefixturedelta removed aftercanonical985. Existingassertions/mocks/120stimeout unchanged.",
-    "new_unique_case_credit": 0
+    "new_unique_case_credit": 0,
+    "final_candidate_head": "0c58e1d50faee7b2594263f4a59fb02b6e5a7b53",
+    "final_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/customer-basics/v3/receipt.json",
+    "final_receipt_sha256": "2f3043f687855431e85b93e2f980e910dc7012a1c0546f08e7aa3499efca44f8",
+    "final_review_sha256": "df80685b24cf3be57dd18d310627a9c91a5cadb65c04cc8f7093060c284fb0ec",
+    "final_review_commit": "72373ca34100864ca127f9d186845e578b0a3d7f",
+    "final_native_CI": 37865792440,
+    "final_checks": "54 existing checks in four scoped suites plus two workspace checks and exact-source typecheck PASS; native E2E/build/check/rules/release-scope/threeGraphify passed at snapshot; native test still running.",
+    "final_browser_layer": "Five normal Vite route conditions with intercepted synthetic APIs PASS, zero businesswrites; separate from earlier20SSR component renders; no original journey/provider/accuracy credit."
   }
 }

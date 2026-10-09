@@ -1044,6 +1044,20 @@
       "last_native_status": "live",
       "deployment_conclusion": "success",
       "independent_release_review": "2231976a"
+    },
+    {
+      "id": "REL-STATUS-EMAIL-PROMISE-20261009",
+      "severity": "P2",
+      "owner": "coordinator/customer_basics",
+      "observed_source": "client/src/components/site/NextTaskUpdate.tsx",
+      "actual_observation": "Saved-owner normal Vite screenshot shows each-event email promise. Accepted189 durable outbox readback records zero notices created or sent during the completed assessment. This does not establish inbox delivery or promise fulfillment.",
+      "invariant": "Customer progress and notification claims reflect demonstrated behavior.",
+      "root_cause": "Shared copy promises email for every job event and says no need to return, despite no demonstrated advisory-ready notification enqueue/delivery.",
+      "repair_scope": "Separate one-component wording repair to factual job-page updates; no new delivery infrastructure, customer email or shared release gate.",
+      "state": "source_repair_in_progress",
+      "before_evidence_sha256": "2f3043f687855431e85b93e2f980e910dc7012a1c0546f08e7aa3499efca44f8",
+      "live_notice_receipt_sha256": "f65d510eb0212e7d6cc47dbdfad0feb1ef04ea84a30896c5549f515e23b6fc35",
+      "new_unique_case_credit": 0
     }
   ],
   "dependencies": [
@@ -1400,5 +1414,5 @@
     "bounded_returned_event_count": 0,
     "scope": "Service-level minute samples, not instantaneous peak/assessment-only allocation. Later samples after confirmed terminalread support bounded post-run observation; early postcompletionlabel not separately certified. No concurrentcapacity/leak/zeroOOM universal claim; frozen peak/headroom sizing gate remains uncleared."
   },
-  "updated_at_utc": "2026-10-09T00:09:02.342555+00:00"
+  "updated_at_utc": "2026-10-09T00:44:43.281614+00:00"
 }
