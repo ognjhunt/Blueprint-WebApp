@@ -207,10 +207,8 @@ function screeningOutcome(disposition: string): {
 /**
  * Whether the site is saved to an account yet, for the owner link only.
  *
- * Confirming the brief is where the operator saves the site to an account:
- * Blueprint spends money on a scene only once a site has one. The claim token
- * lets the confirmation screen attach the site in place; it binds to the
- * submission's own email, so a forwarded owner link still cannot transfer it.
+ * Brief confirmation does not approve account access. Once staff invite the
+ * operator, a claim token lets an existing verified account attach its site.
  */
 async function siteAccountFor(requestId: string): Promise<{
   claimed: boolean;
@@ -221,11 +219,12 @@ async function siteAccountFor(requestId: string): Promise<{
   const request = await readRequestForStatus(requestId).catch(() => null);
   if (!request) return null;
   const claimed = Boolean(request.account_owner_uid);
+  const invited = Boolean(request.contactEmail && await accountHasAdmission(request.contactEmail, "site_operator").catch(() => false));
   return {
     claimed,
     email: request.contactEmail?.toLowerCase() ?? null,
-    claimToken: claimed ? null : createSiteClaimToken(requestId),
-    invited: Boolean(request.contactEmail && await accountHasAdmission(request.contactEmail, "site_operator").catch(() => false)),
+    claimToken: claimed || !invited ? null : createSiteClaimToken(requestId),
+    invited,
   };
 }
 
