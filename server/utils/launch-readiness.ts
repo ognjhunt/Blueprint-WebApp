@@ -115,16 +115,22 @@ export function buildLaunchReadinessSnapshot() {
     onboarding: isAutomationLaneEnabled("BLUEPRINT_ONBOARDING_ENABLED"),
     graduationEval: isAutomationLaneEnabled("BLUEPRINT_ALL_AUTOMATION_ENABLED"),
   };
-  const anyAutomationEnabled =
-    automationFlags.waitlist ||
-    automationFlags.inbound ||
-    automationFlags.support ||
-    automationFlags.payout ||
-    automationFlags.preview ||
-    automationFlags.slaWatchdog ||
-    automationFlags.notionSync ||
-    automationFlags.onboarding ||
-    automationFlags.graduationEval;
+  // These scheduler lanes dispatch structured agent tasks. Deterministic
+  // Notion, SLA and onboarding workers have their own dependency checks below.
+  // isAutomationLaneEnabled preserves explicit lane opt-outs under the umbrella.
+  const enabledAgentTasks = ([
+    ["waitlist_triage", automationFlags.waitlist],
+    ["inbound_qualification", automationFlags.inbound],
+    ["support_triage", automationFlags.support],
+    ["payout_exception_triage", automationFlags.payout],
+    ["preview_diagnosis", automationFlags.preview],
+  ] as const).filter(([, enabled]) => enabled).map(([taskKind]) => taskKind);
+  const anyAgentAutomationEnabled = enabledAgentTasks.length > 0;
+  const unconfiguredAgentTasks = enabledAgentTasks.filter(
+    (taskKind) => !agentRuntime.task_configured[taskKind],
+  );
+  const describeAgentTask = (taskKind: (typeof enabledAgentTasks)[number]) =>
+    `${taskKind} (${agentRuntime.task_providers[taskKind]}/${agentRuntime.task_models[taskKind]})`;
   const stripeEnabled = Boolean(
     process.env.STRIPE_SECRET_KEY?.trim()
     || process.env.CHECKOUT_ALLOWED_ORIGINS?.trim()
@@ -147,7 +153,7 @@ export function buildLaunchReadinessSnapshot() {
   const emailReady = !emailRequired || emailTransport.configured;
   const pipelineSyncReady =
     !pipelineSyncEnabled || Boolean(process.env.PIPELINE_SYNC_TOKEN?.trim());
-  const agentRuntimeReady = !anyAutomationEnabled || agentRuntime.configured;
+  const agentRuntimeReady = unconfiguredAgentTasks.length === 0;
   const outboundChannel = (
     getConfiguredEnvValue("BLUEPRINT_AUTONOMOUS_OUTBOUND_CHANNEL") || "resend"
   ).toLowerCase();
@@ -301,13 +307,13 @@ export function buildLaunchReadinessSnapshot() {
         : "Pipeline sync is not required.",
     },
     agentRuntime: {
-      required: anyAutomationEnabled,
+      required: anyAgentAutomationEnabled,
       ready: agentRuntimeReady,
-      detail: anyAutomationEnabled
+      detail: anyAgentAutomationEnabled
         ? agentRuntimeReady
-          ? `${agentRuntime.provider} is configured for enabled automation lanes.`
-          : `Automation lanes are enabled but the selected provider (${agentRuntime.provider}) is not configured.`
-        : "Agent runtime is not required because automation lanes are disabled.",
+          ? `Agent providers are configured for enabled automation lanes: ${enabledAgentTasks.map(describeAgentTask).join(", ")}.`
+          : `Enabled automation lanes lack provider configuration: ${unconfiguredAgentTasks.map(describeAgentTask).join(", ")}.`
+        : "Agent runtime is not required because structured agent automation lanes are disabled.",
     },
     betaCohortControls: {
       required: true,
