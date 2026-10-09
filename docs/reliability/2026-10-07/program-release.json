@@ -603,7 +603,7 @@
       "claim_ceiling": "Serving identity, health/ready and non-destructive local draft return, durable local clear acknowledgment and empty return only; no backend job, upload durability, assessment, worker or notification result proven."
     }
   },
-  "current_verified_webapp_release": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
+  "current_verified_webapp_release": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
   "source_bound_preparation_followup": {
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/946",
     "state": "WebApp_deployed;Pipeline_reviewed_protected_merged;exact_main_CI_and_promotion_active;actual_mapping_blocked",
@@ -1887,55 +1887,64 @@
     "claim_ceiling": "Read-only credential/model catalog access;not generation, currentcustomer assessment or video-quality proof. Historical401 andunknownexposure remain retained."
   },
   "current_verified_web_release": {
-    "sha": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
-    "independent_review": "73d0bd67",
-    "source_tree_review": "98738005",
-    "main_CI": 37856452795,
-    "main_CI_conclusion": "success",
-    "deployment_workflow": 37856783421,
-    "deployment_conclusion": "success",
-    "web": {
-      "id": "dep-db420dmi0phs73emv6u0",
-      "status": "live",
-      "finished_at": "2026-10-08T23:01:28.047466Z",
-      "plan": "1c-2g",
-      "instances": 1
+    "schema": "reliability_release_metadata_readback.v1",
+    "observed_at_utc": "2026-10-09T00:09:02.342555+00:00",
+    "sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+    "public": {
+      "version.json": {
+        "http_status": 200,
+        "body": {
+          "service": "blueprint-webapp",
+          "version": "1.0.0",
+          "git_sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+          "built_at_iso": "2026-10-08T23:42:37.283Z"
+        }
+      },
+      "health": {
+        "http_status": 200,
+        "body": {
+          "status": "healthy",
+          "timestamp": "2026-10-09T00:09:03.075Z"
+        }
+      },
+      "health/ready": {
+        "http_status": 200,
+        "body": {
+          "status": "ready",
+          "blocker_count": 0,
+          "timestamp": "2026-10-09T00:09:03.254Z"
+        }
+      }
     },
-    "worker": {
-      "id": "dep-db420do473hc73cc81eg",
-      "status": "live",
-      "finished_at": "2026-10-08T23:02:13.779473Z"
+    "native_reads": {
+      "source": "purpose-built Render get_deploy responses freshly inspected during this turn; normalized fixed metadata",
+      "web": {
+        "id": "dep-db42kgg473hc73cecnbg",
+        "status": "live",
+        "sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+        "finished_at_utc": "2026-10-08T23:44:10.960907Z"
+      },
+      "worker": {
+        "id": "dep-db42kgp42hec73fho1t0",
+        "status": "live",
+        "sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+        "finished_at_utc": "2026-10-08T23:44:55.089293Z"
+      }
     },
-    "independent_public": {
-      "observed_at": "2026-10-08T23:04:30Z",
-      "version_sha": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
-      "health": 200,
-      "ready": 200,
-      "blockers": 0
+    "main_CI": {
+      "id": 37860325293,
+      "headSha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+      "conclusion": "success"
     },
-    "presentation_smoke": {
-      "result": "PARTIAL_existing_v2_selector_contract_obsolete",
-      "receipt_sha256": "bf31a0783e34bc63fc389da83680a1f2c1e5163c304df0b8f55148a2fdd39670",
-      "four_fields_restore": true,
-      "country_text_absent": true,
-      "start_rights_absent": true,
-      "limit": "Currentclient absence established; incomplete probe not claimedPASS/customerconsentbug; v3harnessonlycorrection inprogress"
+    "deployment_workflow": {
+      "id": 37860839878,
+      "headSha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+      "conclusion": "success"
     },
-    "claim_ceiling": "Independently verified live paired source189/main CI/deploy/public metadata; actual same-job provider run and durable customer report completed. Human-checked video accuracy/physical execution/notification delivery remain unproven.",
-    "presentation_smoke_v3": {
-      "source_commit": "68dac0ef3a76247cdee9fdfd229bf4597f2f7556",
-      "script_sha256": "25cccefcced8f05a3f3805cd73873f4a70191958c16c1b2da0e97d3ae67b31ff",
-      "result": "presentation_failed",
-      "result_sha256": "99497542cbb15020b001ee6c308975a990b7f4a5c8596c71e00b1c13f92b4699",
-      "receipt_sha256": "9ea6b94f75e66151d0ae16a515d7768e1231a6bced61e5dac44f362921584ab8",
-      "draft_region_no_pending_agreement_pass": true,
-      "durable_clear_checks_passed": 9,
-      "intake_POST_attempts": 0,
-      "failure": "Historical seven-day visible copy expectation absent from current189 UI. Failure retained; no blind rerun or rewritten green result.",
-      "counting": "Existing guarded public presentation scenario; no additional independent customer journey/provider evidence.",
-      "independent_review": "a0a42dd4",
-      "other_checks_passed": 21
-    }
+    "scope": "Source and health verification only. Accepted normal customer assessment executed on189, not a new15 provider trial.",
+    "independent_review": "2231976a",
+    "private_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/release15-final/metadata-readback.json",
+    "private_receipt_sha256": "2c114491d5822ac0ac694c663b07d6164957b07ca8ab178bc45d35f12476299d"
   },
   "current_normal_UI_same_job_retry": {
     "source_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
@@ -2145,7 +2154,7 @@
     },
     "original_case_credit": 0
   },
-  "updated_at_utc": "2026-10-08T23:23:31Z",
+  "updated_at_utc": "2026-10-09T00:09:02.342555+00:00",
   "paid_provider_actor_handoff": {
     "owner": "Existing local assessment-iteration task; original normal-UI provider actor explicitly held",
     "scope": "ONE same authorized MOV production SDK/Gemini fresh baseline, then ONE actual Sol saved-evidence comparison reusing Gemini output. Serial actor; no automatic paid retry; no customer writes.",
@@ -2630,7 +2639,7 @@
     "receipt_sha256": "c96840cc38ac0e95ae68210f22f84d1f41fc9ad814d0a9abf46324d0139b6e40",
     "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/981",
     "CI": 37859788980,
-    "release_status": "protected_merged_mainCI_success_actual_paired_deploy_building",
+    "release_status": "protected_merged_required_CI_success_paired_LIVE_public_verified",
     "live_uptake": "unverified; no additional paid run planned",
     "new_unique_case_credit": 0,
     "merge_sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
@@ -2642,8 +2651,11 @@
     "actual_deploy_workflow": 37860839878,
     "web_deploy": "dep-db42kgg473hc73cecnbg",
     "worker_deploy": "dep-db42kgp42hec73fho1t0",
-    "last_native_observed_at": "2026-10-08T23:42:04Z",
-    "last_native_status": "build_in_progress"
+    "last_native_observed_at": "2026-10-09T00:09:02.342555+00:00",
+    "last_native_status": "live",
+    "deployment_conclusion": "success",
+    "independent_release_review": "2231976a",
+    "metadata_receipt_sha256": "2c114491d5822ac0ac694c663b07d6164957b07ca8ab178bc45d35f12476299d"
   },
   "public_smoke_portability": {
     "source_company_git": "codex/reliability-advisory-longrun-20261008",
@@ -2672,5 +2684,56 @@
     "human_gold": false,
     "summary": "Sampled rack/door movements and readableWhirlpool brand consistent. Apparent bowl/mug mismatch; Gemini latchclaim strongerthansampledproof, customerreport appropriately leaveslatchverificationunknown. No inventedmeasurement/certifiedrobotcapability detected incheckedcustomerpacket.",
     "scope": "Selectedframe/agentreview supports debugging only; no fullperceptionaccuracy denominator orhumanreview."
+  },
+  "historical_189_verified_web_release": {
+    "sha": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
+    "independent_review": "73d0bd67",
+    "source_tree_review": "98738005",
+    "main_CI": 37856452795,
+    "main_CI_conclusion": "success",
+    "deployment_workflow": 37856783421,
+    "deployment_conclusion": "success",
+    "web": {
+      "id": "dep-db420dmi0phs73emv6u0",
+      "status": "live",
+      "finished_at": "2026-10-08T23:01:28.047466Z",
+      "plan": "1c-2g",
+      "instances": 1
+    },
+    "worker": {
+      "id": "dep-db420do473hc73cc81eg",
+      "status": "live",
+      "finished_at": "2026-10-08T23:02:13.779473Z"
+    },
+    "independent_public": {
+      "observed_at": "2026-10-08T23:04:30Z",
+      "version_sha": "189fc91d9520e0965efd4bedfdd6fb6ebcd50ca9",
+      "health": 200,
+      "ready": 200,
+      "blockers": 0
+    },
+    "presentation_smoke": {
+      "result": "PARTIAL_existing_v2_selector_contract_obsolete",
+      "receipt_sha256": "bf31a0783e34bc63fc389da83680a1f2c1e5163c304df0b8f55148a2fdd39670",
+      "four_fields_restore": true,
+      "country_text_absent": true,
+      "start_rights_absent": true,
+      "limit": "Currentclient absence established; incomplete probe not claimedPASS/customerconsentbug; v3harnessonlycorrection inprogress"
+    },
+    "claim_ceiling": "Independently verified live paired source189/main CI/deploy/public metadata; actual same-job provider run and durable customer report completed. Human-checked video accuracy/physical execution/notification delivery remain unproven.",
+    "presentation_smoke_v3": {
+      "source_commit": "68dac0ef3a76247cdee9fdfd229bf4597f2f7556",
+      "script_sha256": "25cccefcced8f05a3f3805cd73873f4a70191958c16c1b2da0e97d3ae67b31ff",
+      "result": "presentation_failed",
+      "result_sha256": "99497542cbb15020b001ee6c308975a990b7f4a5c8596c71e00b1c13f92b4699",
+      "receipt_sha256": "9ea6b94f75e66151d0ae16a515d7768e1231a6bced61e5dac44f362921584ab8",
+      "draft_region_no_pending_agreement_pass": true,
+      "durable_clear_checks_passed": 9,
+      "intake_POST_attempts": 0,
+      "failure": "Historical seven-day visible copy expectation absent from current189 UI. Failure retained; no blind rerun or rewritten green result.",
+      "counting": "Existing guarded public presentation scenario; no additional independent customer journey/provider evidence.",
+      "independent_review": "a0a42dd4",
+      "other_checks_passed": 21
+    }
   }
 }

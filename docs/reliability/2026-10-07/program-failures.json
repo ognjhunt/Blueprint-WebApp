@@ -1031,7 +1031,7 @@
       "receipt_sha256": "c96840cc38ac0e95ae68210f22f84d1f41fc9ad814d0a9abf46324d0139b6e40",
       "PR": "https://github.com/ognjhunt/Blueprint-WebApp/pull/981",
       "CI": 37859788980,
-      "release_status": "protected_merged_mainCI_success_actual_paired_deploy_building",
+      "release_status": "protected_merged_required_CI_success_paired_LIVE_public_verified",
       "live_uptake": "unverified; no additional paid run planned",
       "new_unique_case_credit": 0,
       "merge_sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
@@ -1040,8 +1040,10 @@
       "actual_deploy_workflow": 37860839878,
       "web_deploy": "dep-db42kgg473hc73cecnbg",
       "worker_deploy": "dep-db42kgp42hec73fho1t0",
-      "last_native_observed_at": "2026-10-08T23:42:04Z",
-      "last_native_status": "build_in_progress"
+      "last_native_observed_at": "2026-10-09T00:09:02.342555+00:00",
+      "last_native_status": "live",
+      "deployment_conclusion": "success",
+      "independent_release_review": "2231976a"
     }
   ],
   "dependencies": [
@@ -1398,5 +1400,5 @@
     "bounded_returned_event_count": 0,
     "scope": "Service-level minute samples, not instantaneous peak/assessment-only allocation. Later samples after confirmed terminalread support bounded post-run observation; early postcompletionlabel not separately certified. No concurrentcapacity/leak/zeroOOM universal claim; frozen peak/headroom sizing gate remains uncleared."
   },
-  "updated_at_utc": "2026-10-08T23:23:31Z"
+  "updated_at_utc": "2026-10-09T00:09:02.342555+00:00"
 }

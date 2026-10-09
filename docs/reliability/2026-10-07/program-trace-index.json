@@ -1,6 +1,6 @@
 {
   "schema": "blueprint.reliability.trace-index.v1",
-  "updated_at_utc": "2026-10-08T23:23:31Z",
+  "updated_at_utc": "2026-10-09T00:09:02.342555+00:00",
   "counts": {
     "offline_unique": 300,
     "normal_ui_emulator": 22,
@@ -1829,42 +1829,64 @@
     "costs": "Localfake timings/usage stay separate; productionprovideracceptance/chargeunknownsnotzero."
   },
   "current_verified_web_release_readback": {
-    "sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
-    "main_CI": {
-      "id": 37847276364,
-      "state": "success",
-      "scope": "backend-fast;8applicablechecksSUCCESS;E2Eexpectedskip"
+    "schema": "reliability_release_metadata_readback.v1",
+    "observed_at_utc": "2026-10-09T00:09:02.342555+00:00",
+    "sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+    "public": {
+      "version.json": {
+        "http_status": 200,
+        "body": {
+          "service": "blueprint-webapp",
+          "version": "1.0.0",
+          "git_sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+          "built_at_iso": "2026-10-08T23:42:37.283Z"
+        }
+      },
+      "health": {
+        "http_status": 200,
+        "body": {
+          "status": "healthy",
+          "timestamp": "2026-10-09T00:09:03.075Z"
+        }
+      },
+      "health/ready": {
+        "http_status": 200,
+        "body": {
+          "status": "ready",
+          "blocker_count": 0,
+          "timestamp": "2026-10-09T00:09:03.254Z"
+        }
+      }
     },
-    "workflow": {
-      "id": 37848240025,
+    "native_reads": {
+      "source": "purpose-built Render get_deploy responses freshly inspected during this turn; normalized fixed metadata",
+      "web": {
+        "id": "dep-db42kgg473hc73cecnbg",
+        "status": "live",
+        "sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+        "finished_at_utc": "2026-10-08T23:44:10.960907Z"
+      },
+      "worker": {
+        "id": "dep-db42kgp42hec73fho1t0",
+        "status": "live",
+        "sha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+        "finished_at_utc": "2026-10-08T23:44:55.089293Z"
+      }
+    },
+    "main_CI": {
+      "id": 37860325293,
+      "headSha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
       "conclusion": "success"
     },
-    "web": {
-      "deploy_id": "dep-db40qu2j9qps73fo1ksg",
-      "status": "live",
-      "finished_at_utc": "2026-10-08T21:41:30.283066Z",
-      "plan": "1c-2g",
-      "num_instances": 1
+    "deployment_workflow": {
+      "id": 37860839878,
+      "headSha": "15c014026d03e53149fb81e328a2d5e52ba9c97f",
+      "conclusion": "success"
     },
-    "worker": {
-      "deploy_id": "dep-db40qu9srm7s73agbi5g",
-      "status": "live",
-      "finished_at_utc": "2026-10-08T21:42:04.930917Z"
-    },
-    "public": {
-      "version_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
-      "built_at_iso": "2026-10-08T21:39:48.558Z",
-      "health": "healthy",
-      "health_timestamp": "2026-10-08T21:42:27.053Z",
-      "ready": "ready",
-      "ready_blockers": 0,
-      "ready_timestamp": "2026-10-08T21:42:27.229Z",
-      "all_curl_exit": 0,
-      "http_status": 200
-    },
-    "receipt_path": "/Users/nijelhunt_1/.codex/worktrees/dc17/Blueprint-WebApp/output/reliability-program/customer-policy/39-release-receipt.json",
-    "receipt_sha256": "fc098c4b82b06443b3dcaced65e1ad0bd3a16544c7001b4f2a9b5d00120f86ed",
-    "limits": "Source/pair/plan/health. Customerretry and measured cloudmemory peak are separate; no full beta/referenceaccuracy proof."
+    "scope": "Source and health verification only. Accepted normal customer assessment executed on189, not a new15 provider trial.",
+    "independent_review": "2231976a",
+    "private_receipt_path": "/Users/nijelhunt_1/Documents/Codex/2026-10-08/blueprint-reliability/release15-final/metadata-readback.json",
+    "private_receipt_sha256": "2c114491d5822ac0ac694c663b07d6164957b07ca8ab178bc45d35f12476299d"
   },
   "current_normal_UI_same_job_retry": {
     "source_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
@@ -2102,5 +2124,43 @@
     "human_gold": false,
     "summary": "Sampled rack/door movements and readableWhirlpool brand consistent. Apparent bowl/mug mismatch; Gemini latchclaim strongerthansampledproof, customerreport appropriately leaveslatchverificationunknown. No inventedmeasurement/certifiedrobotcapability detected incheckedcustomerpacket.",
     "scope": "Selectedframe/agentreview supports debugging only; no fullperceptionaccuracy denominator orhumanreview."
+  },
+  "historical_39_verified_web_release_readback": {
+    "sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
+    "main_CI": {
+      "id": 37847276364,
+      "state": "success",
+      "scope": "backend-fast;8applicablechecksSUCCESS;E2Eexpectedskip"
+    },
+    "workflow": {
+      "id": 37848240025,
+      "conclusion": "success"
+    },
+    "web": {
+      "deploy_id": "dep-db40qu2j9qps73fo1ksg",
+      "status": "live",
+      "finished_at_utc": "2026-10-08T21:41:30.283066Z",
+      "plan": "1c-2g",
+      "num_instances": 1
+    },
+    "worker": {
+      "deploy_id": "dep-db40qu9srm7s73agbi5g",
+      "status": "live",
+      "finished_at_utc": "2026-10-08T21:42:04.930917Z"
+    },
+    "public": {
+      "version_sha": "39cdf0cc6db405e1dca67d3a246691ec8652d515",
+      "built_at_iso": "2026-10-08T21:39:48.558Z",
+      "health": "healthy",
+      "health_timestamp": "2026-10-08T21:42:27.053Z",
+      "ready": "ready",
+      "ready_blockers": 0,
+      "ready_timestamp": "2026-10-08T21:42:27.229Z",
+      "all_curl_exit": 0,
+      "http_status": 200
+    },
+    "receipt_path": "/Users/nijelhunt_1/.codex/worktrees/dc17/Blueprint-WebApp/output/reliability-program/customer-policy/39-release-receipt.json",
+    "receipt_sha256": "fc098c4b82b06443b3dcaced65e1ad0bd3a16544c7001b4f2a9b5d00120f86ed",
+    "limits": "Source/pair/plan/health. Customerretry and measured cloudmemory peak are separate; no full beta/referenceaccuracy proof."
   }
 }
