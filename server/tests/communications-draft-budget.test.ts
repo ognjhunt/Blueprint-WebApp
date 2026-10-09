@@ -170,6 +170,9 @@ describe("historical recurring provenance and uncapped accounting", () => {
     const id = communicationsDigest({ jobId: "new-job" }), row = f.db.records.get(`${root}/draftBudgetAdmissions/${id}`);
     expect(row.recurringDirection.digest).toBe(communicationsDigest(f.authority));
     await expect(f.reserve()).resolves.toBe(id);
+    f.db.records.set(root, {});
+    await expect(f.reserve()).rejects.toThrow("communications_draft_reservation_requires_reconciliation");
+    f.retain();
     row.recurringDirection.digest = "f".repeat(64);
     await expect(f.reserve()).rejects.toThrow("communications_draft_reservation_requires_reconciliation");
   });

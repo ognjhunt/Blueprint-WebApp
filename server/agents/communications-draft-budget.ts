@@ -179,6 +179,7 @@ export async function reserveCommunicationsDraft(db: FirebaseFirestore.Firestore
       if (row?.jobId !== jobId || row.requestDigest !== requestDigest || !row.policy
         || communicationsDigest(row.policy) !== row.policyDigest || row.state !== "reserved"
         || row.sessionSpendLimitCents !== sessionSpendLimitCents
+        || Boolean(row.recurringDirection) !== Boolean(recurring)
         || (recurring && (row.recurringDirection?.digest !== recurring.digest
           || communicationsDigest(row.recurringDirection?.ref ?? null) !== communicationsDigest(recurring.ref)))) {
         throw new CommunicationsDraftBudgetError("communications_draft_reservation_requires_reconciliation");
