@@ -31,7 +31,9 @@ vi.mock("../../../server/utils/siteAssessmentPublic", async original => {
   const packet = { schema_version: "site_assessment.v2", sources: [{ source_id: "video:synthetic", kind: "video", content: { duration_seconds: 10,
     evidence: { summary: "Synthetic carton movement", not_observable: ["weight"], observations: [{ category: "motion", finding: "A carton moves onto the pallet", basis: "observed", start_seconds: 1, end_seconds: 3, uncertainty: "Weight is not visible" }] } } }],
     raw_model_assessment: { status: "assessment", job: [{ text: "Untrusted prose must not be shown", basis: "observed", evidence: [{ source_id: "video:synthetic", at_seconds: 2, selector: { kind: "video_observation", observation_index: 0, field_path: null } }] }], objects_motions_conditions_variations: [], operator_success: [], known: [], estimates: [], missing: [], approaches: [], questions: [], next_action: { kind: "measure", action: "Untrusted action", why: { text: "Unknown weight", basis: "unknown", evidence: [] } } } };
-  return { ...module, loadCurrentSiteAdvisory: vi.fn(async () => module.projectCustomerSiteAdvisory(packet, "safe-simulated-assessment", 10)) };
+  const view = module.projectCurrentSiteAssessmentView(packet, "safe-simulated-assessment", 10);
+  return { ...module, loadCurrentSiteAdvisory: vi.fn(async () => view.customerAdvisory),
+    loadCurrentSiteAssessmentView: vi.fn(async () => view) };
 });
 const briefRouter = (await import("../../../server/routes/site-task-brief")).default;
 const listingRouter = (await import("../../../server/routes/task-listings")).default;
@@ -95,6 +97,7 @@ it("joins the existing job, bounded review, proposal acceptance and evidence-gat
     await screen.findByText(/Public card saved/i); listing.unmount();
     const draft = await (await request("/api/admin/robot-teams/recommendations/req-1")).json();
     expect(draft.assessment, JSON.stringify(draft)).toBeTruthy();
+    expect(draft.assessment).not.toHaveProperty("decisionEvidence");
     const assessment = render(<SiteAdvisoryReport advisory={draft.assessment} />);
     expect(screen.getByText("Your job assessment")).toBeInTheDocument();
     expect(screen.queryByText(/A carton moves onto the pallet/)).toBeNull();
