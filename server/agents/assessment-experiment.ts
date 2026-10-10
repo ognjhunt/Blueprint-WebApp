@@ -100,7 +100,9 @@ function isSanitizedPublicEvidenceUrl(value: unknown): boolean {
   // publicUrl validates at most four decoding rounds and rejects malformed encodings.
   let decoded = parsed.data;
   for (let attempt = 0; attempt <= 4; attempt++) {
-    if (/\b(?:(?:sk|AIza)[-_A-Za-z0-9]{16,}|(?:gh[pousr]|github_pat)_[A-Za-z0-9_]{16,}|xox[baprs]-[-A-Za-z0-9]{16,}|(?:AKIA|ASIA)[A-Z0-9]{16})\b/.test(decoded)) return false;
+    // Slack app/workflow/refresh prefixes: https://docs.slack.dev/authentication/tokens/
+    // Rotating access tokens have xoxe. before the existing bot/user/app prefix.
+    if (/\b(?:(?:sk|AIza)[-_A-Za-z0-9]{16,}|(?:gh[pousr]|github_pat)_[A-Za-z0-9_]{16,}|(?:xox[baprs]|xapp|xwfp|xoxe)-[-A-Za-z0-9]{16,}|(?:AKIA|ASIA)[A-Z0-9]{16})\b/.test(decoded)) return false;
     if (attempt < 4) decoded = decodeURIComponent(decoded);
   }
   return true;
