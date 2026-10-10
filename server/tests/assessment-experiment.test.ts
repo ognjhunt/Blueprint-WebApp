@@ -196,18 +196,27 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
     // Synthetic credential shapes only; no provider-issued keys or live calls.
     const credentials = [`sk-${"x".repeat(24)}`, `AIza${"x".repeat(24)}`,
       ...["ghp", "gho", "ghu", "ghs", "ghr", "github_pat"].map(prefix => `${prefix}_${"x".repeat(36)}`),
-      ...["xoxb", "xoxa", "xoxp", "xoxr", "xoxs"].map(prefix => `${prefix}-${"x".repeat(24)}`),
+      // Active Slack families and rotating bot/user/app access tokens, plus retained legacy forms.
+      // https://docs.slack.dev/authentication/tokens/ and /authentication/using-token-rotation/
+      ...["xoxb", "xoxa", "xoxp", "xoxr", "xoxs", "xapp", "xwfp", "xoxe",
+        "xoxe.xoxb", "xoxe.xoxp", "xoxe.xapp"].map(prefix => `${prefix}-${"x".repeat(24)}`),
       ...["AKIA", "ASIA"].map(prefix => `${prefix}${"X".repeat(16)}`)];
     for (const credential of credentials) {
       const encodedKey = [...credential].map(char => `%${char.charCodeAt(0).toString(16)}`).join("");
       for (const representation of [credential, encodedKey, encodedKey.replace(/%/g, "%25"), encodedKey.replace(/%/g, "%252525")]) {
-        for (const url of [`https://example.invalid/public?q=${representation}`, `https://example.invalid/public/${representation}`]) {
+        for (const url of [`https://example.invalid/public?q=${representation}`, `https://example.invalid/public/${representation}`,
+          `https://example.invalid/public#${representation}`]) {
           const credentialFact = factSchema.parse({ ...fact, sources: [{ ...fact.sources[0], url }, fact.sources[0]] });
           const sanitized = sanitizeExperiment(credentialFact);
           expect(sanitized.sources[0]).not.toHaveProperty("url");
           expect(sanitized.sources[1]).toEqual(fact.sources[0]);
         }
       }
+    }
+    for (const url of ["https://docs.slack.dev/authentication/tokens/#app-level-tokens",
+      "https://example.invalid/public?q=xapp-help#xoxe.xapp"]) {
+      const publicFact = factSchema.parse({ ...fact, sources: [{ ...fact.sources[0], url }] });
+      expect(factSchema.parse(sanitizeExperiment(publicFact))).toEqual(publicFact);
     }
     expect(sanitizeExperiment({ content: { thought: true, text: "hidden" } })).toEqual({ content: null });
   });
