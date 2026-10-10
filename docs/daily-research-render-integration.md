@@ -7,14 +7,14 @@ qualification, publication or deployment outcome.
 
 ## Current reviewed repair package
 
-The prepared October 10 correction package pins reviewed Pipeline head
-`8f5704f0c73e7d4a8540d2e71b8fdd64fb1d69a5`, retaining the reviewed
+The October 10 correction package pins merged Pipeline commit
+`06360a73fb611f98a5c30396ef8e22a96e67a1b1`, retaining the reviewed
 cap-removal, scene preparation, contact-queue repairs and PR #2670
-communications research handoff guidance. PR #2673 remains unmerged; production
-adoption awaits its merge and the containing WebApp release. Its 1,873,920-byte archive
-SHA256 is `c844c94653c9642c33bcedf9e855abccf086923e5844de012085b49509a19337`,
+communications research handoff guidance. PR #2673 is merged; live
+adoption remains subject to the containing WebApp release and source readback. Its 1,873,920-byte archive
+SHA256 is `6d2fe81166eb7718c9566d526eea0f042779439756f688442d06fd0f3f312647`,
 with 76 manifested source files. The manifest SHA256 is
-`d466bc4a4d96a758c04524b11740934954a6d8f0d4d5b399b185e94161467911`.
+`d747c23b6cf2ed02703be9c53d336c49402b6404855f13b75a5417f0573ab445`.
 The existing exporter reads exact committed bytes; the package contains no
 private runtime inputs. It preserves the previous package's site-universe,
 site-screen, contact recovery, publication and source-reconciliation contracts.
