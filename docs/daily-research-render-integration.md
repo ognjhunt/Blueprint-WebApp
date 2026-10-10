@@ -7,28 +7,34 @@ qualification, publication or deployment outcome.
 
 ## Current reviewed repair package
 
-The October 5 package pins reviewed Pipeline commit
-`dd2d404fbcd914f7c371849d31b8a86fcc8e84a2` (merges ognjhunt/BlueprintCapturePipeline#2594), whose lineage contains the previous
-package source `94c8fe3e1ebccc5cdd117b62188ffa88f4186d03`. Its
-1,320,960-byte archive SHA256 is
-`895f0259d2a13709ddf2ce0a2509c42cdfcab561ea7a5a8dc88bb7d66160bb00`,
-with 66 manifested source files. The manifest SHA256 is
-`3c3e56781ff71d97af06b60b1943d9bcf194b3899c8f31f17ec048389085a5d5`.
-It keeps everything in the previous package (owner-directed paid expansion, optional
-FindAll list-building tools, the owner-adjustable run duration and broad enumeration) and adds:
-- an optional site-universe slice: when control holds an enabled, reviewed
-  `site_universe` pin, each run gives the agent a frozen list of the next best unresearched
-  sites from a ranked public-data export, as a read-only sandbox file, and carries
-  per-site outcomes forward. It is set and turned off with
-  `operators/site-universe-backlog.py`. With the pin absent or disabled, a run is unchanged,
-  and any slice failure leaves the run working without it;
-- refusals that end a FindAll-pinned row cleanly when its tool registry changes before QA or
-  repair starts.
-This is a research-only controlled release from Pipeline `main`.
+The October 10 candidate pins independently reviewed Pipeline PR #2657 at
+`529035148a1e5dadf9f4242d9d57d5228d0a5bf1`. Its 1,873,920-byte archive
+SHA256 is `878f12b2e4897fa82c00bd0cd5ca6f6ce342ba803fed85b4a8ca209ef49e6097`,
+with 76 manifested source files. The manifest SHA256 is
+`07954799f4eb814ec9451347e51032bf701f65a4aadffe2e5c82297bef09c5cf`.
+The existing exporter reads exact committed bytes; the package contains no
+private runtime inputs. It preserves the previous package's site-universe,
+site-screen, contact recovery, publication and source-reconciliation contracts.
+
+This candidate removes application dollar budgets and arbitrary call-count
+admission gates from research, QA, search, Exa/FindAll and contact recovery.
+Actual usage, provider price estimates and unknown exposure remain recorded.
+Canonical recurring/source authority, signed direction and grant bindings,
+owner scope, expiry, live brakes, release identity, original deadlines,
+byte/resource constraints and duplicate-effect protections remain required.
+Historical capped requests and accounting fields keep their original bytes.
+Communications spending and sending controls are unchanged.
+
+PR #2657 must pass its existing release controls and merge through its native
+Pipeline coordinator before promotion. Repin this candidate using the existing
+exporter at the final merged Pipeline source containing #2657 and #2668, then
+repeat package checks and exact-head CI on the containing WebApp commit. This
+candidate pin alone is not release or runtime-adoption proof.
 
 Unresolved eligible contact gaps now return to the existing daily research agent
 through a frozen, publication-bound input. At most three tasks join a daily
-input and each original publication gets at most two recovery attempts. The
+input. Historical recovery-attempt counts remain recorded; they no longer
+gate an otherwise authorized attempt within the original deadline. The
 agent researches current workflow owners and routing roles through its existing
 Perplexity and public-source tools; optional Exa expansion remains separately
 gated. Recipient preference is a relevant current professional person, an
@@ -48,33 +54,31 @@ and budget admission before inference. Founder Gmail draft copying retains
 its separate protected direction and current-ledger checks.
 
 The optional `exa-guarded-v1` profile adds host-controlled start/read functions
-to the same daily research session before final QA. It shares the existing $5
-research authority and requires actual authentication, supported native cost-cap
-schema and verified remaining all-in allocation before any Exa start. One
-immutable daily intent precedes the native POST; uncertain writes are never
-replayed. New starts explicitly select `effort: "ultra"` and require the actual
-authenticated schema to advertise Ultra and numeric `budget.maxCostDollars`.
-The cap must satisfy that schema and Exa's documented $1 Ultra minimum through
-the existing $5 research ceiling. Pre-existing claims retain their original
-request bytes and may only recover their ACK or read their original ID; this
-change authorizes no replacement start. Exact original-ID reads and complete
-private HTTP/native JSON receipts
-are retained in company storage and portable exports. A retained original ACK
-can be recovered without credentials, network access or an active deadline.
+to the same daily research session before final QA. New starts explicitly
+select `effort: "ultra"` and omit the application `budget` field. Admission
+requires actual authentication and a provider schema accepting that exact
+uncapped request, the frozen source authority and grant, unchanged release
+identity and the original deadline. FindAll retains the chosen request's
+versioned price estimate in its legacy `maximum_cost_usd` accounting field;
+that estimate is separate from actual usage and unknown exposure.
+
+One immutable intent precedes each native POST; uncertain writes are never
+replayed. Pre-existing capped claims retain their original request bytes and
+may only recover their ACK or read their original ID; this change authorizes
+no replacement start. Exact original-ID reads and complete private HTTP/native
+JSON receipts are retained in company storage and portable exports. A retained
+original ACK can be recovered without credentials, network access or an active
+deadline.
 
 Installing this package does not activate paid expansion. The worker requires
-its own `EXA_API_KEY`; the child environment allowlist passes this approved
-in-place worker binding to its existing daily-research child, without moving
-credentials to another host or environment. Saved OpenAI OAuth vault credentials
-are not extracted or copied. This release creates no all-in accounting producer.
-The trusted company control's `exa_expansion_allocation` must have reliable
-usage/reservation evidence;
-otherwise the optional stage records an actionable skip and ordinary research
-continues. Actual authenticated cap support remains a separate live check. The
-generic paid multi-provider MCP profile cannot be combined with this path.
-Sending, access, schedules, spending authority and existing frozen rows are
-unchanged by the package. Source and consumer exact-head CI must both pass before
-release, and live installation/readback remain separate from source review.
+its own `EXA_API_KEY`; the child environment allowlist passes its existing
+approved binding in place, without moving credentials to another host or
+environment. Saved OpenAI OAuth vault credentials are not extracted or copied.
+This release creates no accounting producer or new recurring authority.
+Unverified authorization or authenticated transport records an actionable skip
+and ordinary research continues. Sending, access, schedules and existing frozen
+rows are unchanged by the package. Source and consumer exact-head CI must both
+pass before release; live installation/readback remain separate from review.
 
 Deployment and source repinning require a fresh atomic read with zero active
 research, QA, repair or publication rows. The existing bounded renewable lease
@@ -196,8 +200,10 @@ neither a cap nor a reason to stop; interrupted work is not completed coverage.
 The scope remains bounded and makes no exhaustive global-market claim.
 
 The new recurring example is disabled with `soft_target_usd=null` and pending
-recurring-budget authority. It requires an explicitly chosen approved target
-before activation. The example admits 30 minutes total, with 20 for research and
+recurring-budget authority. Activation requires explicitly adopted recurring
+source and scheduling authority; a numeric target is historical accounting
+data and is not an application admission gate. The example admits 30 minutes
+total, with 20 for research and
 10 reserved for QA; older rows keep their originally admitted runtime and
 budget/planning references. One-time test authority is separate from recurring
 authority. Package installation does not supply either.
