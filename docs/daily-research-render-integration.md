@@ -7,16 +7,27 @@ qualification, publication or deployment outcome.
 
 ## Current reviewed repair package
 
-The October 10 package pins merged Pipeline commit
-`b67c39bb7936c344a383162c6eae70f14ad860be`, retaining the reviewed
-cap-removal, scene preparation and contact-queue repairs and adding PR #2670
-communications research handoff guidance. Its 1,873,920-byte archive
-SHA256 is `953c23ad48c8869ffae16dc8c6166b6aca05c50d34e58e39d3c4c3fcbf0c9233`,
+The prepared October 10 correction package pins reviewed Pipeline head
+`8f5704f0c73e7d4a8540d2e71b8fdd64fb1d69a5`, retaining the reviewed
+cap-removal, scene preparation, contact-queue repairs and PR #2670
+communications research handoff guidance. PR #2673 remains unmerged; production
+adoption awaits its merge and the containing WebApp release. Its 1,873,920-byte archive
+SHA256 is `c844c94653c9642c33bcedf9e855abccf086923e5844de012085b49509a19337`,
 with 76 manifested source files. The manifest SHA256 is
-`c8788208ee41471195830045f5e62a4dd5b590fae9b4dc5ab39e6b6e928458e1`.
+`d466bc4a4d96a758c04524b11740934954a6d8f0d4d5b399b185e94161467911`.
 The existing exporter reads exact committed bytes; the package contains no
 private runtime inputs. It preserves the previous package's site-universe,
 site-screen, contact recovery, publication and source-reconciliation contracts.
+
+The correction assesses freshness at the scope of each cited claim, separating
+publication/event dates from observation time. Undated operator pages may
+support bounded identity, service or address facts while current floor work,
+staffing and task demand remain unknown. Cited support stays separate from full
+qualification; null expiry does not fully qualify a lead. Only consumer
+instructions, the qualification skill and its exact file pin change. Source
+schemas, evaluators, SDK, admission rules and existing records are preserved.
+The retained-evidence diagnostic returned HTTP 409 at session creation; this
+release claims no new model assessment, lead acceptance or eligibility.
 
 The six added prompt lines select facts for reader relevance, a bounded task
 hypothesis and one answerable confirmation topic. Other source facts remain
