@@ -38,6 +38,7 @@ export function contactResearchTask(source: any, prospectId: string) {
     site: source.candidate.site, location: source.candidate.location, task: source.candidate.task,
     sourceUrls: [...new Set((source.candidate.evidence ?? []).map((x: any) => x.url as string))].slice(0, 16),
     preference: ["relevant_professional_person", "appropriate_team_inbox", "general_business_inbox"],
+    // Historical task-binding metadata; neither consumer nor research host uses it as an admission cap.
     maxAgentAttempts: 2, scope: "existing_daily_research_budget_and_tools_no_new_session_or_send" };
 }
 
@@ -53,10 +54,11 @@ export async function requestNativeContactResearch(db: FirebaseFirestore.Firesto
       if (communicationsDigest(saved.data()?.task) !== communicationsDigest(task)) throw new Error("contact_research_source_changed");
       if (saved.data()?.state === "sources_ready") {
         const attempts = saved.data()?.attempts;
-        tx.set(ref, { state: Number.isInteger(attempts) && attempts < 2 ? "pending" : "exhausted",
-          reason: "agent_sources_did_not_establish_suitable_contact", lastDiscoveryDigest: communicationsDigest(saved.data()?.discovery),
+        const attemptsValid = Number.isSafeInteger(attempts) && attempts >= 1;
+        tx.set(ref, { state: attemptsValid ? "pending" : "blocked",
+          reason: attemptsValid ? "agent_sources_did_not_establish_suitable_contact" : "contact_research_attempt_count_invalid", lastDiscoveryDigest: communicationsDigest(saved.data()?.discovery),
           completedAt: now }, { merge: true });
-        return Number.isInteger(attempts) && attempts < 2;
+        return attemptsValid;
       }
       return ["pending", "running", "sources_ready"].includes(saved.data()?.state);
     }
