@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const runOpenAIResponsesTask = vi.hoisted(() => vi.fn());
+const runAnthropicAgentSdkTask = vi.hoisted(() => vi.fn());
 const dispatchRuntimeApprovalHumanBlocker = vi.hoisted(() => vi.fn());
 const safelyDispatchHumanBlocker = vi.hoisted(() =>
   vi.fn(async (_label: string, dispatcher: () => Promise<unknown>) => dispatcher()),
@@ -23,6 +24,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
 vi.mock("../agents/adapters/openai-responses", () => ({
   runOpenAIResponsesTask,
 }));
+vi.mock("../agents/adapters/anthropic-agent-sdk", () => ({ runAnthropicAgentSdkTask }));
 
 vi.mock("../utils/human-blocker-autonomy", () => ({
   dispatchRuntimeApprovalHumanBlocker,
@@ -31,6 +33,7 @@ vi.mock("../utils/human-blocker-autonomy", () => ({
 
 afterEach(() => {
   runOpenAIResponsesTask.mockReset();
+  runAnthropicAgentSdkTask.mockReset();
   dispatchRuntimeApprovalHumanBlocker.mockReset();
   safelyDispatchHumanBlocker.mockClear();
   vi.resetModules();
@@ -93,6 +96,7 @@ describe("alpha automation runtime autonomy", () => {
       kind: "payout_exception_triage",
       provider: "openai_responses",
       runtime: "openai_responses",
+      model: "gpt-5.4",
       input: {
         id: "payout-1",
       },
@@ -107,6 +111,17 @@ describe("alpha automation runtime autonomy", () => {
         runtime: "openai_responses",
       }),
     );
+  });
+
+  it("migrates an explicit Luna task before executing it and preserves review", async () => {
+    runAnthropicAgentSdkTask.mockResolvedValue({ status: "completed", provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk",
+      model: "claude-haiku-5-5", tool_mode: "api", output: {}, requires_human_review: true, requires_approval: false });
+    const { runAgentTask } = await import("../agents/runtime");
+    const result = await runAgentTask({ kind: "payout_exception_triage", provider: "openai_responses", runtime: "openai_responses",
+      model: "gpt-6-luna", input: { id: "fixture" } });
+    expect(result.status).toBe("completed"); expect(result.requires_human_review).toBe(true);
+    expect(runAnthropicAgentSdkTask).toHaveBeenCalledWith(expect.objectContaining({ provider: "anthropic_agent_sdk", runtime: "anthropic_agent_sdk", model: "claude-haiku-5-5" }));
+    expect(runOpenAIResponsesTask).not.toHaveBeenCalled();
   });
 
   it("still allows manual operator sessions to enter the approval path", async () => {

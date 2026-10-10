@@ -4,11 +4,12 @@ import {
   describeStructuredAutomationProvider,
   getStructuredAutomationFallbackProvider,
   getOpenAiTimeoutMs,
-  getStructuredAutomationProvider,
+  getAnthropicTimeoutMs,
   getTaskModelByProvider,
   isProviderConfigured,
   type StructuredProvider,
 } from "./provider-config";
+import { HAIKU_MODEL, isNativeAnthropicConfigured } from "../utils/anthropicHaikuPricing";
 
 /**
  * The lanes this metadata speaks for.
@@ -31,17 +32,14 @@ const CONNECTIVITY_TASK_KINDS = [
 
 type ConnectivityTaskKind = (typeof CONNECTIVITY_TASK_KINDS)[number];
 
-function runtimeDefaultModel() {
-  const provider = getStructuredAutomationProvider("operator_thread");
-  return getTaskModelByProvider("operator_thread")[provider] || "gpt-5.4";
-}
-
 export function getAgentRuntimeConnectionMetadata() {
-  const provider = getStructuredAutomationProvider();
-  const fallbackProvider = getStructuredAutomationFallbackProvider();
+  // Top-level metadata describes the operator smoke lane; per-task fields
+  // report the separately resolved automation lanes.
+  const fallbackProvider = getStructuredAutomationFallbackProvider("operator_thread");
 
   const taskProviders = {} as Record<ConnectivityTaskKind, StructuredProvider>;
   const taskModels = {} as Record<ConnectivityTaskKind, string | null>;
+  const taskConfigured = {} as Record<ConnectivityTaskKind, boolean>;
   const unhonoredLaneProviders: Array<{
     task_kind: ConnectivityTaskKind;
     env_key: string;
@@ -54,6 +52,9 @@ export function getAgentRuntimeConnectionMetadata() {
     const resolution = describeStructuredAutomationProvider(taskKind);
     taskProviders[taskKind] = resolution.provider;
     taskModels[taskKind] = getTaskModelByProvider(taskKind)[resolution.provider] || null;
+    taskConfigured[taskKind] = resolution.provider === "anthropic_agent_sdk" && taskModels[taskKind] === HAIKU_MODEL
+      ? isNativeAnthropicConfigured()
+      : isProviderConfigured(resolution.provider);
     if (!resolution.lane_request_honored && resolution.lane_env_key && resolution.lane_request) {
       unhonoredLaneProviders.push({
         task_kind: taskKind,
@@ -65,14 +66,16 @@ export function getAgentRuntimeConnectionMetadata() {
     }
   }
 
+  const provider = taskProviders.operator_thread;
+  const defaultModel = taskModels.operator_thread || "gpt-5.4";
   return {
     provider,
     fallback_provider: fallbackProvider,
-    configured: isProviderConfigured(provider),
-    auth_configured: isProviderConfigured(provider),
+    configured: taskConfigured.operator_thread,
+    auth_configured: taskConfigured.operator_thread,
     timeout_ms: Number(
       provider === "anthropic_agent_sdk"
-        ? process.env.ANTHROPIC_TIMEOUT_MS ?? 20_000
+        ? getAnthropicTimeoutMs(defaultModel)
         : provider === "deepseek_chat"
           ? process.env.DEEPSEEK_TIMEOUT_MS ?? 120_000
         : provider === "codex_local"
@@ -81,9 +84,10 @@ export function getAgentRuntimeConnectionMetadata() {
           ? process.env.OPENCLAW_TIMEOUT_MS ?? 20_000
           : getOpenAiTimeoutMs(),
     ),
-    default_model: runtimeDefaultModel(),
+    default_model: defaultModel,
     task_providers: taskProviders,
     task_models: taskModels,
+    task_configured: taskConfigured,
     unhonored_lane_providers: unhonoredLaneProviders,
   };
 }
@@ -110,7 +114,7 @@ export async function runAgentRuntimeSmokeTest(params?: {
     kind: "operator_thread",
     provider: connectivity.provider,
     runtime: connectivity.provider,
-    model: params?.model?.trim() || runtimeDefaultModel(),
+    model: params?.model?.trim() || connectivity.default_model,
     input: {
       message:
         'Return JSON only with reply="Agent runtime smoke test passed.", summary="Smoke test completed successfully.", suggested_actions=["Continue integration"], requires_human_review=false.',

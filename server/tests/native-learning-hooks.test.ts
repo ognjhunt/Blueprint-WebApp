@@ -267,6 +267,28 @@ describe("native zero-model learning hooks", () => {
     at = "2026-10-03T11:45:00.000Z"; await vi.advanceTimersByTimeAsync(60000); expect(run).toHaveBeenCalledTimes(2);
     await handle.stop();
   });
+  it.each(["daily_research", "communications"] as const)("replays a retained v1 %s input with its historical disabled classifier policy", async role => {
+    const f = fixture(); nativeBundle(f);
+    const path = role === "communications" ? "blueprintCommunications/default/jobs/job-1" : "blueprintDailyResearch/sites-first/runs/2026-10-02";
+    const ids = role === "communications" ? ["prospect-1"] : [];
+    const first = await f.hooks.prepareNativeJob(role, path, ids);
+    if (!first?.handoff) throw new Error("expected frozen context");
+    // Seed the immutable v1 policy independently of the current model routing.
+    const { contextHash: _contextHash, ...context } = structuredClone(first.handoff);
+    const priorContext = { ...context, classificationPolicy: { model: "gpt-6-luna", enabled: false } };
+    const handoff = { ...priorContext, contextHash: digest(priorContext) };
+    const { inputHash: _inputHash, ...input } = f.records.get(first.recordRef);
+    const body = { ...input, handoff }, inputHash = digest(body), recordRef = `${LEARNING_ROOT}/nativeLearningInputs/${inputHash}`;
+    const retained = { ...body, inputHash };
+    f.records.set(recordRef, retained);
+    f.records.set(first.bindingRef, { ...f.records.get(first.bindingRef), inputHash });
+    const writes = [...f.writes], bytes = JSON.stringify(retained), bindingBytes = JSON.stringify(f.records.get(first.bindingRef));
+    const replay = await f.hooks.prepareNativeJob(role, path, ids, { allowCreate: false });
+    expect(replay).toMatchObject({ replay: true, recordRef, inputHash, handoff });
+    expect(JSON.stringify(f.records.get(recordRef))).toBe(bytes);
+    expect(JSON.stringify(f.records.get(first.bindingRef))).toBe(bindingBytes);
+    expect(f.writes).toEqual(writes);
+  });
   it.each(["daily_research", "communications"] as const)("pins the %s input once and retains exact hashes across later recovery", async role => {
     let at = now; const f = fixture(() => at); nativeBundle(f);
     const path = role === "communications" ? "blueprintCommunications/default/jobs/job-1" : "blueprintDailyResearch/sites-first/runs/2026-10-02";

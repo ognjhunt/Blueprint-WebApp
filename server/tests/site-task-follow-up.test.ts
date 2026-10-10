@@ -13,7 +13,7 @@ describe("site task follow-up selection", () => {
   });
 
   it("still offers short, usable questions when the model is not configured", async () => {
-    vi.stubEnv("OPENAI_API_KEY", "");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
     expect(await selectFollowUps({
       taskStatement: "Move boxes",
       briefSummary: "Move boxes to a pallet",
