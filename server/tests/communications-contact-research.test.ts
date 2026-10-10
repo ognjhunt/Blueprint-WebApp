@@ -41,6 +41,25 @@ describe("native agent contact-research recovery", () => {
     expect(await requestNativeContactResearch(f.db,f.source,f.prospectId,"contact_fetch_size_limit",communicationsNow+3)).toBe(false);
     await expect(readNativeContactDiscovery(f.db,f.source,f.prospectId)).rejects.toThrow("contact_agent_research_exhausted");
   });
+  it.each([1, 2, 3, 50])("returns unsuitable contact sources to the existing agent after %i recorded attempts", async attempts => {
+    const f = fixture(), task = contactResearchTask(f.source, f.prospectId), discovery = { retained: "original-source-proof" };
+    const key = `blueprintCommunications/default/contactResearchRequests/${task.requestId}`;
+    await f.db.doc(key).set({ task, state: "sources_ready", attempts, discovery });
+    expect(await requestNativeContactResearch(f.db, f.source, f.prospectId, "contact_resolution_missing_or_ambiguous", communicationsNow)).toBe(true);
+    expect(f.db.records.get(key)).toMatchObject({ task, state: "pending", attempts, discovery,
+      lastDiscoveryDigest: communicationsDigest(discovery), reason: "agent_sources_did_not_establish_suitable_contact" });
+    await requestNativeContactResearch(f.db, f.source, f.prospectId, "contact_fetch_size_limit", communicationsNow + 1);
+    expect(f.db.records.get(key)).toMatchObject({ state: "pending", attempts });
+  });
+  it.each([undefined, 0, -1, 1.5, "2", Number.MAX_SAFE_INTEGER + 1])
+    ("quarantines invalid retained attempt accounting without resetting it: %s", async attempts => {
+      const f = fixture(), task = contactResearchTask(f.source, f.prospectId), discovery = { retained: "original-source-proof" };
+      const key = `blueprintCommunications/default/contactResearchRequests/${task.requestId}`;
+      await f.db.doc(key).set({ task, state: "sources_ready", attempts, discovery });
+      expect(await requestNativeContactResearch(f.db, f.source, f.prospectId, "contact_fetch_size_limit", communicationsNow)).toBe(false);
+      expect(f.db.records.get(key)).toMatchObject({ task, state: "blocked", attempts, discovery, reason: "contact_research_attempt_count_invalid" });
+      await expect(readNativeContactDiscovery(f.db, f.source, f.prospectId)).rejects.toThrow("contact_agent_research_proof_invalid");
+    });
   it.each(["recipient_suppressed","contact_resolution_recipient_restricted","verified_contact_conflicting_unknowns","lead_verification_required:missing"])("does not widen authority for %s", async reason=>{
     const f=fixture();expect(recoverableContactGap(reason)).toBe(false);
     expect(await requestNativeContactResearch(f.db,f.source,f.prospectId,reason,communicationsNow)).toBe(false);

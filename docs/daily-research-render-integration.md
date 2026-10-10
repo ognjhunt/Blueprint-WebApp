@@ -7,16 +7,17 @@ qualification, publication or deployment outcome.
 
 ## Current reviewed repair package
 
-The October 10 candidate pins independently reviewed Pipeline PR #2657 at
-`529035148a1e5dadf9f4242d9d57d5228d0a5bf1`. Its 1,873,920-byte archive
-SHA256 is `878f12b2e4897fa82c00bd0cd5ca6f6ce342ba803fed85b4a8ca209ef49e6097`,
+The October 10 package pins merged Pipeline commit
+`c54fe3c1c01e0e314e135e0eeee0a5651bfaa711`, containing independently reviewed
+PR #2657 and scene preparation repair #2668. Its 1,873,920-byte archive
+SHA256 is `1c94c7f198b2bce17d8cdfc1bbc8d02206f36db6c9b4c1c61e5d9bc5eb340eb8`,
 with 76 manifested source files. The manifest SHA256 is
-`07954799f4eb814ec9451347e51032bf701f65a4aadffe2e5c82297bef09c5cf`.
+`b9fcdf6fdef7f0ecd9494e027d6926de4ade626d3640023c1b416c203790f37c`.
 The existing exporter reads exact committed bytes; the package contains no
 private runtime inputs. It preserves the previous package's site-universe,
 site-screen, contact recovery, publication and source-reconciliation contracts.
 
-This candidate removes application dollar budgets and arbitrary call-count
+This package removes application dollar budgets and arbitrary call-count
 admission gates from research, QA, search, Exa/FindAll and contact recovery.
 Actual usage, provider price estimates and unknown exposure remain recorded.
 Canonical recurring/source authority, signed direction and grant bindings,
@@ -25,19 +26,21 @@ byte/resource constraints and duplicate-effect protections remain required.
 Historical capped requests and accounting fields keep their original bytes.
 Communications spending and sending controls are unchanged.
 
-PR #2657 must pass its existing release controls and merge through its native
-Pipeline coordinator before promotion. Repin this candidate using the existing
-exporter at the final merged Pipeline source containing #2657 and #2668, then
-repeat package checks and exact-head CI on the containing WebApp commit. This
-candidate pin alone is not release or runtime-adoption proof.
+Exact-head source and containing WebApp CI, independent review and the existing
+drained renewable release lease must qualify the paired deployment. Final
+installed-manifest and company control readbacks must name the same source.
+Package source alone is not runtime-adoption proof.
 
 Unresolved eligible contact gaps now return to the existing daily research agent
 through a frozen, publication-bound input. At most three tasks join a daily
-input. Historical recovery-attempt counts remain recorded; the packaged
-research host no longer gates them by count. The existing WebApp consumer still
-marks unresolved `sources_ready` requests exhausted after two attempts, and
-its saved task retains `maxAgentAttempts: 2`; this package update preserves
-that consumer policy and its task digest. The
+input. Historical recovery-attempt counts remain recorded; neither the research
+host nor WebApp consumer gates otherwise authorized pending work by count.
+Unresolved `sources_ready` requests return to `pending` without resetting their
+attempt count or proof. The legacy `maxAgentAttempts: 2` field remains binding
+metadata to preserve saved task digests, and is not an admission cap. Invalid
+attempt accounting stays blocked; existing terminal and quarantined requests
+are not reopened. Authority, opt-outs, evidence, original deadlines and
+idempotency still determine whether work may proceed. The
 agent researches current workflow owners and routing roles through its existing
 Perplexity and public-source tools; optional Exa expansion remains separately
 gated. Recipient preference is a relevant current professional person, an
