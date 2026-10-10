@@ -33,8 +33,11 @@ candidate pin alone is not release or runtime-adoption proof.
 
 Unresolved eligible contact gaps now return to the existing daily research agent
 through a frozen, publication-bound input. At most three tasks join a daily
-input. Historical recovery-attempt counts remain recorded; they no longer
-gate an otherwise authorized attempt within the original deadline. The
+input. Historical recovery-attempt counts remain recorded; the packaged
+research host no longer gates them by count. The existing WebApp consumer still
+marks unresolved `sources_ready` requests exhausted after two attempts, and
+its saved task retains `maxAgentAttempts: 2`; this package update preserves
+that consumer policy and its task digest. The
 agent researches current workflow owners and routing roles through its existing
 Perplexity and public-source tools; optional Exa expansion remains separately
 gated. Recipient preference is a relevant current professional person, an
