@@ -8,11 +8,12 @@ qualification, publication or deployment outcome.
 ## Current reviewed repair package
 
 The October 10 package pins merged Pipeline commit
-`c54fe3c1c01e0e314e135e0eeee0a5651bfaa711`, containing independently reviewed
-PR #2657 and scene preparation repair #2668. Its 1,873,920-byte archive
-SHA256 is `1c94c7f198b2bce17d8cdfc1bbc8d02206f36db6c9b4c1c61e5d9bc5eb340eb8`,
+`77ad03c5749564c43187d831c4553db74dc72cef`, containing independently reviewed
+PR #2657, scene preparation repair #2668 and contact-queue fairness repair
+#2669. Its 1,873,920-byte archive
+SHA256 is `a8681a36a05306f4576f35794988994769c1cd1bb58ff848563625d4ed9376e9`,
 with 76 manifested source files. The manifest SHA256 is
-`b9fcdf6fdef7f0ecd9494e027d6926de4ade626d3640023c1b416c203790f37c`.
+`4d452fa9c347894431debad6b560e1ad54ca941cf7d4fdc95886ffb1d87f8ffc`.
 The existing exporter reads exact committed bytes; the package contains no
 private runtime inputs. It preserves the previous package's site-universe,
 site-screen, contact recovery, publication and source-reconciliation contracts.
@@ -33,6 +34,9 @@ Package source alone is not runtime-adoption proof.
 
 Unresolved eligible contact gaps now return to the existing daily research agent
 through a frozen, publication-bound input. At most three tasks join a daily
+input. Pending work is ordered by its latest request/completion activity and
+stable request ID inside the existing bounded history envelope, so requeued
+contacts rotate behind older waiting work. Overflow refuses a partial frozen
 input. Historical recovery-attempt counts remain recorded; neither the research
 host nor WebApp consumer gates otherwise authorized pending work by count.
 Unresolved `sources_ready` requests return to `pending` without resetting their
