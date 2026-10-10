@@ -8,15 +8,23 @@ qualification, publication or deployment outcome.
 ## Current reviewed repair package
 
 The October 10 package pins merged Pipeline commit
-`77ad03c5749564c43187d831c4553db74dc72cef`, containing independently reviewed
-PR #2657, scene preparation repair #2668 and contact-queue fairness repair
-#2669. Its 1,873,920-byte archive
-SHA256 is `a8681a36a05306f4576f35794988994769c1cd1bb58ff848563625d4ed9376e9`,
+`b67c39bb7936c344a383162c6eae70f14ad860be`, retaining the reviewed
+cap-removal, scene preparation and contact-queue repairs and adding PR #2670
+communications research handoff guidance. Its 1,873,920-byte archive
+SHA256 is `953c23ad48c8869ffae16dc8c6166b6aca05c50d34e58e39d3c4c3fcbf0c9233`,
 with 76 manifested source files. The manifest SHA256 is
-`4d452fa9c347894431debad6b560e1ad54ca941cf7d4fdc95886ffb1d87f8ffc`.
+`c8788208ee41471195830045f5e62a4dd5b590fae9b4dc5ab39e6b6e928458e1`.
 The existing exporter reads exact committed bytes; the package contains no
 private runtime inputs. It preserves the previous package's site-universe,
 site-screen, contact recovery, publication and source-reconciliation contracts.
+
+The six added prompt lines select facts for reader relevance, a bounded task
+hypothesis and one answerable confirmation topic. Other source facts remain
+in findings, and dated events remain in the handoff when they affect a decision.
+Authorized human writing feedback keeps its original record/date and stays
+distinct from recipient outcomes, demand and causal improvement. This changes
+future research handoffs without changing the current Sol max communications
+default or rewriting already-admitted inputs.
 
 This package removes application dollar budgets and arbitrary call-count
 admission gates from research, QA, search, Exa/FindAll and contact recovery.
