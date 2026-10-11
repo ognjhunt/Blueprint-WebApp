@@ -260,6 +260,15 @@ it("sponsor-approved renewal re-issues an expired preparation grant under its id
     await expect(renew()).rejects.toThrow("website_scene_sponsorship_renewal_not_expired");
   } finally {vi.restoreAllMocks();}
 });
+it("renewal refuses to re-scope a grant whose task changed after expiry",async()=>{
+  seed(packet(),false,false);const first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
+  (state.docs.get("siteTaskBriefs/one") as any).summary="Move bins and stack crates";
+  vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+10)*1000);
+  try {await expect(renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",approval_reference:"owner chat approval",
+    ack:SPONSORSHIP_RENEWAL_ACK,apply:true})).rejects.toThrow("website_scene_sponsorship_renewal_scope_changed");}
+  finally {vi.restoreAllMocks();}
+  expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(first);
+});
 it("renewal refuses a grant whose recorded policy cannot be rebuilt",async()=>{
   seed(packet(),false,false);const first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
   const {authority_digest:_d,...payload}=first;const forged={...payload,policy_digest:`sha256:${"f".repeat(64)}`};

@@ -385,6 +385,14 @@ export async function renewExpiredWebsiteSceneSponsorship(requestId: string, inp
       retainedPolicy: retained.data, renewal: { parent_authority_digest: parentDigest,
         parent_expires_at_epoch: previous.expires_at_epoch, approved_by: input.approved_by,
         approval_reference: input.approval_reference.trim() } });
+    // A renewal restores the same allowance for a new window. Any change to the
+    // task, rights, provider or proposal needs a fresh grant, never this path.
+    const scope = (grant: Record<string, any>) => {
+      const { authority_digest: _d, expires_at_epoch: _e, renewal: _r, consent, ...rest } = grant;
+      const { accepted_at_epoch: _a, ...terms } = consent ?? {};
+      return digest({ ...rest, consent: terms });
+    };
+    if (scope(renewed) !== scope(previous)) throw new Error("website_scene_sponsorship_renewal_scope_changed");
     if (input.apply) transaction.update(ref, { website_scene_sponsorship: renewed,
       website_scene_sponsorship_history: [...(record.website_scene_sponsorship_history ?? []), previous] });
     return renewed;
