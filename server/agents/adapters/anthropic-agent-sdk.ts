@@ -5,9 +5,11 @@ import type { AgentResult, NormalizedAgentTask } from "../types";
 import { getCompanyHistoryAccess, openAiResponsesHistoryTools, runOperatorTool } from "../operator-tools";
 import { digest } from "../../research-learning/contract";
 import { outputCorrectionEvidence, outputCorrectionPrompt, usageCount } from "./output-correction";
+import { ANTHROPIC_BASE_URL, HAIKU_MODEL, haikuUsageCost, isNativeAnthropicConfigured } from "../../utils/anthropicHaikuPricing";
+import { getAnthropicTimeoutMs } from "../provider-config";
 
 const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim();
-const anthropicTimeoutMs = Number(process.env.ANTHROPIC_TIMEOUT_MS ?? 20_000);
+const anthropicTimeoutMs = getAnthropicTimeoutMs();
 
 const client = anthropicApiKey
   ? new Anthropic({
@@ -55,14 +57,15 @@ function inferRequiresHumanReview<TOutput>(output: TOutput) {
 export async function runAnthropicAgentSdkTask<TInput, TOutput>(
   task: NormalizedAgentTask<TInput, TOutput>,
 ): Promise<AgentResult<TOutput>> {
-  if (!client) {
+  const haiku = task.model === HAIKU_MODEL;
+  if (!client || (haiku && !isNativeAnthropicConfigured())) {
     return {
       status: "failed",
       provider: task.provider,
       runtime: task.runtime,
       model: task.model,
       tool_mode: task.tool_policy.mode,
-      error: "ANTHROPIC_API_KEY is not configured",
+      error: haiku ? "Native Anthropic credentials or endpoint are not configured" : "ANTHROPIC_API_KEY is not configured",
       requires_human_review: true,
       requires_approval: false,
     };
@@ -83,9 +86,17 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
     name: tool.name, description: tool.description, input_schema: tool.parameters,
   })) : [];
   const historyCalls: Array<Record<string, unknown>> = [];
-  const deadline = Date.now() + anthropicTimeoutMs;
+  const requestClient = haiku ? new Anthropic({ apiKey: anthropicApiKey!, baseURL: ANTHROPIC_BASE_URL,
+    timeout: getAnthropicTimeoutMs(task.model), maxRetries: 0,
+    fetch: (url, options) => fetch(url, { ...options, redirect: "error" }) }) : client;
+  const deadline = Date.now() + getAnthropicTimeoutMs(task.model);
   const receipts: Array<Record<string, unknown>> = [], usageSamples: Array<Record<string, unknown>> = [], providerResponses: Array<Record<string, unknown>> = [];
-  let rawText = "", remainingOutput = 4000, promptTokens = 0, completionTokens = 0, usageComplete = true, cachedTokens = 0, cacheWriteTokens = 0;
+  let rawText = "", remainingOutput = haiku ? 16_000 : 4000, promptTokens = 0, completionTokens = 0, usageComplete = true, cachedTokens = 0, cacheWriteTokens = 0;
+  let costComplete = true, reservedCost = 0, uncachedInputCost = 0, cachedReadCost = 0, cacheWriteCost = 0, outputCost = 0;
+  const projectedMaxCost = (100_000 * 0.5 + 16_000 * 2.5) * 1.1 / 1_000_000;
+  let unknownCalls = 0;
+  let withoutCachingCost = 0;
+  const maximumCost = 5;
   const result = (output?: TOutput, error?: string): AgentResult<TOutput> => ({
     status: error ? "failed" : "completed", provider: task.provider, runtime: task.runtime,
     model: task.model, tool_mode: task.tool_policy.mode, ...(output !== undefined ? { output } : {}),
@@ -94,20 +105,59 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
     artifacts: { output_repairs: receipts, usage_samples: usageSamples, provider_responses: providerResponses, company_history_tool_calls: historyCalls,
       usage: { prompt_tokens: usageComplete ? promptTokens : null, completion_tokens: usageComplete ? completionTokens : null,
         total_tokens: usageComplete ? promptTokens + completionTokens : null,
-        prompt_cache_hit_tokens: cachedTokens, cache_write_tokens: cacheWriteTokens }, output_usage_complete: usageComplete },
+        prompt_cache_hit_tokens: cachedTokens, cache_write_tokens: cacheWriteTokens,
+        ...(haiku ? { estimated_total_cost_usd: costComplete ? uncachedInputCost + cachedReadCost + cacheWriteCost + outputCost : null,
+          uncached_input_cost_usd: costComplete ? uncachedInputCost : null, cached_read_cost_usd: costComplete ? cachedReadCost : null,
+          cache_write_cost_usd: costComplete ? cacheWriteCost : null, output_cost_usd: costComplete ? outputCost : null,
+          estimated_cost_without_caching_usd: costComplete ? withoutCachingCost : null,
+          estimated_savings_usd: costComplete ? withoutCachingCost - uncachedInputCost - cachedReadCost - cacheWriteCost - outputCost : null,
+          cost_status: costComplete ? "model_pricing_estimate_not_official_billing" : "provider_usage_unknown" } : {}) },
+      ...(haiku ? { inference_budget: { maximum_cost_usd: maximumCost, reserved_cost_usd: reservedCost,
+        maximum_input_tokens_per_call: 100_000, maximum_output_tokens_total: 16_000 },
+        known_usage_subtotals: { estimated_total_cost_usd: uncachedInputCost + cachedReadCost + cacheWriteCost + outputCost },
+        inference_reservation: { reconciled_cost_status: "includes_worst_case_reservations",
+          known_reported_cost_usd: uncachedInputCost + cachedReadCost + cacheWriteCost + outputCost,
+          unknown_usage_reserved_cost_usd: unknownCalls * projectedMaxCost,
+          projected_max_cost_per_call_usd: projectedMaxCost,
+          reconciled_cost_usd: uncachedInputCost + cachedReadCost + cacheWriteCost + outputCost + unknownCalls * projectedMaxCost } } : {}), output_usage_complete: usageComplete },
   });
   let correctionAttempts = 0;
   while (true) {
     if (Date.now() >= deadline || remainingOutput <= 0) return result(undefined, "output_correction_budget_exhausted");
+    if (haiku) {
+      // UTF-8 bytes plus framing margin are deliberately conservative for text/tools.
+      const inputBound = Buffer.byteLength(JSON.stringify({ messages, tools: historyTools }), "utf8") + 8192;
+      if (inputBound > 100_000) return result(undefined, "anthropic_input_budget_exhausted");
+      const quote = projectedMaxCost;
+      if (reservedCost + quote > maximumCost) return result(undefined, "anthropic_cost_budget_exhausted");
+      reservedCost += quote;
+    }
     let response;
     try {
-      response = await client.messages.create({ model: task.model, max_tokens: remainingOutput, messages,
+      response = await requestClient.messages.create({ model: task.model, max_tokens: remainingOutput, messages,
+        ...(haiku ? { output_config: { effort: task.kind === "inbound_qualification" ? "max" : "medium" } } : {}),
         ...(historyTools.length ? { tools: historyTools } : {}) },
         { timeout: Math.max(1, deadline - Date.now()), maxRetries: 0 });
-    } catch { return result(undefined, "anthropic_provider_request_failed"); }
-    rawText = extractText(response.content);
+    } catch {
+      if (haiku) {
+        costComplete = false; usageComplete = false; unknownCalls++;
+        usageSamples.push({ estimated_total_cost_usd: null, request_status: "request_attempted_response_unreceived" });
+        providerResponses.push({ responseId: null, usage: null, request_status: "request_attempted_response_unreceived" });
+      }
+      return result(undefined, "anthropic_provider_request_failed");
+    }
+    const validContent = Array.isArray(response.content) && response.content.every(block => block && typeof block === "object"
+      && ["text", "thinking", "redacted_thinking", "tool_use"].includes(block.type));
+    rawText = validContent ? extractText(response.content) : "";
     const usage = (response.usage ?? {}) as unknown as Record<string, unknown>;
-    usageSamples.push({ response_id: response.id, ...usage });
+    const withinBounds = typeof usage.input_tokens === "number" && typeof usage.output_tokens === "number"
+      && usage.input_tokens + Number(usage.cache_read_input_tokens ?? 0) + Number(usage.cache_creation_input_tokens ?? 0) <= 100_000
+      && usage.output_tokens <= remainingOutput;
+    const cost = haiku && response.model === HAIKU_MODEL && withinBounds ? haikuUsageCost(usage) : null;
+    if (haiku && !cost) { costComplete = false; unknownCalls++; }
+    if (cost) { uncachedInputCost += cost.uncachedInputCost; cachedReadCost += cost.cachedReadCost;
+      cacheWriteCost += cost.cacheWriteCost; outputCost += cost.outputCost; withoutCachingCost += cost.withoutCachingCost; }
+    usageSamples.push({ response_id: response.id, ...usage, ...(haiku ? { estimated_total_cost_usd: cost?.totalCost ?? null } : {}) });
     providerResponses.push({ responseId: response.id, content: response.content, usage, stopReason: response.stop_reason });
     const input = usageCount(usage.input_tokens), output = usageCount(usage.output_tokens);
     const cached = usage.cache_read_input_tokens === undefined ? 0 : usageCount(usage.cache_read_input_tokens);
@@ -116,8 +166,20 @@ export async function runAnthropicAgentSdkTask<TInput, TOutput>(
     promptTokens += (input ?? 0) + (cached ?? 0) + (written ?? 0); completionTokens += output ?? 0;
     cachedTokens += cached ?? 0; cacheWriteTokens += written ?? 0;
     remainingOutput -= output ?? remainingOutput;
+    if (haiku && !validContent) return result(undefined, "anthropic_response_content_invalid");
+    if (haiku && response.model !== HAIKU_MODEL) { costComplete = false; return result(undefined, "anthropic_response_model_mismatch"); }
+    if (haiku && ((input ?? 0) + (cached ?? 0) + (written ?? 0) > 100_000 || remainingOutput < 0)) {
+      costComplete = false;
+      return result(undefined, "anthropic_usage_exceeds_budget");
+    }
+    if (haiku && !["end_turn", "tool_use"].includes(String(response.stop_reason))) return result(undefined, "anthropic_response_incomplete");
+    if (haiku && (!costComplete || !usageComplete)) return result(undefined, "anthropic_usage_unavailable");
     traceLogs.push({ event_type: "provider.response.received", status: "info", response_id: response.id, stop_reason: response.stop_reason, chars: rawText.length });
     const calls = response.content.filter((block): block is Anthropic.Messages.ToolUseBlock => block.type === "tool_use");
+    if (haiku && ((response.stop_reason === "tool_use") !== (calls.length > 0)
+        || new Set(calls.map(call => call.id)).size !== calls.length || calls.some(call => !call.id))) {
+      return result(undefined, "anthropic_tool_identity_invalid");
+    }
     if (calls.length) {
       if (!usageComplete) return result(undefined, "output_correction_usage_unavailable");
       if (Date.now() >= deadline || remainingOutput <= 0) return result(undefined, "output_correction_budget_exhausted");

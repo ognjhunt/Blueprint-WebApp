@@ -37,11 +37,27 @@ beforeEach(() => {
     sourceSnapshotId:"a".repeat(64),crmIds:["BP-000001"],prospectIds:[],discoveryCapabilityIds:["summary-capability"],detailCapabilityIds:[],expiresAt:"2099-10-03T00:00:00.000Z"},
   businessScope:{principalId:"blueprint-learning-host",subjectKeys:["blueprint:research-learning"],expiresAt:"2099-10-02T13:00:00.000Z"},
 };
-  vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture"); vi.stubEnv("GEMINI_API_KEY", "offline-fixture");
+  vi.stubEnv("ANTHROPIC_API_KEY", "offline-fixture"); vi.stubEnv("ANTHROPIC_BASE_URL", ""); vi.stubEnv("GEMINI_API_KEY", "offline-fixture");
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe("Anthropic read-only company history", () => {
+  it("round-trips native Haiku signed thinking and authorized read-only tool results", async () => {
+    const native = (content: unknown[], stop_reason = "end_turn") => ({ ...message(content),
+      model: "claude-haiku-5-5", stop_reason });
+    const signed = { type: "thinking", thinking: "", signature: "opaque-signed-native" };
+    anthropicCreate.mockResolvedValueOnce(native([signed, call("native-search", "search_company_history", { query: "prior evidence" })], "tool_use"))
+      .mockResolvedValueOnce(native([answer("review remains required")]));
+    historyRun.mockResolvedValue({ records: [], next_cursor: null });
+    const { runAnthropicAgentSdkTask } = await import("../agents/adapters/anthropic-agent-sdk");
+    const result = await runAnthropicAgentSdkTask({ ...task(), model: "claude-haiku-5-5" } as never);
+    expect(result.status).toBe("completed");
+    expect(historyRun).toHaveBeenCalledTimes(1);
+    expect(anthropicCreate.mock.calls[1][0].messages[1].content[0]).toEqual(signed);
+    expect(anthropicCreate.mock.calls[1][0].messages[2].content[0]).toMatchObject({ type: "tool_result", tool_use_id: "native-search" });
+    expect(result.artifacts?.usage).toMatchObject({ estimated_total_cost_usd: expect.any(Number) });
+  });
+
   it("repairs tool arguments, pages and fetches in the same original conversation", async () => {
     anthropicCreate.mockResolvedValueOnce(message([call("bad", "search_company_history", { query: 17 })]))
       .mockResolvedValueOnce(message([call("page1", "search_company_history", { query: "prior logistics", page_size: 2 })]))
