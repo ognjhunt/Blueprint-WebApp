@@ -111,8 +111,9 @@ export function websiteSceneSponsorship(input: {
   inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, any>;
   assessmentPreparationProposal?: AssessmentPreparationProposal;
   purpose?: "scene_preparation"; expected_task_context_digest?: string;
+  retainedPolicy?: z.infer<typeof policySchema>; renewal?: SponsorshipRenewal;
 }) {
-  const configured = policy();
+  const configured = input.retainedPolicy ?? policy();
   const rights = projectWebsiteCaptureRights(input.record);
   if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
   if (input.purpose !== undefined && input.purpose !== "scene_preparation") throw new Error("website_scene_sponsorship_changed");
@@ -214,6 +215,7 @@ export function websiteSceneSponsorship(input: {
     upstream_max_spend_usd: configured.upstream_max_spend_usd,
     max_total_spend_usd: configured.native_max_spend_usd,
     max_paid_attempts: configured.max_paid_attempts,
+    ...(input.renewal ? { renewal: input.renewal } : {}),
     expires_at_epoch: input.now + configured.ttl_seconds,
     consent: {
       rights_reference: digest(rights), provider_terms_reference: configured.provider_terms_reference,
@@ -318,6 +320,74 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
       ...(options?.expected_task_context_digest !== undefined ? {expected_task_context_digest: baseContext.context_digest} : {})});
     if (!record.website_scene_sponsorship) transaction.update(ref, { website_scene_sponsorship: authority });
     return continuationAuthority(authority, {...input, captureId, captureBinding});
+  }));
+}
+
+type SponsorshipRenewal = { parent_authority_digest: string; parent_expires_at_epoch: number;
+  approved_by: string; approval_reference: string };
+export const SPONSORSHIP_RENEWAL_ACK = "renew-expired-blueprint-preparation-sponsorship";
+
+/** The sponsor's explicit re-issue of its own expired preparation grant.
+ *
+ * Expiry still ends the grant for every automatic caller; only this call
+ * re-issues it. The policy is rebuilt from the expired grant and must hash to
+ * its recorded digest, so caps, attempts and window cannot change here, and
+ * every later use revalidates that digest against the configured policy.
+ * Reservations stay on the request, so spend already reserved keeps counting. */
+export async function renewExpiredWebsiteSceneSponsorship(requestId: string, input: {
+  approved_by: string; approval_reference: string; ack: string; apply: boolean; captureId?: string;
+}) {
+  if (input.ack !== SPONSORSHIP_RENEWAL_ACK) throw new Error("website_scene_sponsorship_renewal_unacknowledged");
+  if (!input.approval_reference.trim() || input.approval_reference.length > 500)
+    throw new Error("website_scene_sponsorship_renewal_reference_invalid");
+  if (!db) throw new Error("website_capture_rights_store_unavailable");
+  const store = db;
+  const captureId = input.captureId ?? `walkthrough-${requestId}`;
+  const captureBinding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
+  const assessment = await loadAssessmentPreparationProposal(requestId, captureId);
+  return storeTimeout(store.runTransaction(async transaction => {
+    const ref = store.collection("inboundRequests").doc(requestId);
+    const [request, brief, inventory] = await Promise.all([
+      transaction.get(ref), transaction.get(store.collection(TASK_BRIEFS_COLLECTION).doc(requestId)),
+      transaction.get(store.collection("siteTaskItemInventories").doc(requestId)),
+    ]);
+    if (!request.exists || !brief.exists) throw new Error("task_brief_missing");
+    await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
+    const record = request.data()!;
+    await assertAssessmentPreparationCurrent(transaction, assessment, record, {requestId, captureId});
+    const previous = record.website_scene_sponsorship;
+    if (!previous) throw new Error("website_scene_sponsorship_missing");
+    const { authority_digest: parentDigest, ...payload } = previous;
+    if (digest(payload) !== parentDigest || previous.purpose !== "scene_preparation")
+      throw new Error("website_scene_sponsorship_changed");
+    const now = Date.now() / 1000;
+    if (previous.expires_at_epoch > now) throw new Error("website_scene_sponsorship_renewal_not_expired");
+    if (input.approved_by !== previous.owner?.user_id) throw new Error("website_scene_sponsorship_renewal_unauthorized");
+    // Amendments are bound to the expired grant's digest; renewing would orphan them.
+    if (record.website_preparation_limit_amendment || record.website_preparation_spend_amendment
+      || record.website_preparation_limit_extension) throw new Error("website_scene_sponsorship_renewal_amendment_present");
+    const retained = policySchema.safeParse({ owner: previous.owner,
+      upstream_max_spend_usd: previous.upstream_max_spend_usd, native_max_spend_usd: previous.max_total_spend_usd,
+      max_total_spend_usd: previous.preparation_max_total_spend_usd, max_paid_attempts: previous.max_paid_attempts,
+      // Epoch floats subtract inexactly; the digest check below proves the rounded window.
+      ttl_seconds: Math.round(previous.expires_at_epoch - previous.consent?.accepted_at_epoch),
+      provider_terms_reference: previous.consent?.provider_terms_reference });
+    if (!retained.success || digest(retained.data) !== previous.policy_digest)
+      throw new Error("website_scene_sponsorship_renewal_policy_unproven");
+    const inputs = { brief: brief.data() as SiteTaskBriefRecord,
+      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null };
+    const base = projectWebsiteTaskContext(inputs.brief, projectWebsiteCaptureRights(record),
+      {inventory: inputs.inventory, purpose: "scene_preparation"});
+    const { website_scene_sponsorship: _expired, ...unsponsored } = record;
+    const renewed = websiteSceneSponsorship({ requestId, record: unsponsored, ...inputs, now,
+      purpose: "scene_preparation", expected_task_context_digest: base.context_digest,
+      ...(assessment ? { assessmentPreparationProposal: assessment.proposal } : {}),
+      retainedPolicy: retained.data, renewal: { parent_authority_digest: parentDigest,
+        parent_expires_at_epoch: previous.expires_at_epoch, approved_by: input.approved_by,
+        approval_reference: input.approval_reference.trim() } });
+    if (input.apply) transaction.update(ref, { website_scene_sponsorship: renewed,
+      website_scene_sponsorship_history: [...(record.website_scene_sponsorship_history ?? []), previous] });
+    return renewed;
   }));
 }
 
