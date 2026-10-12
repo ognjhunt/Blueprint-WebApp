@@ -8,12 +8,12 @@
  * it renders nothing at all, so a page whose job is already done never sprouts
  * an error or a fabricated stage.
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CaptureLiveStatus } from "@/components/site/CaptureLiveStatus";
 
-vi.mock("@/components/site/TaskClarification", () => ({TaskClarification: () => <div>Inline job questions</div>}));
+vi.mock("@/components/site/TaskClarification", () => ({TaskClarification: ({mode}: {mode?: string}) => <div>Inline {mode} questions</div>}));
 vi.mock("@/components/site/TaskFollowUp", () => ({TaskFollowUp: () => <div>Inline follow-up questions</div>}));
 
 const fetchMock = vi.fn();
@@ -30,6 +30,15 @@ afterEach(() => {
 const CAPTURE_URL = "https://tryblueprint.io/capture-upload/signed.token.value?x=1";
 
 describe("the desktop reflecting the phone from server state", () => {
+  it("shows loading immediately and retries a failed initial read inline",async()=>{
+    fetchMock.mockResolvedValueOnce({ok:false}).mockResolvedValue({ok:true,json:async()=>({scope:"owner",status:{headline:"Video received"}})});
+    render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading job updates");
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByRole("button",{name:"Retry job updates"}));
+    await screen.findByText("Video received");
+    expect(screen.queryByText("Inline follow-up questions")).not.toBeInTheDocument();
+  });
   it("keeps generic advisory boilerplate out of the compact saved-job view", async () => {
     fetchMock.mockResolvedValue({ok: true, json: async () => ({
       status: {headline: "Checking the work area", stage: "review"},
@@ -86,8 +95,8 @@ describe("the desktop reflecting the phone from server state", () => {
     })});
     render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
     await screen.findByText("Recording received");
-    expect(Boolean(screen.queryByText("Inline job questions"))).toBe(scope === "owner");
-    expect(Boolean(screen.queryByText("Inline follow-up questions"))).toBe(scope === "owner");
+    expect(Boolean(screen.queryByText("Inline assessment questions"))).toBe(scope === "owner");
+    expect(screen.queryByText("Inline follow-up questions")).not.toBeInTheDocument();
   });
 
   it("withdraws inline forms when capture authority ends", async () => {
@@ -97,7 +106,7 @@ describe("the desktop reflecting the phone from server state", () => {
     })});
     render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
     await screen.findByText("Recording retained");
-    expect(screen.queryByText("Inline job questions")).not.toBeInTheDocument();
+    expect(screen.queryByText("Inline assessment questions")).not.toBeInTheDocument();
   });
 
   it("shows the stage the server reports, polling the token from the capture URL", async () => {
@@ -116,6 +125,7 @@ describe("the desktop reflecting the phone from server state", () => {
     // The token is the one carried in the capture URL, query string stripped.
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/site-task-brief/signed.token.value/status"),
+      expect.objectContaining({signal: expect.any(AbortSignal)}),
     );
   });
 

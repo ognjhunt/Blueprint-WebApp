@@ -1,7 +1,6 @@
 import type { SiteAdvisory } from "@/types/siteAdvisory";
 import { SiteAdvisoryReport } from "./SiteAdvisoryReport";
 import { NextTaskUpdate } from "./NextTaskUpdate";
-import { TaskFollowUp } from "./TaskFollowUp";
 import { TaskClarification } from "./TaskClarification";
 /**
  * The desktop reflecting what the phone is doing — from the server, not a guess.
@@ -53,26 +52,36 @@ export function CaptureLiveStatus({
   compact?: boolean;
 }) {
   const [status, setStatus] = useState<LiveStatus | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const token = tokenFromCaptureUrl(captureUrl);
 
   useEffect(() => {
     setStatus(null);
+    setLoadError(false);
     if (!token) return;
     let alive = true;
     let timer: number | undefined;
+    let controller: AbortController | undefined;
+    let timeout: number | undefined;
 
     async function poll() {
+      controller = new AbortController();
+      timeout = window.setTimeout(() => controller?.abort(), 15000);
       try {
-        const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token!)}/status`);
+        const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token!)}/status`, {signal: controller.signal});
         if (response.ok) {
           const data = (await response.json()) as { status?: LiveStatus; captureReceived?: boolean; siteAdvisory?: SiteAdvisory | null; scope?: "owner" | "film" };
           if (alive && data?.captureReceived === true) onCaptureReceived?.();
           if (alive && data?.status?.headline) {
+            setLoadError(false);
             setStatus({ scope: data.scope, siteAdvisory: data.siteAdvisory ?? null, headline: data.status.headline, stage: data.status.stage ?? null, nextUpdateIso: data.status.nextUpdateIso });
-          }
-        } else if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null);
+          } else if (alive) setLoadError(true);
+        } else if (alive) { setLoadError(true); setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null); }
       } catch {
-        if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null);
+        if (alive) { setLoadError(true); setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null); }
+      } finally {
+        window.clearTimeout(timeout);
       }
       if (alive) timer = window.setTimeout(poll, 6000);
     }
@@ -81,19 +90,23 @@ export function CaptureLiveStatus({
     return () => {
       alive = false;
       if (timer) window.clearTimeout(timer);
+      window.clearTimeout(timeout);
+      controller?.abort();
     };
-  }, [token]);
+  }, [token, loadAttempt]);
 
-  if (!status) return null;
+  if (!status) return compact && token ? <div className="ms-intake-progress">
+    <p role={loadError ? "alert" : "status"}>{loadError ? "Job updates could not be loaded. Your saved job is still here." : "Loading job updates and video-analysis questions…"}</p>
+    {loadError && <button type="button" className="ms-text-link" onClick={() => setLoadAttempt(value => value + 1)}>Retry job updates</button>}
+  </div> : null;
 
   if (compact) {
     const advisory = status.siteAdvisory;
     const sections = advisory?.state === "ready" ? advisory.sections.filter(section => section.claims.length > 0) : [];
-    return <div className="ms-intake-progress" aria-live="polite">
-      <p>{status.headline}</p>
+    return <div className="ms-intake-progress">
+      <p role="status">{status.headline}</p>
       {status.scope === "owner" && advisory?.state !== "authority_ended" && <>
-        <TaskClarification key={`clarification-${token}`} token={token!} refreshKey={JSON.stringify([advisory?.state, advisory?.correlationId, advisory?.unknowns, status.stage])} />
-        <TaskFollowUp key={`follow-up-${token}`} token={token!} />
+        <TaskClarification key={`clarification-${token}`} token={token!} mode="assessment" refreshKey={JSON.stringify([advisory?.state, advisory?.correlationId, advisory?.unknowns])} />
       </>}
       {advisory?.state === "ready" && (sections.length > 0 || advisory.unknowns.length > 0 || advisory.nextAction) && <details className="ms-intake-assessment">
         <summary>Assessment notes</summary>

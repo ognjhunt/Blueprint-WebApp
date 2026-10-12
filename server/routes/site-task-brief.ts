@@ -94,19 +94,21 @@ router.use("/:token", async (req, res, next) => {
 
 
 router.get("/:token/clarification", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
   const payload = verifyCaptureUploadToken(String(req.params.token));
   if (!payload) return res.status(404).json({ error: "This link has expired." });
   if (payload.scope !== "owner") return res.status(403).json({ error: "Use the owner's link to answer questions." });
-  try { return res.json(await readSiteClarification(payload.requestId)); }
+  if (req.query.mode !== undefined && req.query.mode !== "assessment") return res.status(400).json({ error: "Invalid question mode." });
+  try { return res.json(await readSiteClarification(payload.requestId, req.query.mode === "assessment" ? "assessment" : undefined)); }
   catch { return res.status(503).json({ error: "Questions could not be loaded. Please retry." }); }
 });
 router.post("/:token/clarification", async (req, res) => {
   const payload = verifyCaptureUploadToken(String(req.params.token));
   if (!payload) return res.status(404).json({ error: "This link has expired." });
   if (payload.scope !== "owner") return res.status(403).json({ error: "Use the owner's link to answer questions." });
-  const parsed = z.object({ revision: z.string().regex(/^[a-f0-9]{64}$/), explanation: z.string().trim().min(1).max(4000) }).strict().safeParse(req.body);
+  const parsed = z.object({ revision: z.string().regex(/^[a-f0-9]{64}$/), explanation: z.string().trim().min(1).max(4000), mode: z.literal("assessment").optional() }).strict().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Please write an answer (1–4000 characters)." });
-  try { return res.json(await submitSiteClarification(payload.requestId, parsed.data.revision, parsed.data.explanation)); }
+  try { return res.json(await submitSiteClarification(payload.requestId, parsed.data.revision, parsed.data.explanation, parsed.data.mode)); }
   catch (error) { return res.status(error instanceof Error && error.message === "clarification_revision_changed" ? 409 : 503)
     .json({ error: "The questions may have changed. Reload this page and try again." }); }
 });
