@@ -17,6 +17,13 @@
  */
 import { COMPANY, COMPANY_POSTAL_LINE } from "../../client/src/data/company";
 
+/** Reply-capable identity for customer job notices and correspondence. */
+export const CUSTOMER_JOB_EMAIL_IDENTITY = Object.freeze({
+  fromEmail: COMPANY.emails.hello,
+  fromName: COMPANY.shortName,
+  replyTo: COMPANY.emails.hello,
+});
+
 export const EMAIL_SIGN_OFF = "— The Blueprint team";
 
 /**

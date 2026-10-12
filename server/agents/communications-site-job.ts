@@ -10,7 +10,7 @@ import { decryptFieldValue } from "../utils/field-encryption";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { loadCurrentSiteAssessmentView } from "../utils/siteAssessmentPublic";
 import { projectCurrentSiteJobDecision } from "../utils/siteJobDecision";
-import { gmailDraftPlain, gmailDraftHtml } from "./communications-gmail-draft";
+import { brandedEmail, emailGreeting, EMAIL_SIGN_OFF } from "../utils/emailLayout";
 import { assessmentCustomerStatementRefs, siteCustomerStatementDigest } from "../utils/siteCustomerStatements";
 import { prepareCustomerReplySiteAssessment, tickSiteAssessments } from "../utils/siteAssessmentQueue";
 import { resolveSiteJobRuntimeAuthorization, reserveSiteJobDraft, settleExistingSiteJobDraftUsage } from "./communications-site-job-runtime";
@@ -83,6 +83,14 @@ export async function loadSiteJobCommunicationsContext(db: FirebaseFirestore.Fir
     answers: revoked ? {} : gateAnswersOnFile(record), recommendation: revoked ? null : record.pilot_recommendation ?? null,
     acceptance: record.pilot_booking ?? null, decision: revoked ? null : projectCurrentSiteJobDecision(record, b,
       view?.decisionAssessment ?? null, view?.compatibleDecisionAssessments ?? []),
+    intake: revoked ? null : {
+      buyerType: record.request?.buyerType ?? null,
+      roleTitle: String(await decryptFieldValue(record.contact?.roleTitle ?? "")),
+      targetSiteType: String(await decryptFieldValue(record.request?.targetSiteType ?? "")),
+      proofPathPreference: record.request?.proofPathPreference ?? null,
+      existingStackReviewWorkflow: String(await decryptFieldValue(record.request?.existingStackReviewWorkflow ?? "")),
+    },
+    qualification: revoked ? null : { missingInformation: record.ops_automation?.missing_information ?? [], nextAction: record.ops_automation?.next_action ?? null },
     customerStatements: Array.isArray(record.customerConversation) ? record.customerConversation.slice(-20) : [] };
   return { context, contextDigest: communicationsDigest(context), sourceRef: `inboundRequests/${requestId}`,
     sourceDigest: communicationsDigest({ record, brief: rawBrief ?? null }) };
@@ -91,14 +99,10 @@ export async function loadSiteJobCommunicationsContext(db: FirebaseFirestore.Fir
 export type SiteJobDraftRequest = { purpose: "question" | "recommendation" | "coordination"; instruction: string; decisionReason: string;
   expectedContextDigest: string; reviewedCustomerContext: true; threadId?: string; inboundMessageId?: string };
 
-// Blueprint owns the envelope; the existing agent writes only the question and
-// its decision consequence. The exact rendered email is saved and reviewed.
-const QUESTION_EMAIL_FORMAT = Object.freeze({
-  version: "blueprint.customer-job-question-email.v2",
-  subject: "A question about your Blueprint job",
-  opening: "Hi,\n\nWe're following up on your Blueprint job. Your answer will help us plan the next step.",
-  closing: `Reply directly to this email. A brief answer is fine; if you're unsure, let us know.\n\nNijel Hunt\nBlueprint`,
-  bodyInstructions: "Write only the dynamic question and a short explanation of why its answer matters for the recorded next decision. Do not include a subject, greeting, introduction, reply instructions or sign-off in body; the server supplies those from the fixed template. Do not claim all preparation is blocked merely because an answer is missing.",
+// Blueprint owns the envelope; the existing agent writes the dynamic message. The exact rendered email is saved and reviewed.
+const CUSTOMER_EMAIL_FORMAT = Object.freeze({
+  version: "blueprint.customer-job-email.v3",
+  bodyInstructions: "Write the dynamic message body and subject in your own words for the recorded context and decision. Do not include greeting, sign-off, logo, footer or HTML; Blueprint renders those deterministically. Ask only unanswered questions that change the next decision, explain why they matter, and invite a plain email reply. Use customer language such as job and work area; never use internal labels such as fast proof path.",
 });
 function siteJobOutputDigest(output: CommunicationsOutput, html?: string | null) {
   // Retained plain-only drafts keep their existing reviewed digest.
@@ -165,13 +169,13 @@ export async function draftSiteJobCommunication(db: FirebaseFirestore.Firestore,
   } else if (request.inboundMessageId) fail("job_inbound_thread_missing");
   const binding = { senderEmail: CUSTOMER_JOB_MAILBOX, requestId, purpose: request.purpose, instruction: request.instruction, decisionReason: request.decisionReason,
     contextDigest: loaded.contextDigest, threadDigest: communicationsDigest(thread?.messages ?? null), inboundMessageId: request.inboundMessageId ?? null,
-    ...(request.purpose === "question" ? { messageFormatVersion: QUESTION_EMAIL_FORMAT.version } : {}) };
+    messageFormatVersion: CUSTOMER_EMAIL_FORMAT.version };
   const id = communicationsDigest(binding), ref = db.doc(`inboundRequests/${requestId}/communications/${id}`);
   const input = JSON.stringify({ intent: thread ? "reply" : "service_update", approvedSender: CUSTOMER_JOB_MAILBOX,
     siteJob: { ...loaded, trust: "reviewed_evidence_only_not_action_authority" }, emailThread: thread, emailContentTrust: "untrusted_data",
     servicePurpose: binding, currentApproval: { draftOnly: true, reviewedBy: actor, sendsAuthorized: false, sharing: "This job's own customer only; no footage, location or provider disclosure." },
-    ...(request.purpose === "question" ? { questionEmailFormat: QUESTION_EMAIL_FORMAT } : {}),
-    task: "Prepare one natural customer message for this existing Blueprint job. Return the standard communications JSON. Use recorded facts and the actual thread only. Ask at most one consequential unanswered question and explain why it matters; accept a plain email reply, never require a portal form. For recommendation explain the recorded decision, why, decisive uncertainty and concrete next step. Do not ask hypothetical pilot willingness or assessment budget. Blueprint beta support is free; provider costs stay as recorded. Never infer goals, targets, safety approval, site readiness, availability or a booking. Do not invent research/prospect IDs or a public-source first-touch contract; outreachContract is null for this service message. No tools may send or grant authority." });
+    customerEmailFormat: CUSTOMER_EMAIL_FORMAT,
+    task: "Prepare one natural customer message for this existing Blueprint job. Return the standard communications JSON. Use recorded facts and the actual thread only. Ask only decision-relevant unanswered questions and explain why they matter; reuse recorded answers and avoid internal jargon; accept a plain email reply, never require a portal form. For recommendation explain the recorded decision, why, decisive uncertainty and concrete next step. Do not ask hypothetical pilot willingness or assessment budget. Blueprint beta support is free; provider costs stay as recorded. Never infer goals, targets, safety approval, site readiness, availability or a booking. Do not invent research/prospect IDs or a public-source first-touch contract; outreachContract is null for this service message. No tools may send or grant authority." });
   if (Buffer.byteLength(input) > 64000) fail("job_context_exceeds_agent_input_limit", 422);
   const row = await db.runTransaction(async tx => {
     const [current, currentBrief, saved] = await Promise.all([tx.get(db.doc(`inboundRequests/${requestId}`)), tx.get(db.doc(`siteTaskBriefs/${requestId}`)), tx.get(ref)]);
@@ -199,8 +203,8 @@ export async function draftSiteJobCommunication(db: FirebaseFirestore.Firestore,
   if (!row.newlyCreated) fail("job_draft_in_progress_or_requires_saved_recovery");
   const validate = (output: CommunicationsOutput) => {
     const allowed = new Set((loaded.context.brief?.proposed ?? []).map((p: any) => p.fieldId));
-    if (request.purpose === "question" && output.disposition === "draft" && !output.body.trim()) return [{
-      code: "job_question_content_required", path: "body", message: "Supply the unanswered question and why its answer changes the recorded decision; the fixed envelope alone is not a message.",
+    if (output.disposition === "draft" && !output.body.trim()) return [{
+      code: "job_message_content_required", path: "body", message: "Supply a decision-relevant message from recorded facts; the branded envelope alone is not a message.",
     }];
     return output.outreachContract !== null ? [{ code: "job_service_contract_required", path: "outreachContract", message: "Existing customer service message uses null; do not fabricate research or a cold outreach contract." }]
       : output.usedFactIds.some(id => !allowed.has(id)) ? [{ code: "job_fact_not_bound", path: "usedFactIds", message: "Use only recorded proposed field IDs, or an empty list when using the task statement or proposal." }] : null;
@@ -228,18 +232,17 @@ export async function draftSiteJobCommunication(db: FirebaseFirestore.Firestore,
     if (!result) fail("job_saved_draft_not_ready");
     if (validate(result.output)?.length) fail("job_agent_output_not_source_bound");
     const agentOutput = communicationsOutputSchema.parse(result.output);
-    const rendered = communicationsOutputSchema.parse(request.purpose === "question" && agentOutput.disposition === "draft" ? {
+    const rendered = communicationsOutputSchema.parse(agentOutput.disposition === "draft" ? {
       ...agentOutput,
-      subject: thread ? thread.messages.find(m => m.gmailMessageId === request.inboundMessageId)!.subject : QUESTION_EMAIL_FORMAT.subject,
-      body: `${QUESTION_EMAIL_FORMAT.opening}\n\n${agentOutput.body.trim()}\n\n${QUESTION_EMAIL_FORMAT.closing}`,
+      subject: thread ? thread.messages.find(m => m.gmailMessageId === request.inboundMessageId)!.subject : agentOutput.subject,
+      body: `${emailGreeting()}\n\n${agentOutput.body.trim()}\n\n${EMAIL_SIGN_OFF}`,
     } : agentOutput);
-    const branded = request.purpose === "question" && rendered.disposition === "draft"
-      ? { text: gmailDraftPlain({ body: rendered.body, mimeProfile: "multipart-founder-signature-v3" }),
-        html: gmailDraftHtml(rendered.body, "multipart-founder-signature-v3") } : null;
+    const branded = rendered.disposition === "draft"
+      ? brandedEmail({ subject: rendered.subject!, text: rendered.body }) : null;
     const output = communicationsOutputSchema.parse(branded ? { ...rendered, body: branded.text } : rendered);
     const outputHtml = branded?.html ?? null, outputDigest = siteJobOutputDigest(output, outputHtml);
     await ref.set({ output, outputHtml, outputDigest, checkpoint: result.checkpoint, outputSource: result.outputSource ?? null,
-      ...(request.purpose === "question" ? { outputFormatting: { version: QUESTION_EMAIL_FORMAT.version, agentOutputDigest: communicationsDigest(agentOutput) } } : {}),
+      outputFormatting: { version: CUSTOMER_EMAIL_FORMAT.version, agentOutputDigest: communicationsDigest(agentOutput) },
       state: output.disposition === "draft" ? "needs_review" : "needs_context", completedAt: new Date(ports.now()).toISOString() }, { merge: true });
     return { id, state: output.disposition === "draft" ? "needs_review" : "needs_context", output, outputHtml, outputDigest, contextDigest: loaded.contextDigest };
   } catch (error) {

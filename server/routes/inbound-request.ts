@@ -13,7 +13,7 @@ import path from "node:path";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { sendEmail } from "../utils/email";
-import { brandedEmail, EMAIL_SIGN_OFF } from "../utils/emailLayout";
+import { CUSTOMER_JOB_EMAIL_IDENTITY, brandedEmail, EMAIL_SIGN_OFF } from "../utils/emailLayout";
 import { COMPANY } from "../../client/src/data/company";
 import {
   isApprovedCaptureRegion,
@@ -2164,7 +2164,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
             subject,
             text: message.text,
             html: message.html,
-            replyTo: COMPANY.emails.hello,
+            ...CUSTOMER_JOB_EMAIL_IDENTITY,
           });
 
           if (emailResult.sent) {

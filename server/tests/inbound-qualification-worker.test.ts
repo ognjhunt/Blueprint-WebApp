@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const draftSiteJobCommunication = vi.hoisted(() => vi.fn(async () => ({ id: "comms-draft", state: "needs_review" })));
+vi.mock("../agents/communications-site-job", () => ({
+  draftSiteJobCommunication,
+  loadSiteJobCommunicationsContext: vi.fn(async () => ({ contextDigest: "reviewed-context" })),
+}));
 const runAgentTask = vi.hoisted(() => vi.fn());
 const inboundSet = vi.hoisted(() => vi.fn());
 const executePhase2WorkflowActions = vi.hoisted(() => vi.fn());
@@ -73,6 +78,7 @@ vi.mock("../agents/phase2-workflow", () => ({
 
 afterEach(() => {
   runAgentTask.mockReset();
+  draftSiteJobCommunication.mockClear();
   inboundSet.mockReset();
   executePhase2WorkflowActions.mockReset();
   phase2Enabled.value = true;
@@ -135,7 +141,8 @@ const inboundRequest = {
 } as any;
 
 describe("inbound qualification worker", () => {
-  it("persists recommendations and review flags", async () => {
+  it("persists recommendations and review flags without a fallback send when communications is unavailable", async () => {
+    draftSiteJobCommunication.mockRejectedValueOnce(new Error("communications_inference_disabled"));
     runAgentTask.mockResolvedValue({
       status: "completed",
       provider: "openclaw",
@@ -171,6 +178,10 @@ describe("inbound qualification worker", () => {
     });
     const result = await runInboundQualificationForRequest(inboundRequest);
 
+    expect(inboundSet).toHaveBeenCalledWith({ ops_automation: { customer_communication: {
+      state: "requires_recovery", error: "communications_inference_disabled",
+    } } }, { merge: true });
+    expect(executePhase2WorkflowActions.mock.calls[0][0].actions.some((action: any) => action.actionType === "send_email")).toBe(false);
     expect(result.qualification_state_recommendation).toBe("needs_more_evidence");
     expect(runAgentTask).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -225,7 +236,7 @@ describe("inbound qualification worker", () => {
     expect(inboundSet).toHaveBeenCalled();
   });
 
-  it("routes tailored buyer follow-up through the action ledger even when phase 2 inbound is disabled", async () => {
+  it("routes legacy follow-up to the existing communications draft and review path even when phase 2 inbound is disabled", async () => {
     phase2Enabled.value = false;
     runAgentTask.mockResolvedValue({
       status: "completed",
@@ -279,22 +290,15 @@ describe("inbound qualification worker", () => {
     const { runInboundQualificationForRequest } = await import("../agents/workflows");
     await runInboundQualificationForRequest(inboundRequest);
 
-    expect(executePhase2WorkflowActions).toHaveBeenCalledWith(
-      expect.objectContaining({
-        lane: "inbound",
-        sourceCollection: "inboundRequests",
-        sourceDocId: "request-1",
-        actions: expect.arrayContaining([
-          expect.objectContaining({
-            actionKey: "inbound_follow_up_email",
-            actionType: "send_email",
-            actionPayload: expect.objectContaining({
-              to: "ada@example.com",
-              subject: "One detail for the Blueprint site review",
-            }),
-          }),
-        ]),
-      }),
-    );
+    expect(executePhase2WorkflowActions).toHaveBeenCalledWith(expect.objectContaining({
+      lane: "inbound", sourceCollection: "inboundRequests", sourceDocId: "request-1",
+      actions: expect.not.arrayContaining([expect.objectContaining({ actionType: "send_email" })]),
+    }));
+    expect(draftSiteJobCommunication).toHaveBeenCalledWith(fakeDb, "request-1", "inbound-qualification-workflow", expect.objectContaining({
+      purpose: "question", expectedContextDigest: "reviewed-context", reviewedCustomerContext: true,
+    }));
+    expect(inboundSet).toHaveBeenCalledWith({ ops_automation: { customer_communication: {
+      id: "comms-draft", state: "needs_review", sourceRef: "inboundRequests/request-1/communications/comms-draft",
+    } } }, { merge: true });
   });
 });

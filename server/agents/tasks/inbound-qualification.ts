@@ -164,7 +164,7 @@ Rules:
 - Set requires_human_review=true when automation_status="blocked".
 - Do NOT set requires_human_review=true merely because you are recommending "qualified_ready" or "qualified_risky". Qualifying a site no longer commits Blueprint to spend: a site that records its own walkthrough is sent a signed upload link, which costs nothing and can be ignored. Whether anybody travels is decided downstream by capture dispatch, not by you. Flag a genuine concern instead, using the rules below.
 - Treat roleTitle as the buyer role when it is present.
-- Confirm the buyer role, targetSiteType, immediate workflow question, and proofPathPreference before recommending a fast proof path.
+- Confirm the buyer role, targetSiteType, immediate workflow question, and proofPathPreference only when they change the immediate next decision. Do not require every field merely to fill an intake checklist.
 - If proofPathPreference="exact_site_required" and the request does not yet identify usable exact-site evidence, do not recommend "qualified_ready".
 - If targetSiteType or proofPathPreference is missing for a robot-team request, list that in missing_information.
 - Existing stack or review workflow constraints should shape the buyer follow-up so the next reply fits the buyer's current tooling.
@@ -172,7 +172,7 @@ Rules:
 - When automation_status="blocked", set block_reason_code to a short snake_case reason and retryable=true only when new buyer evidence could unblock the request.
 - Only recommend "qualified_ready" when the request is unusually clear, low-risk, and already has enough detail to move confidently.
 - Prefer "in_review" or "needs_more_evidence" when information is incomplete.
- - Keep buyer follow-up specific and concise.
+ - buyer_follow_up is retained as an internal compatibility suggestion, never delivery copy. The customer communications agent owns correspondence. Keep any suggestion specific to unanswered decision-relevant gaps; never use internal jargon such as "fast proof path" or ask questions already answered.
 
 Structured gate answers:
 - gateDisposition is produced by deterministic rules from the site's own dropdown answers. It is authoritative and you must not contradict it upward.

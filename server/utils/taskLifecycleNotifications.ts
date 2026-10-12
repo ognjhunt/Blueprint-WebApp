@@ -179,7 +179,7 @@ export function buildTaskLifecycleNotification(params: {
     body: `${message.body(url, params.milestone === "preparation_needs_attention"
       ? /^bp-prep-[a-f0-9]{16}$/.test(params.correlationId || "") ? `Reference: ${params.correlationId}.` : ""
       : params.detail?.trim() ?? "")}\n\n${EMAIL_SIGN_OFF}`,
-    replyTo: "ops@tryblueprint.io",
+    replyTo: "hello@tryblueprint.io",
   };
 }
 
