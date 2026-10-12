@@ -190,6 +190,129 @@
 .ws-heading h1 {
   margin: 0;
 }
+/* Task detail keeps the workspace palette and limits reading width. */
+.ws-task-detail {
+  width: 100%;
+  max-width: 960px;
+  margin-inline: auto;
+}
+.ws-task-detail .ws-heading {
+  align-items: center;
+  margin-bottom: 24px;
+}
+.ws-task-detail .ws-heading h1 {
+  font-size: clamp(28px, 3vw, 36px) !important;
+  letter-spacing: -0.035em !important;
+  overflow-wrap: anywhere;
+}
+.ws-task-detail h2 {
+  font-size: 20px !important;
+  line-height: 1.4 !important;
+}
+.ws-task-detail .ws-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin-top: 0;
+  padding-bottom: 24px;
+}
+.ws-task-detail .ws-detail-header p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.ws-task-status {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  padding-block: 24px;
+}
+.ws-task-progress {
+  flex: 1;
+  min-width: 0;
+}
+.ws-task-progress > p {
+  margin-top: 8px;
+  max-width: 60ch;
+}
+.ws-task-action {
+  flex: 0 0 240px;
+}
+.ws-task-action p {
+  margin-top: 10px;
+}
+.ws-task-assessment {
+  border-top: 1px solid var(--ws-line);
+  padding-block: 24px;
+  display: grid;
+  gap: 10px;
+}
+.ws-task-assessment > p,
+.ws-task-assessment li {
+  max-width: 70ch;
+}
+.ws-task-assessment .ws-note {
+  margin-top: 0;
+}
+.ws-task-detail .ws-task-assessment details {
+  border: 0;
+  padding: 0;
+}
+.ws-task-detail .ws-task-assessment details[open] > summary {
+  margin-bottom: 8px;
+}
+.ws-task-detail .ws-empty {
+  border-top: 0;
+}
+.ws-task-detail summary {
+  cursor: pointer;
+  color: var(--ws-green);
+  padding-block: 8px;
+}
+.ws-task-assessment ul {
+  list-style: disc;
+  padding-left: 22px;
+  margin-block: 8px;
+}
+.ws-task-assessment li + li {
+  margin-top: 8px;
+}
+.ws-task-reference {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.ws-task-detail .ws-target-strip {
+  gap: 12px 28px;
+  padding-block: 20px;
+  color: var(--ws-muted);
+}
+.ws-task-detail .ws-empty {
+  padding-block: 24px;
+}
+.ws-task-pilot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  border-top: 1px solid var(--ws-line);
+  padding-block: 24px;
+}
+@media (max-width: 760px) {
+  .ws-task-detail .ws-heading,
+  .ws-task-status,
+  .ws-task-pilot {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+  }
+  .ws-task-action {
+    flex-basis: auto;
+  }
+  .ws-task-action .ws-primary {
+    width: 100%;
+  }
+}
 .ws-primary,
 .ws-secondary {
   display: inline-flex;

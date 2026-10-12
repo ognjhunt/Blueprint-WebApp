@@ -388,6 +388,53 @@ test("a new task starts from the public capture form, not a second intake", asyn
   await expect(page).toHaveURL(/\/contact\/site-operator/);
   await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
 });
+
+for (const width of [1440, 390]) {
+  test(`owned job progress is readable without duplicate detail at ${width}px`, async ({ page }, info) => {
+    const snapshot = await seed(page, "robot_team");
+    snapshot.tasks = [{
+      ...structuredClone(task),
+      title: "Task statement pending",
+      siteName: "6801 Burnet Road, Austin, TX",
+      location: "6801 Burnet Road, Austin, TX",
+      status: "In review",
+      terms: { ...terms, successRate: null, cycleTimeSeconds: null, pilotBudgetUsd: null },
+      results: [],
+      readiness: {
+        decision: "assessing",
+        headline: "We can assess this job. Your capture covers the work area and we are preparing it.",
+        operatorAction: null, missingViews: [], nextUpdateIso: null,
+      },
+      siteAdvisory: {
+        state: "ready", schemaVersion: "site_customer_advisory.v1", sections: [],
+        correlationId: "fixture-support-reference",
+        unknowns: [
+          "Video analysis and supplied statements are not independently verified measurements or proof of robot suitability.",
+          "Some job facts and interpretations remain unresolved. Clarify them before choosing an approach.",
+        ],
+        nextAction: "Clarify unresolved job facts and success criteria.",
+      },
+    }];
+    await page.setViewportSize({ width, height: 1024 });
+    await page.goto("/app/tasks/task-1");
+    await expect(page.getByText("6801 Burnet Road, Austin, TX", { exact: true })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Open your task page", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "No team results yet" })).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "Team results", exact: true })).toHaveCount(0);
+    await expect(page.getByText("fixture-support-reference", { exact: true })).not.toBeVisible();
+    await expect(page.getByRole("link", { name: "Contact Blueprint about this job" })).toHaveCSS("color", "rgb(32, 61, 46)");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`task-detail-${width}.png`), fullPage: true });
+    await page.getByText("Open questions (2)", { exact: true }).click();
+    await expect(page.getByText(snapshot.tasks[0].siteAdvisory.unknowns[0], { exact: true })).toBeVisible();
+    await page.getByText("Support reference", { exact: true }).click();
+    await expect(page.getByText("fixture-support-reference", { exact: true })).toBeVisible();
+    await page.getByRole("tab", { name: "Overview", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Success criteria", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Request an edit" }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+  });
+}
 test("site can coordinate a visit without a false completion", async ({
   page,
 }) => {
@@ -406,7 +453,7 @@ test("site reviews results without picking a team; Blueprint recommends one pilo
   await seed(page, "site_operator");
   await page.goto("/app/tasks/task-1");
   await expect(page.getByRole("button", { name: /Invite to pilot/ })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Your recommended pilot" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pilot", exact: true })).toBeVisible();
   await expect(page.getByText(/send you one recommended pilot\. You book it from your task page\./)).toBeVisible();
   await expect(page.getByRole("button", { name: "Book it on your task page →" })).toBeVisible();
 });
