@@ -159,12 +159,14 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole("heading",{name:"Questions from your video",exact:true})).toBeVisible();
     await expect(page.getByRole("heading",{name:"What would a good result look like?",exact:true})).toHaveCount(0);
     await expect(page.getByRole("link",{name:"Contact Blueprint about this job"})).toHaveCount(0);
+    await expect(page.getByRole("link",{name:"Open your job and assessment",exact:true})).toHaveCSS("background-color","rgba(0, 0, 0, 0)");
     await page.screenshot({path: info.outputPath(`intake-inline-questions-${width}-local-fixture.png`), fullPage: true});
     await page.getByRole("textbox",{name:"Your answers",exact:true}).fill("30 N");
     await page.getByRole("button",{name:"Save answers",exact:true}).click();
     await expect(page.getByText("Your answer is saved with this job for review.")).toBeVisible();
     expect(clarificationAnswer).toBe("30 N");
     expect(followUpRequests).toBe(0);
+    await expect(page.getByRole("link",{name:"Open your job and assessment",exact:true})).toHaveCSS("background-color","rgba(0, 0, 0, 0)");
     await page.screenshot({path: info.outputPath(`intake-inline-saved-${width}-local-fixture.png`), fullPage: true});
     await page.reload();
     await expect(page.getByRole("heading", {name: "Your saved job", exact: true})).toBeVisible();
@@ -173,6 +175,7 @@ for (const width of [1440, 390]) {
     expect(uploads).toBe(1);
     await expect(page.getByText("Your answer is saved with this job for review.")).toBeVisible();
     await expect(page.getByRole("button",{name:"Edit your answer"})).toBeVisible();
+    await expect(page.getByRole("link",{name:"Open your job and assessment",exact:true})).toHaveCSS("background-color","rgba(0, 0, 0, 0)");
     await page.screenshot({path: info.outputPath(`intake-inline-returned-${width}-local-fixture.png`), fullPage: true});
   });
 }
