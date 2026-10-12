@@ -1,5 +1,5 @@
 /** Read-only original website owner and exact producer source observation. */
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { buildBrowserDelivery, capturedWriteIdentity, matchesBrowserDeliveryRecord, type BrowserDeliveryRecord,
   type WrittenObject } from "./websiteCaptureDelivery";
@@ -235,7 +235,21 @@ export async function observeWebsiteCaptureOwner(
       update_time: first.updateTime }, source_projection_digest: crossRuntimeDigest(source),
     observed_at_epoch: observedAt,
     valid_until_epoch: observedAt + 60 };
-  const result = { ...response, observation_digest: crossRuntimeDigest(response) };
+  // claimed_at_iso is server-owned: only workspace's email-verified, signed
+  // site_claim transaction writes it. Attest the exact current source, not a
+  // caller-supplied uid. Pipeline's immutable birth proves whether it was guest.
+  let claimEvidence: Record<string, unknown> | undefined;
+  if (input.purpose === "scene_preparation" && owner != null && claimed !== null) {
+    const secret = String(process.env.PIPELINE_SYNC_TOKEN || "").trim();
+    if (!secret) throw new Error("owner_claim_signing_unavailable");
+    const claim = { schema_version: "website_capture_claim.v1", claimant_user_id: owner,
+      claimed_at_iso: claimed, source_projection_digest: response.source_projection_digest,
+      observed_at_epoch: observedAt, valid_until_epoch: observedAt + 60 };
+    claimEvidence = { ...claim, signature: `sha256:${createHmac("sha256", secret)
+      .update(`website_capture_claim.v1:${crossRuntimeDigest(claim)}`).digest("hex")}` };
+  }
+  const signedResponse = { ...response, ...(claimEvidence ? { claim_evidence: claimEvidence } : {}) };
+  const result = { ...signedResponse, observation_digest: crossRuntimeDigest(signedResponse) };
   if (Buffer.byteLength(JSON.stringify(result)) > 65_536) throw new Error("owner_response_too_large");
   return result;
 }
