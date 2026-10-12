@@ -20,7 +20,7 @@ vi.mock("../utils/taskLifecycleNotifications", () => ({enqueueTaskLifecycleNotif
 vi.mock("../utils/pipelineSyncSecurity", () => ({createPipelineSyncRateLimiter:()=> (_r:unknown,_s:unknown,next:()=>void)=>next(),
   verifyPipelineSyncRequest:()=>({ok:true})}));
 import { assessmentProposesPreparation, loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent } from "../utils/siteAssessmentPreparation";
-import { loadWebsiteSceneSponsorship, reserveWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
+import { loadWebsiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit } from "../utils/websiteSceneSponsorship";
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
 import { browserPendingDecisionKey } from "../utils/websiteBrowserPending";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
@@ -259,6 +259,38 @@ it("sponsor-approved renewal re-issues an expired preparation grant under its id
       task_context_digest:renewed.task_context_digest,maximum_cost_usd:1.5})).rejects.toThrow("website_scene_preparation_budget_exhausted");
     await expect(renew()).rejects.toThrow("website_scene_sponsorship_renewal_not_expired");
   } finally {vi.restoreAllMocks();}
+});
+it("renewal carries the owner's request-limit amendment to the renewed grant and archives the original",async()=>{
+  seed(packet(),false,false);const first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON",JSON.stringify({vast:{digest:first.consent.provider_terms_reference,label:"Synthetic",url:"https://example.com/terms"}}));
+  const original=await amendWebsitePreparationRequestLimit("one",{authority_digest:first.authority_digest,
+    max_requests:first.max_paid_attempts+2,approved_by:"blueprint",approval_reference:"owner raised the request limit"},true);
+  vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+10)*1000);
+  try {
+    const renewed=await renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",
+      approval_reference:"owner chat approval",ack:SPONSORSHIP_RENEWAL_ACK,apply:true});
+    const stored=state.docs.get("inboundRequests/one") as any;
+    expect(stored.website_preparation_amendment_history).toEqual([original]);
+    expect(stored.website_preparation_limit_amendment).toMatchObject({authority_digest:renewed.authority_digest,
+      max_requests:first.max_paid_attempts+2,approved_by:"blueprint"});
+    expect(stored.website_preparation_limit_amendment.approval_reference).toContain(original.amendment_digest);
+    // The carried limit is live under the renewed grant: more requests than the grant's own limit.
+    await expect(reserveWebsitePreparationSpend("one",{task_context_digest:renewed.task_context_digest,
+      allocation_binding_digest:`sha256:${"d".repeat(64)}`,resource_class:"gpu_render",provider:"vast",
+      maximum_cost_usd:0.1,request_count:first.max_paid_attempts+1})).resolves.toMatchObject({status:"admitted"});
+  } finally {vi.restoreAllMocks();}
+});
+it("renewal refuses an amendment that no longer verifies and writes nothing",async()=>{
+  seed(packet(),false,false);const first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
+  await amendWebsitePreparationRequestLimit("one",{authority_digest:first.authority_digest,max_requests:first.max_paid_attempts+2,
+    approved_by:"blueprint",approval_reference:"owner raised the request limit"},true);
+  (state.docs.get("inboundRequests/one") as any).website_preparation_limit_amendment.max_requests=32;
+  vi.spyOn(Date,"now").mockReturnValue((first.expires_at_epoch+10)*1000);
+  try {await expect(renewExpiredWebsiteSceneSponsorship("one",{approved_by:"blueprint",approval_reference:"owner chat approval",
+    ack:SPONSORSHIP_RENEWAL_ACK,apply:true})).rejects.toThrow("website_preparation_amendment_invalid");}
+  finally {vi.restoreAllMocks();}
+  expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toEqual(first);
+  expect(state.docs.get("inboundRequests/one")).not.toHaveProperty("website_preparation_amendment_history");
 });
 it("renewal refuses to re-scope a grant whose task changed after expiry",async()=>{
   seed(packet(),false,false);const first=await (loadWebsiteSceneSponsorship as any)("one",true,"walkthrough-one",prepOptions());
