@@ -141,6 +141,64 @@
 .ms-inquiry-aside { border-top: 1px solid #d7dbd0; margin-top: 35px; padding-top: 24px; font-size: 14px; line-height: 1.7; color: var(--ms-muted); }
 .ms-inquiry-intro > .ms-text-link { margin-top: 28px; }
 .ms-form { padding-top: 8px; display: flex; flex-direction: column; gap: 25px; align-self: start; }
+.ms-inquiry.ms-intake-saved {
+  display: block;
+  max-width: 720px;
+  padding-block: 40px 64px;
+}
+.ms-intake-saved .ms-inquiry-intro {
+  max-width: none;
+  margin-bottom: 28px;
+}
+.ms-intake-saved .ms-back { margin-bottom: 0; }
+.ms-inquiry.ms-intake-saved h1 {
+  font-size: clamp(28px, 3vw, 36px);
+  max-width: none;
+  line-height: 1.2;
+}
+.ms-intake-saved h2 { font-size: 20px; line-height: 1.4; }
+.ms-form.ms-intake-confirmation { gap: 16px; padding-top: 0; }
+.ms-intake-confirmation p,
+.ms-intake-confirmation li {
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.ms-form.ms-intake-confirmation .ms-field-hint { font-size: 14px; line-height: 1.6; }
+.ms-form.ms-intake-confirmation .ms-button {
+  min-height: 48px;
+  padding: 12px 22px;
+  font-size: 15px;
+}
+.ms-intake-progress { display: grid; gap: 12px; }
+.ms-intake-account-links { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.ms-intake-return-fields { display: none; }
+.ms-intake-confirmation details { padding-block: 8px; overflow-wrap: anywhere; }
+.ms-intake-confirmation summary { cursor: pointer; color: var(--ms-green); font-size: 14px; }
+.ms-intake-assessment ul { list-style: disc; padding-left: 22px; }
+.ms-intake-assessment h3 { font-size: 16px; margin-block: 16px 8px; }
+.ms-intake-account,
+.ms-intake-reset {
+  border-top: 1px solid var(--ms-rule);
+  padding-top: 20px;
+  margin-top: 8px;
+  display: grid;
+  gap: 10px;
+}
+.ms-intake-confirmation .ms-text-link {
+  color: var(--ms-green);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  font-size: 14px;
+  min-height: 44px;
+  justify-self: start;
+}
+.ms-intake-reset .ms-field-hint { font-size: 12px; }
+.ms-intake-saved .ms-visitor-detail { margin-top: 24px; padding-top: 20px; }
+@media (max-width: 700px) {
+  .ms-inquiry.ms-intake-saved { padding-block: 24px 48px; }
+  .ms-intake-confirmation .ms-button { width: 100%; }
+}
 .ms-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .ms-form label { display: flex; flex-direction: column; gap: 9px; font-size: 13px; font-weight: 500; min-width: 0; }
 .ms-form input, .ms-form textarea, .ms-form select { width: 100%; min-height: 49px; border: 1px solid #bac0b2; border-radius: 2px; background: #fcfcf8; color: var(--ms-ink); padding: 12px 14px; font-family: inherit; font-size: 15px; font-weight: 400; line-height: 1.5; }

@@ -84,7 +84,7 @@ function ClearDraftControl({status,onClear,disabled=false}:{status:ClearStatus;o
   </>;
 }
 
-export function SiteCaptureStart() {
+export function SiteCaptureStart({ onSavedChange }: { onSavedChange?: (saved: boolean) => void } = {}) {
   const { currentUser, loading } = useAuth();
   const authoring = typeof window === "undefined" ? "default"
     : new URLSearchParams(window.location.search).get("authoring") || "default";
@@ -106,6 +106,9 @@ export function SiteCaptureStart() {
   useEffect(() => {
     if (hydrated?.ready && clearState?.key === hydrated.key && clearState.status === "done") setClearState(null);
   }, [hydrated, clearState]);
+  useEffect(() => {
+    if (loading || !hydrated?.ready || hydrated.key !== storageKey) onSavedChange?.(false);
+  }, [loading, hydrated, storageKey, onSavedChange]);
   if (loading || !storageKey || hydrated?.key !== storageKey) return <p role="status">Loading your account and saved draft…</p>;
   if (!hydrated.ready) return <div className="ms-form">
     <p role="status">This browser could not safely check saved recovery details. Use your emailed private job link to return, or a supported browser with local storage enabled.</p>
@@ -125,10 +128,10 @@ export function SiteCaptureStart() {
     <p className="ms-field-hint">Clearing removes only this device's recovery. It does not cancel or delete a saved job.</p>
   </div>;
   // Identity changes discard later UI updates and prevent starting another upload.
-  return <SiteCaptureStartForm key={storageKey} storageKey={storageKey} cleared={clearStatus === "done"} />;
+  return <SiteCaptureStartForm key={storageKey} storageKey={storageKey} cleared={clearStatus === "done"} onSavedChange={onSavedChange} />;
 }
 
-function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: string | null; cleared?: boolean }) {
+function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { storageKey: string | null; cleared?: boolean; onSavedChange?: (saved: boolean) => void }) {
   const { currentUser, loading } = useAuth();
   const [stored] = useState(() => readSiteCaptureRecovery(storageKey));
   const [recoveryUnavailable, setRecoveryUnavailable] = useState(() => !stored && hasSiteCaptureRecoveryBytes(storageKey));
@@ -203,6 +206,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
   // the capture link if the server saved the job but its response was lost.
   const retryToken = useRef(initial.retryToken);
   const [state, setState] = useState<State>({ status: "idle" });
+  useEffect(() => {
+    onSavedChange?.(state.status === "done" || Boolean(pending?.acknowledged));
+    return () => onSavedChange?.(false);
+  }, [state.status, pending?.acknowledged, onSavedChange]);
   const operationInFlight = useRef(false);
   const [retryingProcessing, setRetryingProcessing] = useState(false);
   const [retryingVideo, setRetryingVideo] = useState(false);
@@ -576,19 +583,15 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
 
   if (state.status === "done") {
     return (
-      <div className="ms-form" aria-live="polite">
-        <ClearDraftControl status={clearStatus} onClear={forgetDraft} />
-        <p className="ms-field-hint">Clearing this browser does not delete your saved job. Keep your private link to return.</p>
-        {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
-        {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
+      <div className="ms-form ms-intake-confirmation" aria-live="polite">
         {!state.hasFootage && state.captureUrl && !captureReceived ? (
           <>
             <h2 style={{ marginTop: 0 }}>Your job description is saved.</h2>
-            <p className="ms-field-hint">Blueprint is preparing the useful next step from what you supplied. Your summary is available for optional corrections; add footage only when it resolves a missing fact and you have permission.</p>
+            <p className="ms-field-hint">Open your job to review the assessment or correct details. Add footage only when it resolves a missing fact and you have permission.</p>
             <p><a className="ms-button ms-button-large" href={state.captureUrl}>Open your job and assessment</a></p>
             {!state.regionApproved && <p className="ms-field-hint">{captureRegionHeldNotice}</p>}
             <p className="ms-field-hint">Keep this private link to return to your job. We will also email it to {state.email}.</p>
-            <CaptureLiveStatus captureUrl={state.captureUrl} onCaptureReceived={() => void refreshReceivedVideo(state.captureUrl!)} />
+            <CaptureLiveStatus compact captureUrl={state.captureUrl} onCaptureReceived={() => void refreshReceivedVideo(state.captureUrl!)} />
           </>
         ) : !state.regionApproved ? (
           <>
@@ -610,13 +613,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
                 {retryingProcessing ? "Retrying processing…" : "Retry processing"}
               </button></p>
             )}
-            <p className="ms-field-hint">
-              Your job page shows what we found and the next step. Correct the prefilled summary only where it matters; there is no required confirmation before viewing value.
-            </p>
+            <CaptureLiveStatus compact captureUrl={state.captureUrl} />
             <p style={{ marginTop: "20px" }}>
               <a className="ms-button ms-button-large" href={state.captureUrl}>Open your job and assessment</a>
             </p>
-            <CaptureLiveStatus captureUrl={state.captureUrl} />
           </>
         ) : state.selfRecording && state.captureUrl ? (
           <>
@@ -665,7 +665,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
             {/* The laptop, watching the phone through the server's own status
                 rather than guessing. Renders nothing until there is something
                 real to say, and never blocks the capture happening elsewhere. */}
-            <CaptureLiveStatus captureUrl={state.captureUrl} onCaptureReceived={() => void refreshReceivedVideo(state.captureUrl!)} />
+            <CaptureLiveStatus compact captureUrl={state.captureUrl} onCaptureReceived={() => void refreshReceivedVideo(state.captureUrl!)} />
           </>
         ) : (
           <>
@@ -677,12 +677,20 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
             </p>
           </>
         )}
-        {!state.workspaceUrl && state.claimUrl && <section aria-label="Save this job to your account">
+        {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
+        {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
+        {!state.workspaceUrl && state.claimUrl && <section className="ms-intake-account" aria-label="Save this job to your account">
           <h2>Keep track of this job</h2>
-          <p className="ms-field-hint">Your site and job are saved. Create an account with {state.email} to follow progress and review results. We’ll use the details you already supplied.</p>
-          <p><a className="ms-button ms-button-large" href={state.claimUrl}>Create an account for this job</a></p>
-          <p className="ms-field-hint">Already have an account? <a className="ms-text-link" href={`${state.claimUrl}?mode=signin`}>Sign in to save this job</a></p>
+          <p className="ms-field-hint">Optional. Save this job to an account with {state.email}, or keep using your private job link.</p>
+          <div className="ms-intake-account-links">
+            <a className="ms-text-link" href={state.claimUrl}>Create an account for this job</a>
+            <a className="ms-text-link" href={`${state.claimUrl}?mode=signin`}>Sign in to save this job</a>
+          </div>
         </section>}
+        <div className="ms-intake-reset">
+          <ClearDraftControl status={clearStatus} onClear={forgetDraft} />
+          <p className="ms-field-hint">Clearing this browser does not delete your saved job. Keep your private link to return.</p>
+        </div>
       </div>
     );
   }
@@ -700,7 +708,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false }: { storageKey: str
       {recoveryUnavailable && <p role="status" className="ms-field-hint">Saved recovery details expired or could not be read. Use your emailed private job link to return, or clear this browser's draft to start again.</p>}
       {!storageAvailable && <p role="status" className="ms-field-hint">This browser cannot safely save or coordinate recovery details. Use a supported browser with local storage enabled, or email hello@tryblueprint.io for help starting your job. If your job is already saved, use its private link to return.</p>}
       <ClearDraftControl status={clearStatus} onClear={forgetDraft} disabled={state.status === "working"} />
-      <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} className="contents">
+      <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} className={pending?.acknowledged && state.status !== "working" ? "contents ms-intake-return-fields" : "contents"}>
       <label htmlFor="start-task">
         <span>Anything we should know? (optional)</span>
         <span className="ms-field-hint">
