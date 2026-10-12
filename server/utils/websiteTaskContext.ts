@@ -2,7 +2,7 @@ import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { hasCurrentRecordingConsent } from "./recordingConsent";
-import type { TaskItemInventoryRecord } from "./taskItemInventory";
+import type { TaskItem, TaskItemInventoryRecord } from "./taskItemInventory";
 
 /** The recorded site grant covers scene building/evaluation, never resale. */
 export function projectWebsiteCaptureRights(record: Record<string, any> | undefined) {
@@ -33,6 +33,13 @@ export async function loadWebsiteCaptureRights(requestId: string) {
   return projectWebsiteCaptureRights(snapshot.data());
 }
 
+/** A suggestion is our reading of the brief, never the owner's statement, so it joins the
+ * task only once the owner photographs it. Seeding one on the first read of the item list
+ * must not redefine the task a running preparation grant is bound to. */
+export function countsTowardTask(item: Pick<TaskItem, "basis" | "images">): boolean {
+  return item.basis !== "suggested" || item.images.length > 0;
+}
+
 /** Minimal, current task snapshot. Never forwards owner contact or identity. */
 export function projectWebsiteTaskContext(brief: SiteTaskBriefRecord, captureRights?: ReturnType<typeof projectWebsiteCaptureRights>,
   evidence?: { inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, unknown>; purpose?: "scene_preparation" }) {
@@ -55,7 +62,7 @@ export function projectWebsiteTaskContext(brief: SiteTaskBriefRecord, captureRig
       success_rate_unit: "percent", cycle_time_unit: "seconds", physical_measurements_verified: false,
     } } : {}),
     ...(evidence?.captureBinding ? { capture_binding: evidence.captureBinding } : {}),
-    ...(evidence?.inventory ? { task_items: evidence.inventory.items.map(item => ({
+    ...(evidence?.inventory?.items.some(countsTowardTask) ? { task_items: evidence.inventory.items.filter(countsTowardTask).map(item => ({
       item_id: item.itemId, label: item.label, location_note: item.locationNote,
       quantity_hint: item.quantityHint, basis: item.basis,
       // Coverage/asset status are deliberately excluded: images are observations.
