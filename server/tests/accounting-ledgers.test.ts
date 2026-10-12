@@ -4,6 +4,17 @@ import express from "express";
 import { createServer } from "http";
 import type { Server } from "node:http";
 
+// Real ledger projection stays under test; fixture alerts and receipts have
+// explicit inert transports even when a developer shell has live credentials.
+const sendSlackMessage = vi.hoisted(() => vi.fn(async () => ({ sent: false })));
+vi.mock("../utils/slack", async importOriginal => ({
+  ...await importOriginal<typeof import("../utils/slack")>(), sendSlackMessage,
+}));
+vi.mock("../utils/email", async importOriginal => ({
+  ...await importOriginal<typeof import("../utils/email")>(),
+  sendEmail: vi.fn(async () => ({ sent: false, provider: null, messageId: null, outcome: "not_sent" })),
+}));
+
 type StoredDoc = Record<string, unknown>;
 
 const state = vi.hoisted(() => ({
@@ -242,6 +253,9 @@ async function stopServer(server: Server) {
 }
 
 beforeEach(() => {
+  // The route captures this optional relay at import time. Keep fixture
+  // events local even when the invoking shell has a live Paperclip endpoint.
+  vi.stubEnv("PAPERCLIP_OPS_STRIPE_WEBHOOK_URL", "");
   state.docs.clear();
   state.constructEvent.mockReset();
   process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
@@ -252,6 +266,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   delete process.env.STRIPE_WEBHOOK_SECRET;
   delete process.env.BLUEPRINT_STRIPE_WEBHOOK_INLINE;
 });
@@ -656,6 +671,7 @@ describe("accounting ledgers", () => {
       status: "processed",
       order_id: order!.id,
     });
+    expect(sendSlackMessage).toHaveBeenCalledWith(expect.stringContaining("pi_test_dispute"));
   });
 
   it("keeps qualified capturer payouts under review without verified funding", async () => {

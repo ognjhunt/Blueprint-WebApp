@@ -36,6 +36,15 @@ vi.mock("../utils/capturePrivacyScreen", () => ({ screenCaptureForPrivacy }));
 vi.mock("../utils/slack", async importOriginal => ({
   ...await importOriginal<typeof import("../utils/slack")>(),
   notifySlackFootageNeedsReview: vi.fn(async () => false),
+  notifySlackCapturePrivacyEscalation: vi.fn(async () => ({ sent: false })),
+  sendSlackMessage: vi.fn(async () => ({ sent: false })),
+}));
+
+// Upload fixtures must never acquire a real email transport through inherited
+// development credentials or the protected local provider-key fallback.
+vi.mock("../utils/email", async importOriginal => ({
+  ...await importOriginal<typeof import("../utils/email")>(),
+  sendEmail: vi.fn(async () => ({ sent: false, provider: null, messageId: null, outcome: "not_sent" })),
 }));
 
 /** Every object written to the bucket, by path, so the marker can be asserted. */
@@ -1368,6 +1377,8 @@ describe("the privacy question is asked before anything is derived", () => {
     const stored = sharedFakeFirestoreState.docs.get("inboundRequests/req-uncertain") as Record<string, unknown>;
     expect(stored.capture_privacy_evidence).toMatchObject({ decision: "uncertain" });
     expect(stored.site_video_evidence).toBeUndefined();
+    const { notifySlackCapturePrivacyEscalation } = await import("../utils/slack");
+    expect(notifySlackCapturePrivacyEscalation).toHaveBeenCalledWith(expect.objectContaining({ requestId: "req-uncertain" }));
   });
 
   it("a retried upload repairs the same durable notice without duplicating it", async () => {
