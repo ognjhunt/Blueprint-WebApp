@@ -1,9 +1,11 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const authority = vi.hoisted(()=>({enabled:true, advisoryTick: vi.fn()}));
+const authority = vi.hoisted(()=>({enabled:true, advisoryTick: vi.fn(), db: null as any,
+  sceneIntakeTick: vi.fn(async () => {})}));
 vi.mock("../utils/siteAssessmentQueue", () => ({tickSiteAssessments: authority.advisoryTick}));
-vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, authAdmin:{getUser:async()=>({customClaims:{admin:authority.enabled},disabled:false})} }));
+vi.mock("../utils/taskEvaluationSceneIntake", () => ({processSceneIntakeQueue: authority.sceneIntakeTick}));
+vi.mock("../../client/src/lib/firebaseAdmin", () => ({ get dbAdmin() { return authority.db; }, authAdmin:{getUser:async()=>({customClaims:{admin:authority.enabled},disabled:false})} }));
 
 import {
   CANONICAL_TASK_EVALUATION_ALLOCATOR,
@@ -72,7 +74,56 @@ function record() {
 
 afterEach(() => {
   authority.enabled=true;
+  authority.db=null;
+  authority.sceneIntakeTick.mockReset().mockResolvedValue(undefined);
   delete process.env.TASK_EVALUATION_LAUNCH_FORWARD_MAX_ATTEMPTS;
+});
+
+it("does not overlap slow scene or forwarding batches while terminal lanes keep progressing", async () => {
+  vi.useFakeTimers();
+  vi.stubEnv("BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED", "true");
+  vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "false");
+  vi.stubEnv("TASK_EVALUATION_LAUNCH_FORWARD_WORKER_INTERVAL_MS", "10000");
+  vi.stubEnv("TASK_EVALUATION_LAUNCH_STORE_TIMEOUT_MS", "60000");
+  let finishScene!: () => void, finishForward!: (value: {docs: never[]}) => void;
+  authority.sceneIntakeTick.mockImplementationOnce(() => new Promise<void>(resolve => { finishScene = resolve; }));
+  const forwardReads = vi.fn(() => new Promise<{docs: never[]}>(resolve => { finishForward = resolve; }));
+  const terminalReads = vi.fn(async () => ({docs: []}));
+  authority.db = { collection: (collection: string) => {
+    let state: string;
+    const query: any = {where: (_field: string, _op: string, value: string) => {state = value; return query;},
+      limit: () => query, get: () => collection === "taskEvaluationLaunches" && state === "forward_pending"
+        ? forwardReads() : terminalReads()};
+    return query;
+  }};
+  const stop = startTaskEvaluationLaunchForwardWorker();
+  try {
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(authority.sceneIntakeTick).toHaveBeenCalledTimes(1);
+    expect(forwardReads).toHaveBeenCalledTimes(1);
+    expect(terminalReads).toHaveBeenCalledTimes(8); // Two other lanes over four ticks.
+    finishScene(); finishForward({docs: []});
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(authority.sceneIntakeTick).toHaveBeenCalledTimes(2);
+    expect(forwardReads).toHaveBeenCalledTimes(2);
+    stop(); finishForward({docs: []});
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(forwardReads).toHaveBeenCalledTimes(2);
+  } finally {stop(); vi.useRealTimers(); vi.unstubAllEnvs();}
+});
+
+it("releases a failed lane for the next normal tick and contains synchronous errors", async () => {
+  vi.useFakeTimers();
+  vi.stubEnv("BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED", "true");
+  vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "false");
+  authority.sceneIntakeTick.mockImplementationOnce(() => {throw Error("synthetic_lane_failure");});
+  const stop = startTaskEvaluationLaunchForwardWorker();
+  try {
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(authority.sceneIntakeTick).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(55000);
+    expect(authority.sceneIntakeTick).toHaveBeenCalledTimes(2);
+  } finally {stop(); vi.useRealTimers(); vi.unstubAllEnvs();}
 });
 
 describe("Task Evaluation launch forward worker", () => {

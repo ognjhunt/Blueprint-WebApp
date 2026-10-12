@@ -57,7 +57,13 @@ The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebAp
 
 - Build command: `npm ci && npm run build`
 - Web start command: `npm start`
-- Independent worker start command: `npm run start:worker`
+- Independent production worker start command: `NODE_ENV=production node dist/worker.js`.
+  This starts the same entrypoint without retaining npm's launcher in the
+  worker's 512 MiB memory budget. `npm run start:worker` remains a local alias.
+  The Render dashboard-managed start command must match this exact recipe;
+  changing `render.yaml` alone does not update an independently created service.
+  Apply the reviewed recipe at the coordinated release point, then use the
+  existing exact-SHA CI deployment and inspect process/cgroup memory after boot.
 - Health check: `/health/ready`
 - Render `autoDeploy` is disabled in `render.yaml`. GitHub Actions owns
   deploy-on-green through `.github/workflows/deploy.yml`.
