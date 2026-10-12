@@ -194,7 +194,9 @@ describe('private proof byte bindings and real deployment hold consumer', () => 
         if (key.startsWith('srv-')) {
           const worker = key === 'srv-d9t8gg1t0dsc73am9q70';
           return { status: 200, json: async () => recipeChange({ id: key, type: worker ? 'background_worker' : 'web_service',
-            serviceDetails: { envSpecificDetails: { startCommand: worker ? 'npm run start:worker' : 'npm run start' } },
+            // This fixture exercises the current general deploy workflow;
+            // historical Oct6 admission/entry-byte fixtures stay unchanged.
+            serviceDetails: { envSpecificDetails: { startCommand: worker ? 'NODE_ENV=production node dist/worker.js' : 'npm run start' } },
             autoDeploy: 'no', branch: 'main' }) };
         }
         if (options.method === 'PUT') {

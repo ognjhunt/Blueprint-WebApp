@@ -338,6 +338,17 @@ export function startTaskEvaluationLaunchForwardWorker() {
     ? intervalValue
     : 60_000;
   let stopped = false;
+  // A batch can outlive the polling interval. Keep each lane independent, but
+  // never retain another batch or forward the same intake from an overlapping
+  // lap in this process. Release the guard only when that lane settles.
+  const activeLanes = new Set<string>();
+  const startLane = (lane: string, work: () => Promise<unknown>, failure: string) => {
+    if (stopped || activeLanes.has(lane)) return;
+    activeLanes.add(lane);
+    void Promise.resolve().then(() => stopped ? undefined : work()).catch((error) => {
+      logger.error({ err: error }, failure);
+    }).finally(() => { activeLanes.delete(lane); });
+  };
   const run = () => {
     if (stopped) return;
     // This loop also runs when the broader ops scheduler is intentionally off.
@@ -346,18 +357,10 @@ export function startTaskEvaluationLaunchForwardWorker() {
         logger.warn("Site advisory worker tick unavailable");
       });
     }
-    void processSceneIntakeQueue().catch((error) => {
-      logger.error({ err: error }, "Task Evaluation scene intake reconciliation failed");
-    });
-    void processTaskEvaluationLaunchForwardQueue().catch((error) => {
-      logger.error({ err: error }, "Task Evaluation launch forward reconciliation failed");
-    });
-    void closeExpiredTaskEvaluationLaunches().catch((error) => {
-      logger.error({ err: error }, "Task Evaluation launch terminal closure reconciliation failed");
-    });
-    void repairControlPlaneBlockedLaunches().catch((error) => {
-      logger.error({ err: error }, "Task Evaluation launch terminal flag repair failed");
-    });
+    startLane("scene-intake", processSceneIntakeQueue, "Task Evaluation scene intake reconciliation failed");
+    startLane("launch-forward", processTaskEvaluationLaunchForwardQueue, "Task Evaluation launch forward reconciliation failed");
+    startLane("terminal-closure", closeExpiredTaskEvaluationLaunches, "Task Evaluation launch terminal closure reconciliation failed");
+    startLane("terminal-repair", repairControlPlaneBlockedLaunches, "Task Evaluation launch terminal flag repair failed");
   };
   const initial = setTimeout(run, 5_000);
   const interval = setInterval(run, intervalMs);

@@ -26,7 +26,9 @@ services:
     region: virginia
     autoDeploy: false
     buildCommand: npm ci && npm run build
-    startCommand: npm run start:worker
+    # Avoid a persistent npm launcher competing with this 512 MiB worker's
+    # independently admitted research Python/Firestore subprocesses.
+    startCommand: NODE_ENV=production node dist/worker.js
     envVars:
       # This service shares the web build command but starts dist/worker.js and
       # never serves the client bundle, so it carries only the Firebase Admin

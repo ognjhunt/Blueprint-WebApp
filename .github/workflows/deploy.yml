@@ -202,7 +202,7 @@ jobs:
             receipts.push({ service, key, status: response.status, body, observedAtMs: Date.now() });
           }
           for (const [service, type, startCommand] of [
-            ['srv-d9t8gg1t0dsc73am9q70', 'background_worker', 'npm run start:worker'],
+            ['srv-d9t8gg1t0dsc73am9q70', 'background_worker', 'NODE_ENV=production node dist/worker.js'],
             ['srv-d4vnmk3e5dus73aiohk0', 'web_service', 'npm run start'],
           ]) {
             const response = await fetch(`https://api.render.com/v1/services/${service}`, {

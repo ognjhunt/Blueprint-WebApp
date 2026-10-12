@@ -162,7 +162,9 @@ describe("deploy manifests", () => {
     const renderYaml = readFileSync(join(repoRoot, "render.yaml"), "utf8");
     expect(renderYaml).toContain("type: worker");
     expect(renderYaml).toContain("name: blueprint-webapp-worker");
-    expect(renderYaml).toContain("startCommand: npm run start:worker");
+    expect(renderYaml).toContain("startCommand: NODE_ENV=production node dist/worker.js");
+    const deploySource = readFileSync(join(repoRoot, ".github", "workflows", "deploy.yml"), "utf8");
+    expect(deploySource).toContain("'background_worker', 'NODE_ENV=production node dist/worker.js'");
   });
 
   it("bundles and exposes the worker entrypoint", () => {
