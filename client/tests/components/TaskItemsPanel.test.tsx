@@ -54,6 +54,12 @@ function tote(overrides: Record<string, unknown> = {}) {
 }
 
 describe("the operator sees the items and their coverage", () => {
+  it("uses an actual job item as the example", async () => {
+    fetchMock.mockResolvedValueOnce(inventory([tote({label:"Dishes"})]));
+    render(<TaskItemsPanel token="tok" scope="owner" />);
+    expect(await screen.findByPlaceholderText("e.g. Dishes")).toBeInTheDocument();
+    expect(screen.queryByText(/tote here and boxes there/)).not.toBeInTheDocument();
+  });
   it("lists a suggested item, where it goes, and that it needs photos", async () => {
     fetchMock.mockResolvedValueOnce(inventory([tote()]));
     render(<TaskItemsPanel token="tok" scope="owner" />);
@@ -69,9 +75,10 @@ describe("the operator sees the items and their coverage", () => {
     fetchMock.mockResolvedValueOnce(inventory([])); // initial: empty
     render(<TaskItemsPanel token="tok" scope="owner" />);
     await screen.findByText(/No items yet/);
+    expect(screen.getByPlaceholderText("Name an item handled in this job")).toBeInTheDocument();
 
     fetchMock.mockResolvedValueOnce(inventory([tote({ itemId: "item_boxes", label: "Boxes", locationNote: null })]));
-    fireEvent.change(screen.getByPlaceholderText(/Cardboard boxes/), { target: { value: "Boxes" } });
+    fireEvent.change(screen.getByRole("textbox", {name: "Add an item"}), { target: { value: "Boxes" } });
     fireEvent.click(screen.getByRole("button", { name: /Add item/ }));
 
     expect(await screen.findByText("Boxes")).toBeInTheDocument();

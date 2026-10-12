@@ -5,9 +5,11 @@ const source=vi.hoisted(()=>({view:null as any}));
 vi.mock("../../client/src/lib/firebaseAdmin",async()=>({dbAdmin:(await import("./helpers/fake-firestore")).sharedFakeFirestore}));
 vi.mock("../utils/siteAssessmentPublic",()=>({loadCurrentSiteAssessmentView:vi.fn(async()=>source.view)}));
 vi.mock("../utils/siteAssessmentQueue",()=>({enqueueNewPublishedSiteAssessment:vi.fn()}));
+vi.mock("../utils/taskLifecycleNotifications",()=>({enqueueTaskLifecycleNotification:vi.fn(async()=>{})}));
 import {advisoryContextDigest} from "../utils/siteAssessmentContext";
 import {browserPendingDecisionKey,type BrowserPending} from "../utils/websiteBrowserPending";
 import {readSiteClarification,submitSiteClarification} from "../utils/siteTaskClarifications";
+import {recordSiteTaskCallOutcome} from "../utils/siteTaskBrief";
 const packet="a".repeat(64), jobId="advisory-"+"b".repeat(64);
 let sourceKey:string, contextDigest:string;
 const pending:BrowserPending={schema_version:"website_browser_pending.v1",request_id:"inline-owner",scene_id:"site-inline-owner",capture_id:"walkthrough-inline-owner",state:"published",completed_at_iso:"2026-10-12T00:00:00.000Z",video:{object_name:"fixture.mp4",generation:"1",size_bytes:20,crc32c:"AAAAAA=="},manifest:{object_name:"manifest.json",generation:"2",size_bytes:20,crc32c:"AAAAAA==",sha256:"sha256:"+"e".repeat(64)}};
@@ -23,6 +25,34 @@ beforeEach(()=>{
  source.view={customerAdvisory:{state:"ready",sections:[],unknowns:["Video analysis is not independently verified.","Question to resolve: How much force is required? Decision it changes: Gripper choice"],nextAction:"Measure force",correlationId:"fixture"},decisionAssessment:{decisionEvidence:{schemaVersion:"site_decision_evidence.v1",packetSha256:packet,qualificationSha256:"c".repeat(64)}},compatibleDecisionAssessments:[]};
 });
 describe("source-specific inline clarification",()=>{
+ it("reviews an assessment-mode answer under the same mode and packet guard",async()=>{
+  const context=sharedFakeFirestoreState.docs.get("inboundRequests/inline-owner") as any;
+  context.site_task_brief_confirmed_at="2026-10-12T00:00:00Z";
+  context.site_advisory.context_digest=advisoryContextDigest(context,sharedFakeFirestoreState.docs.get("siteTaskBriefs/inline-owner"));
+  (sharedFakeFirestoreState.docs.get("siteAssessmentJobs/"+jobId) as any).context_digest=context.site_advisory.context_digest;
+  const view=await readSiteClarification("inline-owner","assessment");
+  const saved=await submitSiteClarification("inline-owner",view.revision,"30 N","assessment");
+  await recordSiteTaskCallOutcome({requestId:"inline-owner",clarificationId:saved.id,note:"Measurement reviewed",resolvedBy:"fixture-reviewer"});
+  expect((sharedFakeFirestoreState.docs.get("inboundRequests/inline-owner") as any).site_task_clarification).toMatchObject({mode:"assessment",state:"reviewed"});
+ });
+ it("binds analysis-only questions and mode without triage checklist fallback",async()=>{
+  (sharedFakeFirestoreState.docs.get("inboundRequests/inline-owner") as any).site_task_triage={disposition:"needs_conversation",open_questions:["Generic conversation topic"],unanswered_field_ids:["layout_change"]};
+  const context=sharedFakeFirestoreState.docs.get("inboundRequests/inline-owner") as any;
+  context.site_advisory.context_digest=advisoryContextDigest(context,sharedFakeFirestoreState.docs.get("siteTaskBriefs/inline-owner"));
+  (sharedFakeFirestoreState.docs.get("siteAssessmentJobs/"+jobId) as any).context_digest=context.site_advisory.context_digest;
+  const view=await readSiteClarification("inline-owner","assessment"),legacy=await readSiteClarification("inline-owner");
+  expect(view.questions).toEqual(["How much force is required? Decision it changes: Gripper choice"]);
+  expect(legacy.questions).toContain("Generic conversation topic");expect(view.revision).not.toBe(legacy.revision);
+  await expect(submitSiteClarification("inline-owner",view.revision,"30 N")).rejects.toThrow("clarification_revision_changed");
+  const saved=await submitSiteClarification("inline-owner",view.revision,"30 N","assessment");
+  expect(saved.state).toBe("review_required");expect(context.site_task_clarification).toBeUndefined();
+  expect((sharedFakeFirestoreState.docs.get("inboundRequests/inline-owner") as any).site_task_clarification).toMatchObject({mode:"assessment",questions:view.questions});
+ });
+ it("never asks triage checklist questions when current video analysis has none",async()=>{
+  (sharedFakeFirestoreState.docs.get("inboundRequests/inline-owner") as any).site_task_triage={disposition:"needs_conversation",open_questions:["Generic topic"]};
+  source.view.customerAdvisory.unknowns=["Acceptance and workload are unknown"];
+  expect(await readSiteClarification("inline-owner","assessment")).toMatchObject({questions:[],needed:false});
+ });
  it("exposes actual customer questions without caveats or private basis",async()=>{
   const view=await readSiteClarification("inline-owner");
   expect(view).toMatchObject({needed:true,questions:["How much force is required? Decision it changes: Gripper choice"]});
