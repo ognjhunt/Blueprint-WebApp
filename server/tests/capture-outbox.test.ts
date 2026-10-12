@@ -42,7 +42,7 @@ vi.mock("../logger", () => ({
 
 vi.mock("../utils/email", () => ({ sendEmail: sendEmailMock }));
 
-const { deliverOutbox, enqueueOutbox, reconcileOutboxDeliveries } = await import("../utils/captureOutbox");
+const { deliverOutbox, enqueueOutbox, reconcileOutboxDeliveries, startOutboxPump } = await import("../utils/captureOutbox");
 
 function entry(overrides: Record<string, unknown> = {}) {
   return {
@@ -56,9 +56,10 @@ function entry(overrides: Record<string, unknown> = {}) {
   };
 }
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 
 beforeEach(() => {
+  vi.stubEnv("IS_PULL_REQUEST", "false");
   sharedFakeFirestoreState.docs.clear();
   sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { request: { consent_attestation: {
     granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-01-01T00:00:00Z",
@@ -91,6 +92,32 @@ describe("enqueuing is idempotent", () => {
 });
 
 describe("delivery sends what is pending, once", () => {
+  it("a Render preview neither claims pending customer mail nor starts the pump", async () => {
+    await enqueueOutbox(entry());
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    vi.stubEnv("IS_PULL_REQUEST", "true");
+    const timer = vi.spyOn(globalThis, "setInterval");
+    expect(await deliverOutbox()).toEqual({ examined: 0, sent: 0, failed: 0, exhausted: 0 });
+    startOutboxPump()();
+    expect(timer).not.toHaveBeenCalled();
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+  });
+
+  it("retains the requested sender and exact process revision with the provider receipt", async () => {
+    vi.stubEnv("RENDER_GIT_COMMIT", "a".repeat(40));
+    vi.stubEnv("RENDER_SERVICE_ID", "srv-production");
+    vi.stubEnv("RENDER_INSTANCE_ID", "srv-production-instance");
+    sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted" });
+    await enqueueOutbox(entry());
+    await deliverOutbox();
+    const runtime = { revision: "a".repeat(40), serviceId: "srv-production", instanceId: "srv-production-instance" };
+    const requestedSender = { fromEmail: "hello@tryblueprint.io", fromName: "Blueprint", replyTo: "hello@tryblueprint.io" };
+    expect(sharedFakeFirestoreState.docs.get("captureOutbox/req-1:brief_confirmed")).toMatchObject({ deliveryRuntime: runtime, requestedSender });
+    const receipts = [...sharedFakeFirestoreState.docs.entries()].filter(([key]) => key.includes("/deliveryReceipts/"));
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0][1]).toMatchObject({ runtime, requestedSender, messageId: "accepted" });
+  });
   it("admits one sender when request and worker passes overlap", async () => {
     await enqueueOutbox(entry());
     let release!: () => void;
