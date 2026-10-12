@@ -13,6 +13,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CaptureLiveStatus } from "@/components/site/CaptureLiveStatus";
 
+vi.mock("@/components/site/TaskClarification", () => ({TaskClarification: () => <div>Inline job questions</div>}));
+vi.mock("@/components/site/TaskFollowUp", () => ({TaskFollowUp: () => <div>Inline follow-up questions</div>}));
+
 const fetchMock = vi.fn();
 
 beforeEach(() => {
@@ -36,8 +39,8 @@ describe("the desktop reflecting the phone from server state", () => {
     await screen.findByText("Checking the work area");
     expect(screen.queryByText("Your job assessment")).not.toBeInTheDocument();
     expect(screen.getByText("Generic caveat").closest("details")).not.toHaveAttribute("open");
-    expect(screen.getByText("Questions and suggested next step").closest("details")).not.toHaveAttribute("open");
-    expect(screen.queryByText("Assessment details")).not.toBeInTheDocument();
+    expect(screen.getByText("Assessment notes").closest("details")).not.toHaveAttribute("open");
+    expect(screen.queryByText("Your job assessment")).not.toBeInTheDocument();
     expect(screen.getByText("Support reference").closest("details")).not.toHaveAttribute("open");
   });
 
@@ -47,8 +50,8 @@ describe("the desktop reflecting the phone from server state", () => {
       siteAdvisory: {state: "ready", sections: [{title: "Observed task", claims: [{text: "A carton moves from the conveyor to a tote.", verificationStatus: "source_bound", basis: "observed", evidence: [{kind: "video", atSeconds: 4}]}]}], unknowns: ["Carton weight still needs a measurement."], nextAction: "Measure the carton weight.", correlationId: "fixture-reference"},
     })});
     render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
-    await screen.findByText("Assessment details");
-    expect(screen.getByText("Assessment details").closest("details")).not.toHaveAttribute("open");
+    await screen.findByText("Assessment notes");
+    expect(screen.getByText("Assessment notes").closest("details")).not.toHaveAttribute("open");
     expect(screen.getByText("A carton moves from the conveyor to a tote.")).toBeInTheDocument();
     expect(screen.getByText("Carton weight still needs a measurement.")).toBeInTheDocument();
     expect(screen.getByText("This is a proposed next step, not a recorded outcome.")).toBeInTheDocument();
@@ -60,7 +63,7 @@ describe("the desktop reflecting the phone from server state", () => {
       siteAdvisory: {state: "ready", sections: [], unknowns: ["Question to resolve: What is the measured pull force?"], nextAction: "Recommended next step (proposal): Measure pull force.", correlationId: "fixture-reference"},
     })});
     render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
-    await screen.findByText("Questions and suggested next step");
+    await screen.findByText("Assessment notes");
     expect(screen.getByText("What is the measured pull force?")).toBeInTheDocument();
     expect(screen.getByText("Measure pull force.")).toBeInTheDocument();
     expect(screen.getByText("This is a proposed next step, not a recorded outcome.")).toBeInTheDocument();
@@ -74,7 +77,27 @@ describe("the desktop reflecting the phone from server state", () => {
     render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
     const notice = await screen.findByText(/Keep your original video/);
     expect(notice.closest("details")).toBeNull();
-    expect(screen.getByRole("link", {name: "Contact Blueprint"})).toHaveAttribute("href", "mailto:hello@tryblueprint.io");
+    expect(screen.queryByRole("link", {name: "Contact Blueprint"})).not.toBeInTheDocument();
+  });
+
+  it.each(["owner", "film"])("shows inline answer forms only for signed %s authority", async scope => {
+    fetchMock.mockResolvedValue({ok: true, json: async () => ({scope,
+      status: {headline: "Recording received", stage: "review"}, siteAdvisory: null,
+    })});
+    render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
+    await screen.findByText("Recording received");
+    expect(Boolean(screen.queryByText("Inline job questions"))).toBe(scope === "owner");
+    expect(Boolean(screen.queryByText("Inline follow-up questions"))).toBe(scope === "owner");
+  });
+
+  it("withdraws inline forms when capture authority ends", async () => {
+    fetchMock.mockResolvedValue({ok: true, json: async () => ({scope: "owner",
+      status: {headline: "Recording retained", stage: "held"},
+      siteAdvisory: {state:"authority_ended", sections:[], unknowns:[], nextAction:null, correlationId:null},
+    })});
+    render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
+    await screen.findByText("Recording retained");
+    expect(screen.queryByText("Inline job questions")).not.toBeInTheDocument();
   });
 
   it("shows the stage the server reports, polling the token from the capture URL", async () => {

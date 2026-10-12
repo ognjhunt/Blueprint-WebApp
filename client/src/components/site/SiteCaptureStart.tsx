@@ -588,7 +588,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           <>
             <h2 style={{ marginTop: 0 }}>Your job description is saved.</h2>
             <p className="ms-field-hint">Open your job to review the assessment or correct details. Add footage only when it resolves a missing fact and you have permission.</p>
-            <p><a className="ms-button ms-button-large" href={state.captureUrl}>Open your job and assessment</a></p>
+            <p><a className="ms-button ms-button-large ms-intake-job-link" href={state.captureUrl}>Open your job and assessment</a></p>
             {!state.regionApproved && <p className="ms-field-hint">{captureRegionHeldNotice}</p>}
             <p className="ms-field-hint">Keep this private link to return to your job. We will also email it to {state.email}.</p>
             <CaptureLiveStatus compact captureUrl={state.captureUrl} onCaptureReceived={() => void refreshReceivedVideo(state.captureUrl!)} />
@@ -615,7 +615,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             )}
             <CaptureLiveStatus compact captureUrl={state.captureUrl} />
             <p style={{ marginTop: "20px" }}>
-              <a className="ms-button ms-button-large" href={state.captureUrl}>Open your job and assessment</a>
+              <a className="ms-button ms-button-large ms-intake-job-link" href={state.captureUrl}>Open your job and assessment</a>
             </p>
           </>
         ) : state.selfRecording && state.captureUrl ? (

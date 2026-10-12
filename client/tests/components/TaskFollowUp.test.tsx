@@ -30,6 +30,21 @@ describe("TaskFollowUp", () => {
     expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({ questionId: "success_target", answer: "40 items per hour" });
   });
 
+  it("offers inline retry when questions fail to load", async () => {
+    const fetch = vi.fn().mockResolvedValueOnce({ok:false}).mockResolvedValue({ok:true,json:async()=>({questions:[{id:"item_weight",question:"How much do items weigh?",hint:"A range is fine."}]})});
+    vi.stubGlobal("fetch",fetch);render(<TaskFollowUp token="owner-token" />);
+    await screen.findByRole("alert");fireEvent.click(screen.getByRole("button",{name:"Retry follow-up questions"}));
+    await screen.findByRole("heading",{name:"How much do items weigh?"});
+  });
+
+  it("defers a photo question without claiming photos were added", async () => {
+    const fetch=vi.fn().mockImplementation((_url,options)=>Promise.resolve({ok:true,json:async()=>options?.method === "POST"?{ok:true}:{questions:[{id:"item_photos",question:"Can you add photos?",hint:"Two views help."}]}}));
+    vi.stubGlobal("fetch",fetch);render(<TaskFollowUp token="owner-token" />);
+    await screen.findByRole("heading",{name:"Can you add photos?"});fireEvent.click(screen.getByRole("button",{name:"I'll add this later"}));
+    await screen.findByRole("heading",{name:"Thanks, that helps."});
+    expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({questionId:"item_photos",answer:"",defer:true});
+  });
+
   it("keeps a failed answer on screen for retry", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation((_url, options?: RequestInit) =>
       Promise.resolve(options?.method === "POST"
