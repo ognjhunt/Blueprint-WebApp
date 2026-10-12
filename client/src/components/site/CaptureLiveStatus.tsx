@@ -88,15 +88,23 @@ export function CaptureLiveStatus({
     const sections = advisory?.state === "ready" ? advisory.sections.filter(section => section.claims.length > 0) : [];
     return <div className="ms-intake-progress" aria-live="polite">
       <p>{status.headline}</p>
-      {sections.length > 0 && <details className="ms-intake-assessment">
-        <summary>Assessment details</summary>
+      {advisory?.state === "ready" && (sections.length > 0 || advisory.unknowns.length > 0 || advisory.nextAction) && <details className="ms-intake-assessment">
+        <summary>{sections.length > 0 ? "Assessment details" : "Questions and suggested next step"}</summary>
         {sections.map(section => <section key={section.title}>
           <h3>{section.title}</h3>
           <ul>{section.claims.map(claim => <li key={claim.text}>{claim.text}</li>)}</ul>
         </section>)}
-        <SiteAdvisoryReport advisory={advisory} />
+        {advisory.unknowns.length > 0 && <ul>{advisory.unknowns.map(text => <li key={text}>{text.replace(/^(Question to resolve:|Unresolved:)\s*/, "")}</li>)}</ul>}
+        {advisory.nextAction && <>
+          <p>{advisory.nextAction.replace(/^Recommended next step \(proposal\):\s*/, "")}</p>
+          <p className="ms-field-hint">This is a proposed next step, not a recorded outcome.</p>
+        </>}
+        <p><a className="ms-text-link" href="mailto:hello@tryblueprint.io">Contact Blueprint about this job</a></p>
       </details>}
-      {!sections.length && advisory?.correlationId && <details className="ms-intake-reference">
+      {(advisory?.state === "needs_review" || advisory?.state === "unavailable") && <p>
+        {advisory.state === "needs_review" ? "We need to review an assessment issue." : "We could not check the assessment."} Keep your original video. <a className="ms-text-link" href="mailto:hello@tryblueprint.io">Contact Blueprint</a>.
+      </p>}
+      {advisory?.state !== "authority_ended" && advisory?.correlationId && <details className="ms-intake-reference">
         <summary>Support reference</summary>
         <p>{advisory.correlationId}</p>
       </details>}

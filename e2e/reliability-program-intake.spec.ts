@@ -131,7 +131,8 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole("heading", {name: "Your recording is in.", exact: true})).toBeVisible();
     await expect(page.getByRole("link", {name: "Open your job and assessment", exact: true})).toHaveAttribute("href", fixtureLink);
     await expect(page.locator(".ms-intake-confirmation .ms-button")).toHaveCount(1);
-    await expect(page.getByText("Generic assessment caveat")).toHaveCount(0);
+    await expect(page.getByText("Generic assessment caveat")).not.toBeVisible();
+    await expect(page.getByText("Questions and suggested next step")).toBeVisible();
     await expect(page.getByText("What should I record?", {exact: true})).toHaveCount(0);
     await expect(page.getByRole("link", {name: "Create an account for this job"})).toHaveClass("ms-text-link");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
