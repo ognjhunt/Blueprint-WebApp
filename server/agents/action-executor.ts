@@ -10,7 +10,7 @@ import type { HumanBlockerThreadRecord, HumanReplyEventRecord } from "../utils/h
 // approve/reject/retry flows.
 
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
-import { brandedEmail, CUSTOMER_JOB_EMAIL_IDENTITY } from "../utils/emailLayout";
+import { brandedEmail, CUSTOMER_JOB_EMAIL_IDENTITY, EMAIL_SIGN_OFF } from "../utils/emailLayout";
 import { sendEmail } from "../utils/email";
 import {
   appendCommercialEmailFooter,
@@ -1326,7 +1326,8 @@ async function performAction(
             })
           : payload.body!;
       const customerJob = sourceCollection === "inboundRequests";
-      const message = customerJob ? brandedEmail({ subject: payload.subject!, text }) : { text };
+      const message = customerJob ? brandedEmail({ subject: payload.subject!,
+        text: text.includes(EMAIL_SIGN_OFF) ? text : `${text.trimEnd()}\n\n${EMAIL_SIGN_OFF}` }) : { text };
       const result = await sendEmail({
         to: payload.to!,
         subject: payload.subject!,

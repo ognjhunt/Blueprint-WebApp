@@ -141,7 +141,8 @@ const inboundRequest = {
 } as any;
 
 describe("inbound qualification worker", () => {
-  it("persists recommendations and review flags", async () => {
+  it("persists recommendations and review flags without a fallback send when communications is unavailable", async () => {
+    draftSiteJobCommunication.mockRejectedValueOnce(new Error("communications_inference_disabled"));
     runAgentTask.mockResolvedValue({
       status: "completed",
       provider: "openclaw",
@@ -177,6 +178,10 @@ describe("inbound qualification worker", () => {
     });
     const result = await runInboundQualificationForRequest(inboundRequest);
 
+    expect(inboundSet).toHaveBeenCalledWith({ ops_automation: { customer_communication: {
+      state: "requires_recovery", error: "communications_inference_disabled",
+    } } }, { merge: true });
+    expect(executePhase2WorkflowActions.mock.calls[0][0].actions.some((action: any) => action.actionType === "send_email")).toBe(false);
     expect(result.qualification_state_recommendation).toBe("needs_more_evidence");
     expect(runAgentTask).toHaveBeenCalledWith(
       expect.objectContaining({

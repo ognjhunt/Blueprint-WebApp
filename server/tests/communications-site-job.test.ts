@@ -83,10 +83,10 @@ describe("inbound job communications uses the existing agent and actual email ev
     expect(reply.output.subject).toBe("Re: Site's chosen job subject");
     expect(reply.output.body).toBe(f.output.body);
   });
-  it("does not turn an empty question or a no-reply decision into a sendable template", async () => {
+  it.each(["question", "coordination", "recommendation"] as const)("does not turn empty %s content or a no-reply decision into a sendable template", async purpose => {
     const f = fixture();
     f.agentOutput.body = "";
-    await expect(draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports)).rejects.toMatchObject({ code: "job_agent_output_not_source_bound" });
+    await expect(draftSiteJobCommunication(f.db, "job-1", "operator-1", { ...await f.request(), purpose }, f.ports)).rejects.toMatchObject({ code: "job_agent_output_not_source_bound" });
     f.agentOutput.disposition = "no_reply";
     const result = await draftSiteJobCommunication(f.db, "job-1", "operator-1", { ...await f.request(), instruction: "Do not repeat an already answered question" }, f.ports);
     expect(result.state).toBe("needs_context");

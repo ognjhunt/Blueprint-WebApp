@@ -203,8 +203,8 @@ export async function draftSiteJobCommunication(db: FirebaseFirestore.Firestore,
   if (!row.newlyCreated) fail("job_draft_in_progress_or_requires_saved_recovery");
   const validate = (output: CommunicationsOutput) => {
     const allowed = new Set((loaded.context.brief?.proposed ?? []).map((p: any) => p.fieldId));
-    if (request.purpose === "question" && output.disposition === "draft" && !output.body.trim()) return [{
-      code: "job_question_content_required", path: "body", message: "Supply the unanswered question and why its answer changes the recorded decision; the fixed envelope alone is not a message.",
+    if (output.disposition === "draft" && !output.body.trim()) return [{
+      code: "job_message_content_required", path: "body", message: "Supply a decision-relevant message from recorded facts; the branded envelope alone is not a message.",
     }];
     return output.outreachContract !== null ? [{ code: "job_service_contract_required", path: "outreachContract", message: "Existing customer service message uses null; do not fabricate research or a cold outreach contract." }]
       : output.usedFactIds.some(id => !allowed.has(id)) ? [{ code: "job_fact_not_bound", path: "usedFactIds", message: "Use only recorded proposed field IDs, or an empty list when using the task statement or proposal." }] : null;

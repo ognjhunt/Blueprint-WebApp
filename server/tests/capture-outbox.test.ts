@@ -112,7 +112,7 @@ describe("delivery sends what is pending, once", () => {
   });
   it("sends a pending message and marks it sent", async () => {
     sendEmailMock.mockResolvedValue({ sent: true, provider: "smtp", messageId: "m1" });
-    await enqueueOutbox(entry());
+    await enqueueOutbox(entry({ replyTo: "ops@tryblueprint.io" }));
 
     const summary = await deliverOutbox();
 
