@@ -85,6 +85,23 @@ export interface OutboxEntry {
 const MAX_ATTEMPTS = 6;
 const DELIVERY_LEASE_MS = 5 * 60 * 1000;
 
+// Render previews inherit the application's bindings, but must never consume
+// shared customer delivery intents, including through opportunistic callers.
+function isPullRequestPreview(): boolean {
+  return process.env.IS_PULL_REQUEST?.trim().toLowerCase() === "true";
+}
+
+function deliveryRuntime() {
+  const revision = process.env.RENDER_GIT_COMMIT;
+  const serviceId = process.env.RENDER_SERVICE_ID;
+  const instanceId = process.env.RENDER_INSTANCE_ID;
+  return {
+    revision: revision && /^[a-f0-9]{40}$/.test(revision) ? revision : null,
+    serviceId: serviceId && /^srv-[a-z0-9]+$/.test(serviceId) ? serviceId : null,
+    instanceId: instanceId && /^[a-zA-Z0-9_-]{1,160}$/.test(instanceId) ? instanceId : null,
+  };
+}
+
 // Bind the claim to the exact message, including the private owner link.
 function messageDigest(entry: OutboxEntry): string {
   const fields = [
@@ -187,7 +204,10 @@ export interface OutboxDeliverySummary {
  */
 export async function deliverOutbox(params?: { limit?: number }): Promise<OutboxDeliverySummary> {
   const summary: OutboxDeliverySummary = { examined: 0, sent: 0, failed: 0, exhausted: 0 };
+  if (isPullRequestPreview()) return summary;
   if (!db) return summary;
+
+  const runtime = deliveryRuntime();
 
   const limit = Math.max(1, Math.min(params?.limit ?? 20, 100));
   try { await enqueueDueTaskStatusUpdates(limit); }
@@ -256,6 +276,7 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
         return false;
       }
       tx.set(doc.ref, { status: "dispatching", attempts: entry.attempts + 1,
+        deliveryRuntime: runtime, requestedSender: CUSTOMER_JOB_EMAIL_IDENTITY,
         deliveryLeaseUntilMs: Date.now() + DELIVERY_LEASE_MS }, { merge: true });
       return true;
     });
@@ -291,6 +312,7 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
       tx.set(doc.ref.collection("deliveryReceipts").doc(token), {
         token, messageDigest: messageDigest(entry), attempt: attempts,
         status, provider: result.provider, messageId: result.messageId,
+        runtime, requestedSender: CUSTOMER_JOB_EMAIL_IDENTITY,
         observedAtIso: nowIso(),
       });
       if (!current || !["dispatching", "unknown"].includes(current.status)
@@ -327,6 +349,10 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
  * automation leader lease keeps two processes from delivering at once.
  */
 export function startOutboxPump(intervalMs = 60_000): () => void {
+  if (isPullRequestPreview()) {
+    logger.info({ event: "preview_outbox_disabled" }, "Customer outbox pump disabled in pull request preview");
+    return () => undefined;
+  }
   const lease = getOpsAutomationLeaderLease();
   lease.start();
   let running = false;
