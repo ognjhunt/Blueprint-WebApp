@@ -41,10 +41,13 @@ function tokenFromCaptureUrl(captureUrl: string): string | null {
 export function CaptureLiveStatus({
   captureUrl,
   onCaptureReceived,
+  compact = false,
 }: {
   captureUrl: string;
   /** Fired once the server holds the recording, so the page can move past the handoff. */
   onCaptureReceived?: () => void;
+  /** Intake confirmation groups progress with the receipt, without repeating the full advisory. */
+  compact?: boolean;
 }) {
   const [status, setStatus] = useState<LiveStatus | null>(null);
   const token = tokenFromCaptureUrl(captureUrl);
@@ -79,6 +82,26 @@ export function CaptureLiveStatus({
   }, [token]);
 
   if (!status) return null;
+
+  if (compact) {
+    const advisory = status.siteAdvisory;
+    const sections = advisory?.state === "ready" ? advisory.sections.filter(section => section.claims.length > 0) : [];
+    return <div className="ms-intake-progress" aria-live="polite">
+      <p>{status.headline}</p>
+      {sections.length > 0 && <details className="ms-intake-assessment">
+        <summary>Assessment details</summary>
+        {sections.map(section => <section key={section.title}>
+          <h3>{section.title}</h3>
+          <ul>{section.claims.map(claim => <li key={claim.text}>{claim.text}</li>)}</ul>
+        </section>)}
+        <SiteAdvisoryReport advisory={advisory} />
+      </details>}
+      {!sections.length && advisory?.correlationId && <details className="ms-intake-reference">
+        <summary>Support reference</summary>
+        <p>{advisory.correlationId}</p>
+      </details>}
+    </div>;
+  }
 
   return (
     <div

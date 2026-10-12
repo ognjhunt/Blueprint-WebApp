@@ -4,6 +4,7 @@
  * the initial assessment free, with later scope and cost agreed separately.
  */
 import { useLocation } from "wouter";
+import { useState } from "react";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
@@ -16,6 +17,7 @@ const CONTACT_EMAIL = "hello@tryblueprint.io";
 export default function Contact() {
   const [location] = useLocation();
   const isSite = location !== "/contact/robot-team";
+  const [savedJob, setSavedJob] = useState(false);
 
   if (!isSite) {
     return (
@@ -67,22 +69,22 @@ export default function Contact() {
           description="Describe one recurring job for an initial evidence-backed assessment. The initial assessment is free during the beta; later scope and cost are agreed separately."
           canonical="/contact/site-operator"
       />
-      <section className="ms-inquiry ms-container">
+      <section className={`ms-inquiry ms-container${savedJob ? " ms-intake-saved" : ""}`}>
         <div className="ms-inquiry-intro">
           <a className="ms-back" href="/">
             <ArrowLeft size={16} aria-hidden="true" /> Back to Blueprint
           </a>
-          <p className="ms-eyebrow">For site owners</p>
-          <h1>Start with one task.</h1>
-          <p className="ms-inquiry-description">
+          {!savedJob && <p className="ms-eyebrow">For site owners</p>}
+          <h1>{savedJob ? "Your saved job" : "Start with one task."}</h1>
+          {!savedJob && <p className="ms-inquiry-description">
             Show us the work. We’ll investigate, ask only what matters, and come back with a recommendation or concrete pilot plan. Blueprint beta support is free; any provider cost or new commitment is agreed separately.
-          </p>
+          </p>}
         </div>
         <div className="ms-inquiry-forms">
-          <SiteCaptureStart />
+          <SiteCaptureStart onSavedChange={setSavedJob} />
           <details className="ms-task-interest ms-visitor-detail">
             <summary>How this works</summary>
-            <p className="ms-field-hint">
+            {savedJob ? <p className="ms-field-hint">Your private job link shows progress and follow-up questions. Keep it to return. Any evaluation or physical pilot has its scope and cost agreed separately.</p> : <><p className="ms-field-hint">
               Your job link shows progress and follow-ups. We draft a brief from the evidence for you to correct.
               Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding.
               Simulation informs that choice; an agreed physical trial tests performance on site.
@@ -91,18 +93,18 @@ export default function Contact() {
               Geography, plainly: sending a person is an Austin-metro thing; anywhere in the US you
               can record the walkthrough yourself; outside the US we set up transfer terms before
               anything is recorded.
-            </p>
+            </p></>}
           </details>
-          <details className="ms-task-interest ms-visitor-detail">
+          {!savedJob && <details className="ms-task-interest ms-visitor-detail">
             <summary>What should I record?</summary>
             <p className="ms-field-hint">Show one complete task cycle, the objects and where they start and finish, then the surrounding work area. Existing footage is welcome. Avoid screens, paperwork and restricted areas, and get permission to record.</p>
             <p className="ms-field-hint">If filming needs approval, submit the job description while you arrange permission. Have someone who knows the job review the brief; we ask for more footage or a call only to resolve missing details. <a href="/privacy">How footage is used</a>.</p>
-          </details>
+          </details>}
           <p className="ms-field-hint" style={{ marginTop: "20px" }}>
-            <a className="ms-text-link" href="/contact/robot-team">
+            {!savedJob && <><a className="ms-text-link" href="/contact/robot-team">
               Building robots? Apply for early access <ArrowUpRight size={16} aria-hidden="true" />
             </a>
-            {" · "}
+            {" · "}</>}
             <a className="ms-text-link" href={`mailto:${CONTACT_EMAIL}`}>
               Talk to a person
             </a>

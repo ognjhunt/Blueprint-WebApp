@@ -98,6 +98,53 @@ test("UI-ACCESS-001 denied status cannot masquerade as upload receipt", async ({
   await expect(page.getByRole("heading", {name: "Your recording is in."})).toHaveCount(0);
 });
 
+for (const width of [1440, 390]) {
+  test(`saved intake stays focused through upload and return at ${width}px`, async ({ page }, info) => {
+    let releaseUpload!: () => void;
+    const uploadHeld = new Promise<void>(resolve => { releaseUpload = resolve; });
+    let uploads = 0;
+    await page.route(`**${create}`, route => route.fulfill({json: {captureUrl: fixtureLink, claimUrl: "/claim/local-fixture"}}));
+    await page.route("**/api/self-capture/uploads/reliability-fixture", async route => {
+      uploads++;
+      await uploadHeld;
+      return route.fulfill({json: {captureReceived: true, uploadState: "processing_ready"}});
+    });
+    await page.route("**/api/self-capture/uploads/reliability-fixture/status", route => route.fulfill({json: {state: "open", captureReceived: true, uploadState: "processing_ready"}}));
+    await page.route("**/api/site-task-brief/reliability-fixture/status", route => route.fulfill({json: {
+      captureReceived: true,
+      status: {headline: "We have your recording and are checking whether it covers the work area.", stage: "footage_received"},
+      siteAdvisory: {state: "ready", sections: [], unknowns: ["Generic assessment caveat"], nextAction: "Generic proposed action", correlationId: "local-fixture-reference"},
+    }}));
+    await page.setViewportSize({width, height: 1000});
+    await page.goto("/contact/site-operator");
+    await page.getByRole("button", {name: "Reject all", exact: true}).click();
+    await expect(page.getByRole("heading", {name: "Start with one task.", exact: true})).toBeVisible();
+    await page.screenshot({path: info.outputPath(`intake-before-upload-${width}.png`), fullPage: true});
+    await fill(page);
+    await page.locator("#start-method-upload").check();
+    await page.locator("#start-footage").setInputFiles(path.resolve("e2e/fixtures/synthetic-transport.mp4"));
+    await page.getByRole("button", {name: "Start free assessment", exact: true}).click();
+    await expect.poll(() => uploads).toBe(1);
+    await expect(page.getByRole("heading", {name: "Your saved job", exact: true})).toBeVisible();
+    await page.screenshot({path: info.outputPath(`intake-uploading-${width}.png`), fullPage: true});
+    releaseUpload();
+    await expect(page.getByRole("heading", {name: "Your recording is in.", exact: true})).toBeVisible();
+    await expect(page.getByRole("link", {name: "Open your job and assessment", exact: true})).toHaveAttribute("href", fixtureLink);
+    await expect(page.locator(".ms-intake-confirmation .ms-button")).toHaveCount(1);
+    await expect(page.getByText("Generic assessment caveat")).toHaveCount(0);
+    await expect(page.getByText("What should I record?", {exact: true})).toHaveCount(0);
+    await expect(page.getByRole("link", {name: "Create an account for this job"})).toHaveClass("ms-text-link");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({path: info.outputPath(`intake-after-upload-${width}-local-fixture.png`), fullPage: true});
+    await page.reload();
+    await expect(page.getByRole("heading", {name: "Your saved job", exact: true})).toBeVisible();
+    await page.getByRole("button", {name: "Return to saved job", exact: true}).click();
+    await expect(page.getByRole("heading", {name: "Your recording is in.", exact: true})).toBeVisible();
+    expect(uploads).toBe(1);
+    await page.screenshot({path: info.outputPath(`intake-returned-${width}-local-fixture.png`), fullPage: true});
+  });
+}
+
 test("UI-CROSS-TAB-001 concurrent Start with delayed storage events shares exact frozen authority", async ({ context }) => {
   // Missing event delivery is a controlled adversarial ordering, not a mocked browser storage implementation.
   await context.addInitScript(() => window.addEventListener("storage", event => event.stopImmediatePropagation(), true));

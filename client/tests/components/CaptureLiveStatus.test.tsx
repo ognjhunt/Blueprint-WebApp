@@ -27,6 +27,32 @@ afterEach(() => {
 const CAPTURE_URL = "https://tryblueprint.io/capture-upload/signed.token.value?x=1";
 
 describe("the desktop reflecting the phone from server state", () => {
+  it("keeps generic advisory boilerplate out of the compact saved-job view", async () => {
+    fetchMock.mockResolvedValue({ok: true, json: async () => ({
+      status: {headline: "Checking the work area", stage: "review"},
+      siteAdvisory: {state: "ready", sections: [], unknowns: ["Generic caveat"], nextAction: "Generic proposal", correlationId: "fixture-reference"},
+    })});
+    render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
+    await screen.findByText("Checking the work area");
+    expect(screen.queryByText("Your job assessment")).not.toBeInTheDocument();
+    expect(screen.queryByText("Generic caveat")).not.toBeInTheDocument();
+    expect(screen.queryByText("Assessment details")).not.toBeInTheDocument();
+    expect(screen.getByText("Support reference").closest("details")).not.toHaveAttribute("open");
+  });
+
+  it("retains source-bound assessment content and uncertainties in a disclosure", async () => {
+    fetchMock.mockResolvedValue({ok: true, json: async () => ({
+      status: {headline: "Checking the work area", stage: "review"},
+      siteAdvisory: {state: "ready", sections: [{title: "Observed task", claims: [{text: "A carton moves from the conveyor to a tote.", verificationStatus: "source_bound", basis: "observed", evidence: [{kind: "video", atSeconds: 4}]}]}], unknowns: ["Carton weight still needs a measurement."], nextAction: "Measure the carton weight.", correlationId: "fixture-reference"},
+    })});
+    render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
+    await screen.findByText("Assessment details");
+    expect(screen.getByText("Assessment details").closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText("A carton moves from the conveyor to a tote.")).toBeInTheDocument();
+    expect(screen.getByText("Carton weight still needs a measurement.")).toBeInTheDocument();
+    expect(screen.getByText("This is a proposed next step, not a recorded outcome.")).toBeInTheDocument();
+  });
+
   it("shows the stage the server reports, polling the token from the capture URL", async () => {
     fetchMock.mockResolvedValue({
       ok: true,

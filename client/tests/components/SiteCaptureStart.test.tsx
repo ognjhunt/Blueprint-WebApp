@@ -480,7 +480,7 @@ it("moves the laptop from the QR code to the brief once the phone's recording la
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByText("Your job description is saved.", { selector: "h2" });
   expect(screen.getByRole("link", { name: "Open your job and assessment" })).toHaveAttribute("href", captureUrl);
-  expect(screen.getByText(/add footage only when it resolves a missing fact/)).toBeInTheDocument();
+  expect(screen.getByText(/add footage only when it resolves a missing fact/i)).toBeInTheDocument();
   expect(screen.queryByText(/No app and nothing to install/)).toBeNull();
 
   received = true;
