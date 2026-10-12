@@ -21,7 +21,7 @@ import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationA
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { sendEmail } from "./email";
-import { brandedEmail } from "./emailLayout";
+import { brandedEmail, CUSTOMER_JOB_EMAIL_IDENTITY } from "./emailLayout";
 import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
 
 export const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
@@ -263,7 +263,7 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     let result: Awaited<ReturnType<typeof sendEmail>>;
     try {
       result = await sendEmail({ to: entry.to, subject: entry.subject,
-        text: message.text, html: message.html, replyTo: entry.replyTo ?? undefined });
+        text: message.text, html: message.html, ...CUSTOMER_JOB_EMAIL_IDENTITY });
       // Provider adapters cross an untrusted response boundary. A truthy
       // acceptance without a usable provider receipt is not a completed send.
       // Keep that possible effect unknown rather than retrying it or allowing

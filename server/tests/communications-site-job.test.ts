@@ -4,7 +4,7 @@ import { CommunicationsAgentsAPI } from "../agents/communications-api";
 import { draftSiteJobCommunication, loadSiteJobCommunicationsContext, refreshSiteJobReplies, sendReviewedSiteJobCommunication, type SiteJobCommunicationsPorts } from "../agents/communications-site-job";
 import { communicationsDigest, type CommunicationsOutput, type VerifiedThread } from "../agents/communications-contract";
 import { FounderSendReadbackError } from "../agents/communications-gmail";
-import { gmailDraftPlain } from "../agents/communications-gmail-draft";
+import { brandedEmail, EMAIL_SIGN_OFF } from "../utils/emailLayout";
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
 import { loadAssessmentCustomerStatements } from "../utils/siteCustomerStatements";
 import { browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
@@ -20,13 +20,13 @@ vi.mock("../utils/siteAssessmentPublic", () => ({ loadCurrentSiteAdvisory: advis
 afterEach(() => { advisory.load.mockClear(); advisory.basis = null; advisory.compatible = []; vi.unstubAllEnvs(); });
 function fixture() {
   const db = memoryFirestore(new Map([
-    ["inboundRequests/job-1", { contact: { email: "site@example.com" }, request: { taskStatement: "Unload dishes" }, siteTaskGates: { sameTask: "yes" },
+    ["inboundRequests/job-1", { contact: { email: "site@example.com", roleTitle: "Kitchen operator" }, request: { taskStatement: "Unload dishes", buyerType: "site_operator", targetSiteType: "Restaurant dish station", proofPathPreference: "exact_site_required", existingStackReviewWorkflow: "Review in our current dashboard", siteLocation: "PRIVATE_ADDRESS", taskVideoUrl: "PRIVATE_VIDEO_URL" }, siteTaskGates: { sameTask: "yes" },
       pilot_recommendation: { id: "rec-1", pilotCost: "Provider quote pending", reviewRequired: false } }],
     ["siteTaskBriefs/job-1", { summary: "Dish handling", proposed: [{ fieldId: "sameTask", basis: "observation", confidence: 0.8, atSeconds: 20 }], openQuestions: ["cycleTarget"], successCriteria: null }],
   ]));
   const agentOutput: CommunicationsOutput = { disposition: "draft", subject: "Your dish handling job", body: "What rate would make this useful for your operation? A target helps us decide which pilot test to recommend.",
     reason: "Different targets change the recommendation; video rate is not a required target.", usedFactIds: [], refreshFactIds: [], outreachContract: null, requiresHumanReview: true };
-  const output: CommunicationsOutput = { ...agentOutput, subject: "A question about your Blueprint job", body: gmailDraftPlain({ mimeProfile: "multipart-founder-signature-v3", body: "Hi,\n\nWe're following up on your Blueprint job. Your answer will help us plan the next step.\n\nWhat rate would make this useful for your operation? A target helps us decide which pilot test to recommend.\n\nReply directly to this email. A brief answer is fine; if you're unsure, let us know.\n\nNijel Hunt\nBlueprint" }) };
+  const output: CommunicationsOutput = { ...agentOutput, body: brandedEmail({ subject: agentOutput.subject!, text: `Hi,\n\n${agentOutput.body}\n\n${EMAIL_SIGN_OFF}` }).text };
   const api = new CommunicationsAgentsAPI({ allowPaidInference: false });
   const run = vi.spyOn(api, "run").mockImplementation(async params => {
     const checkpoint = { ...params.checkpoint, createClaimedAt: "2026-10-08T17:00:00.000Z", sessionId: "simulated-existing-agent-session", turnId: "simulated-turn", requestDigest: "a".repeat(64) };
@@ -53,22 +53,23 @@ describe("inbound job communications uses the existing agent and actual email ev
     expect(f.ports.send).not.toHaveBeenCalled(); expect(row.sendClaim).toBeUndefined();
   });
 
-  it("renders a fixed question email around changing agent content and reviews that exact email", async () => {
+  it("renders canonical branding around dynamic agent copy and reviews that exact email", async () => {
     const f = fixture(), first = await draftSiteJobCommunication(f.db, "job-1", "operator-1", await f.request(), f.ports);
     expect(first.output).toEqual(f.output);
     const saved = f.db.records.get(`inboundRequests/job-1/communications/${first.id}`);
-    expect(saved.outputFormatting).toEqual({ version: "blueprint.customer-job-question-email.v2", agentOutputDigest: communicationsDigest(f.agentOutput) });
+    expect(saved.outputFormatting).toEqual({ version: "blueprint.customer-job-email.v3", agentOutputDigest: communicationsDigest(f.agentOutput) });
     expect(saved.binding.messageFormatVersion).toBe(saved.outputFormatting.version);
     expect(first.outputHtml).toContain('src="https://tryblueprint.io/brand/email-mark.png"');
-    expect(first.outputHtml).toContain("Founder at <a href=\"https://tryblueprint.io/\">Blueprint</a>");
+    expect(first.outputHtml).toContain(EMAIL_SIGN_OFF);
     expect(first.outputHtml).toContain("Austin, TX");
-    expect(first.output.body).not.toMatch(/Blueprint team|Durham|Business outreach|To opt out/);
+    expect(first.output.body).not.toMatch(/Durham|Business outreach|To opt out/);
     expect(first.outputDigest).toBe(communicationsDigest({ output: first.output, html: first.outputHtml }));
-    expect(JSON.parse(f.run.mock.calls[0][0].input).questionEmailFormat.bodyInstructions).toContain("Write only the dynamic question");
+    expect(JSON.parse(f.run.mock.calls[0][0].input).customerEmailFormat.bodyInstructions).toContain("Write the dynamic message body");
     f.agentOutput.body = "What finished state should the job achieve? This defines what the evaluation should measure.";
     const second = await draftSiteJobCommunication(f.db, "job-1", "operator-1", { ...await f.request(), instruction: "Ask for the intended finished state" }, f.ports);
     expect(second.output.body).toContain(f.agentOutput.body);
-    expect(second.output.body?.split("\n\n").slice(0, 2)).toEqual(first.output.body?.split("\n\n").slice(0, 2));
+    expect(second.output.subject).toBe(f.agentOutput.subject);
+    expect(second.output.body?.split("\n\n")[0]).toBe("Hi,");
     expect(second.output.body?.split("\n\n").slice(-2)).toEqual(first.output.body?.split("\n\n").slice(-2));
     expect(f.ports.send).not.toHaveBeenCalled();
   });
@@ -92,13 +93,18 @@ describe("inbound job communications uses the existing agent and actual email ev
     expect(result.output.body).toBe("");
     expect(f.ports.send).not.toHaveBeenCalled();
   });
-  it("keeps plain-only coordination drafts on their existing digest and send contract", async () => {
+  it("brands new coordination and recommendation drafts while preserving retained plain-only reviews", async () => {
     const f = fixture(), drafted = await draftSiteJobCommunication(f.db, "job-1", "operator-1", { ...await f.request(), purpose: "coordination" }, f.ports);
-    expect(drafted.output).toEqual(f.agentOutput);
-    expect(drafted.outputHtml).toBeNull();
-    expect(drafted.outputDigest).toBe(communicationsDigest(f.agentOutput));
+    expect(drafted.output).toEqual(f.output);
+    expect(drafted.outputHtml).toContain('class="email-card"');
+    expect(drafted.outputDigest).toBe(communicationsDigest({ output: drafted.output, html: drafted.outputHtml }));
     await sendReviewedSiteJobCommunication(f.db, "job-1", drafted.id, "operator-1", { expectedContextDigest: drafted.contextDigest, expectedOutputDigest: drafted.outputDigest, reviewedSend: true }, f.ports);
-    expect(vi.mocked(f.ports.send).mock.calls[0][0]).not.toHaveProperty("html");
+    expect(vi.mocked(f.ports.send).mock.calls[0][0]).toMatchObject({ sender: "hello@tryblueprint.io", html: drafted.outputHtml });
+    const legacy = await draftSiteJobCommunication(f.db, "job-1", "operator-1", { ...await f.request(), purpose: "recommendation" }, f.ports);
+    const row = f.db.records.get(`inboundRequests/job-1/communications/${legacy.id}`);
+    row.output = f.agentOutput; row.outputHtml = null; row.outputDigest = communicationsDigest(f.agentOutput);
+    await sendReviewedSiteJobCommunication(f.db, "job-1", legacy.id, "operator-1", { expectedContextDigest: legacy.contextDigest, expectedOutputDigest: row.outputDigest, reviewedSend: true }, f.ports);
+    expect(vi.mocked(f.ports.send).mock.calls[1][0]).not.toHaveProperty("html");
   });
   it("passes current source-checked assessment questions to the existing agent without send authority", async () => {
     const f = fixture();
@@ -125,6 +131,9 @@ describe("inbound job communications uses the existing agent and actual email ev
     expect(f.run).toHaveBeenCalledTimes(1); expect(again).toMatchObject({ id: first.id, reused: true });
     const input = JSON.parse(f.run.mock.calls[0][0].input);
     expect(input.siteJob.context.answers.sameTask).toBe("yes");
+    expect(input.siteJob.context.intake).toEqual({ buyerType: "site_operator", roleTitle: "Kitchen operator",
+      targetSiteType: "Restaurant dish station", proofPathPreference: "exact_site_required", existingStackReviewWorkflow: "Review in our current dashboard" });
+    expect(JSON.stringify(input)).not.toMatch(/PRIVATE_ADDRESS|PRIVATE_VIDEO_URL/);
     expect(input.siteJob.context.brief.proposed[0]).toMatchObject({ confidence: 0.8, atSeconds: 20 });
     expect(input).not.toHaveProperty("researchBrief"); expect(input.currentApproval.sendsAuthorized).toBe(false);
     expect(f.ports.send).not.toHaveBeenCalled();

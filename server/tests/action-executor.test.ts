@@ -611,6 +611,16 @@ describe("prospect outreach quality enforcement", () => {
 });
 
 describe("executeAction", () => {
+  it("brands inbound job ledger emails with the reply-capable customer identity", async () => {
+    mockQueryGet.mockResolvedValue({ empty: true, docs: [], size: 0 });
+    const result = await executeAction(makeParams({ sourceCollection: "inboundRequests" }));
+    expect(result.state).toBe("sent");
+    expect(mockSendEmail).toHaveBeenCalledWith(expect.objectContaining({
+      to: validEmailPayload.to, subject: validEmailPayload.subject,
+      fromEmail: "hello@tryblueprint.io", fromName: "Blueprint", replyTo: "hello@tryblueprint.io",
+      text: expect.stringContaining(validEmailPayload.body!), html: expect.stringContaining('class="email-card"'),
+    }));
+  });
   it("returns sent immediately for an already-sent idempotent ledger doc", async () => {
     // Simulate finding an existing ledger doc with status=sent
     mockQueryGet.mockResolvedValueOnce({

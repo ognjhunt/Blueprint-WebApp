@@ -10,6 +10,7 @@ import type { HumanBlockerThreadRecord, HumanReplyEventRecord } from "../utils/h
 // approve/reject/retry flows.
 
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
+import { brandedEmail, CUSTOMER_JOB_EMAIL_IDENTITY } from "../utils/emailLayout";
 import { sendEmail } from "../utils/email";
 import {
   appendCommercialEmailFooter,
@@ -622,7 +623,7 @@ export async function executeAction(
       ledgerDocId,
       state: "executing",
     });
-    await performAction(actionType, actionPayload);
+    await performAction(actionType, actionPayload, sourceCollection);
     const sentAt = new Date();
     await updateLedgerStatus(ledgerDocId, "sent", {
       sent_at: sentAt,
@@ -822,7 +823,7 @@ export async function approveAction(
       approvedBy: operatorEmail,
     });
     effectStarted = true;
-    await performAction(data.action_type, data.action_payload);
+    await performAction(data.action_type, data.action_payload, data.source_collection);
     effectAcknowledged = true;
     const sentAt = new Date();
     await ledgerRef.update({
@@ -1039,7 +1040,7 @@ export async function retryFailedAction(
       ledgerDocId,
       state: "executing",
     });
-    await performAction(data.action_type, data.action_payload);
+    await performAction(data.action_type, data.action_payload, data.source_collection);
     const sentAt = new Date();
     await ledgerRef.update({
       status: "sent",
@@ -1291,6 +1292,7 @@ async function countTodayAutoSends(lane: string): Promise<number> {
 async function performAction(
   actionType: ActionType,
   payload: ActionPayload,
+  sourceCollection?: string,
 ): Promise<void> {
   switch (actionType) {
     case "send_email": {
@@ -1323,12 +1325,15 @@ async function performAction(
                   : null,
             })
           : payload.body!;
+      const customerJob = sourceCollection === "inboundRequests";
+      const message = customerJob ? brandedEmail({ subject: payload.subject!, text }) : { text };
       const result = await sendEmail({
         to: payload.to!,
         subject: payload.subject!,
-        text,
+        ...message,
         replyTo:
           typeof payload.replyTo === "string" ? payload.replyTo : undefined,
+        ...(customerJob ? CUSTOMER_JOB_EMAIL_IDENTITY : {}),
         sendGridCategories: normalizeStringList(payload.sendGridCategories),
         sendGridCustomArgs: normalizeStringRecord(payload.sendGridCustomArgs),
       });

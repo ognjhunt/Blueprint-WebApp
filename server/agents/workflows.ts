@@ -55,6 +55,7 @@ import {
   safelyDispatchHumanBlocker,
 } from "../utils/human-blocker-autonomy";
 import { recordBetaOpsFailureSignal } from "../utils/ops-alerts";
+import { draftSiteJobCommunication, loadSiteJobCommunicationsContext } from "./communications-site-job";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 
 type WaitlistSubmissionRecord = {
@@ -872,10 +873,9 @@ function buildInboundActionSpecs(
     },
   ];
 
-  // A screened submission gets the deterministic reply built from its own gate
-  // answers. The model's `buyer_follow_up` is the fallback for submissions that
-  // carried no gates — legacy rows and the non-intake paths — where there are no
-  // `unblocks` strings to build a reply out of.
+  // Screened notices describe deterministic gate/dispatch facts. Legacy
+  // follow-up correspondence is drafted by the customer communications agent
+  // below, never sent directly from the qualification model's wording.
   const screenedEmail = buildQualificationEmail({
     firstName: request.contact.firstName,
     siteName: request.request.siteName,
@@ -888,23 +888,21 @@ function buildInboundActionSpecs(
     nextStep,
   });
 
-  if (request.contact.email && (screenedEmail || result.buyer_follow_up)) {
+  if (request.contact.email && screenedEmail) {
     specs.push({
-      actionKey: screenedEmail
-        ? `inbound_${screenedEmail.variant}_email`
-        : "inbound_follow_up_email",
+      actionKey: `inbound_${screenedEmail.variant}_email`,
       actionType: "send_email" as const,
       actionPayload: {
         type: "send_email" as const,
         to: request.contact.email,
-        subject: screenedEmail?.subject ?? result.buyer_follow_up.subject,
-        body: screenedEmail?.body ?? result.buyer_follow_up.body,
+        subject: screenedEmail.subject,
+        body: screenedEmail.body,
       },
       policy: createInboundEmailPolicy({ deterministic: Boolean(screenedEmail), dispatch }),
     });
   }
 
-  return { routingStatus, specs, dispatch };
+  return { routingStatus, specs, dispatch, needsCommunicationsDraft: Boolean(request.contact.email && !screenedEmail && result.buyer_follow_up) };
 }
 
 function buildSupportActionSpecs(supportInput: SupportTriageInput, result: any) {
@@ -1473,7 +1471,7 @@ export async function runInboundQualificationForRequest(
   const automationStatus = normalizeAutomationStatus(
     output.automation_status,
   );
-  const { routingStatus, specs } = buildInboundActionSpecs(request, output, matchSummary);
+  const { routingStatus, specs, needsCommunicationsDraft } = buildInboundActionSpecs(request, output, matchSummary);
   const phase2DraftPatch = makeWorkflowDraftStatePatch({
     existingOpsAutomation: (request.ops_automation || {}) as Record<string, unknown>,
     lane: "inbound",
@@ -1548,6 +1546,27 @@ export async function runInboundQualificationForRequest(
     },
     actions: specs,
   });
+
+  if (needsCommunicationsDraft) {
+    // Uses existing inference authority, checkpoint recovery, suppression and
+    // exact-output review. No fallback send and no new send/spend authority.
+    try {
+      const loaded = await loadSiteJobCommunicationsContext(db, request.requestId);
+      const draft = await draftSiteJobCommunication(db, request.requestId, "inbound-qualification-workflow", {
+        purpose: "question",
+        instruction: "Use the recorded job, qualification gaps and existing answers to decide whether a customer reply is needed. Ask only what changes the next decision, in ordinary customer language; never repeat already answered intake questions.",
+        decisionReason: "Resolve the recorded information needed for the next job decision.",
+        expectedContextDigest: loaded.contextDigest, reviewedCustomerContext: true,
+      });
+      await docRef.set({ ops_automation: { customer_communication: {
+        id: draft.id, state: draft.state, sourceRef: `inboundRequests/${request.requestId}/communications/${draft.id}`,
+      } } }, { merge: true });
+    } catch (error) {
+      const code = error instanceof Error ? error.message.slice(0, 160) : "customer_communication_draft_failed";
+      await docRef.set({ ops_automation: { customer_communication: { state: "requires_recovery", error: code } } }, { merge: true });
+      logger.warn({ requestId: request.requestId, code }, "Customer communications draft requires recovery; no qualification email sent");
+    }
+  }
 
   return result.output;
 }

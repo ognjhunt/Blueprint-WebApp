@@ -119,7 +119,7 @@ describe("delivery sends what is pending, once", () => {
     expect(summary.sent).toBe(1);
     expect(sendEmailMock).toHaveBeenCalledOnce();
     expect(sendEmailMock).toHaveBeenCalledWith(
-      expect.objectContaining({ to: "ops@acme.example", subject: "s" }),
+      expect.objectContaining({ to: "ops@acme.example", subject: "s", fromEmail: "hello@tryblueprint.io", fromName: "Blueprint", replyTo: "hello@tryblueprint.io" }),
     );
     // Every message leaves in the branded layout, text and HTML alike.
     const sent = sendEmailMock.mock.calls[0][0];

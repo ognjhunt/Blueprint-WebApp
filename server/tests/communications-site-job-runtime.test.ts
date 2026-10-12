@@ -76,7 +76,7 @@ describe("one original job's optional runtime authorization", () => {
           sessionId: "synthetic-scoped-session", turnId: "synthetic-scoped-turn" };
         await params.saveCheckpoint(checkpoint);
         await callbacks.recordPaidDraftUsage(params.jobId, digest, { input_tokens: 100, output_tokens: 50, total_tokens: 150 });
-        return { checkpoint, usage: null, output: { disposition: "draft", subject: "Ignored envelope subject",
+        return { checkpoint, usage: null, output: { disposition: "draft", subject: "A useful question for your job",
           body: "What sequence and final state should this job achieve? That determines which test can answer your question.",
           reason: "The intended acceptance condition remains unknown.", usedFactIds: [], refreshFactIds: [], outreachContract: null, requiresHumanReview: true } };
       });
@@ -84,7 +84,7 @@ describe("one original job's optional runtime authorization", () => {
       const input = { purpose: "question" as const, instruction: "Ask the recorded sequence and final-state question",
         decisionReason: "Define acceptance without inventing the operator's intended task", expectedContextDigest: loaded.contextDigest, reviewedCustomerContext: true as const };
       const drafted = await draftSiteJobCommunication(db, SITE_JOB_RUNTIME_REQUEST_ID, "existing-operator", input);
-      expect(drafted).toMatchObject({ state: "needs_review", output: { subject: "A question about your Blueprint job" } });
+      expect(drafted).toMatchObject({ state: "needs_review", output: { subject: "A useful question for your job" } });
       expect(await draftSiteJobCommunication(db, SITE_JOB_RUNTIME_REQUEST_ID, "existing-operator", input)).toMatchObject({ reused: true });
       expect(run).toHaveBeenCalledTimes(1);
       const admission = [...db.records.entries()].find(([path]) => path.includes("siteJobDraftAdmissions"))![1];
