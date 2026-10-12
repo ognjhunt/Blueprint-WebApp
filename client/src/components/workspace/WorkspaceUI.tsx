@@ -31,6 +31,7 @@ export function Frame({
   children,
   action,
   back,
+  contentClassName,
 }: {
   query: WorkspaceQuery;
   active: AppView;
@@ -38,6 +39,7 @@ export function Frame({
   children: ReactNode;
   action?: ReactNode;
   back?: { href: string; label: string };
+  contentClassName?: string;
 }) {
   return (
     <AppShell
@@ -46,6 +48,7 @@ export function Frame({
       role={query.data?.role}
       hasOwnedSites={Boolean(query.data?.tasks.length)}
       organization={query.data?.profile.organization}
+      contentClassName={contentClassName}
     >
       <Helmet>
         <title>{title} · Blueprint</title>

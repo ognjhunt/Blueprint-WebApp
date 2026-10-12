@@ -1,5 +1,4 @@
 import { SiteAdvisoryReport } from "@/components/site/SiteAdvisoryReport";
-import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
 import { useWorkspace, dateLabel, money, statusLabel } from "@/lib/workspace";
@@ -67,6 +66,7 @@ export default function TaskDetail() {
       query={query}
       active="tasks"
       title={task?.title || "Job"}
+      contentClassName="ws-task-detail"
       back={{ href: "/app/tasks", label: "Your tasks" }}
       action={
         task && !task.archived ? (
@@ -84,7 +84,7 @@ export default function TaskDetail() {
         <>
           <div className="ws-detail-header">
             <p>
-              {task.siteName} · {task.location}
+              {[...new Set([task.siteName?.trim(), task.location?.trim()].filter(Boolean))].join(" · ")}
             </p>
             <p>
               <Tag tone={task.published ? "green" : "neutral"}>
@@ -93,46 +93,38 @@ export default function TaskDetail() {
             </p>
           </div>
 
-          {/* Where the task stands, dominant, from the shared projection the
-              account-free capture page uses too -- so a signed-in operator and
-              one on a link cannot be told different things about one task. The
-              `ws-next` treatment is the page's existing status-banner style. */}
-          {task.readiness && (
-            <div className="ws-next">
-              <div>
-                <p className="ws-kicker">Where this stands</p>
-                <h2>{task.readiness.headline}</h2>
+          <section className="ws-task-status" aria-label="Job progress">
+            {task.readiness && (
+              <div className="ws-task-progress">
+                <h2>Progress</h2>
+                {/* Preserve the shared, source-bound status projection. */}
+                <p>{task.readiness.headline}</p>
                 {task.readiness.operatorAction && <p>{task.readiness.operatorAction}</p>}
-                {task.readiness.missingViews.length > 0 && (
-                  <p className="ws-muted">Still needed: {task.readiness.missingViews.join(", ")}.</p>
+                {task.readiness.missingViews.length > 0 && task.readiness.decision !== "add_views" && (
+                  <p>Still needed: {task.readiness.missingViews.join(", ")}.</p>
                 )}
-                <NextTaskUpdate nextUpdateIso={task.readiness.nextUpdateIso} />
+                <p className="ws-note">Check this page for updates.</p>
               </div>
-            </div>
-          )}
+            )}
+            {!task.archived && (
+              <div className="ws-task-action" aria-label="Your task page">
+                <button
+                  className="ws-primary"
+                  type="button"
+                  onClick={() => void openTaskPage()}
+                  disabled={linkState === "working"}
+                >
+                  {linkState === "working" ? "Opening…" : "Open your task page"}
+                </button>
+                <p className="ws-note">
+                  Review your answers, add footage{task.sceneReady ? ", open your scene," : ""} or review a pilot proposal.
+                </p>
+                {linkError && <p role="alert">{linkError}</p>}
+              </div>
+            )}
+          </section>
 
-          <SiteAdvisoryReport advisory={query.error ? null : task.siteAdvisory} />
-
-          {!task.archived && (
-            <div className="ws-section" aria-label="Your task page">
-              <p>
-                <strong>Your task page.</strong>{" "}
-                Review or edit your answers, review a pilot proposal and follow coordination, or add footage
-                {task.sceneReady ? ", and open your scene" : ""}.
-              </p>
-              <button
-                className="ws-primary"
-                type="button"
-                onClick={() => void openTaskPage()}
-                disabled={linkState === "working"}
-              >
-                {linkState === "working" ? "Opening…" : "Open your task page"}
-              </button>
-              {linkError && (
-                <p role="alert">{linkError}</p>
-              )}
-            </div>
-          )}
+          <SiteAdvisoryReport compact advisory={query.error ? null : task.siteAdvisory} />
 
           <Feedback error={action.error} notice={action.notice} />
           <div className="ws-tabs" role="tablist" aria-label="Task sections">
@@ -267,9 +259,9 @@ export default function TaskDetail() {
                 </span>
               </div>
               <section className="ws-section">
-                <h2>Team results</h2>
                 {task.results.length ? (
                   <>
+                    <h2>Team results</h2>
                     <div className="ws-table-wrap ws-section">
                       <table className="ws-table">
                         <thead>
@@ -334,8 +326,7 @@ export default function TaskDetail() {
                   </>
                 ) : (
                   <Empty title="No team results yet">
-                    Evaluation requests and results will appear here once robot
-                    teams submit them.
+                    Results will appear here when robot teams submit them.
                   </Empty>
                 )}
               </section>
@@ -346,7 +337,7 @@ export default function TaskDetail() {
                     "Success criteria are still being agreed."}
                 </p>
               </details>
-              <section className="ws-next ws-section">
+              <section className="ws-task-pilot ws-section">
                 <div>
                   <h2>
                     {task.pilot.selectedResultId
