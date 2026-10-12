@@ -111,10 +111,30 @@ for (const width of [1440, 390]) {
     });
     await page.route("**/api/self-capture/uploads/reliability-fixture/status", route => route.fulfill({json: {state: "open", captureReceived: true, uploadState: "processing_ready"}}));
     await page.route("**/api/site-task-brief/reliability-fixture/status", route => route.fulfill({json: {
-      captureReceived: true,
+      scope: "owner", captureReceived: true,
       status: {headline: "We have your recording and are checking whether it covers the work area.", stage: "footage_received"},
       siteAdvisory: {state: "ready", sections: [], unknowns: ["Generic assessment caveat"], nextAction: "Generic proposed action", correlationId: "local-fixture-reference"},
     }}));
+    const revision = "a".repeat(64);
+    let clarificationAnswer: string | null = null;
+    const followUpAnswers: Record<string, string> = {};
+    await page.route("**/api/site-task-brief/reliability-fixture/clarification", route => {
+      if (route.request().method() === "POST") {
+        const body = route.request().postDataJSON();
+        expect(body.revision).toBe(revision);
+        expect(route.request().headers()["x-csrf-token"]).toBe("fixture");
+        clarificationAnswer = body.explanation;
+        return route.fulfill({json: {id:"local-answer",state:"review_required"}});
+      }
+      return route.fulfill({json: {revision,needed:true,questions:["How much pull force is required?"],response:clarificationAnswer ? {revision,explanation:clarificationAnswer,state:"review_required"}:null}});
+    });
+    await page.route("**/api/site-task-brief/reliability-fixture/follow-up", route => {
+      if (route.request().method() === "POST") {
+        const body=route.request().postDataJSON();followUpAnswers[body.questionId]=body.answer;
+        return route.fulfill({json:{ok:true}});
+      }
+      return route.fulfill({json:{questions:followUpAnswers.success_target ? [] : [{id:"success_target",question:"What would a good result look like?",hint:"An estimate is fine."}],answers:followUpAnswers}});
+    });
     await page.setViewportSize({width, height: 1000});
     await page.goto("/contact/site-operator");
     await page.getByRole("button", {name: "Reject all", exact: true}).click();
@@ -130,19 +150,34 @@ for (const width of [1440, 390]) {
     releaseUpload();
     await expect(page.getByRole("heading", {name: "Your recording is in.", exact: true})).toBeVisible();
     await expect(page.getByRole("link", {name: "Open your job and assessment", exact: true})).toHaveAttribute("href", fixtureLink);
-    await expect(page.locator(".ms-intake-confirmation .ms-button")).toHaveCount(1);
+    await expect(page.getByRole("link",{name:"Open your job and assessment",exact:true})).toBeVisible();
     await expect(page.getByText("Generic assessment caveat")).not.toBeVisible();
-    await expect(page.getByText("Questions and suggested next step")).toBeVisible();
+    await expect(page.getByText("Assessment notes")).toBeVisible();
     await expect(page.getByText("What should I record?", {exact: true})).toHaveCount(0);
     await expect(page.getByRole("link", {name: "Create an account for this job"})).toHaveClass("ms-text-link");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.screenshot({path: info.outputPath(`intake-after-upload-${width}-local-fixture.png`), fullPage: true});
+    await expect(page.getByText("How much pull force is required?",{exact:true})).toBeVisible();
+    await expect(page.getByRole("textbox",{name:"Your answers",exact:true})).toBeVisible();
+    await expect(page.getByRole("heading",{name:"What would a good result look like?",exact:true})).toBeVisible();
+    await expect(page.getByRole("link",{name:"Contact Blueprint about this job"})).toHaveCount(0);
+    await page.screenshot({path: info.outputPath(`intake-inline-questions-${width}-local-fixture.png`), fullPage: true});
+    await page.getByRole("textbox",{name:"Your answers",exact:true}).fill("Measured pull force is 30 N.");
+    await page.getByRole("button",{name:"Save answers",exact:true}).click();
+    await expect(page.getByText("Your answer is saved with this job for review.")).toBeVisible();
+    await page.getByRole("textbox",{name:"Your answer",exact:true}).fill("40 items per hour");
+    await page.getByRole("button",{name:"Save answer",exact:true}).click();
+    await expect(page.getByRole("heading",{name:"Thanks, that helps."})).toBeVisible();
+    expect(clarificationAnswer).toBe("Measured pull force is 30 N.");
+    expect(followUpAnswers).toEqual({success_target:"40 items per hour"});
+    await page.screenshot({path: info.outputPath(`intake-inline-saved-${width}-local-fixture.png`), fullPage: true});
     await page.reload();
     await expect(page.getByRole("heading", {name: "Your saved job", exact: true})).toBeVisible();
     await page.getByRole("button", {name: "Return to saved job", exact: true}).click();
     await expect(page.getByRole("heading", {name: "Your recording is in.", exact: true})).toBeVisible();
     expect(uploads).toBe(1);
-    await page.screenshot({path: info.outputPath(`intake-returned-${width}-local-fixture.png`), fullPage: true});
+    await expect(page.getByText("Your answer is saved with this job for review.")).toBeVisible();
+    await expect(page.getByRole("button",{name:"Edit your answer"})).toBeVisible();
+    await page.screenshot({path: info.outputPath(`intake-inline-returned-${width}-local-fixture.png`), fullPage: true});
   });
 }
 

@@ -600,6 +600,13 @@ describe("task follow-up on the owner link", () => {
     });
   });
 
+  it("keeps a deferred question answerable on return", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "");
+    sharedFakeFirestoreState.docs.set("siteTaskFollowups/req-1", {questionIds:["item_weight"],answers:{item_weight:"__unknown__"}});
+    const response=await fetch(`${baseUrl}/api/site-task-brief/${token()}/follow-up`);
+    expect((await response.json()).questions).toEqual(expect.arrayContaining([expect.objectContaining({id:"item_weight"})]));
+  });
+
   it("does not expose questions or accept answers from a film-only link", async () => {
     const filmToken = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
     const read = await fetch(`${baseUrl}/api/site-task-brief/${filmToken}/follow-up`);

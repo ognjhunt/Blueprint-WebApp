@@ -445,7 +445,7 @@ router.get("/:token/follow-up", async (req: Request, res: Response) => {
     }
     const questions = questionIds
       .filter((id): id is FollowUpId => FOLLOW_UP_IDS.includes(id))
-      .filter((id) => eligible.includes(id) && !answers[id])
+      .filter((id) => eligible.includes(id) && (!answers[id] || answers[id] === "__unknown__"))
       .map((id) => ({ id, ...FOLLOW_UP_QUESTIONS[id] }));
     return res.status(200).json({ questions, answers });
   } catch (error) {

@@ -1,6 +1,8 @@
 import type { SiteAdvisory } from "@/types/siteAdvisory";
 import { SiteAdvisoryReport } from "./SiteAdvisoryReport";
 import { NextTaskUpdate } from "./NextTaskUpdate";
+import { TaskFollowUp } from "./TaskFollowUp";
+import { TaskClarification } from "./TaskClarification";
 /**
  * The desktop reflecting what the phone is doing — from the server, not a guess.
  *
@@ -23,6 +25,7 @@ import { NextTaskUpdate } from "./NextTaskUpdate";
 import { useEffect, useState } from "react";
 
 interface LiveStatus {
+  scope?: "owner" | "film";
   siteAdvisory?: SiteAdvisory | null;
   headline: string;
   stage: string | null;
@@ -62,10 +65,10 @@ export function CaptureLiveStatus({
       try {
         const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token!)}/status`);
         if (response.ok) {
-          const data = (await response.json()) as { status?: LiveStatus; captureReceived?: boolean; siteAdvisory?: SiteAdvisory | null };
+          const data = (await response.json()) as { status?: LiveStatus; captureReceived?: boolean; siteAdvisory?: SiteAdvisory | null; scope?: "owner" | "film" };
           if (alive && data?.captureReceived === true) onCaptureReceived?.();
           if (alive && data?.status?.headline) {
-            setStatus({ siteAdvisory: data.siteAdvisory ?? null, headline: data.status.headline, stage: data.status.stage ?? null, nextUpdateIso: data.status.nextUpdateIso });
+            setStatus({ scope: data.scope, siteAdvisory: data.siteAdvisory ?? null, headline: data.status.headline, stage: data.status.stage ?? null, nextUpdateIso: data.status.nextUpdateIso });
           }
         } else if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null);
       } catch {
@@ -88,8 +91,12 @@ export function CaptureLiveStatus({
     const sections = advisory?.state === "ready" ? advisory.sections.filter(section => section.claims.length > 0) : [];
     return <div className="ms-intake-progress" aria-live="polite">
       <p>{status.headline}</p>
+      {status.scope === "owner" && advisory?.state !== "authority_ended" && <>
+        <TaskClarification key={`clarification-${token}`} token={token!} refreshKey={JSON.stringify([advisory?.state, advisory?.correlationId, advisory?.unknowns, status.stage])} />
+        <TaskFollowUp key={`follow-up-${token}`} token={token!} />
+      </>}
       {advisory?.state === "ready" && (sections.length > 0 || advisory.unknowns.length > 0 || advisory.nextAction) && <details className="ms-intake-assessment">
-        <summary>{sections.length > 0 ? "Assessment details" : "Questions and suggested next step"}</summary>
+        <summary>Assessment notes</summary>
         {sections.map(section => <section key={section.title}>
           <h3>{section.title}</h3>
           <ul>{section.claims.map(claim => <li key={claim.text}>{claim.text}</li>)}</ul>
@@ -99,10 +106,9 @@ export function CaptureLiveStatus({
           <p>{advisory.nextAction.replace(/^Recommended next step \(proposal\):\s*/, "")}</p>
           <p className="ms-field-hint">This is a proposed next step, not a recorded outcome.</p>
         </>}
-        <p><a className="ms-text-link" href="mailto:hello@tryblueprint.io">Contact Blueprint about this job</a></p>
       </details>}
       {(advisory?.state === "needs_review" || advisory?.state === "unavailable") && <p>
-        {advisory.state === "needs_review" ? "We need to review an assessment issue." : "We could not check the assessment."} Keep your original video. <a className="ms-text-link" href="mailto:hello@tryblueprint.io">Contact Blueprint</a>.
+        {advisory.state === "needs_review" ? "We need to review an assessment issue." : "We could not check the assessment."} Keep your original video. Questions and answers remain with this job.
       </p>}
       {advisory?.state !== "authority_ended" && advisory?.correlationId && <details className="ms-intake-reference">
         <summary>Support reference</summary>

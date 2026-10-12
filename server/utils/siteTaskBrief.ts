@@ -580,17 +580,20 @@ export async function recordSiteTaskCallOutcome(params: {
       ? "needs_conversation"
       : "qualified";
 
+  const clarification = params.clarificationId
+    ? await (await import("./siteTaskClarifications")).loadSiteClarificationContext(params.requestId) : null;
   await db.runTransaction(async tx => {
     const current = (await tx.get(ref)).data();
     const brief = params.clarificationId ? (await tx.get(db!.collection(TASK_BRIEFS_COLLECTION).doc(params.requestId))).data() : null;
     if (humanDecisionDigest(current) !== humanDecisionDigest(record)) throw new CallOutcomeError("The submission changed. Reload before recording the outcome.");
     if (params.clarificationId) {
-      const { clarificationRevision } = await import("./siteTaskClarifications");
+      const { clarificationRevision, assertClarificationPacketCurrent } = await import("./siteTaskClarifications");
       if (current?.site_task_clarification?.id !== params.clarificationId
         || current.site_task_clarification.state !== "review_required"
-        || current.site_task_clarification.revision !== clarificationRevision(brief, current)) {
+        || current.site_task_clarification.revision !== clarificationRevision(brief, current, clarification?.advisoryBasis)) {
         throw new CallOutcomeError("The written clarification no longer matches this brief.");
       }
+      await assertClarificationPacketCurrent(tx, current, clarification?.advisoryBasis);
     }
     tx.set(ref,
     {

@@ -171,6 +171,11 @@
   font-size: 15px;
 }
 .ms-intake-progress { display: grid; gap: 12px; }
+.ms-intake-questions { display: grid; gap: 12px; border-top: 1px solid var(--ms-rule); padding-block: 16px; margin-block: 4px; }
+.ms-intake-questions ul { list-style: disc; padding-left: 22px; }
+.ms-intake-questions textarea { width: 100%; min-height: 120px; resize: vertical; }
+.ms-intake-questions .ms-button { justify-self: start; }
+.ms-intake-confirmation:has(.ms-intake-questions textarea) .ms-intake-job-link { background: transparent; color: var(--ms-green); text-decoration: underline; text-underline-offset: 4px; padding-inline: 0; width: auto; justify-content: flex-start; }
 .ms-intake-account-links { display: flex; flex-wrap: wrap; gap: 8px 24px; }
 .ms-intake-return-fields { display: none; }
 .ms-intake-confirmation details { padding-block: 8px; overflow-wrap: anywhere; }

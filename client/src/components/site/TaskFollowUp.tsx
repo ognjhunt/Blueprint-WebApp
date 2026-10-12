@@ -11,19 +11,26 @@ export function TaskFollowUp({ token, onAnswered }: { token: string; onAnswered?
   const [answer, setAnswer] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setLoadError("");
     void fetch(`/api/site-task-brief/${encodeURIComponent(token)}/follow-up`)
-      .then(async (response) => response.ok ? response.json() : null)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Questions could not be loaded. Please retry.");
+        return response.json();
+      })
       .then((body) => {
         if (active) setQuestions(Array.isArray(body?.questions) ? body.questions : []);
       })
-      .catch(() => { if (active) setQuestions([]); });
+      .catch(() => { if (active) setLoadError("Questions could not be loaded. Please retry."); });
     return () => { active = false; };
-  }, [token]);
+  }, [token, loadAttempt]);
 
   const current = questions?.[index];
+  if (loadError) return <div className="ms-intake-questions"><p role="alert">{loadError}</p><button className="ms-text-link" type="button" onClick={() => setLoadAttempt(value => value + 1)}>Retry follow-up questions</button></div>;
   if (questions === null) return <p className="ms-field-hint">Checking if we need anything else…</p>;
   if (!questions.length) return null;
 
@@ -51,7 +58,7 @@ export function TaskFollowUp({ token, onAnswered }: { token: string; onAnswered?
   }
 
   return (
-    <section className="ms-form" style={{ marginTop: "24px", padding: "20px", border: "1px solid var(--ms-rule)", gap: "12px" }}>
+    <section className="ms-form ms-intake-questions" aria-label="Job follow-up questions">
       <p className="ms-field-hint" style={{ margin: "0 0 12px" }}>
         A few details while we review your video · {Math.min(index + 1, questions.length)} of {questions.length}
       </p>
@@ -69,6 +76,7 @@ export function TaskFollowUp({ token, onAnswered }: { token: string; onAnswered?
                 value={answer}
                 onChange={(event) => setAnswer(event.target.value)}
                 maxLength={1000}
+                disabled={saving}
                 rows={3}
                 style={{ minHeight: "96px" }}
                 placeholder="Type what you know…"
@@ -88,7 +96,7 @@ export function TaskFollowUp({ token, onAnswered }: { token: string; onAnswered?
       ) : (
         <>
           <h2 style={{ margin: 0 }}>Thanks, that helps.</h2>
-          <p className="ms-field-hint" style={{ marginBottom: 0 }}>We’ll keep reviewing the video. You can return to this link for updates.</p>
+          <p className="ms-field-hint" style={{ marginBottom: 0 }}>Your answers are saved with this job. You can stay here for updates.</p>
         </>
       )}
     </section>
