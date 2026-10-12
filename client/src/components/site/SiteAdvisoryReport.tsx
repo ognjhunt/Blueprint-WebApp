@@ -5,7 +5,7 @@ export function SiteAdvisoryReport({ advisory, compact = false }: { advisory: Si
     <h2>Job assessment</h2>
     {advisory.state === "ready" ? <>
       {advisory.nextAction && <p>{advisory.nextAction.replace(/^Recommended next step \(proposal\):\s*/, "")}</p>}
-      <p className="ws-note">Suggested next step. Robot performance still needs to be tested.</p>
+      <p className="ws-note">This is a suggestion, not a confirmed outcome.</p>
       {advisory.unknowns.length > 0 && <details>
         <summary>Open questions ({advisory.unknowns.length})</summary>
         <ul>{advisory.unknowns.map(text => <li key={text}>{text.replace(/^(Question to resolve:|Unresolved:)\s*/, "")}</li>)}</ul>

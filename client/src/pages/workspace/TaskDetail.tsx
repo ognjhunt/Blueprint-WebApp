@@ -342,7 +342,7 @@ export default function TaskDetail() {
                   <h2>
                     {task.pilot.selectedResultId
                       ? statusLabel(task.pilot.state)
-                      : "Your recommended pilot"}
+                      : "Pilot"}
                   </h2>
                   <p className="ws-muted">
                     {task.pilot.notes ||

@@ -252,6 +252,19 @@
 .ws-task-assessment li {
   max-width: 70ch;
 }
+.ws-task-assessment .ws-note {
+  margin-top: 0;
+}
+.ws-task-detail .ws-task-assessment details {
+  border: 0;
+  padding: 0;
+}
+.ws-task-detail .ws-task-assessment details[open] > summary {
+  margin-bottom: 8px;
+}
+.ws-task-detail .ws-empty {
+  border-top: 0;
+}
 .ws-task-detail summary {
   cursor: pointer;
   color: var(--ws-green);
