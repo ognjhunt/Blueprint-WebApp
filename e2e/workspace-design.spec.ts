@@ -453,7 +453,7 @@ test("site reviews results without picking a team; Blueprint recommends one pilo
   await seed(page, "site_operator");
   await page.goto("/app/tasks/task-1");
   await expect(page.getByRole("button", { name: /Invite to pilot/ })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Your recommended pilot" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pilot", exact: true })).toBeVisible();
   await expect(page.getByText(/send you one recommended pilot\. You book it from your task page\./)).toBeVisible();
   await expect(page.getByRole("button", { name: "Book it on your task page →" })).toBeVisible();
 });
