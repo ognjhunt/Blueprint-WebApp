@@ -9,6 +9,8 @@ import { gateFields } from "../../client/src/data/siteTaskQualification";
 
 export type ClarificationMode = "assessment";
 export function clarificationRevision(brief: unknown, request: Record<string, any>, advisoryBasis?: unknown, mode?: ClarificationMode) {
+  // The existing reviewer passes the retained basis; public callers pass their explicit mode.
+  mode ??= (advisoryBasis as { mode?: ClarificationMode } | undefined)?.mode;
   return humanDecisionDigest({ brief, answers: request.siteTaskGates,
     triage: request.site_task_triage, decision: request.customer_decision, confirmed: Boolean(request.site_task_brief_confirmed_at), ...(advisoryBasis ? { advisoryBasis } : {}), ...(mode ? { mode } : {}) });
 }
@@ -24,7 +26,7 @@ function assessmentQuestions(assessment: Awaited<ReturnType<typeof loadCurrentSi
 function questionContext(value: Record<string, any>, brief: unknown, assessment: Awaited<ReturnType<typeof loadCurrentSiteAssessmentView>>, requestId: string, mode?: ClarificationMode) {
   const decision = projectCurrentSiteJobDecision(value, brief, assessment.decisionAssessment, assessment.compatibleDecisionAssessments);
   const sourceQuestions = assessmentQuestions(assessment);
-  const advisoryBasis = sourceQuestions.length ? { requestId, source: value.site_advisory ?? null,
+  const advisoryBasis = sourceQuestions.length ? { requestId, source: value.site_advisory ?? null, ...(mode ? {mode} : {}),
     ownerUid: value.account_owner_uid ?? null, rights: projectWebsiteCaptureRights(value),
     evidence: assessment.decisionAssessment!.decisionEvidence, questions: sourceQuestions } : undefined;
   const questions = [...new Set([
@@ -39,18 +41,20 @@ function questionContext(value: Record<string, any>, brief: unknown, assessment:
     needed: mode === "assessment" ? sourceQuestions.length > 0 : Boolean(decision?.question) || sourceQuestions.length > 0 || value.site_task_triage?.disposition === "needs_conversation", advisoryBasis };
 }
 
-export async function loadSiteClarificationContext(requestId: string, mode?: ClarificationMode) {
+export async function loadSiteClarificationContext(requestId: string, mode?: ClarificationMode | "legacy") {
   if (!db) throw new Error("clarification_store_unavailable");
   const [request, brief] = await Promise.all([db.collection("inboundRequests").doc(requestId).get(),
     db.collection("siteTaskBriefs").doc(requestId).get()]);
   if (!request.exists || !brief.exists) throw new Error("clarification_missing");
   const value = request.data()!;
+  // Only the internal reviewer infers mode from the saved answer. Public reads select it explicitly.
+  const selectedMode = mode === "legacy" ? undefined : mode ?? (value.site_task_clarification?.mode === "assessment" ? "assessment" : undefined);
   const assessment = await loadCurrentSiteAssessmentView(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: value.account_owner_uid ?? null });
-  return { ...questionContext(value, brief.data(), assessment, requestId, mode), response: value.site_task_clarification || null };
+  return { ...questionContext(value, brief.data(), assessment, requestId, selectedMode), response: value.site_task_clarification || null };
 }
 
 export async function readSiteClarification(requestId: string, mode?: ClarificationMode) {
-  const { advisoryBasis: _privateBasis, ...publicContext } = await loadSiteClarificationContext(requestId, mode);
+  const { advisoryBasis: _privateBasis, ...publicContext } = await loadSiteClarificationContext(requestId, mode ?? "legacy");
   return publicContext;
 }
 

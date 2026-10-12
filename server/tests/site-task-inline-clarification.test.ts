@@ -47,6 +47,7 @@ describe("source-specific inline clarification",()=>{
   const saved=await submitSiteClarification("inline-owner",view.revision,"30 N","assessment");
   expect(saved.state).toBe("review_required");expect(context.site_task_clarification).toBeUndefined();
   expect((sharedFakeFirestoreState.docs.get("inboundRequests/inline-owner") as any).site_task_clarification).toMatchObject({mode:"assessment",questions:view.questions});
+  expect((await readSiteClarification("inline-owner")).revision).toBe(legacy.revision);
  });
  it("never asks triage checklist questions when current video analysis has none",async()=>{
   (sharedFakeFirestoreState.docs.get("inboundRequests/inline-owner") as any).site_task_triage={disposition:"needs_conversation",open_questions:["Generic topic"]};
