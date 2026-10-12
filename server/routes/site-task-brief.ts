@@ -104,8 +104,8 @@ router.post("/:token/clarification", async (req, res) => {
   const payload = verifyCaptureUploadToken(String(req.params.token));
   if (!payload) return res.status(404).json({ error: "This link has expired." });
   if (payload.scope !== "owner") return res.status(403).json({ error: "Use the owner's link to answer questions." });
-  const parsed = z.object({ revision: z.string().regex(/^[a-f0-9]{64}$/), explanation: z.string().trim().min(10).max(4000) }).strict().safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Please write a short explanation (10–4000 characters)." });
+  const parsed = z.object({ revision: z.string().regex(/^[a-f0-9]{64}$/), explanation: z.string().trim().min(1).max(4000) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Please write an answer (1–4000 characters)." });
   try { return res.json(await submitSiteClarification(payload.requestId, parsed.data.revision, parsed.data.explanation)); }
   catch (error) { return res.status(error instanceof Error && error.message === "clarification_revision_changed" ? 409 : 503)
     .json({ error: "The questions may have changed. Reload this page and try again." }); }
@@ -456,6 +456,7 @@ router.get("/:token/follow-up", async (req: Request, res: Response) => {
 
 const followUpAnswerSchema = z.object({
   questionId: z.enum(FOLLOW_UP_IDS),
+  defer: z.boolean().optional(),
   answer: z.string().trim().max(1000),
 }).strict();
 
@@ -468,13 +469,13 @@ router.post("/:token/follow-up", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "That answer could not be saved." });
   }
   try {
-    const { questionId, answer } = parsed.data;
-    const storedAnswer = questionId === "item_photos" ? "__reviewed__" : answer || "__unknown__";
+    const { questionId, answer, defer } = parsed.data;
+    const storedAnswer = defer ? "__unknown__" : questionId === "item_photos" ? "__reviewed__" : answer || "__unknown__";
     await db.collection("siteTaskFollowups").doc(payload.requestId).set({
       answers: { [questionId]: storedAnswer },
       updatedAtIso: new Date().toISOString(),
     }, { merge: true });
-    if (answer && questionId !== "item_photos") {
+    if (!defer && answer && questionId !== "item_photos") {
       const brief = await getBrief(payload.requestId);
       if (brief) {
         if (questionId === "success_target" && !brief.confirmedAtIso) {

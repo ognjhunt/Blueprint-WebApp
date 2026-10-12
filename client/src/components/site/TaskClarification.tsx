@@ -42,7 +42,7 @@ export function TaskClarification({ token, refreshKey }: { token: string; refres
       <textarea id="screening-explanation" value={explanation} maxLength={4000} rows={4} disabled={busy}
         onChange={event => { draft.current = event.target.value; setExplanation(event.target.value); }} />
       <p className="ms-field-hint">Answer what you know. If something is uncertain, say what still needs checking.</p>
-      <button type="button" className="ms-button" disabled={busy || explanation.trim().length < 10} onClick={async () => {
+      <button type="button" className="ms-button" disabled={busy || !explanation.trim()} onClick={async () => {
         setBusy(true); setError("");
         try {
           const response = await fetch(url, { method: "POST", credentials: "include", headers: await withCsrfHeader({ "Content-Type": "application/json" }),

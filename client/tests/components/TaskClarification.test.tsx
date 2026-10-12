@@ -10,21 +10,21 @@ describe("inline owner questions", () => {
     const fetch = vi.fn().mockImplementation((_url,options) => Promise.resolve({ok:true,json:async()=>options?.method === "POST" ? {id:"answer",state:"review_required"}:questions}));
     vi.stubGlobal("fetch",fetch);render(<TaskClarification token="owner-fixture" />);
     await screen.findByText(questions.questions[0]);
-    fireEvent.change(screen.getByRole("textbox",{name:"Your answers"}),{target:{value:"The measured force is 30 N."}});
+    fireEvent.change(screen.getByRole("textbox",{name:"Your answers"}),{target:{value:"30 N"}});
     fireEvent.click(screen.getByRole("button",{name:"Save answers"}));
     await screen.findByText("Your answer is saved with this job for review.");
     expect(fetch.mock.calls[1][1]).toMatchObject({method:"POST",headers:{"x-csrf-token":"fixture"}});
-    expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({revision,explanation:"The measured force is 30 N."});
+    expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({revision,explanation:"30 N"});
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
   it("keeps a failed or stale answer for retry, and refreshes questions inline", async () => {
     const fetch=vi.fn().mockImplementation((_url,options)=>Promise.resolve(options?.method === "POST"?{ok:false,json:async()=>({error:"The questions may have changed. Reload this page and try again."})}:{ok:true,json:async()=>questions}));
     vi.stubGlobal("fetch",fetch);render(<TaskClarification token="owner-fixture" />);
-    fireEvent.change(await screen.findByRole("textbox",{name:"Your answers"}),{target:{value:"The measured force is 30 N."}});
+    fireEvent.change(await screen.findByRole("textbox",{name:"Your answers"}),{target:{value:"30 N"}});
     fireEvent.click(screen.getByRole("button",{name:"Save answers"}));
     await screen.findByRole("alert");
     fireEvent.click(screen.getByRole("button",{name:"Retry questions"}));
-    expect(await screen.findByDisplayValue("The measured force is 30 N.")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("30 N")).toBeInTheDocument();
   });
   it("distinguishes a failed read from no questions and provides inline retry",async()=>{
     const fetch=vi.fn().mockResolvedValueOnce({ok:false}).mockResolvedValue({ok:true,json:async()=>questions});

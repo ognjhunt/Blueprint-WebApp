@@ -593,7 +593,7 @@ export async function recordSiteTaskCallOutcome(params: {
         || current.site_task_clarification.revision !== clarificationRevision(brief, current, clarification?.advisoryBasis)) {
         throw new CallOutcomeError("The written clarification no longer matches this brief.");
       }
-      await assertClarificationPacketCurrent(tx, current, clarification?.advisoryBasis);
+      await assertClarificationPacketCurrent(tx, current, clarification?.advisoryBasis, brief ?? null);
     }
     tx.set(ref,
     {

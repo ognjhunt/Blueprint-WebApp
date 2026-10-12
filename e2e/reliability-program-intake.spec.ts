@@ -161,13 +161,13 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole("heading",{name:"What would a good result look like?",exact:true})).toBeVisible();
     await expect(page.getByRole("link",{name:"Contact Blueprint about this job"})).toHaveCount(0);
     await page.screenshot({path: info.outputPath(`intake-inline-questions-${width}-local-fixture.png`), fullPage: true});
-    await page.getByRole("textbox",{name:"Your answers",exact:true}).fill("Measured pull force is 30 N.");
+    await page.getByRole("textbox",{name:"Your answers",exact:true}).fill("30 N");
     await page.getByRole("button",{name:"Save answers",exact:true}).click();
     await expect(page.getByText("Your answer is saved with this job for review.")).toBeVisible();
     await page.getByRole("textbox",{name:"Your answer",exact:true}).fill("40 items per hour");
     await page.getByRole("button",{name:"Save answer",exact:true}).click();
     await expect(page.getByRole("heading",{name:"Thanks, that helps."})).toBeVisible();
-    expect(clarificationAnswer).toBe("Measured pull force is 30 N.");
+    expect(clarificationAnswer).toBe("30 N");
     expect(followUpAnswers).toEqual({success_target:"40 items per hour"});
     await page.screenshot({path: info.outputPath(`intake-inline-saved-${width}-local-fixture.png`), fullPage: true});
     await page.reload();

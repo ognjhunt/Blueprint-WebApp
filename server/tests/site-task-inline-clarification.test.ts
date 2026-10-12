@@ -4,13 +4,22 @@ import {sharedFakeFirestoreState,sharedFakeFirestore} from "./helpers/fake-fires
 const source=vi.hoisted(()=>({view:null as any}));
 vi.mock("../../client/src/lib/firebaseAdmin",async()=>({dbAdmin:(await import("./helpers/fake-firestore")).sharedFakeFirestore}));
 vi.mock("../utils/siteAssessmentPublic",()=>({loadCurrentSiteAssessmentView:vi.fn(async()=>source.view)}));
+vi.mock("../utils/siteAssessmentQueue",()=>({enqueueNewPublishedSiteAssessment:vi.fn()}));
+import {advisoryContextDigest} from "../utils/siteAssessmentContext";
+import {browserPendingDecisionKey,type BrowserPending} from "../utils/websiteBrowserPending";
 import {readSiteClarification,submitSiteClarification} from "../utils/siteTaskClarifications";
 const packet="a".repeat(64), jobId="advisory-"+"b".repeat(64);
+let sourceKey:string, contextDigest:string;
+const pending:BrowserPending={schema_version:"website_browser_pending.v1",request_id:"inline-owner",scene_id:"site-inline-owner",capture_id:"walkthrough-inline-owner",state:"published",completed_at_iso:"2026-10-12T00:00:00.000Z",video:{object_name:"fixture.mp4",generation:"1",size_bytes:20,crc32c:"AAAAAA=="},manifest:{object_name:"manifest.json",generation:"2",size_bytes:20,crc32c:"AAAAAA==",sha256:"sha256:"+"e".repeat(64)}};
 beforeEach(()=>{
  sharedFakeFirestoreState.docs.clear();
- sharedFakeFirestoreState.docs.set("inboundRequests/inline-owner",{request:{buyerType:"site_operator"},siteTaskGates:{},site_task_triage:{disposition:"qualified"},site_advisory:{job_id:jobId,state:"completed",source_key:"source-a",context_digest:"context-a"}});
- sharedFakeFirestoreState.docs.set("siteTaskBriefs/inline-owner",{summary:"Open a rack",operatorAnswers:{}});
- sharedFakeFirestoreState.docs.set("siteAssessmentJobs/"+jobId,{schema_version:"site_assessment_job.v1",request_id:"inline-owner",source_key:"source-a",context_digest:"context-a",state:"completed",packet_sha256:packet});
+ const request={request:{buyerType:"site_operator",taskStatement:"Open a rack",consent_attestation:{granted:true,statement_version:"2026-09-18.v1",recorded_at_iso:"2026-10-11T00:00:00Z"}},siteTaskGates:{},site_task_triage:{disposition:"qualified"}};
+ const brief={summary:"Open a rack",operatorAnswers:{}};
+ sourceKey=browserPendingDecisionKey(pending);contextDigest=advisoryContextDigest(request,brief);
+ sharedFakeFirestoreState.docs.set("inboundRequests/inline-owner",{...request,site_advisory:{job_id:jobId,state:"completed",source_key:sourceKey,context_digest:contextDigest},capture_privacy_source_bound_decision:{proceeded:true,eligibility:"approved",capture_id:"walkthrough-inline-owner",producer_source:{kind:"browser_pending",key:sourceKey}}});
+ sharedFakeFirestoreState.docs.set("siteTaskBriefs/inline-owner",brief);
+ sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-inline-owner",{browser_pending_delivery:structuredClone(pending)});
+ sharedFakeFirestoreState.docs.set("siteAssessmentJobs/"+jobId,{schema_version:"site_assessment_job.v1",request_id:"inline-owner",source_key:sourceKey,context_digest:contextDigest,state:"completed",packet_sha256:packet});
  source.view={customerAdvisory:{state:"ready",sections:[],unknowns:["Video analysis is not independently verified.","Question to resolve: How much force is required? Decision it changes: Gripper choice"],nextAction:"Measure force",correlationId:"fixture"},decisionAssessment:{decisionEvidence:{schemaVersion:"site_decision_evidence.v1",packetSha256:packet,qualificationSha256:"c".repeat(64)}},compatibleDecisionAssessments:[]};
 });
 describe("source-specific inline clarification",()=>{
@@ -32,7 +41,7 @@ describe("source-specific inline clarification",()=>{
  });
  it("rejects a stale packet even when its public question text stays the same",async()=>{
   const before=await readSiteClarification("inline-owner");source.view.decisionAssessment.decisionEvidence.packetSha256="d".repeat(64);
-  sharedFakeFirestoreState.docs.set("siteAssessmentJobs/"+jobId,{schema_version:"site_assessment_job.v1",request_id:"inline-owner",source_key:"source-a",context_digest:"context-a",state:"completed",packet_sha256:"d".repeat(64)});
+  sharedFakeFirestoreState.docs.set("siteAssessmentJobs/"+jobId,{schema_version:"site_assessment_job.v1",request_id:"inline-owner",source_key:sourceKey,context_digest:contextDigest,state:"completed",packet_sha256:"d".repeat(64)});
   await expect(submitSiteClarification("inline-owner",before.revision,"The measured pull force is 30 N.")).rejects.toThrow("clarification_revision_changed");
   expect((sharedFakeFirestoreState.docs.get("inboundRequests/inline-owner") as any).site_task_clarification).toBeUndefined();
  });
@@ -40,12 +49,31 @@ describe("source-specific inline clarification",()=>{
   const view=await readSiteClarification("inline-owner");
   const run=sharedFakeFirestore.runTransaction.bind(sharedFakeFirestore);
   const spy=vi.spyOn(sharedFakeFirestore,"runTransaction").mockImplementation(async callback=>{
-   sharedFakeFirestoreState.docs.set("siteAssessmentJobs/"+jobId,{schema_version:"site_assessment_job.v1",request_id:"inline-owner",source_key:"source-a",context_digest:"context-a",state:"completed",packet_sha256:"d".repeat(64)});
+   sharedFakeFirestoreState.docs.set("siteAssessmentJobs/"+jobId,{schema_version:"site_assessment_job.v1",request_id:"inline-owner",source_key:sourceKey,context_digest:contextDigest,state:"completed",packet_sha256:"d".repeat(64)});
    return run(callback);
   });
   try{await expect(submitSiteClarification("inline-owner",view.revision,"The measured pull force is 30 N.")).rejects.toThrow("clarification_revision_changed");}
   finally{spy.mockRestore();}
   expect((sharedFakeFirestoreState.docs.get("inboundRequests/inline-owner") as any).site_task_clarification).toBeUndefined();
+ });
+ it.each(["task", "reservation", "recording", "privacy"])("rejects a %s change between source read and write",async change=>{
+  const view=await readSiteClarification("inline-owner");
+  const run=sharedFakeFirestore.runTransaction.bind(sharedFakeFirestore);
+  const spy=vi.spyOn(sharedFakeFirestore,"runTransaction").mockImplementation(async callback=>{
+   if(change==="task") (sharedFakeFirestoreState.docs.get("inboundRequests/inline-owner") as any).request.taskStatement="Operate a different station";
+   if(change==="privacy") (sharedFakeFirestoreState.docs.get("inboundRequests/inline-owner") as any).capture_privacy_source_bound_decision.proceeded=false;
+   if(change==="reservation") (sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-inline-owner") as any).browser_upload_reservation={id:"replacement"};
+   if(change==="recording") (sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-inline-owner") as any).browser_pending_delivery.video.generation="9";
+   return run(callback);
+  });
+  try{await expect(submitSiteClarification("inline-owner",view.revision,"30 N")).rejects.toThrow("clarification_revision_changed");}
+  finally{spy.mockRestore();}
+  expect((sharedFakeFirestoreState.docs.get("inboundRequests/inline-owner") as any).site_task_clarification).toBeUndefined();
+ });
+ it("accepts a concise measurement but rejects an empty answer",async()=>{
+  const view=await readSiteClarification("inline-owner");
+  await expect(submitSiteClarification("inline-owner",view.revision," ")).rejects.toThrow("clarification_invalid");
+  expect((await submitSiteClarification("inline-owner",view.revision,"30 N")).state).toBe("review_required");
  });
  it("never turns a caveat or unavailable assessment into an answer request",async()=>{
   source.view.customerAdvisory.unknowns=["Some job facts remain unresolved."];expect((await readSiteClarification("inline-owner")).needed).toBe(false);

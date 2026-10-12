@@ -43,7 +43,7 @@ export function TaskFollowUp({ token, onAnswered }: { token: string; onAnswered?
         method: "POST",
         credentials: "include",
         headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ questionId: current.id, answer: skip ? "" : answer.trim() }),
+        body: JSON.stringify({ questionId: current.id, answer: skip ? "" : answer.trim(), ...(skip ? { defer: true } : {}) }),
       });
       if (!response.ok) throw new Error("save failed");
       if (!skip) onAnswered?.(current.id, answer.trim());

@@ -600,11 +600,12 @@ describe("task follow-up on the owner link", () => {
     });
   });
 
-  it("keeps a deferred question answerable on return", async () => {
+  it.each(["item_weight", "item_photos"])("keeps deferred %s answerable on return", async questionId => {
     vi.stubEnv("OPENAI_API_KEY", "");
-    sharedFakeFirestoreState.docs.set("siteTaskFollowups/req-1", {questionIds:["item_weight"],answers:{item_weight:"__unknown__"}});
+    sharedFakeFirestoreState.docs.set("siteTaskFollowups/req-1", {questionIds:[questionId],answers:{}});
+    expect((await fetch(`${baseUrl}/api/site-task-brief/${token()}/follow-up`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({questionId,answer:"",defer:true})})).status).toBe(200);
     const response=await fetch(`${baseUrl}/api/site-task-brief/${token()}/follow-up`);
-    expect((await response.json()).questions).toEqual(expect.arrayContaining([expect.objectContaining({id:"item_weight"})]));
+    expect((await response.json()).questions).toEqual(expect.arrayContaining([expect.objectContaining({id:questionId})]));
   });
 
   it("does not expose questions or accept answers from a film-only link", async () => {
