@@ -39,6 +39,7 @@ function mockFetch() {
     if (url.startsWith("/api/site-task-brief/") && url.endsWith("/status")) {
       return Promise.resolve({ ok: false, json: async () => ({}) });
     }
+    if (url.includes("/clarification?mode=assessment")) return Promise.resolve({ok:true,json:async()=>({revision:"a".repeat(64),needed:false,questions:[],assessmentState:"queued"})});
     if (url.includes("/items")) {
       return Promise.resolve({
         ok: true,
@@ -436,7 +437,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
         } }) });
       }
       if (url.includes("/items")) {
-        return Promise.resolve({ ok: true, json: async () => ({ items: [], allItemsCovered: false, requestedShots: [] }) });
+        return Promise.resolve({ ok: true, json: async () => ({ items: [{itemId:"dishes",label:"Dishes",basis:"suggested",imageCount:0,coverageStatus:"needs_images",imagesStillWanted:2,assetStatus:"pending"}], allItemsCovered: false, requestedShots: [] }) });
       }
       if (url.includes("/clarification?mode=assessment")) {
         return Promise.resolve({ ok: true, json: async () => ({ revision:"a".repeat(64),needed:true,questions:["What throughput is required?"],assessmentState:"ready" }) });
@@ -459,6 +460,9 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     expect(screen.queryByRole("heading", {name:"What would a good result look like?"})).not.toBeInTheDocument();
     const details = screen.getByText("Correct job details (optional)").closest("details")!;
     expect(details.open).toBe(false);
+    fireEvent.click(screen.getByText("Add photos of the job items"));
+    expect(await screen.findByPlaceholderText("e.g. Dishes")).toBeInTheDocument();
+    expect(screen.getByRole("button", {name:"Add photos"})).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add another video" })).not.toBeInTheDocument();
   });
 

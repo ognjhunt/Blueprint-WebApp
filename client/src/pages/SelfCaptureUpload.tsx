@@ -829,7 +829,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 </details>
               )}
 
-              {scope === "film" && <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>}
+              <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>
 
             </>
           ) : existingVideoOnly ? (

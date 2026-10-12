@@ -24,6 +24,8 @@ export function TaskClarification({ token, refreshKey, mode }: { token: string; 
     fetch(url, { signal: controller.signal }).then(async response => {
       if (!response.ok) throw new Error("Questions could not be loaded. Please retry.");
       const data: Clarification = await response.json();
+      if (!Array.isArray(data.questions) || data.questions.some(question => typeof question !== "string")
+        || typeof data.needed !== "boolean" || !/^[a-f0-9]{64}$/.test(data.revision)) throw new Error("Questions could not be loaded. Please retry.");
       if (controller.signal.aborted) return;
       setRequest(data);
       if (!draft.current && data.response?.revision === data.revision) setExplanation(data.response.explanation);

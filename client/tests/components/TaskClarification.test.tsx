@@ -6,6 +6,13 @@ afterEach(() => vi.unstubAllGlobals());
 const revision = "a".repeat(64);
 const questions = {revision,needed:true,questions:["What is the measured pull force? — Gripper choice"],response:null};
 describe("inline owner questions", () => {
+  it("treats a malformed successful response as unavailable rather than crashing or showing stock questions",async()=>{
+    vi.stubGlobal("fetch",vi.fn().mockResolvedValue({ok:true,json:async()=>({needed:true})}));
+    render(<TaskClarification token="owner-fixture" mode="assessment" />);
+    await screen.findByRole("alert");
+    expect(screen.getByRole("button",{name:"Retry questions"})).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
   it("replaces an indefinitely slow read with a retry instead of hiding the form forever",async()=>{
     vi.useFakeTimers();
     const fetch=vi.fn().mockImplementation((_url,options)=>new Promise((_resolve,reject)=>options.signal.addEventListener("abort",()=>reject(new Error("aborted")))));
