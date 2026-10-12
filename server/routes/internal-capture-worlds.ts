@@ -29,7 +29,7 @@ import {
 import { buildCaptureFootageReviewer } from "../utils/captureFootageReview";
 import { getBrief, TASK_BRIEFS_COLLECTION, type SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 import { TASK_ITEM_INVENTORY_COLLECTION, type TaskItemInventoryRecord } from "../utils/taskItemInventory";
-import { loadWebsiteCaptureRights, loadWebsiteTaskInventory, projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { countsTowardTask, loadWebsiteCaptureRights, loadWebsiteTaskInventory, projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "../utils/websiteCaptureBinding";
 import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
   validateWebsiteSponsoredProviderTerms,
@@ -353,10 +353,12 @@ router.post("/creator-captures/:captureId/task-item-evidence", createPipelineSyn
         const context = currentWebsiteSceneContext({requestId: body.request_id, brief, record: request ?? {}, inventory,
           captureId, captureBinding, assessmentPreparationProposal: assessment?.proposal });
         if (context.context_digest !== body.task_context_digest) throw new Error("website_item_evidence_context_changed");
+        // Evidence covers exactly the items the task context carries.
+        const counted = inventory.items.filter(countsTowardTask);
         if (new Set(body.items.map(row => row.item_id)).size !== body.items.length
-          || body.items.length !== inventory.items.length) throw new Error("website_item_evidence_items_changed");
+          || body.items.length !== counted.length) throw new Error("website_item_evidence_items_changed");
         for (const row of body.items) {
-          const item = inventory.items.find(item => item.itemId === row.item_id);
+          const item = counted.find(item => item.itemId === row.item_id);
           if (!item) throw new Error("website_item_evidence_items_changed");
           item.assetStatus = row.status;
           item.assetDetail = row.blocker === "website_item_original_generation_unknown"
