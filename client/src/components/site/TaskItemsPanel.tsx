@@ -168,14 +168,14 @@ export function TaskItemsPanel({ token, scope }: { token: string; scope: "owner"
   const shotHint = requestedShots.length
     ? requestedShots.join(", ")
     : "a clear front view, one from the side, and a close-up";
+  const exampleItem = items?.find(item => item.label.trim())?.label.trim();
 
   return (
     <section style={{ marginTop: "28px", borderTop: "1px solid var(--ms-border, #e5e7eb)", paddingTop: "24px" }}>
       <h3 style={{ margin: "0 0 6px" }}>Items in this job</h3>
       <p className="ms-field-hint" style={{ marginBottom: "16px" }}>
-        The video shows the work area; a robot also needs the things it handles. If the area was
-        clear when you filmed — "there's normally a tote here and boxes there" — add each item and a
-        couple of photos of it, and we will build a sim-ready version to place in the scene. Aim for{" "}
+        Add any handled items missing from this list or not clearly shown in the video.
+        Photos help us prepare each item for the scene. Aim for{" "}
         {shotHint}.
       </p>
 
@@ -281,7 +281,7 @@ export function TaskItemsPanel({ token, scope }: { token: string; scope: "owner"
               type="text"
               value={newLabel}
               maxLength={120}
-              placeholder="e.g. Cardboard boxes"
+              placeholder={exampleItem ? `e.g. ${exampleItem}` : "Name an item handled in this job"}
               onChange={(event) => setNewLabel(event.target.value)}
             />
           </label>

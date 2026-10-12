@@ -8,7 +8,7 @@ const summary = (name: string, email = "operator@example.test") => ({
   site: { siteName: name, siteLocation: "Austin", taskStatement: "Pack cartons", qualificationState: "submitted" },
 });
 
-test("owner can request an authorized assessment retry while keeping the saved recording", async ({ page }) => {
+test("owner can request an authorized assessment retry while keeping the saved recording", async ({ page }, info) => {
   const token = "advisory-retry-fixture";
   const jobId = `advisory-${"a".repeat(64)}`, originalRun = `site-assessment-${"b".repeat(64)}`, newRun = `site-assessment-${"c".repeat(64)}`;
   let queued = false;
@@ -38,7 +38,8 @@ test("owner can request an authorized assessment retry while keeping the saved r
       siteAdvisory: { schemaVersion: "site_customer_advisory.v1", state: queued ? "queued" : "needs_review", correlationId: "bp-advisory-aaaaaaaaaaaaaaaa", sections: [], unknowns: [], nextAction: null },
       assessment_retry_available: !queued, assessment_job_id: jobId, assessment_run_id: queued ? newRun : originalRun,
     } });
-    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
+    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [{itemId:"dishes",label:"Dishes",basis:"suggested",imageCount:0,coverageStatus:"needs_images",imagesStillWanted:2,assetStatus:"pending"}], allItemsCovered: false, requestedShots: [] } });
+    if (url.pathname.endsWith("/clarification")) { expect(url.searchParams.get("mode")).toBe("assessment"); return route.fulfill({json:{revision:"a".repeat(64),needed:false,questions:[],assessmentState:"queued"}}); }
     if (url.pathname.endsWith("/follow-up")) return route.fulfill({ json: { questions: [] } });
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });
@@ -60,6 +61,10 @@ test("owner can request an authorized assessment retry while keeping the saved r
   expect(retries[1]).toEqual(retries[0]);
   await expect(page.getByText("Your video is saved. Blueprint is preparing your job assessment; nothing more is needed from you right now.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Try assessment again", exact: true })).toHaveCount(0);
+  await page.getByText("Add photos of the job items",{exact:true}).click();
+  await expect(page.getByPlaceholder("e.g. Dishes",{exact:true})).toBeVisible();
+  await expect(page.getByRole("button",{name:"Add photos",exact:true})).toBeVisible();
+  await page.screenshot({path:info.outputPath("known-item-placeholder-local-fixture.png"),fullPage:true});
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
   await expect(page.getByText("Correct job details (optional)", { exact: true })).toBeVisible();
   expect(writes).toEqual([`/api/self-capture/uploads/${token}/advisory-retry`, `/api/self-capture/uploads/${token}/advisory-retry`]);

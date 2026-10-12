@@ -74,7 +74,10 @@ for (const width of [390, 1440]) {
         return route.fulfill({ json: { ok: true } });
       }
       if (path.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
-      if (path.endsWith("/follow-up")) return route.fulfill({ json: { questions: [] } });
+      if (path === "/api/site-task-brief/synthetic-owner/clarification" && !post) {
+        if (url.searchParams.has("mode")) expect(url.searchParams.get("mode")).toBe("assessment");
+        return route.fulfill({ json: { revision: "a".repeat(64), needed: false, questions: [], assessmentState: "queued" } });
+      }
       unexpected.push(`${route.request().method()} ${path}`);
       return route.fulfill({ status: 501, json: { error: "Unmapped fixture API" } });
     });

@@ -7,9 +7,12 @@ import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowser
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { gateFields } from "../../client/src/data/siteTaskQualification";
 
-export function clarificationRevision(brief: unknown, request: Record<string, any>, advisoryBasis?: unknown) {
+export type ClarificationMode = "assessment";
+export function clarificationRevision(brief: unknown, request: Record<string, any>, advisoryBasis?: unknown, mode?: ClarificationMode) {
+  // The existing reviewer passes the retained basis; public callers pass their explicit mode.
+  mode ??= (advisoryBasis as { mode?: ClarificationMode } | undefined)?.mode;
   return humanDecisionDigest({ brief, answers: request.siteTaskGates,
-    triage: request.site_task_triage, decision: request.customer_decision, confirmed: Boolean(request.site_task_brief_confirmed_at), ...(advisoryBasis ? { advisoryBasis } : {}) });
+    triage: request.site_task_triage, decision: request.customer_decision, confirmed: Boolean(request.site_task_brief_confirmed_at), ...(advisoryBasis ? { advisoryBasis } : {}), ...(mode ? { mode } : {}) });
 }
 
 /** Only the already-admitted customer question clauses become answer prompts. */
@@ -20,35 +23,38 @@ function assessmentQuestions(assessment: Awaited<ReturnType<typeof loadCurrentSi
   return advisory.unknowns.filter(text => text.startsWith("Question to resolve: "))
     .map(text => text.replace(/^Question to resolve:\s*/, ""));
 }
-function questionContext(value: Record<string, any>, brief: unknown, assessment: Awaited<ReturnType<typeof loadCurrentSiteAssessmentView>>, requestId: string) {
+function questionContext(value: Record<string, any>, brief: unknown, assessment: Awaited<ReturnType<typeof loadCurrentSiteAssessmentView>>, requestId: string, mode?: ClarificationMode) {
   const decision = projectCurrentSiteJobDecision(value, brief, assessment.decisionAssessment, assessment.compatibleDecisionAssessments);
   const sourceQuestions = assessmentQuestions(assessment);
-  const advisoryBasis = sourceQuestions.length ? { requestId, source: value.site_advisory ?? null,
+  const advisoryBasis = sourceQuestions.length ? { requestId, source: value.site_advisory ?? null, ...(mode ? {mode} : {}),
     ownerUid: value.account_owner_uid ?? null, rights: projectWebsiteCaptureRights(value),
     evidence: assessment.decisionAssessment!.decisionEvidence, questions: sourceQuestions } : undefined;
   const questions = [...new Set([
-    ...(decision?.question ? [`${decision.question.text} — ${decision.question.reason}`] : value.site_task_triage?.disposition === "needs_conversation" ? [...(value.site_task_triage?.open_questions || []),
+    ...(mode === "assessment" ? [] : decision?.question ? [`${decision.question.text} — ${decision.question.reason}`] : value.site_task_triage?.disposition === "needs_conversation" ? [...(value.site_task_triage?.open_questions || []),
       ...(value.site_task_triage?.unanswered_field_ids || []).flatMap((id: string) => {
         const field = gateFields.find(field => field.id === id);
         return field ? [`${field.question} — Needed before ${field.blocks === "capture" ? "scene preparation" : "robot evaluation"}; it does not establish pilot willingness or authority.`] : [];
       })] : []), ...sourceQuestions,
   ])];
-  return { revision: clarificationRevision(brief, value, advisoryBasis), questions,
-    needed: Boolean(decision?.question) || sourceQuestions.length > 0 || value.site_task_triage?.disposition === "needs_conversation", advisoryBasis };
+  return { revision: clarificationRevision(brief, value, advisoryBasis, mode), questions,
+    ...(mode ? {assessmentState: assessment.customerAdvisory?.state ?? null} : {}),
+    needed: mode === "assessment" ? sourceQuestions.length > 0 : Boolean(decision?.question) || sourceQuestions.length > 0 || value.site_task_triage?.disposition === "needs_conversation", advisoryBasis };
 }
 
-export async function loadSiteClarificationContext(requestId: string) {
+export async function loadSiteClarificationContext(requestId: string, mode?: ClarificationMode | "legacy") {
   if (!db) throw new Error("clarification_store_unavailable");
   const [request, brief] = await Promise.all([db.collection("inboundRequests").doc(requestId).get(),
     db.collection("siteTaskBriefs").doc(requestId).get()]);
   if (!request.exists || !brief.exists) throw new Error("clarification_missing");
   const value = request.data()!;
+  // Only the internal reviewer infers mode from the saved answer. Public reads select it explicitly.
+  const selectedMode = mode === "legacy" ? undefined : mode ?? (value.site_task_clarification?.mode === "assessment" ? "assessment" : undefined);
   const assessment = await loadCurrentSiteAssessmentView(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: value.account_owner_uid ?? null });
-  return { ...questionContext(value, brief.data(), assessment, requestId), response: value.site_task_clarification || null };
+  return { ...questionContext(value, brief.data(), assessment, requestId, selectedMode), response: value.site_task_clarification || null };
 }
 
-export async function readSiteClarification(requestId: string) {
-  const { advisoryBasis: _privateBasis, ...publicContext } = await loadSiteClarificationContext(requestId);
+export async function readSiteClarification(requestId: string, mode?: ClarificationMode) {
+  const { advisoryBasis: _privateBasis, ...publicContext } = await loadSiteClarificationContext(requestId, mode ?? "legacy");
   return publicContext;
 }
 
@@ -76,7 +82,7 @@ export async function assertClarificationPacketCurrent(tx: FirebaseFirestore.Tra
 }
 
 /** Owner evidence is retained for the existing reviewer; prose never clears a gate. */
-export async function submitSiteClarification(requestId: string, revision: string, explanation: string) {
+export async function submitSiteClarification(requestId: string, revision: string, explanation: string, mode?: ClarificationMode) {
   if (!db) throw new Error("clarification_store_unavailable");
   if (!/^[a-f0-9]{64}$/.test(revision) || explanation.trim().length < 1 || explanation.length > 4000) {
     throw new Error("clarification_invalid");
@@ -91,12 +97,12 @@ export async function submitSiteClarification(requestId: string, revision: strin
       tx.get(db!.collection("siteTaskBriefs").doc(requestId)), tx.get(responseRef)]);
     if (prior.exists) return { id, state: prior.data()!.state };
     const value = request.data();
-    const context = value && brief.exists ? questionContext(value, brief.data(), assessment, requestId) : null;
+    const context = value && brief.exists ? questionContext(value, brief.data(), assessment, requestId, mode) : null;
     if (!context || context.revision !== revision) throw new Error("clarification_revision_changed");
     if (!context.needed) throw new Error("clarification_not_needed");
     // Track the packet authority in the write transaction too.
     await assertClarificationPacketCurrent(tx, value!, context.advisoryBasis, brief.data() ?? null);
-    const response = { id, revision, questions: context.questions, explanation: explanation.trim(), state: "review_required",
+    const response = { id, revision, questions: context.questions, ...(mode ? { mode } : {}), explanation: explanation.trim(), state: "review_required",
       submitted_by: "owner_link", submitted_at: new Date().toISOString() };
     tx.create(responseRef, { ...response, ...(context.advisoryBasis ? { assessment_basis: context.advisoryBasis } : {}) });
     tx.set(ref, { site_task_clarification: response,

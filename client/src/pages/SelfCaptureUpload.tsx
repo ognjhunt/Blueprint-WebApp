@@ -26,7 +26,7 @@ import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
 import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/components/site/TaskBriefReview";
 import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
-import { TaskFollowUp } from "@/components/site/TaskFollowUp";
+import { TaskClarification } from "@/components/site/TaskClarification";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { captureBlockingGates } from "@/lib/siteTaskReadiness";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -153,18 +153,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
    * because a blank capture is still better than a blocked one.
    */
   const [brief, setBrief] = useState<DraftedBrief | null>(null);
-  const onFollowUpAnswered = useCallback((id: string, answer: string) => {
-    if (id !== "success_target") return;
-    setBrief((current) => current ? {
-      ...current,
-      successCriteria: {
-        successDefinition: answer,
-        successRate: current.successCriteria?.successRate ?? null,
-        cycleTimeSeconds: current.successCriteria?.cycleTimeSeconds ?? null,
-        unknown: false,
-      },
-    } : current);
-  }, []);
   const [briefConfirmed, setBriefConfirmed] = useState(false);
   // Links expire after a week; the expired page asks for a new one itself.
   const [freshLink, setFreshLink] = useState<"idle" | "sending" | "sent" | "failed">("idle");
@@ -811,7 +799,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   {retryingProcessing ? "Retrying processing…" : "Retry processing"}
                 </button></p>
               )}
-              {scope === "owner" && <TaskFollowUp token={token} onAnswered={onFollowUpAnswered} />}
+              {scope === "owner" && status?.siteAdvisory?.state !== "authority_ended" && <TaskClarification token={token} mode="assessment" refreshKey={JSON.stringify([status?.siteAdvisory?.state, status?.siteAdvisory?.correlationId, status?.siteAdvisory?.unknowns])} />}
               {/* Saved is not finished. The brief confirmation is the site's
                   attestation — the thing that lets a robot team be matched — and
                   the item photos are the objects the task turns on. Hiding both
@@ -841,7 +829,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 </details>
               )}
 
-              {scope === "film" && <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>}
+              <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>
 
             </>
           ) : existingVideoOnly ? (
