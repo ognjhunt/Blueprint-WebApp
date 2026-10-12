@@ -438,10 +438,8 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
       if (url.includes("/items")) {
         return Promise.resolve({ ok: true, json: async () => ({ items: [], allItemsCovered: false, requestedShots: [] }) });
       }
-      if (url.includes("/follow-up")) {
-        return Promise.resolve({ ok: true, json: async () => ({ questions: [
-          { id: "success_target", question: "What would a good result look like?", hint: "An estimate is fine." },
-        ] }) });
+      if (url.includes("/clarification?mode=assessment")) {
+        return Promise.resolve({ ok: true, json: async () => ({ revision:"a".repeat(64),needed:true,questions:["What throughput is required?"],assessmentState:"ready" }) });
       }
       if (url.endsWith(`/api/site-task-brief/${TOKEN}`)) {
         return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner", brief: {
@@ -457,7 +455,8 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
 
     await screen.findByRole("heading", { name: "Your job assessment" });
     expect(screen.queryByRole("heading", { name: "Point your phone at this." })).not.toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "What would a good result look like?" })).toBeInTheDocument();
+    expect(await screen.findByText("What throughput is required?")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", {name:"What would a good result look like?"})).not.toBeInTheDocument();
     const details = screen.getByText("Correct job details (optional)").closest("details")!;
     expect(details.open).toBe(false);
     expect(screen.queryByRole("button", { name: "Add another video" })).not.toBeInTheDocument();
@@ -467,9 +466,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.includes("/follow-up")) return Promise.resolve({ ok: true, json: async () => ({ questions: [
-        { id: "item_weight", question: "About how much do the handled items weigh?", hint: "A range is fine." },
-      ] }) });
+      if (url.includes("/clarification?mode=assessment")) return Promise.resolve({ ok: true, json: async () => ({ revision:"a".repeat(64),needed:true,questions:["How much payload must the robot handle?"],assessmentState:"ready" }) });
       if (url.endsWith(`/api/site-task-brief/${TOKEN}`)) return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner", brief: {
         summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null,
       } }) });
@@ -482,7 +479,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     }));
     render(<SelfCaptureUpload />);
 
-    expect(await screen.findByRole("heading", { name: "About how much do the handled items weigh?" })).toBeInTheDocument();
+    expect(await screen.findByText("How much payload must the robot handle?")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Point your phone at this." })).not.toBeInTheDocument();
     expect(screen.getByText(/Review is still in progress/)).toBeInTheDocument();
   });
