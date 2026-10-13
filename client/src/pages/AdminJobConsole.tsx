@@ -99,7 +99,7 @@ function bestRunLabel(row: JobConsoleRow) {
   const best = row.runs.best;
   if (!best) return "No reported run";
   const rate = best.successRatePct === null ? "rate not reported" : `${best.successRatePct}% success`;
-  const target = best.meetsTarget === true ? "meets target" : best.meetsTarget === false ? "below target" : "no target";
+  const target = best.meetsTarget === true ? "passes" : best.meetsTarget === false ? "below pass mark" : "no result";
   return `${best.teamName || best.teamId}: ${rate} over ${best.episodesRun} episodes (${target}, development simulation)`;
 }
 
@@ -223,7 +223,7 @@ function JobDetail({ requestId, onClose }: { requestId: string; onClose: () => v
                         <td>{run.outcome.replace(/_/g, " ")}</td>
                         <td className="runway-num">{run.successRatePct === null ? "—" : `${run.successRatePct}%`}</td>
                         <td className="runway-num">{run.episodesRun ?? "—"}</td>
-                        <td>{run.meetsTarget === true ? "Meets" : run.meetsTarget === false ? "Below" : "No target"}</td>
+                        <td>{run.meetsTarget === true ? "Passes" : run.meetsTarget === false ? "Below" : "—"}</td>
                       </tr>
                     ))}
                   </tbody>

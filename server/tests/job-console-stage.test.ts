@@ -21,7 +21,7 @@ function facts(overrides: DeepPartial<JobFacts> = {}): JobFacts {
     capture: { state: "covered", missingViews: [] },
     listing: { state: "live" },
     evaluations: { total: 0, pendingAdmission: 0, admitted: 0, pending: [] },
-    runs: { queued: 0, running: 0, reported: 0, noResult: 0, passing: 0, belowTarget: 0, untargeted: 0, best: null },
+    runs: { queued: 0, running: 0, reported: 0, noResult: 0, passing: 0, belowTarget: 0, best: null },
     recommendation: { state: "none", recommendationId: null, teamId: null, teamName: null, evaluationRunId: null },
     booking: { state: "none", startsAt: null },
     withdrawal: { state: "none" },
@@ -127,14 +127,9 @@ describe("deriveJobStage", () => {
       expect(result.attention).toContain("1 evaluation request awaiting admission");
     });
 
-    it("says when reported runs have no site target to compare", () => {
-      const result = deriveJobStage(facts({ runs: { reported: 1, untargeted: 1 } }));
-      expect(result.nextAction).toBe("Recommend a team (1 reported run, no site target to compare)");
-    });
-
     it("reports when no run passed", () => {
       expect(deriveJobStage(facts({ runs: { reported: 2, belowTarget: 2 } }))).toMatchObject({
-        stage: "no_passing_run", nextAction: "No passing evaluation yet (2 runs below the site's target): invite or admit another team" });
+        stage: "no_passing_run", nextAction: "No passing evaluation yet (2 runs below the pass mark): invite or admit another team" });
       expect(deriveJobStage(facts({ runs: { noResult: 1 } })).nextAction).toMatch(/1 run without a result/);
     });
 
@@ -239,7 +234,7 @@ describe("projectJobFacts", () => {
     expect(deriveJobStage(result).nextAction).toBe("Admit evaluation for Atlas");
   });
 
-  it("classifies runs against the site's target and picks the best", () => {
+  it("classifies runs against the job's pass mark and picks the best", () => {
     const result = projectJobFacts(inputs({ runs: [
       { runId: "r1", teamId: "team-a", state: "completed", requestedAtIso: "2026-10-04T00:00:00.000Z",
         result: { evidenceScope: "development_only", observed: { episodesRun: 50, episodesSucceeded: 45, successRate: 0.9, medianCycleSeconds: 12 } } },
@@ -252,7 +247,7 @@ describe("projectJobFacts", () => {
       { runId: "r7", teamId: "team-a", state: "completed", evaluationPurpose: "private",
         result: { observed: { episodesRun: 50, episodesSucceeded: 50, successRate: 1, medianCycleSeconds: 5 } } },
     ] }));
-    expect(result.runs).toMatchObject({ queued: 1, running: 1, reported: 2, noResult: 1, passing: 1, belowTarget: 1, untargeted: 0 });
+    expect(result.runs).toMatchObject({ queued: 1, running: 1, reported: 2, noResult: 1, passing: 1, belowTarget: 1 });
     expect(result.runs.best).toMatchObject({ runId: "r1", teamName: "Atlas", successRatePct: 90, meetsTarget: true });
     expect(deriveJobStage(result).nextAction).toBe("Recommend a team (1 passing run)");
   });

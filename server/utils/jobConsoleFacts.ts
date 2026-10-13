@@ -7,7 +7,8 @@
  */
 import { projectPilotCoordination } from "./pilotCoordination";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
-import { iso, object, targetsMet, termsFor, text } from "./workspace-projection";
+import { passMarkForJob, type PassMark } from "./pilotRecommendationEvidence";
+import { iso, object, text } from "./workspace-projection";
 import type {
   BestRunSummary,
   BookingState,
@@ -69,24 +70,25 @@ function finite(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-/** Site targets: the workspace terms, else the confirmed brief's success criteria. */
-export function siteTargets(record: Record<string, any>, brief: Record<string, any> | null) {
-  const terms = termsFor(record);
-  const criteria = object(brief?.successCriteria);
-  return {
-    ...terms,
-    successRate: terms.successRate ?? finite(criteria.successRate),
-    cycleTimeSeconds: terms.cycleTimeSeconds ?? finite(criteria.cycleTimeSeconds),
-  };
-}
-
 /** Site evaluations only: private team runs never belong to a site job. */
 function isSiteRun(run: RawRun) {
   return run.evaluationPurpose === undefined || run.evaluationPurpose === "pilot";
 }
 
+function meetsPassMark(
+  episodesRun: number,
+  episodesSucceeded: number | null,
+  medianCycleSeconds: number | null,
+  passMark: PassMark,
+): boolean {
+  const rate = (episodesSucceeded ?? 0) / episodesRun;
+  const cycleMissed = passMark.cycleTimeSeconds !== null && medianCycleSeconds !== null
+    && medianCycleSeconds > passMark.cycleTimeSeconds;
+  return episodesRun >= passMark.minimumEpisodes && rate >= passMark.successRate && !cycleMissed;
+}
+
 export function projectRuns(inputs: Pick<RawJobInputs, "record" | "brief" | "runs" | "teamNames">): ProjectedRun[] {
-  const terms = siteTargets(inputs.record, inputs.brief);
+  const passMark = passMarkForJob(inputs.record, inputs.brief);
   return inputs.runs
     .filter((run) => isSiteRun(run) && ["requested", "completed", "blocked"].includes(run.state))
     .map((run) => {
@@ -111,7 +113,9 @@ export function projectRuns(inputs: Pick<RawJobInputs, "record" | "brief" | "run
         episodesSucceeded: hasSamples ? finite(observed?.episodesSucceeded) : null,
         successRatePct,
         medianCycleSeconds,
-        meetsTarget: hasSamples ? targetsMet({ successRate: successRatePct, cycleTimeSeconds: medianCycleSeconds }, terms) : null,
+        // The same rule a recommendation is verified against, so the console
+        // never calls a run passing that the recommendation route refuses.
+        meetsTarget: hasSamples ? meetsPassMark(episodesRun, finite(observed?.episodesSucceeded), medianCycleSeconds, passMark) : null,
         evidenceScope: typeof run.result?.evidenceScope === "string" ? run.result.evidenceScope : null,
         requestedAtIso: run.requestedAtIso ?? null,
         reportedAtIso: run.result?.reportedAtIso ?? run.resolvedAtIso ?? null,
@@ -121,7 +125,7 @@ export function projectRuns(inputs: Pick<RawJobInputs, "record" | "brief" | "run
 }
 
 function bestRun(runs: ProjectedRun[]): BestRunSummary | null {
-  const rank = (run: ProjectedRun) => (run.meetsTarget === true ? 2 : run.meetsTarget === null ? 1 : 0);
+  const rank = (run: ProjectedRun) => (run.meetsTarget === true ? 1 : 0);
   const best = runs
     .filter((run) => run.outcome === "reported")
     .sort((a, b) => rank(b) - rank(a)
@@ -257,7 +261,6 @@ export function projectJobFacts(inputs: RawJobInputs): JobFacts {
       noResult: runs.filter((run) => run.outcome === "no_result").length,
       passing: reported.filter((run) => run.meetsTarget === true).length,
       belowTarget: reported.filter((run) => run.meetsTarget === false).length,
-      untargeted: reported.filter((run) => run.meetsTarget === null).length,
       best: bestRun(runs),
     },
     recommendation,

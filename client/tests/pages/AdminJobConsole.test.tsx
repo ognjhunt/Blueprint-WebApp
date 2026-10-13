@@ -28,7 +28,7 @@ function row(overrides: Partial<JobConsoleRow> = {}): JobConsoleRow {
     capture: { state: "covered", missingViews: [] },
     listing: { state: "live" },
     evaluations: { total: 1, pendingAdmission: 1, admitted: 0, pending: [{ requestId: "eval-1", teamName: "Atlas", setupName: "Arm v2" }] },
-    runs: { queued: 0, running: 0, reported: 0, noResult: 0, passing: 0, belowTarget: 0, untargeted: 0, best: null },
+    runs: { queued: 0, running: 0, reported: 0, noResult: 0, passing: 0, belowTarget: 0, best: null },
     recommendation: { state: "none", recommendationId: null, teamId: null, teamName: null, evaluationRunId: null },
     booking: { state: "none", startsAt: null },
     withdrawal: { state: "none" },

@@ -64,12 +64,11 @@ export interface JobFacts {
     reported: number;
     /** Concluded with no observation: blocked, or zero episodes. */
     noResult: number;
-    /** Reported runs that met the site's targets. */
+    /** Reported runs that meet the pass mark a recommendation is verified against. */
     passing: number;
-    /** Reported runs that missed the site's targets. */
+    /** Reported runs below that pass mark. */
     belowTarget: number;
     /** Reported runs with no target to compare against. */
-    untargeted: number;
     best: BestRunSummary | null;
   };
   recommendation: {

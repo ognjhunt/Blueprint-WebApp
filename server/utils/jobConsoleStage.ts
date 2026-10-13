@@ -85,16 +85,13 @@ export function deriveJobStage(facts: JobFacts): JobStageResult {
 
   // Evaluation loop.
   const { runs, evaluations } = facts;
-  const recommendable = runs.passing + runs.untargeted;
+  const recommendable = runs.passing;
   const active = runs.queued + runs.running;
   if (evaluations.pendingAdmission > 0 && recommendable > 0) {
     attention.push(`${plural(evaluations.pendingAdmission, "evaluation request")} awaiting admission`);
   }
   if (recommendable > 0) {
-    const basis = runs.passing > 0
-      ? plural(runs.passing, "passing run")
-      : `${plural(runs.untargeted, "reported run")}, no site target to compare`;
-    return result("recommend", `Recommend a team (${basis})`, "blueprint");
+    return result("recommend", `Recommend a team (${plural(runs.passing, "passing run")})`, "blueprint");
   }
   if (evaluations.pendingAdmission > 0) {
     const first = evaluations.pending[0];
@@ -108,7 +105,7 @@ export function deriveJobStage(facts: JobFacts): JobStageResult {
   }
   if (runs.reported + runs.noResult > 0) {
     const detail = runs.belowTarget > 0
-      ? `${plural(runs.belowTarget, "run")} below the site's target`
+      ? `${plural(runs.belowTarget, "run")} below the pass mark`
       : `${plural(runs.noResult, "run")} without a result`;
     return result("no_passing_run", `No passing evaluation yet (${detail}): invite or admit another team`, "blueprint");
   }
