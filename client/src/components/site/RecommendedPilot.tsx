@@ -135,7 +135,7 @@ function RecommendedPilotForToken({ token }: { token: string }) {
       </dl>
       {recommendation.reviewRequired && <p role="alert">The job changed. Blueprint must review this proposal against the new brief before any new commitment.</p>}
       {booked ? (
-        <div role="status"><p>{coordination?.state === "scheduled" ? `Scheduled: ${new Date(coordination.startsAt!).toLocaleString()}.` : "Proposal accepted · awaiting coordination."}</p>
+        <div role="status"><p>{coordination?.state === "scheduled" ? `Scheduled: ${new Date(coordination.startsAt!).toLocaleString()}.` : "Pilot booked · awaiting coordination."}</p>
           <p>{coordination?.nextAction || "Blueprint must confirm provider and site agreement, date and preparation responsibilities. No date is reserved yet."}</p>
           {coordination?.sitePreparation && <p>{coordination.sitePreparation}</p>}
           <p>{coordination?.feeUsd === 0 ? BETA_FREE : typeof coordination?.feeUsd === "number" ? `Previously agreed Blueprint fee: ${formatPrice(coordination.feeUsd)}, due when the pilot is booked. Your accepted terms remain on file.` : "Your previously accepted commercial terms remain on file; this page has no verified price to display."}</p>
@@ -144,12 +144,12 @@ function RecommendedPilotForToken({ token }: { token: string }) {
         <form className="ms-form" onSubmit={book}>
           <label className="ms-check-row">
             <input type="checkbox" checked={authorized} onChange={e => setAuthorized(e.target.checked)} required />
-            I am authorized to accept this proposal for my site. {BETA_FREE}
+            I am authorized to book this pilot for my site. {BETA_FREE}
           </label>
           <button className="ms-button" disabled={state === "booking" || recommendation.reviewRequired}>
-            {state === "booking" ? "Recording acceptance…" : "Accept proposal · coordinate dates"}
+            {state === "booking" ? "Booking…" : "Book this pilot"}
           </button>
-          <p className="ms-field-hint">Acceptance records your decision on this proposal. A physical pilot still needs provider and site agreement, a confirmed date and agreed preparation responsibilities. New cost, scope or disclosure needs its applicable approval.</p>
+          <p className="ms-field-hint">Booking records your decision on this recommendation. A physical pilot still needs provider and site agreement, a confirmed date and agreed preparation responsibilities. New cost, scope or disclosure needs its applicable approval.</p>
           {state === "error" && <p role="alert">{message}</p>}
         </form>
       )}

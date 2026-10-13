@@ -126,11 +126,11 @@ for (const width of [390, 1440]) {
     await page.reload();
     await expect(page.getByRole("heading", { name: "Your recommended pilot" })).toBeVisible();
     await expect(page.getByText("Physical cycle time remains unmeasured", { exact: true })).toBeVisible();
-    await page.getByRole("checkbox", { name: /authorized to accept this proposal/ }).check();
-    await page.getByRole("button", { name: /Accept proposal/ }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Proposal accepted · awaiting coordination." })).toBeVisible();
+    await page.getByRole("checkbox", { name: /authorized to book this pilot/ }).check();
+    await page.getByRole("button", { name: /Book this pilot/ }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Pilot booked · awaiting coordination." })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("status").filter({ hasText: "Proposal accepted · awaiting coordination." })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Pilot booked · awaiting coordination." })).toBeVisible();
     expect(posts.filter(entry => entry.path.endsWith("/book"))).toHaveLength(1);
 
     withdrawn = true;

@@ -379,7 +379,7 @@ function PilotProposalReview({ user }: { user: User | null }) {
     {job && <><p>Job {loadedId}. Assessment: {job.assessment?.state ?? "unavailable"}. {job.coordination?.nextAction}</p>
       <p className="ms-field-hint">Prefills: {job.sources.purpose}; success: {job.sources.successCondition ?? "unknown — ask for the target before proposing"}. Private job information is for staff review; this action does not authorize sharing footage.</p>
       <p role="note">{job.dependency}</p>
-      <p role="note">New beta proposals have no Blueprint fee. Owner action: reconcile the published $2,500 booking terms before relying on a new commercial agreement. Existing accepted fees and terms remain unchanged; provider costs require the actual quote and approval.</p>
+      <p role="note">Blueprint charges no fee during the beta: booking a recommended pilot is free for the site. Earlier accepted terms stay on file unchanged; the pilot itself is priced by the robot team and needs its actual quote and approval.</p>
       {job.interests?.map((interest: any) => <p key={interest.submittedBy}>{interest.company}: {interest.state} — {interest.inputs}</p>)}
       {job.customerConversation?.map((answer: any) => <p key={answer.messageId}>Customer answer ({answer.receivedAt}): {answer.text}</p>)}
       {job.customerClarification && <p>Customer answer on the job page: {job.customerClarification.explanation} — Blueprint review required.</p>}

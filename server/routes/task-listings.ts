@@ -124,9 +124,9 @@ const bookSchema = z.object({ recommendationId: z.string().min(1).max(120), auth
 /** The existing endpoint records proposal acceptance, not a physical booking. */
 router.post("/owner/:token/book", async (req, res) => {
   const token = verifyCaptureUploadToken(String(req.params.token));
-  if (!token || token.scope !== "owner") return res.status(403).json({ error: "Use the site owner's link to accept this proposal." });
+  if (!token || token.scope !== "owner") return res.status(403).json({ error: "Use the site owner's link to book this pilot." });
   const parsed = bookSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Confirm you are authorized to accept this proposal." });
+  if (!parsed.success) return res.status(400).json({ error: "Confirm you are authorized to book this pilot." });
   if (!db) return res.status(503).json({ error: "Acceptance unavailable" });
   const store = db;
   try {

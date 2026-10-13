@@ -144,8 +144,8 @@ it("joins the existing job, bounded review, proposal acceptance and evidence-gat
     expect([...state.docs.keys()].filter(key => key.startsWith("inboundRequests/req-1/robotTeamInterest/"))).toHaveLength(1);
     expect(job().pilot_booking).toBeUndefined();
     const pilot = render(<RecommendedPilot token={token} />);
-    fireEvent.click(await screen.findByLabelText(/authorized to accept/i));
-    fireEvent.click(screen.getByRole("button", { name: /Accept proposal/i }));
+    fireEvent.click(await screen.findByLabelText(/authorized to book/i));
+    fireEvent.click(screen.getByRole("button", { name: /Book this pilot/i }));
     expect(await screen.findByRole("status")).toHaveTextContent(/awaiting coordination/);
     const acceptance = { recommendationId: proposal.id, authorized: true };
     expect((await request(`/api/task-listings/owner/${token}/book`, acceptance)).status).toBe(200);
