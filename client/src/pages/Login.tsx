@@ -158,7 +158,7 @@ export default function Login() {
 
   return (
     <AuthLayout>
-      <SEO title="Sign in | Blueprint" description="Sign in to your Blueprint account." canonical="/sign-in" noIndex />
+      <SEO title="Sign in | Blueprint" description="Sign in to your Blueprint account to follow your site jobs, evaluations and recommended pilots." canonical="/sign-in" noIndex />
       <h1>Sign in</h1>
       <p className="auth-description">Welcome back to Blueprint.</p>
       <button type="button" className="auth-google" onClick={handleGoogleSignIn} disabled={isLoading || !googleReady}><GoogleMark />Continue with Google</button>

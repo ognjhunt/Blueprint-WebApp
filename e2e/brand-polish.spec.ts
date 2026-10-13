@@ -75,6 +75,9 @@ test("brand polish QA sweeps key public routes", async ({ page, request }) => {
   const linkSources = new Map<string, Set<string>>();
   let baseUrl = "";
   let activeRoute = "setup";
+  // A route that is meant to answer with an error status (the 404 page) is
+  // judged by its own status check, not reported as a failed document.
+  let activeDocument: { path: string; acceptedStatuses: number[] } | null = null;
 
   fs.rmSync(outputRootPath, { recursive: true, force: true });
   fs.mkdirSync(screenshotsDir, { recursive: true });
@@ -84,7 +87,13 @@ test("brand polish QA sweeps key public routes", async ({ page, request }) => {
   const resourceFailures: string[] = [];
 
   page.on("console", (message) => {
-    if (message.type() === "error" && !isKnownLocalConsoleNoise(message.text())) {
+    // The browser logs a route's own expected error status (the 404 page).
+    const expectedStatusLog = activeDocument !== null
+      && message.location().url !== undefined
+      && new URL(message.location().url, "http://127.0.0.1").pathname === activeDocument.path
+      && /status of (\d{3})/.test(message.text())
+      && activeDocument.acceptedStatuses.includes(Number(/status of (\d{3})/.exec(message.text())![1]));
+    if (message.type() === "error" && !expectedStatusLog && !isKnownLocalConsoleNoise(message.text())) {
       consoleErrors.push(`${activeRoute}: ${message.text()}`);
     }
   });
@@ -95,8 +104,13 @@ test("brand polish QA sweeps key public routes", async ({ page, request }) => {
   });
   page.on("response", (response) => {
     const resourceType = response.request().resourceType();
+    const expectedDocumentStatus = resourceType === "document"
+      && activeDocument !== null
+      && new URL(response.url()).pathname === activeDocument.path
+      && activeDocument.acceptedStatuses.includes(response.status());
     if (
       response.status() >= 400 &&
+      !expectedDocumentStatus &&
       ["document", "stylesheet", "script", "image", "font"].includes(resourceType)
     ) {
       resourceFailures.push(`${activeRoute}: ${response.status()} ${response.url()}`);
@@ -109,6 +123,9 @@ test("brand polish QA sweeps key public routes", async ({ page, request }) => {
         const currentRoute = ["/contact/robot-team", "/for-robot-teams", "/robot-team/eval", "/robot-intake"].includes(route.path)
           ? { ...route, expectedHeading: "Test your robot on real site jobs.", requiredCtas: [{ label: "Agent API (OpenAPI spec, JSON)", hrefStartsWith: "/agent-access.openapi.json" }] }
           : route;
+        activeDocument = currentRoute.acceptedStatuses
+          ? { path: currentRoute.path, acceptedStatuses: currentRoute.acceptedStatuses }
+          : null;
         const result = await auditRouteViewport(page, currentRoute, viewport, {
           consoleErrors,
           pageErrors,
@@ -622,7 +639,8 @@ async function auditInternalLinks(
     const sourceRoutes = Array.from(linkSources.get(href) ?? []).sort();
     try {
       const response = await request.get(href, { maxRedirects: 2 });
-      const ok = response.status() < 400;
+      const expected = publicQaRoutes.find((route) => route.path === href)?.acceptedStatuses;
+      const ok = response.status() < 400 || Boolean(expected?.includes(response.status()));
       linkResults.push({
         href,
         status: ok ? "pass" : "fail",
