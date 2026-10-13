@@ -8,13 +8,14 @@ describe("Site-led homepage", () => {
     render(<Home />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Could a robot take over a repetitive task at your site?");
     expect(screen.getByRole("link", { name: "Show us a task" })).toHaveAttribute("href", "/contact/site-operator");
-    expect(screen.getByText("Free initial assessment during the beta.")).toBeInTheDocument();
+    expect(screen.getByText("Free during the beta, for sites and robot teams.")).toBeInTheDocument();
     // Robot teams reach their own page from the nav, not from the homepage.
     expect(screen.queryByRole("link", { name: /robot-team beta|early access/i })).not.toBeInTheDocument();
     // One example of the deliverable, clearly marked, instead of staged imagery.
     expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Warehouse", "Café", "Laundromat", "Factory", "Hotel"]);
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveTextContent(/Example.*Robot team.*Moving full totes.*Pilot cost.*Quoted by the robot team/);
+    expect(panel).toHaveTextContent(/Example.*Robot team.*Evaluated in simulation.*Passed on your task \(example\).*Moving full totes.*Blueprint fee.*None during the beta.*Pilot cost.*Quoted by the robot team/);
+    expect(screen.getByText("Book this pilot")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Café" }));
     expect(screen.getByRole("tabpanel")).toHaveTextContent(/dish rack/);
     expect(screen.getByRole("img", { name: /café example/i })).toBeInTheDocument();
@@ -22,14 +23,15 @@ describe("Site-led homepage", () => {
     expect(screen.queryByText(/Your criteria/)).not.toBeInTheDocument();
   });
 
-  it("shows the three steps without a click, ending in agreement on the next step", () => {
+  it("shows the three steps without a click, ending in the recommended pilot", () => {
     const { container } = render(<Home />);
     expect(container.querySelectorAll("details")).toHaveLength(0);
     const steps = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(steps).toHaveLength(3);
     expect(steps[0]).toHaveTextContent(/Show us the task.*Describe it or film it on your phone\./);
-    expect(steps[1]).toHaveTextContent(/Review the evidence.*Understand what it supports and what is still unknown\./);
-    expect(steps[2]).toHaveTextContent(/Agree on the next step.*Any later work has a separately agreed scope and cost\./);
+    expect(steps[1]).toHaveTextContent(/Robot teams evaluate it.*Invited teams test it in a simulation built from your site\./);
+    expect(steps[2]).toHaveTextContent(/Book the recommended pilot.*One team whose evaluation passed\. You agree dates and terms with them\./);
+    expect(screen.getByText(/A simulated evaluation is an estimate, not proof/)).toBeInTheDocument();
   });
 
   it("keeps the example still while a keyboard user is inside it, even after the pointer leaves", () => {

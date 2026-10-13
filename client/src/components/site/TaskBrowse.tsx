@@ -93,7 +93,7 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
     {state === "ready" && items.length > 0 && <>
       <p className="ms-field-hint">{filtered.length} {filtered.length === 1 ? "job" : "jobs"} · Details shared by site owners. A past job can remain available for evaluation.</p>
       {filtered.length === 0 && <div className="ms-task-empty">
-        <h2>No jobs match these filters.</h2>
+        <h2>No jobs fit these filters.</h2>
         <p>Try a different job or region, or <a href="mailto:hello@tryblueprint.io">tell us what you need</a>.</p>
         <button className="ms-text-link" onClick={() => { setFamily(""); setRegion(""); setAvailability(""); }}>Clear filters</button>
       </div>}

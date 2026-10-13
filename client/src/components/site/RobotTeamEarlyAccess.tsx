@@ -22,7 +22,14 @@ function ApplicationForm({ email }: { email: string | null }) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "approved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [interactive, setInteractive] = useState(false);
-  useEffect(() => setInteractive(true), []);
+  // A link from a job record (/sites/:slug) names the site the team asked
+  // about; carry it into the application rather than dropping it.
+  const [siteHint, setSiteHint] = useState("");
+  useEffect(() => {
+    setInteractive(true);
+    const params = new URLSearchParams(window.location.search);
+    setSiteHint((params.get("site") || params.get("location") || "").trim().slice(0, 300));
+  }, []);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -80,7 +87,7 @@ function ApplicationForm({ email }: { email: string | null }) {
         <textarea disabled={!interactive} name="workWanted" rows={3} maxLength={1200} required placeholder="e.g. Tote picking in a warehouse, bin to conveyor" />
       </label>
       <label>A site or customer you would want to test at <span className="ms-field-hint">(optional)</span>
-        <input disabled={!interactive} name="testSite" placeholder="e.g. the warehouse you are piloting with" maxLength={300} />
+        <input key={siteHint} disabled={!interactive} name="testSite" defaultValue={siteHint} placeholder="e.g. the warehouse you are piloting with" maxLength={300} />
       </label>
       <label className="ms-check-row"><input type="checkbox" name="optionalUpdates" disabled={!interactive} /> Email me relevant new jobs and Blueprint updates (optional). Unsubscribe anytime. Application notices are separate.</label>
       <p className="ms-field-hint">

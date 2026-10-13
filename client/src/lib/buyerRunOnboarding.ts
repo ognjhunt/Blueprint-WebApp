@@ -65,9 +65,9 @@ export const buyerRunReceiveLinks: BuyerRunReceiveLink[] = [
       "Request-scoped review link for evidence, qualification, preview, and status when Blueprint issues a specific request id.",
   },
   {
-    label: "Buyer beta guide",
+    label: "Robot team beta guide",
     href: "/beta/buyer-guide",
     body:
-      "Tester-facing scope, timeline, degraded-state, blocked-state, and support escalation expectations.",
+      "How invited evaluations work, what a result means, review states, and support escalation.",
   },
 ];

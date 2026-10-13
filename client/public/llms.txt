@@ -1,20 +1,22 @@
 # Blueprint
 
-> Blueprint offers invited participants an initial evidence-backed assessment of one real task and a practical next step.
+> From one recurring task to a measured robot pilot. Blueprint runs a free beta: a site shows one recurring task, invited robot teams evaluate it in simulation, and Blueprint recommends one team whose evaluation on that job passed.
 
-Blueprint offers a limited, invited beta for real sites and tasks. Share permitted video or discuss the work, describe the desired outcome, and provide feedback and follow-up. Invited participants receive a free initial evidence-backed assessment of what is supported, what is unknown, and a practical next step. Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. No guaranteed ready robot, instant automatic delivery, or free physical deployment. Simulation is not physical proof or a deployment guarantee.
+Blueprint runs a free beta for real sites and recurring tasks. Sign-up is open for sites: anyone can start a job by describing it or sharing permitted video, and Blueprint also onboards sites by hand. Invited robot teams evaluate the site's job free, in a simulation built from the site's capture. Blueprint recommends one team whose evaluation on that job passed and that wants the pilot; the site books it in one step and never has to compare teams. During the beta nothing is charged to sites or robot teams: no site fee, no paid private evaluations, balances, top-ups or checkout. After booking, the site and the robot team agree the physical pilot's dates and terms directly, and Blueprint takes no cut. Simulation results are bounded estimates: simulation is not physical proof or a deployment guarantee, and it never certifies physical performance or safety.
 
 ## Public pages
 
 - [Home](https://tryblueprint.io/)
 - [How it works](https://tryblueprint.io/how-it-works)
 - [Beta program](https://tryblueprint.io/beta)
-- [Discuss your site](https://tryblueprint.io/contact/site-operator)
-- [Robot teams: apply for early access](https://tryblueprint.io/contact/robot-team)
+- [Show us a task (sites)](https://tryblueprint.io/contact/site-operator)
+- [Robot teams: apply for an invitation](https://tryblueprint.io/contact/robot-team)
+- [Job library](https://tryblueprint.io/sites)
+- [About](https://tryblueprint.io/about)
 - [Privacy](https://tryblueprint.io/privacy)
 - [Terms](https://tryblueprint.io/terms)
 
-Robot teams register interest through the existing application. Applications remain pending until manual approval for a real site task; applying or creating an account does not grant access. Approved teams see only job cards sites chose to share. A task invitation does not guarantee a run, introduction, or deployment. Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. Private paid self-service evaluations and top-ups remain unavailable. Beta program: https://tryblueprint.io/beta. Contact: hello@tryblueprint.io.
+Robot teams register interest through the existing application and join by invitation. Applications remain pending until manual approval for a real site task; applying or creating an account does not grant access. Approved teams see only job cards sites chose to share, and evaluate invited jobs free. A task invitation does not guarantee a run, a recommendation, or a deployment. Paid self-service evaluations and top-ups are disabled during the beta. Beta program: https://tryblueprint.io/beta. Contact: hello@tryblueprint.io.
 
 ## Evidence boundary
 
@@ -28,6 +30,6 @@ Current public/request tools are `blueprint.siteWorld.search`, `blueprint.catalo
 
 The historical read and hosted-session compatibility tools are `blueprint.commerce.order.get`, `blueprint.commerce.liveOrder.get`, `blueprint.commerce.entitlement.get`, `blueprint.commerce.entitlementReadiness`, `blueprint.session.create`, `blueprint.session.reset`, `blueprint.session.step`, `blueprint.session.runBatch`, `blueprint.session.control`, `blueprint.session.renderExplorer`, and `blueprint.session.export`. Historical availability does not make these current standalone products.
 
-Team tools are `blueprint.team.me`, `blueprint.team.checkpoint.register`, `blueprint.team.checkpoint.list`, `blueprint.team.plan`, `blueprint.team.runs.start`, `blueprint.team.runs.release`, `blueprint.team.policy.get`, and `blueprint.team.policy.set`. Team account and checkpoint tools use a revocable per-team agent key bound to a verified Blueprint account. Early-access library admission remains required (403 `early_access_required` otherwise). During the invited beta, paid planning, dry-run purchase, run-start and top-up APIs return 403 `paid_evaluations_disabled`, including requests with `confirm: true`. Request an invited evaluation through the workspace. Execution requires operator approval of the exact team, policy, task, current rights, expiry, one attempt, and a separate Blueprint-funded compute limit. Historical balances and receipts remain available under their original access controls.
+Team tools are `blueprint.team.me`, `blueprint.team.checkpoint.register`, `blueprint.team.checkpoint.list`, `blueprint.team.plan`, `blueprint.team.runs.start`, `blueprint.team.runs.release`, `blueprint.team.policy.get`, and `blueprint.team.policy.set`. Team account and checkpoint tools use a revocable per-team agent key bound to a verified Blueprint account. Early-access library admission remains required (403 `early_access_required` otherwise). During the free beta, paid planning, dry-run purchase, run-start and top-up APIs return 403 `paid_evaluations_disabled`, including requests with `confirm: true`. Request an invited evaluation through the workspace. Execution requires operator approval of the exact team, policy, task, current rights, expiry, one attempt, and a separate Blueprint-funded compute limit. Historical balances and receipts remain available under their original access controls.
 
 Truth labels are `capture_grounded`, `provider_derived`, `generated`, `request_gated`, `protected_robot_team`, `legacy_commerce_read_only`, and `decision_or_abstention`.
