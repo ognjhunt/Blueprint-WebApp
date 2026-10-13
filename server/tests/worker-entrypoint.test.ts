@@ -23,6 +23,9 @@ const startCommunicationsWorker = vi.hoisted(() => vi.fn(() => vi.fn()));
 const stopResearch = vi.hoisted(() => vi.fn(async () => {}));
 const startDailyResearchWorker = vi.hoisted(() => vi.fn(() => ({ stop: stopResearch })));
 const validateEnv = vi.hoisted(() => vi.fn(() => ({})));
+const stopWebsiteDeletions = vi.hoisted(() => vi.fn());
+const startWebsiteCaptureDeletionWorker = vi.hoisted(() => vi.fn(() => stopWebsiteDeletions));
+vi.mock("../utils/websiteCaptureDeletion", () => ({ startWebsiteCaptureDeletionWorker }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, default: {} }));
 vi.mock("../utils/opsAutomationScheduler", () => ({ startOpsAutomationScheduler }));
@@ -132,9 +135,12 @@ describe("worker entrypoint", () => {
     expect(startDailyResearchWorker).toHaveBeenCalledTimes(1);
     expect(startOpsAutomationScheduler).not.toHaveBeenCalled();
     expect(startStripeWebhookQueueProcessor).not.toHaveBeenCalled();
+    // Withdrawal storage deletion runs in the deployed launch-forward mode.
+    expect(startWebsiteCaptureDeletionWorker).toHaveBeenCalledTimes(1);
 
     await handle.stop();
     expect(stopLaunchForwarder).toHaveBeenCalledTimes(1);
+    expect(stopWebsiteDeletions).toHaveBeenCalledTimes(1);
     expect(stopCompanyPolicyOutbox).toHaveBeenCalledTimes(1);
   });
 });

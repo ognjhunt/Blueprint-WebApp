@@ -25,6 +25,7 @@ import { startDailyResearchWorker } from "./utils/dailyResearchWorker";
 import { startCommunicationsWorker } from "./agents/communications-worker";
 import { startSavedRecoveryWorker } from "./agents/communications-saved-recovery-worker";
 import { startWebsiteCaptureWithdrawalWorker } from "./utils/websiteCaptureWithdrawal";
+import { startWebsiteCaptureDeletionWorker } from "./utils/websiteCaptureDeletion";
 
 const launchForwardOnly = () =>
   ["1", "true", "yes", "on"].includes(
@@ -64,6 +65,8 @@ export function startWorker(): WorkerHandle {
   const stopCommunicationsWorker = startCommunicationsWorker();
   const stopSavedRecoveryWorker = startSavedRecoveryWorker();
   const stopWebsiteWithdrawals = startWebsiteCaptureWithdrawalWorker();
+  // Runs in launch-forward-only mode too: deletion must not wait on the ops scheduler.
+  const stopWebsiteDeletions = startWebsiteCaptureDeletionWorker();
 
   let stopPromise: Promise<void> | undefined;
   const stop = () => {
@@ -74,6 +77,7 @@ export function startWorker(): WorkerHandle {
     stopAdpManagedRuns();
     stopCompanyPolicyCandidateOutbox();
     stopWebsiteWithdrawals();
+    stopWebsiteDeletions();
     const communicationsStopped = stopCommunicationsWorker();
     stopScheduler();
     await Promise.all([researchWorker.stop(), communicationsStopped, stopSavedRecoveryWorker()]);
