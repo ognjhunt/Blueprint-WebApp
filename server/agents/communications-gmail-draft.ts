@@ -72,6 +72,13 @@ async function gmailDraftCopyDirection(db: FirebaseFirestore.Firestore, now: () 
   return { ref, digest: communicationsDigest(authority), expiresAt: authority.expiresAt, approvedAt: authority.approvedAt, saveWithinRun };
 }
 
+/** Native daily selection uses the same verified prospective copy window.
+ * This read grants no inference, intake, Gmail write or sending authority. */
+export async function readProspectiveDraftSaveDirection(db: FirebaseFirestore.Firestore, now: () => number) {
+  const direction = await gmailDraftCopyDirection(db, now);
+  return direction?.saveWithinRun ? direction : null;
+}
+
 /** Prospective host action inside one communications run. Existing compose
  * consent and owner direction admit an unsent save, never inference or send. */
 export async function prepareSameRunDraftSave(db: FirebaseFirestore.Firestore, now = () => Date.now(), basePorts = configuredGmailDraftPorts()): Promise<SameRunDraftSave> {
