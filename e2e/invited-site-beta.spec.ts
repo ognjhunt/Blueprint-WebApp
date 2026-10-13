@@ -37,6 +37,12 @@ for (const width of [390, 1440]) {
         expect(body).toMatchObject({ descriptionOnly: true, consentAttestation: null, accountSignup: false, taskDescription: "Move sealed cartons from conveyor to pallet." });
         return route.fulfill({ json: { ok: true, captureUrl: "/capture-upload/synthetic-owner" } });
       }
+      // The owner page reads whether recording permission was withdrawn.
+      if (path === "/api/self-capture/uploads/synthetic-owner/withdrawal" && route.request().method() === "GET") return route.fulfill({ json: withdrawn
+        ? { ok: true, withdrawn: true, withdrawal: { state: "uploads_stopped_cleanup_pending", requestedAtIso: "2026-10-13T00:00:00.000Z",
+          pipelineAcknowledged: false, deletionConfirmed: false, legalHold: false,
+          storageDeletion: { state: "pending", deletedObjectCount: 0, lateUploadCheckAtIso: null, completedAtIso: null } } }
+        : { ok: true, withdrawn: false } });
       if (path === "/api/self-capture/uploads/synthetic-owner/status") return route.fulfill({ json: {
         ok: true, state: received && !withdrawn ? "ready" : "held", holdReason: "recording_consent_required",
         detail: withdrawn ? "Recording permission was withdrawn; processing is held." : "Confirm recording permission before adding footage.",
