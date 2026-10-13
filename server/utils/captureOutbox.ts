@@ -339,6 +339,35 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
   return summary;
 }
 
+/** Brief reviews per pump pass. Each claim may call a model, so it stays small. */
+export const PUMP_BRIEF_REVIEW_BATCH = 2;
+
+/**
+ * One pump pass: deliver waiting notices, then drain pending brief reviews.
+ *
+ * `recoverCaptureReviews` claims each row in a transaction with a persisted
+ * 30-minute lease and at most three attempts, so a scheduler lane that also
+ * runs it (BLUEPRINT_RUN_OPS_AUTOMATION_IN_WEB=1, or a worker outside
+ * launch-forward-only mode) cannot double-process a row; the leader lease in
+ * startOutboxPump additionally keeps two pumps from running at once. The
+ * model gate (BLUEPRINT_SITE_TASK_BRIEF_READING_ENABLED) is applied inside
+ * the recovery itself, exactly as on the scheduler lane.
+ */
+export async function runOutboxPumpPass(): Promise<OutboxDeliverySummary> {
+  const summary = await deliverOutbox({ limit: 25 }).catch((error) => {
+    logger.warn({ error }, "Outbox pump pass failed");
+    return { examined: 0, sent: 0, failed: 0, exhausted: 0 };
+  });
+  if (isPullRequestPreview()) return summary;
+  try {
+    const { recoverCaptureReviews } = await import("./captureReviewRecovery");
+    await recoverCaptureReviews({ limit: PUMP_BRIEF_REVIEW_BATCH });
+  } catch (error) {
+    logger.warn({ error }, "Capture reviews will retry on the next pump pass");
+  }
+  return summary;
+}
+
 /**
  * Deliver the outbox on a timer from the web process.
  *
@@ -346,7 +375,9 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
  * deployed topology runs it in neither the web process (opt-in) nor the
  * launch-forward worker. Without this, a message waited for someone to reopen
  * a capture page, and a robot team's result email waited forever. The shared
- * automation leader lease keeps two processes from delivering at once.
+ * automation leader lease keeps two processes from delivering at once. For the
+ * same reason the pump also drains pending brief reviews and ticks the
+ * coverage queue (which applies BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED itself).
  */
 export function startOutboxPump(intervalMs = 60_000): () => void {
   if (isPullRequestPreview()) {
@@ -360,7 +391,7 @@ export function startOutboxPump(intervalMs = 60_000): () => void {
     if (running || !lease.isLeader()) return;
     void import("./captureCoverageQueue").then(module => module.tickCoverageReviews());
     running = true;
-    void deliverOutbox({ limit: 25 })
+    void runOutboxPumpPass()
       .catch((error) => logger.warn({ error }, "Outbox pump pass failed"))
       .finally(() => { running = false; });
   }, Math.max(10_000, intervalMs));
