@@ -14,6 +14,7 @@ import {
   useAction,
 } from "@/components/workspace/WorkspaceUI";
 import { RobotDescriptionFields, readRobotDescription } from "@/components/workspace/RobotDescriptionFields";
+import { CheckpointRegistration } from "@/components/workspace/CheckpointRegistration";
 import type { RobotSetup } from "@/types/workspace";
 function WorkspaceSettings() {
   const query = useWorkspace(),
@@ -342,6 +343,7 @@ function WorkspaceSettings() {
             Your configurations stay private to your team. Saving a reference
             does not start a test or authorize compute.
           </p>
+          <CheckpointRegistration setups={query.data?.setups ?? []} />
         </>
       )}
       {removing && (
