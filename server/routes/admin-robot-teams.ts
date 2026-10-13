@@ -58,6 +58,20 @@ import { pilotRecommendationEventId, pilotScheduledEventId } from "../utils/pilo
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { projectCurrentSiteJobDecision, siteJobDecisionSourceDigest } from "../utils/siteJobDecision";
 import siteJobCommunicationsRouter from "./admin-site-job-communications";
+import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { explicitlyLinked, resolveRobotTeamIdentity } from "../utils/robotTeamIdentity";
+import { prepareTeamPilotNotice } from "../utils/robotTeamPilotNotifications";
+import type { RobotTeamRecord } from "../types/robot-team-registry";
+import {
+  EVIDENCE_REFUSAL_MESSAGES,
+  SIMULATION_EVIDENCE_BOUNDARY,
+  evidenceCapabilityBasis,
+  passMarkForJob,
+  readEvaluation,
+  verifyRecommendationEvidence,
+  type EvidenceRefusal,
+  type RunWithResult,
+} from "../utils/pilotRecommendationEvidence";
 
 router.use(siteJobCommunicationsRouter);
 
@@ -93,9 +107,15 @@ router.post("/recommendations/:requestId/decision", async (req, res) => {
   } catch { return res.status(409).json({ error: "The job or assessment changed. Reload the current evidence before recording the decision." }); }
 });
 
+const runIdSchema = z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const recommendationSchema = z.object({
   briefRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
-  teamId: z.string().trim().min(1).max(120),
+  /** The completed evaluation of this job the recommendation stands on. Required. */
+  evaluationRunId: runIdSchema,
+  /** The result the reviewer saw (`resultId` from the evaluations list). Optional, binding when sent. */
+  resultId: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  /** Optional: when sent, it must be the same team as the run's (any linked registry row). */
+  teamId: z.string().trim().min(1).max(120).optional(),
   purpose: z.string().trim().min(8).max(400),
   siteProvides: z.string().trim().min(4).max(400),
   teamProvides: z.string().trim().min(4).max(400),
@@ -103,66 +123,136 @@ const recommendationSchema = z.object({
   window: z.string().trim().min(2).max(120),
   successCondition: z.string().trim().max(1000).default("Not yet agreed — confirm the measurable success condition."),
   exclusions: z.string().trim().max(1000).default("Production deployment, purchases and private footage sharing require separate approval."),
-  costBasis: z.string().trim().max(600).default("Provisional; obtain the provider's written quote and applicable terms."),
+  costBasis: z.string().trim().max(600).default("Set by the robot team; obtain its written quote and applicable terms. Blueprint charges nothing during the beta."),
   sitePreparation: z.string().trim().max(1000).default("Not yet agreed."),
   humanWork: z.string().trim().max(1000).default("Confirm setup, supervision, safety review and operator responsibilities."),
-  capabilityBasis: z.string().trim().max(1000).default("Proposed fit; no demonstrated performance on this job is established."),
+  /** Blank means: stated from the evaluation evidence. */
+  capabilityBasis: z.string().trim().max(1000).optional(),
   providerCommitment: z.string().trim().max(600).default("Not confirmed. Interest does not reserve provider capacity."),
   uncertainties: z.string().trim().max(400).default(""),
   alternative: z.string().trim().max(400).default(""),
 }).strict();
 
 /**
- * A team we can name to a site: one we have talked to. A prospect has not
- * told us it wants the pilot, a self-registered team has not been measured,
- * and a declined team said no.
+ * Registry statuses of a team we have talked to. A prospect has not told us
+ * it wants the pilot and a declined team said no.
+ *
+ * `self_registered` is recommendable too, on two conditions, because in the
+ * beta the evaluation itself is the measurement: the team is bound to a
+ * verified account whose email Blueprint invited (access approved), and it
+ * has a passing evaluation of this job, which the route checks separately.
+ * Development-only results deliberately never promote a team's registry
+ * status (`agentRunResults`), so status alone could never get it here.
  */
 const RECOMMENDABLE_STATUSES = new Set(["applied", "engaged"]);
+
+type TeamRefusal = { code: string; error: string };
+
+async function recommendableTeam(runTeamId: string, requestedTeamId?: string):
+  Promise<{ ok: true; team: RobotTeamRecord; memberIds: string[] } | ({ ok: false } & TeamRefusal)> {
+  const identity = await resolveRobotTeamIdentity(runTeamId);
+  if (!identity) return { ok: false, code: "team_not_registered", error: "The evaluated team has no registry record. Recommend a registered team." };
+  if (identity.ambiguous || !identity.canonical) {
+    return { ok: false, code: "team_identity_ambiguous", error: "The evaluated team's registry records name more than one account. Resolve the split before recommending it." };
+  }
+  const team = identity.canonical;
+  if (requestedTeamId && requestedTeamId !== team.id && !identity.members.some(row => row.id === requestedTeamId)) {
+    const requested = await resolveRobotTeamIdentity(requestedTeamId);
+    if (requested?.ambiguous || requested?.canonical?.id !== team.id) {
+      return { ok: false, code: "evaluation_team_mismatch", error: "That evaluation was run by a different team. The recommended team must be the team whose evaluation passed." };
+    }
+  }
+  // Only rows linked by pointer count against the team: an email-only match
+  // could be a typed public intake, and must not be able to take a team out.
+  if (identity.members.some(row => row.status === "declined" && explicitlyLinked(team, row))) {
+    return { ok: false, code: "team_declined", error: "This team declined. A declined team is not recommended." };
+  }
+  const bound = typeof team.accountUid === "string" && team.accountUid.length > 0;
+  const accessEmail = team.status === "self_registered" ? (bound ? team.accountEmail : null) : team.accountEmail || team.contactEmail;
+  const admitted = (await getAccessRecordForEmail(accessEmail))?.status === "approved";
+  const statusOk = RECOMMENDABLE_STATUSES.has(team.status) || (team.status === "self_registered" && bound);
+  if (!statusOk || !admitted) {
+    return { ok: false, code: "team_not_recommendable", error: "Recommend a registered, invitation-approved team. Admission does not establish capability or availability." };
+  }
+  return { ok: true, team, memberIds: identity.members.map(row => row.id) };
+}
+
+function evidenceRefusal(res: Response, refusal: EvidenceRefusal) {
+  return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, code: refusal, error: EVIDENCE_REFUSAL_MESSAGES[refusal] });
+}
 
 /**
  * Blueprint's one recommended pilot for a site job. Blueprint does the
  * technical selection; the site's only decision is whether to book it.
- * The team is resolved from the registry, never typed, so the name a site
- * sees is a team we have a record for. Replacing a recommendation gives it a
- * new id, so a booking can never bind text the site did not see, and a
- * booked pilot is not replaced. The check and write share one transaction
- * with the site's booking.
+ *
+ * The recommendation stands on one evaluation of this job: the run is named,
+ * and the team is derived from the run, never typed. The server re-reads the
+ * run in the same transaction that writes the recommendation, checks that it
+ * is this job's, completed and passing the job's pass mark, and stores an
+ * immutable evidence snapshot on the recommendation (see
+ * `pilotRecommendationEvidence`). Replacing a recommendation gives it a new
+ * id, so a booking can never bind text or evidence the site did not see, and
+ * a booked pilot is not replaced. The check and write share one transaction
+ * with the site notice and the recommended team's notice.
  */
 router.post("/recommendations/:requestId", async (req: Request, res: Response) => {
   const parsed = recommendationSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: "Fill in the team ID, purpose, what each side provides, cost and window." });
+    if (!req.body || typeof req.body !== "object" || !("evaluationRunId" in req.body)) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, code: "evaluation_run_required",
+        error: "Choose the completed evaluation of this job the recommendation stands on. A recommendation needs a passing evaluation." });
+    }
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: "Fill in the evaluation, purpose, what each side provides, cost and window." });
   }
   if (!db) return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Store unavailable" });
   const store = db;
   const requestId = String(req.params.requestId);
-  const { teamId, briefRevision, ...plan } = parsed.data;
+  const { teamId: requestedTeamId, briefRevision, evaluationRunId, resultId, capabilityBasis, ...rest } = parsed.data;
   try {
-    const team = await getRobotTeam(teamId);
-    if (!team || !RECOMMENDABLE_STATUSES.has(team.status) || (await getAccessRecordForEmail(team.accountEmail || team.contactEmail))?.status !== "approved") {
-      return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: "Recommend a registered, manually admitted team. Admission does not establish capability or availability." });
-    }
-    // Stable across Firestore callback retries. A lost HTTP response can also
-    // retry an unchanged plan without replacing the recommendation it saved.
-    const proposed = {
-      id: `rec_${randomUUID()}`, teamId: team.id, teamName: team.name, ...plan,
-      recommendedAtIso: new Date().toISOString(),
-      recommendedBy: (res.locals?.firebaseUser?.uid as string | undefined) ?? null,
-    };
+    const runRef = store.collection("evaluationRuns").doc(evaluationRunId);
+    const preRun = (await runRef.get()).data() as RunWithResult | undefined;
+    if (!preRun) return evidenceRefusal(res, "evaluation_run_missing");
+    if (preRun.sceneId !== requestId) return evidenceRefusal(res, "evaluation_run_other_job");
+    const eligible = await recommendableTeam(preRun.teamId, requestedTeamId);
+    if (!eligible.ok) return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, code: eligible.code, error: eligible.error });
+    const team = eligible.team;
     const captureUrl = captureUploadUrlFor(requestId, "owner");
     const rows = new Map<string, ReturnType<typeof buildOutboxEntry>>();
+    const teamRows = new Map<string, OutboxEntry>();
+    const proposedId = `rec_${randomUUID()}`;
+    const recommendedAtIso = new Date().toISOString();
     const ref = store.collection("inboundRequests").doc(requestId);
     const outcome = await store.runTransaction(async (transaction) => {
       const current = await transaction.get(ref);
       if (!current.exists) return { status: "missing" } as const;
       const record = current.data()!;
       const currentBrief = await transaction.get(store.collection("siteTaskBriefs").doc(requestId));
+      const runSnapshot = await transaction.get(runRef);
       if ((briefRevision && briefRevision !== humanDecisionDigest(currentBrief.exists ? currentBrief.data() : null)) || (record.pilot_recommendation?.reviewRequired && !briefRevision)) return { status: "changed" } as const;
       if (record.pilot_booking) return { status: "booked" } as const;
+      if (projectWebsiteCaptureRights(record).consent_revoked) return { status: "consent_withdrawn" } as const;
+      const run = runSnapshot.data() as RunWithResult | undefined;
+      // The team was resolved from this run before the transaction; a run that
+      // changed hands since is not the evidence that was reviewed.
+      if (run && run.teamId !== preRun.teamId) return { status: "refused", refusal: "evaluation_result_changed" } as const;
+      const verified = verifyRecommendationEvidence({ run, requestId,
+        passMark: passMarkForJob(record, currentBrief.exists ? currentBrief.data() : null), expectedResultId: resultId ?? null });
+      if (!verified.ok) return { status: "refused", refusal: verified.refusal } as const;
+      const evidence = verified.evidence;
+      const plan = { ...rest, capabilityBasis: capabilityBasis || evidenceCapabilityBasis(evidence) };
       const previous = record.pilot_recommendation;
       const samePlan = !previous?.reviewRequired && typeof previous?.id === "string"
+        && previous.evaluationRunId === evidence.runId && previous.evidence?.resultId === evidence.resultId
         && Object.entries({ teamId: team.id, teamName: team.name, ...plan })
           .every(([key, value]) => previous[key] === value);
+      // One id per request, stable across Firestore callback retries. A lost
+      // HTTP response can also retry an unchanged plan without replacing it.
+      const proposed = {
+        id: proposedId, teamId: team.id, teamName: team.name, registryTeamIds: eligible.memberIds,
+        evaluationRunId: evidence.runId, evidenceScope: evidence.evidenceScope, evidence, ...plan,
+        recommendedAtIso,
+        recommendedBy: (res.locals?.firebaseUser?.uid as string | undefined) ?? null,
+      };
       const recommendation = samePlan ? previous as typeof proposed : proposed;
       const to = String(await decryptFieldValue(record.contact?.email ?? "")).trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { status: "contact_missing" } as const;
@@ -172,6 +262,7 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
       const legacyKey = `${requestId}:pilot_recommended:${recommendation.id}`;
       const legacyRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(legacyKey);
       const legacy = await transaction.get(legacyRef);
+      const teamNotice = await prepareTeamPilotNotice(transaction, { kind: "team_pilot_recommended", requestId, recommendation }, teamRows);
       const matches = (existing: OutboxEntry, key: string) =>
         existing.idempotencyKey === key && existing.requestId === requestId
         && existing.kind === "pilot_recommended" && existing.to === to;
@@ -207,16 +298,64 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
         // rearm it; preserve all attempted/ambiguous/acknowledged histories.
         transaction.update(existingRef, { status: "pending", lastError: null });
       }
-      return { status: "ok", id: recommendation.id } as const;
+      teamNotice?.write(transaction);
+      return { status: "ok", id: recommendation.id, evidence: recommendation.evidence ?? evidence, teamNotified: Boolean(teamNotice) } as const;
     });
     if (outcome.status === "changed") return res.status(409).json({ error: "The brief changed. Reload and review the proposal against the current job." });
     if (outcome.status === "missing") return res.status(HTTP_STATUS.NOT_FOUND).json({ ok: false, error: "Job not found" });
     if (outcome.status === "booked") return res.status(HTTP_STATUS.CONFLICT).json({ ok: false, error: "This proposal has already been accepted; reconcile changes with the parties before replacing it." });
     if (outcome.status === "contact_missing") return res.status(HTTP_STATUS.CONFLICT).json({ ok: false, error: "Add a valid site contact email before recommending this pilot." });
-    return res.json({ ok: true, id: outcome.id });
+    if (outcome.status === "consent_withdrawn") return res.status(HTTP_STATUS.CONFLICT).json({ ok: false, code: "capture_consent_withdrawn", error: "The site withdrew recording permission. Its evaluations cannot back a recommendation." });
+    if (outcome.status === "refused") return evidenceRefusal(res, outcome.refusal);
+    return res.json({ ok: true, id: outcome.id, teamId: team.id, evidence: outcome.evidence, teamNotified: outcome.teamNotified });
   } catch (error) {
     logger.error({ err: error, requestId }, "Failed to record a pilot recommendation");
     return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Unable to record the recommendation" });
+  }
+});
+
+/**
+ * Every evaluation run against one job, read against the job's pass mark, for
+ * the reviewer choosing which evaluation a recommendation stands on.
+ * Contract: docs/runbooks/pilot-recommendation-evidence.md.
+ */
+router.get("/jobs/:requestId/evaluations", async (req: Request, res: Response) => {
+  if (!db) return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Store unavailable" });
+  const requestId = String(req.params.requestId);
+  try {
+    const record = (await db.collection("inboundRequests").doc(requestId).get()).data();
+    if (!record) return res.status(HTTP_STATUS.NOT_FOUND).json({ ok: false, error: "Job not found" });
+    const brief = (await db.collection("siteTaskBriefs").doc(requestId).get()).data() ?? null;
+    const passMark = passMarkForJob(record, brief);
+    const snapshot = await db.collection("evaluationRuns").where("sceneId", "==", requestId).limit(200).get();
+    const readings = snapshot.docs.map(doc => readEvaluation(doc.data() as RunWithResult, requestId, passMark));
+    const teamIds = [...new Set(readings.map(reading => reading.teamId))];
+    const teams = new Map(await Promise.all(teamIds.map(async teamId => [teamId, {
+      record: await getRobotTeam(teamId), eligibility: await recommendableTeam(teamId),
+    }] as const)));
+    const consentWithdrawn = projectWebsiteCaptureRights(record).consent_revoked;
+    const evaluations = readings.map(reading => {
+      const team = teams.get(reading.teamId)!;
+      const teamRefusal = team.eligibility.ok ? null : { code: team.eligibility.code, error: team.eligibility.error };
+      return {
+        ...reading,
+        refusals: reading.refusals.map(code => ({ code, error: EVIDENCE_REFUSAL_MESSAGES[code] })),
+        teamName: team.record?.name ?? null,
+        recommendedTeamId: team.eligibility.ok ? team.eligibility.team.id : null,
+        recommendedTeamName: team.eligibility.ok ? team.eligibility.team.name : null,
+        teamRefusal,
+        recommendable: !consentWithdrawn && reading.refusals.length === 0 && reading.passed === true && !teamRefusal,
+      };
+    }).sort((left, right) => Number(right.recommendable) - Number(left.recommendable)
+      || String(right.evaluatedAtIso ?? right.requestedAtIso ?? "").localeCompare(String(left.evaluatedAtIso ?? left.requestedAtIso ?? "")));
+    res.set("Cache-Control", "no-store");
+    return res.json({ ok: true, requestId, passMark, consentWithdrawn, boundary: SIMULATION_EVIDENCE_BOUNDARY,
+      currentRecommendation: record.pilot_recommendation ? { id: record.pilot_recommendation.id,
+        evaluationRunId: record.pilot_recommendation.evaluationRunId ?? null, booked: Boolean(record.pilot_booking) } : null,
+      evaluations });
+  } catch (error) {
+    logger.error({ err: error, requestId }, "Job evaluations unavailable");
+    return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Job evaluations unavailable" });
   }
 });
 
@@ -246,6 +385,7 @@ router.get("/recommendations/:requestId", async (req, res) => {
         siteProvides: "", teamProvides: "", pilotCost: "", window: "", sitePreparation: "", humanWork: "", costBasis: "", capabilityBasis: "", providerCommitment: "", exclusions: "Production deployment, purchases and private footage sharing require separate approval.", uncertainties: "", alternative: "" },
       briefRevision: humanDecisionDigest(brief),
       sources: { purpose: brief ? `siteTaskBriefs/${requestId}:summary` : `inboundRequests/${requestId}:request.taskStatement`, successCondition: terms?.successDefinition ? `siteTaskBriefs/${requestId}:successCriteria (site targets)` : null },
+      evaluations: { route: `/api/admin/robot-teams/jobs/${encodeURIComponent(requestId)}/evaluations` },
       communications: { route: `/api/admin/robot-teams/jobs/${encodeURIComponent(requestId)}/communications`,
         draftingEnabled: process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true", deliveryEnabled: process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED === "true" } });
   } catch (error) { logger.error({ err: error, requestId }, "Proposal draft unavailable"); return res.status(503).json({ error: "Proposal draft unavailable" }); }
@@ -278,7 +418,7 @@ router.post("/recommendations/:requestId/reconcile", async (req, res) => {
   } catch { return res.status(409).json({ error: "The job changed or the accepted scope could not be reconciled. Reload before recording agreement evidence." }); }
 });
 
-/** Named staff record agreements already obtained under applicable authority. This sends no correspondence or calendar invitations. */
+/** Named staff record agreements already obtained under applicable authority. This sends no calendar invitations; it queues one scheduled notice to the site and one to the recommended team. */
 router.post("/recommendations/:requestId/coordination", async (req, res) => {
   const parsed = coordinationSchema.safeParse(req.body);
   const recordedBy = res.locals.firebaseUser?.uid;
@@ -295,6 +435,7 @@ router.post("/recommendations/:requestId/coordination", async (req, res) => {
     const calendar = await readPilotCalendarEvent(input.calendarEventId);
     if (existing && (existing.startsAt !== calendar.startsAt || existing.endsAt !== calendar.endsAt)) return res.status(409).json({ error: "The Calendar date changed. Reconcile it with both parties; the existing commitment has not been overwritten." });
     const agreement = { ...input, ...calendar, state: "scheduled", recordedBy, verifiedAt: new Date().toISOString(), agreementDigest: digest };
+    const teamRows = new Map<string, OutboxEntry>();
     const outcome = await store.runTransaction(async tx => {
       const snap = await tx.get(ref), record = snap.data();
       if (!record || humanDecisionDigest({ proposal: record.pilot_recommendation, booking: record.pilot_booking }) !== humanDecisionDigest({ proposal: current.pilot_recommendation, booking: current.pilot_booking })) throw new Error("pilot_agreement_changed");
@@ -302,8 +443,14 @@ router.post("/recommendations/:requestId/coordination", async (req, res) => {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw new Error("site_contact_missing");
       const notification = buildTaskLifecycleNotification({ requestId, milestone: "pilot_scheduled", eventId: pilotScheduledEventId(input.calendarEventId, to), to, captureUrl: captureUploadUrlFor(requestId, "owner") });
       const noticeRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(notification.idempotencyKey), notice = await tx.get(noticeRef);
+      // The recommended team hears the same scheduled date, in the same commit.
+      const teamNotice = typeof record.pilot_recommendation?.teamId === "string"
+        ? await prepareTeamPilotNotice(tx, { kind: "team_pilot_scheduled", requestId, recommendation: record.pilot_recommendation,
+          calendarEventId: input.calendarEventId, startsAt: (existing ?? agreement).startsAt }, teamRows)
+        : null;
       if (!record.pilot_booking.coordination) tx.update(ref, { pilot_booking: { ...record.pilot_booking, coordination: agreement } });
       if (!notice.exists) tx.create(noticeRef, buildOutboxEntry(notification));
+      teamNotice?.write(tx);
       return projectPilotCoordination({ ...record, pilot_booking: { ...record.pilot_booking, coordination: existing ?? agreement } });
     });
     return res.json({ ok: true, coordination: outcome });
