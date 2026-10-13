@@ -71,10 +71,17 @@ service firebase.storage {
     // object must sit under the scene that record names. Without it any
     // signed-in user could write a capture path, or a new generation of
     // another user's raw object, by stamping their own creatorId metadata.
+    // Capture apps build path segments from ids the same way (lowercase, runs
+    // outside [a-z0-9._-] become '-', edge dashes trimmed), so a record's
+    // scene_id is compared in that form.
+    function capturePathSegment(value) {
+      return value.lower().replace('[^a-z0-9._-]+', '-').replace('^-+|-+$', '');
+    }
+
     function ownsRawCaptureSubmission(sceneId, captureId) {
       return firestore.exists(/databases/(default)/documents/capture_submissions/$(captureId))
         && firestore.get(/databases/(default)/documents/capture_submissions/$(captureId)).data.creator_id == request.auth.uid
-        && firestore.get(/databases/(default)/documents/capture_submissions/$(captureId)).data.scene_id == sceneId;
+        && capturePathSegment(firestore.get(/databases/(default)/documents/capture_submissions/$(captureId)).data.scene_id) == sceneId;
     }
 
     function existingRawCaptureOwner() {
