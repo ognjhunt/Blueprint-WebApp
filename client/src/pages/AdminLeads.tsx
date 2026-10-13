@@ -1739,6 +1739,12 @@ export default function AdminLeads() {
               Refresh
             </button>
             <a
+              href="/admin/jobs"
+              className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
+            >
+              Job console
+            </a>
+            <a
               href="/admin/growth-ops-scorecard"
               className="runway-cta-ghost min-h-0 px-4 py-2 text-sm"
             >

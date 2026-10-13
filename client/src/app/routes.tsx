@@ -71,6 +71,7 @@ const AdminTaskEvaluationLaunches = lazyRoute(
 );
 const AdminCapturers = lazyRoute(() => import("../pages/AdminCapturers"));
 const AdminRobotTeamAccess = lazyRoute(() => import("../pages/AdminRobotTeamAccess"));
+const AdminJobConsole = lazyRoute(() => import("../pages/AdminJobConsole"));
 const RequestConsole = lazyRoute(() => import("../pages/RequestConsole"));
 const DesignSystem = lazyRoute(() => import("../pages/DesignSystem"));
 const OpportunityBoard = lazyRoute(() => import("../pages/internal/OpportunityBoard"));
@@ -353,6 +354,7 @@ export const appRoutes: AppRoute[] = [
   { path: "/admin/company-metrics", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCompanyMetrics },
   { path: "/admin/capturers", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCapturers },
   { path: "/admin/robot-team-access", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminRobotTeamAccess },
+  { path: "/admin/jobs", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminJobConsole },
   { path: "/admin/city-launch/austin", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminAustinLaunchScorecard },
   { path: "/admin/city-launch/:citySlug", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminAustinLaunchScorecard },
   { path: "/admin/growth-studio", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminGrowthStudio },
