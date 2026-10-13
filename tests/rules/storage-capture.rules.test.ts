@@ -50,6 +50,10 @@ beforeAll(async () => {
 beforeEach(async () => {
   await testEnv.clearStorage();
   await testEnv.clearFirestore();
+  // The capture app records the submission before it uploads raw files.
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), "capture_submissions/cap-1"), { creator_id: CREATOR, scene_id: "scene-1" });
+  });
 });
 
 afterAll(async () => {
@@ -73,6 +77,33 @@ describe("raw capture uploads (scenes/{sceneId}/captures/{captureId}/raw/**)", (
     const mallory = testEnv.authenticatedContext(OTHER);
     await assertFails(
       uploadBytes(ref(mallory.storage(), RAW_PATH), payload, rawMetadata()),
+    );
+  });
+
+  it("denies upload when the uploader does not own the capture's submission", async () => {
+    // Another signed-in user stamping their own creatorId cannot write the
+    // path, nor a new generation over the owner's object.
+    const mallory = testEnv.authenticatedContext(OTHER);
+    await assertFails(
+      uploadBytes(ref(mallory.storage(), RAW_PATH), payload, rawMetadata({ creatorId: OTHER })),
+    );
+    const creator = testEnv.authenticatedContext(CREATOR);
+    await assertSucceeds(uploadBytes(ref(creator.storage(), RAW_PATH), payload, rawMetadata()));
+    await assertFails(
+      uploadBytes(ref(mallory.storage(), RAW_PATH), payload, rawMetadata({ creatorId: OTHER })),
+    );
+    // The object must sit under the scene its submission names.
+    await assertFails(
+      uploadBytes(
+        ref(creator.storage(), "scenes/scene-9/captures/cap-1/raw/room.usdz"),
+        payload,
+        rawMetadata({ sceneId: "scene-9" }),
+      ),
+    );
+    // No submission record at all: denied even with matching metadata.
+    const unregistered = "scenes/scene-1/captures/cap-2/raw/room.usdz";
+    await assertFails(
+      uploadBytes(ref(creator.storage(), unregistered), payload, rawMetadata({ captureId: "cap-2" })),
     );
   });
 

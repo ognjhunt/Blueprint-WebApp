@@ -61,7 +61,7 @@ node scripts/communications-successor-admission-20261007.mjs \
 ```
 
 Adoption checks current provider saved-definition/Vault metadata through GETs
-only, frames v3, fixed founder digest and the actual installed screen-reader
+only, frames v4 (free-beta outreach framing, 2026-10-13), fixed founder digest and the actual installed screen-reader
 method. It checks process identity before and after the GETs. This proves no
 live model session, paid usage, Gmail draft or installed-package byte integrity.
 The separate existing `communications-preflight.mjs` verifies the runtime's

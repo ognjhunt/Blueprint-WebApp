@@ -6,11 +6,18 @@ import { LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE as COMMUNICATIONS_FOUNDE
 // questions remain immutable evidence; this policy does not promote their open checks.
 export const COMMUNICATIONS_FRAMING_V1 = "blueprint.outreach-framing.v1" as const;
 export const COMMUNICATIONS_FRAMING_V2 = "blueprint.outreach-framing.v2" as const;
-export const COMMUNICATIONS_FRAMING_VERSION = "blueprint.outreach-framing.v3" as const;
-export type CommunicationsFramingVersion = typeof COMMUNICATIONS_FRAMING_V1 | typeof COMMUNICATIONS_FRAMING_V2 | typeof COMMUNICATIONS_FRAMING_VERSION;
+export const COMMUNICATIONS_FRAMING_V3 = "blueprint.outreach-framing.v3" as const;
+export const COMMUNICATIONS_FRAMING_VERSION = "blueprint.outreach-framing.v4" as const;
+export type CommunicationsFramingVersion = typeof COMMUNICATIONS_FRAMING_V1 | typeof COMMUNICATIONS_FRAMING_V2
+  | typeof COMMUNICATIONS_FRAMING_V3 | typeof COMMUNICATIONS_FRAMING_VERSION;
 export function communicationsFramingVersion(value: unknown): CommunicationsFramingVersion | undefined {
-  if (value === undefined || value === COMMUNICATIONS_FRAMING_V1 || value === COMMUNICATIONS_FRAMING_V2 || value === COMMUNICATIONS_FRAMING_VERSION) return value;
+  if (value === undefined || value === COMMUNICATIONS_FRAMING_V1 || value === COMMUNICATIONS_FRAMING_V2
+    || value === COMMUNICATIONS_FRAMING_V3 || value === COMMUNICATIONS_FRAMING_VERSION) return value;
   throw new Error("communications_framing_version_unsupported");
+}
+/** v3 and v4 share the natural founder-prose behavior; only their guidance text and digest differ. */
+export function communicationsNaturalFraming(version: unknown) {
+  return version === COMMUNICATIONS_FRAMING_V3 || version === COMMUNICATIONS_FRAMING_VERSION;
 }
 export const COMMUNICATIONS_AUDIENCE_ROLES = ["site", "robot_team", "policy_team", "world_model_evaluation"] as const;
 export type CommunicationsAudienceRole = typeof COMMUNICATIONS_AUDIENCE_ROLES[number];
@@ -27,25 +34,35 @@ export const COMMUNICATIONS_FRAMING_DIGEST = createHash("sha256").update(COMMUNI
 export const COMMUNICATIONS_FRAMING_V1_DIGEST = createHash("sha256").update(COMMUNICATIONS_LAUNCH_GUIDANCE_V1).digest("hex");
 // v1/v2 above remain byte-exact for historical requests. Fresh requests replace
 // the initial-question direction, while retaining current commercial boundaries.
-export const COMMUNICATIONS_FOUNDER_GUIDANCE = COMMUNICATIONS_LAUNCH_GUIDANCE
+export const COMMUNICATIONS_FOUNDER_GUIDANCE_V3 = COMMUNICATIONS_LAUNCH_GUIDANCE
   .replace("For a site, explore whether robotics would be useful and why.", "For a site, ask whether exploring robotics would be useful; learn why in a later reply.")
   + `\n${COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE}`;
+export const COMMUNICATIONS_FOUNDER_FRAMING_V3_DIGEST = createHash("sha256").update(COMMUNICATIONS_FOUNDER_GUIDANCE_V3).digest("hex");
+// v3 above stays byte-exact for in-flight jobs. v4 carries the founder's free beta
+// (2026-10-13) in place of the archived site fee; it is otherwise the v3 text.
+export const COMMUNICATIONS_FOUNDER_GUIDANCE = COMMUNICATIONS_FOUNDER_GUIDANCE_V3.replace(
+  "Robot-team beta evaluation is free when invited; hardware, integration and site matching are not thereby free. Site assessment and opening pilot proposals are free; the separate site fee is $2,500 per task only when the site books Blueprint's recommended pilot, with no cut of a pilot. Booking is tied to the specific recommendation/version presented. A recommendation is not a booking, customer commitment or payment; do not imply team availability or an accepted offer without evidence. Do not invent a price or a match promise.",
+  () => "During the beta Blueprint is free for sites and invited robot teams: site assessment, invited evaluation in simulation, Blueprint's one recommended pilot and booking it cost nothing. The physical pilot is priced and run by the robot team and agreed directly with the site; Blueprint takes no cut. Booking is tied to the specific recommendation/version presented. A recommendation is not a booking, customer commitment or payment; do not imply team availability or an accepted offer without evidence. Do not invent a price or quote future pricing.")
+  // Blueprint recommends one evaluated team; it does not "match" sites and teams.
+  .replace("demand-led matching", "demand-led introductions");
 export const COMMUNICATIONS_FOUNDER_FRAMING_DIGEST = createHash("sha256").update(COMMUNICATIONS_FOUNDER_GUIDANCE).digest("hex");
+const FRAMING_GUIDANCE: Record<CommunicationsFramingVersion, readonly [string, string]> = {
+  [COMMUNICATIONS_FRAMING_V1]: [COMMUNICATIONS_LAUNCH_GUIDANCE_V1, COMMUNICATIONS_FRAMING_V1_DIGEST],
+  [COMMUNICATIONS_FRAMING_V2]: [COMMUNICATIONS_LAUNCH_GUIDANCE, COMMUNICATIONS_FRAMING_DIGEST],
+  [COMMUNICATIONS_FRAMING_V3]: [COMMUNICATIONS_FOUNDER_GUIDANCE_V3, COMMUNICATIONS_FOUNDER_FRAMING_V3_DIGEST],
+  [COMMUNICATIONS_FRAMING_VERSION]: [COMMUNICATIONS_FOUNDER_GUIDANCE, COMMUNICATIONS_FOUNDER_FRAMING_DIGEST],
+};
 
 export function communicationsLaunchFraming(brief: { audienceRole?: CommunicationsAudienceRole; boundedJob: string; facilityName: string },
   version: CommunicationsFramingVersion = COMMUNICATIONS_FRAMING_VERSION) {
   communicationsFramingVersion(version);
   const role = brief.audienceRole ?? "site";
-  const natural = version === COMMUNICATIONS_FRAMING_VERSION;
+  const natural = communicationsNaturalFraming(version), [guidance, instructionsDigest] = FRAMING_GUIDANCE[version];
   const question = role === "site"
     ? `Would exploring robotics for ${questionTask(brief.boundedJob)} at ${sitePhrase(brief.facilityName)} be useful to you${natural ? "" : ", and if so, why"}?`
     : role === "world_model_evaluation"
     ? "What, if anything, would you want Blueprint's help validating about your world model or evaluation methods on real site tasks?"
     : "Where, if anywhere, could Blueprint help with your current process for finding customers and assessing their tasks?";
-  return { version, instructionsDigest: natural ? COMMUNICATIONS_FOUNDER_FRAMING_DIGEST
-      : version === COMMUNICATIONS_FRAMING_V1 ? COMMUNICATIONS_FRAMING_V1_DIGEST : COMMUNICATIONS_FRAMING_DIGEST,
-    audienceRole: role, question, ...(natural ? { questionIsSuggestion: true as const } : {}),
-    guidance: natural ? COMMUNICATIONS_FOUNDER_GUIDANCE
-      : version === COMMUNICATIONS_FRAMING_V1 ? COMMUNICATIONS_LAUNCH_GUIDANCE_V1 : COMMUNICATIONS_LAUNCH_GUIDANCE,
-    sendsAuthorized: false as const };
+  return { version, instructionsDigest, audienceRole: role, question, ...(natural ? { questionIsSuggestion: true as const } : {}),
+    guidance, sendsAuthorized: false as const };
 }

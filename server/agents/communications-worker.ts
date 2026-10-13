@@ -4,7 +4,7 @@ import { isEmailSuppressed, recordEmailSuppression, buildUnsubscribeUrl } from "
 import { COMMUNICATIONS_HYPOTHESIS_GUIDANCE, COMMUNICATIONS_OUTREACH_GUIDANCE, COMMUNICATIONS_WRITING_GUIDANCE } from "./communications-instructions";
 import { COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_FIRST_CONTACT_CONTEXT_GUIDANCE, LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE, COMMUNICATIONS_WRITING_QUALITY_VERSION, communicationsWritingSignals } from "./communications-outreach-quality";
 import { COMMUNICATIONS_HYPOTHESIS_PROFILE, COMMUNICATIONS_PERSONALIZED_PROFILE } from "./communications-saved-agent";
-import { COMMUNICATIONS_FRAMING_VERSION, communicationsLaunchFraming, communicationsFramingVersion,
+import { COMMUNICATIONS_FRAMING_VERSION, communicationsLaunchFraming, communicationsFramingVersion, communicationsNaturalFraming,
   type CommunicationsFramingVersion } from "./communications-launch-framing";
 import { readReplyFollowup } from "./communications-reply-followup";
 import { readEvaluationReadiness, SITE_INTEREST_REPLY_GUIDANCE, type EvaluationReadiness } from "./communications-readiness";
@@ -99,7 +99,7 @@ export async function runCommunicationsSavedDraftRecovery(deps: CommunicationsDe
     const rejected = job.state === "blocked" && job.reason === "agents_native_mcp_call_binding_mismatch";
     const resumed = ["queued", "running"].includes(job.state) && job.reason === "operator_retry_requested" && job.retryRequestedBy === requester;
     if ((!rejected && !resumed)
-      || job.checkpoint?.framingVersion !== COMMUNICATIONS_FRAMING_VERSION
+      || !communicationsNaturalFraming(job.checkpoint?.framingVersion)
       || !job.checkpoint.sessionId || !job.checkpoint.turnId || !job.checkpoint.requestDigest
       || !Number.isSafeInteger(job.lease?.until) || job.lease!.until < 0 || job.lease!.until > deps.now()) continue;
     if (resumed && (job.savedOutputRecovery?.version !== "completed-saved-output-v1"
@@ -332,7 +332,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
       const evaluationReadiness = (brief.audienceRole ?? "site") === "site"
         ? await readEvaluationReadiness(deps.store.db, brief, deps.now()) : undefined;
       const sameRunDraftSave = deps.prepareDraftSave ? await deps.prepareDraftSave() : undefined;
-      const founderGuidance = claimed.checkpoint.framingVersion && claimed.checkpoint.framingVersion !== COMMUNICATIONS_FRAMING_VERSION
+      const founderGuidance = claimed.checkpoint.framingVersion && !communicationsNaturalFraming(claimed.checkpoint.framingVersion)
         ? LEGACY_COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE : COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE;
       const firstContactContext = job.intent === "outreach" && founderGuidance === COMMUNICATIONS_FOUNDER_WRITING_GUIDANCE
         ? `\n${COMMUNICATIONS_FIRST_CONTACT_CONTEXT_GUIDANCE}` : "";
@@ -466,7 +466,7 @@ export async function processCommunicationsJob(jobId: string, deps: Communicatio
     }
     await deps.store.update(jobId, { output: result.output, ...(!phase ? { checkpoint: result.checkpoint } : {}),
       ...("outputSource" in result && result.outputSource ? { outputSource: result.outputSource } : {}),
-      ...(job.intent === "outreach" && claimed.checkpoint.framingVersion === COMMUNICATIONS_FRAMING_VERSION ? {
+      ...(job.intent === "outreach" && communicationsNaturalFraming(claimed.checkpoint.framingVersion) ? {
         writingQuality: { version: COMMUNICATIONS_WRITING_QUALITY_VERSION, advisoryOnly: true,
           signals: communicationsWritingSignals(result.output.body, brief.boundedJob) },
       } : {}) });
@@ -578,7 +578,7 @@ const HYPOTHESIS_FIXES: Record<string, [string, string]> = {
 /** Field diagnostics only: this does not approve, publish, commit or send. */
 function communicationsDraftFeedback(payload: ActionPayload, output: CommunicationsOutput, intent: CommunicationsJob["intent"], automatic: boolean, now: number,
   hypothesis = false, framingVersion?: CommunicationsFramingVersion, writingProfile?: string): CommunicationsOutputFeedback {
-  const launch = framingVersion !== undefined, natural = framingVersion === COMMUNICATIONS_FRAMING_VERSION;
+  const launch = framingVersion !== undefined, natural = communicationsNaturalFraming(framingVersion);
   const fixes: Record<string, [string, string]> = {
     used_fact_missing: ["usedFactIds", "Reference only existing researchBrief.facts IDs; remove unsupported claims and IDs. Outreach needs a sourced fact; a plain acknowledgment need not cite one."],
     learning_question_mismatch: ["body", "For first outreach, use one easy question fitting the verified site; replies may adapt to the actual incoming message."],
@@ -655,7 +655,7 @@ function communicationsDraftFeedback(payload: ActionPayload, output: Communicati
 
 function hypothesisContractVersion(version?: CommunicationsFramingVersion, writingProfile?: string) {
   if (writingProfile === COMMUNICATIONS_PERSONALIZED_PROFILE) return "blueprint.outreach.v5";
-  return version === COMMUNICATIONS_FRAMING_VERSION ? "blueprint.outreach.v4" : "blueprint.outreach.v3";
+  return communicationsNaturalFraming(version) ? "blueprint.outreach.v4" : "blueprint.outreach.v3";
 }
 
 export function buildCommunicationsInput(brief: CommunicationsBrief, thread: VerifiedThread | null, intent: string, approvalState: unknown,

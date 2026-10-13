@@ -37,6 +37,16 @@ availability and an accepted offer require evidence. Intake is description-first
 matching follows stated demand. No need and negative replies are learning;
 interest is distinct from commitment and never grants action authority.
 
+Owner direction, 2026-10-13: new jobs consume `blueprint.outreach-framing.v4`.
+During the beta Blueprint is free for sites and invited robot teams: site
+assessment, invited evaluation in simulation, the one recommended pilot and
+booking it cost nothing. The physical pilot is priced and run by the robot team
+and agreed directly with the site; Blueprint takes no cut. There is no site or
+match fee; drafts must not invent a price or quote future pricing. The fee
+sentences above remain only as the recorded direction of framing v1-v3, which
+stay byte-exact for historical and in-flight jobs. v4 hypothesis overrides use
+session definitions v45-v48.
+
 Fresh hypothesis drafts use `blueprint.outreach.v3`: the framing question and
 `checks:["interest"]`, without promoting any research open check. The immutable
 Pipeline-produced qualification, question and source dates remain intact. Old

@@ -66,6 +66,17 @@ service firebase.storage {
         && request.resource.metadata.sha256.matches('^[a-f0-9]{64}$');
     }
 
+    // The uploader must own the capture's submission record, which the
+    // capture app writes before it uploads (capture_in_progress), and the
+    // object must sit under the scene that record names. Without it any
+    // signed-in user could write a capture path, or a new generation of
+    // another user's raw object, by stamping their own creatorId metadata.
+    function ownsRawCaptureSubmission(sceneId, captureId) {
+      return firestore.exists(/databases/(default)/documents/capture_submissions/$(captureId))
+        && firestore.get(/databases/(default)/documents/capture_submissions/$(captureId)).data.creator_id == request.auth.uid
+        && firestore.get(/databases/(default)/documents/capture_submissions/$(captureId)).data.scene_id == sceneId;
+    }
+
     function existingRawCaptureOwner() {
       return resource != null
         && resource.metadata.creatorId == request.auth.uid;
@@ -110,6 +121,7 @@ service firebase.storage {
     match /scenes/{sceneId}/captures/{captureId}/raw/{rawPath=**} {
       allow create: if isSignedIn()
         && rawCaptureMetadataMatches(sceneId, captureId)
+        && ownsRawCaptureSubmission(sceneId, captureId)
         && boundedUpload(20 * 1024 * 1024 * 1024);
       allow read: if isSignedIn() && existingRawCaptureOwner();
       allow update, delete: if false;

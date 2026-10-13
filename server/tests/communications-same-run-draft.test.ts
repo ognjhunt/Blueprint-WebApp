@@ -42,7 +42,7 @@ async function setup(role: CommunicationsAudienceRole = "site") {
     find: vi.fn(async content => copied && communicationsDigest(content) === communicationsDigest(copied)
       ? { draftId: "synthetic-gmail-draft", messageId: "synthetic-message", threadId: "synthetic-thread", authoredRfcMessageId: content.messageId, observedRfcMessageId: "<synthetic@reserved.invalid>" } : null) };
   const api = { run: vi.fn(async (params: any) => {
-    const input = JSON.parse(params.input); expect(input.firstTouchFraming).toEqual(params.checkpoint.writingProfile ? { ...framing, guidance: input.writingGuidance, question: undefined, questionIsSuggestion: true } : /recipient-aware-writing-v[345]/.test(input.writingGuidance) ? { ...framing, question: undefined, questionIsSuggestion: true } : framing);
+    const input = JSON.parse(params.input), framing = communicationsLaunchFraming(f.brief, params.checkpoint.framingVersion); expect(input.firstTouchFraming).toEqual(params.checkpoint.writingProfile ? { ...framing, guidance: input.writingGuidance, question: undefined, questionIsSuggestion: true } : /recipient-aware-writing-v[345]/.test(input.writingGuidance) ? { ...framing, question: undefined, questionIsSuggestion: true } : framing);
     expect(input.writingGuidance).toContain("save_unsent_draft"); if (params.checkpoint.writingProfile) expect(input.firstTouchPolicy).toContain("recipient-aware-writing-v5");
     else expect(input.firstTouchPolicy).toContain("No public API or deployment maturity hard gate");
     return { output: f.output, checkpoint: params.checkpoint, usage: { input_tokens: 10 } };

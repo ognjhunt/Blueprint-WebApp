@@ -284,8 +284,10 @@ service cloud.firestore {
     }
     match /users/{userId} {
       allow read: if isOwner(userId);
+      // structuredIntakeRequestId links an account to an inbound request and
+      // is written only by the server (Admin SDK) after ownership is proven.
       allow create: if isOwner(userId)
-        && !request.resource.data.keys().hasAny(['admin', 'ops', 'accessRoles'])
+        && !request.resource.data.keys().hasAny(['admin', 'ops', 'accessRoles', 'structuredIntakeRequestId'])
         && hasSafeClientProfileRoles(request.resource.data);
       // Clients may update their own non-financial fields.
       // Financial fields (stats.availableBalance, stats.totalEarnings, etc.)
@@ -293,7 +295,7 @@ service cloud.firestore {
       // these rules entirely.
       allow update: if isOwner(userId)
         && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['stats', 'admin', 'ops', 'accessRoles'])
+            .hasAny(['stats', 'admin', 'ops', 'accessRoles', 'structuredIntakeRequestId'])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles'])
           || hasSafeClientProfileRoles(request.resource.data));
       // Self-service account deletion (App Store 5.1.1(v) / GDPR erasure):
