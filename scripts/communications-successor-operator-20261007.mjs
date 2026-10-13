@@ -58,7 +58,7 @@ export async function verifyAdoption(target) {
   const {CommunicationsAgentsAPI}=await import('../server/agents/communications-api.ts');
   const {COMMUNICATIONS_HISTORY_DEFINITION,communicationsMcpDefinition,communicationsHypothesisDefinition}=await import('../server/agents/communications-saved-agent.ts');
   const {COMMUNICATIONS_FRAMING_VERSION,COMMUNICATIONS_FOUNDER_FRAMING_DIGEST}=await import('../server/agents/communications-launch-framing.ts');
-  if(COMMUNICATIONS_FRAMING_VERSION!=='blueprint.outreach-framing.v3'||COMMUNICATIONS_FOUNDER_FRAMING_DIGEST!=='db4243dba5c5fabc91641ddd3382cd3ba4f347488cc557155130e7242d6a5960')refuse('actual_framing_definition_changed');
+  if(COMMUNICATIONS_FRAMING_VERSION!=='blueprint.outreach-framing.v4'||COMMUNICATIONS_FOUNDER_FRAMING_DIGEST!=='4648e98b290b5409ad864f784ed539281be88d389ecb53bc1c86de400b47070a')refuse('actual_framing_definition_changed');
   const api=new CommunicationsAgentsAPI({apiKey:process.env.OPENAI_API_KEY,allowPaidInference:false,requestTimeoutMs:15000,
     fetch:(url,init={})=>{if((init.method??'GET')!=='GET')refuse('adoption_mutation_forbidden');return fetch(url,init);}});
   const p=await api.preflight(),base=p.gmailMcp?communicationsMcpDefinition(p.gmailMcp):COMMUNICATIONS_HISTORY_DEFINITION;
