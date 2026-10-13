@@ -2282,6 +2282,9 @@ View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/$
               spec: (normalizeGateAnswers(payload.siteTaskSpec) as Record<string, string>) || {},
               capabilityDescription: payload.taskDescription?.trim() || null,
               evidenceBar: payload.whatGoesWrong?.trim() || null,
+              // A workspace evaluation request comes from a signed-in robot
+              // team; link this row to the account-bound team its runs use.
+              accountUid: res.locals.workspaceIntake?.account_owner_uid ?? null,
             });
           } catch (error) {
             logger.error(

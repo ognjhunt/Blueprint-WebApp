@@ -54,6 +54,10 @@ export type OutboxKind =
   /** To the robot team that bought a run, when it reports. */
   | "team_run_result"
   | "team_run_no_result"
+  /** To the recommended robot team: recommended, booked by the site, scheduled. */
+  | "team_pilot_recommended"
+  | "team_pilot_booked"
+  | "team_pilot_scheduled"
   /** A robot team's early-access application, received and decided. */
   | "robot_team_access_received"
   | "robot_team_access_approved"

@@ -17,7 +17,30 @@ type Recommendation = {
   successCondition?: string; exclusions?: string; costBasis?: string;
   sitePreparation?: string; humanWork?: string; capabilityBasis?: string;
   providerCommitment?: string; reviewRequired?: boolean;
+  evidence?: EvaluationEvidence | null;
 };
+
+/** The site's view of the evaluation the recommendation stands on (server: projectEvidenceForSite). */
+type EvaluationEvidence = {
+  episodesRun: number; episodesSucceeded: number; successRate: number;
+  passMarkSuccessRate: number; passMarkSource: "job_terms" | "site_task_brief" | "blueprint_default";
+  cycleTimeTargetSeconds: number | null; medianCycleSeconds: number | null; cycleTimeMet: boolean | null;
+  evaluatedAtIso: string; evidenceScope: "development_only" | "simulation"; boundary: string; resultUrl: string | null;
+};
+
+const BETA_FREE = "Blueprint charges nothing during the beta; the pilot's cost is agreed with the robot team.";
+const percent = (fraction: number) => `${Math.round(fraction * 1000) / 10}%`;
+
+function EvidenceLine({ teamName, evidence }: { teamName: string; evidence: EvaluationEvidence }) {
+  const mark = evidence.passMarkSource === "blueprint_default"
+    ? `Blueprint's pass mark of ${percent(evidence.passMarkSuccessRate)}`
+    : `your pass mark of ${percent(evidence.passMarkSuccessRate)}`;
+  return <>
+    <p>{teamName} evaluated your job: {evidence.episodesSucceeded} of {evidence.episodesRun} simulated episodes succeeded ({percent(evidence.successRate)}), meeting {mark}.</p>
+    <p className="ms-field-hint">Simulation estimate — the physical pilot measures the real result. It does not certify physical performance or safety.</p>
+    {evidence.resultUrl && <p><a className="ms-text-link" href={evidence.resultUrl}>See the evaluation results</a></p>}
+  </>;
+}
 
 /**
  * One concrete pilot proposal, followed by truthful coordination status.
@@ -96,7 +119,9 @@ function RecommendedPilotForToken({ token }: { token: string }) {
         <dt>What the pilot tests</dt><dd>{recommendation.purpose}</dd>
         <dt>Measurable success condition</dt><dd>{recommendation.successCondition || "Not yet recorded — agree the pass condition before a physical commitment."}</dd>
         <dt>Scope exclusions</dt><dd>{recommendation.exclusions || "Not yet agreed."}</dd>
-        <dt>Capability evidence</dt><dd>{recommendation.capabilityBasis || "No demonstrated capability evidence is recorded here; this is a proposed fit to test."}</dd>
+        <dt>Evaluation evidence</dt><dd>{recommendation.evidence
+          ? <EvidenceLine teamName={recommendation.teamName} evidence={recommendation.evidence} />
+          : recommendation.capabilityBasis || "No demonstrated capability evidence is recorded here; this is a proposed fit to test."}</dd>
         <dt>Provider commitment</dt><dd>{coordination?.state === "scheduled" ? "Provider and site agreement recorded for the confirmed date and scope." : recommendation.providerCommitment || "Proposed team; availability and commitment are not yet confirmed."}</dd>
         <dt>What you provide</dt><dd>{recommendation.siteProvides}</dd>
         <dt>What the robot team provides</dt><dd>{recommendation.teamProvides}</dd>
@@ -113,13 +138,13 @@ function RecommendedPilotForToken({ token }: { token: string }) {
         <div role="status"><p>{coordination?.state === "scheduled" ? `Scheduled: ${new Date(coordination.startsAt!).toLocaleString()}.` : "Proposal accepted · awaiting coordination."}</p>
           <p>{coordination?.nextAction || "Blueprint must confirm provider and site agreement, date and preparation responsibilities. No date is reserved yet."}</p>
           {coordination?.sitePreparation && <p>{coordination.sitePreparation}</p>}
-          <p>{coordination?.feeUsd === 0 ? "Blueprint beta coordination is free. Any provider cost follows the proposal and its applicable agreement." : typeof coordination?.feeUsd === "number" ? `Previously agreed Blueprint fee: ${formatPrice(coordination.feeUsd)}, due when the pilot is booked. Your accepted terms remain on file.` : "Your previously accepted commercial terms remain on file; this page has no verified price to display."}</p>
+          <p>{coordination?.feeUsd === 0 ? BETA_FREE : typeof coordination?.feeUsd === "number" ? `Previously agreed Blueprint fee: ${formatPrice(coordination.feeUsd)}, due when the pilot is booked. Your accepted terms remain on file.` : "Your previously accepted commercial terms remain on file; this page has no verified price to display."}</p>
         </div>
       ) : (
         <form className="ms-form" onSubmit={book}>
           <label className="ms-check-row">
             <input type="checkbox" checked={authorized} onChange={e => setAuthorized(e.target.checked)} required />
-            I am authorized to accept this proposal for my site. Blueprint beta coordination is free; any provider cost and physical commitment need their applicable agreement.
+            I am authorized to accept this proposal for my site. {BETA_FREE}
           </label>
           <button className="ms-button" disabled={state === "booking" || recommendation.reviewRequired}>
             {state === "booking" ? "Recording acceptance…" : "Accept proposal · coordinate dates"}

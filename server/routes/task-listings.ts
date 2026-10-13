@@ -18,6 +18,23 @@ import { decryptFieldValue } from "../utils/field-encryption";
 import { pilotRecommendationEventId } from "../utils/pilotRecommendationNotifications";
 import { projectCurrentSiteJobDecision } from "../utils/siteJobDecision";
 import { loadCurrentSiteAssessmentView } from "../utils/siteAssessmentPublic";
+import { prepareTeamPilotNotice } from "../utils/robotTeamPilotNotifications";
+import { alertOpsPilotBooked } from "../utils/pilotOpsAlerts";
+import { logger } from "../logger";
+import { projectEvidenceForSite } from "../utils/pilotRecommendationEvidence";
+
+/**
+ * The recommendation as the site sees it: the evaluation evidence without the
+ * team's checkpoint or run internals, plus a link to the job's results when
+ * the site has claimed an account that can open them.
+ */
+function recommendationForSite(requestId: string, record: Record<string, any> | undefined) {
+  const recommendation = record?.pilot_recommendation;
+  if (!recommendation) return null;
+  const { evidence, registryTeamIds: _registry, evaluationRunId: _run, recommendedBy: _by, ...visible } = recommendation;
+  const resultUrl = record?.account_owner_uid ? `/app/tasks/${encodeURIComponent(requestId)}` : null;
+  return { ...visible, evidence: projectEvidenceForSite(evidence, { resultUrl }) };
+}
 
 const router = Router();
 router.use(rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false }));
@@ -46,7 +63,7 @@ router.route("/owner/:token")
         draft: taskListingDraft(brief),
         listing: snap.data()?.public_task_listing ?? null,
         thumbnailPng: image.data()?.pngBase64 ?? null,
-        recommendation: snap.data()?.pilot_recommendation ?? null,
+        recommendation: recommendationForSite(res.locals.requestId, record),
         booking: snap.data()?.pilot_booking ?? null,
         coordination: projectPilotCoordination(snap.data()),
         decision: projectCurrentSiteJobDecision(record, brief, assessment.decisionAssessment, assessment.compatibleDecisionAssessments),
@@ -117,7 +134,10 @@ router.post("/owner/:token/book", async (req, res) => {
     const bookedAtIso = new Date().toISOString();
     const captureUrl = captureUploadUrlFor(token.requestId, "owner");
     const rows = new Map<string, ReturnType<typeof buildOutboxEntry>>();
+    const teamRows = new Map<string, OutboxEntry>();
+    let booked: { recommendationId: string; teamId: string } | null = null;
     const outcome = await store.runTransaction(async transaction => {
+      booked = null;
       const current = await transaction.get(ref);
       const record = current.data();
       const recommendation = record?.pilot_recommendation;
@@ -143,12 +163,19 @@ router.post("/owner/:token/book", async (req, res) => {
       }
       const reuseLegacy = legacy.exists && matches(legacy.data() as OutboxEntry, legacyKey);
       const existing = (reuseLegacy ? legacy.data() : intent.data()) as OutboxEntry | undefined;
+      // The recommended team hears the booking in the same commit. A retry
+      // repairs a missing team row without a second email.
+      const teamNotice = typeof recommendation.teamId === "string"
+        ? await prepareTeamPilotNotice(transaction, { kind: "team_pilot_booked", requestId: token.requestId, recommendation }, teamRows)
+        : null;
       // All reads precede writes. Confirmation failure rolls back a new
       // booking; a lost-response retry preserves its price, terms and date.
       if (!booking) transaction.update(ref, { pilot_booking: {
         recommendationId: recommendation.id, amountUsd: 0, termsVersion: TERMS_VERSION, commercialBasis: "invited_beta_free",
         acceptedAtIso: bookedAtIso, acceptedBy: "signed_owner_link", state: "awaiting_coordination",
       } });
+      if (!booking && typeof recommendation.teamId === "string") booked = { recommendationId: recommendation.id, teamId: recommendation.teamId };
+      teamNotice?.write(transaction);
       if (!existing) {
         // Old handlers still enqueue this key after their source write. Reserve
         // it atomically when free, including on fresh bookings: an old-handler
@@ -173,6 +200,10 @@ router.post("/owner/:token/book", async (req, res) => {
     if (outcome === "missing") return res.status(404).json({ error: "There is no pilot proposal to accept yet." });
     if (outcome === "stale") return res.status(409).json({ error: "This recommendation has changed. Reopen your job page to see the current one." });
     if (outcome === "contact_missing") return res.status(409).json({ error: "A valid site contact email is needed to confirm acceptance. Contact Blueprint to correct it." });
+    // Ops hears once that coordination is now Blueprint's to do. Ids only.
+    const newlyBooked = booked as { recommendationId: string; teamId: string } | null;
+    if (newlyBooked) void alertOpsPilotBooked({ requestId: token.requestId, ...newlyBooked })
+      .catch(error => logger.warn({ error, requestId: token.requestId }, "Pilot-booked ops alert failed"));
     return res.json({ ok: true, coordination: projectPilotCoordination((await ref.get()).data()) });
   } catch { return res.status(503).json({ error: "We could not confirm acceptance. Reopen your job page to check before retrying." }); }
 });

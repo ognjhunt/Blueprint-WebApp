@@ -265,9 +265,49 @@ export default function AdminRobotTeamAccess() {
   );
 }
 
-const proposalFields: Array<[string, string]> = [["purpose", "Job and pilot scope"], ["successCondition", "Measurable success condition"], ["exclusions", "Exclusions"], ["siteProvides", "Site responsibilities"], ["teamProvides", "Team responsibilities"], ["pilotCost", "Provider cost (Blueprint beta support is free)"], ["costBasis", "Quote source and cost basis"], ["window", "Proposed timing; never reserved by a proposal"], ["sitePreparation", "Site preparation to agree"], ["humanWork", "Human setup, supervision and safety work"], ["capabilityBasis", "Demonstrated evidence vs capability hypothesis"], ["providerCommitment", "Provider interest, availability and commitment evidence"], ["uncertainties", "Unknowns / one blocking question"], ["alternative", "Alternative, if useful"]];
+const proposalFields: Array<[string, string]> = [["purpose", "Job and pilot scope"], ["successCondition", "Measurable success condition"], ["exclusions", "Exclusions"], ["siteProvides", "Site responsibilities"], ["teamProvides", "Team responsibilities"], ["pilotCost", "Pilot cost, set by the robot team (Blueprint charges nothing during the beta)"], ["costBasis", "Quote source and cost basis"], ["window", "Proposed timing; never reserved by a proposal"], ["sitePreparation", "Site preparation to agree"], ["humanWork", "Human setup, supervision and safety work"], ["capabilityBasis", "Capability basis (leave blank to state the selected evaluation's evidence)"], ["providerCommitment", "Provider interest, availability and commitment evidence"], ["uncertainties", "Unknowns / one blocking question"], ["alternative", "Alternative, if useful"]];
+/** GET /api/admin/robot-teams/jobs/:requestId/evaluations, one row per run. */
+export type JobEvaluation = {
+  runId: string; resultId: string | null; state: string; teamId: string; teamName: string | null;
+  recommendedTeamId: string | null; recommendedTeamName: string | null;
+  episodesRun: number | null; episodesSucceeded: number | null; successRate: number | null;
+  confidenceBand: string | null; evidenceScope: "development_only" | "simulation" | null;
+  evaluatedAtIso: string | null; passed: boolean | null; recommendable: boolean;
+  refusals: Array<{ code: string; error: string }>; teamRefusal: { code: string; error: string } | null;
+};
+export type JobEvaluations = {
+  passMark: { successRate: number; source: "job_terms" | "site_task_brief" | "blueprint_default"; minimumEpisodes: number; cycleTimeSeconds: number | null };
+  boundary: string; consentWithdrawn: boolean; evaluations: JobEvaluation[];
+};
+const percent = (fraction: number) => `${Math.round(fraction * 1000) / 10}%`;
+const passMarkSource = { job_terms: "the site's confirmed target", site_task_brief: "the job brief", blueprint_default: "Blueprint's default; the job set none" } as const;
+
+/** Pick the passing evaluation a recommendation stands on; the team comes from the run. */
+export function EvaluationPicker({ evaluations, selected, onSelect }: {
+  evaluations: JobEvaluations | null; selected: string; onSelect: (evaluation: JobEvaluation) => void;
+}) {
+  if (!evaluations) return <p>Loading this job's evaluations…</p>;
+  return <fieldset aria-label="Evaluation evidence"><legend>Evaluation this recommendation stands on</legend>
+    <p className="ms-field-hint">Pass mark: {percent(evaluations.passMark.successRate)} of at least {evaluations.passMark.minimumEpisodes} episodes ({passMarkSource[evaluations.passMark.source]}){evaluations.passMark.cycleTimeSeconds !== null ? `; cycle time at most ${evaluations.passMark.cycleTimeSeconds}s` : ""}. {evaluations.boundary}</p>
+    {evaluations.consentWithdrawn && <p role="alert">The site withdrew recording permission; its evaluations cannot back a recommendation.</p>}
+    {!evaluations.evaluations.length && <p>No evaluation has run against this job yet. A recommendation needs a passing evaluation.</p>}
+    {evaluations.evaluations.map(evaluation => {
+      const result = evaluation.episodesRun ? `${evaluation.episodesSucceeded} of ${evaluation.episodesRun} ${evaluation.evidenceScope === "development_only" ? "development-simulation" : "simulated"} episodes succeeded` : `No result (${evaluation.state})`;
+      const why = [...evaluation.refusals.map(refusal => refusal.error), ...(evaluation.teamRefusal ? [evaluation.teamRefusal.error] : [])];
+      return <label key={evaluation.runId} className="ms-check-row">
+        <input type="radio" name="evaluationRunId" value={evaluation.runId} checked={selected === evaluation.runId}
+          disabled={!evaluation.recommendable} onChange={() => onSelect(evaluation)} />
+        <span><strong>{evaluation.recommendedTeamName ?? evaluation.teamName ?? evaluation.teamId}</strong> · {result}
+          {evaluation.confidenceBand ? ` · band ${evaluation.confidenceBand}` : ""} · {evaluation.passed === true ? "passes" : evaluation.passed === false ? "does not pass" : "not evaluated"} the pass mark
+          {why.length ? <span className="ms-field-hint" style={{ display: "block" }}>{why.join(" ")}</span> : null}</span>
+      </label>;
+    })}
+  </fieldset>;
+}
+
 function PilotProposalReview({ user }: { user: User | null }) {
   const [requestId, setRequestId] = useState("");
+  const [evaluations, setEvaluations] = useState<JobEvaluations | null>(null);
   const [loadedId, setLoadedId] = useState("");
   const [job, setJob] = useState<any>(null);
   const [plan, setPlan] = useState<Record<string, string>>({});
@@ -285,16 +325,22 @@ function PilotProposalReview({ user }: { user: User | null }) {
       // Bind edits to the job actually loaded, even if the lookup text changes.
       const response = await fetch(`/api/admin/robot-teams/recommendations/${encodeURIComponent(requestId.trim())}`, { headers: await withFirebaseAuthHeaders(user) });
       const result = await response.json(); if (!response.ok) throw new Error(result.error);
-      setJob(result); setLoadedId(requestId.trim()); setPlan({ ...result.draft, ...(result.recommendation ?? {}), teamId: result.recommendation?.teamId ?? "" });
+      setJob(result); setLoadedId(requestId.trim()); setEvaluations(null);
+      setPlan({ ...result.draft, ...(result.recommendation ?? {}), evaluationRunId: "", resultId: "", teamName: "" });
+      const listed = await fetch(`/api/admin/robot-teams/jobs/${encodeURIComponent(requestId.trim())}/evaluations`, { headers: await withFirebaseAuthHeaders(user) });
+      const evaluationsBody = await listed.json(); if (!listed.ok) throw new Error(evaluationsBody.error || "Evaluations unavailable");
+      setEvaluations(evaluationsBody);
       setDecision({ ...(result.decision ?? {}), questionText: result.decision?.question?.text ?? "", questionReason: result.decision?.question?.reason ?? "" });
     } catch (error) { setMessage(error instanceof Error ? error.message : "Job unavailable"); }
     finally { setBusy(false); }
   }
   async function propose(event: React.FormEvent) {
     event.preventDefault(); if (busy) return; setBusy(true); setMessage("");
-    try { const fields = Object.fromEntries(["teamId", ...proposalFields.map(([key]) => key)].map(key => [key, plan[key] ?? ""]));
-      const result = await request("", { ...fields, briefRevision: job.briefRevision }); setJob({ ...job, recommendation: { ...fields, id: result.id } });
-      setMessage("Proposal saved on the existing job. Its fixed transactional notice is queued; provider capacity and dates remain unconfirmed.");
+    try { if (!plan.evaluationRunId) throw new Error("Choose the passing evaluation this recommendation stands on.");
+      const fields = Object.fromEntries(proposalFields.map(([key]) => [key, plan[key] ?? ""]));
+      const result = await request("", { ...fields, evaluationRunId: plan.evaluationRunId, ...(plan.resultId ? { resultId: plan.resultId } : {}), briefRevision: job.briefRevision });
+      setJob({ ...job, recommendation: { ...fields, id: result.id, teamId: result.teamId, evaluationRunId: plan.evaluationRunId } });
+      setMessage(`Proposal saved on the existing job for ${plan.teamName || "the evaluated team"}. The site's and the robot team's notices are queued; provider capacity and dates remain unconfirmed.`);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Proposal unavailable"); } finally { setBusy(false); }
   }
   async function saveDecision(event: React.FormEvent) {
@@ -342,9 +388,12 @@ function PilotProposalReview({ user }: { user: User | null }) {
         <button className="ms-button" disabled={busy}>Save reviewed recommendation</button>
       </form>
       <JobCommunications key={loadedId} user={user} requestId={loadedId} />
-      <form onSubmit={propose} className="ms-form"><label>Admitted provider<select value={plan.teamId} onChange={event => setPlan({ ...plan, teamId: event.target.value })} required><option value="">Select a team; no automatic match</option>{job.teams.map((team: any) => <option key={team.id} value={team.id}>{team.name}</option>)}</select></label>
-        {proposalFields.map(([key, label]) => <label key={key}>{label}<textarea value={plan[key] ?? ""} required={!["alternative", "uncertainties"].includes(key)} maxLength={["pilotCost", "window"].includes(key) ? 120 : ["purpose", "siteProvides", "teamProvides", "uncertainties", "alternative"].includes(key) ? 400 : ["costBasis", "providerCommitment"].includes(key) ? 600 : 1000} onChange={event => setPlan({ ...plan, [key]: event.target.value })} /></label>)}
-        <button className="ms-button" disabled={busy || Boolean(job.coordination)}>Send reviewed proposal notice</button></form>
+      <form onSubmit={propose} className="ms-form" aria-label="Recommended pilot">
+        <EvaluationPicker evaluations={evaluations} selected={plan.evaluationRunId ?? ""}
+          onSelect={evaluation => setPlan({ ...plan, evaluationRunId: evaluation.runId, resultId: evaluation.resultId ?? "", teamName: evaluation.recommendedTeamName ?? "" })} />
+        {plan.evaluationRunId && <p role="note">Recommended team: {plan.teamName || "the evaluated team"} (from the selected evaluation; not chosen separately).</p>}
+        {proposalFields.map(([key, label]) => <label key={key}>{label}<textarea value={plan[key] ?? ""} required={!["alternative", "uncertainties", "capabilityBasis"].includes(key)} maxLength={["pilotCost", "window"].includes(key) ? 120 : ["purpose", "siteProvides", "teamProvides", "uncertainties", "alternative"].includes(key) ? 400 : ["costBasis", "providerCommitment"].includes(key) ? 600 : 1000} onChange={event => setPlan({ ...plan, [key]: event.target.value })} /></label>)}
+        <button className="ms-button" disabled={busy || Boolean(job.coordination) || !plan.evaluationRunId}>Send reviewed proposal notice</button></form>
       {job.recommendation?.reviewRequired && job.coordination && <details><summary>Reconcile the updated job with the accepted scope</summary><form onSubmit={reconcile} className="ms-form">
         {[["providerAgreedBy", "Provider representative"], ["providerEvidence", "Provider unchanged-scope agreement evidence URL"], ["siteAgreedBy", "Site representative"], ["siteEvidence", "Site unchanged-scope agreement evidence URL"]].map(([key, label]) => <label key={key}>{label}<input name={key} required type={key.endsWith("Evidence") ? "url" : "text"} /></label>)}
         <label className="ms-check-row"><input name="verified" type="checkbox" required />Both parties agreed the updated job is covered by the unchanged accepted scope, costs and terms. Any amendment needs separate applicable approval.</label><button className="ms-button" disabled={busy}>Record unchanged-scope reconciliation</button>

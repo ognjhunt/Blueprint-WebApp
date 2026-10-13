@@ -141,6 +141,12 @@ export interface RobotTeamRecord {
    */
   selfServeTeamIds?: string[] | null;
   /**
+   * On an intake row: the account-bound record the same team runs evaluations
+   * under, written when the intake arrived from that signed-in account (or a
+   * verified account email matched). A pointer only; see `robotTeamIdentity`.
+   */
+  canonicalTeamId?: string | null;
+  /**
    * The verified Blueprint account this team belongs to. Planning works
    * without one; funding, switching spend on and confirming runs do not.
    * Written once by `bindTeamToAccount` and never moved.

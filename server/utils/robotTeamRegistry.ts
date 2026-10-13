@@ -356,6 +356,12 @@ export async function upsertRobotTeamFromIntake(params: {
   spec: Record<string, string>;
   capabilityDescription?: string | null;
   evidenceBar?: string | null;
+  /**
+   * The signed-in account that submitted this intake, when it came through
+   * the workspace (a robot team asking to evaluate a job). Lets the intake
+   * row point at the account-bound team its runs are attributed to.
+   */
+  accountUid?: string | null;
 }): Promise<RobotTeamRecord | null> {
   if (!db) return null;
 
@@ -406,12 +412,50 @@ export async function upsertRobotTeamFromIntake(params: {
     updatedAt: nowIso(),
   };
 
+  // Point this intake row at the account-bound team that runs evaluations,
+  // so the team that is measured and the team that is recommended resolve to
+  // one identity. Pointers only, never a merge; an existing link is kept.
+  const priorCanonical = (existing as RobotTeamRecord).canonicalTeamId ?? null;
+  const canonicalTeamId = priorCanonical
+    ?? await findAccountTeamForIntake({ accountUid: params.accountUid ?? null, contactEmail: record.contactEmail ?? null })
+      .catch((error) => {
+        logger.warn({ robotTeamId: id, error }, "Robot-team identity linking failed; continuing unlinked");
+        return null;
+      });
+  if (canonicalTeamId && canonicalTeamId !== id) record.canonicalTeamId = canonicalTeamId;
+
   await writeRecord(record);
+  if (record.canonicalTeamId && !priorCanonical) {
+    await db
+      .collection(ROBOT_TEAMS_COLLECTION)
+      .doc(record.canonicalTeamId)
+      .set({ linkedIntakeTeamIds: admin.firestore.FieldValue.arrayUnion(id), updatedAt: nowIso() }, { merge: true })
+      .catch((error: unknown) => logger.warn({ robotTeamId: id, error }, "Could not write the account team's intake link"));
+  }
   logger.info(
-    { robotTeamId: id, requestId: params.requestId, changed },
+    { robotTeamId: id, requestId: params.requestId, changed, canonicalTeamId: record.canonicalTeamId ?? null },
     "Robot team registry updated from intake",
   );
   return record;
+}
+
+/**
+ * The single account-bound team an intake belongs to, or null.
+ *
+ * Only the signed-in account that submitted the intake can write the link.
+ * A public intake's contact email is typed, not verified, and a persistent
+ * pointer written from it would let anyone attach a row to someone else's
+ * team; such rows still resolve at read time by verified account email (see
+ * `robotTeamIdentity`), which writes nothing. More than one candidate links
+ * nothing.
+ */
+export async function findAccountTeamForIntake(params: {
+  accountUid: string | null;
+  contactEmail?: string | null;
+}): Promise<string | null> {
+  if (!db || !params.accountUid) return null;
+  const snapshot = await db.collection(ROBOT_TEAMS_COLLECTION).where("accountUid", "==", params.accountUid).limit(5).get();
+  return snapshot.docs.length === 1 ? snapshot.docs[0].id : null;
 }
 
 /* ------------------------------------------------------------- trigger 2 */
