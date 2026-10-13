@@ -1,9 +1,7 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import Capture from "@/pages/Capture";
 import CaptureAppPlaceholder from "@/pages/CaptureAppPlaceholder";
 import CaptureLaunchAccess from "@/pages/CaptureLaunchAccess";
-import CapturerSignUpFlow from "@/pages/CapturerSignUpFlow";
 import Login from "@/pages/Login";
 
 const launchStatusMock = vi.hoisted(() => ({
@@ -69,29 +67,6 @@ describe("Capturer access copy", () => {
     };
   });
 
-  it("renders an assignment-gated capturer path without invented public jobs or payout bands", () => {
-    render(<Capture />);
-
-    expect(
-      screen.getByRole("heading", { name: /Capture the job before the robot arrives/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Blueprint publishes assignments only after review/i)).toBeInTheDocument();
-    expect(screen.getByText(/Review first\. Assignment second\. Payout after QA\./i)).toBeInTheDocument();
-    expect(screen.getByText(/No public payout promises/i)).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Apply to capture/i })[0]).toHaveAttribute(
-      "href",
-      "/signup/capturer?source=capture",
-    );
-    expect(screen.getAllByRole("link", { name: /Check city status/i })[0]).toHaveAttribute(
-      "href",
-      "/capture-app/launch-access?role=capturer&source=capture",
-    );
-    expect(screen.queryByText(/Northfield Distribution Dock/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Commonwealth Pharmacy Supply Annex/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/mock capture jobs/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/\$300-\$700/i)).not.toBeInTheDocument();
-  });
-
   it("does not show default launch cities on the launch-access form when the API fails", () => {
     launchStatusMock.state = {
       data: null,
@@ -137,28 +112,6 @@ describe("Capturer access copy", () => {
     expect(screen.getAllByText(/approved assignments/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/public-area-only capture candidates/i)).toBeInTheDocument();
     expect(screen.queryByText(/\$40 average/i)).not.toBeInTheDocument();
-  });
-
-  it("keeps the capturer application simple and honest about review", async () => {
-    render(<CapturerSignUpFlow />);
-
-    expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Full name"), { target: { value: "Jordan Lee" } });
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "jordan@example.com" } });
-    fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "TestPassword123!" } });
-    fireEvent.change(screen.getByLabelText("Confirm password"), { target: { value: "TestPassword123!" } });
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-
-    expect(await screen.findByRole("heading", { name: "Your capture details" })).toBeInTheDocument();
-    expect(screen.getByText(/phone-first walkthrough work/i)).toBeInTheDocument();
-    expect(screen.getByText(/Submitting this application does not guarantee approval/i)).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: /payout eligibility requires an accepted capture after review/i })).not.toBeChecked();
-    expect(screen.getByRole("checkbox", { name: /Smartphone/i })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: /360 camera/i })).toBeInTheDocument();
-    expect(screen.queryByText(/\$40 average/i)).not.toBeInTheDocument();
-    const terms = screen.getByRole("checkbox", { name: /payout eligibility requires an accepted capture after review/i });
-    expect(terms).toHaveAccessibleName(/payout setup happens in your capturer account on the web/i);
-    expect(terms).not.toHaveAccessibleName(/payout setup happen in Blueprint Capture/i);
   });
 
   it("no longer sends anyone from the sign-in page to the retired capture app", async () => {

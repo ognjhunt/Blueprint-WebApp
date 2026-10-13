@@ -19,6 +19,11 @@ Disallow: /off-waitlist-signup
 Disallow: /capture-app
 Disallow: /world-models/*/start
 Disallow: /world-models/*/workspace
+Disallow: /claim/
+Disallow: /capture-upload/
+Disallow: /app/
+Disallow: /ops/
+Disallow: /internal/
 
 User-agent: OAI-SearchBot
 Allow: /
@@ -36,6 +41,11 @@ Disallow: /off-waitlist-signup
 Disallow: /capture-app
 Disallow: /world-models/*/start
 Disallow: /world-models/*/workspace
+Disallow: /claim/
+Disallow: /capture-upload/
+Disallow: /app/
+Disallow: /ops/
+Disallow: /internal/
 
 # Anthropic's search-index crawler. Same public-page policy as other search
 # crawlers so Claude can cite Blueprint's public buyer pages in answers.
@@ -55,6 +65,11 @@ Disallow: /off-waitlist-signup
 Disallow: /capture-app
 Disallow: /world-models/*/start
 Disallow: /world-models/*/workspace
+Disallow: /claim/
+Disallow: /capture-upload/
+Disallow: /app/
+Disallow: /ops/
+Disallow: /internal/
 
 # Perplexity's answer-engine crawler. Same public-page policy so Perplexity
 # can index and cite public buyer pages.
@@ -74,6 +89,11 @@ Disallow: /off-waitlist-signup
 Disallow: /capture-app
 Disallow: /world-models/*/start
 Disallow: /world-models/*/workspace
+Disallow: /claim/
+Disallow: /capture-upload/
+Disallow: /app/
+Disallow: /ops/
+Disallow: /internal/
 
 # User-triggered fetches are not the ChatGPT Search crawl signal, but public
 # pages should still be reachable when a user asks ChatGPT to inspect them.
@@ -93,6 +113,11 @@ Disallow: /off-waitlist-signup
 Disallow: /capture-app
 Disallow: /world-models/*/start
 Disallow: /world-models/*/workspace
+Disallow: /claim/
+Disallow: /capture-upload/
+Disallow: /app/
+Disallow: /ops/
+Disallow: /internal/
 
 # User-triggered fetches when someone asks Claude or Perplexity to inspect a
 # page directly; same public-page policy as ChatGPT-User.
@@ -112,6 +137,11 @@ Disallow: /off-waitlist-signup
 Disallow: /capture-app
 Disallow: /world-models/*/start
 Disallow: /world-models/*/workspace
+Disallow: /claim/
+Disallow: /capture-upload/
+Disallow: /app/
+Disallow: /ops/
+Disallow: /internal/
 
 User-agent: Perplexity-User
 Allow: /
@@ -129,6 +159,11 @@ Disallow: /off-waitlist-signup
 Disallow: /capture-app
 Disallow: /world-models/*/start
 Disallow: /world-models/*/workspace
+Disallow: /claim/
+Disallow: /capture-upload/
+Disallow: /app/
+Disallow: /ops/
+Disallow: /internal/
 
 # These controls are for AI training/grounding outside public search surfaces.
 # Keeping them disallowed preserves the search-vs-training distinction.
@@ -158,5 +193,10 @@ Disallow: /off-waitlist-signup
 Disallow: /capture-app
 Disallow: /world-models/*/start
 Disallow: /world-models/*/workspace
+Disallow: /claim/
+Disallow: /capture-upload/
+Disallow: /app/
+Disallow: /ops/
+Disallow: /internal/
 
 Sitemap: https://tryblueprint.io/sitemap.xml

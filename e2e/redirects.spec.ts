@@ -49,7 +49,35 @@ test("retired public offer URLs redirect to the single scoped run", async ({
   ]) {
     const response = await request.get(path, { maxRedirects: 0 });
     expect(response.status()).toBe(301);
-    expect(response.headers().location).toBe("/pricing");
+    expect(response.headers().location).toBe("/beta");
+  }
+});
+
+test("legacy proof, docs and help URLs reach their destination in one hop", async ({
+  request,
+}) => {
+  for (const [path, location] of [
+    ["/docs", "/#how-it-works"],
+    ["/case-studies", "/#how-it-works"],
+    ["/sample-evaluation", "/#how-it-works"],
+    ["/environments", "/#how-it-works"],
+    ["/help", "/contact/site-operator"],
+    ["/beta/capturer-guide", "/contact/site-operator"],
+  ]) {
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect(response.status(), path).toBe(301);
+    expect(response.headers().location, path).toBe(location);
+  }
+});
+
+test("private links and ops tooling are not indexable", async ({ request }) => {
+  for (const path of ["/claim/example-token", "/capture-upload/example-token", "/app/results/example", "/ops/task-evaluation-launches", "/internal/design-system", "/sign-in"]) {
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect(response.headers()["x-robots-tag"], path).toMatch(/noindex/);
+  }
+  const robots = await (await request.get("/robots.txt")).text();
+  for (const rule of ["Disallow: /claim/", "Disallow: /capture-upload/", "Disallow: /app/", "Disallow: /ops/", "Disallow: /internal/"]) {
+    expect(robots).toContain(rule);
   }
 });
 

@@ -30,7 +30,28 @@ describe("brand polish QA harness contract", () => {
     ).toEqual([]);
     const canonicalPaths = ["/how-it-works", "/beta", "/", "/contact/site-operator", "/contact/robot-team", "/privacy", "/terms"];
     expect(harness.publicQaRoutes.slice(0, canonicalPaths.length).map((route: { path: string }) => route.path)).toEqual(canonicalPaths);
-    for (const route of harness.publicQaRoutes) expect(canonicalPaths).toContain(route.canonicalPath);
+    const auditedPaths = [
+      ...canonicalPaths,
+      "/about",
+      "/sites",
+      `/sites/${harness.brandPolishSiteFixtureSlug}`,
+      "/beta/buyer-guide",
+      "/sign-in",
+      "/forgot-password",
+      "/this-page-does-not-exist",
+    ];
+    for (const route of harness.publicQaRoutes) expect(auditedPaths).toContain(route.canonicalPath);
+    for (const path of auditedPaths) {
+      expect(harness.publicQaRoutes.some((route: { path: string }) => route.path === path), path).toBe(true);
+    }
+    expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/signup")).toMatchObject({ canonicalPath: "/contact/site-operator" });
+    expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/this-page-does-not-exist")).toMatchObject({
+      acceptedStatuses: [404, 200], expectNoIndex: true, expectCanonical: false,
+    });
+    expect(harness.collectBannedCopyHits("Blueprint matches sites with robot teams on a marketplace for $2,500 or $99.")).toEqual([
+      "match wording", "marketplace", "$2,500 fee", "$99 entry",
+    ]);
+    expect(harness.collectBannedCopyHits("We recommend one team whose evaluation passed. Free during the beta.")).toEqual([]);
     expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/for-robot-teams")).toMatchObject({
       canonicalPath: "/contact/robot-team", expectedHeading: "Test your robot on real site jobs.",
     });
