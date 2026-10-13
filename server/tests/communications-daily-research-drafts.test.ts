@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from "vitest";
 import { dailyResearchDraftSelection, researchDraftDay } from "../agents/communications-daily-research-drafts";
-import { admitPublishedResearch, admitPublishedHypothesis } from "../agents/communications-intake";
+import { admitPublishedResearch, admitPublishedHypothesis, runCommunicationsContactRefresh } from "../agents/communications-intake";
+import { memoryFirestore } from "./fixtures/communications";
 
 // Synthetic selection only; this cannot establish research/QA/contact eligibility.
 const NOW=Date.parse("2026-10-13T00:30:00Z"),DAY="2026-10-12",SHA="a".repeat(64),SLICE="b".repeat(64),SITE="c".repeat(64);
@@ -51,5 +52,16 @@ describe("native daily draft selection boundary",()=>{
     const assertCurrent=vi.fn(async()=>undefined),deps:any={db,now:()=>NOW,dailySelection:{date:DAY,candidateKeys:["selected"],assertCurrent}};
     await expect(admit({row:{date:wrong==="date"?"2026-10-11":DAY}},wrong==="key"?"unrelated":"selected",deps)).rejects.toThrow("communications_daily_selection_changed");
     expect(db.doc).not.toHaveBeenCalled();expect(db.runTransaction).not.toHaveBeenCalled();expect(assertCurrent).not.toHaveBeenCalled();
+  });
+  for(const changed of ["packetDigest","rawArtifactDigest","runKey","screenAdmissionId"])it(`leaves a same-day/key refresh request with changed ${changed} untouched`,async()=>{
+    const db=memoryFirestore(),path="blueprintCommunications/default/refreshRequests/stale-selected";
+    const request:any={date:DAY,runKey:`blueprint-researcher:${DAY}`,candidateKey:"selected",packetDigest:SHA,rawArtifactDigest:SHA,
+      kind:"public_contact_resolution",state:"pending",attempts:0};
+    request[changed]=changed==="runKey"?"blueprint-site-screen:other":SLICE;db.records.set(path,structuredClone(request));
+    const readResearch=vi.fn(async()=>{throw Error("unexpected source read");}),readContactPage=vi.fn(async()=>{throw Error("unexpected provider request");});
+    await runCommunicationsContactRefresh({db,now:()=>NOW,isSuppressed:vi.fn(async()=>false),readResearch,readContactPage,
+      dailySelection:{date:DAY,runKey:`blueprint-researcher:${DAY}`,packetDigest:SHA,rawArtifactDigest:SHA,
+        candidateKeys:["selected"],assertCurrent:async()=>undefined}} as any);
+    expect(db.records.get(path)).toEqual(request);expect(readResearch).not.toHaveBeenCalled();expect(readContactPage).not.toHaveBeenCalled();
   });
 });

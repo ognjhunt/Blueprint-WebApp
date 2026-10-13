@@ -24,10 +24,14 @@ export type IntakeDependencies = { db: FirebaseFirestore.Firestore; readResearch
   isSuppressed: (email: string) => Promise<boolean>; now: () => number; readContactPage?: ContactPageReader;
   requestContactResearch?: (source: any, prospectId: string, reason: string) => Promise<boolean>;
   readContactDiscovery?: (source: any, prospectId: string) => Promise<ContactDiscovery | null>;
-  dailySelection?: { date: string; candidateKeys: string[]; assertCurrent: () => Promise<void> } };
+  dailySelection?: { date: string; runKey: string; packetDigest: string; rawArtifactDigest: string;
+    candidateKeys: string[]; assertCurrent: () => Promise<void> } };
 const selectedDailySource = (deps: IntakeDependencies, source: any, candidateKey: string) => !deps.dailySelection
   || source?.date === deps.dailySelection.date && !source?.admissionId && !source?.admission_id
-    && deps.dailySelection.candidateKeys.includes(candidateKey);
+    && !source?.screenAdmissionId && !source?.screen_admission_id && deps.dailySelection.candidateKeys.includes(candidateKey)
+    && communicationsDigest(sourceIdentity(source,candidateKey)) === communicationsDigest({date:deps.dailySelection.date,
+      runKey:deps.dailySelection.runKey,candidateKey,packetDigest:deps.dailySelection.packetDigest,
+      rawArtifactDigest:deps.dailySelection.rawArtifactDigest});
 export const bindingKey = (source: any) => communicationsDigest(source.admissionId
   ? { sourceRecordId: source.sheetsProspectId } : { sheetsId: source.sheetsId, sheetsProspectId: source.sheetsProspectId });
 const sourceIdentity = (row: any, candidateKey: string) => ({ date: row.date ?? null, runKey: row.run_key ?? row.runKey ?? null, candidateKey,

@@ -85,7 +85,8 @@ export async function runDailyResearchDrafts(db: FirebaseFirestore.Firestore, de
     else fail();
   }
   const intake: IntakeDependencies = { db, readResearch:deps.readResearch, isSuppressed:deps.isSuppressed, now:deps.now,
-    ...contactPorts, dailySelection:{date:day,candidateKeys:selection.candidateKeys,assertCurrent} };
+    ...contactPorts, dailySelection:{date:day,runKey:`blueprint-researcher:${day}`,packetDigest:selection.packetDigest,
+      rawArtifactDigest:selection.rawDigest,candidateKeys:selection.candidateKeys,assertCurrent} };
   const admit = (key: string) => snapshot.row.review.accepted_keys.includes(key)
     ? admitPublishedResearch(snapshot,key,intake) : admitPublishedHypothesis(snapshot,key,intake);
   for (const key of selection.candidateKeys) { await assertCurrent(); await admit(key); }
