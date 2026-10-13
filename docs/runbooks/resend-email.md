@@ -95,3 +95,19 @@ not an automated outbound transport.
   against the provider-verified default sender. A subsequent CI-gated deploy
   applies this saved environment to the running process. Verify that deploy
   before claiming the runtime environment is clean.
+
+## Sending volume and upgrade (free beta)
+
+The account is on Resend's free plan, which caps sending (100 emails/day and
+3,000/month at the time of writing; confirm on Resend's pricing page). Every
+new site sends roughly one task-received/confirmation email plus one link-only
+ops notice at intake, then 3–6 lifecycle and status emails over the following
+weeks; robot-team result and new-task emails add to that. Expect the daily cap
+at about 15–20 new sites per day.
+
+- A quota rejection is logged as `email_quota_exhausted` at `error` and posts a
+  rate-limited Slack alert (`server/utils/email.ts`).
+- Upgrade path: Resend dashboard → Billing → Pro. The API key, sending domain
+  and webhook are unchanged, so no deploy is needed.
+- Upgrade before a launch push, or when monthly usage passes ~70 %, rather than
+  after customer emails start failing. See `docs/runbooks/beta-monitoring.md`.

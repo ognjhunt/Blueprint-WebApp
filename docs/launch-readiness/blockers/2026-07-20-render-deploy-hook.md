@@ -26,6 +26,17 @@ production deploy owner.
 Rotate the API key that was exposed in chat, replace the GitHub secret, and
 re-prove authenticated access without printing the replacement value. This is
 a credential-containment task, not an open deployment-ownership blocker.
+As of 2026-10-13 it is still open and is tracked, with step-by-step founder
+instructions, in `2026-07-20-provider-credential-rotation.md` (row 4).
+
+## Later Change (2026-10-13)
+
+Render's own health check moved from `/health/ready` to `/health` (liveness)
+in `render.yaml`, and the web service plan from `free` to `starter`. The
+deploy workflow still verifies `/version.json`, `/health` and `/health/ready`
+after every deploy, so readiness remains a release gate. A dashboard-created
+service must have both settings changed in the Render dashboard; see
+`docs/runbooks/beta-monitoring.md`.
 
 ## Risk
 

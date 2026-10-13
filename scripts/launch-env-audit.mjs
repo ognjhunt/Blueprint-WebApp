@@ -140,7 +140,10 @@ const checks = [
     ],
   },
   {
-    label: "Autonomous alpha lane enables",
+    // Free beta: autonomous lanes default OFF (=0) and are switched on one at a
+    // time by the founder. The audit only requires an explicit decision, so an
+    // unset lane cannot be silently enabled by BLUEPRINT_ALL_AUTOMATION_ENABLED.
+    label: "Autonomous lane switches set explicitly (0 or 1)",
     ok: [
       "BLUEPRINT_WAITLIST_AUTOMATION_ENABLED",
       "BLUEPRINT_INBOUND_AUTOMATION_ENABLED",
@@ -151,17 +154,17 @@ const checks = [
       "BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED",
       "BLUEPRINT_CREATIVE_FACTORY_ENABLED",
       "BLUEPRINT_BUYER_LIFECYCLE_ENABLED",
-    ].every((key) => isTruthy(process.env[key])),
+    ].every((key) => String(process.env[key] ?? "").trim().length > 0),
     required: [
-      "BLUEPRINT_WAITLIST_AUTOMATION_ENABLED=1",
-      "BLUEPRINT_INBOUND_AUTOMATION_ENABLED=1",
-      "BLUEPRINT_SUPPORT_TRIAGE_ENABLED=1",
-      "BLUEPRINT_PAYOUT_TRIAGE_ENABLED=1",
-      "BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED=1",
-      "BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED=1",
-      "BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED=1",
-      "BLUEPRINT_CREATIVE_FACTORY_ENABLED=1",
-      "BLUEPRINT_BUYER_LIFECYCLE_ENABLED=1",
+      "BLUEPRINT_WAITLIST_AUTOMATION_ENABLED=0|1",
+      "BLUEPRINT_INBOUND_AUTOMATION_ENABLED=0|1",
+      "BLUEPRINT_SUPPORT_TRIAGE_ENABLED=0|1",
+      "BLUEPRINT_PAYOUT_TRIAGE_ENABLED=0|1",
+      "BLUEPRINT_PREVIEW_DIAGNOSIS_ENABLED=0|1",
+      "BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED=0|1",
+      "BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED=0|1",
+      "BLUEPRINT_CREATIVE_FACTORY_ENABLED=0|1",
+      "BLUEPRINT_BUYER_LIFECYCLE_ENABLED=0|1",
     ],
   },
   {

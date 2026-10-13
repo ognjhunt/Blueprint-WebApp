@@ -14,6 +14,15 @@ export function releaseScope(files) {
   const targetedCode = /^(server\/(utils|agents)\/.+\.ts|client\/src\/lib\/.+\.ts|server\/routes\/client-runtime-config\.ts|server\/tests\/.+\.test\.ts|client\/tests\/lib\/.+\.test\.ts)$/;
   return files.every(file => targetedCode.test(file) || content.test(file)) ? 'code' : 'full';
 }
+// Public-surface copy contracts (brand-polish route table, pricing copy) must
+// run whenever anything that can change public copy changes, even when the
+// release scope is narrower than `full` (e.g. client/src/lib/evaluationPricing.ts
+// or a content-only data edit). An empty or unknown base fails closed to true.
+export function publicSurfaceTouched(files) {
+  if (!files.length) return true;
+  const publicSurface = /^(client\/src\/|e2e\/|server\/routes\/site-content\.ts$|scripts\/qa\/)/;
+  return files.some(file => publicSurface.test(file));
+}
 export function changedFiles(base) {
   execFileSync('git', ['rev-parse', '--verify', `${base}^{commit}`]);
   return execFileSync('git', ['diff', '--name-only', '-z', base, 'HEAD'], {encoding:'utf8'})
@@ -27,8 +36,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const scope = files.some(file => !existsSync(file)) ? 'full' : releaseScope(files);
   if (mode === 'scope') {
     if (!process.env.GITHUB_OUTPUT) throw Error('github_output_missing');
-    appendFileSync(process.env.GITHUB_OUTPUT, `scope=${scope}\n`);
-    console.log(JSON.stringify({scope, changedFiles:files.length}));
+    const publicSurface = publicSurfaceTouched(files);
+    appendFileSync(process.env.GITHUB_OUTPUT, `scope=${scope}\npublic_surface=${publicSurface}\n`);
+    console.log(JSON.stringify({scope, publicSurface, changedFiles:files.length}));
   } else if (mode === 'test') {
     const start = Date.now();
     if (scope === 'full') execFileSync('npm', ['run','test:coverage'], {stdio:'inherit'});

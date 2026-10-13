@@ -6,6 +6,25 @@ Choose and configure production beta capacity limits
 
 `human-blocker:webapp-production-beta-capacity-2026-07-20`
 
+## Status (2026-10-13)
+
+**Resolved; kept for history.** The later blocker records show production
+`/health/ready` returning 200: `2026-07-20-publish-and-history-rewrite.md`
+(PR #418 merge `41e17825f8716efa91a9dfc99f5329ad0544a02f` live, `/health` and
+`/health/ready` both 200) and `2026-07-20-render-deploy-hook.md` (deploy of
+`1cf156f2e38127c3b2a38727232c7c7451d6646e`, `/health/ready` 200 with
+`blocker_count: 0`). Readiness fails closed without positive beta caps, so a
+200 with zero blockers means both caps were set to positive values. The exact
+values were not recorded here and should not be inferred.
+
+Note for the free open beta: the caps still bound intake. If sites start
+hitting them, raise `BLUEPRINT_BETA_INVITE_CAP` and
+`BLUEPRINT_BETA_COHORT_DAILY_LIMIT` in Render rather than removing them.
+Readiness now also blocks on Slack, Resend, Redis and the Stripe queue
+consumer in production; see `docs/runbooks/beta-monitoring.md`.
+
+The sections below are the original 2026-07-20 request.
+
 ## Why This Is Blocked
 
 Production is healthy at `/health` but returns HTTP 503 from `/health/ready`
