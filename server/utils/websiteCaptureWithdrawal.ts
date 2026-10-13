@@ -6,6 +6,106 @@ import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { signedCaptureLifecycleRequest } from "./captureLifecycleForwarding";
 import { logger } from "../logger";
 
+/** The explicit confirmation the signed owner link must send to withdraw. */
+export const OWNER_WITHDRAWAL_CONFIRMATION = "withdraw_recording_permission" as const;
+
+/** WebApp-owned storage deletion progress for one withdrawal. */
+export type WebappDeletionPhase = "pending" | "awaiting_late_upload_sweep" | "deleted";
+
+/**
+ * The one place the WebApp's withdrawal state is derived.
+ *
+ * The forwarder (Pipeline acknowledgement) and the deletion worker (WebApp
+ * storage) each write their own facts; both re-derive `state` and
+ * `deletionConfirmed` from those facts, so neither can overwrite the other's
+ * progress. `deletionConfirmed` is true only once the WebApp deletion receipt
+ * covers every owned object, including uploads that could still land on an
+ * outstanding native target, AND Pipeline acknowledged the tombstone, AND no
+ * legal hold applies. Pipeline-side cleanup of its own copies is reported
+ * separately and never inferred.
+ */
+export function deriveWebsiteWithdrawalState(withdrawal: Record<string, any>): {
+  state: string; deletionConfirmed: boolean;
+} {
+  const phase = withdrawal?.webappDeletion?.phase as WebappDeletionPhase | undefined;
+  if (withdrawal?.legalHold === true) return { state: phase === "deleted" || phase === "awaiting_late_upload_sweep"
+    ? "storage_deleted_pipeline_legal_hold" : "cleanup_retained_legal_hold", deletionConfirmed: false };
+  if (phase === "deleted") return withdrawal.pipelineAcknowledged === true
+    ? { state: "deletion_confirmed", deletionConfirmed: true }
+    : { state: "storage_deleted_pipeline_ack_pending", deletionConfirmed: false };
+  if (phase === "awaiting_late_upload_sweep") return { state: "storage_deleted_late_upload_check_pending", deletionConfirmed: false };
+  return { state: withdrawal?.pipelineAcknowledged === true
+    ? String(withdrawal.pipelineState || "pipeline_acknowledged_cleanup_pending")
+    : "uploads_stopped_cleanup_pending", deletionConfirmed: false };
+}
+
+/** What a withdrawal route reports. Every value is a recorded fact. */
+export function projectWebsiteCaptureWithdrawal(withdrawal: Record<string, any>) {
+  const derived = deriveWebsiteWithdrawalState(withdrawal);
+  const deletion = withdrawal?.webappDeletion || {};
+  return {
+    state: derived.state,
+    requestedAtIso: withdrawal.requestedAtIso ?? null,
+    uploadsStopped: true,
+    taskPaused: true,
+    queuedRunsCancellationRequested: true,
+    pipelineAcknowledged: withdrawal.pipelineAcknowledged === true,
+    pipelineAcknowledgementTimedOut: deletion.pipelineAckState === "pending_after_timeout",
+    pipelineCleanupVerified: withdrawal.localCleanupVerified === true && withdrawal.cloudObjectAbsenceVerified === true,
+    storageDeletion: {
+      state: deletion.phase === "deleted" ? "deleted"
+        : deletion.phase === "awaiting_late_upload_sweep" ? "deleted_late_upload_check_pending"
+          : deletion.lastError ? "retrying" : "pending",
+      deletedObjectCount: Number(deletion.deletedObjectCount || 0),
+      failedObjectCount: Number(deletion.failedObjectCount || 0),
+      lateUploadCheckAtIso: deletion.lateSweepAtMs ? new Date(deletion.lateSweepAtMs).toISOString() : null,
+      completedAtIso: deletion.completedAtIso ?? null,
+      receiptIds: Array.isArray(deletion.receiptIds) ? deletion.receiptIds : [],
+    },
+    deletionConfirmed: derived.deletionConfirmed,
+    legalHold: withdrawal.legalHold === true,
+    retainedAuditRecords: true,
+  };
+}
+
+/**
+ * The one withdrawal effect, shared by the account route and the signed owner
+ * link so their semantics cannot drift: consent revoked, uploads stop, the
+ * task pauses, pending reviews stop, queued runs are asked to cancel, and a
+ * durable record queues the Pipeline handoff and WebApp storage deletion.
+ * Idempotent: a repeated call returns the first withdrawal unchanged.
+ */
+export async function recordWebsiteCaptureWithdrawal(params: {
+  requestId: string;
+  requestedBy: string;
+  authorize: (record: Record<string, any> | undefined) => void;
+}): Promise<{ withdrawal: Record<string, any>; created: boolean }> {
+  if (!db) throw Object.assign(new Error("Withdrawal storage is unavailable."), { status: 503 });
+  const ref = db.collection("inboundRequests").doc(params.requestId);
+  return db.runTransaction(async transaction => {
+    const record = (await transaction.get(ref)).data();
+    const runs = await transaction.get(db!.collection("evaluationRuns").where("sceneId", "==", params.requestId));
+    params.authorize(record);
+    if (record?.capture_withdrawal) return { withdrawal: record.capture_withdrawal, created: false };
+    const withdrawal = { state: "uploads_stopped_cleanup_pending", requestedAtIso: new Date().toISOString(),
+      requestedBy: params.requestedBy, requestId: params.requestId,
+      sceneId: `site-${params.requestId}`, captureId: `walkthrough-${params.requestId}`,
+      deletionConfirmed: false, pipelineAcknowledged: false, localCleanupVerified: false,
+      providerAcknowledgement: "unknown", retainedAuditRecords: true,
+      webappDeletion: { phase: "pending", attempts: 0, nextAttemptAtMs: 0, leaseUntilMs: 0 } };
+    transaction.set(ref, { consent_revoked: true, future_processing_allowed: false,
+      request: { consent_attestation: { granted: false, revoked_at_iso: withdrawal.requestedAtIso } },
+      workspace_task: { paused: true }, briefReviewPending: false,
+      capture_coverage_pending: false, coverageReviewPending: false,
+      capture_withdrawal: withdrawal, captureWithdrawalPending: true, captureDeletionPending: true }, { merge: true });
+    for (const run of runs.docs) if (run.data().state === "requested") transaction.set(run.ref, {
+      cancellationRequested: true, dispatchPending: false,
+      cancellationReason: "site_recording_consent_withdrawn", settlementDueAtMs: 0,
+    }, { merge: true });
+    return { withdrawal, created: true };
+  });
+}
+
 export function websiteWithdrawalCommand(requestId: string, receipt: Record<string, any>) {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(requestId)
     || receipt.requestId !== requestId || receipt.sceneId !== `site-${requestId}`
@@ -81,7 +181,7 @@ export async function forwardWebsiteCaptureWithdrawals() {
         const record = (await tx.get(snapshot.ref)).data();
         if (record?.captureWithdrawalOutbox?.lease !== lease
           || canonicalArtifactDigest(websiteWithdrawalCommand(snapshot.id, record.capture_withdrawal), "digest") !== canonicalArtifactDigest(command, "digest")) return;
-        const progress = receipt ? { state: receipt.state, pipelineAcknowledged: true, deletionConfirmed: false,
+        const progress = receipt ? { pipelineState: receipt.state, pipelineAcknowledged: true,
           acknowledgementBlocker: null,
           localCleanupVerified: receipt.local_cleanup_verified, localCleanupReceiptDigest: receipt.local_cleanup_receipt_digest,
           providerAcknowledgement: receipt.provider_acknowledgement, cloudStorageCleanupVerified: false,
@@ -92,7 +192,10 @@ export async function forwardWebsiteCaptureWithdrawals() {
           deliveredCopyCleanupVerified: false, retainedAuditRecords: true, legalHold: receipt.legal_hold,
           pipelineReceiptDigest: receipt.digest, pipelineTombstoneDigest: receipt.tombstone_digest,
           lastAcknowledgedAtIso: new Date().toISOString() } : { acknowledgementBlocker: result.blocker ?? "website_withdrawal_receipt_invalid" };
-        tx.set(snapshot.ref, { capture_withdrawal: { ...record.capture_withdrawal, ...progress }, captureWithdrawalPending: true,
+        // State and deletionConfirmed are derived, so this acknowledgement
+        // cannot regress WebApp deletion progress recorded by the other worker.
+        const next = { ...record.capture_withdrawal, ...progress };
+        tx.set(snapshot.ref, { capture_withdrawal: { ...next, ...deriveWebsiteWithdrawalState(next) }, captureWithdrawalPending: true,
           captureWithdrawalOutbox: { lease: null, leaseUntilMs: 0, nextAttemptAtMs: Date.now() + (receipt ? 3_600_000 : 60_000),
             lastTransportStatus: result.status } }, { merge: true });
       });

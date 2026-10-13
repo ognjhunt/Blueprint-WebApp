@@ -416,7 +416,9 @@ export default function TaskDetail() {
                   {linkState === "working" ? "Opening…" : "Add or review footage"}
                 </button>
               )}
-              {task.recordingPermissionWithdrawn ? <p role="status">Recording permission withdrawn. New uploads and queued evaluations are stopped. Pipeline acknowledgement and data cleanup are pending.</p> : <details className="mt-4">
+              {task.recordingPermissionWithdrawn ? <p role="status">{task.recordingWithdrawalStatus === "deletion_confirmed"
+                ? "Recording permission withdrawn. Your stored footage has been deleted. Results already produced may be retained as described in our Terms."
+                : "Recording permission withdrawn. New uploads and queued evaluations are stopped. Deletion of stored footage is in progress."}</p> : <details className="mt-4">
                 <summary>Withdraw recording permission</summary>
                 <p>This stops new uploads and requests cancellation of queued evaluations. Blueprint must confirm pipeline processing has stopped and data cleanup is complete.</p>
                 <button type="button" className="ws-link" disabled={action.pending}

@@ -4,6 +4,8 @@ import { Readable } from "node:stream";
 import type { Request, Response } from "express";
 import { artifactResponseIntegrity, parseResultArtifactRange, ResultArtifactIntegrityStream,
   type ResultArtifactMetadata } from "./taskEvaluationArtifactIntegrity";
+import { resolveTaskEvaluationLaunchUrl } from "./taskEvaluationLaunchContract";
+import { logger } from "../logger";
 
 export const ARTIFACT_ORIGIN_HEADER_TIMEOUT_MS = 15_000;
 export const ARTIFACT_ORIGIN_IDLE_TIMEOUT_MS = 30_000;
@@ -12,33 +14,111 @@ async function cancelBody(response: globalThis.Response) {
   try { await response.body?.cancel(); } catch { /* The origin may already have disconnected. */ }
 }
 
-export function configuredArtifactEndpoint(runId: string, artifactId: string) {
+/** The exact reasons a registry read can be unavailable. Names, never secrets. */
+export type ArtifactRegistryUnavailableReason =
+  | "artifact_registry_template_invalid"
+  | "artifact_registry_endpoint_not_configured"
+  | "artifact_registry_signing_token_not_configured"
+  | "artifact_registry_timeout"
+  | "artifact_registry_redirect_refused"
+  | "artifact_registry_unreachable"
+  | "artifact_registry_credentials_rejected"
+  | "artifact_registry_origin_error"
+  | "artifact_registry_empty_response"
+  | "artifact_registry_digest_header_missing"
+  | "artifact_registry_digest_mismatch"
+  | "artifact_registry_range_or_size_mismatch";
+
+type EndpointSource = "artifact_url_template" | "run_execute_url" | "launch_url" | "job_request_forward_url";
+
+/**
+ * Where the per-run artifact registry lives, in precedence order:
+ * TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE (must name both {run_id} and
+ * {artifact_id}); TASK_EVALUATION_RUN_EXECUTE_URL ending in /execute; the
+ * canonical launch URL, which, exactly as launches resolve it, falls back to
+ * the canonical ROBOT_EVAL_JOB_REQUEST_FORWARD_URL. Previously only an
+ * explicit TASK_EVALUATION_LAUNCH_URL counted, so a deployment that launched
+ * through the job-request URL (the documented production default) could
+ * launch runs but never read their artifacts, and every ticket probe answered
+ * 503 "Result artifact registry is unavailable".
+ */
+function resolveArtifactEndpoint(runId: string, artifactId: string): {
+  endpoint: string; source: EndpointSource | null; issue: ArtifactRegistryUnavailableReason | null;
+} {
+  const run = encodeURIComponent(runId), artifact = encodeURIComponent(artifactId);
   const template = String(process.env.TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE || "").trim();
   if (template) {
-    return template
-      .replace("{run_id}", encodeURIComponent(runId))
-      .replace("{artifact_id}", encodeURIComponent(artifactId));
+    // A template without both placeholders would send every artifact to one URL.
+    if (!template.includes("{run_id}") || !template.includes("{artifact_id}")) {
+      return { endpoint: "", source: null, issue: "artifact_registry_template_invalid" };
+    }
+    return { endpoint: template.replace("{run_id}", run).replace("{artifact_id}", artifact),
+      source: "artifact_url_template", issue: null };
   }
-  const executeUrl = String(process.env.TASK_EVALUATION_RUN_EXECUTE_URL || "").trim();
-  if (executeUrl) {
-    return executeUrl
-      .replace("{run_id}", encodeURIComponent(runId))
-      .replace(/\/execute\/?$/, `/artifacts/${encodeURIComponent(artifactId)}`);
+  const executeUrl = String(process.env.TASK_EVALUATION_RUN_EXECUTE_URL || "").trim().replace("{run_id}", run);
+  if (/\/execute\/?$/.test(executeUrl)) {
+    return { endpoint: executeUrl.replace(/\/execute\/?$/, `/artifacts/${artifact}`), source: "run_execute_url", issue: null };
   }
-  const launchUrl = String(process.env.TASK_EVALUATION_LAUNCH_URL || "").trim();
-  if (!/\/task-evaluation-launches\/?$/.test(launchUrl)) return "";
-  return launchUrl.replace(
-    /\/task-evaluation-launches\/?$/,
-    `/task-evaluation-runs/${encodeURIComponent(runId)}/artifacts/${encodeURIComponent(artifactId)}`,
-  );
+  const explicitLaunch = String(process.env.TASK_EVALUATION_LAUNCH_URL || "").trim();
+  const launchUrl = resolveTaskEvaluationLaunchUrl();
+  if (/\/task-evaluation-launches\/?$/.test(launchUrl)) {
+    return { endpoint: launchUrl.replace(/\/task-evaluation-launches\/?$/, `/task-evaluation-runs/${run}/artifacts/${artifact}`),
+      source: explicitLaunch ? "launch_url" : "job_request_forward_url", issue: null };
+  }
+  return { endpoint: "", source: null, issue: "artifact_registry_endpoint_not_configured" };
 }
 
-export function signedPipelineHeaders(body = "") {
-  const token = String(
+export function configuredArtifactEndpoint(runId: string, artifactId: string) {
+  return resolveArtifactEndpoint(runId, artifactId).endpoint;
+}
+
+function signingToken() {
+  return String(
     process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN
       || process.env.TASK_EVALUATION_RUN_FORWARD_TOKEN
       || "",
   ).trim();
+}
+
+const MISSING_CONFIG: Partial<Record<ArtifactRegistryUnavailableReason, string>> = {
+  artifact_registry_template_invalid:
+    "TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE (must contain {run_id} and {artifact_id})",
+  artifact_registry_endpoint_not_configured:
+    "TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE, or TASK_EVALUATION_LAUNCH_URL ending in /task-evaluation-launches, or ROBOT_EVAL_JOB_REQUEST_FORWARD_URL ending in /api/live-pipeline/job-requests",
+  artifact_registry_signing_token_not_configured:
+    "ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN (or TASK_EVALUATION_RUN_FORWARD_TOKEN)",
+};
+
+/** What the running service is configured to use for result artifacts. */
+export function describeResultArtifactRegistryConfig() {
+  const endpoint = resolveArtifactEndpoint("{run_id}", "{artifact_id}");
+  const issues: ArtifactRegistryUnavailableReason[] = [];
+  if (endpoint.issue) issues.push(endpoint.issue);
+  if (!signingToken()) issues.push("artifact_registry_signing_token_not_configured");
+  const ticketSecretConfigured = Boolean(String(process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET || "").trim());
+  const missing = [...issues.map(issue => MISSING_CONFIG[issue]!).filter(Boolean),
+    ...(ticketSecretConfigured ? [] : ["TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET"])];
+  let host: string | null = null;
+  try { host = endpoint.endpoint ? new URL(endpoint.endpoint).host : null; } catch { host = null; }
+  return {
+    ready: missing.length === 0,
+    endpointSource: endpoint.source,
+    endpointHost: host,
+    issues,
+    ticketSecretConfigured,
+    missing,
+    detail: missing.length === 0
+      ? `Result artifact registry endpoint (${endpoint.source}), signing token and download ticket secret are configured. Reachability is checked per request.`
+      : `Result videos and downloads cannot be served: missing ${missing.join("; ")}.`,
+  };
+}
+
+export function artifactRegistryMissingConfig(reason: ArtifactRegistryUnavailableReason) {
+  return MISSING_CONFIG[reason] ?? null;
+}
+
+export function signedPipelineHeaders(body = "") {
+  const token = signingToken();
   if (!token) return null;
   const clientId = String(
     process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_CLIENT_ID
@@ -65,15 +145,42 @@ type ArtifactProbeParameters = {
   signal?: AbortSignal;
 };
 type ArtifactProbeResult = { status: "admitted"; metadata: ResultArtifactMetadata | null }
-  | { status: "not_found" | "unavailable" };
+  | { status: "not_found" }
+  | { status: "unavailable"; reason?: ArtifactRegistryUnavailableReason; httpStatus?: number; missingConfig?: string };
+
+function unavailable(params: ArtifactProbeParameters, reason: ArtifactRegistryUnavailableReason, httpStatus?: number): ArtifactProbeResult {
+  // Name the exact missing item or origin behaviour; never the URL or token.
+  const missingConfig = artifactRegistryMissingConfig(reason);
+  logger.warn({ runId: params.runId, artifactId: params.artifactId, code: reason, httpStatus: httpStatus ?? null,
+    missingConfig }, "Result artifact registry is unavailable");
+  return { status: "unavailable", reason, ...(httpStatus === undefined ? {} : { httpStatus }),
+    ...(missingConfig ? { missingConfig } : {}) };
+}
+
+function integrityFailure(response: Pick<globalThis.Response, "headers">, expected?: ResultArtifactMetadata): ArtifactRegistryUnavailableReason {
+  const digest = response.headers.get("x-blueprint-artifact-sha256") || "";
+  if (!/^sha256:[0-9a-f]{64}$/.test(digest)) return "artifact_registry_digest_header_missing";
+  if (expected && expected.sha256 !== digest) return "artifact_registry_digest_mismatch";
+  return "artifact_registry_range_or_size_mismatch";
+}
+
+function fetchFailure(error: unknown, timedOut: boolean): ArtifactRegistryUnavailableReason {
+  if (timedOut) return "artifact_registry_timeout";
+  const cause = (error as { cause?: { message?: unknown } })?.cause;
+  const text = `${(error as Error)?.message ?? ""} ${cause?.message ?? ""}`.toLowerCase();
+  return text.includes("redirect") ? "artifact_registry_redirect_refused" : "artifact_registry_unreachable";
+}
 
 export async function probeTaskEvaluationResultArtifactMetadata(params: ArtifactProbeParameters): Promise<ArtifactProbeResult> {
-  const endpoint = configuredArtifactEndpoint(params.runId, params.artifactId);
+  const resolved = resolveArtifactEndpoint(params.runId, params.artifactId);
   const signed = signedPipelineHeaders();
-  if (!endpoint || !signed) return { status: "unavailable" };
+  if (!resolved.endpoint) return unavailable(params, resolved.issue ?? "artifact_registry_endpoint_not_configured");
+  if (!signed) return unavailable(params, "artifact_registry_signing_token_not_configured");
+  const endpoint = resolved.endpoint;
   const controller = new AbortController();
+  let timedOut = false;
   const abort = () => controller.abort();
-  const timer = setTimeout(abort, ARTIFACT_ORIGIN_HEADER_TIMEOUT_MS);
+  const timer = setTimeout(() => { timedOut = true; abort(); }, ARTIFACT_ORIGIN_HEADER_TIMEOUT_MS);
   params.signal?.addEventListener("abort", abort, { once: true });
   if (params.signal?.aborted) abort();
   let response: globalThis.Response | undefined;
@@ -85,11 +192,14 @@ export async function probeTaskEvaluationResultArtifactMetadata(params: Artifact
       headers: { ...signed, ...(range ? { range } : {}), "accept-encoding": "identity" },
     });
     if (response.status === 404) return { status: "not_found" };
+    if (response.status === 401 || response.status === 403) return unavailable(params, "artifact_registry_credentials_rejected", response.status);
+    if (!response.ok) return unavailable(params, "artifact_registry_origin_error", response.status);
+    if (!response.body) return unavailable(params, "artifact_registry_empty_response", response.status);
     const integrity = artifactResponseIntegrity(response, range, params.expected);
-    if (!response.ok || !response.body || !integrity) return { status: "unavailable" };
+    if (!integrity) return unavailable(params, integrityFailure(response, params.expected), response.status);
     return { status: "admitted", metadata: integrity.totalSize !== null
       ? { sha256: integrity.sourceDigest, size_bytes: integrity.totalSize } : null };
-  } catch { return { status: "unavailable" }; }
+  } catch (error) { return unavailable(params, fetchFailure(error, timedOut)); }
   finally {
     if (response) await cancelBody(response);
     clearTimeout(timer);
@@ -109,12 +219,16 @@ export async function streamTaskEvaluationResultArtifact(params: {
   expected?: ResultArtifactMetadata;
 }) {
   const { req, res } = params;
-  const endpoint = configuredArtifactEndpoint(params.runId, params.artifactId);
+  const resolved = resolveArtifactEndpoint(params.runId, params.artifactId);
+  const endpoint = resolved.endpoint;
   const headers = signedPipelineHeaders();
   res.set("Cache-Control", "private, no-store");
   res.set("X-Content-Type-Options", "nosniff");
   if (!endpoint || !headers) {
-    res.status(503).json({ error: "Result artifact delivery is not configured" });
+    const code = !endpoint ? resolved.issue ?? "artifact_registry_endpoint_not_configured" : "artifact_registry_signing_token_not_configured";
+    logger.warn({ runId: params.runId, artifactId: params.artifactId, code, missingConfig: artifactRegistryMissingConfig(code) },
+      "Result artifact delivery is not configured");
+    res.status(503).json({ error: "Result artifact delivery is not configured", code });
     return;
   }
   if (parseResultArtifactRange(req.headers.range) === "invalid") {

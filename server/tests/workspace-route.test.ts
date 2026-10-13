@@ -368,8 +368,13 @@ describe("workspace access and projections", () => {
     expect((await api("/tasks/task-1/recording-consent/withdraw", "site-2", {})).status).toBe(404);
     const first = await api("/tasks/task-1/recording-consent/withdraw", "site-1", {});
     expect(first.status).toBe(202);
-    const receipt = (await first.json()).receipt;
+    const firstBody = await first.json();
+    const receipt = firstBody.receipt;
     expect(receipt.deletionConfirmed).toBe(false);
+    // Same shared effect as the signed owner link; deletion is queued, not claimed.
+    expect(firstBody.withdrawal).toMatchObject({ state: "uploads_stopped_cleanup_pending", uploadsStopped: true,
+      deletionConfirmed: false, storageDeletion: { state: "pending" } });
+    expect(state.records.get("inboundRequests/task-1").captureDeletionPending).toBe(true);
     expect(receipt.pipelineAcknowledged).toBe(false);
     expect(state.records.get("inboundRequests/task-1").account_owner_uid).toBe("site-1");
     expect(state.records.get("inboundRequests/task-1").request.consent_attestation.granted).toBe(false);
