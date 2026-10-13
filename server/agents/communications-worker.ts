@@ -759,7 +759,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
   let savedRecoveryCursor: string | undefined;
   return startCommunicationsQueueLoop(deps, {
     claimLap: () => claimCommunicationsWorkerLap(db, deps.now),
-    requestedDrafts: async canContinue => {
+    requestedDrafts: async (canContinue,waitForLease) => {
       await runRequestedCommunicationsDrafts(db,deps,canContinue);
       if (ordinaryWorker || !allowPaidInference || process.env.BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED !== "true") return;
       await runDailyResearchDrafts(db,deps,canContinue,makeApi,
@@ -767,7 +767,7 @@ export function startCommunicationsWorker(): () => Promise<void> {
           readContactPage:readResearchContactPage,
           requestContactResearch:(source,prospectId,reason)=>requestNativeContactResearch(db,source,prospectId,reason,deps.now()),
           readContactDiscovery:(source,prospectId)=>readNativeContactDiscovery(db,source,prospectId),
-        });
+        },waitForLease);
     },
     observeFounderSends: async canContinue => {
     if (!ordinaryWorker) return;
@@ -868,7 +868,7 @@ async function runRequestedCommunicationsDrafts(db: FirebaseFirestore.Firestore,
 /** Stop admission immediately, then await the active job and its durable writes. */
 export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
   options: { canStartTick?: () => Promise<boolean>; claimLap?: () => Promise<CommunicationsWorkerLap | null>;
-    requestedDrafts?: (canContinue: () => boolean) => Promise<void>;
+    requestedDrafts?: (canContinue: () => boolean, waitForLease?: () => Promise<boolean>) => Promise<void>;
     observeFounderSends?: (canContinue: () => boolean) => Promise<void>; intake?: (canContinue: () => boolean) => Promise<void>;
     recoverSavedDrafts?: (canContinue: () => boolean) => Promise<void>;
     copyDrafts?: (canContinue: () => boolean) => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
@@ -913,7 +913,7 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
       try { await options.observeFounderSends?.(canContinue); }
       catch { logger.warn({ code: "communications_founder_sent_observer_unavailable" }, "Founder-sent observation waits for its owner direction and read capability"); }
       if (!await admit()) return;
-      await options.requestedDrafts?.(canContinue);
+      await options.requestedDrafts?.(canContinue,admit);
       if (!await admit()) return;
       await options.recoverSavedDrafts?.(canContinue);
       if (!await admit()) return;

@@ -29,7 +29,7 @@ export function dailyResearchDraftSelection(control: any, snapshot: any, now: nu
     || row?.qa?.state !== "validated" || !hex(row.packet_digest) || !hex(row.raw_output_digest) || !hex(row.qa.artifact_digest)
     || row.outreach_ready?.state !== "enabled" || row.outreach_ready.direction_sha256 !== direction?.sha256
     || !(Date.parse(direction?.direction?.effective_from) <= now && now < Date.parse(direction?.direction?.expires_at))
-    || !direction.direction.scope.paths.includes("daily_qa")
+    || !Array.isArray(direction.direction.scope?.paths) || !direction.direction.scope.paths.includes("daily_qa")
     || !Number.isInteger(direction.direction.scope.max_rows_per_batch) || direction.direction.scope.max_rows_per_batch > 5
     || direction.direction.scope.max_rows_per_batch < 1) return null;
   const attachment = row.site_universe, block = row.packet?.site_universe;
@@ -54,7 +54,8 @@ export function dailyResearchDraftSelection(control: any, snapshot: any, now: nu
 export async function runDailyResearchDrafts(db: FirebaseFirestore.Firestore, deps: CommunicationsDependencies,
   canContinue: () => boolean, makeApi: (assertCurrent: () => Promise<void>) => CommunicationsAgentsAPI,
   processJob: (id: string, deps: CommunicationsDependencies, canContinue: () => boolean) => Promise<unknown>,
-  contactPorts: Pick<IntakeDependencies, "readContactPage" | "readContactDiscovery" | "requestContactResearch">) {
+  contactPorts: Pick<IntakeDependencies, "readContactPage" | "readContactDiscovery" | "requestContactResearch">,
+  waitForLease: () => Promise<boolean> = async () => canContinue()) {
   if (!canContinue() || !hypothesisDraftsEnabled()
     || process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED !== "false"
     || process.env.BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED !== "false") return;
@@ -67,12 +68,13 @@ export async function runDailyResearchDrafts(db: FirebaseFirestore.Firestore, de
   const selection = dailyResearchDraftSelection(control, snapshot, deps.now(), direction.approvedAt);
   if (!selection) return;
   const assertCurrent = async () => {
-    if (!canContinue() || !hypothesisDraftsEnabled() || process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED !== "false"
+    if (!await waitForLease() || !canContinue() || !hypothesisDraftsEnabled() || process.env.BLUEPRINT_COMMUNICATIONS_SEND_ENABLED !== "false"
       || process.env.BLUEPRINT_COMMUNICATIONS_AUTOMATIC_FIRST_CONTACT_ENABLED !== "false") fail();
     const currentDirection = await readProspectiveDraftSaveDirection(db, deps.now);
     const current: any = await deps.readResearch(day), control = (await db.doc(ROOT).get()).data();
     if (communicationsDigest(currentDirection) !== communicationsDigest(direction)
       || communicationsDigest(dailyResearchDraftSelection(control,current,deps.now(),direction.approvedAt)) !== communicationsDigest(selection)) fail();
+    if (!await waitForLease()) fail();
   };
   // Prove every selected publication before its first intake write.
   const published = researchPublicationHypotheses(snapshot);
@@ -96,12 +98,13 @@ export async function runDailyResearchDrafts(db: FirebaseFirestore.Firestore, de
       await assertCurrent();
       const job = (await db.doc(`blueprintCommunications/default/jobs/${id}`).get()).data();
       if (!job || job.intent !== "outreach" || job.manualDraftRequest || job.savedOutputRecovery
-        || job.createdAt < Date.parse(direction.approvedAt)) fail();
+        || !Number.isSafeInteger(job.createdAt) || job.createdAt > deps.now() || job.createdAt < Date.parse(direction.approvedAt)) fail();
       const brief = communicationsBriefSchema.parse(await deps.store.brief(job.briefId));
       const origin = brief.researchOrigin;
       if (job.briefDigest !== communicationsDigest(brief) || job.prospectId !== brief.prospectId
         || origin.date !== day || origin.candidateKey !== key || origin.admissionId || origin.screenAdmissionId
         || origin.packetDigest !== selection.packetDigest || origin.rawArtifactDigest !== selection.rawDigest) fail();
+      if (!await waitForLease()) fail();
     };
     await assertJob();
     const basePorts = configuredGmailDraftPorts(), ports = { ...basePorts,
