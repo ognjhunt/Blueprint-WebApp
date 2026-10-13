@@ -48,6 +48,7 @@ import { claimCommunicationsWorkerLap, CommunicationsWorkerLapError, COMMUNICATI
 import { savedRecoveryWorkerReadiness } from "./communications-saved-recovery-worker";
 import { assertSavedRecoveryWorker } from "./communications-saved-recovery-queue";
 import { requireFounderDraftCapability } from "./communications-oauth-store";
+import { runDailyResearchDrafts } from "./communications-daily-research-drafts";
 
 type CommunicationsLearningHooks = Pick<ReturnType<typeof createNativeLearningHooks>, "prepareNativeJob" | "afterNativeWork">;
 type PreparedLearning = Awaited<ReturnType<CommunicationsLearningHooks["prepareNativeJob"]>>;
@@ -719,14 +720,30 @@ export function startCommunicationsWorker(): () => Promise<void> {
   const db = dbAdmin;
   const store = new CommunicationsStore(db);
   const allowPaidInference = process.env.BLUEPRINT_COMMUNICATIONS_ALLOW_PAID_INFERENCE === "true";
-  const api: CommunicationsAgentsAPI = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference,
+  const makeApi = (assertCurrent?: () => Promise<void>) => {
+    const api: CommunicationsAgentsAPI = new CommunicationsAgentsAPI({ apiKey: process.env.OPENAI_API_KEY, allowPaidInference,
+    ...(assertCurrent ? { fetch: async (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      // A charged native job may still observe or cancel its owned session
+      // after revocation; every other POST rechecks the selected publication.
+      let cancel = false;
+      try { const events = JSON.parse(String(init?.body ?? "null"))?.events;
+        cancel = /\/agents\/sessions\/[^/]+\/events$/.test(String(url)) && events?.length === 1
+          && events[0]?.type === "agent.session.input.cancel"; } catch { /* A create has no events. */ }
+      if (init?.method === "POST" && !cancel) await assertCurrent();
+      return fetch(url,init);
+    } } : {}),
     reservePaidDraft: async (jobId, digest, sessionSpendLimitCents, model) => {
+      await assertCurrent?.();
       try { await reconcileCommunicationsDraftCost(db, api, Date.now()); }
       catch { logger.warn({ code: "communications_prior_usage_reconciliation_unavailable" }, "Earlier cost remains unknown; retained accounting does not gate this draft"); }
+      await assertCurrent?.();
       return reserveCommunicationsDraft(db, jobId, digest, Date.now(), sessionSpendLimitCents, model);
     },
     recordPaidDraftUsage: (jobId, digest, usage) => recordCommunicationsDraftUsage(db, jobId, digest, usage, Date.now()),
-  });
+    });
+    return api;
+  };
+  const api = makeApi();
   const deps: CommunicationsDependencies = {
     store, api, readResearch: (date, admissionId) => readExistingResearchSnapshot(db, date, admissionId),
     readScreenAdmission: id => readScreenAdmissionSnapshot(db, id),
@@ -742,7 +759,20 @@ export function startCommunicationsWorker(): () => Promise<void> {
   let savedRecoveryCursor: string | undefined;
   return startCommunicationsQueueLoop(deps, {
     claimLap: () => claimCommunicationsWorkerLap(db, deps.now),
-    requestedDrafts: canContinue => runRequestedCommunicationsDrafts(db, deps, canContinue),
+    requestedDrafts: async (canContinue,waitForLease) => {
+      // The selected daily lane must not read or mark unrelated manual requests.
+      if (ordinaryWorker || process.env.BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED !== "true") {
+        await runRequestedCommunicationsDrafts(db,deps,canContinue);
+        return;
+      }
+      if (!allowPaidInference) return;
+      await runDailyResearchDrafts(db,deps,canContinue,makeApi,
+        (id,selected,canWork) => processCommunicationsJob(id,selected,undefined,undefined,undefined,canWork), {
+          readContactPage:readResearchContactPage,
+          requestContactResearch:(source,prospectId,reason)=>requestNativeContactResearch(db,source,prospectId,reason,deps.now()),
+          readContactDiscovery:(source,prospectId)=>readNativeContactDiscovery(db,source,prospectId),
+        },waitForLease);
+    },
     observeFounderSends: async canContinue => {
     if (!ordinaryWorker) return;
     // Read-only and default off: flag, send-off state, owner direction and
@@ -842,7 +872,7 @@ async function runRequestedCommunicationsDrafts(db: FirebaseFirestore.Firestore,
 /** Stop admission immediately, then await the active job and its durable writes. */
 export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
   options: { canStartTick?: () => Promise<boolean>; claimLap?: () => Promise<CommunicationsWorkerLap | null>;
-    requestedDrafts?: (canContinue: () => boolean) => Promise<void>;
+    requestedDrafts?: (canContinue: () => boolean, waitForLease?: () => Promise<boolean>) => Promise<void>;
     observeFounderSends?: (canContinue: () => boolean) => Promise<void>; intake?: (canContinue: () => boolean) => Promise<void>;
     recoverSavedDrafts?: (canContinue: () => boolean) => Promise<void>;
     copyDrafts?: (canContinue: () => boolean) => Promise<void>; processJobs?: boolean } = {}): () => Promise<void> {
@@ -887,7 +917,7 @@ export function startCommunicationsQueueLoop(deps: CommunicationsDependencies,
       try { await options.observeFounderSends?.(canContinue); }
       catch { logger.warn({ code: "communications_founder_sent_observer_unavailable" }, "Founder-sent observation waits for its owner direction and read capability"); }
       if (!await admit()) return;
-      await options.requestedDrafts?.(canContinue);
+      await options.requestedDrafts?.(canContinue,admit);
       if (!await admit()) return;
       await options.recoverSavedDrafts?.(canContinue);
       if (!await admit()) return;

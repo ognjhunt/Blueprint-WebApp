@@ -23,7 +23,15 @@ export const RESEARCH_WORK_ITEMS = "blueprintDailyResearch/sites-first/workItems
 export type IntakeDependencies = { db: FirebaseFirestore.Firestore; readResearch: ResearchSnapshotReader;
   isSuppressed: (email: string) => Promise<boolean>; now: () => number; readContactPage?: ContactPageReader;
   requestContactResearch?: (source: any, prospectId: string, reason: string) => Promise<boolean>;
-  readContactDiscovery?: (source: any, prospectId: string) => Promise<ContactDiscovery | null> };
+  readContactDiscovery?: (source: any, prospectId: string) => Promise<ContactDiscovery | null>;
+  dailySelection?: { date: string; runKey: string; packetDigest: string; rawArtifactDigest: string;
+    candidateKeys: string[]; assertCurrent: () => Promise<void> } };
+const selectedDailySource = (deps: IntakeDependencies, source: any, candidateKey: string) => !deps.dailySelection
+  || source?.date === deps.dailySelection.date && !source?.admissionId && !source?.admission_id
+    && !source?.screenAdmissionId && !source?.screen_admission_id && deps.dailySelection.candidateKeys.includes(candidateKey)
+    && communicationsDigest(sourceIdentity(source,candidateKey)) === communicationsDigest({date:deps.dailySelection.date,
+      runKey:deps.dailySelection.runKey,candidateKey,packetDigest:deps.dailySelection.packetDigest,
+      rawArtifactDigest:deps.dailySelection.rawArtifactDigest});
 export const bindingKey = (source: any) => communicationsDigest(source.admissionId
   ? { sourceRecordId: source.sheetsProspectId } : { sheetsId: source.sheetsId, sheetsProspectId: source.sheetsProspectId });
 const sourceIdentity = (row: any, candidateKey: string) => ({ date: row.date ?? null, runKey: row.run_key ?? row.runKey ?? null, candidateKey,
@@ -90,6 +98,8 @@ async function existingVerifiedBrief(deps: IntakeDependencies, snapshot: any, so
 export async function admitPublishedResearch(snapshot: any, candidateKey: string, deps: IntakeDependencies,
   resolution?: { proof: ContactResolution; requestId: string; leaseOwner: string }) {
   const row = snapshot?.row, identity = sourceIdentity(row ?? {}, candidateKey);
+  if (!selectedDailySource(deps, row, candidateKey)) throw Error("communications_daily_selection_changed");
+  await deps.dailySelection?.assertCurrent();
   try {
     const source = researchPublicationSource(snapshot, { date: identity.date, candidateKey,
       packetDigest: identity.packetDigest, rawArtifactDigest: identity.rawArtifactDigest,
@@ -375,6 +385,8 @@ function hypothesisBriefProposal(source: HypothesisSource, contact: ReturnType<t
 export async function admitPublishedHypothesis(snapshot: any, candidateKey: string, deps: IntakeDependencies,
   resolution?: { proof: HypothesisContactResolution; requestId: string; leaseOwner: string }) {
   const row = snapshot?.row, identity = sourceIdentity(row ?? {}, candidateKey), intakeId = communicationsDigest(identity);
+  if (!selectedDailySource(deps, row, candidateKey)) throw Error("communications_daily_selection_changed");
+  await deps.dailySelection?.assertCurrent();
   // Drafts off: nothing is read, admitted or written. A contact request claimed before the flag went off
   // goes back to wait, unclaimed (runCommunicationsContactRefresh).
   if (!hypothesisDraftsEnabled()) {
@@ -490,7 +502,9 @@ export async function admitPublishedHypotheses(snapshot: any, deps: IntakeDepend
  * terminal gaps are visible and never masquerade as fulfilled research. */
 export async function runCommunicationsContactRefresh(deps: IntakeDependencies) {
   if (!deps.readContactPage) return;
-  const root = deps.db.doc(COMMUNICATIONS_ROOT), stateRef = root.collection("intakeState").doc("contactRefresh"), owner = randomUUID();
+  await deps.dailySelection?.assertCurrent();
+  const root = deps.db.doc(COMMUNICATIONS_ROOT), stateRef = root.collection("intakeState").doc(deps.dailySelection
+    ? `dailyContactRefresh_${communicationsDigest({date:deps.dailySelection.date,keys:deps.dailySelection.candidateKeys})}` : "contactRefresh"), owner = randomUUID();
   const cursor = await deps.db.runTransaction(async tx => {
     const state = (await tx.get(stateRef)).data();
     if ((state?.lease?.until ?? 0) > deps.now()) return undefined;
@@ -505,8 +519,11 @@ export async function runCommunicationsContactRefresh(deps: IntakeDependencies) 
     const page = await query.get();
     for (const doc of page.docs) {
       lastId = doc.id;
+      if (!selectedDailySource(deps, doc.data(), doc.data().candidateKey)) continue;
+      await deps.dailySelection?.assertCurrent();
       const claim = await deps.db.runTransaction(async tx => {
         const request = (await tx.get(doc.ref)).data();
+        if (!selectedDailySource(deps, request, request?.candidateKey)) return null;
         // Accept the old prefix-era pending contact requests without touching the research owner.
         const contactGap = request?.kind === "public_contact_resolution" || (!request?.kind
           && request?.reasons?.some((reason: string) => ["verified_public_business_contact_missing", "verified_contact_conflicting_unknowns"].includes(reason)));
