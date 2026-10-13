@@ -7,7 +7,7 @@
  */
 import { projectPilotCoordination } from "./pilotCoordination";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
-import { passMarkForJob, type PassMark } from "./pilotRecommendationEvidence";
+import { criteriaChangedSinceRequest, passMarkForJob, type PassMark } from "./pilotRecommendationEvidence";
 import { iso, object, text } from "./workspace-projection";
 import type {
   BestRunSummary,
@@ -87,8 +87,15 @@ function meetsPassMark(
   return episodesRun >= passMark.minimumEpisodes && rate >= passMark.successRate && !cycleMissed;
 }
 
-export function projectRuns(inputs: Pick<RawJobInputs, "record" | "brief" | "runs" | "teamNames">): ProjectedRun[] {
+export function projectRuns(
+  inputs: Pick<RawJobInputs, "record" | "brief" | "runs" | "teamNames"> & Partial<Pick<RawJobInputs, "evaluationRequests">>,
+): ProjectedRun[] {
   const passMark = passMarkForJob(inputs.record, inputs.brief);
+  // A run is judged against the targets its evaluation request froze; one the
+  // site re-targeted afterwards never counts as passing (as the route refuses it).
+  const fundingByRun = new Map((inputs.evaluationRequests ?? [])
+    .filter((request) => typeof request.record.free_evaluation_handoff?.runId === "string")
+    .map((request) => [request.record.free_evaluation_handoff.runId as string, request.record]));
   return inputs.runs
     .filter((run) => isSiteRun(run) && ["requested", "completed", "blocked"].includes(run.state))
     .map((run) => {
@@ -115,7 +122,10 @@ export function projectRuns(inputs: Pick<RawJobInputs, "record" | "brief" | "run
         medianCycleSeconds,
         // The same rule a recommendation is verified against, so the console
         // never calls a run passing that the recommendation route refuses.
-        meetsTarget: hasSamples ? meetsPassMark(episodesRun, finite(observed?.episodesSucceeded), medianCycleSeconds, passMark) : null,
+        meetsTarget: hasSamples
+          ? !criteriaChangedSinceRequest(inputs.record, fundingByRun.get(run.runId))
+            && meetsPassMark(episodesRun, finite(observed?.episodesSucceeded), medianCycleSeconds, passMark)
+          : null,
         evidenceScope: typeof run.result?.evidenceScope === "string" ? run.result.evidenceScope : null,
         requestedAtIso: run.requestedAtIso ?? null,
         reportedAtIso: run.result?.reportedAtIso ?? run.resolvedAtIso ?? null,

@@ -108,7 +108,8 @@ export type EvidenceRefusal =
   | "evaluation_result_changed"
   | "evaluation_too_few_episodes"
   | "evaluation_below_pass_mark"
-  | "evaluation_cycle_time_missed";
+  | "evaluation_cycle_time_missed"
+  | "evaluation_criteria_changed";
 
 export const EVIDENCE_REFUSAL_MESSAGES: Record<EvidenceRefusal, string> = {
   evaluation_run_missing: "No evaluation run with that id exists. Recommend a team from one of this job's completed evaluations.",
@@ -119,6 +120,7 @@ export const EVIDENCE_REFUSAL_MESSAGES: Record<EvidenceRefusal, string> = {
   evaluation_too_few_episodes: `That evaluation ran fewer than ${MINIMUM_EVIDENCE_EPISODES} episodes, which is too few to recommend on.`,
   evaluation_below_pass_mark: "That evaluation did not meet this job's pass mark. Recommend only a team whose evaluation passed.",
   evaluation_cycle_time_missed: "That evaluation's measured cycle time is slower than this job's target.",
+  evaluation_criteria_changed: "The site changed this job's success-rate or cycle-time target after this evaluation was requested. Its result cannot be judged against a target set afterwards; evaluate again against the current target.",
 };
 
 function percentToFraction(value: unknown): number | null {
@@ -149,6 +151,35 @@ export function passMarkForJob(
 
 export type RunWithResult = EvalRunRecord & { result?: EvalRunResult | null };
 
+/** The site job request that funded a run, when its admission recorded one. */
+export function fundingRequestIdFor(run: RunWithResult | null | undefined): string | null {
+  const funding = (run?.executionAdmission?.envelope as { funding?: { workspace_request_id?: unknown } } | undefined)?.funding;
+  const id = funding?.workspace_request_id;
+  return typeof id === "string" && id.trim() ? id.trim() : null;
+}
+
+function snapshotNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Whether the job's own targets moved after the run was requested. The
+ * evaluation request froze the targets it was run against
+ * (`workspace_evaluation.targetSnapshot`); a result is judged only against
+ * those, never against a threshold lowered afterwards. Runs with no funding
+ * request on record have no snapshot to compare and are judged as they stand.
+ */
+export function criteriaChangedSinceRequest(
+  record: Record<string, any> | null | undefined,
+  fundingRecord: Record<string, any> | null | undefined,
+): boolean {
+  const snapshot = fundingRecord?.workspace_evaluation?.targetSnapshot;
+  if (!snapshot || typeof snapshot !== "object") return false;
+  const terms = record?.workspace_task?.terms ?? {};
+  return snapshotNumber(snapshot.successRate) !== snapshotNumber(terms.successRate)
+    || snapshotNumber(snapshot.cycleTimeSeconds) !== snapshotNumber(terms.cycleTimeSeconds);
+}
+
 export function resultIdFor(result: EvalRunResult): string {
   return humanDecisionDigest(result);
 }
@@ -175,10 +206,16 @@ export interface EvaluationReading {
   refusals: EvidenceRefusal[];
 }
 
-export function readEvaluation(run: RunWithResult, requestId: string, passMark: PassMark): EvaluationReading {
+export function readEvaluation(
+  run: RunWithResult,
+  requestId: string,
+  passMark: PassMark,
+  options: { criteriaChanged?: boolean } = {},
+): EvaluationReading {
   const result = run.result ?? null;
   const observed = result?.observed ?? null;
   const refusals: EvidenceRefusal[] = [];
+  if (options.criteriaChanged) refusals.push("evaluation_criteria_changed");
   if (run.sceneId !== requestId) refusals.push("evaluation_run_other_job");
   if (!isSiteEvaluation(run)) refusals.push("evaluation_run_private");
   const hasResult = run.state === "completed" && Boolean(observed) && (observed!.episodesRun ?? 0) > 0;
@@ -231,10 +268,12 @@ export function verifyRecommendationEvidence(params: {
   passMark: PassMark;
   /** When the reviewer saw a specific result, it must still be that result. */
   expectedResultId?: string | null;
+  /** The job's targets moved after the run was requested (`criteriaChangedSinceRequest`). */
+  criteriaChanged?: boolean;
 }): { ok: true; evidence: PilotRecommendationEvidence } | { ok: false; refusal: EvidenceRefusal } {
   const { run, requestId, passMark } = params;
   if (!run) return { ok: false, refusal: "evaluation_run_missing" };
-  const reading = readEvaluation(run, requestId, passMark);
+  const reading = readEvaluation(run, requestId, passMark, { criteriaChanged: params.criteriaChanged });
   if (reading.refusals.length) return { ok: false, refusal: reading.refusals[0] };
   const result = run.result!;
   if (params.expectedResultId && params.expectedResultId !== reading.resultId) {

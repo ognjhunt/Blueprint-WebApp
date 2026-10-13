@@ -392,6 +392,38 @@ describe("recording Blueprint's recommended pilot", () => {
     expect(doc().pilot_recommendation).toBeUndefined();
   });
 
+  it("judges a run against the targets its evaluation request froze, not targets lowered afterwards", async () => {
+    // Requested against a 98% target, the run (95%) failed; the site then
+    // lowered its target to 90%. The result is not re-judged post hoc.
+    const funded = (runId: string) => evaluationRun({ runId,
+      executionAdmission: { digestSha256: "sha256:fixture", envelope: { funding: { workspace_request_id: "eval_req" } } } });
+    state.docs.set("evaluationRuns/run_funded", funded("run_funded") as never);
+    state.docs.set("inboundRequests/eval_req", { requestId: "eval_req",
+      workspace_evaluation: { opportunityId: "req1", targetSnapshot: { successRate: 98, cycleTimeSeconds: null } } } as never);
+    state.docs.set("inboundRequests/req1", { ...doc(), workspace_task: { terms: { successRate: 90 } } } as never);
+    expect(await refusal({ ...plan, evaluationRunId: "run_funded" })).toMatchObject({ status: 400, body: { code: "evaluation_criteria_changed" } });
+    const listed = await (await fetch(`${base}/jobs/req1/evaluations`)).json();
+    expect(listed.evaluations.find((row: { runId: string }) => row.runId === "run_funded"))
+      .toMatchObject({ recommendable: false, refusals: [{ code: "evaluation_criteria_changed" }] });
+    // Unchanged targets: the same run is judged as it stands and passes.
+    state.docs.set("inboundRequests/req1", { ...doc(), workspace_task: { terms: { successRate: 98 } } } as never);
+    expect(await refusal({ ...plan, evaluationRunId: "run_funded" })).toMatchObject({ status: 400, body: { code: "evaluation_below_pass_mark" } });
+    state.docs.set("inboundRequests/eval_req", { requestId: "eval_req",
+      workspace_evaluation: { opportunityId: "req1", targetSnapshot: { successRate: 90, cycleTimeSeconds: null } } } as never);
+    state.docs.set("inboundRequests/req1", { ...doc(), workspace_task: { terms: { successRate: 90 } } } as never);
+    expect((await post({ ...plan, evaluationRunId: "run_funded" })).status).toBe(200);
+  });
+
+  it("lists every evaluation of a job, past the first page", async () => {
+    for (let index = 0; index < 205; index += 1) {
+      const runId = `run_page_${String(index).padStart(3, "0")}`;
+      state.docs.set(`evaluationRuns/${runId}`, evaluationRun({ runId }, { episodesSucceeded: 10, successRate: 0.5 }) as never);
+    }
+    const listed = await (await fetch(`${base}/jobs/req1/evaluations`)).json();
+    expect(listed.evaluations).toHaveLength(206);
+    expect(listed.evaluations[0]).toMatchObject({ runId: "run_pass", recommendable: true });
+  });
+
   it("refuses an evaluation of another job, a private run, and a run by another team", async () => {
     state.docs.set("evaluationRuns/run_elsewhere", evaluationRun({ runId: "run_elsewhere", sceneId: "req_other" }) as never);
     expect(await refusal({ ...plan, evaluationRunId: "run_elsewhere" })).toMatchObject({ status: 400, body: { code: "evaluation_run_other_job" } });

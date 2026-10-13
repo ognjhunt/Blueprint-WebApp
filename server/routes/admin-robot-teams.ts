@@ -65,7 +65,9 @@ import type { RobotTeamRecord } from "../types/robot-team-registry";
 import {
   EVIDENCE_REFUSAL_MESSAGES,
   SIMULATION_EVIDENCE_BOUNDARY,
+  criteriaChangedSinceRequest,
   evidenceCapabilityBasis,
+  fundingRequestIdFor,
   passMarkForJob,
   readEvaluation,
   verifyRecommendationEvidence,
@@ -228,6 +230,10 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
       const record = current.data()!;
       const currentBrief = await transaction.get(store.collection("siteTaskBriefs").doc(requestId));
       const runSnapshot = await transaction.get(runRef);
+      const fundingRequestId = fundingRequestIdFor(runSnapshot.data() as RunWithResult | undefined);
+      const fundingRecord = fundingRequestId
+        ? (await transaction.get(store.collection("inboundRequests").doc(fundingRequestId))).data()
+        : null;
       if ((briefRevision && briefRevision !== humanDecisionDigest(currentBrief.exists ? currentBrief.data() : null)) || (record.pilot_recommendation?.reviewRequired && !briefRevision)) return { status: "changed" } as const;
       if (record.pilot_booking) return { status: "booked" } as const;
       if (projectWebsiteCaptureRights(record).consent_revoked) return { status: "consent_withdrawn" } as const;
@@ -236,7 +242,8 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
       // changed hands since is not the evidence that was reviewed.
       if (run && run.teamId !== preRun.teamId) return { status: "refused", refusal: "evaluation_result_changed" } as const;
       const verified = verifyRecommendationEvidence({ run, requestId,
-        passMark: passMarkForJob(record, currentBrief.exists ? currentBrief.data() : null), expectedResultId: resultId ?? null });
+        passMark: passMarkForJob(record, currentBrief.exists ? currentBrief.data() : null), expectedResultId: resultId ?? null,
+        criteriaChanged: criteriaChangedSinceRequest(record, fundingRecord) });
       if (!verified.ok) return { status: "refused", refusal: verified.refusal } as const;
       const evidence = verified.evidence;
       const plan = { ...rest, capabilityBasis: capabilityBasis || evidenceCapabilityBasis(evidence) };
@@ -319,6 +326,21 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
  * the reviewer choosing which evaluation a recommendation stands on.
  * Contract: docs/runbooks/pilot-recommendation-evidence.md.
  */
+/** Every run against a job, read in id order so no run is silently left out. */
+async function allRunsForJob(store: NonNullable<typeof db>, requestId: string): Promise<RunWithResult[]> {
+  const runs: RunWithResult[] = [];
+  let cursor: string | null = null;
+  for (;;) {
+    let query = store.collection("evaluationRuns").where("sceneId", "==", requestId).orderBy("__name__").limit(RUN_PAGE_SIZE);
+    if (cursor) query = query.startAfter(cursor);
+    const page = await query.get();
+    runs.push(...page.docs.map(doc => doc.data() as RunWithResult));
+    if (page.docs.length < RUN_PAGE_SIZE) return runs;
+    cursor = page.docs[page.docs.length - 1].id;
+  }
+}
+const RUN_PAGE_SIZE = 200;
+
 router.get("/jobs/:requestId/evaluations", async (req: Request, res: Response) => {
   if (!db) return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Store unavailable" });
   const requestId = String(req.params.requestId);
@@ -327,8 +349,13 @@ router.get("/jobs/:requestId/evaluations", async (req: Request, res: Response) =
     if (!record) return res.status(HTTP_STATUS.NOT_FOUND).json({ ok: false, error: "Job not found" });
     const brief = (await db.collection("siteTaskBriefs").doc(requestId).get()).data() ?? null;
     const passMark = passMarkForJob(record, brief);
-    const snapshot = await db.collection("evaluationRuns").where("sceneId", "==", requestId).limit(200).get();
-    const readings = snapshot.docs.map(doc => readEvaluation(doc.data() as RunWithResult, requestId, passMark));
+    const runs = await allRunsForJob(db, requestId);
+    const fundingIds = [...new Set(runs.map(fundingRequestIdFor).filter((id): id is string => Boolean(id)))];
+    const fundingRecords = new Map(await Promise.all(fundingIds.map(async id =>
+      [id, (await db!.collection("inboundRequests").doc(id).get()).data() ?? null] as const)));
+    const readings = runs.map(run => readEvaluation(run, requestId, passMark, {
+      criteriaChanged: criteriaChangedSinceRequest(record, fundingRecords.get(fundingRequestIdFor(run) ?? "") ?? null),
+    }));
     const teamIds = [...new Set(readings.map(reading => reading.teamId))];
     const teams = new Map(await Promise.all(teamIds.map(async teamId => [teamId, {
       record: await getRobotTeam(teamId), eligibility: await recommendableTeam(teamId),

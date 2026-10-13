@@ -84,7 +84,7 @@ Refusals (`{ ok: false, code, error }`):
 
 | status | code |
 | --- | --- |
-| 400 | `evaluation_run_required`, `evaluation_run_missing`, `evaluation_run_other_job`, `evaluation_run_private`, `evaluation_result_missing`, `evaluation_result_changed`, `evaluation_too_few_episodes`, `evaluation_below_pass_mark`, `evaluation_cycle_time_missed` |
+| 400 | `evaluation_run_required`, `evaluation_run_missing`, `evaluation_run_other_job`, `evaluation_run_private`, `evaluation_result_missing`, `evaluation_result_changed`, `evaluation_too_few_episodes`, `evaluation_below_pass_mark`, `evaluation_cycle_time_missed`, `evaluation_criteria_changed` (the job's targets moved after the run's evaluation request froze them in `workspace_evaluation.targetSnapshot`) |
 | 400 | `evaluation_team_mismatch`, `team_not_registered`, `team_identity_ambiguous`, `team_declined`, `team_not_recommendable` |
 | 409 | `capture_consent_withdrawn`; booked pilot; brief changed; site contact missing |
 

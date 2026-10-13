@@ -252,6 +252,18 @@ describe("projectJobFacts", () => {
     expect(deriveJobStage(result).nextAction).toBe("Recommend a team (1 passing run)");
   });
 
+  it("never counts a run as passing once the site re-targeted the job after requesting it", () => {
+    const passingRun = { runId: "r1", teamId: "team-a", state: "completed", requestedAtIso: "2026-10-04T00:00:00.000Z",
+      result: { observed: { episodesRun: 50, episodesSucceeded: 45, successRate: 0.9, medianCycleSeconds: 12 } } };
+    const request = (successRate: number) => ({ id: "eval-1", teamName: "Atlas", record: {
+      workspace_evaluation: { opportunityId: "job-1", targetSnapshot: { successRate, cycleTimeSeconds: null } },
+      free_evaluation_handoff: { runId: "r1" } } });
+    const changed = projectJobFacts(inputs({ runs: [passingRun], evaluationRequests: [request(95)] }));
+    expect(changed.runs).toMatchObject({ reported: 1, passing: 0, belowTarget: 1 });
+    const unchanged = projectJobFacts(inputs({ runs: [passingRun], evaluationRequests: [request(80)] }));
+    expect(unchanged.runs).toMatchObject({ reported: 1, passing: 1 });
+  });
+
   it("reads recommendation, booking, coordination and withdrawal from the record", () => {
     const recommendation = { id: "rec_1", teamId: "team-a", teamName: "Atlas", recommendedAtIso: "2026-10-07T00:00:00.000Z", evaluationRunId: "r1" };
     const booked = projectJobFacts(inputs({ record: { ...inputs().record, pilot_recommendation: recommendation,
