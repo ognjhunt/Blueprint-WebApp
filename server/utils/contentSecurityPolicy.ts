@@ -7,6 +7,24 @@ export function derivePostHogAssetHost(host: string | undefined | null) {
   return value.replace("://us.i.posthog.com", "://us-assets.i.posthog.com");
 }
 
+/**
+ * Every inline script the production site serves, by CSP hash. There is no
+ * 'unsafe-inline' in production script-src: an injected <script> runs only if
+ * its exact bytes are listed here. server/tests/content-security-policy.test.ts
+ * recomputes these from client/index.html, client/public/*.html and, when a
+ * build exists, every HTML file under dist/public, and fails if any executable
+ * inline script or inline event handler is not covered. JSON-LD
+ * (type="application/ld+json") is data, not script, and needs no hash.
+ *
+ * - this.media='all': the non-blocking web-font link onload in index.html
+ *   (needs 'unsafe-hashes'; main.tsx also flips it for browsers without it).
+ * - the comment-only inline script in public/onedrive-redirect.html.
+ */
+export const INLINE_SCRIPT_HASHES = [
+  "'sha256-MhtPZXr7+LpJUY5qtMutB+qWfQtMaPccfe7QXtCcEYc='",
+  "'sha256-6no7hxXoaGJYS4yuatFPaN1o/Kr/HLN0Ec2Q2gp98lk='",
+] as const;
+
 type ContentSecurityPolicyOptions = {
   isProduction: boolean;
   posthogHost?: string | null;
@@ -56,7 +74,10 @@ export function buildContentSecurityPolicy({
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'self'",
-    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' ${
+    // Development keeps 'unsafe-inline' for Vite's injected HMR preamble.
+    `script-src 'self' ${
+      isProduction ? `'unsafe-hashes' ${INLINE_SCRIPT_HASHES.join(" ")}` : "'unsafe-inline'"
+    } 'wasm-unsafe-eval' ${
       isProduction ? "" : "'unsafe-eval' http://localhost:5173"
     } ${cspScriptAllowlist.join(" ")}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",

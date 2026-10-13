@@ -2,7 +2,10 @@ services:
   - type: web
     name: Blueprint-WebApp
     runtime: node
-    plan: free
+    # Free instances sleep when idle, which stops the in-process customer
+    # outbox pump and the beta ops monitor (intake notice retries, outbox
+    # failure alerts) and cold-starts the first visitor. Starter stays up.
+    plan: starter
     region: virginia
     # Deploys are CI-gated: .github/workflows/deploy.yml triggers the Render
     # deploy hook only for an exact commit whose CI run is green on main.
@@ -11,7 +14,12 @@ services:
     autoDeploy: false
     buildCommand: npm ci && npm run build
     startCommand: npm start
-    healthCheckPath: /health/ready
+    # Liveness only. /health/ready reports launch readiness (provider config,
+    # beta caps, Redis, Slack, Resend) and can legitimately be 503 while the
+    # process serves traffic; Render must not cycle a live instance for that.
+    # Readiness is verified after every deploy by .github/workflows/deploy.yml
+    # and alerted by the in-process monitor and the uptime workflow.
+    healthCheckPath: /health
 
   # Dedicated production launch-forward worker. This deployment is explicitly
   # constrained to Task Evaluation launch reconciliation; unrelated ops and

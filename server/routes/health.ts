@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Router, Request, Response } from "express";
 import { logger } from "../logger";
 import { getHostedSessionLiveStoreStatus } from "../utils/hosted-session-live-store";
@@ -7,6 +8,21 @@ import { maybeAlertOnLaunchReadinessTransition } from "../utils/ops-alerts";
 import { probeTaskEvaluationLaunchStore } from "../utils/taskEvaluationLaunchStore";
 
 const router = Router();
+
+/**
+ * HEALTH_STATUS_TOKEN is accepted only in the `x-health-status-token` header:
+ * a query-string token lands in access logs, browser history and Referer.
+ * Compared in constant time over SHA-256 digests (equal length by
+ * construction, so length does not leak either).
+ */
+export function hasHealthStatusToken(req: Request): boolean {
+  const configured = (process.env.HEALTH_STATUS_TOKEN || "").trim();
+  if (!configured) return false;
+  const provided = String(req.header("x-health-status-token") || "").trim();
+  if (!provided) return false;
+  const digest = (value: string) => crypto.createHash("sha256").update(value, "utf8").digest();
+  return crypto.timingSafeEqual(digest(provided), digest(configured));
+}
 
 // Track server start time for uptime calculation
 const startTime = Date.now();
@@ -93,13 +109,8 @@ router.get("/health/ready", async (req: Request, res: Response) => {
     // HEALTH_STATUS_TOKEN gate as /health/status internals; the public payload
     // stays a minimal ready/not_ready verdict plus a blocker count so
     // monitoring can alert without exposing configuration structure.
-    const configuredToken = (process.env.HEALTH_STATUS_TOKEN || "").trim();
-    const providedToken = String(
-      req.header("x-health-status-token") || req.query.token || "",
-    ).trim();
     const includeDiagnostics =
-      process.env.NODE_ENV !== "production" ||
-      (configuredToken.length > 0 && providedToken === configuredToken);
+      process.env.NODE_ENV !== "production" || hasHealthStatusToken(req);
 
     if (!includeDiagnostics) {
       return res.status(statusCode).json({
@@ -138,13 +149,8 @@ router.get("/health/status", (req: Request, res: Response) => {
   // dashboards but are recon material on an unauthenticated endpoint. In
   // production they require HEALTH_STATUS_TOKEN; the public payload keeps the
   // uptime + error-rate fields monitoring already depends on.
-  const configuredToken = (process.env.HEALTH_STATUS_TOKEN || "").trim();
-  const providedToken = String(
-    req.header("x-health-status-token") || req.query.token || "",
-  ).trim();
   const includeInternals =
-    process.env.NODE_ENV !== "production" ||
-    (configuredToken.length > 0 && providedToken === configuredToken);
+    process.env.NODE_ENV !== "production" || hasHealthStatusToken(req);
 
   const basePayload = {
     status: "healthy",

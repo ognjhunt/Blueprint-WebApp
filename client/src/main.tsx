@@ -20,6 +20,18 @@ import { appRoutes, preloadMatchedRoute } from "./app/routes";
 
 installClientLogger();
 
+// index.html loads the web fonts non-blocking (media="print" flipped by an
+// inline onload). The production CSP allows that one handler by hash, but a
+// browser without 'unsafe-hashes' support blocks it; finish the flip here so
+// fonts always apply.
+if (typeof document !== "undefined") {
+  document
+    .querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][media="print"][onload]')
+    .forEach((link) => {
+      link.media = "all";
+    });
+}
+
 const withShell =
   <P extends object>(
     Component: React.ComponentType<P>,

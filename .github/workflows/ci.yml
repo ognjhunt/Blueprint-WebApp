@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       scope: ${{ steps.scope.outputs.scope }}
+      public_surface: ${{ steps.scope.outputs.public_surface }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -296,6 +297,48 @@ jobs:
           retention-days: 7
 
 
+  # The public-surface Playwright copy contracts (brand-polish route table and
+  # pricing copy) run whenever public copy can change. A `full` scope already
+  # runs them inside `e2e`; this covers the narrower scopes (e.g. a
+  # client/src/lib or content-only change) with only these two specs.
+  public-copy-contracts:
+    needs: release-scope
+    if: needs.release-scope.outputs.scope != 'full' && needs.release-scope.outputs.public_surface == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        timeout-minutes: 10
+        run: npx playwright install --with-deps chromium
+
+      - name: Build stable browser-test client
+        env:
+          BLUEPRINT_ALLOW_UNCONFIGURED_CLIENT_BUILD: "1"
+        run: npm run build
+
+      - name: Run public copy contracts
+        env:
+          BLUEPRINT_E2E_STATIC: "1"
+        run: npx playwright test e2e/brand-polish.spec.ts e2e/pricing.spec.ts
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -340,7 +383,7 @@ jobs:
 
   deployment-admission:
     name: Observe automatic deployment admission
-    needs: [check, rules-emulator, test, e2e, build]
+    needs: [check, rules-emulator, test, e2e, public-copy-contracts, build]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     # Observe holds even when content-only browser checks were intentionally skipped.
     runs-on: ubuntu-latest

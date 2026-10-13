@@ -2,12 +2,14 @@ import type { Response } from "express";
 
 import { dbAdmin as db, authAdmin } from "../../client/src/lib/firebaseAdmin";
 import { withTaskEvaluationLaunchStoreTimeout } from "./taskEvaluationLaunchStore";
+import { logger } from "../logger";
 
 export type AccessRole = "admin" | "ops";
 
 type FirebaseUserLike = {
   uid?: string;
   email?: string;
+  email_verified?: boolean;
   admin?: boolean;
   ops?: boolean;
   role?: unknown;
@@ -113,16 +115,69 @@ async function loadUserDocRoles(uid: string | null): Promise<AccessRole[]> {
   }
 }
 
+function emailList(value: string | undefined): Set<string> {
+  return new Set(
+    String(value || "")
+      .split(",")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+/**
+ * Roles granted by an explicit, server-side email allowlist. Only a verified
+ * Firebase email counts.
+ */
+export function rolesFromEmailAllowlist(user: FirebaseUserLike, env: NodeJS.ProcessEnv = process.env): AccessRole[] {
+  const email = typeof user?.email === "string" ? user.email.trim().toLowerCase() : "";
+  if (!email || user?.email_verified !== true) return [];
+  const roles: AccessRole[] = [];
+  if (emailList(env.BLUEPRINT_ADMIN_EMAIL_ALLOWLIST).has(email)) roles.push("admin");
+  if (emailList(env.BLUEPRINT_OPS_EMAIL_ALLOWLIST).has(email)) roles.push("ops");
+  return roles;
+}
+
+/**
+ * Legacy users-doc roles. Firestore rules now forbid clients from writing
+ * admin/ops/accessRoles, but documents written before that rule may still
+ * carry them, so a doc-only grant is logged. BLUEPRINT_ADMIN_ROLE_DOC_FALLBACK=0
+ * turns the fallback off once custom claims (scripts/ops/audit-admin-roles.ts)
+ * or the allowlist cover every operator.
+ */
+export function userDocRoleFallbackEnabled(env: NodeJS.ProcessEnv = process.env) {
+  return !["0", "false", "no", "off"].includes(String(env.BLUEPRINT_ADMIN_ROLE_DOC_FALLBACK ?? "").trim().toLowerCase());
+}
+
+const docRoleWarnedAt = new Map<string, number>();
+
+function warnDocOnlyRoles(uid: string, roles: AccessRole[]) {
+  const now = Date.now();
+  if (now - (docRoleWarnedAt.get(uid) || 0) < 60 * 60 * 1000) return;
+  docRoleWarnedAt.set(uid, now);
+  logger.warn(
+    { event: "admin_role_from_user_doc", uid, roles },
+    "Admin/ops role granted only by the users document, not by custom claims or the allowlist; migrate it to a custom claim (scripts/ops/audit-admin-roles.ts)",
+  );
+}
+
 export async function resolveAccessContext(res: Response): Promise<AccessContext> {
   const firebaseUser = res.locals.firebaseUser as FirebaseUserLike;
   const uid = typeof firebaseUser?.uid === "string" ? firebaseUser.uid.trim() || null : null;
   const email =
     typeof firebaseUser?.email === "string" ? firebaseUser.email.trim().toLowerCase() || null : null;
 
-  const roles = new Set<AccessRole>(rolesFromFirebaseUser(firebaseUser));
-  const userDocRoles = await loadUserDocRoles(uid);
-  for (const role of userDocRoles) {
-    roles.add(role);
+  // Preferred sources: Firebase custom claims, then the server allowlist.
+  const roles = new Set<AccessRole>([
+    ...rolesFromFirebaseUser(firebaseUser),
+    ...rolesFromEmailAllowlist(firebaseUser),
+  ]);
+  if (userDocRoleFallbackEnabled()) {
+    const userDocRoles = await loadUserDocRoles(uid);
+    const docOnly = userDocRoles.filter((role) => !roles.has(role));
+    if (uid && docOnly.length) warnDocOnlyRoles(uid, docOnly);
+    for (const role of userDocRoles) {
+      roles.add(role);
+    }
   }
 
   return {

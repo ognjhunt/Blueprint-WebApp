@@ -64,7 +64,11 @@ The repo now includes [render.yaml](/Users/nijelhunt_1/workspace/Blueprint-WebAp
   changing `render.yaml` alone does not update an independently created service.
   Apply the reviewed recipe at the coordinated release point, then use the
   existing exact-SHA CI deployment and inspect process/cgroup memory after boot.
-- Health check: `/health/ready`
+- Health check: `/health` (liveness). `/health/ready` stays the post-deploy
+  readiness gate in `.github/workflows/deploy.yml` and is monitored separately
+  (see `docs/runbooks/beta-monitoring.md`); `render.yaml` only changes a
+  Blueprint-synced service, so set the dashboard Health Check Path to `/health`
+  and the instance type to Starter by hand if the service was created manually.
 - Render `autoDeploy` is disabled in `render.yaml`. GitHub Actions owns
   deploy-on-green through `.github/workflows/deploy.yml`.
 - The deploy workflow runs only after the full `CI` workflow succeeds on
