@@ -6,7 +6,8 @@ import { processCommunicationsJob, recoverSavedCommunicationsDraft } from "../ag
 import { reviseCommunicationsDraft } from "../agents/communications-draft-revision";
 import { CommunicationsStore } from "../agents/communications-store";
 import { communicationsBriefSchema, communicationsDigest } from "../agents/communications-contract";
-import { COMMUNICATIONS_FOUNDER_GUIDANCE, COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_AUDIENCE_ROLES, communicationsLaunchFraming } from "../agents/communications-launch-framing";
+import { COMMUNICATIONS_FOUNDER_GUIDANCE, COMMUNICATIONS_FOUNDER_GUIDANCE_V3, COMMUNICATIONS_FRAMING_VERSION, COMMUNICATIONS_FRAMING_V2, COMMUNICATIONS_FRAMING_V3,
+  COMMUNICATIONS_AUDIENCE_ROLES, communicationsLaunchFraming } from "../agents/communications-launch-framing";
 import { reviewCommunicationsPayload } from "../agents/communications-review";
 import { COMMUNICATIONS_HYPOTHESIS_PROFILE } from "../agents/communications-saved-agent";
 import { launchHypothesisDraft as hypothesisDraft, archivedLaunchHypothesisDraft, hypothesisDraft as archivedHypothesisDraft, hypothesisSetup } from "./fixtures/hypothesis";
@@ -70,6 +71,20 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(h.seen[0].checkpoint.framingVersion).toBe(framingVersion);
     expect(h.seen[0].input.firstTouchFraming.question).toContain("and if so, why?");
   });
+  it("resumes a charged v3 draft with its exact v3 founder guidance and natural question", async () => {
+    const h = await admitted(), original = h.f.records("jobs").find(job => job.jobId === h.intake.jobId);
+    const checkpoint = { ...original.checkpoint, framingVersion: COMMUNICATIONS_FRAMING_V3, draftProfile: COMMUNICATIONS_HYPOTHESIS_PROFILE,
+      draftWritingGuidance: "retained historical guidance", createClaimedAt: new Date(h.deps.now()).toISOString(),
+      sessionId: "synthetic-retained-session", turnId: "synthetic-retained-turn" };
+    h.f.db.records.set(`blueprintCommunications/default/jobs/${h.intake.jobId}`, { ...original, checkpoint });
+    expect(await processCommunicationsJob(h.intake.jobId, h.deps)).toMatchObject({ state: "pending_approval", sent: false });
+    expect(h.seen[0].feedback).toBeNull();
+    expect(h.seen[0].checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_V3);
+    expect(h.seen[0].input.firstTouchFraming).toEqual(communicationsLaunchFraming(h.brief, COMMUNICATIONS_FRAMING_V3));
+    expect(h.seen[0].input.firstTouchFraming).toMatchObject({ guidance: COMMUNICATIONS_FOUNDER_GUIDANCE_V3, questionIsSuggestion: true });
+    expect(h.seen[0].input.firstTouchFraming.question).not.toContain("and if so, why?");
+    expect(h.seen[0].input.firstTouchPolicy).toBe(COMMUNICATIONS_FOUNDER_GUIDANCE_V3);
+  });
   it.each(["El Paso versus Ubly", "San Antonio versus Muskogee"])("holds a recipient-site conflict (%s) before the generator even when the email is deliverable", async conflict => {
     const h = await admitted();
     const priorDigest = communicationsDigest(h.brief);
@@ -115,6 +130,7 @@ describe("drafting v2 for outreach-ready hypotheses (synthetic)", () => {
     expect(input.researchBrief.qualification.openQuestions).toEqual(h.brief.qualification!.openQuestions);
     expect(checkpoint.draftProfile).toBe(COMMUNICATIONS_HYPOTHESIS_PROFILE);
     expect(checkpoint.framingVersion).toBe(COMMUNICATIONS_FRAMING_VERSION);
+    expect(COMMUNICATIONS_FRAMING_VERSION).toBe("blueprint.outreach-framing.v4");
     expect(input.firstTouchFraming).toEqual({ ...communicationsLaunchFraming(h.brief), guidance: input.writingGuidance, question: undefined, questionIsSuggestion: true });
     expect(feedback).toBeNull();
     const ledger = h.f.db.records.get(`action_ledger/${result.ledgerId}`);
