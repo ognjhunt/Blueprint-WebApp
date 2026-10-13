@@ -6,6 +6,27 @@ import { decryptInboundRequestForAdmin } from "../utils/field-encryption";
 
 const router = Router();
 
+type CallerLike = { uid?: unknown; email?: unknown; email_verified?: unknown } | null | undefined;
+
+/**
+ * The users doc is owner-writable, so its `structuredIntakeRequestId` is a
+ * claim, not authority. Same rule as the workspace's ownedTask: the request
+ * must be a site-operator request that names this account as its owner, or,
+ * for a legacy request with no owner, carry the caller's verified email as
+ * its contact.
+ */
+export function callerOwnsOperatorRequest(record: InboundRequest, caller: CallerLike): boolean {
+  const data = record as unknown as Record<string, any>;
+  const uid = String(caller?.uid || "").trim();
+  if (!uid) return false;
+  if (String(data.request?.buyerType || "") !== "site_operator") return false;
+  const owner = String(data.account_owner_uid || "").trim();
+  if (owner) return owner === uid;
+  const email = String(caller?.email || "").trim().toLowerCase();
+  const contactEmail = String(data.contact?.email || "").trim().toLowerCase();
+  return caller?.email_verified === true && Boolean(email) && email === contactEmail;
+}
+
 function toIso(value: unknown) {
   const candidate = value as { toDate?: () => Date } | string | null | undefined;
   if (!candidate) return null;
@@ -37,6 +58,11 @@ router.get("/current", async (_req, res) => {
   const record = (await decryptInboundRequestForAdmin(
     requestSnapshot.data() as InboundRequestStored,
   )) as unknown as InboundRequest;
+  // Someone else's request reads exactly like "nothing linked": no existence
+  // oracle for request ids.
+  if (!callerOwnsOperatorRequest(record, res.locals.firebaseUser)) {
+    return res.json({ ok: true, request: null, request_id: requestId, proof_boundary: "The linked operator intake record has not been stored." });
+  }
   return res.json({
     ok: true,
     request: {

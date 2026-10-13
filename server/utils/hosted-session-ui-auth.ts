@@ -9,11 +9,15 @@ interface UiTokenPayload {
 }
 
 function getSecret() {
-  return (
-    process.env.BLUEPRINT_SESSION_UI_TOKEN_SECRET ||
-    process.env.PIPELINE_SYNC_TOKEN ||
-    "blueprint-hosted-session-ui-dev-secret"
+  const secret = (
+    process.env.BLUEPRINT_SESSION_UI_TOKEN_SECRET?.trim() ||
+    process.env.PIPELINE_SYNC_TOKEN?.trim()
   );
+  // A public, in-repo fallback would let anyone mint hosted-session UI tokens.
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new Error("Hosted session UI signing secret is required");
+  }
+  return secret || "blueprint-hosted-session-ui-dev-secret";
 }
 
 function toBase64Url(value: string) {

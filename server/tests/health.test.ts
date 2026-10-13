@@ -163,4 +163,25 @@ describe("health routes", () => {
       await stopServer(server);
     }
   });
+
+  it("ignores a health status token passed in the query string", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("HEALTH_STATUS_TOKEN", "test-health-diagnostics-token");
+
+    const { server, baseUrl } = await startServer();
+    try {
+      const ready = (await (await fetch(`${baseUrl}/health/ready?token=test-health-diagnostics-token`)).json()) as Record<string, unknown>;
+      expect(ready.checks).toBeUndefined();
+      expect(ready.dependencies).toBeUndefined();
+      const status = (await (await fetch(`${baseUrl}/health/status?token=test-health-diagnostics-token`)).json()) as Record<string, unknown>;
+      expect(status.memory).toBeUndefined();
+      expect(status.debug).toBeUndefined();
+      const header = (await (await fetch(`${baseUrl}/health/status`, {
+        headers: { "x-health-status-token": "test-health-diagnostics-token" },
+      })).json()) as Record<string, unknown>;
+      expect(header.memory).toBeDefined();
+    } finally {
+      await stopServer(server);
+    }
+  });
 });

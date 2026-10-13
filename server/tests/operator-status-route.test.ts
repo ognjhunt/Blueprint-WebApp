@@ -30,7 +30,11 @@ async function startRoute(): Promise<{ server: Server; baseUrl: string }> {
   const { default: router } = await import("../routes/operator-status");
   const app = express();
   app.use((req, res, next) => {
-    res.locals.firebaseUser = { uid: String(req.headers["x-test-uid"] || "") };
+    res.locals.firebaseUser = {
+      uid: String(req.headers["x-test-uid"] || ""),
+      email: req.headers["x-test-email"] ? String(req.headers["x-test-email"]) : undefined,
+      email_verified: req.headers["x-test-verified"] === "true",
+    };
     next();
   });
   app.use("/api/operator-status", router);
@@ -61,9 +65,11 @@ describe("operator status route", () => {
     });
     state.requests.set("request-1", {
       requestId: "request-1",
+      account_owner_uid: "operator-1",
       status: "submitted",
       qualification_state: "evidence_requested",
       request: {
+        buyerType: "site_operator",
         siteName: "North line",
         siteLocation: "Chicago, IL",
         targetSiteType: "manufacturing",
@@ -121,7 +127,9 @@ describe("operator status route", () => {
     });
     state.requests.set("request-2", {
       requestId: "request-2",
+      account_owner_uid: "operator-2",
       request: {
+        buyerType: "site_operator",
         siteName: "South line",
       },
     });
@@ -147,5 +155,59 @@ describe("operator status route", () => {
     } finally {
       await stopServer(server);
     }
+  });
+
+  describe("cross-tenant reads through an owner-writable profile link", () => {
+    function seedVictim(extra: Record<string, unknown> = {}) {
+      state.requests.set("victim-request", {
+        requestId: "victim-request",
+        request: { buyerType: "site_operator", siteName: "Victim site", taskStatement: "Secret task" },
+        contact: { email: "victim@example.com" },
+        ops: { next_step: "Private next step" },
+        ...extra,
+      });
+    }
+
+    async function readAs(uid: string, headers: Record<string, string> = {}) {
+      const { server, baseUrl } = await startRoute();
+      try {
+        const response = await fetch(`${baseUrl}/api/operator-status/current`, {
+          headers: { "x-test-uid": uid, ...headers },
+        });
+        return { status: response.status, body: await response.json() };
+      } finally {
+        await stopServer(server);
+      }
+    }
+
+    it("does not return another account's owned request even when the profile links it", async () => {
+      seedVictim({ account_owner_uid: "victim-uid" });
+      state.users.set("attacker", { buyerType: "site_operator", structuredIntakeRequestId: "victim-request" });
+      const { status, body } = await readAs("attacker", { "x-test-email": "victim@example.com", "x-test-verified": "true" });
+      expect(status).toBe(200);
+      expect(body.request).toBeNull();
+      expect(JSON.stringify(body)).not.toContain("Victim site");
+      expect(JSON.stringify(body)).not.toContain("Private next step");
+    });
+
+    it("does not return a legacy unowned request to an unverified or different email", async () => {
+      seedVictim();
+      state.users.set("attacker", { buyerType: "site_operator", structuredIntakeRequestId: "victim-request" });
+      expect((await readAs("attacker", { "x-test-email": "attacker@example.com", "x-test-verified": "true" })).body.request).toBeNull();
+      expect((await readAs("attacker", { "x-test-email": "victim@example.com", "x-test-verified": "false" })).body.request).toBeNull();
+    });
+
+    it("does not return a robot-team request through an operator profile", async () => {
+      seedVictim({ account_owner_uid: "operator-9", request: { buyerType: "robot_team", siteName: "Victim site" } });
+      state.users.set("operator-9", { buyerType: "site_operator", structuredIntakeRequestId: "victim-request" });
+      expect((await readAs("operator-9")).body.request).toBeNull();
+    });
+
+    it("still serves a legacy unowned request to the verified contact email", async () => {
+      seedVictim();
+      state.users.set("victim-uid", { buyerType: "site_operator", structuredIntakeRequestId: "victim-request" });
+      const { body } = await readAs("victim-uid", { "x-test-email": "Victim@Example.com", "x-test-verified": "true" });
+      expect(body.request).toMatchObject({ request_id: "victim-request", site_name: "Victim site" });
+    });
   });
 });
