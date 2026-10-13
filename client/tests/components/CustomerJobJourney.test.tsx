@@ -19,7 +19,7 @@ vi.mock("../../../server/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(
 vi.mock("express-rate-limit", () => ({ default: () => (_req: unknown, _res: unknown, next: () => void) => next() }));
 vi.mock("../../../server/middleware/requireAdminRole", () => ({ requireAdminRole: (_req: unknown, res: any, next: () => void) => { res.locals.firebaseUser = { uid: "fixture-reviewer" }; next(); } }));
 vi.mock("../../../server/utils/siteMatchRun", () => ({ runSiteMatch: vi.fn(async () => null) }));
-vi.mock("../../../server/utils/slack", () => ({ notifySlackScreeningCallNeeded: vi.fn(async () => undefined) }));
+vi.mock("../../../server/utils/slack", () => ({ notifySlackScreeningCallNeeded: vi.fn(async () => undefined), sendSlackMessage: vi.fn(async () => ({ sent: false })) }));
 vi.mock("../../../server/utils/email", () => ({ sendEmail: vi.fn(() => { throw new Error("No live correspondence permitted in this proof"); }) }));
 vi.mock("../../../server/utils/captureOutbox", async original => ({ ...(await original<typeof import("../../../server/utils/captureOutbox")>()), deliverOutbox: vi.fn(async () => ({ sent: 0 })) }));
 const participant = vi.hoisted(() => ({ email: "team@example.test" }));
@@ -51,6 +51,13 @@ it("joins the existing job, bounded review, proposal acceptance and evidence-gat
     request: { buyerType: "site_operator", capture_mode: "self_capture", taskStatement: "Move cartons onto a pallet" },
     siteTaskGates: { sceneStability: "stable", taskShape: "single", objectVariety: "under_10" } });
   state.docs.set("robotTeams/fixture-team", { id: "fixture-team", name: "Fixture admitted team", status: "engaged", contactEmail: "team@example.test" });
+  // The recommendation must stand on a passing evaluation of this job (simulated, development-only).
+  state.docs.set("evaluationRuns/run_fixture", { runId: "run_fixture", reservationId: "free_fixture", teamId: "fixture-team", checkpointId: "ckpt_fixture",
+    sceneId: "req-1", taskFamily: "palletizing", evaluationPurpose: "pilot", quotedUsd: 0, quotedEpisodes: 20, state: "completed", episodesRun: 20,
+    moneyResolved: true, requestedAtIso: "2026-10-01T00:00:00.000Z", resolvedAtIso: null, note: null,
+    result: { evidenceScope: "development_only", runId: "run_fixture", teamId: "fixture-team", checkpointId: "ckpt_fixture", sceneId: "req-1",
+      observed: { episodesRun: 20, episodesSucceeded: 19, successRate: 0.95, medianCycleSeconds: 12 }, claimed: { demonstratedSuccessRate: null, cycleTime: "under_30s" },
+      note: null, artifactUri: null, reportedAtIso: "2026-10-02T00:00:00.000Z" } });
   state.docs.set(`robotTeamAccess/${accessRecordId("team@example.test")}`, { status: "approved", company: "Fixture admitted team" });
   const initial = draftBrief({ requestId: "req-1", summary: "Move cartons onto a pallet", captureMode: "self_capture", proposed: [
     { fieldId: "sceneStability", value: "stable", basis: "observation", reading: "Station position in this clip only", atSeconds: 2, confidence: 0.9 },
@@ -115,7 +122,7 @@ it("joins the existing job, bounded review, proposal acceptance and evidence-gat
     expect(screen.getByText(decision.why)).toBeInTheDocument();
     expect(screen.getByText(decision.nextAction)).toBeInTheDocument();
     expect(job().pilot_booking).toBeUndefined(); decidedView.unmount();
-    const plan = { ...draft.draft, teamId: "fixture-team", briefRevision: draft.briefRevision,
+    const plan = { ...draft.draft, evaluationRunId: "run_fixture", teamId: "fixture-team", briefRevision: draft.briefRevision,
       siteProvides: "Escort and isolated station", teamProvides: "Robot, operator and setup", pilotCost: "Fixture quote $18,000", costBasis: "Simulated quote, not an authorized purchase", window: "November, provisional",
       sitePreparation: "Site isolates the station; team reviews guarding", humanWork: "Named escort and robot operator", capabilityBasis: "Hypothesis from admitted team's supplied capability; untested here", providerCommitment: "Not yet committed" };
     const proposal = await (await request("/api/admin/robot-teams/recommendations/req-1", plan)).json();

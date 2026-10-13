@@ -39,6 +39,30 @@ describe("the recommended pilot", () => {
     expect(JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body)).toEqual({ recommendationId: "rec_1", authorized: true });
   });
 
+  it("shows the evaluation the recommendation stands on, with the simulation boundary and free beta terms", async () => {
+    const evidence = { episodesRun: 20, episodesSucceeded: 19, successRate: 0.95, passMarkSuccessRate: 0.9, passMarkSource: "job_terms",
+      cycleTimeTargetSeconds: null, medianCycleSeconds: 12, cycleTimeMet: null, evaluatedAtIso: "2026-10-02T00:00:00Z",
+      evidenceScope: "development_only", boundary: "Simulation estimate.", resultUrl: "/app/tasks/req1" };
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation: { ...recommendation, evidence }, booking: null }) });
+    render(<RecommendedPilot token="tok" />);
+    expect(await screen.findByText(/Acme Robotics evaluated your job: 19 of 20 simulated episodes succeeded \(95%\), meeting your pass mark of 90%/)).toBeInTheDocument();
+    expect(screen.getByText(/Simulation estimate — the physical pilot measures the real result/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "See the evaluation results" })).toHaveAttribute("href", "/app/tasks/req1");
+    expect(screen.getByLabelText(/authorized to accept this proposal/i).closest("label")).toHaveTextContent(
+      "Blueprint charges nothing during the beta; the pilot's cost is agreed with the robot team.");
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+  });
+
+  it("offers no result link when the site cannot open the results", async () => {
+    const evidence = { episodesRun: 20, episodesSucceeded: 18, successRate: 0.9, passMarkSuccessRate: 0.9, passMarkSource: "blueprint_default",
+      cycleTimeTargetSeconds: null, medianCycleSeconds: null, cycleTimeMet: null, evaluatedAtIso: "2026-10-02T00:00:00Z",
+      evidenceScope: "development_only", boundary: "Simulation estimate.", resultUrl: null };
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation: { ...recommendation, evidence }, booking: null }) });
+    render(<RecommendedPilot token="tok" />);
+    expect(await screen.findByText(/meeting Blueprint's pass mark of 90%/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "See the evaluation results" })).toBeNull();
+  });
+
   it("shows a booked pilot without a button", async () => {
     fetchMock.mockResolvedValueOnce(loaded({ recommendationId: "rec_1" }));
     render(<RecommendedPilot token="tok" />);
