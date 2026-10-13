@@ -1094,7 +1094,9 @@ describe("prospective founder framing versions", () => {
         instructionsDigest: COMMUNICATIONS_FOUNDER_FRAMING_V3_DIGEST, guidance: COMMUNICATIONS_FOUNDER_GUIDANCE_V3 }).toEqual(v3[index]);
     }
     const [before, after] = COMMUNICATIONS_FOUNDER_GUIDANCE_V3.split(/Robot-team beta evaluation .*? Do not invent a price or a match promise\./);
-    expect(COMMUNICATIONS_FOUNDER_GUIDANCE.startsWith(before) && COMMUNICATIONS_FOUNDER_GUIDANCE.endsWith(after)).toBe(true);
+    expect(COMMUNICATIONS_FOUNDER_GUIDANCE.startsWith(before)
+      && COMMUNICATIONS_FOUNDER_GUIDANCE.endsWith(after.replace("demand-led matching", "demand-led introductions"))).toBe(true);
+    expect(COMMUNICATIONS_FOUNDER_GUIDANCE).not.toMatch(/\bmatch(?:ing|ed|es)?\b/i);
   });
 });
 
