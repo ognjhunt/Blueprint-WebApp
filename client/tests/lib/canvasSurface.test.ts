@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { minimalPublicPaths } from "@/data/minimalPublicSite";
+import { isMinimalPublicPath } from "@/data/minimalPublicSite";
 import {
   canvasSurfaceColors,
   canvasSurfaceFor,
@@ -80,9 +80,7 @@ function renderedSurface(route: ParsedRoute): CanvasSurface | null {
   if (route.bare) return null; // shell comes from the page, which wasn't readable
   // Otherwise SiteLayout: MinimalSiteLayout (paper) for the minimal public
   // paths, the Runway ground for everything else.
-  return (minimalPublicPaths as readonly string[]).includes(route.routePath)
-    ? "light"
-    : "dark";
+  return isMinimalPublicPath(route.routePath) ? "light" : "dark";
 }
 
 describe("canvasSurfaceFor", () => {
@@ -93,6 +91,7 @@ describe("canvasSurfaceFor", () => {
       "/contact/site-operator",
       "/contact/robot-team",
       "/sites",
+      "/sites/some-site",
       "/privacy",
       "/terms",
       "/sign-in",
@@ -113,7 +112,6 @@ describe("canvasSurfaceFor", () => {
       "/capture-app",
       "/capture-app/account",
       "/launch-map",
-      "/sites/some-site",
       "/admin/leads",
       "/ops/spend",
       "/internal/design-system",
@@ -164,7 +162,7 @@ describe("stampCanvasSurface", () => {
   });
 
   it("replaces a surface already stamped, rather than duplicating it", () => {
-    expect(stampCanvasSurface('<html lang="en" data-surface="light">', "/sites/example")).toBe(
+    expect(stampCanvasSurface('<html lang="en" data-surface="light">', "/ops/spend")).toBe(
       '<html lang="en" data-surface="dark">',
     );
   });

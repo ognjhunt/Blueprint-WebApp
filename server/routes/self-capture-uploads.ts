@@ -52,6 +52,8 @@ import { claimCapturePrivacyScreen, recordCapturePrivacyScreen,
   releaseCapturePrivacyScreenClaim } from "../utils/capturePrivacyRecord";
 import { getBrief, switchSiteToSelfCapture } from "../utils/siteTaskBrief";
 import { loadWebsiteCaptureRights, projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { OWNER_WITHDRAWAL_CONFIRMATION, projectWebsiteCaptureWithdrawal,
+  recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { bundleLimitsFromEnv } from "../utils/siteCaptureBundle";
 import {
@@ -906,6 +908,62 @@ router.post("/:token/recording-consent", async (req: Request, res: Response) => 
   } catch (error) {
     logger.warn({ requestId: payload.requestId }, "Could not save initial recording permission");
     return res.status(503).json({ error: "We could not save recording permission. Try again shortly." });
+  }
+});
+
+/**
+ * The signed owner link's withdrawal entry. A site that never made an account
+ * holds only this link, so it carries the same withdrawal the account route
+ * does (recordWebsiteCaptureWithdrawal): uploads stop, the task pauses, queued
+ * runs are asked to cancel, and the durable record queues Pipeline handoff and
+ * WebApp storage deletion. Only the owner's own link for the site's canonical
+ * capture qualifies; a film or supplement link cannot withdraw.
+ */
+function ownerWithdrawalLink(req: Request, res: Response) {
+  res.setHeader("Cache-Control", "no-store");
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) { res.status(404).json({ error: "This job link is not valid or has expired." }); return null; }
+  if (payload.scope !== "owner" || payload.supplement || payload.captureId !== `walkthrough-${payload.requestId}`
+    || payload.sceneId !== `site-${payload.requestId}`) {
+    res.status(403).json({ code: "withdrawal_not_authorized", error: "Use the site owner's job link to withdraw recording permission." });
+    return null;
+  }
+  return payload;
+}
+
+router.get("/:token/withdrawal", async (req: Request, res: Response) => {
+  const payload = ownerWithdrawalLink(req, res);
+  if (!payload) return;
+  if (!dbAdmin) return res.status(503).json({ error: "We could not check withdrawal status. Try again shortly." });
+  try {
+    const record = (await dbAdmin.collection("inboundRequests").doc(payload.requestId).get()).data();
+    if (!record) return res.status(404).json({ error: "This link does not point at a job we hold." });
+    return res.json({ ok: true, withdrawn: Boolean(record.capture_withdrawal),
+      withdrawal: record.capture_withdrawal ? projectWebsiteCaptureWithdrawal(record.capture_withdrawal) : null });
+  } catch {
+    logger.warn({ requestId: payload.requestId }, "Could not read owner-link withdrawal status");
+    return res.status(503).json({ error: "We could not check withdrawal status. Try again shortly." });
+  }
+});
+
+router.post("/:token/withdrawal", async (req: Request, res: Response) => {
+  const payload = ownerWithdrawalLink(req, res);
+  if (!payload) return;
+  const parsed = z.object({ confirm: z.literal(OWNER_WITHDRAWAL_CONFIRMATION) }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ code: "withdrawal_confirmation_required",
+    error: "Confirm that you want to withdraw recording permission." });
+  try {
+    const outcome = await recordWebsiteCaptureWithdrawal({ requestId: payload.requestId, requestedBy: "signed_owner_link",
+      authorize: record => {
+        if (!record) throw Object.assign(new Error("This link does not point at a job we hold."), { status: 404 });
+      } });
+    if (outcome.created) logger.info({ requestId: payload.requestId }, "Owner link withdrew recording permission");
+    return res.status(202).json({ ok: true, created: outcome.created,
+      withdrawal: projectWebsiteCaptureWithdrawal(outcome.withdrawal) });
+  } catch (error) {
+    if ((error as { status?: number }).status === 404) return res.status(404).json({ error: "This link does not point at a job we hold." });
+    logger.warn({ requestId: payload.requestId }, "Could not record owner-link withdrawal");
+    return res.status(503).json({ error: "We could not record your withdrawal. Nothing changed. Try again shortly." });
   }
 });
 

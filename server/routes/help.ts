@@ -4,6 +4,10 @@ import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { HTTP_STATUS } from "../constants/http-status";
 import { processSimpleReschedule } from "../utils/field-ops-automation";
 import { isValidEmailAddress } from "../utils/validation";
+import { optionallyVerifyFirebaseToken } from "../middleware/verifyFirebaseToken";
+import { logger } from "../logger";
+import { sendSlackMessage } from "../utils/slack";
+import { appBaseUrl } from "../utils/intakeOpsNotice";
 
 const router = Router();
 
@@ -11,7 +15,20 @@ function normalizeEmail(value: unknown) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
 
-router.post("/reschedule", async (req: Request, res: Response) => {
+/**
+ * Only a signed-in caller whose verified Firebase email is the booking email
+ * may change a booking directly. An email typed into a form proves nothing,
+ * so an anonymous (or mismatched) request becomes a support-queue record for
+ * a person to act on, and never calls processSimpleReschedule.
+ */
+function verifiedCallerEmail(res: Response): string | null {
+  const user = res.locals.firebaseUser as { email?: unknown; email_verified?: unknown } | undefined;
+  if (!user || user.email_verified !== true) return null;
+  const email = normalizeEmail(user.email);
+  return email || null;
+}
+
+router.post("/reschedule", optionallyVerifyFirebaseToken, async (req: Request, res: Response) => {
   if (!db) {
     return res.status(500).json({ error: "Database not available" });
   }
@@ -37,6 +54,9 @@ router.post("/reschedule", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Invalid email address" });
   }
 
+  const callerEmail = verifiedCallerEmail(res);
+  const identityProven = callerEmail !== null && callerEmail === email;
+
   const snapshot = await db
     .collection("bookings")
     .where("email", "==", email)
@@ -54,7 +74,7 @@ router.post("/reschedule", async (req: Request, res: Response) => {
     );
   });
 
-  if (matches.length === 1) {
+  if (identityProven && matches.length === 1) {
     const result = await processSimpleReschedule({
       bookingId: matches[0].id,
       requestedDate,
@@ -83,7 +103,7 @@ router.post("/reschedule", async (req: Request, res: Response) => {
     requestSource: "help_reschedule",
     summary:
       `${name} requested a mapping reschedule to ${requestedDate} ${requestedTime}. ` +
-      `Booking matches found: ${matches.length}. Manual operator review is required before any schedule change.`,
+      `Booking matches found: ${matches.length}. Identity ${identityProven ? "verified by sign-in" : "not verified (email typed into a form)"}. Manual operator review is required before any schedule change.`,
     ops_automation: {
       status: "pending",
       queue: "support_triage",
@@ -93,9 +113,20 @@ router.post("/reschedule", async (req: Request, res: Response) => {
       requested_time: requestedTime,
       requested_reason: reason,
       booking_match_count: matches.length,
+      identity_verified: identityProven,
     },
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+
+  // Link-only ops notice: the name, email and reason stay in Firestore.
+  void sendSlackMessage(
+    `:calendar: *Reschedule request needs a person* — \`${requestId}\` (${matches.length} booking match(es), identity ${identityProven ? "verified" : "unverified"})\nOpen: ${appBaseUrl()}/admin/leads`,
+    process.env.SLACK_INBOUND_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL,
+  ).then((result) => {
+    if (!result?.sent) {
+      logger.warn({ requestId, event: "help_reschedule_notice_undelivered" }, "Reschedule request queued but the Slack notice was not delivered");
+    }
+  }).catch(() => undefined);
 
   return res.status(HTTP_STATUS.ACCEPTED).json({
     success: true,

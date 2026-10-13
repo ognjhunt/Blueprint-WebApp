@@ -227,8 +227,9 @@ describe("build output", () => {
     expect(llmsFull).toContain("Robot teams register interest through the existing application");
     expect(llmsFull).toContain("early_access_required");
     expect(llms).toContain("https://tryblueprint.io/beta");
-    expect(llms).toContain("limited, invited beta");
-    expect(llms).toContain("scope and cost agreed separately before proceeding");
+    expect(llms).toContain("free beta");
+    expect(llms).toContain("recommends one team whose evaluation on that job passed");
+    expect(llms).not.toMatch(/\$99\b|top-ups remain|\bmatch(?:ed|es|ing)?\b/);
     expect(llms).not.toContain("$2,500");
     expect(llms).not.toMatch(/5% fee|capped at \$5,000|authorized buyer/);
 
@@ -239,11 +240,15 @@ describe("build output", () => {
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(homeHtml).toContain("Could a robot take over a repetitive task at your site?");
-    expect(homeHtml).toContain("Free initial assessment during the beta.");
+    expect(homeHtml).toContain("Free during the beta, for sites and robot teams.");
     expect(homeHtml).toContain("One recommended pilot, on one page.");
     expect(homeHtml).toContain("Quoted by the robot team, paid to them");
     expect(homeHtml).not.toContain("The same task, in simulation.");
-    expect(homeHtml).toContain("Agree on the next step");
+    expect(homeHtml).toContain("Book the recommended pilot");
+    expect(homeHtml).toContain("None during the beta");
+    // Organization and WebSite structured data ride on the homepage.
+    expect(homeHtml).toContain('"@type":"Organization"');
+    expect(homeHtml).toContain('"@type":"WebSite"');
     expect(homeHtml).not.toContain("Join the robot-team beta");
     expect(homeHtml).not.toContain("/illustrations/task-evaluation/02-arm-evaluation.webp");
     expect(homeHtml).not.toContain("No pilot, no fee.");
@@ -260,7 +265,7 @@ describe("build output", () => {
     expect(siteHtml).toContain("Loading your account and saved draft");
     expect(siteHtml).not.toContain('aria-label="Start a site capture"');
     expect(siteHtml).not.toContain('id="start-task"');
-    expect(siteHtml).toContain("Show us the work. We’ll investigate, ask only what matters, and come back with a recommendation or concrete pilot plan. Blueprint beta support is free; any provider cost or new commitment is agreed separately.");
+    expect(siteHtml).toContain("Show us the work. Robot teams evaluate it in simulation, and we recommend one team whose evaluation passed for you to book. The beta is free; you agree the physical pilot’s dates and terms with the team directly.");
     expect(siteHtml).toContain("How this works");
     // The country comes from the address; its select opens only to correct it.
     expect(siteHtml).not.toContain('id="start-region"');

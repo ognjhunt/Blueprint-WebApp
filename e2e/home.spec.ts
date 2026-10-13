@@ -10,7 +10,7 @@ test("homepage speaks to sites, with robot teams one nav link away", async ({ pa
   await expect(nav.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
   const main = page.locator("main");
   await expect(main.getByRole("link", { name: "Show us a task" })).toHaveAttribute("href", "/contact/site-operator");
-  await expect(main.getByText("Free initial assessment during the beta.")).toBeVisible();
+  await expect(main.getByText("Free during the beta, for sites and robot teams.")).toBeVisible();
   await expect(main.getByRole("link", { name: /robot-team beta|early access/i })).toHaveCount(0);
-  await expect(main.getByText("Any later work has a separately agreed scope and cost.")).toBeVisible();
+  await expect(main.getByText("One team whose evaluation passed. You agree dates and terms with them.")).toBeVisible();
 });

@@ -218,6 +218,33 @@ describe("description first owner return", () => {
     expect(await screen.findByRole("button", { name: "Upload a video file" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Add footage when you are ready (optional)" })).not.toBeInTheDocument();
   });
+  it("lets the owner link withdraw recording permission after an explicit confirmation", async () => {
+    const fetcher = ownerFetch(false);
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === `/api/self-capture/uploads/${TOKEN}/withdrawal` && init?.method === "POST") return Promise.resolve({ ok: true,
+        json: async () => ({ ok: true, created: true, withdrawal: { state: "uploads_stopped_cleanup_pending", deletionConfirmed: false,
+          pipelineAcknowledged: false, legalHold: false, requestedAtIso: "2026-10-13T00:00:00.000Z",
+          storageDeletion: { state: "pending", deletedObjectCount: 0, lateUploadCheckAtIso: null, completedAtIso: null } } }) });
+      return fetcher(input, init);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<SelfCaptureUpload />);
+    fireEvent.click(await screen.findByText("Withdraw recording permission"));
+    fireEvent.click(screen.getByRole("button", { name: "Withdraw permission…" }));
+    expect(fetchMock.mock.calls.some(call => String(call[0]).endsWith("/withdrawal") && call[1]?.method === "POST")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Yes, withdraw permission" }));
+    expect(await screen.findByText("Uploads stopped. Deletion of stored footage is in progress.")).toBeInTheDocument();
+    expect(await screen.findByText("Recording permission was withdrawn. This link no longer accepts footage.")).toBeInTheDocument();
+    expect(videoUpload.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("withdrawal is owner-only on the page", () => {
+  it("does not offer withdrawal on a filming link", async () => {
+    render(<SelfCaptureUpload />);
+    await screen.findByRole("button", { name: /Upload a video file|Choose or record a video/ });
+    expect(screen.queryByText("Withdraw recording permission")).not.toBeInTheDocument();
+  });
 });
 
 describe("retained video processing recovery", () => {

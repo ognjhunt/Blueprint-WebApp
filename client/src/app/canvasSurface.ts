@@ -12,8 +12,9 @@
  * Blueprint's paper (`#f6f5ef`) is the default because the public site, the
  * auth pages, the `/app` workspace, and the 404 all render on it, and because
  * legacy marketing paths are `MarketingRedirect`s whose destinations are those
- * same paper surfaces. The Runway instrument surfaces — capture, site
- * details, admin/ops, internal, and beta instruments — opt into the dark ground below.
+ * same paper surfaces, as do public job records under `/sites/`. The Runway
+ * instrument surfaces — capture, admin/ops, internal, and beta instruments —
+ * opt into the dark ground below.
  *
  * Kept free of React and browser globals so the client, the Express server, and
  * the prerenderer can all resolve a surface from a pathname.
@@ -38,7 +39,6 @@ const darkPathPrefixes = [
   "/capture-app",
   "/internal",
   "/ops",
-  "/sites/",
 ];
 
 function normalizePathname(pathname: string): string {

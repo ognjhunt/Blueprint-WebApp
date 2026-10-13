@@ -22,4 +22,11 @@ describe("robot-team verification from the job library", () => {
     await waitFor(() => expect(auth.send).toHaveBeenCalledWith(auth.user, `${window.location.origin}/sites`));
     expect(screen.getByRole("status")).toHaveTextContent(/verification email sent/i);
   });
+
+  it("carries the site a team asked about from a job record into the application", async () => {
+    window.history.pushState({}, "", "/contact/robot-team?site=Owner-backed%20warehouse&source=site-detail-live-record");
+    render(<RobotTeamEarlyAccess access={null} email={null} />);
+    await waitFor(() => expect(screen.getByLabelText(/A site or customer you would want to test at/)).toHaveValue("Owner-backed warehouse"));
+    window.history.pushState({}, "", "/");
+  });
 });

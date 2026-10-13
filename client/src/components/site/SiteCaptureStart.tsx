@@ -17,7 +17,6 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { inferLocationCountryCode } from "@/lib/deploymentCoverage";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION } from "@/lib/siteSubmissionAuthority";
-import { formatPrice, pilotFeeUsd } from "@/lib/evaluationPricing";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
   CAPTURE_VIDEO_ACCEPT,
@@ -886,7 +885,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       </>}
 
       <p className="ms-form-note">
-        Initial assessment is free during the beta. <a href="/beta#scope">Later scope and cost are agreed separately</a>. By selecting Start free assessment,
+        Free during the beta: robot teams evaluate your job and we recommend one pilot you can book. <a href="/beta#scope">The physical pilot is agreed with the team</a>. By selecting Start free assessment,
         you agree to our <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and{" "}
         <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and confirm: “{DESCRIPTION_AUTHORITY_STATEMENT}”
       </p>

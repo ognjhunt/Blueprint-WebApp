@@ -228,6 +228,37 @@ function resendTags(categories?: string[], customArgs?: Record<string, string>):
   return tags;
 }
 
+/**
+ * Resend's free plan has a hard daily and monthly send quota. A quota
+ * rejection is a 429 whose error name says "quota"; every send after it fails
+ * until the window resets, so it is an outage, not a single bad message.
+ */
+export function isResendQuotaError(
+  error: { name?: unknown; message?: unknown; statusCode?: unknown } | null | undefined,
+): boolean {
+  if (!error) return false;
+  const name = String(error.name || "").toLowerCase();
+  const message = String(error.message || "").toLowerCase();
+  return name.includes("quota") || (error.statusCode === 429 && message.includes("quota"));
+}
+
+function reportResendQuotaExhausted(reason: string) {
+  logger.error(
+    { event: "email_quota_exhausted", provider: "resend", reason },
+    "Resend send quota exhausted; outbound email is failing until the quota resets or the plan is upgraded",
+  );
+  void import("./opsProcessAlerts")
+    .then(({ sendRateLimitedOpsAlert }) => sendRateLimitedOpsAlert(
+      "resend_quota_exhausted",
+      [
+        ":rotating_light: Blueprint email: Resend send quota exhausted",
+        `- Reason: ${reason}`,
+        "- Customer and ops email is failing until the quota resets. Upgrade the Resend plan (docs/runbooks/resend-email.md).",
+      ].join("\n"),
+    ))
+    .catch(() => undefined);
+}
+
 async function sendViaResend({
   to,
   subject,
@@ -264,12 +295,16 @@ async function sendViaResend({
       const status = error?.statusCode;
       const rejected = typeof status === "number" && status >= 400 && status < 500
         && status !== 408;
+      const quota = isResendQuotaError(error);
+      if (quota) reportResendQuotaExhausted(String(error?.name || "quota_exceeded"));
       logger.error({
         ...buildEmailLogContext({ event: "email_dispatch_failed", provider: "resend",
           to, subject, text, html, replyTo, attachments, sendGridCategories, sendGridCustomArgs }),
         // Preserve the failure event without logging a raw provider payload,
         // which may echo recipient details or message content.
-        failureReason: rejected ? "provider_rejected" : "provider_acknowledgement_unavailable",
+        failureReason: quota ? "provider_quota_exceeded"
+          : status === 429 ? "provider_rate_limited"
+            : rejected ? "provider_rejected" : "provider_acknowledgement_unavailable",
         providerStatus: typeof status === "number" ? status : null,
         outcome: rejected ? "not_sent" : "unknown",
       }, "Failed to send email via Resend");
@@ -454,7 +489,9 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     : options;
 
   if (!getEmailTransportStatus().configured) {
-    logger.info(
+    // In production an unconfigured transport means mail is silently not
+    // going out; that is a warning, not routine information.
+    logger[process.env.NODE_ENV === "production" ? "warn" : "info"](
       buildEmailLogContext({
         event: "email_transport_unconfigured",
         provider: "none",

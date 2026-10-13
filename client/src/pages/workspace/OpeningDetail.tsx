@@ -206,8 +206,8 @@ export default function OpeningDetail() {
               <label className="ws-check">
                 <input type="checkbox" required />
                 <span>
-                  I understand compute and pilot costs are agreed before work
-                  starts.
+                  I understand the evaluation is free during the beta, and that a
+                  physical pilot&rsquo;s dates and terms are agreed directly with the site.
                 </span>
               </label>
               <div className="ws-form-actions">

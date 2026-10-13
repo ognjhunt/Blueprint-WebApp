@@ -292,7 +292,7 @@ export default function TaskEvaluationResultDetail() {
         ) : null}
         {!isLoading && !error && notFound ? (
           <section className="ws-empty">
-            <h2>Result not available</h2>
+            <h1>Result not available</h1>
             <p>
               No result you can see matches this link.{!currentUser ? <> <Link href={resultSignInHref(`/app/results/${recordId}`)} className="ws-link">Sign in</Link> to check for private results.</> : null}
             </p>

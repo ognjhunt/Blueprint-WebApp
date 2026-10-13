@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pause, Play } from "lucide-react";
 
 /**
- * What a site receives: one recommended pilot, shown for a few kinds of site.
- * Examples, not bookings. Each illustration is a slow loop of the robot doing the task.
+ * What a site receives: one recommended pilot, from a team whose simulated
+ * evaluation on the job passed, shown for a few kinds of site. Examples, not
+ * bookings or results. Each illustration is a slow loop of the robot doing the task.
  */
 
 type P = [number, number];
@@ -396,7 +397,7 @@ export function PilotPreview() {
       <div className="ms-pilot-preview-intro">
         <p className="ms-eyebrow">What you get</p>
         <h2 id="pilot-preview-title">One recommended pilot, on one page.</h2>
-        <p>The robot team, what the pilot tests, what it costs and when. You decide with one click.</p>
+        <p>The robot team whose evaluation on your task passed, what the pilot tests and when. You book it with one click.</p>
         <svg ref={artRef} className="ms-pilot-art" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example`}>
           <g key={example.site} className="ms-pilot-art-scene">
             <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
@@ -423,17 +424,19 @@ export function PilotPreview() {
           </div>
           <dl>
             <div><dt>Robot team</dt><dd>Example Robotics</dd></div>
+            <div><dt>Evaluated in simulation</dt><dd>Passed on your task (example)</dd></div>
             <div><dt>What the pilot tests</dt><dd>{example.tests}</dd></div>
             <div><dt>What you provide</dt><dd>{example.provide}</dd></div>
             <div><dt>What the team provides</dt><dd>{example.teamProvides}</dd></div>
+            <div><dt>Blueprint fee</dt><dd>None during the beta</dd></div>
             <div><dt>Pilot cost</dt><dd>Quoted by the robot team, paid to them</dd></div>
             <div><dt>When</dt><dd>{example.when}</dd></div>
             <div><dt>Still uncertain</dt><dd>{example.uncertain}</dd></div>
           </dl>
         </div>
         <div className="ms-pilot-card-foot">
-          <span className="ms-button" aria-hidden="true">Accept proposal · coordinate dates</span>
-          <span>Scope and cost agreed separately.</span>
+          <span className="ms-button" aria-hidden="true">Book this pilot</span>
+          <span>Dates and pilot terms are agreed with the team. A simulated pass is an estimate, not proof of on-site performance.</span>
         </div>
       </div>
     </section>

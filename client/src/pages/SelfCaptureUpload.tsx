@@ -28,6 +28,7 @@ import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/componen
 import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
 import { TaskClarification } from "@/components/site/TaskClarification";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
+import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdrawal";
 import { captureBlockingGates } from "@/lib/siteTaskReadiness";
 import { withCsrfHeader } from "@/lib/csrf";
 import { isCaptureMode, defaultCaptureMode } from "@/data/siteTaskQualification";
@@ -1021,6 +1022,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         </>
       )}
       {link.status === "valid" && scope === "owner" && <PublicTaskListing token={token} jobRevision={JSON.stringify(brief)} />}
+      {(link.status === "valid" || link.status === "held") && scope === "owner" && (
+        <OwnerRecordingWithdrawal token={token} onWithdrawn={() => setLink({ status: "held",
+          detail: "Recording permission was withdrawn. This link no longer accepts footage.",
+          blockers: [], openQuestions: [], holdReason: "recording_consent_withdrawn" })} />
+      )}
       {!saved && (
         <p className="ms-field-hint" style={{ marginTop: "28px" }}>Blueprint prepares the next useful step from your job and existing evidence. We send meaningful progress and ask for action only when a missing fact or concrete commitment needs your input.</p>
       )}

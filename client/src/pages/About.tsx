@@ -3,14 +3,14 @@ import { COMPANY } from "@/data/company";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  "Blueprint helps businesses assess one recurring task using real-site evidence and decide what to explore next.";
+  "Blueprint has robot teams evaluate one recurring task from a real site in simulation, and recommends one team whose evaluation passed. Free during the beta.";
 
 const principles = [
   "Start from the real job at a real site, not a demo.",
   "Keep a site's footage and details private unless the site chooses to share them.",
   "Say what a result does not show: a simulation result is not a physical test.",
   "Report failures and unknowns instead of manufacturing a green light.",
-  "Show material findings and a provider-approved offer before anyone buys a pilot.",
+  "Recommend only a team whose evaluation on the job passed, and never ask a site to compare teams.",
 ] as const;
 
 export default function About() {
@@ -32,17 +32,17 @@ export default function About() {
         <p className="ms-eyebrow">About</p>
         <h1>We start with one real job.</h1>
         <p className="ms-about-lead">
-          Blueprint helps a business describe one recurring job and review an initial assessment
-          grounded in the available evidence. Our beta asks what is supported,
-          what is uncertain, and what a useful next step would be.
+          Blueprint helps a business show one recurring job. Invited robot teams evaluate it in a
+          simulation built from the site, and we recommend one team whose evaluation passed. The
+          beta is free for sites and robot teams.
         </p>
 
         <section>
           <h2>How it works</h2>
           <ol>
-            <li>Show us a real job, your desired outcome, and permitted footage or a conversation about the work.</li>
-            <li>Invited beta participants receive a free initial assessment and share feedback.</li>
-            <li>Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding.</li>
+            <li>A site shows us a real job: anyone can start one, and we also onboard sites by hand.</li>
+            <li>Robot teams we have invited evaluate it free, in a simulation built from the site&rsquo;s capture.</li>
+            <li>We recommend one team whose evaluation passed. The site books it in one step and agrees the physical pilot&rsquo;s dates and terms with the team directly.</li>
           </ol>
           <p><a href="/how-it-works">More on how it works</a> · <a href="/beta">Beta program</a></p>
         </section>

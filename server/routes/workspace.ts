@@ -64,10 +64,12 @@ import { listRunsForTeam } from "../utils/agentRunResults";
 import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from "../utils/robotTeamAgentKeys";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { alertOpsEvaluationNeedsAdmission } from "../utils/pilotOpsAlerts";
 import { accessRecordId, resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
 import { accountHasAdmission } from "../utils/accountInvitations";
 import { resolveAccessContext } from "../utils/access-control";
 import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
+import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
 
 const router = Router();
 const id = z
@@ -1247,12 +1249,19 @@ router.post(
     };
     await submitInboundRequest(req, res);
     // The site hears that a team asked about its task, once per request.
-    if (res.statusCode < 300)
+    if (res.statusCode < 300) {
       await enqueueTaskLifecycleNotification({
         requestId: input.opportunityId,
         milestone: "pilot_request",
         eventId: input.id,
       }).catch((error) => logger.warn({ error, requestId: input.opportunityId }, "Could not queue the pilot-request email"));
+      // The free evaluation waits on a founder's admission; ring ops once,
+      // with ids only. Never blocks or fails the team's request.
+      void teamsForAccount(caller.uid)
+        .then((teams) => alertOpsEvaluationNeedsAdmission({ workspaceRequestId: input.id,
+          jobId: input.opportunityId, teamIds: teams.map((team) => team.id) }))
+        .catch((error) => logger.warn({ error, requestId: input.id }, "Evaluation-admission ops alert failed"));
+    }
   }),
 );
 router.patch("/update-preferences", handle(async (req, res) => {
@@ -1359,33 +1368,16 @@ router.post(
     });
   }),
 );
-/** Owner-only withdrawal. A durable tombstone is not a deletion receipt. */
+/** Owner-only withdrawal. The same effect backs the signed owner link; deletion
+ * is reported only once the deletion worker's receipt confirms it. */
 router.post("/tasks/:taskId/recording-consent/withdraw", handle(async (req, res) => {
   await ownedTask(req.params.taskId, res);
   const caller = identity(res);
-  const ref = db!.collection("inboundRequests").doc(req.params.taskId);
-  const receipt = await db!.runTransaction(async transaction => {
-    const record = (await transaction.get(ref)).data();
-    const runs = await transaction.get(db!.collection("evaluationRuns").where("sceneId", "==", req.params.taskId));
-    if (!record || record.account_owner_uid !== caller.uid) refuse(403, "Only the verified site owner can withdraw recording permission.");
-    if (record.capture_withdrawal) return record.capture_withdrawal;
-    const withdrawal = { state: "uploads_stopped_cleanup_pending", requestedAtIso: new Date().toISOString(),
-      requestedBy: caller.uid, requestId: req.params.taskId,
-      sceneId: `site-${req.params.taskId}`, captureId: `walkthrough-${req.params.taskId}`,
-      deletionConfirmed: false, pipelineAcknowledged: false, localCleanupVerified: false,
-      providerAcknowledgement: "unknown", retainedAuditRecords: true };
-    transaction.set(ref, { consent_revoked: true, future_processing_allowed: false,
-      request: { consent_attestation: { granted: false, revoked_at_iso: withdrawal.requestedAtIso } },
-      workspace_task: { paused: true }, briefReviewPending: false,
-      capture_coverage_pending: false, coverageReviewPending: false,
-      capture_withdrawal: withdrawal, captureWithdrawalPending: true }, { merge: true });
-    for (const run of runs.docs) if (run.data().state === "requested") transaction.set(run.ref, {
-      cancellationRequested: true, dispatchPending: false,
-      cancellationReason: "site_recording_consent_withdrawn", settlementDueAtMs: 0,
-    }, { merge: true });
-    return withdrawal;
-  });
-  return res.status(202).json({ ok: true, receipt });
+  const { withdrawal } = await recordWebsiteCaptureWithdrawal({ requestId: req.params.taskId, requestedBy: caller.uid,
+    authorize: record => {
+      if (!record || record.account_owner_uid !== caller.uid) refuse(403, "Only the verified site owner can withdraw recording permission.");
+    } });
+  return res.status(202).json({ ok: true, receipt: withdrawal, withdrawal: projectWebsiteCaptureWithdrawal(withdrawal) });
 }));
 router.post(
   "/tasks/:taskId/pilot",

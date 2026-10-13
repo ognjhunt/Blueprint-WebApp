@@ -14,7 +14,20 @@ function resetState() {
   queuedRequests.clear();
 }
 
+const tokens = new Map<string, Record<string, unknown>>([
+  ["buyer-token", { uid: "buyer-uid", email: "Buyer@Example.com", email_verified: true }],
+  ["unverified-token", { uid: "buyer-uid", email: "buyer@example.com", email_verified: false }],
+  ["other-token", { uid: "other-uid", email: "someone-else@example.com", email_verified: true }],
+]);
+
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
+  authAdmin: {
+    verifyIdToken: async (token: string) => {
+      const decoded = tokens.get(token);
+      if (!decoded) throw new Error("invalid token");
+      return decoded;
+    },
+  },
   default: {
     firestore: {
       FieldValue: {
@@ -95,7 +108,56 @@ afterEach(() => {
 });
 
 describe("help reschedule route", () => {
-  it("routes directly to booking automation when a single booking matches", async () => {
+  function rescheduleBody() {
+    return JSON.stringify({
+      name: "Ada Lovelace",
+      email: "buyer@example.com",
+      businessName: "Durham Facility",
+      requested_date: "2026-04-02",
+      requested_time: "3:00 PM",
+      reason: "schedule_conflict",
+    });
+  }
+
+  it.each([
+    ["anonymous", {}],
+    ["unverified email", { Authorization: "Bearer unverified-token" }],
+    ["a different verified account", { Authorization: "Bearer other-token" }],
+  ])("never mutates a booking for %s; it queues the request for a person", async (_label, auth) => {
+    bookings.set("booking-1", { email: "buyer@example.com", businessName: "Durham Facility" });
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/reschedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...auth },
+        body: rescheduleBody(),
+      });
+      expect(response.status).toBe(202);
+      expect(processSimpleReschedule).not.toHaveBeenCalled();
+      expect(queuedRequests.size).toBe(1);
+      const queued = [...queuedRequests.values()][0] as { ops_automation: Record<string, unknown> };
+      expect(queued.ops_automation).toMatchObject({ booking_match_count: 1, identity_verified: false });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("rejects an invalid bearer token instead of treating it as anonymous", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/reschedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer forged" },
+        body: rescheduleBody(),
+      });
+      expect(response.status).toBe(401);
+      expect(processSimpleReschedule).not.toHaveBeenCalled();
+    } finally {
+      await stopServer(server);
+    }
+  });
+
+  it("routes directly to booking automation for the signed-in booking owner when a single booking matches", async () => {
     bookings.set("booking-1", {
       email: "buyer@example.com",
       businessName: "Durham Facility",
@@ -110,15 +172,8 @@ describe("help reschedule route", () => {
     try {
       const response = await fetch(`${baseUrl}/reschedule`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: "Ada Lovelace",
-          email: "buyer@example.com",
-          businessName: "Durham Facility",
-          requested_date: "2026-04-02",
-          requested_time: "3:00 PM",
-          reason: "schedule_conflict",
-        }),
+        headers: { "Content-Type": "application/json", Authorization: "Bearer buyer-token" },
+        body: rescheduleBody(),
       });
 
       expect(response.status).toBe(200);

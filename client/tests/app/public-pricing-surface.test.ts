@@ -1,10 +1,9 @@
 /**
- * One price for self-directed entries, on every public surface.
+ * One pricing story on every public surface: the beta is free.
  *
- * Two commercial models exist in this repo. The self-directed entry price
- * is `@/lib/evaluationPricing`'s $99 per entry. Invited participation in a
- * separately agreed, site-funded pilot project carries no team entry fee.
- * The retired model is
+ * Since the founder decision of 2026-10-13 nothing is charged during the beta
+ * (`@/lib/evaluationPricing`; its historical $99 entry price survives only as
+ * a deprecated constant for server cost accounting). The retired model is
  * `@/lib/deploymentPricing`: $1,000 to evaluate a site-task, $10,000 on award.
  *
  * The second one was reachable. `/internal/opportunity-board` and its five
@@ -52,8 +51,8 @@ describe("the public surface carries one pricing model", () => {
     // happens to be unused today.
     const publicCopySources = [
       "client/src/data/publicSiteCopy.ts",
-      "client/src/pages/Pricing.tsx",
-      "client/src/pages/FAQ.tsx",
+      "client/src/pages/Beta.tsx",
+      "client/src/pages/Home.tsx",
     ];
 
     for (const relativePath of publicCopySources) {
@@ -71,22 +70,21 @@ describe("the public surface carries one pricing model", () => {
     }
   });
 
-  it("routes historical pricing to current beta information while preserving its implementation", async () => {
+  it("routes historical pricing to the free beta page and ships no pricing page", async () => {
     const { minimalMarketingRedirects } = await import("@/data/minimalPublicSite");
-    const { faqItems } = await import("@/pages/FAQ");
     expect(minimalMarketingRedirects["/pricing"]).toBe("/beta");
     expect(appRoutes.find(route => route.path === "/beta")?.layout).toBe("public");
-    expect(fs.existsSync(path.join(repoRoot, "client/src/pages/Pricing.tsx"))).toBe(true);
-    const answer = faqItems.find(item => item.question === "How is Blueprint paid?")?.answer;
-    expect(answer).toContain("free during the beta");
-    expect(answer).toContain("agreed separately before proceeding");
-    expect(answer).not.toMatch(/\$2,500|No pilot, no fee/);
+    // The free beta has no price to show; the old page was deleted rather than kept dark.
+    expect(fs.existsSync(path.join(repoRoot, "client/src/pages/Pricing.tsx"))).toBe(false);
+    const beta = fs.readFileSync(path.join(repoRoot, "client/src/pages/Beta.tsx"), "utf8");
+    expect(beta).toMatch(/free/i);
+    expect(beta).not.toMatch(/\$2,500|\$99\b|No pilot, no fee/);
   });
 
-  it("quotes a robot team the same price the server charges it", async () => {
-    // The two had to be derived from one constant when the price was episodes
-    // times a rate, and they still do now that it is a flat number -- a public
-    // page and a server quote that disagree is the same bug either way.
+  it("keeps the historical compute price and the server cost ledger on one constant", async () => {
+    // Nothing is charged during the free beta, but server-side cost accounting
+    // still prices compute against the deprecated historical entry price. The
+    // two must stay one constant so the ledger cannot drift from itself.
     const { entryPrice } = await import("@/lib/evaluationPricing");
     const { screeningRunCostUsd } = await import("../../../server/utils/teamEvalCandidates");
 

@@ -554,15 +554,13 @@ export const howItWorksSplit = {
 /* ------------------------------------------------------------ pricing page */
 
 // `pricingHero` was here, carrying "$1,000 to evaluate a site-task. Win it and
-// the total is $10,000" -- a different commercial model from the one /pricing
-// ships, which computes every figure from `@/lib/evaluationPricing` ($99 an
-// entry, where an entry is one policy on one embodiment against one task).
+// the total is $10,000" -- a different commercial model from the one that
+// ships. Since 2026-10-13 the beta is free; `@/lib/evaluationPricing` is the
+// only place a price, or its absence, is stated.
 //
 // Deleted rather than corrected. Nothing imported it, so it was not a live
 // contradiction; it was a loaded one, sitting in a file called
-// `publicSiteCopy` waiting for someone to wire up a hero. The pricing page
-// reads the pricing module, and that is the only place a price should come
-// from.
+// `publicSiteCopy` waiting for someone to wire up a hero.
 
 export const pricingIncluded = [
   "One decision-shaped request against a real site-task",

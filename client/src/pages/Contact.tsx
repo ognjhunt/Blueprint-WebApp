@@ -1,7 +1,7 @@
 /**
- * Two public entry points. Keep the application after a concise team invitation,
- * the site form before supporting details, and keep
- * the initial assessment free, with later scope and cost agreed separately.
+ * Two public entry points. Sites start a job openly (the form comes before the
+ * supporting details); robot teams apply for an invitation. Everything in the
+ * beta is free, and the physical pilot is agreed between site and team.
  */
 import { useLocation } from "wouter";
 import { useState } from "react";
@@ -24,14 +24,14 @@ export default function Contact() {
       <>
         <SEO
           title="Early access for robot teams | Blueprint"
-          description="Register interest in real site tasks. Applications remain pending until manual approval; later evaluation scope and cost are agreed separately."
+          description="Robot teams join Blueprint's free beta by invitation. Approved teams evaluate real site jobs in simulation, and a passed evaluation can lead to a recommended pilot."
           canonical="/contact/robot-team"
         />
         <section className="ms-beta-hero ms-container" aria-labelledby="robot-team-title">
           <div className="ms-beta-copy">
             <p className="ms-eyebrow">Robot-team beta</p>
             <h1 id="robot-team-title">Test your robot on real site jobs.</h1>
-            <p>Tell us what your robot can do and which real site tasks you can support.</p>
+            <p>Tell us what your robot can do. Invited teams evaluate real site jobs in simulation, free during the beta.</p>
             <a className="ms-button" href="#robot-team-access">Register interest <ArrowRight size={20} aria-hidden="true" /></a>
             <p className="ms-beta-free">Task invitations follow manual review.</p>
           </div>
@@ -47,9 +47,9 @@ export default function Contact() {
           <details className="ms-task-interest ms-visitor-detail">
             <summary>What happens after applying?</summary>
             <p>We review your robot's capabilities against a real site task, then email the next step. Your application remains pending until manual approval. Applying or creating an account does not grant access. Approved teams see anonymized cards authorized when sites start a job; sites can edit or hide them afterward.</p>
-            <p>You confirm the configuration, price, timing and site conditions before a customer sees your offer.</p>
+            <p>Each evaluation runs your policy in a simulation built from the site's capture. Blueprint recommends a team only when its evaluation on that job passed and it wants the pilot; you confirm the configuration, timing and site conditions before the site sees the recommendation.</p>
             <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. Executable submissions use a policy endpoint or container; compatibility must be checked for the specific task.</p>
-            <p>Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. An invitation does not guarantee a run, introduction, or deployment.</p>
+            <p>Evaluations are free during the beta, with no balances or top-ups. If a site books your recommended pilot, you and the site agree its dates and terms directly; Blueprint takes no cut. An invitation does not guarantee a run, a recommendation, or a deployment.</p>
             <p><a href="/agent-access.openapi.json">Technical API reference</a> · <a href="mailto:hello@tryblueprint.io">Ask about job fit or integration</a></p>
           </details>
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>
@@ -66,7 +66,7 @@ export default function Contact() {
     <>
       <SEO
         title="Show us a task | Blueprint"
-          description="Describe one recurring job for an initial evidence-backed assessment. The initial assessment is free during the beta; later scope and cost are agreed separately."
+          description="Describe or film one recurring job. Robot teams evaluate it in simulation, and Blueprint recommends one team whose evaluation passed for you to book. Free during the beta."
           canonical="/contact/site-operator"
       />
       <section className={`ms-inquiry ms-container${savedJob ? " ms-intake-saved" : ""}`}>
@@ -77,17 +77,17 @@ export default function Contact() {
           {!savedJob && <p className="ms-eyebrow">For site owners</p>}
           <h1>{savedJob ? "Your saved job" : "Start with one task."}</h1>
           {!savedJob && <p className="ms-inquiry-description">
-            Show us the work. We’ll investigate, ask only what matters, and come back with a recommendation or concrete pilot plan. Blueprint beta support is free; any provider cost or new commitment is agreed separately.
+            Show us the work. Robot teams evaluate it in simulation, and we recommend one team whose evaluation passed for you to book. The beta is free; you agree the physical pilot’s dates and terms with the team directly.
           </p>}
         </div>
         <div className="ms-inquiry-forms">
           <SiteCaptureStart onSavedChange={setSavedJob} />
           <details className="ms-task-interest ms-visitor-detail">
             <summary>How this works</summary>
-            {savedJob ? <p className="ms-field-hint">Your private job link shows progress and follow-up questions. Keep it to return. Any evaluation or physical pilot has its scope and cost agreed separately.</p> : <><p className="ms-field-hint">
+            {savedJob ? <p className="ms-field-hint">Your private job link shows progress, follow-up questions and, once a team&rsquo;s evaluation passes, your recommended pilot. Keep it to return.</p> : <><p className="ms-field-hint">
               Your job link shows progress and follow-ups. We draft a brief from the evidence for you to correct.
-              Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding.
-              Simulation informs that choice; an agreed physical trial tests performance on site.
+              Invited robot teams then evaluate the job in simulation, and we recommend one team whose evaluation passed.
+              A simulated pass is an estimate; the physical pilot, agreed with the team, tests performance on site.
             </p>
             <p className="ms-field-hint">
               Geography, plainly: sending a person is an Austin-metro thing; anywhere in the US you

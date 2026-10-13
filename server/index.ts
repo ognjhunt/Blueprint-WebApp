@@ -35,6 +35,14 @@ import { describeSiteVideoEvidenceConfig } from "./utils/siteVideoEvidenceConfig
 import { firebaseAuthProxy } from "./utils/firebaseAuthProxy";
 import { captureOwnerRawBody } from "./utils/captureOwnerRawBody";
 import { websitePreparationRawBody } from "./routes/internal-website-preparation";
+import { createServerErrorRateMonitor, installProcessErrorHandlers } from "./utils/opsProcessAlerts";
+import { startBetaOpsMonitor } from "./utils/betaOpsMonitor";
+import { announceAutonomousLanesAtBoot } from "./utils/automationLaneSummary";
+import { resolveAllowedOrigins } from "./utils/corsOrigins";
+
+// Before anything else can fail: a stray rejection or uncaught exception is
+// logged at fatal and alerted (rate-limited) instead of vanishing.
+installProcessErrorHandlers({ processName: "web" });
 
 const env = validateEnv();
 
@@ -105,6 +113,14 @@ const noIndexPathPatterns = [
   /^\/off-waitlist-signup(?:\/|$)/,
   /^\/capture-app\/?$/,
   /^\/world-models\/[^/]+\/(?:start|workspace)(?:\/|$)/,
+  // Private links and signed-in surfaces: a site's claim and capture links,
+  // shared result pages, the workspace, and ops/internal tooling.
+  /^\/claim(?:\/|$)/,
+  /^\/capture-upload(?:\/|$)/,
+  /^\/app(?:\/|$)/,
+  /^\/ops(?:\/|$)/,
+  /^\/internal(?:\/|$)/,
+  /^\/beta\/capturer-guide(?:\/|$)/,
 ];
 
 function shouldNoIndexPath(pathname: string) {
@@ -241,10 +257,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// Configure CORS - restrict in production
-const allowedOrigins = env.ALLOWED_ORIGINS
-  ? env.ALLOWED_ORIGINS.split(",")
-  : ["http://localhost:5000", "http://localhost:3000", "https://tryblueprint.io"];
+// Configure CORS - restrict in production. Without ALLOWED_ORIGINS the
+// production default is the two public hostnames only; localhost origins are
+// a development default and never reach a production allowlist.
+const allowedOrigins = resolveAllowedOrigins(env.ALLOWED_ORIGINS, process.env.NODE_ENV);
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -297,6 +313,10 @@ app.use("/api/submit-to-sheets", authLimiter);
 app.use("/api/upload-to-b2", uploadLimiter);
 app.use("/api/storage/uploads", uploadLimiter);
 
+// Sliding-window 5xx rate alert (Slack, rate-limited). Health probes are
+// excluded: a 503 from /health/ready is readiness, reported separately.
+const serverErrorRateMonitor = createServerErrorRateMonitor();
+
 // Request tracking middleware
 app.use((req, res, next) => {
   const startTime = process.hrtime.bigint();
@@ -313,6 +333,9 @@ app.use((req, res, next) => {
   incrementRequestCount();
 
   res.on("finish", () => {
+    if (!req.path.startsWith("/health")) {
+      serverErrorRateMonitor.record(res.statusCode, privateWorkLogPath(req.path));
+    }
     // Skip logging for non-API routes and health checks
     if (!req.path.startsWith("/api") && !req.path.startsWith("/health")) {
       return;
@@ -469,36 +492,40 @@ app.use((req, res, next) => {
     { from: "/become-a-capturer", to: "/contact/site-operator" },
     { from: "/for-capturers", to: "/contact/site-operator" },
     { from: "/earn", to: "/contact/site-operator" },
-    { from: "/sample-deliverables", to: "/proof" },
+    { from: "/sample-deliverables", to: "/#how-it-works" },
     { from: "/launch-map", to: "/contact/site-operator" },
     { from: "/updates", to: "/" },
     { from: "/careers", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
-    { from: "/help", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
-    { from: "/help/contact", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
-    { from: "/help/category/:categorySlug", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
-    { from: "/help/article/:articleSlug", to: "/contact/robot-team?persona=robot-team&source=server-redirect" },
-    { from: "/pilot-exchange", to: "/proof" },
-    { from: "/pilot-exchange-guide", to: "/proof" },
-    { from: "/qualified-opportunities", to: "/proof" },
-    { from: "/qualified-opportunities-guide", to: "/proof" },
+    // Help lands on the site start page (sites are the primary audience); the
+    // client router's /help alias sends the same place.
+    { from: "/help", to: "/contact/site-operator" },
+    { from: "/help/contact", to: "/contact/site-operator" },
+    { from: "/help/category/:categorySlug", to: "/contact/site-operator" },
+    { from: "/help/article/:articleSlug", to: "/contact/site-operator" },
+    // Every legacy target is a final destination: one 301, never a chain
+    // through another legacy path such as /proof or /pricing.
+    { from: "/pilot-exchange", to: "/#how-it-works" },
+    { from: "/pilot-exchange-guide", to: "/#how-it-works" },
+    { from: "/qualified-opportunities", to: "/#how-it-works" },
+    { from: "/qualified-opportunities-guide", to: "/#how-it-works" },
     { from: "/solutions", to: "/" },
-    { from: "/docs", to: "/proof" },
+    { from: "/docs", to: "/#how-it-works" },
     { from: "/exact-site-hosted-review", to: "/" },
-    { from: "/sample-evaluation", to: "/proof" },
-    { from: "/case-studies", to: "/proof" },
+    { from: "/sample-evaluation", to: "/#how-it-works" },
+    { from: "/case-studies", to: "/#how-it-works" },
     {
       from: "/book-exact-site-review",
       to: "/contact/robot-team?persona=robot-team&buyerType=robot_team&interest=task-evaluation-run&path=task-evaluation-run&requestedOutputs=Task%20Evaluation%20Run&source=book-exact-site-review",
     },
-    { from: "/policy-shortlist", to: "/pricing" },
-    { from: "/robot-match", to: "/pricing" },
-    { from: "/policy-improvement-run", to: "/pricing" },
-    { from: "/post-training-data-package", to: "/pricing" },
-    { from: "/post-training-policy-improvement-package", to: "/pricing" },
-    { from: "/data-packages", to: "/pricing" },
+    { from: "/policy-shortlist", to: "/beta" },
+    { from: "/robot-match", to: "/beta" },
+    { from: "/policy-improvement-run", to: "/beta" },
+    { from: "/post-training-data-package", to: "/beta" },
+    { from: "/post-training-policy-improvement-package", to: "/beta" },
+    { from: "/data-packages", to: "/beta" },
     { from: "/blog", to: "/" },
     { from: "/partners", to: "/contact/robot-team" },
-    { from: "/environments", to: "/proof" },
+    { from: "/environments", to: "/#how-it-works" },
     { from: "/marketplace", to: "/sites" },
     { from: "/site-worlds", to: "/sites" },
     { from: "/site-worlds/:slug", to: "/sites" },
@@ -562,6 +589,22 @@ app.use((req, res, next) => {
     !runOpsAutomationInWebProcess && !disableOpsAutomationScheduler
       ? startOutboxPump()
       : () => undefined;
+  // The beta safety net (intake ops-notice retries/escalation, terminal outbox
+  // failure alerts, readiness re-check) runs here by default: in the deployed
+  // topology no other process runs the ops scheduler.
+  const stopBetaOpsMonitor = !disableOpsAutomationScheduler
+    ? startBetaOpsMonitor()
+    : () => undefined;
+  void announceAutonomousLanesAtBoot({
+    processName: "web",
+    schedulerRunsHere: runOpsAutomationInWebProcess && !disableOpsAutomationScheduler,
+  }).catch((error) => logger.warn({ err: error }, "Could not announce autonomous lane state"));
+  if (!stripeWebhookInlineMode()) {
+    logger.warn(
+      attachRequestMeta({ route: "stripe-webhook-queue" }),
+      "BLUEPRINT_STRIPE_WEBHOOK_QUEUE=1: this web process only enqueues Stripe events. They settle only where a worker runs the Stripe queue processor; the deployed worker is launch-forward-only and does not. /health/ready reports this as a blocker unless BLUEPRINT_STRIPE_WEBHOOK_QUEUE_CONSUMER_CONFIRMED=1.",
+    );
+  }
   if (!runOpsAutomationInWebProcess) {
     logger.info(
       attachRequestMeta({ route: "ops-automation-scheduler" }),
@@ -576,6 +619,7 @@ app.use((req, res, next) => {
   server.on("close", () => {
     stopOpsAutomationScheduler();
     stopOutboxPump();
+    stopBetaOpsMonitor();
   });
   server.listen(PORT, "0.0.0.0", () => {
     logger.info({ port: PORT }, "Server listening");

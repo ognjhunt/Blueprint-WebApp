@@ -241,17 +241,39 @@ export function configuredAdpManagedRuns() {
   return new AdpManagedRuns(db);
 }
 
+async function reportAdpLaneFailure(lane: string, error: unknown) {
+  try {
+    const [{ logger }, { sendRateLimitedOpsAlert }] = await Promise.all([
+      import("../logger"),
+      import("../utils/opsProcessAlerts"),
+    ]);
+    logger.error({ err: error, lane, event: "adp_lane_tick_failed" }, "ADP worker lane tick failed; the durable queue retries next tick");
+    const summary = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    await sendRateLimitedOpsAlert(
+      `adp_lane_failed:${lane}`,
+      `:rotating_light: Blueprint worker: ${lane.replace(/_/g, " ")} tick failed\n- ${summary.slice(0, 300)}\n- The durable queue retries; repeated failures are suppressed for 15 min.`,
+    );
+  } catch {
+    // Reporting must never break the reconciliation loop.
+  }
+}
+
 export function startAdpManagedRunWorker() {
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const tick = async () => {
     if (stopped) return;
-    try { if (db) await configuredAdpManagedRuns().tick(); } catch { /* Durable queue retries next tick. */ }
+    // The durable queue retries next tick, but a failure must be visible:
+    // logged at error and alerted (rate-limited per lane).
+    try { if (db) await configuredAdpManagedRuns().tick(); } catch (error) { await reportAdpLaneFailure("adp_managed_runs", error); }
     if (db && process.env.BLUEPRINT_ADP_ENGINEERING_ENABLED === "1") {
       try {
         const { configuredEngineeringHandoffs } = await import("./adp-engineering");
         await configuredEngineeringHandoffs().tick();
-      } catch { /* An unavailable engineering lane never blocks task reconciliation. */ }
+      } catch (error) {
+        // An unavailable engineering lane never blocks task reconciliation.
+        await reportAdpLaneFailure("adp_engineering_handoffs", error);
+      }
     }
     if (!stopped) timer = setTimeout(() => void tick(), POLL_MS);
   };

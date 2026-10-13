@@ -89,6 +89,7 @@ test("shows the public proof boundary on the offering detail page", async ({ pag
   await page.goto("/sites/scene-839873-simple-relocation");
 
   await expect(page.getByRole("heading", { name: "Scene 839873 simple relocation" })).toBeVisible();
-  await expect(page.getByText("Configured — controls pending", { exact: true })).toBeVisible();
+  await expect(page.getByText("Scene in preparation", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Owner accepted|AI review rejected|controls pending/)).toHaveCount(0);
   await expect(page.getByText(/It is not a result: it says nothing about how any robot performed/)).toBeVisible();
 });

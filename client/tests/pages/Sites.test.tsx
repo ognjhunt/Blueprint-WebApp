@@ -84,7 +84,7 @@ describe("Sites", () => {
     await screen.findByText("Move totes between two stations");
     fireEvent.change(screen.getByLabelText("Filter by region"), { target: { value: "Europe" } });
     expect(screen.queryByText("Move totes between two stations")).not.toBeInTheDocument();
-    expect(screen.getByText("No jobs match these filters.")).toBeInTheDocument();
+    expect(screen.getByText("No jobs fit these filters.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(screen.getByText("Move totes between two stations")).toBeInTheDocument();
   });
@@ -143,6 +143,29 @@ describe("Sites", () => {
     expect(screen.getByText("Move a tote")).toBeInTheDocument();
     expect(screen.getByText(/shows only that the site has recorded its job/i)).toBeInTheDocument();
     expect(screen.getByText(/Illustrative workflow image/i)).toBeInTheDocument();
+  });
+
+  it("shows public-safe labels instead of internal review states", async () => {
+    render(<SiteDetail params={{ slug: "site-live-1" }} />);
+    expect(await screen.findByRole("heading", { level: 1, name: "Owner-backed warehouse" })).toBeInTheDocument();
+    expect(screen.getByText("Recorded job")).toBeInTheDocument();
+    expect(screen.queryByText(/qualified ready|qualified_ready/i)).not.toBeInTheDocument();
+    // The page sits inside the layout's <main>; it must not open a second one.
+    expect(document.querySelectorAll("main")).toHaveLength(0);
+    expect(screen.getByRole("link", { name: /Ask to evaluate this job/ }).getAttribute("href")).toContain("site=Owner-backed+warehouse");
+  });
+
+  it("gives the loading state a heading", () => {
+    render(<SiteDetail params={{ slug: "site-live-1" }} />);
+    expect(screen.getByRole("heading", { level: 1, name: "Loading this job" })).toBeInTheDocument();
+  });
+
+  it("maps configured-scene states to the job library vocabulary", async () => {
+    const { publicSiteStageLabel } = await import("@/pages/SiteDetail");
+    const offering = { recordKind: "configured_scene_offering", status: "configured_controls_pending" } as any;
+    expect(publicSiteStageLabel(offering)).toBe("Scene in preparation");
+    expect(publicSiteStageLabel({ ...offering, status: "evaluation_ready" })).toBe("Ready to evaluate");
+    expect(publicSiteStageLabel(liveSite)).toBe("Recorded job");
   });
 
   it("rejects a static fixture returned by a misconfigured detail endpoint", async () => {

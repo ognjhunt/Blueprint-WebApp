@@ -1,6 +1,6 @@
 import { SEO } from "@/components/SEO";
 import { COMPANY } from "@/data/company";
-import { formatPrice, pilotFeeUsd, pilotReplacementPolicy } from "@/lib/evaluationPricing";
+import { pilotReplacementPolicy } from "@/lib/evaluationPricing";
 import { TERMS_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
 type Section = { title: string; paragraphs?: readonly string[]; items?: readonly string[] };
@@ -9,44 +9,54 @@ export const termsSections: readonly Section[] = [
   {
     title: "1. The Service",
     paragraphs: [
-      "Blueprint helps sites and robot teams assess whether a robot fits a real job, and recommends one pilot for that job. A site can submit a job, film its work area, and review a short job brief. Starting a job authorizes an anonymized opportunity listing for robot teams approved for beta, unless the job was previously marked private. We may rebuild the work area as a simulated scene and run robot teams' policies against it where useful. Robot teams invited to evaluate a qualified site job pay no evaluation entry fee within the invitation's stated scope, whether or not the site later buys a pilot. This beta offers free invited evaluations only; new paid private evaluations and balance top-ups are unavailable.",
-      "The Service is in beta. Features may change, be limited, or be withdrawn, and we may pause or stop an evaluation, for example to protect a site's privacy or the integrity of a result.",
-      "An evaluation result is a measurement in a simulated scene. It is not a physical test, a safety assessment, or a guarantee of how a robot will perform at a real site. Any pilot or deployment requires a provider-backed offer, separate agreement, and site approval. The provider or integrator remains responsible for installation and operation; the site and responsible delivery parties approve the safety plan. Blueprint may record agreed pilot outcomes under the parties' permissions.",
+      "Blueprint helps a site find out whether a robot can do one of its recurring jobs, and recommends one pilot for that job. A site submits a job, films its work area or has Blueprint film it, and reviews a short job brief. We rebuild the work area as a simulated scene, invite robot teams to evaluate the job in that simulation, and recommend one robot team whose evaluation on the job passed. The site can book the recommended pilot in one step. Starting a job authorizes an anonymized opportunity listing for robot teams approved for beta, unless the job was previously marked private.",
+      "The Service is in beta and is free during the beta. Features may change, be limited, or be withdrawn, and we may pause or stop an evaluation, for example to protect a site's privacy or the integrity of a result.",
+      "An evaluation result is a bounded estimate from a simulated scene. It is not a physical test, a safety assessment, or a guarantee of how a robot will perform at a real site, and a passed evaluation does not certify physical performance or safety. The physical pilot is agreed between the site and the robot team. The robot team or its integrator remains responsible for installation and operation; the site and responsible delivery parties approve the safety plan. Blueprint may record agreed pilot outcomes under the parties' permissions.",
+      "Other providers help us run the Service; our Privacy Policy lists them. Their own terms apply to the services they provide.",
     ],
   },
   {
     title: "2. Accounts and API keys",
     items: [
       "Give accurate information and keep it current. You must be at least 18 and able to enter a contract.",
-      "Keep your password and API keys secure. You are responsible for activity under your account and keys, including runs an agent buys within the spending limits you set.",
+      "Keep your password and API keys secure. You are responsible for activity under your account and keys, including actions an agent takes with a key you issued.",
       "Tell us promptly at " + COMPANY.emails.support + " if you think your account or a key has been misused. You can revoke keys at any time in your account settings.",
     ],
   },
   {
-    title: "3. For sites: your authority and your footage",
+    title: "3. For sites: your authority, your footage and booking",
     items: [
       "When you submit a job description, you confirm that you are authorized to share it on behalf of the site. When you start a capture with footage, you confirm that you are authorized to record the site and to let Blueprint use the recording as these Terms describe.",
-      "Task footage may show people, including hands or arms performing the task. You confirm that you have authority to record and submit the footage and have given any required notice and obtained any required permissions from people shown. Blueprint and the providers listed in our Privacy Policy may process the recording and derived frames to build and operate the scene and evaluation. We remove people from the frames used as input to reconstruction; the original recording may still contain them. Do not submit footage if you cannot authorize those uses.",
+      "Task footage may show people, including hands or arms performing the task. You confirm that you have authority to record and submit the footage and have given any required notice and obtained any required permissions from people shown. Blueprint and the providers listed in our Privacy Policy may process the recording and derived frames to draft the job brief, build and operate the scene, and run the evaluation. We remove people from the frames used as input to reconstruction; the original recording may still contain them. Do not submit footage if you cannot authorize those uses.",
       "Avoid recording screens, documents and restricted areas where you can. We may blur or remove those details when practical.",
       "You grant Blueprint a non-exclusive license to use your footage, photos and job details to provide the Service for your job: to review them, build a simulated scene, run the evaluations your listing allows, and show you the results. We never give your recording to a robot team, and we do not license it to anyone for training without your written agreement.",
       "Starting a job authorizes Blueprint to create and publish an anonymized opportunity listing so robot teams approved for beta can discover the job, unless you previously chose private handling for that job. Footage, reconstruction, exact location, contacts and sensitive operating details remain restricted. Requirements not supplied or approved for sharing remain unknown.",
-      "Robot teams see only the anonymized job card. You can hide it at any time; hiding it stops new runs. Results already produced remain in our records. When Blueprint recommends a pilot, your job page names the recommended robot team: the team agrees to this when it says it wants your pilot. Teams we do not recommend stay anonymous.",
-      `Submitting a job, screening, evaluation and Blueprint's recommendation cost the site nothing. No pilot, no fee. Blueprint selects one robot team that passed its evaluation for the job, can work within the budget or terms you posted, and wants to run your pilot, and sends you one recommended pilot with its purpose, responsibilities, cost and dates. When you book it, the person booking explicitly agrees to Blueprint's fee and confirms their authority to do so for the site, and Blueprint invoices the site ${formatPrice(pilotFeeUsd)} (plus any applicable tax), once per job. If you do not book, you owe nothing.`,
-      "Blueprint takes no percentage of any pilot or deployment. The site and the robot team agree pilot terms directly; a posted price or budget binds neither side. The robot team or its integrator contracts for the physical work and handles installation and operation.",
-      `${pilotReplacementPolicy} To request a replacement or refund, contact ${COMPANY.emails.hello} with your job link.`,
+      "Robot teams see only the anonymized job card. You can hide it at any time; hiding it stops new evaluations. Results already produced remain in our records. When Blueprint recommends a pilot, your job page names the recommended robot team: the team agrees to this when it says it wants your pilot. Teams we do not recommend stay anonymous.",
+      "During the beta, submitting a job, screening, evaluation, Blueprint's recommendation and booking the recommended pilot cost the site nothing. Blueprint recommends one robot team whose evaluation on your job passed and that wants to run your pilot; you do not have to compare teams. Booking is your one approval: the person booking confirms their authority to do so for the site. There is no Blueprint fee, invoice or payment step.",
+      "Blueprint charges no fee for and takes no percentage of any pilot or deployment. After you book, the site and the robot team agree the physical pilot's dates, scope and any price directly, and the robot team or its integrator contracts for the physical work.",
+      `${pilotReplacementPolicy} To ask for a replacement, contact ${COMPANY.emails.hello} with your job link.`,
     ],
   },
   {
-    title: "4. Free evaluations and existing balances",
+    title: "4. In-person filming visits",
     items: [
-      "Invited teams pay no evaluation entry fee or supplier commission within the invitation's stated scope. The scope identifies the policy, job and execution limits. Results are shared with the site for pilot consideration.",
-      "New paid private evaluations and balance top-ups are unavailable during this beta. Existing balances, ledger records and historical results are preserved. Historical private results retain their original sharing restrictions.",
-      `You can ask for a refund of unused balance by writing to ${COMPANY.emails.hello} from your account email. Existing refund and settlement terms continue to apply to prior purchases.`,
+      `Where we offer it (currently the ${COMPANY.visitServiceArea}), a site can ask Blueprint staff to film the job in person instead of filming it themselves. The site arranges access to the areas to be filmed and tells us before the visit about restricted areas, safety rules and required protective equipment.`,
+      "Our staff follow the site's safety rules and instructions while on site, may decline or stop filming if conditions are unsafe, and film only the work area and job the site has agreed. The site remains responsible for the safety of its premises and for giving people at the site any notice or obtaining any permission the law or its own policies require before filming.",
+      "Footage from a visit is handled exactly like footage the site films itself: the same license, sharing limits, privacy commitments and rights apply.",
+      "Blueprint's liability for a visit is limited as described in section 9, except where the law does not allow it to be limited, such as for injury caused by our negligence.",
+    ],
+  },
+  {
+    title: "5. For robot teams: free invited evaluations",
+    items: [
+      "Robot teams join by invitation after we review their application. Invited teams pay nothing to evaluate a job within the invitation's stated scope, which identifies the policy, job and execution limits. Results are shared with the site under your team alias, and a passed evaluation is what makes a team eligible to be recommended.",
+      "The beta has no paid private evaluations, balances, top-ups or checkout. Balances bought before the free beta, ledger records and historical results are preserved under their original sharing restrictions.",
+      `You can ask for a refund of any unused balance bought before the free beta by writing to ${COMPANY.emails.hello} from your account email. Existing refund and settlement terms continue to apply to those prior purchases.`,
       "You must have the right to submit your policies, endpoints and container images. Sites do not receive your policy or original site recordings.",
     ],
   },
   {
-    title: "5. Acceptable use",
+    title: "6. Acceptable use",
     items: [
       "Do not record a site or submit data you are not authorized to share.",
       "Do not break the law, infringe others' rights, or misuse other people's personal information.",
@@ -55,15 +65,9 @@ export const termsSections: readonly Section[] = [
     ],
   },
   {
-    title: "6. Ownership",
+    title: "7. Ownership",
     paragraphs: [
       "You keep ownership of the content you give us. Blueprint owns the Service, our software, and the scenes, simulation assets and reports we create, subject to the rights these Terms give you and to the site's control over its footage. If you send us feedback, we may use it without obligation to you.",
-    ],
-  },
-  {
-    title: "7. Third-party services",
-    paragraphs: [
-      "Payments are processed by Stripe, and other providers help us run the Service; our Privacy Policy lists them. Their own terms apply to the services they provide.",
     ],
   },
   {
@@ -88,7 +92,7 @@ export const termsSections: readonly Section[] = [
   {
     title: "11. Suspension and termination",
     paragraphs: [
-      "You can stop using the Service and close your account at any time. We may suspend or end your access if you breach these Terms, if your use creates a security or legal risk, or if we stop offering the Service. If we end the Service for a reason other than your breach, we refund your unused balance. Sections 3 (license for completed work), 6, 8, 9, 10 and 13 survive termination.",
+      "You can stop using the Service and close your account at any time. We may suspend or end your access if you breach these Terms, if your use creates a security or legal risk, or if we stop offering the Service. If we end the Service for a reason other than your breach, we refund any unused balance bought before the free beta. Sections 3 (license for completed work), 7, 8, 9, 10 and 13 survive termination.",
     ],
   },
   {

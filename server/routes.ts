@@ -37,6 +37,8 @@ import locationAutocompleteRouter from "./routes/location-autocomplete";
 import agentAccessRouter from "./routes/agent-access";
 import agentTeamRouter from "./routes/agent-team";
 import adminFreeEvaluationsRouter from "./routes/admin-free-evaluations";
+import adminJobConsoleRouter from "./routes/admin-job-console";
+import workspaceCheckpointsRouter from "./routes/workspace-checkpoints";
 import emailPreferencesRouter from "./routes/email-preferences";
 import inboundRequestRouter from "./routes/inbound-request";
 import adminLeadsRouter from "./routes/admin-leads";
@@ -132,6 +134,9 @@ export function registerRoutes(app: Express) {
   // break every non-browser client, which is all of them.
   app.use("/api/agent-team", agentTeamRouter);
   app.use("/api/admin/free-evaluations", csrfProtection, verifyFirebaseToken, adminFreeEvaluationsRouter);
+  // Founder job console: one row per site job with its loop stage. Read-only;
+  // admin/ops role enforced inside the router.
+  app.use("/api/admin/jobs", csrfProtection, verifyFirebaseToken, adminJobConsoleRouter);
   app.use("/api/experiments", experimentsRouter);
   app.use("/api/public/launch", publicLaunchRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
@@ -372,6 +377,9 @@ export function registerRoutes(app: Express) {
   app.use("/api/qr", csrfProtection, verifyFirebaseToken, qrLinkRouter);
   app.use("/v1/creator", verifyFirebaseToken, creatorRouter);
   app.use("/v1/stripe", csrfProtection, verifyFirebaseToken, stripeAccountRouter);
+  // Session-authenticated checkpoint registration for approved robot teams.
+  // Mounted ahead of the workspace router so its prefix is never shadowed.
+  app.use("/api/workspace/checkpoints", csrfProtection, verifyFirebaseToken, workspaceCheckpointsRouter);
   app.use("/api/workspace", csrfProtection, verifyFirebaseToken, workspaceRouter);
   app.use("/api/operator-status", csrfProtection, verifyFirebaseToken, operatorStatusRouter);
   app.use("/api/pilot-opportunities", csrfProtection, verifyFirebaseToken, pilotOpportunitiesRouter);

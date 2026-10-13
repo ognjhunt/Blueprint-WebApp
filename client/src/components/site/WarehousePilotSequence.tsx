@@ -20,7 +20,8 @@ const contents = [
   ["task-capture", "Capture the task"],
   ["workspace-reconstruction", "Reconstruct the workspace"],
   ["task-objects", "Prepare the objects"],
-  ["robot-comparison", "Compare robot setups"],
+  ["robot-comparison", "Robot teams evaluate"],
+  ["recommendation", "One recommended pilot"],
   ["on-site-testing", "Test on site"],
   ["pilot-decision", "Decide what comes next"],
 ] as const;
@@ -68,10 +69,10 @@ export function WarehousePilotSequence() {
         </section>
 
         <section className="ms-pilot-step" id="robot-comparison" aria-labelledby="robot-comparison-title">
-          <p className="ms-eyebrow">04 · Comparison</p>
-          <h3 id="robot-comparison-title">Compare robot setups on the same task.</h3>
-          <p>Robot teams test their configuration and policy—the software that controls the robot—against the same placement criteria. Review completed attempts, missed placements and the conditions each setup can handle.</p>
-          <p className="ms-pilot-disclosure">The three comparisons below use illustrative policy labels and outcomes. They do not establish a winning robot or real performance.</p>
+          <p className="ms-eyebrow">04 · Evaluation</p>
+          <h3 id="robot-comparison-title">Robot teams evaluate the task in simulation.</h3>
+          <p>Invited robot teams run their configuration and policy—the software that controls the robot—in the simulated work area, against the same placement criteria. Each evaluation passes or fails on those criteria, with the attempts, missed placements and conditions it covered.</p>
+          <p className="ms-pilot-disclosure">The three evaluations below use illustrative policy labels and outcomes. A simulated pass is an estimate, not proof of real performance or safety.</p>
           <div className="ms-pilot-comparison">
             <h4>A · Fixed arm</h4>
             <PilotImage src="/illustrations/warehouse-pilot/04-fixed-arm.webp" alt="Illustrative fixed-arm setup A, labeled Policy A-01 with a cross; one blue case remains on the bench outside the empty tray pocket." caption="Example A: the case remains outside the pocket, so the placement criterion is not met." />
@@ -86,10 +87,16 @@ export function WarehousePilotSequence() {
           </div>
         </section>
 
+        <section className="ms-pilot-step" id="recommendation" aria-labelledby="recommendation-title">
+          <p className="ms-eyebrow">05 · Recommendation</p>
+          <h3 id="recommendation-title">Get one recommended pilot, and book it in one step.</h3>
+          <p>Blueprint recommends one team whose evaluation passed: in this example, setup B. You see the team, what the pilot tests, what you provide and when, then book it with one click. You do not compare teams, and booking is free during the beta.</p>
+        </section>
+
         <section className="ms-pilot-step" id="on-site-testing" aria-labelledby="on-site-testing-title">
-          <p className="ms-eyebrow">05 · On-site trial</p>
+          <p className="ms-eyebrow">06 · On-site trial</p>
           <h3 id="on-site-testing-title">Test the approach at the real bench.</h3>
-          <p>Once a team matches, you agree the pilot directly with them. The provider brings the robot to the site and tests the task under supervision. Measure completed placements, cycle time and interventions against the agreed criteria.</p>
+          <p>After you book, you and the robot team agree the pilot's dates and terms directly. The team brings the robot to the site and tests the task under supervision. Measure completed placements, cycle time and interventions against the agreed criteria.</p>
           <PilotImage src="/illustrations/warehouse-pilot/07-on-site-testing.webp" width={1448} height={1086} alt="A close view of an illustrative on-site test: a wheeled robot supports a blue case in its grippers above an empty tray pocket while a technician supervises from a laptop beside the bench." caption="Illustrative on-site trial: the grippers support the case above the empty pocket before placement." />
         </section>
 
