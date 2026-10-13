@@ -1,179 +1,82 @@
 /**
- * Sites pay $2,500 per task only when they book the pilot Blueprint
- * recommends; invited pilot evaluations are free and shared with the site.
- * Robot teams pay $99 for a private evaluation of one policy/configuration on
- * one reconstructed site task. Private results are excluded from site updates
- * and pilot recommendations. Blueprint sets the run length. Physical pilots
- * are agreed separately.
+ * The beta is free for everyone (founder decision, 2026-10-13).
+ *
+ * Sites pay nothing to submit a job, have it screened, have robot teams
+ * evaluate it in simulation, receive Blueprint's recommendation, or book the
+ * recommended pilot. Robot teams pay nothing to evaluate a job they are invited
+ * to. There are no balances, top-ups, private paid evaluations or checkout
+ * during the beta, and no future price is announced here.
+ *
+ * The physical pilot that follows a booking is agreed directly between the
+ * site and the robot team. Blueprint takes no cut of it and charges nothing
+ * for it.
  */
-
-/** The billable unit, and the whole of its definition. */
-export const entryDefinition =
-  "One entry is one policy, running on one embodiment, against one task at one site.";
 
 /**
- * The three readings a team could get wrong, stated before it can get them
- * wrong. Both halves of the pair count, and a pair is still only ever one
- * entry.
+ * Historical paid-run planning price.
+ *
+ * @deprecated historical; not charged during the free beta. Kept only because
+ * server-side cost accounting (`cohortEconomics.ts`, `teamEvalCandidates.ts`)
+ * still prices the compute behind an evaluation against it. No public surface
+ * may quote it.
  */
-export const entryBoundaries = [
-  "The same policy on a second embodiment is a second entry.",
-  "A second policy on the same embodiment is a second entry.",
-  "A different embodiment running a different policy is one new entry, not two.",
-] as const;
-
-/** Historical paid-run planning price. Paid entrypoints are disabled for the free beta. */
 export const entryPrice = 99;
 
 /**
- * A site's fee, once per task and only when it books the pilot Blueprint
- * recommends. The server records the booking against this same number, so
- * the page and the record cannot quote different fees.
+ * Historical smallest Stripe top-up. Mirrors `MIN_TOPUP_USD` on the server.
+ *
+ * @deprecated historical; not charged during the free beta. Top-ups are
+ * disabled; this stays only so preserved historical balances reconcile.
  */
-export const pilotFeeUsd = 2500;
-
-/**
- * The one approval a site gives: shown next to the "Book this pilot" button.
- * Booking and the fee are the same decision, so there is no earlier fee step.
- */
-export const pilotBookingAuthorization =
-  `I am authorized to book this pilot for my site and agree to Blueprint's ${formatPrice(pilotFeeUsd)} fee for this job, due when the pilot is booked.`;
-
-/** Owner-approved remedy for a provider changing its confirmed offer. */
-export const pilotReplacementPolicy =
-  "If the recommended team withdraws or materially changes its confirmed price or scope before the pilot starts, we recommend a replacement that meets the same agreed requirements. If none fits, we refund your fee.";
-
-/** The smallest top-up Stripe will charge. Mirrors `MIN_TOPUP_USD` on the server. */
 export const minTopupUsd = entryPrice;
 
-/** What a site pays for screening, evaluation and a recommendation: nothing. A booked pilot is `pilotFeeUsd`. */
+/** What Blueprint charges anyone during the beta. */
+export const betaFeeUsd = 0;
+
+/**
+ * Owner-approved remedy for a robot team changing its confirmed scope. There
+ * is no Blueprint fee during the beta, so there is nothing to refund.
+ */
+export const pilotReplacementPolicy =
+  "If the recommended team withdraws or materially changes its confirmed scope before the pilot starts, we recommend a replacement whose evaluation on the same job passed, if one fits. Blueprint charges no fee during the beta, so there is no fee to refund.";
+
+/** What a site pays for screening, evaluation, a recommendation and booking: nothing. */
 export const siteAssessment = {
-  amount: 0,
-  unit: "to find out",
-  summary: "An assessment of one job at one site.",
+  amount: betaFeeUsd,
+  unit: "during the beta",
+  summary: "An evaluated recommendation for one job at one site.",
   covers: [
-    "The job defined: objects, cycle, exceptions, rough economics, timing, and the pass mark for a trial.",
-    "A check of which robot teams can credibly support the job, with capture and free invited evaluation when useful.",
-    "A clear answer: one recommended pilot, specific changes needed, or no credible fit yet.",
-    "For a recommended pilot: the team, what it tests, what you provide, the cost and dates, and one button to book it.",
+    "The job defined: objects, cycle, exceptions, timing, and the pass mark for an evaluation.",
+    "Invited robot teams evaluate the job in a simulation built from your capture, free.",
+    "One recommended robot team whose evaluation on your job passed, or a plain answer that no team has passed yet.",
+    "For a recommended pilot: the team, what it tests, what you provide, and one button to book it.",
   ],
   allIn:
-    "No pilot, no fee. Submitting a job, screening, evaluation and our recommendation are free. When you book the pilot we recommend, the fee is $2,500 per job.",
-  bounded: "We pick one recommended pilot, and add an alternative only when it is meaningfully different.",
+    "Free during the beta. Submitting a job, screening, evaluation, our recommendation and booking the recommended pilot cost nothing.",
+  bounded: "One recommended pilot: a robot team whose evaluation on your job passed. You do not have to compare teams.",
   /**
    * Precise about what a robot team actually receives, because the loose
-   * version — "they buy your footage" — is both wrong and alarming. They buy
-   * evaluation runs. What they run against is the 3D scene reconstructed from
-   * the walkthrough; the walkthrough itself is an input we hold, not a product
-   * we resell.
+   * version — "they get your footage" — is both wrong and alarming. What they
+   * run against is the 3D scene reconstructed from the walkthrough; the
+   * walkthrough itself is an input we hold, not something we hand over.
    *
    * Pinned by `privacy-promise-consistency.test.ts` against the capture privacy
    * annex, so the two surfaces cannot promise different things.
    */
   whatWeGetFromIt:
-    "Invited robot teams evaluate a qualified job for free during the beta. A site pays Blueprint $2,500 per job only when it books the pilot we recommend. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
+    "Invited robot teams evaluate a qualified job for free during the beta, and the site pays nothing to receive or book the recommended pilot. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
   whatIsNotFree:
-    "The physical pilot, which the robot team prices and runs. Blueprint takes no cut of the pilot; its only site fee is $2,500 per job when you book the pilot we recommend.",
+    "Nothing Blueprint does costs the site during the beta. The physical pilot is agreed directly between the site and the robot team, and Blueprint takes no cut of it.",
 } as const;
-
-/** How a robot team pays. No plan, no seat, no listing fee, no meter. */
-export const entryModel = {
-  summary: "One price for a private test on a reconstructed site job.",
-  detail:
-    `Add funds (from $${minTopupUsd}), enter the policies you want evaluated, and top up when the balance gets low. There is no other charge.`,
-  notCharged: [
-    "No subscription and no monthly minimum.",
-    "No listing fee, seat fee, or fee to apply.",
-    "No percentage of whatever you sign with the site.",
-    "Private results do not enter a shortlist.",
-  ],
-  /**
-   * The thing a team should check before believing the comparison. Funding and
-   * allocation are separate on purpose: a team buying its own longer run would
-   * be buying confidence, and the team with the deepest pockets would win an
-   * auction rather than a comparison.
-   */
-  fairness:
-    "You cannot buy a longer run than a rival. Blueprint sets how much evaluation an entry gets and runs every entry on a task at it, under the same conditions, whoever they are.",
-} as const;
-
-/**
- * What the flat price buys, in place of the budget menu it replaced.
- *
- * The point of each line is that it is our problem rather than the buyer's.
- */
-export const included = [
-  "How much evaluation an entry gets, and under what conditions. We size it, and it is the same for every entry on the task.",
-  "The screen against Blueprint's four conditions for a site a robot can work in, listed below.",
-  "Private results for your team; no site visibility or pilot recommendations.",
-  "The result: where the entry holds up, where it fails, and where the evidence stops short of a call.",
-] as const;
-
-/**
- * Where the answer stops. On the page directly under `included`, because a
- * flat price is a promise about cost and not about certainty, and the line
- * between those two is the easiest thing for a buyer to misread.
- */
-export const includedLimit =
-  "A private simulated evaluation does not establish physical performance or qualify you for a pilot.";
-
-/** The billing rules that decide who eats a failure, in plain terms. */
-export const billingRules = [
-  {
-    rule: "A failed attempt is billable. A failure of ours is not.",
-    detail:
-      "The robot dropping the box is a result, and you pay for it. An environment that will not launch is not a result, and you do not.",
-  },
-  {
-    rule: "You see the quote before the run.",
-    detail:
-      "The quote is held against your balance rather than charged. Anything that never runs is released.",
-  },
-  {
-    rule: "Top-ups and spend caps are separate settings.",
-    detail:
-      `The smallest top-up is $${minTopupUsd}. Auto top-up is optional, the monthly cap is its own control, and a balance you bought carries over rather than expiring.`,
-  },
-] as const;
-
-/** What a team actually pays, for the shapes teams actually enter. */
-export const quoteExamples = [
-  { label: "Three policies on one job", entries: 3, tasks: 1 },
-  { label: "Three policies on two jobs", entries: 3, tasks: 2 },
-  { label: "One policy on three jobs", entries: 1, tasks: 3 },
-] as const;
-
-export type EvaluationQuote = {
-  /** Billed units: entries × tasks. */
-  units: number;
-  usd: number;
-};
-
-function nonNegativeInteger(value: number) {
-  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
-}
-
-/** Entries × tasks × the entry price. There is no other term. */
-export function quoteEntries(entries: number, tasks = 1): EvaluationQuote {
-  const units = nonNegativeInteger(entries) * nonNegativeInteger(tasks);
-  return { units, usd: units * entryPrice };
-}
-
-/** How many entries a balance covers, for the "$500 is five entries" reading. */
-export function entriesForBalance(usd: number): number {
-  return Math.floor(Math.max(0, Number.isFinite(usd) ? usd : 0) / entryPrice);
-}
 
 /* -------------------------------------------------------------------------
  * Operating constants.
  *
- * Below this line is how we run an evaluation, not what anyone is charged. It
- * is deliberately absent from the pricing page: a buyer pays per entry and we
- * size the run, so these numbers are ours to set and ours to change. They stay
- * here rather than in the scheduler because `cohortEconomics.ts` has to price
- * the execution behind an entry against the revenue an entry brings in, and
- * those two facts drifting apart is how a flat price quietly stops covering
- * its own cost.
+ * Below this line is how we run an evaluation, not what anyone is charged.
+ * Nobody is charged during the beta and we size the run, so these numbers are
+ * ours to set and ours to change. They stay here rather than in the scheduler
+ * because `cohortEconomics.ts` prices the compute behind an evaluation, and the
+ * scheduler and that ledger must read the same counts.
  *
  * What each count resolves, for a two-sided test at the conventional 95%
  * level:
@@ -189,7 +92,7 @@ export function entriesForBalance(usd: number): number {
  * advances. 500 is the smallest count that resolves a gap of roughly 8 points,
  * which is the size of difference a final comparison actually has to settle.
  * Below about 5 points even 500 episodes cannot call a winner, and the result
- * says so instead — which is what `includedLimit` promises publicly.
+ * says so instead.
  * ---------------------------------------------------------------------- */
 
 /** One run of one policy on one scenario, up to the task's time limit. */

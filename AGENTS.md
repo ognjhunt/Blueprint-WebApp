@@ -7,11 +7,14 @@ review, and bounded case-study surface for Blueprint's sole active program, Arm
 Decision Proof v1. The product remains one Task Evaluation Run.
 
 Its **public surface** is positioned as a recommended pilot: a site shows one
-recurring task, robot teams evaluate it for free, and Blueprint picks the team
-and sends one recommended pilot the site books in one step. Pricing is "no pilot,
-no fee": $2,500 per task, charged to the site only when it books the recommended
-pilot, with no cut of the pilot. That
-positioning is owner-directed, deployed, and covered by tests. It sits ahead of the shared doctrine blocks, which are cross-repo and
+recurring task, invited robot teams evaluate it in simulation for free, and
+Blueprint recommends one team whose evaluation on that job passed; the site
+books it in one step. Per the founder decision of 2026-10-13 the beta is
+completely free for sites and robot teams (no site fee, no paid private
+evaluations, balances, top-ups or checkout), sign-up is open for sites (and
+Blueprint also onboards sites by hand), and robot teams join by invitation. The
+physical pilot is agreed directly between the site and the team, with no
+Blueprint cut. That positioning is owner-directed, deployed, and covered by tests. It sits ahead of the shared doctrine blocks, which are cross-repo and
 byte-locked — read the preamble at the top of `PLATFORM_CONTEXT.md` before
 treating either as the whole picture.
 

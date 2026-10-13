@@ -30,7 +30,10 @@ describe("platform context preamble", () => {
 
   it("states what the public surface currently ships", () => {
     expect(contents).toMatch(/recommended pilot/i);
-    expect(contents).toMatch(/no pilot, no fee/i);
+    // Founder decision, 2026-10-13: a free beta with an evaluated recommendation.
+    expect(contents).toMatch(/completely free/i);
+    expect(contents).toMatch(/evaluation result on that job passed/i);
+    expect(contents).toMatch(/open for sites/i);
     expect(contents).toMatch(/qualifying-environment standard/i);
   });
 

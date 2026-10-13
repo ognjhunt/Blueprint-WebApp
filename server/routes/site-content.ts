@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { captureGroundedPublicCopy } from "../../client/src/lib/captureGroundedLanguage";
-import { formatPrice, pilotFeeUsd, pilotReplacementPolicy } from "../../client/src/lib/evaluationPricing";
+import { pilotReplacementPolicy } from "../../client/src/lib/evaluationPricing";
 
 const router = Router();
 
@@ -10,14 +10,14 @@ const definitions = [
     definition: captureGroundedPublicCopy.productSummary,
   },
   {
-    term: "Managed robot pilot preparation",
+    term: "Evaluated pilot recommendation",
     definition:
-      `Blueprint helps a business describe one recurring job and post a pilot price and conditions or a target budget. Robot teams evaluate the job for free. Blueprint picks one team that passed, fits the budget, and wants the pilot, and sends the site one recommended pilot; the site pays ${formatPrice(pilotFeeUsd)} per job only when it books it. No pilot, no fee. Blueprint takes no cut of the pilot itself. The provider or integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.`,
+      "Blueprint helps a business show one recurring job. Invited robot teams evaluate the job free, in a simulation built from the site's capture. Blueprint recommends one team whose evaluation on the job passed, and the site books the recommended pilot in one step; it does not compare teams. The beta is free for sites and robot teams. After booking, the site and the robot team agree the physical pilot's dates and terms directly; Blueprint takes no cut and charges nothing. A passed simulated evaluation is a bounded estimate, not proof of physical performance or safety. The robot team or its integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.",
   },
   {
-    term: "Paying-site admission bar",
+    term: "Site sign-up",
     definition:
-      "A site can start while exploring. Blueprint records its job, rough affordability, funding status, timing, and purchasing path as they become known. Exploratory interest is not verified funding, a signed order, or a guaranteed purchase. The site separately approves any paid physical pilot.",
+      "Sign-up is open for sites: anyone can start a job, and Blueprint also onboards sites by hand. Robot teams join by invitation after their application is reviewed. Starting a job is not a signed order or a commitment to run a pilot; the site's one approval is booking the recommended pilot.",
   },
   {
     term: "Exact-site world model",
@@ -111,73 +111,58 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "Blueprint helps a business turn one recurring job into a scoped, funded, measurable robot pilot and stays involved in the decision afterward.",
-  },
-  {
-    path: "/for-robot-teams",
-    title: "Captured workflows for robot teams",
-    description:
-      "Robot teams assess scoped site jobs against confirmed capabilities, support requirements, and a possible physical pilot instead of spending weeks on unsuitable opportunities.",
-  },
-  {
-    path: "/sites",
-    title: "Sites",
-    description:
-      "Pipeline-backed workflow records that may become permissioned deployment-preparation testbeds.",
-  },
-  {
-    path: "/proof",
-    title: "Proof",
-    description:
-      "Primary-source deployment timelines, explicitly illustrative economics, and the boundary between virtual filtering and physical proof.",
+      "Show Blueprint one recurring task. Robot teams evaluate it in simulation, Blueprint recommends one team whose evaluation passed, and the site books the pilot in one step. Free during the beta.",
   },
   {
     path: "/how-it-works",
     title: "How It Works",
     description:
-      "Three steps: show one recurring job, review a provider-backed pilot offer, and approve and measure the physical trial.",
+      "Capture the task, rebuild the work area, invited robot teams evaluate it in simulation, Blueprint recommends one team whose evaluation passed, and the site and team agree the physical pilot directly.",
   },
   {
-    path: "/faq",
-    title: "FAQ",
+    path: "/beta",
+    title: "Beta program",
     description:
-      "Plain-language answers about job scoping, controlled evaluation, pilot coordination, onsite responsibilities, measured results, and pricing.",
+      `Free for sites and robot teams. Sites can start a job immediately, and Blueprint also onboards sites by hand; robot teams join by invitation. ${pilotReplacementPolicy} Robot teams evaluate jobs free when invited. The beta has no private paid evaluations, balances or top-ups.`,
   },
   {
-    path: "/capture",
-    title: "Capture for Blueprint",
-    description:
-      "Capturer application, launch-city availability, field workflow, review state, and payout setup boundaries.",
+    path: "/contact/site-operator",
+    title: "Show us a task",
+    description: "Open sign-up for sites: describe or film one recurring job to start.",
   },
   {
-    path: "/pricing",
-    title: "Pricing",
-    description:
-      `No pilot, no fee. Sites submit a job and get it screened, evaluated and a recommended pilot for free, and pay Blueprint ${formatPrice(pilotFeeUsd)} per job only when they book the pilot Blueprint recommends. Blueprint selects the robot team; the site's one decision is whether to book. Blueprint takes no percentage of the pilot or any deployment. ${pilotReplacementPolicy} Robot teams evaluate jobs free when invited. The beta offers no private paid evaluations or balance top-ups.`,
+    path: "/contact/robot-team",
+    title: "Robot teams",
+    description: "Robot teams apply for an invitation to evaluate real site jobs in simulation, free during the beta.",
   },
   {
-    path: "/contact",
-    title: "Start a Request",
+    path: "/sites",
+    title: "Job library",
     description:
-      "Persona-aware intake for a site workflow or robot deployment opportunity.",
+      "Site-approved recurring jobs that invited robot teams can evaluate in simulation.",
+  },
+  {
+    path: "/about",
+    title: "About",
+    description: "Who Blueprint is and the standards it holds its recommendations to.",
   },
   {
     path: "/privacy",
     title: "Privacy",
-    description: "Blueprint privacy policy for capture, maintained testbeds, Task Evaluation Runs, evidence artifacts, and compatibility records.",
+    description: "Blueprint privacy policy for site capture, in-person filming visits, simulated evaluations, AI processing and California privacy rights.",
   },
   {
     path: "/terms",
     title: "Terms",
-    description: "Blueprint service terms for capture workflows, maintained testbeds, Task Evaluation Runs, evidence review, and compatibility records.",
+    description: "Blueprint terms for the free beta: site capture, evaluations, the recommended pilot and booking.",
   },
 ];
 
 const queryThemes = [
   "measured physical robot pilot",
-  "scoped funded robot pilot",
-  "robot pilot coordination and measurement",
-  "what to buy after a robot trial",
+  "free robot pilot recommendation",
+  "evaluated robot pilot recommendation",
+  "which robot team should pilot my task",
   "Task Evaluation Run",
   "automate robot site discovery",
   "pre-deployment robot opportunity",
@@ -220,6 +205,10 @@ const privateOrNoindex = [
   "/onboarding",
   "/settings",
   "/requests/*",
+  "/claim/*",
+  "/app/results/*",
+  "/ops/*",
+  "/internal/*",
   "/portal",
   "/sign-in",
   "/login",
