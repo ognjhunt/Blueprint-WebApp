@@ -760,8 +760,12 @@ export function startCommunicationsWorker(): () => Promise<void> {
   return startCommunicationsQueueLoop(deps, {
     claimLap: () => claimCommunicationsWorkerLap(db, deps.now),
     requestedDrafts: async (canContinue,waitForLease) => {
-      await runRequestedCommunicationsDrafts(db,deps,canContinue);
-      if (ordinaryWorker || !allowPaidInference || process.env.BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED !== "true") return;
+      // The selected daily lane must not read or mark unrelated manual requests.
+      if (ordinaryWorker || process.env.BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED !== "true") {
+        await runRequestedCommunicationsDrafts(db,deps,canContinue);
+        return;
+      }
+      if (!allowPaidInference) return;
       await runDailyResearchDrafts(db,deps,canContinue,makeApi,
         (id,selected,canWork) => processCommunicationsJob(id,selected,undefined,undefined,undefined,canWork), {
           readContactPage:readResearchContactPage,
