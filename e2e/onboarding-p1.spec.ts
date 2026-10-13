@@ -48,6 +48,10 @@ for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: retai
     if (path.endsWith("/processing-retry")) {
       expect(request.method()).toBe("POST"); retries.push(path); ready = true;
       await route.fulfill({ json: { ok: true, state: "processing_ready", uploadState: "processing_ready", captureReceived: true, processingRetryAvailable: false } });
+    } else if (path.endsWith("/withdrawal")) {
+      // The owner page reads whether recording permission was withdrawn.
+      expect(request.method()).toBe("GET");
+      await route.fulfill({ json: { ok: true, withdrawn: false } });
     } else {
       expect(request.method()).toBe("GET");
       expect(path).toBe("/api/self-capture/uploads/retained-fixture/status");
