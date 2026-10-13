@@ -70,3 +70,17 @@ describe("owner profile writes cannot grant paid execution authority", () => {
       await assertFails(updateDoc(ref, value));
   });
 });
+describe("owner profile writes cannot link another site's intake request", () => {
+  it("denies setting, changing or clearing structuredIntakeRequestId from the client", async () => {
+    const db = environment.authenticatedContext("owner").firestore();
+    await assertFails(setDoc(doc(db, "users/owner"), { name: "Name", structuredIntakeRequestId: "victim-request" }));
+    await environment.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "users/owner"), { name: "Name", structuredIntakeRequestId: "own-request" });
+    });
+    const ref = doc(db, "users/owner");
+    await assertFails(updateDoc(ref, { structuredIntakeRequestId: "victim-request" }));
+    await assertFails(updateDoc(ref, { structuredIntakeRequestId: deleteField() }));
+    // Ordinary edits on a linked profile keep working.
+    await assertSucceeds(updateDoc(ref, { name: "Updated" }));
+  });
+});
