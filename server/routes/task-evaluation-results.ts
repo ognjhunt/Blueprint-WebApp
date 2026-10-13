@@ -12,7 +12,7 @@ import { resolveAccessContext, resolveExecutionAccessContext } from "../utils/ac
 import { taskEvaluationResultAccessAllowed } from "../utils/taskEvaluationResultAccess";
 import { taskEvaluationResultArtifactAdmission } from "../utils/taskEvaluationResultArtifactAdmission";
 import {
-  probeTaskEvaluationResultArtifact,
+  probeTaskEvaluationResultArtifactMetadata,
   streamTaskEvaluationResultArtifact,
 } from "../utils/taskEvaluationResultArtifactProxy";
 import { createTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
@@ -294,20 +294,26 @@ router.post("/:recordId/artifacts/:artifactId/ticket", async (req, res) => {
     return res.status(404).json({ error: "Result artifact not found" });
   }
   if (admission === "pipeline_run_registry") {
-    const registryAdmission = await probeTaskEvaluationResultArtifact({
+    const registryAdmission = await probeTaskEvaluationResultArtifactMetadata({
       runId: record.publication.run_id,
       artifactId: req.params.artifactId,
       expected: metadata.status === "known" ? metadata.metadata : undefined,
     });
-    if (registryAdmission === "not_found") {
+    if (registryAdmission.status === "not_found") {
       return res.status(404).json({ error: "Result artifact not found" });
     }
-    if (registryAdmission !== "admitted") {
-      return res.status(503).json({ error: "Result artifact registry is unavailable" });
+    if (registryAdmission.status !== "admitted") {
+      // The code names the exact missing configuration or origin behaviour
+      // (also logged by the proxy); it carries no URL, token or record data.
+      return res.status(503).json({ error: "Result artifact registry is unavailable",
+        code: registryAdmission.reason ?? "artifact_registry_unavailable",
+        ...(registryAdmission.missingConfig ? { missingConfig: registryAdmission.missingConfig } : {}),
+        ...(registryAdmission.httpStatus ? { originStatus: registryAdmission.httpStatus } : {}) });
     }
   }
   const ticket = createTaskEvaluationResultDownloadTicket(record.record_id, req.params.artifactId);
-  if (!ticket) return res.status(503).json({ error: "Result download tickets are not configured" });
+  if (!ticket) return res.status(503).json({ error: "Result download tickets are not configured",
+    code: "result_download_ticket_secret_not_configured", missingConfig: "TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET" });
   const query = new URLSearchParams({
     expires: String(ticket.expires),
     signature: ticket.signature,

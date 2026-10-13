@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   registry: new Set<string>(),
   uid: "owner-1" as string | null,
   notificationUnavailable: false,
+  registryUnavailable: false,
   nestedTenant: null as string | null,
   conflictingTenant: null as string | null,
   probes: [] as Array<{ runId: string; artifactId: string }>,
@@ -43,6 +44,17 @@ vi.mock("../utils/taskEvaluationResultArtifactProxy", () => ({
     return state.registry.has(`${input.runId}:${input.artifactId}`)
       ? "admitted"
       : "not_found";
+  },
+  probeTaskEvaluationResultArtifactMetadata: async (input: {
+    runId: string;
+    artifactId: string;
+  }) => {
+    state.probes.push({ runId: input.runId, artifactId: input.artifactId });
+    if (state.registryUnavailable) return { status: "unavailable", reason: "artifact_registry_endpoint_not_configured",
+      missingConfig: "TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE, or TASK_EVALUATION_LAUNCH_URL ending in /task-evaluation-launches, or ROBOT_EVAL_JOB_REQUEST_FORWARD_URL ending in /api/live-pipeline/job-requests" };
+    return state.registry.has(`${input.runId}:${input.artifactId}`)
+      ? { status: "admitted", metadata: null }
+      : { status: "not_found" };
   },
   streamTaskEvaluationResultArtifact: async (input: {
     runId: string;
@@ -126,6 +138,7 @@ describe("v4 Task Evaluation Result artifact routes", () => {
     state.streams = [];
     state.uid = "owner-1";
     state.notificationUnavailable = false;
+    state.registryUnavailable = false;
     state.nestedTenant = null; state.conflictingTenant = null;
     state.records.set("captureTaskEvaluationRuns:result-1", record());
     ({ server, url } = await startServer());
@@ -134,6 +147,25 @@ describe("v4 Task Evaluation Result artifact routes", () => {
   afterEach(async () => {
     delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET;
     await stopServer(server);
+  });
+
+  it("names the missing registry configuration in the 503 instead of a bare unavailable", async () => {
+    state.registryUnavailable = true;
+    const response = await issueTicket(url, "review-video");
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body).toMatchObject({ error: "Result artifact registry is unavailable",
+      code: "artifact_registry_endpoint_not_configured", missingConfig: expect.stringContaining("ROBOT_EVAL_JOB_REQUEST_FORWARD_URL") });
+    expect(JSON.stringify(body)).not.toMatch(/https?:\/\//);
+  });
+
+  it("names the missing download ticket secret", async () => {
+    delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET;
+    state.registry.add("scene-839873-canary-1:review-video");
+    const response = await issueTicket(url, "review-video");
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({ code: "result_download_ticket_secret_not_configured",
+      missingConfig: "TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET" });
   });
 
   it("issues tickets for compact v4 artifacts only after per-run registry admission", async () => {

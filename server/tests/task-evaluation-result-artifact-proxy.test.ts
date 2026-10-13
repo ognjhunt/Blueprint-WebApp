@@ -4,6 +4,7 @@ import { createHmac } from "node:crypto";
 import {
   ARTIFACT_ORIGIN_HEADER_TIMEOUT_MS,
   configuredArtifactEndpoint,
+  describeResultArtifactRegistryConfig,
   probeTaskEvaluationResultArtifact,
   probeTaskEvaluationResultArtifactMetadata,
   signedPipelineHeaders,
@@ -17,6 +18,8 @@ const ENVIRONMENT_NAMES = [
   "TASK_EVALUATION_RUN_FORWARD_CLIENT_ID",
   "ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN",
   "ROBOT_EVAL_JOB_REQUEST_FORWARD_CLIENT_ID",
+  "ROBOT_EVAL_JOB_REQUEST_FORWARD_URL",
+  "TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET",
 ] as const;
 
 afterEach(() => {
@@ -39,7 +42,7 @@ describe("Task Evaluation Result artifact origin", () => {
       .resolves.toEqual({ status: "admitted", metadata: expected });
     expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty("range");
     await expect(probeTaskEvaluationResultArtifactMetadata({ runId: "run", artifactId: "empty-telemetry",
-      expected: { ...expected, sha256: `sha256:${"f".repeat(64)}` } })).resolves.toEqual({ status: "unavailable" });
+      expected: { ...expected, sha256: `sha256:${"f".repeat(64)}` } })).resolves.toEqual({ status: "unavailable", reason: "artifact_registry_digest_mismatch", httpStatus: 200 });
   });
 
   it("exposes digest and total size for registry-only artifacts without buffering their bodies", async () => {
@@ -52,7 +55,7 @@ describe("Task Evaluation Result artifact origin", () => {
     await expect(probeTaskEvaluationResultArtifactMetadata({ runId: "run-1", artifactId: "registry-only" }))
       .resolves.toEqual({ status: "admitted", metadata: { sha256: `sha256:${"a".repeat(64)}`, size_bytes: 8192 } });
     await expect(probeTaskEvaluationResultArtifactMetadata({ runId: "run-1", artifactId: "registry-only",
-      expected: { sha256: `sha256:${"b".repeat(64)}`, size_bytes: 8192 } })).resolves.toEqual({ status: "unavailable" });
+      expected: { sha256: `sha256:${"b".repeat(64)}`, size_bytes: 8192 } })).resolves.toEqual({ status: "unavailable", reason: "artifact_registry_digest_mismatch", httpStatus: 206 });
     expect(cancel).toHaveBeenCalledTimes(2);
   });
 
@@ -147,4 +150,72 @@ describe("Task Evaluation Result artifact origin", () => {
     await expect(pending).resolves.toBe("unavailable");expect(signal.aborted).toBe(true);
   });
 
+});
+
+describe("result artifact registry configuration diagnosis", () => {
+  it("derives the registry from the canonical job-request URL exactly as launches do", () => {
+    // Production default: TASK_EVALUATION_LAUNCH_URL is optional when the
+    // job-request URL is canonical. The registry used to resolve to nothing here.
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_URL = "https://pipeline.example/api/live-pipeline/job-requests";
+    expect(configuredArtifactEndpoint("run-1", "review-video")).toBe(
+      "https://pipeline.example/api/live-pipeline/task-evaluation-runs/run-1/artifacts/review-video");
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "canonical-forward-token";
+    process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "ticket-secret";
+    expect(describeResultArtifactRegistryConfig()).toMatchObject({ ready: true, endpointSource: "job_request_forward_url",
+      endpointHost: "pipeline.example", missing: [] });
+  });
+
+  it("refuses a template that would send every artifact to one URL", () => {
+    process.env.TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE = "https://pipeline.example/artifacts";
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_URL = "https://pipeline.example/api/live-pipeline/job-requests";
+    expect(configuredArtifactEndpoint("run", "artifact")).toBe("");
+    expect(describeResultArtifactRegistryConfig().issues).toContain("artifact_registry_template_invalid");
+  });
+
+  it("uses an execute URL only when it ends in /execute", () => {
+    process.env.TASK_EVALUATION_RUN_EXECUTE_URL = "https://pipeline.example/runs/{run_id}/start";
+    expect(configuredArtifactEndpoint("run", "artifact")).toBe("");
+    process.env.TASK_EVALUATION_RUN_EXECUTE_URL = "https://pipeline.example/runs/{run_id}/execute";
+    expect(configuredArtifactEndpoint("run", "artifact")).toBe("https://pipeline.example/runs/run/artifacts/artifact");
+  });
+
+  it("names every missing item when nothing is configured", async () => {
+    const config = describeResultArtifactRegistryConfig();
+    expect(config.ready).toBe(false);
+    expect(config.issues).toEqual(["artifact_registry_endpoint_not_configured", "artifact_registry_signing_token_not_configured"]);
+    expect(config.detail).toMatch(/ROBOT_EVAL_JOB_REQUEST_FORWARD_URL/);
+    expect(config.detail).toMatch(/ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN/);
+    expect(config.detail).toMatch(/TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET/);
+    await expect(probeTaskEvaluationResultArtifactMetadata({ runId: "run", artifactId: "video" })).resolves.toMatchObject({
+      status: "unavailable", reason: "artifact_registry_endpoint_not_configured", missingConfig: expect.stringContaining("TASK_EVALUATION_LAUNCH_URL") });
+    process.env.TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE = "https://pipeline.example/{run_id}/{artifact_id}";
+    await expect(probeTaskEvaluationResultArtifactMetadata({ runId: "run", artifactId: "video" })).resolves.toMatchObject({
+      status: "unavailable", reason: "artifact_registry_signing_token_not_configured" });
+  });
+
+  it.each([
+    [{ status: 401, ok: false }, "artifact_registry_credentials_rejected", 401],
+    [{ status: 502, ok: false }, "artifact_registry_origin_error", 502],
+    [{ status: 206, ok: true, body: null, headers: new Headers() }, "artifact_registry_empty_response", 206],
+    [{ status: 206, ok: true, body: {}, headers: new Headers({ "content-range": "bytes 0-0/9", "content-length": "1" }) }, "artifact_registry_digest_header_missing", 206],
+    [{ status: 206, ok: true, body: {}, headers: new Headers({ "content-range": "bytes 0-1/9", "content-length": "2",
+      "x-blueprint-artifact-sha256": `sha256:${"a".repeat(64)}` }) }, "artifact_registry_range_or_size_mismatch", 206],
+  ])("classifies an origin response as %#", async (response, reason, httpStatus) => {
+    process.env.TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE = "https://pipeline.example/{run_id}/{artifact_id}";
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "fixture-key";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ headers: new Headers(), ...response }));
+    await expect(probeTaskEvaluationResultArtifactMetadata({ runId: "run", artifactId: "video" }))
+      .resolves.toEqual({ status: "unavailable", reason, httpStatus });
+  });
+
+  it("names a refused redirect and an unreachable origin", async () => {
+    process.env.TASK_EVALUATION_RESULT_ARTIFACT_URL_TEMPLATE = "https://pipeline.example/{run_id}/{artifact_id}";
+    process.env.ROBOT_EVAL_JOB_REQUEST_FORWARD_TOKEN = "fixture-key";
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(Object.assign(new TypeError("fetch failed"), { cause: new Error("unexpected redirect") })));
+    await expect(probeTaskEvaluationResultArtifactMetadata({ runId: "run", artifactId: "video" }))
+      .resolves.toEqual({ status: "unavailable", reason: "artifact_registry_redirect_refused" });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(Object.assign(new TypeError("fetch failed"), { cause: new Error("ECONNREFUSED") })));
+    await expect(probeTaskEvaluationResultArtifactMetadata({ runId: "run", artifactId: "video" }))
+      .resolves.toEqual({ status: "unavailable", reason: "artifact_registry_unreachable" });
+  });
 });
