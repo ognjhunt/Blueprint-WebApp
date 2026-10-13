@@ -206,6 +206,16 @@ export async function maybeAlertOnLaunchReadinessTransition(
 ) {
   if (lastLaunchReadinessStatus === null) {
     lastLaunchReadinessStatus = snapshot.status;
+    // A process that boots not-ready has no "previous ready" to regress from;
+    // without this the first (and possibly only) bad state went unreported.
+    if (snapshot.status === "not_ready") {
+      await sendSlackMessage(
+        [
+          ":rotating_light: Blueprint launch readiness is NOT ready after boot",
+          ...snapshot.blockers.slice(0, 8).map((blocker) => `- ${blocker}`),
+        ].join("\n"),
+      );
+    }
     return;
   }
 

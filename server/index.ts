@@ -35,6 +35,14 @@ import { describeSiteVideoEvidenceConfig } from "./utils/siteVideoEvidenceConfig
 import { firebaseAuthProxy } from "./utils/firebaseAuthProxy";
 import { captureOwnerRawBody } from "./utils/captureOwnerRawBody";
 import { websitePreparationRawBody } from "./routes/internal-website-preparation";
+import { createServerErrorRateMonitor, installProcessErrorHandlers } from "./utils/opsProcessAlerts";
+import { startBetaOpsMonitor } from "./utils/betaOpsMonitor";
+import { announceAutonomousLanesAtBoot } from "./utils/automationLaneSummary";
+import { resolveAllowedOrigins } from "./utils/corsOrigins";
+
+// Before anything else can fail: a stray rejection or uncaught exception is
+// logged at fatal and alerted (rate-limited) instead of vanishing.
+installProcessErrorHandlers({ processName: "web" });
 
 const env = validateEnv();
 
@@ -241,10 +249,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// Configure CORS - restrict in production
-const allowedOrigins = env.ALLOWED_ORIGINS
-  ? env.ALLOWED_ORIGINS.split(",")
-  : ["http://localhost:5000", "http://localhost:3000", "https://tryblueprint.io"];
+// Configure CORS - restrict in production. Without ALLOWED_ORIGINS the
+// production default is the two public hostnames only; localhost origins are
+// a development default and never reach a production allowlist.
+const allowedOrigins = resolveAllowedOrigins(env.ALLOWED_ORIGINS, process.env.NODE_ENV);
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -297,6 +305,10 @@ app.use("/api/submit-to-sheets", authLimiter);
 app.use("/api/upload-to-b2", uploadLimiter);
 app.use("/api/storage/uploads", uploadLimiter);
 
+// Sliding-window 5xx rate alert (Slack, rate-limited). Health probes are
+// excluded: a 503 from /health/ready is readiness, reported separately.
+const serverErrorRateMonitor = createServerErrorRateMonitor();
+
 // Request tracking middleware
 app.use((req, res, next) => {
   const startTime = process.hrtime.bigint();
@@ -313,6 +325,9 @@ app.use((req, res, next) => {
   incrementRequestCount();
 
   res.on("finish", () => {
+    if (!req.path.startsWith("/health")) {
+      serverErrorRateMonitor.record(res.statusCode, privateWorkLogPath(req.path));
+    }
     // Skip logging for non-API routes and health checks
     if (!req.path.startsWith("/api") && !req.path.startsWith("/health")) {
       return;
@@ -562,6 +577,22 @@ app.use((req, res, next) => {
     !runOpsAutomationInWebProcess && !disableOpsAutomationScheduler
       ? startOutboxPump()
       : () => undefined;
+  // The beta safety net (intake ops-notice retries/escalation, terminal outbox
+  // failure alerts, readiness re-check) runs here by default: in the deployed
+  // topology no other process runs the ops scheduler.
+  const stopBetaOpsMonitor = !disableOpsAutomationScheduler
+    ? startBetaOpsMonitor()
+    : () => undefined;
+  void announceAutonomousLanesAtBoot({
+    processName: "web",
+    schedulerRunsHere: runOpsAutomationInWebProcess && !disableOpsAutomationScheduler,
+  }).catch((error) => logger.warn({ err: error }, "Could not announce autonomous lane state"));
+  if (!stripeWebhookInlineMode()) {
+    logger.warn(
+      attachRequestMeta({ route: "stripe-webhook-queue" }),
+      "BLUEPRINT_STRIPE_WEBHOOK_QUEUE=1: this web process only enqueues Stripe events. They settle only where a worker runs the Stripe queue processor; the deployed worker is launch-forward-only and does not. /health/ready reports this as a blocker unless BLUEPRINT_STRIPE_WEBHOOK_QUEUE_CONSUMER_CONFIRMED=1.",
+    );
+  }
   if (!runOpsAutomationInWebProcess) {
     logger.info(
       attachRequestMeta({ route: "ops-automation-scheduler" }),
@@ -576,6 +607,7 @@ app.use((req, res, next) => {
   server.on("close", () => {
     stopOpsAutomationScheduler();
     stopOutboxPump();
+    stopBetaOpsMonitor();
   });
   server.listen(PORT, "0.0.0.0", () => {
     logger.info({ port: PORT }, "Server listening");

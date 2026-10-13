@@ -25,6 +25,8 @@ import { startDailyResearchWorker } from "./utils/dailyResearchWorker";
 import { startCommunicationsWorker } from "./agents/communications-worker";
 import { startSavedRecoveryWorker } from "./agents/communications-saved-recovery-worker";
 import { startWebsiteCaptureWithdrawalWorker } from "./utils/websiteCaptureWithdrawal";
+import { installProcessErrorHandlers } from "./utils/opsProcessAlerts";
+import { announceAutonomousLanesAtBoot } from "./utils/automationLaneSummary";
 
 const launchForwardOnly = () =>
   ["1", "true", "yes", "on"].includes(
@@ -51,6 +53,18 @@ export function startWorker(): WorkerHandle {
       ? "Blueprint worker starting: Task Evaluation launch forwarder only"
       : "Blueprint worker starting: ops automation scheduler + Stripe webhook queue processor + Task Evaluation launch forwarder",
   );
+  if (taskEvaluationLaunchOnly && process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE === "1") {
+    // Queue mode with a launch-forward-only worker means no process drains
+    // the Stripe queue: payments are acknowledged and never settled.
+    logger.error(
+      attachRequestMeta({ route: "worker", event: "stripe_queue_without_consumer" }),
+      "BLUEPRINT_STRIPE_WEBHOOK_QUEUE=1 but this worker is launch-forward-only and does not run the Stripe queue processor; queued Stripe events will not settle",
+    );
+  }
+  void announceAutonomousLanesAtBoot({
+    processName: "worker",
+    schedulerRunsHere: !taskEvaluationLaunchOnly,
+  }).catch((error) => logger.warn({ err: error }, "Could not announce autonomous lane state"));
   const stopScheduler = taskEvaluationLaunchOnly
     ? () => undefined
     : startOpsAutomationScheduler();
@@ -96,6 +110,7 @@ const isMainModule = (() => {
 })();
 
 if (isMainModule) {
+  installProcessErrorHandlers({ processName: "worker" });
   const handle = startWorker();
   for (const signal of ["SIGTERM", "SIGINT"] as const) {
     process.once(signal, () => {

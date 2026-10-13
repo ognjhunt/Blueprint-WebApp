@@ -21,10 +21,11 @@ import {
   type CaptureRegion,
 } from "../../client/src/data/captureResidency";
 import { draftBrief, saveBrief } from "../utils/siteTaskBrief";
-import { notifySlackInboundRequest } from "../utils/slack";
+import { deliverIntakeOpsNoticeAtIntake, initialIntakeOpsNotice } from "../utils/intakeOpsNotice";
+import { admitInboundQualificationRun } from "../utils/inboundQualificationGate";
 import { logger } from "../logger";
 import { isValidEmailAddress } from "../utils/validation";
-import { getRateLimitRedisClient } from "../utils/rate-limit-redis";
+import { getRateLimitRedisClient, isRedisCommandReady, withRedisTimeout } from "../utils/rate-limit-redis";
 import { encryptInboundRequestForStorage } from "../utils/field-encryption";
 import { createRequestReviewToken, createSiteClaimToken } from "../utils/request-review-auth";
 import { captureUploadUrlFor } from "../utils/captureUploadToken";
@@ -419,7 +420,7 @@ async function checkRateLimit(
     return { allowed: record.count <= maxCount, remaining };
   };
 
-  if (!rateLimitRedisClient) {
+  if (!rateLimitRedisClient || !isRedisCommandReady(rateLimitRedisClient)) {
     if (process.env.NODE_ENV === "production") {
       logger.warn("Redis rate limit client unavailable; using local inbound rate limit fallback");
     }
@@ -427,10 +428,10 @@ async function checkRateLimit(
   }
 
   try {
-    const count = await rateLimitRedisClient.eval(RATE_LIMIT_SCRIPT, {
+    const count = await withRedisTimeout(rateLimitRedisClient.eval(RATE_LIMIT_SCRIPT, {
       keys: [key],
       arguments: [RATE_LIMIT_WINDOW_MS.toString()],
-    });
+    }));
     const current = typeof count === "number" ? count : Number(count);
     const remaining = Math.max(maxCount - current, 0);
     return { allowed: current <= maxCount, remaining };
@@ -1859,8 +1860,17 @@ export async function submitInboundRequest(req: Request, res: Response) {
       hasCurrentDescriptionAuthority(descriptionAuthority));
     const firstReceipt = receiptUrl ? buildTaskLifecycleNotification({ requestId: payload.requestId,
       milestone: "task_received", to: emailLower, captureUrl: receiptUrl }) : null;
+    // Non-PII routing facts for the ops notice; committed with the request so
+    // "ops has not been told yet" is durable from the first instant.
+    const opsNoticeMeta = {
+      buyer_type: buyerType,
+      priority,
+      queue_label: routing.queueLabel,
+      request_path_label: COMMERCIAL_REQUEST_PATH_LABELS[commercialRequestPath] || "Blueprint request",
+    };
     try {
       await createInboundRequestWithReceipt(db, requestRef, { ...encryptedInboundRequest,
+        ops_notice: initialIntakeOpsNotice(opsNoticeMeta),
         ...(initialPublicListing ? { public_task_listing: initialPublicListing, newJobAlertFanout: newJobFanoutIntent(String(initialPublicListing.approvedAtIso)) } : {}),
         ...(buyerType === "site_operator" ? { briefReviewPending: true,
           briefReviewWork: { state: "pending", attempts: 0, dueAtMs: 0 } } : {}),
@@ -2070,36 +2080,17 @@ export async function submitInboundRequest(req: Request, res: Response) {
       );
     }
 
-    // Slack notification
+    // Ops notice (Slack + ops email), link-only. The pending notice was
+    // committed with the request; this records the outcome, and the beta ops
+    // monitor retries and escalates anything that did not reach a person.
     automationPromises.push(
       (async () => {
         try {
-          const slackResult = await notifySlackInboundRequest({
+          const notice = await deliverIntakeOpsNoticeAtIntake({
             requestId: payload.requestId,
-            siteSubmissionId: payload.requestId,
-            firstName: (payload.firstName ?? "").trim(),
-            lastName: (payload.lastName ?? "").trim(),
-            email: emailLower,
-            company: payload.company.trim(),
-            roleTitle: payload.roleTitle?.trim() || "",
-            buyerType,
-            siteName: payload.siteName?.trim() || "",
-            siteLocation: payload.siteLocation?.trim() || "",
-            taskStatement: payload.taskStatement?.trim() || "",
-            targetSiteType: payload.targetSiteType?.trim() || null,
-            proofPathPreference,
-            existingStackReviewWorkflow:
-              payload.existingStackReviewWorkflow?.trim() || null,
-            humanGateTopics: payload.humanGateTopics?.trim() || null,
-            budgetBucket,
-            requestedLanes,
-            helpWith: legacyHelpWith,
-            details: payload.details || null,
-            priority,
-            sourcePageUrl: payload.context?.sourcePageUrl || "",
+            meta: opsNoticeMeta,
           });
-
-          if (slackResult.sent) {
+          if (notice.channels.slack === "sent") {
             await db
               .collection("inboundRequests")
               .doc(payload.requestId)
@@ -2111,7 +2102,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         } catch (error) {
           logger.error(
             { error, requestId: payload.requestId },
-            "Failed to send Slack notification"
+            "Failed to deliver the intake ops notice"
           );
         }
       })()
@@ -2185,65 +2176,22 @@ export async function submitInboundRequest(req: Request, res: Response) {
       })()
     );
 
-    // Internal notification email to ops
+    // The internal ops email is part of the link-only ops notice above.
+
+    // Inbound qualification is an LLM call on an anonymous submission: gated by
+    // BLUEPRINT_INBOUND_QUALIFICATION_LLM_ENABLED and a daily cap. A skipped run
+    // stays pending for the qualification loop / a person.
     automationPromises.push(
       (async () => {
         try {
-          const to = process.env.CONTACT_TO ?? "ops@tryblueprint.io";
-          const requestPathLabel =
-            COMMERCIAL_REQUEST_PATH_LABELS[commercialRequestPath] || "Blueprint request";
-          const subject = `[${priority.toUpperCase()}] New ${requestPathLabel.toLowerCase()} from ${payload.company.trim()}`;
-          const text = `New site submission received:
-
-Name: ${`${(payload.firstName ?? "").trim()} ${(payload.lastName ?? "").trim()}`.trim() || "Not given"}
-Email: ${emailLower}
-Company: ${payload.company.trim()}
-Role: ${payload.roleTitle?.trim() || "Not specified"}
-Buyer type: ${buyerType}
-Request path: ${requestPathLabel} (${commercialRequestPath})
-Site: ${payload.siteName?.trim()}
-Location: ${payload.siteLocation?.trim()}
-Task: ${payload.taskStatement?.trim()}
-Budget: ${budgetBucket}
-Requested lanes: ${requestedLanes.join(", ")}
-Priority: ${priority}
-Queue: ${routing.queueLabel}
-Growth wedge: ${routing.growthWedge || "none"}
-
-${payload.workflowContext ? `Workflow context:\n${payload.workflowContext}\n` : ""}
-${payload.targetSiteType ? `Target site type:\n${payload.targetSiteType}\n` : ""}
-${proofPathPreference ? `Proof path preference:\n${proofPathPreference}\n` : ""}
-${payload.existingStackReviewWorkflow ? `Existing stack/review workflow:\n${payload.existingStackReviewWorkflow}\n` : ""}
-${payload.humanGateTopics ? `Human-gated topics:\n${payload.humanGateTopics}\n` : ""}
-${payload.operatingConstraints ? `Operating constraints:\n${payload.operatingConstraints}\n` : ""}
-${payload.privacySecurityConstraints ? `Privacy/security constraints:\n${payload.privacySecurityConstraints}\n` : ""}
-${payload.knownBlockers ? `Known blockers:\n${payload.knownBlockers}\n` : ""}
-${payload.targetRobotTeam ? `Target robot team:\n${payload.targetRobotTeam}\n` : ""}
-${payload.details ? `Details:\n${payload.details}\n` : ""}
-Source: ${payload.context?.sourcePageUrl || "Unknown"}
-
-View in admin: ${process.env.APP_URL || "https://tryblueprint.io"}/admin/leads/${payload.requestId}
-`;
-
-          await sendEmail({
-            to,
-            subject,
-            text,
-            replyTo: emailLower,
-          });
-        } catch (error) {
-          logger.error(
-            { error, requestId: payload.requestId },
-            "Failed to send internal notification email"
-          );
-        }
-      })()
-    );
-
-    // Fire and forget automations
-    automationPromises.push(
-      (async () => {
-        try {
+          const admission = await admitInboundQualificationRun();
+          if (!admission.allowed) {
+            logger.warn(
+              { requestId: payload.requestId, reason: admission.reason, used: admission.used, limit: admission.limit },
+              "Inbound qualification LLM run skipped",
+            );
+            return;
+          }
           await runInboundQualificationForRequest(inboundRequest as InboundRequest);
         } catch (error) {
           logger.error(

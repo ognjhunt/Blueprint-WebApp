@@ -2,7 +2,7 @@ import crypto from "crypto";
 
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
-import { getRateLimitRedisClient } from "./rate-limit-redis";
+import { getRateLimitRedisClient, isRedisCommandReady, withRedisTimeout } from "./rate-limit-redis";
 
 const DEFAULT_IDEMPOTENCY_WINDOW_MS = 10 * 60 * 1000;
 const IDEMPOTENCY_COLLECTION = "idempotencyKeys";
@@ -84,9 +84,9 @@ export const fetchIdempotencyResponse = async (
 ): Promise<IdempotencyResponse | null> => {
   const redisClient = getRateLimitRedisClient();
 
-  if (redisClient) {
+  if (redisClient && isRedisCommandReady(redisClient)) {
     try {
-      const cached = await redisClient.get(key);
+      const cached = await withRedisTimeout(redisClient.get(key));
       if (cached) {
         return JSON.parse(cached) as IdempotencyResponse;
       }
@@ -145,11 +145,11 @@ export const storeIdempotencyResponse = async ({
 }) => {
   const redisClient = getRateLimitRedisClient();
 
-  if (redisClient) {
+  if (redisClient && isRedisCommandReady(redisClient)) {
     try {
-      await redisClient.set(key, JSON.stringify(response), {
+      await withRedisTimeout(redisClient.set(key, JSON.stringify(response), {
         PX: ttlMs,
-      });
+      }));
     } catch (error) {
       logger.warn(
         {

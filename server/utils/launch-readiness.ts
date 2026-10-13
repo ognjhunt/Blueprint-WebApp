@@ -134,14 +134,36 @@ export function buildLaunchReadinessSnapshot() {
     process.env.PIPELINE_SYNC_TOKEN?.trim()
     || isTruthyEnvValue(process.env.BLUEPRINT_PIPELINE_SYNC_REQUIRED),
   );
+  // A deployed production service (not the loopback launch smoke) must be
+  // able to tell a person when something breaks and to send customer email.
+  const productionDeploy = process.env.NODE_ENV === "production" && !localLaunchSmoke;
   const emailRequired =
-    emailTransport.enabled || isTruthyEnvValue(process.env.BLUEPRINT_EMAIL_DELIVERY_REQUIRED);
-  const redisRequired =
+    emailTransport.enabled
+    || isTruthyEnvValue(process.env.BLUEPRINT_EMAIL_DELIVERY_REQUIRED)
+    || productionDeploy;
+  const redisConfigured =
     Boolean(process.env.REDIS_URL?.trim()) || Boolean(process.env.RATE_LIMIT_REDIS_URL?.trim());
+  // Without Redis, rate limits and idempotency are per-process and reset on
+  // every restart. A founder may consciously waive this for a single-instance
+  // beta with BLUEPRINT_READINESS_REDIS_WAIVED=1; it then shows as a warning.
+  const redisWaived = isTruthyEnvValue(process.env.BLUEPRINT_READINESS_REDIS_WAIVED);
+  const redisRequired = redisConfigured || (productionDeploy && !redisWaived);
+  const slackOpsRequired = productionDeploy;
+  const slackOpsReady = Boolean(process.env.SLACK_WEBHOOK_URL?.trim());
+  // Mirrors stripeWebhookInlineMode() without importing the queue module.
+  const stripeQueueMode =
+    process.env.BLUEPRINT_STRIPE_WEBHOOK_INLINE !== "1"
+    && process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE === "1";
+  const stripeQueueConsumerConfirmed = isTruthyEnvValue(
+    process.env.BLUEPRINT_STRIPE_WEBHOOK_QUEUE_CONSUMER_CONFIRMED,
+  );
+  const stripeWebhookQueueReady = !stripeQueueMode || stripeQueueConsumerConfirmed;
   const firebaseAdminReady = Boolean(dbAdmin && authAdmin);
   const redisReady =
     !redisRequired
-    || (liveSessionStore.backend === "redis" && liveSessionStore.redisConnected === true);
+    || (redisConfigured
+      && liveSessionStore.backend === "redis"
+      && liveSessionStore.redisConnected === true);
   const stripeReady =
     !stripeEnabled || Boolean(stripeClient && process.env.STRIPE_WEBHOOK_SECRET?.trim());
   const emailReady = !emailRequired || emailTransport.configured;
@@ -223,7 +245,9 @@ export function buildLaunchReadinessSnapshot() {
     fieldEncryption: fieldEncryptionReady,
     redis: redisReady,
     stripe: stripeReady,
+    stripeWebhookQueue: stripeWebhookQueueReady,
     email: emailReady,
+    slackOpsAlerts: !slackOpsRequired || slackOpsReady,
     pipelineSync: pipelineSyncReady,
     agentRuntime: agentRuntimeReady,
     betaCohortControls: betaCohortControlsReady,
@@ -255,12 +279,33 @@ export function buildLaunchReadinessSnapshot() {
     },
     redis: {
       required: redisRequired,
-      ready: redisReady,
-      detail: redisRequired
-        ? liveSessionStore.redisConnected
-          ? "Redis-backed live session state is connected."
-          : "Redis is configured for live session state but is not connected."
-        : "Redis-backed live session state is not required.",
+      // A waived production Redis stays visible as a warning.
+      ready: redisReady && !(productionDeploy && redisWaived && !redisConfigured),
+      detail: !redisConfigured && redisRequired
+        ? "REDIS_URL is not set in production: rate limits, idempotency and the automation leader lease fall back to per-process state that resets on restart. Set REDIS_URL (Render Key Value), or acknowledge a single-instance beta with BLUEPRINT_READINESS_REDIS_WAIVED=1."
+        : redisRequired
+          ? liveSessionStore.redisConnected
+            ? "Redis-backed live session state is connected."
+            : "Redis is configured for live session state but is not connected."
+          : redisWaived && productionDeploy
+            ? "Redis requirement waived by BLUEPRINT_READINESS_REDIS_WAIVED=1: rate limits are per-process and reset on restart."
+            : "Redis-backed live session state is not required.",
+    },
+    slackOpsAlerts: {
+      required: slackOpsRequired,
+      ready: slackOpsReady,
+      detail: slackOpsReady
+        ? "SLACK_WEBHOOK_URL is configured for ops alerts."
+        : "SLACK_WEBHOOK_URL is not set: ops alerts (5xx spikes, crashes, undelivered intake notices, readiness) reach nobody.",
+    },
+    stripeWebhookQueue: {
+      required: stripeQueueMode,
+      ready: stripeWebhookQueueReady,
+      detail: !stripeQueueMode
+        ? "Stripe webhooks settle inline in the web process."
+        : stripeQueueConsumerConfirmed
+          ? "Stripe webhook queue mode with a confirmed consumer (BLUEPRINT_STRIPE_WEBHOOK_QUEUE_CONSUMER_CONFIRMED=1)."
+          : "BLUEPRINT_STRIPE_WEBHOOK_QUEUE=1 but no queue consumer is confirmed: the deployed worker is launch-forward-only and never drains the queue, so payments would be acknowledged and never settled. Unset the queue flag (inline mode) or run the Stripe queue processor and set BLUEPRINT_STRIPE_WEBHOOK_QUEUE_CONSUMER_CONFIRMED=1.",
     },
     stripe: {
       required: stripeEnabled,
