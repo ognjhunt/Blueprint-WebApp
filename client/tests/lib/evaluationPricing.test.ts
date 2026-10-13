@@ -1,110 +1,77 @@
 import { describe, expect, it } from "vitest";
 
+import * as pricing from "@/lib/evaluationPricing";
 import {
-  entriesForBalance,
-  entryBoundaries,
-  entryModel,
-  entryPrice,
+  betaFeeUsd,
   finalistRound,
   finalistRoundRuns,
   formatPrice,
-  included,
-  pilotFeeUsd,
-  quoteEntries,
+  pilotReplacementPolicy,
   screeningRound,
   shortlistRule,
   siteAssessment,
 } from "@/lib/evaluationPricing";
 
-describe("evaluation pricing", () => {
-  it("charges a site one flat fee per task, only when the site books the recommended pilot", () => {
-    // Free to start; the fee is for the outcome, not for access to it.
-    expect(siteAssessment.amount).toBe(0);
-    expect(pilotFeeUsd).toBe(2_500);
-    expect(formatPrice(pilotFeeUsd)).toBe("$2,500");
-    expect(siteAssessment.allIn).toMatch(/^No pilot, no fee\./);
-    expect(siteAssessment.whatIsNotFree).toMatch(/no cut of the pilot/i);
-  });
-  it("bills entries times tasks times the entry price", () => {
-    // The three shapes stated on the page, which are the three a team asks
-    // about: more policies, more tasks, and both at once.
-    expect(quoteEntries(3, 1)).toEqual({ units: 3, usd: 297 });
-    expect(quoteEntries(3, 2)).toEqual({ units: 6, usd: 594 });
-    expect(quoteEntries(1, 3)).toEqual({ units: 3, usd: 297 });
-  });
-
-  it("charges one entry per policy-embodiment pair, per task", () => {
-    // The clarification the whole model turns on. Either half changing is a
-    // new entry, and both halves changing is still only one new entry -- the
-    // unit is the pair, not the policy and not the robot.
-    expect(quoteEntries(1).usd).toBe(entryPrice);
-    expect(quoteEntries(2).usd).toBe(entryPrice * 2);
-    expect(quoteEntries(6, 1).usd).toBe(quoteEntries(1, 6).usd);
-  });
-
-  it("says in the copy that either half of the pair makes a new entry", () => {
-    const boundaries = entryBoundaries.join(" ");
-    expect(boundaries).toMatch(/same policy on a second embodiment/i);
-    expect(boundaries).toMatch(/second policy on the same embodiment/i);
-    // And that a pair is never billed twice for changing twice.
-    expect(boundaries).toMatch(/one new entry, not two/i);
-  });
-
-  it("defaults to a single task so a one-task quote reads as entries alone", () => {
-    expect(quoteEntries(4)).toEqual(quoteEntries(4, 1));
-  });
-
-  it("never produces a negative or fractional invoice", () => {
-    expect(quoteEntries(-3, 1)).toEqual({ units: 0, usd: 0 });
-    expect(quoteEntries(Number.NaN, 2)).toEqual({ units: 0, usd: 0 });
-    expect(quoteEntries(1, -2)).toEqual({ units: 0, usd: 0 });
-    expect(quoteEntries(2.9, 1).units).toBe(2);
-  });
-
-  it("converts a dollar balance into whole entries", () => {
-    expect(entriesForBalance(297)).toBe(3);
-    // A balance that does not divide evenly buys what it covers, not what it
-    // nearly covers.
-    expect(entriesForBalance(200)).toBe(2);
-    expect(entriesForBalance(-5)).toBe(0);
-  });
-
-  it("keeps the site free and the price a whole number of dollars", () => {
-    // A price here -- any price -- reintroduces procurement, which is weeks,
-    // and the ten-minute path dies with it.
+describe("free beta pricing", () => {
+  it("charges nobody anything during the beta", () => {
+    expect(betaFeeUsd).toBe(0);
     expect(siteAssessment.amount).toBe(0);
     expect(formatPrice(siteAssessment.amount)).toBe("$0");
-    expect(formatPrice(entryPrice)).toBe("$99");
-    expect(formatPrice(quoteEntries(3, 2).usd)).toBe("$594");
+    expect(siteAssessment.allIn).toMatch(/^Free during the beta\./);
+    expect(siteAssessment.allIn).toMatch(/booking the recommended pilot cost nothing/i);
   });
 
-  it("keeps every episode count out of what a buyer is quoted", () => {
-    // The point of the flat price: the buyer does not size the run. If an
-    // episode count reappears in buyer-facing copy, the statistics problem is
-    // back on their desk.
-    const buyerCopy = [
-      entryModel.summary,
-      entryModel.detail,
-      entryModel.fairness,
-      ...entryModel.notCharged,
-      ...included,
+  it("no longer exports a live site fee, booking authorization or paid-entry quote", () => {
+    // These were the $2,500 booking fee and the $99 private-entry model. The
+    // founder made the beta free on 2026-10-13; a public surface that can
+    // import them can quote them.
+    for (const name of [
+      "pilotFeeUsd",
+      "pilotBookingAuthorization",
+      "entryModel",
+      "billingRules",
+      "quoteEntries",
+      "quoteExamples",
+      "entriesForBalance",
+      "included",
+      "includedLimit",
+    ]) {
+      expect(pricing, name).not.toHaveProperty(name);
+    }
+  });
+
+  it("keeps the physical pilot between the site and the robot team, with no Blueprint cut", () => {
+    expect(siteAssessment.whatIsNotFree).toMatch(/agreed directly between the site and the robot team/i);
+    expect(siteAssessment.whatIsNotFree).toMatch(/no cut/i);
+  });
+
+  it("replaces a withdrawn team without promising a refund of a fee that does not exist", () => {
+    expect(pilotReplacementPolicy).toMatch(/recommend a replacement whose evaluation on the same job passed/i);
+    expect(pilotReplacementPolicy).not.toMatch(/refund your fee/i);
+  });
+
+  it("keeps every price and episode count out of site-facing copy", () => {
+    const siteCopy = [
       siteAssessment.summary,
       siteAssessment.allIn,
       siteAssessment.bounded,
+      siteAssessment.whatWeGetFromIt,
+      siteAssessment.whatIsNotFree,
       ...siteAssessment.covers,
     ].join(" ");
-    expect(buyerCopy).not.toMatch(/\bepisode/i);
-    expect(buyerCopy).not.toMatch(/\$0\.50|per episode/i);
+    expect(siteCopy).not.toMatch(/\$\d/);
+    expect(siteCopy).not.toMatch(/\bepisode/i);
+    expect(siteCopy).not.toMatch(/\bmatch(?:ed|es|ing)?\b/i);
   });
 
-  it("promises the buyer cannot buy a longer run than a rival", () => {
-    // Funding and allocation stay separate, or the comparison is an auction.
-    expect(entryModel.fairness).toMatch(/cannot buy a longer run/i);
-    expect(entryModel.fairness).toMatch(/same conditions/i);
+  it("recommends one team and never asks the site to compare", () => {
+    expect(siteAssessment.bounded).toMatch(/one recommended pilot/i);
+    expect(siteAssessment.bounded).toMatch(/evaluation on your job passed/i);
+    expect(siteAssessment.bounded).toMatch(/do not have to compare/i);
   });
 });
 
-describe("the operating constants behind a flat price", () => {
+describe("the operating constants behind an evaluation", () => {
   it("still runs a screen small enough to cut only what it can rule out", () => {
     expect(screeningRound.episodes).toBe(50);
   });
@@ -116,10 +83,9 @@ describe("the operating constants behind a flat price", () => {
     expect(finalistRound.episodes).toBeGreaterThan(screeningRound.episodes);
   });
 
-  it("bounds the shortlist the free assessment covers", () => {
+  it("bounds the shortlist behind the one recommendation", () => {
     expect(finalistRound.shortlist).toBe(5);
     expect(shortlistRule.cap).toBe(finalistRound.shortlist);
-    expect(siteAssessment.bounded).toMatch(/one recommended pilot/i);
   });
 
   it("does not run a final comparison with nothing to compare", () => {

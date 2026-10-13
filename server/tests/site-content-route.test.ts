@@ -58,6 +58,17 @@ describe("site-content route", () => {
       expect(payload.safety).toContain("owner-system evidence");
       expect(JSON.stringify(payload)).toContain("free when invited");
       expect(JSON.stringify(payload)).toContain("no private paid evaluations");
+      // The free beta: no site fee, one evaluated recommendation, open site sign-up.
+      expect(JSON.stringify(payload)).toContain("Free for sites and robot teams");
+      expect(JSON.stringify(payload)).toContain("recommends one team whose evaluation on the job passed");
+      expect(JSON.stringify(payload)).toContain("anyone can start a job");
+      expect(JSON.stringify(payload)).not.toMatch(/\$2,500|No pilot, no fee/);
+      // Page and offer copy never speaks of matching sites to teams.
+      const offerCopy = JSON.stringify([
+        (payload as unknown as { pages: unknown }).pages,
+        payload.definitions.filter(({ term }) => /recommendation|sign-up/i.test(term)),
+      ]);
+      expect(offerCopy).not.toMatch(/\bmatch(?:ed|es|ing)?\b/i);
       expect(JSON.stringify(payload)).not.toContain("per-episode rate");
       expect(JSON.stringify(payload)).not.toMatch(/Policy Shortlist|Robot Match|Policy Improvement Run|Post-Training Data Package/);
       expect(payload.safety).not.toMatch(/coming soon|not launched|not ready|placeholder/i);

@@ -1,5 +1,8 @@
 import { minimalMarketingRedirects } from "../../client/src/data/minimalPublicSite";
 
+/** Slug of the job record the brand-polish spec serves from a route mock. */
+export const brandPolishSiteFixtureSlug = "brand-polish-sample";
+
 export type QaViewport = {
   name: "desktop" | "mobile";
   width: number;
@@ -32,6 +35,23 @@ export type PublicQaRoute = {
    * text like "Coming soon") rather than apologetic launch-status copy.
    */
   allowedPosturePatterns?: string[];
+  /** Auth and error pages are deliberately `noindex`; everything else must be indexable. */
+  expectNoIndex?: boolean;
+  /** The 404 page carries no canonical URL. */
+  expectCanonical?: boolean;
+  /**
+   * Accepted HTTP statuses for the document; 200-399 unless stated. The 404
+   * page is 404 from the built server and 200 from the Vite dev server, which
+   * does not know the client route table.
+   */
+  acceptedStatuses?: number[];
+};
+
+export type PublicBannedCopyPattern = {
+  label: string;
+  pattern: string;
+  flags: string;
+  guidance: string;
 };
 
 export type QaCheckResult = {
@@ -144,6 +164,44 @@ export const publicLaunchPosturePatterns: PublicLaunchPosturePattern[] = [
   },
 ];
 
+/**
+ * Copy that must never ship on a public page. The beta is free (founder
+ * decision, 2026-10-13), Blueprint recommends one team rather than matching
+ * sites to teams, and it is not a marketplace.
+ */
+export const publicBannedCopyPatterns: PublicBannedCopyPattern[] = [
+  {
+    label: "match wording",
+    pattern: "\\bmatch(?:es|ed|ing)?\\b",
+    flags: "i",
+    guidance: "Blueprint recommends one team whose evaluation passed; say recommend or evaluate, not match.",
+  },
+  {
+    label: "marketplace",
+    pattern: "\\bmarketplace\\b",
+    flags: "i",
+    guidance: "Blueprint is not a marketplace; describe the evaluated recommendation.",
+  },
+  {
+    label: "$2,500 fee",
+    pattern: "\\$\\s?2,?500\\b",
+    flags: "",
+    guidance: "The beta is free; there is no site fee to quote.",
+  },
+  {
+    label: "$99 entry",
+    pattern: "\\$\\s?99\\b",
+    flags: "",
+    guidance: "Paid private evaluations are disabled during the free beta.",
+  },
+];
+
+export function collectBannedCopyHits(text: string): string[] {
+  return publicBannedCopyPatterns
+    .filter((entry) => new RegExp(entry.pattern, entry.flags).test(text))
+    .map((entry) => entry.label);
+}
+
 // Several of these paths are legacy entry points that now 301 (see
 // server/index.ts's legacyPublicRedirects) to a current primary page before
 // the SPA ever renders the original route's component. Each entry's
@@ -153,16 +211,32 @@ export const publicLaunchPosturePatterns: PublicLaunchPosturePattern[] = [
 // itself (HTTP status, console health, no broken links) still works.
 const canonicalPublicQaRoutes: PublicQaRoute[] = [
   { label: "How it works", path: "/how-it-works", canonicalPath: "/how-it-works", expectedHeading: "Start with your task.", requiredCtas: [{ label: "Show us a task", hrefStartsWith: "/contact/site-operator" }, { label: "Apply for early access", hrefStartsWith: "/contact/robot-team" }] },
-  { label: "Beta program", path: "/beta", canonicalPath: "/beta", expectedHeading: "Start with one real task.", requiredCtas: [{ label: "Discuss a task", hrefStartsWith: "/contact/site-operator" }] },
+  { label: "Beta program", path: "/beta", canonicalPath: "/beta", expectedHeading: "Start with one real task.", requiredCtas: [{ label: "Show us a task", hrefStartsWith: "/contact/site-operator" }, { label: "Apply as a robot team", hrefStartsWith: "/contact/robot-team" }] },
   { label: "Home", path: "/", canonicalPath: "/", minVisibleTextLength: 300, expectedHeading: "Could a robot take over a repetitive task at your site?", requiredCtas: [{ label: "Show us a task", hrefStartsWith: "/contact/site-operator" }, { label: "For robot teams", hrefStartsWith: "/contact/robot-team" }] },
   { label: "Site inquiry", path: "/contact/site-operator", canonicalPath: "/contact/site-operator", expectedHeading: "Start with one task.", requiredCtas: [{ label: "Building robots? Apply for early access", hrefStartsWith: "/contact/robot-team" }] },
   { label: "Robot team job library", path: "/contact/robot-team", canonicalPath: "/contact/robot-team", expectedHeading: "Test your robot on real site jobs.", requiredCtas: [{ label: "Operate a site? Start here", hrefStartsWith: "/contact/site-operator" }] },
   { label: "Privacy", path: "/privacy", canonicalPath: "/privacy", expectedHeading: "Privacy Policy", requiredCtas: [] },
   { label: "Terms", path: "/terms", canonicalPath: "/terms", expectedHeading: "Terms of Service", requiredCtas: [] },
+  { label: "About", path: "/about", canonicalPath: "/about", expectedHeading: "We start with one real job.", requiredCtas: [{ label: "Beta program", hrefStartsWith: "/beta" }] },
+  { label: "Job library", path: "/sites", canonicalPath: "/sites", expectedHeading: "Job library", minVisibleTextLength: 200, requiredCtas: [{ label: "Robot teams", hrefStartsWith: "/contact/robot-team" }] },
+  // A fixture record served by the spec's route mock; detail pages are dynamic.
+  { label: "Job record", path: `/sites/${brandPolishSiteFixtureSlug}`, canonicalPath: `/sites/${brandPolishSiteFixtureSlug}`, expectedHeading: "Brand polish sample warehouse", minVisibleTextLength: 300, requiredCtas: [{ label: "Ask to evaluate this job", hrefStartsWith: "/contact/robot-team" }] },
+  { label: "Robot team beta guide", path: "/beta/buyer-guide", canonicalPath: "/beta/buyer-guide", expectedHeading: "Robot team beta guide", requiredCtas: [{ label: "Apply for an invitation", hrefStartsWith: "/contact/robot-team" }] },
+  { label: "Sign in", path: "/sign-in", canonicalPath: "/sign-in", expectedHeading: "Sign in", minVisibleTextLength: 150, expectNoIndex: true, requiredCtas: [] },
+  { label: "Reset password", path: "/forgot-password", canonicalPath: "/forgot-password", expectedHeading: "Reset your password", minVisibleTextLength: 150, expectNoIndex: true, requiredCtas: [] },
+  { label: "Not found", path: "/this-page-does-not-exist", canonicalPath: "/this-page-does-not-exist", expectedHeading: "That page isn’t here.", minVisibleTextLength: 100, expectNoIndex: true, expectCanonical: false, acceptedStatuses: [404, 200], requiredCtas: [] },
 ];
+
+/** `/signup` hands a site straight to the site start page. */
+const signupRedirectRoute: PublicQaRoute = {
+  ...canonicalPublicQaRoutes.find((route) => route.path === "/contact/site-operator")!,
+  label: "/signup (redirect)",
+  path: "/signup",
+};
 
 export const publicQaRoutes: PublicQaRoute[] = [
   ...canonicalPublicQaRoutes,
+  signupRedirectRoute,
   ...Object.entries(minimalMarketingRedirects).map(([path, target]) => {
     const canonical = canonicalPublicQaRoutes.find((route) => route.path === target.split("#")[0])!;
     return { ...canonical, label: `${path} (redirect)`, path };

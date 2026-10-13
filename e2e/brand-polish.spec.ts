@@ -4,10 +4,12 @@ import { expect, test } from "@playwright/test";
 import type { APIRequestContext, Page } from "@playwright/test";
 import {
   artifactSlugForRoute,
+  brandPolishSiteFixtureSlug,
   buildBrandPolishReportMarkdown,
   buildNotionLayoutChecklistMarkdown,
   normalizeCheckableInternalHref,
   normalizeWhitespace,
+  publicBannedCopyPatterns,
   publicLaunchPosturePatterns,
   publicQaRoutes,
   qaOutputRoot,
@@ -40,6 +42,7 @@ type PageMetrics = {
   unlabeledControls: string[];
   placeholderHits: string[];
   publicPostureHits: string[];
+  bannedCopyHits: string[];
 };
 
 type VisibleAnchor = {
@@ -54,6 +57,10 @@ test("brand polish QA sweeps key public routes", async ({ page, request }) => {
   // library, while onboarding specs separately cover real cards and outages.
   await page.route("**/api/site-worlds/tasks", route => route.fulfill({
     status: 200, contentType: "application/json", body: JSON.stringify({ items: [] }),
+  }));
+  // One published job record, so the detail page is audited like any other.
+  await page.route(`**/api/site-worlds/${brandPolishSiteFixtureSlug}`, route => route.fulfill({
+    status: 200, contentType: "application/json", body: JSON.stringify(brandPolishSiteFixture),
   }));
   // 15 routes x 2 viewports of navigation + metrics + screenshot, plus a
   // trailing internal-link audit, comfortably exceeds 180s now that several
@@ -182,7 +189,7 @@ async function auditRouteViewport(
 
     addCheck(
       checks,
-      Boolean(response && response.status() < 400),
+      Boolean(response && (route.acceptedStatuses ? route.acceptedStatuses.includes(response.status()) : response.status() < 400)),
       "HTTP document status",
       response ? `${response.status()} ${response.statusText()}` : "No document response",
       routeKey,
@@ -236,22 +243,35 @@ async function auditRouteViewport(
       routeKey,
       context.issues,
     );
-    addCheck(
-      checks,
-      canonicalMatches(metrics.canonicalHref, route.canonicalPath),
-      "Canonical URL",
-      metrics.canonicalHref || "Missing canonical",
-      routeKey,
-      context.issues,
-    );
-    addCheck(
-      checks,
-      Boolean(metrics.robots) && !/\bnoindex\b/i.test(metrics.robots),
-      "Robots indexable",
-      metrics.robots || "Missing robots meta",
-      routeKey,
-      context.issues,
-    );
+    if (route.expectCanonical !== false) {
+      addCheck(
+        checks,
+        canonicalMatches(metrics.canonicalHref, route.canonicalPath),
+        "Canonical URL",
+        metrics.canonicalHref || "Missing canonical",
+        routeKey,
+        context.issues,
+      );
+    }
+    if (route.expectNoIndex) {
+      addCheck(
+        checks,
+        /\bnoindex\b/i.test(metrics.robots),
+        "Robots noindex",
+        metrics.robots || "Missing robots meta",
+        routeKey,
+        context.issues,
+      );
+    } else {
+      addCheck(
+        checks,
+        Boolean(metrics.robots) && !/\bnoindex\b/i.test(metrics.robots),
+        "Robots indexable",
+        metrics.robots || "Missing robots meta",
+        routeKey,
+        context.issues,
+      );
+    }
     addCheck(
       checks,
       metrics.horizontalOverflowPx <= 8,
@@ -313,6 +333,15 @@ async function auditRouteViewport(
       context.issues,
     );
 
+    addCheck(
+      checks,
+      metrics.bannedCopyHits.length === 0,
+      "No retired pricing or match wording",
+      metrics.bannedCopyHits.join(", ") || "No $2,500, $99, match or marketplace copy found",
+      routeKey,
+      context.issues,
+    );
+
     await auditRequiredCtas(page, route, routeKey, checks, context.issues);
 
     const routeConsoleErrors = context.consoleErrors.slice(consoleStart);
@@ -368,7 +397,7 @@ async function auditRouteViewport(
 }
 
 async function collectPageMetrics(page: Page): Promise<PageMetrics> {
-  return page.evaluate((posturePatterns) => {
+  return page.evaluate(({ posturePatterns, bannedPatterns }) => {
     const normalize = (value: string) => value.replace(/\s+/g, " ").trim();
     const isVisible = (element: Element) => {
       const htmlElement = element as HTMLElement;
@@ -381,7 +410,11 @@ async function collectPageMetrics(page: Page): Promise<PageMetrics> {
     const title = document.title;
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content ?? "";
     const canonicalHref = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href ?? "";
-    const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]')?.content ?? "";
+    // Every robots meta, not just the first: the page's own tag is added after
+    // the shell's default, and search engines apply the most restrictive one.
+    const robots = Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="robots"]'))
+      .map((meta) => meta.content)
+      .join(" | ");
     const h1Texts = Array.from(document.querySelectorAll("h1"))
       .filter(isVisible)
       .map((element) => normalize(element.textContent ?? ""))
@@ -453,6 +486,9 @@ async function collectPageMetrics(page: Page): Promise<PageMetrics> {
     const publicPostureHits = posturePatterns
       .filter((entry) => new RegExp(entry.pattern, entry.flags).test(bodyText))
       .map((entry) => entry.label);
+    const bannedCopyHits = bannedPatterns
+      .filter((entry) => new RegExp(entry.pattern, entry.flags).test(bodyText))
+      .map((entry) => entry.label);
 
     const hasFrameworkOverlay = Boolean(
       document.querySelector("vite-error-overlay, nextjs-portal, webpack-dev-server-client-overlay") ||
@@ -475,9 +511,47 @@ async function collectPageMetrics(page: Page): Promise<PageMetrics> {
       unlabeledControls,
       placeholderHits,
       publicPostureHits,
+      bannedCopyHits,
     };
-  }, publicLaunchPosturePatterns);
+  }, { posturePatterns: publicLaunchPosturePatterns, bannedPatterns: publicBannedCopyPatterns });
 }
+
+const brandPolishSiteFixture = {
+  id: brandPolishSiteFixtureSlug,
+  siteCode: "BP-1",
+  siteName: "Brand polish sample warehouse",
+  siteAddress: "Private location",
+  sceneId: "scene-brand-polish",
+  captureId: "capture-brand-polish",
+  siteSubmissionId: "submission-brand-polish",
+  pipelinePrefix: "gs://pipeline/brand-polish",
+  category: "Logistics",
+  industry: "Warehouse",
+  taskLane: "Tote handling",
+  tone: "slate",
+  accent: "blue",
+  thumbnailKind: "parcel",
+  summary: "A recorded warehouse job: moving full totes from the packing line to an outbound cart, shared by the site for invited robot teams to evaluate.",
+  bestFor: "Tote handling",
+  startStates: [],
+  runtime: "request-scoped",
+  defaultRuntimeBackend: "mujoco",
+  availableRuntimeBackends: ["mujoco"],
+  sampleRobot: "Example robot",
+  sampleRobotProfile: { id: "example", name: "Example robot" },
+  sampleTask: "Move a tote",
+  samplePolicy: "Team supplied",
+  scenarioVariants: [],
+  exportArtifacts: [],
+  runtimeManifest: {},
+  taskCatalog: [{ id: "task-1", taskId: "move-tote", taskText: "Move a full tote from the packing line to the outbound cart", taskCategory: "Transport" }],
+  scenarioCatalog: [],
+  startStateCatalog: [],
+  robotProfiles: [],
+  exportModes: [],
+  packages: [],
+  dataSource: "pipeline",
+};
 
 async function auditRequiredCtas(
   page: Page,

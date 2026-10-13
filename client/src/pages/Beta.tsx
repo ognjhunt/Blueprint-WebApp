@@ -1,7 +1,8 @@
+import { ArrowUpRight } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
-const description = "An open beta for real sites and tasks. Get a free initial assessment grounded in the evidence you share.";
+const description = "A free beta for real sites and recurring tasks. Sites start a job today; invited robot teams evaluate it in simulation, and Blueprint recommends one team whose evaluation passed.";
 
 export default function Beta() {
   return (
@@ -13,29 +14,30 @@ export default function Beta() {
       <article className="ms-legal ms-container">
         <p className="ms-eyebrow">Beta program</p>
         <h1>Start with one real task.</h1>
-        <p>Sites can start immediately. Robot teams participate by invitation to help shape Blueprint around real work. The starting point is a useful initial task assessment, grounded in the evidence you share.</p>
+        <p>The beta is open to sites: anyone can start a job today, and we also onboard sites by hand. Robot teams join by invitation. Everything in the beta is free.</p>
         <section>
           <h2>What do I provide?</h2>
-          <p>Bring a recurring task at a real site, the outcome you want, and a short video you have permission to share or a conversation about the work. We’ll ask for feedback on the assessment and follow-up to clarify gaps or discuss next steps.</p>
+          <p>A recurring task at a real site, what a finished task looks like, and a short video you have permission to share, or a description to start. We may ask a few follow-up questions to fill gaps in the job brief.</p>
         </section>
         <section>
           <h2>What do I receive?</h2>
-          <p>Our goal is to help you get a suitable robot working on a real task at your site. We assess the task and explain what the evidence supports.</p>
-          <p style={{ marginTop: "1em" }}>If there’s a suitable fit and an available robot team, we can help plan an on-site pilot. Scope, success criteria, responsibilities and costs are agreed before work begins.</p>
+          <p>Invited robot teams evaluate your task in a simulation built from your capture. We recommend one team whose evaluation passed, with what the pilot tests, what you provide and when, and you book it in one step. You do not compare teams.</p>
+          <p style={{ marginTop: "1em" }}>If no team has passed yet, we tell you so and what would change that.</p>
         </section>
         <section id="scope">
           <h2>What does it cost?</h2>
-          <p>The initial assessment is free during the beta. Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. Participating does not commit you to that work or include a free physical deployment.</p>
+          <p>Nothing. The beta is free for sites and robot teams: submitting a job, screening, evaluation, our recommendation and booking the pilot. After you book, you and the robot team agree the physical pilot’s dates and terms directly. Blueprint takes no cut of the pilot and charges nothing for it.</p>
         </section>
         <section>
           <h2>What is experimental?</h2>
-          <p>Task analysis and robot-fit recommendations are experimental and may need review or correction. There is no guaranteed ready robot, instant automatic delivery, or validated performance claim. An assessment or simulation is not proof of physical performance or safety.</p>
+          <p>Evaluations run in simulation. A passed evaluation is an estimate, not proof of how a robot will perform at your site or a safety certification; the physical pilot is where that is measured. Job briefs and recommendations may need review or correction.</p>
         </section>
         <section>
           <h2>What about robot teams?</h2>
-          <p>Robot teams participate by invitation on a specific task. Any evaluation needs an agreed scope, permitted evidence, and a clear account of what the team can support. Joining does not guarantee an evaluation run, a customer introduction, or a deployment.</p>
+          <p>Robot teams join by invitation: apply, and once we approve you, we invite you to evaluate specific site jobs for free. A passed evaluation on a job is what makes a team eligible to be recommended. An invitation does not guarantee a recommendation or a pilot.</p>
+          <p style={{ marginTop: "1em" }}><a className="ms-text-link" href="/contact/robot-team?source=beta">Apply as a robot team <ArrowUpRight size={16} aria-hidden="true" /></a></p>
         </section>
-        <div className="ms-how-cta"><a className="ms-button" href="/contact/site-operator?source=beta">Discuss a task</a></div>
+        <div className="ms-how-cta"><a className="ms-button" href="/contact/site-operator?source=beta">Show us a task</a></div>
       </article>
     </>
   );

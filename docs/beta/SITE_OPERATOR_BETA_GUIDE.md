@@ -1,14 +1,16 @@
-# Invited site beta
+# Site beta guide
 
-Start with one recurring job at [Discuss your site](https://tryblueprint.io/contact/site-operator). Describe where objects start, what happens, what success means, and what is difficult today. You can start without an account, a robot-team commitment, or footage. This is a founder-supported experimental assessment; a submission does not schedule a visit or promise a robot partner.
+The beta is **free** and **open to sites** (founder decision, 2026-10-13): anyone can start a job, and Blueprint also onboards sites by hand. Start with one recurring job at [Show us a task](https://tryblueprint.io/contact/site-operator). Describe where objects start, what happens, what success means, and what is difficult today. You can start without an account, a robot-team commitment, or footage. A submission does not schedule a visit or promise a robot partner.
+
+How it works: invited robot teams evaluate your job free, in a simulation built from your capture. Blueprint recommends **one** team whose evaluation on your job passed, and you book that pilot in one step; you never have to compare teams. After booking, you and the robot team agree the physical pilot's dates and terms directly. Blueprint charges nothing and takes no cut.
 
 ## Your next steps
 
 1. Keep the private job link returned by the form. Review and correct the drafted brief, including open questions, success targets, and pilot preferences. “I don't know” is an acceptable answer; missing evidence stays visible.
 2. Add existing video or record later if useful. Recording permission is separate from permission to describe the job. A description can still be reviewed while recording is on hold.
 3. Follow the assessment's current next action. Saved video, accepted processing, scene availability, completed evaluation, and physical results are separate states. A realistic scene or simulated result does not certify physical performance or safety.
-4. If you want a public job card, review and explicitly approve its text. You can decline listing. An account is offered when you save ownership and follow the job; the initial description does not require one. Robot-team beta access follows the existing approval flow and is free.
-5. Blueprint presents one recommended pilot only when a suitable team and scoped proposal exist. Review what each party provides, cost, timing, and remaining uncertainty. Only **Book this pilot** authorizes the existing **$2,500 Blueprint fee at booking**; it is separate from the robot team's stated pilot cost. A booking record alone does not prove a payment succeeded. No pilot, no fee. Robot-team participation, site access, dates, and physical work require their own confirmation.
+4. If you want a public job card, review and explicitly approve its text. You can decline listing. An account is offered when you save ownership and follow the job; the initial description does not require one. Robot teams join by invitation, and their evaluations are free.
+5. Blueprint presents one recommended pilot only when a team's evaluation on your job passed and that team wants the pilot. Review what the pilot tests, what each party provides, timing, and remaining uncertainty. **Book this pilot** is your one approval and costs nothing; there is no Blueprint fee, invoice or payment step. The robot team quotes any physical pilot cost to you directly. Site access, dates, and physical work are agreed between you and the team after booking.
 
 ## Footage and permission
 

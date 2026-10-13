@@ -343,6 +343,7 @@
 .ms-scene-selector:disabled { opacity: .35; cursor: wait; }
 .ms-scene-pause { border-left: 1px solid #c5cabc; margin-left: 6px; padding-left: 7px; width: 38px; }
 .ms-scene-disclosure { width: 100%; text-align: right; font-size: 9px; letter-spacing: .03em; color: var(--ms-muted); }
+.ms-method-note { margin: 19px 0 0; max-width: 62ch; font-size: 13px; line-height: 1.55; color: var(--ms-muted); }
 .ms-method-link { display: inline-flex; align-items: center; gap: 9px; margin-top: 19px; font-size: 12px; color: var(--ms-muted); text-underline-offset: 4px; }
 .ms-method-link:hover { text-decoration: underline; }
 .ms-how { max-width: 1140px; padding-block: 65px 85px; }
@@ -591,3 +592,10 @@
   .ms-pilot-art { margin-top: 24px; }
   .ms-pilot-card dl > div { grid-template-columns: 1fr; gap: 2px; }
 }
+
+/* Public job record (/sites/:slug) on the minimal shell. */
+.ms-site-detail .ms-eyebrow { margin-bottom: 14px; }
+.ms-site-stage { display: inline-block; font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--ms-muted); border: 1px solid var(--ms-rule); border-radius: 999px; padding: 2px 10px; }
+.ms-site-cta { margin-top: 24px; }
+.ms-site-figure { margin-top: 32px; }
+.ms-site-figure img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border: 1px solid var(--ms-rule); }

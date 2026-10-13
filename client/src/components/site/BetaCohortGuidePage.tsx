@@ -52,7 +52,7 @@ export function BetaCohortGuidePage({ guide }: BetaCohortGuidePageProps) {
           <SurfaceBrowserFrame>
             <div className="grid gap-0 xl:grid-cols-[0.38fr_0.62fr]">
               <div className="border-b border-runway-line bg-runway-black p-8 xl:border-b-0 xl:border-r lg:p-10">
-                <SurfaceMiniLabel className="font-mono text-runway-faint">{guide.persona} cohort</SurfaceMiniLabel>
+                <SurfaceMiniLabel className="font-mono text-runway-faint">{guide.eyebrow}</SurfaceMiniLabel>
                 <h1 className="mt-5 font-display uppercase text-[clamp(3.2rem,5.8vw,5.1rem)] font-semibold uppercase leading-[0.86] tracking-[0.005em] text-runway-text">
                   {guide.title}
                 </h1>
@@ -63,8 +63,8 @@ export function BetaCohortGuidePage({ guide }: BetaCohortGuidePageProps) {
                   <img src={guide.heroImage} alt={guide.heroAlt} className="h-full w-full object-cover" />
                 </div>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <SurfacePill className={metaPill}>External beta</SurfacePill>
-                  <SurfacePill className={metaPill}>Review-gated</SurfacePill>
+                  <SurfacePill className={metaPill}>By invitation</SurfacePill>
+                  <SurfacePill className={metaPill}>Free</SurfacePill>
                 </div>
               </div>
 
@@ -109,7 +109,7 @@ export function BetaCohortGuidePage({ guide }: BetaCohortGuidePageProps) {
                       <h2 className={sectionHeading}>Single support path</h2>
                     </div>
                     <p className={`mt-4 max-w-[68ch] ${prose}`}>
-                      Keep support attached to the account, request, capture, package, or session id. Use one channel unless Blueprint gives you a named operator thread.
+                      Keep support attached to your team, the job and the invitation. Use one channel unless Blueprint gives you a named thread.
                     </p>
                     <a href={`mailto:${betaSupportEmail}`} className="mt-5 inline-flex items-center gap-3 font-mono text-[13px] text-runway-signal">
                       <Mail className="h-4 w-4" />

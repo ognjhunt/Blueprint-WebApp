@@ -61,7 +61,7 @@ test("mobile navigation works and the method steps are visible without a click",
   await expect(page).toHaveURL(/\/how-it-works$/);
   await expect(page.locator("h1")).toContainText("Start with your task.");
   await page.goto("/");
-  await expect(page.getByText("Any later work has a separately agreed scope and cost.")).toBeVisible();
+  await expect(page.getByText("One team whose evaluation passed. You agree dates and terms with them.")).toBeVisible();
 });
 
 test("old marketing links resolve to the minimal website without losing source context", async ({ page }) => {
@@ -97,14 +97,14 @@ test("the site page puts the capture form before the explanation, on a phone too
   }
 });
 
-test("old pricing reaches the beta page with one CTA and separately agreed later work", async ({ page }) => {
+test("old pricing reaches the free beta page with one CTA", async ({ page }) => {
   await page.goto("/pricing?source=legacy-review#scope");
   await expect(page).toHaveURL(/\/beta\?source=legacy-review#scope$/);
   await expect(page.locator("h1")).toHaveText("Start with one real task.");
-  await expect(page.getByText(/The initial assessment is free during the beta/)).toBeVisible();
-  await expect(page.getByText(/Any later evaluation, integration, or physical pilot/)).toBeVisible();
+  await expect(page.getByText(/The beta is free for sites and robot teams/)).toBeVisible();
+  await expect(page.getByText(/agree the physical pilot’s dates and terms directly/)).toBeVisible();
   await expect(page.locator("article .ms-button")).toHaveCount(1);
-  await expect(page.getByRole("link", { name: "Discuss a task" })).toHaveAttribute("href", "/contact/site-operator?source=beta");
+  await expect(page.getByRole("link", { name: "Show us a task" })).toHaveAttribute("href", "/contact/site-operator?source=beta");
   await expect(page.locator("article")).not.toContainText("$2,500");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://tryblueprint.io/beta");
 });

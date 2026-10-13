@@ -3,7 +3,7 @@ import { WarehousePilotSequence } from "@/components/site/WarehousePilotSequence
 import { SEO } from "@/components/SEO";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
 
-const description = "Show Blueprint one recurring job for an initial evidence-backed assessment. Invited beta participants start free; later work is agreed separately.";
+const description = "From one recurring task to a measured robot pilot: capture the task, invited robot teams evaluate it in simulation, and Blueprint recommends one team whose evaluation passed. Free during the beta.";
 
 export default function HowItWorks() {
   return <>

@@ -1,5 +1,7 @@
 # Invited beta acceptance and operating checklist
 
+> **2026-10-13 update:** the beta is now free for everyone (founder decision). Booking the recommended pilot carries no Blueprint fee; references below to the "$2,500" booking fee describe the 2026-10-06 verification and are superseded. Sites sign up openly; robot teams join by invitation.
+
 Owner: Nijel Hunt (founder), until he assigns a named replacement in the existing operating record. Scope: one description-first site journey and support for a few invited users. This packet does not authorize contacts, invitations, paid runs, charges, or production fixture writes.
 
 ## Current evidence boundary
@@ -18,7 +20,7 @@ Native/Pipeline execution remains owned by the existing native task: `01a11186-8
 | Brief correction, unknowns, pilot preferences on return | `SelfCaptureUpload.tsx`, `TaskBriefReview.tsx`; their component tests | Persisted preferences survive reload; uncertainty stays open; a correction can be retried. |
 | Upload receipt, processing uncertainty, retry and reload | `selfCaptureVideo.ts`, `self-capture-uploads.ts`; `selfCaptureVideo.test.ts`, `self-capture-manifest.test.ts` | Storage receipt is distinct from dispatch/execution; retry rechecks authority and reuses retained footage. |
 | Assessment, ownership and next action | `site-task-brief.ts`; `site-task-brief-status.test.ts`, `site-task-brief.test.ts` | Status derives from recorded evidence, and account/claim steps retain their existing authority. |
-| One scoped partner recommendation and explicit booking | `admin-robot-teams.ts`, `task-listings.ts`, `RecommendedPilot.tsx`; route/component tests | Recommendations require a registered team with applied or engaged status; booking binds the displayed recommendation and existing $2,500 fee. Neither a registry entry nor a fixture proves a team is willing for a live pilot. Booking acknowledgment is not payment proof. |
+| One scoped partner recommendation and explicit booking | `admin-robot-teams.ts`, `task-listings.ts`, `RecommendedPilot.tsx`; route/component tests | Recommendations require a registered team with applied or engaged status; booking binds the displayed recommendation (no Blueprint fee since 2026-10-13; the 2026-10-06 check covered the then-current $2,500 fee). Neither a registry entry nor a fixture proves a team is willing for a live pilot. Booking acknowledgment is not payment proof. |
 | Back/Forward, stale booking, interrupted response | `RecommendedPilot.test.tsx`, `SelfCaptureUpload.test.tsx` | Old private-link state/authorization cannot appear on another job; repeated clicks are suppressed; server acknowledgment is required. |
 | Withdrawn consent and failure/support recovery | `websiteCaptureWithdrawal.ts`; withdrawal/manifest tests; site guide | Consent holds cannot be cleared by a processing retry; downstream withdrawal requires a matching acknowledgment. |
 

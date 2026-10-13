@@ -44,7 +44,7 @@ describe("raw walkthrough media", () => {
   });
 
   it("is excluded from the scope of every sharing agreement", () => {
-    expect(annexRow("Buyer sharing")).toMatch(/raw walkthrough is outside the scope/i);
+    expect(annexRow("Robot team sharing")).toMatch(/raw walkthrough is outside the scope/i);
   });
 
   it("says what a policy is sent instead, because the promise alone is not enough", () => {

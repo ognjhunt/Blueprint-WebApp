@@ -58,7 +58,6 @@ const Login = lazyRoute(() => import("../pages/Login"));
 const ForgotPassword = lazyRoute(() => import("../pages/ForgotPassword"));
 const Privacy = lazyRoute(() => import("../pages/Privacy"));
 const Terms = lazyRoute(() => import("../pages/Terms"));
-const BetaCapturerGuide = lazyRoute(() => import("../pages/BetaCapturerGuide"));
 const BetaBuyerGuide = lazyRoute(() => import("../pages/BetaBuyerGuide"));
 const Settings = lazyRoute(() => import("../pages/workspace/Settings"));
 const AdminLeads = lazyRoute(() => import("../pages/AdminLeads"));
@@ -66,8 +65,10 @@ const AdminGrowthOpsScorecard = lazyRoute(() => import("../pages/AdminGrowthOpsS
 const AdminAustinLaunchScorecard = lazyRoute(() => import("../pages/AdminAustinLaunchScorecard"));
 const AdminGrowthStudio = lazyRoute(() => import("../pages/AdminGrowthStudio"));
 const AdminCompanyMetrics = lazyRoute(() => import("../pages/AdminCompanyMetrics"));
-const AdminTaskEvaluationLaunches = lazyRoute(
-  () => import("../pages/AdminTaskEvaluationLaunches"),
+// The launch control room behind its access gate (admin/ops role or the
+// server-enforced launch-lab bearer link).
+const TaskEvaluationLaunchesGate = lazyRoute(
+  () => import("../pages/TaskEvaluationLaunchesGate"),
 );
 const AdminCapturers = lazyRoute(() => import("../pages/AdminCapturers"));
 const AdminRobotTeamAccess = lazyRoute(() => import("../pages/AdminRobotTeamAccess"));
@@ -117,7 +118,12 @@ const HomeRedirect = () => <MarketingRedirect to="/" />;
 
 const HowItWorksRedirect = () => <MarketingRedirect to="/#how-it-works" />;
 
-const ProofRedirect = () => <MarketingRedirect to="/proof" />;
+// Retired proof/docs pages land on the method section in one hop, not via /proof.
+const ProofRedirect = () => <MarketingRedirect to="/#how-it-works" />;
+
+// Help goes to the site start page: sites are the primary audience, and the
+// server's 301 for /help sends the same place.
+const HelpRedirect = () => <MarketingRedirect to="/contact/site-operator" />;
 
 const SitesRedirect = () => <MarketingRedirect to="/sites" />;
 
@@ -141,11 +147,11 @@ const ContactRedirect = () => {
 
 // Legacy redirects
 const LegacyPilotExchangeRedirect = () => (
-  <MarketingRedirect to="/proof" />
+  <MarketingRedirect to="/#how-it-works" />
 );
 
 const LegacyPilotExchangeGuideRedirect = () => (
-  <MarketingRedirect to="/proof" />
+  <MarketingRedirect to="/#how-it-works" />
 );
 
 const LegacyPartnersRedirect = () => (
@@ -153,7 +159,7 @@ const LegacyPartnersRedirect = () => (
 );
 
 const LegacyEnvironmentsRedirect = () => (
-  <MarketingRedirect to="/proof" />
+  <MarketingRedirect to="/#how-it-works" />
 );
 
 const LegacySiteLibraryDetailRedirect = ({
@@ -173,7 +179,7 @@ const LegacySolutionsRedirect = () => (
 );
 
 const LegacyQualifiedOpportunitiesRedirect = () => (
-  <MarketingRedirect to="/proof" />
+  <MarketingRedirect to="/#how-it-works" />
 );
 
 const LegacyForRobotIntegratorsRedirect = () => (
@@ -189,7 +195,7 @@ const LegacyHostedReviewRedirect = () => (
 );
 
 const LegacyProofStoryRedirect = () => (
-  <MarketingRedirect to="/proof" />
+  <MarketingRedirect to="/#how-it-works" />
 );
 
 const LegacyBookExactSiteReviewRedirect = () => (
@@ -228,7 +234,7 @@ const SiteOperatorSignupRedirect = () => (
 );
 
 const LegacyDocsRedirect = () => (
-  <MarketingRedirect to="/proof" />
+  <MarketingRedirect to="/#how-it-works" />
 );
 
 export const appRoutes: AppRoute[] = [
@@ -300,10 +306,10 @@ export const appRoutes: AppRoute[] = [
   { path: "/contact", layout: "public", component: ContactRedirect },
   { path: "/contact/robot-team", layout: "public", component: Contact },
   { path: "/contact/site-operator", layout: "public", component: Contact },
-  { path: "/help", layout: "public", component: ContactRedirect },
-  { path: "/help/contact", layout: "public", component: ContactRedirect },
-  { path: "/help/category/:categorySlug", layout: "public", component: ContactRedirect },
-  { path: "/help/article/:articleSlug", layout: "public", component: ContactRedirect },
+  { path: "/help", layout: "public", component: HelpRedirect },
+  { path: "/help/contact", layout: "public", component: HelpRedirect },
+  { path: "/help/category/:categorySlug", layout: "public", component: HelpRedirect },
+  { path: "/help/article/:articleSlug", layout: "public", component: HelpRedirect },
   { path: "/exact-site-hosted-review", layout: "public", component: LegacyHostedReviewRedirect },
   { path: "/book-exact-site-review", layout: "public", component: LegacyBookExactSiteReviewRedirect },
   { path: "/docs", layout: "public", component: LegacyDocsRedirect },
@@ -337,7 +343,6 @@ export const appRoutes: AppRoute[] = [
   { path: "/forgot-password", layout: "public", shell: "bare", component: ForgotPassword },
   { path: "/privacy", layout: "public", component: Privacy },
   { path: "/terms", layout: "public", component: Terms },
-  { path: "/beta/capturer-guide", layout: "public", shell: "bare", component: BetaCapturerGuide },
   { path: "/beta/buyer-guide", layout: "public", shell: "bare", component: BetaBuyerGuide },
   { path: "/settings", layout: "protected", shell: "bare", component: Settings },
   { path: "/requests/:requestId", layout: "public", shell: "bare", component: RequestConsole },
@@ -361,10 +366,11 @@ export const appRoutes: AppRoute[] = [
 
   // Legacy logged-in and signup aliases resolve to the maintained flows.
   { path: "/dashboard", layout: "protected", shell: "bare", component: BuyerAppRedirect },
-  { path: "/internal/design-system", layout: "public", shell: "bare", component: DesignSystem },
+  // Internal reference for designers; not a public page.
+  { path: "/internal/design-system", layout: "protected", requireRoles: ADMIN_ROLES, shell: "bare", component: DesignSystem },
   // The opportunity board carries a different commercial model from the one
   // that ships: $1,000 to evaluate a site-task and $10,000 on award, against
-  // /pricing's flat $99 an entry, with the run length ours to set. It was
+  // the free beta, where nobody is charged and the run length is ours to set. It was
   // reachable by URL on a public layout, with an offer flow attached, so a
   // robot team could read one price here and be quoted another by the API.
   //
@@ -459,9 +465,9 @@ export const appRoutes: AppRoute[] = [
   { path: "/ops/evidence", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/ops/handoff", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminLeads },
   { path: "/ops/spend", layout: "protected", requireRoles: ADMIN_ROLES, component: AdminCompanyMetrics },
-  // Temporary launch-lab access is enforced server-side by a deployment-gated
-  // bearer capability; the page itself does not require Firebase sign-in.
-  { path: "/ops/task-evaluation-launches", layout: "public", component: AdminTaskEvaluationLaunches },
+  // Gated in TaskEvaluationLaunchesGate: an admin/ops role, or the temporary
+  // launch-lab bearer capability that the server enforces.
+  { path: "/ops/task-evaluation-launches", layout: "public", component: TaskEvaluationLaunchesGate },
 
   // 404
   { layout: "public", shell: "bare", component: NotFound },

@@ -10,29 +10,44 @@ export function openCookieSettings() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(OPEN_COOKIE_SETTINGS_EVENT));
 }
 
-type ConsentStatus = "accepted" | "rejected" | null;
-
 export interface ConsentPreferences {
   analytics: boolean;
   marketing: boolean;
   necessary: boolean;
+  /**
+   * Set when the choice was made while the browser sent Global Privacy
+   * Control, so an explicit opt-in made under GPC is honoured and an older
+   * opt-in made without it is not.
+   */
+  gpc?: boolean;
 }
+
+/**
+ * Global Privacy Control (https://globalprivacycontrol.org): a browser-level
+ * opt-out of sale and sharing. We treat it as "analytics and marketing off"
+ * unless the visitor turns them on themselves while the signal is present.
+ */
+export function globalPrivacyControlEnabled(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
+}
+
+const optionalOff: ConsentPreferences = { analytics: false, marketing: false, necessary: true };
 
 export function CookieConsent() {
   const [isVisible, setIsVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const [preferences, setPreferences] = useState<ConsentPreferences>({
-    analytics: true,
-    marketing: false,
-    necessary: true,
-  });
+  // Nothing optional is pre-selected: a visitor has to turn analytics or
+  // marketing on themselves.
+  const [preferences, setPreferences] = useState<ConsentPreferences>(optionalOff);
+  const gpc = globalPrivacyControlEnabled();
 
   // A choice made once can be changed: the footer link reopens the details
   // with what was chosen last time.
   useEffect(() => {
     const reopen = () => {
       try {
-        const stored = JSON.parse(localStorage.getItem(COOKIE_CONSENT_KEY) || "null") as Partial<ConsentPreferences> | null;
+        const stored = getCookieConsent();
         if (stored) setPreferences({ necessary: true, analytics: stored.analytics === true, marketing: stored.marketing === true });
       } catch { /* Keep the defaults. */ }
       setShowDetails(true);
@@ -49,8 +64,12 @@ export function CookieConsent() {
     // there, so there is nothing on it to consent to.
     const isCaptureToolPage = window.location.pathname.startsWith("/capture-upload");
     // Check if consent was already given
-    const consent = localStorage.getItem(COOKIE_CONSENT_KEY);
-    if (!consent && !isCaptureToolPage) {
+    let consent: string | null = null;
+    try { consent = localStorage.getItem(COOKIE_CONSENT_KEY); } catch { /* Storage blocked: ask. */ }
+    // A browser sending Global Privacy Control has already answered for the
+    // optional cookies: they stay off, so there is nothing to ask. The footer
+    // link still opens the choices for anyone who wants to opt in.
+    if (!consent && !isCaptureToolPage && !globalPrivacyControlEnabled()) {
       // Delay showing the banner slightly for better UX
       const timer = setTimeout(() => setIsVisible(true), 1500);
       return () => clearTimeout(timer);
@@ -62,6 +81,7 @@ export function CookieConsent() {
       analytics: true,
       marketing: true,
       necessary: true,
+      ...(gpc ? { gpc: true } : {}),
       timestamp: new Date().toISOString(),
     };
     localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(fullConsent));
@@ -72,6 +92,7 @@ export function CookieConsent() {
   const handleAcceptSelected = () => {
     const consent = {
       ...preferences,
+      ...(gpc ? { gpc: true } : {}),
       timestamp: new Date().toISOString(),
     };
     localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(consent));
@@ -117,6 +138,11 @@ export function CookieConsent() {
           Essential cookies keep the site working. Choose whether to allow analytics and marketing cookies. Read our{" "}
           <a href="/privacy" className="font-medium text-[#203d2e] underline underline-offset-4">privacy policy</a>.
         </p>
+        {gpc && (
+          <p className="mb-4 text-sm text-[#62645d]">
+            Your browser sends a Global Privacy Control signal, so analytics and marketing cookies stay off unless you turn them on here.
+          </p>
+        )}
 
         {/* Cookie Details (expandable) */}
         {showDetails && (
@@ -205,12 +231,18 @@ export function CookieConsent() {
   );
 }
 
-// Utility to check consent status
+// Utility to check consent status. Under Global Privacy Control, an opt-in
+// recorded without the signal is read as opted out: only a choice made while
+// the signal was present can turn analytics or marketing on.
 export function getCookieConsent(): ConsentPreferences | null {
   try {
     const consent = localStorage.getItem(COOKIE_CONSENT_KEY);
     if (consent) {
-      return JSON.parse(consent);
+      const stored = JSON.parse(consent) as ConsentPreferences;
+      if (globalPrivacyControlEnabled() && stored?.gpc !== true) {
+        return { ...stored, ...optionalOff };
+      }
+      return stored;
     }
   } catch {
     // Ignore parsing errors

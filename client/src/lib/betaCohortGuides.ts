@@ -5,7 +5,7 @@ export type BetaCohortGuideSection = {
 };
 
 export type BetaCohortGuide = {
-  persona: "capturer" | "buyer";
+  persona: "robot-team";
   title: string;
   path: string;
   eyebrow: string;
@@ -22,148 +22,81 @@ export type BetaCohortGuide = {
 
 export const betaSupportEmail = "support@tryblueprint.io";
 
-export const capturerBetaGuide: BetaCohortGuide = {
-  persona: "capturer",
-  title: "Capturer Beta Guide",
-  path: "/beta/capturer-guide",
-  eyebrow: "External Beta Cohort",
-  summary:
-    "What capturers should expect before the first walkthrough, during capture, after upload, and when a submission is blocked or needs support.",
-  heroImage: "/redesign/pov/route-scan.jpg",
-  heroAlt: "Capturer walking an indoor facility route",
-  primaryAction: {
-    label: "Apply for capturer access",
-    href: "/signup/capturer",
-  },
-  sections: [
-    {
-      title: "Cohort scope",
-      body:
-        "The beta is a bounded cohort, not an open gig marketplace. Capture work stays limited by launch scope, device readiness, site permission, privacy posture, and cohort capacity.",
-      items: [
-        "Best-fit sites are industrial, logistics, warehouse, retail backroom, lab, and facility-job spaces where lawful access is clear.",
-        "Open capture can be submitted for review, but operator-approved or assigned capture has stronger downstream value.",
-        "Do not record private homes, employee-only areas, payment terminals, restricted rooms, private records, or people whenever avoidable.",
-      ],
-    },
-    {
-      title: "First-run walkthrough",
-      body:
-        "The first capture should prove that the route, device, permissions, and upload path work before anyone treats the account as ready for higher-value assignments.",
-      items: [
-        "Confirm site permission and restricted zones before pressing record.",
-        "Walk slowly, pause at transitions, keep the route stable, and capture floor/job context instead of cinematic footage.",
-        "Upload from a strong network and keep the app open until the bundle shows upload progress or background handoff.",
-      ],
-    },
-    {
-      title: "Review states",
-      body:
-        "Every upload is reviewed before it can support run evidence, buyer access, payout eligibility, or a permitted downstream use.",
-      items: [
-        "Review required means Blueprint has the bundle but has not accepted its rights, privacy, quality, or package fit.",
-        "Blocked means something must be fixed before downstream use, such as unclear permission, private content, missing route context, or upload failure.",
-        "Degraded means the bundle may still be useful, but a missing signal, weak media, or review limitation will be visible to buyers.",
-      ],
-    },
-    {
-      title: "Payout expectations",
-      body:
-        "Payouts are not automatic in the beta. Eligibility depends on assignment terms, accepted capture evidence, provider readiness, and any required identity or tax review.",
-      items: [
-        "Do not assume open capture creates a paid assignment.",
-        "Quoted or approved payout status must be visible in the assignment or account state before you rely on it.",
-        "If payout setup is unavailable for your cohort, the app should treat wallet/payout status as review-only.",
-      ],
-    },
-    {
-      title: "Support escalation",
-      body:
-        "Use one support path so upload, access, privacy, and payout issues stay attached to the same account and capture record.",
-      items: [
-        `Email ${betaSupportEmail} with your account email, capture id or assignment id, site city, and a short description.`,
-        "Escalate immediately for privacy exposure, restricted-area capture, injury/safety issues, payment confusion, or a stalled upload over 24 hours.",
-        "Do not retry a sensitive or restricted capture until support confirms the safe next step.",
-      ],
-    },
-  ],
-  escalation: [
-    "Privacy or restricted-area issue: stop sharing the media and contact support immediately.",
-    "Upload blocked more than 24 hours: send the capture id, device model, app version, and network context.",
-    "Payout or account issue: include the assignment id and the exact status shown in the app.",
-  ],
-};
-
+/**
+ * The one beta guide. The capturer guide was retired with the capturer
+ * network (sites film their own job, or Blueprint staff film it); its URL
+ * redirects to the site start page.
+ */
 export const buyerBetaGuide: BetaCohortGuide = {
-  persona: "buyer",
-  title: "Buyer Beta Guide",
+  persona: "robot-team",
+  title: "Robot team beta guide",
   path: "/beta/buyer-guide",
-  eyebrow: "Robot Team Beta Cohort",
+  eyebrow: "Robot team beta",
   summary:
-    "What robot teams should expect when reviewing a scoped site job, testing fit where useful, and discussing a measured physical pilot.",
+    "How invited robot teams evaluate a site's job in simulation for free, what the result means, and how a passed evaluation becomes a recommended pilot.",
   heroImage: "/redesign/pov/machine-tending.jpg",
   heroAlt: "Industrial machine-tending job area",
   primaryAction: {
-    label: "Request robot-team access",
+    label: "Apply for an invitation",
     href: "/contact/robot-team",
   },
   sections: [
     {
       title: "Cohort scope",
       body:
-        "The robot-team beta starts with site-approved jobs and request-scoped evaluation. A credible fit may lead to a separately agreed physical pilot.",
+        "Robot teams join by invitation after we review their application. The beta is free: there is no entry fee, balance, top-up or checkout.",
       items: [
-        "Best-fit requests name the robot family, workflow, site type, interfaces, success criteria, and what the onsite proof of concept must settle.",
-        "Blueprint may use captured real sites, generated support assets, and sim-backed comparison artifacts, but proof boundaries stay attached.",
-        "A beta request is not onsite commissioning, deployment approval, safety certification, or a promise that a robot will work on physical hardware.",
+        "Approved teams see the anonymized job cards sites chose to share.",
+        "An invitation names one job, the policy, and the execution limits for the evaluation.",
+        "You never receive the site's recording; your policy is sent images rendered from the reconstructed scene.",
       ],
     },
     {
-      title: "First request path",
+      title: "First evaluation",
       body:
-        "A request starts with scope review before run authorization or historical hosted-session access. Missing rights, site context, or policy details can pause the run.",
+        "Each evaluation runs your policy in a simulation built from the site's capture, against the job's pass criteria.",
       items: [
-        "Submit the site/task/policy context and any confidentiality or export limits up front.",
-        "Blueprint confirms available capture/package evidence before promising a delivery path.",
-        "If the request needs new capture, the capturer and site-operator path may add review time.",
+        "Confirm the robot and gripper, observation and action interfaces, and any adapter work before the run.",
+        "Submit a policy endpoint or container; compatibility is checked for the specific job.",
+        "Blueprint sets the run length, and every invited entry on a job runs under the same conditions.",
       ],
     },
     {
-      title: "Timelines",
+      title: "Results and review states",
       body:
-        "The beta should use clear status semantics instead of treating every delay as silence.",
+        "A result says whether the evaluation passed the job's criteria, where it failed, and where the evidence stops short of a call.",
       items: [
-        "Scoping review targets one business day when the request is complete.",
-        "Package or hosted-review preparation targets two to three business days after required evidence is accepted.",
-        "Recapture, privacy review, provider/runtime issues, or missing buyer context can move the request into blocked or review-required state.",
+        "Passed: your team can be recommended for that job's pilot, if you want it.",
+        "Not passed or inconclusive: Blueprint does not recommend your team for that job, and the result says why.",
+        "Review required or blocked: a rights, privacy or compatibility issue has to be resolved before the run counts.",
+        "A simulated pass is a bounded estimate, not proof of physical performance or safety.",
       ],
     },
     {
-      title: "Degraded and blocked states",
+      title: "Recommended pilot",
       body:
-        "Buyer-facing status is part of the product. If an artifact is not ready, the response should say which layer is missing.",
+        "Blueprint recommends one team whose evaluation passed and that wants the pilot. The site books it in one step.",
       items: [
-        "Blocked means Blueprint cannot deliver or expose the requested artifact until a specific issue is resolved.",
-        "Review required means human verification is still needed for rights, privacy, capture quality, export scope, or buyer fit.",
-        "Degraded means an artifact can be reviewed with limitations, such as missing calibration, partial media, or advisory-only simulation support.",
+        "Booking is free during the beta, and Blueprint takes no cut of the pilot.",
+        "After booking, you and the site agree the physical pilot's dates, scope and any price directly.",
+        "You or your integrator install and operate the robot; the site approves the safety plan.",
       ],
     },
     {
       title: "Support escalation",
       body:
-        "Use one support path for delivery, entitlement, privacy, and runtime questions so the request id and artifact state remain tied together.",
+        "Use one support path so the job, the invitation and the result stay tied together.",
       items: [
-        `Email ${betaSupportEmail} with the request id, company, target job, expected delivery, and the status text you see.`,
-        "Escalate immediately for access revocation, private content exposure, missing paid deliverables, or an incorrect entitlement.",
-        "Do not rely on downloaded artifacts beyond the stated rights sheet, order form, or hosted-session scope.",
+        `Email ${betaSupportEmail} with your team, the job link or invitation id, and the status text you see.`,
+        "Escalate immediately for private content exposure, an access problem, or a result you believe is wrong.",
       ],
     },
   ],
   escalation: [
-    "Delivery blocker: include request id, package id, and the missing artifact.",
-    "Rights/privacy concern: stop sharing the artifact and contact support immediately.",
-    "Runtime/session issue: include browser, timestamp, session id, and the exact error state.",
+    "Evaluation blocked: include the invitation id and the exact error state.",
+    "Rights or privacy concern: stop using the material and contact support immediately.",
+    "Result question: include the job link and the result you are asking about.",
   ],
 };
 
-export const betaCohortGuides = [capturerBetaGuide, buyerBetaGuide] as const;
+export const betaCohortGuides = [buyerBetaGuide] as const;

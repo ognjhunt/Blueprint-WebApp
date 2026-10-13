@@ -162,7 +162,7 @@ export default function Evaluation() {
               {item.outcome
                 ? `Site decision: ${statusLabel(item.outcome)}.`
                 : item.successRate !== null
-                  ? "The site reviews submitted results and chooses whether to invite a team to a pilot."
+                  ? "Blueprint reviews submitted results and recommends one team whose evaluation passed; the site can book that pilot."
                   : "You can return here to track the request. No compute starts before the run is authorized."}
             </p>
             {item.taskId && (
