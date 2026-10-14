@@ -248,10 +248,20 @@ The gaps:
     whose rebuild drill has never been run (Pipeline
     `docs/CONTROL_PLANE_CAPACITY_PLAN.md`); and Marble as the only
     reconstruction provider (Atlas is unavailable).
-- **Direct provider cost is modest: about $30–45 per site.** That is
-  preparation ≤$5, construction $20–35, and about $1 per 10-cell policy run,
-  plus held attempts. Cost is not the constraint. Engineering attention and
-  reliability are.
+- **Actual per-site provider cost is unknown.** Quotes, holds and settled
+  spend are recorded separately, and no billing reconciliation joins them.
+  - **Quoted caps:** preparation ≤$5; articulated construction quoted at
+    $21–35.
+  - **Posted spend:** a 10-cell, two-policy run posted $0.91–$1.25 (blue
+    object).
+  - **Held exposure:** the incomplete drawer retained $81.72 against an $84
+    cap across 16 attempts.
+  - Vast billing coverage was "incomplete" on 09-30, and AWS is outside the
+    spend lock.
+
+  Until settled spend is reconciled, size the beta budget from the caps and
+  the held exposure, not from the quotes. The binding constraint observed in
+  these records is engineering time per scene, not spend.
 
 ### L4 — Willing robot teams on a supported robot: **unproven, and narrower than the page implies**
 
@@ -371,11 +381,13 @@ today.
   `docs/website-controls-pause-2026-09-21.md`), so results are "diagnostic".
   The robot-free success-contract probe added 10-12 (`7d85948`, `b656175`) is
   the natural replacement admission check, but it is not yet mandatory.
-- **The founder dispatch stop.** The Pipeline agent-run dispatcher carries a
-  founder stop with `require_explicit_release: true` (Pipeline
-  `docs/OPERATOR_DOOR.md`; `docs/free-beta-readiness-2026-10-05.md` item 2).
-  Neither repo records a release since 10-05. Its live state is only readable
-  through `door status`.
+- **The founder dispatch stop: live state unknown.** On 10-05 the Pipeline
+  agent-run dispatcher was recorded with a founder stop,
+  `require_explicit_release: true` (Pipeline `docs/OPERATOR_DOOR.md`;
+  `docs/free-beta-readiness-2026-10-05.md` item 2). Neither repo records a
+  release since. A static document cannot show whether the stop is still
+  engaged, so read `door status` before treating it as a blocker or as
+  released.
 - **Spend lock coverage was incomplete.** `PAID_SPEND_ADMISSION_LOCK` needs
   current billing reconciliation. Vast coverage was "incomplete" on 09-30
   (`docs/launch-readiness/2026-09-30.md` LR-05), and AWS is uncovered.
@@ -384,9 +396,9 @@ Smallest path to close L5: let the existing `quick_10` policy-canary runtime
 accept one *team* candidate in place of the frozen pair. Begin with a team's
 fine-tuned π0.5-DROID or GR00T-N1.7 checkpoint, or an HTTPS policy on the same
 DROID Franka interface, reusing the proven sandbox and lease. Then do one live
-proof with a friendly team on a scene that passed the robot-free probe. The
-Pipeline audit estimates this at 1–2 weeks of engineering plus one live run
-(inferred).
+proof with a friendly team on a scene that passed the robot-free probe. No
+task breakdown exists yet, so this work is unestimated; produce one before
+committing to a date.
 
 ### L6 — Recommend one team, or say none passed: **the rule is sound; the waiting states are missing**
 
@@ -468,14 +480,14 @@ smallest fix.
 
 ### P0: fix before promoting sign-up or inviting another site
 
-| # | Blocker | Smallest fix | Size |
+| # | Blocker | Smallest fix | Rough scale (author's judgement, not an estimate) |
 |---|---|---|---|
 | P0-1 | **Security: an authenticated endpoint exposes other customers' data.** Sign-up is open, so anyone can reach it. Details were reported to the founder. | Apply the missing authorization check, plus a regression test that enumerates every privileged route. | hours |
 | P0-2 | **Security: the credential-rotation blocker is still open while both repos are public** (`docs/launch-readiness/blockers/2026-07-20-provider-credential-rotation.md`). | Rotate and record evidence; then decide on repo visibility (D6). | hours (founder) |
 | P0-3 | **Privacy/legal: workplace audio is analysed without disclosure,** and the consent text does not cover people in the work area (L2). | Strip audio at upload, or send Gemini a muted stream. Update Privacy and the upload consent; get counsel review. | 1–2 days + counsel |
 | P0-4 | **Consent: sites cannot decline, or even see, the public listing** (regression `0acbf5d`). | Restore the "Keep this job private" control and the summary preview. Keep Terms and the site guide consistent. | hours |
 | P0-5 | **Robot teams cannot request an evaluation on any job started from the public form** (L5). | Gate the opening page and `POST /api/workspace/evaluations` on the same readiness rule as `/sites`. Add a test that starts from real `/api/inbound-request` output. | 1–2 days |
-| P0-6 | **No runtime can evaluate a team's own policy for ≥10 episodes.** The one admissible door trusts team-reported success (L5). | Let the `quick_10` policy-canary runtime accept one team candidate on the DROID Franka interface. Block the HTTP probe path from recommendation evidence. Make the robot-free success probe mandatory. Do one live proof with a friendly team. | 1–2 weeks + live run |
+| P0-6 | **No runtime can evaluate a team's own policy for ≥10 episodes.** The one admissible door trusts team-reported success (L5). | Let the `quick_10` policy-canary runtime accept one team candidate on the DROID Franka interface. Block the HTTP probe path from recommendation evidence. Make the robot-free success probe mandatory. Do one live proof with a friendly team. | multi-week, unestimated; needs a task breakdown, plus one live run |
 | P0-7 | **No willing team on a supported robot is on record** (L4). | Founder signs up 2–3 teams that can run a DROID/Franka-interface policy and would take a pilot. Record it in the registry as `engaged`. | founder |
 | P0-8 | **Customer messages contradict the free beta or invent supply** (L1 table). Affected: the site screening email ("no match", budget band, prospect counts, Austin); team run emails (balance, hold); the public agent API and OpenAPI ("buy runs", invited-only sites, quotes). | Rewrite these surfaces. Extend `claims:guard` and the brand-polish banned patterns to `server/utils/*Notification*`, `qualificationEmails.ts`, `server/retrieval/`, `server/agents/`, `client/public/*.json\|txt` and `client/src/components/`. | 1–2 days |
 
@@ -538,7 +550,7 @@ smallest fix.
 | D4 | **Robot forms in scope for the beta:** Franka-only, stated publicly, or an owner focus decision to fund another form. | Determines the copy, the intake screen and which teams to sign (P1-2, P0-7). |
 | D5 | **Open robot-team self-registration through the agent API.** `/api/agent-team/register` accepts anyone. | Contradicts "robot teams join by invitation". |
 | D6 | **Repository visibility.** Both repos are public and publish runbooks, service IDs and security posture. | Every future audit and incident note becomes public (P0-2). |
-| D7 | **Beta release policy for the Pipeline dispatcher's founder stop.** For example: release dispatch, but keep per-run founder admission, which `/admin/jobs` already enforces. | The free-admission run expires after 6 hours unless dispatch is released in that window. |
+| D7 | **Beta release policy for the Pipeline dispatcher's founder stop** (recorded engaged on 10-05; confirm with `door status`). For example: release dispatch, but keep per-run founder admission, which `/admin/jobs` already enforces. | The free-admission run expires after 6 hours unless dispatch is released in that window. |
 | D8 | **The claim a 10-episode pass supports.** 9/10 "meets 90%", but its lower confidence bound is far below 90%. | The site books a physical pilot on this number (L6). |
 
 ## 5. What a concierge beta can do today, by hand
@@ -551,9 +563,10 @@ rigid pick/place or open/close job on a clear surface:
    development-surface allowlist is edited on the host. The robot-free probe
    validates the success contract.
 2. Deliverable today: a prepared scene plus **Blueprint-baseline diagnostic**
-   results from the two frozen public policies. This is roughly one
-   engineer-week and about $50 of provider spend per site (inferred from the
-   blue-object, drawer and dishwasher records).
+   results from the two frozen public policies. For scale, the records
+   show: the blue object took 3 days to a published result, the drawer was
+   still incomplete after more than 5 days, and the dishwasher after more than
+   3 weeks. Provider spend per site is unknown; see L3.
 3. **A team evaluation and a recommendation are not reachable** until P0-5 and
    P0-6 land. Even with P0-5 patched by hand in Firestore, the steps per team
    are:
@@ -562,7 +575,8 @@ rigid pick/place or open/close job on a clear surface:
    3. allowlist its origin and enable policy execution on the host;
    4. read the capture offer's episode count;
    5. admit with that exact count and a cap of $20 or less;
-   6. release the founder stop within 6 hours;
+   6. if `door status` shows the founder stop still engaged, release it within
+      6 hours;
    7. read the result;
    8. record the recommendation;
    9. confirm the team's interest by email.
@@ -577,7 +591,7 @@ rigid pick/place or open/close job on a clear surface:
    independent of the engine. Pick D2 and D3. Under Option A, change `/beta`
    and the home page to say evaluations begin as the first teams are onboarded,
    and give an expected first reply time.
-2. **Next 1–2 weeks:** close P0-5 and P0-6 and sign 2–3 teams (P0-7). Make the
+2. **Next, once P0-6 has a task breakdown and date:** close P0-5 and P0-6 and sign 2–3 teams (P0-7). Make the
    robot-free probe mandatory. Run one friendly team end to end on one
    Franka-feasible site, from the public form to a booked pilot, and retain the
    receipts under `docs/launch-readiness/`.
