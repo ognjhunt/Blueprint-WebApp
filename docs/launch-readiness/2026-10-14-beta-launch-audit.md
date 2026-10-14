@@ -59,6 +59,31 @@ to match what is delivered. §6 sets out the options.
 - **Web hardening:** CSP and HSTS headers; zero production dependency
   vulnerabilities; Firestore default-deny.
 
+## Fix status, 14 October 2026
+
+Fixed on the `claude/website-beta-launch-audit-tku220` branches. Nothing below
+is live until the three pull requests merge and deploy. Merge order:
+
+1. BlueprintCapture #86 first. WebApp CI checks the shared Firebase rules byte for byte against
+   its `main`.
+2. Pipeline #2713, deployed before the WebApp's new Terms and Privacy text goes live, so the
+   sound-removal statements are true when they are published.
+3. WebApp #1048.
+
+| Item | Status | What changed | Still needed |
+|---|---|---|---|
+| P0-1 | fixed in code | Every `/api/admin` mount requires an admin or ops role, plus a regression test that reads every admin mount from `routes.ts` and checks that an ordinary account is refused. | Founder: check Render logs for past use (details in the private report). |
+| P0-2 | open | — | Founder: rotate the credentials in the blocker doc; decide D6. |
+| P0-3 | fixed in code | Sound is removed before any model or reconstruction provider receives site video (WebApp site review and World Labs; Pipeline privacy-processed walkthroughs and provider uploads). Removal is verified and fails closed. Terms `2026-10-14.2` and Privacy `2026-10-14.1` disclose it, and the upload form shows a recording notice. | Counsel review; the Terms notice email; the deploy order above; the founder's call on shipping the `ffmpeg-static` binary (GPL-3.0). |
+| P0-4 | fixed in code | The start form shows the exact anonymized job card and a "Keep this job private instead" choice. | — |
+| P0-5 | open | — | Not in this round. |
+| P0-6 | open | — | Not in this round. |
+| P0-7 | open | — | Founder. |
+| P0-8 | fixed in code | Screening email, robot-team result emails, the agent API and OpenAPI, CLI help, outreach templates and the workspace "potential matches" line now describe the free beta. `claims:guard` covers the server message surfaces. | — |
+| P1-5 | mostly fixed in code | Durable daily caps (Firestore, all or nothing, idempotent, subjects stored only as HMAC keys) on intake (global, per IP, per mailbox; `BLUEPRINT_INTAKE_DAILY_LIMIT=0` is the kill switch), first-touch emails and filmer handoffs, upload bytes (per job and global), and model-review spend (per review and daily). Uploads must carry a real MP4 or QuickTime header. Firebase App Check is staged, off by default. Storage owner paths and client telemetry are bounded in the shared rules. | Run `scripts/apply_firestore_ttl_policies.sh`; set the App Check site key, run `monitor`, then `enforce` (`docs/runbooks/beta-monitoring.md`); set provider-side budget caps; iOS bundle routes need App Attest before App Check can cover them. |
+| D1 | done | The shared doctrine names two active programs, the free beta's evaluated, recommended pilot and Arm Decision Proof v1, in all three repos. | — |
+| Hardening | fixed in code | Lead-enrichment fetches are pinned to the resolved public address; the client IP is read through a configured proxy-hop count (`BLUEPRINT_TRUST_PROXY_HOPS`); admin access granted only by a profile document is logged. | Founder: turn off the profile-document fallback once the log check is clean. |
+
 ## 1. The promise, reduced to what must be true
 
 The home page makes three promises: *show us the task*; *invited teams test it
