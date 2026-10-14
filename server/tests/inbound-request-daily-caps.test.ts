@@ -37,11 +37,16 @@ vi.mock("../utils/intakeOpsNotice", () => ({
 }));
 vi.mock("../agents", () => ({ runInboundQualificationForRequest: vi.fn(async () => undefined) }));
 vi.mock("../utils/highIntentLeadEnrichment", () => ({ runHighIntentLeadEnrichmentForRequest: vi.fn(async () => undefined) }));
+vi.mock("../utils/filmLinkHandoff", async () => ({
+  ...await vi.importActual<typeof import("../utils/filmLinkHandoff")>("../utils/filmLinkHandoff"),
+  sendFilmLinkHandoff: vi.fn(async () => ({ sent: true, filmUrl: "https://example.test/film" })),
+}));
 
 const { submitInboundRequest } = await import("../routes/inbound-request");
 const { sendEmail } = await import("../utils/email");
 const { runInboundQualificationForRequest } = await import("../agents");
 const { deliverIntakeOpsNoticeAtIntake } = await import("../utils/intakeOpsNotice");
+const { sendFilmLinkHandoff } = await import("../utils/filmLinkHandoff");
 
 let ip = 0;
 const nextIp = () => `198.51.100.${++ip}`;
@@ -174,5 +179,48 @@ describe("durable daily intake caps", () => {
     expect(response.headers.get("retry-after")).toBe("60");
     expect((await response.json()).code).toBe("intake_capacity_unavailable");
     expect(sharedFakeFirestoreState.docs.has("inboundRequests/prod-store-down")).toBe(false);
+  });
+});
+
+describe("intake messages to unverified addresses", () => {
+  it("withholds the task-received email past the per-mailbox cap but still returns the private link", async () => {
+    vi.stubEnv("BLUEPRINT_INTAKE_EMAIL_PER_RECIPIENT_DAILY_LIMIT", "1");
+    const started = await start(); server = started.server;
+    expect((await started.post(site("mail-a", "victim@site.test"))).status).toBe(201);
+    expect(sharedFakeFirestoreState.docs.has("captureOutbox/mail-a:task_received")).toBe(true);
+    const body = site("mail-b", "Victim+b@site.test", { retryToken: "m".repeat(64) });
+    const second = await started.post(body);
+    expect(second.status).toBe(201);
+    expect((await second.json()).captureUrl).toContain("/capture-upload/");
+    expect(sharedFakeFirestoreState.docs.has("captureOutbox/mail-b:task_received")).toBe(false);
+    expect(sharedFakeFirestoreState.docs.get("inboundRequests/mail-b")?.intake_message_suppression).toMatchObject({
+      schema_version: "intake_message_suppression.v1", kind: "task_received", reason: "recipient_daily_limit" });
+    // A retry is not a way around the cap.
+    expect((await started.post(body)).status).toBe(200);
+    expect(sharedFakeFirestoreState.docs.has("captureOutbox/mail-b:task_received")).toBe(false);
+    await settle();
+    expect(deliverIntakeOpsNoticeAtIntake).toHaveBeenCalledTimes(2);
+  });
+
+  it("withholds a robot team's confirmation past the global cap and records why", async () => {
+    vi.stubEnv("BLUEPRINT_INTAKE_EMAIL_DAILY_LIMIT", "1");
+    const started = await start(); server = started.server;
+    expect((await started.post(robotTeam("team-a", "a@robots.test"))).status).toBe(201);
+    expect((await started.post(robotTeam("team-b", "b@robots.test"))).status).toBe(201);
+    await settle();
+    expect(vi.mocked(sendEmail).mock.calls.map(([message]) => (message as { to: string }).to)).toEqual(["a@robots.test"]);
+    expect(sharedFakeFirestoreState.docs.get("inboundRequests/team-b")?.intake_message_suppression)
+      .toMatchObject({ kind: "confirmation", reason: "global_daily_limit" });
+  });
+
+  it("applies the same caps to the film-link handoff sent to a named filmer", async () => {
+    vi.stubEnv("BLUEPRINT_INTAKE_EMAIL_PER_RECIPIENT_DAILY_LIMIT", "1");
+    const started = await start(); server = started.server;
+    expect((await started.post(site("film-a", "owner-a@site.test", { filmerContact: "floor@site.test" }))).status).toBe(201);
+    expect((await started.post(site("film-b", "owner-b@site.test", { filmerContact: "floor@site.test" }))).status).toBe(201);
+    await settle();
+    expect(sendFilmLinkHandoff).toHaveBeenCalledTimes(1);
+    expect(sharedFakeFirestoreState.docs.get("inboundRequests/film-b")?.filmer_handoff_suppression)
+      .toMatchObject({ kind: "filmer_handoff", reason: "recipient_daily_limit" });
   });
 });
