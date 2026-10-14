@@ -4,7 +4,7 @@
     "title": "Blueprint Robot-Team Agent API",
     "version": "2026-07-29",
     "summary": "Headless discovery of scoped site jobs and bounded evaluation tools for robot teams.",
-    "description": "Blueprint helps businesses scope recurring jobs, assess suitable robot providers, coordinate measured physical pilots by separate agreement, and decide what follows. This API exposes capture-backed job discovery and Task Evaluation Run intake for robot teams; it does not authorize a physical pilot. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement, and hosted-session records retain their existing access controls, but new standalone commerce is retired."
+    "description": "Blueprint runs a free beta: a site shows one recurring job, invited robot teams evaluate it in a simulation built from the site's capture, and Blueprint recommends one team whose evaluation passed, which the site books in one step. This API exposes capture-backed job discovery, grounded questions, and Task Evaluation Run intake for robot teams; it does not grant an invitation or authorize a physical pilot. Simulation results are bounded estimates, not proof of physical performance or safety. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement, and hosted-session records retain their existing access controls; standalone purchasing is retired."
   },
   "servers": [
     {
@@ -31,11 +31,11 @@
     },
     {
       "name": "Team",
-      "description": "Register a robot team, plan evaluations, and buy runs. Register needs no credential; everything spend-shaped needs the team's agent key."
+      "description": "Register a robot team and manage its agent key. Registration needs no credential and grants no evaluation: evaluations are free during the beta and run only on Blueprint's invitation and approval."
     },
     {
       "name": "Legacy commerce",
-      "description": "Read-only compatibility for historical orders and entitlements; new quote and checkout writes are retired."
+      "description": "Read-only compatibility for historical orders and entitlements; the purchase endpoints are retired and return 410."
     },
     {
       "name": "Hosted sessions",
@@ -75,7 +75,7 @@
         ],
         "operationId": "registerRobotTeam",
         "summary": "Register a robot team and receive an agent key, with no credential.",
-        "description": "Open self-serve registration. Accepts self-reported hardware maturity and deployment/support coverage as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates the team (status self_registered, zero balance, agent spend off) and returns a key exactly once — only a SHA-256 is stored. That key can plan and dry-run; paying and running need the team connected to a verified Blueprint account, whose agent keys Blueprint issues and revokes on request (hello@tryblueprint.io). Rate limited per address. A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
+        "description": "Self-serve registration, rate limited per address. Accepts self-reported hardware maturity and deployment/support coverage as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates a team record with status self_registered and returns an agent key exactly once; only a SHA-256 is stored. Registration grants an identity, not access: the key can read the team record and register policy checkpoints, but it does not admit the team to the beta, put it in front of any site, or authorize an evaluation. Robot teams join by invitation after Blueprint reviews their application at /contact/robot-team, and each evaluation runs only after Blueprint approves the exact team, policy, and job; evaluations are free during the beta. Connect the team to a verified Blueprint account to manage its keys; Blueprint issues and revokes account-bound keys on request (hello@tryblueprint.io). A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
         "security": [
           {}
         ],
@@ -173,7 +173,7 @@
         },
         "responses": {
           "201": {
-            "description": "Team registered. `agentKey` is returned once; funding and a spend policy are required before any run is bought.",
+            "description": "Team registered. `agentKey` is returned once. Registration authorizes no evaluation; evaluations run only on Blueprint's invitation and approval.",
             "content": {
               "application/json": {
                 "schema": {
@@ -338,7 +338,7 @@
         ],
         "operationId": "searchSiteWorlds",
         "summary": "Search public site-world catalog entries by natural language query, alias, and structured filters.",
-        "description": "Public read-only catalog discovery for robot-team agents. This is the OpenAPI surface behind the MCP tool blueprint.siteWorld.search. Queries such as whole foods, store, supermarket, retail aisle, or warehouse tote return truthful close matches with scores, reasons, matched aliases, matched fields, parsed filters, no-exact scanned package semantics, request-candidate URLs/drafts, warnings, and embedding-use metadata. Brand aliases do not imply exact partner or package availability.",
+        "description": "Public read-only catalog discovery for robot-team agents. This is the OpenAPI surface behind the MCP tool blueprint.siteWorld.search. Queries such as grocery store, supermarket, retail aisle, or warehouse tote return truthful close results with scores, reasons, matched aliases, matched fields, parsed filters, no-exact scanned package semantics, request-candidate URLs/drafts, warnings, and embedding-use metadata. Brand aliases do not imply exact partner or package availability.",
         "security": [
           {}
         ],
@@ -351,8 +351,8 @@
               "type": "string"
             },
             "examples": {
-              "wholeFoods": {
-                "value": "whole foods"
+              "grocery": {
+                "value": "grocery store"
               },
               "store": {
                 "value": "store"
@@ -658,7 +658,7 @@
         ],
         "responses": {
           "410": {
-            "description": "Standalone commerce retired; request a scoped Task Evaluation Run",
+            "description": "Standalone commerce retired; request a free Task Evaluation Run",
             "content": {
               "application/json": {
                 "schema": {
@@ -694,7 +694,7 @@
         },
         "responses": {
           "410": {
-            "description": "Standalone commerce retired; request a scoped Task Evaluation Run",
+            "description": "Standalone commerce retired; request a free Task Evaluation Run",
             "content": {
               "application/json": {
                 "schema": {
@@ -880,8 +880,8 @@
               "type": "string"
             },
             "examples": {
-              "buy": {
-                "value": "How can an agent request a Task Evaluation Run with a budget?"
+              "start": {
+                "value": "How does a robot team start an evaluation?"
               },
               "search": {
                 "value": "How do I filter sites by type and location?"
@@ -975,7 +975,7 @@
         "operationId": "createAgentLiveCheckout",
         "summary": "Retired standalone live checkout endpoint.",
         "deprecated": true,
-        "description": "New work is scoped and quoted as a Task Evaluation Run. This compatibility endpoint always returns 410 and creates no Stripe session, order, charge, or entitlement.",
+        "description": "Evaluations are free during the beta and start from a Task Evaluation Run request. This compatibility endpoint always returns 410 and creates no Stripe session, order, charge, or entitlement.",
         "security": [
           {}
         ],
@@ -991,7 +991,7 @@
         },
         "responses": {
           "410": {
-            "description": "Standalone commerce retired; request a scoped Task Evaluation Run",
+            "description": "Standalone commerce retired; request a free Task Evaluation Run",
             "content": {
               "application/json": {
                 "schema": {
@@ -2233,8 +2233,7 @@
                 "blueprint.team.policy.get",
                 "blueprint.team.policy.set",
                 "blueprint.team.runs.list",
-                "blueprint.team.register",
-                "blueprint.team.funding.start"
+                "blueprint.team.register"
               ]
             }
           },

@@ -27,7 +27,9 @@ export const ROBOT_AGENT_MCP_TOOL_NAMES = [
   "blueprint.session.renderExplorer",
   "blueprint.session.export",
   // Team-scoped agent surface. Everything above reads the public catalogue;
-  // these act for one team, and one of them spends its money.
+  // these act for one team. During the free beta, plan and runs.start answer
+  // 403 paid_evaluations_disabled and stay listed so old agents get that
+  // answer rather than an unknown tool.
   "blueprint.team.me",
   "blueprint.team.checkpoint.register",
   "blueprint.team.checkpoint.list",
@@ -37,29 +39,25 @@ export const ROBOT_AGENT_MCP_TOOL_NAMES = [
   "blueprint.team.policy.get",
   "blueprint.team.policy.set",
   "blueprint.team.runs.list",
-  // The two that need no key at all, because they are how a team gets one.
+  // The one that needs no key at all, because it is how a team gets one.
   "blueprint.team.register",
-  "blueprint.team.funding.start",
 ] as const;
 export const ROBOT_AGENT_CLI_COMMANDS = [
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts help --format json",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts doctor --format json",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts setup-auth --format json",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts plan --q \"Whole Foods near Durham\" --want hosted-review",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts plan --q \"warehouse tote transfer\" --want hosted-review",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts discover",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts site-world search --q \"Whole Foods near Durham\" --limit 5",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts ask --q \"How do I request a Task Evaluation Run with a budget?\"",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts site-world search --q \"grocery shelf restocking\" --limit 5",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts request location --location \"Durham, NC\" --site-class grocery --workflow \"shelf restocking\"",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts ask --q \"How does a robot team start an evaluation?\"",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce live-order <live-order-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts commerce entitlement-readiness --site-world-id <pipeline-site-world-id> --entitlement-id <dry-entitlement-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts session create --site-world-id <pipeline-site-world-id> --session-mode runtime_only --robot-profile-id <robot-profile-id> --task-id <task-id> --scenario-id <scenario-id> --start-state-id <start-state-id>",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts team me",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts team checkpoint register --label v3 --runtime policy_endpoint --reference https://policies.example/v3",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team plan --checkpoint-id <checkpoint-id> --budget 100",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team runs start --checkpoint-id <checkpoint-id> --budget 100 --confirm --idempotency-key <key>",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team policy set --daily-limit 100 --per-run-limit 25 --enable",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team register --team-name \"Alpha Robotics\"",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team fund --amount 100",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team checkpoint list",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team register --team-name \"Example Robotics\"",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts team runs list",
 ] as const;
 
@@ -85,13 +83,13 @@ export function buildRobotAgentAccessManifest() {
       cliCommands: ROBOT_AGENT_CLI_COMMANDS,
     },
     /**
-     * The team-scoped surface: what an agent can do *for one team*, including
-     * spending its money. Separate from everything else in this manifest, which
-     * reads the public catalogue and commits nothing.
+     * The team-scoped surface: what an agent can do *for one team*. Separate
+     * from everything else in this manifest, which reads the public catalogue
+     * and commits nothing.
      *
      * Auth here is a revocable per-team key rather than a person's session,
-     * because an autonomous spender is not a person and should not inherit
-     * whatever a founder's account can do.
+     * because an agent is not a person and should not inherit whatever a
+     * founder's account can do.
      */
     teamAgent: {
       base: "/api/agent-team",
@@ -119,13 +117,10 @@ export function buildRobotAgentAccessManifest() {
         observationAccess: "Blueprint retains scene files and the scoring harness. Controlled policies receive the permitted observations and return actions. Compatible task, robot, and runner profiles are required; a skill trace alone is not execution evidence.",
       },
       /**
-       * The whole path, with nobody in it.
-       *
-       * Stated as a sequence because the point is that it is one: an agent can
-       * go from having no account to holding evaluation results without a
-       * person on either side. Registration needs no credential, funding needs
-       * no operator, and the only step that is not an API call is somebody
-       * paying — which is a fact about money, not a queue.
+       * The path, stated as a sequence. During the free beta it has people in
+       * it on purpose: Blueprint approves a team's application before it sees
+       * sites, and approves each evaluation's exact team, policy and job before
+       * it runs. Nothing in it is paid for.
        */
       selfServe: {
         // Early access: a team is approved before it sees sites.
@@ -143,7 +138,7 @@ export function buildRobotAgentAccessManifest() {
 
       },
       spendModel: {
-        summary: "Free invited evaluations only. Paid/private runs and top-ups are disabled. Blueprint-funded execution requires separately authorized limits.",
+        summary: "Evaluations are free during the beta and run only on Blueprint's invitation; nothing is charged to the team. Paid and private runs are disabled. Blueprint-funded execution requires separately authorized limits.",
       },
     },
     siteWorldSearch: {
@@ -180,7 +175,7 @@ export function buildRobotAgentAccessManifest() {
     },
     journeyPlanner: {
       cliCommand:
-        "npx tsx scripts/agent-access/blueprint-agent-cli.ts plan --q \"Whole Foods near Durham\" --want hosted-review",
+        "npx tsx scripts/agent-access/blueprint-agent-cli.ts plan --q \"warehouse tote transfer\" --want hosted-review",
       defaultMode: "read_or_request_draft",
       returnsCompactJson: true,
       nextActions: [
@@ -207,11 +202,11 @@ export function buildRobotAgentAccessManifest() {
       grantsEntitlement: false,
       grantsHostedSession: false,
       truth:
-        "requestCandidate records intake interest only and stays separate from quote, order, entitlement, rights, provider execution, and fulfillment state.",
+        "requestCandidate records intake interest only and stays separate from order, entitlement, rights, provider execution, and fulfillment state.",
     },
     requestLocationDraft: {
       cliCommand:
-        "npx tsx scripts/agent-access/blueprint-agent-cli.ts request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
+        "npx tsx scripts/agent-access/blueprint-agent-cli.ts request location --location \"Durham, NC\" --site-class grocery --workflow \"shelf restocking\"",
       mcpTool: "blueprint.request.locationDraft",
       intakeOnly: true,
       defaultWrites: false,
@@ -256,7 +251,7 @@ export function buildRobotAgentAccessManifest() {
         "blueprint.commerce.entitlementReadiness",
       ],
       truth:
-        "Historical orders and entitlements remain readable under their original access controls. Quote and checkout endpoints return 410 and never create a Stripe session, order, charge, or entitlement.",
+        "Historical orders and entitlements remain readable under their original access controls. The retired purchase endpoints return 410 and never create a Stripe session, order, charge, or entitlement.",
     },
     protectedFlow: {
       requiresBearer: true,
@@ -304,7 +299,7 @@ export function buildRobotAgentOpenApiContract() {
       version: ROBOT_AGENT_CONTRACT_VERSION,
       summary: "Headless discovery of scoped site jobs and bounded evaluation tools for robot teams.",
       description:
-        "Blueprint helps businesses scope recurring jobs, assess suitable robot providers, coordinate measured physical pilots by separate agreement, and decide what follows. This API exposes capture-backed job discovery and Task Evaluation Run intake for robot teams; it does not authorize a physical pilot. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement, and hosted-session records retain their existing access controls, but new standalone commerce is retired.",
+        "Blueprint runs a free beta: a site shows one recurring job, invited robot teams evaluate it in a simulation built from the site's capture, and Blueprint recommends one team whose evaluation passed, which the site books in one step. This API exposes capture-backed job discovery, grounded questions, and Task Evaluation Run intake for robot teams; it does not grant an invitation or authorize a physical pilot. Simulation results are bounded estimates, not proof of physical performance or safety. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement, and hosted-session records retain their existing access controls; standalone purchasing is retired.",
     },
     servers: [
       {
@@ -320,8 +315,8 @@ export function buildRobotAgentOpenApiContract() {
       { name: "Discovery", description: "Public site and API discovery for agents." },
       { name: "Ask", description: "Grounded, citation-backed question answering for agents." },
       { name: "Catalog", description: "Public site-world catalog and detail endpoints." },
-      { name: "Team", description: "Register a robot team, plan evaluations, and buy runs. Register needs no credential; everything spend-shaped needs the team's agent key." },
-      { name: "Legacy commerce", description: "Read-only compatibility for historical orders and entitlements; new quote and checkout writes are retired." },
+      { name: "Team", description: "Register a robot team and manage its agent key. Registration needs no credential and grants no evaluation: evaluations are free during the beta and run only on Blueprint's invitation and approval." },
+      { name: "Legacy commerce", description: "Read-only compatibility for historical orders and entitlements; the purchase endpoints are retired and return 410." },
       { name: "Hosted sessions", description: "Compatibility lifecycle for previously entitled hosted-session records." },
     ],
     paths: {
@@ -344,7 +339,7 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "registerRobotTeam",
           summary: "Register a robot team and receive an agent key, with no credential.",
           description:
-            "Open self-serve registration. Accepts self-reported hardware maturity and deployment/support coverage as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates the team (status self_registered, zero balance, agent spend off) and returns a key exactly once — only a SHA-256 is stored. That key can plan and dry-run; paying and running need the team connected to a verified Blueprint account, whose agent keys Blueprint issues and revokes on request (hello@tryblueprint.io). Rate limited per address. A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
+            "Self-serve registration, rate limited per address. Accepts self-reported hardware maturity and deployment/support coverage as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates a team record with status self_registered and returns an agent key exactly once; only a SHA-256 is stored. Registration grants an identity, not access: the key can read the team record and register policy checkpoints, but it does not admit the team to the beta, put it in front of any site, or authorize an evaluation. Robot teams join by invitation after Blueprint reviews their application at /contact/robot-team, and each evaluation runs only after Blueprint approves the exact team, policy, and job; evaluations are free during the beta. Connect the team to a verified Blueprint account to manage its keys; Blueprint issues and revokes account-bound keys on request (hello@tryblueprint.io). A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
           security: [{}],
           requestBody: {
             required: true,
@@ -385,7 +380,7 @@ export function buildRobotAgentOpenApiContract() {
           responses: {
             "201": {
               description:
-                "Team registered. `agentKey` is returned once; funding and a spend policy are required before any run is bought.",
+                "Team registered. `agentKey` is returned once. Registration authorizes no evaluation; evaluations run only on Blueprint's invitation and approval.",
               content: {
                 "application/json": { schema: { type: "object" } },
               },
@@ -429,92 +424,6 @@ export function buildRobotAgentOpenApiContract() {
           },
         },
       },
-      "/api/agent-team/plan": {
-        post: {
-          tags: ["Team"],
-          operationId: "planRobotTeamEvals",
-          summary: "Rank which sites a checkpoint should be evaluated against, for a budget. Free.",
-          description:
-            "Requires the team's agent key (Bearer), connected to a verified Blueprint account approved for early access (403 early_access_required otherwise). Builds evaluation candidates from the site jobs sites have shared with robot teams and ranks them by expected information gain per dollar. Commits nothing: no reservation, no ledger entry, no charge. The response reports spendable balance and any funding still needed.",
-          security: bearerSecurity,
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  required: ["checkpointId"],
-                  properties: {
-                    checkpointId: { type: "string", description: "The team's registered policy checkpoint." },
-                    sceneId: { type: "string", description: "Optional task offer to evaluate." },
-                    repeatCompleted: { type: "boolean", default: false, description: "Explicitly request another completed checkpoint/task evaluation. Requires sceneId." },
-                    budgetUsd: { type: "number", description: "Optional planning budget in USD." },
-                    maxRuns: { type: "integer", minimum: 1, maximum: 50 },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            "200": {
-              description: "A ranked plan with per-run costs. Nothing is committed.",
-              content: {
-                "application/json": { schema: { type: "object" } },
-              },
-            },
-            ...errorResponses,
-            "403": jsonResponse(
-              "#/components/schemas/ErrorResponse",
-              "The team is not in early access yet (code early_access_required); apply at /contact/robot-team.",
-            ),
-          },
-        },
-      },
-      "/api/agent-team/runs": {
-        post: {
-          tags: ["Team"],
-          operationId: "startRobotTeamRun",
-          summary: "Buy and start private evaluations from a plan. Dry run unless confirm is true.",
-          description:
-            "Requires the team's agent key (Bearer) and early access (403 early_access_required otherwise). Confirming also requires the team to be connected to a verified Blueprint account (403 team_account_required otherwise), an enabled spend policy, and available balance. Paid runs cost $99 for one robot policy on one reconstructed site job. New paid runs are always private: the site cannot see results or progress, receives no notifications, and the results do not update pilot matching or shared capabilities. Pilot consideration requires a separate free invited evaluation. Result responses include evaluationPurpose; historical runs retain their original sharing scope. `confirm: true` plus an idempotency key commits real spend inside the team's own policy limits; without it the call is a priced dry run.",
-          security: bearerSecurity,
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    confirm: {
-                      type: "boolean",
-                      default: false,
-                      description: "True to commit spend. Omit for a dry run.",
-                    },
-                    idempotencyKey: { type: "string" },
-                    siteWorldIds: {
-                      type: "array",
-                      items: { type: "string" },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            "200": {
-              description: "Run accepted (or the priced dry run when confirm is omitted).",
-              content: {
-                "application/json": { schema: { type: "object" } },
-              },
-            },
-            ...errorResponses,
-            "403": jsonResponse(
-              "#/components/schemas/ErrorResponse",
-              "Not in early access (code early_access_required), or confirming without a team connected to a verified Blueprint account (code team_account_required).",
-            ),
-          },
-        },
-      },
       "/api/site-content": {
         get: {
           tags: ["Discovery"],
@@ -551,10 +460,10 @@ export function buildRobotAgentOpenApiContract() {
           operationId: "searchSiteWorlds",
           summary: "Search public site-world catalog entries by natural language query, alias, and structured filters.",
           description:
-            "Public read-only catalog discovery for robot-team agents. This is the OpenAPI surface behind the MCP tool blueprint.siteWorld.search. Queries such as whole foods, store, supermarket, retail aisle, or warehouse tote return truthful close matches with scores, reasons, matched aliases, matched fields, parsed filters, no-exact scanned package semantics, request-candidate URLs/drafts, warnings, and embedding-use metadata. Brand aliases do not imply exact partner or package availability.",
+            "Public read-only catalog discovery for robot-team agents. This is the OpenAPI surface behind the MCP tool blueprint.siteWorld.search. Queries such as grocery store, supermarket, retail aisle, or warehouse tote return truthful close results with scores, reasons, matched aliases, matched fields, parsed filters, no-exact scanned package semantics, request-candidate URLs/drafts, warnings, and embedding-use metadata. Brand aliases do not imply exact partner or package availability.",
           security: [{}],
           parameters: [
-            { name: "q", in: "query", required: false, schema: { type: "string" }, examples: { wholeFoods: { value: "whole foods" }, store: { value: "store" }, warehouseTote: { value: "warehouse tote" } } },
+            { name: "q", in: "query", required: false, schema: { type: "string" }, examples: { grocery: { value: "grocery store" }, store: { value: "store" }, warehouseTote: { value: "warehouse tote" } } },
             { name: "limit", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 100, default: 10 } },
             { name: "category", in: "query", required: false, schema: { type: "string" } },
             { name: "industry", in: "query", required: false, schema: { type: "string" } },
@@ -637,7 +546,7 @@ export function buildRobotAgentOpenApiContract() {
             { name: "sessionHours", in: "query", required: false, schema: { type: "integer", minimum: 1, default: 1 } },
           ],
           responses: {
-            "410": jsonResponse("#/components/schemas/ErrorResponse", "Standalone commerce retired; request a scoped Task Evaluation Run"),
+            "410": jsonResponse("#/components/schemas/ErrorResponse", "Standalone commerce retired; request a free Task Evaluation Run"),
           },
           "x-blueprint-truth-boundary":
             "This endpoint creates no quote, Stripe session, order, charge, or entitlement. Historical transactions remain readable.",
@@ -659,7 +568,7 @@ export function buildRobotAgentOpenApiContract() {
             },
           },
           responses: {
-            "410": jsonResponse("#/components/schemas/ErrorResponse", "Standalone commerce retired; request a scoped Task Evaluation Run"),
+            "410": jsonResponse("#/components/schemas/ErrorResponse", "Standalone commerce retired; request a free Task Evaluation Run"),
           },
           "x-blueprint-truth-boundary":
             "This endpoint creates no order or entitlement. Historical dry-run records remain readable through compatibility routes.",
@@ -732,7 +641,7 @@ export function buildRobotAgentOpenApiContract() {
               required: true,
               schema: { type: "string" },
               examples: {
-                buy: { value: "How can an agent request a Task Evaluation Run with a budget?" },
+                start: { value: "How does a robot team start an evaluation?" },
                 search: { value: "How do I filter sites by type and location?" },
               },
             },
@@ -771,7 +680,7 @@ export function buildRobotAgentOpenApiContract() {
           summary: "Retired standalone live checkout endpoint.",
           deprecated: true,
           description:
-            "New work is scoped and quoted as a Task Evaluation Run. This compatibility endpoint always returns 410 and creates no Stripe session, order, charge, or entitlement.",
+            "Evaluations are free during the beta and start from a Task Evaluation Run request. This compatibility endpoint always returns 410 and creates no Stripe session, order, charge, or entitlement.",
           security: [{}],
           requestBody: {
             required: true,
@@ -782,7 +691,7 @@ export function buildRobotAgentOpenApiContract() {
             },
           },
           responses: {
-            "410": jsonResponse("#/components/schemas/ErrorResponse", "Standalone commerce retired; request a scoped Task Evaluation Run"),
+            "410": jsonResponse("#/components/schemas/ErrorResponse", "Standalone commerce retired; request a free Task Evaluation Run"),
           },
           "x-blueprint-live-stripe": false,
           "x-blueprint-truth-boundary":
@@ -931,18 +840,8 @@ export function buildRobotAgentOpenApiContract() {
     },
     "x-blueprint-truth-labels": ROBOT_AGENT_TRUTH_LABELS,
   } as const;
-  const paths = contract.paths as Record<string, Record<string, unknown>>;
-  for (const path of ["/api/agent-team/plan", "/api/agent-team/funding", "/api/agent-team/runs"]) {
-    if (paths[path]) {
-      delete paths[path].post;
-      if (!Object.keys(paths[path]).length) delete paths[path];
-    }
-  }
-  if (paths["/api/agent-team/policy"]?.put) {
-    const put = paths["/api/agent-team/policy"].put as Record<string, unknown>;
-    put.summary = "Disable autonomous customer spending";
-    put.description = "The free beta rejects agentSpendEnabled:true. Existing balances and settlement records are preserved.";
-  }
+  // Paid planning, run purchase and funding answer 403 paid_evaluations_disabled
+  // during the free beta, so the contract does not advertise them at all.
   return contract;
 }
 
