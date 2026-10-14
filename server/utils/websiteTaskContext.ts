@@ -40,6 +40,20 @@ export function countsTowardTask(item: Pick<TaskItem, "basis" | "images">): bool
   return item.basis !== "suggested" || item.images.length > 0;
 }
 
+function projectTaskItem(item: TaskItem, requestId: string) {
+  return { item_id: item.itemId, label: item.label, location_note: item.locationNote,
+    quantity_hint: item.quantityHint, basis: item.basis,
+    // Coverage/asset status are deliberately excluded: images are observations.
+    images: item.images.map(image => {
+      const prefix = `scenes/site-${requestId}/items/`;
+      if (!image.storagePath.startsWith(`${prefix}${item.itemId}/`) || image.storagePath.split("/").some(p => p === ".." || p === "." || !p))
+        throw new Error("website_task_item_source_mismatch");
+      return { image_id: image.imageId, storage_path: image.storagePath, uploaded_at_iso: image.uploadedAtIso,
+        source: image.source ?? null, basis: "owner_supplied_photo", physical_metrology: false };
+    }),
+  };
+}
+
 /** Minimal, current task snapshot. Never forwards owner contact or identity. */
 export function projectWebsiteTaskContext(brief: SiteTaskBriefRecord, captureRights?: ReturnType<typeof projectWebsiteCaptureRights>,
   evidence?: { inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, unknown>; purpose?: "scene_preparation" }) {
@@ -62,20 +76,19 @@ export function projectWebsiteTaskContext(brief: SiteTaskBriefRecord, captureRig
       success_rate_unit: "percent", cycle_time_unit: "seconds", physical_measurements_verified: false,
     } } : {}),
     ...(evidence?.captureBinding ? { capture_binding: evidence.captureBinding } : {}),
-    ...(evidence?.inventory?.items.some(countsTowardTask) ? { task_items: evidence.inventory.items.filter(countsTowardTask).map(item => ({
-      item_id: item.itemId, label: item.label, location_note: item.locationNote,
-      quantity_hint: item.quantityHint, basis: item.basis,
-      // Coverage/asset status are deliberately excluded: images are observations.
-      images: item.images.map(image => {
-        const prefix = `scenes/site-${brief.requestId}/items/`;
-        if (!image.storagePath.startsWith(`${prefix}${item.itemId}/`) || image.storagePath.split("/").some(p => p === ".." || p === "." || !p))
-          throw new Error("website_task_item_source_mismatch");
-        return { image_id: image.imageId, storage_path: image.storagePath, uploaded_at_iso: image.uploadedAtIso,
-          source: image.source ?? null, basis: "owner_supplied_photo", physical_metrology: false };
-      }),
-    })) } : {}),
+    ...(evidence?.inventory?.items.some(countsTowardTask) ? { task_items: evidence.inventory.items.filter(countsTowardTask)
+      .map(item => projectTaskItem(item, brief.requestId)) } : {}),
   };
   return { ...value, context_digest: canonicalArtifactDigest(value, "context_digest") };
+}
+
+/** Operator renewal compatibility only: prove the old projection against today's
+ * complete records. Never restores an unphotographed suggestion as task evidence. */
+export function legacySuggestedTaskContextDigest(context: ReturnType<typeof projectWebsiteTaskContext>,
+  inventory: TaskItemInventoryRecord | null) {
+  if (!inventory?.items.some(item => !countsTowardTask(item))) return undefined;
+  const { context_digest: _digest, ...value } = context;
+  return canonicalArtifactDigest({ ...value, task_items: inventory.items.map(item => projectTaskItem(item, context.request_id)) }, "context_digest");
 }
 
 /** One projection used by the signed read and the spending/publication checks. */

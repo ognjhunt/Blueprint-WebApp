@@ -3,7 +3,7 @@ import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
 import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { TASK_BRIEFS_COLLECTION, type SiteTaskBriefRecord } from "./siteTaskBrief";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights, projectWebsiteTaskContext, legacySuggestedTaskContextDigest } from "./websiteTaskContext";
 import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
@@ -396,13 +396,27 @@ export async function renewExpiredWebsiteSceneSponsorship(requestId: string, inp
       const { accepted_at_epoch: _a, ...terms } = consent ?? {};
       return digest({ ...rest, consent: terms });
     };
-    if (scope(renewed) !== scope(previous)) throw new Error("website_scene_sponsorship_renewal_scope_changed");
+    const projectionMigration = previous.task_context_digest !== base.context_digest
+      && previous.task_context_digest === legacySuggestedTaskContextDigest(base, inputs.inventory);
+    // Compare every other bound field unchanged. Only the byte-proven legacy
+    // projection may drop an unphotographed suggestion under the current rule.
+    if (scope(renewed) !== scope(projectionMigration ? { ...previous, task_context_digest: base.context_digest } : previous))
+      throw new Error("website_scene_sponsorship_renewal_scope_changed");
     const carried = carriedPreparationAmendments(record, renewed.authority_digest, input, now);
     if (input.apply) transaction.update(ref, { website_scene_sponsorship: renewed,
       website_scene_sponsorship_history: [...(record.website_scene_sponsorship_history ?? []), previous],
       ...carried.updates, ...(carried.archived.length ? { website_preparation_amendment_history:
         [...(record.website_preparation_amendment_history ?? []), ...carried.archived] } : {}) });
-    return renewed;
+    const carriedRecord = { ...record, ...carried.updates };
+    return { ...renewed, task_context_projection_migration: projectionMigration ? {
+      from: previous.task_context_digest, to: base.context_digest, basis: "unphotographed_suggestions_excluded",
+    } : null, preparation_amendments: {
+      carried: carried.updates, archived: carried.archived,
+      effective_limits: { max_requests: preparationRequestLimit(carriedRecord, renewed),
+        upstream_max_spend_usd: preparationSpendLimit(carriedRecord, renewed) },
+      history_length_before: (record.website_preparation_amendment_history ?? []).length,
+      history_length_after: (record.website_preparation_amendment_history ?? []).length + carried.archived.length,
+    } };
   }));
 }
 
