@@ -106,6 +106,12 @@ describe("recording notice, sound and the listing choice", () => {
     }
   });
 
+  it("names reCAPTCHA Enterprise, which App Check sends job and upload requests through", () => {
+    const abuse = privacySubprocessorCategories.find((group) => group.category === "Abuse prevention")!;
+    expect(abuse.providers[0][0]).toMatch(/Google reCAPTCHA Enterprise, through Firebase App Check/);
+    expect(abuse.providers[0][1]).toMatch(/job submission or footage upload/);
+  });
+
   it("describes the keep-private choice the start form offers", () => {
     expect(terms).toMatch(/the form shows the anonymized job card .* and lets you keep the job private instead/);
     expect(terms).toMatch(/Unless the site keeps a job private when starting it/);

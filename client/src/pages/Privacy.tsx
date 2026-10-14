@@ -165,6 +165,10 @@ export const privacySubprocessorCategories = [
     ],
   },
   {
+    category: "Abuse prevention",
+    providers: [["Google reCAPTCHA Enterprise, through Firebase App Check", "Confirming that a job submission or footage upload comes from our website rather than an automated script"]],
+  },
+  {
     category: "AI, 3D processing and compute",
     providers: [
       ["OpenAI", "Reading the job description and frames from a site capture to draft the job brief and prepare the simulated scene, drafting replies, and sorting incoming requests"],
@@ -298,6 +302,12 @@ export default function Privacy() {
           We encrypt information in transit and at rest, additionally encrypt contact details in our database, and limit
           access to the people who need it. No system is perfectly secure; if a breach affects your
           information, we will tell you as the law requires.
+        </p>
+        <p>
+          When you submit a job or upload footage on our website, we use Firebase App Check with Google reCAPTCHA
+          Enterprise to confirm the request comes from our site rather than an automated script. reCAPTCHA collects
+          hardware and software information, such as device and browser data and your IP address, and sends it to Google,
+          whose use of it is governed by Google&apos;s Privacy Policy and Terms of Service.
         </p>
       </section>
 
