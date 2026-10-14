@@ -41,6 +41,7 @@ import { incrementInboundRequestStats } from "../utils/inboundRequestStats";
 import { runHighIntentLeadEnrichmentForRequest } from "../utils/highIntentLeadEnrichment";
 import { createLifecycleCadenceForInboundRequest } from "../utils/lifecycle-cadence";
 import { isLocalLaunchSmokeProfile } from "../utils/launch-readiness";
+import { admitIntake, intakeRefusal } from "../utils/betaAbuseCaps";
 import {
   COMMERCIAL_REQUEST_PATH_LABELS,
   COMMERCIAL_REQUEST_PATHS,
@@ -1670,6 +1671,35 @@ export async function submitInboundRequest(req: Request, res: Response) {
         captureUrl: siteCaptureUrl(buyerType, payload.requestId, captureRegion, hasCurrentDescriptionAuthority(descriptionAuthority)),
       } satisfies SubmitInboundRequestResponse);
     }
+
+    // 6b. Durable daily caps: global, per client IP and per mailbox. The
+    // limiter above resets with the process; these hold across restarts. The
+    // request id is the idempotency key, so a retried or racing submission of
+    // the same request is charged once. An invited robot team's evaluation
+    // request is gated by its invitation instead and is not counted.
+    //
+    // Production fails closed (503 + Retry-After) when the counter cannot be
+    // written: the record below needs the same Firestore a moment later, so
+    // the honest answer is "try again shortly", and failing open would make
+    // a degraded or contended store the way to unlimited intake. The site's
+    // browser keeps its draft and retry identity on a 5xx or 429.
+    const capExempt = Boolean(res.locals.workspaceIntake?.workspace_evaluation);
+    if (!capExempt) {
+      const intakeAdmission = await admitIntake({ requestId: payload.requestId, clientIp, email: emailLower,
+        failClosed: isProduction() });
+      if (!intakeAdmission.allowed) {
+        const refusal = intakeRefusal(intakeAdmission);
+        res.set("Retry-After", String(refusal.retryAfterSeconds));
+        return res.status(refusal.status).json({
+          ok: false,
+          requestId: payload.requestId,
+          status: "submitted",
+          code: refusal.code,
+          message: refusal.message,
+        } satisfies SubmitInboundRequestResponse);
+      }
+    }
+
 
     // 7. Build the document
     const now = admin.firestore.FieldValue.serverTimestamp();
