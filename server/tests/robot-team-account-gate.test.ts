@@ -293,7 +293,7 @@ describe("a signed-in team sees its money and its runs without its agent key", (
   });
 });
 
-describe("the team hears when a run it bought reports", () => {
+describe("the team hears when its evaluation run reports", () => {
   it("emails the account once per run, for a result and for a run with none", async () => {
     const { teamId } = await (await account("/robot-team/agent-keys", "robot-owner", {})).json();
     const { notifyTeamOfRunOutcome } = await import("../utils/robotTeamNotifications");
@@ -308,7 +308,12 @@ describe("the team hears when a run it bought reports", () => {
     const result = rows.find((row) => row.kind === "team_run_result")!;
     expect(result.to).toBe("robot-owner@example.com");
     expect(result.body).toContain("41 of 50 simulated episodes succeeded");
-    expect(result.body).toContain("https://tryblueprint.io/settings?tab=agent");
-    expect(rows.find((row) => row.kind === "team_run_no_result")!.body).toMatch(/not charged for episodes that did not run/);
+    // The workspace is where a signed-in team sees its evaluations; the old
+    // settings tab no longer exists and fell back to the account form.
+    expect(result.body).toContain("https://tryblueprint.io/app");
+    expect(result.body).not.toContain("settings?tab=agent");
+    const noResult = rows.find((row) => row.kind === "team_run_no_result")!.body;
+    expect(noResult).toMatch(/nothing is charged for it/);
+    for (const body of [result.body, noResult]) expect(body).not.toMatch(/\bbalance\b|\bhold\b|top-?up/i);
   });
 });

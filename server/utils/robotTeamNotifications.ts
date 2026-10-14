@@ -1,18 +1,24 @@
 /**
- * The robot team hears when a run it paid for reports.
+ * The robot team hears when its evaluation run reports.
  *
- * The site already gets an email for each result on its task. The team that
- * bought the run got nothing: its result was only visible to whoever still
+ * The site already gets an email for each result on its job. The team that
+ * ran the evaluation got nothing: its result was only visible to whoever still
  * had the plan page open with the agent key in that tab. Each run now sends
  * the team one email when it reports a result, or when it ends without one,
  * through the same durable, deduplicated outbox the site emails use.
+ *
+ * The link goes to the team's workspace, where its evaluations and their
+ * results are listed. It used to point at a settings tab that no longer
+ * exists, which quietly fell back to the account form, and the copy spoke
+ * of a balance and a hold that the free beta does not have.
  */
 import { enqueueOutbox } from "./captureOutbox";
 import { EMAIL_SIGN_OFF } from "./emailLayout";
 import { teamAccountEmail } from "./robotTeamAccounts";
 import { COMPANY } from "../../client/src/data/company";
 
-const RUNS_URL = `${COMPANY.website}/settings?tab=agent`;
+/** The workspace overview lists active evaluations; finished ones stay under History. */
+const EVALUATIONS_URL = `${COMPANY.website}/app`;
 
 export async function notifyTeamOfRunOutcome(params: {
   teamId: string;
@@ -31,14 +37,14 @@ export async function notifyTeamOfRunOutcome(params: {
   const body = result
     ? [
         "Hi,",
-        `Your evaluation run finished: ${result.episodesSucceeded} of ${result.episodesRun} simulated episodes succeeded. This is a simulation result against one site's job, not a physical test.`,
-        `See this run, every other run, and your balance:\n${RUNS_URL}`,
+        `Your evaluation run finished: ${result.episodesSucceeded} of ${result.episodesRun} simulated episodes succeeded. This is a simulation result against one site's job: a bounded estimate, not a physical test, and not proof of performance or safety on site.`,
+        `See this evaluation and its result in your Blueprint workspace:\n${EVALUATIONS_URL}`,
         EMAIL_SIGN_OFF,
       ].join("\n\n")
     : [
         "Hi,",
-        "Your evaluation run ended before any episode was observed, so there is no result to show. You are not charged for episodes that did not run; the rest of the hold returns to your balance.",
-        `See your runs and your balance:\n${RUNS_URL}`,
+        "Your evaluation run ended before any episode was observed, so there is no result to show, and nothing is charged for it. If you expected your policy to run, reply to this email and we will look into it.",
+        `See your evaluations in your Blueprint workspace:\n${EVALUATIONS_URL}`,
         EMAIL_SIGN_OFF,
       ].join("\n\n");
   return enqueueOutbox({
