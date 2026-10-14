@@ -89,6 +89,7 @@ import voiceRouter, {
 import verifyFirebaseToken, { optionallyVerifyFirebaseToken } from "./middleware/verifyFirebaseToken";
 import { requireAdminRole } from "./middleware/requireAdminRole";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
+import { requireAppCheck } from "./middleware/appCheck";
 import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
 import cityLaunchRouter from "./routes/city-launch";
 import publicLaunchRouter from "./routes/public-launch";
@@ -235,7 +236,8 @@ export function registerRoutes(app: Express) {
   app.use("/api/growth/email", emailPreferencesRouter);
   app.use("/api/voice", csrfProtection, voiceRouter);
   // Inbound request (lead pipeline) - public submission endpoint
-  app.use("/api/inbound-request", csrfProtection, inboundRequestRouter);
+  // App Check is staged by BLUEPRINT_APP_CHECK_MODE (off | monitor | enforce).
+  app.use("/api/inbound-request", csrfProtection, requireAppCheck("inbound_intake"), inboundRequestRouter);
   app.use("/api/requests", csrfProtection, requestsRouter);
   // The robot-team registry and its review queue. Operator-only: accepting a
   // proposal is the one action that turns an inferred figure into a registry

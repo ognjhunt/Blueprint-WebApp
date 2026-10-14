@@ -14,6 +14,7 @@ import {
 } from "@/data/captureResidency";
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
+import { withAppCheckHeader } from "@/lib/appCheck";
 import { inferLocationCountryCode } from "@/lib/deploymentCoverage";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
@@ -428,7 +429,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     setState({ status: "working" });
 
     try {
-      const headers = await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" }));
+      const headers = await withAppCheckHeader(await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" })));
       let body = retained?.body ?? JSON.stringify({
           requestId: operationRecovery.requestId,
           retryToken: operationRecovery.retryToken,

@@ -28,7 +28,16 @@ export const INLINE_SCRIPT_HASHES = [
 type ContentSecurityPolicyOptions = {
   isProduction: boolean;
   posthogHost?: string | null;
+  /**
+   * Firebase App Check's reCAPTCHA Enterprise provider (on when
+   * VITE_FIREBASE_APPCHECK_SITE_KEY is set). Its token exchange already fits
+   * connect-src's googleapis.com; the script and challenge frame need these.
+   */
+  recaptchaEnterprise?: boolean;
 };
+
+const RECAPTCHA_SCRIPT_HOSTS = ["https://www.google.com/recaptcha/", "https://www.gstatic.com/recaptcha/"];
+const RECAPTCHA_FRAME_HOSTS = ["https://www.google.com/recaptcha/", "https://recaptcha.google.com/recaptcha/"];
 
 function uniqueNonEmpty(values: Array<string | null | undefined>) {
   return Array.from(
@@ -43,6 +52,7 @@ function uniqueNonEmpty(values: Array<string | null | undefined>) {
 export function buildContentSecurityPolicy({
   isProduction,
   posthogHost,
+  recaptchaEnterprise = false,
 }: ContentSecurityPolicyOptions) {
   const analyticsConnectAllowlist = uniqueNonEmpty([
     posthogHost,
@@ -58,6 +68,7 @@ export function buildContentSecurityPolicy({
     "https://maps.googleapis.com",
     "https://maps.gstatic.com",
     derivePostHogAssetHost(posthogHost),
+    ...(recaptchaEnterprise ? RECAPTCHA_SCRIPT_HOSTS : []),
   ]);
 
   const cspConnectAllowlist = uniqueNonEmpty([
@@ -83,7 +94,8 @@ export function buildContentSecurityPolicy({
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob: https:",
     "font-src 'self' https://fonts.gstatic.com data:",
-    "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://www.youtube-nocookie.com https://*.firebaseapp.com",
+    `frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://www.youtube-nocookie.com https://*.firebaseapp.com${
+      recaptchaEnterprise ? ` ${RECAPTCHA_FRAME_HOSTS.join(" ")}` : ""}`,
     "worker-src 'self' blob: https://cdnjs.cloudflare.com",
     "media-src 'self' blob: https:",
     `connect-src 'self' data: ${

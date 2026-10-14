@@ -42,6 +42,17 @@ describe("content security policy", () => {
     expect(scriptSrc).not.toContain("http://localhost:5173");
   });
 
+  it("admits reCAPTCHA Enterprise only when App Check is configured", () => {
+    const off = buildContentSecurityPolicy({ isProduction: true });
+    expect(parseDirective(off, "script-src")).not.toContain("https://www.google.com/recaptcha/");
+    expect(parseDirective(off, "frame-src")).not.toContain("https://www.google.com/recaptcha/");
+    const on = buildContentSecurityPolicy({ isProduction: true, recaptchaEnterprise: true });
+    expect(parseDirective(on, "script-src")).toEqual(expect.arrayContaining(["https://www.google.com/recaptcha/", "https://www.gstatic.com/recaptcha/"]));
+    expect(parseDirective(on, "frame-src")).toEqual(expect.arrayContaining(["https://www.google.com/recaptcha/", "https://recaptcha.google.com/recaptcha/"]));
+    // The App Check token exchange (content-firebaseappcheck.googleapis.com).
+    expect(parseDirective(on, "connect-src")).toContain("https://*.googleapis.com");
+  });
+
   it("allows Spark splat wasm data loaders used by the self-hosted preview", () => {
     const policy = buildContentSecurityPolicy({ isProduction: true });
 

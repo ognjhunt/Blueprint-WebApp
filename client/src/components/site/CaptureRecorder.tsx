@@ -43,6 +43,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { withCsrfHeader } from "@/lib/csrf";
+import { withAppCheckHeader } from "@/lib/appCheck";
 
 /** Emitted often enough that a dropped connection costs seconds, not minutes. */
 const TIMESLICE_MS = 4_000;
@@ -194,7 +195,7 @@ export function CaptureRecorder(props: {
           try {
             const response = await fetch(
               `/api/self-capture/uploads/${props.token}/parts/${index}?extension=mp4`,
-              { method: "PUT", credentials: "include", body, signal: controller.signal },
+              { method: "PUT", credentials: "include", headers: await withAppCheckHeader(), body, signal: controller.signal },
             );
             ok = response.ok;
             if (!ok && response.status === 409) {
@@ -376,7 +377,7 @@ export function CaptureRecorder(props: {
       {
         method: "POST",
         credentials: "include",
-        headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        headers: await withAppCheckHeader(await withCsrfHeader({ "Content-Type": "application/json" })),
         body: JSON.stringify({
           parts: nextIndexRef.current,
           extension: "mp4",

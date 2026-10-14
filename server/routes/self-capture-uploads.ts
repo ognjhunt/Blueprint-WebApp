@@ -85,6 +85,7 @@ import { browserPendingDecisionKey, storedCapturePrivacyCleared, loadBrowserPend
   type BrowserWriteReservation } from "../utils/websiteBrowserPending";
 
 import { admitUploadBytes, uploadRefusal } from "../utils/betaAbuseCaps";
+import { requireAppCheck } from "../middleware/appCheck";
 
 import { ALLOWED_EXTENSIONS, resolveStoredObjectPath, verifiedStoredVideo,
   originalManifestConsent, verifiedPendingManifest, verifiedPendingMarker,
@@ -1186,7 +1187,7 @@ function authorizeBeforeCaptureBody(kind: "walkthrough" | "part" | "item_image")
   };
 }
 
-router.post("/:token", authorizeBeforeCaptureBody("walkthrough"), upload.single("video"), async (req: UploadRequest, res: Response) => {
+router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCaptureBody("walkthrough"), upload.single("video"), async (req: UploadRequest, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
     return res.status(404).json({ error: "This upload link is not valid or has expired." });
@@ -1377,6 +1378,7 @@ router.get("/:token/parts", async (req: Request, res: Response) => {
 
 router.put(
   "/:token/parts/:index",
+  requireAppCheck("upload_part"),
   authorizeBeforeCaptureBody("part"),
   partUpload.single("part"),
   async (req: PartUploadRequest, res: Response) => {
@@ -1455,7 +1457,7 @@ const completeSchema = z
   })
   .strict();
 
-router.post("/:token/parts/complete", async (req: Request, res: Response) => {
+router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
     return res.status(404).json({ error: "This upload link is not valid or has expired." });
@@ -1663,6 +1665,7 @@ const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "heic", "heif", 
  */
 router.post(
   "/:token/items/:itemId/image",
+  requireAppCheck("upload_item_image"),
   authorizeBeforeCaptureBody("item_image"),
   upload.single("image"),
   async (req: UploadRequest, res: Response) => {

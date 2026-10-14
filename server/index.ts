@@ -273,6 +273,7 @@ app.use(express.urlencoded({ extended: false, limit: defaultBodyLimit }));
 const cspDirectives = buildContentSecurityPolicy({
   isProduction,
   posthogHost: process.env.VITE_PUBLIC_POSTHOG_HOST,
+  recaptchaEnterprise: Boolean(process.env.VITE_FIREBASE_APPCHECK_SITE_KEY?.trim()),
 });
 
 app.use((req, res, next) => {
