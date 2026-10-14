@@ -105,9 +105,15 @@ export async function scanTerminalOutboxFailures(options: {
     { event: "capture_outbox_terminal_failures", count: fresh.length, keys: fresh.map((item) => item.key) },
     "Customer outbox messages exhausted their retries",
   );
-  // Link-only: the recipient address and message body stay in Firestore.
-  const lines = fresh.slice(0, 10).map((item) =>
-    `- ${item.kind} for ${item.requestId || "unknown request"} (${item.lastError}) ${item.requestId ? `${appBaseUrl()}/admin/leads/${encodeURIComponent(item.requestId)}` : ""}`.trim());
+  // Recovery references only: recipient and message body stay in Firestore.
+  const lines = fresh.slice(0, 10).map((item) => {
+    // Account notices have no inbound lead. Identify the exact recipient's
+    // durable intent and receipts rather than manufacturing a lead URL.
+    const recovery = item.kind === "account_notice"
+      ? `Firestore: ${CAPTURE_OUTBOX_COLLECTION}/${item.key} (inspect deliveryReceipts)`
+      : item.requestId ? `${appBaseUrl()}/admin/leads/${encodeURIComponent(item.requestId)}` : "";
+    return `- ${item.kind} for ${item.requestId || "unknown request"} (${item.lastError}) ${recovery}`.trim();
+  });
   const more = fresh.length > 10 ? [`- …and ${fresh.length - 10} more`] : [];
   const text = [
     `:rotating_light: Blueprint: ${fresh.length} customer email(s) failed permanently`,

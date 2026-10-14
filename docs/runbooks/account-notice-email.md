@@ -53,6 +53,9 @@ Do not invent a new ID to work around a sent or unknown result. The existing
 outbox owns concurrency, dispatch receipts, bounded retries, and ambiguous
 provider outcomes. Inspect `captureOutbox/<idempotencyKey>` and its
 `deliveryReceipts` using the established authorized Firestore read/export path.
+If retries exhaust, the existing beta monitor's alert includes this exact
+Firestore document path and directs inspection of `deliveryReceipts`. Account
+notices have no inbound lead; the alert does not link to `/admin/leads/`.
 An enqueued record or provider acceptance is not evidence of inbox delivery.
 Do not invoke the pump manually or fall back to Gmail after a provider error.
 
