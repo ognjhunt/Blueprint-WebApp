@@ -15,6 +15,13 @@
  * at therefore reads as `provisional` rather than as a confirmed match, and
  * cannot be counted in an email. That is the whole provenance rule expressed in
  * one call, and it is why the email can say "clears" and mean it.
+ *
+ * ## Fit counts are not supply counts
+ *
+ * `matchedCount` counts registry rows whose robot clears the site's
+ * constraints, prospects included. It is internal ops data. Anything a site
+ * reads uses `supplyMatchedCount`: matched teams that have also agreed, on
+ * record, to evaluate and pilot (`robotTeamSupply`).
  */
 import {
   matchRobotTeam,
@@ -29,7 +36,11 @@ import { gateAnswersOnFile } from "./gateAnswersOnFile";
 
 /** A compact, storable record of a match run, for a reviewer and for the email. */
 export interface SiteMatchSummaryRecord {
+  /** Capability fit only, prospects included. Internal; never shown to a site. */
   matchedCount: number;
+  /** Matched teams with a complete supply agreement. The only count a site may see. */
+  supplyMatchedCount: number;
+  supplyMatchedTeamIds: string[];
   provisionalCount: number;
   ruledOutCount: number;
   matchedTeamIds: string[];
@@ -59,6 +70,8 @@ export function toSiteRequirement(request: InboundRequest): SiteRequirement {
 export function summariseForStorage(summary: MatchSummary): SiteMatchSummaryRecord {
   return {
     matchedCount: summary.matched.length,
+    supplyMatchedCount: summary.supply.length,
+    supplyMatchedTeamIds: summary.supply.map((result) => result.robotTeamId),
     provisionalCount: summary.provisional.length,
     ruledOutCount: summary.ruledOut.length,
     matchedTeamIds: summary.matched.map((result) => result.robotTeamId),
@@ -106,6 +119,7 @@ export async function runSiteMatch(
     {
       requestId: request.requestId,
       matched: summary.matched.length,
+      supply: summary.supply.length,
       provisional: summary.provisional.length,
       ruledOut: summary.ruledOut.length,
     },

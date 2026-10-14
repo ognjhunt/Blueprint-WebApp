@@ -164,7 +164,10 @@ export function projectWorkspaceTask(
         workspace.paused !== true &&
         workspace.archived !== true,
     },
-    potentialMatches: number(match.matchedCount),
+    // Only teams that agreed, on record, to evaluate and pilot. The fit-only
+    // `matchedCount` counts researched prospects and is never a site's number;
+    // an older record without the supply count reads as unknown.
+    potentialMatches: number(match.supplyMatchedCount),
     capture: null,
     results: [],
     pilot: {

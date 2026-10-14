@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer, type Server } from "node:http";
 import { sharedFakeFirestore as store, sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
+import { completeSupplyAgreement } from "./helpers/supply-agreement";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
@@ -52,7 +53,8 @@ describe("recording Blueprint's recommended pilot", () => {
   beforeEach(async () => {
     state.docs.clear(); sendEmail.mockReset(); sendEmail.mockResolvedValue({ sent: true, provider: "fixture", messageId: "fixture-receipt" }); enqueue.mockReset(); enqueue.mockResolvedValue({ enqueued: true });
     state.docs.set("inboundRequests/req1", { requestId: "req1", contact: { email: "owner@example.test" } } as never);
-    state.docs.set("robotTeams/engaged", { id: "engaged", name: "Acme Robotics", status: "engaged", contactEmail: "team@example.test" } as never);
+    state.docs.set("robotTeams/engaged", { id: "engaged", name: "Acme Robotics", status: "engaged", contactEmail: "team@example.test",
+      supplyAgreement: completeSupplyAgreement() } as never);
     state.docs.set("robotTeams/prospect", { id: "prospect", name: "Unknown Co", status: "prospect" } as never);
     state.docs.set(`robotTeamAccess/${accessRecordId("team@example.test")}`, { status: "approved" });
     state.docs.set("evaluationRuns/run_pass", evaluationRun() as never);
@@ -456,6 +458,11 @@ describe("recording Blueprint's recommended pilot", () => {
     // Not yet invited: a self-registered team needs approved access.
     expect(await refusal({ ...plan, evaluationRunId: "run_acme", teamId: "team_acme" })).toMatchObject({ status: 400, body: { code: "team_not_recommendable" } });
     state.docs.set(`robotTeamAccess/${accessRecordId("lead@acme.test")}`, { status: "approved" });
+    // Invited and passing, but it has not agreed to take the pilot.
+    expect(await refusal({ ...plan, evaluationRunId: "run_acme", teamId: "team_acme" })).toMatchObject({ status: 400, body: { code: "team_supply_agreement_missing" } });
+    // The agreement recorded on the linked intake row counts for the team.
+    state.docs.set("robotTeams/team_acme", { ...state.docs.get("robotTeams/team_acme"), status: "engaged", statusBeforeEngaged: "applied",
+      supplyAgreement: completeSupplyAgreement() } as never);
     const response = await post({ ...plan, evaluationRunId: "run_acme", teamId: "team_acme" });
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ ok: true, teamId: "team_acme_1a2b3c" });
@@ -468,6 +475,15 @@ describe("recording Blueprint's recommended pilot", () => {
     state.docs.set("inboundRequests/req1", { requestId: "req1", contact: { email: "owner@example.test" } } as never);
     state.docs.set("robotTeams/team_acme", { ...state.docs.get("robotTeams/team_acme"), status: "declined" } as never);
     expect(await refusal({ ...plan, evaluationRunId: "run_acme" })).toMatchObject({ status: 400, body: { code: "team_declined" } });
+  });
+
+  it("refuses a team that passed but has no recorded agreement to take the pilot, whatever its status says", async () => {
+    state.docs.set("robotTeams/engaged", { ...state.docs.get("robotTeams/engaged"), supplyAgreement: null } as never);
+    expect(await refusal(plan)).toMatchObject({ status: 400, body: { code: "team_supply_agreement_missing" } });
+    expect(doc().pilot_recommendation).toBeUndefined();
+    expect(siteSends()).toHaveLength(0);
+    const listed = await (await fetch(`${base}/jobs/req1/evaluations`)).json();
+    expect(listed.evaluations[0]).toMatchObject({ passed: true, recommendable: false, teamRefusal: { code: "team_supply_agreement_missing" } });
   });
 
   it("carries the development-only evidence snapshot and the simulation boundary", async () => {

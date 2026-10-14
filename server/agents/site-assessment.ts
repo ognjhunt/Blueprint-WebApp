@@ -7,6 +7,7 @@ import { getGeminiVideoModel } from "./provider-config";
 import { runCompanyHistoryTool, type CompanyHistoryAccess } from "../research-learning/company-history";
 import { factSchema as capabilityFactSchema } from "../research-learning/prior-research";
 import { isQuotableGrade, listMatchableRobotTeams, toMatchCandidate } from "../utils/robotTeamRegistry";
+import { effectiveTeamStatus, supplySummary } from "../utils/robotTeamSupply";
 import { matchRobotTeam, type SiteRequirement } from "../../client/src/lib/robotMatch";
 
 export { SITE_ASSESSMENT_MODEL } from "./provider-config";
@@ -379,13 +380,15 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
         return retained("fetch_robot_knowledge", args, { ...result, source_id });
       },
     }),
-    tool({ name: "read_robot_registry", description: "Read matchable Firestore robot teams and source provenance, with deterministic site-band findings. Published/self-reported specs are not measured deployment fit. The returned corpus is bounded and may be incomplete.",
+    tool({ name: "read_robot_registry", description: "Read matchable Firestore robot teams and source provenance, with deterministic site-band findings. Published/self-reported specs are not measured deployment fit. Only rows with willing_supply true have agreed, on record, to run on the supported interface, accept a free evaluation and take the pilot if it passes; never describe any other row as a team that will evaluate or pilot this job. The returned corpus is bounded and may be incomplete.",
       parameters: z.object({}),
       execute: async () => {
         const teams = await (options.read_robot_teams ?? listMatchableRobotTeams)();
         const rows = teams.map(team => {
           const source_id = `robotTeam:${team.id}`;
-          const capabilityRecord = { id: team.id, name: team.name, website: team.website ?? null, status: team.status,
+          const supply = supplySummary(team);
+          const capabilityRecord = { id: team.id, name: team.name, website: team.website ?? null, status: effectiveTeamStatus(team),
+            willing_supply: supply.willingSupply, supply_agreements_missing: supply.missingAgreements,
             capability: team.capability, fieldProvenance: team.fieldProvenance,
             capabilityDescription: team.capabilityDescription ?? null, evidenceBar: team.evidenceBar ?? null,
             updatedAt: team.updatedAt };
@@ -394,6 +397,7 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
           return { source_id, team: capabilityRecord, screening: matchRobotTeam(input.site_requirement, toMatchCandidate(team)) };
         });
         return retained("read_robot_registry", {}, { rows, coverage: "applied_engaged_prospect_only_default_limit_200",
+          willing_supply_count: rows.filter(row => row.team.willing_supply).length,
           complete_robot_universe: false, freshness: "Inspect per-field provenance; no general age cutoff." });
       },
     }),

@@ -22,6 +22,7 @@ import {
   successRateToBand,
 } from "../server/utils/capabilityFigures";
 import { mergeCapability } from "../server/utils/robotTeamRegistry";
+import { isWillingSupply } from "../server/utils/robotTeamSupply";
 import {
   ROBOT_TEAMS_COLLECTION,
   type RobotCapabilityField,
@@ -117,10 +118,13 @@ async function main() {
       id: team.id,
       name: team.name,
       website: team.website,
-      // Never anything but prospect from this script. A seeded company has not
-      // applied and is not engaged, and a status that said otherwise would be a
-      // fabricated relationship.
-      status: existing.status === "declined" ? "declined" : "prospect",
+      // Never promotes. A seeded company has not applied and is not engaged,
+      // and a status that said otherwise would be a fabricated relationship.
+      // It also never demotes a team whose recorded supply agreement makes it
+      // engaged: re-seeding must not erase what the founder recorded.
+      status: existing.status === "declined"
+        ? "declined"
+        : isWillingSupply(existing as RobotTeamRecord) ? "engaged" : "prospect",
       capability: record.capability,
       fieldProvenance: record.fieldProvenance,
       updatedAt: new Date().toISOString(),

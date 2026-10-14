@@ -21,7 +21,17 @@ import {
   getRobotTeam,
   listMatchableRobotTeams,
   listPendingProposals,
+  recordSupplyAgreement,
+  withdrawTeamSupplyAgreement,
 } from "../utils/robotTeamRegistry";
+import {
+  isWillingSupply,
+  readSupplyAgreement,
+  supplySummary,
+  SUPPLY_AGREEMENT_TERM_LABELS,
+  SUPPORTED_SUPPLY_INTERFACE_ID,
+} from "../utils/robotTeamSupply";
+import { SUPPLY_AGREEMENT_TERMS } from "../types/robot-team-registry";
 import { hasAnyRole } from "../utils/access-control";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION, type OutboxEntry } from "../utils/captureOutbox";
@@ -175,6 +185,14 @@ async function recommendableTeam(runTeamId: string, requestedTeamId?: string):
   const statusOk = RECOMMENDABLE_STATUSES.has(team.status) || (team.status === "self_registered" && bound);
   if (!statusOk || !admitted) {
     return { ok: false, code: "team_not_recommendable", error: "Recommend a registered, invitation-approved team. Admission does not establish capability or availability." };
+  }
+  // A passing evaluation shows the team can run here. It does not show the
+  // team will take the pilot, and the site books on exactly that. Only a
+  // recorded supply agreement on this team, or a row linked to it by pointer,
+  // makes it supply (`robotTeamSupply`); an email-only match never counts.
+  if (![team, ...identity.members.filter(row => explicitlyLinked(team, row))].some(isWillingSupply)) {
+    return { ok: false, code: "team_supply_agreement_missing",
+      error: `Record this team's supply agreement before recommending it (registry row ${team.id}): it must have agreed to run a policy on the supported interface, to a free evaluation on a real job, and to take the pilot if its evaluation passes. A passing evaluation alone does not show the team will take the pilot.` };
   }
   return { ok: true, team, memberIds: identity.members.map(row => row.id) };
 }
@@ -405,7 +423,8 @@ router.get("/recommendations/:requestId", async (req, res) => {
       customerConversation: Array.isArray(record.customerConversation) ? record.customerConversation : [],
       customerClarification: record.site_task_clarification ?? null,
       coordination: projectPilotCoordination(record), assessment: assessment.customerAdvisory,
-      teams: admitted.map(team => ({ id: team!.id, name: team!.name, capabilityDescription: team!.capabilityDescription ?? "No demonstrated capability recorded" })),
+      teams: admitted.map(team => ({ id: team!.id, name: team!.name, capabilityDescription: team!.capabilityDescription ?? "No demonstrated capability recorded",
+        ...supplySummary(team!) })),
       interests: interests.docs.map(doc => doc.data()),
       draft: { purpose: brief?.summary ?? String(await decryptFieldValue(record.request?.taskStatement ?? "")),
         successCondition: terms?.successDefinition ? `${terms.successDefinition}${terms.successRate != null ? `; at least ${terms.successRate}% successful cycles` : ""}${terms.cycleTimeSeconds != null ? `; no more than ${terms.cycleTimeSeconds} seconds per cycle` : ""}` : "",
@@ -541,18 +560,146 @@ router.post("/proposals/:proposalId", async (req: Request, res: Response) => {
   }
 });
 
-/** The registry itself, for an operator checking what a match ran against. */
-router.get("/", async (_req: Request, res: Response) => {
+const REGISTRY_LIST_STATUSES: RobotTeamRecord["status"][] = ["applied", "engaged", "prospect", "declined", "self_registered"];
+
+/**
+ * The registry itself, for an operator checking what a match ran against.
+ * `?status=self_registered` lists account-bound rows, which is where a team's
+ * evaluations run and so where its supply agreement is best recorded.
+ */
+router.get("/", async (req: Request, res: Response) => {
+  const requested = typeof req.query.status === "string" ? req.query.status : null;
+  if (requested && !REGISTRY_LIST_STATUSES.includes(requested as RobotTeamRecord["status"])) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: `status must be one of ${REGISTRY_LIST_STATUSES.join(", ")}` });
+  }
   try {
     const teams = await listMatchableRobotTeams({
-      statuses: ["applied", "engaged", "prospect", "declined"],
+      statuses: requested ? [requested as RobotTeamRecord["status"]] : ["applied", "engaged", "prospect", "declined"],
     });
-    return res.json({ ok: true, teams });
+    // Status is already the effective one; `supply` says why a team is or is
+    // not counted, so a reviewer never has to infer it from the status word.
+    return res.json({
+      ok: true,
+      supplyCount: teams.filter(isWillingSupply).length,
+      teams: teams.map((team) => ({ ...team, supply: supplySummary(team) })),
+    });
   } catch (error) {
     logger.error({ err: error }, "Failed to list robot teams");
     return res
       .status(HTTP_STATUS.SERVICE_UNAVAILABLE)
       .json({ ok: false, error: "Unable to list robot teams" });
+  }
+});
+
+/* ------------------------------------------------- supply agreements */
+
+/**
+ * The founder's record of what a robot team agreed to.
+ *
+ * A team counts as supply (`engaged`) only once three agreements are on
+ * record: it runs a policy on the supported interface, it accepts a free
+ * evaluation on a real job, and it takes the pilot if it passes. Each is
+ * recorded with the day, a reference to where the agreement is kept, and the
+ * signed-in operator, who is read from the session and never from the body.
+ * Runbook: docs/beta/ROBOT_TEAM_SUPPLY_AGREEMENTS.md.
+ */
+const supplyTermSchema = z.object({
+  term: z.enum(SUPPLY_AGREEMENT_TERMS),
+  agreedOn: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
+  evidenceRef: z.string().trim().min(3).max(300),
+  interfaceId: z.string().trim().min(1).max(120).optional(),
+}).strict();
+const supplyAgreementSchema = z.object({
+  terms: z.array(supplyTermSchema).min(1).max(SUPPLY_AGREEMENT_TERMS.length),
+  /** The operator holds the referenced evidence and it says exactly this. */
+  evidenceHeld: z.literal(true),
+}).strict();
+const supplyWithdrawalSchema = z.object({
+  withdrawnOn: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
+  evidenceRef: z.string().trim().min(3).max(300),
+  evidenceHeld: z.literal(true),
+}).strict();
+
+function namedOperator(res: Response): string | null {
+  return (res.locals?.firebaseUser?.email as string | undefined)
+    || (res.locals?.firebaseUser?.uid as string | undefined)
+    || null;
+}
+
+function supplyResponse(record: RobotTeamRecord) {
+  return { teamId: record.id, status: record.status, ...supplySummary(record) };
+}
+
+/** What the team has agreed to, with the evidence references, for an operator. */
+router.get("/:teamId/supply-agreement", async (req: Request, res: Response) => {
+  const teamId = String(req.params.teamId || "").trim();
+  try {
+    const team = await getRobotTeam(teamId);
+    if (!team) return res.status(HTTP_STATUS.NOT_FOUND).json({ ok: false, error: "No registry row has that id." });
+    res.set("Cache-Control", "no-store");
+    return res.json({
+      ok: true,
+      ...supplyResponse(team),
+      supportedInterfaceId: SUPPORTED_SUPPLY_INTERFACE_ID,
+      terms: SUPPLY_AGREEMENT_TERMS.map((term) => ({ term, label: SUPPLY_AGREEMENT_TERM_LABELS[term],
+        recorded: team.supplyAgreement?.terms?.[term] ?? null,
+        problem: readSupplyAgreement(team).problems.find((row) => row.term === term)?.problem ?? null })),
+      history: team.supplyAgreement?.history ?? [],
+    });
+  } catch (error) {
+    logger.error({ err: error, teamId }, "Supply agreement unavailable");
+    return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Supply agreement unavailable" });
+  }
+});
+
+/** Record one or more agreements. The third one makes the team `engaged`. */
+router.post("/:teamId/supply-agreement", async (req: Request, res: Response) => {
+  const recordedBy = namedOperator(res);
+  if (!recordedBy) return res.status(401).json({ ok: false, error: "A named operator must record the agreement." });
+  const parsed = supplyAgreementSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, code: "supply_agreement_invalid",
+      error: "Send each agreement as { term, agreedOn: YYYY-MM-DD, evidenceRef }, and confirm you hold the evidence (evidenceHeld: true). Terms: supportedInterface, freeEvaluation, pilotIfPassed." });
+  }
+  const teamId = String(req.params.teamId || "").trim();
+  try {
+    const outcome = await recordSupplyAgreement({ teamId, terms: parsed.data.terms, recordedBy });
+    if (outcome.status === "unavailable") return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Registry unavailable" });
+    if (outcome.status === "not_found") return res.status(HTTP_STATUS.NOT_FOUND).json({ ok: false, error: "No registry row has that id." });
+    if (outcome.status === "invalid") {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, code: "supply_agreement_invalid", errors: outcome.errors,
+        error: "Nothing was recorded. Fix the agreements listed and send them again." });
+    }
+    return res.json({ ok: true, ...supplyResponse(outcome.record), engagedNow: Boolean(outcome.engagedNow) });
+  } catch (error) {
+    logger.error({ err: error, teamId }, "Failed to record a supply agreement");
+    return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "The agreement was not recorded." });
+  }
+});
+
+/** The team withdrew. It stops counting as supply at once. */
+router.post("/:teamId/supply-agreement/withdraw", async (req: Request, res: Response) => {
+  const recordedBy = namedOperator(res);
+  if (!recordedBy) return res.status(401).json({ ok: false, error: "A named operator must record the withdrawal." });
+  const parsed = supplyWithdrawalSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, code: "supply_withdrawal_invalid",
+      error: "Send { withdrawnOn: YYYY-MM-DD, evidenceRef, evidenceHeld: true }." });
+  }
+  const teamId = String(req.params.teamId || "").trim();
+  try {
+    const outcome = await withdrawTeamSupplyAgreement({ teamId, ...parsed.data, recordedBy });
+    if (outcome.status === "unavailable") return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "Registry unavailable" });
+    if (outcome.status === "not_found") return res.status(HTTP_STATUS.NOT_FOUND).json({ ok: false, error: "No registry row has that id." });
+    if (outcome.status === "invalid") {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, code: "supply_withdrawal_invalid", errors: outcome.errors,
+        error: outcome.errors[0]?.problem ?? "The withdrawal was not recorded." });
+    }
+    return res.json({ ok: true, ...supplyResponse(outcome.record), wasEngaged: Boolean(outcome.wasEngaged),
+      note: "A recommendation already made to a site still names this team. Replace it before the site books." });
+  } catch (error) {
+    logger.error({ err: error, teamId }, "Failed to record a supply withdrawal");
+    return res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({ ok: false, error: "The withdrawal was not recorded." });
   }
 });
 

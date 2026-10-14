@@ -7,6 +7,7 @@ import express from "express";
 import nodeFetch from "node-fetch";
 import { createServer } from "node:http";
 import { sharedFakeFirestore as store, sharedFakeFirestoreState as state } from "../../../server/tests/helpers/fake-firestore";
+import { completeSupplyAgreement } from "../../../server/tests/helpers/supply-agreement";
 import { TaskBriefReview } from "@/components/site/TaskBriefReview";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { RecommendedPilot } from "@/components/site/RecommendedPilot";
@@ -50,7 +51,9 @@ it("joins the existing job, bounded review, proposal acceptance and evidence-gat
   state.docs.set("inboundRequests/req-1", { requestId: "req-1", contact: { firstName: "Dana", email: "owner@example.test" },
     request: { buyerType: "site_operator", capture_mode: "self_capture", taskStatement: "Move cartons onto a pallet" },
     siteTaskGates: { sceneStability: "stable", taskShape: "single", objectVariety: "under_10" } });
-  state.docs.set("robotTeams/fixture-team", { id: "fixture-team", name: "Fixture admitted team", status: "engaged", contactEmail: "team@example.test" });
+  // Engaged only with its recorded supply agreement; the status word alone is not supply.
+  state.docs.set("robotTeams/fixture-team", { id: "fixture-team", name: "Fixture admitted team", status: "engaged", contactEmail: "team@example.test",
+    supplyAgreement: completeSupplyAgreement() });
   // The recommendation must stand on a passing evaluation of this job (simulated, development-only).
   state.docs.set("evaluationRuns/run_fixture", { runId: "run_fixture", reservationId: "free_fixture", teamId: "fixture-team", checkpointId: "ckpt_fixture",
     sceneId: "req-1", taskFamily: "palletizing", evaluationPurpose: "pilot", quotedUsd: 0, quotedEpisodes: 20, state: "completed", episodesRun: 20,

@@ -41,6 +41,13 @@ import {
   type RobotTeamStatus,
 } from "../types/robot-team-registry";
 import type { RobotCandidate } from "../../client/src/lib/robotMatch";
+import {
+  applySupplyAgreementTerms,
+  isWillingSupply,
+  withEffectiveStatus,
+  withdrawSupplyAgreement,
+  type SupplyAgreementTermInput,
+} from "./robotTeamSupply";
 
 /**
  * Higher wins. A measured result is the only thing that beats a team's own
@@ -140,6 +147,9 @@ export function toMatchCandidate(
     deploymentRegions: capability.deploymentRegions ?? null,
     hardwareMaturity: capability.hardwareMaturity ?? null,
     taskFamily: capability.taskFamily ?? null,
+    // Capability fit and willingness are separate facts. A team can clear
+    // every constraint and still have agreed to nothing.
+    willingSupply: isWillingSupply(record),
   };
 }
 
@@ -148,7 +158,16 @@ export function toMatchCandidate(
 export async function getRobotTeam(id: string): Promise<RobotTeamRecord | null> {
   if (!db) return null;
   const snapshot = await db.collection(ROBOT_TEAMS_COLLECTION).doc(id).get();
-  return snapshot.exists ? currentConfidenceTeam(snapshot.data() as RobotTeamRecord) : null;
+  return snapshot.exists ? readTeamRecord(snapshot.data() as RobotTeamRecord) : null;
+}
+
+/**
+ * Every registry read goes through this. A stored `engaged` without a
+ * complete supply agreement comes back as the status it had before, so a
+ * hand-typed status cannot make a team look willing to anything downstream.
+ */
+function readTeamRecord(record: RobotTeamRecord): RobotTeamRecord {
+  return withEffectiveStatus(currentConfidenceTeam(record));
 }
 
 /**
@@ -170,7 +189,12 @@ export async function listMatchableRobotTeams(
     .where("status", "in", statuses)
     .limit(Math.max(1, Math.min(options.limit ?? 200, 500)))
     .get();
-  return snapshot.docs.map((doc) => currentConfidenceTeam(doc.data() as RobotTeamRecord));
+  // Filtered again after the read: an unbacked `engaged` row matches the
+  // query and is then read as what it really is, which the caller may not
+  // have asked for.
+  return snapshot.docs
+    .map((doc) => readTeamRecord(doc.data() as RobotTeamRecord))
+    .filter((team) => statuses.includes(team.status));
 }
 
 async function writeRecord(record: RobotTeamRecord) {
@@ -589,6 +613,121 @@ export async function applyProposal(params: {
   const record: RobotTeamRecord = { ...existing, capability, fieldProvenance };
   await writeRecord(record);
   return record;
+}
+
+/* ------------------------------------------------------------- trigger 4 */
+
+/**
+ * Append-only log beside the team record. The record holds the current
+ * agreements; this keeps every recording and withdrawal, including an entry
+ * that a later recording replaced.
+ */
+export const SUPPLY_AGREEMENT_EVENTS_COLLECTION = "supplyAgreementEvents";
+
+export type SupplyAgreementWriteOutcome =
+  | { status: "ok"; record: RobotTeamRecord; engagedNow?: boolean; wasEngaged?: boolean }
+  | { status: "not_found" }
+  | { status: "invalid"; errors: ReadonlyArray<{ term: string | null; problem: string }> }
+  | { status: "unavailable" };
+
+function supplyEventId(teamId: string, action: string, at: string) {
+  return `${at.replace(/[^0-9]/g, "")}_${crypto
+    .createHash("sha256")
+    .update(`${teamId}\n${action}\n${at}\n${crypto.randomBytes(8).toString("hex")}`)
+    .digest("hex")
+    .slice(0, 16)}`;
+}
+
+/**
+ * A named operator records what a team agreed to.
+ *
+ * The only code path that makes a team `engaged`, and only once all three
+ * agreements are on record (`robotTeamSupply`). Read, check and write share
+ * one transaction, and the record is written whole so a withdrawn agreement
+ * cannot survive a merge.
+ */
+export async function recordSupplyAgreement(params: {
+  teamId: string;
+  terms: readonly SupplyAgreementTermInput[];
+  recordedBy: string;
+  now?: () => string;
+}): Promise<SupplyAgreementWriteOutcome> {
+  if (!db) return { status: "unavailable" };
+  const store = db;
+  const at = (params.now ?? nowIso)();
+  const ref = store.collection(ROBOT_TEAMS_COLLECTION).doc(params.teamId);
+  const outcome = await store.runTransaction(async (tx) => {
+    const snapshot = await tx.get(ref);
+    if (!snapshot.exists) return { status: "not_found" } as const;
+    const stored = { ...(snapshot.data() as RobotTeamRecord), id: params.teamId };
+    const applied = applySupplyAgreementTerms(stored, params.terms, params.recordedBy, at);
+    if (!applied.ok) return { status: "invalid", errors: applied.errors } as const;
+    tx.set(ref, applied.record);
+    tx.set(ref.collection(SUPPLY_AGREEMENT_EVENTS_COLLECTION).doc(supplyEventId(params.teamId, "recorded", at)), {
+      action: "recorded",
+      teamId: params.teamId,
+      terms: Object.fromEntries(applied.recorded.map((term) => [term, applied.record.supplyAgreement!.terms[term]])),
+      replaced: Object.fromEntries(applied.recorded
+        .filter((term) => stored.supplyAgreement?.terms?.[term])
+        .map((term) => [term, stored.supplyAgreement!.terms[term]])),
+      statusBefore: stored.status,
+      statusAfter: applied.record.status,
+      recordedBy: params.recordedBy,
+      recordedAt: at,
+    });
+    return { status: "ok", record: applied.record, engagedNow: applied.engagedNow } as const;
+  });
+  if (outcome.status === "ok") {
+    logger.info(
+      { robotTeamId: params.teamId, status: outcome.record.status, engagedNow: outcome.engagedNow },
+      "Robot-team supply agreement recorded",
+    );
+  }
+  return outcome;
+}
+
+/** A named operator records that a team withdrew. It stops being supply at once. */
+export async function withdrawTeamSupplyAgreement(params: {
+  teamId: string;
+  withdrawnOn: string;
+  evidenceRef: string;
+  recordedBy: string;
+  now?: () => string;
+}): Promise<SupplyAgreementWriteOutcome> {
+  if (!db) return { status: "unavailable" };
+  const store = db;
+  const at = (params.now ?? nowIso)();
+  const ref = store.collection(ROBOT_TEAMS_COLLECTION).doc(params.teamId);
+  const outcome = await store.runTransaction(async (tx) => {
+    const snapshot = await tx.get(ref);
+    if (!snapshot.exists) return { status: "not_found" } as const;
+    const stored = { ...(snapshot.data() as RobotTeamRecord), id: params.teamId };
+    const withdrawn = withdrawSupplyAgreement(
+      stored,
+      { withdrawnOn: params.withdrawnOn, evidenceRef: params.evidenceRef },
+      params.recordedBy,
+      at,
+    );
+    if (!withdrawn.ok) return { status: "invalid", errors: [{ term: null, problem: withdrawn.problem }] } as const;
+    tx.set(ref, withdrawn.record);
+    tx.set(ref.collection(SUPPLY_AGREEMENT_EVENTS_COLLECTION).doc(supplyEventId(params.teamId, "withdrawn", at)), {
+      action: "withdrawn",
+      teamId: params.teamId,
+      withdrawal: withdrawn.record.supplyAgreement!.history!.at(-1)!.withdrawal,
+      statusBefore: stored.status,
+      statusAfter: withdrawn.record.status,
+      recordedBy: params.recordedBy,
+      recordedAt: at,
+    });
+    return { status: "ok", record: withdrawn.record, wasEngaged: withdrawn.wasEngaged } as const;
+  });
+  if (outcome.status === "ok") {
+    logger.info(
+      { robotTeamId: params.teamId, status: outcome.record.status, wasEngaged: outcome.wasEngaged },
+      "Robot-team supply agreement withdrawn",
+    );
+  }
+  return outcome;
 }
 
 export const __testing = { GRADE_RANK, admin };
