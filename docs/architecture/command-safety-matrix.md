@@ -6,6 +6,13 @@ Purpose: make local checks and side-effect boundaries explicit before engineers 
 
 ## Safe Local Checks
 
+`npm run email:account-notice -- --input notice.json` writes a private local
+branded preview only and does not load Firebase, transport credentials, or a
+sender. Adding `--enqueue` creates live account-notice delivery intent; the
+existing outbox pump may send it without another command. That flag requires
+explicit approval for the exact notice and recipient list. See
+[`account-notice-email.md`](../runbooks/account-notice-email.md).
+
 | Command | Side-effect class | Notes |
 |---|---:|---|
 | `npm run test:result-consumer:browser` | local browser + mocked APIs | Starts only loopback Vite with dev-only fake auth, no production dotenv files or backend. One worker; all result/media/email calls are fixtures. Set `RESULT_CONSUMER_QA_PORT` and `RESULT_CONSUMER_QA_OUTPUT` for isolated lanes. |

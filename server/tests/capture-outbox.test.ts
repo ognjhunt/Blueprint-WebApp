@@ -43,6 +43,7 @@ vi.mock("../logger", () => ({
 vi.mock("../utils/email", () => ({ sendEmail: sendEmailMock }));
 
 const { deliverOutbox, enqueueOutbox, reconcileOutboxDeliveries, startOutboxPump } = await import("../utils/captureOutbox");
+const { enqueueAccountNotice, prepareAccountNotice } = await import("../utils/accountNotice");
 
 function entry(overrides: Record<string, unknown> = {}) {
   return {
@@ -55,6 +56,45 @@ function entry(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+describe("account notices use the existing delivery contract", () => {
+  const notice = { noticeId: "example-policy-v1", to: "ACCOUNT@example.invalid",
+    subject: "Blueprint account update", body: "Hi,\n\nRead the update:\nhttps://tryblueprint.io/terms\n\n— The Blueprint team" };
+
+  it("previews and delivers the same hello identity and branded content once", async () => {
+    const preview = prepareAccountNotice(notice).message;
+    sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted-notice" });
+    expect(await enqueueAccountNotice(notice)).toMatchObject({ enqueued: true, status: "pending" });
+    expect(await enqueueAccountNotice({ ...notice, to: notice.to.toLowerCase() }))
+      .toMatchObject({ enqueued: false, status: "pending" });
+    await deliverOutbox();
+    await deliverOutbox();
+    expect(sendEmailMock).toHaveBeenCalledExactlyOnceWith(preview);
+    expect(preview).toMatchObject({ fromEmail: "hello@tryblueprint.io", fromName: "Blueprint", replyTo: "hello@tryblueprint.io" });
+    expect(preview.html).toContain('src="https://tryblueprint.io/brand/email-mark.png"');
+    expect(preview.text).toContain(notice.body);
+  });
+
+  it("rejects a changed notice ID reuse and unconfirmed storage", async () => {
+    await enqueueAccountNotice(notice);
+    await expect(enqueueAccountNotice({ ...notice, body: "Changed copy" })).rejects.toThrow("account_notice_id_conflict");
+    const stored = sharedFakeFirestoreState.docs.get(`captureOutbox/${prepareAccountNotice(notice).entry.idempotencyKey}`);
+    expect(stored?.body).toBe(notice.body);
+    vi.spyOn(db, "collection").mockReturnValue({ doc: () => ({
+      create: async () => { throw new Error("unavailable"); },
+      get: async () => ({ data: () => undefined }),
+    }) } as any);
+    await expect(enqueueAccountNotice({ ...notice, noticeId: "example-policy-v2" })).rejects.toThrow("account_notice_enqueue_unconfirmed");
+  });
+
+  it("rejects sender/HTML overrides and invalid input before any enqueue", () => {
+    for (const override of [{ fromEmail: "nijel@tryblueprint.io" }, { html: "<p>bare</p>" },
+      { replyTo: "nijel@tryblueprint.io" }, { to: "invalid" }, { noticeId: "bad/id" }, { subject: "Injected\nheader" }])
+      expect(() => prepareAccountNotice({ ...notice, ...override })).toThrow();
+    expect(sharedFakeFirestoreState.docs.has(`captureOutbox/${prepareAccountNotice(notice).entry.idempotencyKey}`)).toBe(false);
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+});
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 

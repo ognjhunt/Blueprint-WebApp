@@ -28,6 +28,8 @@ export const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
 
 /** What the message is about. Drives nothing here; for the record and metrics. */
 export type OutboxKind =
+  /** Reviewed account/service notices, including Terms and policy updates. */
+  | "account_notice"
   /** Retired: the timed check-in. Kept so stored rows still type-check. */
   | "progress_update"
   | "task_received"

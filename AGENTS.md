@@ -94,6 +94,13 @@ Public Launch Ready and Operational Launch Ready are separate standards. Public 
 
 ## Working Rules
 
+- Account/service notices (including Terms updates) use the existing branded
+  hello identity and durable outbox through `npm run email:account-notice`.
+  Follow `docs/runbooks/account-notice-email.md`; preview by default and enqueue
+  only with explicit approval for that notice and recipient list. Do not send
+  account notices through ad hoc Gmail/API calls. Personal founder outreach
+  retains its existing nijel sender and approvals.
+
 - Agents own research strategy, authorized tools, depth and recovery. Use
   evidence-backed judgment rather than rigid outreach templates or arbitrary
   result quotas. Ordinary errors, harmless formatting/metadata/date-precision
