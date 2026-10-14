@@ -94,6 +94,12 @@ export interface BundleServiceDeps {
     client: BundleClient;
   }): Promise<"claimed" | "conflict">;
   startCoverageReview(params: { requestId: string; sceneId: string; captureId: string }): void | Promise<void>;
+  /**
+   * Charge a plan's declared bytes against the durable daily upload caps before
+   * any upload target is issued. Once per plan; null admits, a response refuses.
+   */
+  admitPlannedBytes?(params: { requestId: string; captureId: string; planDigest: string; bytes: number }):
+    Promise<ServiceResponse | null>;
   now(): Date;
 }
 
@@ -122,6 +128,8 @@ export interface TokenPayload {
 export interface ServiceResponse {
   status: number;
   body: Record<string, unknown>;
+  /** Sent as Retry-After when a daily cap refuses. */
+  retryAfterSeconds?: number;
 }
 
 function targetFor(payload: TokenPayload): BundleTarget {
@@ -411,6 +419,9 @@ export async function acceptBundlePlan(
       authoritySnapshot: authority,
       createdAtIso: deps.now().toISOString(),
     });
+    // Before the capture is claimed for this plan, so a refusal changes nothing.
+    const refusedNew = await admitPlanBytes(payload, plan, deps);
+    if (refusedNew) return refusedNew;
     const claim = await deps.claimBundle({
       requestId: payload.requestId,
       target,
@@ -468,6 +479,10 @@ export async function acceptBundlePlan(
       },
     };
   }
+  // Charged once per plan: a replay of an admitted plan is free, and a plan
+  // first stored on a day it was refused is charged when its targets are issued.
+  const refused = await admitPlanBytes(payload, plan, deps);
+  if (refused) return refused;
   const batch = stock.missing.slice(0, TARGETS_PER_RESPONSE);
   const targets = await mintTargets(target, batch, deps);
   return {
@@ -513,7 +528,16 @@ export async function mintMoreTargets(
     if (!file) return { status: 400, body: { error: "That file is not part of this upload.", code: "bundle_target_not_planned" } };
     files.push(file);
   }
+  const refused = await admitPlanBytes(payload, plan, deps);
+  if (refused) return refused;
   return { status: 200, body: { ok: true, plan_digest: plan.plan_digest, targets: await mintTargets(target, files, deps) } };
+}
+
+/** Upload targets are issued only for a plan whose bytes fit today's caps. */
+async function admitPlanBytes(payload: TokenPayload, plan: BundlePlanRecord, deps: BundleServiceDeps) {
+  if (!deps.admitPlannedBytes) return null;
+  return deps.admitPlannedBytes({ requestId: payload.requestId, captureId: payload.captureId, planDigest: plan.plan_digest,
+    bytes: plan.files.reduce((sum, file) => sum + file.bytes, 0) });
 }
 
 /* ------------------------------------------------------------ complete */

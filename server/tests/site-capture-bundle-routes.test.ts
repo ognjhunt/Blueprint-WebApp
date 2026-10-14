@@ -316,6 +316,28 @@ describe("the plan is checked against the Raw V3.2 layout before any bytes move"
     expect(response.body.code).toBe("recording_consent_required");
     expect(state.bucket.names()).toEqual([]);
   });
+
+  it("issues no upload targets past the job's daily upload bytes, and charges an admitted plan once", async () => {
+    const { device, bindingDigest } = await bundleFor();
+    vi.stubEnv("BLUEPRINT_UPLOAD_PER_JOB_DAILY_MB_LIMIT", "0");
+    try {
+      const refused = await api("POST", `${token()}/bundle`, planBody(device, bindingDigest));
+      expect(refused.status).toBe(429);
+      expect(refused.body.code).toBe("upload_job_daily_limit");
+      expect(refused.body.targets).toBeUndefined();
+      // Refused before the capture was claimed or a plan stored.
+      expect(state.bucket.names()).toEqual([]);
+    } finally { vi.unstubAllEnvs(); }
+    const admitted = await api("POST", `${token()}/bundle`, planBody(device, bindingDigest));
+    expect(admitted.status).toBe(200);
+    const charged = () => [...sharedFakeFirestoreState.docs.entries()]
+      .filter(([key]) => key.startsWith("durableDailyCaps/upload_bytes_job__")).map(([, value]) => value.used);
+    const total = device.plan.reduce((sum: number, file: { bytes: number }) => sum + file.bytes, 0);
+    expect(charged()).toEqual([total]);
+    const more = await api("POST", `${token()}/bundle/targets`, { plan_digest: admitted.body.plan_digest, paths: ["walkthrough.mov"] });
+    expect(more.status).toBe(200);
+    expect(charged()).toEqual([total]);
+  });
 });
 
 describe("uploads are create-only and verified before completion", () => {

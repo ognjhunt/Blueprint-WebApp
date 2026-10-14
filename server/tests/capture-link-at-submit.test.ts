@@ -1812,3 +1812,63 @@ it("removes the exact new video generation when consent is withdrawn during its 
     expect([...written.keys()].some(key => key.endsWith("capture_upload_complete.json"))).toBe(false);
   });
 });
+
+describe("durable daily upload caps", () => {
+  const metadata = { widthPx: 1920, heightPx: 1080, fps: 30, durationSeconds: 61, recordedAtEpochMs: 1_758_000_000_000 };
+  async function putPart(baseUrl: string, requestId: string, index: number, body: Buffer) {
+    const token = tokenFrom(captureUploadUrlFor(requestId));
+    const part = new FormData();
+    part.append("part", new Blob([body]), "part.bin");
+    return fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/${index}?extension=mov`, { method: "PUT", body: part });
+  }
+
+  it("refuses a whole-file upload once the job's bytes for the day are spent, before storing anything", async () => {
+    seedRequest("req-upload-cap", { disposition: "qualified" });
+    vi.stubEnv("BLUEPRINT_UPLOAD_PER_JOB_DAILY_MB_LIMIT", "0");
+    try {
+      await withRoutes(async baseUrl => {
+        const token = tokenFrom(captureUploadUrlFor("req-upload-cap"));
+        const form = new FormData();
+        form.append("video", new Blob(["x"], { type: "video/quicktime" }), "walk.mov");
+        form.append("metadata", JSON.stringify(metadata));
+        const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}`, { method: "POST", body: form });
+        expect(response.status).toBe(429);
+        expect(Number(response.headers.get("retry-after"))).toBeGreaterThan(0);
+        expect(await response.json()).toMatchObject({ code: "upload_job_daily_limit" });
+        expect(written.size).toBe(0);
+        expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+      });
+    } finally { vi.unstubAllEnvs(); }
+  });
+
+  it("charges a resent part once and refuses new parts past the job's daily bytes", async () => {
+    seedRequest("req-part-cap", { disposition: "qualified" });
+    vi.stubEnv("BLUEPRINT_UPLOAD_PER_JOB_DAILY_MB_LIMIT", "1");
+    try {
+      await withRoutes(async baseUrl => {
+        const chunk = Buffer.alloc(600 * 1024, 1);
+        expect((await putPart(baseUrl, "req-part-cap", 0, chunk)).status).toBe(200);
+        // A dropped acknowledgement resends the same part: not charged again.
+        expect((await putPart(baseUrl, "req-part-cap", 0, chunk)).status).toBe(200);
+        const refused = await putPart(baseUrl, "req-part-cap", 1, chunk);
+        expect(refused.status).toBe(429);
+        expect(await refused.json()).toMatchObject({ code: "upload_job_daily_limit" });
+        expect([...written.keys()].filter(name => name.includes("/parts/part-"))).toHaveLength(1);
+      });
+    } finally { vi.unstubAllEnvs(); }
+  });
+
+  it("shares one global daily byte cap across jobs", async () => {
+    seedRequest("req-global-a", { disposition: "qualified" });
+    seedRequest("req-global-b", { disposition: "qualified" });
+    vi.stubEnv("BLUEPRINT_UPLOAD_DAILY_MB_LIMIT", "1");
+    try {
+      await withRoutes(async baseUrl => {
+        expect((await putPart(baseUrl, "req-global-a", 0, Buffer.alloc(700 * 1024, 1))).status).toBe(200);
+        const refused = await putPart(baseUrl, "req-global-b", 0, Buffer.alloc(700 * 1024, 1));
+        expect(refused.status).toBe(429);
+        expect(await refused.json()).toMatchObject({ code: "upload_daily_limit" });
+      });
+    } finally { vi.unstubAllEnvs(); }
+  });
+});

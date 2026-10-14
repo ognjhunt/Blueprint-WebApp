@@ -9,6 +9,7 @@ import { parseTaskVideoLinks, TASK_VIDEO_MAX_BYTES, TASK_VIDEO_MAX_FILES, TASK_V
 import { isValidEmailAddress } from "../utils/validation";
 import { logger } from "../logger";
 import contactHandler from "./contact";
+import { admitUploadBytes, uploadRefusal } from "../utils/betaAbuseCaps";
 
 type LocalVideo = { path: string; originalname: string; mimetype: string; size: number };
 export type ContactTaskVideo = { name: string; contentType: string; sizeBytes: number; storageUri: string; reviewUrl: string; reviewUrlExpiresAt: string };
@@ -100,20 +101,41 @@ async function receiveInquiry(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+/**
+ * Anonymous videos count against the same durable daily upload-byte cap as
+ * capture links (no job, so the global cap only), charged by declared length
+ * before multer spools anything.
+ */
+async function contactUploadRefusal(req: Request) {
+  const ceiling = TASK_VIDEO_MAX_FILES * TASK_VIDEO_MAX_BYTES;
+  const declared = Number(req.headers["content-length"]);
+  const decision = await admitUploadBytes({ jobId: null, failClosed: process.env.NODE_ENV === "production",
+    bytes: Number.isSafeInteger(declared) && declared > 0 ? Math.min(declared, ceiling + 1024 * 1024) : ceiling });
+  return decision.allowed ? null : uploadRefusal(decision);
+}
+
 export default function contactTaskMediaHandler(req: Request, res: Response, next: NextFunction) {
   if (!req.is("multipart/form-data")) { void receiveInquiry(req, res, next); return; }
   uploadLimiter(req, res, () => {
     if (activeUploads >= 2) { res.status(429).json({ error: "Video uploads are busy. Please try again shortly or send a video link." }); return; }
     activeUploads++;
-    upload(req, res, async (error) => {
-      try {
-        if (error) {
-          await Promise.allSettled(((Array.isArray((req as Request & { files?: LocalVideo[] }).files) ? (req as Request & { files: LocalVideo[] }).files : [])).map((file) => unlink(file.path)));
-          res.status(400).json({ error: "Upload up to 3 MP4, MOV, or WebM videos, no larger than 50 MB each." });
-          return;
-        }
-        await receiveInquiry(req, res, next);
-      } finally { activeUploads--; }
-    });
+    contactUploadRefusal(req).then((refusal) => {
+      if (refusal) {
+        activeUploads--;
+        res.set("Retry-After", String(refusal.retryAfterSeconds));
+        res.status(refusal.status).json({ ...refusal.body, error: `${refusal.body.error} You can still send a video link.` });
+        return;
+      }
+      upload(req, res, async (error) => {
+        try {
+          if (error) {
+            await Promise.allSettled(((Array.isArray((req as Request & { files?: LocalVideo[] }).files) ? (req as Request & { files: LocalVideo[] }).files : [])).map((file) => unlink(file.path)));
+            res.status(400).json({ error: "Upload up to 3 MP4, MOV, or WebM videos, no larger than 50 MB each." });
+            return;
+          }
+          await receiveInquiry(req, res, next);
+        } finally { activeUploads--; }
+      });
+    }, (error) => { activeUploads--; next(error); });
   });
 }

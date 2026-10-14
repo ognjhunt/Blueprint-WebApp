@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   tempPaths: [] as string[],
 }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
+  dbAdmin: null,
   storageAdmin: { bucket: () => ({ name: "private-test-bucket", upload: state.upload, file: (objectPath: string) => ({ getSignedUrl: async () => [`https://storage.example/review/${encodeURIComponent(objectPath)}?signature=test`], delete: state.remove }) }) },
 }));
 vi.mock("../routes/contact", () => ({ default: state.handler }));
