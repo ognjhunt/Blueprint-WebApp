@@ -333,7 +333,8 @@ export const SPONSORSHIP_RENEWAL_ACK = "renew-expired-blueprint-preparation-spon
  * re-issues it. The policy is rebuilt from the expired grant and must hash to
  * its recorded digest, so caps, attempts and window cannot change here, and
  * every later use revalidates that digest against the configured policy.
- * Reservations stay on the request, so spend already reserved keeps counting. */
+ * Reservations stay on the request, so spend already reserved keeps counting,
+ * and the owner's amendments are re-bound to the renewed grant, never widened. */
 export async function renewExpiredWebsiteSceneSponsorship(requestId: string, input: {
   approved_by: string; approval_reference: string; ack: string; apply: boolean; captureId?: string;
 }) {
@@ -363,9 +364,12 @@ export async function renewExpiredWebsiteSceneSponsorship(requestId: string, inp
     const now = Date.now() / 1000;
     if (previous.expires_at_epoch > now) throw new Error("website_scene_sponsorship_renewal_not_expired");
     if (input.approved_by !== previous.owner?.user_id) throw new Error("website_scene_sponsorship_renewal_unauthorized");
-    // Amendments are bound to the expired grant's digest; renewing would orphan them.
-    if (record.website_preparation_limit_amendment || record.website_preparation_spend_amendment
-      || record.website_preparation_limit_extension) throw new Error("website_scene_sponsorship_renewal_amendment_present");
+    // Amendments are bound to the expired grant's digest. Each must still be the
+    // owner's valid amendment of that grant; below it is re-bound to the renewal.
+    if (record.website_preparation_limit_extension && !record.website_preparation_limit_amendment)
+      throw new Error("website_preparation_amendment_invalid");
+    preparationRequestLimit(record, previous);
+    preparationSpendLimit(record, previous);
     const retained = policySchema.safeParse({ owner: previous.owner,
       upstream_max_spend_usd: previous.upstream_max_spend_usd, native_max_spend_usd: previous.max_total_spend_usd,
       max_total_spend_usd: previous.preparation_max_total_spend_usd, max_paid_attempts: previous.max_paid_attempts,
@@ -393,8 +397,11 @@ export async function renewExpiredWebsiteSceneSponsorship(requestId: string, inp
       return digest({ ...rest, consent: terms });
     };
     if (scope(renewed) !== scope(previous)) throw new Error("website_scene_sponsorship_renewal_scope_changed");
+    const carried = carriedPreparationAmendments(record, renewed.authority_digest, input, now);
     if (input.apply) transaction.update(ref, { website_scene_sponsorship: renewed,
-      website_scene_sponsorship_history: [...(record.website_scene_sponsorship_history ?? []), previous] });
+      website_scene_sponsorship_history: [...(record.website_scene_sponsorship_history ?? []), previous],
+      ...carried.updates, ...(carried.archived.length ? { website_preparation_amendment_history:
+        [...(record.website_preparation_amendment_history ?? []), ...carried.archived] } : {}) });
     return renewed;
   }));
 }
@@ -533,6 +540,41 @@ function preparationSpendLimit(record: Record<string, any>, authority: Record<st
     || value.upstream_max_spend_usd > authority.upstream_max_spend_usd * 3)
     throw new Error("website_preparation_spend_amendment_invalid");
   return value.upstream_max_spend_usd;
+}
+
+/** The renewal's owner approval re-issues each amendment, unchanged in value, bound
+ * to the renewed grant; the originals move to history. Reservations already
+ * count against the same caps, so carrying an amendment never adds allowance. */
+function carriedPreparationAmendments(record: Record<string, any>, authorityDigest: string,
+  approval: { approved_by: string; approval_reference: string }, now: number) {
+  const reference = (original: Record<string, any>, from: string) => (`Carried forward on owner-approved renewal `
+    + `(${approval.approval_reference.trim()}) from ${from}: ${original.approval_reference}`).slice(0, 1000).trim();
+  const updates: Record<string, any> = {}, archived: Record<string, any>[] = [];
+  const limit = record.website_preparation_limit_amendment;
+  if (limit) {
+    const value = { ...preparationLimitAmendment.parse({ authority_digest: authorityDigest, max_requests: limit.max_requests,
+      approved_by: approval.approved_by, approval_reference: reference(limit, limit.amendment_digest) }), approved_at_epoch: now };
+    updates.website_preparation_limit_amendment = { ...value, amendment_digest: digest(value) };
+    archived.push(limit);
+    const extension = record.website_preparation_limit_extension;
+    if (extension) {
+      const extended = { ...preparationLimitAmendment.parse({ authority_digest: authorityDigest,
+        max_requests: extension.max_requests, approved_by: approval.approved_by,
+        approval_reference: reference(extension, extension.extension_digest) }), approved_at_epoch: now,
+        prior_amendment_digest: updates.website_preparation_limit_amendment.amendment_digest };
+      updates.website_preparation_limit_extension = { ...extended, extension_digest: digest(extended) };
+      archived.push(extension);
+    }
+  }
+  const spend = record.website_preparation_spend_amendment;
+  if (spend) {
+    const value = { ...preparationSpendAmendment.parse({ authority_digest: authorityDigest,
+      upstream_max_spend_usd: spend.upstream_max_spend_usd, approved_by: approval.approved_by,
+      approval_reference: reference(spend, spend.amendment_digest) }), approved_at_epoch: now };
+    updates.website_preparation_spend_amendment = { ...value, amendment_digest: digest(value) };
+    archived.push(spend);
+  }
+  return { updates, archived };
 }
 
 /** Operator-only, one-shot: raises only the upstream preparation cap. The native
