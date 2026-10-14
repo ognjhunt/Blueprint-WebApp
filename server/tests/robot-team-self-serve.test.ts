@@ -473,7 +473,9 @@ describe("registration to plan, without an operator", () => {
     // execution suite enables paid internals in its isolated fixtures.
     expect(next.join(" ")).toContain("POST /api/agent-team/checkpoints");
     expect(next.join(" ")).toContain("verified Blueprint account");
-    expect(next.join(" ")).toContain("/settings?tab=agent");
+    // The settings tab that manages a team's checkpoints; "agent" no longer exists.
+    expect(next.join(" ")).toContain("/settings?tab=robots");
+    expect(next.join(" ")).not.toContain("tab=agent");
     expect(next.join(" ")).toContain("/app");
     expect(next.join(" ")).toContain("/contact/robot-team");
     expect(next.join(" ")).toContain("free invited evaluations");

@@ -281,12 +281,12 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
     next: parsed.data.checkpoint
       ? [
           "GET /api/agent-team/checkpoints to review your registered policy capabilities; registration does not start an evaluation.",
-          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team), then manage access at /settings?tab=agent.",
+          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team), then manage its checkpoints at /settings?tab=robots.",
           "Open your workspace at /app or contact Blueprint at /contact/robot-team about free invited evaluations.",
         ]
       : [
           "POST /api/agent-team/checkpoints to register your policy capability; registration does not start an evaluation.",
-          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team), then manage access at /settings?tab=agent.",
+          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team), then manage its checkpoints at /settings?tab=robots.",
           "Open your workspace at /app or contact Blueprint at /contact/robot-team about free invited evaluations.",
         ],
   });
@@ -601,7 +601,7 @@ router.post("/checkpoints", async (req: Request, res: Response) => {
   return res.status(201).json({
     ok: true,
     checkpoint: result.checkpoint,
-    next: "Registration does not start an evaluation. Connect the team to a verified Blueprint account and manage access at /settings?tab=agent. Open your workspace at /app or contact Blueprint at /contact/robot-team about free invited evaluations.",
+    next: "Registration does not start an evaluation. Connect the team to a verified Blueprint account and manage its checkpoints at /settings?tab=robots. Open your workspace at /app or contact Blueprint at /contact/robot-team about free invited evaluations.",
   });
 });
 

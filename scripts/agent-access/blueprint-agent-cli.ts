@@ -541,16 +541,16 @@ function buildHelpPayload(topic: unknown) {
       // The team surface: acting for one team rather than reading the public
       // catalogue. `help` is where an agent finds out this path exists, so
       // leaving it out made the whole thing undiscoverable.
-      { command: "team register --team-name <name>", description: "Create a team and get an agent key. No credential, no qualifying questions. The key is returned once." },
-      { command: "team me", description: "Balance, policy, today's remaining allowance, checkpoints, and whether spend is possible right now." },
+      { command: "team register --team-name <name>", description: "Create a team record and get an agent key. The key is returned once. Registering grants no evaluations: during the free beta Blueprint invites teams to a job after review." },
+      { command: "team me", description: "This team's record, its checkpoints, and why spending is off during the free beta." },
       { command: "team checkpoint register", description: "Register something we can run: a policy endpoint, container image, or model artifact." },
       { command: "team checkpoint", description: "List this team's checkpoints." },
-      { command: "team plan --checkpoint-id <id>", description: "What to evaluate against, ranked by information gain per dollar, with a reason per row. Spends nothing." },
-      { command: "team fund --amount <usd>", description: "Start a balance top-up and get a Stripe link. Face value; the balance lands when the payment does." },
-      { command: "team policy set --daily-limit <usd> --per-run-limit <usd> --enable", description: "The team's own limits on its agent. Off until set." },
-      { command: "team runs --checkpoint-id <id>", description: "Start runs. Without --confirm this returns the plan and spends nothing." },
-      { command: "team runs list", description: "Open holds, what each was quoted, and when it is released if nothing reports." },
-      { command: "team results", description: "Every run this team bought and what each showed, with the observation and the claim kept apart." },
+      { command: "team plan --checkpoint-id <id>", description: "Retired for the free beta: returns paid_evaluations_disabled. Invited evaluations are set up by Blueprint for the job." },
+      { command: "team fund --amount <usd>", description: "Retired for the free beta: returns paid_evaluations_disabled. No payment is taken." },
+      { command: "team policy set --daily-limit <usd> --per-run-limit <usd> --enable", description: "The team's own spending limits on its agent. Kept for historical records; nothing is spent during the free beta." },
+      { command: "team runs --checkpoint-id <id>", description: "Retired for the free beta: returns paid_evaluations_disabled. Blueprint starts invited evaluations." },
+      { command: "team runs list", description: "This team's runs, including historical ones from before the free beta." },
+      { command: "team results", description: "Every evaluation result this team can see, with the observation and the claim kept apart." },
       { command: "team results <run-id>", description: "One run's result." },
       { command: "team runs release --reservation-id <id>", description: "Give back a hold for a run that will not start." },
     ],
@@ -563,19 +563,17 @@ function buildHelpPayload(topic: unknown) {
       "npm run agent:cli -- help --format json",
       "npm run agent:cli -- doctor --format json",
       "npm run agent:cli -- setup-auth --require-auth --format ndjson",
-      "npm run agent:cli -- plan --q \"Whole Foods near Durham\" --want hosted-review",
+      "npm run agent:cli -- plan --q \"grocery store in Durham\" --want hosted-review",
       "npm run agent:cli -- discover --format ndjson",
-      "npm run agent:cli -- site-world search --q \"Whole Foods near Durham\" --limit 5",
-      "npm run agent:cli -- ask --q \"How do I request a Task Evaluation Run with a budget?\"",
-      "npm run agent:cli -- request location --location \"Whole Foods near Durham\" --site-class grocery --workflow \"shelf restocking\"",
+      "npm run agent:cli -- site-world search --q \"grocery store in Durham\" --limit 5",
+      "npm run agent:cli -- ask --q \"How does a robot team join the free beta?\"",
+      "npm run agent:cli -- request location --location \"grocery store in Durham\" --site-class grocery --workflow \"shelf restocking\"",
       "npm run agent:cli -- commerce live-order <live-order-id>",
-      // The whole robot-team path, with no person in it. Steps 2 onward read
-      // the key from BLUEPRINT_AGENT_AUTH_TOKEN.
+      // The robot-team path in the free beta: register and describe what can
+      // run; Blueprint invites the team to a job and starts the evaluation.
+      // Steps 2 onward read the key from BLUEPRINT_AGENT_AUTH_TOKEN.
       "npm run agent:cli -- team register --team-name \"Alpha Robotics\" --label v3 --runtime policy_endpoint --reference https://policies.example/v3",
-      "npm run agent:cli -- team plan --checkpoint-id <checkpoint-id> --budget 100",
-      "npm run agent:cli -- team fund --amount 100",
-      "npm run agent:cli -- team policy set --daily-limit 100 --per-run-limit 25 --enable",
-      "npm run agent:cli -- team runs --checkpoint-id <checkpoint-id> --budget 100 --confirm --idempotency-key $(date +%F)-run",
+      "npm run agent:cli -- team checkpoint",
       "npm run agent:cli -- team runs list",
       "npm run agent:cli -- team results",
     ],

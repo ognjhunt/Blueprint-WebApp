@@ -135,7 +135,8 @@ describe("free beta refuses paid entrypoints for every account", () => {
     expect(instructions).toContain(withCheckpoint ? "GET /api/agent-team/checkpoints" : "POST /api/agent-team/checkpoints");
     expect(instructions).toContain("registration does not start an evaluation");
     expect(instructions).toContain("verified Blueprint account");
-    expect(instructions).toContain("/settings?tab=agent");
+    expect(instructions).toContain("/settings?tab=robots");
+    expect(instructions).not.toContain("tab=agent");
     expect(instructions).toContain("/app");
     expect(instructions).toContain("/contact/robot-team");
     expect(`${reply.grants.note} ${instructions}`).not.toMatch(/\/api\/agent-team\/(?:plan|runs|funding|policy)\b|can plan|can dry-run|Stripe|fund a balance|switch the agent on/i);

@@ -14,7 +14,7 @@ vi.mock("@/lib/workspace", async (original) => ({
     data: { role: "robot_team", tasks: [{
       id: "owned-task", title: "Open drawer", siteName: "Office", location: "Austin",
       status: "In review", archived: false, captureMode: "self_capture",
-      results: [], pilot: { state: "none" }, terms: {},
+      results: [], pilot: { state: "none" }, terms: {}, potentialMatches: 3,
     }] },
   }),
 }));
@@ -62,5 +62,16 @@ describe("owned task page links", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("link was missing");
     expect(navigate).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Open your task page" })).toBeEnabled();
+  });
+});
+
+describe("job overview", () => {
+  it("does not show a pre-evaluation count of registry teams", () => {
+    // The site sees one recommendation after an evaluation passes; a count of
+    // registry teams before any evaluation is a supply claim, not a result.
+    window.history.replaceState({}, "", "/app/tasks/owned-task?tab=overview");
+    render(<TaskDetail />);
+    expect(document.body.textContent).not.toMatch(/potential match/i);
+    expect(document.body.textContent).not.toMatch(/\b3 potential\b/);
   });
 });

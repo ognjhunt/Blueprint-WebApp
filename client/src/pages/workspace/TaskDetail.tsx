@@ -193,12 +193,6 @@ export default function TaskDetail() {
                   ["Physical pilot interest", optionLabel(pilotConsiderationOptions, task.pilotIntent?.pilotConsideration)],
                   ["After a successful pilot", optionLabel(deploymentPathOptions, task.pilotIntent?.deploymentPath)],
                 ]} />
-                {task.potentialMatches !== null && (
-                  <p className="ws-note">
-                    {task.potentialMatches} potential matches from the latest
-                    compatibility review. Evaluation is still required.
-                  </p>
-                )}
                 <p className="ws-note">
                   {task.nextStep ||
                     "Blueprint will review the job and confirm the next step."}
