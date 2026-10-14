@@ -6,6 +6,10 @@ import { createSiteAssessmentAgent, type SiteAssessment } from '../agents/site-a
 import { SiteAssessmentBudget } from '../agents/adapters/site-assessment-budget';
 import { analyseAgenticVideo } from '../agents/adapters/gemini-video';
 import { createCompanyHistoryTools } from '../research-learning/company-history';
+import { fakeFfmpeg } from './helpers/fake-ffmpeg';
+// Test video bytes are not real video: strip sound with the in-process fake.
+vi.mock("../agents/adapters/video-audio-strip", async (importOriginal) =>
+  (await import("./helpers/fake-ffmpeg")).withFakeFfmpeg(await importOriginal()));
 vi.mock('../agents/adapters/gemini-video', () => ({
   analyseAgenticVideo: vi.fn(), openVideo: vi.fn(), GeminiVideoError: class extends Error {},
 }));
@@ -61,6 +65,22 @@ describe('assessment continuation policy (scripted SDK, no provider dispatch)', 
     expect(history.mock.calls[3][1]).toEqual(history.mock.calls[2][1]);
     expect(packet.tool_receipts.map(row => (row.result as any).ok)).toEqual([true, true, true]);
     expect(packet.sources.some(row => row.kind === 'operator')).toBe(false);
+  });
+  it('withholds the video for the whole run, before Gemini admission, when its sound cannot be removed', async () => {
+    fakeFfmpeg.reset(); fakeFfmpeg.available = false;
+    try {
+      const authorize = vi.fn(async (_provider: string) => {});
+      const instance = await createSiteAssessmentAgent(input, { history_access: null, model: model(2),
+        video_bytes: { body: bytes, byteLength: bytes.length, contentType: 'video/mp4' }, authorize_model_call: authorize });
+      const packet = await instance.run();
+      expect(analyseAgenticVideo).not.toHaveBeenCalled();
+      expect(authorize.mock.calls.filter(([provider]) => provider === 'gemini')).toHaveLength(0);
+      expect(packet.tool_receipts.map(row => row.result)).toEqual([
+        expect.objectContaining({ ok: false, error: 'audio_strip_unavailable' }),
+        expect.objectContaining({ ok: false, error: 'audio_strip_unavailable' })]);
+      expect(instance.audio_strip_failure()).toBe('audio_strip_unavailable');
+      expect(packet.sources.some(source => source.kind === 'video')).toBe(false);
+    } finally { fakeFfmpeg.reset(); }
   });
   it('continues past twelve SDK turns while new evidence remains available', async () => {
     let n = 0; const analyze = vi.fn(async () => ({ evidence: observation(++n), receipt: { mode: 'offline' } }));

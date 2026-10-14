@@ -4,6 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import { OpenAIProvider, Usage, type Model, type ModelResponse } from "@openai/agents";
 import { createSiteAssessmentAgent, type SiteAssessment } from "../agents/site-assessment";
+// Test video bytes are not real video: strip sound with the in-process fake.
+vi.mock("../agents/adapters/video-audio-strip", async (importOriginal) =>
+  (await import("./helpers/fake-ffmpeg")).withFakeFfmpeg(await importOriginal()));
 
 const bytes = Buffer.from("owned-synthetic-video-source");
 const sourceSha = createHash("sha256").update(bytes).digest("hex");
@@ -33,9 +36,9 @@ function fixture(options: { probes?: number; beforeUpload?: "withdrawn" | "stale
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
+        // Streamed from the video-only copy (byte-identical under the fake ffmpeg), never the source Buffer.
         expect(value.byteLength).toBeLessThanOrEqual(64 * 1024);
-        expect(value.buffer).toBe(bytes.buffer);
-        expect(value.byteOffset).toBe(bytes.byteOffset + uploadedBytes);
+        expect(value.buffer).not.toBe(bytes.buffer);
         uploadedHash.update(value);
         uploadedBytes += value.byteLength;
       }

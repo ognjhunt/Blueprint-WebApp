@@ -5,6 +5,9 @@ import { digest } from "../research-learning/contract";
 
 // Provider-only fixtures keep their existing fetch fake at the new download
 // seam. Public DNS/TLS/redirect controls have separate transport coverage.
+// Test video bytes are not real video: strip sound with the in-process fake.
+vi.mock("../agents/adapters/video-audio-strip", async (importOriginal) =>
+  (await import("./helpers/fake-ffmpeg")).withFakeFfmpeg(await importOriginal()));
 vi.mock("../agents/adapters/public-video-fetch", () => ({
   fetchPublicVideo: (url: string, { signal }: { signal?: AbortSignal | null }) => globalThis.fetch(url, { signal }),
 }));

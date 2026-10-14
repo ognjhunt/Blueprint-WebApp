@@ -2,8 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import { analyseAgenticVideo, openVideo, runGeminiVideoTask } from "../agents/adapters/gemini-video";
 import { captureVideoPrivacyTask } from "../agents/tasks/capture-video-privacy";
+import { fakeFfmpeg } from "./helpers/fake-ffmpeg";
 
 const publicVideoFetch = vi.hoisted(() => vi.fn());
+// Test video bytes are not real video: strip sound with the in-process fake.
+vi.mock("../agents/adapters/video-audio-strip", async (importOriginal) =>
+  (await import("./helpers/fake-ffmpeg")).withFakeFfmpeg(await importOriginal()));
 vi.mock("../agents/adapters/public-video-fetch", () => ({ fetchPublicVideo: publicVideoFetch }));
 
 const bytes = Buffer.from("fixture-video");
@@ -73,10 +77,39 @@ describe("current source recheck before video generation", () => {
 });
 
 describe("agentic video provider contract", () => {
-  it("uploads through the Files API, waits for it, reads it by reference and deletes it", async () => {
-    const fetcher = gemini(() => reply([...trace,
+  it("uploads only a video-only copy through the Files API, waits for it, reads it by reference and deletes it", async () => {
+    fakeFfmpeg.reset();
+    const underlying = gemini(() => reply([...trace,
       { thought: true, text: "private reasoning" }, { text: '{"objects":[]}' }]), 2);
+    // Read the upload while the request is in flight: the copy is deleted when the call ends.
+    const uploaded = { bytes: 0, sha256: "", chunkLimitHeld: true, ffmpegCallsBeforeFirstRequest: -1 };
+    const fetcher = vi.fn(async (url: string, init: RequestInit = {}) => {
+      if (uploaded.ffmpegCallsBeforeFirstRequest < 0) uploaded.ffmpegCallsBeforeFirstRequest = fakeFfmpeg.calls.length;
+      if (url === UPLOAD_URL) {
+        // Construct the request without sending it: stream extraction retains
+        // the same body, whereas fetch copies a Buffer body before any I/O.
+        const uploadRequest = new Request(UPLOAD_URL, init);
+        expect(init.body).toBeInstanceOf(ReadableStream);
+        expect(uploadRequest.body).toBe(init.body);
+        const reader = uploadRequest.body!.getReader();
+        const hash = createHash("sha256");
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          uploaded.chunkLimitHeld &&= value.byteLength <= 64 * 1024;
+          // Streamed from the video-only file, never from the source Buffer.
+          expect(value.buffer).not.toBe(bytes.buffer);
+          hash.update(value);
+          uploaded.bytes += value.byteLength;
+        }
+        uploaded.sha256 = hash.digest("hex");
+      }
+      return underlying(url, init);
+    });
     const result = await analyseAgenticVideo(input, fetcher, noSleep);
+    // Sound was removed (remux without audio, then read back) before any request.
+    expect(uploaded.ffmpegCallsBeforeFirstRequest).toBe(2);
+    expect(fakeFfmpeg.calls[0]).toEqual(expect.arrayContaining(["-map", "0:v", "-c", "copy", "-an"]));
 
     const [start] = callsTo(fetcher, (url) => url.endsWith("/upload/v1beta/files"));
     expect(start[1]).toMatchObject({ method: "POST", headers: expect.objectContaining({
@@ -85,26 +118,10 @@ describe("agentic video provider contract", () => {
       "X-Goog-Upload-Header-Content-Type": "video/mp4" }) });
     const [upload] = callsTo(fetcher, (url) => url === UPLOAD_URL);
     expect(upload[1]).toMatchObject({ headers: expect.objectContaining({ "X-Goog-Upload-Command": "upload, finalize" }) });
-    const uploadBody = (upload[1] as RequestInit).body;
-    expect(uploadBody).toBeInstanceOf(ReadableStream);
-    // Construct the request without sending it: stream extraction retains the
-    // same body, whereas fetch copies a Buffer body before any network I/O.
-    const uploadRequest = new Request(UPLOAD_URL, upload[1] as RequestInit);
-    expect(uploadRequest.body).toBe(uploadBody);
-    const reader = uploadRequest.body!.getReader();
-    const uploadedHash = createHash("sha256");
-    let uploadedBytes = 0;
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      expect(value.byteLength).toBeLessThanOrEqual(64 * 1024);
-      expect(value.buffer).toBe(bytes.buffer);
-      expect(value.byteOffset).toBe(bytes.byteOffset + uploadedBytes);
-      uploadedHash.update(value);
-      uploadedBytes += value.byteLength;
-    }
-    expect(uploadedBytes).toBe(bytes.byteLength);
-    expect(uploadedHash.digest("hex")).toBe(createHash("sha256").update(bytes).digest("hex"));
+    expect(uploaded.chunkLimitHeld).toBe(true);
+    // The fake ffmpeg copies bytes unchanged, so the copy hashes like the source.
+    expect(uploaded.bytes).toBe(bytes.byteLength);
+    expect(uploaded.sha256).toBe(createHash("sha256").update(bytes).digest("hex"));
     expect(upload[1]).toMatchObject({ duplex: "half",
       headers: expect.objectContaining({ "Content-Length": String(bytes.byteLength) }) });
     expect(callsTo(fetcher, (url, init) => url.endsWith("/files/abc") && (init.method ?? "GET") === "GET")).toHaveLength(2);
@@ -122,7 +139,8 @@ describe("agentic video provider contract", () => {
 
     expect(result.text).toBe('{"objects":[]}');
     expect(result.processing).toEqual({ mode: "agentic", media_tool_calls: 1,
-      media_tool_responses: 1, model_version: "gemini-3.8-flash-test" });
+      media_tool_responses: 1, model_version: "gemini-3.8-flash-test", audio: "removed" });
+    expect(result.provider_video).toEqual({ bytes: bytes.byteLength, sha256: uploaded.sha256, content_type: "video/mp4" });
     expect(result.usage?.totalTokenCount).toBe(17);
   });
 
@@ -399,5 +417,83 @@ describe("opening the clip", () => {
       .rejects.toMatchObject({ code: "video_not_directly_readable" });
     await expect(openVideo("https://example.com/download", served(clip, { "content-type": "application/octet-stream" })))
       .rejects.toMatchObject({ code: "video_not_directly_readable" });
+  });
+});
+
+describe("sound never reaches the provider", () => {
+  it.each([
+    ["no ffmpeg binary", () => { fakeFfmpeg.available = false; }, "audio_strip_unavailable"],
+    ["a failed remux", () => { fakeFfmpeg.remuxExitCode = 1; }, "audio_strip_failed"],
+    ["a copy that still lists audio", () => { fakeFfmpeg.listedKinds = ["Video", "Audio"]; }, "audio_strip_unverified"],
+    ["a copy with no video stream", () => { fakeFfmpeg.listedKinds = []; }, "audio_strip_unverified"],
+  ] as const)("sends nothing after %s", async (_label, arrange, code) => {
+    fakeFfmpeg.reset();
+    arrange();
+    try {
+      const fetcher = gemini(() => reply([...trace, { text: "{}" }]));
+      await expect(analyseAgenticVideo(input, fetcher, noSleep)).rejects.toMatchObject({ code });
+      expect(fetcher).not.toHaveBeenCalled();
+    } finally { fakeFfmpeg.reset(); }
+  });
+
+  it("fails the task with a typed reason before any provider request or budget reservation", async () => {
+    fakeFfmpeg.reset();
+    fakeFfmpeg.available = false;
+    const google = gemini(() => reply([{ text: '{"decision":"clear","evidence_seconds":[]}' }]));
+    const fetcher = vi.fn(async (url: string, init: RequestInit = {}) =>
+      url === "https://example.com/clip.mp4"
+        ? new Response(bytes, { status: 200, headers: { "content-type": "video/mp4",
+          "content-length": String(bytes.byteLength) } })
+        : google(url, init));
+    vi.stubGlobal("fetch", fetcher);
+    publicVideoFetch.mockImplementation((url, options) => fetcher(url, { signal: options.signal }));
+    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    try {
+      const result = await runGeminiVideoTask({
+        kind: "capture_video_privacy", model: "gemini-3.8-flash",
+        input: { taskVideoUrl: "https://example.com/clip.mp4" },
+        definition: captureVideoPrivacyTask, tool_policy: { mode: "api" },
+      } as never);
+      expect(result).toMatchObject({ status: "failed", requires_human_review: true });
+      expect(result.error).toMatch(/^audio_strip_unavailable: /);
+      expect(google).not.toHaveBeenCalled();
+      // Without a binary the source is not even read past its headers.
+      expect(result.artifacts).toMatchObject({ video_read_complete: false, video_partial_bytes: 0 });
+      expect(result.artifacts).not.toHaveProperty("provider_video");
+    } finally {
+      fakeFfmpeg.reset();
+      publicVideoFetch.mockReset();
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("records the video-only copy that a completed task sent", async () => {
+    fakeFfmpeg.reset();
+    const google = gemini(() => reply([{ text: '{"decision":"clear","evidence_seconds":[]}' }]));
+    const fetcher = vi.fn(async (url: string, init: RequestInit = {}) =>
+      url === "https://example.com/clip.mp4"
+        ? new Response(bytes, { status: 200, headers: { "content-type": "video/mp4",
+          "content-length": String(bytes.byteLength) } })
+        : google(url, init));
+    vi.stubGlobal("fetch", fetcher);
+    publicVideoFetch.mockImplementation((url, options) => fetcher(url, { signal: options.signal }));
+    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    try {
+      const result = await runGeminiVideoTask({
+        kind: "capture_video_privacy", model: "gemini-3.8-flash",
+        input: { taskVideoUrl: "https://example.com/clip.mp4" },
+        definition: captureVideoPrivacyTask, tool_policy: { mode: "api" },
+      } as never);
+      expect(result.status).toBe("completed");
+      expect(result.artifacts).toMatchObject({
+        provider_video: { audio: "removed", bytes: bytes.byteLength, content_type: "video/mp4" },
+        video_processing: { audio: "removed" },
+      });
+    } finally {
+      publicVideoFetch.mockReset();
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
   });
 });

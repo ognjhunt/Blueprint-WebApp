@@ -15,6 +15,7 @@ import {
 import { loadCaptureFrames } from "../utils/worldlabsFrames";
 import type { InboundRequest } from "../types/inbound-request";
 import { hasAnyRole } from "../utils/access-control";
+import { audioStripFailureCode } from "../agents/adapters/video-audio-strip";
 
 const router = Router();
 
@@ -315,7 +316,8 @@ router.post("/:siteWorldId/worldlabs-preview/generate", async (req: Request, res
     });
   } catch (error) {
     logger.error({ error }, "World Labs generation request failed");
-    const message = error instanceof Error ? error.message : "worldlabs_generation_failed";
+    // A video withheld because its sound could not be removed reports the typed reason.
+    const message = audioStripFailureCode(error) ?? (error instanceof Error ? error.message : "worldlabs_generation_failed");
     const status = message === "forbidden" ? 403 : message === "not_found" ? 404 : 400;
     return res.status(status).json({ error: message });
   }
