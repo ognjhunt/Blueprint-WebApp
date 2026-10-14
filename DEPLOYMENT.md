@@ -97,6 +97,50 @@ Render should hold all application secrets in the service environment, not in
 any is missing or invalid, the deploy job fails closed instead of deploying a
 partial control stack or allowing a red or unverified push to deploy.
 
+## Client IP behind proxies
+
+Every per-IP rate limit (the global, AI, auth, upload and hosted-session
+limiters in `server/index.ts`, the route-level limiters, and the inbound
+request's IP hash) and the `ip` field of every request log line use the
+address resolved by `server/utils/clientIp.ts`. `pinClientIp` makes `req.ip`
+that same address for the rest of the request, so a limiter on the default
+key and one using `clientIpRateLimitKey` agree.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `BLUEPRINT_TRUST_PROXY_HOPS` | `1` in production, `0` elsewhere | Proxies trusted from the right of `X-Forwarded-For`. An integer 0–5; anything else logs `trust_proxy_hops_invalid` and keeps the default. |
+| `BLUEPRINT_TRUST_CF_CONNECTING_IP` | off | `1` reads the visitor from `CF-Connecting-IP` (when at least one hop is trusted and the value is a single address). |
+
+Why the default is one hop: the evidence in this repo shows Render's proxy as
+the only proxy we operate. `tryblueprint.io` DNS is served by Namecheap
+(`docs/runbooks/resend-email.md`, setup evidence 2026-09-23), not by a
+Cloudflare zone; `render.yaml` and this file configure no CDN or proxy; and
+nothing in the server read a Cloudflare header before this change. Cloudflare
+appears only for the Paperclip tunnel and the `cdnjs` script host. That is
+repo evidence, not a production observation, and Render's own edge is not
+visible from here, so confirm it once after deploy:
+
+1. From a machine whose public address you know (check it at any "what is my
+   IP" page), load any page on `https://tryblueprint.io` once.
+2. In the Render web service logs, find the first `client_ip_resolution_sample`
+   line after the deploy (one per process, from the first request carrying
+   `X-Forwarded-For`), or your own request's `ip` field.
+3. Read it:
+   - `resolvedIp` equals your address: the setting is right. Nothing to do.
+   - `resolvedIp` is a proxy address, `forwardedForEntries` is 2 or more, and
+     `resolvedIsLeftmostForwardedFor` is false: there is one more proxy than
+     trusted. Set `BLUEPRINT_TRUST_PROXY_HOPS` to the hop count that reaches
+     your address (usually 2) and redeploy.
+   - `cfRayPresent` is true and `cfConnectingIpPresent` is true with
+     `cfConnectingIpMatchesResolved` false: Cloudflare is in the path. Either
+     raise the hop count as above, or set `BLUEPRINT_TRUST_CF_CONNECTING_IP=1`
+     — but only if every request reaches the app through Cloudflare, because a
+     visitor can set that header to anything when Cloudflare is not in front.
+4. Repeat steps 1–3 after any change to confirm `resolvedIp` is now yours.
+
+Never set `trust proxy` to `true`: `X-Forwarded-For` is client-supplied, and
+trusting all of it lets a visitor choose the address their quota is keyed on.
+
 ## Required Environment Variables
 
 ### Firebase (client)

@@ -57,6 +57,7 @@ import {
   isCaptureMode,
 } from "../../client/src/data/siteTaskQualification";
 import { upsertRobotTeamFromIntake } from "../utils/robotTeamRegistry";
+import { clientIp as resolveClientIp } from "../utils/clientIp";
 import { robotGateFieldsWithLegacyCoverage as robotGateFields } from "../../client/src/data/robotTeamQualification";
 
 /**
@@ -1005,7 +1006,7 @@ export function requestConfirmationText(params: { firstName: string; buyerType: 
  */
 export async function submitInboundRequest(req: Request, res: Response) {
   const startTime = Date.now();
-  const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+  const clientIp = resolveClientIp(req);
   const ipHash = hashIp(clientIp);
 
   try {
