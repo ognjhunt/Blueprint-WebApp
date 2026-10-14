@@ -101,13 +101,51 @@ notices keep retrying via Slack.
 
 Admin/ops authority comes from Firebase custom claims first, then
 `BLUEPRINT_ADMIN_EMAIL_ALLOWLIST` / `BLUEPRINT_OPS_EMAIL_ALLOWLIST` (verified
-email only). Legacy users-doc roles still work (no lockout) but log
-`admin_role_from_user_doc`. Run the read-only audit, fix any `DOC-ONLY` rows,
-then set `BLUEPRINT_ADMIN_ROLE_DOC_FALLBACK=0`:
+email only). Legacy users-doc roles still work while
+`BLUEPRINT_ADMIN_ROLE_DOC_FALLBACK` is unset (the default is on, so nobody is
+locked out), but that fallback is only as safe as the deployed Firestore
+rules: if a ruleset that lets a client write `admin`, `ops`, `role`, `roles`
+or `accessRoles` on its own `users/{uid}` document were ever deployed (both
+repos deploy to the same project, last writer wins), the fallback would turn
+that write into admin access. The goal is to turn it off.
 
-```bash
-npx tsx scripts/ops/audit-admin-roles.ts          # needs Firebase Admin credentials
-```
+What shows whether anyone still depends on it:
+
+- **Log**: `admin_role_from_user_doc` (also `metric:
+  admin_role_doc_fallback_grant`), at most once an hour per uid. Each line
+  names the `uid`, the `roles` held only through the users doc, and the
+  `claimRoles` / `allowlistRoles` that would remain with the fallback off.
+- **Counter**: `debug.adminRoleDocFallback` on `GET /health/status` (send the
+  `x-health-status-token` header in production): `docOnlyGrantsSinceBoot`,
+  `docOnlyPrincipalsSinceBoot`, `lastDocOnlyGrantAt`. Counts only; it resets
+  on deploy or restart.
+
+Decision steps before setting it to 0:
+
+1. Run the read-only audit and fix every `DOC-ONLY` row by granting a custom
+   claim (or adding the verified email to the allowlist) for each legitimate
+   operator; remove the role fields from docs that should not have them.
+
+   ```bash
+   npx tsx scripts/ops/audit-admin-roles.ts          # needs Firebase Admin credentials; exit 2 = DOC-ONLY rows remain
+   ```
+
+2. Confirm the rules both repos would deploy are identical and that the
+   deployed rules match them, so no older ruleset is quietly allowing
+   client-written role fields:
+
+   ```bash
+   npm run rules:parity                               # WebApp vs BlueprintCapture checkout
+   bash scripts/ops/verify-firebase-rules-parity.sh --project blueprint-8c1ca   # deployed vs repo, read-only
+   ```
+
+3. Check the Render logs for `admin_role_from_user_doc` over at least a week
+   of normal operator use (and `debug.adminRoleDocFallback` on
+   `/health/status`). Any line after step 1 names someone the audit missed;
+   fix them as in step 1.
+4. Set `BLUEPRINT_ADMIN_ROLE_DOC_FALLBACK=0` on the Render web service,
+   redeploy, and confirm each operator can still open `/admin`. `fallbackEnabled` on `/health/status`
+   reads `false` afterwards. To roll back, unset the variable.
 
 ## Data-protection checks (read-only; run by a human, never from CI)
 

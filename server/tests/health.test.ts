@@ -70,6 +70,13 @@ describe("health routes", () => {
       expect(
         (((payload.debug as Record<string, unknown>).liveSessionStore as Record<string, unknown>).backend),
       ).toBe("redis");
+      // Counts only, never the uids behind them.
+      expect((payload.debug as Record<string, unknown>).adminRoleDocFallback).toEqual({
+        fallbackEnabled: true,
+        docOnlyGrantsSinceBoot: 0,
+        docOnlyPrincipalsSinceBoot: 0,
+        lastDocOnlyGrantAt: null,
+      });
     } finally {
       await stopServer(server);
     }
