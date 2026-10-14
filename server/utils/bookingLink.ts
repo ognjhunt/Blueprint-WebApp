@@ -28,7 +28,7 @@
  * - **Questions footage cannot settle.** Access windows and timelines are facts
  *   about an organisation, and no camera answers them.
  *
- * And not at discovery, which is what `buildMatchEmail` was doing.
+ * And not at discovery, which is what the qualified reply used to do.
  */
 
 import { getConfiguredEnvValue } from "../config/env";

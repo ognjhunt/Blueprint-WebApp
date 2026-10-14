@@ -2,9 +2,10 @@
  * The two replies, and the storage boundary that makes them possible.
  *
  * The email tests pin that the copy is built from the site's own answers rather
- * than generated, and that a site clearing the screen gets no automated reply at
- * all. The round-trip test pins the bug that made all of this dead: gate
- * answers were set in memory and dropped on write, so a retried lead lost them.
+ * than generated, and that a site clearing the screen hears its next step and
+ * what follows, never a count of teams. The round-trip test pins the bug that
+ * made all of this dead: gate answers were set in memory and dropped on write,
+ * so a retried lead lost them.
  */
 import crypto from "node:crypto";
 
@@ -109,15 +110,14 @@ describe("the let's-talk reply", () => {
 });
 
 describe("choosing a reply", () => {
-  it("sends nothing automated to a site that clears the screen", () => {
-    // A clean screen is not an offer. The next step is a match against robot
-    // teams, which is a human's call and often a no.
-    expect(
-      buildQualificationEmail({
-        firstName: "Sam",
-        triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }),
-      }),
-    ).toBeNull();
+  it("tells a site that clears the screen its next step, not who might evaluate it", () => {
+    const email = buildQualificationEmail({
+      firstName: "Sam",
+      triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }),
+    });
+    expect(email?.variant).toBe("qualified");
+    expect(email?.body).toMatch(/recommend that one team/);
+    expect(email?.body).not.toMatch(/\bmatch|\bteams? on our list|budget/i);
   });
 
   it("sends nothing when there was no screen at all", () => {
@@ -134,6 +134,12 @@ describe("choosing a reply", () => {
         triage: triage({ disposition: "needs_conversation", blockers: [] }),
       })?.variant,
     ).toBe("lets_talk");
+    expect(
+      buildQualificationEmail({
+        firstName: "S",
+        triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }),
+      })?.variant,
+    ).toBe("qualified");
   });
 });
 
@@ -210,92 +216,79 @@ describe("storage round trip", () => {
   });
 });
 
-/* ------------------------------------------------- the match branch */
+/* --------------------------------------------- the qualified branch */
 
-import { buildMatchEmail } from "../utils/qualificationEmails";
-import type { MatchSummary, MatchResult } from "../../client/src/lib/robotMatch";
+import { buildQualifiedEmail } from "../utils/qualificationEmails";
 
-function matchResult(id: string, outcome: MatchResult["outcome"]): MatchResult {
-  return {
-    robotTeamId: id,
-    outcome,
-    score: 3,
-    scored: 4,
-    findings: [],
-    ruledOutBy: [],
-    unknownHardConstraints: [],
-  };
-}
-
-function summary(overrides: Partial<MatchSummary> = {}): MatchSummary {
-  return {
-    matched: [],
-    provisional: [],
-    ruledOut: [],
-    commonBlockers: [],
-    ...overrides,
-  };
-}
-
-describe("the match reply", () => {
-  it("counts only confirmed matches, never provisional ones", () => {
-    const email = buildMatchEmail({
-      firstName: "Dana",
+describe("the qualified reply", () => {
+  it("names the upload link, the evaluated recommendation and the free beta", () => {
+    const email = buildQualifiedEmail({
+      firstName: "Dana Whitfield",
       siteName: "Riverside DC",
-      summary: summary({
-        matched: [matchResult("a", "matched"), matchResult("b", "matched")],
-        provisional: [matchResult("c", "provisional")],
-      }),
+      stage: "brief_confirmed",
+      nextStep: { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" },
     });
 
-    expect(email.variant).toBe("match_found");
-    expect(email.body).toContain("2 robot teams on our list clear");
-    // The provisional team is mentioned as a maybe, never counted as a clear.
-    expect(email.body).toMatch(/One further team/i);
-    expect(email.body).toContain(CALENDLY_URL);
-  });
-
-  it("does not promise an introduction it has not secured", () => {
-    const email = buildMatchEmail({
-      firstName: "Dana",
-      summary: summary({ matched: [matchResult("a", "matched")] }),
-    });
-    expect(email.body).toMatch(/confirm interest on their side/i);
-    expect(email.body).toMatch(/not a recommendation yet/i);
-  });
-
-  it("names the constraint that eliminated everyone when nothing matches", () => {
-    const email = buildMatchEmail({
-      firstName: "Dana",
-      siteName: "Riverside DC",
-      summary: summary({
-        ruledOut: [matchResult("a", "ruled_out"), matchResult("b", "ruled_out")],
-        commonBlockers: [{ scaleId: "payload", label: "payload", count: 2 }],
-      }),
-    });
-
-    expect(email.variant).toBe("no_match_yet");
-    expect(email.body).toContain("payload — 2 teams ruled out on this");
-    // A no about today's list, not a judgement about the site.
-    expect(email.body).toMatch(/statement about today's list, not about your job/i);
+    expect(email.variant).toBe("qualified");
+    expect(email.subject).toBe("Riverside DC: your job brief is confirmed");
+    expect(email.body.startsWith("Hi Dana,\n")).toBe(true);
+    expect(email.body).toContain("Thanks for confirming the job brief for Riverside DC");
+    expect(email.body).toContain("upload it here: https://example.test/capture-upload/abc");
+    expect(email.body).toMatch(/Robot teams we have invited evaluate your job in a simulation/);
+    expect(email.body).toMatch(/recommend that one team, and you can book the pilot in one step/);
+    expect(email.body).toMatch(/If no team passes, we tell you that plainly/);
+    expect(email.body).toMatch(/free during the beta/);
+    expect(email.body).toMatch(/not proof of how a robot will perform/);
     expect(email.body).not.toContain(CALENDLY_URL);
   });
 
-  it("stays silent on a clean screen when no match has been run", () => {
-    expect(
-      buildQualificationEmail({
-        firstName: "Dana",
-        triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }),
-      }),
-    ).toBeNull();
+  it("never counts teams, names a budget, or uses match wording", () => {
+    for (const stage of ["brief_confirmed", "screened"] as const) {
+      for (const nextStep of [
+        { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" },
+        { kind: "capturer_visit", taskUrl: "https://example.test/capture-upload/abc" },
+        { kind: "capturer_visit" },
+        { kind: "held" },
+        undefined,
+      ] as const) {
+        const email = buildQualifiedEmail({ firstName: "Dana", siteName: "Riverside DC", stage, nextStep });
+        const text = `${email.subject}\n${email.body}`;
+        expect(text).not.toMatch(/\bmatch(?:es|ed|ing)?\b/i);
+        // "That one team" is the recommendation; a count of registry teams is not.
+        expect(text).not.toMatch(/\b(?:\d+|two|three|four|five|several|further) (?:further )?(?:robot )?teams\b/i);
+        expect(text).not.toMatch(/\bteams? on our list\b/i);
+        expect(text).not.toMatch(/budget/i);
+        expect(text).not.toMatch(/Austin/);
+      }
+    }
   });
 
-  it("speaks on a clean screen once a match has been run", () => {
+  it("answers a visit request with a reply about the site's location, not a city", () => {
+    const email = buildQualifiedEmail({
+      firstName: "Dana",
+      nextStep: { kind: "capturer_visit", taskUrl: "https://example.test/capture-upload/abc" },
+    });
+    expect(email.body).toMatch(/whether a visit is possible for your location/);
+    expect(email.body).toContain("https://example.test/capture-upload/abc");
+    expect(email.body).not.toMatch(/visit date/i);
+  });
+
+  it("asks for the account step only when the site has none", () => {
+    const step = { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" } as const;
+    expect(buildQualifiedEmail({ firstName: "Dana", nextStep: step, accountNeeded: true }).body)
+      .toMatch(/create and verify your site account/);
+    expect(buildQualifiedEmail({ firstName: "Dana", nextStep: step }).body)
+      .not.toMatch(/site account/);
+  });
+
+  it("speaks for an intake-time screen as well as a confirmed brief", () => {
     const email = buildQualificationEmail({
       firstName: "Dana",
+      siteName: "Riverside DC",
+      stage: "screened",
       triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }),
-      matches: summary({ matched: [matchResult("a", "matched")] }),
     });
-    expect(email?.variant).toBe("match_found");
+    expect(email?.subject).toBe("Riverside DC: your job cleared our screen");
+    expect(email?.body).toContain("Thanks for describing the job at Riverside DC");
   });
 });

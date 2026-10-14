@@ -9,14 +9,13 @@ import {
 import { INBOUND_POLICY } from "../agents/action-policies";
 import {
   buildLetsTalkEmail,
-  buildMatchEmail,
+  buildQualifiedEmail,
   buildQualificationEmail,
 } from "../utils/qualificationEmails";
 import { bookingUrl } from "../utils/bookingLink";
 import { footageSettlesAll } from "../../client/src/data/siteTaskQualification";
 import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import type { InboundRequest, InboundRequestPayload } from "../types/inbound-request";
-import type { MatchSummary } from "../../client/src/lib/robotMatch";
 import { convertProspectToRequestPayload } from "../utils/outboundProspects";
 
 const QUALIFIED = {
@@ -37,8 +36,6 @@ function request(overrides: Partial<InboundRequest> = {}): InboundRequest {
     ...overrides,
   } as unknown as InboundRequest;
 }
-
-const MATCHES: MatchSummary = { matched: [{}], provisional: [] } as unknown as MatchSummary;
 
 describe("capture starts without anybody noticing a queue", () => {
   it("dispatches a self-capture upload for a qualified site that films its own room", () => {
@@ -129,10 +126,9 @@ describe("the link in the email is a real, verifiable credential", () => {
 
 describe("the email names the step the system actually took", () => {
   it("sends the upload link instead of asking a qualified site to book a call", () => {
-    const email = buildMatchEmail({
+    const email = buildQualifiedEmail({
       firstName: "Ada",
       siteName: "Durham DC",
-      summary: MATCHES,
       nextStep: { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" },
     });
 
@@ -142,9 +138,8 @@ describe("the email names the step the system actually took", () => {
   });
 
   it("promises nothing when dispatch held", () => {
-    const email = buildMatchEmail({
+    const email = buildQualifiedEmail({
       firstName: "Ada",
-      summary: MATCHES,
       nextStep: { kind: "held" },
     });
 
@@ -156,7 +151,7 @@ describe("the email names the step the system actually took", () => {
   it("still books a call for callers that pass no decision", () => {
     // Legacy rows and the non-intake paths dispatch nothing, so a booking link
     // remains the honest fallback there.
-    const email = buildMatchEmail({ firstName: "Ada", summary: MATCHES });
+    const email = buildQualifiedEmail({ firstName: "Ada" });
     expect(email.body).toContain(bookingUrl());
   });
 
@@ -164,11 +159,10 @@ describe("the email names the step the system actually took", () => {
     const email = buildQualificationEmail({
       firstName: "Ada",
       triage: QUALIFIED,
-      matches: MATCHES,
       nextStep: { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/xyz" },
     });
 
-    expect(email?.variant).toBe("match_found");
+    expect(email?.variant).toBe("qualified");
     expect(email?.body).toContain("https://example.test/capture-upload/xyz");
   });
 });
