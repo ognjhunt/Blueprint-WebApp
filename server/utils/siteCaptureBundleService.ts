@@ -46,6 +46,7 @@ import {
   type SiteTaskBriefSnapshot,
 } from "./siteCaptureBundle";
 import { bundleContentType, type BundleObjectInfo, type BundleStorage } from "./siteCaptureBundleStorage";
+import { isAcceptedVideoHeader, VIDEO_SIGNATURE_BYTES } from "./videoMagicBytes";
 
 /** Targets per response. Keeps a 2,000-file bundle to a handful of requests. */
 export const TARGETS_PER_RESPONSE = 250;
@@ -707,6 +708,17 @@ export async function completeBundle(
       }
       deviceObjects[file.path] = { generation: object.generation!, size_bytes: object.size,
         crc32c: object.crc32c!, md5: file.md5 };
+    }
+    // The video went straight to storage on a signed session, so this is the
+    // first time the server sees its bytes: a bounded read of its head, before
+    // anything (manifest, email, privacy screen, model) treats it as footage.
+    // The object stays where it is, unreferenced: raw bundle files are
+    // create-only, and the MD5-bound plan would only re-upload the same bytes.
+    const head = await deps.storage.readHead(rawObjectName(target, BUNDLE_VIDEO_PATH), VIDEO_SIGNATURE_BYTES);
+    if (!head || !isAcceptedVideoHeader(head)) {
+      logger.warn({ captureId: target.captureId }, "Bundle video is not a recognised video container");
+      return { status: 422, body: { code: "bundle_video_not_recognized",
+        error: "The uploaded recording is not a video we can read. Record it again in the Blueprint app." } };
     }
     const completedAtIso = deps.now().toISOString();
     const composition = composeServerFiles({

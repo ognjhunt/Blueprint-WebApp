@@ -351,11 +351,24 @@ describe("description-only owner can explicitly authorize future footage", () =>
   });
 });
 
+/**
+ * A QuickTime `ftyp` box (brand `qt  `, as an iPhone writes) followed by the
+ * given bytes, so a fixture passes the server's container check and distinct
+ * fixtures stay distinct.
+ */
+function quickTime(content: string | Buffer = "x"): Buffer {
+  const header = Buffer.alloc(20);
+  header.writeUInt32BE(20, 0);
+  header.write("ftypqt  ", 4, "latin1");
+  header.write("qt  ", 16, "latin1");
+  return Buffer.concat([header, Buffer.isBuffer(content) ? content : Buffer.from(content)]);
+}
+
 /** A well-formed upload for a site that cleared the screen. */
 async function uploadFor(baseUrl: string, requestId: string, bytes = "x") {
   const token = tokenFrom(captureUploadUrlFor(requestId));
   const form = new FormData();
-  form.append("video", new Blob([bytes], { type: "video/quicktime" }), "walk.mov");
+  form.append("video", new Blob([quickTime(bytes)], { type: "video/quicktime" }), "walk.mov");
   form.append(
     "metadata",
     JSON.stringify({
@@ -531,13 +544,13 @@ describe("saved footage and processing are separate receipts", () => {
     await withRoutes(async baseUrl => {
       const token = tokenFrom(captureUploadUrlFor("req-parts-recovery"));
       const part = new FormData();
-      part.append("part", new Blob(["original video"]), "part.bin");
+      part.append("part", new Blob([quickTime("original video")]), "part.bin");
       expect((await fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/0?extension=mov`, {
         method: "PUT", body: part,
       })).status).toBe(200);
       const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/complete`, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ parts: 1, extension: "mov", sizeBytes: 14,
+        body: JSON.stringify({ parts: 1, extension: "mov", sizeBytes: 34,
           metadata: { widthPx: 1920, heightPx: 1080, fps: 30, durationSeconds: 61,
             recordedAtEpochMs: 1_758_000_000_000 } }),
       });
@@ -880,7 +893,7 @@ describe("the privacy question is asked before anything is derived", () => {
       expect((await stale).status).toBe(502);
       expect(written.get(markerName)).toBe(markerBefore);
       const latestVideo = [...storedVersions].reverse().find(([key]) => key.startsWith(`${prefix}/walkthrough.mov@`));
-      expect(latestVideo?.[1].body.toString()).toBe("V2");
+      expect(latestVideo?.[1].body.equals(quickTime("V2"))).toBe(true);
       expect(JSON.parse(markerBefore ?? "null").producer_delivery.raw_video_generation)
         .toBe(latestVideo?.[1].metadata.generation);
     });
@@ -1560,7 +1573,7 @@ describe("a link is a destination, not a permission", () => {
     const result = await withRoutes(async (baseUrl) => {
       const token = tokenFrom(captureUploadUrlFor("req-green"));
       const form = new FormData();
-      form.append("video", new Blob(["x"], { type: "video/quicktime" }), "walk.mov");
+      form.append("video", new Blob([quickTime()], { type: "video/quicktime" }), "walk.mov");
       const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}`, {
         method: "POST",
         body: form,
@@ -1846,7 +1859,7 @@ describe("durable daily upload caps", () => {
     vi.stubEnv("BLUEPRINT_UPLOAD_PER_JOB_DAILY_MB_LIMIT", "1");
     try {
       await withRoutes(async baseUrl => {
-        const chunk = Buffer.alloc(600 * 1024, 1);
+        const chunk = quickTime(Buffer.alloc(600 * 1024, 1));
         expect((await putPart(baseUrl, "req-part-cap", 0, chunk)).status).toBe(200);
         // A dropped acknowledgement resends the same part: not charged again.
         expect((await putPart(baseUrl, "req-part-cap", 0, chunk)).status).toBe(200);
@@ -1864,11 +1877,69 @@ describe("durable daily upload caps", () => {
     vi.stubEnv("BLUEPRINT_UPLOAD_DAILY_MB_LIMIT", "1");
     try {
       await withRoutes(async baseUrl => {
-        expect((await putPart(baseUrl, "req-global-a", 0, Buffer.alloc(700 * 1024, 1))).status).toBe(200);
-        const refused = await putPart(baseUrl, "req-global-b", 0, Buffer.alloc(700 * 1024, 1));
+        expect((await putPart(baseUrl, "req-global-a", 0, quickTime(Buffer.alloc(700 * 1024, 1)))).status).toBe(200);
+        const refused = await putPart(baseUrl, "req-global-b", 0, quickTime(Buffer.alloc(700 * 1024, 1)));
         expect(refused.status).toBe(429);
         expect(await refused.json()).toMatchObject({ code: "upload_daily_limit" });
       });
     } finally { vi.unstubAllEnvs(); }
+  });
+});
+
+describe("uploaded bytes must open a video container", () => {
+  const metadata = { widthPx: 1920, heightPx: 1080, fps: 30, durationSeconds: 61, recordedAtEpochMs: 1_758_000_000_000 };
+  const pdf = Buffer.from("%PDF-1.7\n%\xe2\xe3\xcf\xd3 not a walkthrough", "latin1");
+
+  it("refuses a whole-file upload that is not a video before anything reaches storage", async () => {
+    seedRequest("req-not-video", { disposition: "qualified" });
+    await withRoutes(async baseUrl => {
+      const token = tokenFrom(captureUploadUrlFor("req-not-video"));
+      const form = new FormData();
+      form.append("video", new Blob([pdf], { type: "video/quicktime" }), "walk.mov");
+      form.append("metadata", JSON.stringify(metadata));
+      const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}`, { method: "POST", body: form });
+      expect(response.status).toBe(415);
+      expect(await response.json()).toMatchObject({ code: "video_content_not_recognized" });
+      expect(written.size).toBe(0);
+      expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+    });
+  });
+
+  it("refuses a first part that is not a video before storing it", async () => {
+    seedRequest("req-part-not-video", { disposition: "qualified" });
+    await withRoutes(async baseUrl => {
+      const token = tokenFrom(captureUploadUrlFor("req-part-not-video"));
+      const part = new FormData();
+      part.append("part", new Blob([pdf]), "part.bin");
+      const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/0?extension=mov`, { method: "PUT", body: part });
+      expect(response.status).toBe(415);
+      expect(await response.json()).toMatchObject({ code: "video_content_not_recognized" });
+      expect(written.size).toBe(0);
+    });
+  });
+
+  it("re-reads the stored first part at completion, discards a non-video's parts and composes nothing", async () => {
+    seedRequest("req-stored-not-video", { disposition: "qualified" });
+    // Parts stored before the check existed, or by a client that skipped it.
+    const raw = "scenes/site-req-stored-not-video/captures/walkthrough-req-stored-not-video/raw";
+    for (const [index, body] of [[0, pdf], [1, Buffer.from("more")]] as const) {
+      const name = `${raw}/parts/part-${String(index).padStart(6, "0")}`;
+      storedVersions.set(`${name}@${generations.next}`, { body, metadata: { name, generation: String(generations.next++),
+        size: String(body.length), crc32c: "AAAAAA==" } });
+      written.set(name, body.toString("latin1"));
+    }
+    await withRoutes(async baseUrl => {
+      const token = tokenFrom(captureUploadUrlFor("req-stored-not-video"));
+      const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/complete`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ parts: 2, extension: "mov", sizeBytes: pdf.length + 4, metadata }),
+      });
+      expect(response.status).toBe(415);
+      expect(await response.json()).toMatchObject({ code: "video_content_not_recognized" });
+      // Nothing was composed or described; the parts were handed to the
+      // existing cleanup (this fake refuses generation-less deletes).
+      expect([...written.keys()].filter(name => name.startsWith(raw) && !name.includes("/parts/"))).toEqual([]);
+      expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+    });
   });
 });

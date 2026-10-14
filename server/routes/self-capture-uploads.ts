@@ -18,15 +18,17 @@ import { issueCaptureSupplement, validateCaptureSupplement } from "../utils/capt
 import { createReadStream } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import os from "node:os";
-import { unlink } from "node:fs/promises";
+import { open, unlink } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import multer from "multer";
 import {
   composeParts,
   discardParts,
   savePart,
+  storedPartHead,
   storedPartIndices,
 } from "../utils/captureParts";
+import { isAcceptedVideoHeader, VIDEO_NOT_RECOGNIZED, VIDEO_SIGNATURE_BYTES } from "../utils/videoMagicBytes";
 import { z } from "zod";
 
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
@@ -191,6 +193,18 @@ async function discardUploadedFile(file: { path: string } | undefined): Promise<
   await unlink(file.path).catch((error) =>
     { if (error.code !== "ENOENT") logger.warn({ error, path: file.path }, "Could not remove the upload temp file"); },
   );
+}
+
+/** The first bytes of a spooled upload, read without loading the file. */
+async function spooledFileHead(path: string): Promise<Buffer> {
+  const handle = await open(path, "r");
+  try {
+    const head = Buffer.alloc(VIDEO_SIGNATURE_BYTES);
+    const { bytesRead } = await handle.read(head, 0, head.length, 0);
+    return head.subarray(0, bytesRead);
+  } finally {
+    await handle.close();
+  }
 }
 
 function safeJsonParse(value: unknown): unknown {
@@ -1208,6 +1222,11 @@ router.post("/:token", authorizeBeforeCaptureBody("walkthrough"), upload.single(
       error: "Upload a video straight from your phone — .mov or .mp4.",
     });
   }
+  // The bytes pass through this server, so they are checked here, before any
+  // reach storage. The extension above is only the browser's claim.
+  if (!isAcceptedVideoHeader(await spooledFileHead(file.path))) {
+    return res.status(415).json(VIDEO_NOT_RECOGNIZED);
+  }
 
   if (!storageAdmin) {
     logger.error({ captureId: payload.captureId }, "Self-capture upload attempted without storage");
@@ -1395,6 +1414,10 @@ router.put(
     if (!storageAdmin) {
       return res.status(503).json({ error: "Uploads are unavailable right now." });
     }
+    // Part 0 opens the recording; refuse a non-video before storing it.
+    if (index === 0 && !isAcceptedVideoHeader(part.buffer.subarray(0, VIDEO_SIGNATURE_BYTES))) {
+      return res.status(415).json(VIDEO_NOT_RECOGNIZED);
+    }
 
     const { rawPrefix } = partsDestination(payload, extension);
 
@@ -1472,6 +1495,20 @@ router.post("/:token/parts/complete", async (req: Request, res: Response) => {
 
   const { objectPath, rawPrefix } = partsDestination(payload, extension);
   const bucket = storageAdmin.bucket(storageBucketName()) as never;
+
+  // Checked again at completion, from storage, before anything is composed:
+  // parts stored before this check existed, or by a client that skipped it,
+  // must not become a walkthrough. A non-video's parts are discarded.
+  try {
+    const head = await storedPartHead(bucket, rawPrefix, VIDEO_SIGNATURE_BYTES);
+    if (head && !isAcceptedVideoHeader(head)) {
+      await discardParts(bucket, rawPrefix);
+      return res.status(415).json(VIDEO_NOT_RECOGNIZED);
+    }
+  } catch (error) {
+    logger.error({ error, captureId: payload.captureId }, "Could not read the first capture part");
+    return res.status(503).json({ error: "We could not check your upload. Please retry." });
+  }
 
   let write: Awaited<ReturnType<typeof beginBrowserCanonicalWrite>>;
   try {

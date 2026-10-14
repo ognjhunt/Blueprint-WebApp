@@ -32,6 +32,8 @@ export interface BundleStorage {
   list(prefix: string, options?: { maxResults?: number }): Promise<BundleObjectInfo[]>;
   info(name: string): Promise<BundleObjectInfo | null>;
   readText(name: string): Promise<string | null>;
+  /** The first `bytes` of an object by a bounded range read, or null when it is absent. */
+  readHead(name: string, bytes: number): Promise<Buffer | null>;
   /** Create-only. Reports `exists` rather than overwriting. */
   createOnly(name: string, content: string, contentType: string): Promise<"created" | "exists">;
   signedPut(name: string, options: { md5: string; contentType: string; expiresAtMs: number }): Promise<SignedPutTarget>;
@@ -57,7 +59,7 @@ type AdminFile = {
   name: string;
   metadata?: Record<string, unknown>;
   getMetadata(): Promise<[Record<string, unknown>, ...unknown[]]>;
-  download(): Promise<[Buffer, ...unknown[]]>;
+  download(options?: { start?: number; end?: number }): Promise<[Buffer, ...unknown[]]>;
   save(content: string | Buffer, options: Record<string, unknown>): Promise<unknown>;
   getSignedUrl(config: Record<string, unknown>): Promise<[string, ...unknown[]]>;
   createResumableUpload(options: Record<string, unknown>): Promise<[string, ...unknown[]]>;
@@ -104,6 +106,15 @@ export function bundleStorageForBucket(bucket: AdminBucket, bucketName: string):
       try {
         const [content] = await bucket.file(name).download();
         return content.toString("utf8");
+      } catch (error) {
+        if (isNotFound(error)) return null;
+        throw error;
+      }
+    },
+    async readHead(name, bytes) {
+      try {
+        const [content] = await bucket.file(name).download({ start: 0, end: bytes - 1 });
+        return content.subarray(0, bytes);
       } catch (error) {
         if (isNotFound(error)) return null;
         throw error;

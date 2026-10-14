@@ -47,7 +47,7 @@ export interface PartsBucket {
     exists(): Promise<[boolean]>;
     delete(options?: unknown): Promise<unknown>;
     getMetadata(): Promise<[{ size?: string | number; generation?: string | number }]>;
-    download(): Promise<[Buffer]>;
+    download(options?: { start?: number; end?: number }): Promise<[Buffer]>;
   };
   getFiles(options: { prefix: string }): Promise<[Array<{ name: string }>]>;
   combine(sources: string[], destination: string,
@@ -121,6 +121,21 @@ export async function savePart(params: {
     const [stored] = await params.bucket.file(name, { generation }).download();
     const [current] = await file.getMetadata();
     if (!stored.equals(params.body) || current.generation !== generation) throw new Error("capture_part_conflict");
+  }
+}
+
+/**
+ * The first `bytes` of part 0 by a bounded range read, or null when part 0 is
+ * not stored. Part 0 opens the recording, so its head is the composed video's.
+ */
+export async function storedPartHead(bucket: PartsBucket, rawPrefix: string, bytes: number): Promise<Buffer | null> {
+  try {
+    const [body] = await bucket.file(partPath(rawPrefix, 0)).download({ start: 0, end: bytes - 1 });
+    return body.subarray(0, bytes);
+  } catch (error) {
+    const code = (error as { code?: unknown })?.code;
+    if (code === 404 || code === "404") return null;
+    throw error;
   }
 }
 

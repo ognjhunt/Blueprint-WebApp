@@ -397,6 +397,24 @@ describe("uploads are create-only and verified before completion", () => {
     expect(complete.status).toBe(201);
   });
 
+  it("reads the head of the directly uploaded video and refuses a non-video before anything treats it as footage", async () => {
+    const { device, bindingDigest } = await bundleFor({ videoContent: Buffer.from("%PDF-1.7\n" + "x".repeat(4000)) });
+    const plan = await api("POST", `${token()}/bundle`, planBody(device, bindingDigest));
+    expect(plan.status).toBe(200);
+    uploadTargets(device, plan.body.targets);
+    const downloadsBefore = state.bucket.calls.download;
+    const complete = await api("POST", `${token()}/bundle/complete`, { plan_digest: plan.body.plan_digest });
+    expect(complete.status).toBe(422);
+    expect(complete.body.code).toBe("bundle_video_not_recognized");
+    expect(state.bucket.calls.download).toBeGreaterThan(downloadsBefore);
+    // No completion record, manifest, marker, email or privacy screen.
+    expect(state.bucket.objects.has(`scenes/${SCENE_ID}/captures/${CAPTURE_ID}/upload/bundle_completion.json`)).toBe(false);
+    expect(state.bucket.objects.has(`${RAW}/manifest.json`)).toBe(false);
+    expect(state.bucket.objects.has(`${RAW}/capture_upload_complete.json`)).toBe(false);
+    expect(state.notices).toEqual([]);
+    expect(state.coverage).toEqual([]);
+  });
+
   it("refuses an undeclared object under the raw prefix", async () => {
     const { device, bindingDigest } = await bundleFor();
     const planDigest = await uploadEverything(device, bindingDigest);
