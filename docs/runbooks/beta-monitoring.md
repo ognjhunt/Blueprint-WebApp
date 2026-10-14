@@ -81,6 +81,18 @@ Redis outages fail open: rate limiting lets requests through within ~750 ms
    to Delaware. Per the Terms' own update clause, email account holders about
    the material change before it takes effect; continued use after that is
    acceptance. The workspace does not force re-acceptance of a new version.
+7. **Terms `2026-10-14.2` and Privacy `2026-10-14.1` notice** (not sent): Terms
+   section 1 and 3 and the Privacy Policy now say that the start form shows the
+   exact anonymized job card and offers **Keep this job private instead**
+   (restored after `0acbf5d` removed it); that uploaders must tell people in
+   the work area they are recording and sharing the video with Blueprint, and
+   should avoid conversations and turn sound off; and that Blueprint keeps the
+   original upload as received but removes sound before any automated review
+   or AI/3D provider upload, and does not analyze speech. Per section 12, email
+   account holders about these material changes before they take effect. Before
+   sending, confirm the Pipeline also strips sound before its own Gemini video
+   upload (`scene_semantics.py`), or the sound statement is not yet true there,
+   and have counsel review the recording-notice and sound wording.
 
 ## Email volume (Resend free plan)
 

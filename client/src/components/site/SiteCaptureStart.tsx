@@ -16,6 +16,7 @@ import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import { inferLocationCountryCode } from "@/lib/deploymentCoverage";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
+import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION } from "@/lib/siteSubmissionAuthority";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 import {
@@ -694,7 +695,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             <p className="ms-field-hint" style={{ marginTop: "20px" }}>
               Keep this link — it is how you come back to this submission, and it is where the job
               brief we draft from your job description will appear for you to correct.
-              {!state.hasFootage && " Film the work, not the worker: hands and objects are what a robot team needs to see."}
+              {!state.hasFootage && ` Film the work, not the worker: hands and objects are what a robot team needs to see. ${FILMING_NOTICE}`}
             </p>
             {!onAPhone && state.hasFootage && <details>
               <summary>Open this job on another device (optional)</summary>
@@ -822,6 +823,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
               cycle of the job is enough. We check whether it covers the work area and ask only for
               the views that are missing.
             </span>
+            <span className="ms-field-hint">{FOOTAGE_UPLOAD_NOTICE}</span>
             <input
               id="start-footage"
               name="startFootage"

@@ -14,7 +14,7 @@ export const privacyPolicySections = [
   {
     title: "Site footage",
     body:
-      "When a site films its job, or Blueprint staff film it during an in-person visit, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. We and our listed processing providers use them to draft the job brief, review the job, rebuild the work area as a simulated scene, and run the evaluations the site allows. We remove people from the frames used as input to reconstruction. The original recording may still show people, including hands or arms performing the job. We ask sites to avoid screens and paperwork and may blur or remove those details when practical.",
+      "When a site films its job, or Blueprint staff film it during an in-person visit, we receive the video and photos, when and where they were taken, and the phone's motion and depth data where available. A phone video can show people and can include sound, such as conversations nearby. We keep the original upload as received, including any sound, for the uses and retention periods in this policy. We remove the sound before any automated review of the footage and before sending it to an AI or 3D-processing provider, and we do not analyze speech. We and our listed processing providers use the footage to draft the job brief, review the job, rebuild the work area as a simulated scene, and run the evaluations the site allows. We remove people from the frames used as input to reconstruction. The original recording may still show people, including hands or arms performing the job. We ask sites to avoid screens and paperwork and may blur or remove those details when practical.",
     icon: Waypoints,
   },
   {
@@ -42,10 +42,11 @@ export const capturePrivacyAnnex = [
   // sufficient: a policy served through an endpoint has to be sent something to
   // look at, and what it is sent is derived from the site.
   ["What a robot team's policy is sent", "Images rendered from the reconstructed scene, never the walkthrough. Those images can still show layout, equipment and stock, so they are kept and shared on the same terms as the scene, and they are not licensed for training unless a written agreement says so."],
-  ["People in job footage", "We remove people from the frames used as input to reconstruction. This does not remove them from the original recording, which Blueprint and the listed processing providers may process for job review and frame preparation. You must have authority to submit the footage and provide any required notice or permissions to people shown."],
+  ["People in job footage", "We remove people from the frames used as input to reconstruction. This does not remove them from the original recording, which Blueprint and the listed processing providers may process for job review and frame preparation. You must have authority to submit the footage, tell people in the work area that you are recording and sharing the video with Blueprint, and obtain any permission the law requires from people who can be seen or heard."],
+  ["Sound", "Phone videos can record sound, including conversations; Blueprint's browser recorder films without it. We keep an uploaded original as received, remove the sound before any automated review or before sending footage to an AI or 3D-processing provider, and do not analyze speech. Avoid filming conversations, and turn sound off where your camera allows."],
   ["Screens and paperwork", "Avoided when filming where practical, and blurred or removed when practical before a robot team sees anything derived from the site."],
   ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene."],
-  ["Robot team sharing", "Robot teams approved for beta can see the anonymized job card authorized when you start the job; jobs previously marked private stay private. Robot teams also see their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
+  ["Robot team sharing", "Robot teams approved for beta can see the anonymized job card authorized when you start the job; jobs the site chose to keep private stay private. Robot teams also see their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
   ["Physical pilot records", "If the site and the robot team agree to share pilot outcomes with Blueprint, those permissions set what operating records we receive, who may see them, and the permitted uses. A simulation result does not become a physical result without actual trial evidence."],
 ];
 
@@ -167,10 +168,10 @@ export const privacySubprocessorCategories = [
     category: "AI, 3D processing and compute",
     providers: [
       ["OpenAI", "Reading the job description and frames from a site capture to draft the job brief and prepare the simulated scene, drafting replies, and sorting incoming requests"],
-      ["Google Gemini", "Watching site footage to check what it shows against the job brief and to flag privacy issues"],
+      ["Google Gemini", "Watching site footage, with its sound removed, to check what it shows against the job brief and to flag privacy issues"],
       ["Anthropic", "Drafting the job brief from capture frames only when a site explicitly chooses that option, and drafting and sorting internal work where we configure it"],
       ["DeepSeek", "Drafting and sorting internal work, where we configure it"],
-      ["World Labs", "Rebuilding a work area as a 3D scene from site footage"],
+      ["World Labs", "Rebuilding a work area as a 3D scene from site footage, with its sound removed"],
       ["Vast.ai", "Cloud GPU servers that rebuild scenes and run simulated evaluations"],
     ],
   },
@@ -247,8 +248,8 @@ export default function Privacy() {
         <p>
           We share personal information with the providers below, only for the function listed and under contract. A
           site sees an alias for each robot team and its results, and the name of the team Blueprint recommends; robot
-          teams approved for beta see the anonymized job card authorized when the site starts a job, unless that job was
-          previously marked private.
+          teams approved for beta see the anonymized job card authorized when the site starts a job, unless the site
+          chose to keep that job private.
           We may also disclose information when the law requires it, to protect people&rsquo;s safety or our rights, or
           as part of a merger or sale of the business, in which case this policy continues to apply to it.
         </p>
@@ -266,8 +267,9 @@ export default function Privacy() {
           Frames from a site capture, together with the job description, are processed by AI model providers acting as
           our sub-processors to draft the job brief. By default that is OpenAI, with Google Gemini reviewing the footage;
           Anthropic receives frames only when a site explicitly chooses that option. We also use the providers listed
-          above to rebuild scenes and sort incoming requests. We send each provider only what the step needs, the
-          provider may not use it for its own purposes, and we do not give any of them your footage as training data.
+          above to rebuild scenes and sort incoming requests. We send each provider only what the step needs, footage
+          goes to them with its sound removed, the provider may not use it for its own purposes, and we do not give any
+          of them your footage as training data.
         </p>
       </section>
 

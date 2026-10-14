@@ -14,7 +14,7 @@ How it works: invited robot teams evaluate your job free, in a simulation built 
 
 ## Footage and permission
 
-Only provide footage you are authorized to share and use for the stated purpose. Film the work and objects; avoid identifiable people, confidential screens, restricted areas, and private records. Review the [privacy policy](https://tryblueprint.io/privacy) and the permission statement before uploading. Do not put credentials or sensitive footage in support email. Keep your original file until receipt is confirmed.
+Only provide footage you are authorized to share and use for the stated purpose. Before filming, tell people in the work area that you are recording and that the video will be shared with Blueprint, and get any permission the law requires. Film the work and objects; avoid identifiable people, conversations, confidential screens, restricted areas, and private records. Phone videos can record sound: turn it off where your camera allows. Blueprint keeps the original upload as received and removes the sound before any automated review or provider processing; it does not analyze speech. Review the [privacy policy](https://tryblueprint.io/privacy) and the permission statement before uploading. Do not put credentials or sensitive footage in support email. Keep your original file until receipt is confirmed.
 
 The private owner link carries authority over the job; keep it private. Use the dedicated film-only link when asking an authorized colleague to record. Public listing approval does not make private footage public.
 

@@ -901,6 +901,15 @@ it.each([true, false])("shows the exact card text before starting and honors the
   if (!privateHandling) expect(body.publicTaskListing).toEqual({ consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(task) });
 });
 
+it("tells a site uploading footage that people seen or heard must know, and that sound is removed", async () => {
+  await renderReady(<SiteCaptureStart />);
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  expect(screen.queryByText(/People seen or heard in it must know/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("radio", { name: "Upload a video now" }));
+  expect(screen.getByText("Only upload footage you may share. People seen or heard in it must know it is shared with Blueprint, "
+    + "so avoid clips with conversations. We remove sound before any automated review.")).toBeInTheDocument();
+});
+
 it("updates the card preview as the job is described and says when nothing is described yet", async () => {
   await renderReady(<SiteCaptureStart />);
   const preview = () => screen.getByLabelText("Generated public summary");
