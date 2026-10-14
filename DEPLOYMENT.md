@@ -123,8 +123,8 @@ visible from here, so confirm it once after deploy:
 1. From a machine whose public address you know (check it at any "what is my
    IP" page), load any page on `https://tryblueprint.io` once.
 2. In the Render web service logs, find the first `client_ip_resolution_sample`
-   line after the deploy (one per process, from the first request carrying
-   `X-Forwarded-For`), or your own request's `ip` field.
+   line after the deploy (one per process, from the first non-`/health`
+   request carrying `X-Forwarded-For`), or your own request's `ip` field.
 3. Read it:
    - `resolvedIp` equals your address: the setting is right. Nothing to do.
    - `resolvedIp` is a proxy address, `forwardedForEntries` is 2 or more, and

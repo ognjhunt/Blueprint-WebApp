@@ -106,9 +106,14 @@ app.set("trust proxy", trustProxySetting(clientIpConfig));
 app.use(pinClientIp(clientIpConfig));
 let clientIpSampleLogged = false;
 app.use((req, _res, next) => {
-  // One line per process from the first proxied request: enough to check the
-  // hop count against reality without logging every forwarded chain.
-  if (!clientIpSampleLogged && typeof req.headers["x-forwarded-for"] === "string") {
+  // One line per process from the first proxied visitor request (not a
+  // platform health probe): enough to check the hop count against reality
+  // without logging every forwarded chain.
+  if (
+    !clientIpSampleLogged &&
+    typeof req.headers["x-forwarded-for"] === "string" &&
+    !req.path.startsWith("/health")
+  ) {
     clientIpSampleLogged = true;
     logger.info(describeClientIpResolution(req, clientIpConfig), "client IP resolution sample");
   }
