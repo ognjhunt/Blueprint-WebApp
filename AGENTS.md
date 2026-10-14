@@ -2,9 +2,11 @@
 
 ## Mission
 
-`Blueprint-WebApp` is the partner-intake, authorization, workflow, evidence
-review, and bounded case-study surface for Blueprint's sole active program, Arm
-Decision Proof v1. The product remains one Task Evaluation Run.
+`Blueprint-WebApp` is the customer surface for the free beta's evaluated,
+recommended pilot, and the partner-intake, authorization, workflow, evidence
+review, and bounded case-study surface for Arm Decision Proof v1. Both are
+active programs (founder decision 2026-10-14). The product remains one Task
+Evaluation Run.
 
 Its **public surface** is positioned as a recommended pilot: a site shows one
 recurring task, invited robot teams evaluate it in simulation for free, and
@@ -14,9 +16,9 @@ completely free for sites and robot teams (no site fee, no paid private
 evaluations, balances, top-ups or checkout), sign-up is open for sites (and
 Blueprint also onboards sites by hand), and robot teams join by invitation. The
 physical pilot is agreed directly between the site and the team, with no
-Blueprint cut. That positioning is owner-directed, deployed, and covered by tests. It sits ahead of the shared doctrine blocks, which are cross-repo and
-byte-locked — read the preamble at the top of `PLATFORM_CONTEXT.md` before
-treating either as the whole picture.
+Blueprint cut. That positioning is owner-directed, deployed, covered by tests, and since
+2026-10-14 part of the shared doctrine blocks, which are cross-repo and
+byte-locked. Read the preamble at the top of `PLATFORM_CONTEXT.md` first.
 
 This repo must reinforce the platform doctrine in:
 
@@ -44,11 +46,14 @@ Agents also follow the nearest nested `AGENTS.md` when working under `client/`, 
 
 ## Product Rules
 
-- Arm Decision Proof v1 is the sole active program. WebApp work must directly
-  unblock partner admission, protocol/rights authorization, evidence review,
-  physical-outcome joining, or the bounded case study. Unrelated launch, growth,
-  marketplace, city, post-training, humanoid, and general product polish is
-  frozen.
+- Two programs are active: the free beta's evaluated, recommended pilot and
+  Arm Decision Proof v1. WebApp work must directly unblock a beta journey step
+  (site intake, consent, capture, job brief, robot-team application and
+  invitation, evaluation request, results, recommendation, booking, or the
+  messages around them) or an Arm Decision Proof need (partner admission,
+  protocol/rights authorization, evidence review, physical-outcome joining, or
+  the bounded case study). City-launch and growth campaigns, post-training,
+  humanoid work, and polish unrelated to the beta journeys stay frozen.
 - Explicit repo-owner instructions may authorize a bounded exception to this
   work-priority freeze, including public polish. Record the owner instruction,
   exact scope, and completion evidence in the issue or PR rather than inventing
@@ -58,8 +63,9 @@ Agents also follow the nearest nested `AGENTS.md` when working under `client/`, 
   product lane. Reliability, accessibility, security, rights/privacy, provenance,
   truthful claims, and existing spending, send, and release controls still apply;
   shared doctrine blocks and their lock remain unchanged.
-- For work without such an exception, require every issue to name its ADP
-  backlog item, day gate, observed blocker, and completion artifact.
+- For work without such an exception, require every issue to name its beta
+  journey step or its ADP backlog item and day gate, plus the observed blocker
+  and completion artifact.
   Existing captures/scenes remain `development_only`
   and must never appear as partner or physical proof.
 - Keep Blueprint capture-first and real-site robot-evaluation/data-package first.
