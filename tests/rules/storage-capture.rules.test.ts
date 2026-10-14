@@ -100,6 +100,18 @@ describe("raw capture uploads (scenes/{sceneId}/captures/{captureId}/raw/**)", (
         rawMetadata({ sceneId: "scene-9" }),
       ),
     );
+    // A record naming the scene in its original form matches the app's
+    // lowercased, dash-joined path segment.
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "capture_submissions/cap-3"), { creator_id: CREATOR, scene_id: "Job ABC" });
+    });
+    await assertSucceeds(
+      uploadBytes(
+        ref(creator.storage(), "scenes/job-abc/captures/cap-3/raw/walkthrough.mp4"),
+        payload,
+        rawMetadata({ sceneId: "job-abc", captureId: "cap-3" }),
+      ),
+    );
     // No submission record at all: denied even with matching metadata.
     const unregistered = "scenes/scene-1/captures/cap-2/raw/room.usdz";
     await assertFails(
