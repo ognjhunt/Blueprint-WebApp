@@ -1,8 +1,9 @@
 // @vitest-environment node
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const setCalls = vi.hoisted(() => [] as Array<{ collection: string; id: string; payload: any }>);
 const activations = vi.hoisted(() => [] as any[]);
+const pinnedFetch = vi.hoisted(() => vi.fn());
 
 const fakeDb = {
   collection: vi.fn((collection: string) => ({
@@ -39,10 +40,34 @@ vi.mock("../utils/cityLaunchLedgers", () => ({
   listCityLaunchActivations: vi.fn(() => Promise.resolve(activations)),
 }));
 
+// The homepage read goes through the pinned public fetch; its SSRF behaviour
+// is covered in public-fetch-guard.test.ts. Here it is offline by default.
+vi.mock("../utils/publicFetchGuard", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../utils/publicFetchGuard")>()),
+  fetchPinnedPublicText: pinnedFetch,
+}));
+
+function servePage(finalUrl: string, text: string) {
+  pinnedFetch.mockResolvedValue({
+    requestedUrl: finalUrl,
+    finalUrl,
+    redirects: [],
+    status: 200,
+    contentType: "text/html",
+    text,
+    truncated: false,
+  });
+}
+
+beforeEach(() => {
+  pinnedFetch.mockRejectedValue(new Error("offline in tests"));
+});
+
 afterEach(() => {
   setCalls.length = 0;
   activations.length = 0;
   fakeDb.collection.mockClear();
+  pinnedFetch.mockReset();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.resetModules();
@@ -121,12 +146,10 @@ describe("high-intent lead enrichment", () => {
 
   it("creates a draft-only dossier for high-intent robot-team requests", async () => {
     vi.stubEnv("BLUEPRINT_LEAD_ENRICHMENT_PAPERCLIP_HANDOFF_ENABLED", "0");
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      url: "https://robotco.com",
-      text: async () => '<html><head><title>RobotCo Robotics</title><meta name="description" content="Warehouse autonomy systems"></head></html>',
-    })));
+    servePage(
+      "https://robotco.com",
+      '<html><head><title>RobotCo Robotics</title><meta name="description" content="Warehouse autonomy systems"></head></html>',
+    );
     const { runHighIntentLeadEnrichmentForRequest } = await import("../utils/highIntentLeadEnrichment");
 
     const result = await runHighIntentLeadEnrichmentForRequest(
@@ -180,6 +203,73 @@ describe("high-intent lead enrichment", () => {
       no_live_send: true,
       draft_requires_human_approval: true,
     });
+  });
+
+  it("reads the submitter's company homepage only through the pinned, capped public fetch", async () => {
+    vi.stubEnv("BLUEPRINT_LEAD_ENRICHMENT_PAPERCLIP_HANDOFF_ENABLED", "0");
+    servePage("https://www.robotco.com/", "<title>RobotCo</title>");
+    const { runHighIntentLeadEnrichmentForRequest } = await import("../utils/highIntentLeadEnrichment");
+
+    await runHighIntentLeadEnrichmentForRequest(
+      baseInbound({
+        request: { ...baseInbound().request, requestedLanes: ["deeper_evaluation"] },
+      }),
+    );
+
+    expect(pinnedFetch).toHaveBeenCalledOnce();
+    expect(pinnedFetch).toHaveBeenCalledWith(
+      "https://robotco.com",
+      expect.objectContaining({ maxBytes: 512 * 1024, maxRedirects: 3 }),
+    );
+    const dossier = setCalls.find((call) => call.collection === "leadEnrichmentDossiers");
+    expect(dossier?.payload.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ source: "public_company_page", url: "https://www.robotco.com/" }),
+      ]),
+    );
+  });
+
+  it.each(["127.0.0.1", "169.254.169.254", "robotco.com:8080", "[::1]", "localhost", "robotco.com/x"])(
+    "never fetches when the submitted email domain is %s",
+    async (domain) => {
+      vi.stubEnv("BLUEPRINT_LEAD_ENRICHMENT_PAPERCLIP_HANDOFF_ENABLED", "0");
+      const { runHighIntentLeadEnrichmentForRequest } = await import("../utils/highIntentLeadEnrichment");
+
+      await runHighIntentLeadEnrichmentForRequest(
+        baseInbound({
+          contact: { ...baseInbound().contact, email: `ada@${domain}` },
+          request: { ...baseInbound().request, requestedLanes: ["deeper_evaluation"] },
+        }),
+      );
+
+      expect(pinnedFetch).not.toHaveBeenCalled();
+      const dossier = setCalls.find((call) => call.collection === "leadEnrichmentDossiers");
+      expect(dossier?.payload.evidence).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ source: "public_company_page", label: "open_question", url: null }),
+        ]),
+      );
+    },
+  );
+
+  it("records a refused or failed homepage read as an open question, not evidence", async () => {
+    vi.stubEnv("BLUEPRINT_LEAD_ENRICHMENT_PAPERCLIP_HANDOFF_ENABLED", "0");
+    const { PublicFetchError } = await import("../utils/publicFetchGuard");
+    pinnedFetch.mockRejectedValue(
+      new PublicFetchError("dns_private_address", "Host must resolve exclusively to public addresses"),
+    );
+    const { runHighIntentLeadEnrichmentForRequest } = await import("../utils/highIntentLeadEnrichment");
+
+    await runHighIntentLeadEnrichmentForRequest(
+      baseInbound({
+        request: { ...baseInbound().request, requestedLanes: ["deeper_evaluation"] },
+      }),
+    );
+
+    const dossier = setCalls.find((call) => call.collection === "leadEnrichmentDossiers");
+    const page = dossier?.payload.evidence.find((item: any) => item.source === "public_company_page");
+    expect(page).toMatchObject({ label: "open_question" });
+    expect(page.summary).toContain("exclusively to public addresses");
   });
 
   it("routes specific site-operator requests to the site-operator partnership lane", async () => {
@@ -246,12 +336,7 @@ describe("high-intent lead enrichment", () => {
 
   it("routes strong capturer supply from an active city without live-send approval", async () => {
     vi.stubEnv("BLUEPRINT_LEAD_ENRICHMENT_PAPERCLIP_HANDOFF_ENABLED", "0");
-    vi.stubGlobal("fetch", vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      url: "https://captureco.com",
-      text: async () => '<html><head><title>CaptureCo</title></head></html>',
-    })));
+    servePage("https://captureco.com", "<html><head><title>CaptureCo</title></head></html>");
     activations.push({
       city: "Austin, TX",
       citySlug: "austin-tx",

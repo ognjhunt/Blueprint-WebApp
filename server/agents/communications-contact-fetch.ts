@@ -1,6 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { request } from "node:https";
-import { BlockList, isIP } from "node:net";
+import { isIP } from "node:net";
+import { isPublicAddress } from "../utils/publicFetchGuard";
 import { sameOperatorUrl } from "./communications-contact-evidence";
 
 export const CONTACT_PAGE_LIMIT = 128 * 1024;
@@ -9,17 +10,9 @@ export type ContactPage = { requestedUrl: string; finalUrl: string; redirects: s
   checkedAt: string; status: 200; contentType: string; bodyBase64: string };
 export type ContactPageReader = (url: string, organizationUrl: string, deadline: number,
   options?: { maxBytes: number }) => Promise<ContactPage>;
-const privateV4 = new BlockList();
-for (const [address, prefix] of [["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
-  ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.0.0.0", 24], ["192.0.2.0", 24], ["192.168.0.0", 16],
-  ["192.88.99.0", 24], ["198.18.0.0", 15], ["198.51.100.0", 24], ["203.0.113.0", 24], ["224.0.0.0", 3]] as const) privateV4.addSubnet(address, prefix);
-const globalV6 = new BlockList(); globalV6.addSubnet("2000::", 3, "ipv6");
-const privateV6 = new BlockList();
-for (const [address, prefix] of [["2001::", 23], ["2001:db8::", 32], ["2002::", 16], ["3fff::", 20]] as const) privateV6.addSubnet(address, prefix, "ipv6");
-export function isPublicContactAddress(address: string) {
-  return isIP(address) === 4 ? !privateV4.check(address) : isIP(address) === 6
-    && globalV6.check(address, "ipv6") && !privateV6.check(address, "ipv6");
-}
+/** The shared public-address classifier; kept under its original name for
+ * existing callers (contact pages and public task video). */
+export const isPublicContactAddress = isPublicAddress;
 export function contactFetchUrl(value: string, organizationUrl: string) {
   const url = new URL(value);
   if (url.protocol !== "https:" || (url.port && url.port !== "443") || isIP(url.hostname.replace(/^\[|\]$/g, ""))
