@@ -212,6 +212,15 @@ const checks = [
 
 const recommendedChecks = [
   {
+    // Anonymous intake and uploads cost money. The durable daily caps have safe
+    // code defaults; App Check is the part that needs a human rollout
+    // (docs/runbooks/beta-monitoring.md), so it is tracked here until enforced.
+    label: "App Check enforced on anonymous intake and uploads",
+    ok: envValue("BLUEPRINT_APP_CHECK_MODE").toLowerCase() === "enforce"
+      && Boolean(envValue("VITE_FIREBASE_APPCHECK_SITE_KEY")),
+    required: ["BLUEPRINT_APP_CHECK_MODE=enforce", "VITE_FIREBASE_APPCHECK_SITE_KEY"],
+  },
+  {
     label: "Redis live session state",
     ok: Boolean(envValue("REDIS_URL")),
     required: ["REDIS_URL"],

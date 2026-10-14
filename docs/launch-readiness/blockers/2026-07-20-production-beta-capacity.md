@@ -17,11 +17,20 @@ Choose and configure production beta capacity limits
 200 with zero blockers means both caps were set to positive values. The exact
 values were not recorded here and should not be inferred.
 
-Note for the free open beta: the caps still bound intake. If sites start
-hitting them, raise `BLUEPRINT_BETA_INVITE_CAP` and
-`BLUEPRINT_BETA_COHORT_DAILY_LIMIT` in Render rather than removing them.
-Readiness now also blocks on Slack, Resend, Redis and the Stripe queue
-consumer in production; see `docs/runbooks/beta-monitoring.md`.
+Correction (2026-10-14): an earlier note here said these caps "still bound
+intake". They do not bound site intake or uploads. `evaluateBetaCohortGate`
+is called only from robot-team evaluation requests
+(`server/routes/robot-eval-job-requests.ts`), waitlist sign-ups
+(`server/routes/waitlist.ts`) and capturer routes (`server/routes/creator.ts`).
+`POST /api/inbound-request` and the capture-link upload routes never consult
+them. Anonymous site intake, intake emails, upload bytes and model-review
+spend are bounded instead by the durable daily caps in
+`server/utils/betaAbuseCaps.ts` (`BLUEPRINT_INTAKE_DAILY_LIMIT` and related
+keys). See *Durable spend and abuse caps* in `docs/runbooks/beta-monitoring.md`.
+If robot teams or capturers start hitting the cohort caps, raise
+`BLUEPRINT_BETA_INVITE_CAP` and `BLUEPRINT_BETA_COHORT_DAILY_LIMIT` in Render
+rather than removing them. Readiness also blocks on Slack, Resend, Redis and
+the Stripe queue consumer in production; see the same runbook.
 
 The sections below are the original 2026-07-20 request.
 
