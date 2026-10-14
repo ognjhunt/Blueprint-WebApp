@@ -511,6 +511,7 @@ describe("saved footage and processing are separate receipts", () => {
     writeFault.manifestOnce = true;
     await withRoutes(async baseUrl => {
       expect((await uploadFor(baseUrl, "req-retry-concurrent", "original")).status).toBe(502);
+      await waitForUploadRelease("req-retry-concurrent");
       const results = await Promise.all([retryProcessing(baseUrl, "req-retry-concurrent"), retryProcessing(baseUrl, "req-retry-concurrent")]);
       expect(results.some(result => result.status === 200)).toBe(true);
       expect(results.every(result => [200, 409].includes(result.status))).toBe(true);

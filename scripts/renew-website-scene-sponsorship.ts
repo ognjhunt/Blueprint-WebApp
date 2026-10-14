@@ -4,7 +4,8 @@ const help = `Usage:
   npx tsx scripts/renew-website-scene-sponsorship.ts --request-id ID --approved-by SPONSOR_UID --approval-reference TEXT
   npx tsx scripts/renew-website-scene-sponsorship.ts ... --apply --ack renew-expired-blueprint-preparation-sponsorship
 Re-issues an expired Blueprint-funded scene-preparation grant under its identical recorded policy.
-Without --apply it only prints the grant it would write. The sponsor's approval is required for --apply.`;
+Without --apply it prints the grant, carried amendments, effective limits and amendment history update it would write.
+The sponsor's approval is required for --apply.`;
 
 async function main() {
   const { values } = parseArgs({ options: { "request-id": { type: "string" }, "approved-by": { type: "string" },
@@ -21,7 +22,9 @@ async function main() {
     task_context_digest: renewed.task_context_digest, policy_digest: renewed.policy_digest,
     expires_at: new Date(renewed.expires_at_epoch * 1000).toISOString(),
     caps_usd: { preparation: renewed.preparation_max_total_spend_usd, upstream: renewed.upstream_max_spend_usd,
-      native: renewed.max_total_spend_usd }, max_paid_attempts: renewed.max_paid_attempts }, null, 2));
+      native: renewed.max_total_spend_usd }, max_paid_attempts: renewed.max_paid_attempts,
+    preparation_amendments: renewed.preparation_amendments,
+    task_context_projection_migration: renewed.task_context_projection_migration }, null, 2));
 }
 
 main().then(() => process.exit(0), error => { console.error(error instanceof Error ? error.message : error); process.exit(1); });
