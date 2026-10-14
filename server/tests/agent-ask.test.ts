@@ -11,15 +11,22 @@ describe("agent grounded ask", () => {
     }
   });
 
-  it("routes buying-with-a-budget questions to scoped run intake", async () => {
+  it("answers buying-with-a-budget questions with the free intake, not a purchase path", async () => {
     const response = await answerAgentQuestion({
       question: "I have a wallet and a budget - how do I buy access?",
     });
     expect(response.bestAnswer?.id).toBe("how-to-request-run");
+    expect(response.bestAnswer?.answer).toMatch(/nothing to buy/i);
+    expect(response.bestAnswer?.answer).toMatch(/joins by invitation/);
     expect(response.bestAnswer?.actions.map((action) => action.endpoint).join(" ")).toContain(
       "task-evaluation-run",
     );
     expect(response.truthBoundary).toContain("curated");
+  });
+
+  it("routes a robot team's how-to-start question to the same intake", async () => {
+    const response = await answerAgentQuestion({ question: "How does a robot team start an evaluation?" });
+    expect(response.bestAnswer?.id).toBe("how-to-request-run");
   });
 
   it("routes search and pricing questions to their entries", async () => {
@@ -30,6 +37,8 @@ describe("agent grounded ask", () => {
 
     const pricing = await answerAgentQuestion({ question: "How much does it cost?" });
     expect(pricing.bestAnswer?.id).toBe("pricing");
+    expect(pricing.bestAnswer?.answer).toMatch(/^Free during the beta\./);
+    expect(pricing.bestAnswer?.answer).toMatch(/Blueprint takes no cut/);
   });
 
   it("falls back to human intake when nothing matches confidently", async () => {

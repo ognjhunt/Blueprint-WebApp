@@ -1,4 +1,6 @@
 import { embedTexts } from "./embeddings";
+import { captureGroundedPublicCopy } from "../../client/src/lib/captureGroundedLanguage";
+import { siteAssessment } from "../../client/src/lib/evaluationPricing";
 
 // Grounded question answering for headless agents. Answers are curated,
 // citation-backed snippets over Blueprint's public canonical content — never
@@ -61,8 +63,8 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "robot policy evaluation",
       "capture backed evaluation",
     ],
-    answer:
-      "Blueprint offers a limited, invited beta for real sites and tasks. Participants share permitted video or discuss the work, describe the desired outcome, and provide feedback and follow-up. Invited participants receive a free initial evidence-backed task assessment, including what is supported, unknown, and worth exploring next. Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. Robot teams participate by invitation on an agreed task scope. No guaranteed ready robot, instant automatic delivery, validated physical performance, or free physical deployment.",
+    // The product summary every public surface states, not a second copy of it.
+    answer: captureGroundedPublicCopy.productSummary,
     citations: [`${CANONICAL_ORIGIN}/`, `${CANONICAL_ORIGIN}/proof`],
     actions: [
       { description: "Read the public discovery summary", method: "GET", endpoint: "/api/site-content" },
@@ -99,7 +101,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
   },
   {
     id: "how-to-request-run",
-    title: "How agents request a Task Evaluation Run",
+    title: "How to start a Task Evaluation Run",
     aliases: [
       "buy",
       "purchase",
@@ -112,9 +114,14 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "spend",
       "order",
       "how can an agent buy",
+      "get started",
+      "how do i start",
+      "start an evaluation",
+      "sign up",
+      "apply",
     ],
     answer:
-      "Start at /contact/robot-team or /contact/site-operator and request the same Task Evaluation Run. Include the site job, decision question, candidates when applicable, measurable thresholds, unacceptable failures, false-safe consequence, budget, deadline, existing evidence, rights/privacy restrictions, and whether physical testing is possible. Blueprint returns a scoped quote; no client-supplied price is authoritative. Standalone site-package and hosted-session checkout is retired and returns 410 without creating a Stripe session, order, charge, or entitlement.",
+      "There is nothing to buy: during the beta Blueprint charges nothing to sites or to invited robot teams. A site starts by describing one recurring job at /contact/site-operator; sign-up is open, and Blueprint also onboards sites by hand. A robot team applies at /contact/robot-team and joins by invitation after Blueprint reviews the application; an approved team asks to evaluate a shared job from its workspace, and each run still needs Blueprint's approval of the exact team, policy and job. Retired purchase endpoints return 410 and create no Stripe session, order, charge, or entitlement.",
     citations: [`${CANONICAL_ORIGIN}/agent-access.openapi.json`, `${CANONICAL_ORIGIN}/beta`],
     actions: [
       { description: "Open robot-team intake", method: "GET", endpoint: "/contact/robot-team?interest=task-evaluation-run" },
@@ -153,7 +160,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "run batch episodes",
     ],
     answer:
-      "Historical orders, entitlements, and hosted-session records remain readable under their original authentication, tenant, ownership, and entitlement boundaries. Those compatibility paths do not create a current product or promise new fulfillment. New quote and checkout requests return 410 and direct the customer to one scoped Task Evaluation Run.",
+      "Historical orders, entitlements, and hosted-session records remain readable under their original authentication, tenant, ownership, and entitlement boundaries. Those compatibility paths do not create a current product or promise new fulfillment. The retired purchase endpoints return 410; new work starts as a free Task Evaluation Run request.",
     citations: [`${CANONICAL_ORIGIN}/agent-access.openapi.json`],
     actions: [
       { description: "Read a historical order", method: "GET", endpoint: "/api/agent-access/commerce/live-orders/{orderId}", mcpTool: "blueprint.commerce.liveOrder.get" },
@@ -182,7 +189,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
   },
   {
     id: "pricing",
-    title: "Pricing and offer shape",
+    title: "Pricing during the beta",
     aliases: [
       "pricing",
       "cost",
@@ -192,12 +199,16 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "rates",
       "fees",
     ],
-    answer:
-      "The initial assessment is free for invited beta participants. Any later evaluation, integration, or physical pilot has its scope and cost agreed separately before proceeding. Participation does not include a free physical deployment. Robot teams participate by invitation within a specific agreed scope; paid self-serve evaluations and balance top-ups remain unavailable. Historical agreements and billing records retain their original terms.",
-
+    // Stated from the one place a price, or its absence, lives.
+    answer: [
+      siteAssessment.allIn,
+      "Robot teams evaluate the jobs they are invited to free as well.",
+      "The physical pilot is agreed directly between the site and the robot team, and Blueprint takes no cut of it.",
+    ].join(" "),
     citations: [`${CANONICAL_ORIGIN}/beta`],
     actions: [
-      { description: "Request a scoped quote", method: "GET", endpoint: "/contact/robot-team?interest=task-evaluation-run" },
+      { description: "Start a job (sites)", method: "GET", endpoint: "/contact/site-operator" },
+      { description: "Apply for an invitation (robot teams)", method: "GET", endpoint: "/contact/robot-team" },
     ],
   },
   {
@@ -214,7 +225,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "provenance",
     ],
     answer:
-      "Every active agent surface preserves evidence class and provenance. Raw capture, fixture, simulation, provider, and physical evidence remain distinct; generated previews, catalog matches, and request drafts do not prove customer results, rights clearance, provider execution, payment, deployment, or physical success. A result is valid only within its stated validation envelope and claim ceiling.",
+      "Every active agent surface preserves evidence class and provenance. Raw capture, fixture, simulation, provider, and physical evidence remain distinct; generated previews, catalog search results, and request drafts do not prove customer results, rights clearance, provider execution, payment, deployment, or physical success. A result is valid only within its stated validation envelope and claim ceiling.",
     citations: [`${CANONICAL_ORIGIN}/proof`],
     actions: [
       { description: "Read the proof explainer", method: "GET", endpoint: "/proof" },
