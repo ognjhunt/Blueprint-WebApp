@@ -532,6 +532,7 @@
 .ms-visitor-detail > .ms-field-hint { font-size: 12px; }
 .ms-visitor-detail a { text-decoration: underline; text-underline-offset: 3px; }
 .ms-task-preview { border-block: 1px solid var(--ms-rule); padding-block: 16px; margin-block: 16px; }
+.ms-listing-preview { border-left: 3px solid var(--ms-rule); padding: 4px 0 4px 14px; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
 .ms-check-row { display: flex !important; flex-direction: row !important; align-items: start; gap: 12px; }
 .ms-check-row input { width: 20px !important; height: 20px; min-height: 20px !important; flex-shrink: 0; margin-top: 3px; }
 .ms-choice { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }

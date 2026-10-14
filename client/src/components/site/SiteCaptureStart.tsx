@@ -1,4 +1,4 @@
-import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
+import { anonymizedOpportunityDraft, opportunityLabels } from "@/types/taskBrowse";
 import { isLikelyPhone } from "@/lib/device";
 /** Show the work; explanatory text is optional when capture is authorized. */
 import { useEffect, useRef, useState } from "react";
@@ -81,6 +81,44 @@ function ClearDraftControl({status,onClear,disabled=false}:{status:ClearStatus;o
     {status === "done" && <p role="status" className="ms-field-hint">This browser's draft has been cleared.</p>}
     {status === "failed" && <p role="alert" className="ms-field-hint">We could not confirm that this browser's draft was cleared. Stay on this page and try again before leaving a shared device.</p>}
   </>;
+}
+
+/**
+ * What robot teams will see, shown before the site starts.
+ *
+ * The card comes from `anonymizedOpportunityDraft`, the same function the
+ * server checks the listing grant against, so this preview is the exact text
+ * that is published. Keeping the job private sends no listing grant at all.
+ */
+function ListingChoice({ task, privateHandling, onPrivateHandlingChange }: {
+  task: string; privateHandling: boolean; onPrivateHandlingChange: (value: boolean) => void;
+}) {
+  const card = anonymizedOpportunityDraft(task.trim());
+  return <fieldset className="ms-choice" aria-describedby="start-listing-consent">
+    <legend>Job card for robot teams</legend>
+    {privateHandling ? (
+      <p id="start-listing-consent" className="ms-field-hint">
+        This job stays private. Starting does not publish a job card; Blueprint uses what you send only to assess your job.
+      </p>
+    ) : <>
+      <p id="start-listing-consent" className="ms-field-hint">
+        Robot teams approved for the beta can see this anonymized card. By starting, you authorize Blueprint to publish
+        exactly this text. Footage, the rebuilt scene, your address, contacts and other details stay private.
+      </p>
+      <div className="ms-listing-preview" aria-label="Generated public summary" aria-live="polite">
+        {!task.trim() && <p className="ms-field-hint">No job description yet, so the card shows only a general title.</p>}
+        <p><strong>{card.title}</strong></p>
+        <p className="ms-field-hint">
+          Job type: {card.taskFamily}{card.objects ? ` · Objects: ${card.objects}` : ""} · {opportunityLabels[card.opportunity]}
+        </p>
+      </div>
+    </>}
+    <label className="ms-check-row" htmlFor="start-private-handling">
+      <input id="start-private-handling" name="startPrivateHandling" type="checkbox" checked={privateHandling}
+        onChange={event => onPrivateHandlingChange(event.target.checked)} />
+      <span>Keep this job private instead</span>
+    </label>
+  </fieldset>;
 }
 
 export function SiteCaptureStart({ onSavedChange }: { onSavedChange?: (saved: boolean) => void } = {}) {
@@ -289,8 +327,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   }
   // The video is only taken from a site we are cleared to receive it from.
   const footageWanted = hasFootage && region !== "non_us";
-  // Honor privacy choices retained by earlier versions of this form.
+  // Listing is the default the Terms describe, but it is a choice: the site
+  // sees the exact card text before starting and can keep the job private.
   const [privateHandling, setPrivateHandling] = useState(initial.draft.privateHandling ?? false);
+  const [taskForPreview, setTaskForPreview] = useState(initial.draft.task);
   const [claudeConsent, setClaudeConsent] = useState(false);
   const [solAgentsConsent, setSolAgentsConsent] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -299,7 +339,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       || recovery.current.pending?.body !== other.pending?.body;
     recovery.current = other;
     requestId.current = other.requestId; retryToken.current = other.retryToken;
-    setPrivateHandling(other.draft.privateHandling ?? false);
+    setPrivateHandling(other.draft.privateHandling ?? false); setTaskForPreview(other.draft.task);
     setMethod(other.draft.method); setRegion(other.draft.region);
     setPending(other.pending);
     if (changed && resetChanged) {
@@ -341,7 +381,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setClaudeConsent(false); setSolAgentsConsent(false);
       setMethod("phone"); setRegion(""); setCountryMissing(false);
-      setPrivateHandling(false);
+      setPrivateHandling(false); setTaskForPreview("");
       setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
       // A completion is visible only after both stores commit the fresh authority.
@@ -713,12 +753,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         <span className="ms-field-hint">
           Show us the work; we'll assess the observed task. Add context or what you want to achieve if helpful. We'll ask only when a missing answer changes the recommendation.
         </span>
-        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={4} />
+        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} onChange={event => setTaskForPreview(event.target.value)} maxLength={2000} rows={4} />
       </label>
 
-      <p className="ms-field-hint" aria-label="Opportunity sharing">
-        {privateHandling ? "This job will be handled privately; starting does not authorize a public listing. Blueprint uses the supplied information for your job assessment." : "Blueprint will create an anonymized opportunity listing so robot teams approved for beta can discover this job. By starting, you authorize publication of the generated summary."}
-      </p>
+      <ListingChoice task={taskForPreview} privateHandling={privateHandling} onPrivateHandlingChange={setPrivateHandling} />
 
       {claudeAuthoringRequested && (
         <label htmlFor="start-claude-authoring" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
