@@ -6,6 +6,7 @@ vi.mock("../utils/slack", () => ({ sendSlackMessage: vi.fn(async () => ({ sent: 
 vi.mock("../utils/email", () => ({ sendEmail: vi.fn(async () => ({ sent: true })) }));
 
 import { __resetBetaOpsMonitorForTests, scanTerminalOutboxFailures, startBetaOpsMonitor } from "../utils/betaOpsMonitor";
+import { prepareAccountNotice } from "../utils/accountNotice";
 
 function outboxStore(entries: Array<{ id: string; data: Record<string, unknown> }>) {
   const markers = new Map<string, Record<string, unknown>>();
@@ -70,6 +71,25 @@ describe("terminal outbox failure scan", () => {
 
   it("is a no-op without Firestore", async () => {
     await expect(scanTerminalOutboxFailures({ store: null })).resolves.toEqual({ failed: 0, newlyAlerted: 0 });
+  });
+
+  it("identifies the exact account-notice intent and receipts without a nonexistent lead link", async () => {
+    const { entry } = prepareAccountNotice({ noticeId: "synthetic-notice-v1",
+      to: "account@example.invalid", subject: "Synthetic account update", body: "Private synthetic copy" });
+    const store = outboxStore([{ id: entry.idempotencyKey, data: { ...entry, status: "failed", lastError: "delivery_attempt_budget_exhausted" } }]);
+    const alert = vi.fn(async () => undefined);
+    const email = vi.fn(async () => ({ sent: true }));
+    await scanTerminalOutboxFailures({ store: store as never, alert, email: email as never });
+    for (const text of [String(alert.mock.calls[0][1]), email.mock.calls[0][0].text]) {
+      expect(text).toContain(`Firestore: captureOutbox/${entry.idempotencyKey} (inspect deliveryReceipts)`);
+      expect(text).not.toContain("/admin/leads/");
+      expect(text).not.toContain(entry.to);
+      expect(text).not.toContain(entry.body);
+    }
+    await scanTerminalOutboxFailures({ store: store as never, alert, email: email as never });
+    expect(alert).toHaveBeenCalledOnce();
+    expect(email).toHaveBeenCalledOnce();
+    expect(store.markers.get(entry.idempotencyKey)).toMatchObject({ outbox_key: entry.idempotencyKey, request_id: entry.requestId });
   });
 });
 

@@ -128,6 +128,10 @@ restore steps.
   check why both channels failed (`ops_notice.last_error` on the request doc).
 - **Outbox failures**: open the request; the message body and recipient are in
   `captureOutbox/<key>`. Resend quota and bounces are the usual causes.
+  Account notices have no lead record: their alert gives the exact
+  `captureOutbox/<key>` Firestore path and `deliveryReceipts` recovery reference.
+  Inspect those with existing authorized Firestore access; see
+  [account-notice delivery](account-notice-email.md#approved-delivery).
 - **5xx / crash**: Render logs, filter `level>=50` and the trace id.
 - **Readiness not ready**: `curl -H "x-health-status-token: $HEALTH_STATUS_TOKEN"
   https://tryblueprint.io/health/ready` lists the blockers (the token is

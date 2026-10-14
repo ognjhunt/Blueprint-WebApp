@@ -1,0 +1,38 @@
+[
+  {
+    "mode": "desktop",
+    "width": 900,
+    "scrollWidth": 900,
+    "heading": "An update to your Blueprint account",
+    "logoLoaded": true,
+    "wordmark": "Blueprint",
+    "buttonHref": "https://tryblueprint.io/terms"
+  },
+  {
+    "mode": "mobile",
+    "width": 375,
+    "scrollWidth": 375,
+    "heading": "An update to your Blueprint account",
+    "logoLoaded": true,
+    "wordmark": "Blueprint",
+    "buttonHref": "https://tryblueprint.io/terms"
+  },
+  {
+    "mode": "dark",
+    "width": 375,
+    "scrollWidth": 375,
+    "heading": "An update to your Blueprint account",
+    "logoLoaded": true,
+    "wordmark": "Blueprint",
+    "buttonHref": "https://tryblueprint.io/terms"
+  },
+  {
+    "mode": "blocked",
+    "width": 375,
+    "scrollWidth": 375,
+    "heading": "An update to your Blueprint account",
+    "logoLoaded": false,
+    "wordmark": "Blueprint",
+    "buttonHref": "https://tryblueprint.io/terms"
+  }
+]
