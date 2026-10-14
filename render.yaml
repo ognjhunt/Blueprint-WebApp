@@ -20,6 +20,13 @@ services:
     # Readiness is verified after every deploy by .github/workflows/deploy.yml
     # and alerted by the in-process monitor and the uptime workflow.
     healthCheckPath: /health
+    # Founder decision (2026-10-14): the beta runs one web instance without
+    # Redis; rate limits and the automation lease stay per-process. This
+    # records the waiver so /health/ready names it as accepted. Remove it
+    # (and set REDIS_URL) before scaling past one instance.
+    envVars:
+      - key: BLUEPRINT_READINESS_REDIS_WAIVED
+        value: "1"
 
   # Dedicated production launch-forward worker. This deployment is explicitly
   # constrained to Task Evaluation launch reconciliation; unrelated ops and

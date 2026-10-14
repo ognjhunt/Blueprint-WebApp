@@ -104,7 +104,7 @@ export const termsSections: readonly Section[] = [
   {
     title: "13. Governing law and general terms",
     paragraphs: [
-      "These Terms are governed by the laws of the State of North Carolina, without regard to conflict-of-law rules, and disputes will be heard in the state or federal courts located in North Carolina. These Terms, together with any order form or written agreement you sign with us, are the entire agreement about the Service; a signed agreement controls where it differs. If a provision is unenforceable, the rest remains in effect. You may not assign these Terms without our consent. We may send notices to your account email.",
+      "These Terms are governed by the laws of the State of Delaware, without regard to conflict-of-law rules, and disputes will be heard in the state or federal courts located in Delaware. These Terms, together with any order form or written agreement you sign with us, are the entire agreement about the Service; a signed agreement controls where it differs. If a provision is unenforceable, the rest remains in effect. You may not assign these Terms without our consent. We may send notices to your account email.",
     ],
   },
 ];

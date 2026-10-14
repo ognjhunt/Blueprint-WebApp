@@ -69,11 +69,18 @@ Redis outages fail open: rate limiting lets requests through within ~750 ms
    you on failed workflows. GitHub pauses scheduled workflows after 60 days
    without repository activity; re-enable from the Actions tab if so.
 4. **Render → Blueprint-WebApp → Environment**: confirm `SLACK_WEBHOOK_URL`,
-   `RESEND_API_KEY`, `RESEND_FROM_EMAIL` and `CONTACT_TO` are set, and decide
-   Redis (`REDIS_URL` or `BLUEPRINT_READINESS_REDIS_WAIVED=1`). Optionally set
+   `RESEND_API_KEY`, `RESEND_FROM_EMAIL` and `CONTACT_TO` are set. The founder
+   chose a single instance without Redis for the beta (2026-10-14): add
+   `BLUEPRINT_READINESS_REDIS_WAIVED=1` here. `render.yaml` records the same
+   value, but a dashboard-created service does not read it (see
+   `DEPLOYMENT.md`), so the dashboard entry is what takes effect. Optionally set
    `SLACK_INBOUND_WEBHOOK_URL` for a separate new-request channel and
    `BLUEPRINT_ADMIN_EMAIL_ALLOWLIST` (see access control below).
 5. **Resend → Billing**: see *Email volume* below.
+6. **Terms update notice**: Terms version `2026-10-14.1` changed governing law
+   to Delaware. Per the Terms' own update clause, email account holders about
+   the material change before it takes effect; continued use after that is
+   acceptance. The workspace does not force re-acceptance of a new version.
 
 ## Email volume (Resend free plan)
 

@@ -20,7 +20,7 @@ const privacy = JSON.stringify({ privacyPolicySections, californiaPrivacyRows, i
 
 describe("terms for the free beta", () => {
   it("is versioned for the free-beta decision", () => {
-    expect(TERMS_VERSION).toBe("2026-10-13.1");
+    expect(TERMS_VERSION).toBe("2026-10-14.1");
     expect(PRIVACY_VERSION).toBe("2026-10-13.1");
   });
 
@@ -39,12 +39,12 @@ describe("terms for the free beta", () => {
     expect(terms).not.toMatch(/\bmatch(?:ed|es|ing)?\b/i);
   });
 
-  it("covers in-person filming visits and leaves governing law unchanged", () => {
+  it("covers in-person filming visits and Delaware governing law", () => {
     const visit = termsSections.find((section) => /In-person filming visits/.test(section.title));
     expect(visit?.items?.join(" ")).toMatch(/follow the site's safety rules/);
     expect(visit?.items?.join(" ")).toMatch(/limited as described in section 9/);
     const law = termsSections.find((section) => /Governing law/.test(section.title));
-    expect(law?.paragraphs?.[0]).toMatch(/laws of the State of North Carolina/);
+    expect(law?.paragraphs?.[0]).toMatch(/laws of the State of Delaware/);
   });
 
   it("disables paid evaluations and top-ups for robot teams", () => {
