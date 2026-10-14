@@ -758,7 +758,7 @@
           "Legacy commerce"
         ],
         "operationId": "getAgentDryRunEntitlement",
-        "summary": "Read a dry-run marketplace entitlement.",
+        "summary": "Read a historical dry-run entitlement.",
         "security": [
           {}
         ],

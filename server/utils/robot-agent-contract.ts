@@ -594,7 +594,7 @@ export function buildRobotAgentOpenApiContract() {
         get: {
           tags: ["Legacy commerce"],
           operationId: "getAgentDryRunEntitlement",
-          summary: "Read a dry-run marketplace entitlement.",
+          summary: "Read a historical dry-run entitlement.",
           security: [{}],
           parameters: [
             { name: "entitlementId", in: "path", required: true, schema: { type: "string" } },

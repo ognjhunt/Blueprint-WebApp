@@ -319,7 +319,7 @@ export const gateFields: readonly QualifyingField[] = [
         label: "Six to twelve months out",
         verdict: "marginal",
         ambiguity:
-          "Far enough out that the robot teams available then may not be the ones we would match you to now.",
+          "Far enough out that the robot teams able to take it on then may not be the ones we would recommend today.",
       },
       {
         value: "exploratory",
