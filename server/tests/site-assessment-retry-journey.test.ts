@@ -161,7 +161,7 @@ it("joins failed provider admission, explicit owner retry, durable worker and sa
       const newCalls = [...state.docs.entries()].filter(([key, value]) => key.includes("/calls/") && value.run_id === job.run_id);
       expect(newCalls).toHaveLength(3);
       expect(newCalls.every(([,value]) => ["recorded", "unknown"].includes(value.state))).toBe(true);
-      expect(run.artifacts.capture_inference_reservations.every((row:any) => row.spending_gated === false)).toBe(true);
+      expect(run.artifacts.capture_inference_reservations.every((row:any) => row.spending_gated === true && row.daily_cap_usd === 50)).toBe(true);
       expect(programme.slots.reduce((total:number, slot:any) => total + slot.reserved_micro_usd, 0)).toBe(4_964_928);
     }
     const response=await read();expect(response.status).toBe(200);const body=await response.json();

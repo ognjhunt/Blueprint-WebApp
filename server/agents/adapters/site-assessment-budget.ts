@@ -29,26 +29,42 @@ export function priceSiteAssessmentUsage(provider:"openai"|"gemini",usage:unknow
   return {...normalized,cost_usd:cost};
 }
 
-/** Accounting estimates only. Missing usage remains unknown and never imposes a spending gate. */
+// Sol: uncached input plus a conservative cache-write ceiling. Flash:
+// full 1,048,576-token context and 32768 output at its announced post-2026 ceiling.
+// Pricing sources are retained below; these are estimates, never invoices.
+const SOL_INPUT_CEILING = 100000, SOL_OUTPUT_ESTIMATE = 8192;
+export const SOL_CALL_RESERVATION_USD = (SOL_INPUT_CEILING * 2.5 + SOL_OUTPUT_ESTIMATE * 10) / 1e6;
+export const GEMINI_VIDEO_CALL_RESERVATION_USD = (1_048_576 * 1.5 + 32768 * 7.5) / 1e6;
+
+/**
+ * Accounting estimates plus, when a cap is given, a real per-review ceiling:
+ * a call whose worst-case reservation would take the review's committed cost
+ * (priced usage where reported, the full reservation where not) past the cap
+ * is refused before it is dispatched. Without a cap (the owner-authorized local
+ * iteration host) it only accounts.
+ */
 export class SiteAssessmentBudget {
   readonly calls: Call[] = [];
-  constructor(private readonly committedExposureUsd = 0, _legacyCapUsd?: number) {
+  readonly cap: number | null;
+  constructor(private readonly committedExposureUsd = 0, capUsd: number | null = null) {
     if (!Number.isFinite(committedExposureUsd) || committedExposureUsd < 0) throw new Error("site_assessment_exposure_invalid");
+    if (capUsd !== null && (!Number.isFinite(capUsd) || capUsd < 0)) throw new Error("site_assessment_exposure_invalid");
+    this.cap = capUsd;
   }
-  readonly cap = null;
-  readonly inputCeiling = 100000;
+  readonly inputCeiling = SOL_INPUT_CEILING;
   // Historical reference estimate only; it is never passed to the provider.
-  readonly outputEstimate = 8192;
+  readonly outputEstimate = SOL_OUTPUT_ESTIMATE;
+  /** Known priced cost plus the full reservation of every call without reported usage. */
+  committedUsd() {
+    return this.committedExposureUsd + this.calls.reduce((sum, call) => sum + (call.cost_usd ?? call.reserved_usd), 0);
+  }
   authorize(provider: "openai" | "gemini", model: string, request?: unknown) {
     if ((provider === "openai" && model !== SITE_ASSESSMENT_MODEL)
       || (provider === "gemini" && (model !== getGeminiVideoModel() || model !== "gemini-3.8-flash"))) {
       throw new Error("site_assessment_model_not_admitted");
     }
-    // Sol: uncached input plus a conservative cache-write ceiling. Flash:
-    // full 1,048,576-token context and 32768 output at its announced post-2026 ceiling.
-    // Pricing sources are retained below; these are estimates, never invoices.
-    const reserved = provider === "openai" ? (this.inputCeiling * 2.5 + this.outputEstimate * 10) / 1e6
-      : (1_048_576 * 1.5 + 32768 * 7.5) / 1e6;
+    const reserved = provider === "openai" ? SOL_CALL_RESERVATION_USD : GEMINI_VIDEO_CALL_RESERVATION_USD;
+    if (this.cap !== null && this.committedUsd() + reserved > this.cap + 1e-9) throw new Error("site_assessment_inference_cost_cap");
     this.calls.push({ provider, model, reserved_usd: reserved, usage: null, response: null, cost_usd: null, input_tokens: null, output_tokens: null, input_ceiling:provider==="openai"?this.inputCeiling:1048576, output_ceiling:provider==="openai"?null:32768, output_estimate:provider==="openai"?this.outputEstimate:32768 });
   }
   record(provider: "openai" | "gemini", model: string, response: any) {
@@ -83,7 +99,7 @@ export class SiteAssessmentBudget {
       usage: { calls: this.calls.length, prompt_tokens: total("input_tokens"), completion_tokens: upperBound ? null : total("output_tokens"),
         cost_usd: known ? reportedCost : null, estimated_total_cost_usd: known ? reportedCost : null },
       cost_status: known ? (upperBound ? "usage_upper_bound_pricing_estimate":"reported_usage_pricing_estimate") : "usage_missing",
-      inference_reservation: { hard_cost_cap_usd: null, spending_gated: false, committed_exposure_usd: this.committedExposureUsd, known_reported_cost_usd: reportedCost,
+      inference_reservation: { hard_cost_cap_usd: this.cap, spending_gated: this.cap !== null, committed_exposure_usd: this.committedExposureUsd, known_reported_cost_usd: reportedCost,
         reconciled_cost_status: known ? (upperBound ? "usage_upper_bound_pricing_estimate":"reported_usage_pricing_estimate")
           : unboundedUnknown ? "includes_unbounded_output_estimates" : "includes_worst_case_reservations",
         projected_max_cost_per_call_usd: unboundedUnknown ? null : Math.max(0, ...unknown.map(call => call.reserved_usd)),

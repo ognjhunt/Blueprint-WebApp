@@ -42,7 +42,7 @@ const assessmentErrorCodes = new Set([
   "site_assessment_conversation_binding_invalid", "site_assessment_conversation_request_mismatch", "site_assessment_video_evidence_missing",
   "site_assessment_deadline_exceeded", "site_assessment_exposure_invalid", "site_assessment_cost_unresolved",
   "site_assessment_model_not_admitted", "site_assessment_input_budget_exceeded", "site_assessment_inference_cost_cap",
-  "site_assessment_accounting_mismatch", "site_assessment_actual_cost_exceeds_reservation",
+  "site_assessment_accounting_mismatch", "site_assessment_actual_cost_exceeds_reservation", "site_assessment_daily_cost_cap",
   // Sound could not be removed, so the video was not sent (see video-audio-strip.ts).
   "site_assessment_audio_strip_unavailable", "site_assessment_audio_strip_failed", "site_assessment_audio_strip_unverified",
 ]);
@@ -95,6 +95,7 @@ export function bindBrowserAssessmentSource(requestId: string, record: Record<st
 
 export { SiteAssessmentBudget } from "./site-assessment-budget";
 import { SiteAssessmentBudget } from "./site-assessment-budget";
+import { modelReviewPerReviewUsdCap } from "../../utils/betaAbuseCaps";
 
 /** Trusted local host substitutes persistence, with optional explicit context omission. All live source checks remain below. */
 export interface SiteAssessmentExperiment {
@@ -119,7 +120,9 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
   experiment?: SiteAssessmentExperiment }): Promise<AgentResult> {
   const base = { provider: task.provider, runtime: task.runtime, model: task.model, tool_mode: task.tool_policy.mode,
     requires_human_review: true, requires_approval: false };
-  const budget = new SiteAssessmentBudget();
+  // Customer reviews carry a hard per-review dollar ceiling. The trusted local
+  // iteration host keeps the owner's recorded no-cap decision and only accounts.
+  const budget = new SiteAssessmentBudget(0, host.experiment ? null : modelReviewPerReviewUsdCap());
   let captureAdmission: Awaited<ReturnType<SiteAssessmentExperiment["reserve"]>> | undefined;
   const captureReservations: unknown[] = [];
   let instance: Awaited<ReturnType<typeof createSiteAssessmentAgent>> | undefined;

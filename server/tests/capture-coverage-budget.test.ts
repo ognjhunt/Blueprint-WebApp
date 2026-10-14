@@ -81,11 +81,56 @@ describe("durable customer inference accounting without spending gates",()=>{
   const next=await reserveCaptureCoverageInference("gemini-3.8-flash",metadata);expect(next.receipt.capture_exposure_usd).toBeCloseTo(9+1.818624);
  });
  it("keeps known usage, response bodies and missing usage separate in cost telemetry",()=>{
-  const budget=new SiteAssessmentBudget(99999,0.0001);budget.authorize("openai",SITE_ASSESSMENT_MODEL,{});budget.record("openai",SITE_ASSESSMENT_MODEL,{usage:null});
+  const budget=new SiteAssessmentBudget(99999);budget.authorize("openai",SITE_ASSESSMENT_MODEL,{});budget.record("openai",SITE_ASSESSMENT_MODEL,{usage:null});
   budget.authorize("gemini","gemini-3.8-flash");budget.record("gemini","gemini-3.8-flash",{usage});
   const artifacts=budget.artifacts();expect(artifacts.inference_reservation.hard_cost_cap_usd).toBeNull();expect(artifacts.inference_reservation.spending_gated).toBe(false);
   expect(artifacts.usage.cost_usd).toBeNull();expect(artifacts.inference_reservation.unknown_usage_reserved_cost_usd).toBeGreaterThan(0);
  });
+});
+describe("site assessment dollar ceilings",()=>{
+ const assessmentMetadata={capture_id:metadata.capture_id,assessment_run_id:"assessment-one",assessment_request_id:"one",assessment_source:source,assessment_video_sha256:"a".repeat(64)};
+ const daily=()=>[...sharedFakeFirestoreState.docs.entries()].find(([key])=>key.startsWith("durableDailyCaps/model_review_spend_micro_usd__"))?.[1] as any;
+ it("refuses a call whose worst-case reservation would pass the per-review cap, counting priced usage",()=>{
+  const budget=new SiteAssessmentBudget(0,2);
+  budget.authorize("gemini","gemini-3.8-flash");
+  // Usage not yet reported: the full $1.82 reservation is committed.
+  expect(()=>budget.authorize("gemini","gemini-3.8-flash")).toThrow("site_assessment_inference_cost_cap");
+  budget.record("gemini","gemini-3.8-flash",{usage});
+  budget.authorize("openai",SITE_ASSESSMENT_MODEL,{});budget.record("openai",SITE_ASSESSMENT_MODEL,{usage:null});
+  // $0.33 unknown Sol reservation + tiny Gemini cost + $1.82 next probe > $2.00.
+  expect(()=>budget.authorize("gemini","gemini-3.8-flash")).toThrow("site_assessment_inference_cost_cap");
+  const artifacts=budget.artifacts();
+  expect(artifacts.inference_reservation).toMatchObject({hard_cost_cap_usd:2,spending_gated:true});
+  expect(budget.calls).toHaveLength(2);
+ });
+ it("reserves each call against the durable daily USD cap and reconciles to priced usage",async()=>{
+  seedAssessment();
+  const call=await reserveCaptureCoverageInference("gemini-3.8-flash",assessmentMetadata,"gemini");
+  expect(call.receipt).toMatchObject({spending_gated:true,daily_cap_usd:50,reserved_usd:1.818624});
+  expect(daily().used).toBe(1_818_624);
+  await call.record(usage);
+  // 100 input + 10 output Flash tokens: the reservation shrinks to the priced cost.
+  expect(daily().used).toBe(Math.ceil((100*0.75+10*3.75)/1e6*1e6));
+ });
+ it("refuses before any call intent exists once the day is spent, and releases a failed admission",async()=>{
+  seedAssessment();
+  vi.stubEnv("BLUEPRINT_SITE_ASSESSMENT_DAILY_USD_CAP","3");
+  const first=await reserveCaptureCoverageInference("gemini-3.8-flash",assessmentMetadata,"gemini");
+  const callsBefore=[...sharedFakeFirestoreState.docs.keys()].filter(key=>key.includes("/calls/")).length;
+  await expect(reserveCaptureCoverageInference("gemini-3.8-flash",metadata)).rejects.toThrow("site_assessment_daily_cost_cap");
+  expect([...sharedFakeFirestoreState.docs.keys()].filter(key=>key.includes("/calls/")).length).toBe(callsBefore);
+  expect(daily().used).toBe(1_818_624);
+  await first.record(null);
+  // Unknown usage keeps the whole reservation.
+  expect(daily().used).toBe(1_818_624);
+  // A claim that no longer holds is refused after the reservation and gives it back.
+  read("captureCoverageReviews/"+metadata.review_id).claim_token="someone-else";
+  vi.stubEnv("BLUEPRINT_SITE_ASSESSMENT_DAILY_USD_CAP","50");
+  await expect(reserveCaptureCoverageInference("gemini-3.8-flash",metadata)).rejects.toThrow("coverage_budget_claim_changed");
+  expect(daily().used).toBe(1_818_624);
+ });
+ function seedAssessment(){sharedFakeFirestoreState.docs.set("agentRuns/assessment-one",{task_kind:"site_assessment",status:"running",input:{input:{context:{request_id:"one"}}}});}
+ const read=(path:string):any=>sharedFakeFirestoreState.docs.get(path);
 });
 describe("provider usage normalization retains unexplained exposure",()=>{
  it.each([

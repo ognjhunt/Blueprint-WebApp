@@ -9,6 +9,8 @@ import { logger } from "../logger";
 import { findPriorFootageReview } from "./captureFootageReview";
 import { mergeFootageIntoBrief } from "./siteTaskBriefReading";
 import { authorizeCaptureUpload } from "./captureUploadAuthorization";
+import { modelReviewHeadroom } from "./betaAbuseCaps";
+import { GEMINI_VIDEO_CALL_RESERVATION_USD } from "../agents/adapters/site-assessment-budget";
 
 let activePass: Promise<void> | null = null;
 /** Admission defers another same-capture traversal while this worker is busy. */
@@ -83,6 +85,13 @@ export async function reconcileCoverageReviews(limit = 10) {
         evidence: footage.output, briefDigest: humanDecisionDigest(brief) });
       brief = await getBrief(request.id);
       if (!brief) continue;
+    }
+    // Without room in today's model budget the review stays pending and keeps
+    // its attempts; claiming it now would only spend an attempt on a refusal.
+    const headroom = await modelReviewHeadroom(GEMINI_VIDEO_CALL_RESERVATION_USD);
+    if (!headroom.available) {
+      logger.warn({ requestId: request.id, reason: headroom.reason }, "Coverage review waits for model budget");
+      continue;
     }
     const binding = { source: privacy.producer_source, brief_digest: humanDecisionDigest(brief), capture_id: params.captureId };
     const id = humanDecisionDigest({ request_id: request.id, ...binding });
