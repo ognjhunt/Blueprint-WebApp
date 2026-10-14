@@ -1703,7 +1703,6 @@ export async function submitInboundRequest(req: Request, res: Response) {
       }
     }
 
-
     // 7. Build the document
     const now = admin.firestore.FieldValue.serverTimestamp();
     const reviewToken = createRequestReviewToken(payload.requestId);
