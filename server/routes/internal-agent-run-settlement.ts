@@ -67,7 +67,12 @@ import { recordRunResult } from "../utils/agentRunResults";
 import { getRun, listRequestedRuns, markRunStarted } from "../utils/agentEvalRuns";
 import { getCheckpoint } from "../utils/robotCheckpoints";
 import { controlledNativeResultSchema } from "../utils/controlledNativeResult";
-import { runResultScoringSchema, storedScoring } from "../utils/runResultScoring";
+import {
+  runResultScoringSchema,
+  storedScoring,
+  TEAM_EVALUATION_PRACTICE_RUNTIME,
+  TEAM_EVALUATION_SCORED_RUNTIME,
+} from "../utils/runResultScoring";
 import { loadTaskForTeam, developmentOfferForTeam } from "../utils/controlledDevelopmentOffer";
 
 const router = Router();
@@ -194,6 +199,18 @@ router.post(
       const run = await getRunForReservation(parsed.data.reservation_id);
       if (run?.executionAdmission && (!run.dispatch?.pipelineRunId || run.dispatch.pipelineRunId !== parsed.data.pipeline_run_id || run.executionAdmission.digestSha256 !== parsed.data.execution_admission_digest)) {
         return res.status(409).json({ error: "Result does not match the claimed execution", code: "agent_execution_mismatch" });
+      }
+      // A team evaluation's result is the run that was admitted: same purpose, a row for every
+      // quoted episode, and that purpose's runtime. A scored result never lands on a practice run.
+      const runtime = parsed.data.scoring?.runtime;
+      const runtimePurpose = runtime === TEAM_EVALUATION_SCORED_RUNTIME ? "scored"
+        : runtime === TEAM_EVALUATION_PRACTICE_RUNTIME ? "practice" : null;
+      const admittedPurpose = run?.teamEvaluationPurpose;
+      if ((admittedPurpose || parsed.data.evaluation_purpose || runtimePurpose)
+        && (parsed.data.evaluation_purpose !== admittedPurpose || (runtimePurpose && runtimePurpose !== admittedPurpose)
+          || outcomes?.length !== run?.quotedEpisodes)) {
+        return res.status(409).json({ error: "Result does not match the admitted team evaluation",
+          code: "team_evaluation_result_mismatch" });
       }
       const result = await recordRunResult({
         runId: runIdForReservation(parsed.data.reservation_id),

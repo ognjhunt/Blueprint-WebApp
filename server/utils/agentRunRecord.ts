@@ -79,7 +79,11 @@ export function buildRequestedRunRecord(params: RequestedRunParams): EvalRunReco
   };
 }
 
-/** Historical runs retain their original sharing agreement. Unknown modes fail closed. */
-export function isSiteEvaluation(run: Pick<EvalRunRecord, "evaluationPurpose">): boolean {
-  return run.evaluationPurpose === undefined || run.evaluationPurpose === "pilot";
+/**
+ * Historical runs retain their original sharing agreement. Unknown modes fail closed.
+ * A team's practice run is the team's own feedback: never listed, notified or used for the site.
+ */
+export function isSiteEvaluation(run: Pick<EvalRunRecord, "evaluationPurpose" | "teamEvaluationPurpose">): boolean {
+  return (run.evaluationPurpose === undefined || run.evaluationPurpose === "pilot")
+    && run.teamEvaluationPurpose !== "practice";
 }

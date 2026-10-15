@@ -36,6 +36,7 @@ export interface RawRun {
   teamId: string;
   state: string;
   evaluationPurpose?: string;
+  teamEvaluationPurpose?: string;
   requestedAtIso?: string | null;
   resolvedAtIso?: string | null;
   dispatch?: { startedAtIso?: string | null } | null;
@@ -72,7 +73,8 @@ function finite(value: unknown): number | null {
 
 /** Site evaluations only: private team runs never belong to a site job. */
 function isSiteRun(run: RawRun) {
-  return run.evaluationPurpose === undefined || run.evaluationPurpose === "pilot";
+  return (run.evaluationPurpose === undefined || run.evaluationPurpose === "pilot")
+    && run.teamEvaluationPurpose !== "practice";
 }
 
 function meetsPassMark(

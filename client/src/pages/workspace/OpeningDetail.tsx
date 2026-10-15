@@ -148,7 +148,8 @@ export default function OpeningDetail() {
                 <fieldset className="ws-section">
                   <legend>Run</legend>
                   <label className="ws-check">
-                    <input type="radio" name="purpose" value="practice" defaultChecked
+                    <input type="radio" name="purpose" value="practice" required
+                      defaultChecked={item.evaluation.practice.available}
                       disabled={!item.evaluation.practice.available} />
                     <span>
                       Practice: the {item.evaluation.practice.episodes} published cells, with every
@@ -156,7 +157,8 @@ export default function OpeningDetail() {
                     </span>
                   </label>
                   <label className="ws-check">
-                    <input type="radio" name="purpose" value="scored"
+                    <input type="radio" name="purpose" value="scored" required
+                      defaultChecked={!item.evaluation.practice.available && item.evaluation.scored.available}
                       disabled={!item.evaluation.scored.available} />
                     <span>
                       Scored: {item.evaluation.scored.episodes} cells you have not seen. The only run a
@@ -194,7 +196,8 @@ export default function OpeningDetail() {
               <div className="ws-form-actions">
                 <button
                   className="ws-primary"
-                  disabled={action.pending || !query.data?.setups.length}
+                  disabled={action.pending || !query.data?.setups.length || (item.evaluation
+                    ? !item.evaluation.practice.available && !item.evaluation.scored.available : false)}
                 >
                   {action.pending ? "Requesting…" : "Request evaluation →"}
                 </button>

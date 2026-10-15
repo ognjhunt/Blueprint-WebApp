@@ -223,14 +223,15 @@ function approveScoredRun(applicationId: string) {
     admitFreeWorkspaceEvaluation(applicationId, { teamId: TEAM, checkpointId: CHECKPOINT, episodes: 200, sponsorCapUsd: 20,
       maxAttempts: 1, evidenceScope: "development_only", expiresAtIso: new Date(Date.now() + 600_000).toISOString() }, "founder-fixture"));
 }
-function preparedExecution(owner: string) {
+function preparedExecution(owner: string, purpose: "practice" | "scored" = "practice") {
   prepare.mockImplementation(async () => {
     state.docs.set("robotEvalJobRequests/prepared-journey", { buyer_user_id: owner });
     return { prepared: true, requestId: "prepared-journey", created: true };
   });
   admission.mockResolvedValue({ admitted: true, digestSha256: `sha256:${"a".repeat(64)}`,
     envelope: { binding: { capture_id: "capture-fixture", task_family: "pick_place" },
-      canonical_execution_request: { execution_authorization: { max_cost_usd: 20, episodes: 10 } } } });
+      canonical_execution_request: { execution_authorization: { max_cost_usd: 20, episodes: purpose === "scored" ? 200 : 10 },
+        policy_package: { policy_api_endpoint: { execution_profile: `team_evaluation_${purpose}_v1` } } } } });
 }
 
 describe("a job started from the public form", () => {
@@ -312,7 +313,7 @@ describe("a job started from the public form", () => {
     expect(teamWorkspace.evaluations).toEqual([expect.objectContaining({ id: applicationId, taskId: jobId, title: opening.title })]);
 
     // Free admission accepts the record the request produced.
-    preparedExecution(ROBOT);
+    preparedExecution(ROBOT, "scored");
     const admitted = await approveScoredRun(applicationId);
     expect(admitted.created).toBe(true);
     // The team asked for a scored evaluation: 200 hidden cells, on the DROID Franka (no manifest saved).
