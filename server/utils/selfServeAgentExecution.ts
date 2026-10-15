@@ -35,7 +35,7 @@ import { submitTaskEvaluationRunRequest } from "../routes/robot-eval-job-request
 import { ROBOT_TEAMS_COLLECTION, type RobotTeamRecord } from "../types/robot-team-registry";
 import { sceneExecutionFacts } from "./agentExecutionAdmission";
 import { teamAccountUid } from "./robotTeamAccounts";
-import { isRunnableTask } from "./teamEvalCandidates";
+import { teamJobAccess, type TeamJobClosedReason } from "./teamJobAccess";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import type { InboundRequest } from "../types/inbound-request";
 import { loadTaskForTeam, developmentOfferForTeam } from "./controlledDevelopmentOffer";
@@ -105,6 +105,15 @@ export async function ensureSelfServeAgentExecution(params: PreparationParameter
 }
 /** Server-only preparation after the operator's exact workspace approval is validated.
  * This creates no provider operation; free dispatch still requires its signed funding capsule. */
+
+/** Earlier blocker names kept for the closed reasons this path already reported. */
+const SELF_SERVE_ACCESS_BLOCKERS: Partial<Record<TeamJobClosedReason, string>> = {
+  scene_not_runnable: "scene_not_runnable",
+  rights_blocked: "site_rights_not_cleared",
+  rights_needs_review: "site_rights_not_cleared",
+  consent_withdrawn: "site_rights_not_cleared",
+  recording_consent_missing: "site_rights_not_cleared",
+};
 export async function prepareFreeAgentExecution(params: PreparationParameters, approval: { approvedBy: string; expiresAtIso: string }): Promise<SelfServePreparation> {
   if (!approval.approvedBy || Date.parse(approval.expiresAtIso) <= Date.now()
     || !Number.isFinite(Date.parse(approval.expiresAtIso))
@@ -142,8 +151,12 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
   if (checkpoint.policyCredential && Date.parse(checkpoint.policyCredential.expiresAtIso) <= Date.now()) {
     blockers.push("policy_credential_expired");
   }
-  if (!taskRecord || (!development && !isRunnableTask(scene as InboundRequest))) {
-    blockers.push("scene_not_runnable");
+  if (!taskRecord) blockers.push("scene_not_runnable");
+  else if (!development) {
+    // The same rule the job library, the opening page and free admission use,
+    // so this path can never admit a job a team could not open.
+    const access = teamJobAccess(scene as InboundRequest);
+    if (!access.evaluationAvailable) blockers.push(SELF_SERVE_ACCESS_BLOCKERS[access.reason] ?? `job_not_open:${access.reason}`);
   }
   const rights = projectWebsiteCaptureRights(scene);
   if (!development && !rights.consent_scope.includes("robot_evaluation")) blockers.push("site_rights_not_cleared");

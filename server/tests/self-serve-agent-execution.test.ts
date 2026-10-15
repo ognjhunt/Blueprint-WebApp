@@ -155,6 +155,11 @@ describe("preparing a self-serve execution", () => {
       capture_root: ROOT, scenario_id: "capture_observed", episode_count: 20, episode_specs_sha256: sha("e"),
     } } }, "pipeline_execution_offer_episode_mismatch"],
     ["the scene is not runnable", { scene: { evaluation_readiness: null } }, "scene_not_runnable"],
+    // The job library's rule (teamJobAccess) applies here too.
+    ["the site kept the job private", { scene: { public_task_listing: null } }, "job_not_open:not_listed"],
+    ["the rights review has not cleared the capture", { scene: { evaluation_readiness: {
+      runtime_launchable: true, benchmark_coverage_status: "ready", rights_review_status: "needs_review",
+    } } }, "site_rights_not_cleared"],
   ])("prepares nothing when %s", async (_label, patch, blocker) => {
     seed(patch as never);
     const prepared = await ensureSelfServeAgentExecution(quote);
