@@ -9,7 +9,7 @@ import {
 } from "@/components/workspace/WorkspaceUI";
 import { RunRecord } from "@/pages/app/RunDetail";
 import { PilotBookingDetails } from "@/components/site/PilotBookingDetails";
-import type { EpisodeOutcomeRow } from "@/types/workspace";
+import type { EpisodeOutcomeRow, WorkspaceEvaluation } from "@/types/workspace";
 
 const OUTCOME_REASONS: Record<string, string> = {
   task_succeeded: "Task completed",
@@ -48,6 +48,18 @@ function EpisodeOutcomes({ rows }: { rows: EpisodeOutcomeRow[] }) {
     </details>
   );
 }
+/** The run's real episode count, from its own rows when it has them. */
+function episodeCountLabel(item: Pick<WorkspaceEvaluation, "episodeOutcomes" | "sampleCount">): string | null {
+  const rows = item.episodeOutcomes;
+  if (rows?.length) {
+    const counted = rows.filter((row) => row.outcome !== "void").length;
+    const succeeded = rows.filter((row) => row.outcome === "success").length;
+    const voided = rows.length - counted;
+    return `${succeeded} of ${counted} counted episodes succeeded${voided
+      ? ` (${voided} not counted: the simulator, not your policy, failed)` : ""}`;
+  }
+  return item.sampleCount !== null ? `${item.sampleCount} episodes` : null;
+}
 function Evidence({ runId }: { runId: string }) {
   const query = useBuyerAppRunDetail(runId);
   return (
@@ -68,7 +80,10 @@ function Evidence({ runId }: { runId: string }) {
 export default function Evaluation() {
   const query = useWorkspace(),
     { evaluationId } = useParams<{ evaluationId: string }>(),
-    item = query.data?.evaluations.find((item) => item.id === evaluationId);
+    item = query.data?.evaluations.find((item) => item.id === evaluationId),
+    // Only a run that can back a recommendation is compared with the site's targets.
+    counts = item?.notCountedReason === null,
+    episodes = item ? episodeCountLabel(item) : null;
   return (
     <Frame
       query={query}
@@ -96,7 +111,7 @@ export default function Evaluation() {
                 {item.outcome
                   ? statusLabel(item.outcome)
                   : item.successRate !== null
-                    ? "Awaiting site decision"
+                    ? counts ? "Awaiting site decision" : "Does not count"
                     : statusLabel(item.status)}
               </Tag>
             </p>
@@ -107,7 +122,7 @@ export default function Evaluation() {
               <div className="ws-empty">
                 <p>
                   {item.status === "requested"
-                    ? "Your request is saved. Blueprint will review compatibility, confirm costs, and prepare the evaluation."
+                    ? "Your request is saved. Blueprint reviews it and admits the evaluation; nothing runs before then."
                     : [
                           "failed",
                           "blocked",
@@ -118,11 +133,14 @@ export default function Evaluation() {
                           "completed",
                           "complete",
                           "partially_decided",
+                          "no_result",
                         ].includes(item.status)
-                      ? "No single scored result is available. Review the run details for individual policy results, failures, or limitations."
+                      ? item.hasRunRecord
+                        ? "No single scored result is available. Review the run details for individual policy results, failures, or limitations."
+                        : "This run ended without a scored result."
                       : "Results will appear when the evaluation produces recorded evidence."}
                 </p>
-                {item.runId && (
+                {item.runId && item.hasRunRecord && (
                   <ActionLink href={`/app/runs/${item.runId}`}>
                     View run record
                   </ActionLink>
@@ -130,6 +148,12 @@ export default function Evaluation() {
               </div>
             ) : (
               <>
+                {!counts && (
+                  <p className="ws-note">
+                    This run does not count toward a recommendation. {item.notCountedReason} Its
+                    numbers are for your own review and are not compared with the site&rsquo;s targets.
+                  </p>
+                )}
                 <div className="ws-table-wrap ws-section">
                   <table className="ws-table">
                     <thead>
@@ -170,7 +194,7 @@ export default function Evaluation() {
                               : `${higher ? "At least" : "At most"} ${target}${unit}`}
                           </td>
                           <td>
-                            {value === null || target === null
+                            {!counts || value === null || target === null
                               ? "Not assessed"
                               : (
                                     higher
@@ -187,14 +211,12 @@ export default function Evaluation() {
                 </div>
                 <p className="ws-note">
                   {item.evidenceLabel}
-                  {item.sampleCount !== null
-                    ? ` · ${item.sampleCount} trials`
-                    : ""}
+                  {episodes ? ` · ${episodes}` : ""}
                   {item.successRateInterval
                     ? ` · 95% interval ${item.successRateInterval[0]}–${item.successRateInterval[1]}%`
                     : ""}{" "}
-                  · {dateLabel(item.createdAt)}. Physical performance must be
-                  confirmed in the pilot.
+                  · {dateLabel(item.createdAt)}. A bounded simulation estimate:
+                  physical performance must be confirmed in the pilot.
                 </p>
                 {item.episodeOutcomes?.length ? <EpisodeOutcomes rows={item.episodeOutcomes} /> : null}
               </>
@@ -216,7 +238,9 @@ export default function Evaluation() {
               {item.outcome
                 ? `Site decision: ${statusLabel(item.outcome)}.`
                 : item.successRate !== null
-                  ? "Blueprint reviews submitted results and recommends one team whose evaluation passed; the site can book that pilot."
+                  ? counts
+                    ? "Blueprint reviews submitted results and recommends one team whose evaluation passed; the site can book that pilot."
+                    : "This run cannot back a recommendation."
                   : "You can return here to track the request. No compute starts before the run is authorized."}
             </p>
             {item.taskId && (
@@ -227,9 +251,9 @@ export default function Evaluation() {
               </p>
             )}
           </section>
-          {/* A team evaluation's evidence is its per-episode outcomes above; the Task
-              Evaluation run record does not exist for it. */}
-          {item.runId && !item.teamEvaluation && <Evidence runId={item.runId} />}
+          {/* A free run's evidence is its per-episode outcomes above; it has no Task
+              Evaluation run record. */}
+          {item.runId && item.hasRunRecord && <Evidence runId={item.runId} />}
           <details className="ws-section">
             <summary>Failures & limitations</summary>
             <p>
@@ -237,7 +261,7 @@ export default function Evaluation() {
               and targets. A simulation result does not establish physical
               performance, deployment readiness, or safety.
             </p>
-            {item.runId && (
+            {item.runId && item.hasRunRecord && (
               <p className="ws-note">
                 Detailed findings and supporting artifacts are available in the
                 run evidence above.

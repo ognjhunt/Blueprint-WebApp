@@ -54,25 +54,77 @@ export const TEAM_CANDIDATE_HTTPS_INTERFACE = "openpi_droid_https.v1";
 /** A policy for the team's own declared arm and cameras (`robotEmbodiment.ts`), served over HTTPS. */
 export const TEAM_ROBOT_HTTPS_INTERFACE = "blueprint_policy_https.v1";
 
+/** Whether a job's published execution offer lists the team evaluation. */
+export function offersTeamEvaluation(job: unknown): boolean {
+  const profiles = (job as { agent_execution_offer?: { policy_execution_profiles?: unknown } } | null | undefined)
+    ?.agent_execution_offer?.policy_execution_profiles;
+  return Array.isArray(profiles) && profiles.some(isTeamEvaluationProfile);
+}
+
+/**
+ * The job's evaluation size: 200 when its offer lists the team evaluation,
+ * else the offer's own episode count. Null when no offer is published.
+ */
+export function jobEvaluationEpisodes(job: unknown): number | null {
+  if (offersTeamEvaluation(job)) return TEAM_EVALUATION_EPISODES;
+  const count = (job as { agent_execution_offer?: { episode_count?: unknown } } | null | undefined)
+    ?.agent_execution_offer?.episode_count;
+  return Number.isInteger(count) && (count as number) > 0 ? count as number : null;
+}
+
+/** Why a policy cannot be a team evaluation's candidate. */
+export type TeamPolicyBlocker =
+  | "team_evaluation_policy_endpoint_required"
+  | "team_evaluation_policy_https_required"
+  | "team_evaluation_policy_credential_required"
+  | "team_evaluation_policy_credential_expired"
+  | "team_evaluation_robot_manifest_invalid";
+
+export const TEAM_POLICY_BLOCKER_MESSAGES: Record<TeamPolicyBlocker, string> = {
+  team_evaluation_policy_endpoint_required:
+    "This job's evaluation calls a hosted policy endpoint. Choose a setup delivered as a hosted endpoint.",
+  team_evaluation_policy_https_required:
+    "This job's evaluation calls your policy over HTTPS. Use an HTTPS endpoint URL without credentials in it.",
+  team_evaluation_policy_credential_required:
+    "No policy token is on file for this endpoint. Enter it under Settings → Robots & policies, then request again.",
+  team_evaluation_policy_credential_expired:
+    "The policy token on file for this endpoint has expired. Enter a new one under Settings → Robots & policies.",
+  team_evaluation_robot_manifest_invalid: "The setup's robot manifest is not valid. Fix it under Settings → Robots & policies.",
+};
+
+/**
+ * Null when this checkpoint can be a team evaluation's one candidate: an
+ * HTTPS endpoint with a current bearer token on file. Otherwise the reason,
+ * so nothing unauthenticated or non-HTTPS reaches the team's one attempt.
+ */
+export function teamPolicyBlocker(
+  checkpoint: Record<string, any>,
+  options: { robotEmbodiment?: unknown } = {},
+): TeamPolicyBlocker | null {
+  if (!["policy_endpoint", "customer_hosted"].includes(checkpoint.runtime)) return "team_evaluation_policy_endpoint_required";
+  if (!validateIntegrationReference("customer_hosted", String(checkpoint.reference || "").trim()))
+    return "team_evaluation_policy_https_required";
+  const credential = checkpoint.policyCredential;
+  if (credential?.kind !== "bearer" || !credential?.ref) return "team_evaluation_policy_credential_required";
+  if (Date.parse(credential.expiresAtIso) <= Date.now()) return "team_evaluation_policy_credential_expired";
+  if (options.robotEmbodiment && !robotEmbodimentSchema.safeParse(options.robotEmbodiment).success)
+    return "team_evaluation_robot_manifest_invalid";
+  return null;
+}
+
 /**
  * A team's authenticated HTTPS policy as the one candidate of a team
  * evaluation. The same URL answers GET with the team's declared identity and
  * POST with actions; the Pipeline checks that identity before every episode.
  * With a declared robot the policy drives the team's own robot; without one, the
- * DROID Franka. Null for anything else, so nothing unauthenticated or
- * non-HTTPS is ever asked for.
+ * DROID Franka. Null whenever `teamPolicyBlocker` names a reason.
  */
 export function teamCandidatePolicyPackage(
   checkpoint: Record<string, any>,
   options: { robotEmbodiment?: RobotEmbodiment | null } = {},
 ): Record<string, unknown> | null {
+  if (teamPolicyBlocker(checkpoint, options)) return null;
   const reference = String(checkpoint.reference || "").trim();
-  if (!["policy_endpoint", "customer_hosted"].includes(checkpoint.runtime)
-    || checkpoint.policyCredential?.kind !== "bearer" || !checkpoint.policyCredential?.ref) return null;
-  try {
-    const url = new URL(reference);
-    if (url.protocol !== "https:" || url.username || url.password || url.hash) return null;
-  } catch { return null; }
   const embodiment = options.robotEmbodiment ? robotEmbodimentSchema.safeParse(options.robotEmbodiment) : null;
   if (embodiment && !embodiment.success) return null;
   return { policy_api_endpoint: {

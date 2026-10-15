@@ -41,7 +41,7 @@ import type { InboundRequest } from "../types/inbound-request";
 import { loadTaskForTeam, developmentOfferForTeam } from "./controlledDevelopmentOffer";
 import {
   checkpointPolicyPackage, isTeamEvaluationProfile, TEAM_EVALUATION_EPISODES, TEAM_EVALUATION_PURPOSE,
-  teamCandidatePolicyPackage,
+  teamCandidatePolicyPackage, teamPolicyBlocker,
 } from "./policyIntegration";
 import type { RobotEmbodiment } from "../../client/src/types/robotEmbodiment";
 
@@ -176,9 +176,13 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
   if (!offer) return { prepared: false, blockers: ["pipeline_execution_offer_missing"] };
   // Beta L5: when the Pipeline offers team evaluations for this scene, a
   // team's authenticated HTTPS policy runs there on 200 hidden scored cells.
+  // A job that offers it runs nothing else, so a policy the evaluation cannot call is refused
+  // here, before the team's one attempt is spent, rather than run on the unscored path.
   const teamOffered = !development && Boolean(offer.policy_execution_profiles?.some(isTeamEvaluationProfile));
-  const teamPackage = teamOffered
-    ? teamCandidatePolicyPackage(checkpoint, { robotEmbodiment: params.teamEvaluation?.robotEmbodiment }) : null;
+  const teamOptions = { robotEmbodiment: params.teamEvaluation?.robotEmbodiment };
+  const teamBlocker = teamOffered ? teamPolicyBlocker(checkpoint, teamOptions) : null;
+  if (teamBlocker) return { prepared: false, blockers: [teamBlocker] };
+  const teamPackage = teamOffered ? teamCandidatePolicyPackage(checkpoint, teamOptions) : null;
   if (teamPackage && params.quotedEpisodes !== TEAM_EVALUATION_EPISODES) {
     return { prepared: false, blockers: ["pipeline_team_evaluation_episode_mismatch"] };
   }

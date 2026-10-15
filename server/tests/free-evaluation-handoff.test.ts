@@ -140,6 +140,20 @@ describe("operator-approved workspace handoff", () => {
     await expect(admitFreeWorkspaceEvaluation("application", command(), "operator")).rejects.toThrow("source_changed");
     expect([...state.docs.keys()].some(key => key.startsWith("evaluationRuns/"))).toBe(false);
   });
+  it("refuses a team evaluation of a policy it cannot call, and any prepared request that is not one", async () => {
+    state.docs.set("inboundRequests/scene", { ...openJob(),
+      agent_execution_offer: { policy_execution_profiles: ["team_evaluation_scored_v1"], episode_count: 200 } });
+    state.docs.set("robotCheckpoints/checkpoint", { teamId: "team", reference: "https://policy.test/action", runtime: "policy_endpoint" });
+    await expect(admitFreeWorkspaceEvaluation("application", command(), "operator"))
+      .rejects.toThrow("team_evaluation_policy_credential_required");
+    expect(admission).not.toHaveBeenCalled();
+    // An authenticated HTTPS policy, but an operator-supplied request prepared on the unscored path.
+    state.docs.set("robotCheckpoints/checkpoint", { teamId: "team", reference: "https://policy.test/action",
+      runtime: "policy_endpoint", policyCredential: { ref: "credential-1", kind: "bearer", expiresAtIso: "2100-01-01T00:00:00Z" } });
+    await expect(admitFreeWorkspaceEvaluation("application", command(), "operator"))
+      .rejects.toThrow("free_evaluation_team_evaluation_required");
+    expect([...state.docs.keys()].some(key => key.startsWith("evaluationRuns/"))).toBe(false);
+  });
   it("preserves the existing admission refusal without manufacturing missing facts", async () => {
     admission.mockResolvedValue({ admitted: false, blockers: ["agent_execution_testbed_digest_mismatch"] });
     await expect(admitFreeWorkspaceEvaluation("application", command(), "operator")).rejects.toThrow("testbed_digest_mismatch");

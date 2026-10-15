@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { workspaceRequest } from "@/lib/workspace";
+import { dateLabel, workspaceRequest } from "@/lib/workspace";
 import { Feedback, Field, Tag } from "@/components/workspace/WorkspaceUI";
 import type { RobotSetup } from "@/types/workspace";
 
@@ -18,6 +18,8 @@ export type WorkspaceCheckpoint = {
   status: string;
   unrunnableReason: string | null;
   createdAtIso: string;
+  /** When the policy token on file expires; null when there is none. The token itself is never returned. */
+  tokenExpiresAtIso?: string | null;
 };
 
 type CheckpointList = {
@@ -37,6 +39,90 @@ export function runtimesForDelivery(delivery: RobotSetup["delivery"]): Workspace
   if (delivery === "endpoint") return ["policy_endpoint", "customer_hosted"];
   if (delivery === "container") return ["container_image", "controller_adapter"];
   return [];
+}
+
+/** When the token on file for a hosted endpoint setup expires, or null when there is none. */
+function policyTokenExpiry(setup: RobotSetup, checkpoints: WorkspaceCheckpoint[]): string | null {
+  return checkpoints
+    .filter((checkpoint) => checkpoint.reference === setup.reference && checkpoint.runtime === "policy_endpoint"
+      && checkpoint.status !== "retired" && checkpoint.tokenExpiresAtIso)
+    .map((checkpoint) => checkpoint.tokenExpiresAtIso!)
+    .sort()
+    .at(-1) ?? null;
+}
+
+/**
+ * A hosted endpoint's policy token, entered once. Blueprint registers the
+ * setup's checkpoint when needed and stores the token encrypted; the page only
+ * ever shows whether one is on file and when it expires.
+ */
+function PolicyToken({ setups, checkpoints, onSaved }: {
+  setups: RobotSetup[];
+  checkpoints: WorkspaceCheckpoint[];
+  onSaved: () => Promise<unknown>;
+}) {
+  const { currentUser } = useAuth();
+  const [setupId, setSetupId] = useState(setups[0]?.id ?? "");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const setup = setups.find((item) => item.id === setupId) ?? setups[0];
+  const expiresAtIso = setup ? policyTokenExpiry(setup, checkpoints) : null;
+  const expired = expiresAtIso !== null && Date.parse(expiresAtIso) <= Date.now();
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending || !setup) return;
+    const form = event.currentTarget;
+    const token = String(new FormData(form).get("token") || "");
+    setPending(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await workspaceRequest<{ expiresAtIso: string }>(currentUser, "/checkpoints/policy-token", "POST",
+        { setupId: setup.id, token });
+      form.reset();
+      setNotice(`Token saved. It expires ${dateLabel(result.expiresAtIso)}.`);
+      await onSaved();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The token was not saved. Please try again.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <form method="post" className="ws-form ws-section" onSubmit={submit} aria-labelledby="policy-token-heading">
+      <h3 id="policy-token-heading">Policy token</h3>
+      <p className="ws-muted">
+        Blueprint sends this token as <code>Authorization: Bearer &lt;token&gt;</code> each time it calls your hosted
+        endpoint. It is stored encrypted, never shown again, and lasts 30 days.
+      </p>
+      <div className="ws-fields">
+        <Field label="Hosted endpoint setup">
+          <select name="setupId" value={setup?.id ?? ""} onChange={(event) => { setSetupId(event.target.value); setNotice(""); }}>
+            {setups.map((item) => (
+              <option key={item.id} value={item.id}>{item.name} · {item.policyName} {item.version}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Token" wide
+          hint={expiresAtIso
+            ? expired
+              ? `The token on file expired ${dateLabel(expiresAtIso)}. Enter a new one.`
+              : `A token is on file until ${dateLabel(expiresAtIso)}. Saving a new one replaces it.`
+            : "No token is on file for this endpoint."}>
+          <input name="token" type="password" required maxLength={16384} autoComplete="off" spellCheck={false} />
+        </Field>
+      </div>
+      <Feedback error={error} notice={notice} />
+      <div className="ws-form-actions">
+        <button className="ws-primary" disabled={pending}>
+          {pending ? "Saving…" : expiresAtIso ? "Replace token" : "Save token"}
+        </button>
+      </div>
+    </form>
+  );
 }
 
 /**
@@ -60,6 +146,7 @@ export function CheckpointRegistration({ setups }: { setups: RobotSetup[] }) {
   const setup = setups.find((item) => item.id === setupId) ?? setups[0];
   const runtimes = setup ? runtimesForDelivery(setup.delivery) : [];
   const checkpoints = list.data?.checkpoints ?? [];
+  const endpointSetups = setups.filter((item) => item.delivery === "endpoint");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -120,6 +207,10 @@ export function CheckpointRegistration({ setups }: { setups: RobotSetup[] }) {
         </div>
       ) : list.isSuccess ? (
         <p className="ws-muted">No checkpoints registered yet.</p>
+      ) : null}
+      {endpointSetups.length ? (
+        <PolicyToken setups={endpointSetups} checkpoints={checkpoints}
+          onSaved={() => client.invalidateQueries({ queryKey })} />
       ) : null}
       {!setups.length ? (
         <p className="ws-note">Save a setup first; a checkpoint is registered against a saved setup's reference.</p>

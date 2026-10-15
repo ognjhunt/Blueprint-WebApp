@@ -347,15 +347,15 @@ describe("asking for a team evaluation (beta L5)", () => {
       blockers: ["pipeline_team_evaluation_episode_mismatch"] });
   });
 
-  it("never asks for it with an unauthenticated endpoint", async () => {
-    seed({ scene: offered(50) });
-    const free = { ...quote, quotedUsd: 10, submissionKey: "free:unauthenticated" };
-    const prepared = await prepareFreeAgentExecution(free, approval());
-    expect(prepared, JSON.stringify(prepared)).toMatchObject({ prepared: true });
-    if (!prepared.prepared) return;
-    const admission = await discoverAgentExecutionAdmission({ ...free, executionRequestId: prepared.requestId });
-    if (!admission.admitted) throw new Error(JSON.stringify(admission));
-    const canonical = admission.envelope.canonical_execution_request as Record<string, any>;
-    expect(canonical.policy_package).toEqual({ policy_api_endpoint: { endpoint_url: "https://policy.alpha.example/v3" } });
+  // The job offers nothing else, so these never fall back to an unscored run that spends the attempt.
+  it.each([
+    ["no bearer token is on file", {}, "team_evaluation_policy_credential_required"],
+    ["the endpoint is not HTTPS", { reference: "http://policy.alpha.example/v3", policyCredential: credential },
+      "team_evaluation_policy_https_required"],
+  ])("refuses it, preparing nothing, when %s", async (_label, checkpoint, blocker) => {
+    seed({ scene: offered(200), checkpoint });
+    expect(await prepareFreeAgentExecution({ ...quote, quotedEpisodes: 200, quotedUsd: 10,
+      submissionKey: "free:refused", teamEvaluation: {} }, approval())).toEqual({ prepared: false, blockers: [blocker] });
+    expect([...sharedFakeFirestoreState.docs.keys()].some((key) => key.startsWith("robotEvalJobRequests/"))).toBe(false);
   });
 });

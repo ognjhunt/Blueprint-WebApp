@@ -230,6 +230,25 @@ export interface EvaluationReading {
   refusals: EvidenceRefusal[];
 }
 
+/**
+ * Why a run's result can never back a recommendation, in the team's words, or
+ * null when it can (its numbers against the pass mark aside). The same rule
+ * `readEvaluation` applies: a team evaluation the simulator scored under an
+ * admitted statement, with at least `MINIMUM_EVIDENCE_EPISODES` counted.
+ */
+export function notCountedReason(run: {
+  teamEvaluationPurpose?: string;
+  result?: Parameters<typeof scoringRefusal>[0];
+}): string | null {
+  if (run.teamEvaluationPurpose !== "scored")
+    return "It is not a team evaluation. Only a team evaluation of the job, 200 hidden episodes scored by Blueprint's simulator, can back a recommendation.";
+  if (scoringRefusal(run.result)) return "Blueprint's simulator did not score it against the job's success contract.";
+  const counted = run.result?.observed?.episodesRun ?? 0;
+  if (counted < MINIMUM_EVIDENCE_EPISODES)
+    return `Only ${counted} of its episodes were counted; a recommendation needs at least ${MINIMUM_EVIDENCE_EPISODES}.`;
+  return null;
+}
+
 export function readEvaluation(
   run: RunWithResult,
   requestId: string,

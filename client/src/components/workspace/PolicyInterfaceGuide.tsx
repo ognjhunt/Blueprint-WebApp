@@ -67,13 +67,14 @@ export default function PolicyInterfaceGuide() {
           the robot and scores every episode; your service only returns actions.
         </li>
         <li>
-          Register that URL with the team key Blueprint issued you
+          Give Blueprint your policy token once, here: under <strong>Policy token</strong> on this page, pick the
+          setup saved for that URL (step 3) and enter the token. Blueprint registers the endpoint for you. The
+          token is stored encrypted, never shown again, and lasts 30 days: enter a new one before then, or the
+          evaluation is refused. An agent can do the same with the team key Blueprint issued you
           (<code>Authorization: Bearer bpk_…</code>): <code>POST /api/agent-team/checkpoints</code> with{" "}
           <code>{`{"label": "…", "runtime": "policy_endpoint", "reference": "https://…"}`}</code>, then{" "}
           <code>POST /api/agent-team/checkpoints/&lt;checkpointId&gt;/credentials</code> with{" "}
-          <code>{`{"kind": "bearer", "token": "<your policy token>"}`}</code>. The token is stored encrypted,
-          never shown again, and lasts 30 days: post it to the same path again to renew it before then, or
-          the evaluation is refused.
+          <code>{`{"kind": "bearer", "token": "<your policy token>"}`}</code>.
         </li>
         <li>
           Save a setup here with delivery &ldquo;Hosted endpoint&rdquo; and that same URL as its reference, plus

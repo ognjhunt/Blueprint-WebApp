@@ -141,7 +141,9 @@ async function robotAccount(uid: string, approved: boolean) {
     accountUid: uid, accountEmail: email, capability: {}, fieldProvenance: {},
     createdAt: "2026-10-09T00:00:00Z", updatedAt: "2026-10-09T00:00:00Z" });
   state.docs.set(`robotCheckpoints/${CHECKPOINT}`, { checkpointId: CHECKPOINT, teamId: TEAM,
-    label: "Request-step fixture", runtime: "policy_endpoint", reference: SETUP.reference });
+    label: "Request-step fixture", runtime: "policy_endpoint", reference: SETUP.reference,
+    // The policy token a team evaluation calls the endpoint with (Settings → Robots & policies).
+    policyCredential: { ref: "credential-journey", kind: "bearer", expiresAtIso: "2100-01-01T00:00:00Z" } });
   expect((await workspaceApi("/setups", uid, SETUP)).status).toBe(200);
 }
 beforeEach(async () => {
@@ -288,6 +290,14 @@ describe("a job started from the public form", () => {
     const linked = /\/app\/opportunities\/([^\s/]+)/.exec(notice.body)?.[1];
     expect(linked && decodeURIComponent(linked)).toBe(jobId);
     expect((await workspaceApi(`/openings/${linked}`, ROBOT)).status).toBe(200);
+
+    // A team evaluation is one attempt: without a policy token on file it is refused before it is asked for.
+    const { policyCredential: token, ...untokened } = doc(`robotCheckpoints/${CHECKPOINT}`);
+    state.docs.set(`robotCheckpoints/${CHECKPOINT}`, untokened);
+    const refused = await requestEvaluation(jobId, ROBOT, true);
+    expect(refused.status).toBe(409);
+    expect((await refused.json()).code).toBe("team_evaluation_policy_credential_required");
+    state.docs.set(`robotCheckpoints/${CHECKPOINT}`, { ...untokened, policyCredential: token });
 
     const requested = await requestEvaluation(jobId, ROBOT, true);
     expect(requested.status, await requested.clone().text()).toBe(201);

@@ -129,8 +129,10 @@ export type EpisodeOutcomeRow = {
   reason: string;
 };
 export type WorkspaceEvaluation = WorkspaceResult & {
-  /** A team evaluation: its evidence is its per-episode outcomes, not a Task Evaluation run record. */
-  teamEvaluation?: boolean;
+  /** A Task Evaluation run record exists at `/app/runs/:runId`. A free evaluation has none. */
+  hasRunRecord?: boolean;
+  /** Null when the result counts toward a recommendation (its numbers aside); otherwise why it never can. */
+  notCountedReason?: string | null;
   /** The 95% interval around the success rate, in percent, when episodes were scored. */
   successRateInterval?: [number, number] | null;
   /** The team's own run, one row per episode. */

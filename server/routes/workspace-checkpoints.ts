@@ -10,6 +10,13 @@
  *
  * Registration authorizes nothing: no compute, no evaluation. Blueprint admits
  * each free evaluation by hand.
+ *
+ * `POST /policy-token` is the person's path to what the agent API's
+ * `/checkpoints/:id/credentials` does: a hosted endpoint setup's bearer token,
+ * entered once, on the team's `policy_endpoint` checkpoint for that reference
+ * (registered here when there is none). The token is stored encrypted by
+ * `storeCheckpointPolicyCredential`; it is never returned, listed or logged.
+ * Only whether one is on file, and when it expires, is shown.
  */
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
@@ -19,6 +26,7 @@ import { resolveAccessContext } from "../utils/access-control";
 import { accountHasAdmission } from "../utils/accountInvitations";
 import { decryptFieldValue } from "../utils/field-encryption";
 import { listCheckpoints, registerCheckpoint, type RobotCheckpoint } from "../utils/robotCheckpoints";
+import { storeCheckpointPolicyCredential } from "../utils/checkpointPolicyCredentials";
 import { bindTeamToAccount, teamsForAccount } from "../utils/robotTeamAccounts";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
 
@@ -39,6 +47,11 @@ const registrationSchema = z.object({
   setupId: id,
   label: z.string().trim().min(1).max(120),
   runtime: z.enum(WORKSPACE_CHECKPOINT_RUNTIMES),
+}).strict();
+const policyTokenSchema = z.object({
+  teamId: z.string().trim().min(1).max(200).optional(),
+  setupId: id,
+  token: z.string().min(1).max(16384).refine((value) => !/[\r\n]/.test(value)),
 }).strict();
 
 type Caller = { uid: string; email: string; verified: boolean; user: Record<string, any> };
@@ -72,15 +85,41 @@ function project(checkpoint: RobotCheckpoint) {
     status: checkpoint.status,
     unrunnableReason: checkpoint.unrunnableReason,
     createdAtIso: checkpoint.createdAtIso,
+    // Whether a policy token is on file and when it expires; never the token or its reference.
+    tokenExpiresAtIso: checkpoint.policyCredential?.kind === "bearer" ? checkpoint.policyCredential.expiresAtIso : null,
   };
 }
 
-async function readSetupReference(uid: string, setupId: string): Promise<{ reference: string; name: string } | null> {
+async function readSetupReference(uid: string, setupId: string): Promise<{ reference: string; name: string; delivery: string } | null> {
   const stored = await db!.collection("users").doc(uid).collection("robotSetups").doc(setupId).get();
   if (!stored.exists || !stored.data()?.payload) return null;
   const payload = JSON.parse(await decryptFieldValue(stored.data()!.payload));
   const reference = typeof payload.reference === "string" ? payload.reference.trim() : "";
-  return reference ? { reference, name: typeof payload.name === "string" ? payload.name : setupId } : null;
+  return reference ? { reference, name: typeof payload.name === "string" ? payload.name : setupId,
+    delivery: typeof payload.delivery === "string" ? payload.delivery : "" } : null;
+}
+
+type Refusal = { status: number; error: string; code: string };
+/**
+ * The account's team: the one asked for, else its first. An approved account
+ * with none gets one created and bound, as issuing an agent key already does.
+ * Call inside `serialized`, so a double submit binds one team.
+ */
+async function accountTeam(caller: Caller, requested?: string): Promise<{ teamId: string } | Refusal> {
+  const teams = await teamsForAccount(caller.uid);
+  if (requested) {
+    const teamId = teams.find((team) => team.id === requested)?.id;
+    return teamId ? { teamId } : { status: 404, error: "That team is not connected to this account.", code: "team_not_found" };
+  }
+  if (teams[0]) return { teamId: teams[0].id };
+  const created = await registerSelfServeTeam({
+    name: String(caller.user.organizationName || caller.user.company || "").trim()
+      || caller.email.split("@")[1] || "Robot team",
+    contactEmail: caller.email,
+  });
+  if (!created) return { status: 503, error: "The registry is unavailable, so no team was created.", code: "registry_unavailable" };
+  await bindTeamToAccount(created.id, caller);
+  return { teamId: created.id };
 }
 
 // One registration per team at a time on this instance, so a double submit
@@ -128,28 +167,10 @@ router.post("/", async (req: Request, res: Response) => {
     const setup = await readSetupReference(caller.uid, input.setupId);
     if (!setup) return res.status(404).json({ error: "That setup is not saved on this account.", code: "setup_not_found" });
 
-    let teams = await teamsForAccount(caller.uid);
-    let teamId = input.teamId ? teams.find((team) => team.id === input.teamId)?.id : teams[0]?.id;
-    if (input.teamId && !teamId) {
-      return res.status(404).json({ error: "That team is not connected to this account.", code: "team_not_found" });
-    }
     return await serialized(`account:${caller.uid}`, async () => {
-      if (!teamId) {
-        // First registration for an approved account with no team yet: create
-        // and bind one, as issuing an agent key from the account already does.
-        teams = await teamsForAccount(caller.uid);
-        teamId = teams[0]?.id;
-        if (!teamId) {
-          const created = await registerSelfServeTeam({
-            name: String(caller.user.organizationName || caller.user.company || "").trim()
-              || caller.email.split("@")[1] || "Robot team",
-            contactEmail: caller.email,
-          });
-          if (!created) return res.status(503).json({ error: "The registry is unavailable, so no team was created.", code: "registry_unavailable" });
-          await bindTeamToAccount(created.id, caller);
-          teamId = created.id;
-        }
-      }
+      const team = await accountTeam(caller, input.teamId);
+      if (!("teamId" in team)) return res.status(team.status).json({ error: team.error, code: team.code });
+      const { teamId } = team;
       const existing = (await listCheckpoints(teamId)).find((checkpoint) =>
         checkpoint.reference === setup.reference && checkpoint.runtime === input.runtime && checkpoint.status !== "retired");
       if (existing) {
@@ -168,6 +189,55 @@ router.post("/", async (req: Request, res: Response) => {
     if (status < 500) return res.status(status).json({ error: (error as Error).message, code: (error as { code?: string }).code });
     logger.error({ err: error }, "Workspace checkpoint registration failed");
     return res.status(503).json({ error: "The checkpoint was not registered. Please try again." });
+  }
+});
+
+router.post("/policy-token", async (req: Request, res: Response) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const caller = await requireRobotTeamAccount(res);
+    if (!caller) return;
+    if (!caller.verified) {
+      return res.status(403).json({ error: "Verify your email before adding a policy token.", code: "account_email_unverified" });
+    }
+    const parsed = policyTokenSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Choose a hosted endpoint setup and enter its policy token on one line.",
+        code: "policy_credential_invalid" });
+    }
+    const input = parsed.data;
+    const setup = await readSetupReference(caller.uid, input.setupId);
+    if (!setup) return res.status(404).json({ error: "That setup is not saved on this account.", code: "setup_not_found" });
+    if (setup.delivery !== "endpoint") {
+      return res.status(409).json({ error: "A policy token belongs to a setup delivered as a hosted endpoint.",
+        code: "policy_token_endpoint_required" });
+    }
+    return await serialized(`account:${caller.uid}`, async () => {
+      const team = await accountTeam(caller, input.teamId);
+      if (!("teamId" in team)) return res.status(team.status).json({ error: team.error, code: team.code });
+      let checkpoint = (await listCheckpoints(team.teamId)).find((candidate) => candidate.reference === setup.reference
+        && candidate.runtime === "policy_endpoint" && candidate.status !== "retired");
+      if (!checkpoint) {
+        const result = await registerCheckpoint({ teamId: team.teamId, label: setup.name, runtime: "policy_endpoint",
+          reference: setup.reference });
+        if (!result.registered) {
+          return res.status(result.refusal === "store_unavailable" ? 503 : 409).json({ error: result.detail, code: result.refusal });
+        }
+        checkpoint = result.checkpoint;
+      }
+      try {
+        const credential = await storeCheckpointPolicyCredential({ checkpoint, ownerUid: caller.uid,
+          credential: { kind: "bearer", token: input.token } });
+        return res.status(201).json({ ok: true, checkpointId: checkpoint.checkpointId, expiresAtIso: credential.expiresAtIso });
+      } catch {
+        return res.status(409).json({ error: "The policy token could not be saved for this endpoint. Please try again.",
+          code: "policy_credential_not_saved" });
+      }
+    });
+  } catch (error) {
+    // The error never carries the token: it is only in the parsed body, which is not logged.
+    logger.error({ err: error }, "Workspace policy token was not saved");
+    return res.status(503).json({ error: "The policy token was not saved. Please try again." });
   }
 });
 

@@ -143,7 +143,12 @@ export function AdmitFreeEvaluationForm({
             Episodes
           </label>
           <input id={field("episodes")} name="episodes" type="number" className="runway-input" required min={1} step={1}
-            defaultValue={candidate.episodes ?? defaults.episodes} />
+            defaultValue={defaults.episodes ?? ""} aria-describedby={field("episodes-hint")} />
+          <p id={field("episodes-hint")} className="mt-2 text-xs text-runway-mute">
+            {defaults.episodes === null
+              ? "No execution offer is published for this job yet, so admission is refused until there is one."
+              : "This job's evaluation size. Admission refuses any other count."}
+          </p>
         </div>
         <div>
           <label className="runway-label" htmlFor={field("cap")}>Sponsor cap (USD)</label>

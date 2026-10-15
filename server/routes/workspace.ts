@@ -70,6 +70,9 @@ import { resolveAccessContext } from "../utils/access-control";
 import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
 import { projectPilotBooking } from "../utils/pilotContactExchange";
+import { listCheckpoints } from "../utils/robotCheckpoints";
+import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
+import { notCountedReason } from "../utils/pilotRecommendationEvidence";
 
 const router = Router();
 const id = z
@@ -750,7 +753,9 @@ router.get(
       const observed = freeRun?.result?.observed;
       evaluations.push({
         ...result,
-        teamEvaluation: freeRun?.teamEvaluationPurpose === "scored",
+        // A free run has no Task Evaluation run record to link to.
+        hasRunRecord: !freeRun && Boolean(run),
+        notCountedReason: notCountedReason(freeRun ?? {}),
         successRateInterval: observed && observed.episodesRun > 0
           ? [Math.round(wilsonLowerBound(observed.episodesSucceeded, observed.episodesRun) * 1000) / 10,
             Math.round(wilsonUpperBound(observed.episodesSucceeded, observed.episodesRun) * 1000) / 10]
@@ -787,6 +792,8 @@ router.get(
       evaluations.push({
         ...projectWorkspaceResult(run.id, data, run.id, termsFor({})),
         runId: run.id,
+        hasRunRecord: true,
+        notCountedReason: notCountedReason({}),
         taskId: null,
         title:
           text(request.decision_question) ||
@@ -1259,6 +1266,18 @@ router.get(
     return res.json({ opening });
   }),
 );
+/**
+ * Why a saved setup cannot be a team evaluation's candidate yet: a hosted
+ * endpoint whose checkpoint (the one the policy token registers) has a
+ * current bearer token on file. Null when one of the team's checkpoints can.
+ */
+async function setupTeamPolicyBlocker(uid: string, setup: RobotSetup): Promise<TeamPolicyBlocker | null> {
+  if (setup.delivery !== "endpoint") return "team_evaluation_policy_endpoint_required";
+  const checkpoints = (await Promise.all((await teamsForAccount(uid)).map((team) => listCheckpoints(team.id)))).flat()
+    .filter((checkpoint) => checkpoint.reference === setup.reference && checkpoint.status !== "retired");
+  const blockers = checkpoints.map((checkpoint) => teamPolicyBlocker(checkpoint, { robotEmbodiment: setup.robotEmbodiment }));
+  return blockers.includes(null) ? null : blockers[0] ?? "team_evaluation_policy_credential_required";
+}
 router.post(
   "/evaluations",
   handle(async (req, res) => {
@@ -1275,6 +1294,11 @@ router.post(
       (item) => item.id === input.setupId,
     );
     if (!setup) refuse(400, "Choose a saved robot and policy.");
+    // A team evaluation is one attempt: refuse a policy it could not call before asking for it.
+    if (offersTeamEvaluation(source.record)) {
+      const blocker = await setupTeamPolicyBlocker(caller.uid, setup);
+      if (blocker) refuse(409, TEAM_POLICY_BLOCKER_MESSAGES[blocker], blocker);
+    }
     res.locals.workspaceIntake = {
       account_owner_uid: caller.uid,
       workspace_evaluation: {
