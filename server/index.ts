@@ -329,11 +329,7 @@ app.use("/api", globalLimiter);
 app.use("/v1", globalLimiter);
 app.use("/api/site-worlds/sessions", hostedSessionLimiter);
 
-// Apply limiter for Gemini endpoints (routes registered in routes.ts)
-app.use("/api/gemini", aiLimiter);
-
 // Stricter limiters for sensitive routes
-app.use("/api/ai-studio", aiLimiter);
 app.use("/api/marketplace", aiLimiter);
 app.use("/api/process-waitlist", aiLimiter);
 app.use("/api/post-signup-workflows", aiLimiter);

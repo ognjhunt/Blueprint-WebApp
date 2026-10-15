@@ -19,8 +19,6 @@ import nativeG1PrivateReviewsRouter, { nativeG1PrivateReviewDownloadsRouter, nat
 import nativeG1TeamCampaignsRouter from "./routes/native-g1-team-campaigns";
 import postSignupWorkflowsHandler from "./routes/post-signup-workflows";
 import helpRouter from "./routes/help";
-import geminiRouter from "./routes/gemini";
-import aiStudioRouter from "./routes/ai-studio";
 import qrLinkRouter from "./routes/qr-link";
 import appleAssociationRouter from "./routes/apple-app-site-association";
 import stripeAccountRouter from "./routes/stripe";
@@ -387,8 +385,6 @@ export function registerRoutes(app: Express) {
     verifyFirebaseToken,
     postSignupWorkflowsHandler,
   );
-  app.use("/api/gemini", csrfProtection, verifyFirebaseToken, geminiRouter);
-  app.use("/api/ai-studio", csrfProtection, verifyFirebaseToken, aiStudioRouter);
   app.use("/api/qr", csrfProtection, verifyFirebaseToken, qrLinkRouter);
   app.use("/v1/creator", verifyFirebaseToken, creatorRouter);
   app.use("/v1/stripe", csrfProtection, verifyFirebaseToken, stripeAccountRouter);

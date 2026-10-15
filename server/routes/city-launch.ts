@@ -122,7 +122,7 @@ router.post("/approvals/dispatch", verifyFirebaseToken, requireAdminRole, async 
 });
 
 // List send actions for a city
-router.get("/sends", verifyFirebaseToken, async (req, res) => {
+router.get("/sends", verifyFirebaseToken, requireAdminRole, async (req, res) => {
   try {
     const city = String(req.query.city || "").trim();
     if (!city) {
@@ -150,7 +150,7 @@ router.get("/sends", verifyFirebaseToken, async (req, res) => {
 });
 
 // Get city launch activation status and ledger summary
-router.get("/status", verifyFirebaseToken, async (req, res) => {
+router.get("/status", verifyFirebaseToken, requireAdminRole, async (req, res) => {
   try {
     const city = String(req.query.city || "").trim();
     if (!city) {

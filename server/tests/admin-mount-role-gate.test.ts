@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
 import { createServer, type Server } from "node:http";
@@ -31,6 +31,45 @@ function adminMounts(): Array<{ path: string; middleware: string[] }> {
 }
 
 const mounts = adminMounts();
+
+const ROLE_GATES = ["requireAdminRole", "requireExecutionRole"];
+
+/**
+ * A router that imports a role gate holds handlers meant for admins or ops, so
+ * every handler in it must be gated: on its own route, by a `router.use` before
+ * it, or by every mount of that router in server/routes.ts. Returns each one
+ * that is not, as "file METHOD path".
+ */
+function ungatedHandlersInGatedRouters(): string[] {
+  const routesDir = path.resolve(__dirname, "../routes");
+  const routesSource = readFileSync(path.resolve(__dirname, "../routes.ts"), "utf8");
+  const ungated: string[] = [];
+  for (const file of readdirSync(routesDir).filter((name) => name.endsWith(".ts"))) {
+    const source = readFileSync(path.join(routesDir, file), "utf8");
+    const gates = ROLE_GATES.filter((gate) =>
+      new RegExp(`import[^;]*\\b${gate}\\b[^;]*from\\s+"\\.\\./middleware/requireAdminRole"`).test(source));
+    if (!gates.length) continue;
+    const gated = (text: string) => gates.some((gate) => new RegExp(`\\b${gate}\\b`).test(text));
+    const routerGates = [...source.matchAll(/router\.use\(([^;]*?)\);/g)]
+      .filter((use) => gated(use[1])).map((use) => use.index ?? 0);
+    const variable = new RegExp(`import\\s+(\\w+)\\s+from\\s+"\\./routes/${file.replace(/\.ts$/, "")}"`)
+      .exec(routesSource)?.[1];
+    const routerMounts = variable
+      ? [...routesSource.matchAll(/app\.use\(([\s\S]*?)\);/g)].map((use) => use[1])
+        .filter((args) => args.split(",").map((part) => part.trim()).at(-1) === variable)
+      : [];
+    const mountGated = routerMounts.length > 0 && routerMounts.every(gated);
+    for (const handler of source.matchAll(/router\.(get|post|put|patch|delete|all)\(\s*("[^"]*"|'[^']*')?/g)) {
+      const start = handler.index ?? 0;
+      const rest = source.slice(start + handler[0].length);
+      const end = Math.min(...[rest.indexOf("=>"), rest.indexOf("router.")].filter((at) => at >= 0), rest.length);
+      if (gated(rest.slice(0, end)) || routerGates.some((at) => at < start) || mountGated) continue;
+      ungated.push(`${file} ${handler[1].toUpperCase()} ${handler[2] ?? "?"}`);
+    }
+  }
+  return ungated;
+}
+
 let server: Server;
 let baseUrl: string;
 
@@ -72,6 +111,20 @@ describe("admin mounts in server/routes.ts", () => {
       const response = await fetch(`${baseUrl}${mountPath}/role-gate-probe`, {
         headers: { Authorization: "Bearer ordinary-user-token" },
       });
+      expect(response.status).toBe(403);
+    },
+  );
+});
+
+describe("routers that import a role gate", () => {
+  it("gate every handler they declare", () => {
+    expect(ungatedHandlersInGatedRouters()).toEqual([]);
+  });
+
+  it.each([["/api/city-launch/sends?city=austin"], ["/api/city-launch/status?city=austin"]])(
+    "%s returns 403 to a signed-in account without an admin/ops role",
+    async (url) => {
+      const response = await fetch(`${baseUrl}${url}`, { headers: { Authorization: "Bearer ordinary-user-token" } });
       expect(response.status).toBe(403);
     },
   );
