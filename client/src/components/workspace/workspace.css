@@ -1147,3 +1147,16 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* Protocol samples on the robots tab: scroll inside the box, never the page. */
+.ws-code {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 12px;
+  border: 1px solid var(--ws-line);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+}

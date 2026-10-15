@@ -15,6 +15,7 @@ import {
 } from "@/components/workspace/WorkspaceUI";
 import { RobotDescriptionFields, readRobotDescription } from "@/components/workspace/RobotDescriptionFields";
 import { robotEmbodimentSchema, type RobotEmbodiment } from "@/types/robotEmbodiment";
+import PolicyInterfaceGuide from "@/components/workspace/PolicyInterfaceGuide";
 import { CheckpointRegistration } from "@/components/workspace/CheckpointRegistration";
 import type { RobotSetup } from "@/types/workspace";
 function WorkspaceSettings() {
@@ -359,6 +360,7 @@ function WorkspaceSettings() {
                   />
                 </Field>
               </details>
+              <PolicyInterfaceGuide />
               <details className="ws-section">
                 <summary>Additional notes</summary>
                 <Field label="Notes">
