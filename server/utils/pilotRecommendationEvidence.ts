@@ -60,8 +60,12 @@ import { scoringRefusal, type ScoringRefusal } from "./runResultScoring";
 
 /** The lowest success rate the confidence policy states as a band. */
 export const DEFAULT_PASS_MARK_SUCCESS_RATE = SUCCESS_RATE_BAND_CLAIM.ninety;
-/** Fewer episodes than this is a smoke test, not an evaluation of the job. */
-export const MINIMUM_EVIDENCE_EPISODES = 10;
+/**
+ * A scored evaluation runs 200 episodes, of which at most 5% may be void (the
+ * simulator, not the policy, failed) and go uncounted. Fewer counted episodes
+ * than this cannot tell a 90% policy from a 75% one.
+ */
+export const MINIMUM_EVIDENCE_EPISODES = 190;
 
 export const SIMULATION_EVIDENCE_BOUNDARY =
   "Simulation estimate. It does not certify physical performance or safety; the physical pilot measures the real result.";

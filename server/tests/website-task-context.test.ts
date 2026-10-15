@@ -157,13 +157,19 @@ it("stores the Pipeline's execution offer only for the signed, matching capture"
     expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer() })).status).toBe(200);
     expect(state.persisted.at(-1)).toMatchObject({ agent_execution_offer: { scenario_id: "capture_observed", episode_count: 50 } });
 
-    // Beta L5: the Pipeline lists the team-candidate Quick-10 runtime alone, for exactly ten episodes.
-    const team = { policy_execution_profiles: ["policy_canary_quick10_team_candidate_v1"], episode_count: 10 };
+    // Beta L5: the Pipeline lists a team evaluation with its contract, never beside another runtime;
+    // the offer's own count is its 200 hidden cells.
+    const listing = (profile: string, episodes: number) => ({ profile, episodes, available: true, reason: null });
+    const team = { policy_execution_profiles: ["team_evaluation_scored_v1"], episode_count: 200,
+      team_evaluation: { scored: listing("team_evaluation_scored_v1", 200),
+        contract: { schema_version: "blueprint.team_evaluation_contract.v1", instruction: "Put the mug on the tray" } } };
     expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer(team) })).status).toBe(200);
     expect(state.persisted.at(-1)).toMatchObject({ agent_execution_offer: team });
     expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer({ ...team, episode_count: 50 }) })).status).toBe(400);
     expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer({ ...team,
-      policy_execution_profiles: ["controlled_observation_v1", "policy_canary_quick10_team_candidate_v1"] }) })).status).toBe(400);
+      policy_execution_profiles: ["controlled_observation_v1", "team_evaluation_scored_v1"] }) })).status).toBe(400);
+    const { team_evaluation: _contract, ...uncontracted } = team;
+    expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer(uncontracted) })).status).toBe(400);
 
     // A root for another capture, or one that climbs out of the partition, is refused.
     expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer({ capture_root: "/srv/partition/scenes/site-req1/captures/other" }) })).status).toBe(409);

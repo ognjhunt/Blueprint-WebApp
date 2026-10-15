@@ -62,7 +62,7 @@ const { RUN_RESULT_SCORING_SCHEMA_VERSION } = await import("../utils/runResultSc
 function scored(episodes: number, overrides: Record<string, unknown> = {}) {
   const digest = (char: string) => `sha256:${char.repeat(64)}`;
   return {
-    schemaVersion: RUN_RESULT_SCORING_SCHEMA_VERSION, runtime: "policy_canary_quick10_team_candidate",
+    schemaVersion: RUN_RESULT_SCORING_SCHEMA_VERSION, runtime: "team_evaluation_scored",
     successSource: "simulator_scored", scoredEpisodeCount: episodes, successContractDigest: digest("1"),
     sceneRevisionDigest: digest("2"), robotFreeProbeReceiptDigest: digest("3"),
     teamCandidateAdmissionDigest: digest("4"), sessionResultDigest: digest("5"),

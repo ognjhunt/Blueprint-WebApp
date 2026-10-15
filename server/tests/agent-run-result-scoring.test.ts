@@ -41,26 +41,26 @@ const ATTEMPT = "agent-attempt-0123456789abcdef0123456789abcdef";
 let server: Server | undefined, base = "";
 
 /**
- * The payload the Pipeline posts for a team candidate's Quick-10 run: ten
- * episodes, each scored by the simulator against the scene's sealed success
- * contract, on a scene whose robot-free probe passed.
+ * The payload the Pipeline posts for a team evaluation: 200 hidden cells, each
+ * scored by the simulator against the scene's sealed success contract, on a
+ * scene whose robot-free probe passed.
  */
 const admittedPayload = () => ({
   reservation_id: RESERVATION,
   pipeline_run_id: ATTEMPT,
   execution_admission_digest: sha("a"),
-  episodes_run: 10,
-  episodes_succeeded: 10,
+  episodes_run: 200,
+  episodes_succeeded: 195,
   median_cycle_seconds: null,
   cycle_seconds_p10: null,
   cycle_seconds_p90: null,
-  note: "Ten simulator-scored Quick-10 episodes of one admitted team candidate; diagnostic simulation estimate.",
+  note: "Scored evaluation of one team's own policy: 200 episodes scored by the simulator; diagnostic simulation estimate.",
   artifact_uri: null,
   scoring: {
     schema_version: "blueprint.agent_run_result_scoring.v1",
-    runtime: "policy_canary_quick10_team_candidate",
+    runtime: "team_evaluation_scored",
     success_source: "simulator_scored",
-    scored_episode_count: 10,
+    scored_episode_count: 200,
     success_contract_digest: sha("1"),
     scene_revision_digest: sha("2"),
     robot_free_probe_receipt_digest: sha("3"),
@@ -68,12 +68,18 @@ const admittedPayload = () => ({
     session_result_digest: sha("5"),
     claim_ceiling: "diagnostic_policy_execution",
   },
+  evaluation_purpose: "scored",
+  // A scored run reports each hidden cell's family and outcome, never its draw.
+  episode_outcomes: Array.from({ length: 200 }, (_, index) => ({
+    cell_id: `scene.scored200.${String(index).padStart(3, "0")}`, family: "placement_approach",
+    outcome: index < 195 ? "success" : "failure", reason: index < 195 ? "task_succeeded" : "task_not_completed" })),
 });
 
 function seedDispatchedRun() {
   state.docs.set(`evaluationRuns/${RUN}`, {
     runId: RUN, reservationId: RESERVATION, teamId: "team_scoring", checkpointId: "ckpt_scoring", sceneId: JOB,
-    taskFamily: "rigid_pick_place", evaluationPurpose: "pilot", quotedUsd: 0, quotedEpisodes: 10, state: "requested",
+    taskFamily: "rigid_pick_place", evaluationPurpose: "pilot", teamEvaluationPurpose: "scored", quotedUsd: 0,
+    quotedEpisodes: 200, state: "requested",
     episodesRun: null, moneyResolved: false, requestedAtIso: "2026-10-14T00:00:00.000Z", resolvedAtIso: null, note: null,
     executionAdmission: { envelope: { evidence_scope: "development_only" }, digestSha256: sha("a") },
     dispatch: { startedAtIso: "2026-10-14T00:01:00.000Z", pipelineRunId: ATTEMPT },
@@ -128,15 +134,17 @@ describe("a signed Pipeline result and what it may back", () => {
     const response = await signed("/agent-run-results", admittedPayload());
     expect(response.status, await response.clone().text()).toBe(200);
     const stored = (state.docs.get(`evaluationRuns/${RUN}`) as { result: Record<string, unknown> }).result;
-    expect(stored).toMatchObject({ evidenceScope: "development_only", observed: { episodesRun: 10, episodesSucceeded: 10 },
-      scoring: { schemaVersion: "blueprint.agent_run_result_scoring.v1", runtime: "policy_canary_quick10_team_candidate",
-        successSource: "simulator_scored", scoredEpisodeCount: 10, successContractDigest: sha("1"),
+    expect(stored).toMatchObject({ evidenceScope: "development_only", observed: { episodesRun: 200, episodesSucceeded: 195 },
+      evaluationPurpose: "scored",
+      scoring: { schemaVersion: "blueprint.agent_run_result_scoring.v1", runtime: "team_evaluation_scored",
+        successSource: "simulator_scored", scoredEpisodeCount: 200, successContractDigest: sha("1"),
         sceneRevisionDigest: sha("2"), robotFreeProbeReceiptDigest: sha("3"), teamCandidateAdmissionDigest: sha("4"),
         sessionResultDigest: sha("5"), claimCeiling: "diagnostic_policy_execution" } });
 
     const outcome = await recommendation();
-    expect(outcome).toMatchObject({ ok: true, evidence: { episodesRun: 10, episodesSucceeded: 10, evidenceScope: "development_only",
-      scoring: { runtime: "policy_canary_quick10_team_candidate", successSource: "simulator_scored",
+    expect((stored.episodeOutcomes as unknown[]).length).toBe(200);
+    expect(outcome).toMatchObject({ ok: true, evidence: { episodesRun: 200, episodesSucceeded: 195, evidenceScope: "development_only",
+      scoring: { runtime: "team_evaluation_scored", successSource: "simulator_scored",
         claimCeiling: "diagnostic_policy_execution" } } });
     // Redelivery of the identical signed result is idempotent.
     expect((await signed("/agent-run-results", admittedPayload())).status).toBe(200);
@@ -154,8 +162,33 @@ describe("a signed Pipeline result and what it may back", () => {
     const response = await signed("/agent-run-results", { ...payload, scoring: { ...payload.scoring, ...change } });
     expect(response.status, await response.clone().text()).toBe(200);
     expect((state.docs.get(`evaluationRuns/${RUN}`) as { result: { observed: unknown } }).result.observed)
-      .toMatchObject({ episodesRun: 10, episodesSucceeded: 10 });
+      .toMatchObject({ episodesRun: 200, episodesSucceeded: 195 });
     expect(await recommendation()).toEqual({ ok: false, refusal: "evaluation_not_simulator_scored" });
+  });
+
+  it("refuses episode outcomes that disagree with the counts, or reveal a scored cell's draw", async () => {
+    const payload = admittedPayload();
+    const short = { ...payload, episode_outcomes: payload.episode_outcomes.slice(1) };
+    expect((await signed("/agent-run-results", short)).status).toBe(400);
+    const revealed = { ...payload, episode_outcomes: payload.episode_outcomes.map((row, index) =>
+      index ? row : { ...row, parameters: { object_start_x_delta_m: 0.01 } }) };
+    expect((await signed("/agent-run-results", revealed)).status).toBe(400);
+  });
+
+  it("refuses a result that is not the admitted team evaluation's", async () => {
+    const payload = admittedPayload();
+    const { evaluation_purpose: _unmarked, ...unmarked } = payload;
+    const run = state.docs.get(`evaluationRuns/${RUN}`) as Record<string, unknown>;
+    const response = await signed("/agent-run-results", unmarked);
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("team_evaluation_result_mismatch");
+    // A team result never lands on a run not admitted as one, or quoted for another episode count.
+    const { teamEvaluationPurpose: _mark, ...unadmitted } = run;
+    for (const stored of [unadmitted, { ...run, quotedEpisodes: 10 }]) {
+      state.docs.set(`evaluationRuns/${RUN}`, stored as never);
+      expect((await signed("/agent-run-results", payload)).status).toBe(409);
+    }
+    expect((state.docs.get(`evaluationRuns/${RUN}`) as { result?: unknown }).result).toBeUndefined();
   });
 
   it("never recommends on a result from a Pipeline that states no scoring", async () => {
@@ -166,7 +199,7 @@ describe("a signed Pipeline result and what it may back", () => {
 
   it("refuses an impossible or malformed scoring statement before storing anything", async () => {
     const payload = admittedPayload();
-    const tooMany = await signed("/agent-run-results", { ...payload, scoring: { ...payload.scoring, scored_episode_count: 11 } });
+    const tooMany = await signed("/agent-run-results", { ...payload, scoring: { ...payload.scoring, scored_episode_count: 201 } });
     expect(tooMany.status).toBe(400);
     expect((await tooMany.json()).code).toBe("agent_run_result_impossible");
     const extra = await signed("/agent-run-results", { ...payload, scoring: { ...payload.scoring, recommendation_eligible: true } });

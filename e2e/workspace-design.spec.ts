@@ -461,7 +461,8 @@ test("robot team saves a setup and requests an evaluation from an opening", asyn
   await page
     .getByLabel("Robot & policy", { exact: true })
     .selectOption({ label: "Atlas M3 · Packing v5" });
-  await page.getByRole("checkbox").check();
+  await page.getByRole("checkbox", { name: /free during the beta/ }).check();
+  await page.getByRole("checkbox", { name: /license Blueprint to run this policy/ }).check();
   await page.getByRole("button", { name: "Request evaluation →" }).click();
   await expect(page).toHaveURL(/\/app\/evaluations\/application-/);
   await expect(page.getByText("Review pending", { exact: true })).toBeVisible();

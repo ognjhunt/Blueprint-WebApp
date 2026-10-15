@@ -8,7 +8,7 @@ import {
   WorkspaceRequestError,
 } from "@/lib/workspace";
 import { TaskFacts } from "@/components/site/TaskFacts";
-import { opportunityLabels, type TeamJobOpening } from "@/types/taskBrowse";
+import { opportunityLabels, type TeamEvaluationTerms, type TeamJobOpening } from "@/types/taskBrowse";
 import {
   Frame,
   Empty,
@@ -100,6 +100,7 @@ export default function OpeningDetail() {
                 Site identity is shared only after approval. Physical
                 performance is confirmed in the pilot.
               </p>
+              {item.evaluation ? <EvaluationTerms terms={item.evaluation} /> : null}
             </div>
             <form
               method="post"
@@ -114,6 +115,7 @@ export default function OpeningDetail() {
                     opportunityId: item.id,
                     setupId: String(values.get("setupId") || ""),
                     notes: String(values.get("notes") || ""),
+                    licenseToRun: values.get("licenseToRun") === "on" ? true : undefined,
                   },
                   () => navigate(`/app/evaluations/${requestId.current}`),
                 );
@@ -141,6 +143,13 @@ export default function OpeningDetail() {
                   Manage setups
                 </Link>
               </div>
+              {item.evaluation ? (
+                <p className="ws-section">
+                  {item.evaluation.scored.available
+                    ? `Your policy runs ${item.evaluation.scored.episodes} episodes you have not seen. The first 25 run on their own; if most of them fail at your policy service (no answer, invalid or out-of-limit actions), the run stops there and you get the reasons.`
+                    : "Evaluations are not open yet for this job."}
+                </p>
+              ) : null}
               <div className="ws-section">
                 <Field label="Notes (optional)">
                   <textarea
@@ -157,10 +166,18 @@ export default function OpeningDetail() {
                   physical pilot&rsquo;s dates and terms are agreed directly with the site.
                 </span>
               </label>
+              <label className="ws-check">
+                <input type="checkbox" name="licenseToRun" required />
+                <span>
+                  I license Blueprint to run this policy for this evaluation only. Blueprint&rsquo;s
+                  simulator scores every episode; my service returns actions, never results.
+                </span>
+              </label>
               <div className="ws-form-actions">
                 <button
                   className="ws-primary"
-                  disabled={action.pending || !query.data?.setups.length}
+                  disabled={action.pending || !query.data?.setups.length
+                    || (item.evaluation ? !item.evaluation.scored.available : false)}
                 >
                   {action.pending ? "Requesting…" : "Request evaluation →"}
                 </button>
@@ -174,5 +191,53 @@ export default function OpeningDetail() {
         </>
       )}
     </Frame>
+  );
+}
+
+const FAMILY_LABELS: Record<string, string> = {
+  canonical_anchor: "Nominal scene",
+  placement_approach: "Object placement and yaw",
+  illumination: "Lighting",
+  camera_sensor: "Camera position",
+  bounded_physics: "Surface friction",
+  pairwise_stress: "Two variations at once",
+  held_out_composition: "Every variation at once",
+};
+
+function EvaluationTerms({ terms }: { terms: TeamEvaluationTerms }) {
+  return (
+    <section className="ws-section" aria-labelledby="evaluation-terms">
+      <h2 id="evaluation-terms">How your evaluation runs</h2>
+      <p>Instruction your policy receives: &ldquo;{terms.instruction}&rdquo;</p>
+      <p>
+        Blueprint&rsquo;s simulator decides every episode from the task object&rsquo;s state
+        against the job&rsquo;s success contract. Results are a bounded simulation estimate;
+        they never certify physical performance or safety.
+      </p>
+      <details className="ws-section">
+        <summary>Scored: {terms.scored.episodes} hidden cells</summary>
+        <p>Drawn from these variations, the same for every team on this job:</p>
+        <ul>
+          {terms.scored.families.map((family) => (
+            <li key={family}>{FAMILY_LABELS[family] ?? family}</li>
+          ))}
+        </ul>
+        <ul>
+          {Object.entries(terms.scored.parameterBounds).map(([name, [low, high]]) => (
+            <li key={name}>{name}: {low} to {high}</li>
+          ))}
+        </ul>
+      </details>
+      <details className="ws-section">
+        <summary>Policy interfaces</summary>
+        <ul>
+          {terms.policyInterfaces.map((row) => (
+            <li key={row.policyInterfaceId}>
+              <code>{row.policyInterfaceId}</code>: {row.summary}
+            </li>
+          ))}
+        </ul>
+      </details>
+    </section>
   );
 }

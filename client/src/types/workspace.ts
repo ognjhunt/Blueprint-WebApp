@@ -1,6 +1,7 @@
 import type { UpdatePreferences } from "./updatePreferences";
 import type { SiteAdvisory } from "./siteAdvisory";
 import type { RobotDescription } from "./robotDescription";
+import type { RobotEmbodiment } from "./robotEmbodiment";
 import type { SitePilotIntent, SiteVisitAnswer } from "@/data/sitePilotIntent";
 export type WorkspaceRole = "site_operator" | "robot_team";
 export type TaskTargets = {
@@ -15,6 +16,8 @@ export type TaskTerms = TaskTargets & {
 };
 export type RobotSetup = {
   robotDescription?: RobotDescription;
+  /** The team's own robot and cameras for evaluation; absent means the DROID Franka. */
+  robotEmbodiment?: RobotEmbodiment;
   executionBindingId?: string;
   id: string;
   name: string;
@@ -99,7 +102,19 @@ export type WorkspaceTask = {
   } | null;
   createdAt: string | null;
 };
+export type EpisodeOutcomeRow = {
+  cell_id: string;
+  family: string | null;
+  outcome: "success" | "failure" | "void";
+  reason: string;
+};
 export type WorkspaceEvaluation = WorkspaceResult & {
+  /** A team evaluation: its evidence is its per-episode outcomes, not a Task Evaluation run record. */
+  teamEvaluation?: boolean;
+  /** The 95% interval around the success rate, in percent, when episodes were scored. */
+  successRateInterval?: [number, number] | null;
+  /** The team's own run, one row per episode. */
+  episodeOutcomes?: EpisodeOutcomeRow[];
   taskId: string | null;
   title: string;
   siteType: string;

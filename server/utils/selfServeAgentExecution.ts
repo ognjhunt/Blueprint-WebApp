@@ -39,8 +39,11 @@ import { teamJobAccess, type TeamJobClosedReason } from "./teamJobAccess";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import type { InboundRequest } from "../types/inbound-request";
 import { loadTaskForTeam, developmentOfferForTeam } from "./controlledDevelopmentOffer";
-import { checkpointPolicyPackage, TEAM_CANDIDATE_QUICK10_PROFILE, teamCandidatePolicyPackage } from "./policyIntegration";
-import { MINIMUM_EVIDENCE_EPISODES } from "./pilotRecommendationEvidence";
+import {
+  checkpointPolicyPackage, isTeamEvaluationProfile, TEAM_EVALUATION_EPISODES, TEAM_EVALUATION_PURPOSE,
+  teamCandidatePolicyPackage,
+} from "./policyIntegration";
+import type { RobotEmbodiment } from "../../client/src/types/robotEmbodiment";
 
 export const SELF_SERVE_ENTITLEMENT_SKU = "self-serve-agent-execution";
 
@@ -54,6 +57,8 @@ export interface AgentExecutionOffer {
   episode_count: number;
   episode_specs_sha256: string;
   policy_execution_profiles?: string[];
+  /** Beta L5: what a team is asked to do and how it is judged (200 hidden scored cells). */
+  team_evaluation?: Record<string, unknown>;
 }
 
 export type SelfServePreparation =
@@ -98,6 +103,8 @@ function policyPackageFor(checkpoint: Record<string, any>): Record<string, unkno
 type PreparationParameters = {
   teamId: string; checkpointId: string; sceneId: string; quotedEpisodes: number;
   quotedUsd: number; submissionKey?: string;
+  /** A team evaluation, on the DROID Franka or the team's own declared robot. */
+  teamEvaluation?: { robotEmbodiment?: RobotEmbodiment | null };
 };
 export async function ensureSelfServeAgentExecution(params: PreparationParameters): Promise<SelfServePreparation> {
   if (FREE_BETA_ONLY) return { prepared: false, blockers: [FREE_BETA_PAID_DISABLED] };
@@ -167,13 +174,13 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
   if (!facts.ok) return { prepared: false, blockers: facts.blockers };
   const offer = agentExecutionOfferFrom(scene, facts.captureId);
   if (!offer) return { prepared: false, blockers: ["pipeline_execution_offer_missing"] };
-  // Beta L5: when the Pipeline offers the Quick-10 team-candidate runtime for
-  // this scene, a team's authenticated HTTPS policy runs there, for the
-  // offer's episode count, which must be enough to judge it.
-  const teamPackage = !development && offer.policy_execution_profiles?.includes(TEAM_CANDIDATE_QUICK10_PROFILE)
-    ? teamCandidatePolicyPackage(checkpoint) : null;
-  if (teamPackage && offer.episode_count < MINIMUM_EVIDENCE_EPISODES) {
-    return { prepared: false, blockers: ["pipeline_team_candidate_offer_below_minimum_episodes"] };
+  // Beta L5: when the Pipeline offers team evaluations for this scene, a
+  // team's authenticated HTTPS policy runs there on 200 hidden scored cells.
+  const teamOffered = !development && Boolean(offer.policy_execution_profiles?.some(isTeamEvaluationProfile));
+  const teamPackage = teamOffered
+    ? teamCandidatePolicyPackage(checkpoint, { robotEmbodiment: params.teamEvaluation?.robotEmbodiment }) : null;
+  if (teamPackage && params.quotedEpisodes !== TEAM_EVALUATION_EPISODES) {
+    return { prepared: false, blockers: ["pipeline_team_evaluation_episode_mismatch"] };
   }
   if (!teamPackage && (["customer_hosted", "container_image", "controller_adapter", "model_artifact"].includes(checkpoint.runtime)
       || (checkpoint.runtime === "policy_endpoint" && checkpoint.policyCredential))
@@ -184,7 +191,7 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
     && !offer.policy_execution_profiles?.includes("onnx_state_mlp_cpu_v1")) {
     return { prepared: false, blockers: ["pipeline_model_runner_profile_required"] };
   }
-  if (offer.episode_count !== params.quotedEpisodes) {
+  if (!teamPackage && offer.episode_count !== params.quotedEpisodes) {
     return { prepared: false, blockers: ["pipeline_execution_offer_episode_mismatch"] };
   }
 
@@ -207,6 +214,7 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
     captureRoot: offer.capture_root,
     episodes: params.quotedEpisodes,
     usd: params.quotedUsd,
+    ...(teamPackage ? { teamEvaluationPurpose: TEAM_EVALUATION_PURPOSE } : {}),
   };
   const requestId = stableId("selfserve", bound);
   const decisionId = stableId("selfserve-decision", bound);

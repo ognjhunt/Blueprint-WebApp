@@ -36,6 +36,7 @@ export interface RawRun {
   teamId: string;
   state: string;
   evaluationPurpose?: string;
+  teamEvaluationPurpose?: string;
   requestedAtIso?: string | null;
   resolvedAtIso?: string | null;
   dispatch?: { startedAtIso?: string | null } | null;

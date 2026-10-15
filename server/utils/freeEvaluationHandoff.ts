@@ -8,6 +8,8 @@ import { reservationTtlMs, runIdForReservation, type EvalRunRecord } from "./age
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { TEAM_EVALUATION_PROVIDER_CAP_USD } from "./teamEvaluationSelection";
 import { teamJobAccess } from "./teamJobAccess";
+import { isTeamEvaluationProfile, TEAM_EVALUATION_PURPOSE } from "./policyIntegration";
+import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 /** An operator approves exact existing records; a workspace request alone is not permission. */
@@ -52,12 +54,15 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   const checkpoint = (await checkpointRef.get()).data();
   if (!checkpoint || checkpoint.teamId !== approval.teamId || checkpoint.reference !== setup.reference)
     throw new Error("free_evaluation_policy_mismatch");
+  // Preparation refuses an episode count other than 200 when the job offers team evaluations.
+  const robotEmbodiment = setup.robotEmbodiment ? robotEmbodimentSchema.parse(setup.robotEmbodiment) : null;
   let executionRequestId = approval.executionRequestId;
   if (!executionRequestId) {
     const prepared = await prepareFreeAgentExecution({ teamId: approval.teamId,
       checkpointId: approval.checkpointId, sceneId: selection.opportunityId,
       quotedEpisodes: approval.episodes, quotedUsd: approval.sponsorCapUsd,
-      submissionKey: `free:${requestId}` }, { approvedBy, expiresAtIso: approval.expiresAtIso });
+      submissionKey: `free:${requestId}`, teamEvaluation: { robotEmbodiment } },
+    { approvedBy, expiresAtIso: approval.expiresAtIso });
     if (!prepared.prepared) throw new Error(prepared.blockers.join(","));
     executionRequestId = prepared.requestId;
   }
@@ -81,9 +86,13 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   const runId = runIdForReservation(reservationId);
   const runRef = db.collection("evaluationRuns").doc(runId);
   const binding = envelope.binding as Record<string, unknown>;
+  // Only a team-evaluation policy package is a team evaluation; any other admitted run is not one.
+  const request = envelope.canonical_execution_request as Record<string, any> | undefined;
+  const profile = request?.policy_package?.policy_api_endpoint?.execution_profile;
   const run: EvalRunRecord = { runId, reservationId, teamId: approval.teamId,
     checkpointId: approval.checkpointId, sceneId: selection.opportunityId,
-    taskFamily: String(binding.task_family), evaluationPurpose: "pilot", quotedUsd: 0,
+    taskFamily: String(binding.task_family), evaluationPurpose: "pilot",
+    ...(isTeamEvaluationProfile(profile) ? { teamEvaluationPurpose: TEAM_EVALUATION_PURPOSE } : {}), quotedUsd: 0,
     quotedEpisodes: approval.episodes, state: "requested", episodesRun: null,
     moneyResolved: false, requestedAtIso: new Date().toISOString(), resolvedAtIso: null,
     note: "Blueprint-funded development evaluation; no physical-success or partner proof.",

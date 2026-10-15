@@ -67,7 +67,12 @@ import { recordRunResult } from "../utils/agentRunResults";
 import { getRun, listRequestedRuns, markRunStarted } from "../utils/agentEvalRuns";
 import { getCheckpoint } from "../utils/robotCheckpoints";
 import { controlledNativeResultSchema } from "../utils/controlledNativeResult";
-import { runResultScoringSchema, storedScoring } from "../utils/runResultScoring";
+import { TEAM_EVALUATION_PURPOSE } from "../utils/policyIntegration";
+import {
+  runResultScoringSchema,
+  storedScoring,
+  TEAM_EVALUATION_SCORED_RUNTIME,
+} from "../utils/runResultScoring";
 import { loadTaskForTeam, developmentOfferForTeam } from "../utils/controlledDevelopmentOffer";
 
 const router = Router();
@@ -100,6 +105,13 @@ const settlementSchema = z
   })
   .strict();
 
+const episodeOutcomeSchema = z.object({
+  cell_id: z.string().trim().min(1).max(200),
+  family: z.string().trim().max(100).nullable(),
+  outcome: z.enum(["success", "failure", "void"]),
+  reason: z.string().trim().min(1).max(100).regex(/^[a-z0-9_]+$/),
+}).strict();
+
 const resultSchema = z
   .object({
     pipeline_run_id: z.string().trim().min(1).max(200).optional(),
@@ -122,6 +134,10 @@ const resultSchema = z
      * counts toward a recommendation (`runResultScoring.ts`).
      */
     scoring: runResultScoringSchema.optional(),
+    /** Marks a team evaluation: 200 hidden cells, scored by the simulator. */
+    evaluation_purpose: z.literal(TEAM_EVALUATION_PURPOSE).optional(),
+    /** One row per episode, as the simulator scored it, by family only: a cell's draw stays hidden. Void episodes are reported, never counted. */
+    episode_outcomes: z.array(episodeOutcomeSchema).max(500).optional(),
   })
   .strict();
 
@@ -166,6 +182,11 @@ router.post(
     if (parsed.data.scoring && parsed.data.scoring.scored_episode_count > parsed.data.episodes_run) {
       return res.status(400).json({ error: "More episodes were scored than ran.", code: "agent_run_result_impossible" });
     }
+    const outcomes = parsed.data.episode_outcomes;
+    if (outcomes && (outcomes.filter(row => row.outcome !== "void").length !== parsed.data.episodes_run
+      || outcomes.filter(row => row.outcome === "success").length !== parsed.data.episodes_succeeded)) {
+      return res.status(400).json({ error: "Episode outcomes do not match the counts.", code: "agent_run_result_impossible" });
+    }
     if (parsed.data.private_execution_result && (parsed.data.episodes_run !== 1
       || parsed.data.episodes_succeeded !== Number(parsed.data.private_execution_result.task_success))) {
       return res.status(400).json({ error: "Native outcome does not match episode counts", code: "native_outcome_mismatch" });
@@ -175,6 +196,15 @@ router.post(
       const run = await getRunForReservation(parsed.data.reservation_id);
       if (run?.executionAdmission && (!run.dispatch?.pipelineRunId || run.dispatch.pipelineRunId !== parsed.data.pipeline_run_id || run.executionAdmission.digestSha256 !== parsed.data.execution_admission_digest)) {
         return res.status(409).json({ error: "Result does not match the claimed execution", code: "agent_execution_mismatch" });
+      }
+      // A team evaluation's result lands only on a run admitted as one: marked as one, with a row
+      // for every quoted episode. Another runtime is stored and never recommended on (`runResultScoring.ts`).
+      const admitted = run?.teamEvaluationPurpose === TEAM_EVALUATION_PURPOSE;
+      const marked = parsed.data.evaluation_purpose === TEAM_EVALUATION_PURPOSE;
+      if ((admitted || marked || parsed.data.scoring?.runtime === TEAM_EVALUATION_SCORED_RUNTIME)
+        && (!admitted || !marked || outcomes?.length !== run?.quotedEpisodes)) {
+        return res.status(409).json({ error: "Result does not match the admitted team evaluation",
+          code: "team_evaluation_result_mismatch" });
       }
       const result = await recordRunResult({
         runId: runIdForReservation(parsed.data.reservation_id),
@@ -188,6 +218,8 @@ router.post(
           artifactUri: parsed.data.artifact_uri ?? null,
           ...(parsed.data.private_execution_result ? { privateExecutionResult: parsed.data.private_execution_result } : {}),
           ...(parsed.data.scoring ? { scoring: storedScoring(parsed.data.scoring) } : {}),
+          ...(parsed.data.evaluation_purpose ? { evaluationPurpose: parsed.data.evaluation_purpose } : {}),
+          ...(outcomes ? { episodeOutcomes: outcomes } : {}),
         },
       });
 

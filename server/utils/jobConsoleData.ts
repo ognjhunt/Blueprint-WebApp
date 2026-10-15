@@ -14,6 +14,7 @@ import { listCheckpoints } from "./robotCheckpoints";
 import { reservationTtlMs } from "./agentRunRecord";
 import { MAX_FREE_SPONSOR_CAP_USD } from "./freeBeta";
 import { screeningRound } from "../../client/src/lib/evaluationPricing";
+import { TEAM_EVALUATION_EPISODES } from "./policyIntegration";
 import { ROBOT_TEAMS_COLLECTION, type RobotTeamRecord } from "../types/robot-team-registry";
 import { effectiveTeamStatus } from "./robotTeamSupply";
 import { object, text, iso } from "./workspace-projection";
@@ -232,6 +233,7 @@ async function admissionCandidate(id: string, record: Record<string, any>): Prom
     blockers.push("No registered checkpoint matches the setup reference. Ask the team to register one under Settings → Robots & policies.");
   return {
     evaluationRequestId: id,
+    episodes: TEAM_EVALUATION_EPISODES,
     submittedAtIso: iso(selection.submittedAt) ?? iso(record.createdAt),
     admitted: evaluationRequestAdmitted(record),
     handoff: text(handoff.runId) ? { runId: text(handoff.runId),

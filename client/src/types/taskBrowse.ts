@@ -33,6 +33,20 @@ export interface TeamJobOpening extends TaskListingDetails {
   id: string;
   publishedAtIso: string;
   thumbnailUrl: string | null;
+  /** What a team is asked to do and how it is judged, once the job's scene is ready. */
+  evaluation?: TeamEvaluationTerms | null;
+}
+/**
+ * A job's team evaluation, as the Pipeline published it: 200 hidden cells from
+ * the job's bounded variations, the only run a recommendation rests on.
+ * Success is decided by the simulator from the task object's state.
+ */
+export interface TeamEvaluationTerms {
+  instruction: string;
+  taskKind: string;
+  scored: { available: boolean; reason: string | null; episodes: number; families: string[];
+    parameterBounds: Record<string, [number, number]> };
+  policyInterfaces: Array<{ policyInterfaceId: string; robot: "droid_franka" | "team_declared"; summary: string }>;
 }
 export const taskStageLabels = { capture: "Being captured", preparing: "Scene in preparation", ready: "Ready to evaluate" };
 export const opportunityLabels = { open: "Open to pilot proposals", past: "Past opportunity", not_seeking: "Evaluation only" };

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { robotEmbodimentSchema, type RobotEmbodiment } from "../../client/src/types/robotEmbodiment";
 
 /** ADP-011/day 7: integration intent is distinct from execution evidence. */
 export const checkpointRuntimes = [
@@ -33,22 +34,38 @@ export function validateIntegrationReference(runtime: string, reference: string)
 }
 
 /**
- * Beta L5: the Pipeline's Quick-10 policy-canary runtime running ONE admitted
- * team candidate in place of its two frozen policies, for ten episodes the
- * simulator scores against the job's success contract. The only kind of run
- * whose result can back a recommendation (`runResultScoring.ts`).
+ * Beta L5: a robot team's evaluation of one site job, run by the Pipeline on
+ * the job's simulated scene and scored by the simulator against the job's
+ * success contract: 200 cells the team has not seen, drawn from the job's
+ * bounded variations. It is the only run a recommendation may rest on
+ * (`runResultScoring.ts`). There is no practice run: the Pipeline runs the
+ * first 25-cell shard alone and stops there when the policy fails at the
+ * interface, so a broken endpoint costs one shard, not the evaluation.
  */
-export const TEAM_CANDIDATE_QUICK10_PROFILE = "policy_canary_quick10_team_candidate_v1";
-/** The pi0.5-DROID Franka (Robotiq 2F-85) contract, served by the team's own HTTPS service. */
+export const TEAM_EVALUATION_PROFILE = "team_evaluation_scored_v1";
+export const TEAM_EVALUATION_EPISODES = 200;
+/** How a run record and the Pipeline's result mark a team evaluation. */
+export const TEAM_EVALUATION_PURPOSE = "scored";
+export function isTeamEvaluationProfile(profile: unknown): boolean {
+  return profile === TEAM_EVALUATION_PROFILE;
+}
+/** A policy for Blueprint's simulated DROID Franka (Robotiq 2F-85), served by the team over HTTPS. */
 export const TEAM_CANDIDATE_HTTPS_INTERFACE = "openpi_droid_https.v1";
+/** A policy for the team's own declared arm and cameras (`robotEmbodiment.ts`), served over HTTPS. */
+export const TEAM_ROBOT_HTTPS_INTERFACE = "blueprint_policy_https.v1";
 
 /**
- * A team's authenticated HTTPS policy as the one candidate of a Quick-10 run.
- * The same URL answers GET with the team's declared identity and POST with
- * actions; the Pipeline checks that identity before every episode. Null for
- * anything else, so nothing unauthenticated or non-HTTPS is ever asked for.
+ * A team's authenticated HTTPS policy as the one candidate of a team
+ * evaluation. The same URL answers GET with the team's declared identity and
+ * POST with actions; the Pipeline checks that identity before every episode.
+ * With a declared robot the policy drives the team's own robot; without one, the
+ * DROID Franka. Null for anything else, so nothing unauthenticated or
+ * non-HTTPS is ever asked for.
  */
-export function teamCandidatePolicyPackage(checkpoint: Record<string, any>): Record<string, unknown> | null {
+export function teamCandidatePolicyPackage(
+  checkpoint: Record<string, any>,
+  options: { robotEmbodiment?: RobotEmbodiment | null } = {},
+): Record<string, unknown> | null {
   const reference = String(checkpoint.reference || "").trim();
   if (!["policy_endpoint", "customer_hosted"].includes(checkpoint.runtime)
     || checkpoint.policyCredential?.kind !== "bearer" || !checkpoint.policyCredential?.ref) return null;
@@ -56,9 +73,12 @@ export function teamCandidatePolicyPackage(checkpoint: Record<string, any>): Rec
     const url = new URL(reference);
     if (url.protocol !== "https:" || url.username || url.password || url.hash) return null;
   } catch { return null; }
+  const embodiment = options.robotEmbodiment ? robotEmbodimentSchema.safeParse(options.robotEmbodiment) : null;
+  if (embodiment && !embodiment.success) return null;
   return { policy_api_endpoint: {
-    endpoint_url: reference, execution_profile: TEAM_CANDIDATE_QUICK10_PROFILE,
-    policy_interface_id: TEAM_CANDIDATE_HTTPS_INTERFACE,
+    endpoint_url: reference, execution_profile: TEAM_EVALUATION_PROFILE,
+    policy_interface_id: embodiment ? TEAM_ROBOT_HTTPS_INTERFACE : TEAM_CANDIDATE_HTTPS_INTERFACE,
+    ...(embodiment ? { robot_embodiment: embodiment.data } : {}),
     credential_ref: checkpoint.policyCredential.ref, credential_kind: "bearer",
   } };
 }

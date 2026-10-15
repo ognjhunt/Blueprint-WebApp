@@ -6,6 +6,7 @@ import type {
 } from "../../client/src/types/workspace";
 import { teamJobAccess } from "./teamJobAccess";
 import { isSimulatorScoredJobEvidence, type RunResultScoring } from "./runResultScoring";
+import type { EpisodeOutcome } from "./agentRunResults";
 import { sitePilotIntentFrom, siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 
 export function object(value: unknown): Record<string, any> {
@@ -184,10 +185,15 @@ export interface AgentRunForSite {
   runId: string;
   teamId: string;
   state: string;
+  /** Beta L5: marks a team evaluation, from admission on. */
+  teamEvaluationPurpose?: "scored";
   result?: {
     evidenceScope?: "development_only";
     /** Who scored the episodes; without an admitted statement, targets are never "met". */
     scoring?: RunResultScoring;
+    /** A team evaluation's mark and per-episode outcomes, shown to the team that ran it. */
+    evaluationPurpose?: "scored";
+    episodeOutcomes?: EpisodeOutcome[];
     observed: {
       episodesRun: number;
       episodesSucceeded: number;

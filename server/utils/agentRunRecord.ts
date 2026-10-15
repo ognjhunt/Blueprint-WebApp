@@ -21,6 +21,8 @@ export interface RunDispatch {
 export interface EvalRunRecord {
   /** Absent only on historical runs created before private evaluations. */
   evaluationPurpose?: "private" | "pilot";
+  /** Beta L5: marks a team evaluation (200 hidden cells, scored by the simulator). */
+  teamEvaluationPurpose?: "scored";
   runId: string;
   teamId: string;
   checkpointId: string;

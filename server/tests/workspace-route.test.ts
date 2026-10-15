@@ -685,7 +685,7 @@ describe("workspace requests and lifecycle", () => {
     const opened = await api("/openings/task-1", "robot-1");
     expect(opened.status).toBe(200);
     const { opening } = await opened.json();
-    expect(opening).toEqual({ ...card, id: "task-1", publishedAtIso: "2026-09-13T10:00:00Z", thumbnailUrl: null });
+    expect(opening).toEqual({ ...card, id: "task-1", publishedAtIso: "2026-09-13T10:00:00Z", thumbnailUrl: null, evaluation: null });
     expect(JSON.stringify(opening)).not.toMatch(/Confidential Site|123 Private|Pack cartons"|gs:\/\/|robot-1|successRate/);
     expect((await api("/openings/task-1", "site-1")).status).toBe(403);
     expect((await api("/evaluations", "robot-1", request1)).status).toBe(201);
