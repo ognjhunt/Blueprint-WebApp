@@ -6,6 +6,7 @@ import {canNotifyCurrentWebsitePreparationIssue} from './websitePreparationStatu
 import {decryptFieldValue} from './field-encryption';
 const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','screening_cleared','screening_started','results_ready','run_no_result',
+ 'awaiting_evaluations','no_team_passed',
  'brief_confirmed','coverage_shortfall','assessment_ready','input_needed',
 ]);
 /** Call inside the dispatch transaction before recording an external side effect.

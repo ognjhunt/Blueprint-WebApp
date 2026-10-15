@@ -26,7 +26,8 @@ import {
 } from "../utils/field-encryption";
 import { submitInboundRequest } from "./inbound-request";
 import { verifySiteClaimToken } from "../utils/request-review-auth";
-import { projectTeamJobOpening } from "../utils/teamJobAccess";
+import { projectTeamJobOpening, teamJobAccess } from "../utils/teamJobAccess";
+import { passMarkForJob } from "../utils/pilotRecommendationEvidence";
 import { sendCapturerCommunication } from "../utils/field-ops-automation";
 import {
   object,
@@ -612,20 +613,19 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
       taskStatusInputFrom({
         site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,
         capture_coverage: (record.capture_coverage as never) ?? null,
-        site_task_next_update_iso: (record.site_task_next_update_iso as string | null) ?? null,
         briefDrafted: Boolean(brief),
         consentRevoked,
         scenePreviewReady,
         scenePreparationFailed: reconstruction?.state === "failed",
         preparationStatus,
         stage,
-        screening: await loadSceneScreening(requestId).catch(() => null),
+        screening: await loadSceneScreening(requestId, passMarkForJob(record, brief as never)).catch(() => null),
         site_task_triage: (record.site_task_triage as { disposition?: string | null } | undefined) ?? null,
         bookingUrl: bookingUrl(),
+        jobAccess: teamJobAccess(record),
+        recommended: Boolean(record.pilot_recommendation),
       }),
     );
-    // Updates follow events by email; no timed check-in is promised.
-    task.readiness.nextUpdateIso = null;
   } catch {
     task.readiness = null;
   }

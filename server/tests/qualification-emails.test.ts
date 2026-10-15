@@ -281,6 +281,16 @@ describe("the qualified reply", () => {
       .not.toMatch(/site account/);
   });
 
+  it("promises no evaluation or recommendation for a job whose card is not published", () => {
+    const step = { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" } as const;
+    const body = buildQualificationEmail({ firstName: "Dana", stage: "brief_confirmed", nextStep: step, jobCardPublished: false,
+      triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }) })!.body;
+    expect(body).toMatch(/We turn it into a 3D scene/);
+    expect(body).toMatch(/robot teams cannot see your job or evaluate it, and it cannot lead to a recommended pilot/);
+    expect(body).toMatch(/publish its card from your job page/);
+    expect(body).not.toMatch(/Robot teams we have invited evaluate your job|we recommend that one team/);
+  });
+
   it("speaks for an intake-time screen as well as a confirmed brief", () => {
     const email = buildQualificationEmail({
       firstName: "Dana",

@@ -5,6 +5,8 @@
  * was received, its footage landed, its scene was built, its card went live,
  * a robot team picked it up, a result came in, a team asked about a pilot.
  * The scheduled check-in that used to fill the gaps between these is retired.
+ * Waiting is an event too: the job opening to robot teams, and every
+ * evaluation so far finishing without a pass, each send their own notice.
  * Per-run and per-request events carry an `eventId`, so each one is its own
  * email and a retry of the same event is not.
  */
@@ -29,6 +31,8 @@ export type TaskLifecycleMilestone = Extract<
   | "screening_started"
   | "results_ready"
   | "run_no_result"
+  | "awaiting_evaluations"
+  | "no_team_passed"
   | "pilot_request"
   | "pilot_recommended"
   | "pilot_booked"
@@ -99,6 +103,14 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   run_no_result: {
     subject: "A robot team's run ended without a result",
     body: (url) => `A robot team's run against your scene ended before any episode was observed, so there is no result to show from it. Nothing is needed from you.\n\nOpen your job:\n${url}`,
+  },
+  awaiting_evaluations: {
+    subject: "Robot teams can now evaluate your job",
+    body: (url) => `Your job is open to robot teams approved for the beta. They see only its anonymized card, and each can request a free evaluation in the simulation built from your capture. No team has started one yet. We will email you when a team starts and when it reports a result. Nothing is needed from you.\n\nOpen your job:\n${url}`,
+  },
+  no_team_passed: {
+    subject: "No robot team's evaluation has passed yet",
+    body: (url) => `Every evaluation of your job so far has finished, and none passed, so there is no pilot to recommend yet. A recommendation needs one team's evaluation on your job to pass. While your job card stays published, robot teams approved for the beta can still evaluate it, and we will email you when one starts. Your job page shows each run. Nothing is needed from you.\n\nOpen your job:\n${url}`,
   },
   pilot_request: {
     subject: "A robot team asked to evaluate your site for a pilot",
@@ -192,6 +204,41 @@ export function buildTaskLifecycleNotification(params: {
       : params.detail?.trim() ?? "", params.milestone === "pilot_booked" && params.counterpart ? formatPilotContact(params.counterpart) : "")}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
   };
+}
+
+/**
+ * Tell the site, once, that robot teams can now request an evaluation of its
+ * job and none has. Read from the stored record by the same predicate the job
+ * library uses, so it is sent only when it is true. Callers that may have just
+ * opened a job (a Pipeline sync, a published card) call this; it is a no-op
+ * otherwise, and the outbox key keeps it to one email per job.
+ */
+export async function notifyIfOpenForEvaluations(requestId: string): Promise<{ enqueued: boolean }> {
+  if (!db) return { enqueued: false };
+  const snapshot = await db.collection("inboundRequests").doc(requestId).get();
+  const { teamJobAccess } = await import("./teamJobAccess");
+  if (!snapshot.exists || !teamJobAccess(snapshot.data()).evaluationAvailable) return { enqueued: false };
+  const { loadSceneScreening } = await import("./agentEvalRuns");
+  if ((await loadSceneScreening(requestId)).teams > 0) return { enqueued: false };
+  return enqueueTaskLifecycleNotification({ requestId, milestone: "awaiting_evaluations" });
+}
+
+/**
+ * After a site evaluation concludes: when nothing is in flight, nothing passed
+ * the job's pass mark and no pilot is recommended, tell the site no team has
+ * passed yet. Keyed by the run that concluded, so each run is at most one.
+ */
+export async function notifyIfNoTeamPassed(requestId: string, concludedRunId: string): Promise<{ enqueued: boolean }> {
+  if (!db) return { enqueued: false };
+  const snapshot = await db.collection("inboundRequests").doc(requestId).get();
+  const record = snapshot.data();
+  if (!snapshot.exists || !record || record.pilot_recommendation) return { enqueued: false };
+  const [{ getBrief }, { passMarkForJob }, { loadSceneScreening }] = await Promise.all([
+    import("./siteTaskBrief"), import("./pilotRecommendationEvidence"), import("./agentEvalRuns")]);
+  const screening = await loadSceneScreening(requestId, passMarkForJob(record, await getBrief(requestId) as never));
+  if (screening.queued + screening.running > 0 || screening.reported + screening.noResult === 0
+    || screening.passed !== 0) return { enqueued: false };
+  return enqueueTaskLifecycleNotification({ requestId, milestone: "no_team_passed", eventId: concludedRunId });
 }
 
 /** Existing outbox tick repairs a lost enqueue; fresh readback gates dispatch again. */

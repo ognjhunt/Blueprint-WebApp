@@ -3,7 +3,7 @@ import { automationBatch } from "./automationBatch";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { isSiteEvaluation } from "./agentRunRecord";
-import { enqueueTaskLifecycleNotification } from "./taskLifecycleNotifications";
+import { enqueueTaskLifecycleNotification, notifyIfNoTeamPassed } from "./taskLifecycleNotifications";
 import { notifyTeamOfRunOutcome } from "./robotTeamNotifications";
 
 /** Intent is written with the result/terminal state; outbox IDs deduplicate retries. */
@@ -36,6 +36,7 @@ export async function reconcileAgentRunNotifications(limit = 50): Promise<void> 
           milestone: "run_no_result",
         });
         if (!site.enqueued) continue;
+        try { await notifyIfNoTeamPassed(run.sceneId, run.runId); } catch { /* best-effort */ }
       }
       const team = await notifyTeamOfRunOutcome({ teamId: run.teamId, runId: run.runId,
         outcome: { kind: "no_result" },

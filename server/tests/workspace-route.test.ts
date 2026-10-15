@@ -1248,7 +1248,10 @@ describe("agent screening runs on the site's task", () => {
     });
     expect(JSON.stringify(body)).not.toContain("team-alpha");
     expect(JSON.stringify(body)).not.toContain("ckpt-secret");
-    expect(siteTask.readiness?.decision).toBe("results");
+    // The one site run is settled and unscored, so it cannot pass: the ladder
+    // says no team has passed yet rather than leaving "results are in" open.
+    expect(siteTask.readiness?.decision).toBe("no_team_passed");
+    expect(siteTask.readiness?.nextUpdateIso).toBeNull();
     expect(JSON.stringify(body)).not.toContain("private-secret");
     state.records.delete("evaluationRuns/run_r1");
     const privateOnly = await (await api("/", "site-1")).json();

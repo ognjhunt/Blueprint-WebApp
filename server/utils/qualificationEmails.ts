@@ -260,6 +260,13 @@ export function buildQualifiedEmail(params: {
   nextStep?: QualifiedNextStep;
   /** True when the site has not yet saved the job to a verified account. */
   accountNeeded?: boolean;
+  /**
+   * False when the job card is not published (kept private, hidden, or awaiting
+   * review). No robot team can see or evaluate such a job, so the email must
+   * not promise evaluations or a recommendation. Absent when the caller did
+   * not read it, which keeps the listed job's wording.
+   */
+  jobCardPublished?: boolean;
   calendlyUrl?: string;
 }): QualificationEmail {
   const { firstName, siteName } = params;
@@ -288,7 +295,11 @@ export function buildQualifiedEmail(params: {
     "",
     "Once we have footage of the work area:",
     "",
-    bulletList([
+    bulletList(params.jobCardPublished === false ? [
+      "We turn it into a 3D scene.",
+      "Your job card is not published, so robot teams cannot see your job or evaluate it, and it cannot lead to a recommended pilot.",
+      "To open it to the robot teams we have invited, publish its card from your job page. The card shows only the anonymized text you approve.",
+    ] : [
       "We turn it into a 3D scene.",
       "Robot teams we have invited evaluate your job in a simulation built from that scene.",
       "If a team's evaluation passes, we recommend that one team, and you can book the pilot in one step. If no team passes, we tell you that plainly.",
@@ -326,6 +337,7 @@ export function buildQualificationEmail(params: {
   /** The dispatch outcome, so the qualified branch can name a real next step. */
   nextStep?: QualifiedNextStep;
   accountNeeded?: boolean;
+  jobCardPublished?: boolean;
 }): QualificationEmail | null {
   const { triage } = params;
   if (!triage) return null;
@@ -353,6 +365,7 @@ export function buildQualificationEmail(params: {
       stage: params.stage,
       nextStep: params.nextStep,
       accountNeeded: params.accountNeeded,
+      jobCardPublished: params.jobCardPublished,
     });
   }
 

@@ -18,7 +18,9 @@
  * - free admission, re-checked when Blueprint approves the run
  *   (`freeEvaluationHandoff.ts`);
  * - the agent API's candidate list (`teamEvalCandidates.ts`);
- * - the site's own "Open for evaluations" status (`workspace-projection.ts`).
+ * - the site's own "Open for evaluations" or "Private" status (`workspace-projection.ts`);
+ * - the site's waiting states and the one "robot teams can now evaluate your
+ *   job" notice (`taskStatusProjection.ts`, `taskLifecycleNotifications.ts`).
  *
  * ## The site's consent is the card
  *

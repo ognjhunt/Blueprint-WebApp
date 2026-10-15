@@ -86,6 +86,7 @@ export default function Contact() {
             <summary>How this works</summary>
             {savedJob ? <p className="ms-field-hint">Your private job link shows progress, follow-up questions and, once a team&rsquo;s evaluation passes, your recommended pilot. Keep it to return.</p> : <><p className="ms-field-hint">
               Your job link shows progress and follow-ups. We draft a brief from the evidence for you to correct.
+              Before we build the job&rsquo;s scene, you save the job to an account with your work email.
               Invited robot teams then evaluate the job in simulation, and we recommend one team whose evaluation passed.
               A simulated pass is an estimate; the physical pilot, agreed with the team, tests performance on site.
             </p>

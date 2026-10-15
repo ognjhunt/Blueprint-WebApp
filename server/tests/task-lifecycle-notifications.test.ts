@@ -16,6 +16,8 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 vi.mock("../utils/field-encryption", () => ({
   decryptFieldValue: vi.fn(async (value: string) => value.replace(/^encrypted:/, "")),
 }));
+const jobAccess = vi.hoisted(() => ({ evaluationAvailable: false }));
+vi.mock("../utils/teamJobAccess", () => ({ teamJobAccess: () => jobAccess }));
 
 const { enqueueTaskLifecycleNotification, reconstructionIsViewable, reconcileSceneReadyNotifications } = await import("../utils/taskLifecycleNotifications");
 
@@ -155,5 +157,48 @@ describe("pilot and listing notices describe the free beta", () => {
     const historical = await build("pilot_booked");
     expect(historical.body).toContain("Your previously accepted commercial terms remain on file.");
     expect(historical.body).not.toMatch(/\bfee\b/i);
+  });
+});
+
+describe("a waiting job hears what it is waiting on", () => {
+  const scored = (episodes: number) => ({ schemaVersion: "blueprint.agent_run_result_scoring.v1", runtime: "team_evaluation_scored",
+    successSource: "simulator_scored", scoredEpisodeCount: episodes, successContractDigest: `sha256:${"1".repeat(64)}`,
+    sceneRevisionDigest: `sha256:${"2".repeat(64)}`, robotFreeProbeReceiptDigest: `sha256:${"3".repeat(64)}`,
+    teamCandidateAdmissionDigest: `sha256:${"4".repeat(64)}`, sessionResultDigest: `sha256:${"5".repeat(64)}`, claimCeiling: "diagnostic_policy_execution" });
+  const run = (runId: string, state: string, succeeded: number | null) => sharedFakeFirestoreState.docs.set(`evaluationRuns/${runId}`, {
+    runId, teamId: `team-${runId}`, sceneId: "req-1", evaluationPurpose: "pilot", state,
+    ...(succeeded === null ? {} : { result: { scoring: scored(200), observed: { episodesRun: 200, episodesSucceeded: succeeded, medianCycleSeconds: null } } }) });
+
+  it("tells the site once that robot teams can evaluate the job, only while true and before any run", async () => {
+    const { notifyIfOpenForEvaluations } = await import("../utils/taskLifecycleNotifications");
+    jobAccess.evaluationAvailable = false;
+    expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
+    jobAccess.evaluationAvailable = true;
+    expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(true);
+    expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
+    const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:awaiting_evaluations") as Record<string, string>;
+    expect(row.subject).toBe("Robot teams can now evaluate your job");
+    expect(row.body).toMatch(/No team has started one yet\. We will email you when a team starts/);
+    sharedFakeFirestoreState.docs.delete("captureOutbox/req-1:awaiting_evaluations");
+    run("run_q", "requested", null);
+    expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
+  });
+
+  it("says no team passed only when every evaluation finished below the pass mark and nothing is recommended", async () => {
+    const { notifyIfNoTeamPassed } = await import("../utils/taskLifecycleNotifications");
+    run("run_a", "completed", 120);
+    run("run_b", "blocked", null);
+    expect((await notifyIfNoTeamPassed("req-1", "run_b")).enqueued).toBe(true);
+    const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:no_team_passed:run_b") as Record<string, string>;
+    expect(row.subject).toBe("No robot team's evaluation has passed yet");
+    expect(row.body).toMatch(/none passed, so there is no pilot to recommend yet/);
+
+    run("run_c", "requested", null);
+    expect((await notifyIfNoTeamPassed("req-1", "run_a")).enqueued).toBe(false);
+    run("run_c", "completed", 195);
+    expect((await notifyIfNoTeamPassed("req-1", "run_c")).enqueued).toBe(false);
+    run("run_c", "completed", 100);
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" }, pilot_recommendation: { id: "rec" } });
+    expect((await notifyIfNoTeamPassed("req-1", "run_c")).enqueued).toBe(false);
   });
 });

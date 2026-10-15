@@ -1,7 +1,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { automationBatch } from "./automationBatch";
 import { CAPTURE_OUTBOX_COLLECTION } from "./captureOutbox";
-import { enqueueTaskLifecycleNotification } from "./taskLifecycleNotifications";
+import { enqueueTaskLifecycleNotification, notifyIfNoTeamPassed } from "./taskLifecycleNotifications";
 import { notifyTeamOfRunOutcome } from "./robotTeamNotifications";
 import { humanDecisionDigest } from "./human-reply-admission";
 import { isSiteEvaluation } from "./agentRunRecord";
@@ -22,9 +22,13 @@ export async function reconcileAgentRunResultNotifications(limit = 20): Promise<
     const intent = run.result_notification_intent;
     if (!intent || humanDecisionDigest(intent) !== humanDecisionDigest(resultNotificationIntent(run, run.result))) continue;
     const { episodesSucceeded, episodesRun } = run.result.observed;
-    if (intent.notify_site) await enqueueTaskLifecycleNotification({ requestId: intent.scene_id,
-      milestone: "results_ready", eventId: intent.run_id,
-      detail: `${episodesSucceeded} of ${episodesRun} simulated episodes succeeded` });
+    if (intent.notify_site) {
+      await enqueueTaskLifecycleNotification({ requestId: intent.scene_id,
+        milestone: "results_ready", eventId: intent.run_id,
+        detail: `${episodesSucceeded} of ${episodesRun} simulated episodes succeeded` });
+      // Best-effort and keyed by run: a missed check never holds the result notice.
+      try { await notifyIfNoTeamPassed(intent.scene_id, intent.run_id); } catch { /* best-effort */ }
+    }
     await notifyTeamOfRunOutcome({ teamId: intent.team_id, runId: intent.run_id,
       outcome: { kind: "result", episodesSucceeded, episodesRun } });
     const eventId = intent.run_id.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);

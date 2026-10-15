@@ -8,7 +8,7 @@ import { listingConsentVersion, taskListingSchema, taskListingDraft } from "../u
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { getBrief } from "../utils/siteTaskBrief";
 import { projectPilotCoordination } from "../utils/pilotCoordination";
-import { buildTaskLifecycleNotification, enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { buildTaskLifecycleNotification, enqueueTaskLifecycleNotification, notifyIfOpenForEvaluations } from "../utils/taskLifecycleNotifications";
 import { newJobFanoutIntent } from "../utils/newJobAlerts";
 import { enqueueNewTaskAlerts } from "../utils/robotTeamAccessEmails";
 import { TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
@@ -117,6 +117,8 @@ router.route("/owner/:token")
         // Approved robot teams hear about it too, so a recommendation never waits on a person.
         await enqueueNewTaskAlerts({ requestId: res.locals.requestId, card: parsed.data.details, wentLiveIso: wentLive })
           .catch(() => undefined);
+        // Publishing can be what opens a runnable job to evaluations.
+        try { await notifyIfOpenForEvaluations(res.locals.requestId); } catch { /* best-effort */ }
       }
       return res.json({ ok: true });
     } catch (error) { if (error instanceof Error && error.message === "listing_review_changed") return res.status(409).json({ error: "Your job changed. Reopen its public card and review the changes before publishing." }); return res.status(503).json({ error: "The public card was not saved. Try again." }); }

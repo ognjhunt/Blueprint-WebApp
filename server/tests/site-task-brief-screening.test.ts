@@ -13,6 +13,7 @@ import { createServer } from "node:http";
 import type { Server } from "node:http";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { listedTaskCard } from "./helpers/listedTaskCard";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -68,6 +69,8 @@ beforeEach(async () => {
     requestId: "req-1",
     request: { buyerType: "site_operator", capture_mode: "self_capture", capture_region: "us" },
     contact: { email: "ops@acme.example", firstName: "Dana" },
+    // The start form's default: the anonymized card robot teams see.
+    public_task_listing: listedTaskCard(),
   });
   await saveBrief(
     draftBrief({
@@ -147,6 +150,14 @@ describe("the confirmation says what our screen decided", () => {
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({
       workspace_task: { terms: { successDefinition: "Carton reaches pallet intact", successRate: 95, cycleTimeSeconds: 30 } },
     });
+  });
+
+  it("promises a private job no evaluation or recommendation", async () => {
+    delete (sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>).public_task_listing;
+    expect((await (await confirm(clearAnswers())).json()).disposition).toBe("qualified");
+    const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { body: string };
+    expect(sent.body).toMatch(/Your job card is not published, so robot teams cannot see your job or evaluate it/);
+    expect(sent.body).not.toMatch(/recommend that one team/);
   });
 
   it("answers a visit request without assuming where the site is", async () => {

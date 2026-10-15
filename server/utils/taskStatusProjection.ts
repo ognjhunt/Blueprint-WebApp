@@ -17,9 +17,11 @@
  *
  * The Tier 2 brief (drafted, confirmed), our screen's verdict on it, the
  * readiness ladder, the coverage finding, and the robot-team runs queued or
- * reported against the scene. Deliberately *not* a pilot recommendation:
- * nothing produces one yet, and surfacing "this merits a pilot" would be
- * advertising a loop that does not close.
+ * reported against the scene. Deliberately *not* a pilot recommendation: the
+ * recommendation is its own card. What this does say is what a waiting job is
+ * waiting on: robot teams that can evaluate it but have not, a job card that is
+ * not published so no team can, or evaluations that all finished without a
+ * pass.
  */
 
 import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
@@ -52,7 +54,13 @@ export type TaskDecision =
   /** Robot teams have runs queued or running against the scene. */
   | "screening"
   /** At least one screening run has concluded, with observations or no result. */
-  | "results";
+  | "results"
+  /** Robot teams can request an evaluation of the job, and none has yet. */
+  | "awaiting_teams"
+  /** The job card is not published, so no robot team can see or evaluate the job. */
+  | "not_listed"
+  /** Every evaluation so far has finished, none passed, and none is in flight. */
+  | "no_team_passed";
 
 export interface TaskStatus {
   decision: TaskDecision;
@@ -65,13 +73,12 @@ export interface TaskStatus {
   /** Views still needed, when coverage measured a shortfall. */
   missingViews: string[];
   /**
-   * When we have committed to say something next.
-   *
-   * The strongest idea from the audit: a promise we can keep even when
-   * reconstruction, review and participation are all uncertain. Null until an
-   * owner sets it -- a committed time nobody meets is worse than none.
+   * Always null. Blueprint runs no timed review of a waiting job (the timed
+   * check-in is retired, `taskStatusUpdates.ts`), so there is no next-update
+   * time it could keep. Updates follow events by email, and the headline says
+   * what the job is waiting on. Kept so existing readers keep their shape.
    */
-  nextUpdateIso: string | null;
+  nextUpdateIso: null;
 }
 
 /**
@@ -88,6 +95,11 @@ export interface SceneScreening {
   reported: number;
   /** Runs that concluded without executing an observable episode. */
   noResult: number;
+  /**
+   * Reported runs whose result meets the job's pass mark, when the caller
+   * supplied one. Absent when not counted, and then nothing says no team passed.
+   */
+  passed?: number;
 }
 
 /** A fresh, source-bound Pipeline ledger observation; no final robot verdict. */
@@ -129,7 +141,12 @@ interface TaskStatusInput {
    * claimed site. Absent on callers that cannot tell, which skips the rung.
    */
   claimed?: boolean;
-  nextUpdateIso: string | null;
+  /** Robot teams may request an evaluation now (`teamJobAccess`). */
+  openForEvaluations?: boolean;
+  /** False when the job card is not published, so no team can see the job. */
+  listed?: boolean;
+  /** Whether Blueprint has recorded a recommended pilot. Absent when not read. */
+  recommended?: boolean;
 }
 
 function countLabel(count: number, noun: string): string {
@@ -140,7 +157,7 @@ function countLabel(count: number, noun: string): string {
  * Project the status. Pure, so the two surfaces cannot diverge.
  */
 export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
-  const base = { stage: input.stage, missingViews: input.missingViews, nextUpdateIso: input.nextUpdateIso };
+  const base = { stage: input.stage, missingViews: input.missingViews, nextUpdateIso: null };
   if (input.consentRevoked) {
     return {
       decision: input.hasStoredCapture ? "footage_received" : "received",
@@ -178,6 +195,19 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // exists against runnable supply, so anything counted here is downstream of
   // every rung below; a reported result outranks a queued one.
   const screening = input.screening;
+  // Settled and no pass: say so, rather than leave "results are in" standing
+  // as if a recommendation might follow from them. Only when the caller counted
+  // passes against the job's pass mark and read the recommendation.
+  if (screening && screening.queued + screening.running === 0 && screening.reported + screening.noResult > 0
+    && screening.passed === 0 && input.recommended === false) {
+    const runs = countLabel(screening.reported + screening.noResult, "evaluation run");
+    return {
+      ...base,
+      decision: "no_team_passed",
+      headline: `No team's evaluation has passed yet. ${runs} on your job finished without passing, so there is no recommended pilot. A recommendation needs one team's evaluation to pass${input.openForEvaluations ? "; your job is still open to robot teams, and we email you when one starts an evaluation" : ""}.`,
+      operatorAction: null,
+    };
+  }
   if (screening && screening.reported > 0) {
     const noResult = screening.noResult > 0
       ? ` ${countLabel(screening.noResult, "other run")} ended without an observed episode.`
@@ -204,6 +234,17 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       headline: screening.running === 0
         ? "Robot screening has not started. Results are not available yet."
         : "Robot screening is in progress. Results are not available yet.",
+      operatorAction: null,
+    };
+  }
+
+  // Open to robot teams and nobody has asked yet. Open implies a cleared,
+  // confirmed, runnable scene, so no rung below can be truer than this one.
+  if (input.openForEvaluations === true && screening && screening.teams === 0) {
+    return {
+      ...base,
+      decision: "awaiting_teams",
+      headline: "Your job is open to robot teams approved for the beta. No team has started an evaluation yet; we email you when one does.",
       operatorAction: null,
     };
   }
@@ -278,6 +319,15 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
+  if (input.scenePreviewReady && input.listed === false) {
+    return {
+      ...base,
+      decision: "not_listed",
+      headline: "Your scene preview is ready. Your job card is not published, so robot teams cannot see or evaluate this job, and it cannot lead to a recommended pilot.",
+      operatorAction: "To open it to robot teams approved for the beta, publish its job card from your job page.",
+    };
+  }
+
   if (input.scenePreviewReady) {
     return {
       ...base,
@@ -343,7 +393,6 @@ export function taskStatusInputFrom(record: {
     missing_coverage?: string[] | null;
     supplement_would_finish?: boolean | null;
   } | null;
-  site_task_next_update_iso?: string | null;
   briefDrafted: boolean;
   /** The walkthrough's completion marker exists — footage is in, unreviewed. */
   hasStoredCapture?: boolean;
@@ -359,6 +408,10 @@ export function taskStatusInputFrom(record: {
   bookingUrl?: string | null;
   /** Pass the owner uid (or null) when the caller read it; omit when it did not. */
   account_owner_uid?: string | null;
+  /** `teamJobAccess` on the record, when the caller read it. */
+  jobAccess?: { evaluationAvailable: boolean; reason: string | null } | null;
+  /** Whether a recommended pilot is recorded, when the caller read it. */
+  recommended?: boolean;
 }): TaskStatusInput {
   const coverage = record.capture_coverage;
   return {
@@ -374,11 +427,13 @@ export function taskStatusInputFrom(record: {
     coversScene: typeof coverage?.covers_scene === "boolean" ? coverage.covers_scene : null,
     missingViews: Array.isArray(coverage?.missing_coverage) ? coverage!.missing_coverage! : [],
     supplementWouldFinish: Boolean(coverage?.supplement_would_finish),
-    nextUpdateIso: record.site_task_next_update_iso ?? null,
     screening: record.screening ?? null,
     disposition: dispositionFrom(record.site_task_triage?.disposition),
     bookingUrl: record.bookingUrl ?? null,
     ...("account_owner_uid" in record ? { claimed: Boolean(record.account_owner_uid) } : {}),
+    ...(record.jobAccess ? { openForEvaluations: record.jobAccess.evaluationAvailable,
+      listed: record.jobAccess.reason !== "not_listed" } : {}),
+    ...(typeof record.recommended === "boolean" ? { recommended: record.recommended } : {}),
   };
 }
 
