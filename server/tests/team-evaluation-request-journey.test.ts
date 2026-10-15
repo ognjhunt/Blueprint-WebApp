@@ -382,6 +382,9 @@ const rows: Row[] = [
     change: (id, team) => patch(id, r => { r.request.pilotOpportunity = { requested: true, visibility: "approved_robot_teams",
       approvedRobotTeamEmails: [`${team}@example.test`] }; }) },
   { label: "a robot team still awaiting approval", open: false, viewer: PENDING },
+  // A re-confirmed brief screened as a kind we cannot score (`siteTaskScope.ts`).
+  { label: "a job we cannot score yet", open: false, change: id => patch(id, r => {
+    r.site_task_scope = { schemaVersion: "site_task_scope.v1", supported: false, kind: null, reason: "deformable" }; }) },
 ];
 
 describe("every surface gives the same answer", () => {

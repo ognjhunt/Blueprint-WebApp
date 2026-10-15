@@ -81,6 +81,7 @@ import {
   passMarkForJob,
   readEvaluation,
   verifyRecommendationEvidence,
+  scoredTaskKindFor,
   type EvidenceRefusal,
   type RunWithResult,
 } from "../utils/pilotRecommendationEvidence";
@@ -261,7 +262,8 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
       if (run && run.teamId !== preRun.teamId) return { status: "refused", refusal: "evaluation_result_changed" } as const;
       const verified = verifyRecommendationEvidence({ run, requestId,
         passMark: passMarkForJob(record, currentBrief.exists ? currentBrief.data() : null), expectedResultId: resultId ?? null,
-        criteriaChanged: criteriaChangedSinceRequest(record, fundingRecord) });
+        criteriaChanged: criteriaChangedSinceRequest(record, fundingRecord),
+        scoredTaskKind: scoredTaskKindFor(record, run) });
       if (!verified.ok) return { status: "refused", refusal: verified.refusal } as const;
       const evidence = verified.evidence;
       const plan = { ...rest, capabilityBasis: capabilityBasis || evidenceCapabilityBasis(evidence) };

@@ -518,6 +518,24 @@ describe("recording Blueprint's recommended pilot", () => {
     expect(claimed.recommendation.evidence.resultUrl).toBe("/app/tasks/req1");
   });
 
+  it("freezes the task the simulation scored and shows it to the site, never a guess", async () => {
+    const offer = { capture_id: "walkthrough-req1", team_evaluation: { contract: { task_kind: "rigid_pick_place" } } };
+    state.docs.set("inboundRequests/req1", { ...doc(), agent_execution_offer: offer } as never);
+    state.docs.set("evaluationRuns/run_pass", evaluationRun({ executionCaptureId: "walkthrough-req1" }) as never);
+    expect((await post(plan)).status).toBe(200);
+    expect((doc().pilot_recommendation as unknown as Record<string, any>).evidence.scoredTaskKind).toBe("rigid_pick_place");
+    const token = createCaptureUploadToken({ requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", scope: "owner" });
+    const owner = await (await fetch(`${base}/owner/${token}`)).json();
+    expect(owner.recommendation.scoredTask).toBe("Pick up the object and place it in the target area");
+    // An offer for another capture is not what this run scored: recorded as unknown, not read from the offer.
+    state.docs.delete("inboundRequests/req1");
+    state.docs.set("inboundRequests/req1", { requestId: "req1", contact: { email: "owner@example.test" },
+      agent_execution_offer: { ...offer, capture_id: "walkthrough-req1-v2" } } as never);
+    expect((await post({ ...plan, purpose: "Retest after recapture" })).status).toBe(200);
+    expect((doc().pilot_recommendation as unknown as Record<string, any>).evidence.scoredTaskKind).toBeNull();
+    expect((await (await fetch(`${base}/owner/${token}`)).json()).recommendation.scoredTask).toBeNull();
+  });
+
   it("lists the job's evaluations against its pass mark for the reviewer", async () => {
     state.docs.set("evaluationRuns/run_fail", evaluationRun({ runId: "run_fail" }, { episodesSucceeded: 12, successRate: 0.6 }) as never);
     state.docs.set("evaluationRuns/run_elsewhere", evaluationRun({ runId: "run_elsewhere", sceneId: "req_other" }) as never);

@@ -29,6 +29,7 @@ import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { footageSettlesAll } from "../../client/src/data/siteTaskQualification";
 import { bookingUrl } from "./bookingLink";
 import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
+import { SUPPORTED_TASK_LINES, taskScopeNotYet, taskScopeReasonSentence } from "./siteTaskScope";
 
 /**
  * Where a booking link points, when one is warranted.
@@ -109,6 +110,40 @@ export function buildNotYetEmail(params: {
     .join("\n");
 
   return { subject, body, variant: "not_yet" };
+}
+
+/**
+ * A job we cannot score in simulation yet, whatever its gate verdict.
+ *
+ * Names the scope plainly, and says the job is not opened to robot teams, so
+ * the site never waits on an evaluation that would test a different task.
+ */
+export function buildTaskNotYetSupportedEmail(params: {
+  firstName: string;
+  siteName?: string | null;
+  reason: unknown;
+  jobUrl?: string | null;
+}): QualificationEmail {
+  const site = params.siteName?.trim();
+  const notYet = taskScopeNotYet(params.reason);
+  const body = [
+    emailGreeting(firstNameOf(params.firstName)),
+    "",
+    site ? `Thanks for confirming the job brief for ${site}.` : "Thanks for confirming your job brief.",
+    taskScopeReasonSentence(params.reason),
+    "",
+    "Today our simulation can score three kinds of job:",
+    bulletList(SUPPORTED_TASK_LINES),
+    "",
+    "So we have not opened this job to robot teams, and no robot team will evaluate it. Your job stays on file.",
+    "",
+    params.reason === "unclear"
+      ? `${notYet.nextStep}${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`
+      : `If we read your job wrong, reply to this email.${params.jobUrl ? ` Your job page shows the same: ${params.jobUrl}` : ""}`,
+    "",
+    EMAIL_SIGN_OFF,
+  ].join("\n");
+  return { subject: "Your job: not something we can score yet", body, variant: "not_yet" };
 }
 
 /**

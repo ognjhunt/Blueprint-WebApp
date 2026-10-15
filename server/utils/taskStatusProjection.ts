@@ -25,6 +25,7 @@
  */
 
 import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
+import { taskScopeNotYet } from "./siteTaskScope";
 
 /**
  * The decision, in the operator's terms.
@@ -47,6 +48,8 @@ export type TaskDecision =
   | "call_needed"
   /** Confirmed, and an answer only the site can change blocks evaluation. */
   | "not_now"
+  /** Confirmed, and the job is a kind we cannot score in simulation yet. */
+  | "not_yet_supported"
   /** Cleared, and waiting on the operator to save the site to an account. */
   | "save_account"
   /** Confirmed, filmed, covered. As far as we take it before the Pipeline. */
@@ -134,6 +137,11 @@ interface TaskStatusInput {
    * Absent on older callers, which keeps their ladder unchanged.
    */
   disposition?: "qualified" | "needs_conversation" | "not_now" | null;
+  /**
+   * The confirmed job's scope screen, when it found a kind we cannot score.
+   * Such a job is not opened to robot teams, so no later rung is true for it.
+   */
+  taskScope?: { supported: false; reason: string | null } | null;
   /** Where the site books the screening call, when one is needed. */
   bookingUrl?: string | null;
   /**
@@ -166,6 +174,16 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       operatorAction: null,
       missingViews: [],
       nextUpdateIso: null,
+    };
+  }
+
+  if (input.taskScope) {
+    const notYet = taskScopeNotYet(input.taskScope.reason);
+    return {
+      ...base,
+      decision: "not_yet_supported",
+      headline: notYet.headline,
+      operatorAction: `${notYet.detail} ${notYet.nextStep}`,
     };
   }
 
@@ -405,6 +423,8 @@ export function taskStatusInputFrom(record: {
   stage: ReadinessStage | null;
   screening?: SceneScreening | null;
   site_task_triage?: { disposition?: string | null } | null;
+  /** `inboundRequests.site_task_scope`, written when the brief is confirmed. */
+  site_task_scope?: { supported?: unknown; reason?: unknown } | null;
   bookingUrl?: string | null;
   /** Pass the owner uid (or null) when the caller read it; omit when it did not. */
   account_owner_uid?: string | null;
@@ -429,6 +449,9 @@ export function taskStatusInputFrom(record: {
     supplementWouldFinish: Boolean(coverage?.supplement_would_finish),
     screening: record.screening ?? null,
     disposition: dispositionFrom(record.site_task_triage?.disposition),
+    taskScope: record.site_task_scope?.supported === false
+      ? { supported: false, reason: typeof record.site_task_scope.reason === "string" ? record.site_task_scope.reason : null }
+      : null,
     bookingUrl: record.bookingUrl ?? null,
     ...("account_owner_uid" in record ? { claimed: Boolean(record.account_owner_uid) } : {}),
     ...(record.jobAccess ? { openForEvaluations: record.jobAccess.evaluationAvailable,

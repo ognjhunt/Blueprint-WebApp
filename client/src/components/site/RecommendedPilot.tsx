@@ -20,6 +20,8 @@ type Recommendation = {
   sitePreparation?: string; humanWork?: string; capabilityBasis?: string;
   providerCommitment?: string; reviewRequired?: boolean;
   evidence?: EvaluationEvidence | null;
+  /** The task the simulation scored, in plain words; null when not recorded. */
+  scoredTask?: string | null;
 };
 
 /** The site's view of the evaluation the recommendation stands on (server: projectEvidenceForSite). */
@@ -123,6 +125,10 @@ function RecommendedPilotForToken({ token }: { token: string }) {
       <dl>
         <dt>Robot team</dt><dd>{recommendation.teamName}</dd>
         <dt>What the pilot tests</dt><dd>{recommendation.purpose}</dd>
+        <dt>What the simulation tested</dt><dd>
+          <p>{recommendation.scoredTask ? `${recommendation.scoredTask}.` : "Not recorded. Ask Blueprint what the simulation tested before you book."}</p>
+          <p className="ms-field-hint">This is the task the simulation scored. It can be narrower than your job; compare the two before you book.</p>
+        </dd>
         <dt>Measurable success condition</dt><dd>{recommendation.successCondition || "Not yet recorded — agree the pass condition before a physical commitment."}</dd>
         <dt>Scope exclusions</dt><dd>{recommendation.exclusions || "Not yet agreed."}</dd>
         <dt>Evaluation evidence</dt><dd>{recommendation.evidence

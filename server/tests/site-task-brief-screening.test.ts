@@ -194,6 +194,29 @@ describe("the confirmation says what our screen decided", () => {
     expect(film.brief.pilotIntent).toBeUndefined();
   });
 
+  it("says not yet, names what we can score, and records it, for a job we cannot score", async () => {
+    await saveBrief(draftBrief({
+      requestId: "req-1", summary: "Folding towels for wash-and-fold orders", captureMode: "self_capture", proposed: [],
+    }));
+    const response = await confirm(clearAnswers());
+    const body = (await response.json()) as { disposition: string; screening: any };
+    // The gates clear; the kind of job does not.
+    expect(body.disposition).toBe("qualified");
+    expect(body.screening.headline).toMatch(/cannot score this job.*not open to robot teams/);
+    expect(body.screening.detail).toMatch(/soft or flexible items/);
+    expect(body.screening.bookingUrl).toBeNull();
+    expect(enqueueOutbox).toHaveBeenCalledTimes(1);
+    const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { kind: string; subject: string; body: string; idempotencyKey: string };
+    expect(sent).toMatchObject({ kind: "screening_not_now", idempotencyKey: "req-1:brief-screening:task-not-yet-supported" });
+    expect(sent.body).toMatch(/- Picking up one rigid object and placing it in a target area\n- Pushing a rigid object across a surface into a target area\n- Opening a door or drawer/);
+    expect(sent.body).toMatch(/not opened this job to robot teams/);
+    expect(`${sent.subject}\n${sent.body}`).not.toMatch(/\bmatch|\$|price/i);
+    expect(notifySlackScreeningCallNeeded).not.toHaveBeenCalled();
+    expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({
+      site_task_scope: { schemaVersion: "site_task_scope.v1", supported: false, kind: null, reason: "deformable" },
+    });
+  });
+
   it("says not yet, without a call, when an answer blocks it", async () => {
     const response = await confirm({ ...clearAnswers(), sceneStability: "reconfigured" });
     const body = (await response.json()) as { disposition: string; screening: any };

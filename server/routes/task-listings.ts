@@ -23,6 +23,7 @@ import { alertOpsPilotBooked } from "../utils/pilotOpsAlerts";
 import { logger } from "../logger";
 import { projectEvidenceForSite } from "../utils/pilotRecommendationEvidence";
 import { pilotConsentRefusal, projectPilotBooking, sitePilotContact, teamPilotContact } from "../utils/pilotContactExchange";
+import { SUPPORTED_TASK_SCOPE, scoredTaskDescription, taskScopeNotSupported } from "../utils/siteTaskScope";
 
 /**
  * The recommendation as the site sees it: the evaluation evidence without the
@@ -34,7 +35,13 @@ function recommendationForSite(requestId: string, record: Record<string, any> | 
   if (!recommendation) return null;
   const { evidence, registryTeamIds: _registry, evaluationRunId: _run, recommendedBy: _by, ...visible } = recommendation;
   const resultUrl = record?.account_owner_uid ? `/app/tasks/${encodeURIComponent(requestId)}` : null;
-  return { ...visible, evidence: projectEvidenceForSite(evidence, { resultUrl }) };
+  // What the simulation scored, frozen with the evidence; older evidence falls
+  // back to the job's published evaluation contract. Null is shown as unknown,
+  // never as the site's own task.
+  const scoredTask = evidence && Object.prototype.hasOwnProperty.call(evidence, "scoredTaskKind")
+    ? scoredTaskDescription(evidence.scoredTaskKind)
+    : scoredTaskDescription(record?.agent_execution_offer?.team_evaluation?.contract?.task_kind);
+  return { ...visible, scoredTask, evidence: projectEvidenceForSite(evidence, { resultUrl }) };
 }
 
 const router = Router();
@@ -94,6 +101,8 @@ router.route("/owner/:token")
         const revision = humanDecisionDigest(brief.exists ? brief.data() : null);
         if (parsed.data.enabled && ((parsed.data.expectedBriefRevision && parsed.data.expectedBriefRevision !== revision)
           || (current.data()?.public_task_listing?.reviewRequired && parsed.data.expectedBriefRevision !== revision))) throw new Error("listing_review_changed");
+        // A job we cannot score is not opened to robot teams, so its card cannot go live.
+        if (parsed.data.enabled && taskScopeNotSupported(current.data())) throw new Error("task_not_yet_supported");
         const previousDigest = current.data()?.public_task_listing?.thumbnailDigest ?? null;
         wentLive = parsed.data.enabled && current.data()?.public_task_listing?.enabled !== true ? new Date().toISOString() : null;
         transaction.update(ref, {
@@ -121,7 +130,10 @@ router.route("/owner/:token")
         try { await notifyIfOpenForEvaluations(res.locals.requestId); } catch { /* best-effort */ }
       }
       return res.json({ ok: true });
-    } catch (error) { if (error instanceof Error && error.message === "listing_review_changed") return res.status(409).json({ error: "Your job changed. Reopen its public card and review the changes before publishing." }); return res.status(503).json({ error: "The public card was not saved. Try again." }); }
+    } catch (error) {
+      if (error instanceof Error && error.message === "task_not_yet_supported") return res.status(409).json({ code: "task_not_yet_supported",
+        error: `We cannot score this job in simulation today, so its card cannot be shown to robot teams. ${SUPPORTED_TASK_SCOPE}` });
+      if (error instanceof Error && error.message === "listing_review_changed") return res.status(409).json({ error: "Your job changed. Reopen its public card and review the changes before publishing." }); return res.status(503).json({ error: "The public card was not saved. Try again." }); }
   });
 
 const bookSchema = z.object({ recommendationId: z.string().min(1).max(120), authorized: z.literal(true) }).strict();

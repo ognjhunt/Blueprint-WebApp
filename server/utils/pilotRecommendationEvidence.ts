@@ -118,6 +118,12 @@ export interface PilotRecommendationEvidence {
   evidenceScope: EvidenceScope;
   scoring: EvidenceScoring;
   boundary: string;
+  /**
+   * The task kind the simulation scored (the Pipeline's team-evaluation
+   * contract `task_kind`), or null when it could not be tied to this run.
+   * Absent on evidence written before it was recorded.
+   */
+  scoredTaskKind?: string | null;
 }
 
 export type EvidenceRefusal =
@@ -317,6 +323,8 @@ export function verifyRecommendationEvidence(params: {
   expectedResultId?: string | null;
   /** The job's targets moved after the run was requested (`criteriaChangedSinceRequest`). */
   criteriaChanged?: boolean;
+  /** The scored task kind (`scoredTaskKindFor`), frozen with the evidence. */
+  scoredTaskKind?: string | null;
 }): { ok: true; evidence: PilotRecommendationEvidence } | { ok: false; refusal: EvidenceRefusal } {
   const { run, requestId, passMark } = params;
   if (!run) return { ok: false, refusal: "evaluation_run_missing" };
@@ -355,8 +363,21 @@ export function verifyRecommendationEvidence(params: {
         claimCeiling: result.scoring!.claimCeiling,
       },
       boundary: SIMULATION_EVIDENCE_BOUNDARY,
+      scoredTaskKind: params.scoredTaskKind ?? null,
     },
   };
+}
+
+/**
+ * The task kind this run was scored on: the job's published team-evaluation
+ * contract, when that offer is for the capture the run executed. Null when the
+ * two cannot be tied, so the card says "not recorded" instead of guessing.
+ */
+export function scoredTaskKindFor(record: Record<string, any> | null | undefined, run: RunWithResult | null | undefined): string | null {
+  const offer = record?.agent_execution_offer;
+  const kind = offer?.team_evaluation?.contract?.task_kind;
+  if (typeof kind !== "string" || !kind.trim()) return null;
+  return typeof offer.capture_id === "string" && run?.executionCaptureId === offer.capture_id ? kind.trim() : null;
 }
 
 function percent(fraction: number): string {

@@ -52,7 +52,8 @@ import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparation
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
-import { buildQualificationEmail } from "../utils/qualificationEmails";
+import { buildQualificationEmail, buildTaskNotYetSupportedEmail } from "../utils/qualificationEmails";
+import { taskScopeNotYet } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { describeBrowserUpload } from "../utils/websiteBrowserUploadStatus";
@@ -137,6 +138,7 @@ async function readRequestForStatus(requestId: string): Promise<{
   /** Set once the operator has claimed the site into an account. */
   account_owner_uid?: string | null;
   site_task_triage?: { disposition?: string | null } | null;
+  site_task_scope?: { supported?: unknown; reason?: unknown } | null;
   siteName?: string | null;
   captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
   /** Whether robot teams can see the job and request an evaluation. */
@@ -177,6 +179,7 @@ async function readRequestForStatus(requestId: string): Promise<{
     jobAccess: (() => { try { return teamJobAccess(data); } catch { return null; } })(),
     recommended: Boolean(data.pilot_recommendation),
     workspace_task: (data.workspace_task as { terms?: unknown } | undefined) ?? null,
+    site_task_scope: (data.site_task_scope as { supported?: unknown; reason?: unknown } | undefined) ?? null,
   };
 }
 
@@ -211,6 +214,12 @@ function screeningOutcome(disposition: string): {
     };
   }
   return null;
+}
+
+/** What a site hears when its job is a kind we cannot score yet. */
+function taskScopeOutcome(reason: unknown) {
+  const notYet = taskScopeNotYet(reason);
+  return { headline: notYet.headline, detail: `${notYet.detail} ${notYet.nextStep}`, bookingUrl: null };
 }
 
 /**
@@ -752,9 +761,29 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
 
     // Screening occurs here for public-form sites. Queue the actual verdict
     // before returning; the outbox can retry delivery without a timed check-in.
+    // A job we cannot score hears that instead, whatever its gate verdict: it
+    // is not opened to robot teams, so no other next step is true for it.
+    const scoreable = result.scope.supported;
     try {
       const request = await readRequestForStatus(payload.requestId);
-      if (request?.contactEmail) {
+      if (request?.contactEmail && !scoreable) {
+        const email = buildTaskNotYetSupportedEmail({
+          firstName: request.contactFirstName || "there",
+          siteName: request.siteName,
+          reason: result.scope.reason,
+          jobUrl: captureUploadUrlFor(payload.requestId),
+        });
+        await enqueueOutbox({
+          idempotencyKey: `${payload.requestId}:brief-screening:task-not-yet-supported`,
+          requestId: payload.requestId,
+          to: request.contactEmail,
+          kind: "screening_not_now",
+          subject: email.subject,
+          body: email.body,
+        });
+        void deliverOutbox({ limit: 5 }).catch((error) =>
+          logger.warn({ error, requestId: payload.requestId }, "Task scope email delivery deferred to outbox"));
+      } else if (request?.contactEmail) {
         // The verdict `confirmBrief` just wrote. Its own disposition stands in
         // for a record that has not caught up, so a qualified site always hears
         // its next step.
@@ -797,7 +826,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     // A site that needs a call gets no scene until ops records the call, so
     // ops has to hear about it: the request carries the next step and Slack
     // rings. Best-effort; neither may fail the operator's confirmation.
-    if (result.disposition === "needs_conversation" && db) {
+    if (scoreable && result.disposition === "needs_conversation" && db) {
       const agenda = await db.collection("inboundRequests").doc(payload.requestId).get()
         .then((snap) => (snap.data()?.site_task_triage?.open_questions as string[] | undefined) ?? [])
         .catch(() => []);
@@ -810,7 +839,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
 
     return res.status(200).json({
       ok: true,
-      screening: screeningOutcome(result.disposition),
+      screening: scoreable ? screeningOutcome(result.disposition) : taskScopeOutcome(result.scope.reason),
       // The verdict, and what it means for them next. Both, because a
       // disposition on its own tells an operator nothing they can act on.
       disposition: result.disposition,
@@ -930,6 +959,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         stage,
         screening: request?.captureRights.consent_revoked ? null : screening,
         site_task_triage: request?.site_task_triage ?? null,
+        site_task_scope: request?.site_task_scope ?? null,
         bookingUrl: bookingUrl(),
         account_owner_uid: request?.account_owner_uid ?? null,
         jobAccess: request?.jobAccess ?? null,

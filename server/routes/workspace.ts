@@ -621,6 +621,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         stage,
         screening: await loadSceneScreening(requestId, passMarkForJob(record, brief as never)).catch(() => null),
         site_task_triage: (record.site_task_triage as { disposition?: string | null } | undefined) ?? null,
+        site_task_scope: (record.site_task_scope as { supported?: unknown; reason?: unknown } | undefined) ?? null,
         bookingUrl: bookingUrl(),
         jobAccess: teamJobAccess(record),
         recommended: Boolean(record.pilot_recommendation),
