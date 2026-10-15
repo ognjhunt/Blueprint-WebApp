@@ -39,7 +39,7 @@ afterEach(() => vi.useRealTimers());
 describe("public task disclosure", () => {
   it("publishes only previewed fields, with no contact, intake, storage or footage", () => {
     const card = projectTaskBrowseCard("req1", record());
-    expect(card).toMatchObject({ title: details.title, opportunity: "past", evaluationAvailable: true, stage: "ready", costUsd: 99 });
+    expect(card).toMatchObject({ title: details.title, opportunity: "past", evaluationAvailable: true, stage: "ready", costUsd: 0 });
     expect(JSON.stringify(card)).not.toMatch(/PRIVATE|gs:\/\/|email|contact|worldlabs/);
   });
   it("keeps proposed site terms distinct from an exploratory budget", () => {

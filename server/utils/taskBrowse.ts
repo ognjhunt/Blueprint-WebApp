@@ -1,7 +1,6 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { InboundRequest } from "../types/inbound-request";
 import type { TaskBrowseCard } from "../../client/src/types/taskBrowse";
-import { screeningRunCostUsd } from "./teamEvalCandidates";
 import { taskThumbnailUrl, teamJobAccess } from "./teamJobAccess";
 
 /**
@@ -17,7 +16,9 @@ export function projectTaskBrowseCard(id: string, record: InboundRequest): TaskB
   const captured = Boolean(raw.capture_privacy_screen?.screened_at_iso || raw.capture_coverage
     || record.pipeline?.artifacts?.worldlabs_world_manifest_uri);
   return { ...access.details, id, stage: ready ? "ready" : captured ? "preparing" : "capture",
-    evaluationAvailable: ready, costUsd: ready ? screeningRunCostUsd() : null,
+    // A free beta evaluation costs the team nothing; the deprecated entry
+    // price is never quoted (CLAUDE.md), so an open job reports 0.
+    evaluationAvailable: ready, costUsd: ready ? 0 : null,
     publishedAtIso: raw.public_task_listing.approvedAtIso,
     thumbnailUrl: taskThumbnailUrl(id, record) };
 }
