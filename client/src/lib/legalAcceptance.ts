@@ -63,13 +63,23 @@ export interface LegalAcceptanceRecord<TAcceptedAt = unknown> {
   accepted_from_ip_hash: string | null;
 }
 
+/**
+ * Whether an accepted Terms/Privacy pair still counts. New acceptances record
+ * the published versions (the signer has seen their date). Until those take
+ * effect, an acceptance of the versions in force also counts, so nobody is
+ * asked to accept documents early.
+ */
+export function acceptedVersionsAreCurrent(terms: unknown, privacy: unknown, nowMs = Date.now()): boolean {
+  if (terms === TERMS_VERSION && privacy === PRIVACY_VERSION) return true;
+  return legalUpdatePending(nowMs) && terms === PREVIOUS_TERMS_VERSION && privacy === PREVIOUS_PRIVACY_VERSION;
+}
+
 /** Recognize a prior server-recorded acceptance of the current documents. */
 export function isCurrentLegalAcceptance(value: unknown): value is LegalAcceptanceRecord {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
   return record.accepted_terms === true &&
-    record.terms_version === TERMS_VERSION &&
-    record.privacy_version === PRIVACY_VERSION &&
+    acceptedVersionsAreCurrent(record.terms_version, record.privacy_version) &&
     record.terms_url === TERMS_URL &&
     record.privacy_url === PRIVACY_URL &&
     record.accepted_at != null;

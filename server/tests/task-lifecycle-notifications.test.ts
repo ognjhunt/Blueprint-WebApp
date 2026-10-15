@@ -184,6 +184,20 @@ describe("a waiting job hears what it is waiting on", () => {
     expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
   });
 
+  it("is not sent once it has become false between enqueue and dispatch", async () => {
+    const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    jobAccess.evaluationAvailable = true;
+    const waiting = { kind: "awaiting_evaluations" as const, requestId: "req-1" };
+    expect(await taskLifecycleNotificationIsCurrent(waiting)).toBe(true);
+    run("run_q", "requested", null);
+    expect(await taskLifecycleNotificationIsCurrent(waiting)).toBe(false);
+    run("run_q", "completed", 100);
+    const none = { kind: "no_team_passed" as const, requestId: "req-1" };
+    expect(await taskLifecycleNotificationIsCurrent(none)).toBe(true);
+    run("run_p", "completed", 199);
+    expect(await taskLifecycleNotificationIsCurrent(none)).toBe(false);
+  });
+
   it("says no team passed only when every evaluation finished below the pass mark and nothing is recommended", async () => {
     const { notifyIfNoTeamPassed } = await import("../utils/taskLifecycleNotifications");
     run("run_a", "completed", 120);

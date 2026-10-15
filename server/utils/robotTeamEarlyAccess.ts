@@ -145,6 +145,8 @@ export async function recordAccessApplication(
       decidedAtIso: prior?.status === "approved" ? prior.decidedAtIso : null,
       decidedBy: prior?.status === "approved" ? prior.decidedBy : null,
       decisionNote: prior?.status === "approved" ? prior.decisionNote : null,
+      // The teams an approval already covers survive a re-application.
+      ...(prior?.status === "approved" && prior.teamIds?.length ? { teamIds: prior.teamIds } : {}),
     };
     tx.set(ref, record);
     return { record, created: !prior };
@@ -265,6 +267,27 @@ export async function bindAccessApprovalToTeam(recordId: string, teamId: string)
       tx.set(recordRef, { teamIds: [...(record.teamIds ?? []), teamId] }, { merge: true });
     }
     return true;
+  });
+}
+
+/**
+ * Reserve an approval for one registration, in a transaction, before its team
+ * is created: two concurrent registrations with one invitation cannot both
+ * see no team and each create one. The binding that follows records the team;
+ * a reservation whose registration failed lapses after two minutes.
+ */
+export async function reserveApprovalForRegistration(recordId: string, nowMs = Date.now()):
+  Promise<"reserved" | "team_exists" | "in_progress" | "not_approved"> {
+  if (!db) throw new Error("firestore_unavailable");
+  const ref = db.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(recordId);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const record = snap.exists ? (snap.data() as RobotTeamAccessRecord & { registrationReservedUntilMs?: number }) : null;
+    if (record?.status !== "approved") return "not_approved";
+    if ((record.teamIds ?? []).length) return "team_exists";
+    if ((record.registrationReservedUntilMs ?? 0) > nowMs) return "in_progress";
+    tx.set(ref, { registrationReservedUntilMs: nowMs + 120_000 }, { merge: true });
+    return "reserved";
   });
 }
 

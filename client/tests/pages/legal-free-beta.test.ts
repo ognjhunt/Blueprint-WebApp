@@ -147,3 +147,15 @@ describe("recording notice, sound and the listing choice", () => {
     expect(`${terms}${annex}`).not.toMatch(/previously chose private handling|previously marked private/);
   });
 });
+
+describe("acceptance while a reissue is announced", () => {
+  it("counts the versions in force until the new ones take effect, and only the new ones after", async () => {
+    const legal = await import("@/lib/legalAcceptance");
+    const before = legal.legalEffectiveAtMs(legal.TERMS_VERSION) - 1;
+    const after = legal.legalEffectiveAtMs(legal.TERMS_VERSION) + 1;
+    expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, before)).toBe(true);
+    expect(legal.acceptedVersionsAreCurrent(legal.PREVIOUS_TERMS_VERSION, legal.PREVIOUS_PRIVACY_VERSION, after)).toBe(false);
+    expect(legal.acceptedVersionsAreCurrent(legal.TERMS_VERSION, legal.PRIVACY_VERSION, before)).toBe(true);
+    expect(legal.acceptedVersionsAreCurrent("2026-10-09.1", legal.PREVIOUS_PRIVACY_VERSION, before)).toBe(false);
+  });
+});

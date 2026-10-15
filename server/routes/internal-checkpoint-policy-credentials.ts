@@ -4,8 +4,9 @@
  * A team evaluation's bearer token is released once, as the single-use lease
  * its admission seals (`bearer_lease_release`, beta journey step L5): the
  * lease id is recomputed from the claim, its record is created in the same
- * transaction that decides the release, and a second claim of it gets no token
- * and no decryption. `access` never returns a team evaluation's bearer token.
+ * transaction that decides the release, and a second claim of it gets no token.
+ * The token is decrypted before the lease is spent, so a failed unwrap can be
+ * retried; a response lost after the release needs a new claim (a new run). `access` never returns a team evaluation's bearer token.
  */
 import { Router } from "express";
 import { z } from "zod";
@@ -85,6 +86,9 @@ router.post("/checkpoint-policy-credentials/:credentialRef", createPipelineSyncR
       const lease = { lease_id: leaseId, single_use: true, status: "released", release_count: 1,
         credential_ref: credentialRef, job_id: data.job_id, pipeline_run_id: data.pipeline_run_id };
       const settlementDueAtMs = run.settlementDueAtMs ?? Date.parse(run.requestedAtIso) + reservationTtlMs();
+      // Decrypted before the lease is spent, so a failed unwrap leaves it available to retry.
+      const credential = await decryptCheckpointPolicyCredential(record);
+      if (credential.kind !== "bearer") return res.status(409).json({ code: "policy_credential_lease_invalid" });
       const leaseRef = db.collection(BEARER_LEASE_COLLECTION).doc(leaseId);
       const released = await db.runTransaction(async (transaction) => {
         if ((await transaction.get(leaseRef)).exists) return false;
@@ -94,8 +98,6 @@ router.post("/checkpoint-policy-credentials/:credentialRef", createPipelineSyncR
         return true;
       });
       if (!released) return res.status(409).json({ code: "policy_credential_lease_consumed" });
-      const credential = await decryptCheckpointPolicyCredential(record);
-      if (credential.kind !== "bearer") return res.status(409).json({ code: "policy_credential_lease_invalid" });
       return res.json({ ok: true, job_id: data.job_id, pipeline_run_id: data.pipeline_run_id, canonical_request_digest: data.canonical_request_digest,
         credential_ref: credentialRef, kind: "bearer", lease,
         credential: { job_id: data.job_id, endpoint_url: record.reference, bearer_token: credential.token } });

@@ -83,8 +83,15 @@ describe("a team evaluation's single-use bearer lease",()=>{
     expect(fixture.records.get(`checkpointPolicyBearerLeases/${leaseId}`)).toMatchObject({status:"released",release_count:1});
     const second=await release();
     expect(second.status).toBe(409);
-    expect((await second.json()).code).toBe("policy_credential_lease_consumed");
-    expect(fixture.decrypt).toHaveBeenCalledOnce();
+    const refused = await second.json();
+    expect(refused.code).toBe("policy_credential_lease_consumed");
+    expect(JSON.stringify(refused)).not.toContain("synthetic-test-only");
+  });
+  it("leaves the lease unspent when the token cannot be decrypted, so the claim can retry",async()=>{
+    fixture.decrypt.mockRejectedValueOnce(new Error("kms unavailable"));
+    expect((await release()).status).toBe(409);
+    expect(fixture.records.has(`checkpointPolicyBearerLeases/${leaseId}`)).toBe(false);
+    expect((await release()).status).toBe(200);
   });
   it("refuses a lease id that is not this claim's without spending or decrypting",async()=>{
     const response=await release({lease_id:"policy-access-"+"0".repeat(32)});

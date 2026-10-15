@@ -101,7 +101,7 @@ import {
   runIdForReservation,
 } from "../utils/agentEvalRuns";
 import { createEvalPlanToken, verifyEvalPlanToken } from "../utils/evalPlanToken";
-import { EARLY_ACCESS_REQUIRED, accessRecordId, bindAccessApprovalToTeam, getAccessRecordForEmail, teamHasEarlyAccess, teamsCoveredByApproval } from "../utils/robotTeamEarlyAccess";
+import { EARLY_ACCESS_REQUIRED, accessRecordId, bindAccessApprovalToTeam, getAccessRecordForEmail, teamHasEarlyAccess, teamsCoveredByApproval, reserveApprovalForRegistration } from "../utils/robotTeamEarlyAccess";
 import { getRunForTeam, listRunsForTeam } from "../utils/agentRunResults";
 import { receivePolicyModel, storePolicyModel } from "./policy-model-upload";
 import { checkpointRuntimes } from "../utils/policyIntegration";
@@ -292,6 +292,18 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
         code: "registration_team_exists",
         teamId: covered[0],
         recovery: "Issue a key for that team from your workspace at /settings?tab=robots, or ask hello@tryblueprint.io.",
+      });
+    }
+  }
+
+  if (admission.accessRecordId) {
+    const reservation = await reserveApprovalForRegistration(admission.accessRecordId);
+    if (reservation !== "reserved") {
+      return res.status(reservation === "not_approved" ? 403 : 409).json({
+        error: reservation === "in_progress" ? "A registration for this approval is already in progress."
+          : reservation === "team_exists" ? "This approval already registered a team." : "This application is not approved.",
+        code: reservation === "in_progress" ? "registration_in_progress"
+          : reservation === "team_exists" ? "registration_team_exists" : "registration_not_approved",
       });
     }
   }

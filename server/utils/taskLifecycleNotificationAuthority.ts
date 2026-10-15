@@ -33,5 +33,11 @@ export async function taskLifecycleNotificationIsCurrent(
  if(!db)throw new Error('capture_notification_authority_unavailable');
  const ref=db.collection('inboundRequests').doc(entry.requestId);
  const snapshot=transaction?await transaction.get(ref):await ref.get();
- return snapshot.exists&&!projectWebsiteCaptureRights(snapshot.data()).consent_revoked;
+ if(!snapshot.exists||projectWebsiteCaptureRights(snapshot.data()).consent_revoked)return false;
+ // A waiting notice is sent only while what it says is still true.
+ if(entry.kind==='awaiting_evaluations'||entry.kind==='no_team_passed'){
+  const notices=await import('./taskLifecycleNotifications');
+  return entry.kind==='awaiting_evaluations'?notices.openAndAwaitingEvaluations(entry.requestId):notices.noTeamHasPassed(entry.requestId);
+ }
+ return true;
 }

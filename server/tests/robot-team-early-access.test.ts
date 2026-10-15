@@ -476,3 +476,19 @@ describe("an approved team that lost its invitation link", () => {
     expect(String((sent[0][1] as { body: string }).body)).toMatch(/signup\/business\?invitation=/);
   });
 });
+
+describe("one registration per approval", () => {
+  it("reserves the approval once, so a concurrent registration with the same invitation is refused", async () => {
+    const { reserveApprovalForRegistration, accessRecordId, ROBOT_TEAM_ACCESS_COLLECTION } = await import("../utils/robotTeamEarlyAccess");
+    const id = accessRecordId("reserve@example.com");
+    expect(await reserveApprovalForRegistration(id)).toBe("not_approved");
+    state.docs.set(`${ROBOT_TEAM_ACCESS_COLLECTION}/${id}`, { email: "reserve@example.com", status: "approved" });
+    const now = Date.parse("2026-10-15T12:00:00Z");
+    expect(await reserveApprovalForRegistration(id, now)).toBe("reserved");
+    expect(await reserveApprovalForRegistration(id, now + 1000)).toBe("in_progress");
+    // A registration that failed lapses; one that bound its team holds the approval for good.
+    expect(await reserveApprovalForRegistration(id, now + 121_000)).toBe("reserved");
+    state.docs.set(`${ROBOT_TEAM_ACCESS_COLLECTION}/${id}`, { email: "reserve@example.com", status: "approved", teamIds: ["team-1"] });
+    expect(await reserveApprovalForRegistration(id, now + 500_000)).toBe("team_exists");
+  });
+});

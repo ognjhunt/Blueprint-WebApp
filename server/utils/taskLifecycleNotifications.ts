@@ -214,13 +214,18 @@ export function buildTaskLifecycleNotification(params: {
  * otherwise, and the outbox key keeps it to one email per job.
  */
 export async function notifyIfOpenForEvaluations(requestId: string): Promise<{ enqueued: boolean }> {
-  if (!db) return { enqueued: false };
+  if (!(await openAndAwaitingEvaluations(requestId))) return { enqueued: false };
+  return enqueueTaskLifecycleNotification({ requestId, milestone: "awaiting_evaluations" });
+}
+
+/** True while the job is open to evaluation requests and no team has requested one. Read again at dispatch. */
+export async function openAndAwaitingEvaluations(requestId: string): Promise<boolean> {
+  if (!db) return false;
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
   const { teamJobAccess } = await import("./teamJobAccess");
-  if (!snapshot.exists || !teamJobAccess(snapshot.data()).evaluationAvailable) return { enqueued: false };
+  if (!snapshot.exists || !teamJobAccess(snapshot.data()).evaluationAvailable) return false;
   const { loadSceneScreening } = await import("./agentEvalRuns");
-  if ((await loadSceneScreening(requestId)).teams > 0) return { enqueued: false };
-  return enqueueTaskLifecycleNotification({ requestId, milestone: "awaiting_evaluations" });
+  return (await loadSceneScreening(requestId)).teams === 0;
 }
 
 /**
@@ -229,16 +234,21 @@ export async function notifyIfOpenForEvaluations(requestId: string): Promise<{ e
  * passed yet. Keyed by the run that concluded, so each run is at most one.
  */
 export async function notifyIfNoTeamPassed(requestId: string, concludedRunId: string): Promise<{ enqueued: boolean }> {
-  if (!db) return { enqueued: false };
+  if (!(await noTeamHasPassed(requestId))) return { enqueued: false };
+  return enqueueTaskLifecycleNotification({ requestId, milestone: "no_team_passed", eventId: concludedRunId });
+}
+
+/** True while every site evaluation has concluded, none passed and no pilot is recommended. Read again at dispatch. */
+export async function noTeamHasPassed(requestId: string): Promise<boolean> {
+  if (!db) return false;
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
   const record = snapshot.data();
-  if (!snapshot.exists || !record || record.pilot_recommendation) return { enqueued: false };
+  if (!snapshot.exists || !record || record.pilot_recommendation) return false;
   const [{ getBrief }, { passMarkForJob }, { loadSceneScreening }] = await Promise.all([
     import("./siteTaskBrief"), import("./pilotRecommendationEvidence"), import("./agentEvalRuns")]);
   const screening = await loadSceneScreening(requestId, passMarkForJob(record, await getBrief(requestId) as never));
-  if (screening.queued + screening.running > 0 || screening.reported + screening.noResult === 0
-    || screening.passed !== 0) return { enqueued: false };
-  return enqueueTaskLifecycleNotification({ requestId, milestone: "no_team_passed", eventId: concludedRunId });
+  return screening.queued + screening.running === 0 && screening.reported + screening.noResult > 0
+    && screening.passed === 0;
 }
 
 /** Existing outbox tick repairs a lost enqueue; fresh readback gates dispatch again. */

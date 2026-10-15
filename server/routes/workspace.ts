@@ -17,6 +17,7 @@ import {
   TERMS_VERSION,
   PRIVACY_VERSION,
   isCurrentLegalAcceptance,
+  acceptedVersionsAreCurrent,
 } from "../../client/src/lib/legalAcceptance";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import {
@@ -204,11 +205,9 @@ function currentTermsAccepted(user: Record<string, any>) {
   const accepted = object(user.termsAcceptance);
   return (
     (accepted.accepted_terms === true &&
-      accepted.terms_version === TERMS_VERSION &&
-      accepted.privacy_version === PRIVACY_VERSION) ||
+      acceptedVersionsAreCurrent(accepted.terms_version, accepted.privacy_version)) ||
     (user.acceptedTerms === true &&
-      user.termsVersion === TERMS_VERSION &&
-      user.privacyVersion === PRIVACY_VERSION)
+      acceptedVersionsAreCurrent(user.termsVersion, user.privacyVersion))
   );
 }
 function accountProjection(
