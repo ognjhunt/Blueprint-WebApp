@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { mockExternalFonts } from "./helpers/static-assets";
+import { anonymizedOpportunityDraft } from "../client/src/types/taskBrowse";
 test.beforeEach(mockExternalFonts);
 const terms = {
   successRate: 95,
@@ -91,27 +92,16 @@ const evaluation = {
   createdAt: "2026-09-13T12:00:00Z",
   runId: null,
 };
+// GET /api/workspace/openings/task-1. This is exactly what the server returns
+// for a job started from the public form: the site-approved card and nothing
+// more. server/tests/team-evaluation-request-journey.test.ts proves that from
+// the real intake, brief confirmation and Pipeline sync; any other job id is
+// refused below the way the server refuses a job that is not open.
 const opening = {
-  opportunity_id: "task-1",
-  workflow: task.title,
-  site_type: "Fulfillment",
-  access_level: "anonymized",
-  site_name: null,
-  site_location: null,
-  anonymized_summary: terms.successDefinition,
-  benchmark_profile: "40 trials covering the agreed task conditions",
-  task_targets: terms,
-  pilot_budget_usd: 25000,
-  deployment_budget_usd: null,
-  target_date: "2026-10-01T12:00:00Z",
-  data_use_permissions: {
-    evaluateExistingPolicy: "granted",
-    siteSpecificAdaptation: "not_granted",
-    retainImprovements: "not_granted",
-    generalModelTraining: "not_granted",
-  },
-  compute_responsibility: "Compute costs are agreed before work starts.",
-  claim_ceiling: "Simulation does not establish physical performance.",
+  ...anonymizedOpportunityDraft(task.title),
+  id: "task-1",
+  publishedAtIso: "2026-09-10T12:00:00Z",
+  thumbnailUrl: null,
 };
 async function seed(
   page: Page,
@@ -188,25 +178,18 @@ async function seed(
       body = request.method() === "GET" ? null : request.postDataJSON();
     let data: any = {};
     if (url.pathname === "/api/workspace/") data = snapshot;
-    else if (url.pathname === "/api/pilot-opportunities")
-      data = {
-        ok: true,
-        opportunities: empty
-          ? []
-          : [
-              opening,
-              {
-                ...opening,
-                opportunity_id: "task-2",
-                workflow: "Move totes to staging",
-                site_type: "Distribution",
-                task_targets: { successRate: null, cycleTimeSeconds: null },
-                pilot_budget_usd: null,
-              },
-            ],
-        proof_boundary: null,
-      };
-    else if (url.pathname === "/api/csrf")
+    else if (url.pathname.startsWith("/api/workspace/openings/")) {
+      if (!empty && url.pathname === "/api/workspace/openings/task-1")
+        data = { opening };
+      else
+        return route.fulfill({
+          status: 404,
+          json: {
+            error: "This job is not open to evaluation requests.",
+            code: "job_not_open",
+          },
+        });
+    } else if (url.pathname === "/api/csrf")
       data = { csrfToken: "local-only-csrf" };
     else if (url.pathname === "/api/workspace/profile") {
       snapshot.profile = { ...snapshot.profile, ...body };
@@ -319,7 +302,7 @@ for (const role of ["site_operator", "robot_team"] as const) {
               ["/app", "Overview"],
               ["/onboarding", "Finish setup"],
               ["/app/library", "Task library"],
-              ["/app/opportunities/task-1", "Pack cartons into totes"],
+              ["/app/opportunities/task-1", opening.title],
               ["/app/evaluations/application-1", "Pack cartons into totes"],
               ["/app/history", "History"],
               ["/settings", "Settings"],
@@ -483,6 +466,16 @@ test("robot team saves a setup and requests an evaluation from an opening", asyn
   await expect(page).toHaveURL(/\/app\/evaluations\/application-/);
   await expect(page.getByText("Review pending", { exact: true })).toBeVisible();
   await expect(page.getByText(/Your request is saved/)).toBeVisible();
+});
+test("a job that is not open shows no request form", async ({ page }) => {
+  await seed(page, "robot_team");
+  await page.goto("/app/opportunities/task-2");
+  await expect(
+    page.getByRole("heading", { name: "Opening unavailable" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Request evaluation →" }),
+  ).toHaveCount(0);
 });
 test("empty workspaces and API errors are clear and do not invent records", async ({
   page,

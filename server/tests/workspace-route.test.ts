@@ -658,26 +658,42 @@ describe("workspace requests and lifecycle", () => {
       ).toBe(400);
     }
   });
-  it("rechecks opportunity rights before accepting a setup-backed evaluation request", async () => {
-    state.records.set("inboundRequests/task-1", task());
+  it("opens a listed, runnable job to an approved team and rechecks it on every request", async () => {
+    // What a job started from the public form carries once its scene runs:
+    // the site's card, no retired dossier, and no private intake reaches a team.
+    const card = anonymizedOpportunityDraft("Pack cartons into totes");
+    const { pilotOpportunity: _retired, ...request } = task().request;
+    const openJob = () => ({
+      ...task(),
+      request: { ...request, capture_mode: "self_capture", consent_attestation: {
+        granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-13T10:00:00Z" } },
+      public_task_listing: { enabled: true, consentVersion: "public-task-card-v1",
+        approvedAtIso: "2026-09-13T10:00:00Z", details: card },
+      siteTaskGates: { sceneStability: "stable", taskShape: "single", objectVariety: "under_10",
+        deploymentTimeline: "this_quarter", accessWindow: "scheduled" },
+      site_task_triage: { disposition: "qualified" }, site_task_brief_confirmed_at: "2026-09-13T10:00:00Z",
+      pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://fixture/world.json" } },
+      evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready", rights_review_status: "cleared" },
+    });
+    state.records.set("inboundRequests/task-1", openJob());
     await api("/setups", "robot-1", setup);
-    const request = { id: "application-1", opportunityId: "task-1", setupId: "setup-1", notes: "" };
-    expect((await api("/evaluations", "robot-1", request)).status).toBe(403);
+    const request1 = { id: "application-1", opportunityId: "task-1", setupId: "setup-1", notes: "" };
+    expect((await api("/openings/task-1", "robot-1")).status).toBe(403);
+    expect((await api("/evaluations", "robot-1", request1)).status).toBe(403);
     const accessId = createHash("sha256").update("robot-1@example.com").digest("hex");
     state.records.set(`robotTeamAccess/${accessId}`, { status: "approved" });
-    expect(
-      (
-        await api("/evaluations", "robot-1", {
-          id: "application-1",
-          opportunityId: "task-1",
-          setupId: "setup-1",
-          notes: "",
-        })
-      ).status,
-    ).toBe(201);
-    expect(state.intakes[0].body.taskStatement).toBe("Pack cartons into totes");
-    expect(state.intakes[0].body).not.toMatchObject({
-      siteName: "Confidential Site",
+    const opened = await api("/openings/task-1", "robot-1");
+    expect(opened.status).toBe(200);
+    const { opening } = await opened.json();
+    expect(opening).toEqual({ ...card, id: "task-1", publishedAtIso: "2026-09-13T10:00:00Z", thumbnailUrl: null });
+    expect(JSON.stringify(opening)).not.toMatch(/Confidential Site|123 Private|Pack cartons"|gs:\/\/|robot-1|successRate/);
+    expect((await api("/openings/task-1", "site-1")).status).toBe(403);
+    expect((await api("/evaluations", "robot-1", request1)).status).toBe(201);
+    expect(state.intakes[0].body).toMatchObject({ taskStatement: card.title, siteName: "Private site", siteLocation: "" });
+    expect(JSON.stringify(state.intakes[0].body)).not.toMatch(/Confidential Site|123 Private/);
+    expect(state.intakes[0].metadata.workspace_evaluation).toMatchObject({
+      opportunityId: "task-1", setupId: "setup-1",
+      targetSnapshot: { successRate: terms.successRate, cycleTimeSeconds: terms.cycleTimeSeconds },
     });
     // The site hears that a team asked, once per request.
     expect(state.notices).toHaveBeenCalledWith({
@@ -686,20 +702,21 @@ describe("workspace requests and lifecycle", () => {
       eventId: "application-1",
     });
     state.notices.mockClear();
-    const source = task();
-    source.ops.rights_status = "pending";
-    state.records.set("inboundRequests/task-1", source);
-    expect(
-      (
-        await api("/evaluations", "robot-1", {
-          id: "application-2",
-          opportunityId: "task-1",
-          setupId: "setup-1",
-          notes: "",
-        })
-      ).status,
-    ).toBe(404);
+    // The Pipeline's rights review now holds the capture: closed on both surfaces.
+    state.records.set("inboundRequests/task-1", { ...openJob(),
+      evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready", rights_review_status: "needs_review" } });
+    expect((await api("/openings/task-1", "robot-1")).status).toBe(404);
+    expect((await api("/evaluations", "robot-1", { ...request1, id: "application-2" })).status).toBe(404);
+    // A job that does not exist is refused exactly like one that is closed.
+    const missing = await api("/openings/task-missing", "robot-1");
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toMatchObject({ code: "job_not_open" });
+    // A record that passes only the retired dossier gate is not open.
+    state.records.set("inboundRequests/task-1", task());
+    expect((await api("/openings/task-1", "robot-1")).status).toBe(404);
+    expect((await api("/evaluations", "robot-1", { ...request1, id: "application-3" })).status).toBe(404);
     expect(state.notices).not.toHaveBeenCalled();
+    expect(state.intakes).toHaveLength(1);
   });
   it("records cancellation as pending without falsifying the actual schedule", async () => {
     state.records.set("inboundRequests/task-1", task());

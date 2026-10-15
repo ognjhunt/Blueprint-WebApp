@@ -24,6 +24,16 @@ export interface TaskBrowseCard extends TaskListingDetails {
   publishedAtIso: string;
   thumbnailUrl: string | null;
 }
+/**
+ * One job as an approved robot team opens it to request an evaluation: the
+ * site-approved card and nothing more. Served only while the job is open to
+ * evaluation requests (`server/utils/teamJobAccess.ts`).
+ */
+export interface TeamJobOpening extends TaskListingDetails {
+  id: string;
+  publishedAtIso: string;
+  thumbnailUrl: string | null;
+}
 export const taskStageLabels = { capture: "Being captured", preparing: "Scene in preparation", ready: "Ready to evaluate" };
 export const opportunityLabels = { open: "Open to pilot proposals", past: "Past opportunity", not_seeking: "Evaluation only" };
 

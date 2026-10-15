@@ -7,6 +7,7 @@ import { discoverAgentExecutionAdmission, agentExecutionAdmissionDigest, canonic
 import { reservationTtlMs, runIdForReservation, type EvalRunRecord } from "./agentRunRecord";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { TEAM_EVALUATION_PROVIDER_CAP_USD } from "./teamEvaluationSelection";
+import { teamJobAccess } from "./teamJobAccess";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 /** An operator approves exact existing records; a workspace request alone is not permission. */
@@ -35,6 +36,11 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   const scene = (await sceneRef.get()).data();
   if (!scene || !projectWebsiteCaptureRights(scene).derived_scene_generation_allowed)
     throw new Error("free_evaluation_scene_authority_unavailable");
+  // The job must still be open to robot teams by the same rule the team
+  // requested it under: a site that has since kept the job private, paused
+  // it, or whose rights review now holds it, is not evaluated.
+  const jobAccess = teamJobAccess(scene);
+  if (!jobAccess.evaluationAvailable) throw new Error(`free_evaluation_job_not_open:${jobAccess.reason}`);
   const teamRef = db.collection("robotTeams").doc(approval.teamId);
   const team = (await teamRef.get()).data();
   if (await teamAccountUid(approval.teamId) !== owner) throw new Error("free_evaluation_team_owner_mismatch");

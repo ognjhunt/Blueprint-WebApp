@@ -26,7 +26,8 @@ const thumbnail = () => PNG.sync.write({ width: 24, height: 15, data: Buffer.all
 const details = { title: "Move cartons from conveyor to pallet", taskFamily: "Palletizing", region: "US Midwest", siteType: "Warehouse", objects: "Sealed cartons", cycleTarget: "12 seconds", pilotTiming: "October", pilotBudget: "", opportunity: "past" };
 const record = (patch: Record<string, unknown> = {}) => ({
   requestId: "req1", contact: { email: "owner@example.test", firstName: "PRIVATE PERSON" },
-  request: { buyerType: "site_operator", taskStatement: "PRIVATE TASK", siteName: "PRIVATE SITE", siteLocation: "PRIVATE ADDRESS", capture_mode: "self_capture", siteTaskGates: { sceneStability: "stable", taskShape: "single", objectVariety: "under_10", deploymentTimeline: "this_quarter", accessWindow: "scheduled" } },
+  request: { buyerType: "site_operator", taskStatement: "PRIVATE TASK", siteName: "PRIVATE SITE", siteLocation: "PRIVATE ADDRESS", capture_mode: "self_capture", siteTaskGates: { sceneStability: "stable", taskShape: "single", objectVariety: "under_10", deploymentTimeline: "this_quarter", accessWindow: "scheduled" },
+    consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-19T00:00:00.000Z" } },
   public_task_listing: { enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-09-19T00:00:00.000Z", details },
   site_task_triage: { disposition: "qualified" }, site_task_brief_confirmed_at: "2026-09-19T00:00:00.000Z",
   pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://private/scene.json" } },
@@ -54,6 +55,9 @@ describe("public task disclosure", () => {
     { public_task_listing: undefined }, { public_task_listing: { enabled: true, details } },
     { workspace_task: { paused: true } }, { debug: { autoCreatedByPipeline: true } },
     { evidence_tier: "development_only" }, { pipeline: { rights_review_status: "blocked" } },
+    // Where the Pipeline sync actually reports its rights verdict.
+    { evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready", rights_review_status: "needs_review" } },
+    { consent_revoked: true },
   ])("does not expose unconsented, paused, development or restricted records: %j", patch => {
     expect(projectTaskBrowseCard("req1", record(patch))).toBeNull();
   });

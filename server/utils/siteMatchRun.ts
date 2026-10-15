@@ -54,7 +54,9 @@ export function toSiteRequirement(request: InboundRequest): SiteRequirement {
     spec: (request.request.siteTaskSpec || {}) as Record<string, string>,
     serviceArea: gateAnswersOnFile(request).serviceArea ?? null,
     location: {
-      label: request.request.siteLocation || null,
+      // A stored record holds the location encrypted; read that as unknown
+      // rather than handing the matcher an object it would try to split.
+      label: typeof request.request.siteLocation === "string" ? request.request.siteLocation || null : null,
       city: request.request.siteLocationMetadata?.city ?? null,
       state: request.request.siteLocationMetadata?.state ?? null,
       country: request.request.siteLocationMetadata?.country
