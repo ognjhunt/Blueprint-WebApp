@@ -58,6 +58,7 @@ import { settlementAmountUsd } from "./agentEvalRuns";
 import { recordEvaluationOutcome } from "./robotTeamRegistry";
 import type { EvalRunRecord } from "./agentEvalRuns";
 import type { ControlledNativePrivateResult } from "./controlledNativeResult";
+import { isSimulatorScoredJobEvidence, type RunResultScoring } from "./runResultScoring";
 
 const RUNS_COLLECTION = "evaluationRuns";
 
@@ -74,6 +75,8 @@ export interface RunOutcomeReport {
   note?: string | null;
   /** Where the artifacts live, if the run produced any. */
   artifactUri?: string | null;
+  /** Who scored the episodes. Absent or unknown never counts as task evidence. */
+  scoring?: RunResultScoring;
 }
 
 /** What we store and hand back, observation and claim kept apart. */
@@ -82,6 +85,8 @@ export interface EvalRunResult {
   confidencePolicyVersion?: string;
   confidenceAnnotation?: string;
   privateExecutionResult?: ControlledNativePrivateResult;
+  /** As the Pipeline stated it; see `runResultScoring.ts` for what may count. */
+  scoring?: RunResultScoring;
   runId: string;
   teamId: string;
   checkpointId: string;
@@ -183,6 +188,7 @@ export async function recordRunResult(params: {
     note: params.report.note ?? null,
     artifactUri: params.report.artifactUri ?? null,
     ...(params.report.privateExecutionResult ? { privateExecutionResult: params.report.privateExecutionResult } : {}),
+    ...(params.report.scoring ? { scoring: params.report.scoring } : {}),
     reportedAtIso: new Date().toISOString(),
   };
 
@@ -233,7 +239,10 @@ export async function recordRunResult(params: {
   // a self-registered team into the supply sites are shown, which is the only
   // path there is -- a team earns that place by being measured, never by
   // registering.
-  if (isSiteEvaluation(run) && result.evidenceScope !== "development_only") {
+  // A measured grade is written only from successes the simulator scored
+  // against the job's success contract; a team-reported or unverified count
+  // is stored on the result and never promoted into the registry.
+  if (isSiteEvaluation(run) && result.evidenceScope !== "development_only" && isSimulatorScoredJobEvidence(result)) {
     try {
       await recordEvaluationOutcome({
         robotTeamId: run.teamId,

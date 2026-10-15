@@ -59,6 +59,12 @@ it("joins the existing job, bounded review, proposal acceptance and evidence-gat
     sceneId: "req-1", taskFamily: "palletizing", evaluationPurpose: "pilot", quotedUsd: 0, quotedEpisodes: 20, state: "completed", episodesRun: 20,
     moneyResolved: true, requestedAtIso: "2026-10-01T00:00:00.000Z", resolvedAtIso: null, note: null,
     result: { evidenceScope: "development_only", runId: "run_fixture", teamId: "fixture-team", checkpointId: "ckpt_fixture", sceneId: "req-1",
+      // Simulator-scored on the scene's success contract, as only an admitted result can be.
+      scoring: { schemaVersion: "blueprint.agent_run_result_scoring.v1", runtime: "policy_canary_quick10_team_candidate",
+        successSource: "simulator_scored", scoredEpisodeCount: 20, successContractDigest: `sha256:${"1".repeat(64)}`,
+        sceneRevisionDigest: `sha256:${"2".repeat(64)}`, robotFreeProbeReceiptDigest: `sha256:${"3".repeat(64)}`,
+        teamCandidateAdmissionDigest: `sha256:${"4".repeat(64)}`, sessionResultDigest: `sha256:${"5".repeat(64)}`,
+        claimCeiling: "diagnostic_policy_execution" },
       observed: { episodesRun: 20, episodesSucceeded: 19, successRate: 0.95, medianCycleSeconds: 12 }, claimed: { demonstratedSuccessRate: null, cycleTime: "under_30s" },
       note: null, artifactUri: null, reportedAtIso: "2026-10-02T00:00:00.000Z" } });
   state.docs.set(`robotTeamAccess/${accessRecordId("team@example.test")}`, { status: "approved", company: "Fixture admitted team" });

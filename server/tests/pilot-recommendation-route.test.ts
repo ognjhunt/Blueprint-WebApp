@@ -40,6 +40,12 @@ function evaluationRun(overrides: Record<string, unknown> = {}, observed: Record
     evaluationPurpose: "pilot", quotedUsd: 0, quotedEpisodes: 20, state: "completed", episodesRun: 20, moneyResolved: true,
     requestedAtIso: "2026-10-01T00:00:00.000Z", resolvedAtIso: null, note: null,
     result: { evidenceScope: "development_only", confidencePolicyVersion: "wilson95-success-bands.v2", runId, teamId, checkpointId: "ckpt_engaged", sceneId,
+      // What the Pipeline states for a team candidate's Quick-10 run (runResultScoring.ts).
+      scoring: { schemaVersion: "blueprint.agent_run_result_scoring.v1", runtime: "policy_canary_quick10_team_candidate",
+        successSource: "simulator_scored", scoredEpisodeCount: Number(observed.episodesRun ?? 20),
+        successContractDigest: `sha256:${"1".repeat(64)}`, sceneRevisionDigest: `sha256:${"2".repeat(64)}`,
+        robotFreeProbeReceiptDigest: `sha256:${"3".repeat(64)}`, teamCandidateAdmissionDigest: `sha256:${"4".repeat(64)}`,
+        sessionResultDigest: `sha256:${"5".repeat(64)}`, claimCeiling: "diagnostic_policy_execution" },
       observed: { episodesRun: 20, episodesSucceeded: 19, successRate: 0.95, medianCycleSeconds: 12, ...observed },
       claimed: { demonstratedSuccessRate: null, cycleTime: "under_30s" }, note: null, artifactUri: null, reportedAtIso: "2026-10-02T00:00:00.000Z" },
     ...overrides };
@@ -520,6 +526,16 @@ describe("recording Blueprint's recommended pilot", () => {
     expect(listed.evaluations[0]).toMatchObject({ teamId: "engaged", teamName: "Acme Robotics", recommendedTeamId: "engaged",
       passed: true, recommendable: true, refusals: [], episodesRun: 20, episodesSucceeded: 19, evidenceScope: "development_only" });
     expect(listed.evaluations[1]).toMatchObject({ passed: false, recommendable: false, refusals: [{ code: "evaluation_below_pass_mark" }] });
+    // The same passing numbers, decided by the team's own HTTP responses, are listed and refused.
+    const teamReported = evaluationRun({ runId: "run_team_reported" }) as Record<string, any>;
+    teamReported.result.scoring = { ...teamReported.result.scoring, runtime: "http_policy_api_observation_probe", successSource: "team_reported" };
+    state.docs.set("evaluationRuns/run_team_reported", teamReported as never);
+    const relisted = await (await fetch(`${base}/jobs/req1/evaluations`)).json();
+    const refused = relisted.evaluations.find((row: { runId: string }) => row.runId === "run_team_reported");
+    expect(refused).toMatchObject({ passed: false, recommendable: false, refusals: [{ code: "evaluation_not_simulator_scored" }] });
+    expect(await refusal({ ...plan, evaluationRunId: "run_team_reported" })).toMatchObject({ status: 400,
+      body: { code: "evaluation_not_simulator_scored" } });
+    state.docs.delete("evaluationRuns/run_team_reported");
     // The listed result id binds the recommendation to what the reviewer saw.
     expect((await post({ ...plan, resultId: listed.evaluations[0].resultId })).status).toBe(200);
     expect((await (await fetch(`${base}/jobs/missing/evaluations`)).status)).toBe(404);

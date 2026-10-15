@@ -67,6 +67,7 @@ import { recordRunResult } from "../utils/agentRunResults";
 import { getRun, listRequestedRuns, markRunStarted } from "../utils/agentEvalRuns";
 import { getCheckpoint } from "../utils/robotCheckpoints";
 import { controlledNativeResultSchema } from "../utils/controlledNativeResult";
+import { runResultScoringSchema, storedScoring } from "../utils/runResultScoring";
 import { loadTaskForTeam, developmentOfferForTeam } from "../utils/controlledDevelopmentOffer";
 
 const router = Router();
@@ -115,6 +116,12 @@ const resultSchema = z
     note: z.string().trim().max(2000).nullish(),
     artifact_uri: z.string().trim().max(1600).nullish(),
     private_execution_result: controlledNativeResultSchema.optional(),
+    /**
+     * Who scored the episodes and against what. Optional on the wire so an
+     * older Pipeline still records its result; without it the result never
+     * counts toward a recommendation (`runResultScoring.ts`).
+     */
+    scoring: runResultScoringSchema.optional(),
   })
   .strict();
 
@@ -156,6 +163,9 @@ router.post(
         code: "agent_run_result_impossible",
       });
     }
+    if (parsed.data.scoring && parsed.data.scoring.scored_episode_count > parsed.data.episodes_run) {
+      return res.status(400).json({ error: "More episodes were scored than ran.", code: "agent_run_result_impossible" });
+    }
     if (parsed.data.private_execution_result && (parsed.data.episodes_run !== 1
       || parsed.data.episodes_succeeded !== Number(parsed.data.private_execution_result.task_success))) {
       return res.status(400).json({ error: "Native outcome does not match episode counts", code: "native_outcome_mismatch" });
@@ -177,6 +187,7 @@ router.post(
           note: parsed.data.note ?? null,
           artifactUri: parsed.data.artifact_uri ?? null,
           ...(parsed.data.private_execution_result ? { privateExecutionResult: parsed.data.private_execution_result } : {}),
+          ...(parsed.data.scoring ? { scoring: storedScoring(parsed.data.scoring) } : {}),
         },
       });
 

@@ -5,6 +5,7 @@ import type {
   WorkspaceTask,
 } from "../../client/src/types/workspace";
 import { teamJobAccess } from "./teamJobAccess";
+import { isSimulatorScoredJobEvidence, type RunResultScoring } from "./runResultScoring";
 import { sitePilotIntentFrom, siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 
 export function object(value: unknown): Record<string, any> {
@@ -185,6 +186,8 @@ export interface AgentRunForSite {
   state: string;
   result?: {
     evidenceScope?: "development_only";
+    /** Who scored the episodes; without an admitted statement, targets are never "met". */
+    scoring?: RunResultScoring;
     observed: {
       episodesRun: number;
       episodesSucceeded: number;
@@ -233,6 +236,8 @@ export function projectAgentRunResult(
     targetsMet: null,
     selected: false,
   };
-  result.targetsMet = run.result?.evidenceScope === "development_only" ? null : targetsMet(result, terms);
+  // "Met" is a pass claim: only a simulator-scored result in an admitted runtime can make it.
+  result.targetsMet = run.result?.evidenceScope === "development_only" || !isSimulatorScoredJobEvidence(run.result)
+    ? null : targetsMet(result, terms);
   return result;
 }

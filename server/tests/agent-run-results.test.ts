@@ -56,6 +56,19 @@ const {
   wilsonUpperBound,
 } = await import("../utils/agentRunResults");
 const { getRobotTeam } = await import("../utils/robotTeamRegistry");
+const { RUN_RESULT_SCORING_SCHEMA_VERSION } = await import("../utils/runResultScoring");
+
+/** A team candidate's Quick-10 result as the Pipeline states it: simulator-scored and fully bound. */
+function scored(episodes: number, overrides: Record<string, unknown> = {}) {
+  const digest = (char: string) => `sha256:${char.repeat(64)}`;
+  return {
+    schemaVersion: RUN_RESULT_SCORING_SCHEMA_VERSION, runtime: "policy_canary_quick10_team_candidate",
+    successSource: "simulator_scored", scoredEpisodeCount: episodes, successContractDigest: digest("1"),
+    sceneRevisionDigest: digest("2"), robotFreeProbeReceiptDigest: digest("3"),
+    teamCandidateAdmissionDigest: digest("4"), sessionResultDigest: digest("5"),
+    claimCeiling: "diagnostic_policy_execution", ...overrides,
+  } as const;
+}
 
 const TEAM = "team-alpha";
 
@@ -191,7 +204,7 @@ describe("a reported result reaches the registry", () => {
 
     await recordRunResult({
       runId: "run_res_1",
-      report: { episodesRun: 50, episodesSucceeded: 50 },
+      report: { episodesRun: 50, episodesSucceeded: 50, scoring: scored(50) },
     });
 
     const team = await getRobotTeam(TEAM);
@@ -209,11 +222,32 @@ describe("a reported result reaches the registry", () => {
 
     await recordRunResult({
       runId: "run_res_1",
-      report: { episodesRun: 1_000, episodesSucceeded: 1_000 },
+      report: { episodesRun: 1_000, episodesSucceeded: 1_000, scoring: scored(1_000) },
     });
 
     const team = await getRobotTeam(TEAM);
     expect(team?.status).toBe("applied");
+  });
+
+  it("never writes a measured grade from a count the simulator did not score", async () => {
+    // The same fifty-for-fifty that earns `ninety` above, stated as the team's
+    // own verdict, unlabelled, or from an unverified runtime: stored, never promoted.
+    for (const scoring of [undefined, scored(50, { runtime: "http_policy_api_observation_probe", successSource: "team_reported" }),
+      scored(50, { runtime: "legacy_robot_eval_command_batch", successSource: "unverified" }), scored(50, { robotFreeProbeReceiptDigest: null })]) {
+      sharedFakeFirestoreState.docs.clear();
+      seedRun();
+      sharedFakeFirestoreState.docs.set(`robotTeams/${TEAM}`, { id: TEAM, name: "Alpha Robotics", status: "applied",
+        capability: { demonstratedSuccessRate: "ninetynine_plus" },
+        fieldProvenance: { demonstratedSuccessRate: { grade: "self_reported", source: "intake" } },
+        createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z" });
+      const result = await recordRunResult({ runId: "run_res_1",
+        report: { episodesRun: 50, episodesSucceeded: 50, ...(scoring ? { scoring } : {}) } });
+      expect(result?.observed).toMatchObject({ episodesRun: 50, episodesSucceeded: 50 });
+      expect(result?.scoring).toEqual(scoring);
+      const team = await getRobotTeam(TEAM);
+      expect(team?.capability.demonstratedSuccessRate).toBe("ninetynine_plus");
+      expect(team?.fieldProvenance.demonstratedSuccessRate?.grade).toBe("self_reported");
+    }
   });
 
   it("does not promote a team whose run established nothing", async () => {
@@ -346,6 +380,7 @@ describe("a run that rules out a claim withdraws it", () => {
         cycleSecondsP90: null,
         note: null,
         artifactUri: null,
+        scoring: scored(50),
       },
     });
 
@@ -402,6 +437,7 @@ describe("a run that rules out a claim withdraws it", () => {
         cycleSecondsP90: null,
         note: null,
         artifactUri: null,
+        scoring: scored(50),
       },
     });
 

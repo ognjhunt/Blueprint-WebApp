@@ -16,6 +16,10 @@
  *   were never agreed to be shown to the site);
  * - it completed with a recorded result of at least `MINIMUM_EVIDENCE_EPISODES`
  *   episodes;
+ * - the simulator scored those episodes against the job's success contract,
+ *   in an admitted runtime, on a scene whose robot-free probe passed
+ *   (`runResultScoring.ts`). A team-reported, unverified or unlabelled count
+ *   never backs a recommendation, whatever its numbers;
  * - the result meets the job's pass mark (below); and
  * - the run's team is the team being recommended (see `robotTeamIdentity`).
  *
@@ -52,6 +56,7 @@ import { humanDecisionDigest } from "./human-reply-admission";
 import { isSiteEvaluation, type EvalRunRecord } from "./agentRunRecord";
 import type { EvalRunResult } from "./agentRunResults";
 import { CONFIDENCE_POLICY_VERSION, SUCCESS_RATE_BAND_CLAIM, successRateBand } from "./successRateConfidence";
+import { scoringRefusal, type ScoringRefusal } from "./runResultScoring";
 
 /** The lowest success rate the confidence policy states as a band. */
 export const DEFAULT_PASS_MARK_SUCCESS_RATE = SUCCESS_RATE_BAND_CLAIM.ninety;
@@ -73,6 +78,16 @@ export interface PassMark {
 }
 
 export type EvidenceScope = "development_only" | "simulation";
+
+/** Who scored the evidence, frozen with it. */
+export interface EvidenceScoring {
+  runtime: string;
+  successSource: string;
+  successContractDigest: string;
+  robotFreeProbeReceiptDigest: string;
+  /** Carried unchanged; an admitted result is never upgraded past it. */
+  claimCeiling: string;
+}
 
 /** Immutable once written on a recommendation. */
 export interface PilotRecommendationEvidence {
@@ -97,6 +112,7 @@ export interface PilotRecommendationEvidence {
   passed: true;
   evaluatedAtIso: string;
   evidenceScope: EvidenceScope;
+  scoring: EvidenceScoring;
   boundary: string;
 }
 
@@ -105,6 +121,7 @@ export type EvidenceRefusal =
   | "evaluation_run_other_job"
   | "evaluation_run_private"
   | "evaluation_result_missing"
+  | "evaluation_not_simulator_scored"
   | "evaluation_result_changed"
   | "evaluation_too_few_episodes"
   | "evaluation_below_pass_mark"
@@ -116,6 +133,7 @@ export const EVIDENCE_REFUSAL_MESSAGES: Record<EvidenceRefusal, string> = {
   evaluation_run_other_job: "That evaluation ran against a different job. A recommendation must cite an evaluation of this job.",
   evaluation_run_private: "That evaluation is a team's private run; its result was not agreed to be shown to the site.",
   evaluation_result_missing: "That evaluation has no recorded result yet. Recommend only after it completes with episodes.",
+  evaluation_not_simulator_scored: "That evaluation's successes were not scored by the simulator against this job's success contract, so they cannot back a recommendation.",
   evaluation_result_changed: "The evaluation result changed since it was listed. Reload this job's evaluations and review it again.",
   evaluation_too_few_episodes: `That evaluation ran fewer than ${MINIMUM_EVIDENCE_EPISODES} episodes, which is too few to recommend on.`,
   evaluation_below_pass_mark: "That evaluation did not meet this job's pass mark. Recommend only a team whose evaluation passed.",
@@ -202,6 +220,8 @@ export interface EvaluationReading {
   evidenceScope: EvidenceScope | null;
   cycleTimeMet: boolean | null;
   passed: boolean | null;
+  /** Null when the simulator scored the result in an admitted runtime. */
+  scoringRefusal: ScoringRefusal | null;
   /** Empty when the run can back a recommendation (team eligibility aside). */
   refusals: EvidenceRefusal[];
 }
@@ -221,8 +241,11 @@ export function readEvaluation(
   const hasResult = run.state === "completed" && Boolean(observed) && (observed!.episodesRun ?? 0) > 0;
   let passed: boolean | null = null;
   let cycleTimeMet: boolean | null = null;
+  const unscored = hasResult ? scoringRefusal(result) : null;
   if (!hasResult) refusals.push("evaluation_result_missing");
   else {
+    // Fail closed before reading the numbers: an unscored count never passes.
+    if (unscored) refusals.push("evaluation_not_simulator_scored");
     const episodesRun = observed!.episodesRun;
     const rate = observed!.episodesSucceeded / episodesRun;
     const meetsRate = rate >= passMark.successRate;
@@ -234,7 +257,7 @@ export function readEvaluation(
     if (episodesRun < passMark.minimumEpisodes) refusals.push("evaluation_too_few_episodes");
     if (!meetsRate) refusals.push("evaluation_below_pass_mark");
     if (cycleTimeMet === false) refusals.push("evaluation_cycle_time_missed");
-    passed = episodesRun >= passMark.minimumEpisodes && meetsRate && cycleTimeMet !== false;
+    passed = unscored === null && episodesRun >= passMark.minimumEpisodes && meetsRate && cycleTimeMet !== false;
   }
   return {
     runId: run.runId,
@@ -253,6 +276,7 @@ export function readEvaluation(
     evidenceScope: result ? (result.evidenceScope === "development_only" ? "development_only" : "simulation") : null,
     cycleTimeMet,
     passed,
+    scoringRefusal: unscored,
     refusals,
   };
 }
@@ -299,6 +323,14 @@ export function verifyRecommendationEvidence(params: {
       passed: true,
       evaluatedAtIso: result.reportedAtIso,
       evidenceScope: reading.evidenceScope!,
+      // Admitted above, so every field is present (`scoringRefusal`).
+      scoring: {
+        runtime: result.scoring!.runtime,
+        successSource: result.scoring!.successSource,
+        successContractDigest: result.scoring!.successContractDigest!,
+        robotFreeProbeReceiptDigest: result.scoring!.robotFreeProbeReceiptDigest!,
+        claimCeiling: result.scoring!.claimCeiling,
+      },
       boundary: SIMULATION_EVIDENCE_BOUNDARY,
     },
   };
