@@ -116,6 +116,7 @@ export default function OpeningDetail() {
                     setupId: String(values.get("setupId") || ""),
                     notes: String(values.get("notes") || ""),
                     purpose: values.get("purpose") === "scored" ? "scored" : "practice",
+                    licenseToRun: values.get("licenseToRun") === "on" ? true : undefined,
                   },
                   () => navigate(`/app/evaluations/${requestId.current}`),
                 );
@@ -184,7 +185,7 @@ export default function OpeningDetail() {
                 </span>
               </label>
               <label className="ws-check">
-                <input type="checkbox" required />
+                <input type="checkbox" name="licenseToRun" required />
                 <span>
                   I license Blueprint to run this policy for this evaluation only. Blueprint&rsquo;s
                   simulator scores every episode; my service returns actions, never results.

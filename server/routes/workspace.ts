@@ -1250,7 +1250,9 @@ router.post(
     const input = z
         .object({ id, opportunityId: id, setupId: id, notes: prose,
           // Practice: the ten published cells, feedback only. Scored: 200 hidden cells, the evidence.
-          purpose: z.enum(["practice", "scored"]).default("practice") })
+          purpose: z.enum(["practice", "scored"]).default("practice"),
+          // The team licenses Blueprint to run its policy for this evaluation; the simulator scores it.
+          licenseToRun: z.literal(true).optional() })
         .strict()
         .parse(req.body),
       caller = identity(res);
@@ -1265,6 +1267,7 @@ router.post(
         opportunityId: input.opportunityId,
         setupId: input.setupId,
         purpose: input.purpose,
+        ...(input.licenseToRun ? { licenseToRunGrantedAt: new Date().toISOString() } : {}),
         targetSnapshot: {
           successRate: termsFor(source.record).successRate,
           cycleTimeSeconds: termsFor(source.record).cycleTimeSeconds,

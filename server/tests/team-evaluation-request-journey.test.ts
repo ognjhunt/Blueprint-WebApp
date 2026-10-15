@@ -211,7 +211,7 @@ async function openJob() {
 }
 function requestEvaluation(jobId: string, uid = ROBOT, purpose?: "practice" | "scored") {
   return workspaceApi("/evaluations", uid, { id: next("application"), opportunityId: jobId, setupId: SETUP.id, notes: "",
-    ...(purpose ? { purpose } : {}) });
+    ...(purpose ? { purpose, licenseToRun: true } : {}) });
 }
 function approveFreeRun(applicationId: string) {
   return import("../utils/freeEvaluationHandoff").then(({ admitFreeWorkspaceEvaluation }) =>
@@ -301,6 +301,7 @@ describe("a job started from the public form", () => {
     const application = doc(`inboundRequests/${applicationId}`);
     expect(application).toMatchObject({ account_owner_uid: ROBOT, workspace_evaluation: {
       opportunityId: jobId, setupId: SETUP.id, setupName: "Fixture arm · Packing v1", purpose: "scored",
+      licenseToRunGrantedAt: expect.any(String),
       // The job's targets, frozen at request time.
       targetSnapshot: { successRate: 95, cycleTimeSeconds: 30 } } });
     expect(application.request.buyerType).toBe("robot_team");
