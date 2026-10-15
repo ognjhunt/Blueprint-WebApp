@@ -1,4 +1,12 @@
-/** Job-bound credential delivery to the trusted worker after a funded run is claimed. */
+/**
+ * Job-bound credential delivery to the trusted worker after a funded run is claimed.
+ *
+ * A team evaluation's bearer token is released once, as the single-use lease
+ * its admission seals (`bearer_lease_release`, beta journey step L5): the
+ * lease id is recomputed from the claim, its record is created in the same
+ * transaction that decides the release, and a second claim of it gets no token
+ * and no decryption. `access` never returns a team evaluation's bearer token.
+ */
 import { Router } from "express";
 import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -12,14 +20,16 @@ import { POLICY_CREDENTIAL_COLLECTION, decryptCheckpointPolicyCredential,
   type PolicyCredentialRecord } from "../utils/checkpointPolicyCredentials";
 
 const router = Router();
+export const BEARER_LEASE_COLLECTION = "checkpointPolicyBearerLeases";
 const schema = z.object({
-  action: z.enum(["access", "registry_lease", "bind_admission"]),
+  action: z.enum(["access", "registry_lease", "bind_admission", "bearer_lease_release"]),
   job_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
   pipeline_run_id: z.string().trim().min(1).max(200),
   canonical_request_digest: z.string().regex(/^sha256:[0-9a-f]{64}$/),
   tenant_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/).optional(),
   contract: z.record(z.unknown()).optional(),
   admission_receipt: z.record(z.unknown()).optional(),
+  lease_id: z.string().regex(/^policy-access-[0-9a-f]{32}$/).optional(),
 }).strict();
 const object = (v: unknown): Record<string, any> => v && typeof v === "object" && !Array.isArray(v) ? v as Record<string, any> : {};
 
@@ -63,6 +73,36 @@ router.post("/checkpoint-policy-credentials/:credentialRef", createPipelineSyncR
         || payload.credential_ref !== credentialRef || payload.credential_kind !== record.kind
         || (payload.endpoint_url || payload.image_ref) !== record.reference) {
       return res.status(409).json({ code: "policy_credential_job_binding_mismatch" });
+    }
+    if (data.action === "bearer_lease_release") {
+      // The one lease a claimed run may hold, as the Pipeline's bearer_lease_id seals it.
+      const leaseId = "policy-access-" + agentExecutionAdmissionDigest({ credential_ref: credentialRef,
+        job_id: data.job_id, pipeline_run_id: data.pipeline_run_id }).slice(7, 39);
+      const credentialExpiresAtMs = Date.parse(record.expires_at_iso);
+      if (record.kind !== "bearer" || data.lease_id !== leaseId) return res.status(409).json({ code: "policy_credential_lease_invalid" });
+      // Refused before the lease is spent, so an expired or revoked token never consumes it.
+      if (record.revoked || !(credentialExpiresAtMs > Date.now())) return res.status(409).json({ code: "policy_credential_expired_or_revoked" });
+      const lease = { lease_id: leaseId, single_use: true, status: "released", release_count: 1,
+        credential_ref: credentialRef, job_id: data.job_id, pipeline_run_id: data.pipeline_run_id };
+      const settlementDueAtMs = run.settlementDueAtMs ?? Date.parse(run.requestedAtIso) + reservationTtlMs();
+      const leaseRef = db.collection(BEARER_LEASE_COLLECTION).doc(leaseId);
+      const released = await db.runTransaction(async (transaction) => {
+        if ((await transaction.get(leaseRef)).exists) return false;
+        transaction.create(leaseRef, { ...lease, canonical_request_digest: data.canonical_request_digest,
+          released_at_iso: new Date().toISOString(),
+          expires_at_iso: new Date(Math.min(settlementDueAtMs, credentialExpiresAtMs)).toISOString() });
+        return true;
+      });
+      if (!released) return res.status(409).json({ code: "policy_credential_lease_consumed" });
+      const credential = await decryptCheckpointPolicyCredential(record);
+      if (credential.kind !== "bearer") return res.status(409).json({ code: "policy_credential_lease_invalid" });
+      return res.json({ ok: true, job_id: data.job_id, pipeline_run_id: data.pipeline_run_id, canonical_request_digest: data.canonical_request_digest,
+        credential_ref: credentialRef, kind: "bearer", lease,
+        credential: { job_id: data.job_id, endpoint_url: record.reference, bearer_token: credential.token } });
+    }
+    // A team evaluation's bearer token is released only through its single-use lease.
+    if (data.action === "access" && record.kind === "bearer" && run.teamEvaluationPurpose) {
+      return res.status(409).json({ code: "policy_credential_lease_required" });
     }
     const credential = await decryptCheckpointPolicyCredential(record);
     if (data.action === "access") {
