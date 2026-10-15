@@ -72,6 +72,10 @@ is live until the three pull requests merge and deploy. Merge order:
    report pending and retries it, so nothing is lost while #1048 deploys.
 3. WebApp #1048.
 
+On 15 October 2026 BlueprintCapture #86 merged (`6124b09`), and so did Pipeline #2713
+(`f635f96`, main CI green). The Pipeline control plane deploys a merged commit only through
+`door deploy <sha> --wait`. Until that runs, it stays on `25946c9`.
+
 | Item | Status | What changed | Still needed |
 |---|---|---|---|
 | P0-1 | fixed in code | Every `/api/admin` mount requires an admin or ops role, plus a regression test that reads every admin mount from `routes.ts` and checks that an ordinary account is refused. | Founder: check Render logs for past use (details in the private report). |
