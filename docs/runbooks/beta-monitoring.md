@@ -14,17 +14,28 @@ tracker is installed.
 | Intake notice sweep | `server/utils/betaOpsMonitor.ts`, **web process**, every 5 min, leader-leased (shared ops automation lease) | Retries pending notices after 10 min, escalates after 30 min or when the retry budget (5) is spent: `opsAlerts` record + Slack (`intake_forwarding_failure`) + email to `CONTACT_TO` (default `ops@tryblueprint.io`) + `error` log. Each notice escalates once. |
 | Terminal outbox failures | same monitor | Read-only scan of `captureOutbox` for `status == "failed"`; alerts once per entry (create-only marker in `opsOutboxFailureAlerts`) by Slack and ops email, link-only. |
 | Readiness | same monitor + `/health/ready` | Re-evaluates launch readiness each pass. Alerts when readiness regresses, recovers, **or is not ready right after boot**. |
+| Outbox backlog | same monitor (`scanOutboxBacklog`) | Reads `captureOutbox` entries with `status == "pending"`. Alerts when `BLUEPRINT_OUTBOX_BACKLOG_ALERT_COUNT` (50) or more are waiting, or one has waited `BLUEPRINT_OUTBOX_BACKLOG_ALERT_AGE_MS` (30 min). The pump sends every minute and gives up after 6 attempts, so either means delivery stalled. |
+| Worker heartbeat | `server/utils/workerHeartbeat.ts`: the worker writes `opsHeartbeats/blueprint-webapp-worker` every minute (production, never previews); the monitor reads it | Alerts when the heartbeat is older than `BLUEPRINT_WORKER_HEARTBEAT_STALE_AFTER_MS` (5 min) or missing. `GET /health/worker` answers 200 `fresh` or 503 `stale`/`missing`/`unavailable` for the external probe. |
 | Crashes | `installProcessErrorHandlers` in `server/index.ts` and `server/worker.ts` | `unhandledRejection` → fatal log + Slack (process keeps serving). `uncaughtException` → fatal log + Slack, then exit(1) so Render restarts it. Rate-limited per kind (15 min). |
 | 5xx spikes | `createServerErrorRateMonitor` in `server/index.ts` | Slack when ≥10 5xx responses in 5 min and ≥5 % of responses (`BLUEPRINT_5XX_ALERT_THRESHOLD`, `_WINDOW_MS`, `_MIN_RATIO`). Health probes excluded. Rate-limited. |
 | Resend quota | `server/utils/email.ts` | A quota rejection logs `email_quota_exhausted` at `error` and posts one Slack alert per 15 min. |
 | ADP worker lanes | `server/agents/adp-managed-runs.ts` | Tick failures log at `error` and alert (rate-limited per lane). |
 | Autonomous lanes | `server/utils/automationLaneSummary.ts` | Each process logs, and posts one Slack summary at boot, of the lanes active in it. `BLUEPRINT_ALL_AUTOMATION_ENABLED` logs a loud warning listing what it switched on. |
-| External uptime | `.github/workflows/uptime.yml`, every 10 min | `GET https://tryblueprint.io/health` and `/version.json` with 3 retries. Fails the run and, if the `SLACK_WEBHOOK_URL` **repository secret** is set, posts to Slack. Runs outside Render, so it still fires when the service is down. |
+| External uptime | `blueprint-uptime-probe` Render cron job (`render.yaml`), every 10 min; `.github/workflows/uptime.yml` as the backstop | Both run `scripts/ops/uptime-probe.mjs`: `GET /health`, `/version.json` and `/health/worker`, 3 attempts each. A failure posts to the ops Slack webhook and fails the run. GitHub throttles its schedule (it ran every 2-5 hours, not every 10 minutes), so the Render cron is the 10-minute probe and the workflow is the check that still runs when Render itself is down. |
+
+The monitor's backlog and heartbeat alerts are per incident: one Slack message
+and one ops email when the condition starts, a Slack reminder each hour while
+it lasts, and a Slack message when it clears. Email goes once because the
+Resend free plan's daily cap is shared with customer email.
 
 Controls: `BLUEPRINT_BETA_OPS_MONITOR_ENABLED=0` disables the monitor (not
 recommended), `BLUEPRINT_BETA_OPS_MONITOR_INTERVAL_MS` changes its interval,
 `BLUEPRINT_INTAKE_OPS_NOTICE_{MAX_ATTEMPTS,RETRY_AFTER_MS,ESCALATE_AFTER_MS}`
 tune the sweep. Pull-request previews (`IS_PULL_REQUEST=true`) never run it.
+`BLUEPRINT_OUTBOX_BACKLOG_ALERT_{COUNT,AGE_MS}` and
+`BLUEPRINT_WORKER_HEARTBEAT_STALE_AFTER_MS` set the new thresholds (web);
+`BLUEPRINT_WORKER_HEARTBEAT_CHECK_ENABLED=0` (web) and
+`BLUEPRINT_WORKER_HEARTBEAT_ENABLED=0` (worker) turn the heartbeat off.
 
 ### Readiness checks that now apply in production
 
@@ -84,22 +95,38 @@ Redis outages fail open: rate limiting lets requests through within ~750 ms
    The caps work without it; the collections just keep growing.
 7. **App Check**: follow *App Check rollout* below. Until it is enforced,
    `npm run alpha:env` lists it under *Recommended-missing*.
-8. **Terms update notice**: Terms version `2026-10-14.1` changed governing law
-   to Delaware. Per the Terms' own update clause, email account holders about
-   the material change before it takes effect; continued use after that is
-   acceptance. The workspace does not force re-acceptance of a new version.
-7. **Terms `2026-10-14.2` and Privacy `2026-10-14.1` notice** (not sent): Terms
-   section 1 and 3 and the Privacy Policy now say that the start form shows the
-   exact anonymized job card and offers **Keep this job private instead**
-   (restored after `0acbf5d` removed it); that uploaders must tell people in
-   the work area they are recording and sharing the video with Blueprint, and
-   should avoid conversations and turn sound off; and that Blueprint keeps the
-   original upload as received but removes sound before any automated review
-   or AI/3D provider upload, and does not analyze speech. Per section 12, email
-   account holders about these material changes before they take effect. Before
-   sending, confirm the Pipeline also strips sound before its own Gemini video
-   upload (`scene_semantics.py`), or the sound statement is not yet true there,
-   and have counsel review the recording-notice and sound wording.
+8. **Terms and Privacy reissue (owner decision 2026-10-15)**: the Terms and
+   Privacy versions published on 2026-10-15 said "Effective October 14" with
+   no notice. They are reissued as `2026-11-15.1`, effective November 15, 2026.
+   Until then the versions live before that release stay in force and stay
+   published: Terms `2026-10-14.1` at `/terms/previous` and Privacy
+   `2026-10-13.1` at `/privacy/previous`. A banner on the public site and in
+   the workspace announces the date until it passes. The owner decided not to
+   email account holders; Terms section 12 and the Privacy Policy's "Changes"
+   section in both versions still say account holders are emailed before a
+   material change, so have counsel confirm the banner is enough or change
+   that clause in a later reissue. The reissued Privacy Policy states the real
+   footage retention (no automatic deletion, at least 7 years) in place of the
+   previous "180 days after the job closes". Still open from the earlier
+   notice: confirm the deployed Pipeline strips sound before its own Gemini
+   video upload (its `scene_semantics.py` now uploads through
+   `audio_free_upload_copy`; check that build is the one running), and have
+   counsel review the recording-notice and sound wording.
+9. **Uptime cron (every 10 minutes)**: Render → New → Cron Job, from this
+   repo's `main`: name `blueprint-uptime-probe`, region Virginia, schedule
+   `*/10 * * * *`, build command `node --version`, start command
+   `node scripts/ops/uptime-probe.mjs`, env `UPTIME_BASE_URL=https://tryblueprint.io`
+   and `SLACK_WEBHOOK_URL` (the same ops webhook as the web service), Auto-Deploy
+   off. `render.yaml` declares it, but the existing services were created by
+   hand, so it does not appear until it is created or the Blueprint is synced.
+   Then **Render → Notifications**: enable *Cron job failed* for it. Verify:
+   the job's first runs log `OK /health`, `OK /version.json` and
+   `OK /health/worker`. Redeploy it by hand when the script changes.
+10. **Worker heartbeat**: after the next deploy, `curl -s https://tryblueprint.io/health/worker`
+    reads `"status":"fresh"`. If it reads `missing`, the worker is not running
+    with `NODE_ENV=production` (its start command sets it) or set
+    `BLUEPRINT_WORKER_HEARTBEAT_ENABLED=0`. Also confirm `SLACK_WEBHOOK_URL`
+    is set on `blueprint-webapp-worker`, so its crash alerts reach Slack.
 
 ## Email volume (Resend free plan)
 
@@ -177,8 +204,12 @@ bundle routes are not guarded; the app would first need an App Attest provider.
    `VITE_FIREBASE_APPCHECK_SITE_KEY=<site key>` and **rebuild** (Vite inlines
    it at build time; a restart is not enough). The CSP then admits the
    reCAPTCHA script and frame hosts. The key is public by design.
-4. Before step 5 ships, the Privacy Policy needs its reCAPTCHA Enterprise
-   disclosure (owned outside this change).
+4. The reCAPTCHA Enterprise disclosure is in the reissued Privacy Policy
+   (`2026-11-15.1`), which takes effect on November 15, 2026; the previous
+   version in force until then (`/privacy/previous`) does not name reCAPTCHA.
+   Once step 3 ships, reCAPTCHA runs on every job submission and footage
+   upload, so do steps 3 and 5 on or after November 15, 2026, unless counsel
+   agrees the published disclosure is enough before then.
 5. Set `BLUEPRINT_APP_CHECK_MODE=monitor` and restart. Requests are never
    refused; Render logs show `event: "app_check_monitor"` with
    `outcome: missing | invalid | unverifiable` for each request that would have

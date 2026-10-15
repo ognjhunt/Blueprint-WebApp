@@ -3,6 +3,7 @@ import { ArrowUpRight, Menu, X } from "lucide-react";
 import { COMPANY } from "@/data/company";
 import { openCookieSettings } from "@/components/CookieConsent";
 import { useOptionalAuth } from "@/contexts/AuthContext";
+import { LegalUpdateBanner } from "./LegalVersionNotes";
 
 type WorkspaceUser = { role?: string; roles?: string[]; finishedOnboarding?: boolean };
 
@@ -27,6 +28,7 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
   return (
     <div className="minimal-site">
       <a className="ms-skip" href="#main-content">Skip to content</a>
+      <LegalUpdateBanner />
       <header className="ms-header ms-container">
         <a className="ms-brand" href="/" aria-label="Blueprint home"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
         <nav className="ms-desktop-nav" aria-label="Main navigation">

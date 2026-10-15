@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  betaRetentionSchedule,
   capturePrivacyAnnex,
   californiaPrivacyRows,
   inPersonVisitPrivacy,
@@ -14,15 +15,27 @@ import {
   privacySubprocessorCategories,
 } from "@/pages/Privacy";
 import { termsSections } from "@/pages/Terms";
-import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legalAcceptance";
+import {
+  PREVIOUS_PRIVACY_VERSION,
+  PREVIOUS_TERMS_VERSION,
+  PRIVACY_VERSION,
+  TERMS_VERSION,
+  legalEffectiveDate,
+  legalUpdatePending,
+} from "@/lib/legalAcceptance";
 
 const terms = JSON.stringify(termsSections);
 const privacy = JSON.stringify({ privacyPolicySections, californiaPrivacyRows, inPersonVisitPrivacy, jobClosedDefinition, privacySubprocessorCategories });
 
 describe("terms for the free beta", () => {
-  it("is versioned for the free-beta decision", () => {
-    expect(TERMS_VERSION).toBe("2026-10-14.2");
-    expect(PRIVACY_VERSION).toBe("2026-10-14.1");
+  it("is reissued with a future effective date and keeps the previous version in force", () => {
+    // Owner decision 2026-10-15: published 2026-10-15, in force 30+ days later.
+    expect(TERMS_VERSION).toBe("2026-11-15.1");
+    expect(PRIVACY_VERSION).toBe("2026-11-15.1");
+    expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-10-14.1", "2026-10-13.1"]);
+    expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 15, 2026");
+    expect(legalUpdatePending(Date.parse("2026-11-14T23:59:00-08:00"))).toBe(true);
+    expect(legalUpdatePending(Date.parse("2026-11-15T00:00:00-08:00"))).toBe(false);
   });
 
   it("charges nothing and invoices nothing", () => {
@@ -75,6 +88,22 @@ describe("privacy for the free beta", () => {
     const names = ai.providers.map(([name]) => name);
     expect(names).toEqual(expect.arrayContaining(["OpenAI", "Anthropic", "Google Gemini"]));
     expect(ai.providers.find(([name]) => name === "OpenAI")?.[1]).toMatch(/frames from a site capture to draft the job brief/);
+  });
+
+  it("lists the providers the code uses, and not the waived Redis", () => {
+    const providers = new Map(privacySubprocessorCategories.flatMap((group) => group.providers.map(([name, use]) => [name, use] as const)));
+    expect(providers.get("Twilio")).toMatch(/phone line.*text messages that send a filming link/);
+    expect(providers.get("ElevenLabs")).toMatch(/voice assistant/);
+    expect(providers.get("DigitalOcean")).toMatch(/internal operations tools/);
+    expect(JSON.stringify(privacySubprocessorCategories)).not.toMatch(/redis/i);
+  });
+
+  it("states that raw footage has no automatic deletion and a 7-year floor", () => {
+    const footage = betaRetentionSchedule.find((row) => row.record === "Site footage and capture data")!;
+    expect(footage.defaultWindow).toMatch(/^No automatic deletion\. Kept for at least 7 years/);
+    expect(footage.notes).toMatch(/never deletes it on a schedule/);
+    expect(footage.notes).toMatch(/withdraws permission to use the recording or we complete a verified deletion request/);
+    expect(JSON.stringify(betaRetentionSchedule)).not.toMatch(/180 days/);
   });
 
   it("treats footage filmed by Blueprint staff like self-filmed footage", () => {

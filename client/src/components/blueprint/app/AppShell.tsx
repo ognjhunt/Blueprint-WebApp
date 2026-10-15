@@ -4,6 +4,7 @@ import { Menu, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { resultSignInHref } from "@/lib/authReturnPath";
 import { WorkspaceContext } from "@/components/workspace/WorkspaceContext";
+import { LegalUpdateBanner } from "@/components/site/LegalVersionNotes";
 import type { WorkspaceRole } from "@/types/workspace";
 import "@/components/workspace/workspace.css";
 
@@ -196,6 +197,7 @@ export function AppShell({
           <div className="ws-public-brand">{brand}</div>
         )}
         <div className="ws-content">
+          <LegalUpdateBanner />
           <main
             id="workspace-main"
             className={`ws-main ${contentClassName}`}

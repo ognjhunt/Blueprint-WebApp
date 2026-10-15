@@ -58,6 +58,8 @@ const Login = lazyRoute(() => import("../pages/Login"));
 const ForgotPassword = lazyRoute(() => import("../pages/ForgotPassword"));
 const Privacy = lazyRoute(() => import("../pages/Privacy"));
 const Terms = lazyRoute(() => import("../pages/Terms"));
+const PrivacyPrevious = lazyRoute(() => import("../pages/PrivacyPrevious"));
+const TermsPrevious = lazyRoute(() => import("../pages/TermsPrevious"));
 const BetaBuyerGuide = lazyRoute(() => import("../pages/BetaBuyerGuide"));
 const Settings = lazyRoute(() => import("../pages/workspace/Settings"));
 const AdminLeads = lazyRoute(() => import("../pages/AdminLeads"));
@@ -343,6 +345,9 @@ export const appRoutes: AppRoute[] = [
   { path: "/forgot-password", layout: "public", shell: "bare", component: ForgotPassword },
   { path: "/privacy", layout: "public", component: Privacy },
   { path: "/terms", layout: "public", component: Terms },
+  // The versions in force until an announced update takes effect.
+  { path: "/privacy/previous", layout: "public", component: PrivacyPrevious },
+  { path: "/terms/previous", layout: "public", component: TermsPrevious },
   { path: "/beta/buyer-guide", layout: "public", shell: "bare", component: BetaBuyerGuide },
   { path: "/settings", layout: "protected", shell: "bare", component: Settings },
   { path: "/requests/:requestId", layout: "public", shell: "bare", component: RequestConsole },

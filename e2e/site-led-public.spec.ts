@@ -45,6 +45,18 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
   });
 }
 
+test("the Terms and Privacy Policy link to the previous versions, which stay published", async ({ page }) => {
+  for (const [path, previous, heading] of [["/terms", "/terms/previous", "Terms of Service"], ["/privacy", "/privacy/previous", "Privacy Policy"]]) {
+    await page.goto(path);
+    const link = page.locator("article").getByRole("link", { name: "previous version" });
+    await expect(link).toHaveAttribute("href", previous);
+    await link.click();
+    await expect(page).toHaveURL(new RegExp(`${previous}$`));
+    await expect(page.locator(".minimal-site h1")).toHaveText(heading);
+    await expect(page.getByText(/^Previous version, effective/)).toBeVisible();
+  }
+});
+
 test("mobile navigation works and the method steps are visible without a click", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");

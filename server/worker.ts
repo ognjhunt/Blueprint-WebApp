@@ -27,6 +27,7 @@ import { startSavedRecoveryWorker } from "./agents/communications-saved-recovery
 import { startWebsiteCaptureWithdrawalWorker } from "./utils/websiteCaptureWithdrawal";
 import { startWebsiteCaptureDeletionWorker } from "./utils/websiteCaptureDeletion";
 import { installProcessErrorHandlers } from "./utils/opsProcessAlerts";
+import { startWorkerHeartbeat } from "./utils/workerHeartbeat";
 import { announceAutonomousLanesAtBoot } from "./utils/automationLaneSummary";
 
 const launchForwardOnly = () =>
@@ -81,11 +82,14 @@ export function startWorker(): WorkerHandle {
   const stopWebsiteWithdrawals = startWebsiteCaptureWithdrawalWorker();
   // Runs in launch-forward-only mode too: deletion must not wait on the ops scheduler.
   const stopWebsiteDeletions = startWebsiteCaptureDeletionWorker();
+  // The web process alerts when this goes stale (betaOpsMonitor, /health/worker).
+  const stopHeartbeat = startWorkerHeartbeat();
 
   let stopPromise: Promise<void> | undefined;
   const stop = () => {
     if (stopPromise) return stopPromise;
     stopPromise = (async () => {
+    stopHeartbeat();
     stopQueueProcessor();
     stopTaskEvaluationLaunchForwarder();
     stopAdpManagedRuns();

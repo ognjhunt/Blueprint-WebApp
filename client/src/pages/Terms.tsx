@@ -1,4 +1,5 @@
 import { SEO } from "@/components/SEO";
+import { CurrentLegalVersionNote } from "@/components/site/LegalVersionNotes";
 import { COMPANY } from "@/data/company";
 import { pilotReplacementPolicy } from "@/lib/evaluationPricing";
 import { TERMS_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
@@ -116,6 +117,7 @@ export default function Terms() {
     <article className="ms-legal ms-container">
       <h1>Terms of Service</h1>
       <p>Effective {legalEffectiveDate(TERMS_VERSION)}</p>
+      <CurrentLegalVersionNote document="terms" />
       <p>
         These Terms are an agreement between you and {COMPANY.legalName} (&ldquo;Blueprint&rdquo;, &ldquo;we&rdquo;),{" "}
         {COMPANY.mailingAddress}. They apply to tryblueprint.io, the private job links we send, Blueprint accounts
