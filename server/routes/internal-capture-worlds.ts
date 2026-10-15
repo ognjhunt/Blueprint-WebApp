@@ -43,6 +43,7 @@ import {
 
 import { DEVELOPMENT_OFFERS, developmentOfferSchema } from "../utils/controlledDevelopmentOffer";
 import { isCaptureOwnerPath, type CaptureOwnerBody } from "../utils/captureOwnerRawBody";
+import { TEAM_CANDIDATE_QUICK10_PROFILE } from "../utils/policyIntegration";
 import { observeWebsiteCaptureOwner } from "../utils/websiteCaptureOwnerObservation";
 import { withWebsiteOwnerDeps } from "../utils/websiteCaptureOwnerTransport";
 import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent, type PreparedAssessmentProposal } from "../utils/siteAssessmentPreparation";
@@ -386,8 +387,11 @@ const agentExecutionOfferBody = z.object({
     scenario_id: z.string().trim().min(1).max(200),
     episode_count: z.number().int().min(1).max(100_000),
     episode_specs_sha256: z.string().regex(/^sha256:[0-9a-f]{64}$/),
-    policy_execution_profiles: z.array(z.enum(["controlled_observation_v1", "onnx_state_mlp_cpu_v1"])).max(2).optional(),
-  }).strict(),
+    policy_execution_profiles: z.array(z.enum(["controlled_observation_v1", "onnx_state_mlp_cpu_v1",
+      TEAM_CANDIDATE_QUICK10_PROFILE])).max(2).optional(),
+  }).strict().refine((offer) => !offer.policy_execution_profiles?.includes(TEAM_CANDIDATE_QUICK10_PROFILE)
+    // Beta L5: the Quick-10 team-candidate runtime is listed alone and runs exactly ten episodes.
+    || (offer.policy_execution_profiles.length === 1 && offer.episode_count === 10)),
 }).strict();
 
 router.post(

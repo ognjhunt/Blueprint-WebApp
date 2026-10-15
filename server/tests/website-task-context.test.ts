@@ -157,6 +157,14 @@ it("stores the Pipeline's execution offer only for the signed, matching capture"
     expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer() })).status).toBe(200);
     expect(state.persisted.at(-1)).toMatchObject({ agent_execution_offer: { scenario_id: "capture_observed", episode_count: 50 } });
 
+    // Beta L5: the Pipeline lists the team-candidate Quick-10 runtime alone, for exactly ten episodes.
+    const team = { policy_execution_profiles: ["policy_canary_quick10_team_candidate_v1"], episode_count: 10 };
+    expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer(team) })).status).toBe(200);
+    expect(state.persisted.at(-1)).toMatchObject({ agent_execution_offer: team });
+    expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer({ ...team, episode_count: 50 }) })).status).toBe(400);
+    expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer({ ...team,
+      policy_execution_profiles: ["controlled_observation_v1", "policy_canary_quick10_team_candidate_v1"] }) })).status).toBe(400);
+
     // A root for another capture, or one that climbs out of the partition, is refused.
     expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer({ capture_root: "/srv/partition/scenes/site-req1/captures/other" }) })).status).toBe(409);
     expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer({ capture_root: "/srv/../etc/scenes/site-req1/captures/walkthrough-req1" }) })).status).toBe(409);
