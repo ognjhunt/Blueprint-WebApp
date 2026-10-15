@@ -71,8 +71,9 @@ export default function PolicyInterfaceGuide() {
           (<code>Authorization: Bearer bpk_…</code>): <code>POST /api/agent-team/checkpoints</code> with{" "}
           <code>{`{"label": "…", "runtime": "policy_endpoint", "reference": "https://…"}`}</code>, then{" "}
           <code>POST /api/agent-team/checkpoints/&lt;checkpointId&gt;/credentials</code> with{" "}
-          <code>{`{"kind": "bearer", "token": "<your policy token>"}`}</code>. The token is stored encrypted
-          and never shown again.
+          <code>{`{"kind": "bearer", "token": "<your policy token>"}`}</code>. The token is stored encrypted,
+          never shown again, and lasts 30 days: post it to the same path again to renew it before then, or
+          the evaluation is refused.
         </li>
         <li>
           Save a setup here with delivery &ldquo;Hosted endpoint&rdquo; and that same URL as its reference, plus
