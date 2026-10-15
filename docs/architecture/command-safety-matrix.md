@@ -7,8 +7,8 @@ Purpose: make local checks and side-effect boundaries explicit before engineers 
 ## Safe Local Checks
 
 `npm run email:account-notice -- --input notice.json` writes a private local
-branded preview only and does not load Firebase, transport credentials, or a
-sender. Adding `--enqueue` creates live account-notice delivery intent; the
+branded preview and eligible/excluded/held audit using read-only Firebase Auth
+and `users` record reads. It does not load a sender or call an email provider. Adding `--enqueue --reviewed selection.json` creates live account-notice delivery intent; the
 existing outbox pump may send it without another command. That flag requires
 explicit approval for the exact notice and recipient list. See
 [`account-notice-email.md`](../runbooks/account-notice-email.md).

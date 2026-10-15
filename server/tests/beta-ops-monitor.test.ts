@@ -6,7 +6,6 @@ vi.mock("../utils/slack", () => ({ sendSlackMessage: vi.fn(async () => ({ sent: 
 vi.mock("../utils/email", () => ({ sendEmail: vi.fn(async () => ({ sent: true })) }));
 
 import { __resetBetaOpsMonitorForTests, scanTerminalOutboxFailures, startBetaOpsMonitor } from "../utils/betaOpsMonitor";
-import { prepareAccountNotice } from "../utils/accountNotice";
 
 function outboxStore(entries: Array<{ id: string; data: Record<string, unknown> }>) {
   const markers = new Map<string, Record<string, unknown>>();
@@ -74,8 +73,8 @@ describe("terminal outbox failure scan", () => {
   });
 
   it("identifies the exact account-notice intent and receipts without a nonexistent lead link", async () => {
-    const { entry } = prepareAccountNotice({ noticeId: "synthetic-notice-v1",
-      to: "account@example.invalid", subject: "Synthetic account update", body: "Private synthetic copy" });
+    const entry = { idempotencyKey: "account_notice:synthetic-notice-v1:recipient-digest", requestId: "account-notice:synthetic-notice-v1",
+      kind: "account_notice", to: "account@example.invalid", subject: "Synthetic account update", body: "Private synthetic copy" };
     const store = outboxStore([{ id: entry.idempotencyKey, data: { ...entry, status: "failed", lastError: "delivery_attempt_budget_exhausted" } }]);
     const alert = vi.fn(async () => undefined);
     const email = vi.fn(async () => ({ sent: true }));
