@@ -26,7 +26,6 @@ import appleAssociationRouter from "./routes/apple-app-site-association";
 import stripeAccountRouter from "./routes/stripe";
 import operatorStatusRouter from "./routes/operator-status";
 import workspaceRouter from "./routes/workspace";
-import pilotOpportunitiesRouter from "./routes/pilot-opportunities";
 import creatorRouter from "./routes/creator";
 import contactTaskMediaHandler from "./routes/contact-task-media";
 import waitlistHandler from "./routes/waitlist";
@@ -398,6 +397,5 @@ export function registerRoutes(app: Express) {
   app.use("/api/workspace/checkpoints", csrfProtection, verifyFirebaseToken, workspaceCheckpointsRouter);
   app.use("/api/workspace", csrfProtection, verifyFirebaseToken, workspaceRouter);
   app.use("/api/operator-status", csrfProtection, verifyFirebaseToken, operatorStatusRouter);
-  app.use("/api/pilot-opportunities", csrfProtection, verifyFirebaseToken, pilotOpportunitiesRouter);
   app.use("/api/city-launch", csrfProtection, verifyFirebaseToken, cityLaunchRouter);
 }
