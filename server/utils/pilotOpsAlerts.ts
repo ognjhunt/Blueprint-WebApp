@@ -1,7 +1,8 @@
 /**
  * Two bells for ops, on the channel ops already reads.
  *
- * - A site booked its recommended pilot: Blueprint now owns coordination.
+ * - A site booked its recommended pilot: each side has been sent the other's
+ *   contact, and they agree dates and terms directly.
  * - A robot team asked to evaluate a job: the free evaluation waits on a
  *   founder's admission (`/api/admin/free-evaluations/:requestId/admit`).
  *
@@ -50,7 +51,7 @@ async function ringOnce(key: string, text: string): Promise<{ sent: boolean; rea
 export function pilotBookedAlertText(params: { requestId: string; recommendationId: string; teamId: string }): string {
   return `:handshake: *Site booked its recommended pilot* — job \`${safeId(params.requestId)}\`, `
     + `recommendation \`${safeId(params.recommendationId)}\`, team \`${safeId(params.teamId)}\`. `
-    + `Blueprint owns coordination next.\nOpen: ${appUrl()}/admin/robot-team-access?job=${encodeURIComponent(safeId(params.requestId))}`;
+    + `Contacts go to both sides; the site and team agree dates and terms directly.\nOpen: ${appUrl()}/admin/robot-team-access?job=${encodeURIComponent(safeId(params.requestId))}`;
 }
 
 export async function alertOpsPilotBooked(params: { requestId: string; recommendationId: string; teamId: string }) {

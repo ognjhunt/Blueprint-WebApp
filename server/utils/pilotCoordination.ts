@@ -14,11 +14,12 @@ export function projectPilotCoordination(record: Record<string, any> | null | un
     && typeof agreement.sitePreparation === "string" && agreement.sitePreparation.trim().length > 0;
   return {
     state: scheduled ? "scheduled" : "awaiting_coordination",
-    owner: "Blueprint",
+    // The site and the team agree the pilot directly (owner decision 2026-10-15).
+    owner: "site_and_team",
     nextAction: proposal.reviewRequired
-      ? "Blueprint must reconcile the changed job with the accepted scope before arranging a pilot."
+      ? "The job changed after booking. Blueprint must review the change against the booked scope."
       : scheduled ? "Follow the agreed site-preparation responsibilities. Any change to the date, scope or cost needs the applicable approval."
-        : "Blueprint must confirm the provider and site agreement, date and preparation responsibilities. No date is reserved yet.",
+        : "You and the robot team agree the pilot's dates and terms directly. No date is reserved yet.",
     ...(scheduled ? { startsAt: agreement.startsAt, endsAt: agreement.endsAt, sitePreparation: agreement.sitePreparation } : {}),
     feeUsd: acceptance.amountUsd,
     commercialBasis: acceptance.commercialBasis,

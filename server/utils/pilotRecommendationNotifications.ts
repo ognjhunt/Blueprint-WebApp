@@ -4,6 +4,7 @@ import type { OutboxEntry } from "./captureOutbox";
 import { decryptFieldValue } from "./field-encryption";
 import { buildTaskLifecycleNotification } from "./taskLifecycleNotifications";
 import { projectPilotCoordination } from "./pilotCoordination";
+import { pilotConsentRefusal } from "./pilotContactExchange";
 
 export function pilotRecommendationEventId(recommendationId: string, recipient: string): string {
   // Bind each authorized notification to both the recommendation and its
@@ -48,6 +49,8 @@ export async function pilotRecommendationNotificationIsCurrent(
     if (projectPilotCoordination(record)?.state !== "scheduled") return false;
   } else if (entry.kind === "pilot_booked") {
     if (record?.pilot_booking?.recommendationId !== recommendation.id) return false;
+    // It carries the team's contact: never send once either consent is withdrawn.
+    if ((await pilotConsentRefusal(record, transaction)).refusal) return false;
   } else if (record?.pilot_booking || recommendation.reviewRequired) return false;
   const to = String(await decryptFieldValue(record?.contact?.email ?? "")).trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to) || to !== entry.to) return false;
@@ -105,6 +108,8 @@ export async function teamPilotNotificationIsCurrent(entry: OutboxEntry, transac
   const snapshot = await transaction.get(db.collection("inboundRequests").doc(entry.requestId));
   const event = currentTeamPilotEvent(snapshot.data(), entry.kind as TeamPilotNoticeKind);
   if (!snapshot.exists || !event) return false;
+  // The booked notice carries the site's contact: never send once either consent is withdrawn.
+  if (entry.kind === "team_pilot_booked" && (await pilotConsentRefusal(snapshot.data(), transaction)).refusal) return false;
   const team = await transaction.get(db.collection("robotTeams").doc(event.teamId));
   const to = teamNoticeRecipient(team.data());
   if (!to || to !== entry.to) return false;

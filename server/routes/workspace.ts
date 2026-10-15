@@ -69,6 +69,7 @@ import { accountHasAdmission } from "../utils/accountInvitations";
 import { resolveAccessContext } from "../utils/access-control";
 import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
+import { projectPilotBooking } from "../utils/pilotContactExchange";
 
 const router = Router();
 const id = z
@@ -632,6 +633,8 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
       .catch(() => logger.warn("Site advisory workspace return wake unavailable"));
   }
   if (consentRevoked) task.status = "Recording consent withdrawn";
+  // The booked pilot with the robot team's contact, while both consents stand.
+  task.pilotBooking = await projectPilotBooking(record, "site").catch(() => null);
   return task;
 }
 async function listSetups(uid: string): Promise<RobotSetup[]> {
@@ -684,17 +687,29 @@ router.get(
       .limit(200)
       .get();
     const evaluations: WorkspaceEvaluation[] = [];
+    // A booked pilot is shown, with the site's contact, only to the team it
+    // was recommended with.
+    const callerTeamIds = new Set((await teamsForAccount(caller.uid)).map((team) => team.id));
+    const bookedWithCaller = async (record: Record<string, any>) => {
+      const recommendation = object(record.pilot_recommendation);
+      const teamIds = [recommendation.teamId, ...(Array.isArray(recommendation.registryTeamIds) ? recommendation.registryTeamIds : [])];
+      return teamIds.some((teamId) => typeof teamId === "string" && callerTeamIds.has(teamId))
+        ? projectPilotBooking(record, "team").catch(() => null)
+        : null;
+    };
     for (const item of requests.filter(
       (item) => item.record.workspace_evaluation,
     )) {
       const application = object(item.record.workspace_evaluation);
       let task: WorkspaceTask | null = null;
+      let pilotBooking: Awaited<ReturnType<typeof projectPilotBooking>> = null;
       try {
         const source = await readRequest(text(application.opportunityId));
         task = projectWorkspaceTask(
           text(application.opportunityId),
           source.record,
         );
+        pilotBooking = await bookedWithCaller(source.record);
       } catch (error) {
         if ((error as any).status !== 404) throw error;
       }
@@ -760,6 +775,7 @@ router.get(
           "pilot_complete",
         ].includes(outcome || ""),
         createdAt: iso(item.record.createdAt),
+        pilotBooking,
       });
     }
     for (const run of runs.docs.filter(
@@ -1434,6 +1450,8 @@ router.post(
       .parse(req.body);
     if (input.action === "invite" && !input.siteVisitAnswer)
       refuse(400, "Say whether the selected robot team could work on site before inviting a pilot.");
+    if (input.action === "invite" && projectWebsiteCaptureRights(item.record).consent_revoked)
+      refuse(409, "Recording permission for this job was withdrawn, so a pilot can no longer be arranged.", "site_consent_withdrawn");
     const task = await hydrateTask(req.params.taskId, item.record);
     const selected = task.results.find(
       (result) => result.id === input.resultId,
@@ -1524,7 +1542,7 @@ router.post(
       ok: true,
       message:
         input.action === "invite"
-          ? "Pilot team selected. Blueprint will coordinate the invitation and terms."
+          ? "Pilot team selected. Blueprint passes on your invitation; you and the team agree the pilot's dates and terms directly."
           : "Outcome recorded.",
     });
   }),

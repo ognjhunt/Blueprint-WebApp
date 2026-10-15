@@ -9,8 +9,11 @@
  * retry cannot produce a second email and a replaced recommendation cannot
  * deliver a stale one (`teamPilotNotificationIsCurrent` re-checks at send).
  *
- * The bodies carry job ids and the team's own evaluation numbers, never the
- * site's contact details.
+ * The bodies carry job ids and the team's own evaluation numbers. Only the
+ * booked notice carries the site's contact: the site and the team agree the
+ * pilot directly (owner decision 2026-10-15), and dispatch cancels it if
+ * either side's consent was withdrawn before it is sent
+ * (`pilotContactExchange`).
  */
 import { COMPANY } from "../../client/src/data/company";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -18,6 +21,7 @@ import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION, type OutboxEntry, type Out
 import { EMAIL_SIGN_OFF } from "./emailLayout";
 import { SIMULATION_EVIDENCE_BOUNDARY, type PilotRecommendationEvidence } from "./pilotRecommendationEvidence";
 import { teamNoticeRecipient, teamPilotNoticeKey, type TeamPilotNoticeKind } from "./pilotRecommendationNotifications";
+import { formatPilotContact, type PilotContact } from "./pilotContactExchange";
 
 const APP_URL = () => (process.env.APP_URL || COMPANY.website).replace(/\/+$/, "");
 
@@ -42,6 +46,8 @@ export function teamPilotNoticeBody(params: {
   requestId: string;
   recommendation: RecommendationForNotice;
   startsAt?: string | null;
+  /** `team_pilot_booked` only: the site's contact, shared at booking. */
+  siteContact?: PilotContact | null;
 }): { subject: string; body: string } {
   const jobUrl = `${APP_URL()}/app/opportunities/${encodeURIComponent(params.requestId)}`;
   const evidence = params.recommendation.evidence;
@@ -59,7 +65,7 @@ export function teamPilotNoticeBody(params: {
       body: ["Hi,",
         `Blueprint recommended your team to a site as its one pilot for job ${params.requestId}.`,
         ...(evidenceLine ? [evidenceLine] : []), ...(scope ? [scope] : []),
-        "The site decides whether to book it. We will email you if it does. Nothing is needed from you yet.",
+        "The site decides whether to book it. If it does, we email you the site's contact so you can agree the pilot's dates and terms with the site directly. Nothing is needed from you yet.",
         BETA_FREE_LINE, ...close].join("\n\n"),
     };
   }
@@ -68,7 +74,8 @@ export function teamPilotNoticeBody(params: {
       subject: "A site booked your recommended pilot",
       body: ["Hi,",
         `The site booked the pilot Blueprint recommended with your team for job ${params.requestId}.`,
-        "Next, Blueprint coordinates the agreement, a confirmed date and preparation responsibilities with your team and the site. No date is reserved yet.",
+        "You and the site agree the pilot's dates and terms directly. No date is reserved yet.",
+        ...(params.siteContact ? [`Site contact:\n${formatPilotContact(params.siteContact)}`] : []),
         ...(evidenceLine ? [evidenceLine] : []), BETA_FREE_LINE, ...close].join("\n\n"),
     };
   }
@@ -91,6 +98,7 @@ export function buildTeamPilotNotification(params: {
   /** The Calendar event, for `team_pilot_scheduled`. */
   calendarEventId?: string;
   startsAt?: string | null;
+  siteContact?: PilotContact | null;
 }): OutboxInput {
   const eventKey = params.kind === "team_pilot_scheduled" ? String(params.calendarEventId ?? "") : params.recommendation.id;
   const { subject, body } = teamPilotNoticeBody(params);

@@ -144,11 +144,12 @@ describe("pilot and listing notices describe the free beta", () => {
     expect(notice.body).not.toMatch(/accept the proposal/i);
   });
 
-  it("confirms a booking, keeps Blueprint as coordinator, and states no Blueprint fee", async () => {
+  it("confirms a booking, leaves the agreement to the site and team, and states no Blueprint fee", async () => {
     const free = await build("pilot_booked", "invited_beta_free");
     expect(free.subject).toBe("Your pilot is booked");
     expect(free.body).toMatch(/^Your booking is recorded\./);
-    expect(free.body).toContain("Blueprint owns that next step.");
+    expect(free.body).toContain("You and the robot team agree the pilot's dates and terms directly.");
+    expect(free.body).not.toMatch(/Blueprint owns/);
     expect(free.body).toContain("Blueprint charges nothing during the beta; the pilot's cost is agreed with the robot team.");
     // A pre-beta booking keeps its accepted terms; the email neither restates a fee nor waives one.
     const historical = await build("pilot_booked");

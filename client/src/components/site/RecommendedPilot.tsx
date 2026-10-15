@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { formatPrice } from "@/lib/evaluationPricing";
 import { TaskClarification } from "./TaskClarification";
+import { PilotBookingDetails } from "./PilotBookingDetails";
+import type { PilotBookingView } from "@/types/workspace";
 
 type JobDecision = { recommendation: string; why: string; decisiveUncertainty: string; nextAction: string; question?: { text: string; reason: string } | null };
 
@@ -29,6 +31,7 @@ type EvaluationEvidence = {
 };
 
 const BETA_FREE = "Blueprint charges nothing during the beta; the pilot's cost is agreed with the robot team.";
+const DIRECT_AGREEMENT = "You and the robot team agree the pilot's dates and terms directly. No date is reserved yet.";
 const percent = (fraction: number) => `${Math.round(fraction * 1000) / 10}%`;
 
 function EvidenceLine({ teamName, evidence }: { teamName: string; evidence: EvaluationEvidence }) {
@@ -54,6 +57,7 @@ function RecommendedPilotForToken({ token }: { token: string }) {
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [decision, setDecision] = useState<JobDecision | null>(null);
   const [booked, setBooked] = useState(false);
+  const [pilotBooking, setPilotBooking] = useState<PilotBookingView | null>(null);
   const [coordination, setCoordination] = useState<{ state: string; nextAction: string; startsAt?: string; sitePreparation?: string; feeUsd?: number; commercialBasis?: string } | null>(null);
   const [authorized, setAuthorized] = useState(false);
   const [state, setState] = useState<"idle" | "booking" | "error">("idle");
@@ -64,12 +68,13 @@ function RecommendedPilotForToken({ token }: { token: string }) {
     let active = true;
     fetch(`/api/task-listings/owner/${encodeURIComponent(token)}`).then(async r => {
       if (!r.ok) return;
-      const { recommendation: saved, booking, coordination: progress, decision: reviewedDecision } = await r.json();
+      const { recommendation: saved, booking, coordination: progress, decision: reviewedDecision, pilotBooking: bookedView } = await r.json();
       if (!active) return;
       setRecommendation(saved ?? null);
       setDecision(reviewedDecision ?? null);
       setCoordination(progress ?? null);
       setBooked(Boolean(saved && booking?.recommendationId === saved.id));
+      setPilotBooking(bookedView ?? null);
     }).catch(() => undefined);
     return () => { active = false; };
   }, [token]);
@@ -91,7 +96,8 @@ function RecommendedPilotForToken({ token }: { token: string }) {
         return;
       }
       setBooked(true);
-      setCoordination(body.coordination ?? { state: "awaiting_coordination", nextAction: "Blueprint must confirm provider and site agreement, the date and preparation responsibilities. No date is reserved yet." });
+      setCoordination(body.coordination ?? { state: "awaiting_coordination", nextAction: DIRECT_AGREEMENT });
+      setPilotBooking(body.pilotBooking ?? null);
       setState("idle");
     } catch {
       setMessage("We could not confirm acceptance. Reopen your job page to check its status before trying again, or email hello@tryblueprint.io.");
@@ -136,7 +142,8 @@ function RecommendedPilotForToken({ token }: { token: string }) {
       {recommendation.reviewRequired && <p role="alert">The job changed. Blueprint must review this proposal against the new brief before any new commitment.</p>}
       {booked ? (
         <div role="status"><p>{coordination?.state === "scheduled" ? `Scheduled: ${new Date(coordination.startsAt!).toLocaleString()}.` : "Pilot booked · awaiting coordination."}</p>
-          <p>{coordination?.nextAction || "Blueprint must confirm provider and site agreement, date and preparation responsibilities. No date is reserved yet."}</p>
+          <p>{coordination?.nextAction || DIRECT_AGREEMENT}</p>
+          {pilotBooking && <PilotBookingDetails booking={pilotBooking} other="robot team" showAgreement={false} />}
           {coordination?.sitePreparation && <p>{coordination.sitePreparation}</p>}
           <p>{coordination?.feeUsd === 0 ? BETA_FREE : typeof coordination?.feeUsd === "number" ? `Previously agreed Blueprint fee: ${formatPrice(coordination.feeUsd)}, due when the pilot is booked. Your accepted terms remain on file.` : "Your previously accepted commercial terms remain on file; this page has no verified price to display."}</p>
         </div>
@@ -149,7 +156,7 @@ function RecommendedPilotForToken({ token }: { token: string }) {
           <button className="ms-button" disabled={state === "booking" || recommendation.reviewRequired}>
             {state === "booking" ? "Booking…" : "Book this pilot"}
           </button>
-          <p className="ms-field-hint">Booking records your decision on this recommendation. A physical pilot still needs provider and site agreement, a confirmed date and agreed preparation responsibilities. New cost, scope or disclosure needs its applicable approval.</p>
+          <p className="ms-field-hint">When you book, Blueprint sends the robot team your name, company and email, and sends you the team's contact. You and the team then agree the pilot's dates, preparation and terms directly; Blueprint takes no cut.</p>
           {state === "error" && <p role="alert">{message}</p>}
         </form>
       )}

@@ -70,6 +70,21 @@ describe("the recommended pilot", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
+  it("shows the robot team's contact once booked, and withholds it after a withdrawal", async () => {
+    const contact = { name: null, organization: "Acme Robotics", email: "team@example.test", phone: null };
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation, booking: { recommendationId: "rec_1" },
+      pilotBooking: { bookedAtIso: "2026-10-15T00:00:00Z", contact, consentWithdrawn: false } }) });
+    const { unmount } = render(<RecommendedPilot token="tok" />);
+    expect(await screen.findByRole("status")).toHaveTextContent(/agree the pilot's dates and terms directly/);
+    expect(screen.getByRole("link", { name: "team@example.test" })).toHaveAttribute("href", "mailto:team@example.test");
+    unmount();
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation, booking: { recommendationId: "rec_1" },
+      pilotBooking: { bookedAtIso: "2026-10-15T00:00:00Z", contact: null, consentWithdrawn: true } }) });
+    render(<RecommendedPilot token="tok" />);
+    expect(await screen.findByRole("status")).toHaveTextContent(/contact details are no longer shared/);
+    expect(screen.queryByText("team@example.test")).toBeNull();
+  });
+
   it("requires explicit authorization even for a programmatic form submission", async () => {
     fetchMock.mockResolvedValueOnce(loaded());
     render(<RecommendedPilot token="tok" />);

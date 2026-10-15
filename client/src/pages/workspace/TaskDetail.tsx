@@ -1,4 +1,5 @@
 import { SiteAdvisoryReport } from "@/components/site/SiteAdvisoryReport";
+import { PilotBookingDetails } from "@/components/site/PilotBookingDetails";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
 import { useWorkspace, dateLabel, money, statusLabel } from "@/lib/workspace";
@@ -334,14 +335,20 @@ export default function TaskDetail() {
               <section className="ws-task-pilot ws-section">
                 <div>
                   <h2>
-                    {task.pilot.selectedResultId
-                      ? statusLabel(task.pilot.state)
-                      : "Pilot"}
+                    {task.pilotBooking
+                      ? "Pilot booked"
+                      : task.pilot.selectedResultId
+                        ? statusLabel(task.pilot.state)
+                        : "Pilot"}
                   </h2>
-                  <p className="ws-muted">
-                    {task.pilot.notes ||
-                      "We review these results and send you one recommended pilot. You book it from your task page."}
-                  </p>
+                  {task.pilotBooking ? (
+                    <PilotBookingDetails booking={task.pilotBooking} other="robot team" />
+                  ) : (
+                    <p className="ws-muted">
+                      {task.pilot.notes ||
+                        "We review these results and send you one recommended pilot. You book it from your task page."}
+                    </p>
+                  )}
                   {task.pilot.siteVisitAnswer && (
                     <p className="ws-note">Robot-team site access: {optionLabel(siteVisitOptions, task.pilot.siteVisitAnswer)}. A visit still needs separate approval and agreed terms.</p>
                   )}
@@ -351,7 +358,7 @@ export default function TaskDetail() {
                     <p className="ws-note">Outcome recorded by your site.</p>
                   )}
                 </div>
-                {!task.archived && !task.pilot.selectedResultId && (
+                {!task.archived && !task.pilot.selectedResultId && !task.pilotBooking && (
                   <button
                     className="ws-link"
                     type="button"
@@ -410,11 +417,19 @@ export default function TaskDetail() {
                   {linkState === "working" ? "Opening…" : "Add or review footage"}
                 </button>
               )}
-              {task.recordingPermissionWithdrawn ? <p role="status">{task.recordingWithdrawalStatus === "deletion_confirmed"
-                ? "Recording permission withdrawn. Your stored footage has been deleted. Results already produced may be retained as described in our Terms."
-                : "Recording permission withdrawn. New uploads and queued evaluations are stopped. Deletion of stored footage is in progress."}</p> : <details className="mt-4">
+              {task.recordingPermissionWithdrawn ? <p role="status">
+                Recording permission withdrawn. Blueprint stops further processing and use of this recording: new uploads
+                are refused, the job is paused, queued evaluations were asked to cancel and robot teams can no longer see the job.
+                Withdrawal is not deletion: a copy of the recording and any results already produced are retained, and handled
+                as our <a className="ws-link" href="/privacy">Privacy Policy</a> describes.
+              </p> : <details className="mt-4">
                 <summary>Withdraw recording permission</summary>
-                <p>This stops new uploads and requests cancellation of queued evaluations. Blueprint must confirm pipeline processing has stopped and data cleanup is complete.</p>
+                <p>
+                  This stops Blueprint's further processing and use of this recording: new uploads are refused, the job is
+                  paused, queued evaluations are asked to cancel and robot teams can no longer see the job. Withdrawal is not
+                  deletion: a copy of the recording and any results already produced are retained, and handled as
+                  our <a className="ws-link" href="/privacy">Privacy Policy</a> describes.
+                </p>
                 <button type="button" className="ws-link" disabled={action.pending}
                   onClick={() => void action.perform(`${endpoint}/recording-consent/withdraw`, {})}>Withdraw permission</button>
               </details>}
@@ -605,7 +620,7 @@ export default function TaskDetail() {
             >
               <p>
                 {pilotAction === "invite"
-                  ? "Blueprint will coordinate the invitation. Pilot scope, pricing, and terms must be agreed before work starts."
+                  ? "Blueprint passes on your invitation. You and the robot team agree pilot scope, dates and terms directly before work starts."
                   : "Record the site's decision and any notes. This doesn't change evaluation scores."}
               </p>
               <Feedback error={action.error} />

@@ -52,7 +52,7 @@ router.post("/tasks/:taskId/interest", csrfProtection, verifyFirebaseToken, asyn
       if (prior && humanDecisionDigest({ ...prior, updatedAtIso: null }) === humanDecisionDigest({ ...row, updatedAtIso: null })) return;
       tx.set(interestRef, row);
     });
-    return res.json({ ok: true, state: input.data.state, nextAction: input.data.state === "committed" ? "Blueprint must still verify the site's agreement, confirmed date and preparation responsibilities." : "Blueprint will review your inputs. Interest reserves no capacity and creates no physical commitment." });
+    return res.json({ ok: true, state: input.data.state, nextAction: input.data.state === "committed" ? "Your commitment is recorded. If the site books this pilot, you receive its contact details and agree the dates and terms with the site directly." : "Blueprint will review your inputs. Interest reserves no capacity and creates no physical commitment." });
   } catch { return res.status(409).json({ error: "The job changed or your decision could not be saved. Reopen the job before trying again." }); }
 });
 

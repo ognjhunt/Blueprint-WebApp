@@ -41,6 +41,24 @@ export type WorkspaceResult = {
   selected: boolean;
   runId?: string | null;
 };
+/** One side's contact, as the other side receives it when the site books. */
+export type PilotContact = {
+  name: string | null;
+  organization: string | null;
+  email: string;
+  /** Only when the site gave one. */
+  phone: string | null;
+};
+/**
+ * A booked pilot as one side sees it (server: pilotContactExchange). The other
+ * side's contact is present only while the site's and the team's consents both
+ * stand; dates and terms are agreed directly between the site and the team.
+ */
+export type PilotBookingView = {
+  bookedAtIso: string | null;
+  contact: PilotContact | null;
+  consentWithdrawn: boolean;
+};
 export type CaptureVisit = {
   id: string;
   status: string;
@@ -85,6 +103,8 @@ export type WorkspaceTask = {
     notes: string | null;
     siteVisitAnswer?: SiteVisitAnswer | null;
   };
+  /** The site booked Blueprint's recommended pilot; carries the team's contact. */
+  pilotBooking?: PilotBookingView | null;
   /**
    * Where the task stands on the assessment ladder, when it is a site task.
    *
@@ -124,6 +144,8 @@ export type WorkspaceEvaluation = WorkspaceResult & {
   outcome: string | null;
   archived: boolean;
   createdAt: string | null;
+  /** The site booked the pilot Blueprint recommended with this team; carries the site's contact. */
+  pilotBooking?: PilotBookingView | null;
 };
 export type WorkspaceSnapshot = {
   role: WorkspaceRole;

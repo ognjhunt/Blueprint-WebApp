@@ -3,9 +3,12 @@
  *
  * A site that never made an account holds only this link, so withdrawal has to
  * be reachable here, not only from the account workspace. The server performs
- * the same withdrawal either way. This panel says only what the server has
- * recorded: uploads stop at once; stored footage is deleted by a background
- * worker, and the panel says it is deleted only once the server confirms it.
+ * the same withdrawal either way (recordWebsiteCaptureWithdrawal). This panel
+ * says only what that does: Blueprint stops further processing and use of the
+ * recording, uploads are refused, the job pauses, queued evaluations are asked
+ * to cancel, and robot teams can no longer see the job. Withdrawal is not
+ * deletion: the raw capture is retained under the Pipeline's retention policy,
+ * as the Privacy Policy describes, so the panel never says it was deleted.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -35,29 +38,24 @@ function formatDate(iso: string | null) {
   return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 
+const RETAINED = (
+  <>Withdrawal is not deletion: a copy of the recording and any results already produced are retained, and handled
+    as our <a href="/privacy">Privacy Policy</a> describes.</>
+);
+
 export function WithdrawalStatusMessage({ status }: { status: OwnerWithdrawalStatus }) {
-  if (status.deletionConfirmed) {
-    return (
-      <div role="status">
-        <p><strong>Recording permission withdrawn. Your stored footage has been deleted.</strong></p>
-        <p className="ms-field-hint">
-          Deletion was confirmed{formatDate(status.storageDeletion.completedAtIso) ? ` on ${formatDate(status.storageDeletion.completedAtIso)}` : ""}.
-          Results already produced may be retained as described in our <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.
-        </p>
-      </div>
-    );
-  }
-  const detail = status.legalHold
-    ? "Deletion is on hold because some records must be kept for a legal reason. We will tell you what we kept and why."
-    : status.storageDeletion.state === "deleted_late_upload_check_pending"
-      ? `Stored footage has been removed. A final check for app uploads that were already under way runs${formatDate(status.storageDeletion.lateUploadCheckAtIso) ? ` on ${formatDate(status.storageDeletion.lateUploadCheckAtIso)}` : " within a week"}; we confirm deletion after it.`
-      : status.storageDeletion.state === "deleted"
-        ? "Stored footage has been removed. We confirm deletion once our processing system acknowledges the withdrawal."
-        : "This page will show when deletion is confirmed.";
+  const requested = formatDate(status.requestedAtIso);
   return (
     <div role="status">
-      <p><strong>Uploads stopped. Deletion of stored footage is in progress.</strong></p>
-      <p className="ms-field-hint">This job is paused and queued evaluations have been asked to cancel. {detail}</p>
+      <p><strong>Recording permission withdrawn.</strong></p>
+      <p className="ms-field-hint">
+        {requested ? `Withdrawn on ${requested}. ` : ""}Blueprint stops further processing and use of this recording: new uploads are refused,
+        this job is paused, queued evaluations were asked to cancel and robot teams can no longer see the job.{" "}
+        {status.pipelineAcknowledged
+          ? "Our processing system has confirmed it will no longer process or serve the recording."
+          : "Our processing system is being told to stop; this page updates when it confirms."}
+      </p>
+      <p className="ms-field-hint">{RETAINED}</p>
     </div>
   );
 }
@@ -82,7 +80,7 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn }: { token: string
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
-    if (!status || status.deletionConfirmed) return;
+    if (!status || status.pipelineAcknowledged) return;
     const timer = setInterval(() => { void refresh(); }, POLL_MS);
     return () => clearInterval(timer);
   }, [status, refresh]);
@@ -116,8 +114,8 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn }: { token: string
         <details className="ms-task-interest">
           <summary>Withdraw recording permission</summary>
           <p>
-            Withdrawing stops new uploads for this job, pauses it, and asks for any queued evaluations to be cancelled.
-            Blueprint then deletes the footage stored for this job. Results already produced may be retained as described in our <a href="/terms">Terms</a>.
+            Withdrawing stops Blueprint's further processing and use of this recording: new uploads are refused, this job
+            is paused, queued evaluations are asked to cancel and robot teams can no longer see the job. {RETAINED}
           </p>
           {!confirming && (
             <button type="button" className="ms-button" onClick={() => { setError(null); setConfirming(true); }}>
@@ -128,8 +126,8 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn }: { token: string
             <div role="alertdialog" aria-modal="false" aria-labelledby="withdraw-confirm-title" aria-describedby="withdraw-confirm-body">
               <h3 id="withdraw-confirm-title">Withdraw recording permission?</h3>
               <p id="withdraw-confirm-body">
-                This cannot be undone from this page. Uploads stop now and stored footage for this job will be deleted.
-                To add footage later, you would need to start a new job.
+                This cannot be undone from this page. Uploads stop now and Blueprint stops processing and using this
+                recording. To add footage later, you would need to start a new job.
               </p>
               <button ref={confirmButton} type="button" className="ms-button" disabled={submitting} onClick={() => void withdraw()}>
                 {submitting ? "Withdrawing…" : "Yes, withdraw permission"}

@@ -26,6 +26,7 @@ const listingRouter = (await import("../routes/task-listings")).default;
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 
 const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
+const { withdrawSupplyAgreement } = await import("../utils/robotTeamSupply");
 const plan = {
   evaluationRunId: "run_pass",
   purpose: "Test carton palletizing at line 3", siteProvides: "One escort", teamProvides: "Robot and operation",
@@ -597,6 +598,62 @@ describe("recording Blueprint's recommended pilot", () => {
       // The recommended notice is superseded by the booking; booked and scheduled send.
       expect(teamSubjects.sort()).toEqual(["A site booked your recommended pilot", "Your pilot is scheduled"]);
     } finally { delete process.env.SLACK_WEBHOOK_URL; }
+  });
+
+  /* ------------------------- contact exchange at booking (owner decision 2026-10-15) */
+
+  const ownerToken = () => createCaptureUploadToken({ requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", scope: "owner" });
+  const bookPilot = (recommendationId: string) => fetch(`${base}/owner/${ownerToken()}/book`, { method: "POST",
+    headers: { "content-type": "application/json" }, body: JSON.stringify({ recommendationId, authorized: true }) });
+  const teamWithdraws = () => {
+    const withdrawn = withdrawSupplyAgreement(state.docs.get("robotTeams/engaged") as never,
+      { withdrawnOn: "2026-10-14", evidenceRef: "signed-note:synthetic-withdrawal" }, "synthetic-reviewer", "2026-10-15T00:00:00.000Z");
+    if (!withdrawn.ok) throw new Error(withdrawn.problem);
+    state.docs.set("robotTeams/engaged", withdrawn.record as never);
+  };
+
+  it("refuses booking with a typed code once the site or the team has withdrawn", async () => {
+    const { id } = await (await post(plan)).json() as { id: string };
+    const job = state.docs.get("inboundRequests/req1")!;
+    state.docs.set("inboundRequests/req1", { ...job, consent_revoked: true, future_processing_allowed: false });
+    const siteWithdrawn = await bookPilot(id);
+    expect(siteWithdrawn.status).toBe(409);
+    expect(await siteWithdrawn.json()).toMatchObject({ code: "site_consent_withdrawn" });
+    state.docs.set("inboundRequests/req1", job);
+    teamWithdraws();
+    const teamWithdrawn = await bookPilot(id);
+    expect(teamWithdrawn.status).toBe(409);
+    expect(await teamWithdrawn.json()).toMatchObject({ code: "team_consent_withdrawn" });
+    expect(state.docs.get("inboundRequests/req1")?.pilot_booking).toBeUndefined();
+    expect(teamRows("team_pilot_booked")).toHaveLength(0);
+  });
+
+  it("gives each side the other's contact only while both consents stand", async () => {
+    state.docs.set("inboundRequests/req1", { ...state.docs.get("inboundRequests/req1")!,
+      contact: { firstName: "Dana", lastName: "Reyes", company: "Fixture Foods", email: "owner@example.test" } });
+    const { id } = await (await post(plan)).json() as { id: string };
+    expect((await bookPilot(id)).status).toBe(200);
+    const bookedRows = () => [...state.docs.entries()].filter(([key, row]) => key.startsWith("captureOutbox/")
+      && key.split("/").length === 2 && row.kind === "pilot_booked").map(([, row]) => row);
+    const siteRow = bookedRows()[0];
+    expect(String(siteRow.body)).toContain("Robot team contact:\nAcme Robotics\nteam@example.test");
+    expect(String(siteRow.body)).toMatch(/agree the pilot's dates and terms directly/);
+    expect(String(siteRow.body)).not.toMatch(/owns that next step/);
+    expect(String(teamRows("team_pilot_booked")[0][1].body)).toContain("Site contact:\nDana Reyes, Fixture Foods\nowner@example.test");
+    const { projectPilotBooking } = await import("../utils/pilotContactExchange");
+    expect(await projectPilotBooking(state.docs.get("inboundRequests/req1"), "site"))
+      .toMatchObject({ consentWithdrawn: false, contact: { organization: "Acme Robotics", email: "team@example.test" } });
+    expect(await projectPilotBooking(state.docs.get("inboundRequests/req1"), "team"))
+      .toMatchObject({ consentWithdrawn: false, contact: { name: "Dana Reyes", email: "owner@example.test", phone: null } });
+    // The team withdraws between booking and send: neither contact goes out, and neither workspace shows one.
+    teamWithdraws();
+    await deliverOutbox();
+    const subjects = sendEmail.mock.calls.map(([message]) => (message as { subject: string }).subject);
+    expect(subjects).not.toContain("Your pilot is booked");
+    expect(subjects).not.toContain("A site booked your recommended pilot");
+    expect(bookedRows().map(row => row.status)).toEqual(["cancelled"]);
+    expect(teamRows("team_pilot_booked")[0][1].status).toBe("cancelled");
+    expect(await projectPilotBooking(state.docs.get("inboundRequests/req1"), "team")).toMatchObject({ consentWithdrawn: true, contact: null });
   });
 
 });

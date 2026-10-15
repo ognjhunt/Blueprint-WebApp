@@ -15,6 +15,7 @@ import { decryptFieldValue } from "./field-encryption";
 import { EMAIL_SIGN_OFF } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
+import { formatPilotContact, type PilotContact } from "./pilotContactExchange";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
@@ -55,7 +56,7 @@ export function reconstructionIsViewable(record: {
   });
 }
 
-const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string) => string }> = {
+const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, counterpart: string) => string }> = {
   preparation_needs_attention: {
     subject: "An update on your Blueprint job preparation",
     body: (url, detail) => `Job preparation needs our team's review. Keep your original recording. Open your job to see the latest status and next step.${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
@@ -105,14 +106,16 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   pilot_recommended: {
     subject: "Your recommended pilot is ready",
-    body: (url, detail) => `We have one recommended pilot for your job${detail ? `: ${detail}` : ""}. Your job page shows the robot team, what the pilot tests, what you provide, the pilot's cost (paid to the robot team, not to Blueprint), proposed timing and what is still uncertain. If it looks right, book it there in one step; booking costs nothing during the beta. After booking, the agreement with the robot team, the date and preparation responsibilities still need coordination. If it does not look right, reply and tell us why.\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `We have one recommended pilot for your job${detail ? `: ${detail}` : ""}. Your job page shows the robot team, what the pilot tests, what you provide, the pilot's cost (paid to the robot team, not to Blueprint), proposed timing and what is still uncertain. If it looks right, book it there in one step; booking costs nothing during the beta. When you book, you and the robot team receive each other's contact details and agree the pilot's dates and terms directly. If it does not look right, reply and tell us why.\n\nOpen your job:\n${url}`,
   },
   pilot_booked: {
     subject: "Your pilot is booked",
     // A booking made before the free beta keeps whatever terms were accepted
     // then; this email does not restate or waive them. The free-beta sentence
-    // is the one the job page shows beside the booking button.
-    body: (url, detail) => `Your booking is recorded. The pilot is awaiting coordination: provider and site agreement, a confirmed date and agreed preparation responsibilities are still needed. No date is reserved yet. Blueprint owns that next step. ${detail === "invited_beta_free" ? "Blueprint charges nothing during the beta; the pilot's cost is agreed with the robot team." : "Your previously accepted commercial terms remain on file."}\n\nOpen your job:\n${url}`,
+    // is the one the job page shows beside the booking button. The site and the
+    // team agree the pilot directly (owner decision 2026-10-15), so the email
+    // carries the team's contact; dispatch re-checks both consents.
+    body: (url, detail, counterpart) => `Your booking is recorded. You and the robot team agree the pilot's dates and terms directly. No date is reserved yet.${counterpart ? `\n\nRobot team contact:\n${counterpart}` : ""}\n\n${detail === "invited_beta_free" ? "Blueprint charges nothing during the beta; the pilot's cost is agreed with the robot team." : "Your previously accepted commercial terms remain on file."}\n\nOpen your job:\n${url}`,
   },
   pilot_scheduled: {
     subject: "Your pilot is scheduled",
@@ -167,6 +170,8 @@ export function buildTaskLifecycleNotification(params: {
   detail?: string;
   correlationId?: string;
   captureUrl?: string;
+  /** `pilot_booked` only: the robot team's contact, shared at booking. */
+  counterpart?: PilotContact | null;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (params.milestone === "preparation_needs_attention" && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
@@ -184,7 +189,7 @@ export function buildTaskLifecycleNotification(params: {
     subject: message.subject,
     body: `${message.body(url, params.milestone === "preparation_needs_attention"
       ? /^bp-prep-[a-f0-9]{16}$/.test(params.correlationId || "") ? `Reference: ${params.correlationId}.` : ""
-      : params.detail?.trim() ?? "")}\n\n${EMAIL_SIGN_OFF}`,
+      : params.detail?.trim() ?? "", params.milestone === "pilot_booked" && params.counterpart ? formatPilotContact(params.counterpart) : "")}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
   };
 }
