@@ -65,13 +65,13 @@ export function accessApprovedEmail(record: RobotTeamAccessRecord) {
       "",
       `Create your account with this email address (${record.email}), or sign in if you already have one:`,
       `${base}/signup/business?invitation=${encodeURIComponent(robotTeamAccountInvitation(record))}`,
-      "This invitation is bound to your approved email and expires in seven days.",
-      "",
-      "Once your email is verified, the job library shows the site jobs open to your team:",
+      "This invitation is bound to your approved email and expires in seven days. If it expires, ask for a new link at:",
       `${base}/contact/robot-team`,
       "",
+      "Your workspace then opens with your team set up, and its job library shows the site jobs open to your team.",
+      "",
       ...(invited ? [] : [
-        "Reply with the site or customer you would most want to test at, and we will look for a match.",
+        "Reply with the site or customer you would most want to test at, and we will look for a job that fits.",
         call
           ? `If a call would help, book one here: ${call}`
           : "If a call would help, say so in your reply and we will find a time.",
@@ -106,6 +106,8 @@ export async function enqueueAccessEmail(params: {
   recordId: string;
   record: RobotTeamAccessRecord;
   thinLibrary?: boolean;
+  /** An approved team asked for a fresh invitation link: at most one an hour. */
+  resend?: boolean;
 }): Promise<{ enqueued: boolean }> {
   const message = params.kind === "robot_team_access_received"
     ? accessReceivedEmail(params.record, { thinLibrary: params.thinLibrary })
@@ -114,9 +116,11 @@ export async function enqueueAccessEmail(params: {
       : accessNotYetEmail(params.record);
   // One of each per application: a re-application does not send a second
   // receipt, and a decision is announced once.
-  const stamp = params.kind === "robot_team_access_received"
-    ? params.record.appliedAtIso
-    : params.record.decidedAtIso ?? params.record.updatedAtIso;
+  const stamp = params.resend && params.kind === "robot_team_access_approved"
+    ? `resend-${new Date().toISOString().slice(0, 13)}`
+    : params.kind === "robot_team_access_received"
+      ? params.record.appliedAtIso
+      : params.record.decidedAtIso ?? params.record.updatedAtIso;
   return enqueueOutbox({
     idempotencyKey: `${params.kind}:${params.recordId}:${stamp}`,
     requestId: `robot-team-access:${params.recordId}`,

@@ -541,9 +541,9 @@ function buildHelpPayload(topic: unknown) {
       // The team surface: acting for one team rather than reading the public
       // catalogue. `help` is where an agent finds out this path exists, so
       // leaving it out made the whole thing undiscoverable.
-      { command: "team register --team-name <name>", description: "Create a team record and get an agent key. The key is returned once. Registering grants no evaluations: during the free beta Blueprint invites teams to a job after review." },
+      { command: "team register --invitation <invitation> --team-name <name>", description: "Register your approved team and get an agent key. Robot teams join by invitation after application review: pass the invitation from your approval email. The key is returned once. Registering grants no evaluations: during the free beta Blueprint invites teams to a job after review." },
       { command: "team me", description: "This team's record, its checkpoints, and why spending is off during the free beta." },
-      { command: "team checkpoint register", description: "Register something we can run: a policy endpoint, container image, or model artifact." },
+      { command: "team checkpoint register", description: "Register your policy endpoint (runtime policy_endpoint, your HTTPS URL), then attach its bearer token. Team evaluations call only that endpoint; containers and private checkpoints are not admitted." },
       { command: "team checkpoint", description: "List this team's checkpoints." },
       { command: "team plan --checkpoint-id <id>", description: "Retired for the free beta: returns paid_evaluations_disabled. Invited evaluations are set up by Blueprint for the job." },
       { command: "team fund --amount <usd>", description: "Retired for the free beta: returns paid_evaluations_disabled. No payment is taken." },
@@ -572,7 +572,7 @@ function buildHelpPayload(topic: unknown) {
       // The robot-team path in the free beta: register and describe what can
       // run; Blueprint invites the team to a job and starts the evaluation.
       // Steps 2 onward read the key from BLUEPRINT_AGENT_AUTH_TOKEN.
-      "npm run agent:cli -- team register --team-name \"Alpha Robotics\" --label v3 --runtime policy_endpoint --reference https://policies.example/v3",
+      "npm run agent:cli -- team register --invitation <invitation> --team-name \"Alpha Robotics\" --label v3 --runtime policy_endpoint --reference https://policies.example/v3",
       "npm run agent:cli -- team checkpoint",
       "npm run agent:cli -- team runs list",
       "npm run agent:cli -- team results",
@@ -712,9 +712,13 @@ async function execute(parsed: ParsedAgentCliArgs, client: BlueprintAgentApiClie
     // BLUEPRINT_AGENT_AUTH_TOKEN, which the client already sends as a bearer.
     case "team:register":
       // The only team command that needs no key -- it is how a team gets one.
+      // Registration is by invitation: pass the one from the approval email.
       return client.requestJson("/api/agent-team/register", {
         method: "POST",
         body: JSON.stringify({
+          ...(parsed.options.invitation != null
+            ? { invitation: String(parsed.options.invitation) }
+            : {}),
           teamName: requireString(parsed.options, "teamName"),
           ...(parsed.options.contactEmail != null
             ? { contactEmail: String(parsed.options.contactEmail) }

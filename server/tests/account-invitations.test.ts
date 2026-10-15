@@ -49,9 +49,9 @@ describe("approval before account creation", () => {
     const forgedRole = createAccountInvitationToken({ email, workspaceType: "site_operator", sourceId: accessRecordId(email), revision: approved.decidedAtIso! });
     await expect(resolveAccountInvitation(forgedRole)).rejects.toMatchObject({ status: 403 });
   });
-  it("provisions an approved password account on the server with an unverified email", async () => {
+  it("provisions an approved password account on the server, verified by the invitation it was emailed", async () => {
     expect(await redeemAccountInvitation(robotTeamAccountInvitation(approved), "password", "password123")).toEqual({ customToken: "custom-session" });
-    expect(auth.createUser).toHaveBeenCalledWith({ uid: `invited_${accessRecordId(email)}`, email, emailVerified: false, displayName: "Team", password: "password123" });
+    expect(auth.createUser).toHaveBeenCalledWith({ uid: `invited_${accessRecordId(email)}`, email, emailVerified: true, displayName: "Team", password: "password123" });
     expect(auth.createCustomToken).toHaveBeenCalledWith(`invited_${accessRecordId(email)}`);
   });
   it("never replaces existing credentials or returns a session for Google preparation", async () => {
@@ -93,7 +93,7 @@ describe("public invitation endpoints", () => {
   it("returns only the invited setup details, without the approval revision or a session", async () => {
     const response = await post("inspect", { invitation: robotTeamAccountInvitation(approved) });
     expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual({ email, name: "Team", organization: "Robot Co", workspaceType: "robot_team", returnTo: "/contact/robot-team" });
+    expect(await response.json()).toEqual({ email, name: "Team", organization: "Robot Co", workspaceType: "robot_team", returnTo: "/app" });
     expect(auth.createUser).not.toHaveBeenCalled();
   });
 });

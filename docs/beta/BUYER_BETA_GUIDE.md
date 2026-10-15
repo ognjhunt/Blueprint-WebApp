@@ -15,11 +15,16 @@ This mirrors the public guide at [/beta/buyer-guide](https://tryblueprint.io/bet
 
 - An invitation names one job, the policy, and the execution limits for the evaluation.
 - Your policy runs in a simulation built from the site's capture, against the job's pass
-  criteria. Blueprint sets the run length, and every invited entry on a job runs under the
-  same conditions.
+  criteria. Each evaluation is 200 hidden episodes across the job's variations, the same for
+  every invited team on the job.
 - Confirm the robot and gripper, observation and action interfaces, and any adapter work
-  before the run. Submit a policy endpoint or container; never paste secrets or raw weights
-  into intake.
+  before the run.
+- Serve your policy at one HTTPS URL that accepts a bearer token, and keep your weights on
+  your system. Register the URL as a checkpoint with runtime `policy_endpoint`, then attach
+  the bearer token to it (`POST /api/agent-team/checkpoints/<checkpointId>/credentials`). The
+  token lasts 30 days; post it again to renew it. Private checkpoints are refused, and
+  containers are not admitted for team evaluations. Never paste secrets or raw weights into
+  intake.
 - You never receive the site's recording. Your policy is sent images rendered from the
   reconstructed scene, which are not licensed for training.
 

@@ -85,6 +85,7 @@ export default function RobotTeamSignUpFlow() {
           <a className="auth-primary" href="/contact/robot-team">Register robot-team interest <ArrowRight size={18} aria-hidden="true" /></a>
           <a className="auth-google" href="/contact/site-operator">Show us a site task</a>
         </div>}
+        {!checking && <p className="auth-description">Already approved? Open the invitation link we emailed you, or <a href="/contact/robot-team#approved-team">get a new invitation link</a>.</p>}
       </> : <>
         <p className="auth-description">Your robot team is approved. Use the email address on your invitation.</p>
         <form className="auth-form auth-simple-signup" onSubmit={event => { event.preventDefault(); void submit(false); }} aria-busy={busy}>

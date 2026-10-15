@@ -13,10 +13,49 @@ import { currentAuthUser, sendAccountVerification } from "@/lib/accountAuth";
 import {
   applyForEarlyAccess,
   EarlyAccessApplicationError,
+  requestInvitationLink,
   type LibraryAccess,
 } from "@/lib/robotTeamAccess";
 
-const SIGN_UP_URL = "/signup/business?buyerType=robot_team";
+/**
+ * An approved team creates its account only from its emailed invitation link;
+ * a sign-up page without that link can only send it back here. So an approved
+ * team that lost the link, or let it expire, asks for a new one.
+ */
+function ApprovedTeamAccess() {
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [interactive, setInteractive] = useState(false);
+  useEffect(() => setInteractive(true), []);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const email = String(new FormData(event.currentTarget).get("approvedEmail") ?? "").trim();
+    setState("sending");
+    try {
+      await requestInvitationLink(email);
+      setState("sent");
+    } catch {
+      setState("error");
+    }
+  }
+
+  return (
+    <div className="ms-field-hint ms-early-access-account" id="approved-team">
+      <p>
+        Already approved? Create your account from the invitation link we emailed you, or <a href="/sign-in">sign in</a>.
+      </p>
+      <details>
+        <summary>Lost or expired link? Email me a new one</summary>
+        <form className="ms-form" method="post" onSubmit={submit} aria-label="Request a new invitation link">
+          <label>Approved email<input disabled={!interactive} name="approvedEmail" type="email" autoComplete="email" maxLength={320} required /></label>
+          <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Sending…" : "Email my invitation link"}</button>
+        </form>
+        {state === "sent" && <p role="status">If that address is approved, a new invitation link is on its way. Open it to create your account.</p>}
+        {state === "error" && <p role="alert">The link could not be sent. Try again, or email <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p>}
+      </details>
+    </div>
+  );
+}
 
 function ApplicationForm({ email }: { email: string | null }) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "approved" | "error">("idle");
@@ -59,7 +98,7 @@ function ApplicationForm({ email }: { email: string | null }) {
     return (
       <div className="ms-task-empty" role="status">
         <h2>You are approved.</h2>
-        <p>We emailed you how to create your account. Sign up with that email address, verify it, and the site jobs will show here.</p>
+        <p>We emailed you a new invitation link. Open it to create your account with that email address; your workspace opens with your team set up and the site jobs open to it.</p>
       </div>
     );
   }
@@ -151,11 +190,7 @@ export function RobotTeamEarlyAccess({ access, email }: { access: LibraryAccess 
   return (
     <section aria-label="Early access" className="ms-early-access">
       <ApplicationForm email={email} />
-      {!access?.signedIn && (
-        <p className="ms-field-hint ms-early-access-account">
-          Already approved? <a href={SIGN_UP_URL}>Create your account</a> with the approved email, or <a href="/sign-in">sign in</a>.
-        </p>
-      )}
+      {!access?.signedIn && <ApprovedTeamAccess />}
     </section>
   );
 }

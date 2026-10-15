@@ -247,6 +247,8 @@ export function CheckpointRegistration({ setups }: { setups: RobotSetup[] }) {
           </div>
           <p className="ws-note">
             Registering does not start an evaluation or authorize compute. Blueprint admits each free evaluation.
+            A team evaluation calls only a policy endpoint with its bearer token attached (see &ldquo;How Blueprint
+            calls your policy&rdquo;); containers and private checkpoints are not admitted.
           </p>
         </form>
       )}

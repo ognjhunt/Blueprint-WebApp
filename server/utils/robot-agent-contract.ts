@@ -57,7 +57,7 @@ export const ROBOT_AGENT_CLI_COMMANDS = [
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts team me",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts team checkpoint register --label v3 --runtime policy_endpoint --reference https://policies.example/v3",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts team checkpoint list",
-  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team register --team-name \"Example Robotics\"",
+  "npx tsx scripts/agent-access/blueprint-agent-cli.ts team register --invitation <invitation-from-approval-email> --team-name \"Example Robotics\"",
   "npx tsx scripts/agent-access/blueprint-agent-cli.ts team runs list",
 ] as const;
 
@@ -315,7 +315,7 @@ export function buildRobotAgentOpenApiContract() {
       { name: "Discovery", description: "Public site and API discovery for agents." },
       { name: "Ask", description: "Grounded, citation-backed question answering for agents." },
       { name: "Catalog", description: "Public site-world catalog and detail endpoints." },
-      { name: "Team", description: "Register a robot team and manage its agent key. Registration needs no credential and grants no evaluation: evaluations are free during the beta and run only on Blueprint's invitation and approval." },
+      { name: "Team", description: "Register an approved robot team and manage its agent key. Robot teams join by invitation after application review, so registration needs the invitation from the approval email (or an approved account); it grants no evaluation: evaluations are free during the beta and run only on Blueprint's invitation and approval." },
       { name: "Legacy commerce", description: "Read-only compatibility for historical orders and entitlements; the purchase endpoints are retired and return 410." },
       { name: "Hosted sessions", description: "Compatibility lifecycle for previously entitled hosted-session records." },
     ],
@@ -337,9 +337,9 @@ export function buildRobotAgentOpenApiContract() {
         post: {
           tags: ["Team"],
           operationId: "registerRobotTeam",
-          summary: "Register a robot team and receive an agent key, with no credential.",
+          summary: "Register an approved robot team and receive an agent key.",
           description:
-            "Self-serve registration, rate limited per address. Accepts self-reported hardware maturity and deployment/support coverage as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates a team record with status self_registered and returns an agent key exactly once; only a SHA-256 is stored. Registration grants an identity, not access: the key can read the team record and register policy checkpoints, but it does not admit the team to the beta, put it in front of any site, or authorize an evaluation. Robot teams join by invitation after Blueprint reviews their application at /contact/robot-team, and each evaluation runs only after Blueprint approves the exact team, policy, and job; evaluations are free during the beta. Connect the team to a verified Blueprint account to manage its keys; Blueprint issues and revokes account-bound keys on request (hello@tryblueprint.io). A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
+            "Registration is by invitation, rate limited per address. Robot teams apply at /contact/robot-team; once Blueprint approves the application, register with the `invitation` from the approval email, or send the approved, verified Blueprint account's Firebase ID token as `Authorization: Bearer`. Without either the call is refused (401 registration_invitation_required; 403 registration_invitation_invalid or registration_not_approved), and one approval registers one team (409 registration_team_exists). The approval is bound to the team it registers. Accepts self-reported hardware maturity and deployment/support coverage as optional fields; the human form asks both because a past-task evaluation cannot establish those physical facts. Creates a team record with status self_registered and returns an agent key exactly once; only a SHA-256 is stored. Registration does not start an evaluation: each evaluation runs only after Blueprint approves the exact team, policy, and job; evaluations are free during the beta. A team evaluation calls only an HTTPS policy endpoint (runtime policy_endpoint) with a bearer token attached through /api/agent-team/checkpoints/{checkpointId}/credentials; containers and private checkpoints are not admitted. Manage keys from the team's verified Blueprint account; Blueprint issues and revokes account-bound keys on request (hello@tryblueprint.io). A lost key is re-issued to the team's contact email via /api/agent-team/keys/reissue.",
           security: [{}],
           requestBody: {
             required: true,
@@ -349,6 +349,7 @@ export function buildRobotAgentOpenApiContract() {
                   type: "object",
                   required: ["teamName"],
                   properties: {
+                    invitation: { type: "string", maxLength: 4000, description: "The invitation from the team's approval email. Required unless the call carries an approved account's ID token." },
                     teamName: { type: "string", minLength: 2, maxLength: 120 },
                     contactEmail: { type: "string", format: "email", maxLength: 320 },
                     website: { type: "string", format: "uri", maxLength: 500 },
@@ -364,11 +365,12 @@ export function buildRobotAgentOpenApiContract() {
                         label: { type: "string" },
                         runtime: {
                           type: "string",
-                          enum: ["endpoint", "container", "artifact"],
+                          enum: ["policy_endpoint"],
+                          description: "Team evaluations admit only policy_endpoint, with a bearer token attached afterwards.",
                         },
                         reference: {
                           type: "string",
-                          description: "A URL, an image reference, or an artifact location.",
+                          description: "Your policy's HTTPS URL.",
                         },
                       },
                     },
@@ -386,6 +388,9 @@ export function buildRobotAgentOpenApiContract() {
               },
             },
             "400": jsonResponse("#/components/schemas/ErrorResponse", "Invalid registration"),
+            "401": jsonResponse("#/components/schemas/ErrorResponse", "No invitation or approved account (registration_invitation_required)"),
+            "403": jsonResponse("#/components/schemas/ErrorResponse", "Invitation not current, or account not approved (registration_invitation_invalid, registration_not_approved)"),
+            "409": jsonResponse("#/components/schemas/ErrorResponse", "This approval already registered a team (registration_team_exists)"),
             "429": jsonResponse("#/components/schemas/ErrorResponse", "Registration rate limited"),
           },
         },

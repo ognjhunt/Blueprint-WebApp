@@ -65,7 +65,7 @@ import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from ".
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { alertOpsEvaluationNeedsAdmission } from "../utils/pilotOpsAlerts";
-import { accessRecordId, resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
+import { accessRecordId, ensureApprovedTeamForAccount, resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
 import { accountHasAdmission } from "../utils/accountInvitations";
 import { resolveAccessContext } from "../utils/access-control";
 import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
@@ -333,7 +333,12 @@ router.post(
       else transaction.set(profileRef, patch);
     });
     if (auth.email_verified === true && auth.email) await bindVerifiedPreferenceAccount(auth.uid, auth.email);
-    return res.json({ ok: true, workspaceType: input.workspaceType });
+    // An approved robot team lands in its workspace with its team bound.
+    const teamId = input.workspaceType === "robot_team" && auth.email_verified === true && text(auth.email)
+      ? await ensureApprovedTeamForAccount({ uid: auth.uid, email: text(auth.email).toLowerCase(), verified: true })
+        .catch((error) => { logger.warn({ error }, "Could not bind the approved account to its team at setup"); return null; })
+      : null;
+    return res.json({ ok: true, workspaceType: input.workspaceType, ...(teamId ? { teamId } : {}) });
   }),
 );
 router.use(
@@ -1029,6 +1034,8 @@ router.post(
     let teamId = input.teamId ? teams.find((team) => team.id === input.teamId)?.id : teams[0]?.id;
     if (input.teamId && !teamId)
       refuse(404, "That team is not connected to this account.", "team_not_found");
+    // The team an approved account's approval covers; staff accounts have none.
+    if (!teamId) teamId = (await ensureApprovedTeamForAccount(caller)) ?? undefined;
     if (!teamId) {
       const created = await registerSelfServeTeam({
         name: text(caller.user.organizationName || caller.user.company) || caller.email.split("@")[1] || "Robot team",
@@ -1246,7 +1253,7 @@ async function openingForTeam(res: Response, jobId: string) {
   const caller = identity(res);
   if (!caller.verified)
     refuse(403, "Verify your email before requesting an evaluation.");
-  const access = await resolveViewerAccess({ email: caller.email, emailVerified: true, isOps: false });
+  const access = await resolveViewerAccess({ uid: caller.uid, email: caller.email, emailVerified: true, isOps: false });
   if (!access.allowed) refuse(403, "Robot-team early access is required before requesting an evaluation.");
   const notOpen = () => refuse(404, "This job is not open to evaluation requests.", "job_not_open");
   let source: Awaited<ReturnType<typeof readRequest>>;

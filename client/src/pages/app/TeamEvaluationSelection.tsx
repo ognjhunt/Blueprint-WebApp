@@ -127,7 +127,7 @@ export default function TeamEvaluationSelection() {
     revoked:["Evaluation cancelled", "This request can no longer start new execution."],
     revocation_pending:["Cancellation requested", "Waiting for the controller to confirm cancellation."],
     closeout_pending:["Finishing evaluation", "Waiting for final results and execution closeout."],
-    commercial_authorization_required:["Funding required", "Execution will begin after funding is authorized."],
+    commercial_authorization_required:["Awaiting Blueprint approval", "Execution begins after Blueprint approves this free evaluation."],
   };
   const [statusTitle,statusDescription]=statusCopy[status || ""] || ["Evaluation queued", "Your request is saved. This page will update as the evaluation progresses."];
   const canStart=context?.checkout.developmentNoCharge || context?.checkout.paymentsEnabled;

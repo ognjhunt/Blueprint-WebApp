@@ -2,7 +2,7 @@
 export const FREE_BETA_ONLY = true;
 export const MAX_FREE_SPONSOR_CAP_USD = 20;
 export const FREE_BETA_PAID_DISABLED = "paid_evaluations_disabled";
-export const FREE_BETA_PAID_MESSAGE = "This beta offers free invited evaluations only. Private evaluations and balance top-ups are unavailable.";
+export const FREE_BETA_PAID_MESSAGE = "This beta offers free invited evaluations only. Blueprint starts each one after review; there is nothing to buy.";
 
 /** Historical/unknown purposes never acquire permission to start new work. */
 export function canDispatchFreeBetaRun(run: {

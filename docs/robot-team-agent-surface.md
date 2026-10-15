@@ -17,7 +17,7 @@ Closing those three left a fourth, which was the one that actually mattered: **n
 ## The loop
 
 ```
-team registers itself        POST /api/agent-team/register        (no credential)
+team registers itself        POST /api/agent-team/register        (invitation from its approval email)
 team registers a policy      POST /api/agent-team/checkpoints     (or inline above)
 team sees the offer          POST /api/agent-team/plan            (free, no balance needed)
 team funds itself            POST /api/agent-team/funding         (Stripe, face value)
@@ -91,6 +91,14 @@ Which means the intake was self-defeating. It extracted, up front and for free, 
 The nine spec answers remain askable and still sharpen ranking. They are no longer a gate.
 
 ### What open registration does not grant
+
+> **Superseded 2026-10-15:** registration is no longer open. Robot teams join by
+> invitation after application review, so `POST /api/agent-team/register` needs the
+> invitation from the approval email, an approved verified account's ID token, or
+> staff (`registration_invitation_required` / `registration_invitation_invalid` /
+> `registration_not_approved`), and one approval registers one team
+> (`registration_team_exists`). The approval is bound to the team record
+> (`accessApproval`). The section below is kept as the earlier rationale.
 
 Nothing spendable. A registration lands at status `self_registered` with an empty capability, a zero balance and autonomous spend off.
 

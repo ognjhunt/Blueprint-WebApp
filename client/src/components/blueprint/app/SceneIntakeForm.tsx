@@ -373,7 +373,7 @@ export function SceneIntakeForm({
             {splatSource ? (
               <Field
                 label="Collision mesh in the same frame"
-                hint={collisionSource ? undefined : "A splat supplies appearance, not contact geometry. Attach the matching mesh if you have one; missing geometry is reported before any paid work."}
+                hint={collisionSource ? undefined : "A splat supplies appearance, not contact geometry. Attach the matching mesh if you have one; missing geometry is reported before any work starts."}
                 wide
               >
                 <select value={collisionSource} onChange={(event) => { setCollisionSource(event.target.value); setCollisionFrameConfirmed(false); }}>

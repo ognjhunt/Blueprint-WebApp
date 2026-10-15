@@ -72,7 +72,12 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
       },
     },
     dbAdmin: sharedFakeFirestore,
-    authAdmin: { verifyIdToken: async () => ({ uid: "nobody" }) },
+    // Registration is by invitation; these suites register as Blueprint staff.
+    authAdmin: {
+      verifyIdToken: async (token: string) => token === "staff-registration-token"
+        ? { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true }
+        : { uid: "nobody" },
+    },
   };
 });
 
@@ -113,7 +118,9 @@ async function withRoutes<T>(run: (baseUrl: string) => Promise<T>): Promise<T> {
   }
 }
 
-function json(key?: string) {
+// Without a team key, a call carries a staff ID token: registration is by
+// invitation, and the registration gate has its own tests.
+function json(key = "staff-registration-token") {
   return {
     "content-type": "application/json",
     ...(key ? { authorization: `Bearer ${key}` } : {}),

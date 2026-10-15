@@ -29,6 +29,7 @@ import { listCheckpoints, registerCheckpoint, type RobotCheckpoint } from "../ut
 import { storeCheckpointPolicyCredential } from "../utils/checkpointPolicyCredentials";
 import { bindTeamToAccount, teamsForAccount } from "../utils/robotTeamAccounts";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
+import { ensureApprovedTeamForAccount } from "../utils/robotTeamEarlyAccess";
 
 const router = Router();
 
@@ -112,6 +113,9 @@ async function accountTeam(caller: Caller, requested?: string): Promise<{ teamId
     return teamId ? { teamId } : { status: 404, error: "That team is not connected to this account.", code: "team_not_found" };
   }
   if (teams[0]) return { teamId: teams[0].id };
+  // An approved application's team, bound to this account on first use.
+  const approved = await ensureApprovedTeamForAccount(caller);
+  if (approved) return { teamId: approved };
   const created = await registerSelfServeTeam({
     name: String(caller.user.organizationName || caller.user.company || "").trim()
       || caller.email.split("@")[1] || "Robot team",

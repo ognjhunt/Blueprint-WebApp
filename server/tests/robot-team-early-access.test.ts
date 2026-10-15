@@ -380,3 +380,99 @@ describe("inviting a team after a call", () => {
     expect(((await library.json()) as { items: unknown[] }).items).toHaveLength(1);
   });
 });
+
+describe("registering a team through the agent API", () => {
+  const register = (body: Record<string, unknown>, token?: string) => fetch(`${base}/api/agent-team/register`, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ teamName: "Arm Co", ...body }),
+  });
+  const teams = () => [...state.docs.entries()].filter(([key]) => key.startsWith("robotTeams/"));
+  const approvalOf = (email: string) => state.docs.get(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${early.accessRecordId(email)}`) as never;
+  const invitationFor = async (email: string) =>
+    (await import("../utils/accountInvitations")).robotTeamAccountInvitation(approvalOf(email));
+
+  it("is by invitation: anonymous, unapproved and stale callers get typed refusals and no team", async () => {
+    const anonymous = await register({});
+    expect(anonymous.status).toBe(401);
+    expect(await anonymous.json()).toMatchObject({ code: "registration_invitation_required" });
+
+    tokens.set("stranger", { uid: "u9", email: "stranger@arm.example", email_verified: true });
+    const stranger = await register({}, "stranger");
+    expect(stranger.status).toBe(403);
+    expect(await stranger.json()).toMatchObject({ code: "registration_not_approved" });
+
+    approve("ada@arm.example");
+    const invitation = await invitationFor("ada@arm.example");
+    await early.decideAccessApplication({ id: early.accessRecordId("ada@arm.example"), status: "declined", note: null, decidedBy: "ops" });
+    const stale = await register({ invitation });
+    expect(stale.status).toBe(403);
+    expect(await stale.json()).toMatchObject({ code: "registration_invitation_invalid" });
+    expect(teams()).toHaveLength(0);
+  });
+
+  it("binds the approval to the one team it registers, which the approved account then holds", async () => {
+    approve("ada@arm.example");
+    const invitation = await invitationFor("ada@arm.example");
+    const created = await register({ invitation, contactEmail: "someone@else.example" });
+    expect(created.status).toBe(201);
+    const { teamId } = (await created.json()) as { teamId: string };
+    expect(state.docs.get(`robotTeams/${teamId}`)).toMatchObject({
+      contactEmail: "ada@arm.example",
+      accessApproval: { accessRecordId: early.accessRecordId("ada@arm.example") },
+    });
+    expect(approvalOf("ada@arm.example")).toMatchObject({ teamIds: [teamId] });
+
+    const again = await register({ invitation });
+    expect(again.status).toBe(409);
+    expect(await again.json()).toMatchObject({ code: "registration_team_exists", teamId });
+
+    // The approved account signs in: it takes that team rather than starting another.
+    listedSite("site-1");
+    tokens.set("ada", { uid: "u1", email: "ada@arm.example", email_verified: true });
+    const library = await fetch(`${base}/api/site-worlds/tasks`, { headers: { Authorization: "Bearer ada" } });
+    expect(((await library.json()) as { items: unknown[] }).items).toHaveLength(1);
+    expect(teams()).toHaveLength(1);
+    expect(state.docs.get(`robotTeams/${teamId}`)).toMatchObject({ accountUid: "u1" });
+    expect(await early.teamHasEarlyAccess(teamId)).toBe(true);
+
+    // Access is the team's: another team the account picks up later is not
+    // covered, and declining the application withdraws the team's access.
+    teamWithKey("team-later", "bpk_later", { uid: "u1", email: "ada@arm.example" });
+    expect(await early.teamHasEarlyAccess("team-later")).toBe(false);
+    await early.decideAccessApplication({ id: early.accessRecordId("ada@arm.example"), status: "declined", note: null, decidedBy: "ops" });
+    expect(await early.teamHasEarlyAccess(teamId)).toBe(false);
+  });
+
+  it("keeps an approval given before approvals were bound to teams on the team the account already holds", async () => {
+    approve("ada@arm.example");
+    teamWithKey("team-legacy", "bpk_legacy", { uid: "u1", email: "ada@arm.example" });
+    const refused = await register({ invitation: await invitationFor("ada@arm.example") });
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toMatchObject({ code: "registration_team_exists", teamId: "team-legacy" });
+    expect(teams()).toHaveLength(1);
+    expect(await early.teamHasEarlyAccess("team-legacy")).toBe(true);
+  });
+
+  it("lets staff register a team", async () => {
+    tokens.set("ops", { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true });
+    expect((await register({}, "ops")).status).toBe(201);
+  });
+});
+
+describe("an approved team that lost its invitation link", () => {
+  it("gets a fresh link at its approved address, and the answer reveals nothing", async () => {
+    approve("ada@arm.example");
+    const ask = (email: string) => fetch(`${base}/api/robot-team-access/invitation`, {
+      method: "POST", headers: { "content-type": "application/json", ...CSRF }, body: JSON.stringify({ email }),
+    });
+    const approved = await ask("Ada@Arm.Example");
+    const unknown = await ask("nobody@arm.example");
+    expect(approved.status).toBe(202);
+    expect(await unknown.json()).toEqual(await approved.json());
+    const sent = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_access_approved"));
+    expect(sent).toHaveLength(1);
+    expect(sent[0][1]).toMatchObject({ to: "ada@arm.example" });
+    expect(String((sent[0][1] as { body: string }).body)).toMatch(/signup\/business\?invitation=/);
+  });
+});

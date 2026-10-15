@@ -30,9 +30,9 @@ Until all three are on record, the team stays `prospect`, `applied` or
   it as `droid_franka_panda_robotiq_2f85_v1`.
 - **Tasks:** rigid-object pick/place and open/close.
 
-A team fits if it can run a policy on that interface. Examples: a fine-tuned
-π0.5-DROID or GR00T N1.7 checkpoint, or the team's own HTTPS policy server on
-the same interface.
+A team fits if it can serve a policy on that interface from its own HTTPS
+policy server. Examples: a fine-tuned π0.5-DROID or GR00T N1.7 checkpoint,
+served by the team on the same interface.
 
 The simulation evaluates only that arm and gripper. Policies for other arms,
 mobile manipulators, humanoids or AMRs cannot be evaluated today. Say so
@@ -55,12 +55,20 @@ Tell them only what is true today:
 - **What a result means:** a simulated result is a bounded estimate for that job
   and scene. It never certifies physical performance or safety. The physical
   pilot is where performance is measured.
-- **Their policy:** the team keeps its weights on its own system if it serves
-  the policy over HTTPS. Blueprint sends approved camera frames, robot state
-  and the task instruction, and receives actions. Frames show the scene, so
-  describe this as controlled observation access, not as secrecy. Today the
-  endpoint must accept requests without authentication (audit §5 and P1-11);
-  tell the team before they build one.
+- **Their policy:** the team serves its policy at one HTTPS URL that accepts
+  a bearer token, and keeps its weights on its own system. It registers that
+  URL as a checkpoint with runtime `policy_endpoint`, then attaches the bearer
+  token to the checkpoint (`POST /api/agent-team/checkpoints/<checkpointId>/credentials`;
+  the token lasts 30 days and is renewed by posting it again). Private
+  checkpoints are refused, and containers are never admitted for team
+  evaluations; tell the team before they build anything else. Blueprint sends
+  approved camera frames, robot state and the task instruction, and receives
+  actions. Frames show the scene, so describe this as controlled observation
+  access, not as secrecy. The full protocol is under "How Blueprint calls your
+  policy" in the workspace's robot settings
+  (`client/src/components/workspace/PolicyInterfaceGuide.tsx`).
+- **The run:** a team evaluation is 200 hidden episodes across the job's
+  variations, scored by Blueprint's simulator.
 - **Dates:** do not promise a date for the first evaluation. The audit lists
   the work still open before a team's own policy can be evaluated end to end
   (P0-5, P0-6). Say evaluations start as the first teams are onboarded, and
@@ -76,8 +84,8 @@ this is enough:
 
 > Please confirm, by replying, that your team:
 > 1. will run a policy on a Franka arm with a Robotiq 2F-85 gripper on the
->    DROID observation/action interface (your own checkpoint or your own HTTPS
->    policy server);
+>    DROID observation/action interface, served from your own HTTPS policy
+>    server that accepts a bearer token;
 > 2. accepts a free evaluation of that policy, in simulation, on a real site's
 >    job;
 > 3. will take the physical pilot with that site, agreeing dates and terms
