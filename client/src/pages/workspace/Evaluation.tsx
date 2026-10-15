@@ -229,7 +229,9 @@ export default function Evaluation() {
               </p>
             )}
           </section>
-          {item.runId && <Evidence runId={item.runId} />}
+          {/* A team evaluation's evidence is its per-episode outcomes above; the Task
+              Evaluation run record does not exist for it. */}
+          {item.runId && !item.purpose && <Evidence runId={item.runId} />}
           <details className="ws-section">
             <summary>Failures & limitations</summary>
             <p>
