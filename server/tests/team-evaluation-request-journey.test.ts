@@ -112,7 +112,10 @@ beforeAll(async () => {
   server = createServer(app);
   await new Promise<void>(resolve => server!.listen(0, "127.0.0.1", resolve));
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
-});
+  // Four full route graphs load here, after the env stubs they read. About 10s
+  // alone and 22s under coverage, but CI's coverage run reached the 120s default
+  // while every worker cold-transformed modules at once (WEB-03 in vitest.config.ts).
+}, 300_000);
 afterAll(async () => {
   if (server) await new Promise<void>((resolve, reject) => server!.close(error => error ? reject(error) : resolve()));
   vi.unstubAllEnvs(); vi.unstubAllGlobals();

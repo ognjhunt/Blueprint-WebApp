@@ -43,7 +43,9 @@ beforeAll(async () => {
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-}, 60000);
+  // Importing every route module is cheap alone but can run long while every
+  // worker cold-transforms modules at the start of a coverage run.
+}, 300_000);
 
 afterAll(async () => {
   if (server) await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
