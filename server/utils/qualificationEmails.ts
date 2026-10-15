@@ -132,7 +132,7 @@ export function buildTaskNotYetSupportedEmail(params: {
     site ? `Thanks for confirming the job brief for ${site}.` : "Thanks for confirming your job brief.",
     taskScopeReasonSentence(params.reason),
     "",
-    "Today our simulation can score three kinds of job:",
+    "Today our simulation can score two kinds of job:",
     bulletList(SUPPORTED_TASK_LINES),
     "",
     "So we have not opened this job to robot teams, and no robot team will evaluate it. Your job stays on file.",

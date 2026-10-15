@@ -3,9 +3,11 @@
  *
  * ## Why this screen exists
  *
- * The simulation scores three kinds of task: picking up one rigid object and
- * placing it in a target area, pushing a rigid object across a surface into a
- * target area, and opening a door or drawer. Opening only: the articulated
+ * A website job's scene is prepared as one of two tasks (Pipeline
+ * `website_task_preparation`): picking up one rigid object and placing it in a
+ * target area (scored on a lift and a placement), or opening a door or drawer.
+ * Pushing is not one of them: no website success contract scores a push, so a
+ * push job is refused like any other. Opening only: the articulated
  * success contract scores an opening interval that excludes the closed
  * position (`articulatedTaskSuccessContract.ts`, Pipeline
  * `ARTICULATED_SUCCESS`), so a closing job would be scored as a different task
@@ -31,7 +33,7 @@
  * brief always screens the same way, and anyone can see why.
  */
 
-export type SupportedTaskKind = "rigid_pick_and_place" | "planar_push" | "articulated_open_close";
+export type SupportedTaskKind = "rigid_pick_and_place" | "articulated_open_close";
 
 export type UnsupportedTaskReason =
   | "deformable"
@@ -39,6 +41,7 @@ export type UnsupportedTaskReason =
   | "assembly"
   | "mobile"
   | "closing"
+  | "push"
   | "other"
   | "multi_step"
   | "unclear";
@@ -61,13 +64,12 @@ export interface SiteTaskScope extends SiteTaskScopeVerdict {
 /** The scope, in the words every surface uses. */
 export const SUPPORTED_TASK_LINES = [
   "Picking up one rigid object and placing it in a target area",
-  "Pushing a rigid object across a surface into a target area",
   "Opening a door or drawer",
 ] as const;
 
 export const SUPPORTED_TASK_SCOPE =
-  "Today our simulation can score three kinds of job: picking up one rigid object and placing it in a target area, "
-  + "pushing a rigid object across a surface into a target area, and opening a door or drawer.";
+  "Today our simulation can score two kinds of job: picking up one rigid object and placing it in a target area, "
+  + "and opening a door or drawer.";
 
 const UNSUPPORTED: ReadonlyArray<[Exclude<UnsupportedTaskReason, "multi_step" | "unclear">, RegExp]> = [
   ["deformable", /\b(fold(s|ed|ing)?|unfold\w*|towels?|cloths?|clothes|clothing|laundry|linens?|garments?|shirts?|fabrics?|textiles?|napkins?|socks?|bed ?sheets?|blankets?|ropes?|cables?|wires?|hoses?|strings?|bags?|bagging|sacks?|pouch(es)?|wrap(s|ped|ping)?|tape|taping|dough|sew(s|ed|ing)?)\b/g],
@@ -75,12 +77,13 @@ const UNSUPPORTED: ReadonlyArray<[Exclude<UnsupportedTaskReason, "multi_step" | 
   ["assembly", /\b(assembl\w*|insert\w*|screw\w*|unscrew\w*|bolt(s|ed|ing)?|fasten\w*|plug(s|ged|ging)?|pegs?|snap(s|ped|ping)?|install\w*|thread(s|ed|ing)?|weld\w*|glu(e|es|ed|ing)|solder\w*|tighten\w*|loosen\w*|attach\w*|crimp\w*|cnc|fixtures?|chucks?|press[- ]fit\w*|kitting|machine tending)\b/g],
   ["mobile", /\b(walk\w*|driv(e|es|ing)|drove|navigat\w*|deliver\w*|tow(s|ed|ing)?|forklifts?|pallet jacks?|elevators?|hallways?|corridors?|(each|every) floor|room to room|between (rooms|floors|buildings|sites)|across the (room|floor|site|building|warehouse|store|plant|kitchen)|(push|pull|wheel|roll)\w*[^.;]*\b(carts?|trolleys?|dolly|dollies))\b/g],
   ["closing", /\b(clos(e|es|ed|ing)|shut(s|ting)?)\b[^.;]*\b(doors?|drawers?|cabinets?|cupboards?|lockers?|hatch(es)?|gates?)\b|\b(doors?|drawers?|cabinets?|cupboards?|lockers?|hatch(es)?|gates?)\b[^.;]*\b(clos(e|es|ed|ing)|shut)\b/g],
+  // After "mobile", so pushing a cart reads as moving around the site.
+  ["push", /\b(push(es|ed|ing)?|slid(e|es|ing)|nudg(e|es|ed|ing)|shov(e|es|ed|ing))\b/g],
   ["other", /\b(cut(s|ting)?|slic\w*|peel\w*|chop\w*|cook\w*|fry(ing)?|fried|grill\w*|paint\w*|sand(s|ed|ing)?|polish\w*|cleaning|clean(s|ed)?\s+(the|up|down|off|out|all)|wip(e|es|ed|ing)|scrub\w*|mop(s|ped|ping)?|vacuum\w*|sweep\w*|inspect\w*|scan(s|ned|ning)?|label(s|ed|led|ing|ling)?|sort(s|ed|ing)?|count(s|ed|ing)?|weigh(s|ed|ing)?|measur\w*|buttons?|switch(es)?)\b/g],
 ];
 
 const POSITIVE: ReadonlyArray<[SupportedTaskKind, RegExp]> = [
   ["articulated_open_close", /\b(open(s|ed|ing)?|pull(s|ed|ing)? open)\b[^.;]*\b(doors?|drawers?|cabinets?|cupboards?|lockers?|hatch(es)?|gates?)\b|\b(doors?|drawers?|cabinets?|cupboards?|lockers?|hatch(es)?|gates?)\b[^.;]*\bopen(s|ed|ing)?\b/g],
-  ["planar_push", /\b(push(es|ed|ing)?|slid(e|es|ing)|nudg(e|es|ed|ing)|shov(e|es|ed|ing))\b/g],
   ["rigid_pick_and_place", /\b(pick(s|ed|ing)?|plac(e|es|ed|ing)|put(s|ting)?|mov(e|es|ed|ing)|transfer(s|red|ring)?|(un)?load(s|ed|ing)?|lift(s|ed|ing)?|grab(s|bed|bing)?|grasp(s|ed|ing)?|tak(e|es|ing)|took|restock(s|ed|ing)?|stock(s|ed|ing)?|relocat(e|es|ed|ing)|bring(s|ing)?|brought|stow(s|ed|ing)?|retriev(e|es|ed|ing)|fetch(es|ed|ing)?|pack(s|ed|ing)?(?=[^.;]*\b(into|in|onto)\b))\b/g],
 ];
 
@@ -175,6 +178,7 @@ const REASON_SENTENCES: Record<UnsupportedTaskReason, string> = {
   assembly: "Your job involves fitting, inserting or fastening parts, and our simulation cannot score that yet.",
   mobile: "Your job involves moving around the site, and our simulation scores work at one station today.",
   closing: "Your job closes a door or drawer, and our simulation scores opening one today.",
+  push: "Your job pushes or slides an object, and our simulation scores picking it up and placing it today.",
   other: "Your job involves an action our simulation cannot score yet.",
   multi_step: "Your job has more than one step, and our simulation scores one action at a time today.",
   unclear: "From your job brief, we could not tell which kind of job this is.",

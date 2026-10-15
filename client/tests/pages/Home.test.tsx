@@ -14,7 +14,7 @@ describe("Site-led homepage", () => {
     // One example of the deliverable, clearly marked, instead of staged imagery.
     expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Warehouse", "Café", "Lab"]);
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveTextContent(/Example.*Robot team.*Evaluated in simulation.*Passed on your task \(example\).*Pushing sealed cartons.*Blueprint fee.*None during the beta.*Pilot cost.*Quoted by the robot team/);
+    expect(panel).toHaveTextContent(/Example.*Robot team.*Evaluated in simulation.*Passed on your task \(example\).*small boxed parts.*Blueprint fee.*None during the beta.*Pilot cost.*Quoted by the robot team/);
     expect(screen.getByText("Book this pilot")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Café" }));
     expect(screen.getByRole("tabpanel")).toHaveTextContent(/dish rack/);

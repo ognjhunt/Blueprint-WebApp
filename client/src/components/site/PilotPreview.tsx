@@ -7,9 +7,9 @@ import { Pause, Play } from "lucide-react";
  * bookings or results. Each illustration is a slow loop of the robot doing the task.
  *
  * Every example is a kind of job the simulation can score today: picking up a
- * rigid object and placing it, pushing a rigid object into a target area, and
- * opening a drawer (`server/utils/siteTaskScope.ts`). An example of a job we
- * cannot score would promise an evaluation no site could get.
+ * rigid object and placing it, and opening a drawer
+ * (`server/utils/siteTaskScope.ts`). An example of a job we cannot score would
+ * promise an evaluation no site could get.
  */
 
 type P = [number, number];
@@ -77,15 +77,14 @@ function Carton({ c, opacity = 1 }: { c: P; opacity?: number }) {
   );
 }
 
-/** Fixed arm pushes a sealed carton off the scale and along the bench into the outbound lane. */
+/** Fixed arm lifts a small boxed part off the scale and places it in the outbound tray. */
 function Warehouse({ t }: { t: number }) {
-  const shoulder: P = [85, 131];
-  const cx = track(t, [[0, 125], [2.2, 125], [5.4, 240]]);
-  let hand: P;
-  if (t < 2.2) hand = trackP(t, [[0, [130, 80]], [1.0, [130, 80]], [1.7, [104, 102]], [2.2, [104, 122]]]);
-  else if (t < 5.4) hand = [cx - 21, 122];
-  else hand = trackP(t, [[5.4, [219, 122]], [5.9, [219, 98]], [7.6, [130, 80]]]);
-  const pushing = t > 1.7 && t < 5.9;
+  const shoulder: P = [175, 131];
+  const hand = trackP(t, [[0, [130, 80]], [1.0, [130, 80]], [1.7, [125, 110]], [2.2, [125, 110]], [3.0, [125, 86]],
+    [4.6, [240, 86]], [5.2, [240, 110]], [5.6, [240, 110]], [6.1, [240, 94]], [7.6, [130, 80]]]);
+  const holding = t >= 2.0 && t < 5.4;
+  // On the scale, carried in the gripper, then in the tray.
+  const box: P = t < 2.0 ? [125, 128] : holding ? [hand[0], hand[1] + 18] : [240, 128];
   return (
     <g>
       <g {...ink}>
@@ -93,14 +92,14 @@ function Warehouse({ t }: { t: number }) {
         {/* Scale: the plate on the bench and its readout. */}
         <path d="M104 140 V137 H148 V140" />
         <rect x={114} y={146} width={24} height={10} rx={2} fill={tint} />
-        {/* Outbound lane: the marked target area and its end stop. */}
+        {/* Outbound tray: the marked target area. */}
+        <path d="M206 140 V128 M274 140 V128" />
         <rect x={206} y={137} width={68} height={3} fill={tint} />
-        <path d="M280 140 V122" strokeWidth={3} />
-        <rect x={70} y={131} width={30} height={9} rx={2} fill={tint} />
+        <rect x={160} y={131} width={30} height={9} rx={2} fill={tint} />
       </g>
-      <Carton c={[cx, 128]} opacity={1 - fade(t, 8.6, 9.4)} />
+      <Carton c={box} opacity={1 - fade(t, 8.6, 9.4)} />
       {t >= 9.0 && <Carton c={[125, 128]} opacity={fade(t, 9.0, 10)} />}
-      <RobotArm shoulder={shoulder} hand={hand} l1={70} l2={70} open={!pushing} />
+      <RobotArm shoulder={shoulder} hand={hand} l1={56} l2={56} open={!holding} />
     </g>
   );
 }
@@ -190,7 +189,7 @@ function Lab({ t }: { t: number }) {
 }
 
 const examples: Example[] = [
-  { site: "Warehouse", tests: "Pushing sealed cartons from the scale into the outbound lane", provide: "A two-hour window and one packing bench", teamProvides: "Fixed robot arm, setup and operation", when: "Two weeks, on dates you approve", uncertain: "Very light cartons may slide past the lane", Art: Warehouse },
+  { site: "Warehouse", tests: "Moving small boxed parts from the scale to the outbound tray", provide: "A two-hour window and one packing bench", teamProvides: "Fixed robot arm, setup and operation", when: "Two weeks, on dates you approve", uncertain: "Boxes packed tightly together may need separating first", Art: Warehouse },
   { site: "Café", tests: "Moving clean cups from the dish rack to the counter", provide: "An after-close window and bench space by the dish station", teamProvides: "Fixed robot arm, setup and operation", when: "One week of evenings", uncertain: "Cups of very different sizes may need a second grip", Art: Cafe },
   { site: "Lab", tests: "Opening the sample drawer before each batch", provide: "One bench and a quiet hour before the first batch", teamProvides: "Fixed robot arm, setup and operation", when: "One week, mornings only", uncertain: "A sticking drawer may need a firmer pull", Art: Lab },
 ];

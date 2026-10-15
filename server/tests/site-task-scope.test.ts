@@ -21,7 +21,7 @@ describe("screenTaskScope", () => {
     ["Pack cartons into totes", "rigid_pick_and_place"],
     // The home page examples are jobs we can score.
     ["Moving clean cups from the dish rack to the counter", "rigid_pick_and_place"],
-    ["Pushing sealed cartons from the scale into the outbound lane", "planar_push"],
+    ["Moving small boxed parts from the scale to the outbound tray", "rigid_pick_and_place"],
     ["Opening the sample drawer before each batch", "articulated_open_close"],
     ["Pull open the cabinet door for the morning check-in", "articulated_open_close"],
   ])("scores %j as %s", (summary, kind) => {
@@ -35,6 +35,9 @@ describe("screenTaskScope", () => {
     ["Loading blanks into one CNC machine and unloading finished parts", "assembly"],
     ["Moving linen carts from the laundry room to each floor", "deformable"],
     ["Push the delivery cart to the loading dock", "mobile"],
+    // No website success contract scores a push.
+    ["Pushing sealed cartons from the scale into the outbound lane", "push"],
+    ["Slide each tray along the bench to the pass", "push"],
     ["Pick parts from the bin and scan each one", "other"],
     ["Open the drawer and put the parts inside", "multi_step"],
     ["Walk each tote over to the packing station", "mobile"],
@@ -65,7 +68,7 @@ describe("a job we cannot score", () => {
     expect(teamJobAccess({ ...listed, site_task_scope: { supported: false, reason: "deformable" } }))
       .toMatchObject({ listed: false, evaluationAvailable: false, reason: "task_not_yet_supported" });
     expect(teamJobAccess(listed).reason).not.toBe("task_not_yet_supported");
-    expect(teamJobAccess({ ...listed, site_task_scope: { supported: true, kind: "planar_push" } }).reason)
+    expect(teamJobAccess({ ...listed, site_task_scope: { supported: true, kind: "rigid_pick_and_place" } }).reason)
       .not.toBe("task_not_yet_supported");
   });
 
@@ -78,7 +81,7 @@ describe("a job we cannot score", () => {
     }));
     expect(status.decision).toBe("not_yet_supported");
     expect(status.headline).toMatch(/cannot score this job.*not open to robot teams/);
-    expect(status.operatorAction).toMatch(/liquids.*picking up one rigid object.*pushing a rigid object.*opening a door or drawer/);
+    expect(status.operatorAction).toMatch(/liquids.*two kinds of job: picking up one rigid object.*and opening a door or drawer/);
   });
 });
 
