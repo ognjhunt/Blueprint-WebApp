@@ -335,20 +335,23 @@ function WorkspaceSettings() {
                 </Field>
               </div>
               <details className="ws-section" open={editing !== "new" && Boolean(editing.robotEmbodiment)}>
-                <summary>Your own arm (optional)</summary>
+                <summary>Your own robot (optional)</summary>
                 <p className="ws-note">
                   Leave empty to run your policy on Blueprint&rsquo;s simulated DROID Franka. To be evaluated on
-                  your own fixed-base arm, paste its robot manifest (<code>blueprint.robot_embodiment.v1</code>):
-                  a USD model with its SHA-256, the joints your policy drives in action order with their limits,
-                  your gripper&rsquo;s joints and contact links, your cameras, and your control rate (15, 30 or
-                  60 Hz). Your arm stands at the scene&rsquo;s robot station; one that cannot reach the job from
-                  there is refused before anything runs.
+                  your own robot (an arm, two arms, a mobile manipulator or a wheeled or legged humanoid), paste
+                  its robot manifest (<code>blueprint.robot_embodiment.v1</code>): a USD model with its SHA-256;
+                  its base, <code>fixed</code> (it stands at the scene&rsquo;s robot station and must reach the job
+                  from there) or <code>free</code> (it starts on the floor facing the job, with its standing height,
+                  footprint, fall height and the feet or wheels it stands on); the joints your policy drives in
+                  action order, each by position or, for wheels, by velocity; your gripper&rsquo;s joints and contact
+                  links; your cameras; and your control rate (15, 30, 60 or 120 Hz). A robot the simulator cannot
+                  place is refused by name before anything runs.
                 </p>
                 <Field label="Robot manifest (JSON)" wide>
                   <textarea
                     name="robotEmbodiment"
                     rows={8}
-                    maxLength={20000}
+                    maxLength={40000}
                     spellCheck={false}
                     onInput={(event) => event.currentTarget.setCustomValidity("")}
                     defaultValue={editing !== "new" && editing.robotEmbodiment

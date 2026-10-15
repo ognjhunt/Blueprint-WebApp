@@ -218,7 +218,7 @@ const POLICY_INTERFACE_SUMMARIES: Record<string, { robot: "droid_franka" | "team
   "openpi_droid_https.v1": { robot: "droid_franka",
     summary: "Blueprint's simulated DROID Franka with a Robotiq 2F-85: two 224×224 views, joint and gripper state and the instruction in; joint-position action chunks out." },
   "blueprint_policy_https.v1": { robot: "team_declared",
-    summary: "Your own fixed-base arm and cameras, declared as a robot manifest with its USD model: your cameras, joint state and gripper closure in; joint targets and gripper closure out, at 15, 30 or 60 Hz." },
+    summary: "Your own robot of any form (fixed or free base) and cameras, declared as a robot manifest with its USD model: your cameras, joint positions and velocities, gripper closure and base state in; a position per joint (a velocity per wheel) and gripper closure out, at 15, 30, 60 or 120 Hz." },
 };
 
 function finiteRecord(value: unknown): Record<string, number> {

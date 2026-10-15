@@ -105,7 +105,7 @@ const taskSchema = z
 const setupSchema = z
   .object({
     robotDescription: robotDescriptionSchema.optional(),
-    /** The team's own arm and cameras; without it the policy drives the simulated DROID Franka. */
+    /** The team's own robot and cameras; without it the policy drives the simulated DROID Franka. */
     robotEmbodiment: robotEmbodimentSchema.optional(),
     executionBindingId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/).optional(),
     id,

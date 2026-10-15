@@ -272,12 +272,21 @@ describe("asking for a team evaluation (beta L5)", () => {
   const approval = () => ({ approvedBy: "operator", expiresAtIso: new Date(Date.now() + 600000).toISOString() });
   const arm = { schema_version: "blueprint.robot_embodiment.v1", embodiment_id: "acme-arm-v2", form: "fixed_base_arm",
     model: { format: "usd", url: "https://models.acme.example/arm.usd", sha256: sha("9") },
-    arm_joints: [{ name: "shoulder", lower: -3, upper: 3, max_velocity: 2 }, { name: "elbow", lower: -3, upper: 3, max_velocity: 2 }],
+    base: { mode: "fixed" },
+    joints: [{ name: "shoulder", control: "position", lower: -3, upper: 3, max_velocity: 2 },
+      { name: "elbow", control: "position", lower: -3, upper: 3, max_velocity: 2 }],
     gripper: { joints: [{ name: "finger", open: 0.04, closed: 0 }], max_width_m: 0.08, contact_links: ["left_finger", "right_finger"] },
     tool_link: "wrist", reset_joint_positions: { shoulder: 0, elbow: 0, finger: 0.04 }, actuator: { stiffness: 400, damping: 40 },
     cameras: [{ name: "wrist_rgb", mount_link: "wrist", position_m: [0, 0.05, 0.02], orientation_xyzw: [0, 0, 0, 1],
       width: 320, height: 240, horizontal_fov_deg: 90 }],
     control_hz: 30, action_chunk_rows: 4, reach_m: 0.9 } as const;
+  // The same arm on a wheeled humanoid: free on the floor, two wheels driven by velocity, no station reach.
+  const { reach_m: _reach, ...unmounted } = arm;
+  const wheeled = { ...unmounted, embodiment_id: "acme-wheeled-v1", form: "wheeled_humanoid",
+    base: { mode: "free", root_height_m: 0.9, fall_height_m: 0.45, footprint_half_extent_m: [0.3, 0.3],
+      ground_contact_links: ["left_wheel", "right_wheel"] },
+    joints: [...arm.joints, { name: "left_wheel_joint", control: "velocity", max_velocity: 10, damping: 5 },
+      { name: "right_wheel_joint", control: "velocity", max_velocity: 10, damping: 5 }] } as const;
 
   it("asks for ten published practice episodes of the team's authenticated HTTPS policy", async () => {
     seed({ scene: offered(10), checkpoint: { policyCredential: credential } });
@@ -309,6 +318,26 @@ describe("asking for a team evaluation (beta L5)", () => {
     expect(canonical.policy_package.policy_api_endpoint).toMatchObject({ execution_profile: "team_evaluation_scored_v1",
       policy_interface_id: "blueprint_policy_https.v1", robot_embodiment: arm });
     expect(canonical.execution_authorization).toMatchObject({ episodes: 200 });
+  });
+
+  it("carries any form the team declares, and refuses a manifest that contradicts itself", async () => {
+    const { robotEmbodimentSchema, actionWidth } = await import("../../client/src/types/robotEmbodiment");
+    const parsed = robotEmbodimentSchema.parse(wheeled);
+    expect(actionWidth(parsed)).toBe(5);  // two arm joints, two wheels, the gripper
+    seed({ scene: offered(10), checkpoint: { policyCredential: credential } });
+    const free = { ...quote, quotedEpisodes: 10, quotedUsd: 10, submissionKey: "free:team-wheeled",
+      teamEvaluation: { purpose: "practice" as const, robotEmbodiment: wheeled as any } };
+    const prepared = await prepareFreeAgentExecution(free, approval());
+    if (!prepared.prepared) throw new Error(JSON.stringify(prepared));
+    const admission = await discoverAgentExecutionAdmission({ ...free, executionRequestId: prepared.requestId });
+    if (!admission.admitted) throw new Error(JSON.stringify(admission));
+    const canonical = admission.envelope.canonical_execution_request as Record<string, any>;
+    expect(canonical.policy_package.policy_api_endpoint.robot_embodiment).toEqual(wheeled);
+    // A fixed arm declared free, a free base given a station reach, a fall above standing height.
+    expect(robotEmbodimentSchema.safeParse({ ...wheeled, form: "fixed_base_arm" }).success).toBe(false);
+    expect(robotEmbodimentSchema.safeParse({ ...wheeled, reach_m: 0.9 }).success).toBe(false);
+    expect(robotEmbodimentSchema.safeParse({ ...wheeled, base: { ...wheeled.base, fall_height_m: 1.2 } }).success)
+      .toBe(false);
   });
 
   it("refuses a purpose the job does not offer, or an episode count other than the purpose's", async () => {

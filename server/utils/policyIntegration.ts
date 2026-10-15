@@ -66,7 +66,7 @@ export const TEAM_ROBOT_HTTPS_INTERFACE = "blueprint_policy_https.v1";
  * A team's authenticated HTTPS policy as the one candidate of a team
  * evaluation. The same URL answers GET with the team's declared identity and
  * POST with actions; the Pipeline checks that identity before every episode.
- * With a declared robot the policy drives the team's own arm; without one, the
+ * With a declared robot the policy drives the team's own robot; without one, the
  * DROID Franka. Null for anything else, so nothing unauthenticated or
  * non-HTTPS is ever asked for.
  */

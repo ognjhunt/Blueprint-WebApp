@@ -16,7 +16,7 @@ export type TaskTerms = TaskTargets & {
 };
 export type RobotSetup = {
   robotDescription?: RobotDescription;
-  /** The team's own arm and cameras for evaluation; absent means the DROID Franka. */
+  /** The team's own robot and cameras for evaluation; absent means the DROID Franka. */
   robotEmbodiment?: RobotEmbodiment;
   executionBindingId?: string;
   id: string;
