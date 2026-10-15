@@ -1,9 +1,13 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 const sources = vi.hoisted(() => ({ listUsers: vi.fn(), getUser: vi.fn(), profiles: vi.fn() }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ authAdmin: sources,
   dbAdmin: { collection: () => ({ select: () => ({ get: sources.profiles }) }) } }));
-import { accountNoticeSchema, assessAccountNoticeRecipient, previewAccountNotices } from "../utils/accountNotice";
+import { accountNoticeDigest, accountNoticeSchema, assessAccountNoticeRecipient, previewAccountNotices } from "../utils/accountNotice";
 const input = { noticeId: "synthetic-service-v1", subject: "Service notice", body: "Approved synthetic body",
   eligibility: { audience: { kind: "existing_accounts", createdBefore: "2026-10-14T00:00:00Z" }, reason: "Existing account holders at the time of this change",
     evidenceRef: "synthetic:service-scope-decision", emailVerification: "not_required", includeDisabledAccounts: false,
@@ -37,10 +41,33 @@ describe("notice-specific account eligibility", () => {
     const all = accountNoticeSchema.parse({ ...input, eligibility: { ...input.eligibility, includeDisabledAccounts: true } });
     expect(assessAccountNoticeRecipient(all, "disabled", account("disabled", { disabled: true })).state).toBe("eligible");
   });
+  it("holds missing or malformed Auth flags and preserves unknown verification in the audit", () => {
+    for (const changes of [{ disabled: undefined }, { disabled: "false" }, { emailVerified: undefined }, { emailVerified: "false" }]) {
+      const row = assessAccountNoticeRecipient(notice, "existing", account("existing", changes));
+      expect(row).toMatchObject({ state: "held", reason: "account_status_unproven" });
+      if ("emailVerified" in changes) expect(row.emailVerified).toBeNull();
+      if ("disabled" in changes) expect(row.accountDisabled).toBeNull();
+    }
+  });
   it("rejects legacy arbitrary-address inputs and missing notice scope or exclusion evidence", () => {
     expect(() => accountNoticeSchema.parse({ noticeId: input.noticeId, subject: input.subject, body: input.body, to: "any@example.invalid" })).toThrow();
     expect(() => accountNoticeSchema.parse({ ...input, eligibility: { ...input.eligibility, exclusions: [{ uid: "guess", reason: "test_account" }] } })).toThrow();
   });
+});
+
+it("replaces stale enqueue results with an empty receipt for a zero-recipient synthetic selection", () => {
+  const output = mkdtempSync(join(tmpdir(), "account-notice-empty-"));
+  try {
+    const inputPath = join(output, "input.json"), selectionPath = join(output, "reviewed.json");
+    writeFileSync(inputPath, JSON.stringify(input));
+    writeFileSync(selectionPath, JSON.stringify({ schema: "blueprint.account_notice_recipients.v1", complete: true,
+      noticeDigest: accountNoticeDigest(notice), recipients: [] }));
+    writeFileSync(join(output, "enqueue-results.json"), JSON.stringify([{ uid: "stale-synthetic", status: "old" }]));
+    // No eligible rows: neither Firebase source access nor outbox enqueue is invoked.
+    execFileSync(process.execPath, ["--import", "tsx", "scripts/email/account-notice.ts", "--input", inputPath,
+      "--output", output, "--enqueue", "--reviewed", selectionPath], { env: { ...process.env, NODE_ENV: "test" }, stdio: "pipe" });
+    expect(JSON.parse(readFileSync(join(output, "enqueue-results.json"), "utf8"))).toEqual([]);
+  } finally { rmSync(output, { recursive: true, force: true }); }
 });
 
 describe("read-only auditable recipient preview", () => {

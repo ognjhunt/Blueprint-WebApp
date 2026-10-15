@@ -40,6 +40,7 @@ async function main() {
   // Explicit send authority is required for this exact saved selection. Every
   // eligible identity is re-read; stale rows cannot retarget a changed address.
   const results: unknown[] = [];
+  save("enqueue-results.json", JSON.stringify(results, null, 2));
   for (const row of eligible) {
     try { results.push({ uid: row.uid, ...await enqueueAccountNotice(notice, row) }); }
     catch { results.push({ uid: row.uid, status: "review_required" }); }

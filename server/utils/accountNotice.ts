@@ -28,7 +28,7 @@ export type AccountNoticeContext = z.infer<typeof contextSchema>;
 export type AccountNoticeRecipient = {
   uid: string; state: "eligible" | "excluded" | "held"; reason: string;
   sourceRecordIds: string[]; accountLinked: boolean; email: string | null;
-  emailVerified: boolean | null; accountCreatedAt: string | null; exclusionEvidenceRef?: string;
+  emailVerified: boolean | null; accountDisabled: boolean | null; accountCreatedAt: string | null; exclusionEvidenceRef?: string;
 };
 
 /** Stable across Firestore map ordering; never bind volatile audit timestamps. */
@@ -43,14 +43,17 @@ export function assessAccountNoticeRecipient(notice: Notice, uid: string, auth: 
   profileExists = false, lookupFailed = false): AccountNoticeRecipient {
   const created = auth ? Date.parse(auth.metadata?.creationTime) : NaN;
   const row: AccountNoticeRecipient = { uid, state: "held", reason: "account_link_unproven",
-    sourceRecordIds: [...(auth ? [`firebase_auth/users/${uid}`] : []), ...(profileExists ? [`users/${uid}`] : [])],
+    sourceRecordIds: [...(auth ? [`firebase_auth/users/${auth.uid}`] : []), ...(profileExists ? [`users/${uid}`] : [])],
     accountLinked: Boolean(auth && auth.uid === uid), email: auth?.email?.trim().toLowerCase() || null,
-    emailVerified: auth ? auth.emailVerified === true : null, accountCreatedAt: Number.isFinite(created) ? new Date(created).toISOString() : null };
+    emailVerified: typeof auth?.emailVerified === "boolean" ? auth.emailVerified : null,
+    accountDisabled: typeof auth?.disabled === "boolean" ? auth.disabled : null,
+    accountCreatedAt: Number.isFinite(created) ? new Date(created).toISOString() : null };
   const excluded = notice.eligibility.exclusions.find(item => item.uid === uid);
   if (excluded) return { ...row, state: "excluded", reason: excluded.reason, exclusionEvidenceRef: excluded.evidenceRef };
   if (lookupFailed) return { ...row, reason: "account_lookup_unavailable" };
   if (!row.accountLinked) return row;
-  if (auth!.disabled && !notice.eligibility.includeDisabledAccounts) return { ...row, state: "excluded", reason: "account_disabled" };
+  if (row.accountDisabled === null || row.emailVerified === null) return { ...row, reason: "account_status_unproven" };
+  if (row.accountDisabled && !notice.eligibility.includeDisabledAccounts) return { ...row, state: "excluded", reason: "account_disabled" };
   const audience = notice.eligibility.audience;
   if (audience.kind === "account_uids" && !audience.uids.includes(uid)) return { ...row, state: "excluded", reason: "outside_notice_scope" };
   if (!row.accountCreatedAt) return { ...row, reason: "account_creation_unproven" };

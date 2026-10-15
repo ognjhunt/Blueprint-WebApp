@@ -60,7 +60,8 @@ pages the configured app's entire Firebase Auth roster and separately reads
 `selection.json` with schema `blueprint.account_notice_recipients.v1`, capture
 time, notice digest and one decision per UID: eligible, excluded or held, the
 reason, source record IDs, account linkage, canonical Auth email, creation time
-and email-verification fact. It also writes common branded HTML/text and the
+and email-verification and disabled-status facts. Unknown or malformed account
+flags are reported as unknown and held for review. It also writes common branded HTML/text and the
 notice definition. An incomplete source read fails instead of publishing a
 complete eligible list. Keep these private JSON/HTML/text files out of Git,
 public assets and unapproved destinations; files are written with mode 0600.
