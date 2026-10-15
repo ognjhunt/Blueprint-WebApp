@@ -47,7 +47,7 @@
  * already enforces (an invited, approved, verified robot-team account); this
  * module answers only for the job and never widens that gate.
  */
-import type { TaskListingDetails, TeamJobOpening } from "../../client/src/types/taskBrowse";
+import type { TaskListingDetails, TeamEvaluationTerms, TeamJobOpening } from "../../client/src/types/taskBrowse";
 import type { InboundRequest } from "../types/inbound-request";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { approvedTaskDetails } from "./taskListingDetails";
@@ -210,5 +210,51 @@ export function projectTeamJobOpening(id: string, record: RecordLike): TeamJobOp
   const access = teamJobAccess(record);
   if (!access.evaluationAvailable) return null;
   const listing = (record as { public_task_listing: { approvedAtIso: string } }).public_task_listing;
-  return { ...access.details, id, publishedAtIso: listing.approvedAtIso, thumbnailUrl: taskThumbnailUrl(id, record) };
+  return { ...access.details, id, publishedAtIso: listing.approvedAtIso, thumbnailUrl: taskThumbnailUrl(id, record),
+    evaluation: teamEvaluationTerms(record) };
+}
+
+const POLICY_INTERFACE_SUMMARIES: Record<string, { robot: "droid_franka" | "team_declared"; summary: string }> = {
+  "openpi_droid_https.v1": { robot: "droid_franka",
+    summary: "Blueprint's simulated DROID Franka with a Robotiq 2F-85: two 224×224 views, joint and gripper state and the instruction in; joint-position action chunks out." },
+  "blueprint_policy_https.v1": { robot: "team_declared",
+    summary: "Your own fixed-base arm and cameras, declared as a robot manifest with its USD model: your cameras, joint state and gripper closure in; joint targets and gripper closure out, at 15, 30 or 60 Hz." },
+};
+
+function finiteRecord(value: unknown): Record<string, number> {
+  return Object.fromEntries(Object.entries(value && typeof value === "object" ? value as Record<string, unknown> : {})
+    .filter((entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1])).slice(0, 16));
+}
+
+/**
+ * The job's team evaluation terms from the Pipeline's published offer, or null
+ * when the scene does not offer one yet. Only what a team needs to prepare:
+ * the instruction, the published practice cells, the scored families and
+ * their bounds, and the policy interfaces. Never the site's geometry.
+ */
+export function teamEvaluationTerms(record: RecordLike): TeamEvaluationTerms | null {
+  const offer = (record as { agent_execution_offer?: { team_evaluation?: Record<string, any> } } | null | undefined)
+    ?.agent_execution_offer?.team_evaluation;
+  const contract = offer?.contract;
+  if (!offer || !contract || typeof contract.instruction !== "string") return null;
+  const listing = (purpose: "practice" | "scored") => ({ available: offer[purpose]?.available === true,
+    reason: typeof offer[purpose]?.reason === "string" ? offer[purpose].reason : null,
+    episodes: Number(offer[purpose]?.episodes) || 0 });
+  const cells = Array.isArray(contract.practice?.cells) ? contract.practice.cells.slice(0, 20) : [];
+  const bounds = contract.scored?.parameter_bounds && typeof contract.scored.parameter_bounds === "object"
+    ? Object.fromEntries(Object.entries(contract.scored.parameter_bounds as Record<string, unknown>)
+      .filter((entry): entry is [string, [number, number]] => Array.isArray(entry[1]) && entry[1].length === 2
+        && entry[1].every(value => typeof value === "number" && Number.isFinite(value))).slice(0, 16)) : {};
+  const interfaces = Array.isArray(contract.policy_interfaces) ? contract.policy_interfaces : [];
+  return {
+    instruction: contract.instruction.slice(0, 1000),
+    taskKind: String(contract.task_kind || ""),
+    practice: { ...listing("practice"), cells: cells.map((cell: Record<string, unknown>) => ({
+      cellId: String(cell.cell_id || ""), family: String(cell.family || ""), parameters: finiteRecord(cell.parameters) })) },
+    scored: { ...listing("scored"), families: Array.isArray(contract.scored?.families)
+      ? contract.scored.families.map(String).slice(0, 16) : [], parameterBounds: bounds },
+    policyInterfaces: interfaces.map((row: Record<string, unknown>) => String(row.policy_interface_id || ""))
+      .filter((key: string) => key in POLICY_INTERFACE_SUMMARIES)
+      .map((key: string) => ({ policyInterfaceId: key, ...POLICY_INTERFACE_SUMMARIES[key] })),
+  };
 }

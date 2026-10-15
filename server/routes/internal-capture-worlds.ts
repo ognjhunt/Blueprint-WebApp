@@ -43,7 +43,7 @@ import {
 
 import { DEVELOPMENT_OFFERS, developmentOfferSchema } from "../utils/controlledDevelopmentOffer";
 import { isCaptureOwnerPath, type CaptureOwnerBody } from "../utils/captureOwnerRawBody";
-import { TEAM_CANDIDATE_QUICK10_PROFILE } from "../utils/policyIntegration";
+import { isTeamEvaluationProfile, TEAM_EVALUATION_EPISODES, TEAM_EVALUATION_PROFILES } from "../utils/policyIntegration";
 import { observeWebsiteCaptureOwner } from "../utils/websiteCaptureOwnerObservation";
 import { withWebsiteOwnerDeps } from "../utils/websiteCaptureOwnerTransport";
 import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent, type PreparedAssessmentProposal } from "../utils/siteAssessmentPreparation";
@@ -376,6 +376,13 @@ router.post("/creator-captures/:captureId/task-item-evidence", createPipelineSyn
     }
   });
 
+const teamEvaluationListing = z.object({
+  profile: z.string().max(100),
+  episodes: z.number().int().min(1).max(1000),
+  available: z.boolean(),
+  reason: z.string().max(300).nullable(),
+}).strict();
+
 const agentExecutionOfferBody = z.object({
   request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
   scene_id: z.string().trim().min(1).max(220),
@@ -388,10 +395,18 @@ const agentExecutionOfferBody = z.object({
     episode_count: z.number().int().min(1).max(100_000),
     episode_specs_sha256: z.string().regex(/^sha256:[0-9a-f]{64}$/),
     policy_execution_profiles: z.array(z.enum(["controlled_observation_v1", "onnx_state_mlp_cpu_v1",
-      TEAM_CANDIDATE_QUICK10_PROFILE])).max(2).optional(),
-  }).strict().refine((offer) => !offer.policy_execution_profiles?.includes(TEAM_CANDIDATE_QUICK10_PROFILE)
-    // Beta L5: the Quick-10 team-candidate runtime is listed alone and runs exactly ten episodes.
-    || (offer.policy_execution_profiles.length === 1 && offer.episode_count === 10)),
+      TEAM_EVALUATION_PROFILES.practice, TEAM_EVALUATION_PROFILES.scored])).max(2).optional(),
+    /** Beta L5: what a team is asked to do and how it is judged, shown on the job's opening page. */
+    team_evaluation: z.object({
+      practice: teamEvaluationListing,
+      scored: teamEvaluationListing,
+      contract: z.record(z.string(), z.unknown()),
+    }).strict().refine(value => JSON.stringify(value).length <= 64_000).optional(),
+  }).strict().refine((offer) => !offer.policy_execution_profiles?.some(isTeamEvaluationProfile)
+    // Team evaluations are listed only with their contract, never beside another runtime, and the
+    // offer's own count is practice's ten published cells.
+    || (offer.team_evaluation !== undefined && offer.episode_count === TEAM_EVALUATION_EPISODES.practice
+      && offer.policy_execution_profiles.every(isTeamEvaluationProfile))),
 }).strict();
 
 router.post(

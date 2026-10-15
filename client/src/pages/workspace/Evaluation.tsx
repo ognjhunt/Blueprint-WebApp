@@ -8,6 +8,50 @@ import {
   ActionLink,
 } from "@/components/workspace/WorkspaceUI";
 import { RunRecord } from "@/pages/app/RunDetail";
+import type { EpisodeOutcomeRow } from "@/types/workspace";
+
+const OUTCOME_REASONS: Record<string, string> = {
+  task_succeeded: "Task completed",
+  task_not_completed: "Task not completed",
+  policy_action_beyond_joint_limits: "Action outside the robot's joint limits",
+  policy_service_did_not_answer: "Policy service did not answer in time",
+  policy_action_invalid: "Action had the wrong shape or non-finite values",
+  policy_service_error: "Policy service error",
+  simulator_score_undetermined: "Simulator could not score (not counted)",
+  simulator_failed_during_episode: "Simulator failed (not counted)",
+  simulator_failed_before_policy: "Simulator failed before the policy ran (not counted)",
+};
+
+/** Each episode's outcome: practice cells with their published variation, scored cells by family only. */
+function EpisodeOutcomes({ rows }: { rows: EpisodeOutcomeRow[] }) {
+  return (
+    <details className="ws-section">
+      <summary>Every episode ({rows.length})</summary>
+      <div className="ws-table-wrap">
+        <table className="ws-table">
+          <thead>
+            <tr><th>Cell</th><th>Variation</th><th>Outcome</th><th>Why</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.cell_id}>
+                <td>{row.cell_id}</td>
+                <td>
+                  {row.family ?? "—"}
+                  {row.parameters && Object.keys(row.parameters).length
+                    ? `: ${Object.entries(row.parameters).map(([name, value]) => `${name} ${value}`).join(", ")}`
+                    : ""}
+                </td>
+                <td>{row.outcome === "void" ? "Not counted" : row.outcome === "success" ? "Success" : "Failure"}</td>
+                <td>{OUTCOME_REASONS[row.reason] ?? row.reason}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  );
+}
 function Evidence({ runId }: { runId: string }) {
   const query = useBuyerAppRunDetail(runId);
   return (
@@ -130,7 +174,9 @@ export default function Evaluation() {
                               : `${higher ? "At least" : "At most"} ${target}${unit}`}
                           </td>
                           <td>
-                            {value === null || target === null
+                            {item.purpose === "practice"
+                              ? "Practice, not compared"
+                              : value === null || target === null
                               ? "Not assessed"
                               : (
                                     higher
@@ -149,10 +195,20 @@ export default function Evaluation() {
                   {item.evidenceLabel}
                   {item.sampleCount !== null
                     ? ` · ${item.sampleCount} trials`
+                    : ""}
+                  {item.successRateInterval
+                    ? ` · 95% interval ${item.successRateInterval[0]}–${item.successRateInterval[1]}%`
                     : ""}{" "}
                   · {dateLabel(item.createdAt)}. Physical performance must be
                   confirmed in the pilot.
                 </p>
+                {item.purpose === "practice" ? (
+                  <p className="ws-note">
+                    A practice run is feedback for you. It is never shown to the site and no
+                    recommendation rests on it; request a scored evaluation when you are ready.
+                  </p>
+                ) : null}
+                {item.episodeOutcomes?.length ? <EpisodeOutcomes rows={item.episodeOutcomes} /> : null}
               </>
             )}
           </section>

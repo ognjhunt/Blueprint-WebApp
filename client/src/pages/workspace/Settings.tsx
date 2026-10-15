@@ -14,6 +14,7 @@ import {
   useAction,
 } from "@/components/workspace/WorkspaceUI";
 import { RobotDescriptionFields, readRobotDescription } from "@/components/workspace/RobotDescriptionFields";
+import { robotEmbodimentSchema, type RobotEmbodiment } from "@/types/robotEmbodiment";
 import { CheckpointRegistration } from "@/components/workspace/CheckpointRegistration";
 import type { RobotSetup } from "@/types/workspace";
 function WorkspaceSettings() {
@@ -245,6 +246,23 @@ function WorkspaceSettings() {
                 event.preventDefault();
                 const values = new FormData(event.currentTarget),
                   value = (name: string) => String(values.get(name) || "");
+                // A declared arm is evaluated as itself; without one the policy drives the DROID Franka.
+                const manifestField = event.currentTarget.elements.namedItem("robotEmbodiment") as HTMLTextAreaElement | null;
+                let robotEmbodiment: RobotEmbodiment | undefined;
+                if (value("robotEmbodiment").trim()) {
+                  try {
+                    const parsed = robotEmbodimentSchema.safeParse(JSON.parse(value("robotEmbodiment")));
+                    if (!parsed.success) {
+                      const issue = parsed.error.issues[0];
+                      throw new Error(`${issue?.path.join(".") || "manifest"}: ${issue?.message ?? "invalid"}`);
+                    }
+                    robotEmbodiment = parsed.data;
+                  } catch (error) {
+                    manifestField?.setCustomValidity(`Robot manifest ${error instanceof SyntaxError ? "is not valid JSON" : `— ${(error as Error).message}`}`);
+                    manifestField?.reportValidity();
+                    return;
+                  }
+                }
                 void action.perform(
                   "/setups",
                   {
@@ -261,6 +279,7 @@ function WorkspaceSettings() {
                     notes: value("notes"),
                     robotDescription: readRobotDescription(values,editing!=="new" && editing.robotDescription?.source==="catalog" ? [{id:editing.robotDescription.configurationId,label:"Saved robot model",binding_digest:editing.robotDescription.configurationDigest}] : []),
                     ...(editing !== "new" && editing.executionBindingId ? {executionBindingId:editing.executionBindingId} : {}),
+                    ...(robotEmbodiment ? { robotEmbodiment } : {}),
                   },
                   () => setEditing(null),
                 );
@@ -315,6 +334,28 @@ function WorkspaceSettings() {
                   />
                 </Field>
               </div>
+              <details className="ws-section" open={editing !== "new" && Boolean(editing.robotEmbodiment)}>
+                <summary>Your own arm (optional)</summary>
+                <p className="ws-note">
+                  Leave empty to run your policy on Blueprint&rsquo;s simulated DROID Franka. To be evaluated on
+                  your own fixed-base arm, paste its robot manifest (<code>blueprint.robot_embodiment.v1</code>):
+                  a USD model with its SHA-256, the joints your policy drives in action order with their limits,
+                  your gripper&rsquo;s joints and contact links, your cameras, and your control rate (15, 30 or
+                  60 Hz). Your arm stands at the scene&rsquo;s robot station; one that cannot reach the job from
+                  there is refused before anything runs.
+                </p>
+                <Field label="Robot manifest (JSON)" wide>
+                  <textarea
+                    name="robotEmbodiment"
+                    rows={8}
+                    maxLength={20000}
+                    spellCheck={false}
+                    onInput={(event) => event.currentTarget.setCustomValidity("")}
+                    defaultValue={editing !== "new" && editing.robotEmbodiment
+                      ? JSON.stringify(editing.robotEmbodiment, null, 2) : ""}
+                  />
+                </Field>
+              </details>
               <details className="ws-section">
                 <summary>Additional notes</summary>
                 <Field label="Notes">

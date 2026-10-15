@@ -261,18 +261,28 @@ it("prepares a sponsor-bounded free request through real canonical admission", a
   expect([...sharedFakeFirestoreState.docs.keys()].filter(key => /evaluationRuns|robotTeamLedger/.test(key))).toEqual([]);
 });
 
-describe("asking for the Quick-10 team-candidate runtime (beta L5)", () => {
+describe("asking for a team evaluation (beta L5)", () => {
   const credential = { ref: "credential-ref-1", kind: "bearer", expiresAtIso: "2100-01-01T00:00:00.000Z" };
-  const offered = (episodeCount: number) => ({ agent_execution_offer: {
-    schema_version: "blueprint.agent_execution_offer.v1", scene_id: "site-req-1", capture_id: "walkthrough-req-1",
-    capture_root: ROOT, scenario_id: "capture_observed", episode_count: episodeCount, episode_specs_sha256: sha("e"),
-    policy_execution_profiles: ["policy_canary_quick10_team_candidate_v1"],
-  } });
+  const offered = (episodeCount: number, profiles = ["team_evaluation_practice_v1", "team_evaluation_scored_v1"]) => ({
+    agent_execution_offer: {
+      schema_version: "blueprint.agent_execution_offer.v1", scene_id: "site-req-1", capture_id: "walkthrough-req-1",
+      capture_root: ROOT, scenario_id: "capture_observed", episode_count: episodeCount, episode_specs_sha256: sha("e"),
+      policy_execution_profiles: profiles,
+    } });
   const approval = () => ({ approvedBy: "operator", expiresAtIso: new Date(Date.now() + 600000).toISOString() });
+  const arm = { schema_version: "blueprint.robot_embodiment.v1", embodiment_id: "acme-arm-v2", form: "fixed_base_arm",
+    model: { format: "usd", url: "https://models.acme.example/arm.usd", sha256: sha("9") },
+    arm_joints: [{ name: "shoulder", lower: -3, upper: 3, max_velocity: 2 }, { name: "elbow", lower: -3, upper: 3, max_velocity: 2 }],
+    gripper: { joints: [{ name: "finger", open: 0.04, closed: 0 }], max_width_m: 0.08, contact_links: ["left_finger", "right_finger"] },
+    tool_link: "wrist", reset_joint_positions: { shoulder: 0, elbow: 0, finger: 0.04 }, actuator: { stiffness: 400, damping: 40 },
+    cameras: [{ name: "wrist_rgb", mount_link: "wrist", position_m: [0, 0.05, 0.02], orientation_xyzw: [0, 0, 0, 1],
+      width: 320, height: 240, horizontal_fov_deg: 90 }],
+    control_hz: 30, action_chunk_rows: 4, reach_m: 0.9 } as const;
 
-  it("asks for ten simulator-scored episodes of the team's authenticated HTTPS policy", async () => {
+  it("asks for ten published practice episodes of the team's authenticated HTTPS policy", async () => {
     seed({ scene: offered(10), checkpoint: { policyCredential: credential } });
-    const free = { ...quote, quotedEpisodes: 10, quotedUsd: 10, submissionKey: "free:team-candidate" };
+    const free = { ...quote, quotedEpisodes: 10, quotedUsd: 10, submissionKey: "free:team-practice",
+      teamEvaluation: { purpose: "practice" as const } };
     const prepared = await prepareFreeAgentExecution(free, approval());
     expect(prepared, JSON.stringify(prepared)).toMatchObject({ prepared: true });
     if (!prepared.prepared) return;
@@ -281,16 +291,34 @@ describe("asking for the Quick-10 team-candidate runtime (beta L5)", () => {
     if (!admission.admitted) return;
     const canonical = admission.envelope.canonical_execution_request as Record<string, any>;
     expect(canonical.policy_package).toEqual({ policy_api_endpoint: {
-      endpoint_url: "https://policy.alpha.example/v3", execution_profile: "policy_canary_quick10_team_candidate_v1",
+      endpoint_url: "https://policy.alpha.example/v3", execution_profile: "team_evaluation_practice_v1",
       policy_interface_id: "openpi_droid_https.v1", credential_ref: "credential-ref-1", credential_kind: "bearer" } });
     expect(canonical.execution_authorization).toMatchObject({ episodes: 10, max_cost_usd: 10 });
   });
 
-  it("refuses an offer with too few episodes to judge a team", async () => {
-    seed({ scene: offered(5), checkpoint: { policyCredential: credential } });
-    const free = { ...quote, quotedEpisodes: 5, quotedUsd: 10, submissionKey: "free:team-candidate-short" };
-    expect(await prepareFreeAgentExecution(free, approval())).toEqual({ prepared: false,
-      blockers: ["pipeline_team_candidate_offer_below_minimum_episodes"] });
+  it("asks for 200 hidden scored episodes on the team's own declared arm", async () => {
+    seed({ scene: offered(10), checkpoint: { policyCredential: credential } });
+    const free = { ...quote, quotedEpisodes: 200, quotedUsd: 10, submissionKey: "free:team-scored",
+      teamEvaluation: { purpose: "scored" as const, robotEmbodiment: arm as any } };
+    const prepared = await prepareFreeAgentExecution(free, approval());
+    expect(prepared, JSON.stringify(prepared)).toMatchObject({ prepared: true });
+    if (!prepared.prepared) return;
+    const admission = await discoverAgentExecutionAdmission({ ...free, executionRequestId: prepared.requestId });
+    if (!admission.admitted) throw new Error(JSON.stringify(admission));
+    const canonical = admission.envelope.canonical_execution_request as Record<string, any>;
+    expect(canonical.policy_package.policy_api_endpoint).toMatchObject({ execution_profile: "team_evaluation_scored_v1",
+      policy_interface_id: "blueprint_policy_https.v1", robot_embodiment: arm });
+    expect(canonical.execution_authorization).toMatchObject({ episodes: 200 });
+  });
+
+  it("refuses a purpose the job does not offer, or an episode count other than the purpose's", async () => {
+    seed({ scene: offered(10, ["team_evaluation_practice_v1"]), checkpoint: { policyCredential: credential } });
+    expect(await prepareFreeAgentExecution({ ...quote, quotedEpisodes: 200, quotedUsd: 10, submissionKey: "free:not-offered",
+      teamEvaluation: { purpose: "scored" } }, approval())).toEqual({ prepared: false,
+      blockers: ["pipeline_team_evaluation_purpose_not_offered"] });
+    expect(await prepareFreeAgentExecution({ ...quote, quotedEpisodes: 50, quotedUsd: 10, submissionKey: "free:wrong-count",
+      teamEvaluation: { purpose: "practice" } }, approval())).toEqual({ prepared: false,
+      blockers: ["pipeline_team_evaluation_episode_mismatch"] });
   });
 
   it("never asks for it with an unauthenticated endpoint", async () => {

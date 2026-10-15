@@ -8,7 +8,7 @@ import {
   WorkspaceRequestError,
 } from "@/lib/workspace";
 import { TaskFacts } from "@/components/site/TaskFacts";
-import { opportunityLabels, type TeamJobOpening } from "@/types/taskBrowse";
+import { opportunityLabels, type TeamEvaluationTerms, type TeamJobOpening } from "@/types/taskBrowse";
 import {
   Frame,
   Empty,
@@ -100,6 +100,7 @@ export default function OpeningDetail() {
                 Site identity is shared only after approval. Physical
                 performance is confirmed in the pilot.
               </p>
+              {item.evaluation ? <EvaluationTerms terms={item.evaluation} /> : null}
             </div>
             <form
               method="post"
@@ -114,6 +115,7 @@ export default function OpeningDetail() {
                     opportunityId: item.id,
                     setupId: String(values.get("setupId") || ""),
                     notes: String(values.get("notes") || ""),
+                    purpose: values.get("purpose") === "scored" ? "scored" : "practice",
                   },
                   () => navigate(`/app/evaluations/${requestId.current}`),
                 );
@@ -141,6 +143,30 @@ export default function OpeningDetail() {
                   Manage setups
                 </Link>
               </div>
+              {item.evaluation ? (
+                <fieldset className="ws-section">
+                  <legend>Run</legend>
+                  <label className="ws-check">
+                    <input type="radio" name="purpose" value="practice" defaultChecked
+                      disabled={!item.evaluation.practice.available} />
+                    <span>
+                      Practice: the {item.evaluation.practice.episodes} published cells, with every
+                      episode&rsquo;s outcome returned to you. Never shown to the site.
+                    </span>
+                  </label>
+                  <label className="ws-check">
+                    <input type="radio" name="purpose" value="scored"
+                      disabled={!item.evaluation.scored.available} />
+                    <span>
+                      Scored: {item.evaluation.scored.episodes} cells you have not seen. The only run a
+                      recommendation can rest on.
+                      {!item.evaluation.scored.available
+                        ? " Not open yet for this job."
+                        : ""}
+                    </span>
+                  </label>
+                </fieldset>
+              ) : null}
               <div className="ws-section">
                 <Field label="Notes (optional)">
                   <textarea
@@ -155,6 +181,13 @@ export default function OpeningDetail() {
                 <span>
                   I understand the evaluation is free during the beta, and that a
                   physical pilot&rsquo;s dates and terms are agreed directly with the site.
+                </span>
+              </label>
+              <label className="ws-check">
+                <input type="checkbox" required />
+                <span>
+                  I license Blueprint to run this policy for this evaluation only. Blueprint&rsquo;s
+                  simulator scores every episode; my service returns actions, never results.
                 </span>
               </label>
               <div className="ws-form-actions">
@@ -174,5 +207,66 @@ export default function OpeningDetail() {
         </>
       )}
     </Frame>
+  );
+}
+
+const FAMILY_LABELS: Record<string, string> = {
+  canonical_anchor: "Nominal scene",
+  placement_approach: "Object placement and yaw",
+  illumination: "Lighting",
+  camera_sensor: "Camera position",
+  bounded_physics: "Surface friction",
+  pairwise_stress: "Two variations at once",
+  held_out_composition: "Every variation at once",
+};
+
+function EvaluationTerms({ terms }: { terms: TeamEvaluationTerms }) {
+  return (
+    <section className="ws-section" aria-labelledby="evaluation-terms">
+      <h2 id="evaluation-terms">How your evaluation runs</h2>
+      <p>Instruction your policy receives: &ldquo;{terms.instruction}&rdquo;</p>
+      <p>
+        Blueprint&rsquo;s simulator decides every episode from the task object&rsquo;s state
+        against the job&rsquo;s success contract. Results are a bounded simulation estimate;
+        they never certify physical performance or safety.
+      </p>
+      <details className="ws-section">
+        <summary>Practice: {terms.practice.episodes} published cells</summary>
+        <ul>
+          {terms.practice.cells.map((cell) => (
+            <li key={cell.cellId}>
+              {FAMILY_LABELS[cell.family] ?? cell.family}
+              {Object.keys(cell.parameters).length
+                ? `: ${Object.entries(cell.parameters).map(([name, value]) => `${name} ${value}`).join(", ")}`
+                : ""}
+            </li>
+          ))}
+        </ul>
+      </details>
+      <details className="ws-section">
+        <summary>Scored: {terms.scored.episodes} hidden cells</summary>
+        <p>Drawn from these variations, the same for every team on this job:</p>
+        <ul>
+          {terms.scored.families.map((family) => (
+            <li key={family}>{FAMILY_LABELS[family] ?? family}</li>
+          ))}
+        </ul>
+        <ul>
+          {Object.entries(terms.scored.parameterBounds).map(([name, [low, high]]) => (
+            <li key={name}>{name}: {low} to {high}</li>
+          ))}
+        </ul>
+      </details>
+      <details className="ws-section">
+        <summary>Policy interfaces</summary>
+        <ul>
+          {terms.policyInterfaces.map((row) => (
+            <li key={row.policyInterfaceId}>
+              <code>{row.policyInterfaceId}</code>: {row.summary}
+            </li>
+          ))}
+        </ul>
+      </details>
+    </section>
   );
 }

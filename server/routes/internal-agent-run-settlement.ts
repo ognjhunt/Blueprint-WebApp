@@ -100,6 +100,15 @@ const settlementSchema = z
   })
   .strict();
 
+const episodeOutcomeSchema = z.object({
+  cell_id: z.string().trim().min(1).max(200),
+  family: z.string().trim().max(100).nullable(),
+  outcome: z.enum(["success", "failure", "void"]),
+  reason: z.string().trim().min(1).max(100).regex(/^[a-z0-9_]+$/),
+  /** Published practice cells only; a scored cell's draw stays hidden. */
+  parameters: z.record(z.string().regex(/^[a-z0-9_]{1,64}$/), z.number().finite()).optional(),
+}).strict();
+
 const resultSchema = z
   .object({
     pipeline_run_id: z.string().trim().min(1).max(200).optional(),
@@ -122,6 +131,10 @@ const resultSchema = z
      * counts toward a recommendation (`runResultScoring.ts`).
      */
     scoring: runResultScoringSchema.optional(),
+    /** A team evaluation's purpose: practice (feedback only) or scored (the evidence). */
+    evaluation_purpose: z.enum(["practice", "scored"]).optional(),
+    /** One row per episode, as the simulator scored it. Void episodes are reported, never counted. */
+    episode_outcomes: z.array(episodeOutcomeSchema).max(500).optional(),
   })
   .strict();
 
@@ -166,6 +179,12 @@ router.post(
     if (parsed.data.scoring && parsed.data.scoring.scored_episode_count > parsed.data.episodes_run) {
       return res.status(400).json({ error: "More episodes were scored than ran.", code: "agent_run_result_impossible" });
     }
+    const outcomes = parsed.data.episode_outcomes;
+    if (outcomes && (outcomes.filter(row => row.outcome !== "void").length !== parsed.data.episodes_run
+      || outcomes.filter(row => row.outcome === "success").length !== parsed.data.episodes_succeeded
+      || (parsed.data.evaluation_purpose === "scored" && outcomes.some(row => row.parameters)))) {
+      return res.status(400).json({ error: "Episode outcomes do not match the counts.", code: "agent_run_result_impossible" });
+    }
     if (parsed.data.private_execution_result && (parsed.data.episodes_run !== 1
       || parsed.data.episodes_succeeded !== Number(parsed.data.private_execution_result.task_success))) {
       return res.status(400).json({ error: "Native outcome does not match episode counts", code: "native_outcome_mismatch" });
@@ -188,6 +207,8 @@ router.post(
           artifactUri: parsed.data.artifact_uri ?? null,
           ...(parsed.data.private_execution_result ? { privateExecutionResult: parsed.data.private_execution_result } : {}),
           ...(parsed.data.scoring ? { scoring: storedScoring(parsed.data.scoring) } : {}),
+          ...(parsed.data.evaluation_purpose ? { evaluationPurpose: parsed.data.evaluation_purpose } : {}),
+          ...(outcomes ? { episodeOutcomes: outcomes } : {}),
         },
       });
 

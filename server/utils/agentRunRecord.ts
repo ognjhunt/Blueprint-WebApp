@@ -21,6 +21,8 @@ export interface RunDispatch {
 export interface EvalRunRecord {
   /** Absent only on historical runs created before private evaluations. */
   evaluationPurpose?: "private" | "pilot";
+  /** Beta L5: a team evaluation's purpose; only a scored run can back a recommendation. */
+  teamEvaluationPurpose?: "practice" | "scored";
   runId: string;
   teamId: string;
   checkpointId: string;

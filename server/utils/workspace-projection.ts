@@ -6,6 +6,7 @@ import type {
 } from "../../client/src/types/workspace";
 import { teamJobAccess } from "./teamJobAccess";
 import { isSimulatorScoredJobEvidence, type RunResultScoring } from "./runResultScoring";
+import type { EpisodeOutcome } from "./agentRunResults";
 import { sitePilotIntentFrom, siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 
 export function object(value: unknown): Record<string, any> {
@@ -188,6 +189,9 @@ export interface AgentRunForSite {
     evidenceScope?: "development_only";
     /** Who scored the episodes; without an admitted statement, targets are never "met". */
     scoring?: RunResultScoring;
+    /** A team evaluation's purpose and per-episode outcomes, shown to the team that ran it. */
+    evaluationPurpose?: "practice" | "scored";
+    episodeOutcomes?: EpisodeOutcome[];
     observed: {
       episodesRun: number;
       episodesSucceeded: number;

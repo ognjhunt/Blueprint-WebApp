@@ -52,6 +52,8 @@ import type {
 } from "../../client/src/types/workspace";
 
 import { robotDescriptionSchema } from "../../client/src/types/robotDescription";
+import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
+import { wilsonLowerBound, wilsonUpperBound } from "../utils/successRateConfidence";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
 import { bindTeamToAccount, teamsForAccount, teamAccountUid } from "../utils/robotTeamAccounts";
@@ -103,6 +105,8 @@ const taskSchema = z
 const setupSchema = z
   .object({
     robotDescription: robotDescriptionSchema.optional(),
+    /** The team's own arm and cameras; without it the policy drives the simulated DROID Franka. */
+    robotEmbodiment: robotEmbodimentSchema.optional(),
     executionBindingId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/).optional(),
     id,
     name: short,
@@ -728,8 +732,15 @@ router.get(
             : null;
       // Use the summary copied from the permissioned opportunity at submission,
       // never the source's confidential site identity or another applicant's data.
+      const observed = freeRun?.result?.observed;
       evaluations.push({
         ...result,
+        purpose: freeRun?.result?.evaluationPurpose ?? (application.purpose === "scored" ? "scored" : application.purpose === "practice" ? "practice" : null),
+        successRateInterval: observed && observed.episodesRun > 0
+          ? [Math.round(wilsonLowerBound(observed.episodesSucceeded, observed.episodesRun) * 1000) / 10,
+            Math.round(wilsonUpperBound(observed.episodesSucceeded, observed.episodesRun) * 1000) / 10]
+          : null,
+        ...(freeRun?.result?.episodeOutcomes ? { episodeOutcomes: freeRun.result.episodeOutcomes } : {}),
         runId: freeRun?.runId || run?.id || null,
         taskId: text(application.opportunityId),
         title: text(object(item.record.request).taskStatement),
@@ -1237,7 +1248,9 @@ router.post(
   handle(async (req, res) => {
     requireRole(res, "robot_team");
     const input = z
-        .object({ id, opportunityId: id, setupId: id, notes: prose })
+        .object({ id, opportunityId: id, setupId: id, notes: prose,
+          // Practice: the ten published cells, feedback only. Scored: 200 hidden cells, the evidence.
+          purpose: z.enum(["practice", "scored"]).default("practice") })
         .strict()
         .parse(req.body),
       caller = identity(res);
@@ -1251,6 +1264,7 @@ router.post(
       workspace_evaluation: {
         opportunityId: input.opportunityId,
         setupId: input.setupId,
+        purpose: input.purpose,
         targetSnapshot: {
           successRate: termsFor(source.record).successRate,
           cycleTimeSeconds: termsFor(source.record).cycleTimeSeconds,

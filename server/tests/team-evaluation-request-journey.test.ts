@@ -209,12 +209,18 @@ async function openJob() {
   await pipelineSync(jobId);
   return jobId;
 }
-function requestEvaluation(jobId: string, uid = ROBOT) {
-  return workspaceApi("/evaluations", uid, { id: next("application"), opportunityId: jobId, setupId: SETUP.id, notes: "" });
+function requestEvaluation(jobId: string, uid = ROBOT, purpose?: "practice" | "scored") {
+  return workspaceApi("/evaluations", uid, { id: next("application"), opportunityId: jobId, setupId: SETUP.id, notes: "",
+    ...(purpose ? { purpose } : {}) });
 }
 function approveFreeRun(applicationId: string) {
   return import("../utils/freeEvaluationHandoff").then(({ admitFreeWorkspaceEvaluation }) =>
     admitFreeWorkspaceEvaluation(applicationId, { teamId: TEAM, checkpointId: CHECKPOINT, episodes: 10, sponsorCapUsd: 20,
+      maxAttempts: 1, evidenceScope: "development_only", expiresAtIso: new Date(Date.now() + 600_000).toISOString() }, "founder-fixture"));
+}
+function approveScoredRun(applicationId: string) {
+  return import("../utils/freeEvaluationHandoff").then(({ admitFreeWorkspaceEvaluation }) =>
+    admitFreeWorkspaceEvaluation(applicationId, { teamId: TEAM, checkpointId: CHECKPOINT, episodes: 200, sponsorCapUsd: 20,
       maxAttempts: 1, evidenceScope: "development_only", expiresAtIso: new Date(Date.now() + 600_000).toISOString() }, "founder-fixture"));
 }
 function preparedExecution(owner: string) {
@@ -259,8 +265,28 @@ describe("a job started from the public form", () => {
     const { opening } = await opened.json() as { opening: TeamJobOpening };
     // The e2e workspace spec mocks exactly this projection for its job.
     expect(opening).toEqual({ ...anonymizedOpportunityDraft("Pack cartons into totes"), id: jobId,
-      publishedAtIso: stored.public_task_listing.approvedAtIso, thumbnailUrl: null });
+      publishedAtIso: stored.public_task_listing.approvedAtIso, thumbnailUrl: null, evaluation: null });
     expect(JSON.stringify(opening)).not.toMatch(/Austin|@example|Acme|Pack cartons into totes|gs:\/\/|successRate|walkthrough/);
+
+    // Once the Pipeline publishes team evaluations, the opening says what a team is asked to do and
+    // how it is judged: the instruction, the published practice cells, the scored variations and
+    // the policy interfaces, never the site's geometry.
+    const listing = (profile: string, episodes: number) => ({ profile, episodes, available: true, reason: null });
+    state.docs.set(`inboundRequests/${jobId}`, { ...doc(`inboundRequests/${jobId}`), agent_execution_offer: {
+      policy_execution_profiles: ["team_evaluation_practice_v1", "team_evaluation_scored_v1"], episode_count: 10,
+      team_evaluation: { practice: listing("team_evaluation_practice_v1", 10), scored: listing("team_evaluation_scored_v1", 200),
+        contract: { instruction: "Put the tote on the shelf", task_kind: "rigid_pick_place",
+          task_success_contract: { destination_box_world_m: [1, 2, 3] },
+          practice: { cells: [{ cell_id: "cell-0", family: "illumination", parameters: { task_light_intensity_scale: 0.9 } }] },
+          scored: { families: ["placement_approach", "illumination"], parameter_bounds: { object_start_x_delta_m: [-0.03, 0.03] } },
+          policy_interfaces: [{ policy_interface_id: "openpi_droid_https.v1" }, { policy_interface_id: "blueprint_policy_https.v1" }] } } } } as never);
+    const terms = (await (await workspaceApi(`/openings/${jobId}`, ROBOT)).json() as { opening: TeamJobOpening }).opening.evaluation;
+    expect(terms).toMatchObject({ instruction: "Put the tote on the shelf", practice: { episodes: 10,
+      cells: [{ family: "illumination", parameters: { task_light_intensity_scale: 0.9 } }] },
+      scored: { episodes: 200, families: ["placement_approach", "illumination"],
+        parameterBounds: { object_start_x_delta_m: [-0.03, 0.03] } } });
+    expect(terms?.policyInterfaces.map(row => row.robot)).toEqual(["droid_franka", "team_declared"]);
+    expect(JSON.stringify(terms)).not.toMatch(/destination_box_world_m/);
 
     // The team's notification email links to this job's opening page.
     const { teamPilotNoticeBody } = await import("../utils/robotTeamPilotNotifications");
@@ -269,12 +295,12 @@ describe("a job started from the public form", () => {
     expect(linked && decodeURIComponent(linked)).toBe(jobId);
     expect((await workspaceApi(`/openings/${linked}`, ROBOT)).status).toBe(200);
 
-    const requested = await requestEvaluation(jobId);
+    const requested = await requestEvaluation(jobId, ROBOT, "scored");
     expect(requested.status, await requested.clone().text()).toBe(201);
     const applicationId = (await requested.json()).requestId as string;
     const application = doc(`inboundRequests/${applicationId}`);
     expect(application).toMatchObject({ account_owner_uid: ROBOT, workspace_evaluation: {
-      opportunityId: jobId, setupId: SETUP.id, setupName: "Fixture arm · Packing v1",
+      opportunityId: jobId, setupId: SETUP.id, setupName: "Fixture arm · Packing v1", purpose: "scored",
       // The job's targets, frozen at request time.
       targetSnapshot: { successRate: 95, cycleTimeSeconds: 30 } } });
     expect(application.request.buyerType).toBe("robot_team");
@@ -286,12 +312,15 @@ describe("a job started from the public form", () => {
 
     // Free admission accepts the record the request produced.
     preparedExecution(ROBOT);
-    const admitted = await approveFreeRun(applicationId);
+    const admitted = await approveScoredRun(applicationId);
     expect(admitted.created).toBe(true);
-    expect(prepare).toHaveBeenCalledWith(expect.objectContaining({ teamId: TEAM, checkpointId: CHECKPOINT, sceneId: jobId }),
+    // The team asked for a scored evaluation: 200 hidden cells, on the DROID Franka (no manifest saved).
+    expect(prepare).toHaveBeenCalledWith(expect.objectContaining({ teamId: TEAM, checkpointId: CHECKPOINT, sceneId: jobId,
+      quotedEpisodes: 200, teamEvaluation: { purpose: "scored", robotEmbodiment: null } }),
       expect.objectContaining({ approvedBy: "founder-fixture" }));
     const run = doc(`evaluationRuns/${admitted.runId}`);
-    expect(run).toMatchObject({ sceneId: jobId, teamId: TEAM, quotedUsd: 0, quotedEpisodes: 10, state: "requested" });
+    expect(run).toMatchObject({ sceneId: jobId, teamId: TEAM, quotedUsd: 0, quotedEpisodes: 200, state: "requested",
+      teamEvaluationPurpose: "scored" });
     expect(run.executionAdmission.envelope.funding).toMatchObject({ payer: "blueprint", customer_price_usd: 0,
       cap_usd: 20, max_attempts: 1, workspace_request_id: applicationId });
     expect(doc(`inboundRequests/${applicationId}`).free_evaluation_handoff.runId).toBe(admitted.runId);

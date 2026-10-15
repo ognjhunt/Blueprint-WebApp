@@ -28,13 +28,18 @@
 import { z } from "zod";
 
 export const RUN_RESULT_SCORING_SCHEMA_VERSION = "blueprint.agent_run_result_scoring.v1";
-/** The Quick-10 policy-canary runtime running one admitted team candidate. */
-export const TEAM_CANDIDATE_QUICK10_RUNTIME = "policy_canary_quick10_team_candidate";
+/**
+ * A team's scored evaluation of a job: 200 cells it has not seen, drawn from
+ * the job's bounded variations. The only run a recommendation may rest on.
+ */
+export const TEAM_EVALUATION_SCORED_RUNTIME = "team_evaluation_scored";
+/** A team's practice run: the ten published cells, feedback for the team, never evidence. */
+export const TEAM_EVALUATION_PRACTICE_RUNTIME = "team_evaluation_practice";
 export const SIMULATOR_SCORED = "simulator_scored";
 
 /** The only (runtime, source) pairs whose successes count. Everything else is refused. */
 export const ADMITTED_SCORING: ReadonlyArray<{ runtime: string; successSource: string }> = Object.freeze([
-  Object.freeze({ runtime: TEAM_CANDIDATE_QUICK10_RUNTIME, successSource: SIMULATOR_SCORED }),
+  Object.freeze({ runtime: TEAM_EVALUATION_SCORED_RUNTIME, successSource: SIMULATOR_SCORED }),
 ]);
 
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);

@@ -177,6 +177,10 @@ export interface AdmissionCandidate {
   matchingCheckpoints: Array<{ checkpointId: string; label: string; runtime: string; status: string }>;
   /** Why this request cannot be admitted yet, in the founder's terms. Empty when it can. */
   blockers: string[];
+  /** What the team asked for: practice (ten published cells) or scored (200 hidden cells). */
+  purpose?: "practice" | "scored";
+  /** The episode count that purpose runs; admission refuses any other. */
+  episodes?: number;
 }
 
 export interface AdmissionDefaults {

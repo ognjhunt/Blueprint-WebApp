@@ -77,6 +77,18 @@ export interface RunOutcomeReport {
   artifactUri?: string | null;
   /** Who scored the episodes. Absent or unknown never counts as task evidence. */
   scoring?: RunResultScoring;
+  /** A team evaluation's purpose; only a scored one can back a recommendation. */
+  evaluationPurpose?: "practice" | "scored";
+  /** Each episode's outcome; practice rows also carry the published cell's parameters. */
+  episodeOutcomes?: EpisodeOutcome[];
+}
+
+export interface EpisodeOutcome {
+  cell_id: string;
+  family: string | null;
+  outcome: "success" | "failure" | "void";
+  reason: string;
+  parameters?: Record<string, number>;
 }
 
 /** What we store and hand back, observation and claim kept apart. */
@@ -87,6 +99,8 @@ export interface EvalRunResult {
   privateExecutionResult?: ControlledNativePrivateResult;
   /** As the Pipeline stated it; see `runResultScoring.ts` for what may count. */
   scoring?: RunResultScoring;
+  evaluationPurpose?: "practice" | "scored";
+  episodeOutcomes?: EpisodeOutcome[];
   runId: string;
   teamId: string;
   checkpointId: string;
@@ -189,6 +203,8 @@ export async function recordRunResult(params: {
     artifactUri: params.report.artifactUri ?? null,
     ...(params.report.privateExecutionResult ? { privateExecutionResult: params.report.privateExecutionResult } : {}),
     ...(params.report.scoring ? { scoring: params.report.scoring } : {}),
+    ...(params.report.evaluationPurpose ? { evaluationPurpose: params.report.evaluationPurpose } : {}),
+    ...(params.report.episodeOutcomes ? { episodeOutcomes: params.report.episodeOutcomes } : {}),
     reportedAtIso: new Date().toISOString(),
   };
 

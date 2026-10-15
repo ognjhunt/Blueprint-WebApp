@@ -37,16 +37,16 @@ function evaluationRun(overrides: Record<string, unknown> = {}, observed: Record
   const teamId = String(overrides.teamId ?? "engaged");
   const sceneId = String(overrides.sceneId ?? "req1");
   return { runId, reservationId: `free_${runId}`, teamId, checkpointId: "ckpt_engaged", sceneId, taskFamily: "palletizing",
-    evaluationPurpose: "pilot", quotedUsd: 0, quotedEpisodes: 20, state: "completed", episodesRun: 20, moneyResolved: true,
+    evaluationPurpose: "pilot", quotedUsd: 0, quotedEpisodes: 200, state: "completed", episodesRun: 200, moneyResolved: true,
     requestedAtIso: "2026-10-01T00:00:00.000Z", resolvedAtIso: null, note: null,
     result: { evidenceScope: "development_only", confidencePolicyVersion: "wilson95-success-bands.v2", runId, teamId, checkpointId: "ckpt_engaged", sceneId,
-      // What the Pipeline states for a team candidate's Quick-10 run (runResultScoring.ts).
-      scoring: { schemaVersion: "blueprint.agent_run_result_scoring.v1", runtime: "policy_canary_quick10_team_candidate",
-        successSource: "simulator_scored", scoredEpisodeCount: Number(observed.episodesRun ?? 20),
+      // What the Pipeline states for a team's scored evaluation (runResultScoring.ts).
+      scoring: { schemaVersion: "blueprint.agent_run_result_scoring.v1", runtime: "team_evaluation_scored",
+        successSource: "simulator_scored", scoredEpisodeCount: Number(observed.episodesRun ?? 200),
         successContractDigest: `sha256:${"1".repeat(64)}`, sceneRevisionDigest: `sha256:${"2".repeat(64)}`,
         robotFreeProbeReceiptDigest: `sha256:${"3".repeat(64)}`, teamCandidateAdmissionDigest: `sha256:${"4".repeat(64)}`,
         sessionResultDigest: `sha256:${"5".repeat(64)}`, claimCeiling: "diagnostic_policy_execution" },
-      observed: { episodesRun: 20, episodesSucceeded: 19, successRate: 0.95, medianCycleSeconds: 12, ...observed },
+      observed: { episodesRun: 200, episodesSucceeded: 190, successRate: 0.95, medianCycleSeconds: 12, ...observed },
       claimed: { demonstratedSuccessRate: null, cycleTime: "under_30s" }, note: null, artifactUri: null, reportedAtIso: "2026-10-02T00:00:00.000Z" },
     ...overrides };
 }
@@ -391,7 +391,7 @@ describe("recording Blueprint's recommended pilot", () => {
     expect(failed.body.error).toMatch(/pass mark/);
     state.docs.set("evaluationRuns/run_short", evaluationRun({ runId: "run_short" }, { episodesRun: 4, episodesSucceeded: 4, successRate: 1 }) as never);
     expect(await refusal({ ...plan, evaluationRunId: "run_short" })).toMatchObject({ status: 400, body: { code: "evaluation_too_few_episodes" } });
-    // The site's own target is the pass mark: 19 of 20 passes the 90% default
+    // The site's own target is the pass mark: 190 of 200 passes the 90% default
     // but not a 98% job target, and not a 10-second cycle target either.
     state.docs.set("inboundRequests/req1", { ...doc(), workspace_task: { terms: { successRate: 98 } } } as never);
     expect(await refusal(plan)).toMatchObject({ status: 400, body: { code: "evaluation_below_pass_mark" } });
@@ -499,17 +499,17 @@ describe("recording Blueprint's recommended pilot", () => {
     expect(saved).toMatchObject({ teamId: "engaged", evaluationRunId: "run_pass", evidenceScope: "development_only" });
     expect(saved.evidence).toMatchObject({
       schemaVersion: "pilot_recommendation_evidence.v1", runId: "run_pass", teamId: "engaged", checkpointId: "ckpt_engaged",
-      episodesRun: 20, episodesSucceeded: 19, successRate: 0.95, confidenceBand: null,
-      passMark: { successRate: 0.9, source: "blueprint_default", minimumEpisodes: 10, cycleTimeSeconds: null },
+      episodesRun: 200, episodesSucceeded: 190, successRate: 0.95, confidenceBand: "ninety",
+      passMark: { successRate: 0.9, source: "blueprint_default", minimumEpisodes: 190, cycleTimeSeconds: null },
       passed: true, evaluatedAtIso: "2026-10-02T00:00:00.000Z", evidenceScope: "development_only",
     });
     expect(saved.evidence.resultId).toMatch(/^[a-f0-9]{64}$/);
     expect(saved.evidence.boundary).toMatch(/does not certify physical performance or safety/);
-    expect(saved.capabilityBasis).toMatch(/19 of 20 episodes succeeded.*pass mark of 90%/);
+    expect(saved.capabilityBasis).toMatch(/190 of 200 episodes succeeded.*pass mark of 90%/);
     // The site sees the numbers and the boundary, never the checkpoint or run internals.
     const token = createCaptureUploadToken({ requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", scope: "owner" });
     const owner = await (await fetch(`${base}/owner/${token}`)).json();
-    expect(owner.recommendation.evidence).toMatchObject({ episodesRun: 20, episodesSucceeded: 19, passMarkSuccessRate: 0.9,
+    expect(owner.recommendation.evidence).toMatchObject({ episodesRun: 200, episodesSucceeded: 190, passMarkSuccessRate: 0.9,
       evidenceScope: "development_only", resultUrl: null });
     expect(JSON.stringify(owner.recommendation)).not.toMatch(/ckpt_engaged|run_pass|registryTeamIds/);
     state.docs.set("inboundRequests/req1", { ...doc(), account_owner_uid: "site_uid" } as never);
@@ -524,7 +524,7 @@ describe("recording Blueprint's recommended pilot", () => {
     expect(listed).toMatchObject({ ok: true, requestId: "req1", passMark: { successRate: 0.9, source: "blueprint_default" }, currentRecommendation: null });
     expect(listed.evaluations.map((row: { runId: string }) => row.runId)).toEqual(["run_pass", "run_fail"]);
     expect(listed.evaluations[0]).toMatchObject({ teamId: "engaged", teamName: "Acme Robotics", recommendedTeamId: "engaged",
-      passed: true, recommendable: true, refusals: [], episodesRun: 20, episodesSucceeded: 19, evidenceScope: "development_only" });
+      passed: true, recommendable: true, refusals: [], episodesRun: 200, episodesSucceeded: 190, evidenceScope: "development_only" });
     expect(listed.evaluations[1]).toMatchObject({ passed: false, recommendable: false, refusals: [{ code: "evaluation_below_pass_mark" }] });
     // The same passing numbers, decided by the team's own HTTP responses, are listed and refused.
     const teamReported = evaluationRun({ runId: "run_team_reported" }) as Record<string, any>;
@@ -547,7 +547,7 @@ describe("recording Blueprint's recommended pilot", () => {
     await post(plan);
     expect(teamRows("team_pilot_recommended")).toHaveLength(1);
     expect(teamRows("team_pilot_recommended")[0][1]).toMatchObject({ to: "team@example.test", requestId: "req1", status: "pending" });
-    expect(String(teamRows("team_pilot_recommended")[0][1].body)).toMatch(/19 of 20 simulated episodes.*does not certify physical performance or safety/s);
+    expect(String(teamRows("team_pilot_recommended")[0][1].body)).toMatch(/190 of 200 simulated episodes.*does not certify physical performance or safety/s);
     expect(String(teamRows("team_pilot_recommended")[0][1].body)).toMatch(/Blueprint charges nothing during the beta/);
     expect(String(teamRows("team_pilot_recommended")[0][1].body)).not.toContain("owner@example.test");
     const second = await (await post({ ...plan, window: "December" })).json() as { id: string };

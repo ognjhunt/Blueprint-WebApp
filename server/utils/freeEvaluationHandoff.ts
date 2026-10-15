@@ -8,6 +8,8 @@ import { reservationTtlMs, runIdForReservation, type EvalRunRecord } from "./age
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { TEAM_EVALUATION_PROVIDER_CAP_USD } from "./teamEvaluationSelection";
 import { teamJobAccess } from "./teamJobAccess";
+import type { TeamEvaluationPurpose } from "./policyIntegration";
+import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 /** An operator approves exact existing records; a workspace request alone is not permission. */
@@ -52,12 +54,17 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   const checkpoint = (await checkpointRef.get()).data();
   if (!checkpoint || checkpoint.teamId !== approval.teamId || checkpoint.reference !== setup.reference)
     throw new Error("free_evaluation_policy_mismatch");
+  // The team chose practice (ten published cells) or scored (200 hidden cells) when it asked.
+  // Preparation refuses an episode count other than the purpose's when the job offers team evaluations.
+  const purpose: TeamEvaluationPurpose = selection.purpose === "scored" ? "scored" : "practice";
+  const robotEmbodiment = setup.robotEmbodiment ? robotEmbodimentSchema.parse(setup.robotEmbodiment) : null;
   let executionRequestId = approval.executionRequestId;
   if (!executionRequestId) {
     const prepared = await prepareFreeAgentExecution({ teamId: approval.teamId,
       checkpointId: approval.checkpointId, sceneId: selection.opportunityId,
       quotedEpisodes: approval.episodes, quotedUsd: approval.sponsorCapUsd,
-      submissionKey: `free:${requestId}` }, { approvedBy, expiresAtIso: approval.expiresAtIso });
+      submissionKey: `free:${requestId}`, teamEvaluation: { purpose, robotEmbodiment } },
+    { approvedBy, expiresAtIso: approval.expiresAtIso });
     if (!prepared.prepared) throw new Error(prepared.blockers.join(","));
     executionRequestId = prepared.requestId;
   }
@@ -83,7 +90,7 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   const binding = envelope.binding as Record<string, unknown>;
   const run: EvalRunRecord = { runId, reservationId, teamId: approval.teamId,
     checkpointId: approval.checkpointId, sceneId: selection.opportunityId,
-    taskFamily: String(binding.task_family), evaluationPurpose: "pilot", quotedUsd: 0,
+    taskFamily: String(binding.task_family), evaluationPurpose: "pilot", teamEvaluationPurpose: purpose, quotedUsd: 0,
     quotedEpisodes: approval.episodes, state: "requested", episodesRun: null,
     moneyResolved: false, requestedAtIso: new Date().toISOString(), resolvedAtIso: null,
     note: "Blueprint-funded development evaluation; no physical-success or partner proof.",

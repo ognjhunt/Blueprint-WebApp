@@ -237,15 +237,15 @@ describe("projectJobFacts", () => {
   it("classifies runs against the job's pass mark and picks the best", () => {
     const result = projectJobFacts(inputs({ runs: [
       { runId: "r1", teamId: "team-a", state: "completed", requestedAtIso: "2026-10-04T00:00:00.000Z",
-        result: { evidenceScope: "development_only", observed: { episodesRun: 50, episodesSucceeded: 45, successRate: 0.9, medianCycleSeconds: 12 } } },
+        result: { evidenceScope: "development_only", observed: { episodesRun: 200, episodesSucceeded: 180, successRate: 0.9, medianCycleSeconds: 12 } } },
       { runId: "r2", teamId: "team-b", state: "completed", requestedAtIso: "2026-10-05T00:00:00.000Z",
-        result: { observed: { episodesRun: 50, episodesSucceeded: 20, successRate: 0.4, medianCycleSeconds: 30 } } },
+        result: { observed: { episodesRun: 200, episodesSucceeded: 80, successRate: 0.4, medianCycleSeconds: 30 } } },
       { runId: "r3", teamId: "team-b", state: "requested", dispatch: { startedAtIso: "2026-10-06T00:00:00.000Z" } },
       { runId: "r4", teamId: "team-b", state: "requested" },
       { runId: "r5", teamId: "team-a", state: "blocked" },
       { runId: "r6", teamId: "team-a", state: "abandoned" },
       { runId: "r7", teamId: "team-a", state: "completed", evaluationPurpose: "private",
-        result: { observed: { episodesRun: 50, episodesSucceeded: 50, successRate: 1, medianCycleSeconds: 5 } } },
+        result: { observed: { episodesRun: 200, episodesSucceeded: 200, successRate: 1, medianCycleSeconds: 5 } } },
     ] }));
     expect(result.runs).toMatchObject({ queued: 1, running: 1, reported: 2, noResult: 1, passing: 1, belowTarget: 1 });
     expect(result.runs.best).toMatchObject({ runId: "r1", teamName: "Atlas", successRatePct: 90, meetsTarget: true });
@@ -254,7 +254,7 @@ describe("projectJobFacts", () => {
 
   it("never counts a run as passing once the site re-targeted the job after requesting it", () => {
     const passingRun = { runId: "r1", teamId: "team-a", state: "completed", requestedAtIso: "2026-10-04T00:00:00.000Z",
-      result: { observed: { episodesRun: 50, episodesSucceeded: 45, successRate: 0.9, medianCycleSeconds: 12 } } };
+      result: { observed: { episodesRun: 200, episodesSucceeded: 180, successRate: 0.9, medianCycleSeconds: 12 } } };
     const request = (successRate: number) => ({ id: "eval-1", teamName: "Atlas", record: {
       workspace_evaluation: { opportunityId: "job-1", targetSnapshot: { successRate, cycleTimeSeconds: null } },
       free_evaluation_handoff: { runId: "r1" } } });
