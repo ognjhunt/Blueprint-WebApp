@@ -120,6 +120,8 @@ function queryMatches(data: StoredDoc, filter: QueryFilter): boolean {
       return actual === filter.value;
     case "in":
       return Array.isArray(filter.value) && (filter.value as unknown[]).includes(actual);
+    case "array-contains":
+      return Array.isArray(actual) && actual.includes(filter.value);
     case "<=":
       return compareValues(actual, filter.value) <= 0;
     case ">=":

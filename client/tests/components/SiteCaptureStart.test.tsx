@@ -18,6 +18,7 @@ import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { siteCaptureDraftKey } from "@/lib/siteCaptureDraft";
 import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { renderToString } from "react-dom/server";
+import { SITE_CAPTURE_START_FORM, siteCaptureStartSubmission } from "../../../server/tests/helpers/siteCaptureStartSubmission";
 
 vi.mock("@/lib/analytics", () => ({ analyticsEvents: { contactFormSubmit: vi.fn(), contactFormError: vi.fn() } }));
 vi.mock("@/lib/csrf", () => ({
@@ -585,6 +586,26 @@ describe("SiteCaptureStart and a video that already exists", () => {
       hasExistingFootage: true, siteTaskGates: {}, siteTaskSpec: {},
       publicTaskListing: { details: { title: "Work assessment opportunity" } } });
     expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
+  });
+
+  // The server journey that proves an approved robot team can request an
+  // evaluation on this job starts from this exact body, never a hand-built record.
+  it.each([false, true])("sends the exact body the request-step journey starts from (keep private: %s)", async (keepPrivate) => {
+    answerPosts({ captureUrl });
+    upload.send.mockResolvedValue({ status: "done" });
+    await renderReady(<SiteCaptureStart />);
+    fireEvent.change(document.querySelector("#start-task")!, { target: { value: SITE_CAPTURE_START_FORM.task } });
+    fireEvent.click(document.querySelector("#start-method-upload")!);
+    fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: SITE_CAPTURE_START_FORM.location } });
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: SITE_CAPTURE_START_FORM.email } });
+    fireEvent.change(document.querySelector("#start-company")!, { target: { value: SITE_CAPTURE_START_FORM.company } });
+    if (keepPrivate) fireEvent.click(document.querySelector("#start-private-handling")!);
+    fireEvent.submit(screen.getByRole("form"));
+    await screen.findByText("Your recording is in.", { selector: "h2" });
+    const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
+    expect(sent).toEqual(siteCaptureStartSubmission({ requestId: sent.requestId, retryToken: sent.retryToken,
+      sourcePageUrl: window.location.href, keepPrivate }));
   });
 
   it("keeps the job when the video does not send, and links to the uploader", async () => {
