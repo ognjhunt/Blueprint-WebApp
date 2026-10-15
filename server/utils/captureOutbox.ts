@@ -23,6 +23,7 @@ import { logger } from "../logger";
 import { sendEmail } from "./email";
 import { brandedEmail, CUSTOMER_JOB_EMAIL_IDENTITY } from "./emailLayout";
 import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
+import { accountNoticeDigest, accountNoticeDispatchBlocker, type AccountNoticeContext } from "./accountNotice";
 
 export const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
 
@@ -67,7 +68,7 @@ export type OutboxKind =
   /** To approved robot teams, when a site lists a new task card. */
   | "robot_team_new_task";
 
-export type OutboxStatus = "pending" | "claimed" | "dispatching" | "unknown" | "sent" | "failed" | "cancelled";
+export type OutboxStatus = "pending" | "claimed" | "dispatching" | "unknown" | "sent" | "failed" | "cancelled" | "review_required";
 
 export interface OutboxEntry {
   idempotencyKey: string;
@@ -80,6 +81,7 @@ export interface OutboxEntry {
   /** Exact source/context event identity for preparation dispatch authority. */
   preparationEventId?: string;
   jobAlert?: JobAlertContext;
+  accountNotice?: AccountNoticeContext;
   status: OutboxStatus;
   attempts: number;
   createdAtIso: string;
@@ -117,6 +119,7 @@ function messageDigest(entry: OutboxEntry): string {
   // Preserve the exact historical tuple for every existing retained lease.
   if (entry.preparationEventId !== undefined) fields.push(entry.preparationEventId);
   if (entry.jobAlert !== undefined) fields.push(JSON.stringify(entry.jobAlert));
+  if (entry.accountNotice !== undefined) fields.push(accountNoticeDigest(entry.accountNotice));
   return createHash("sha256").update(JSON.stringify(fields)).digest("hex");
 }
 
@@ -148,7 +151,7 @@ function nowIso() {
  * asking. Delivery retries use the same durable intent.
  */
 export type OutboxInput = Pick<OutboxEntry,
-  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo" | "preparationEventId" | "jobAlert">;
+  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo" | "preparationEventId" | "jobAlert" | "accountNotice">;
 
 /** Build a durable intent for an owning business transaction. This function
  * performs no I/O; callers create the row atomically with their state change. */
@@ -266,6 +269,11 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
         || current.deliveryLeaseUntilMs <= Date.now()) return false;
       if (messageDigest(current as OutboxEntry) !== messageDigest(entry)) {
         tx.set(doc.ref, { status: "pending", lastError: "delivery_message_changed" }, { merge: true });
+        return false;
+      }
+      const accountBlocker = await accountNoticeDispatchBlocker(entry);
+      if (accountBlocker) {
+        tx.set(doc.ref, { status: "review_required", lastError: accountBlocker }, { merge: true });
         return false;
       }
       // Re-read recommendation/recipient authority in this same transaction.

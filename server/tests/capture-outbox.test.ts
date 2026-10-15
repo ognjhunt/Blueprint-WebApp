@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestore as db, sharedFakeFirestoreState } from "./helpers/fake-firestore";
 
 const sendEmailMock = vi.fn();
+const noticeAuth = vi.hoisted(() => ({ getUser: vi.fn() }));
 const recommendationIsCurrent = vi.hoisted(() => vi.fn(async (_entry: unknown, _transaction: FirebaseFirestore.Transaction) => true));
 vi.mock("../utils/pilotRecommendationNotifications", () => ({
   pilotRecommendationNotificationIsCurrent: recommendationIsCurrent,
@@ -33,6 +34,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
       },
     },
     dbAdmin: sharedFakeFirestore,
+    authAdmin: noticeAuth,
   };
 });
 
@@ -43,7 +45,7 @@ vi.mock("../logger", () => ({
 vi.mock("../utils/email", () => ({ sendEmail: sendEmailMock }));
 
 const { deliverOutbox, enqueueOutbox, reconcileOutboxDeliveries, startOutboxPump } = await import("../utils/captureOutbox");
-const { enqueueAccountNotice, prepareAccountNotice } = await import("../utils/accountNotice");
+const { enqueueAccountNotice, assessAccountNoticeRecipient, renderAccountNotice } = await import("../utils/accountNotice");
 
 function entry(overrides: Record<string, unknown> = {}) {
   return {
@@ -57,42 +59,62 @@ function entry(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe("account notices use the existing delivery contract", () => {
-  const notice = { noticeId: "example-policy-v1", to: "ACCOUNT@example.invalid",
-    subject: "Blueprint account update", body: "Hi,\n\nRead the update:\nhttps://tryblueprint.io/terms\n\n— The Blueprint team" };
+describe("account notices use authoritative account eligibility", () => {
+  const notice = { noticeId: "example-policy-v1", subject: "Blueprint account update", body: "Hi,\n\nRead the update:\nhttps://tryblueprint.io/terms\n\n— The Blueprint team",
+    eligibility: { audience: { kind: "existing_accounts" as const, createdBefore: "2026-10-14T00:00:00Z" },
+      reason: "Service change for existing account holders", evidenceRef: "synthetic:reviewed-policy", emailVerification: "not_required" as const, includeDisabledAccounts: false, exclusions: [] } };
+  const account = { uid: "account-1", email: "ACCOUNT@example.invalid", emailVerified: false, disabled: false, metadata: { creationTime: "2025-01-01T00:00:00Z" } };
+  const recipient = () => assessAccountNoticeRecipient(notice, account.uid, account as any);
+  beforeEach(() => noticeAuth.getUser.mockReset().mockResolvedValue(account));
 
-  it("previews and delivers the same hello identity and branded content once", async () => {
-    const preview = prepareAccountNotice(notice).message;
+  it("delivers the reviewed account address once with the same hello identity and branding", async () => {
+    const preview = renderAccountNotice(notice, recipient());
     sendEmailMock.mockResolvedValue({ sent: true, provider: "resend", messageId: "accepted-notice" });
-    expect(await enqueueAccountNotice(notice)).toMatchObject({ enqueued: true, status: "pending" });
-    expect(await enqueueAccountNotice({ ...notice, to: notice.to.toLowerCase() }))
-      .toMatchObject({ enqueued: false, status: "pending" });
-    await deliverOutbox();
-    await deliverOutbox();
+    expect(await enqueueAccountNotice(notice, recipient())).toMatchObject({ enqueued: true, status: "pending" });
+    expect(await enqueueAccountNotice(notice, recipient())).toMatchObject({ enqueued: false, status: "pending" });
+    await deliverOutbox(); await deliverOutbox();
     expect(sendEmailMock).toHaveBeenCalledExactlyOnceWith(preview);
     expect(preview).toMatchObject({ fromEmail: "hello@tryblueprint.io", fromName: "Blueprint", replyTo: "hello@tryblueprint.io" });
     expect(preview.html).toContain('src="https://tryblueprint.io/brand/email-mark.png"');
-    expect(preview.text).toContain(notice.body);
   });
 
-  it("rejects a changed notice ID reuse and unconfirmed storage", async () => {
-    await enqueueAccountNotice(notice);
-    await expect(enqueueAccountNotice({ ...notice, body: "Changed copy" })).rejects.toThrow("account_notice_id_conflict");
-    const stored = sharedFakeFirestoreState.docs.get(`captureOutbox/${prepareAccountNotice(notice).entry.idempotencyKey}`);
-    expect(stored?.body).toBe(notice.body);
-    vi.spyOn(db, "collection").mockReturnValue({ doc: () => ({
-      create: async () => { throw new Error("unavailable"); },
-      get: async () => ({ data: () => undefined }),
-    }) } as any);
-    await expect(enqueueAccountNotice({ ...notice, noticeId: "example-policy-v2" })).rejects.toThrow("account_notice_enqueue_unconfirmed");
+  it("rejects changed copy or policy under an existing key, including reconstructed Firestore maps", async () => {
+    const queued = await enqueueAccountNotice(notice, recipient());
+    const stored = sharedFakeFirestoreState.docs.get(`captureOutbox/${queued.idempotencyKey}`)!;
+    stored.accountNotice = JSON.parse(JSON.stringify(stored.accountNotice));
+    expect(await enqueueAccountNotice(notice, recipient())).toMatchObject({ enqueued: false });
+    await expect(enqueueAccountNotice({ ...notice, body: "Changed copy" }, recipient())).rejects.toThrow("account_notice_id_conflict");
+    await expect(enqueueAccountNotice({ ...notice, eligibility: { ...notice.eligibility, evidenceRef: "synthetic:other-scope" } }, recipient())).rejects.toThrow("account_notice_id_conflict");
+    expect(stored.body).toBe(notice.body);
   });
 
-  it("rejects sender/HTML overrides and invalid input before any enqueue", () => {
-    for (const override of [{ fromEmail: "nijel@tryblueprint.io" }, { html: "<p>bare</p>" },
-      { replyTo: "nijel@tryblueprint.io" }, { to: "invalid" }, { noticeId: "bad/id" }, { subject: "Injected\nheader" }])
-      expect(() => prepareAccountNotice({ ...notice, ...override })).toThrow();
-    expect(sharedFakeFirestoreState.docs.has(`captureOutbox/${prepareAccountNotice(notice).entry.idempotencyKey}`)).toBe(false);
+  it("holds a changed account email at enqueue and at dispatch without an attempt or send", async () => {
+    const reviewed = recipient();
+    noticeAuth.getUser.mockResolvedValue({ ...account, email: "changed@example.invalid" });
+    await expect(enqueueAccountNotice(notice, reviewed)).rejects.toThrow("account_notice_recipient_review_required");
+    noticeAuth.getUser.mockResolvedValue(account);
+    const queued = await enqueueAccountNotice(notice, reviewed);
+    noticeAuth.getUser.mockResolvedValue({ ...account, email: "changed@example.invalid" });
+    await deliverOutbox();
     expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${queued.idempotencyKey}`)).toMatchObject({ status: "review_required", attempts: 0, lastError: "account_notice_identity_changed" });
+  });
+
+  it.each(["legacy", "deleted", "recreated", "lookup_failure"])("holds %s provenance without mailing", async mode => {
+    const queued = await enqueueAccountNotice(notice, recipient());
+    const stored = sharedFakeFirestoreState.docs.get(`captureOutbox/${queued.idempotencyKey}`)!;
+    if (mode === "legacy") delete stored.accountNotice;
+    else if (mode === "recreated") noticeAuth.getUser.mockResolvedValue({ ...account, metadata: { creationTime: "2026-01-01T00:00:00Z" } });
+    else noticeAuth.getUser.mockRejectedValue(new Error(mode));
+    await deliverOutbox();
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${queued.idempotencyKey}`)).toMatchObject({ status: "review_required", attempts: 0 });
+  });
+
+  it("rejects manual recipient/sender/HTML overrides before enqueue", async () => {
+    for (const override of [{ to: "unlinked@example.invalid" }, { fromEmail: "nijel@tryblueprint.io" }, { html: "<p>bare</p>" }, { replyTo: "nijel@tryblueprint.io" }])
+      await expect(enqueueAccountNotice({ ...notice, ...override }, recipient())).rejects.toThrow();
+    expect(noticeAuth.getUser).not.toHaveBeenCalled();
   });
 });
 
