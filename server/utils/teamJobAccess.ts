@@ -221,26 +221,17 @@ const POLICY_INTERFACE_SUMMARIES: Record<string, { robot: "droid_franka" | "team
     summary: "Your own robot of any form (fixed or free base) and cameras, declared as a robot manifest with its USD model: your cameras, joint positions and velocities, gripper closure and base state in; a position per joint (a velocity per wheel) and gripper closure out, at 15, 30, 60 or 120 Hz." },
 };
 
-function finiteRecord(value: unknown): Record<string, number> {
-  return Object.fromEntries(Object.entries(value && typeof value === "object" ? value as Record<string, unknown> : {})
-    .filter((entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1])).slice(0, 16));
-}
-
 /**
  * The job's team evaluation terms from the Pipeline's published offer, or null
  * when the scene does not offer one yet. Only what a team needs to prepare:
- * the instruction, the published practice cells, the scored families and
- * their bounds, and the policy interfaces. Never the site's geometry.
+ * the instruction, the scored families and their bounds, and the policy
+ * interfaces. Never the site's geometry, and never a cell's draw.
  */
 export function teamEvaluationTerms(record: RecordLike): TeamEvaluationTerms | null {
   const offer = (record as { agent_execution_offer?: { team_evaluation?: Record<string, any> } } | null | undefined)
     ?.agent_execution_offer?.team_evaluation;
   const contract = offer?.contract;
   if (!offer || !contract || typeof contract.instruction !== "string") return null;
-  const listing = (purpose: "practice" | "scored") => ({ available: offer[purpose]?.available === true,
-    reason: typeof offer[purpose]?.reason === "string" ? offer[purpose].reason : null,
-    episodes: Number(offer[purpose]?.episodes) || 0 });
-  const cells = Array.isArray(contract.practice?.cells) ? contract.practice.cells.slice(0, 20) : [];
   const bounds = contract.scored?.parameter_bounds && typeof contract.scored.parameter_bounds === "object"
     ? Object.fromEntries(Object.entries(contract.scored.parameter_bounds as Record<string, unknown>)
       .filter((entry): entry is [string, [number, number]] => Array.isArray(entry[1]) && entry[1].length === 2
@@ -249,9 +240,9 @@ export function teamEvaluationTerms(record: RecordLike): TeamEvaluationTerms | n
   return {
     instruction: contract.instruction.slice(0, 1000),
     taskKind: String(contract.task_kind || ""),
-    practice: { ...listing("practice"), cells: cells.map((cell: Record<string, unknown>) => ({
-      cellId: String(cell.cell_id || ""), family: String(cell.family || ""), parameters: finiteRecord(cell.parameters) })) },
-    scored: { ...listing("scored"), families: Array.isArray(contract.scored?.families)
+    scored: { available: offer.scored?.available === true,
+      reason: typeof offer.scored?.reason === "string" ? offer.scored.reason : null,
+      episodes: Number(offer.scored?.episodes) || 0, families: Array.isArray(contract.scored?.families)
       ? contract.scored.families.map(String).slice(0, 16) : [], parameterBounds: bounds },
     policyInterfaces: interfaces.map((row: Record<string, unknown>) => String(row.policy_interface_id || ""))
       .filter((key: string) => key in POLICY_INTERFACE_SUMMARIES)

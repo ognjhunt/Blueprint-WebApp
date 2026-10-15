@@ -36,26 +36,18 @@ export function validateIntegrationReference(runtime: string, reference: string)
 /**
  * Beta L5: a robot team's evaluation of one site job, run by the Pipeline on
  * the job's simulated scene and scored by the simulator against the job's
- * success contract.
- *
- * - `practice` runs the ten published cells and returns every episode's
- *   outcome and the cell it ran; it never counts toward a recommendation.
- * - `scored` runs 200 cells the team has not seen, drawn from the job's
- *   bounded variations; it is the only run a recommendation may rest on
- *   (`runResultScoring.ts`).
+ * success contract: 200 cells the team has not seen, drawn from the job's
+ * bounded variations. It is the only run a recommendation may rest on
+ * (`runResultScoring.ts`). There is no practice run: the Pipeline runs the
+ * first 25-cell shard alone and stops there when the policy fails at the
+ * interface, so a broken endpoint costs one shard, not the evaluation.
  */
-export const TEAM_EVALUATION_PURPOSES = ["practice", "scored"] as const;
-export type TeamEvaluationPurpose = (typeof TEAM_EVALUATION_PURPOSES)[number];
-export const TEAM_EVALUATION_PROFILES: Readonly<Record<TeamEvaluationPurpose, string>> = Object.freeze({
-  practice: "team_evaluation_practice_v1",
-  scored: "team_evaluation_scored_v1",
-});
-export const TEAM_EVALUATION_EPISODES: Readonly<Record<TeamEvaluationPurpose, number>> = Object.freeze({
-  practice: 10,
-  scored: 200,
-});
+export const TEAM_EVALUATION_PROFILE = "team_evaluation_scored_v1";
+export const TEAM_EVALUATION_EPISODES = 200;
+/** How a run record and the Pipeline's result mark a team evaluation. */
+export const TEAM_EVALUATION_PURPOSE = "scored";
 export function isTeamEvaluationProfile(profile: unknown): boolean {
-  return Object.values(TEAM_EVALUATION_PROFILES).includes(String(profile));
+  return profile === TEAM_EVALUATION_PROFILE;
 }
 /** A policy for Blueprint's simulated DROID Franka (Robotiq 2F-85), served by the team over HTTPS. */
 export const TEAM_CANDIDATE_HTTPS_INTERFACE = "openpi_droid_https.v1";
@@ -72,7 +64,7 @@ export const TEAM_ROBOT_HTTPS_INTERFACE = "blueprint_policy_https.v1";
  */
 export function teamCandidatePolicyPackage(
   checkpoint: Record<string, any>,
-  options: { purpose: TeamEvaluationPurpose; robotEmbodiment?: RobotEmbodiment | null },
+  options: { robotEmbodiment?: RobotEmbodiment | null } = {},
 ): Record<string, unknown> | null {
   const reference = String(checkpoint.reference || "").trim();
   if (!["policy_endpoint", "customer_hosted"].includes(checkpoint.runtime)
@@ -84,7 +76,7 @@ export function teamCandidatePolicyPackage(
   const embodiment = options.robotEmbodiment ? robotEmbodimentSchema.safeParse(options.robotEmbodiment) : null;
   if (embodiment && !embodiment.success) return null;
   return { policy_api_endpoint: {
-    endpoint_url: reference, execution_profile: TEAM_EVALUATION_PROFILES[options.purpose],
+    endpoint_url: reference, execution_profile: TEAM_EVALUATION_PROFILE,
     policy_interface_id: embodiment ? TEAM_ROBOT_HTTPS_INTERFACE : TEAM_CANDIDATE_HTTPS_INTERFACE,
     ...(embodiment ? { robot_embodiment: embodiment.data } : {}),
     credential_ref: checkpoint.policyCredential.ref, credential_kind: "bearer",

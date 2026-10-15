@@ -67,10 +67,10 @@ import { recordRunResult } from "../utils/agentRunResults";
 import { getRun, listRequestedRuns, markRunStarted } from "../utils/agentEvalRuns";
 import { getCheckpoint } from "../utils/robotCheckpoints";
 import { controlledNativeResultSchema } from "../utils/controlledNativeResult";
+import { TEAM_EVALUATION_PURPOSE } from "../utils/policyIntegration";
 import {
   runResultScoringSchema,
   storedScoring,
-  TEAM_EVALUATION_PRACTICE_RUNTIME,
   TEAM_EVALUATION_SCORED_RUNTIME,
 } from "../utils/runResultScoring";
 import { loadTaskForTeam, developmentOfferForTeam } from "../utils/controlledDevelopmentOffer";
@@ -110,8 +110,6 @@ const episodeOutcomeSchema = z.object({
   family: z.string().trim().max(100).nullable(),
   outcome: z.enum(["success", "failure", "void"]),
   reason: z.string().trim().min(1).max(100).regex(/^[a-z0-9_]+$/),
-  /** Published practice cells only; a scored cell's draw stays hidden. */
-  parameters: z.record(z.string().regex(/^[a-z0-9_]{1,64}$/), z.number().finite()).optional(),
 }).strict();
 
 const resultSchema = z
@@ -136,9 +134,9 @@ const resultSchema = z
      * counts toward a recommendation (`runResultScoring.ts`).
      */
     scoring: runResultScoringSchema.optional(),
-    /** A team evaluation's purpose: practice (feedback only) or scored (the evidence). */
-    evaluation_purpose: z.enum(["practice", "scored"]).optional(),
-    /** One row per episode, as the simulator scored it. Void episodes are reported, never counted. */
+    /** Marks a team evaluation: 200 hidden cells, scored by the simulator. */
+    evaluation_purpose: z.literal(TEAM_EVALUATION_PURPOSE).optional(),
+    /** One row per episode, as the simulator scored it, by family only: a cell's draw stays hidden. Void episodes are reported, never counted. */
     episode_outcomes: z.array(episodeOutcomeSchema).max(500).optional(),
   })
   .strict();
@@ -186,8 +184,7 @@ router.post(
     }
     const outcomes = parsed.data.episode_outcomes;
     if (outcomes && (outcomes.filter(row => row.outcome !== "void").length !== parsed.data.episodes_run
-      || outcomes.filter(row => row.outcome === "success").length !== parsed.data.episodes_succeeded
-      || (parsed.data.evaluation_purpose === "scored" && outcomes.some(row => row.parameters)))) {
+      || outcomes.filter(row => row.outcome === "success").length !== parsed.data.episodes_succeeded)) {
       return res.status(400).json({ error: "Episode outcomes do not match the counts.", code: "agent_run_result_impossible" });
     }
     if (parsed.data.private_execution_result && (parsed.data.episodes_run !== 1
@@ -200,15 +197,12 @@ router.post(
       if (run?.executionAdmission && (!run.dispatch?.pipelineRunId || run.dispatch.pipelineRunId !== parsed.data.pipeline_run_id || run.executionAdmission.digestSha256 !== parsed.data.execution_admission_digest)) {
         return res.status(409).json({ error: "Result does not match the claimed execution", code: "agent_execution_mismatch" });
       }
-      // A team evaluation's result is the run that was admitted: same purpose, a row for every
-      // quoted episode, and that purpose's runtime. A scored result never lands on a practice run.
-      const runtime = parsed.data.scoring?.runtime;
-      const runtimePurpose = runtime === TEAM_EVALUATION_SCORED_RUNTIME ? "scored"
-        : runtime === TEAM_EVALUATION_PRACTICE_RUNTIME ? "practice" : null;
-      const admittedPurpose = run?.teamEvaluationPurpose;
-      if ((admittedPurpose || parsed.data.evaluation_purpose || runtimePurpose)
-        && (parsed.data.evaluation_purpose !== admittedPurpose || (runtimePurpose && runtimePurpose !== admittedPurpose)
-          || outcomes?.length !== run?.quotedEpisodes)) {
+      // A team evaluation's result lands only on a run admitted as one: marked as one, with a row
+      // for every quoted episode. Another runtime is stored and never recommended on (`runResultScoring.ts`).
+      const admitted = run?.teamEvaluationPurpose === TEAM_EVALUATION_PURPOSE;
+      const marked = parsed.data.evaluation_purpose === TEAM_EVALUATION_PURPOSE;
+      if ((admitted || marked || parsed.data.scoring?.runtime === TEAM_EVALUATION_SCORED_RUNTIME)
+        && (!admitted || !marked || outcomes?.length !== run?.quotedEpisodes)) {
         return res.status(409).json({ error: "Result does not match the admitted team evaluation",
           code: "team_evaluation_result_mismatch" });
       }

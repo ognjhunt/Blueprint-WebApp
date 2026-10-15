@@ -157,11 +157,11 @@ it("stores the Pipeline's execution offer only for the signed, matching capture"
     expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer() })).status).toBe(200);
     expect(state.persisted.at(-1)).toMatchObject({ agent_execution_offer: { scenario_id: "capture_observed", episode_count: 50 } });
 
-    // Beta L5: the Pipeline lists team evaluations (practice, scored) with their contract, never beside
-    // another runtime; the offer's own count is practice's ten published cells.
+    // Beta L5: the Pipeline lists a team evaluation with its contract, never beside another runtime;
+    // the offer's own count is its 200 hidden cells.
     const listing = (profile: string, episodes: number) => ({ profile, episodes, available: true, reason: null });
-    const team = { policy_execution_profiles: ["team_evaluation_practice_v1", "team_evaluation_scored_v1"], episode_count: 10,
-      team_evaluation: { practice: listing("team_evaluation_practice_v1", 10), scored: listing("team_evaluation_scored_v1", 200),
+    const team = { policy_execution_profiles: ["team_evaluation_scored_v1"], episode_count: 200,
+      team_evaluation: { scored: listing("team_evaluation_scored_v1", 200),
         contract: { schema_version: "blueprint.team_evaluation_contract.v1", instruction: "Put the mug on the tray" } } };
     expect((await post({ request_id: "req1", scene_id: "site-req1", offer: offer(team) })).status).toBe(200);
     expect(state.persisted.at(-1)).toMatchObject({ agent_execution_offer: team });

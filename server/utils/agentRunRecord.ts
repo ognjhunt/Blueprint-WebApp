@@ -21,8 +21,8 @@ export interface RunDispatch {
 export interface EvalRunRecord {
   /** Absent only on historical runs created before private evaluations. */
   evaluationPurpose?: "private" | "pilot";
-  /** Beta L5: a team evaluation's purpose; only a scored run can back a recommendation. */
-  teamEvaluationPurpose?: "practice" | "scored";
+  /** Beta L5: marks a team evaluation (200 hidden cells, scored by the simulator). */
+  teamEvaluationPurpose?: "scored";
   runId: string;
   teamId: string;
   checkpointId: string;
@@ -79,11 +79,7 @@ export function buildRequestedRunRecord(params: RequestedRunParams): EvalRunReco
   };
 }
 
-/**
- * Historical runs retain their original sharing agreement. Unknown modes fail closed.
- * A team's practice run is the team's own feedback: never listed, notified or used for the site.
- */
-export function isSiteEvaluation(run: Pick<EvalRunRecord, "evaluationPurpose" | "teamEvaluationPurpose">): boolean {
-  return (run.evaluationPurpose === undefined || run.evaluationPurpose === "pilot")
-    && run.teamEvaluationPurpose !== "practice";
+/** Historical runs retain their original sharing agreement. Unknown modes fail closed. */
+export function isSiteEvaluation(run: Pick<EvalRunRecord, "evaluationPurpose">): boolean {
+  return run.evaluationPurpose === undefined || run.evaluationPurpose === "pilot";
 }

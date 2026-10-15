@@ -37,16 +37,13 @@ export interface TeamJobOpening extends TaskListingDetails {
   evaluation?: TeamEvaluationTerms | null;
 }
 /**
- * A job's team evaluation, as the Pipeline published it: practice runs the ten
- * published cells and returns every outcome; scored runs 200 hidden cells from
- * the same bounded variations and is the only run a recommendation rests on.
+ * A job's team evaluation, as the Pipeline published it: 200 hidden cells from
+ * the job's bounded variations, the only run a recommendation rests on.
  * Success is decided by the simulator from the task object's state.
  */
 export interface TeamEvaluationTerms {
   instruction: string;
   taskKind: string;
-  practice: { available: boolean; reason: string | null; episodes: number;
-    cells: Array<{ cellId: string; family: string; parameters: Record<string, number> }> };
   scored: { available: boolean; reason: string | null; episodes: number; families: string[];
     parameterBounds: Record<string, [number, number]> };
   policyInterfaces: Array<{ policyInterfaceId: string; robot: "droid_franka" | "team_declared"; summary: string }>;

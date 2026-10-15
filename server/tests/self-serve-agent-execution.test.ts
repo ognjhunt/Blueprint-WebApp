@@ -263,7 +263,7 @@ it("prepares a sponsor-bounded free request through real canonical admission", a
 
 describe("asking for a team evaluation (beta L5)", () => {
   const credential = { ref: "credential-ref-1", kind: "bearer", expiresAtIso: "2100-01-01T00:00:00.000Z" };
-  const offered = (episodeCount: number, profiles = ["team_evaluation_practice_v1", "team_evaluation_scored_v1"]) => ({
+  const offered = (episodeCount: number, profiles = ["team_evaluation_scored_v1"]) => ({
     agent_execution_offer: {
       schema_version: "blueprint.agent_execution_offer.v1", scene_id: "site-req-1", capture_id: "walkthrough-req-1",
       capture_root: ROOT, scenario_id: "capture_observed", episode_count: episodeCount, episode_specs_sha256: sha("e"),
@@ -288,10 +288,10 @@ describe("asking for a team evaluation (beta L5)", () => {
     joints: [...arm.joints, { name: "left_wheel_joint", control: "velocity", max_velocity: 10, damping: 5 },
       { name: "right_wheel_joint", control: "velocity", max_velocity: 10, damping: 5 }] } as const;
 
-  it("asks for ten published practice episodes of the team's authenticated HTTPS policy", async () => {
-    seed({ scene: offered(10), checkpoint: { policyCredential: credential } });
-    const free = { ...quote, quotedEpisodes: 10, quotedUsd: 10, submissionKey: "free:team-practice",
-      teamEvaluation: { purpose: "practice" as const } };
+  it("asks for 200 hidden scored episodes of the team's authenticated HTTPS policy on the DROID Franka", async () => {
+    seed({ scene: offered(200), checkpoint: { policyCredential: credential } });
+    const free = { ...quote, quotedEpisodes: 200, quotedUsd: 10, submissionKey: "free:team-franka",
+      teamEvaluation: {} };
     const prepared = await prepareFreeAgentExecution(free, approval());
     expect(prepared, JSON.stringify(prepared)).toMatchObject({ prepared: true });
     if (!prepared.prepared) return;
@@ -300,15 +300,15 @@ describe("asking for a team evaluation (beta L5)", () => {
     if (!admission.admitted) return;
     const canonical = admission.envelope.canonical_execution_request as Record<string, any>;
     expect(canonical.policy_package).toEqual({ policy_api_endpoint: {
-      endpoint_url: "https://policy.alpha.example/v3", execution_profile: "team_evaluation_practice_v1",
+      endpoint_url: "https://policy.alpha.example/v3", execution_profile: "team_evaluation_scored_v1",
       policy_interface_id: "openpi_droid_https.v1", credential_ref: "credential-ref-1", credential_kind: "bearer" } });
-    expect(canonical.execution_authorization).toMatchObject({ episodes: 10, max_cost_usd: 10 });
+    expect(canonical.execution_authorization).toMatchObject({ episodes: 200, max_cost_usd: 10 });
   });
 
   it("asks for 200 hidden scored episodes on the team's own declared arm", async () => {
-    seed({ scene: offered(10), checkpoint: { policyCredential: credential } });
+    seed({ scene: offered(200), checkpoint: { policyCredential: credential } });
     const free = { ...quote, quotedEpisodes: 200, quotedUsd: 10, submissionKey: "free:team-scored",
-      teamEvaluation: { purpose: "scored" as const, robotEmbodiment: arm as any } };
+      teamEvaluation: { robotEmbodiment: arm as any } };
     const prepared = await prepareFreeAgentExecution(free, approval());
     expect(prepared, JSON.stringify(prepared)).toMatchObject({ prepared: true });
     if (!prepared.prepared) return;
@@ -324,9 +324,9 @@ describe("asking for a team evaluation (beta L5)", () => {
     const { robotEmbodimentSchema, actionWidth } = await import("../../client/src/types/robotEmbodiment");
     const parsed = robotEmbodimentSchema.parse(wheeled);
     expect(actionWidth(parsed)).toBe(5);  // two arm joints, two wheels, the gripper
-    seed({ scene: offered(10), checkpoint: { policyCredential: credential } });
-    const free = { ...quote, quotedEpisodes: 10, quotedUsd: 10, submissionKey: "free:team-wheeled",
-      teamEvaluation: { purpose: "practice" as const, robotEmbodiment: wheeled as any } };
+    seed({ scene: offered(200), checkpoint: { policyCredential: credential } });
+    const free = { ...quote, quotedEpisodes: 200, quotedUsd: 10, submissionKey: "free:team-wheeled",
+      teamEvaluation: { robotEmbodiment: wheeled as any } };
     const prepared = await prepareFreeAgentExecution(free, approval());
     if (!prepared.prepared) throw new Error(JSON.stringify(prepared));
     const admission = await discoverAgentExecutionAdmission({ ...free, executionRequestId: prepared.requestId });
@@ -340,13 +340,10 @@ describe("asking for a team evaluation (beta L5)", () => {
       .toBe(false);
   });
 
-  it("refuses a purpose the job does not offer, or an episode count other than the purpose's", async () => {
-    seed({ scene: offered(10, ["team_evaluation_practice_v1"]), checkpoint: { policyCredential: credential } });
-    expect(await prepareFreeAgentExecution({ ...quote, quotedEpisodes: 200, quotedUsd: 10, submissionKey: "free:not-offered",
-      teamEvaluation: { purpose: "scored" } }, approval())).toEqual({ prepared: false,
-      blockers: ["pipeline_team_evaluation_purpose_not_offered"] });
-    expect(await prepareFreeAgentExecution({ ...quote, quotedEpisodes: 50, quotedUsd: 10, submissionKey: "free:wrong-count",
-      teamEvaluation: { purpose: "practice" } }, approval())).toEqual({ prepared: false,
+  it("refuses an episode count other than the evaluation's 200", async () => {
+    seed({ scene: offered(200), checkpoint: { policyCredential: credential } });
+    expect(await prepareFreeAgentExecution({ ...quote, quotedEpisodes: 10, quotedUsd: 10, submissionKey: "free:wrong-count",
+      teamEvaluation: {} }, approval())).toEqual({ prepared: false,
       blockers: ["pipeline_team_evaluation_episode_mismatch"] });
   });
 

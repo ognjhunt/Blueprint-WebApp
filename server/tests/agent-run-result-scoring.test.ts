@@ -41,9 +41,9 @@ const ATTEMPT = "agent-attempt-0123456789abcdef0123456789abcdef";
 let server: Server | undefined, base = "";
 
 /**
- * The payload the Pipeline posts for a team candidate's Quick-10 run: ten
- * episodes, each scored by the simulator against the scene's sealed success
- * contract, on a scene whose robot-free probe passed.
+ * The payload the Pipeline posts for a team evaluation: 200 hidden cells, each
+ * scored by the simulator against the scene's sealed success contract, on a
+ * scene whose robot-free probe passed.
  */
 const admittedPayload = () => ({
   reservation_id: RESERVATION,
@@ -175,35 +175,19 @@ describe("a signed Pipeline result and what it may back", () => {
     expect((await signed("/agent-run-results", revealed)).status).toBe(400);
   });
 
-  it("stores a practice run's result for the team and never lets it back a recommendation", async () => {
-    const run = state.docs.get(`evaluationRuns/${RUN}`) as Record<string, unknown>;
-    state.docs.set(`evaluationRuns/${RUN}`, { ...run, teamEvaluationPurpose: "practice", quotedEpisodes: 10 } as never);
+  it("refuses a result that is not the admitted team evaluation's", async () => {
     const payload = admittedPayload();
-    const practice = { ...payload, episodes_run: 10, episodes_succeeded: 7, evaluation_purpose: "practice",
-      scoring: { ...payload.scoring, runtime: "team_evaluation_practice", scored_episode_count: 10 },
-      episode_outcomes: payload.episode_outcomes.slice(0, 10).map((row, index) => ({ ...row,
-        outcome: index < 7 ? "success" : "failure", reason: index < 7 ? "task_succeeded" : "task_not_completed",
-        parameters: { object_start_y_delta_m: 0.01 } })) };
-    const response = await signed("/agent-run-results", practice);
-    expect(response.status, await response.clone().text()).toBe(200);
-    expect((await recommendation()).ok).toBe(false);
-    const { isSiteEvaluation } = await import("../utils/agentRunRecord");
-    expect(isSiteEvaluation(state.docs.get(`evaluationRuns/${RUN}`) as never)).toBe(false);
-  });
-
-  it("refuses a result whose purpose, runtime or episode count is not the admitted run's", async () => {
-    const payload = admittedPayload();
-    const asPractice = { ...payload, evaluation_purpose: "practice" };
-    const practiceRuntime = { ...payload, scoring: { ...payload.scoring, runtime: "team_evaluation_practice" } };
+    const { evaluation_purpose: _unmarked, ...unmarked } = payload;
     const run = state.docs.get(`evaluationRuns/${RUN}`) as Record<string, unknown>;
-    for (const body of [asPractice, practiceRuntime]) {
-      const response = await signed("/agent-run-results", body);
-      expect(response.status).toBe(409);
-      expect((await response.json()).code).toBe("team_evaluation_result_mismatch");
+    const response = await signed("/agent-run-results", unmarked);
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("team_evaluation_result_mismatch");
+    // A team result never lands on a run not admitted as one, or quoted for another episode count.
+    const { teamEvaluationPurpose: _mark, ...unadmitted } = run;
+    for (const stored of [unadmitted, { ...run, quotedEpisodes: 10 }]) {
+      state.docs.set(`evaluationRuns/${RUN}`, stored as never);
+      expect((await signed("/agent-run-results", payload)).status).toBe(409);
     }
-    // A scored result routed to a ten-episode practice reservation never attaches to it.
-    state.docs.set(`evaluationRuns/${RUN}`, { ...run, teamEvaluationPurpose: "practice", quotedEpisodes: 10 } as never);
-    expect((await signed("/agent-run-results", payload)).status).toBe(409);
     expect((state.docs.get(`evaluationRuns/${RUN}`) as { result?: unknown }).result).toBeUndefined();
   });
 

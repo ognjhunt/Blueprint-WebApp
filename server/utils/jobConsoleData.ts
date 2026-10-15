@@ -231,11 +231,9 @@ async function admissionCandidate(id: string, record: Record<string, any>): Prom
   if (setup.missing) blockers.push("The team removed or never saved the setup this request names.");
   if (team && setup.reference && !matchingCheckpoints.length)
     blockers.push("No registered checkpoint matches the setup reference. Ask the team to register one under Settings → Robots & policies.");
-  const purpose = selection.purpose === "scored" ? "scored" as const : "practice" as const;
   return {
     evaluationRequestId: id,
-    purpose,
-    episodes: TEAM_EVALUATION_EPISODES[purpose],
+    episodes: TEAM_EVALUATION_EPISODES,
     submittedAtIso: iso(selection.submittedAt) ?? iso(record.createdAt),
     admitted: evaluationRequestAdmitted(record),
     handoff: text(handoff.runId) ? { runId: text(handoff.runId),

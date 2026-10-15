@@ -209,29 +209,24 @@ async function openJob() {
   await pipelineSync(jobId);
   return jobId;
 }
-function requestEvaluation(jobId: string, uid = ROBOT, purpose?: "practice" | "scored") {
+function requestEvaluation(jobId: string, uid = ROBOT, licensed = false) {
   return workspaceApi("/evaluations", uid, { id: next("application"), opportunityId: jobId, setupId: SETUP.id, notes: "",
-    ...(purpose ? { purpose, licenseToRun: true } : {}) });
+    ...(licensed ? { licenseToRun: true } : {}) });
 }
 function approveFreeRun(applicationId: string) {
-  return import("../utils/freeEvaluationHandoff").then(({ admitFreeWorkspaceEvaluation }) =>
-    admitFreeWorkspaceEvaluation(applicationId, { teamId: TEAM, checkpointId: CHECKPOINT, episodes: 10, sponsorCapUsd: 20,
-      maxAttempts: 1, evidenceScope: "development_only", expiresAtIso: new Date(Date.now() + 600_000).toISOString() }, "founder-fixture"));
-}
-function approveScoredRun(applicationId: string) {
   return import("../utils/freeEvaluationHandoff").then(({ admitFreeWorkspaceEvaluation }) =>
     admitFreeWorkspaceEvaluation(applicationId, { teamId: TEAM, checkpointId: CHECKPOINT, episodes: 200, sponsorCapUsd: 20,
       maxAttempts: 1, evidenceScope: "development_only", expiresAtIso: new Date(Date.now() + 600_000).toISOString() }, "founder-fixture"));
 }
-function preparedExecution(owner: string, purpose: "practice" | "scored" = "practice") {
+function preparedExecution(owner: string) {
   prepare.mockImplementation(async () => {
     state.docs.set("robotEvalJobRequests/prepared-journey", { buyer_user_id: owner });
     return { prepared: true, requestId: "prepared-journey", created: true };
   });
   admission.mockResolvedValue({ admitted: true, digestSha256: `sha256:${"a".repeat(64)}`,
     envelope: { binding: { capture_id: "capture-fixture", task_family: "pick_place" },
-      canonical_execution_request: { execution_authorization: { max_cost_usd: 20, episodes: purpose === "scored" ? 200 : 10 },
-        policy_package: { policy_api_endpoint: { execution_profile: `team_evaluation_${purpose}_v1` } } } } });
+      canonical_execution_request: { execution_authorization: { max_cost_usd: 20, episodes: 200 },
+        policy_package: { policy_api_endpoint: { execution_profile: "team_evaluation_scored_v1" } } } } });
 }
 
 describe("a job started from the public form", () => {
@@ -270,20 +265,18 @@ describe("a job started from the public form", () => {
     expect(JSON.stringify(opening)).not.toMatch(/Austin|@example|Acme|Pack cartons into totes|gs:\/\/|successRate|walkthrough/);
 
     // Once the Pipeline publishes team evaluations, the opening says what a team is asked to do and
-    // how it is judged: the instruction, the published practice cells, the scored variations and
-    // the policy interfaces, never the site's geometry.
+    // how it is judged: the instruction, the scored variations and the policy interfaces, never the
+    // site's geometry and never a cell's draw.
     const listing = (profile: string, episodes: number) => ({ profile, episodes, available: true, reason: null });
     state.docs.set(`inboundRequests/${jobId}`, { ...doc(`inboundRequests/${jobId}`), agent_execution_offer: {
-      policy_execution_profiles: ["team_evaluation_practice_v1", "team_evaluation_scored_v1"], episode_count: 10,
-      team_evaluation: { practice: listing("team_evaluation_practice_v1", 10), scored: listing("team_evaluation_scored_v1", 200),
+      policy_execution_profiles: ["team_evaluation_scored_v1"], episode_count: 200,
+      team_evaluation: { scored: listing("team_evaluation_scored_v1", 200),
         contract: { instruction: "Put the tote on the shelf", task_kind: "rigid_pick_place",
           task_success_contract: { destination_box_world_m: [1, 2, 3] },
-          practice: { cells: [{ cell_id: "cell-0", family: "illumination", parameters: { task_light_intensity_scale: 0.9 } }] },
           scored: { families: ["placement_approach", "illumination"], parameter_bounds: { object_start_x_delta_m: [-0.03, 0.03] } },
           policy_interfaces: [{ policy_interface_id: "openpi_droid_https.v1" }, { policy_interface_id: "blueprint_policy_https.v1" }] } } } } as never);
     const terms = (await (await workspaceApi(`/openings/${jobId}`, ROBOT)).json() as { opening: TeamJobOpening }).opening.evaluation;
-    expect(terms).toMatchObject({ instruction: "Put the tote on the shelf", practice: { episodes: 10,
-      cells: [{ family: "illumination", parameters: { task_light_intensity_scale: 0.9 } }] },
+    expect(terms).toMatchObject({ instruction: "Put the tote on the shelf",
       scored: { episodes: 200, families: ["placement_approach", "illumination"],
         parameterBounds: { object_start_x_delta_m: [-0.03, 0.03] } } });
     expect(terms?.policyInterfaces.map(row => row.robot)).toEqual(["droid_franka", "team_declared"]);
@@ -296,12 +289,12 @@ describe("a job started from the public form", () => {
     expect(linked && decodeURIComponent(linked)).toBe(jobId);
     expect((await workspaceApi(`/openings/${linked}`, ROBOT)).status).toBe(200);
 
-    const requested = await requestEvaluation(jobId, ROBOT, "scored");
+    const requested = await requestEvaluation(jobId, ROBOT, true);
     expect(requested.status, await requested.clone().text()).toBe(201);
     const applicationId = (await requested.json()).requestId as string;
     const application = doc(`inboundRequests/${applicationId}`);
     expect(application).toMatchObject({ account_owner_uid: ROBOT, workspace_evaluation: {
-      opportunityId: jobId, setupId: SETUP.id, setupName: "Fixture arm · Packing v1", purpose: "scored",
+      opportunityId: jobId, setupId: SETUP.id, setupName: "Fixture arm · Packing v1",
       licenseToRunGrantedAt: expect.any(String),
       // The job's targets, frozen at request time.
       targetSnapshot: { successRate: 95, cycleTimeSeconds: 30 } } });
@@ -313,12 +306,12 @@ describe("a job started from the public form", () => {
     expect(teamWorkspace.evaluations).toEqual([expect.objectContaining({ id: applicationId, taskId: jobId, title: opening.title })]);
 
     // Free admission accepts the record the request produced.
-    preparedExecution(ROBOT, "scored");
-    const admitted = await approveScoredRun(applicationId);
+    preparedExecution(ROBOT);
+    const admitted = await approveFreeRun(applicationId);
     expect(admitted.created).toBe(true);
-    // The team asked for a scored evaluation: 200 hidden cells, on the DROID Franka (no manifest saved).
+    // A team evaluation: 200 hidden cells, on the DROID Franka (no manifest saved).
     expect(prepare).toHaveBeenCalledWith(expect.objectContaining({ teamId: TEAM, checkpointId: CHECKPOINT, sceneId: jobId,
-      quotedEpisodes: 200, teamEvaluation: { purpose: "scored", robotEmbodiment: null } }),
+      quotedEpisodes: 200, teamEvaluation: { robotEmbodiment: null } }),
       expect.objectContaining({ approvedBy: "founder-fixture" }));
     const run = doc(`evaluationRuns/${admitted.runId}`);
     expect(run).toMatchObject({ sceneId: jobId, teamId: TEAM, quotedUsd: 0, quotedEpisodes: 200, state: "requested",

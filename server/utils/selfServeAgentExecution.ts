@@ -40,8 +40,8 @@ import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import type { InboundRequest } from "../types/inbound-request";
 import { loadTaskForTeam, developmentOfferForTeam } from "./controlledDevelopmentOffer";
 import {
-  checkpointPolicyPackage, isTeamEvaluationProfile, TEAM_EVALUATION_EPISODES, TEAM_EVALUATION_PROFILES,
-  teamCandidatePolicyPackage, type TeamEvaluationPurpose,
+  checkpointPolicyPackage, isTeamEvaluationProfile, TEAM_EVALUATION_EPISODES, TEAM_EVALUATION_PURPOSE,
+  teamCandidatePolicyPackage,
 } from "./policyIntegration";
 import type { RobotEmbodiment } from "../../client/src/types/robotEmbodiment";
 
@@ -57,7 +57,7 @@ export interface AgentExecutionOffer {
   episode_count: number;
   episode_specs_sha256: string;
   policy_execution_profiles?: string[];
-  /** Beta L5: what a team is asked to do and how it is judged (practice and scored). */
+  /** Beta L5: what a team is asked to do and how it is judged (200 hidden scored cells). */
   team_evaluation?: Record<string, unknown>;
 }
 
@@ -103,8 +103,8 @@ function policyPackageFor(checkpoint: Record<string, any>): Record<string, unkno
 type PreparationParameters = {
   teamId: string; checkpointId: string; sceneId: string; quotedEpisodes: number;
   quotedUsd: number; submissionKey?: string;
-  /** A team evaluation: practice or scored, on the DROID Franka or the team's own declared arm. */
-  teamEvaluation?: { purpose: TeamEvaluationPurpose; robotEmbodiment?: RobotEmbodiment | null };
+  /** A team evaluation, on the DROID Franka or the team's own declared robot. */
+  teamEvaluation?: { robotEmbodiment?: RobotEmbodiment | null };
 };
 export async function ensureSelfServeAgentExecution(params: PreparationParameters): Promise<SelfServePreparation> {
   if (FREE_BETA_ONLY) return { prepared: false, blockers: [FREE_BETA_PAID_DISABLED] };
@@ -175,16 +175,11 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
   const offer = agentExecutionOfferFrom(scene, facts.captureId);
   if (!offer) return { prepared: false, blockers: ["pipeline_execution_offer_missing"] };
   // Beta L5: when the Pipeline offers team evaluations for this scene, a
-  // team's authenticated HTTPS policy runs there for its purpose's episode
-  // count: ten published practice cells, or 200 hidden scored cells.
-  const purpose = params.teamEvaluation?.purpose ?? "practice";
+  // team's authenticated HTTPS policy runs there on 200 hidden scored cells.
   const teamOffered = !development && Boolean(offer.policy_execution_profiles?.some(isTeamEvaluationProfile));
-  if (teamOffered && !offer.policy_execution_profiles!.includes(TEAM_EVALUATION_PROFILES[purpose])) {
-    return { prepared: false, blockers: ["pipeline_team_evaluation_purpose_not_offered"] };
-  }
   const teamPackage = teamOffered
-    ? teamCandidatePolicyPackage(checkpoint, { purpose, robotEmbodiment: params.teamEvaluation?.robotEmbodiment }) : null;
-  if (teamPackage && params.quotedEpisodes !== TEAM_EVALUATION_EPISODES[purpose]) {
+    ? teamCandidatePolicyPackage(checkpoint, { robotEmbodiment: params.teamEvaluation?.robotEmbodiment }) : null;
+  if (teamPackage && params.quotedEpisodes !== TEAM_EVALUATION_EPISODES) {
     return { prepared: false, blockers: ["pipeline_team_evaluation_episode_mismatch"] };
   }
   if (!teamPackage && (["customer_hosted", "container_image", "controller_adapter", "model_artifact"].includes(checkpoint.runtime)
@@ -219,7 +214,7 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
     captureRoot: offer.capture_root,
     episodes: params.quotedEpisodes,
     usd: params.quotedUsd,
-    ...(teamPackage ? { teamEvaluationPurpose: purpose } : {}),
+    ...(teamPackage ? { teamEvaluationPurpose: TEAM_EVALUATION_PURPOSE } : {}),
   };
   const requestId = stableId("selfserve", bound);
   const decisionId = stableId("selfserve-decision", bound);

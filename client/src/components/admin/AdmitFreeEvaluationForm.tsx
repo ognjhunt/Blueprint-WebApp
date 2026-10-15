@@ -140,7 +140,7 @@ export function AdmitFreeEvaluationForm({
         </div>
         <div>
           <label className="runway-label" htmlFor={field("episodes")}>
-            Episodes{candidate.purpose ? ` (${candidate.purpose === "scored" ? "scored evaluation" : "practice run"})` : ""}
+            Episodes
           </label>
           <input id={field("episodes")} name="episodes" type="number" className="runway-input" required min={1} step={1}
             defaultValue={candidate.episodes ?? defaults.episodes} />

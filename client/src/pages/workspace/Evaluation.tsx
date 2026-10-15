@@ -22,7 +22,7 @@ const OUTCOME_REASONS: Record<string, string> = {
   simulator_failed_before_policy: "Simulator failed before the policy ran (not counted)",
 };
 
-/** Each episode's outcome: practice cells with their published variation, scored cells by family only. */
+/** Each episode's outcome, by variation family only: a cell's draw stays hidden. */
 function EpisodeOutcomes({ rows }: { rows: EpisodeOutcomeRow[] }) {
   return (
     <details className="ws-section">
@@ -36,12 +36,7 @@ function EpisodeOutcomes({ rows }: { rows: EpisodeOutcomeRow[] }) {
             {rows.map((row) => (
               <tr key={row.cell_id}>
                 <td>{row.cell_id}</td>
-                <td>
-                  {row.family ?? "—"}
-                  {row.parameters && Object.keys(row.parameters).length
-                    ? `: ${Object.entries(row.parameters).map(([name, value]) => `${name} ${value}`).join(", ")}`
-                    : ""}
-                </td>
+                <td>{row.family ?? "—"}</td>
                 <td>{row.outcome === "void" ? "Not counted" : row.outcome === "success" ? "Success" : "Failure"}</td>
                 <td>{OUTCOME_REASONS[row.reason] ?? row.reason}</td>
               </tr>
@@ -174,9 +169,7 @@ export default function Evaluation() {
                               : `${higher ? "At least" : "At most"} ${target}${unit}`}
                           </td>
                           <td>
-                            {item.purpose === "practice"
-                              ? "Practice, not compared"
-                              : value === null || target === null
+                            {value === null || target === null
                               ? "Not assessed"
                               : (
                                     higher
@@ -202,12 +195,6 @@ export default function Evaluation() {
                   · {dateLabel(item.createdAt)}. Physical performance must be
                   confirmed in the pilot.
                 </p>
-                {item.purpose === "practice" ? (
-                  <p className="ws-note">
-                    A practice run is feedback for you. It is never shown to the site and no
-                    recommendation rests on it; request a scored evaluation when you are ready.
-                  </p>
-                ) : null}
                 {item.episodeOutcomes?.length ? <EpisodeOutcomes rows={item.episodeOutcomes} /> : null}
               </>
             )}
@@ -231,7 +218,7 @@ export default function Evaluation() {
           </section>
           {/* A team evaluation's evidence is its per-episode outcomes above; the Task
               Evaluation run record does not exist for it. */}
-          {item.runId && !item.purpose && <Evidence runId={item.runId} />}
+          {item.runId && !item.teamEvaluation && <Evidence runId={item.runId} />}
           <details className="ws-section">
             <summary>Failures & limitations</summary>
             <p>

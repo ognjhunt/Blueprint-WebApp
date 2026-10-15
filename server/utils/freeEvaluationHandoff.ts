@@ -8,7 +8,7 @@ import { reservationTtlMs, runIdForReservation, type EvalRunRecord } from "./age
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { TEAM_EVALUATION_PROVIDER_CAP_USD } from "./teamEvaluationSelection";
 import { teamJobAccess } from "./teamJobAccess";
-import { isTeamEvaluationProfile, TEAM_EVALUATION_PROFILES, type TeamEvaluationPurpose } from "./policyIntegration";
+import { isTeamEvaluationProfile, TEAM_EVALUATION_PURPOSE } from "./policyIntegration";
 import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
@@ -54,16 +54,14 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   const checkpoint = (await checkpointRef.get()).data();
   if (!checkpoint || checkpoint.teamId !== approval.teamId || checkpoint.reference !== setup.reference)
     throw new Error("free_evaluation_policy_mismatch");
-  // The team chose practice (ten published cells) or scored (200 hidden cells) when it asked.
-  // Preparation refuses an episode count other than the purpose's when the job offers team evaluations.
-  const purpose: TeamEvaluationPurpose = selection.purpose === "scored" ? "scored" : "practice";
+  // Preparation refuses an episode count other than 200 when the job offers team evaluations.
   const robotEmbodiment = setup.robotEmbodiment ? robotEmbodimentSchema.parse(setup.robotEmbodiment) : null;
   let executionRequestId = approval.executionRequestId;
   if (!executionRequestId) {
     const prepared = await prepareFreeAgentExecution({ teamId: approval.teamId,
       checkpointId: approval.checkpointId, sceneId: selection.opportunityId,
       quotedEpisodes: approval.episodes, quotedUsd: approval.sponsorCapUsd,
-      submissionKey: `free:${requestId}`, teamEvaluation: { purpose, robotEmbodiment } },
+      submissionKey: `free:${requestId}`, teamEvaluation: { robotEmbodiment } },
     { approvedBy, expiresAtIso: approval.expiresAtIso });
     if (!prepared.prepared) throw new Error(prepared.blockers.join(","));
     executionRequestId = prepared.requestId;
@@ -88,15 +86,13 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   const runId = runIdForReservation(reservationId);
   const runRef = db.collection("evaluationRuns").doc(runId);
   const binding = envelope.binding as Record<string, unknown>;
-  // Only a team-evaluation policy package is a practice or scored run; any other admitted run has no team purpose.
+  // Only a team-evaluation policy package is a team evaluation; any other admitted run is not one.
   const request = envelope.canonical_execution_request as Record<string, any> | undefined;
   const profile = request?.policy_package?.policy_api_endpoint?.execution_profile;
-  if (isTeamEvaluationProfile(profile) && profile !== TEAM_EVALUATION_PROFILES[purpose])
-    throw new Error("free_evaluation_team_purpose_mismatch");
   const run: EvalRunRecord = { runId, reservationId, teamId: approval.teamId,
     checkpointId: approval.checkpointId, sceneId: selection.opportunityId,
     taskFamily: String(binding.task_family), evaluationPurpose: "pilot",
-    ...(isTeamEvaluationProfile(profile) ? { teamEvaluationPurpose: purpose } : {}), quotedUsd: 0,
+    ...(isTeamEvaluationProfile(profile) ? { teamEvaluationPurpose: TEAM_EVALUATION_PURPOSE } : {}), quotedUsd: 0,
     quotedEpisodes: approval.episodes, state: "requested", episodesRun: null,
     moneyResolved: false, requestedAtIso: new Date().toISOString(), resolvedAtIso: null,
     note: "Blueprint-funded development evaluation; no physical-success or partner proof.",

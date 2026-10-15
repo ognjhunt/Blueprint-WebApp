@@ -97,8 +97,6 @@ describe("the job's pass mark", () => {
       [scored(200, { robotFreeProbeReceiptDigest: null }), "scoring_binding_incomplete"],
       [scored(200, { successContractDigest: "sha256:short" }), "scoring_binding_incomplete"],
       [scored(199), "scoring_episode_count_mismatch"],
-      // A practice run is feedback for the team, never evidence.
-      [scored(200, { runtime: "team_evaluation_practice" }), "scoring_runtime_not_admitted"],
     ];
     for (const [scoring, reason] of cases) {
       const reading = read(withScoring(scoring));

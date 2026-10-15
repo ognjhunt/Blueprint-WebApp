@@ -73,8 +73,7 @@ function finite(value: unknown): number | null {
 
 /** Site evaluations only: private team runs never belong to a site job. */
 function isSiteRun(run: RawRun) {
-  return (run.evaluationPurpose === undefined || run.evaluationPurpose === "pilot")
-    && run.teamEvaluationPurpose !== "practice";
+  return run.evaluationPurpose === undefined || run.evaluationPurpose === "pilot";
 }
 
 function meetsPassMark(

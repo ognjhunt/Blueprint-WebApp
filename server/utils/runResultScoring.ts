@@ -33,8 +33,6 @@ export const RUN_RESULT_SCORING_SCHEMA_VERSION = "blueprint.agent_run_result_sco
  * the job's bounded variations. The only run a recommendation may rest on.
  */
 export const TEAM_EVALUATION_SCORED_RUNTIME = "team_evaluation_scored";
-/** A team's practice run: the ten published cells, feedback for the team, never evidence. */
-export const TEAM_EVALUATION_PRACTICE_RUNTIME = "team_evaluation_practice";
 export const SIMULATOR_SCORED = "simulator_scored";
 
 /** The only (runtime, source) pairs whose successes count. Everything else is refused. */

@@ -185,12 +185,14 @@ export interface AgentRunForSite {
   runId: string;
   teamId: string;
   state: string;
+  /** Beta L5: marks a team evaluation, from admission on. */
+  teamEvaluationPurpose?: "scored";
   result?: {
     evidenceScope?: "development_only";
     /** Who scored the episodes; without an admitted statement, targets are never "met". */
     scoring?: RunResultScoring;
-    /** A team evaluation's purpose and per-episode outcomes, shown to the team that ran it. */
-    evaluationPurpose?: "practice" | "scored";
+    /** A team evaluation's mark and per-episode outcomes, shown to the team that ran it. */
+    evaluationPurpose?: "scored";
     episodeOutcomes?: EpisodeOutcome[];
     observed: {
       episodesRun: number;

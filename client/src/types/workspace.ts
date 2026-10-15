@@ -107,11 +107,10 @@ export type EpisodeOutcomeRow = {
   family: string | null;
   outcome: "success" | "failure" | "void";
   reason: string;
-  parameters?: Record<string, number>;
 };
 export type WorkspaceEvaluation = WorkspaceResult & {
-  /** Practice (published cells, feedback only) or scored (hidden cells, the evidence). */
-  purpose?: "practice" | "scored" | null;
+  /** A team evaluation: its evidence is its per-episode outcomes, not a Task Evaluation run record. */
+  teamEvaluation?: boolean;
   /** The 95% interval around the success rate, in percent, when episodes were scored. */
   successRateInterval?: [number, number] | null;
   /** The team's own run, one row per episode. */

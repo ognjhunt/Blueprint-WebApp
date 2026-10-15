@@ -735,7 +735,7 @@ router.get(
       const observed = freeRun?.result?.observed;
       evaluations.push({
         ...result,
-        purpose: freeRun?.result?.evaluationPurpose ?? (application.purpose === "scored" ? "scored" : application.purpose === "practice" ? "practice" : null),
+        teamEvaluation: freeRun?.teamEvaluationPurpose === "scored",
         successRateInterval: observed && observed.episodesRun > 0
           ? [Math.round(wilsonLowerBound(observed.episodesSucceeded, observed.episodesRun) * 1000) / 10,
             Math.round(wilsonUpperBound(observed.episodesSucceeded, observed.episodesRun) * 1000) / 10]
@@ -1249,8 +1249,6 @@ router.post(
     requireRole(res, "robot_team");
     const input = z
         .object({ id, opportunityId: id, setupId: id, notes: prose,
-          // Practice: the ten published cells, feedback only. Scored: 200 hidden cells, the evidence.
-          purpose: z.enum(["practice", "scored"]).default("practice"),
           // The team licenses Blueprint to run its policy for this evaluation; the simulator scores it.
           licenseToRun: z.literal(true).optional() })
         .strict()
@@ -1266,7 +1264,6 @@ router.post(
       workspace_evaluation: {
         opportunityId: input.opportunityId,
         setupId: input.setupId,
-        purpose: input.purpose,
         ...(input.licenseToRun ? { licenseToRunGrantedAt: new Date().toISOString() } : {}),
         targetSnapshot: {
           successRate: termsFor(source.record).successRate,

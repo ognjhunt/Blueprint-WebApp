@@ -115,7 +115,6 @@ export default function OpeningDetail() {
                     opportunityId: item.id,
                     setupId: String(values.get("setupId") || ""),
                     notes: String(values.get("notes") || ""),
-                    purpose: values.get("purpose") === "scored" ? "scored" : "practice",
                     licenseToRun: values.get("licenseToRun") === "on" ? true : undefined,
                   },
                   () => navigate(`/app/evaluations/${requestId.current}`),
@@ -145,30 +144,11 @@ export default function OpeningDetail() {
                 </Link>
               </div>
               {item.evaluation ? (
-                <fieldset className="ws-section">
-                  <legend>Run</legend>
-                  <label className="ws-check">
-                    <input type="radio" name="purpose" value="practice" required
-                      defaultChecked={item.evaluation.practice.available}
-                      disabled={!item.evaluation.practice.available} />
-                    <span>
-                      Practice: the {item.evaluation.practice.episodes} published cells, with every
-                      episode&rsquo;s outcome returned to you. Never shown to the site.
-                    </span>
-                  </label>
-                  <label className="ws-check">
-                    <input type="radio" name="purpose" value="scored" required
-                      defaultChecked={!item.evaluation.practice.available && item.evaluation.scored.available}
-                      disabled={!item.evaluation.scored.available} />
-                    <span>
-                      Scored: {item.evaluation.scored.episodes} cells you have not seen. The only run a
-                      recommendation can rest on.
-                      {!item.evaluation.scored.available
-                        ? " Not open yet for this job."
-                        : ""}
-                    </span>
-                  </label>
-                </fieldset>
+                <p className="ws-section">
+                  {item.evaluation.scored.available
+                    ? `Your policy runs ${item.evaluation.scored.episodes} episodes you have not seen. The first 25 run on their own; if most of them fail at your policy service (no answer, invalid or out-of-limit actions), the run stops there and you get the reasons.`
+                    : "Evaluations are not open yet for this job."}
+                </p>
               ) : null}
               <div className="ws-section">
                 <Field label="Notes (optional)">
@@ -196,8 +176,8 @@ export default function OpeningDetail() {
               <div className="ws-form-actions">
                 <button
                   className="ws-primary"
-                  disabled={action.pending || !query.data?.setups.length || (item.evaluation
-                    ? !item.evaluation.practice.available && !item.evaluation.scored.available : false)}
+                  disabled={action.pending || !query.data?.setups.length
+                    || (item.evaluation ? !item.evaluation.scored.available : false)}
                 >
                   {action.pending ? "Requesting…" : "Request evaluation →"}
                 </button>
@@ -234,19 +214,6 @@ function EvaluationTerms({ terms }: { terms: TeamEvaluationTerms }) {
         against the job&rsquo;s success contract. Results are a bounded simulation estimate;
         they never certify physical performance or safety.
       </p>
-      <details className="ws-section">
-        <summary>Practice: {terms.practice.episodes} published cells</summary>
-        <ul>
-          {terms.practice.cells.map((cell) => (
-            <li key={cell.cellId}>
-              {FAMILY_LABELS[cell.family] ?? cell.family}
-              {Object.keys(cell.parameters).length
-                ? `: ${Object.entries(cell.parameters).map(([name, value]) => `${name} ${value}`).join(", ")}`
-                : ""}
-            </li>
-          ))}
-        </ul>
-      </details>
       <details className="ws-section">
         <summary>Scored: {terms.scored.episodes} hidden cells</summary>
         <p>Drawn from these variations, the same for every team on this job:</p>
