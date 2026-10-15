@@ -193,6 +193,8 @@ describe("description first owner return", () => {
     await screen.findByRole("heading", { name: "Your job summary" });
     expect(screen.getByRole("heading", { name: "Your job summary" })).toBeVisible();
     fireEvent.click(screen.getByText("Add footage when you have permission (optional)"));
+    // Said before the grant: people in the work area are told, and sound is not analysed.
+    expect(screen.getByText(/Tell people in the work area that you are filming for Blueprint, and avoid filming conversations\. We remove sound before any automated review\./)).toBeInTheDocument();
     const button = screen.getByRole("button", { name: "Confirm recording permission" });
     expect(button).toBeDisabled();
     expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);

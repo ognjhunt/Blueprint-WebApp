@@ -13,11 +13,20 @@
  * ## Why Gemini specifically
  *
  * It is the only provider in this stack whose API ingests video directly. The
- * others take pre-extracted frames, which loses the two things this lane is for:
- * the audio track, and real elapsed time between frames — and elapsed time is
- * the whole basis of the cycle measurement. Gemini returns timestamps that
- * refer to the actual clip. Agentic requests require a paired media-tool
- * trace; short website reviews use a fixed static frame sample.
+ * others take pre-extracted frames, which loses what this lane is for: real
+ * elapsed time between frames, the whole basis of the cycle measurement.
+ * Gemini returns timestamps that refer to the actual clip. Agentic requests
+ * require a paired media-tool trace; short website reviews use a fixed static
+ * frame sample.
+ *
+ * ## No sound
+ *
+ * The lane does not use audio, and phone footage of a workplace records what
+ * people nearby say. Every upload goes through `uploadVideoFile`, which accepts
+ * only a video-only copy made by `stripVideoAudio` (remuxed without the audio
+ * track, then read back to prove it holds no audio). If sound cannot be
+ * removed, the video is not sent and the run fails with an `audio_strip_*`
+ * code. See `video-audio-strip.ts`.
  *
  * Gemini is already a provider in this repo. The explicit REST request retains
  * media-processing fields unsupported by the older text SDK dependency.
@@ -28,7 +37,8 @@
  * worker, bounded by size and content type, and the bytes are handed to the
  * model through its Files API, deleted there once read, and then dropped. Nothing is copied into Blueprint storage: the
  * site revokes by unsharing, exactly as `taskVideoField` promises, and that
- * promise stays true only if we never keep a second copy.
+ * promise stays true only if we never keep a second copy. The video-only copy
+ * made for the upload is a temporary file, deleted when the run ends.
  */
 import { reserveCaptureCoverageInference } from "../../utils/captureCoverageInferenceBudget";
 import { createHash } from "node:crypto";
@@ -39,6 +49,7 @@ import { getCompanyHistoryAccess, openAiResponsesHistoryTools, runOperatorTool }
 import { digest } from "../../research-learning/contract";
 import { outputCorrectionEvidence, outputCorrectionPrompt, usageCount } from "./output-correction";
 import { fetchPublicVideo } from "./public-video-fetch";
+import { AudioStripError, isAudioFreeVideo, stripVideoAudio, type AudioFreeVideo } from "./video-audio-strip";
 
 /** Bounds what the worker holds in memory; the Files API itself takes far more. */
 const MAX_VIDEO_BYTES = 64 * 1024 * 1024;
@@ -71,9 +82,9 @@ type UploadedVideo = { name: string; uri: string; mimeType: string };
  * so the only copy that outlives the call is the one the site uploaded to us.
  */
 /**
- * The clip as it goes to Gemini. Linked clips with a declared length stream
- * from storage; the source-verified SDK path retains one Buffer. Upload that
- * Buffer as bounded views so fetch does not make another full media copy.
+ * The clip as it is read from its source. Linked clips with a declared length
+ * stream from storage; the source-verified SDK path retains one Buffer. It is
+ * never uploaded as is: `stripVideoAudio` writes the video-only copy that is.
  */
 export interface VideoSource {
   body: Buffer | ReadableStream<Uint8Array>;
@@ -81,25 +92,13 @@ export interface VideoSource {
   contentType: string;
 }
 
-function videoUploadBody(body: VideoSource["body"]): ReadableStream<Uint8Array> {
-  if (!Buffer.isBuffer(body)) return body;
-  let offset = 0;
-  return new ReadableStream<Uint8Array>({
-    pull(controller) {
-      if (offset === body.byteLength) {
-        controller.close();
-        return;
-      }
-      const end = Math.min(offset + 64 * 1024, body.byteLength);
-      controller.enqueue(body.subarray(offset, end));
-      offset = end;
-    },
-  }, { highWaterMark: 0 });
-}
-
+/** The only place video bytes leave for Gemini, and it takes only audio-free copies. */
 async function uploadVideoFile(input: {
-  apiKey: string; video: VideoSource;
+  apiKey: string; video: AudioFreeVideo;
 }, fetcher: typeof fetch, sleep: (ms: number) => Promise<void>): Promise<UploadedVideo> {
+  if (!isAudioFreeVideo(input.video)) {
+    throw new AudioStripError("audio_strip_required", "Only a video-only copy may be sent to Gemini");
+  }
   const start = await fetcher(`${GEMINI_API}/upload/v1beta/files`, {
     method: "POST",
     headers: {
@@ -127,7 +126,7 @@ async function uploadVideoFile(input: {
       "Content-Length": String(input.video.byteLength),
     },
     signal: AbortSignal.timeout(ANALYSIS_TIMEOUT_MS),
-    body: videoUploadBody(input.video.body),
+    body: input.video.open(),
     duplex: "half",
   } as RequestInit);
   if (!finish.ok) {
@@ -167,23 +166,38 @@ async function deleteVideoFile(apiKey: string, name: string, fetcher: typeof fet
   }).catch(() => undefined);
 }
 
-/** Explicit REST fields avoid silently dropping new fields in the old SDK. */
+/**
+ * Explicit REST fields avoid silently dropping new fields in the old SDK.
+ *
+ * A raw source is stripped of sound here, before anything is uploaded, and its
+ * copy is deleted afterwards. A caller that already holds an audio-free copy
+ * (to strip before reserving budget) passes it and keeps ownership of it.
+ */
 export async function analyseAgenticVideo(input: {
   apiKey: string;
   model: string;
   prompt: string;
-  video: VideoSource;
+  video: VideoSource | AudioFreeVideo;
   processingMode?: "AGENTIC" | "STATIC";
   samplingFps?: number;
   maxOutputTokens?: number;
   /** Recheck source/consent after upload, immediately before generation. */
   beforeGenerate?: () => Promise<void>;
-}, fetcher: typeof fetch = fetch, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))) {
-  const video = await uploadVideoFile(input, fetcher, sleep);
+}, fetcher: typeof fetch = fetch, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+strip: (video: VideoSource) => Promise<AudioFreeVideo> = (video) => stripVideoAudio(video)) {
+  const owned = isAudioFreeVideo(input.video) ? null : await strip(input.video as VideoSource);
+  const providerVideo = owned ?? (input.video as AudioFreeVideo);
   try {
-    return await generateFromVideo(input, video, fetcher);
+    const video = await uploadVideoFile({ apiKey: input.apiKey, video: providerVideo }, fetcher, sleep);
+    try {
+      const result = await generateFromVideo(input, video, fetcher);
+      return { ...result, processing: { ...result.processing, audio: "removed" as const },
+        provider_video: { bytes: providerVideo.byteLength, sha256: providerVideo.sha256, content_type: providerVideo.contentType } };
+    } finally {
+      await deleteVideoFile(input.apiKey, video.name, fetcher);
+    }
   } finally {
-    await deleteVideoFile(input.apiKey, video.name, fetcher);
+    await owned?.cleanup();
   }
 }
 
@@ -555,6 +569,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
   const historyAccess = await getCompanyHistoryAccess(task);
   const historyTools = historyAccess ? openAiResponsesHistoryTools : [];
   let retainedVideo: Awaited<ReturnType<typeof openVideo>> | undefined;
+  let providerVideo: AudioFreeVideo | undefined;
   let rawText = "", promptTokens = 0, completionTokens = 0, totalTokens = 0;
   let promptComplete = true, outputComplete = true, totalComplete = true, reasoningTokens = 0;
   const retainUsage = (usage: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number; totalTokenCount?: number } | undefined) => {
@@ -571,12 +586,17 @@ export async function runGeminiVideoTask<TInput, TOutput>(
     const videoUrl = readVideoUrl(task.input);
     const video = await openVideo(videoUrl);
     retainedVideo = video;
+    // Sound is removed before any budget is reserved or byte is sent; if it
+    // cannot be, the run stops here with an audio_strip_* code.
+    providerVideo = await stripVideoAudio(video);
+    artifacts.provider_video = { audio: "removed", bytes: providerVideo.byteLength,
+      sha256: providerVideo.sha256, content_type: providerVideo.contentType };
     const prompt = task.definition.build_prompt(task.input);
     const deadline = Date.now() + ANALYSIS_TIMEOUT_MS;
     let remainingOutput = task.definition.video_max_output_tokens ?? MAX_OUTPUT_TOKENS;
     await authorizeCoverage();
     const response = await analyseAgenticVideo({ apiKey, model: task.model,
-      prompt, video,
+      prompt, video: providerVideo,
       processingMode: task.definition.video_processing_mode ?? "AGENTIC",
       samplingFps: task.definition.video_sampling_fps,
       maxOutputTokens: task.definition.video_max_output_tokens });
@@ -704,7 +724,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
           : { video_partial_bytes: receipt.bytes, video_partial_sha256: receipt.sha256 }),
       });
     }
-    const code = error instanceof GeminiVideoError ? error.code : "gemini_video_failed";
+    const code = error instanceof GeminiVideoError || error instanceof AudioStripError ? error.code : "gemini_video_failed";
     return {
       ...base,
       status: "failed",
@@ -715,5 +735,7 @@ export async function runGeminiVideoTask<TInput, TOutput>(
       raw_output_text: rawText,
       artifacts,
     };
+  } finally {
+    await providerVideo?.cleanup().catch(() => undefined);
   }
 }

@@ -1,3 +1,4 @@
+import { readdirSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -525,6 +526,36 @@ const rules: ClaimRule[] = [
   },
 ];
 
+/**
+ * Builders whose output is a message a site or robot team receives.
+ *
+ * Every `*notification(s).ts` builder in `server/utils` is picked up by name,
+ * so a new one is scanned without anyone remembering to list it. Two adjacent
+ * surfaces are deliberately not here: `server/retrieval` keeps routing aliases
+ * such as "deployment ready" (a question someone asks, not a claim), and the
+ * generated OpenAPI file documents historical Stripe redirect fields. Both
+ * would be false positives for these line rules. Their customer copy, and the
+ * commerce and "match" vocabulary these rules do not look for, is held by
+ * `server/tests/customer-copy-free-beta.test.ts`, which builds the messages.
+ */
+function customerMessageTargets(rootDir: string): Array<readonly [string, string]> {
+  let notifications: string[] = [];
+  try {
+    notifications = readdirSync(path.resolve(rootDir, "server/utils"))
+      .filter((name) => /notifications?\.ts$/i.test(name))
+      .sort()
+      .map((name) => `server/utils/${name}`);
+  } catch {
+    notifications = [];
+  }
+  return [
+    ["server/utils/qualificationEmails.ts", "customer_messages"],
+    ...notifications.map((file) => [file, "customer_messages"] as const),
+    ["client/public/llms.txt", "agent_public_text"],
+    ["client/public/llms-full.txt", "agent_public_text"],
+  ];
+}
+
 export function buildDefaultScanTargets(rootDir = process.cwd()): ScanTarget[] {
   const specs = [
     ["AGENTS.md", "root_doctrine"],
@@ -553,6 +584,7 @@ export function buildDefaultScanTargets(rootDir = process.cwd()): ScanTarget[] {
     ["knowledge/reports", "notion_ready_markdown"],
     ["knowledge/compiled", "notion_ready_markdown"],
     ["output", "generated_reports"],
+    ...customerMessageTargets(rootDir),
   ] as const;
 
   return specs.map(([relativePath, sourceGroup]) => ({
@@ -838,6 +870,8 @@ Without --target, scans the default cross-source surfaces:
 - GTM scripts and playbooks
 - generated reports under output/
 - Notion-ready markdown under knowledge/
+- site and robot-team message builders (server/utils/*notification*.ts, qualificationEmails.ts)
+- llms.txt and llms-full.txt
 
 The command exits nonzero when operational proof drift findings are present.`);
 }

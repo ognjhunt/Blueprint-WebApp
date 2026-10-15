@@ -15,6 +15,9 @@
 #   - stripeWebhookEvents.expires_at     (dedupe records only; stamped by
 #     beginStripeWebhookEvent, default 180 days, tunable via
 #     BLUEPRINT_STRIPE_WEBHOOK_EVENT_RETENTION_DAYS)
+#   - durableDailyCaps.expires_at and durableDailyCapReceipts.expires_at
+#     (per-UTC-day abuse and spend counters, server/utils/durableDailyCaps.ts;
+#     kept 8 days past their day, then swept)
 #
 # Money-plane ledger collections (creatorPayouts, creatorPayoutDisbursements,
 # buyerOrders) are permanent and must never get a TTL policy.
@@ -57,6 +60,8 @@ apply_ttl() {
 apply_ttl "creatorClientTelemetry" "expires_at"
 apply_ttl "idempotencyKeys" "expiresAt"
 apply_ttl "stripeWebhookEvents" "expires_at"
+apply_ttl "durableDailyCaps" "expires_at"
+apply_ttl "durableDailyCapReceipts" "expires_at"
 # Queue transport docs only (SCALE2-01): the append-only stripeLedgerJournal
 # and the dead-letter collection are money-plane records and get NO TTL.
 apply_ttl "stripeWebhookQueue" "expires_at"

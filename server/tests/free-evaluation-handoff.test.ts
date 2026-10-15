@@ -21,16 +21,27 @@ vi.mock("../utils/agentExecutionAdmission", async () => {
 import { admitFreeWorkspaceEvaluation } from "../utils/freeEvaluationHandoff";
 import { canDispatchFreeBetaRun } from "../utils/freeBeta";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
+import { listedTaskCard } from "./helpers/listedTaskCard";
 
 const command = () => ({ teamId: "team", checkpointId: "checkpoint", executionRequestId: "prepared",
   episodes: 1, sponsorCapUsd: 10, maxAttempts: 1, evidenceScope: "development_only",
   expiresAtIso: new Date(Date.now() + 600_000).toISOString() });
-beforeEach(() => {
-  state.docs.clear(); admission.mockReset(); prepare.mockReset();
-  state.docs.set("inboundRequests/scene", { request: { consent_attestation: {
+/** A site job approved robot teams may request an evaluation on (`teamJobAccess`). */
+const openJob = () => ({
+  request: { buyerType: "site_operator", capture_mode: "self_capture", consent_attestation: {
     granted: true, statement_version: RECORDING_CONSENT_VERSION,
     recorded_at_iso: "2026-10-01T00:00:00Z",
-  } } });
+  } },
+  siteTaskGates: { sceneStability: "stable", taskShape: "single", objectVariety: "under_10",
+    deploymentTimeline: "this_quarter", accessWindow: "scheduled" },
+  site_task_triage: { disposition: "qualified" }, site_task_brief_confirmed_at: "2026-10-01T00:00:00Z",
+  public_task_listing: listedTaskCard(),
+  pipeline: { artifacts: { worldlabs_world_manifest_uri: "gs://fixture/world.json" } },
+  evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready" },
+});
+beforeEach(() => {
+  state.docs.clear(); admission.mockReset(); prepare.mockReset();
+  state.docs.set("inboundRequests/scene", openJob());
   state.docs.set("robotTeams/team", { accountUid: "owner" });
   state.docs.set("inboundRequests/application", { account_owner_uid: "owner",
     workspace_evaluation: { opportunityId: "scene", setupId: "setup" } });
@@ -51,6 +62,19 @@ describe("operator-approved workspace handoff", () => {
   ])("refuses prepared requests without a current recording grant: %j", async scene => {
     state.docs.set("inboundRequests/scene", scene);
     await expect(admitFreeWorkspaceEvaluation("application", command(), "operator")).rejects.toThrow("scene_authority_unavailable");
+    expect(admission).not.toHaveBeenCalled();
+    expect(prepare).not.toHaveBeenCalled();
+    expect([...state.docs.keys()].some(key => key.startsWith("evaluationRuns/"))).toBe(false);
+  });
+  it.each([
+    ["kept private", { public_task_listing: { enabled: false } }],
+    ["paused by the site", { workspace_task: { paused: true } }],
+    ["rights held by the Pipeline review", { evaluation_readiness: { runtime_launchable: true, benchmark_coverage_status: "ready", rights_review_status: "needs_review" } }],
+    ["development only", { evidence_tier: "development_only" }],
+    ["no longer runnable", { evaluation_readiness: { runtime_launchable: false } }],
+  ])("refuses a job no longer open to robot teams (%s), by the rule the team requested under", async (_label, patch) => {
+    state.docs.set("inboundRequests/scene", { ...openJob(), ...patch });
+    await expect(admitFreeWorkspaceEvaluation("application", command(), "operator")).rejects.toThrow("free_evaluation_job_not_open");
     expect(admission).not.toHaveBeenCalled();
     expect(prepare).not.toHaveBeenCalled();
     expect([...state.docs.keys()].some(key => key.startsWith("evaluationRuns/"))).toBe(false);

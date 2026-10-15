@@ -138,7 +138,10 @@ function seedOneRunnableSite() {
   sharedFakeFirestoreState.docs.set("inboundRequests/site-1", {
     requestId: "site-1",
     request: {
-      buyerType: "site",
+      // What intake stores for every site (it normalizes the buyer type),
+      // with the recording grant free admission and the job library require.
+      buyerType: "site_operator",
+      consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-17T00:00:00.000Z" },
       targetSiteType: "Grocery back room",
       capture_mode: "self_capture",
       capture_region: "us",
@@ -473,7 +476,9 @@ describe("registration to plan, without an operator", () => {
     // execution suite enables paid internals in its isolated fixtures.
     expect(next.join(" ")).toContain("POST /api/agent-team/checkpoints");
     expect(next.join(" ")).toContain("verified Blueprint account");
-    expect(next.join(" ")).toContain("/settings?tab=agent");
+    // The settings tab that manages a team's checkpoints; "agent" no longer exists.
+    expect(next.join(" ")).toContain("/settings?tab=robots");
+    expect(next.join(" ")).not.toContain("tab=agent");
     expect(next.join(" ")).toContain("/app");
     expect(next.join(" ")).toContain("/contact/robot-team");
     expect(next.join(" ")).toContain("free invited evaluations");

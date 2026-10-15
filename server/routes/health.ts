@@ -6,6 +6,7 @@ import { buildLaunchReadinessSnapshot } from "../utils/launch-readiness";
 import { isLocalLaunchSmokeProfile } from "../utils/launch-readiness";
 import { maybeAlertOnLaunchReadinessTransition } from "../utils/ops-alerts";
 import { probeTaskEvaluationLaunchStore } from "../utils/taskEvaluationLaunchStore";
+import { adminRoleDocFallbackStatus } from "../utils/access-control";
 
 const router = Router();
 
@@ -185,6 +186,9 @@ router.get("/health/status", (req: Request, res: Response) => {
     },
     debug: {
       liveSessionStore,
+      // Counts only: whether any authorisation still rests on a legacy
+      // users-doc role (see docs/runbooks/beta-monitoring.md, Access control).
+      adminRoleDocFallback: adminRoleDocFallbackStatus(),
     },
   });
 });

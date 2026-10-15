@@ -11,6 +11,8 @@ import { humanDecisionDigest } from "./human-reply-admission";
 import { logger } from "../logger";
 import { assessmentCustomerStatementRefs, siteCustomerStatementDigest, type SiteCustomerStatementRef } from "./siteCustomerStatements";
 import { communicationsDigest } from "../agents/communications-contract";
+import { modelReviewHeadroom, type ModelReviewHeadroom } from "./betaAbuseCaps";
+import { GEMINI_VIDEO_CALL_RESERVATION_USD } from "../agents/adapters/site-assessment-budget";
 
 export const SITE_ASSESSMENT_JOBS = "siteAssessmentJobs";
 type State = "queued" | "running" | "completed" | "needs_review" | "authority_ended";
@@ -18,6 +20,13 @@ export type SiteAssessmentJob = {
   schema_version: "site_assessment_job.v1"; request_id: string; scene_id: string; capture_id: string;
   source_key: string; context_digest: string; state: State; run_id: string; claim_id: string | null;
   packet_sha256: string | null; correlation_id: string; started_at_ms?: number; retry_history?: import("./inferenceProgrammeAdmission").AssessmentRecovery[];
+  /** Why a queued job is waiting without being claimed; cleared when it is claimed. */
+  spend_blocker?: SiteAssessmentSpendBlocker | null;
+};
+export type SiteAssessmentSpendBlocker = {
+  schema_version: "site_assessment_spend_blocker.v1";
+  reason: Extract<ModelReviewHeadroom, { available: false }>["reason"];
+  day: string; cap_usd: number; reserved_usd: number | null; recorded_at_iso: string;
 };
 const RUN_LEASE_MS = 30 * 60_000;
 const sha = (packet: unknown) => createHash("sha256").update(JSON.stringify(packet)).digest("hex");
@@ -226,12 +235,27 @@ export async function reconcileSiteAssessments(limit = 2) {
       // this worker's active coverage pass, without making its verdict a gate.
       const { isCoverageReviewActive } = await import("./captureCoverageQueue");
       if (isCoverageReviewActive()) continue;
+      // A review today's model budget cannot pay for stays queued, with the
+      // reason on the job, instead of starting and failing part-way. The next
+      // UTC day (or a raised cap) lets the same tick claim it.
+      const headroom = await modelReviewHeadroom(GEMINI_VIDEO_CALL_RESERVATION_USD);
+      if (!headroom.available) {
+        if (job.spend_blocker?.day !== headroom.day || job.spend_blocker?.reason !== headroom.reason) {
+          const blocker: SiteAssessmentSpendBlocker = { schema_version: "site_assessment_spend_blocker.v1",
+            reason: headroom.reason, day: headroom.day, cap_usd: headroom.cap_usd, reserved_usd: headroom.reserved_usd,
+            recorded_at_iso: new Date().toISOString() };
+          await row.ref.set({ spend_blocker: blocker, updated_at_ms: Date.now() }, { merge: true });
+        }
+        logger.warn({ correlationId: job.correlation_id, reason: headroom.reason }, "Site advisory waits for model budget");
+        continue;
+      }
       const claimId = randomUUID();
       const claimed = await db.runTransaction(async tx => {
         const [current, request, brief, session] = await Promise.all([tx.get(row.ref), tx.get(requestRef), tx.get(briefRef), tx.get(sessionRef)]);
         if (current.data()?.state !== "queued" || current.data()?.run_id !== job.run_id
           || !currentAuthority(job, request.data(), brief.exists ? brief.data()! : null, session.data())) return false;
-        tx.set(row.ref, { state: "running", claim_id: claimId, started_at_ms: Date.now() }, { merge: true });
+        tx.set(row.ref, { state: "running", claim_id: claimId, started_at_ms: Date.now(),
+          ...(current.data()?.spend_blocker ? { spend_blocker: null } : {}) }, { merge: true });
         if (request.data()?.site_advisory?.job_id === row.id) tx.set(requestRef, { site_advisory: { ...pointer(row.id, job), state: "running" } }, { merge: true });
         return true;
       });

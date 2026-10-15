@@ -41,6 +41,8 @@ export function syntheticDeviceBundle(options: {
   imu?: "record" | "app_clip";
   depthFrames?: number;
   videoBytes?: number;
+  /** Exact video bytes, e.g. a non-video to exercise the container check. */
+  videoContent?: Buffer;
 }): DeviceBundle {
   const lidar = options.lidar ?? true;
   const imu = options.imu ?? "app_clip";
@@ -54,7 +56,7 @@ export function syntheticDeviceBundle(options: {
     t_device_sec: index / 30,
     coordinate_frame_session_id: cfs,
   }));
-  files.set("walkthrough.mov", Buffer.alloc(options.videoBytes ?? 4096, 7));
+  files.set("walkthrough.mov", options.videoContent ?? syntheticQuickTime(options.videoBytes ?? 4096));
   files.set("recording_session.json", json({ schema_version: "v1", scene_id: options.sceneId, capture_id: options.captureId, coordinate_frame_session_id: cfs }));
   for (const name of ["capture_topology.json", "route_anchors.json", "checkpoint_events.json",
     "relocalization_events.json", "overlap_graph.json", "video_track.json",
@@ -156,4 +158,14 @@ export function syntheticDeviceBundle(options: {
     .map(([path, data]) => ({ path, bytes: data.length, sha256: sha256(data), md5: md5(data) }))
     .sort((a, b) => (a.path < b.path ? -1 : 1));
   return { files, deviceManifest, plan };
+}
+
+/** A QuickTime `ftyp` box (brand `qt  `, as an iPhone writes), then filler bytes. */
+export function syntheticQuickTime(bytes = 4096): Buffer {
+  const out = Buffer.alloc(Math.max(bytes, 20), 7);
+  out.writeUInt32BE(20, 0);
+  out.write("ftypqt  ", 4, "latin1");
+  out.writeUInt32BE(0, 12);
+  out.write("qt  ", 16, "latin1");
+  return out;
 }

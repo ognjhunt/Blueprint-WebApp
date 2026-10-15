@@ -17,6 +17,14 @@ import { attachRequestMeta, logger, generateTraceId, logSecurityEvent } from "./
 import { incrementRequestCount, incrementErrorCount } from "./routes/health";
 import { validateEnv } from "./config/env";
 import { createRateLimitRedisStore } from "./utils/rate-limit-redis";
+import {
+  clientIp,
+  clientIpRateLimitKey,
+  describeClientIpResolution,
+  pinClientIp,
+  resolveClientIpConfig,
+  trustProxySetting,
+} from "./utils/clientIp";
 import { startOpsAutomationScheduler } from "./utils/opsAutomationScheduler";
 import { buildFirehoseConfig } from "./utils/marketSignalProviderFirehose";
 import {
@@ -74,20 +82,43 @@ const isProduction = process.env.NODE_ENV === "production";
 
 /**
  * Render terminates TLS at its own proxy, so every request arrives from
- * loopback with the real client address in `X-Forwarded-For`. Without this,
- * `req.ip` is `127.0.0.1` for everybody — which does not merely make the logs
- * useless, it collapses every per-IP rate limit into a single shared bucket:
- * `hashIp(req.ip)` in the inbound route, the global limiter, and the upload
- * limiter all key on the same value for every visitor on the internet.
- * express-rate-limit says so out loud on boot (ERR_ERL_UNEXPECTED_X_FORWARDED_FOR).
+ * loopback with the real client address in `X-Forwarded-For`. Without proxy
+ * trust, `req.ip` is `127.0.0.1` for everybody — which does not merely make the
+ * logs useless, it collapses every per-IP rate limit into a single shared
+ * bucket. Trusting the whole chain (`true`) is the opposite failure:
+ * `X-Forwarded-For` is client-supplied, so anyone could present whatever
+ * address gets them a fresh quota.
  *
- * One hop, not `true`. `X-Forwarded-For` is client-supplied and trusting the
- * whole chain would let anyone present whatever address gets them their own
- * fresh quota; trusting exactly the one proxy in front of us does not.
+ * The hop count lives in server/utils/clientIp.ts (BLUEPRINT_TRUST_PROXY_HOPS,
+ * default 1 in production, optional CF-Connecting-IP opt-in) so it can be
+ * corrected from evidence without a code change; DEPLOYMENT.md says how to
+ * confirm it against a real request. pinClientIp then makes `req.ip` the
+ * resolved address for every limiter, log line and route that reads it.
  */
-if (isProduction) {
-  app.set("trust proxy", 1);
+const clientIpConfig = resolveClientIpConfig();
+if (clientIpConfig.invalidHopsValue) {
+  logger.warn(
+    { event: "trust_proxy_hops_invalid", value: clientIpConfig.invalidHopsValue, using: clientIpConfig.trustProxyHops },
+    "BLUEPRINT_TRUST_PROXY_HOPS is not an integer from 0 to 5; using the default",
+  );
 }
+app.set("trust proxy", trustProxySetting(clientIpConfig));
+app.use(pinClientIp(clientIpConfig));
+let clientIpSampleLogged = false;
+app.use((req, _res, next) => {
+  // One line per process from the first proxied visitor request (not a
+  // platform health probe): enough to check the hop count against reality
+  // without logging every forwarded chain.
+  if (
+    !clientIpSampleLogged &&
+    typeof req.headers["x-forwarded-for"] === "string" &&
+    !req.path.startsWith("/health")
+  ) {
+    clientIpSampleLogged = true;
+    logger.info(describeClientIpResolution(req, clientIpConfig), "client IP resolution sample");
+  }
+  next();
+});
 const disableOpsAutomationScheduler =
   process.env.BLUEPRINT_DISABLE_OPS_AUTOMATION_SCHEDULER === "1" ||
   process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH === "1";
@@ -152,6 +183,7 @@ const createRateLimiter = ({
     standardHeaders: true,
     legacyHeaders: false,
     store: createRateLimitStore(prefix),
+    keyGenerator: clientIpRateLimitKey,
     skip: (req) =>
       req.method === "OPTIONS" ||
       skipPaths.some((path) => req.path.startsWith(path)),
@@ -241,6 +273,7 @@ app.use(express.urlencoded({ extended: false, limit: defaultBodyLimit }));
 const cspDirectives = buildContentSecurityPolicy({
   isProduction,
   posthogHost: process.env.VITE_PUBLIC_POSTHOG_HOST,
+  recaptchaEnterprise: Boolean(process.env.VITE_FIREBASE_APPCHECK_SITE_KEY?.trim()),
 });
 
 app.use((req, res, next) => {
@@ -365,7 +398,7 @@ app.use((req, res, next) => {
         durationMs: Number.isFinite(durationMs) ? Math.round(durationMs) : undefined,
         contentLength: req.headers["content-length"],
         userAgent: req.headers["user-agent"],
-        ip: req.ip || req.socket.remoteAddress,
+        ip: clientIp(req, clientIpConfig),
       }),
       `${req.method} ${privateWorkLogPath(req.originalUrl || req.path)} ${res.statusCode} - ${durationMs.toFixed(2)}ms`,
     );

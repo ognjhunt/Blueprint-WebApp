@@ -26,7 +26,6 @@ import appleAssociationRouter from "./routes/apple-app-site-association";
 import stripeAccountRouter from "./routes/stripe";
 import operatorStatusRouter from "./routes/operator-status";
 import workspaceRouter from "./routes/workspace";
-import pilotOpportunitiesRouter from "./routes/pilot-opportunities";
 import creatorRouter from "./routes/creator";
 import contactTaskMediaHandler from "./routes/contact-task-media";
 import waitlistHandler from "./routes/waitlist";
@@ -87,7 +86,9 @@ import voiceRouter, {
   voiceWebhookHandler,
 } from "./routes/voice";
 import verifyFirebaseToken, { optionallyVerifyFirebaseToken } from "./middleware/verifyFirebaseToken";
+import { requireAdminRole } from "./middleware/requireAdminRole";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
+import { requireAppCheck } from "./middleware/appCheck";
 import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
 import cityLaunchRouter from "./routes/city-launch";
 import publicLaunchRouter from "./routes/public-launch";
@@ -133,10 +134,10 @@ export function registerRoutes(app: Express) {
   // forms; a bearer-key API is not vulnerable to it, and applying it here would
   // break every non-browser client, which is all of them.
   app.use("/api/agent-team", agentTeamRouter);
-  app.use("/api/admin/free-evaluations", csrfProtection, verifyFirebaseToken, adminFreeEvaluationsRouter);
+  app.use("/api/admin/free-evaluations", csrfProtection, verifyFirebaseToken, requireAdminRole, adminFreeEvaluationsRouter);
   // Founder job console: one row per site job with its loop stage. Read-only;
   // admin/ops role enforced inside the router.
-  app.use("/api/admin/jobs", csrfProtection, verifyFirebaseToken, adminJobConsoleRouter);
+  app.use("/api/admin/jobs", csrfProtection, verifyFirebaseToken, requireAdminRole, adminJobConsoleRouter);
   app.use("/api/experiments", experimentsRouter);
   app.use("/api/public/launch", publicLaunchRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);
@@ -164,8 +165,8 @@ export function registerRoutes(app: Express) {
   // The claim link's own read: what the operator would be claiming. The
   // attach is /api/workspace/claim, behind Firebase auth.
   app.use("/api/site-claim", siteClaimRouter);
-  app.use("/api/admin/outbound-prospects", csrfProtection, verifyFirebaseToken, adminOutboundProspectsRouter);
-  app.use("/api/admin/communications", csrfProtection, verifyFirebaseToken, adminCommunicationsResearchRouter);
+  app.use("/api/admin/outbound-prospects", csrfProtection, verifyFirebaseToken, requireAdminRole, adminOutboundProspectsRouter);
+  app.use("/api/admin/communications", csrfProtection, verifyFirebaseToken, requireAdminRole, adminCommunicationsResearchRouter);
   app.use("/api/internal/pipeline", internalTaskEvaluationLaunchesRouter);
   app.use("/api/internal/pipeline", internalCompanyPolicyRegistryCredentialsRouter);
   app.use("/api/internal/gap-intake", internalGapIntakeRouter);
@@ -182,6 +183,7 @@ export function registerRoutes(app: Express) {
     "/api/admin/robot-team-access",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     adminRobotTeamAccessRouter,
   );
   app.use("/api/site-worlds", siteWorldsRouter);
@@ -233,7 +235,8 @@ export function registerRoutes(app: Express) {
   app.use("/api/growth/email", emailPreferencesRouter);
   app.use("/api/voice", csrfProtection, voiceRouter);
   // Inbound request (lead pipeline) - public submission endpoint
-  app.use("/api/inbound-request", csrfProtection, inboundRequestRouter);
+  // App Check is staged by BLUEPRINT_APP_CHECK_MODE (off | monitor | enforce).
+  app.use("/api/inbound-request", csrfProtection, requireAppCheck("inbound_intake"), inboundRequestRouter);
   app.use("/api/requests", csrfProtection, requestsRouter);
   // The robot-team registry and its review queue. Operator-only: accepting a
   // proposal is the one action that turns an inferred figure into a registry
@@ -242,6 +245,7 @@ export function registerRoutes(app: Express) {
     "/api/admin/robot-teams",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     adminRobotTeamsRouter,
   );
   // Admin leads management - requires Firebase auth
@@ -249,6 +253,7 @@ export function registerRoutes(app: Express) {
     "/api/admin/leads",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     adminLeadsRouter,
   );
   // Capturer application review (approve/reject) - admin/ops only.
@@ -256,42 +261,49 @@ export function registerRoutes(app: Express) {
     "/api/admin/capturer-applications",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     capturerApplicationsRouter,
   );
   app.use(
     "/api/admin/field-ops",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     adminFieldOpsRouter,
   );
   app.use(
     "/api/admin/agent",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     adminAgentRouter,
   );
   app.use(
     "/api/admin/creative",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     adminCreativeRouter,
   );
   app.use(
     "/api/admin/growth",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     adminGrowthRouter,
   );
   app.use(
     "/api/admin/company-metrics",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     adminCompanyMetricsRouter,
   );
   app.use(
     "/api/admin/site-worlds",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     adminSiteWorldsRouter,
   );
   // R052: admin control surface for the client runtime config (kill-switch /
@@ -300,12 +312,14 @@ export function registerRoutes(app: Express) {
     "/api/admin/client-runtime-config",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     clientRuntimeConfigAdminRouter,
   );
   app.use(
     "/api/admin/task-evaluation-launches",
     csrfProtection,
     verifyTaskEvaluationLaunchAccess,
+    requireAdminRole,
     adminTaskEvaluationLaunchesRouter,
   );
   app.use(
@@ -326,6 +340,7 @@ export function registerRoutes(app: Express) {
     "/api/admin/sla",
     csrfProtection,
     verifyFirebaseToken,
+    requireAdminRole,
     adminSlaRouter,
   );
   app.use("/api/site-worlds/sessions", csrfProtection, verifyFirebaseToken, siteWorldSessionsRouter);
@@ -382,6 +397,5 @@ export function registerRoutes(app: Express) {
   app.use("/api/workspace/checkpoints", csrfProtection, verifyFirebaseToken, workspaceCheckpointsRouter);
   app.use("/api/workspace", csrfProtection, verifyFirebaseToken, workspaceRouter);
   app.use("/api/operator-status", csrfProtection, verifyFirebaseToken, operatorStatusRouter);
-  app.use("/api/pilot-opportunities", csrfProtection, verifyFirebaseToken, pilotOpportunitiesRouter);
   app.use("/api/city-launch", csrfProtection, verifyFirebaseToken, cityLaunchRouter);
 }

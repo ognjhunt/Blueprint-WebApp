@@ -11,8 +11,10 @@ The shared block below is **cross-repo doctrine owned by
 place. The lock exists because these blocks diverged silently across repos once
 before and no gate fired.
 
-**This repo's public surface has moved ahead of that block, and the gap is
-deliberate rather than an oversight.**
+**The shared block and this repo's public surface agree.** On 2026-10-14 the
+founder made the free beta's evaluated, recommended pilot an active program
+alongside Arm Decision Proof v1, and the shared block says so. Before that date
+the public surface had deliberately moved ahead of the block.
 
 What `Blueprint-WebApp` currently ships on its public routes:
 
@@ -51,41 +53,94 @@ scenario or policy interfaces. Keep the formal **Task Evaluation Run** and
 Firestore fields, artifact schemas, or signed evaluation identities, and does
 not expand a bounded evaluation into proof of an entire workflow.
 
-### The live tension, stated plainly
+### Changing either side
 
-The shared block names Arm Decision Proof v1 as the sole active program and
-lists marketplace work and "unrelated city-launch, growth, marketplace, or
-WebApp polish" under **Frozen Work**. The public surface described above was
-built at the repo owner's direction and is deployed. Both statements are
-currently true of this repository, and an agent reading only one of them will
-be misled.
+The 2026-10-14 reconciliation closed the gap between this public surface and the
+shared block. Keep them closed:
 
-How to treat that, until the shared block is reconciled:
+- **Do not** edit the shared block here. That fails the doctrine gate, and
+  updating the lock digest to match a local edit would fork doctrine across
+  `BlueprintCapture`, `BlueprintCapturePipeline`, and `Blueprint-WebApp`.
+- **Do** keep the engineering invariants in the shared block. Raw capture and
+  physical outcomes outrank derived artifacts, results are
+  bounded estimates or abstentions, and simulation
+  never certifies physical performance or safety. The site states that boundary
+  on every page that carries a figure.
+- **Do** make a material change to the public offer and the shared block
+  together: amend the canonical fragment in
+  `BlueprintCapturePipeline/doctrine/`, run its sync script, and commit the
+  re-measured `contracts/shared-doctrine.lock.json` in all three repos.
 
-- **Do not** resolve the tension by editing the shared block here. That fails
-  the doctrine gate, and updating the lock digest to match a local edit would
-  fork doctrine across `BlueprintCapture`, `BlueprintCapturePipeline`, and
-  `Blueprint-WebApp` rather than reconcile it.
-- **Do not** treat the Frozen Work list as authority to revert or narrow the
-  shipped public surface. It is deployed, owner-directed, and covered by tests.
-- **Do** keep the engineering invariants in the shared block. Nothing in the
-  public repositioning loosens them: raw capture and physical outcomes still
-  outrank derived artifacts, results are still bounded estimates or abstentions,
-  and simulation still never certifies physical performance or safety. The site
-  states that boundary on every page that carries a figure.
-- **Do** raise reconciliation as a cross-repo change: amend the canonical
-  fragment in `BlueprintCapturePipeline/doctrine/`, re-measure the block, and
-  update `contracts/shared-doctrine.lock.json` in all three repos together.
-
-Reconciliation is a founder decision, not a lane-local edit.
+Changing the active programs is a founder decision, not a lane-local edit.
 
 <!-- SHARED_PLATFORM_CONTEXT_START -->
 ## Shared Platform Doctrine
 
-### Sole Active Program
+### Active Programs
 
-Blueprint's sole active program is **Arm Decision Proof v1**
-(`arm-decision-proof-v1`).
+Blueprint has two active programs. Both bind every repository, and neither
+loosens the engineering invariants in this document.
+
+1. **Free Beta: Evaluated, Recommended Pilot** (`free-beta-evaluated-pilot`)
+   is the customer-facing program (founder decisions of 2026-10-13 and
+   2026-10-14).
+2. **Arm Decision Proof v1** (`arm-decision-proof-v1`) is the evidence program.
+   It tests whether a simulated decision agrees with held-out physical trials.
+
+No other research, product, growth, infrastructure, provider, embodiment, or
+market-expansion lane is active unless an observed blocker in one of these two
+programs shows that it is the smallest necessary dependency.
+
+Shared seams are built once and serve both programs: capture, scene
+preparation, policy execution, scoring, and result publication. When the two
+compete for the same engineering time, work that an invited site or robot team
+is blocked on comes first, and the founder resolves anything else. Arm
+Decision Proof keeps sole authority over physical-validation claims. No beta
+result may be described as physically validated without Physical Outcome Join
+evidence.
+
+### Free Beta: Evaluated, Recommended Pilot
+
+A site shows one recurring job. Invited robot teams evaluate it, free, in a
+simulation built from the site's capture. Blueprint recommends one team whose
+evaluation on that job passed and that wants the pilot, and the site books it
+in one step. The site never has to compare teams. If no team passes, the site
+is told so, and what would change that.
+
+- The beta is free for sites and robot teams. There are no fees, paid
+  evaluations, balances, top-ups, checkout, or announced future pricing.
+- The physical pilot is agreed between the site and the robot team. Blueprint
+  takes no cut.
+- Sign-up is open for sites, and Blueprint also onboards sites by hand. Robot
+  teams join by invitation after application review.
+- A recommendation needs a team's own policy, scored by the simulator and
+  never self-reported, for at least the minimum evidence episodes, passing the
+  job's pass mark as frozen before the run.
+- Every result is a bounded simulation estimate. It never certifies physical
+  performance or safety; the physical pilot measures that.
+
+The beta's north star is one site that started through the public form booking
+a pilot recommended on that evidence. The metric is
+`evidence_backed_recommended_pilots_booked`: current `0`, next target `1`.
+
+These beta areas are active build-out and no longer frozen:
+
+- the site and robot-team journeys in `Blueprint-WebApp`: intake, consent,
+  capture, job briefs, invitation, evaluation requests, results,
+  recommendation, booking, and the messages around them;
+- running an invited team's own policy in the website scene runtime for
+  enough episodes to judge it against the job's pass mark;
+- scene preparation and evaluation throughput for several concurrent beta
+  sites, with spend caps and an operator effort small enough to repeat;
+- the robot-team side: application review, invitation, job listings,
+  interface contracts, and result review.
+
+The default build target remains the envelope the Pipeline can score today: a
+fixed arm on rigid-object pick-and-place or articulated open/close tasks.
+Building support for another robot form or task family needs a recorded owner
+focus decision based on demand evidence.
+
+### Arm Decision Proof v1
 
 Its north star is:
 
@@ -100,10 +155,6 @@ Its north star is:
 The north-star metric is
 `prospectively_physically_validated_new_site_task_decisions`: current `0`, next
 target `1`.
-
-No other research, product, growth, infrastructure, provider, embodiment, or
-market-expansion lane is active unless an observed Arm Decision Proof blocker
-shows that it is the smallest necessary dependency.
 
 ADP-008's SIMPLER decision-harness replay is observed complete and immutable.
 The immediate engineering phase is **ADP-009 public scene qualification**:
@@ -126,7 +177,8 @@ rights, and physical access remain a small parallel human lane.
 
 ### Product And Artifact Boundary
 
-Blueprint sells one product: **Task Evaluation Run**.
+Blueprint has one product: the **Task Evaluation Run**. In the free beta a site
+experiences it as an evaluated, recommended pilot, and nothing is sold.
 
 - A maintained **Site-Task Testbed** is the versioned reusable substrate.
 - A **candidate Minimum Sufficient Evaluation Replica** is the construction
@@ -141,7 +193,7 @@ A run returns a bounded selection, elimination, equivalence/inconclusive result,
 partial decision, explicit abstention, or the smallest missing measurement. It
 does not guarantee ranking, deployment, physical success, or safety.
 
-### Exact v1 Scope
+### Arm Decision Proof v1 Scope
 
 The first proof is deliberately limited to:
 
@@ -165,11 +217,13 @@ rank correlation.
 
 - `BlueprintCapture` records immutable, provenance-linked real-site evidence.
 - `BlueprintCapturePipeline` compiles the testbed, routes claims to qualified
-  evidence, executes authorized leaf runs, seals the prospective decision,
-  performs the Physical Outcome Join, and owns the scientific verdict.
-- `Blueprint-WebApp` handles partner intake, authorization, durable workflow
-  state, evidence review, and bounded case-study presentation. It does not
-  select evidence providers or recompute verdicts.
+  evidence, executes authorized leaf runs (including invited teams' beta
+  evaluation runs), seals the prospective decision, performs the Physical
+  Outcome Join, and owns the scientific verdict.
+- `Blueprint-WebApp` handles site and robot-team intake, consent, invitation,
+  authorization, durable workflow state, evaluation requests, recommendation
+  and booking, evidence review, and bounded case-study presentation. It does
+  not select evidence providers or recompute verdicts.
 - Agents may inspect, propose, implement, validate, and assemble artifacts.
   Deterministic contracts authorize or abstain. Humans retain authority over
   task truth, resets, rights/privacy, physical robot motion and safety, holdout
@@ -215,6 +269,13 @@ dynamics, observation-domain match, factual recovery of an unobserved surface,
 sim-to-real decision fidelity, or partner value. No fixture/generated field may
 be copied into qualified evidence to make a gate pass.
 
+Beta site captures are the free beta's real inputs. Scenes built from them, and
+evaluation results on those scenes, may back a beta recommendation when stated
+as a bounded simulation estimate with its limits. They stay separate from Arm
+Decision Proof evidence. They cannot qualify a partner capture, promote a
+physical-validation claim, or be copied into Arm Decision Proof qualified
+evidence.
+
 ### Truth Hierarchy
 
 1. Raw capture, timestamps, poses, device metadata, rights/privacy records, and
@@ -252,7 +313,7 @@ An honest abstention is valid behavior but does not complete the showcase target
 A wrong prospective decision is a failed experiment and remains immutable
 evidence.
 
-### Partner And Economic Gate
+### Arm Decision Proof Partner And Economic Gate
 
 The first partner must bring a real testing decision, two runnable candidates,
 a bounded task, holdout authority, a named operator/task owner, documented
@@ -277,27 +338,30 @@ lane.
 
 ### Frozen Work
 
-Unless the Arm Decision Proof records a direct blocker, do not start or expand:
+Unless one of the two active programs records a direct blocker, do not start
+or expand:
 
 - humanoid/G1 or locomotion work;
 - deformable, cable, cloth, granular, insertion, or force-task work;
 - five-policy campaigns or general rank-correlation claims;
 - world-model/evaluator expansion;
-- reconstruction/provider bakeoffs or marketplaces;
+- reconstruction/provider bakeoffs or provider marketplaces;
 - universal robot, simulator, or provider support;
 - dynamic-scene and general 3DGS research;
 - post-training or policy-improvement products;
-- multi-site generalization;
-- unrelated city-launch, growth, marketplace, or WebApp polish.
+- cross-site generalization claims;
+- city-launch or growth campaigns, and WebApp work unrelated to the beta
+  journeys.
 
 Humanoids are not automatically the next phase. A later embodiment must be
-earned by this proof and a real partner need.
+earned by demand evidence and a recorded owner focus decision.
 
 ### Practical Rule For Agents
 
 Before accepting any work, answer:
 
-1. Which public-harness or partner-proof Arm Decision Proof gate does it unblock?
+1. Which free beta journey step, or which public-harness or partner-proof Arm
+   Decision Proof gate, does it unblock?
 2. What observed artifact will prove the blocker was removed?
 3. Why is existing infrastructure insufficient?
 4. What is the smallest reversible change?

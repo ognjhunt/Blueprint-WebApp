@@ -46,6 +46,7 @@ import {
   type SiteTaskBriefSnapshot,
 } from "./siteCaptureBundle";
 import { bundleContentType, type BundleObjectInfo, type BundleStorage } from "./siteCaptureBundleStorage";
+import { isAcceptedVideoHeader, VIDEO_SIGNATURE_BYTES } from "./videoMagicBytes";
 
 /** Targets per response. Keeps a 2,000-file bundle to a handful of requests. */
 export const TARGETS_PER_RESPONSE = 250;
@@ -94,6 +95,12 @@ export interface BundleServiceDeps {
     client: BundleClient;
   }): Promise<"claimed" | "conflict">;
   startCoverageReview(params: { requestId: string; sceneId: string; captureId: string }): void | Promise<void>;
+  /**
+   * Charge a plan's declared bytes against the durable daily upload caps before
+   * any upload target is issued. Once per plan; null admits, a response refuses.
+   */
+  admitPlannedBytes?(params: { requestId: string; captureId: string; planDigest: string; bytes: number }):
+    Promise<ServiceResponse | null>;
   now(): Date;
 }
 
@@ -122,6 +129,8 @@ export interface TokenPayload {
 export interface ServiceResponse {
   status: number;
   body: Record<string, unknown>;
+  /** Sent as Retry-After when a daily cap refuses. */
+  retryAfterSeconds?: number;
 }
 
 function targetFor(payload: TokenPayload): BundleTarget {
@@ -411,6 +420,9 @@ export async function acceptBundlePlan(
       authoritySnapshot: authority,
       createdAtIso: deps.now().toISOString(),
     });
+    // Before the capture is claimed for this plan, so a refusal changes nothing.
+    const refusedNew = await admitPlanBytes(payload, plan, deps);
+    if (refusedNew) return refusedNew;
     const claim = await deps.claimBundle({
       requestId: payload.requestId,
       target,
@@ -468,6 +480,10 @@ export async function acceptBundlePlan(
       },
     };
   }
+  // Charged once per plan: a replay of an admitted plan is free, and a plan
+  // first stored on a day it was refused is charged when its targets are issued.
+  const refused = await admitPlanBytes(payload, plan, deps);
+  if (refused) return refused;
   const batch = stock.missing.slice(0, TARGETS_PER_RESPONSE);
   const targets = await mintTargets(target, batch, deps);
   return {
@@ -513,7 +529,16 @@ export async function mintMoreTargets(
     if (!file) return { status: 400, body: { error: "That file is not part of this upload.", code: "bundle_target_not_planned" } };
     files.push(file);
   }
+  const refused = await admitPlanBytes(payload, plan, deps);
+  if (refused) return refused;
   return { status: 200, body: { ok: true, plan_digest: plan.plan_digest, targets: await mintTargets(target, files, deps) } };
+}
+
+/** Upload targets are issued only for a plan whose bytes fit today's caps. */
+async function admitPlanBytes(payload: TokenPayload, plan: BundlePlanRecord, deps: BundleServiceDeps) {
+  if (!deps.admitPlannedBytes) return null;
+  return deps.admitPlannedBytes({ requestId: payload.requestId, captureId: payload.captureId, planDigest: plan.plan_digest,
+    bytes: plan.files.reduce((sum, file) => sum + file.bytes, 0) });
 }
 
 /* ------------------------------------------------------------ complete */
@@ -683,6 +708,17 @@ export async function completeBundle(
       }
       deviceObjects[file.path] = { generation: object.generation!, size_bytes: object.size,
         crc32c: object.crc32c!, md5: file.md5 };
+    }
+    // The video went straight to storage on a signed session, so this is the
+    // first time the server sees its bytes: a bounded read of its head, before
+    // anything (manifest, email, privacy screen, model) treats it as footage.
+    // The object stays where it is, unreferenced: raw bundle files are
+    // create-only, and the MD5-bound plan would only re-upload the same bytes.
+    const head = await deps.storage.readHead(rawObjectName(target, BUNDLE_VIDEO_PATH), VIDEO_SIGNATURE_BYTES);
+    if (!head || !isAcceptedVideoHeader(head)) {
+      logger.warn({ captureId: target.captureId }, "Bundle video is not a recognised video container");
+      return { status: 422, body: { code: "bundle_video_not_recognized",
+        error: "The uploaded recording is not a video we can read. Record it again in the Blueprint app." } };
     }
     const completedAtIso = deps.now().toISOString();
     const composition = composeServerFiles({

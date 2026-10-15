@@ -1,10 +1,13 @@
 // @vitest-environment node
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
-import { OpenAIProvider, setTracingDisabled } from "@openai/agents";
+import { OpenAIProvider, Usage, setTracingDisabled } from "@openai/agents";
 import OpenAI from "openai";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 const objects = vi.hoisted(() => new Map<string, { generation: string; body: Buffer }>());
+// Test video bytes are not real video: strip sound with the in-process fake.
+vi.mock("../agents/adapters/video-audio-strip", async (importOriginal) =>
+  (await import("./helpers/fake-ffmpeg")).withFakeFfmpeg(await importOriginal()));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
   default: { firestore: { FieldValue: { serverTimestamp: () => "SERVER_TIMESTAMP" } } },
   dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore,
@@ -21,6 +24,7 @@ import { runSiteAssessmentTask } from "../agents/adapters/site-assessment";
 import { browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { humanDecisionDigest } from "../utils/human-reply-admission";
+import { fakeFfmpeg } from "./helpers/fake-ffmpeg";
 import type { NormalizedAgentTask } from "../agents/types";
 const runId = "synthetic-error-run", requestId = "synthetic-error";
 const task = { provider: "openai_responses", runtime: "openai_agents_sdk", model: "gpt-6.1-sol", kind: "site_assessment",
@@ -120,4 +124,41 @@ it("keeps original SDK failure and reservations when an experiment diagnostics s
   expect(recordError).toHaveBeenCalledTimes(1);
   expect(result.artifacts?.site_assessment_error).toMatchObject({ exception_class: "TypeError" });
   expect(JSON.stringify(result)).not.toContain("PRIVATE");
+});
+
+it("stops before any paid call when there is no binary to remove sound with", async () => {
+  fakeFfmpeg.reset(); fakeFfmpeg.available = false;
+  try {
+    const dispatch = vi.fn(async () => { throw Error("unexpected_model_dispatch"); });
+    vi.spyOn(OpenAIProvider.prototype, "getModel").mockResolvedValue({ getResponse: dispatch,
+      async *getStreamedResponse() { throw Error("unexpected_stream"); } } as any);
+    const result = await runSiteAssessmentTask(task, host);
+    expect(result).toMatchObject({ status: "failed", error: "site_assessment_audio_strip_unavailable" });
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(result.artifacts?.capture_inference_reservations).toEqual([]);
+  } finally { fakeFfmpeg.reset(); }
+});
+
+it("withholds the video and names the reason when its sound cannot be removed", async () => {
+  fakeFfmpeg.reset(); fakeFfmpeg.remuxExitCode = 1;
+  vi.stubEnv("GEMINI_API_KEY", "synthetic-no-provider");
+  try {
+    let turn = 0;
+    const final = { status: "needs_operator_input", job: [], objects_motions_conditions_variations: [], operator_success: [], known: [],
+      estimates: [], missing: [], approaches: [], questions: [],
+      next_action: { kind: "ask_operator", action: "Share the video again", why: { text: "The video could not be analysed", basis: "unknown", evidence: [] } } };
+    const dispatch = vi.fn(async () => ({ usage: new Usage(),
+      output: ++turn <= 2 ? [{ type: "function_call", callId: `probe-${turn}`, name: "analyze_site_video",
+        arguments: JSON.stringify({ question: `Inspect step ${turn}`, processing: "auto", sampling_fps: 2 }) }]
+        : [{ type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text: JSON.stringify(final) }] }] }));
+    vi.spyOn(OpenAIProvider.prototype, "getModel").mockResolvedValue({ getResponse: dispatch,
+      async *getStreamedResponse() { throw Error("unexpected_stream"); } } as any);
+    const result = await runSiteAssessmentTask(task, host);
+    expect(result).toMatchObject({ status: "failed", error: "site_assessment_audio_strip_failed" });
+    // One attempt to strip; the second probe is refused without retrying, and nothing reached Gemini.
+    expect(fakeFfmpeg.calls).toHaveLength(1);
+    expect(vi.mocked(globalThis.fetch)).not.toHaveBeenCalled();
+    expect(result.artifacts?.site_assessment_partial_evidence?.tool_receipts.map((row: any) => row.result))
+      .toEqual([expect.objectContaining({ ok: false, error: "audio_strip_failed" }), expect.objectContaining({ ok: false, error: "audio_strip_failed" })]);
+  } finally { fakeFfmpeg.reset(); }
 });

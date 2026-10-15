@@ -2,6 +2,7 @@ import path from "node:path";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { getConfiguredEnvValue, requireConfiguredEnvValue } from "../config/env";
 import { parseGsUri } from "./pipeline-dashboard";
+import { stripVideoAudio } from "../agents/adapters/video-audio-strip";
 import {
   azimuthForFrameIndex,
   DEFAULT_WORLD_MODEL,
@@ -560,42 +561,49 @@ export async function createWorldFromRequestManifest(requestManifest: Record<str
       : {};
 
   let generationSourceType = requestedSourceType || "video_media_asset";
-  if (selectedVideoUri && generationSourceType !== "video_uri") {
+  if (selectedVideoUri) {
+    // World Labs receives only a video-only copy that Blueprint uploads. A raw
+    // URI (the old "video_uri" source) would let it fetch the sound too, so it
+    // is never sent; if sound cannot be removed, nothing is sent at all.
     const extension = extensionFromUri(selectedVideoUri);
-    const fileName = fileNameFromUri(selectedVideoUri, `capture-video.${extension}`);
-    const uploadPayload = await prepareWorldLabsMediaAssetUpload({
-      fileName,
-      extension,
-      kind: "video",
-      metadata: {
-        scene_id: requestManifest.scene_id,
-        capture_id: requestManifest.capture_id,
-        site_submission_id: requestManifest.site_submission_id,
-      },
-    });
-    const mediaAsset =
-      uploadPayload.media_asset && typeof uploadPayload.media_asset === "object"
-        ? (uploadPayload.media_asset as Record<string, unknown>)
-        : {};
-    const uploadInfo =
-      uploadPayload.upload_info && typeof uploadPayload.upload_info === "object"
-        ? (uploadPayload.upload_info as Record<string, unknown>)
-        : {};
     const bytes = await readBinaryFromUri(selectedVideoUri);
-    await uploadPreparedMediaAsset({
-      uploadInfo,
-      contentType: mimeTypeForExtension(extension),
-      bytes,
-    });
-    videoPrompt.source = "media_asset";
-    videoPrompt.media_asset_id = firstString(mediaAsset.media_asset_id, mediaAsset.id);
-    delete videoPrompt.uri;
-    generationSourceType = "video_media_asset";
-  } else if (selectedVideoUri) {
-    videoPrompt.source = "uri";
-    videoPrompt.uri = selectedVideoUri;
-    delete videoPrompt.media_asset_id;
-    generationSourceType = "video_uri";
+    const providerVideo = await stripVideoAudio({ body: bytes, byteLength: bytes.byteLength,
+      contentType: mimeTypeForExtension(extension) });
+    try {
+      const providerExtension = providerVideo.contentType === "video/quicktime" ? "mov"
+        : providerVideo.contentType === "video/webm" ? "webm" : providerVideo.contentType === "video/mpeg" ? "mpg" : "mp4";
+      const fileName = fileNameFromUri(selectedVideoUri, `capture-video.${extension}`)
+        .replace(/\.[A-Za-z0-9]+$/, "") + `.${providerExtension}`;
+      const uploadPayload = await prepareWorldLabsMediaAssetUpload({
+        fileName,
+        extension: providerExtension,
+        kind: "video",
+        metadata: {
+          scene_id: requestManifest.scene_id,
+          capture_id: requestManifest.capture_id,
+          site_submission_id: requestManifest.site_submission_id,
+        },
+      });
+      const mediaAsset =
+        uploadPayload.media_asset && typeof uploadPayload.media_asset === "object"
+          ? (uploadPayload.media_asset as Record<string, unknown>)
+          : {};
+      const uploadInfo =
+        uploadPayload.upload_info && typeof uploadPayload.upload_info === "object"
+          ? (uploadPayload.upload_info as Record<string, unknown>)
+          : {};
+      await uploadPreparedMediaAsset({
+        uploadInfo,
+        contentType: providerVideo.contentType,
+        bytes: await providerVideo.readAll(),
+      });
+      videoPrompt.source = "media_asset";
+      videoPrompt.media_asset_id = firstString(mediaAsset.media_asset_id, mediaAsset.id);
+      delete videoPrompt.uri;
+      generationSourceType = "video_media_asset";
+    } finally {
+      await providerVideo.cleanup();
+    }
   }
 
   worldPrompt.video_prompt = videoPrompt;

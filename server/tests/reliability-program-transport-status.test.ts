@@ -172,18 +172,19 @@ describe("neighboring duplicate transport recovery", () => {
   it("returns actionable409 from the actual part handler while preserving original bytes", async () => {
     const harness = bucketHarness(); store.bucket = harness.bucket;
     const original = Buffer.from("original-chunk");
-    await savePart({ bucket: harness.bucket, rawPrefix: RAW, index: 0, body: original });
+    // Index 1: part 0 is also refused before storage unless it opens a video container.
+    await savePart({ bucket: harness.bucket, rawPrefix: RAW, index: 1, body: original });
     const route = (uploadsRouter as any).stack.find((layer: any) => layer.route?.path === "/:token/parts/:index").route;
     const response = { statusCode: 200, body: undefined as any,
       status(code: number) { this.statusCode = code; return this; }, json(body: unknown) { this.body = body; return this; } };
     await route.stack.at(-1).handle({
-      params: { token: createCaptureUploadToken({ requestId: "rts", sceneId: "site-rts", captureId: "walkthrough-rts" }), index: "0" },
+      params: { token: createCaptureUploadToken({ requestId: "rts", sceneId: "site-rts", captureId: "walkthrough-rts" }), index: "1" },
       query: { extension: "mp4" }, file: { originalname: "part", buffer: Buffer.alloc(original.length, 0x58), size: original.length },
     }, response);
     expect(response.statusCode).toBe(409); expect(response.body).toMatchObject({ code: "capture_part_conflict", retryAllowed: false });
     expect(response.body.error).toContain("original video");
     expect(response.body.error).toContain("hello@tryblueprint.io with your job link");
-    expect(harness.original.objects.get(partPath(RAW, 0))!.data.equals(original)).toBe(true);
+    expect(harness.original.objects.get(partPath(RAW, 1))!.data.equals(original)).toBe(true);
   });
 
   it("rejects generation replacement during an otherwise identical duplicate readback", async () => {

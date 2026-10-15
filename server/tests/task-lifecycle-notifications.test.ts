@@ -122,3 +122,37 @@ describe('withdrawal fences capture-derived notices without suppressing recovery
   });
  });
 });
+
+describe("pilot and listing notices describe the free beta", () => {
+  const build = async (milestone: "listing_live" | "pilot_recommended" | "pilot_booked", detail?: string) => {
+    const { buildTaskLifecycleNotification } = await import("../utils/taskLifecycleNotifications");
+    return buildTaskLifecycleNotification({ requestId: "req-1", milestone, to: "owner@example.com",
+      captureUrl: "https://tryblueprint.io/capture-upload/owner-token", detail });
+  };
+
+  it("tells a link-only site how to hide its card without an account", async () => {
+    const notice = await build("listing_live");
+    expect(notice.body).toContain('untick "Show this card in the job library"');
+    expect(notice.body).toContain("https://tryblueprint.io/capture-upload/owner-token");
+    expect(notice.body).not.toMatch(/Blueprint account|\/app\/tasks/);
+  });
+
+  it("asks the site to book the recommended pilot, not to accept a proposal", async () => {
+    const notice = await build("pilot_recommended");
+    expect(notice.body).toMatch(/book it there in one step; booking costs nothing during the beta/);
+    expect(notice.body).toMatch(/paid to the robot team, not to Blueprint/);
+    expect(notice.body).not.toMatch(/accept the proposal/i);
+  });
+
+  it("confirms a booking, keeps Blueprint as coordinator, and states no Blueprint fee", async () => {
+    const free = await build("pilot_booked", "invited_beta_free");
+    expect(free.subject).toBe("Your pilot is booked");
+    expect(free.body).toMatch(/^Your booking is recorded\./);
+    expect(free.body).toContain("Blueprint owns that next step.");
+    expect(free.body).toContain("Blueprint charges nothing during the beta; the pilot's cost is agreed with the robot team.");
+    // A pre-beta booking keeps its accepted terms; the email neither restates a fee nor waives one.
+    const historical = await build("pilot_booked");
+    expect(historical.body).toContain("Your previously accepted commercial terms remain on file.");
+    expect(historical.body).not.toMatch(/\bfee\b/i);
+  });
+});

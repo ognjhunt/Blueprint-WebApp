@@ -17,6 +17,7 @@ import { hydrateAgentEvidence, requiresMutationReconciliation } from "../private
 import { getCompanyHistoryAccess } from "../operator-tools";
 import { getGeminiVideoModel, getOpenAiTimeoutMs } from "../provider-config";
 import { createSiteAssessmentAgent, SITE_ASSESSMENT_MODEL, type SiteAssessmentInput, type SiteAssessmentOptions, videoAnalysisOperatorDigest } from "../site-assessment";
+import { assertAudioStripAvailable } from "./video-audio-strip";
 import { siteAssessmentTaskInput } from "../tasks/site-assessment";
 import type { AgentResult, NormalizedAgentTask } from "../types";
 import type { InboundRequest } from "../../types/inbound-request";
@@ -41,7 +42,9 @@ const assessmentErrorCodes = new Set([
   "site_assessment_conversation_binding_invalid", "site_assessment_conversation_request_mismatch", "site_assessment_video_evidence_missing",
   "site_assessment_deadline_exceeded", "site_assessment_exposure_invalid", "site_assessment_cost_unresolved",
   "site_assessment_model_not_admitted", "site_assessment_input_budget_exceeded", "site_assessment_inference_cost_cap",
-  "site_assessment_accounting_mismatch", "site_assessment_actual_cost_exceeds_reservation",
+  "site_assessment_accounting_mismatch", "site_assessment_actual_cost_exceeds_reservation", "site_assessment_daily_cost_cap",
+  // Sound could not be removed, so the video was not sent (see video-audio-strip.ts).
+  "site_assessment_audio_strip_unavailable", "site_assessment_audio_strip_failed", "site_assessment_audio_strip_unverified",
 ]);
 const providerErrorCodes = new Set(["invalid_request_error", "rate_limit_exceeded", "context_length_exceeded", "invalid_api_key",
   "insufficient_quota", "server_error", "model_not_found", "ETIMEDOUT", "ECONNRESET", "ENOTFOUND", "EAI_AGAIN"]);
@@ -92,6 +95,7 @@ export function bindBrowserAssessmentSource(requestId: string, record: Record<st
 
 export { SiteAssessmentBudget } from "./site-assessment-budget";
 import { SiteAssessmentBudget } from "./site-assessment-budget";
+import { modelReviewPerReviewUsdCap } from "../../utils/betaAbuseCaps";
 
 /** Trusted local host substitutes persistence, with optional explicit context omission. All live source checks remain below. */
 export interface SiteAssessmentExperiment {
@@ -116,7 +120,9 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
   experiment?: SiteAssessmentExperiment }): Promise<AgentResult> {
   const base = { provider: task.provider, runtime: task.runtime, model: task.model, tool_mode: task.tool_policy.mode,
     requires_human_review: true, requires_approval: false };
-  const budget = new SiteAssessmentBudget();
+  // Customer reviews carry a hard per-review dollar ceiling. The trusted local
+  // iteration host keeps the owner's recorded no-cap decision and only accounts.
+  const budget = new SiteAssessmentBudget(0, host.experiment ? null : modelReviewPerReviewUsdCap());
   let captureAdmission: Awaited<ReturnType<SiteAssessmentExperiment["reserve"]>> | undefined;
   const captureReservations: unknown[] = [];
   let instance: Awaited<ReturnType<typeof createSiteAssessmentAgent>> | undefined;
@@ -130,6 +136,11 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
     if (task.tool_policy.allowed_domains.length && ["api.openai.com", "generativelanguage.googleapis.com", "storage.googleapis.com"]
       .some(domain => !task.tool_policy.allowed_domains.some(allowed => domain === allowed || domain.endsWith(`.${allowed}`)))) {
       throw new Error("site_assessment_provider_domain_not_allowed");
+    }
+    // Fresh video analysis needs sound removed first. Stop before any paid
+    // call when there is no binary to do it with.
+    if (!host.experiment?.analyze_video) {
+      await assertAudioStripAvailable().catch(() => { throw new Error("site_assessment_audio_strip_unavailable"); });
     }
     const ref = db.collection("inboundRequests").doc(input.context.request_id);
     const raw = (await ref.get()).data();
@@ -275,7 +286,10 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
     });
     const packet = await instance.run();
     if (!packet.sources.some(source => source.kind === "video" && source.sha256 === videoSha
-      && source.canonical_ref === videoRef)) throw new Error("site_assessment_video_evidence_missing");
+      && source.canonical_ref === videoRef)) {
+      const withheld = instance.audio_strip_failure();
+      throw new Error(withheld && withheld !== "audio_strip_required" ? `site_assessment_${withheld}` : "site_assessment_video_evidence_missing");
+    }
     await host.assertActive();
     await assertSourceCurrent();
     return { ...base, status: "completed", output: packet.assessment,

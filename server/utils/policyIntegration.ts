@@ -32,6 +32,37 @@ export function validateIntegrationReference(runtime: string, reference: string)
   return Boolean(reference.trim());
 }
 
+/**
+ * Beta L5: the Pipeline's Quick-10 policy-canary runtime running ONE admitted
+ * team candidate in place of its two frozen policies, for ten episodes the
+ * simulator scores against the job's success contract. The only kind of run
+ * whose result can back a recommendation (`runResultScoring.ts`).
+ */
+export const TEAM_CANDIDATE_QUICK10_PROFILE = "policy_canary_quick10_team_candidate_v1";
+/** The pi0.5-DROID Franka (Robotiq 2F-85) contract, served by the team's own HTTPS service. */
+export const TEAM_CANDIDATE_HTTPS_INTERFACE = "openpi_droid_https.v1";
+
+/**
+ * A team's authenticated HTTPS policy as the one candidate of a Quick-10 run.
+ * The same URL answers GET with the team's declared identity and POST with
+ * actions; the Pipeline checks that identity before every episode. Null for
+ * anything else, so nothing unauthenticated or non-HTTPS is ever asked for.
+ */
+export function teamCandidatePolicyPackage(checkpoint: Record<string, any>): Record<string, unknown> | null {
+  const reference = String(checkpoint.reference || "").trim();
+  if (!["policy_endpoint", "customer_hosted"].includes(checkpoint.runtime)
+    || checkpoint.policyCredential?.kind !== "bearer" || !checkpoint.policyCredential?.ref) return null;
+  try {
+    const url = new URL(reference);
+    if (url.protocol !== "https:" || url.username || url.password || url.hash) return null;
+  } catch { return null; }
+  return { policy_api_endpoint: {
+    endpoint_url: reference, execution_profile: TEAM_CANDIDATE_QUICK10_PROFILE,
+    policy_interface_id: TEAM_CANDIDATE_HTTPS_INTERFACE,
+    credential_ref: checkpoint.policyCredential.ref, credential_kind: "bearer",
+  } };
+}
+
 export function checkpointPolicyPackage(checkpoint: Record<string, any>): Record<string, unknown> | null {
   const reference = String(checkpoint.reference || "").trim();
   if (!reference) return null;

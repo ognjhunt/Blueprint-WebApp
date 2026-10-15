@@ -29,6 +29,15 @@
  * anything. Such a team is `provisional`: worth a look, never counted in "three
  * teams clear your payload". Reporting it as cleared is precisely how an
  * automated email ends up making a claim nobody made.
+ *
+ * ## Fit is not willingness
+ *
+ * `matched` says a team's robot clears the site's constraints. It says nothing
+ * about whether the team has agreed to evaluate the job or take the pilot, and
+ * most registry rows are researched prospects that have agreed to nothing. So
+ * every result carries `willingSupply` from the registry's supply agreement,
+ * and `MatchSummary.supply` is the only list that may be counted as teams for
+ * a site. A `matched` prospect is a lead, not supply.
  */
 import {
   bandScaleById,
@@ -91,6 +100,12 @@ export interface MatchResult {
   ruledOutBy: readonly MatchFinding[];
   /** Hard constraints nobody has answered. Why a match is provisional. */
   unknownHardConstraints: readonly MatchFinding[];
+  /**
+   * Whether the team has agreed, on record, to run on the supported interface,
+   * accept a free evaluation on a real job and take the pilot if it passes.
+   * Copied from the candidate; false when the candidate does not say.
+   */
+  willingSupply: boolean;
 }
 
 export interface SiteRequirement {
@@ -115,6 +130,11 @@ export interface RobotCandidate {
   /** Self-reported physical maturity. Carried for truthful inspection; a past-task evaluation does not verify it. */
   hardwareMaturity?: string | null;
   taskFamily?: string | null;
+  /**
+   * Set by the registry (`toMatchCandidate`) from the team's recorded supply
+   * agreement. Absent means no: a candidate built anywhere else is not supply.
+   */
+  willingSupply?: boolean;
 }
 
 function valueOrNull(value: unknown): string | null {
@@ -212,6 +232,7 @@ export function matchRobotTeam(
     findings,
     ruledOutBy,
     unknownHardConstraints,
+    willingSupply: candidate.willingSupply === true,
   };
 }
 
@@ -241,6 +262,11 @@ export function rankMatches(results: readonly MatchResult[]): MatchResult[] {
 export interface MatchSummary {
   /** Teams where every hard constraint was checked and cleared. */
   matched: readonly MatchResult[];
+  /**
+   * `matched` teams that have also agreed, on record, to evaluate and pilot.
+   * The only teams that may be counted as supply for a site.
+   */
+  supply: readonly MatchResult[];
   /** Teams nothing ruled out, but with a hard constraint unanswered. */
   provisional: readonly MatchResult[];
   ruledOut: readonly MatchResult[];
@@ -270,8 +296,10 @@ export function summariseMatches(results: readonly MatchResult[]): MatchSummary 
     }
   }
 
+  const matched = ranked.filter((result) => result.outcome === "matched");
   return {
-    matched: ranked.filter((result) => result.outcome === "matched"),
+    matched,
+    supply: matched.filter((result) => result.willingSupply),
     provisional: ranked.filter((result) => result.outcome === "provisional"),
     ruledOut,
     commonBlockers: [...blockerCounts.values()].sort((left, right) => right.count - left.count),

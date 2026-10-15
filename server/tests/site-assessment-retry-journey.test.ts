@@ -5,6 +5,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 const seams = vi.hoisted(() => ({ objects: new Map<string, any>(), enabled: true, coverageActive: false, run: vi.fn(), manifest: vi.fn(), marker: vi.fn() }));
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
+// Test video bytes are not real video: strip sound with the in-process fake.
+vi.mock("../agents/adapters/video-audio-strip", async (importOriginal) =>
+  (await import("./helpers/fake-ffmpeg")).withFakeFfmpeg(await importOriginal()));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
  default: { firestore: {FieldValue: {serverTimestamp: () => "SERVER_TIMESTAMP", delete: () => undefined}}},
  dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore,
@@ -158,7 +161,7 @@ it("joins failed provider admission, explicit owner retry, durable worker and sa
       const newCalls = [...state.docs.entries()].filter(([key, value]) => key.includes("/calls/") && value.run_id === job.run_id);
       expect(newCalls).toHaveLength(3);
       expect(newCalls.every(([,value]) => ["recorded", "unknown"].includes(value.state))).toBe(true);
-      expect(run.artifacts.capture_inference_reservations.every((row:any) => row.spending_gated === false)).toBe(true);
+      expect(run.artifacts.capture_inference_reservations.every((row:any) => row.spending_gated === true && row.daily_cap_usd === 50)).toBe(true);
       expect(programme.slots.reduce((total:number, slot:any) => total + slot.reserved_micro_usd, 0)).toBe(4_964_928);
     }
     const response=await read();expect(response.status).toBe(200);const body=await response.json();

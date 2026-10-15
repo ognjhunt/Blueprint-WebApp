@@ -148,15 +148,63 @@ export function userDocRoleFallbackEnabled(env: NodeJS.ProcessEnv = process.env)
   return !["0", "false", "no", "off"].includes(String(env.BLUEPRINT_ADMIN_ROLE_DOC_FALLBACK ?? "").trim().toLowerCase());
 }
 
+const DOC_ROLE_WARN_INTERVAL_MS = 60 * 60 * 1000;
 const docRoleWarnedAt = new Map<string, number>();
 
-function warnDocOnlyRoles(uid: string, roles: AccessRole[]) {
+/**
+ * Evidence for turning the fallback off: how many authorisations since boot
+ * rested on a users-doc role that no custom claim or allowlist entry covers.
+ * Counts only; who it was is in the structured log line, never here.
+ */
+const docOnlyGrants = { total: 0, principals: new Set<string>(), lastAt: null as string | null };
+
+export type AdminRoleDocFallbackStatus = {
+  fallbackEnabled: boolean;
+  docOnlyGrantsSinceBoot: number;
+  docOnlyPrincipalsSinceBoot: number;
+  lastDocOnlyGrantAt: string | null;
+};
+
+export function adminRoleDocFallbackStatus(env: NodeJS.ProcessEnv = process.env): AdminRoleDocFallbackStatus {
+  return {
+    fallbackEnabled: userDocRoleFallbackEnabled(env),
+    docOnlyGrantsSinceBoot: docOnlyGrants.total,
+    docOnlyPrincipalsSinceBoot: docOnlyGrants.principals.size,
+    lastDocOnlyGrantAt: docOnlyGrants.lastAt,
+  };
+}
+
+/**
+ * A role granted only because the fallback is on. Every such grant is
+ * counted; the warning is logged at most hourly per uid so a busy operator
+ * does not flood the log, and carries what would remain if the fallback were
+ * set to 0 so the founder can see who depends on it before flipping it.
+ */
+function recordDocOnlyGrant(
+  uid: string,
+  docOnlyRoles: AccessRole[],
+  sources: { claimRoles: AccessRole[]; allowlistRoles: AccessRole[] },
+) {
   const now = Date.now();
-  if (now - (docRoleWarnedAt.get(uid) || 0) < 60 * 60 * 1000) return;
+  docOnlyGrants.total += 1;
+  docOnlyGrants.principals.add(uid);
+  docOnlyGrants.lastAt = new Date(now).toISOString();
+  if (now - (docRoleWarnedAt.get(uid) || 0) < DOC_ROLE_WARN_INTERVAL_MS) return;
   docRoleWarnedAt.set(uid, now);
   logger.warn(
-    { event: "admin_role_from_user_doc", uid, roles },
-    "Admin/ops role granted only by the users document, not by custom claims or the allowlist; migrate it to a custom claim (scripts/ops/audit-admin-roles.ts)",
+    {
+      event: "admin_role_from_user_doc",
+      metric: "admin_role_doc_fallback_grant",
+      uid,
+      roles: docOnlyRoles,
+      claimRoles: sources.claimRoles,
+      allowlistRoles: sources.allowlistRoles,
+      deniedWhenFallbackOff: true,
+      fallbackSetting: "BLUEPRINT_ADMIN_ROLE_DOC_FALLBACK",
+      docOnlyGrantsSinceBoot: docOnlyGrants.total,
+      docOnlyPrincipalsSinceBoot: docOnlyGrants.principals.size,
+    },
+    "Admin/ops role granted only by the users document, not by custom claims or the allowlist; migrate it to a custom claim (scripts/ops/audit-admin-roles.ts) before setting BLUEPRINT_ADMIN_ROLE_DOC_FALLBACK=0",
   );
 }
 
@@ -167,14 +215,13 @@ export async function resolveAccessContext(res: Response): Promise<AccessContext
     typeof firebaseUser?.email === "string" ? firebaseUser.email.trim().toLowerCase() || null : null;
 
   // Preferred sources: Firebase custom claims, then the server allowlist.
-  const roles = new Set<AccessRole>([
-    ...rolesFromFirebaseUser(firebaseUser),
-    ...rolesFromEmailAllowlist(firebaseUser),
-  ]);
+  const claimRoles = rolesFromFirebaseUser(firebaseUser);
+  const allowlistRoles = rolesFromEmailAllowlist(firebaseUser);
+  const roles = new Set<AccessRole>([...claimRoles, ...allowlistRoles]);
   if (userDocRoleFallbackEnabled()) {
     const userDocRoles = await loadUserDocRoles(uid);
     const docOnly = userDocRoles.filter((role) => !roles.has(role));
-    if (uid && docOnly.length) warnDocOnlyRoles(uid, docOnly);
+    if (uid && docOnly.length) recordDocOnlyGrant(uid, docOnly, { claimRoles, allowlistRoles });
     for (const role of userDocRoles) {
       roles.add(role);
     }

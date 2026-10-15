@@ -67,6 +67,10 @@ describe("Blueprint agent CLI", () => {
     ]) {
       expect(help).toContain(command);
     }
+    // The free beta takes no payment: retired paid commands stay listed so an
+    // agent can find them, but say they are retired rather than sell a top-up.
+    expect(help).toContain("paid_evaluations_disabled");
+    expect(help).not.toMatch(/Stripe link|bought|top-up|Whole Foods/i);
   });
 
   it("parses nested catalog and session commands", () => {

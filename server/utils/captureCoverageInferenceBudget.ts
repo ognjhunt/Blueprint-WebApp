@@ -2,6 +2,7 @@ import type { Transaction } from "firebase-admin/firestore";
 import { randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { SiteAssessmentBudget } from "../agents/adapters/site-assessment-budget";
+import { reconcileModelReviewSpend, releaseModelReviewSpend, reserveModelReviewSpend } from "./betaAbuseCaps";
 import { humanDecisionDigest } from "./human-reply-admission";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowserPending";
@@ -18,8 +19,11 @@ function assertSource(request: any, captureId: string, source: unknown) {
     || privacy.capture_id !== captureId || digest(privacy.producer_source) !== digest(source)) throw new Error("coverage_budget_source_changed");
 }
 
-/** A durable call intent and current claim fence. Money, missing usage and old
- * programme approvals are accounting facts, never customer admission gates. */
+/** A durable call intent and current claim fence. Missing usage and old
+ * programme approvals are accounting facts, never customer admission gates.
+ * Money is gated once, globally: the call's worst-case cost is reserved against
+ * the durable daily USD cap before the intent exists (and released if it never
+ * does), then reconciled with the priced usage when the response is recorded. */
 export async function reserveCaptureCoverageInference(model: string, metadata: Record<string, unknown> = {},
   provider: "gemini" | "openai" = "gemini", modelRequest?: unknown) {
   const captureId = metadata.capture_id, runId = metadata.assessment_run_id, assessment = typeof runId === "string";
@@ -66,7 +70,8 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
     }
     return { requestId, context, source, ownerRunId };
   };
-  const admission = await db.runTransaction(async tx => {
+  const spend = await reserveModelReviewSpend(reserved);
+  const admitted = db.runTransaction(async tx => {
     const binding = await check(tx), state = (await tx.get(budgetRef)).data();
     if (state && (state.capture_id !== captureId || !Number.isFinite(state.exposure_usd) || state.exposure_usd < 0
       || !Number.isSafeInteger(state.calls) || state.calls < 0)) throw new Error("coverage_budget_state_invalid");
@@ -116,9 +121,13 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
       pending_token: token, ...(state ? {} : { historical_usage_status: "unreconciled" }), last_review_id: reviewId ?? null, last_assessment_run_id: runId ?? null, updated_at_ms: Date.now() }, { merge: true });
     return { ...binding, exposure, cap: state?.cap_usd ?? null };
   });
+  const admission = await admitted.catch(async error => {
+    await releaseModelReviewSpend(spend).catch(() => undefined);
+    throw error;
+  });
   return {
-    receipt: { provider, cap_usd: admission.cap, spending_gated: false, admission_token: token,
-      reserved_usd: reserved, capture_exposure_usd: admission.exposure },
+    receipt: { provider, cap_usd: admission.cap, spending_gated: true, daily_cap_usd: spend.daily_cap_usd,
+      daily_cap_day: spend.day, admission_token: token, reserved_usd: reserved, capture_exposure_usd: admission.exposure },
     async assertDispatchAllowed() {
       await db!.runTransaction(async tx => {
         const binding = await check(tx), [state, call] = await Promise.all([tx.get(budgetRef), tx.get(callRef)]);
@@ -129,6 +138,8 @@ export async function reserveCaptureCoverageInference(model: string, metadata: R
     async record(usage: unknown) {
       budget.record(provider, model, { usage });
       const priced = budget.calls[0];
+      // The provider answered, so its usage is a fact whatever the fence below says.
+      await reconcileModelReviewSpend(spend, priced.cost_usd).catch(() => undefined);
       await db!.runTransaction(async tx => {
         const [stateSnap, callSnap] = await Promise.all([tx.get(budgetRef), tx.get(callRef)]);
         const state = stateSnap.data(), call = callSnap.data();

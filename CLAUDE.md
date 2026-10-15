@@ -7,11 +7,12 @@ Use this repo as Blueprint's buyer and ops surface, not as a generic marketing a
 **Start with `PLATFORM_CONTEXT.md`'s preamble, above its shared block.** The
 shared blocks in `PLATFORM_CONTEXT.md`, `VISION.md`, and
 `WORLD_MODEL_STRATEGY_CONTEXT.md` are cross-repo doctrine owned by
-`BlueprintCapturePipeline` and byte-locked by `npm run doctrine:verify`. This
-repo's public surface has moved ahead of them deliberately; the preamble states
-what currently ships, which parts of the shared block still bind, and why the
-reconciliation is a cross-repo change rather than a local edit. Never edit
-inside a shared block, and never update the lock digest to match a local edit.
+`BlueprintCapturePipeline` and byte-locked by `npm run doctrine:verify`. Since
+2026-10-14 they name two active programs, the free beta's evaluated,
+recommended pilot and Arm Decision Proof v1, so this repo's public surface and
+the shared blocks agree. The preamble explains how to change either side.
+Never edit inside a shared block, and
+never update the lock digest to match a local edit.
 
 Read first:
 

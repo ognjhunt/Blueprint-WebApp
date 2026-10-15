@@ -135,6 +135,12 @@ describe("first-contact outreach review", () => {
     expect(result.semanticReviewRequired.easyQuestion).toContain("pilot means ask an unresolved uncertainty");
     expect(result.semanticReviewRequired.easyQuestion).toContain("existing deployment means ask about expansion learning");
     expect(result.semanticReviewRequired.easyQuestion).toContain("public-signal provenance");
+    // Framing v4: no fee to keep a brief "distinct from", and the gate is on a
+    // pilot recommendation. The appended founder guidance still forbids
+    // promising "a match", which is a prohibition, not pairing language.
+    expect(result.semanticReviewRequired.workflow).toContain("Blueprint is free during the beta");
+    expect(result.semanticReviewRequired.workflow).toContain("before any pilot-recommendation promise");
+    expect(result.semanticReviewRequired.workflow).not.toMatch(/booking fee|before any match promise/i);
     expect(validateOutreachSemanticReview(result, undefined)).toBe("outreach_semantic_review_required");
     expect(validateOutreachSemanticReview(result, { digest: result.digest, checks: { ...passingOutreachChecks, easyQuestion: "block" } }))
       .toBe("outreach_semantic_review_not_passed");

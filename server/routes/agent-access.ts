@@ -18,15 +18,18 @@ import {
 
 const router = Router();
 
+/** The 410 body every retired purchase route returns. Exported so its copy is testable. */
+export const RETIRED_STANDALONE_COMMERCE_RESPONSE = {
+  error: "Standalone site-package and hosted-session purchasing is retired.",
+  code: "standalone_commerce_retired",
+  current_product: "Task Evaluation Run",
+  request_url: "/contact/robot-team?interest=task-evaluation-run",
+  truth:
+    "Historical orders and entitlements remain readable. Evaluations are free during the beta and start from a Task Evaluation Run request; no Stripe session, order, charge, or entitlement was created.",
+} as const;
+
 function retiredStandaloneCommerce(_req: Request, res: Response) {
-  return res.status(410).json({
-    error: "Standalone site-package and hosted-session purchasing is retired.",
-    code: "standalone_commerce_retired",
-    current_product: "Task Evaluation Run",
-    request_url: "/contact/robot-team?interest=task-evaluation-run",
-    truth:
-      "Historical orders and entitlements remain readable. New work is scoped and quoted as one Task Evaluation Run; no Stripe session, order, charge, or entitlement was created.",
-  });
+  return res.status(410).json(RETIRED_STANDALONE_COMMERCE_RESPONSE);
 }
 
 router.get("/openapi.json", (_req, res) => {

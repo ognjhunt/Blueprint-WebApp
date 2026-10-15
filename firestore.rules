@@ -467,29 +467,89 @@ service cloud.firestore {
     // capturer can't spoof another's telemetry. Reads are backend-only.
     // Updates allow the client's idempotent set(merge) retries on its own
     // events; deletes are backend-only.
+    //
+    // The only client writer is the Android app's
+    // CaptureClientTelemetryService.firestorePayload (BlueprintCapture
+    // android/), which writes the same event to captureClientTelemetry and to
+    // one of clientCrashReports / clientErrorTelemetry. The field allowlist,
+    // types and lengths below match what it sends after its own sanitising
+    // (identifiers cut to 120 chars, at most 20 metadata pairs of <=240-char
+    // values, at most 24 breadcrumbs, created_at as a server timestamp), so a
+    // signed-in client cannot use these collections as unbounded storage.
+    function clientTelemetryKeys() {
+      return [
+        'event_id', 'event_type', 'severity', 'operation', 'status',
+        'occurred_at', 'app_version', 'app_build', 'os_version',
+        'device_model', 'metadata', 'breadcrumbs', 'source',
+        'beta_alert_candidate', 'platform', 'creator_id', 'session_id',
+        'capture_id', 'created_at'
+      ];
+    }
+
+    function boundedString(value, maxLength) {
+      return value is string && value.size() <= maxLength;
+    }
+
+    function optionalBoundedString(data, field, maxLength) {
+      return !(field in data) || boundedString(data[field], maxLength);
+    }
+
+    function isClientTelemetryEvent(data) {
+      return data.keys().hasOnly(clientTelemetryKeys())
+        && data.creator_id == request.auth.uid
+        && boundedString(data.event_id, 64)
+        && boundedString(data.event_type, 120)
+        && boundedString(data.severity, 120)
+        && boundedString(data.operation, 120)
+        && boundedString(data.status, 120)
+        && boundedString(data.occurred_at, 64)
+        && optionalBoundedString(data, 'app_version', 128)
+        && optionalBoundedString(data, 'app_build', 64)
+        && optionalBoundedString(data, 'os_version', 128)
+        && optionalBoundedString(data, 'device_model', 200)
+        && optionalBoundedString(data, 'source', 120)
+        && optionalBoundedString(data, 'platform', 32)
+        && optionalBoundedString(data, 'session_id', 256)
+        && optionalBoundedString(data, 'capture_id', 256)
+        && optionalBool(data, 'beta_alert_candidate')
+        && (!('metadata' in data) || (data.metadata is map && data.metadata.size() <= 20))
+        && (!('breadcrumbs' in data) || (data.breadcrumbs is list && data.breadcrumbs.size() <= 24));
+    }
+
+    // created_at is the server's clock, never the client's: set now, or (on a
+    // merge that does not resend it) left as it was.
+    function clientTelemetryCreatedAtIsServerTime(data) {
+      return !('created_at' in data) || data.created_at == request.time;
+    }
+
+    function canCreateClientTelemetry() {
+      return isSignedIn()
+        && isClientTelemetryEvent(request.resource.data)
+        && clientTelemetryCreatedAtIsServerTime(request.resource.data);
+    }
+
+    function canUpdateClientTelemetry() {
+      return isSignedIn()
+        && resource.data.creator_id == request.auth.uid
+        && isClientTelemetryEvent(request.resource.data)
+        && (clientTelemetryCreatedAtIsServerTime(request.resource.data)
+          || request.resource.data.get('created_at', null) == resource.data.get('created_at', null));
+    }
+
     match /captureClientTelemetry/{eventId} {
       allow read, delete: if false;
-      allow create: if isSignedIn()
-        && request.resource.data.creator_id == request.auth.uid;
-      allow update: if isSignedIn()
-        && resource.data.creator_id == request.auth.uid
-        && request.resource.data.creator_id == request.auth.uid;
+      allow create: if canCreateClientTelemetry();
+      allow update: if canUpdateClientTelemetry();
     }
     match /clientCrashReports/{eventId} {
       allow read, delete: if false;
-      allow create: if isSignedIn()
-        && request.resource.data.creator_id == request.auth.uid;
-      allow update: if isSignedIn()
-        && resource.data.creator_id == request.auth.uid
-        && request.resource.data.creator_id == request.auth.uid;
+      allow create: if canCreateClientTelemetry();
+      allow update: if canUpdateClientTelemetry();
     }
     match /clientErrorTelemetry/{eventId} {
       allow read, delete: if false;
-      allow create: if isSignedIn()
-        && request.resource.data.creator_id == request.auth.uid;
-      allow update: if isSignedIn()
-        && resource.data.creator_id == request.auth.uid
-        && request.resource.data.creator_id == request.auth.uid;
+      allow create: if canCreateClientTelemetry();
+      allow update: if canUpdateClientTelemetry();
     }
 
     // ─── Default deny ────────────────────────────────────────────────────────

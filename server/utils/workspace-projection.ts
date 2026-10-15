@@ -4,8 +4,8 @@ import type {
   WorkspaceResult,
   WorkspaceTask,
 } from "../../client/src/types/workspace";
-import { pilotOpportunityPassedGates } from "./pilot-opportunity-projection";
-import type { InboundRequest } from "../types/inbound-request";
+import { teamJobAccess } from "./teamJobAccess";
+import { isSimulatorScoredJobEvidence, type RunResultScoring } from "./runResultScoring";
 import { sitePilotIntentFrom, siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 
 export function object(value: unknown): Record<string, any> {
@@ -114,12 +114,10 @@ export function projectWorkspaceTask(
   const request = object(record.request),
     workspace = object(record.workspace_task),
     pilot = object(workspace.pilot);
-  const opportunity = object(request.pilotOpportunity),
-    match = object(record.site_match);
-  const published =
-    pilotOpportunityPassedGates(record as InboundRequest) &&
-    workspace.paused !== true &&
-    workspace.archived !== true;
+  const match = object(record.site_match);
+  // "Open for evaluations" means exactly what approved robot teams see: the
+  // job library offers an evaluation and the opening page accepts a request.
+  const published = teamJobAccess(record).evaluationAvailable;
   return {
     id,
     recordingPermissionWithdrawn: record.consent_revoked === true,
@@ -146,11 +144,12 @@ export function projectWorkspaceTask(
     nextStep: text(object(record.ops).next_step) || null,
     terms: termsFor(record),
     pilotIntent: sitePilotIntentFrom(workspace.pilotIntent),
-    visibility: ["anonymized", "approved_robot_teams"].includes(
-      opportunity.visibility,
-    )
-      ? opportunity.visibility
-      : "private",
+    // The site's own choice on the start form: an anonymized card for
+    // approved robot teams, or a private job.
+    visibility:
+      object(record.public_task_listing).enabled === true
+        ? "anonymized"
+        : "private",
     published,
     archived: workspace.archived === true,
     paused: workspace.paused === true,
@@ -164,7 +163,10 @@ export function projectWorkspaceTask(
         workspace.paused !== true &&
         workspace.archived !== true,
     },
-    potentialMatches: number(match.matchedCount),
+    // Only teams that agreed, on record, to evaluate and pilot. The fit-only
+    // `matchedCount` counts researched prospects and is never a site's number;
+    // an older record without the supply count reads as unknown.
+    potentialMatches: number(match.supplyMatchedCount),
     capture: null,
     results: [],
     pilot: {
@@ -184,6 +186,8 @@ export interface AgentRunForSite {
   state: string;
   result?: {
     evidenceScope?: "development_only";
+    /** Who scored the episodes; without an admitted statement, targets are never "met". */
+    scoring?: RunResultScoring;
     observed: {
       episodesRun: number;
       episodesSucceeded: number;
@@ -232,6 +236,8 @@ export function projectAgentRunResult(
     targetsMet: null,
     selected: false,
   };
-  result.targetsMet = run.result?.evidenceScope === "development_only" ? null : targetsMet(result, terms);
+  // "Met" is a pass claim: only a simulator-scored result in an admitted runtime can make it.
+  result.targetsMet = run.result?.evidenceScope === "development_only" || !isSimulatorScoredJobEvidence(run.result)
+    ? null : targetsMet(result, terms);
   return result;
 }

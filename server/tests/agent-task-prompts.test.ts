@@ -149,6 +149,11 @@ describe("agent task prompts", () => {
     expect(prompt).toContain("using \"I'm building Blueprint\" framing");
     expect(prompt).not.toContain("Ask them to film");
     expect(prompt).not.toContain("a comparison of which robots can do the job");
+    // Framing v4: the beta is free and Blueprint recommends one evaluated team.
+    expect(prompt).toContain("During the beta Blueprint charges sites and robot teams nothing");
+    expect(prompt).toContain("only a team whose evaluation on the job passed is recommended");
+    // "must exactly match" in the contract section is a string comparison, not pairing.
+    expect(prompt).not.toMatch(/booking fee|MATCHING WORKFLOW|promises a match/i);
   });
 
   it("keeps stable policy and return schema before dynamic JSON payloads", () => {

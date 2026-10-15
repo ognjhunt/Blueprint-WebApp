@@ -134,11 +134,32 @@ describe("the confirmation says what our screen decided", () => {
     expect(body.screening).toBeNull();
     expect(notifySlackScreeningCallNeeded).not.toHaveBeenCalled();
     expect(enqueueOutbox).toHaveBeenCalledWith(expect.objectContaining({
-      to: "ops@acme.example", kind: "brief_confirmed",
+      to: "ops@acme.example", kind: "brief_confirmed", subject: "Your job brief is confirmed",
     }));
+    // The reply names the real next step and what follows, never a team count.
+    const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { body: string };
+    expect(sent.body).toMatch(/^Hi Dana,/);
+    expect(sent.body).toMatch(/upload it here: http\S+\/capture-upload\//);
+    expect(sent.body).toMatch(/recommend that one team/);
+    expect(sent.body).toMatch(/If no team passes, we tell you that plainly/);
+    expect(sent.body).toMatch(/free during the beta/);
+    expect(sent.body).not.toMatch(/\bmatch|\bteams? on our list|budget|Austin/i);
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({
       workspace_task: { terms: { successDefinition: "Carton reaches pallet intact", successRate: 95, cycleTimeSeconds: 30 } },
     });
+  });
+
+  it("answers a visit request without assuming where the site is", async () => {
+    await saveBrief(draftBrief({
+      requestId: "req-1", summary: "Cartons from a conveyor onto a pallet", captureMode: "site_visit", proposed: [],
+    }));
+    const response = await confirm(clearAnswers());
+    expect((await response.json()).disposition).toBe("qualified");
+    const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { subject: string; body: string };
+    expect(sent.subject).toBe("Your job brief is confirmed");
+    expect(sent.body).toMatch(/whether a visit is possible for your location/);
+    expect(sent.body).toMatch(/I'll film it myself instead/);
+    expect(`${sent.subject}\n${sent.body}`).not.toMatch(/Austin|visit date/i);
   });
 
   it("stores site-stated pilot and deployment intent without treating it as an access grant", async () => {

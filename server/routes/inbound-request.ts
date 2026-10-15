@@ -41,6 +41,7 @@ import { incrementInboundRequestStats } from "../utils/inboundRequestStats";
 import { runHighIntentLeadEnrichmentForRequest } from "../utils/highIntentLeadEnrichment";
 import { createLifecycleCadenceForInboundRequest } from "../utils/lifecycle-cadence";
 import { isLocalLaunchSmokeProfile } from "../utils/launch-readiness";
+import { admitIntake, admitIntakeMessage, intakeMessageSuppression, intakeRefusal } from "../utils/betaAbuseCaps";
 import {
   COMMERCIAL_REQUEST_PATH_LABELS,
   COMMERCIAL_REQUEST_PATHS,
@@ -57,6 +58,7 @@ import {
   isCaptureMode,
 } from "../../client/src/data/siteTaskQualification";
 import { upsertRobotTeamFromIntake } from "../utils/robotTeamRegistry";
+import { clientIp as resolveClientIp } from "../utils/clientIp";
 import { robotGateFieldsWithLegacyCoverage as robotGateFields } from "../../client/src/data/robotTeamQualification";
 
 /**
@@ -277,6 +279,9 @@ function recoveredSubmission(existing: InboundRequest): SubmitInboundRequestResp
 async function repairTaskReceivedNotification(existing: InboundRequest): Promise<void> {
   // An authorized retry also recovers an interrupted first-email enqueue.
   // Eligibility comes from the saved intake, never the retry's changed answers.
+  // A first email withheld by the daily message caps stays withheld: a retry
+  // must not become the way around them.
+  if ((existing as unknown as Record<string, unknown>).intake_message_suppression) return;
   if (!siteCaptureUrl(
     existing.request?.buyerType || "",
     existing.requestId,
@@ -1005,7 +1010,7 @@ export function requestConfirmationText(params: { firstName: string; buyerType: 
  */
 export async function submitInboundRequest(req: Request, res: Response) {
   const startTime = Date.now();
-  const clientIp = req.ip || req.socket.remoteAddress || "unknown";
+  const clientIp = resolveClientIp(req);
   const ipHash = hashIp(clientIp);
 
   try {
@@ -1670,6 +1675,34 @@ export async function submitInboundRequest(req: Request, res: Response) {
       } satisfies SubmitInboundRequestResponse);
     }
 
+    // 6b. Durable daily caps: global, per client IP and per mailbox. The
+    // limiter above resets with the process; these hold across restarts. The
+    // request id is the idempotency key, so a retried or racing submission of
+    // the same request is charged once. An invited robot team's evaluation
+    // request is gated by its invitation instead and is not counted.
+    //
+    // Production fails closed (503 + Retry-After) when the counter cannot be
+    // written: the record below needs the same Firestore a moment later, so
+    // the honest answer is "try again shortly", and failing open would make
+    // a degraded or contended store the way to unlimited intake. The site's
+    // browser keeps its draft and retry identity on a 5xx or 429.
+    const capExempt = Boolean(res.locals.workspaceIntake?.workspace_evaluation);
+    if (!capExempt) {
+      const intakeAdmission = await admitIntake({ requestId: payload.requestId, clientIp, email: emailLower,
+        failClosed: isProduction() });
+      if (!intakeAdmission.allowed) {
+        const refusal = intakeRefusal(intakeAdmission);
+        res.set("Retry-After", String(refusal.retryAfterSeconds));
+        return res.status(refusal.status).json({
+          ok: false,
+          requestId: payload.requestId,
+          status: "submitted",
+          code: refusal.code,
+          message: refusal.message,
+        } satisfies SubmitInboundRequestResponse);
+      }
+    }
+
     // 7. Build the document
     const now = admin.firestore.FieldValue.serverTimestamp();
     const reviewToken = createRequestReviewToken(payload.requestId);
@@ -1858,7 +1891,19 @@ export async function submitInboundRequest(req: Request, res: Response) {
     const requestRef = db.collection("inboundRequests").doc(payload.requestId);
     const receiptUrl = siteCaptureUrl(buyerType, payload.requestId, captureRegion,
       hasCurrentDescriptionAuthority(descriptionAuthority));
-    const firstReceipt = receiptUrl ? buildTaskLifecycleNotification({ requestId: payload.requestId,
+    // Every intake sends one first-touch email (the task-received receipt, or
+    // the generic confirmation) to an address nobody has verified. Capped per
+    // mailbox and per day so a stranger's inbox cannot be flooded through this
+    // form; when withheld, the record says why and the response below still
+    // hands over the private link. Ops notices are not affected.
+    const messageAdmission = capExempt ? { send: true as const }
+      : await admitIntakeMessage({ requestId: payload.requestId, recipient: emailLower, kind: "confirmation" });
+    const messageSuppression = messageAdmission.send ? null
+      : intakeMessageSuppression(receiptUrl ? "task_received" : "confirmation", messageAdmission);
+    if (messageSuppression) {
+      logger.warn({ requestId: payload.requestId, reason: messageSuppression.reason }, "Intake confirmation email withheld by daily cap");
+    }
+    const firstReceipt = receiptUrl && messageAdmission.send ? buildTaskLifecycleNotification({ requestId: payload.requestId,
       milestone: "task_received", to: emailLower, captureUrl: receiptUrl }) : null;
     // Non-PII routing facts for the ops notice; committed with the request so
     // "ops has not been told yet" is durable from the first instant.
@@ -1871,6 +1916,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
     try {
       await createInboundRequestWithReceipt(db, requestRef, { ...encryptedInboundRequest,
         ops_notice: initialIntakeOpsNotice(opsNoticeMeta),
+        ...(messageSuppression ? { intake_message_suppression: messageSuppression } : {}),
         ...(initialPublicListing ? { public_task_listing: initialPublicListing, newJobAlertFanout: newJobFanoutIntent(String(initialPublicListing.approvedAtIso)) } : {}),
         ...(buyerType === "site_operator" ? { briefReviewPending: true,
           briefReviewWork: { state: "pending", attempts: 0, dueAtMs: 0 } } : {}),
@@ -2121,6 +2167,18 @@ export async function submitInboundRequest(req: Request, res: Response) {
       automationPromises.push(
         (async () => {
           try {
+            // The filmer's address is as unverified as the submitter's, and an
+            // SMS costs money: the same daily message caps apply.
+            const handoffAdmission = await admitIntakeMessage({ requestId: payload.requestId,
+              recipient: filmerContact, kind: "filmer_handoff" });
+            if (!handoffAdmission.send) {
+              logger.warn({ requestId: payload.requestId, reason: handoffAdmission.reason },
+                "Intake film-link handoff withheld by daily cap");
+              await db.collection("inboundRequests").doc(payload.requestId).update({
+                filmer_handoff_suppression: intakeMessageSuppression("filmer_handoff", handoffAdmission),
+              });
+              return;
+            }
             await sendFilmLinkHandoff({
               requestId: payload.requestId,
               channel: inferHandoffChannel(filmerContact),
@@ -2142,7 +2200,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
     // generic one would only compete with it.
     const siteHasTaskEmail =
       buyerType === "site_operator" && Boolean(siteCaptureUrl(buyerType, payload.requestId, captureRegion, hasCurrentDescriptionAuthority(descriptionAuthority)));
-    if (!siteHasTaskEmail) automationPromises.push(
+    if (!siteHasTaskEmail && messageAdmission.send) automationPromises.push(
       (async () => {
         try {
           const subject = "We received your request";

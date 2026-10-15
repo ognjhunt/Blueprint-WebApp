@@ -10,9 +10,10 @@ const read = (file: string) => fs.readFileSync(path.resolve(root, file), "utf-8"
 /**
  * The shared blocks are cross-repo doctrine and are already guarded by
  * `doctrine:verify`. What is not otherwise guarded is the repo-local preamble
- * that explains why this repo's public surface sits ahead of them — delete it
- * and the next lane reads a description of a company that no longer matches
- * what ships, which is the exact failure this preamble exists to prevent.
+ * that states what ships and how the public surface and the shared blocks are
+ * kept in agreement — delete it and the next lane reads a description of a
+ * company that no longer matches what ships, which is the exact failure this
+ * preamble exists to prevent.
  */
 describe("platform context preamble", () => {
   const contents = read("PLATFORM_CONTEXT.md");
@@ -37,16 +38,20 @@ describe("platform context preamble", () => {
     expect(contents).toMatch(/qualifying-environment standard/i);
   });
 
-  it("names the tension rather than hiding it in either direction", () => {
-    expect(contents).toMatch(/The live tension, stated plainly/i);
-    expect(contents).toMatch(/Frozen Work/);
-    expect(contents).toMatch(/an agent reading only one of them will\s+be misled/i);
+  it("records that the public surface and the shared block agree", () => {
+    // Founder decision, 2026-10-14: the free beta became an active program.
+    expect(contents).toMatch(/The shared block and this repo's public surface agree/i);
+    const block = extractBlock(contents, "SHARED_PLATFORM_CONTEXT");
+    expect(block).toMatch(/### Active Programs/);
+    expect(block).toMatch(/Free Beta: Evaluated, Recommended Pilot/);
+    expect(block).toMatch(/free-beta-evaluated-pilot/);
+    expect(block).toMatch(/Arm Decision Proof v1/);
+    expect(block).not.toMatch(/sole active program/i);
   });
 
-  it("forbids the two wrong ways to resolve it", () => {
-    expect(contents).toMatch(/Do not.*editing the shared block here/is);
+  it("forbids forking doctrine with a local edit", () => {
+    expect(contents).toMatch(/Do not.*edit the shared block here/is);
     expect(contents).toMatch(/fork doctrine across/i);
-    expect(contents).toMatch(/Do not.*authority to revert or narrow/is);
   });
 
   it("preserves the engineering invariants the reposition does not loosen", () => {
@@ -54,10 +59,10 @@ describe("platform context preamble", () => {
     expect(contents).toMatch(/never certifies physical performance or safety/i);
   });
 
-  it("names the cross-repo reconciliation path", () => {
+  it("names the cross-repo path for changing the offer or the doctrine", () => {
     expect(contents).toMatch(/BlueprintCapturePipeline\/doctrine\//);
     expect(contents).toMatch(/shared-doctrine\.lock\.json.*all three repos/is);
-    expect(contents).toMatch(/Reconciliation is a founder decision/);
+    expect(contents).toMatch(/Changing the active programs is a founder decision/);
   });
 });
 

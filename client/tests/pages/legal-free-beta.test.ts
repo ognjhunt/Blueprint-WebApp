@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  capturePrivacyAnnex,
   californiaPrivacyRows,
   inPersonVisitPrivacy,
   jobClosedDefinition,
@@ -20,8 +21,8 @@ const privacy = JSON.stringify({ privacyPolicySections, californiaPrivacyRows, i
 
 describe("terms for the free beta", () => {
   it("is versioned for the free-beta decision", () => {
-    expect(TERMS_VERSION).toBe("2026-10-14.1");
-    expect(PRIVACY_VERSION).toBe("2026-10-13.1");
+    expect(TERMS_VERSION).toBe("2026-10-14.2");
+    expect(PRIVACY_VERSION).toBe("2026-10-14.1");
   });
 
   it("charges nothing and invoices nothing", () => {
@@ -78,5 +79,42 @@ describe("privacy for the free beta", () => {
 
   it("treats footage filmed by Blueprint staff like self-filmed footage", () => {
     expect(inPersonVisitPrivacy.map(([, detail]) => detail).join(" ")).toMatch(/handled exactly like footage a site films itself/);
+  });
+});
+
+describe("recording notice, sound and the listing choice", () => {
+  const annex = JSON.stringify(capturePrivacyAnnex);
+
+  it("requires notice to people seen or heard and recommends avoiding conversations", () => {
+    expect(terms).toMatch(/Share only footage you are authorized to share/);
+    expect(terms).toMatch(/tell the people in the work area that you are recording and that the video will be shared with Blueprint/);
+    expect(terms).toMatch(/from people who can be seen or heard/);
+    expect(terms).toMatch(/avoid recording conversations and turn sound off/);
+    expect(annex).toMatch(/tell people in the work area that you are recording and sharing the video with Blueprint/);
+  });
+
+  it("keeps the original as received, removes sound before automated review and does not analyze speech", () => {
+    for (const text of [terms, privacy, annex]) {
+      expect(text).toMatch(/remove (?:its |the )?sound before any automated review/);
+      expect(text).toMatch(/do not analyze speech/);
+    }
+    expect(terms).toMatch(/keeps your original upload as received/);
+    expect(privacy).toMatch(/keep the original upload as received, including any sound/);
+    const ai = privacySubprocessorCategories.find((group) => /AI/.test(group.category))!;
+    for (const name of ["Google Gemini", "World Labs"]) {
+      expect(ai.providers.find(([provider]) => provider === name)?.[1]).toMatch(/with its sound removed/);
+    }
+  });
+
+  it("names reCAPTCHA Enterprise, which App Check sends job and upload requests through", () => {
+    const abuse = privacySubprocessorCategories.find((group) => group.category === "Abuse prevention")!;
+    expect(abuse.providers[0][0]).toMatch(/Google reCAPTCHA Enterprise, through Firebase App Check/);
+    expect(abuse.providers[0][1]).toMatch(/job submission or footage upload/);
+  });
+
+  it("describes the keep-private choice the start form offers", () => {
+    expect(terms).toMatch(/the form shows the anonymized job card .* and lets you keep the job private instead/);
+    expect(terms).toMatch(/Unless the site keeps a job private when starting it/);
+    expect(`${terms}${annex}`).not.toMatch(/previously chose private handling|previously marked private/);
   });
 });

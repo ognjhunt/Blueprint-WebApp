@@ -51,10 +51,9 @@ import {
 import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
-import { decryptFieldValue, decryptInboundRequestForAdmin } from "../utils/field-encryption";
-import { buildLetsTalkEmail, buildNotYetEmail, buildMatchEmail } from "../utils/qualificationEmails";
-import { runSiteMatch } from "../utils/siteMatchRun";
-import type { InboundRequest, InboundRequestStored, SiteTaskTriageSummary } from "../types/inbound-request";
+import { decryptFieldValue } from "../utils/field-encryption";
+import { buildQualificationEmail } from "../utils/qualificationEmails";
+import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { describeBrowserUpload } from "../utils/websiteBrowserUploadStatus";
 import { projectWebsiteCaptureRights, loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
@@ -747,47 +746,36 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     try {
       const request = await readRequestForStatus(payload.requestId);
       if (request?.contactEmail) {
-        const triage = request.site_task_triage as SiteTaskTriageSummary | null | undefined;
+        // The verdict `confirmBrief` just wrote. Its own disposition stands in
+        // for a record that has not caught up, so a qualified site always hears
+        // its next step.
+        const recorded = request.site_task_triage as SiteTaskTriageSummary | null | undefined;
+        const triage = recorded?.disposition
+          ? recorded
+          : result.disposition === "qualified"
+            ? { disposition: "qualified" } as SiteTaskTriageSummary
+            : null;
         const firstName = request.contactFirstName || "there";
-        let email = triage?.disposition === "not_now"
-          ? buildNotYetEmail({ firstName, siteName: request.siteName, triage })
-          : triage?.disposition === "needs_conversation"
-            ? buildLetsTalkEmail({ firstName, siteName: request.siteName, triage })
-            : null;
-        if (triage?.disposition === "qualified" && db) {
-          const snapshot = await db.collection("inboundRequests").doc(payload.requestId).get();
-          const record = snapshot.exists
-            ? await decryptInboundRequestForAdmin(snapshot.data() as InboundRequestStored).catch(() => null)
-            : null;
-          const matches = record ? await runSiteMatch({
-            ...(record as InboundRequest),
-            request: { ...record.request, siteTaskGates: result.answers },
-          }).catch(() => null) : null;
-          if (matches) email = buildMatchEmail({ firstName, siteName: request.siteName,
-            summary: matches,
-            nextStep: result.brief.captureMode === "site_visit"
-              ? { kind: "capturer_visit" }
-              : { kind: "self_capture", uploadUrl: captureUploadUrlFor(payload.requestId) },
-          });
-        }
-        const nextStep = result.disposition === "qualified" && !email
-          ? result.brief.captureMode === "site_visit"
-            ? "Reply with an Austin visit date and the name of your on-site contact. We will confirm the visit."
-            : `Film the work area with your phone: ${captureUploadUrlFor(payload.requestId)}.`
-          : null;
-        const accountStep = result.disposition === "qualified" && !request.account_owner_uid
-          ? "Create and verify your site account from your job page before we build the scene."
-          : null;
-        const message = email?.body ?? `${emailGreeting(firstName)}\n\nYour job brief is confirmed. ${result.readiness.nextAction}\n\n${EMAIL_SIGN_OFF}`;
-        const additions = [nextStep, accountStep].filter(Boolean).join("\n\n");
-        const body = additions ? message.replace(EMAIL_SIGN_OFF, `${additions}\n\n${EMAIL_SIGN_OFF}`) : message;
+        // No registry run here. Its only consumer was this email, and the email
+        // no longer counts teams: the reply names the next step and what
+        // follows, never who might be on the other side.
+        const email = buildQualificationEmail({
+          firstName,
+          siteName: request.siteName,
+          triage,
+          stage: "brief_confirmed",
+          nextStep: result.brief.captureMode === "site_visit"
+            ? { kind: "capturer_visit", taskUrl: captureUploadUrlFor(payload.requestId) }
+            : { kind: "self_capture", uploadUrl: captureUploadUrlFor(payload.requestId) },
+          accountNeeded: !request.account_owner_uid,
+        });
         await enqueueOutbox({
           idempotencyKey: `${payload.requestId}:brief-screening:${result.disposition}`,
           requestId: payload.requestId,
           to: request.contactEmail,
           kind: result.disposition === "qualified" ? "brief_confirmed" : "input_needed",
-          subject: email?.subject ?? (result.brief.captureMode === "site_visit" ? "Plan your Austin capture visit" : "Blueprint — your job brief is confirmed"),
-          body,
+          subject: email?.subject ?? "Your job brief is confirmed",
+          body: email?.body ?? `${emailGreeting(firstName)}\n\nYour job brief is confirmed. ${result.readiness.nextAction}\n\n${EMAIL_SIGN_OFF}`,
         });
         void deliverOutbox({ limit: 5 }).catch((error) =>
           logger.warn({ error, requestId: payload.requestId }, "Screening email delivery deferred to outbox"));

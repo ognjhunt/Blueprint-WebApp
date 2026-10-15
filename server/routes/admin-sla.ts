@@ -1,7 +1,10 @@
 import { Router } from "express";
+import { requireAdminRole } from "../middleware/requireAdminRole";
 import { listOperatorSlaTrackers } from "../utils/sla-enforcement";
 
 const router = Router();
+// Trackers carry customer emails and request IDs; only admin/ops may read them.
+router.use(requireAdminRole);
 type SlaListParams = NonNullable<Parameters<typeof listOperatorSlaTrackers>[0]>;
 
 function parseStatus(value: unknown): SlaListParams["status"] {

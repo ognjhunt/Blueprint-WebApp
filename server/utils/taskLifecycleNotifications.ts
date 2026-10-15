@@ -74,7 +74,10 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   listing_live: {
     subject: "Your job card is in the robot-team library",
-    body: (url) => `Robot teams on Blueprint can now see the job card you approved. It shows only the text and image you reviewed; your contact details, footage and scene stay private. You can hide it at any time from your Blueprint account: https://tryblueprint.io/app/tasks\n\nOpen your job:\n${url}`,
+    // The link below is the owner's job page, which carries the listing control.
+    // A site that came in by link alone may have no account, so the account
+    // workspace is not the way to hide it.
+    body: (url) => `Robot teams approved for the beta can now see the job card you approved. It shows only the text and image you reviewed; your contact details, footage and scene stay private. You can hide it at any time: open your job from the link below and untick "Show this card in the job library". If the link has expired, the page will send you a fresh one.\n\nOpen your job:\n${url}`,
   },
   screening_cleared: {
     subject: "Your job cleared our screen",
@@ -102,11 +105,14 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   pilot_recommended: {
     subject: "Your recommended pilot is ready",
-    body: (url, detail) => `We have one recommended pilot for your job${detail ? `: ${detail}` : ""}. Your job page shows the robot team, what the pilot tests, what you provide, the cost basis, proposed timing and what is still uncertain. If it looks right, accept the proposal there. Provider and site agreement, the date and preparation responsibilities still need coordination. If not, reply and tell us why.\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `We have one recommended pilot for your job${detail ? `: ${detail}` : ""}. Your job page shows the robot team, what the pilot tests, what you provide, the pilot's cost (paid to the robot team, not to Blueprint), proposed timing and what is still uncertain. If it looks right, book it there in one step; booking costs nothing during the beta. After booking, the agreement with the robot team, the date and preparation responsibilities still need coordination. If it does not look right, reply and tell us why.\n\nOpen your job:\n${url}`,
   },
   pilot_booked: {
-    subject: "Your pilot proposal is accepted",
-    body: (url, detail) => `Your acceptance is recorded. The pilot is awaiting coordination: provider and site agreement, a confirmed date and agreed preparation responsibilities are still needed. No date is reserved yet. Blueprint owns that next step. ${detail === "invited_beta_free" ? "Blueprint beta coordination is free. Provider costs remain subject to the applicable proposal and agreement." : "Your previously agreed Blueprint fee remains due when the pilot is booked."}\n\nOpen your job:\n${url}`,
+    subject: "Your pilot is booked",
+    // A booking made before the free beta keeps whatever terms were accepted
+    // then; this email does not restate or waive them. The free-beta sentence
+    // is the one the job page shows beside the booking button.
+    body: (url, detail) => `Your booking is recorded. The pilot is awaiting coordination: provider and site agreement, a confirmed date and agreed preparation responsibilities are still needed. No date is reserved yet. Blueprint owns that next step. ${detail === "invited_beta_free" ? "Blueprint charges nothing during the beta; the pilot's cost is agreed with the robot team." : "Your previously accepted commercial terms remain on file."}\n\nOpen your job:\n${url}`,
   },
   pilot_scheduled: {
     subject: "Your pilot is scheduled",

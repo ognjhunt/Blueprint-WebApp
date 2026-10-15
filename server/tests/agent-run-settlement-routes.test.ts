@@ -221,7 +221,10 @@ async function seedSpendableTeam() {
   docs.set("inboundRequests/site-1", {
     requestId: "site-1",
     request: {
-      buyerType: "site",
+      // What intake stores for every site (it normalizes the buyer type),
+      // with the recording grant free admission and the job library require.
+      buyerType: "site_operator",
+      consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-17T00:00:00.000Z" },
       targetSiteType: "Warehouse",
       capture_mode: "self_capture",
       capture_region: "us",

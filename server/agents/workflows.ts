@@ -30,7 +30,7 @@ import type {
 import { isPhase2LaneEnabled, isSiteVideoEvidenceApplied } from "../config/env";
 import {
   buildQualificationEmail,
-  type MatchNextStep,
+  type QualifiedNextStep,
 } from "../utils/qualificationEmails";
 import {
   decideCaptureDispatch,
@@ -44,7 +44,6 @@ import {
   isCaptureMode,
 } from "../../client/src/data/siteTaskQualification";
 import { runSiteMatch, summariseForStorage } from "../utils/siteMatchRun";
-import type { MatchSummary } from "../../client/src/lib/robotMatch";
 import {
   measureVideoEvidenceEffect,
   runSiteVideoEvidenceForRequest,
@@ -535,10 +534,10 @@ function createWaitlistEmailPolicy(): LaneSafetyPolicy {
  *
  * - **A capturer visit** still needs a person, at the booking. Somebody drives
  *   to a real address, and that is a real commitment. The email that answers a
- *   visit request commits to nothing: it leads with the site filming it itself
- *   from its own link, and a visit is only booked when the site replies with
- *   times and a person confirms one. So that fixed email sends on its own, and
- *   the person stays where the commitment is.
+ *   visit request commits to nothing: it says a person will reply about whether
+ *   a visit is possible for the site's location, and offers the site's own link
+ *   to film it itself meanwhile. So that fixed email sends on its own, and the
+ *   person stays where the commitment is.
  * - **A model-written follow-up** still needs a person. The deterministic
  *   variants are fixed copy selected by the site's own answers, which is what
  *   `qualificationEmails` means by reviewing the copy once instead of
@@ -805,7 +804,7 @@ export function decideDispatchForRequest(
 export function nextStepForDispatch(
   request: InboundRequest,
   decision: CaptureDispatchDecision,
-): MatchNextStep {
+): QualifiedNextStep {
   if (!decision.dispatch) {
     return { kind: "held" };
   }
@@ -824,8 +823,6 @@ export function nextStepForDispatch(
 function buildInboundActionSpecs(
   request: InboundRequest,
   result: InboundQualificationOutput,
-  /** Absent when the match has not run — a different thing from "no matches". */
-  matches?: MatchSummary | null,
 ) {
   const { qualificationState, requiresHumanReview } = clampRecommendationToGates(
     request.site_task_triage,
@@ -880,7 +877,7 @@ function buildInboundActionSpecs(
     firstName: request.contact.firstName,
     siteName: request.request.siteName,
     triage: request.site_task_triage,
-    matches,
+    stage: "screened",
     // So the email names the step the system actually took. Before this it
     // asked every qualified site to book a call while dispatch was separately
     // issuing an upload link or holding -- two different next steps in flight
@@ -1417,9 +1414,10 @@ export async function runInboundQualificationForRequest(
     request = { ...request, site_video_evidence: videoEvidence };
   }
 
-  // A site that cleared the screen is matched against the registry before the
-  // reply is built, so the qualified branch has a count it can stand behind
-  // rather than a sentence that means nothing.
+  // A site that cleared the screen is compared against the registry for ops.
+  // The summary is stored as internal data only; the site's reply never reads
+  // it, because a count of registry teams at screening is not supply anyone
+  // has agreed to.
   const matchSummary = await runSiteMatch(request).catch((error) => {
     logger.warn(
       { err: error, requestId: request.requestId },
@@ -1471,7 +1469,7 @@ export async function runInboundQualificationForRequest(
   const automationStatus = normalizeAutomationStatus(
     output.automation_status,
   );
-  const { routingStatus, specs, needsCommunicationsDraft } = buildInboundActionSpecs(request, output, matchSummary);
+  const { routingStatus, specs, needsCommunicationsDraft } = buildInboundActionSpecs(request, output);
   const phase2DraftPatch = makeWorkflowDraftStatePatch({
     existingOpsAutomation: (request.ops_automation || {}) as Record<string, unknown>,
     lane: "inbound",

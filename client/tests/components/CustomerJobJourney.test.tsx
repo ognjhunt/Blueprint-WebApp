@@ -7,6 +7,7 @@ import express from "express";
 import nodeFetch from "node-fetch";
 import { createServer } from "node:http";
 import { sharedFakeFirestore as store, sharedFakeFirestoreState as state } from "../../../server/tests/helpers/fake-firestore";
+import { completeSupplyAgreement } from "../../../server/tests/helpers/supply-agreement";
 import { TaskBriefReview } from "@/components/site/TaskBriefReview";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { RecommendedPilot } from "@/components/site/RecommendedPilot";
@@ -50,12 +51,20 @@ it("joins the existing job, bounded review, proposal acceptance and evidence-gat
   state.docs.set("inboundRequests/req-1", { requestId: "req-1", contact: { firstName: "Dana", email: "owner@example.test" },
     request: { buyerType: "site_operator", capture_mode: "self_capture", taskStatement: "Move cartons onto a pallet" },
     siteTaskGates: { sceneStability: "stable", taskShape: "single", objectVariety: "under_10" } });
-  state.docs.set("robotTeams/fixture-team", { id: "fixture-team", name: "Fixture admitted team", status: "engaged", contactEmail: "team@example.test" });
+  // Engaged only with its recorded supply agreement; the status word alone is not supply.
+  state.docs.set("robotTeams/fixture-team", { id: "fixture-team", name: "Fixture admitted team", status: "engaged", contactEmail: "team@example.test",
+    supplyAgreement: completeSupplyAgreement() });
   // The recommendation must stand on a passing evaluation of this job (simulated, development-only).
   state.docs.set("evaluationRuns/run_fixture", { runId: "run_fixture", reservationId: "free_fixture", teamId: "fixture-team", checkpointId: "ckpt_fixture",
     sceneId: "req-1", taskFamily: "palletizing", evaluationPurpose: "pilot", quotedUsd: 0, quotedEpisodes: 20, state: "completed", episodesRun: 20,
     moneyResolved: true, requestedAtIso: "2026-10-01T00:00:00.000Z", resolvedAtIso: null, note: null,
     result: { evidenceScope: "development_only", runId: "run_fixture", teamId: "fixture-team", checkpointId: "ckpt_fixture", sceneId: "req-1",
+      // Simulator-scored on the scene's success contract, as only an admitted result can be.
+      scoring: { schemaVersion: "blueprint.agent_run_result_scoring.v1", runtime: "policy_canary_quick10_team_candidate",
+        successSource: "simulator_scored", scoredEpisodeCount: 20, successContractDigest: `sha256:${"1".repeat(64)}`,
+        sceneRevisionDigest: `sha256:${"2".repeat(64)}`, robotFreeProbeReceiptDigest: `sha256:${"3".repeat(64)}`,
+        teamCandidateAdmissionDigest: `sha256:${"4".repeat(64)}`, sessionResultDigest: `sha256:${"5".repeat(64)}`,
+        claimCeiling: "diagnostic_policy_execution" },
       observed: { episodesRun: 20, episodesSucceeded: 19, successRate: 0.95, medianCycleSeconds: 12 }, claimed: { demonstratedSuccessRate: null, cycleTime: "under_30s" },
       note: null, artifactUri: null, reportedAtIso: "2026-10-02T00:00:00.000Z" } });
   state.docs.set(`robotTeamAccess/${accessRecordId("team@example.test")}`, { status: "approved", company: "Fixture admitted team" });

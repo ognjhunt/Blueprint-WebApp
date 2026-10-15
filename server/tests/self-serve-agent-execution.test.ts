@@ -155,6 +155,11 @@ describe("preparing a self-serve execution", () => {
       capture_root: ROOT, scenario_id: "capture_observed", episode_count: 20, episode_specs_sha256: sha("e"),
     } } }, "pipeline_execution_offer_episode_mismatch"],
     ["the scene is not runnable", { scene: { evaluation_readiness: null } }, "scene_not_runnable"],
+    // The job library's rule (teamJobAccess) applies here too.
+    ["the site kept the job private", { scene: { public_task_listing: null } }, "job_not_open:not_listed"],
+    ["the rights review has not cleared the capture", { scene: { evaluation_readiness: {
+      runtime_launchable: true, benchmark_coverage_status: "ready", rights_review_status: "needs_review",
+    } } }, "site_rights_not_cleared"],
   ])("prepares nothing when %s", async (_label, patch, blocker) => {
     seed(patch as never);
     const prepared = await ensureSelfServeAgentExecution(quote);
@@ -254,4 +259,49 @@ it("prepares a sponsor-bounded free request through real canonical admission", a
   const admission = await discoverAgentExecutionAdmission({ ...free, executionRequestId: prepared.requestId });
   expect(admission, JSON.stringify(admission)).toMatchObject({ admitted: true });
   expect([...sharedFakeFirestoreState.docs.keys()].filter(key => /evaluationRuns|robotTeamLedger/.test(key))).toEqual([]);
+});
+
+describe("asking for the Quick-10 team-candidate runtime (beta L5)", () => {
+  const credential = { ref: "credential-ref-1", kind: "bearer", expiresAtIso: "2100-01-01T00:00:00.000Z" };
+  const offered = (episodeCount: number) => ({ agent_execution_offer: {
+    schema_version: "blueprint.agent_execution_offer.v1", scene_id: "site-req-1", capture_id: "walkthrough-req-1",
+    capture_root: ROOT, scenario_id: "capture_observed", episode_count: episodeCount, episode_specs_sha256: sha("e"),
+    policy_execution_profiles: ["policy_canary_quick10_team_candidate_v1"],
+  } });
+  const approval = () => ({ approvedBy: "operator", expiresAtIso: new Date(Date.now() + 600000).toISOString() });
+
+  it("asks for ten simulator-scored episodes of the team's authenticated HTTPS policy", async () => {
+    seed({ scene: offered(10), checkpoint: { policyCredential: credential } });
+    const free = { ...quote, quotedEpisodes: 10, quotedUsd: 10, submissionKey: "free:team-candidate" };
+    const prepared = await prepareFreeAgentExecution(free, approval());
+    expect(prepared, JSON.stringify(prepared)).toMatchObject({ prepared: true });
+    if (!prepared.prepared) return;
+    const admission = await discoverAgentExecutionAdmission({ ...free, executionRequestId: prepared.requestId });
+    expect(admission, JSON.stringify(admission)).toMatchObject({ admitted: true });
+    if (!admission.admitted) return;
+    const canonical = admission.envelope.canonical_execution_request as Record<string, any>;
+    expect(canonical.policy_package).toEqual({ policy_api_endpoint: {
+      endpoint_url: "https://policy.alpha.example/v3", execution_profile: "policy_canary_quick10_team_candidate_v1",
+      policy_interface_id: "openpi_droid_https.v1", credential_ref: "credential-ref-1", credential_kind: "bearer" } });
+    expect(canonical.execution_authorization).toMatchObject({ episodes: 10, max_cost_usd: 10 });
+  });
+
+  it("refuses an offer with too few episodes to judge a team", async () => {
+    seed({ scene: offered(5), checkpoint: { policyCredential: credential } });
+    const free = { ...quote, quotedEpisodes: 5, quotedUsd: 10, submissionKey: "free:team-candidate-short" };
+    expect(await prepareFreeAgentExecution(free, approval())).toEqual({ prepared: false,
+      blockers: ["pipeline_team_candidate_offer_below_minimum_episodes"] });
+  });
+
+  it("never asks for it with an unauthenticated endpoint", async () => {
+    seed({ scene: offered(50) });
+    const free = { ...quote, quotedUsd: 10, submissionKey: "free:unauthenticated" };
+    const prepared = await prepareFreeAgentExecution(free, approval());
+    expect(prepared, JSON.stringify(prepared)).toMatchObject({ prepared: true });
+    if (!prepared.prepared) return;
+    const admission = await discoverAgentExecutionAdmission({ ...free, executionRequestId: prepared.requestId });
+    if (!admission.admitted) throw new Error(JSON.stringify(admission));
+    const canonical = admission.envelope.canonical_execution_request as Record<string, any>;
+    expect(canonical.policy_package).toEqual({ policy_api_endpoint: { endpoint_url: "https://policy.alpha.example/v3" } });
+  });
 });

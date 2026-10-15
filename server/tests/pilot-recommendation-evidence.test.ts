@@ -13,6 +13,15 @@ const slack = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
 vi.mock("../utils/slack", async importOriginal => ({ ...(await importOriginal<typeof import("../utils/slack")>()), sendSlackMessage: slack }));
 
 const evidence = await import("../utils/pilotRecommendationEvidence");
+const { RUN_RESULT_SCORING_SCHEMA_VERSION } = await import("../utils/runResultScoring");
+const digest = (char: string) => `sha256:${char.repeat(64)}`;
+/** What the Pipeline states for a team candidate's Quick-10 run: simulator-scored and fully bound. */
+const scored = (episodes: number, overrides: Record<string, unknown> = {}) => ({
+  schemaVersion: RUN_RESULT_SCORING_SCHEMA_VERSION, runtime: "policy_canary_quick10_team_candidate",
+  successSource: "simulator_scored", scoredEpisodeCount: episodes, successContractDigest: digest("1"),
+  sceneRevisionDigest: digest("2"), robotFreeProbeReceiptDigest: digest("3"), teamCandidateAdmissionDigest: digest("4"),
+  sessionResultDigest: digest("5"), claimCeiling: "diagnostic_policy_execution", ...overrides,
+});
 const identity = await import("../utils/robotTeamIdentity");
 const { upsertRobotTeamFromIntake } = await import("../utils/robotTeamRegistry");
 const opsAlerts = await import("../utils/pilotOpsAlerts");
@@ -23,7 +32,7 @@ function run(observed: Partial<{ episodesRun: number; episodesSucceeded: number;
   return { runId: "run_1", reservationId: "free_1", teamId: "team_a", checkpointId: "ckpt", sceneId: "job_1", taskFamily: null,
     evaluationPurpose: "pilot" as const, quotedUsd: 0, quotedEpisodes: 20, state: "completed" as const, episodesRun, moneyResolved: true,
     requestedAtIso: "2026-10-01T00:00:00.000Z", resolvedAtIso: null, note: null,
-    result: { evidenceScope: "development_only" as const, runId: "run_1", teamId: "team_a", checkpointId: "ckpt", sceneId: "job_1",
+    result: { evidenceScope: "development_only" as const, scoring: scored(episodesRun) as any, runId: "run_1", teamId: "team_a", checkpointId: "ckpt", sceneId: "job_1",
       observed: { episodesRun, episodesSucceeded, successRate: Math.round((episodesSucceeded / episodesRun) * 100) / 100, medianCycleSeconds: observed.medianCycleSeconds ?? null },
       claimed: { demonstratedSuccessRate: null, cycleTime: null }, note: null, artifactUri: null, reportedAtIso: "2026-10-02T00:00:00.000Z" },
     ...overrides };
@@ -61,6 +70,40 @@ describe("the job's pass mark", () => {
     expect(refuse({ run: run({ medianCycleSeconds: 40 }), requestId: "job_1", passMark: { ...mark, cycleTimeSeconds: 30 } })).toBe("evaluation_cycle_time_missed");
     expect(refuse({ run: run({ medianCycleSeconds: 20 }), requestId: "job_1", passMark: { ...mark, cycleTimeSeconds: 30 } })).toBe("ok");
     expect(refuse({ run: run(), requestId: "job_1", passMark: mark, expectedResultId: "f".repeat(64) })).toBe("evaluation_result_changed");
+  });
+
+  it("admits only successes the simulator scored in an admitted runtime, failing closed on anything else", () => {
+    const mark = evidence.passMarkForJob({}, null);
+    const withScoring = (scoring: unknown) => {
+      const base = run({ episodesRun: 10, episodesSucceeded: 10 });
+      return { ...base, result: { ...base.result, scoring: scoring as any } };
+    };
+    const read = (candidate: ReturnType<typeof run>) => evidence.readEvaluation(candidate, "job_1", mark);
+    const ok = evidence.verifyRecommendationEvidence({ run: withScoring(scored(10)), requestId: "job_1", passMark: mark });
+    expect(ok).toMatchObject({ ok: true, evidence: { scoring: { runtime: "policy_canary_quick10_team_candidate",
+      successSource: "simulator_scored", successContractDigest: digest("1"), robotFreeProbeReceiptDigest: digest("3"),
+      claimCeiling: "diagnostic_policy_execution" } } });
+    const cases: [unknown, string][] = [
+      [undefined, "scoring_missing"],
+      [{ ...scored(10), schemaVersion: "blueprint.agent_run_result_scoring.v0" }, "scoring_missing"],
+      // The legacy HTTP probe door: the team's own HTTP response decided success.
+      [scored(10, { runtime: "http_policy_api_observation_probe", successSource: "team_reported" }), "scoring_runtime_not_admitted"],
+      [scored(10, { runtime: "legacy_robot_eval_command_batch", successSource: "unverified" }), "scoring_runtime_not_admitted"],
+      [scored(10, { runtime: "controlled_native_sealed_task" }), "scoring_runtime_not_admitted"],
+      [scored(10, { runtime: "a_runtime_added_later" }), "scoring_runtime_not_admitted"],
+      [scored(10, { successSource: "team_reported" }), "scoring_not_simulator_scored"],
+      [scored(10, { robotFreeProbeReceiptDigest: null }), "scoring_binding_incomplete"],
+      [scored(10, { successContractDigest: "sha256:short" }), "scoring_binding_incomplete"],
+      [scored(9), "scoring_episode_count_mismatch"],
+    ];
+    for (const [scoring, reason] of cases) {
+      const reading = read(withScoring(scoring));
+      expect(reading.scoringRefusal).toBe(reason);
+      expect(reading.passed).toBe(false);
+      expect(reading.refusals).toContain("evaluation_not_simulator_scored");
+      const outcome = evidence.verifyRecommendationEvidence({ run: withScoring(scoring), requestId: "job_1", passMark: mark });
+      expect(outcome).toEqual({ ok: false, refusal: "evaluation_not_simulator_scored" });
+    }
   });
 
   it("states the evidence for the site without checkpoint or run internals", () => {

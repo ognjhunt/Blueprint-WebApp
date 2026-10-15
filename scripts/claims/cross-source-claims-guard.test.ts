@@ -133,4 +133,16 @@ describe("cross-source claims guard", () => {
     expect(targets).toContain("knowledge/reports");
     expect(targets).toContain("output");
   });
+
+  it("scans the builders of messages sites and robot teams receive", () => {
+    const targets = buildDefaultScanTargets(repoRoot);
+    const groupOf = (relativePath: string) => targets.find((target) => target.relativePath === relativePath)?.sourceGroup;
+
+    expect(groupOf("server/utils/qualificationEmails.ts")).toBe("customer_messages");
+    // Picked up by name, so a new notification builder is scanned without being listed.
+    expect(groupOf("server/utils/taskLifecycleNotifications.ts")).toBe("customer_messages");
+    expect(groupOf("server/utils/robotTeamNotifications.ts")).toBe("customer_messages");
+    expect(groupOf("client/public/llms.txt")).toBe("agent_public_text");
+    expect(groupOf("client/public/llms-full.txt")).toBe("agent_public_text");
+  });
 });

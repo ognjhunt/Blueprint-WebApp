@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { withCsrfHeader } from "@/lib/csrf";
+import { withAppCheckHeader } from "@/lib/appCheck";
 
 type ItemBasis = "suggested" | "operator_added";
 type CoverageStatus = "needs_images" | "covered";
@@ -149,7 +150,7 @@ export function TaskItemsPanel({ token, scope }: { token: string; scope: "owner"
         form.append("image", file);
         const response = await fetch(
           `/api/self-capture/uploads/${encodeURIComponent(token)}/items/${encodeURIComponent(itemId)}/image`,
-          { method: "POST", credentials: "include", headers: await withCsrfHeader({}), body: form },
+          { method: "POST", credentials: "include", headers: await withAppCheckHeader(await withCsrfHeader({})), body: form },
         );
         if (!response.ok) {
           setError("A photo could not be uploaded. Try again.");

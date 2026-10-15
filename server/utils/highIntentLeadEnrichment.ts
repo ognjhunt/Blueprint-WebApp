@@ -10,6 +10,7 @@ import {
   upsertPaperclipIssue,
   wakePaperclipAgent,
 } from "./paperclip";
+import { fetchPinnedPublicText } from "./publicFetchGuard";
 
 const DOSSIER_COLLECTION = "leadEnrichmentDossiers";
 const PAPERCLIP_PROJECT_NAME = "blueprint-webapp";
@@ -231,34 +232,48 @@ function extractMetaDescription(html: string) {
   return "";
 }
 
+/** A submitter-typed email domain must look like a plain DNS name before it
+ * becomes a URL: no port, path, userinfo or IP literal can ride along. */
+const FETCHABLE_DOMAIN = /^(?=.{4,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+const PUBLIC_COMPANY_PAGE_MAX_BYTES = 512 * 1024;
+
 async function fetchPublicCompanyEvidence(domain: string | null): Promise<LeadEnrichmentEvidenceItem[]> {
-  if (!domain || !publicCompanyFetchEnabled() || typeof fetch !== "function") {
+  if (!domain || !publicCompanyFetchEnabled()) {
     return [];
   }
 
   const url = `https://${domain}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), publicFetchTimeoutMs());
+  if (!FETCHABLE_DOMAIN.test(domain)) {
+    return [{
+      source: "public_company_page",
+      label: "open_question",
+      summary: "No public company homepage snapshot was fetched because the submitter email domain is not a plain public hostname.",
+      url: null,
+    }];
+  }
   try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      redirect: "follow",
-      headers: {
-        "User-Agent": "BlueprintLeadEnrichment/1.0 (+https://tryblueprint.io)",
-        Accept: "text/html,application/xhtml+xml",
-      },
+    // The domain is whatever a stranger typed into a form, so this read is
+    // pinned to a validated public address, follows at most three re-checked
+    // redirects, and stops at a byte cap. See publicFetchGuard.
+    const page = await fetchPinnedPublicText(url, {
+      timeoutMs: publicFetchTimeoutMs(),
+      maxBytes: PUBLIC_COMPANY_PAGE_MAX_BYTES,
+      maxRedirects: 3,
+      accept: "text/html,application/xhtml+xml",
+      userAgent: "BlueprintLeadEnrichment/1.0 (+https://tryblueprint.io)",
+      contentTypes: /^(?:text\/html|application\/xhtml\+xml)(?:;|$)/,
     });
 
-    if (!response.ok) {
+    if (page.status < 200 || page.status > 299) {
       return [{
         source: "public_company_page",
         label: "open_question",
-        summary: `Could not fetch a public company homepage snapshot from ${domain}; HTTP ${response.status}.`,
+        summary: `Could not fetch a public company homepage snapshot from ${domain}; HTTP ${page.status}.`,
         url,
       }];
     }
 
-    const html = (await response.text()).slice(0, 250_000);
+    const html = page.text;
     const title = extractHtmlTitle(html);
     const description = extractMetaDescription(html);
     const parts = [
@@ -272,7 +287,7 @@ async function fetchPublicCompanyEvidence(domain: string | null): Promise<LeadEn
       summary: parts.length
         ? `Public company homepage snapshot for ${domain}: ${parts.join("; ")}`
         : `Fetched ${domain}, but no title or description metadata was found.`,
-      url: response.url || url,
+      url: page.finalUrl || url,
     }];
   } catch (error) {
     return [{
@@ -281,8 +296,6 @@ async function fetchPublicCompanyEvidence(domain: string | null): Promise<LeadEn
       summary: `Public company homepage snapshot for ${domain} was unavailable: ${error instanceof Error ? error.message : String(error)}.`,
       url,
     }];
-  } finally {
-    clearTimeout(timeout);
   }
 }
 

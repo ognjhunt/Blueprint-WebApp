@@ -26,7 +26,7 @@ import {
 } from "../utils/field-encryption";
 import { submitInboundRequest } from "./inbound-request";
 import { verifySiteClaimToken } from "../utils/request-review-auth";
-import { projectPilotOpportunityForRobotTeam } from "../utils/pilot-opportunity-projection";
+import { projectTeamJobOpening } from "../utils/teamJobAccess";
 import { sendCapturerCommunication } from "../utils/field-ops-automation";
 import {
   object,
@@ -44,10 +44,7 @@ import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
 import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
 import { listRunsForScene, loadSceneScreening } from "../utils/agentEvalRuns";
-import type {
-  InboundRequestStored,
-  InboundRequest,
-} from "../types/inbound-request";
+import type { InboundRequestStored } from "../types/inbound-request";
 import type {
   RobotSetup,
   WorkspaceEvaluation,
@@ -356,6 +353,13 @@ async function decodeWorkspaceRequest(value: InboundRequestStored) {
   const record = (await decryptInboundRequestForAdmin(
     value,
   )) as unknown as Record<string, any>;
+  // The recording grant is stored in plaintext, and the admin decrypt view
+  // rebuilds `request` without it. Without it, every job read here looks as
+  // if its site never granted recording, and `teamJobAccess` (which the job
+  // library evaluates on the stored record) would answer differently here.
+  const stored = object(object(value).request);
+  if ("consent_attestation" in stored)
+    record.request = { ...object(record.request), consent_attestation: stored.consent_attestation };
   const workspace = object(record.workspace_task),
     pilot = object(workspace.pilot);
   if (pilot.notes)
@@ -1194,6 +1198,40 @@ router.delete(
     return res.json({ ok: true });
   }),
 );
+/**
+ * The job an approved robot team may open and request an evaluation on.
+ *
+ * The opening page and the evaluation request read this one helper, and it
+ * reads `teamJobAccess`, the same answer the job library gives its "Request a
+ * free invited evaluation" link. A job that does not exist and a job that is
+ * not open are refused alike, so a team cannot probe which ids exist.
+ */
+async function openingForTeam(res: Response, jobId: string) {
+  requireRole(res, "robot_team");
+  const caller = identity(res);
+  if (!caller.verified)
+    refuse(403, "Verify your email before requesting an evaluation.");
+  const access = await resolveViewerAccess({ email: caller.email, emailVerified: true, isOps: false });
+  if (!access.allowed) refuse(403, "Robot-team early access is required before requesting an evaluation.");
+  const notOpen = () => refuse(404, "This job is not open to evaluation requests.", "job_not_open");
+  let source: Awaited<ReturnType<typeof readRequest>>;
+  try {
+    source = await readRequest(jobId);
+  } catch (error) {
+    if ((error as { status?: number }).status === 404) notOpen();
+    throw error;
+  }
+  const opening = projectTeamJobOpening(jobId, source.record);
+  if (!opening) notOpen();
+  return { source, opening: opening! };
+}
+router.get(
+  "/openings/:jobId",
+  handle(async (req, res) => {
+    const { opening } = await openingForTeam(res, req.params.jobId);
+    return res.json({ opening });
+  }),
+);
 router.post(
   "/evaluations",
   handle(async (req, res) => {
@@ -1203,21 +1241,7 @@ router.post(
         .strict()
         .parse(req.body),
       caller = identity(res);
-    if (!caller.verified)
-      refuse(403, "Verify your email before requesting an evaluation.");
-    const access = await resolveViewerAccess({ email: caller.email, emailVerified: true, isOps: false });
-    if (!access.allowed) refuse(403, "Robot-team early access is required before requesting an evaluation.");
-    const source = await readRequest(input.opportunityId);
-    const opportunity = projectPilotOpportunityForRobotTeam(
-      source.record as InboundRequest,
-      caller.email,
-    );
-    if (
-      !opportunity ||
-      object(source.record.workspace_task).archived ||
-      object(source.record.workspace_task).paused
-    )
-      refuse(404, "This opening is no longer accepting evaluations.");
+    const { source, opening } = await openingForTeam(res, input.opportunityId);
     const setup = (await listSetups(caller.uid)).find(
       (item) => item.id === input.setupId,
     );
@@ -1235,17 +1259,19 @@ router.post(
         submittedAt: new Date().toISOString(),
       },
     };
+    // The team's request carries only the site-approved card, never the
+    // site's identity, address or intake prose.
     req.body = {
       ...intakeIdentity(res),
       requestId: input.id,
-      siteName: opportunity.site_name || "Private site",
-      siteLocation: opportunity.site_location || "",
-      targetSiteType: opportunity.site_type || "Site opening",
-      taskStatement: opportunity.workflow,
+      siteName: "Private site",
+      siteLocation: "",
+      targetSiteType: opening.siteType || "Site job",
+      taskStatement: opening.title,
       taskDescription: input.notes,
       proofPathPreference: "exact_site_required",
       existingStackReviewWorkflow: JSON.stringify(setup),
-      details: `Evaluation request for opening ${input.opportunityId}. ${input.notes}`,
+      details: `Evaluation request for job ${input.opportunityId}. ${input.notes}`,
     };
     await submitInboundRequest(req, res);
     // The site hears that a team asked about its task, once per request.

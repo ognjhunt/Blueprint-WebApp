@@ -29,13 +29,15 @@ import { toSiteRequirement } from "./siteMatchRun";
 import { approvedTaskDetails } from "./taskListingDetails";
 import type { EvalCandidate } from "./evalSelection";
 import type { InboundRequest } from "../types/inbound-request";
-import { operatorListingPaused } from "./operatorListing";
 import { entryPrice, screeningRound } from "../../client/src/lib/evaluationPricing";
-import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
-import { coverageEvidenceFrom } from "./captureCoverageReview";
-import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
 import { DEVELOPMENT_OFFERS, developmentOfferForTeam } from "./controlledDevelopmentOffer";
-import { gateAnswersOnFile } from "./gateAnswersOnFile";
+import { teamJobAccess } from "./teamJobAccess";
+
+/**
+ * The runnable-scene rule lives with the rest of the robot-team job predicate
+ * in `teamJobAccess.ts`; it is re-exported here for existing importers.
+ */
+export { isRunnableTask } from "./teamJobAccess";
 
 /**
  * What one entry costs: one policy on one embodiment, against one task.
@@ -59,18 +61,6 @@ export function screeningRunCostUsd(): number {
  */
 export function screeningRunEpisodes(): number {
   return screeningRound.episodes;
-}
-
-/**
- * Whether a site has a scene a robot team could actually run in.
- *
- * The docstring below used to say "screened and reconstructed" and the function
- * only checked the first. So a qualified site with no scene was offered as
- * runnable supply, and a team could buy an evaluation against an environment
- * that did not exist.
- */
-function hasBuiltScene(request: InboundRequest): boolean {
-  return Boolean(request.pipeline?.artifacts?.worldlabs_world_manifest_uri);
 }
 
 /**
@@ -112,17 +102,12 @@ async function loadRunnableSites(limit: number): Promise<InboundRequest[]> {
 
   return snapshot.docs
     .map((doc) => doc.data() as InboundRequest)
-    // A robot team's own submission is not a site to evaluate against.
-    .filter((request) => request.request?.buyerType !== "robot_team")
-    // A site the operator has paused leaves runnable supply for NEW paid
-    // runs — listing is the operator's lever, and this is where it bites.
-    // Already-committed runs settle by their own contract.
-    .filter((request) => operatorListingPaused(request) === false)
-    // A team sees only the card a site approved. A runnable site that never
-    // shared one is not offered, not even as "Task abc123": its existence
-    // and fit are the site's to share.
-    .filter((request) => approvedTaskDetails(request) !== null)
-    .filter(isRunnableTask);
+    // The same answer the job library, the opening page and the evaluation
+    // request give: a site job the site listed and has not paused or
+    // withdrawn, whose rights are not held, and whose scene is proven to run.
+    // A runnable site that never shared a card is not offered, not even as
+    // "Task abc123": its existence and fit are the site's to share.
+    .filter((request) => teamJobAccess(request).evaluationAvailable);
 }
 
 /**
@@ -246,41 +231,4 @@ export async function buildTeamEvalCandidates(params: {
       alreadyRunForCheckpoint: params.repeatCompleted ? !history.repeatableScenes.has(sceneId) : history.scenesRun.has(sceneId),
     };
   })];
-}
-
-/** The same admission predicate serves discovery and paid evaluation selection. */
-export function isRunnableTask(request: InboundRequest): boolean {
-  if (request.request?.buyerType === "robot_team" || operatorListingPaused(request)
-  || request.site_task_triage?.disposition !== "qualified") return false;
-
-  // Measured coverage where we have it, and the old inference where we do
-  // not: a built scene means coverage sufficed, which is true by
-  // construction. What this must never do is read "nobody checked" as
-  // "does not cover", because that would silently drop supply.
-  const measured = coverageEvidenceFrom(request as never);
-  const readiness = assessReadiness({
-    answers: gateAnswersOnFile(request),
-    captureMode: request.request?.capture_mode ?? null,
-    briefDrafted: true,
-    briefConfirmed: Boolean(request.site_task_brief_confirmed_at),
-    evidence: {
-      hasAny: true,
-      hasVisual: true,
-      explainsTask: true,
-      coversScene: measured?.coversScene ?? true,
-      missingCoverage: measured?.missingCoverage,
-    },
-    reconstructed: hasBuiltScene(request),
-  });
-  if (!readiness.isSupply) return false;
-
-  // Site-ready is not run-ready. `assessReadiness` establishes that the
-  // operator confirmed a scene we could build; it says nothing about
-  // whether our harness can actually load and step that scene. Requiring an
-  // internal runnability proof here is what keeps the first team to buy an
-  // evaluation from being the one who discovers integration works. It fails
-  // closed on purpose -- an unverified scene is held back from supply, not
-  // sold as ready. See `sceneRunnableReadiness`.
-  return sceneRunnableReadiness(request.evaluation_readiness).runnable;
-
 }

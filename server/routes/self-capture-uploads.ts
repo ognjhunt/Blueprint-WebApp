@@ -18,15 +18,17 @@ import { issueCaptureSupplement, validateCaptureSupplement } from "../utils/capt
 import { createReadStream } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import os from "node:os";
-import { unlink } from "node:fs/promises";
+import { open, unlink } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import multer from "multer";
 import {
   composeParts,
   discardParts,
   savePart,
+  storedPartHead,
   storedPartIndices,
 } from "../utils/captureParts";
+import { isAcceptedVideoHeader, VIDEO_NOT_RECOGNIZED, VIDEO_SIGNATURE_BYTES } from "../utils/videoMagicBytes";
 import { z } from "zod";
 
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
@@ -81,6 +83,9 @@ import { browserPendingDecisionKey, storedCapturePrivacyCleared, loadBrowserPend
   releaseBrowserUpload, reserveBrowserUpload, recordBrowserStoredUpload, loadBrowserStoredUpload,
   reserveBrowserStoredUploadRetry, type BrowserStoredUpload, type BrowserPending,
   type BrowserWriteReservation } from "../utils/websiteBrowserPending";
+
+import { admitUploadBytes, uploadRefusal } from "../utils/betaAbuseCaps";
+import { requireAppCheck } from "../middleware/appCheck";
 
 import { ALLOWED_EXTENSIONS, resolveStoredObjectPath, verifiedStoredVideo,
   originalManifestConsent, verifiedPendingManifest, verifiedPendingMarker,
@@ -189,6 +194,18 @@ async function discardUploadedFile(file: { path: string } | undefined): Promise<
   await unlink(file.path).catch((error) =>
     { if (error.code !== "ENOENT") logger.warn({ error, path: file.path }, "Could not remove the upload temp file"); },
   );
+}
+
+/** The first bytes of a spooled upload, read without loading the file. */
+async function spooledFileHead(path: string): Promise<Buffer> {
+  const handle = await open(path, "r");
+  try {
+    const head = Buffer.alloc(VIDEO_SIGNATURE_BYTES);
+    const { bytesRead } = await handle.read(head, 0, head.length, 0);
+    return head.subarray(0, bytesRead);
+  } finally {
+    await handle.close();
+  }
 }
 
 function safeJsonParse(value: unknown): unknown {
@@ -698,6 +715,11 @@ export function bundleServiceDeps(storage: BundleStorage): BundleServiceDeps {
     recordUploadIdentity: (params) => recordSiteCaptureUploadIdentity(params),
     claimBundle: (params) => claimSiteCaptureBundle(params),
     startCoverageReview: enqueueCoverageReview,
+    async admitPlannedBytes({ requestId, captureId, planDigest, bytes }) {
+      const decision = await admitUploadBytes({ jobId: requestId, bytes, idempotencyKey: `${captureId}:bundle:${planDigest}`,
+        failClosed: process.env.NODE_ENV === "production" });
+      return decision.allowed ? null : uploadRefusal(decision);
+    },
     now: () => new Date(),
   };
 }
@@ -1125,19 +1147,47 @@ router.post("/:token/self-capture", async (req: Request, res: Response) => {
   });
 });
 
-/** Check before multipart middleware receives or spools any bytes. */
-async function authorizeBeforeCaptureBody(req: Request, res: Response, next: (error?: unknown) => void) {
-  try {
-    const payload = verifyCaptureUploadToken(String(req.params.token || ""));
-    if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
-    const authorization = await authorizeCaptureUpload(payload.requestId);
-    if (!authorization.allowed) return res.status(409).json({ code: authorization.holdReason, error: authorization.detail });
-    res.once("finish", () => { void discardUploadedFile((req as UploadRequest).file); });
-    next();
-  } catch (error) { next(error); }
+/**
+ * Charge a byte-carrying upload against the durable daily upload caps, before
+ * any byte is read. The declared length is what is charged (multipart framing
+ * included); a request that declares none is charged its route's ceiling. A
+ * part is charged once per capture, extension and index, so resending the
+ * same part after a dropped connection is free.
+ */
+async function admitUploadRequest(req: Request, res: Response, kind: "walkthrough" | "part" | "item_image",
+  payload: { requestId: string; captureId: string }): Promise<boolean> {
+  const ceiling = kind === "part" ? Number(process.env.SELF_CAPTURE_MAX_PART_BYTES ?? DEFAULT_MAX_PART_BYTES)
+    : Number(process.env.SELF_CAPTURE_MAX_UPLOAD_BYTES ?? DEFAULT_MAX_BYTES);
+  const declared = Number(req.headers["content-length"]);
+  const bytes = Number.isSafeInteger(declared) && declared > 0 ? Math.min(declared, ceiling + 1024 * 1024) : ceiling;
+  const index = kind === "part" ? Number(req.params.index) : NaN;
+  if (kind === "part" && (!Number.isInteger(index) || index < 0 || index > 100_000)) return true; // the route refuses it, uncharged
+  const extension = String(req.query.extension || "mp4").toLowerCase();
+  const decision = await admitUploadBytes({ jobId: payload.requestId, bytes, failClosed: process.env.NODE_ENV === "production",
+    idempotencyKey: kind === "part" ? `${payload.captureId}:part:${extension}:${index}` : null });
+  if (decision.allowed) return true;
+  const refusal = uploadRefusal(decision);
+  res.set("Retry-After", String(refusal.retryAfterSeconds));
+  res.status(refusal.status).json(refusal.body);
+  return false;
 }
 
-router.post("/:token", authorizeBeforeCaptureBody, upload.single("video"), async (req: UploadRequest, res: Response) => {
+/** Check before multipart middleware receives or spools any bytes. */
+function authorizeBeforeCaptureBody(kind: "walkthrough" | "part" | "item_image") {
+  return async (req: Request, res: Response, next: (error?: unknown) => void) => {
+    try {
+      const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+      if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
+      const authorization = await authorizeCaptureUpload(payload.requestId);
+      if (!authorization.allowed) return res.status(409).json({ code: authorization.holdReason, error: authorization.detail });
+      if (!(await admitUploadRequest(req, res, kind, payload))) return;
+      res.once("finish", () => { void discardUploadedFile((req as UploadRequest).file); });
+      next();
+    } catch (error) { next(error); }
+  };
+}
+
+router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCaptureBody("walkthrough"), upload.single("video"), async (req: UploadRequest, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
     return res.status(404).json({ error: "This upload link is not valid or has expired." });
@@ -1172,6 +1222,11 @@ router.post("/:token", authorizeBeforeCaptureBody, upload.single("video"), async
     return res.status(415).json({
       error: "Upload a video straight from your phone — .mov or .mp4.",
     });
+  }
+  // The bytes pass through this server, so they are checked here, before any
+  // reach storage. The extension above is only the browser's claim.
+  if (!isAcceptedVideoHeader(await spooledFileHead(file.path))) {
+    return res.status(415).json(VIDEO_NOT_RECOGNIZED);
   }
 
   if (!storageAdmin) {
@@ -1323,7 +1378,8 @@ router.get("/:token/parts", async (req: Request, res: Response) => {
 
 router.put(
   "/:token/parts/:index",
-  authorizeBeforeCaptureBody,
+  requireAppCheck("upload_part"),
+  authorizeBeforeCaptureBody("part"),
   partUpload.single("part"),
   async (req: PartUploadRequest, res: Response) => {
     const payload = verifyCaptureUploadToken(String(req.params.token || ""));
@@ -1359,6 +1415,10 @@ router.put(
     if (await refuseIfAppBundle(payload, res)) return;
     if (!storageAdmin) {
       return res.status(503).json({ error: "Uploads are unavailable right now." });
+    }
+    // Part 0 opens the recording; refuse a non-video before storing it.
+    if (index === 0 && !isAcceptedVideoHeader(part.buffer.subarray(0, VIDEO_SIGNATURE_BYTES))) {
+      return res.status(415).json(VIDEO_NOT_RECOGNIZED);
     }
 
     const { rawPrefix } = partsDestination(payload, extension);
@@ -1397,7 +1457,7 @@ const completeSchema = z
   })
   .strict();
 
-router.post("/:token/parts/complete", async (req: Request, res: Response) => {
+router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) {
     return res.status(404).json({ error: "This upload link is not valid or has expired." });
@@ -1437,6 +1497,20 @@ router.post("/:token/parts/complete", async (req: Request, res: Response) => {
 
   const { objectPath, rawPrefix } = partsDestination(payload, extension);
   const bucket = storageAdmin.bucket(storageBucketName()) as never;
+
+  // Checked again at completion, from storage, before anything is composed:
+  // parts stored before this check existed, or by a client that skipped it,
+  // must not become a walkthrough. A non-video's parts are discarded.
+  try {
+    const head = await storedPartHead(bucket, rawPrefix, VIDEO_SIGNATURE_BYTES);
+    if (head && !isAcceptedVideoHeader(head)) {
+      await discardParts(bucket, rawPrefix);
+      return res.status(415).json(VIDEO_NOT_RECOGNIZED);
+    }
+  } catch (error) {
+    logger.error({ error, captureId: payload.captureId }, "Could not read the first capture part");
+    return res.status(503).json({ error: "We could not check your upload. Please retry." });
+  }
 
   let write: Awaited<ReturnType<typeof beginBrowserCanonicalWrite>>;
   try {
@@ -1534,6 +1608,7 @@ router.post("/:token/bundle", async (req: Request, res: Response) => {
   try {
     const outcome = await acceptBundlePlan(gate.payload, req.body, gate.deps);
     res.setHeader("Cache-Control", "no-store");
+    if (outcome.retryAfterSeconds) res.setHeader("Retry-After", String(outcome.retryAfterSeconds));
     return res.status(outcome.status).json(outcome.body);
   } catch (error) {
     logger.error({ error, captureId: gate.payload.captureId }, "Could not accept an app bundle plan");
@@ -1547,6 +1622,7 @@ router.post("/:token/bundle/targets", async (req: Request, res: Response) => {
   try {
     const outcome = await mintMoreTargets(gate.payload, req.body, gate.deps);
     res.setHeader("Cache-Control", "no-store");
+    if (outcome.retryAfterSeconds) res.setHeader("Retry-After", String(outcome.retryAfterSeconds));
     return res.status(outcome.status).json(outcome.body);
   } catch (error) {
     logger.error({ error, captureId: gate.payload.captureId }, "Could not mint app bundle upload targets");
@@ -1589,7 +1665,8 @@ const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "heic", "heif", 
  */
 router.post(
   "/:token/items/:itemId/image",
-  authorizeBeforeCaptureBody,
+  requireAppCheck("upload_item_image"),
+  authorizeBeforeCaptureBody("item_image"),
   upload.single("image"),
   async (req: UploadRequest, res: Response) => {
     let storedBytes = false;

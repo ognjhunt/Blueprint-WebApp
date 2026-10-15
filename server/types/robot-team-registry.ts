@@ -96,6 +96,13 @@ export type RobotCapabilityField = keyof RobotCapability;
  * `prospect` is the one to be careful with: it means we researched them and
  * they have not agreed to anything. Nothing about a prospect may be described
  * to a site as a Blueprint relationship.
+ *
+ * `engaged` is the only status that means supply, and it is earned, not set:
+ * a team is `engaged` only while its `supplyAgreement` records all three
+ * agreements (see `SUPPLY_AGREEMENT_TERMS`). A stored `engaged` without that
+ * record is read back as the status it had before, so typing the word into a
+ * document does not create a willing team. `server/utils/robotTeamSupply.ts`
+ * owns the rule.
  */
 export type RobotTeamStatus =
   /**
@@ -154,8 +161,76 @@ export interface RobotTeamRecord {
   accountUid?: string | null;
   accountEmail?: string | null;
   accountBoundAtIso?: string | null;
+  /**
+   * What the team agreed to, recorded by a named operator. The only thing that
+   * makes a team `engaged`. Written only by `recordSupplyAgreement` and
+   * `withdrawSupplyAgreement`.
+   */
+  supplyAgreement?: RobotTeamSupplyAgreement | null;
+  /**
+   * The status the team had when it became `engaged`, so a withdrawal returns
+   * it there instead of guessing.
+   */
+  statusBeforeEngaged?: RobotTeamStatus | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * The three agreements a team must give before it counts as supply
+ * (2026-10-14 beta launch audit, L4 and P0-7):
+ *
+ * - `supportedInterface` — it will run a policy on the interface the website
+ *   runtime evaluates today (named by `interfaceId` on the entry);
+ * - `freeEvaluation` — it accepts a free evaluation on a real site job;
+ * - `pilotIfPassed` — it will take the physical pilot if its evaluation passes.
+ *
+ * A passing evaluation shows the first two in practice and says nothing about
+ * the third, which is the one a site acts on when it books.
+ */
+export const SUPPLY_AGREEMENT_TERMS = ["supportedInterface", "freeEvaluation", "pilotIfPassed"] as const;
+export type SupplyAgreementTerm = (typeof SUPPLY_AGREEMENT_TERMS)[number];
+
+export const SUPPLY_AGREEMENT_SCHEMA_VERSION = "robot_team_supply_agreement.v1" as const;
+
+/** One agreement, as evidence about it, never as its content. */
+export interface SupplyAgreementEntry {
+  /** The calendar day the team agreed, `YYYY-MM-DD`. */
+  agreedOn: string;
+  /**
+   * Where the agreement is kept: `scheme:identifier`, such as
+   * `gmail-thread:18c2f0a1b2c3d4e5` or `signed-note:2026-10-20-team-a`. A
+   * pointer a reviewer can open. Never the message text, never a personal
+   * address.
+   */
+  evidenceRef: string;
+  /** The authenticated operator who recorded it. Set by the server. */
+  recordedBy: string;
+  recordedAt: string;
+  /** On `supportedInterface` only: the interface the team agreed to run on. */
+  interfaceId?: string | null;
+}
+
+export interface SupplyAgreementWithdrawal {
+  /** The calendar day the team withdrew, `YYYY-MM-DD`. */
+  withdrawnOn: string;
+  evidenceRef: string;
+  recordedBy: string;
+  recordedAt: string;
+}
+
+export interface RobotTeamSupplyAgreement {
+  schemaVersion: typeof SUPPLY_AGREEMENT_SCHEMA_VERSION;
+  /** The current agreements. Emptied by a withdrawal. */
+  terms: Partial<Record<SupplyAgreementTerm, SupplyAgreementEntry>>;
+  /**
+   * Agreements that ended, with the withdrawal that ended them, oldest first.
+   * Kept so the record shows what a team once agreed to and when it stopped.
+   */
+  history?: Array<{
+    terms: Partial<Record<SupplyAgreementTerm, SupplyAgreementEntry>>;
+    withdrawal: SupplyAgreementWithdrawal;
+  }>;
 }
 
 /**

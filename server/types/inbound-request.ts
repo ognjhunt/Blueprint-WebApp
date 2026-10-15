@@ -1325,6 +1325,8 @@ export interface SubmitInboundRequestResponse {
   siteSubmissionId?: string;
   status: RequestStatus;
   message?: string;
+  /** Machine-readable refusal reason, e.g. `intake_global_daily_limit`. */
+  code?: string;
   /**
    * The site's own link to this submission, issued whatever the screen said.
    *

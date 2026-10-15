@@ -29,6 +29,7 @@ import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
 import { TaskClarification } from "@/components/site/TaskClarification";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdrawal";
+import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { captureBlockingGates } from "@/lib/siteTaskReadiness";
 import { withCsrfHeader } from "@/lib/csrf";
 import { isCaptureMode, defaultCaptureMode } from "@/data/siteTaskQualification";
@@ -662,6 +663,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             <details style={{ marginBottom: "24px" }}>
               <summary>Add footage when you have permission (optional)</summary>
               <p className="ms-field-hint">Confirm recording permission before adding footage. Your description and job brief are already available.</p>
+              <p className="ms-field-hint">{FILMING_NOTICE}</p>
               <label style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
                 <input type="checkbox" checked={recordingConsent} onChange={event => setRecordingConsent(event.target.checked)}
                   style={{ width: "auto", minHeight: 0, marginTop: "4px" }} />
@@ -885,7 +887,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
               <p className="ms-field-hint" style={{ marginTop: "12px" }}>
                 Move slowly and overlap your passes. Cover every surface near where the work
-                happens, from a few heights. Keep the scene still, with nobody in frame.
+                happens, from a few heights. Keep the scene still, with nobody in frame. {FILMING_NOTICE}
               </p>
             </>
           )}
@@ -897,6 +899,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   ? "Already have a video of the work area? Upload it instead."
                   : "Already have the recording on this computer? Upload a .mov or .mp4 file."}
               </p>
+              <p className="ms-field-hint">{FOOTAGE_UPLOAD_NOTICE}</p>
 
               <button
                 type="button"

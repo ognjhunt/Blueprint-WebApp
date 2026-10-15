@@ -111,11 +111,14 @@ export class FakeGcsBucket {
       async exists() {
         return [bucket.objects.has(name)] as [boolean];
       },
-      async download() {
+      async download(options: { start?: number; end?: number } = {}) {
         bucket.calls.download += 1;
         const object = bucket.objects.get(name);
         if (!object) throw new HttpishError(404, `No such object: ${name}`);
-        return [Buffer.from(object.data)] as [Buffer];
+        // Range reads are inclusive of `end`, as in @google-cloud/storage.
+        const data = options.start === undefined && options.end === undefined ? object.data
+          : object.data.subarray(options.start ?? 0, options.end === undefined ? undefined : options.end + 1);
+        return [Buffer.from(data)] as [Buffer];
       },
       async save(content: string | Buffer, options: Record<string, any> = {}) {
         bucket.calls.save += 1;

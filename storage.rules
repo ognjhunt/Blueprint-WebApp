@@ -57,6 +57,19 @@ service firebase.storage {
       return request.resource != null && request.resource.size <= maxBytes;
     }
 
+    // users/{uid}/** and accounts/{uid}/** were reserved for small owner
+    // files (profile and onboarding images, account documents). No client
+    // writes there today: the WebApp client has no Storage upload call, the
+    // iOS app no longer links Firebase (it uploads through server-signed
+    // URLs), and the Android app writes only scenes/.../raw/**. So the bound
+    // is the shape the prefixes were reserved for: 20 MiB of image or PDF. A
+    // new writer that needs more must widen this on purpose rather than
+    // inherit an unbounded bucket.
+    function ownerFileUpload() {
+      return boundedUpload(20 * 1024 * 1024)
+        && request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)|application/pdf');
+    }
+
     function rawCaptureMetadataMatches(sceneId, captureId) {
       return request.resource != null
         && request.resource.metadata.creatorId == request.auth.uid
@@ -101,11 +114,17 @@ service firebase.storage {
     // Owner-scoped app artifact buckets for capture, onboarding, and account
     // uploads. Unknown users cannot read or write another user's subtree.
     match /users/{userId}/{filePath=**} {
-      allow read, write: if isAdmin() || ownsUserPath(userId);
+      allow read: if isAdmin() || ownsUserPath(userId);
+      allow create, update: if (isAdmin() || ownsUserPath(userId))
+        && ownerFileUpload();
+      allow delete: if isAdmin() || ownsUserPath(userId);
     }
 
     match /accounts/{userId}/{filePath=**} {
-      allow read, write: if isAdmin() || ownsUserPath(userId);
+      allow read: if isAdmin() || ownsUserPath(userId);
+      allow create, update: if (isAdmin() || ownsUserPath(userId))
+        && ownerFileUpload();
+      allow delete: if isAdmin() || ownsUserPath(userId);
     }
 
     match /captures/{userId}/{filePath=**} {
@@ -125,6 +144,13 @@ service firebase.storage {
     // Canonical iOS raw-capture upload path. This must stay in the shared
     // WebApp + Capture rules superset because both repos deploy to the same
     // Firebase Storage project and deploys are last-writer-wins.
+    // The 20 GiB per-object bound stays: the only current client-SDK writer
+    // here is the Android app, which uploads each bundle file (including the
+    // walkthrough video) with no recording-length or file-size cap of its
+    // own, so there is no smaller writer maximum to set a tighter bound from.
+    // The iOS app no longer links Firebase; its server-signed uploads never
+    // reach these rules and are bounded by the server's bundle plan
+    // (SELF_CAPTURE_MAX_BUNDLE_BYTES).
     match /scenes/{sceneId}/captures/{captureId}/raw/{rawPath=**} {
       allow create: if isSignedIn()
         && rawCaptureMetadataMatches(sceneId, captureId)

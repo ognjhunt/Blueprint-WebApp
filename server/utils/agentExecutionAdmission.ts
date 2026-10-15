@@ -9,6 +9,7 @@ import {
 } from "./decisionEvidenceContract";
 
 import { loadTaskForTeam, developmentOfferSchema, developmentOfferForTeam } from "./controlledDevelopmentOffer";
+import { TEAM_CANDIDATE_HTTPS_INTERFACE, TEAM_CANDIDATE_QUICK10_PROFILE } from "./policyIntegration";
 
 export const AGENT_EXECUTION_ADMISSION_SCHEMA_VERSION =
   "blueprint.agent_execution_admission.v1" as const;
@@ -105,7 +106,9 @@ function canonicalCheckpointMatches(
   if (selection.checkpoint.runtime === "customer_hosted") {
     const endpoint = objectValue(policy.policy_api_endpoint);
     return endpoint.endpoint_url === selection.checkpoint.reference
-      && endpoint.execution_profile === "controlled_observation_v1";
+      && (endpoint.execution_profile === "controlled_observation_v1"
+        || (endpoint.execution_profile === TEAM_CANDIDATE_QUICK10_PROFILE
+          && endpoint.policy_interface_id === TEAM_CANDIDATE_HTTPS_INTERFACE));
   }
   if (selection.checkpoint.runtime === "controller_adapter") {
     const adapter = objectValue(policy.sim_controller_plugin);

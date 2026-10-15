@@ -6,7 +6,8 @@ type ClientEnvKey =
   | "VITE_GOOGLE_CLIENT_ID"
   | "VITE_GOOGLE_APP_ID"
   | "VITE_PUBLIC_APP_URL"
-  | "VITE_CAPTURE_APP_PLACEHOLDER_URL";
+  | "VITE_CAPTURE_APP_PLACEHOLDER_URL"
+  | "VITE_FIREBASE_APPCHECK_SITE_KEY";
 
 const cache = new Map<ClientEnvKey, string | null>();
 
@@ -66,6 +67,11 @@ function getRequiredClientEnv(
 
 function getOptionalClientEnv(key: ClientEnvKey): string | null {
   return readClientEnv(key);
+}
+
+/** reCAPTCHA Enterprise site key for Firebase App Check; unset leaves App Check off. */
+export function getFirebaseAppCheckSiteKey(): string | null {
+  return getOptionalClientEnv("VITE_FIREBASE_APPCHECK_SITE_KEY");
 }
 
 export function getGoogleMapsApiKey(): string | null {

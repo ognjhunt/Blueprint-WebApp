@@ -22,7 +22,9 @@ hand). Robot teams join **by invitation** after their application is reviewed.
 | **Robot team** (invited to evaluate) | [BUYER_BETA_GUIDE.md](./BUYER_BETA_GUIDE.md) | How invited evaluations work, what a result means, review states, and how a passed evaluation becomes a recommended pilot. |
 | ~~Capturer~~ | [CAPTURER_BETA_GUIDE.md](./CAPTURER_BETA_GUIDE.md) | **Retired.** Sites film their own job or Blueprint staff film it in person. |
 
-Operators: the release evidence and launch checklist are in [INVITED_BETA_ACCEPTANCE.md](./INVITED_BETA_ACCEPTANCE.md).
+Operators: the release evidence and launch checklist are in [INVITED_BETA_ACCEPTANCE.md](./INVITED_BETA_ACCEPTANCE.md). Recording what a robot team
+agreed to, before it counts as a team that will evaluate a site's job, is in
+[ROBOT_TEAM_SUPPLY_AGREEMENTS.md](./ROBOT_TEAM_SUPPLY_AGREEMENTS.md).
 
 ## What this beta honestly is
 

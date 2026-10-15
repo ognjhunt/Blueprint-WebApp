@@ -142,7 +142,9 @@ export function experimentVersions(root: string) {
   const analysis = between("const videoObservationSchema", "type VideoAnalysis")
     + between("const readVideo =", "const tools =")
     + between("tool({ name: \"analyze_site_video\"", "tool({ name: \"search_robot_knowledge\"")
-    + fs.readFileSync(path.join(root, "server/agents/adapters/gemini-video.ts"), "utf8");
+    + fs.readFileSync(path.join(root, "server/agents/adapters/gemini-video.ts"), "utf8")
+    // What the provider is sent (a video-only copy) is part of perception too.
+    + fs.readFileSync(path.join(root, "server/agents/adapters/video-audio-strip.ts"), "utf8");
   return { analysis_sha256: sha(analysis), assessment_core_sha256: sha(core),
     adapter_sha256: sha(fs.readFileSync(path.join(root, "server/agents/adapters/site-assessment.ts"))),
     task_sha256: sha(fs.readFileSync(path.join(root, "server/agents/tasks/site-assessment.ts"))),

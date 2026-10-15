@@ -14,7 +14,8 @@ import { listCheckpoints } from "./robotCheckpoints";
 import { reservationTtlMs } from "./agentRunRecord";
 import { MAX_FREE_SPONSOR_CAP_USD } from "./freeBeta";
 import { screeningRound } from "../../client/src/lib/evaluationPricing";
-import { ROBOT_TEAMS_COLLECTION } from "../types/robot-team-registry";
+import { ROBOT_TEAMS_COLLECTION, type RobotTeamRecord } from "../types/robot-team-registry";
+import { effectiveTeamStatus } from "./robotTeamSupply";
 import { object, text, iso } from "./workspace-projection";
 import {
   buildJobTimeline,
@@ -203,7 +204,9 @@ async function admissionCandidate(id: string, record: Record<string, any>): Prom
   if (ownerUid && db) {
     const teams = await db.collection(ROBOT_TEAMS_COLLECTION).where("accountUid", "==", ownerUid).limit(5).get();
     const first = teams.docs[0];
-    if (first) team = { teamId: first.id, name: text(first.data().name) || first.id, status: text(first.data().status) || null };
+    // The effective status: a stored "engaged" without a supply agreement is not shown as one.
+    if (first) team = { teamId: first.id, name: text(first.data().name) || first.id,
+      status: text(effectiveTeamStatus(first.data() as RobotTeamRecord)) || null };
     if (setupId) {
       const stored = await db.collection("users").doc(ownerUid).collection("robotSetups").doc(setupId).get();
       if (stored.exists && stored.data()?.payload) {

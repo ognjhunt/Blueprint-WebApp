@@ -13,6 +13,8 @@
  * broken and closes it.
  */
 
+import { withAppCheckHeader } from "./appCheck";
+
 /** What the server accepts. Mirrors `ALLOWED_EXTENSIONS` in the upload route. */
 export const CAPTURE_VIDEO_EXTENSIONS = ["mov", "mp4"] as const;
 
@@ -236,11 +238,13 @@ export async function uploadSelfCaptureVideo(
   const body = new FormData();
   body.append("metadata", JSON.stringify(metadata));
   body.append("video", file);
+  const appCheckHeaders = await withAppCheckHeader();
 
   return new Promise<VideoUploadResult>((resolve) => {
     try {
       const request = new XMLHttpRequest();
       request.open("POST", `/api/self-capture/uploads/${encodeURIComponent(token)}`);
+      for (const [name, value] of Object.entries(appCheckHeaders)) request.setRequestHeader(name, value);
       request.timeout = 15 * 60 * 1000;
 
       request.upload.addEventListener("progress", (event) => {

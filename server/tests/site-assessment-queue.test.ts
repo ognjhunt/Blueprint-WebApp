@@ -3,6 +3,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 const seams = vi.hoisted(() => ({ objects: new Map<string, any>(), enabled: true, coverageActive: false, run: vi.fn(), manifest: vi.fn(), marker: vi.fn() }));
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
+// Test video bytes are not real video: strip sound with the in-process fake.
+vi.mock("../agents/adapters/video-audio-strip", async (importOriginal) =>
+  (await import("./helpers/fake-ffmpeg")).withFakeFfmpeg(await importOriginal()));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
  default: { firestore: {FieldValue: {serverTimestamp: () => "SERVER_TIMESTAMP", delete: () => undefined}}},
  dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore,
@@ -72,6 +75,26 @@ it("dispatches the committed claim once and reconciles canonical completion afte
   state.docs.set(key, { ...state.docs.get(key), state: "running", started_at_ms: 0 });
   await reconcileSiteAssessments(); await reconcileSiteAssessments();
   expect(state.docs.get(key)?.state).toBe("completed"); expect(seams.run).toHaveBeenCalledTimes(1);
+});
+it("keeps a queued advisory waiting with a typed spend blocker while today's model budget has no room", async () => {
+  const { reconcileSiteAssessments } = await import("../utils/siteAssessmentQueue");
+  await publishBrowserPending(pending);
+  const [key] = selectedJob(), id = key.split("/")[1];
+  vi.stubEnv("BLUEPRINT_SITE_ASSESSMENT_DAILY_USD_CAP", "1"); // below one Gemini video reservation
+  try {
+    await reconcileSiteAssessments(); await reconcileSiteAssessments();
+    expect(seams.run).not.toHaveBeenCalled();
+    expect(state.docs.get(key)).toMatchObject({ state: "queued", claim_id: null,
+      spend_blocker: { schema_version: "site_assessment_spend_blocker.v1", reason: "daily_usd_cap_reached", cap_usd: 1, reserved_usd: 0 } });
+    expect(state.docs.get(`inboundRequests/${pending.request_id}`)?.site_advisory).toMatchObject({ state: "queued" });
+  } finally { vi.unstubAllEnvs(); }
+  seams.run.mockImplementationOnce(async (_task, options) => {
+    state.docs.set(`agentRuns/${options.runId}`, storedPacket(id, state.docs.get(key)));
+    return { status: "completed" };
+  });
+  await reconcileSiteAssessments();
+  expect(seams.run).toHaveBeenCalledTimes(1);
+  expect(state.docs.get(key)).toMatchObject({ state: "completed", spend_blocker: null });
 });
 it("keeps unknown interrupted provider work for review instead of redispatching", async () => {
   const { reconcileSiteAssessments, describeSiteAssessmentRetry } = await import("../utils/siteAssessmentQueue");
@@ -244,7 +267,7 @@ it.each(["ordinary", "programme-bound"])("ADVISORY-PRODUCER-001 joined actual SD
       const newCalls = [...state.docs.entries()].filter(([key, value]) => key.includes("/calls/") && value.run_id === job.run_id);
       expect(newCalls).toHaveLength(3);
       expect(newCalls.every(([,value]) => ["recorded", "unknown"].includes(value.state))).toBe(true);
-      expect(run.artifacts.capture_inference_reservations.every((row:any) => row.spending_gated === false)).toBe(true);
+      expect(run.artifacts.capture_inference_reservations.every((row:any) => row.spending_gated === true && row.daily_cap_usd === 50)).toBe(true);
       expect(programme.slots.reduce((total:number, slot:any) => total + slot.reserved_micro_usd, 0)).toBe(4_964_928);
     }
     const express=(await import("express")).default;const {createServer}=await import("node:http");
