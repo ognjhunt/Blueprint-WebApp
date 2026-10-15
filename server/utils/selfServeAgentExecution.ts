@@ -39,7 +39,8 @@ import { isRunnableTask } from "./teamEvalCandidates";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import type { InboundRequest } from "../types/inbound-request";
 import { loadTaskForTeam, developmentOfferForTeam } from "./controlledDevelopmentOffer";
-import { checkpointPolicyPackage } from "./policyIntegration";
+import { checkpointPolicyPackage, TEAM_CANDIDATE_QUICK10_PROFILE, teamCandidatePolicyPackage } from "./policyIntegration";
+import { MINIMUM_EVIDENCE_EPISODES } from "./pilotRecommendationEvidence";
 
 export const SELF_SERVE_ENTITLEMENT_SKU = "self-serve-agent-execution";
 
@@ -153,7 +154,15 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
   if (!facts.ok) return { prepared: false, blockers: facts.blockers };
   const offer = agentExecutionOfferFrom(scene, facts.captureId);
   if (!offer) return { prepared: false, blockers: ["pipeline_execution_offer_missing"] };
-  if ((["customer_hosted", "container_image", "controller_adapter", "model_artifact"].includes(checkpoint.runtime)
+  // Beta L5: when the Pipeline offers the Quick-10 team-candidate runtime for
+  // this scene, a team's authenticated HTTPS policy runs there, for the
+  // offer's episode count, which must be enough to judge it.
+  const teamPackage = !development && offer.policy_execution_profiles?.includes(TEAM_CANDIDATE_QUICK10_PROFILE)
+    ? teamCandidatePolicyPackage(checkpoint) : null;
+  if (teamPackage && offer.episode_count < MINIMUM_EVIDENCE_EPISODES) {
+    return { prepared: false, blockers: ["pipeline_team_candidate_offer_below_minimum_episodes"] };
+  }
+  if (!teamPackage && (["customer_hosted", "container_image", "controller_adapter", "model_artifact"].includes(checkpoint.runtime)
       || (checkpoint.runtime === "policy_endpoint" && checkpoint.policyCredential))
     && !offer.policy_execution_profiles?.includes("controlled_observation_v1")) {
     return { prepared: false, blockers: ["pipeline_controlled_policy_executor_required"] };
@@ -237,7 +246,7 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
     capture_root: offer.capture_root,
     requested_tasks: [{ task_id: facts.taskId, scenario_ids: [offer.scenario_id] }],
     robot_profile: { robot_profile_id: params.checkpointId },
-    policy_package: policyPackage,
+    policy_package: teamPackage ?? policyPackage,
     entitlement: { entitlement_id: entitlementId },
     rights_privacy_scope: { external_use_allowed: true },
     execution_authorization: {
