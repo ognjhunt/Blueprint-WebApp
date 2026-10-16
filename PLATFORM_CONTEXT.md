@@ -58,6 +58,16 @@ not expand a bounded evaluation into proof of an entire workflow.
 The 2026-10-14 reconciliation closed the gap between this public surface and the
 shared block. Keep them closed:
 
+- **Preserve approved embodiment breadth.** The fixed-arm build target and
+  Frozen Work list govern engineering priority; they are not authority to
+  remove owner-approved public examples or restrict robot-team applications to
+  fixed arms. Owner direction on 2026-10-15 (PR #1049) permits a team's own
+  declared robot of any form, with compatibility checked for the specific model,
+  policy interface, scene, and task before execution. On 2026-10-16 the owner
+  reaffirmed the exact original Warehouse/humanoid, Laundromat/wheeled-humanoid,
+  Factory/mobile-manipulator, and Hotel/mobile-robot animations, while retaining
+  Café and Lab. Illustrations describe examples; they do not establish runtime
+  availability, a passed evaluation, or physical validation.
 - **Do not** edit the shared block here. That fails the doctrine gate, and
   updating the lock digest to match a local edit would fork doctrine across
   `BlueprintCapture`, `BlueprintCapturePipeline`, and `Blueprint-WebApp`.

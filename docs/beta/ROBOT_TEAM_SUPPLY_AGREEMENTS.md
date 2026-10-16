@@ -7,7 +7,8 @@ P0-7 in the [2026-10-14 beta launch audit](../launch-readiness/2026-10-14-beta-l
 A robot team counts as supply only after it has agreed to three things:
 
 1. **Supported interface:** it will run a policy on the interface the website
-   evaluates today.
+   accepts for its declared robot. Record the exact interface and, for the
+   team's own robot, its embodiment declaration.
 2. **Free evaluation:** it accepts a free evaluation on a real site job.
 3. **Pilot if it passes:** it will take the physical pilot if that evaluation
    passes.
@@ -25,21 +26,38 @@ Until all three are on record, the team stays `prospect`, `applied` or
 
 ## What "supported" means today
 
-- **Robot:** a Franka arm (Panda or FR3 class) with a Robotiq 2F-85 gripper.
-- **Interface:** the DROID observation/action interface. The registry records
-  it as `droid_franka_panda_robotiq_2f85_v1`.
-- **Tasks:** rigid-object pick/place and open/close.
+Owner direction of 2026-10-15, implemented in
+[PR #1049](https://github.com/ognjhunt/Blueprint-WebApp/pull/1049), permits a
+team's own declared robot of any form. There are two policy interfaces:
 
-A team fits if it can serve a policy on that interface from its own HTTPS
-policy server. Examples: a fine-tuned π0.5-DROID or GR00T N1.7 checkpoint,
-served by the team on the same interface.
+- **Blueprint's DROID Franka:** `openpi_droid_https.v1`, the DROID
+  observation/action interface for a Franka with a Robotiq 2F-85 gripper.
+  Existing supply agreements recorded as
+  `droid_franka_panda_robotiq_2f85_v1` remain valid for that preset.
+- **The team's own robot:** `blueprint_policy_https.v1`, with a complete
+  `blueprint.robot_embodiment.v1` declaration. This can describe fixed arms,
+  bimanual systems, mobile manipulators, wheeled humanoids, legged humanoids,
+  and other forms. The form label is not an exclusion gate.
 
-The simulation evaluates only that arm and gripper. Policies for other arms,
-mobile manipulators, humanoids or AMRs cannot be evaluated today. Say so
-before a team spends time on it.
+The team serves its policy from its own HTTPS policy server. For its own robot,
+it supplies the model URL and digest, base, joints, controls, cameras, and other
+fields required by the declaration. The current schema is
+[`client/src/types/robotEmbodiment.ts`](../../client/src/types/robotEmbodiment.ts),
+and workspace robot settings collect that declaration.
 
-If the supported interface changes, earlier agreements stop counting. The team
-must agree to the new one.
+A recorded agreement proves the team's willingness, not compatibility with
+every job. Before execution, the Pipeline checks the exact model, interface,
+scene, and task and names an incompatibility when it cannot admit the setup.
+Rigid-object pick/place and articulated open/close remain the scored task
+families; a broader robot form does not add a scorer for cloth folding or a
+complete delivery workflow. Check the actual job's published offer and bounds.
+Do not reject a team merely because its robot is mobile, wheeled, or humanoid,
+and do not promise that every model or task can run.
+
+For new agreements, record `interfaceId` explicitly. An own-robot agreement
+also requires `robotEmbodiment`. If the team changes its agreed interface or
+declared robot, record the corresponding new agreement with its evidence;
+do not silently turn an older Franka agreement into one for another robot.
 
 ## What to tell a team
 
@@ -83,9 +101,10 @@ Ask for all three agreements in writing, in the team's own words. A reply to
 this is enough:
 
 > Please confirm, by replying, that your team:
-> 1. will run a policy on a Franka arm with a Robotiq 2F-85 gripper on the
->    DROID observation/action interface, served from your own HTTPS policy
->    server that accepts a bearer token;
+> 1. will serve its policy from its own HTTPS server accepting a bearer token,
+>    using either Blueprint's DROID Franka interface or
+>    `blueprint_policy_https.v1` with its own `blueprint.robot_embodiment.v1`
+>    declaration (name the chosen interface and robot);
 > 2. accepts a free evaluation of that policy, in simulation, on a real site's
 >    job;
 > 3. will take the physical pilot with that site, agreeing dates and terms
@@ -113,7 +132,8 @@ The registry stores, for each agreement:
 - the reference;
 - who recorded it, taken from your signed-in account;
 - when it was recorded;
-- for the interface agreement, the interface ID.
+- for the interface agreement, the explicit interface ID and, for the team's
+  own robot, the complete embodiment declaration.
 
 Every recording and withdrawal is also appended to
 `robotTeams/<team id>/supplyAgreementEvents`, so a corrected entry keeps its
@@ -144,7 +164,7 @@ with the header `x-blueprint-native-client: blueprint-capture`.
 
    {
      "terms": [
-       { "term": "supportedInterface", "agreedOn": "2026-10-20", "evidenceRef": "gmail-thread:<thread id>" },
+       { "term": "supportedInterface", "interfaceId": "openpi_droid_https.v1", "agreedOn": "2026-10-20", "evidenceRef": "gmail-thread:<thread id>" },
        { "term": "freeEvaluation",     "agreedOn": "2026-10-20", "evidenceRef": "gmail-thread:<thread id>" },
        { "term": "pilotIfPassed",      "agreedOn": "2026-10-21", "evidenceRef": "gmail-thread:<thread id>" }
      ],
@@ -152,14 +172,23 @@ with the header `x-blueprint-native-client: blueprint-capture`.
    }
    ```
 
+   This example selects Blueprint's DROID preset. For the team's own robot,
+   set that term's `interfaceId` to `blueprint_policy_https.v1` and include
+   `robotEmbodiment` containing the complete validated declaration; never
+   substitute a preset, a form label, or an empty object. The other two terms
+   are unchanged. The GET response lists the accepted `supportedInterfaces`
+   and shows which interface and robot the recorded agreement covers.
+
    - `evidenceHeld: true` states that you hold the referenced evidence and that
      it says exactly this.
    - If any entry is malformed, nothing is recorded, and the response lists
      what to fix.
    - The response gives `status`, `willingSupply` and `missingAgreements`.
      `engagedNow: true` means this call made the team supply.
-3. **Check it:** `GET /<team id>/supply-agreement` shows each agreement, what is
-   missing and why, and the history.
+3. **Check it:** `GET /<team id>/supply-agreement` shows each agreement, the
+   recorded interface/robot, what is missing and why, and the history. Confirm
+   these match the team's written reply and the robot used in the actual run.
+   A supply agreement alone never proves a simulated pass or physical ability.
 
 ## When a team withdraws
 

@@ -247,7 +247,7 @@ function WorkspaceSettings() {
                 event.preventDefault();
                 const values = new FormData(event.currentTarget),
                   value = (name: string) => String(values.get(name) || "");
-                // A declared arm is evaluated as itself; without one the policy drives the DROID Franka.
+                // A declared robot is evaluated as itself; without one the policy drives the DROID Franka.
                 const manifestField = event.currentTarget.elements.namedItem("robotEmbodiment") as HTMLTextAreaElement | null;
                 let robotEmbodiment: RobotEmbodiment | undefined;
                 if (value("robotEmbodiment").trim()) {

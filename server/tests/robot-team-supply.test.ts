@@ -14,7 +14,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
-import { completeSupplyAgreement, syntheticAgreementEntry } from "./helpers/supply-agreement";
+import { completeSupplyAgreement, syntheticAgreementEntry, syntheticRobotEmbodiment, syntheticSupplyExecutionAdmission } from "./helpers/supply-agreement";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
@@ -33,10 +33,12 @@ const {
   applySupplyAgreementTerms,
   effectiveTeamStatus,
   isWillingSupply,
+  isWillingSupplyForExecution,
   readSupplyAgreement,
   withdrawSupplyAgreement,
-  SUPPORTED_SUPPLY_INTERFACE_ID,
+  LEGACY_DROID_SUPPLY_INTERFACE_ID,
 } = await import("../utils/robotTeamSupply");
+const { TEAM_CANDIDATE_HTTPS_INTERFACE, TEAM_ROBOT_HTTPS_INTERFACE } = await import("../utils/policyIntegration");
 const { getRobotTeam, listMatchableRobotTeams, toMatchCandidate } = await import("../utils/robotTeamRegistry");
 const { matchRobotTeam, summariseMatches } = await import("../../client/src/lib/robotMatch");
 const { runSiteMatch, summariseForStorage } = await import("../utils/siteMatchRun");
@@ -52,7 +54,7 @@ function team(overrides: Partial<RobotTeamRecord> = {}): RobotTeamRecord {
 }
 
 const ALL_TERMS = [
-  { term: "supportedInterface" as const, agreedOn: "2026-10-12", evidenceRef: "gmail-thread:18c2f0a1b2c3d4e5" },
+  { term: "supportedInterface" as const, agreedOn: "2026-10-12", evidenceRef: "gmail-thread:18c2f0a1b2c3d4e5", interfaceId: LEGACY_DROID_SUPPLY_INTERFACE_ID },
   { term: "freeEvaluation" as const, agreedOn: "2026-10-12", evidenceRef: "gmail-thread:18c2f0a1b2c3d4e5" },
   { term: "pilotIfPassed" as const, agreedOn: "2026-10-13", evidenceRef: "signed-note:2026-10-13-team-a" },
 ];
@@ -86,7 +88,7 @@ describe("the supply agreement", () => {
     expect(isWillingSupply(second.record)).toBe(true);
     expect(second.record.supplyAgreement?.terms.supportedInterface).toMatchObject({
       agreedOn: "2026-10-12", evidenceRef: "gmail-thread:18c2f0a1b2c3d4e5", recordedBy: "founder@example.test",
-      recordedAt: NOW, interfaceId: SUPPORTED_SUPPLY_INTERFACE_ID,
+      recordedAt: NOW, interfaceId: LEGACY_DROID_SUPPLY_INTERFACE_ID,
     });
     expect(second.record.supplyAgreement?.terms.pilotIfPassed?.recordedBy).toBe("ops@example.test");
   });
@@ -115,6 +117,43 @@ describe("the supply agreement", () => {
     const record = team({ status: "engaged", supplyAgreement: agreement });
     expect(readSupplyAgreement(record).missing).toEqual(["supportedInterface"]);
     expect(isWillingSupply(record)).toBe(false);
+  });
+
+  it.each(["humanoid", "wheeled_humanoid", "mobile_manipulator"] as const)("records the team's own %s without changing its form or evidence", form => {
+    const robotEmbodiment = syntheticRobotEmbodiment(form);
+    const result = applySupplyAgreementTerms(team(), [{ ...ALL_TERMS[0], interfaceId: TEAM_ROBOT_HTTPS_INTERFACE, robotEmbodiment }, ...ALL_TERMS.slice(1)], "ops@example.test", NOW);
+    if (!result.ok) throw new Error(JSON.stringify(result.errors));
+    expect(result.record.status).toBe("engaged");
+    expect(result.record.supplyAgreement?.terms.supportedInterface).toMatchObject({ interfaceId: TEAM_ROBOT_HTTPS_INTERFACE, robotEmbodiment,
+      evidenceRef: ALL_TERMS[0].evidenceRef, recordedBy: "ops@example.test" });
+    expect(isWillingSupplyForExecution(result.record, syntheticSupplyExecutionAdmission(TEAM_ROBOT_HTTPS_INTERFACE, robotEmbodiment))).toBe(true);
+    expect(isWillingSupplyForExecution(result.record, syntheticSupplyExecutionAdmission())).toBe(false);
+    expect(isWillingSupplyForExecution(result.record, syntheticSupplyExecutionAdmission(TEAM_ROBOT_HTTPS_INTERFACE,
+      { ...robotEmbodiment, model: { ...robotEmbodiment.model, sha256: `sha256:${"8".repeat(64)}` } }))).toBe(false);
+    expect(isWillingSupplyForExecution(result.record, syntheticSupplyExecutionAdmission(TEAM_ROBOT_HTTPS_INTERFACE,
+      { ...robotEmbodiment, control_hz: 60 }))).toBe(false);
+  });
+
+  it("requires an explicit interface and a valid matching own-robot declaration", () => {
+    for (const input of [
+      { ...ALL_TERMS[0], interfaceId: undefined },
+      { ...ALL_TERMS[0], interfaceId: "" },
+      { ...ALL_TERMS[0], interfaceId: TEAM_ROBOT_HTTPS_INTERFACE },
+      { ...ALL_TERMS[0], interfaceId: TEAM_ROBOT_HTTPS_INTERFACE, robotEmbodiment: { form: "humanoid" } as never },
+      { ...ALL_TERMS[0], interfaceId: TEAM_CANDIDATE_HTTPS_INTERFACE, robotEmbodiment: syntheticRobotEmbodiment() },
+    ]) {
+      expect(applySupplyAgreementTerms(team(), [input, ...ALL_TERMS.slice(1)], "ops@example.test", NOW).ok).toBe(false);
+    }
+  });
+
+  it("keeps recorded DROID agreements valid without extending them to another robot or unknown execution", () => {
+    for (const interfaceId of [LEGACY_DROID_SUPPLY_INTERFACE_ID, TEAM_CANDIDATE_HTTPS_INTERFACE]) {
+      const record = team({ status: "engaged", supplyAgreement: completeSupplyAgreement({ interfaceId }) });
+      expect(isWillingSupply(record)).toBe(true);
+      expect(isWillingSupplyForExecution(record, syntheticSupplyExecutionAdmission())).toBe(true);
+      expect(isWillingSupplyForExecution(record, null)).toBe(false);
+      expect(isWillingSupplyForExecution(record, syntheticSupplyExecutionAdmission(TEAM_ROBOT_HTTPS_INTERFACE, syntheticRobotEmbodiment()))).toBe(false);
+    }
   });
 
   it("reads a typed `engaged` with no agreement as what the team really is", () => {
@@ -275,7 +314,41 @@ describe("recording an agreement through the admin route", () => {
     await post("/team-a/supply-agreement", { terms: ALL_TERMS.slice(1, 2), evidenceHeld: true });
     const view = await (await fetch(`${base}/team-a/supply-agreement`, { headers: { "x-fixture-identity": "founder" } })).json();
     expect(view).toMatchObject({ teamId: "team-a", status: "applied", willingSupply: false,
-      missingAgreements: ["supportedInterface", "pilotIfPassed"], supportedInterfaceId: SUPPORTED_SUPPLY_INTERFACE_ID });
+      missingAgreements: ["supportedInterface", "pilotIfPassed"], supportedInterfaceId: null,
+      supportedInterfaces: expect.arrayContaining([expect.objectContaining({ interfaceId: TEAM_ROBOT_HTTPS_INTERFACE, robotEmbodimentRequired: true })]) });
     expect(view.terms.find((row: { term: string }) => row.term === "freeEvaluation").recorded).toMatchObject({ evidenceRef: ALL_TERMS[1].evidenceRef });
+  });
+
+  it("shows incomplete historical agreements with missing terms without failing the operator view", async () => {
+    state.docs.set("robotTeams/team-a", { ...team({ status: "engaged" }), supplyAgreement: { schemaVersion: "robot_team_supply_agreement.v1" } } as never);
+    const response = await fetch(`${base}/team-a/supply-agreement`, { headers: { "x-fixture-identity": "founder" } });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ status: "prospect", willingSupply: false, supportedInterfaceId: null,
+      missingAgreements: ["supportedInterface", "freeEvaluation", "pilotIfPassed"] });
+  });
+
+  it.each(["humanoid", "wheeled_humanoid", "mobile_manipulator"] as const)("records and withdraws a %s agreement through the same protected route", async form => {
+    const robotEmbodiment = syntheticRobotEmbodiment(form);
+    const terms = [{ ...ALL_TERMS[0], interfaceId: TEAM_ROBOT_HTTPS_INTERFACE, robotEmbodiment }, ...ALL_TERMS.slice(1)];
+    expect((await post("/team-a/supply-agreement", { terms, evidenceHeld: true }, "site")).status).toBe(403);
+    const response = await post("/team-a/supply-agreement", { terms, evidenceHeld: true });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ status: "engaged", willingSupply: true });
+    expect(stored().supplyAgreement?.terms.supportedInterface).toMatchObject({ robotEmbodiment, recordedBy: "founder@example.test" });
+    expect((await post("/team-a/supply-agreement/withdraw", { withdrawnOn: "2026-10-14", evidenceRef: "signed-note:withdrawn-own-robot", evidenceHeld: true })).status).toBe(200);
+    expect(isWillingSupply(stored())).toBe(false);
+    expect(stored().supplyAgreement?.history?.[0].terms.supportedInterface?.robotEmbodiment).toEqual(robotEmbodiment);
+  });
+
+  it("rejects missing, malformed and forged own-robot agreement data without writing", async () => {
+    for (const supported of [
+      { ...ALL_TERMS[0], interfaceId: undefined },
+      { ...ALL_TERMS[0], interfaceId: TEAM_ROBOT_HTTPS_INTERFACE },
+      { ...ALL_TERMS[0], interfaceId: TEAM_ROBOT_HTTPS_INTERFACE, robotEmbodiment: { form: "humanoid" } },
+      { ...ALL_TERMS[0], interfaceId: TEAM_ROBOT_HTTPS_INTERFACE, robotEmbodiment: syntheticRobotEmbodiment(), recordedBy: "forged" },
+    ]) {
+      expect((await post("/team-a/supply-agreement", { terms: [supported, ...ALL_TERMS.slice(1)], evidenceHeld: true })).status).toBe(400);
+      expect(stored().supplyAgreement).toBeUndefined();
+    }
   });
 });

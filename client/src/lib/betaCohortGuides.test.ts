@@ -21,6 +21,15 @@ describe("beta cohort guides", () => {
     expect(text).not.toMatch(/\bmatch(?:ed|es|ing)?\b|marketplace|\$\d|payout|entitlement/i);
   });
 
+  it("explains the team's own robot option alongside the DROID default", () => {
+    const firstEvaluation = betaCohortGuides[0].sections.find(section => section.title === "First evaluation")!;
+    const text = firstEvaluation.items.join(" ");
+    expect(text).toMatch(/DROID Franka \(openpi_droid_https\.v1\).*own robot.*blueprint\.robot_embodiment\.v1.*blueprint_policy_https\.v1/);
+    expect(text).toMatch(/Fixed arms, bimanual systems, mobile manipulators, wheeled humanoids and legged humanoids/);
+    expect(text).toMatch(/form alone does not decide admission/);
+    expect(text).toMatch(/checks the model, controls, scene and task before execution/);
+  });
+
   it("covers scope, expectations, degraded states, and escalation for every persona", () => {
     for (const guide of betaCohortGuides) {
       const sectionTitles = guide.sections.map((section) => section.title);

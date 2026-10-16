@@ -5,6 +5,19 @@ public site promises after the founder's 2026-10-13 decision. Read-only audit:
 no deploys, provider calls, sends, payments, or production writes. WebApp
 `main` at `6e49314`; Pipeline `main` at `25946c9`.
 
+> **Embodiment scope superseded, 2026-10-16:** the Franka-only findings and
+> proposed example replacements below describe the October 14 baseline, not
+> current application or illustration policy. Owner direction implemented in
+> [PR #1049](https://github.com/ognjhunt/Blueprint-WebApp/pull/1049) on October 15
+> lets a team declare its own robot of any form using
+> `blueprint.robot_embodiment.v1`; the Pipeline checks its model, interface,
+> scene, and task before execution. This does not prove universal task support
+> or a successful live run. The owner reaffirmed on October 16 that the exact
+> original Warehouse, Laundromat, Factory, and Hotel animations must remain,
+> alongside Café and Lab. Historical findings are retained for traceability;
+> they are not instructions to remove approved embodiments. Use the current
+> [supply runbook](../beta/ROBOT_TEAM_SUPPLY_AGREEMENTS.md) for team admission.
+
 ## Verdict
 
 **The front door is ready. The engine behind it is not, so the beta cannot yet
@@ -146,6 +159,11 @@ describes the paid or matching model.
 
 Product scope is also not stated where people decide to apply.
 
+> **Superseded for embodiment policy:** the examples below do not establish
+> compatibility for every depicted task, but approved illustrations must not be
+> replaced merely because the engineering default is a fixed arm. See the
+> October 16 context note above and PR #1049's own-robot contract.
+
 - `/for-robot-teams` invites any team to "Tell us what your robot can do".
 - The home example card shows a humanoid walking totes, and the other example
   tabs (towel folding, hotel linen carts) are tasks the Pipeline cannot score
@@ -260,6 +278,10 @@ The gaps:
   - Per Pipeline `scene_placement/robot_profile.py` (after `1f91cce`),
     humanoid, mobile and wheeled set-ups are
     `requirements_only_no_registered_adapter_or_asset`.
+    **October 16 update:** that robot-profile finding is historical. PR #1049
+    added declarations for fixed and free bases, position/velocity joints, and
+    other robot forms. Admission still checks the actual setup and the job's
+    scoreable task; accepting a form does not add a task scorer.
 - **Every scene needs people.**
   - A Claude Code cloud session drives each stage through the operator door
     (`docs/runbooks/cloud-scene-runs.md`).
@@ -310,6 +332,9 @@ The gaps:
   - No relationship is implied. That is the right design, but it is not
     supply.
 - **Only one robot can be evaluated.**
+  **Superseded October 15 by PR #1049:** teams can declare their own robot of
+  any form, subject to per-run compatibility checks. The following bullets
+  record the audited October 14 baseline, not a current blanket exclusion.
   - The website runtime supports a Franka arm with a Robotiq 2F-85 on the
     DROID interface.
   - Unitree G1 exists as a development registry for one retained scene
@@ -524,6 +549,12 @@ smallest fix.
 
 ### P1: fix before the first cohort of sites
 
+> **P1-2 embodiment recommendation superseded:** retain the original finding
+> and proposed fix below as audit history. The owner-directed resolution is to
+> preserve approved examples, accept own-robot declarations of any form, and
+> explain concrete task/model/interface incompatibilities. It is not to swap
+> all public examples to fixed arms.
+
 | # | Blocker | Smallest fix |
 |---|---|---|
 | P1-1 | "A simulation built from your site" is today a simulation of the *task object* on an authored surface (L3). | Qualify registration (anchor frame, Marble support), or change the copy to "a simulation of your task, built from your footage". |
@@ -572,6 +603,12 @@ smallest fix.
 - Close or rebase the stale PR backlog in both repos.
 
 ## 4. Decisions only the founder can make
+
+> **D4 resolved by later owner direction:** PR #1049 on October 15 permits a
+> team's own declared robot of any form. October 16 direction preserves the
+> exact original four non-Café/non-Lab animations. The D4 row below records the
+> earlier open question; compatibility and execution evidence remain specific
+> to the model, interface, scene, and task.
 
 | # | Decision | Why it blocks |
 |---|---|---|

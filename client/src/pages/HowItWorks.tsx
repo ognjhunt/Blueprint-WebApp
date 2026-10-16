@@ -14,7 +14,10 @@ export default function HowItWorks() {
         <h1>Start with your task.</h1>
       </header>
       <WarehousePilotSequence />
-      <aside className="ms-how-open" id="job-fit"><h2>Is your job a fit?</h2><p>Start with repeatable parts handling: moving known, rigid objects between trays, fixtures or a conveyor in a fixed work area. Changing layouts, flexible objects or open-ended work need a separate fit check. A description is enough to start.</p></aside>
+      <aside className="ms-how-open" id="job-fit">
+        <h2>Any robot that fits the task can take part.</h2>
+        <p>Fixed arms, humanoids, wheeled humanoids and mobile manipulators are welcome. A team can bring multiple robots, policies or checkpoints. We assess task fit and simulation compatibility for each job. Start with one recurring task at your site. A description is enough to start. We confirm what the evaluation can measure and what the physical pilot needs to test.</p>
+      </aside>
       <div className="ms-how-cta"><a className="ms-button ms-button-large" href="/contact/site-operator">Show us a task <ArrowRight size={20} aria-hidden="true" /></a><a className="ms-text-link" href="/contact/robot-team">Apply for early access <ArrowRight size={20} aria-hidden="true" /></a></div>
     </article>
   </>;

@@ -55,21 +55,20 @@
 // Buyer-facing vocabulary: "candidate", not "checkpoint" (a non-technical
 // buyer reads that as a milestone); "ranking", not "ordering".
 //
-// "Candidate" vs "robot", and where each one belongs. Inside a run the noun is
-// "candidate": a run compares policies or configurations against one site-task
-// and does not pick an embodiment (PLATFORM_CONTEXT.md exact v1 scope: one
-// fixed robot arm, two frozen policy checkpoints or configurations). Every
-// figure, result, ranking, and boundary line below still says "candidate", and
-// that is not negotiable — "we ranked the robots" would describe a service the
-// evidence does not support.
+// "Candidate" names a particular robot configuration and policy evaluated on
+// one site-task. Teams may bring fixed arms, humanoids, wheeled humanoids or
+// mobile manipulators; task fit and simulation compatibility are checked per
+// job. A result applies to the candidates and conditions actually evaluated.
+// An example that holds one robot fixed does not restrict which embodiments
+// another job may admit, or support a ranking of untested configurations.
 //
 // The hero is the one place that says "robots", deliberately. A site lead
 // arriving cold is choosing between robot companies, not between checkpoints,
 // and a headline written in the run's internal vocabulary fails the only job a
 // headline has. The two coexist because they answer different questions:
 // "evaluate robots" is what the business does, "rank candidates" is what a run
-// returns. The moment a *result* is described in the headline's vocabulary,
-// that is the line being crossed.
+// returns. Results must identify the evaluated configurations and evidence;
+// a same-robot comparison cannot establish a ranking across embodiments.
 //
 // On "deploy". The offer is a provider-backed physical pilot, with evaluation
 // used where it improves that offer. What stays false, and is

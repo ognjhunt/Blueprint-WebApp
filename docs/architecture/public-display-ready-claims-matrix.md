@@ -50,12 +50,22 @@ These are allowed on public pages without requiring Operational Launch Ready pro
 
 Public visuals may be polished, premium, and specific to the first PMF wedge. They must still obey the same proof boundary as copy.
 
+**Owner clarification, 2026-10-16:** preserve the approved mix of humanoid,
+wheeled-humanoid, mobile-manipulator, mobile-robot, and fixed-arm examples. A
+fixed-arm engineering priority does not authorize replacing or removing other
+embodiments. The exact original Warehouse, Laundromat, Factory, and Hotel
+animations remain approved alongside Café and Lab. Confirm model, interface,
+scene, and task compatibility for an actual evaluation; an illustrative scene
+does not claim runtime availability or a completed physical trial. The older
+humanoid-readiness wedge does not restrict the current beta's embodiment
+variety.
+
 | Visual Type | Allowed Public Use | Guardrail |
 |---|---|---|
-| Humanoid robot scenes | Default public robot imagery for the first PMF wedge: a humanoid robot evaluating, carrying, picking, inspecting, or routing through an exact indoor site. | Do not imply the pictured robot completed a live trial, passed safety review, ran the buyer's robot policy, or is ranked in generated-world policy evaluation. |
+| Humanoid robot scenes | Approved examples include bipedal and wheeled humanoids performing site-specific work, alongside the other approved robot forms. Preserve the original Warehouse and Laundromat artwork and animations. | Do not imply the pictured robot completed a live trial, passed safety review, ran the buyer's robot policy, or passed an evaluation. Robot form is not an application or admission exclusion. |
 | Illustrative run results | Show decisions, partial decisions, abstentions, claims, envelope, unknowns, and next experiments. | Clearly label illustrative UI; do not use a ranking card that implies proven physical rank fidelity. |
 | Proof boards and card visuals | Show the structure of provenance, rights, route, blocker, annotation, and threshold evidence that Blueprint packages for buyers. | Do not present representative boards as customer outcomes, cleared rights, robot trials, or completed provider runs. |
-| Non-humanoid robot visuals | Use when a page explicitly discusses AMRs, arms, drones, or another robot class. | Do not let generic wheeled robot imagery become the default public robot posture for the humanoid readiness wedge. |
+| Other robot embodiments | Mobile manipulators, mobile robots, and fixed arms may illustrate site-specific tasks. Preserve the original Factory and Hotel artwork and animations, alongside the approved Café and Lab scenes. | Keep the approved mix of embodiments. Fixed-arm engineering priorities do not authorize replacing other forms; illustrations never establish per-job compatibility, a completed evaluation, or physical capability. |
 
 ## Conditional Claims
 

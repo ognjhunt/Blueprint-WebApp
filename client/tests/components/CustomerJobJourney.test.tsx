@@ -7,7 +7,7 @@ import express from "express";
 import nodeFetch from "node-fetch";
 import { createServer } from "node:http";
 import { sharedFakeFirestore as store, sharedFakeFirestoreState as state } from "../../../server/tests/helpers/fake-firestore";
-import { completeSupplyAgreement } from "../../../server/tests/helpers/supply-agreement";
+import { completeSupplyAgreement, syntheticSupplyExecutionAdmission } from "../../../server/tests/helpers/supply-agreement";
 import { TaskBriefReview } from "@/components/site/TaskBriefReview";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { RecommendedPilot } from "@/components/site/RecommendedPilot";
@@ -58,6 +58,7 @@ it("joins the existing job, bounded review, proposal acceptance and evidence-gat
   state.docs.set("evaluationRuns/run_fixture", { runId: "run_fixture", reservationId: "free_fixture", teamId: "fixture-team", checkpointId: "ckpt_fixture",
     sceneId: "req-1", taskFamily: "palletizing", evaluationPurpose: "pilot", quotedUsd: 0, quotedEpisodes: 200, state: "completed", episodesRun: 200,
     moneyResolved: true, requestedAtIso: "2026-10-01T00:00:00.000Z", resolvedAtIso: null, note: null,
+    executionAdmission: syntheticSupplyExecutionAdmission(),
     result: { evidenceScope: "development_only", runId: "run_fixture", teamId: "fixture-team", checkpointId: "ckpt_fixture", sceneId: "req-1",
       // Simulator-scored on the scene's success contract, as only an admitted result can be.
       scoring: { schemaVersion: "blueprint.agent_run_result_scoring.v1", runtime: "team_evaluation_scored",

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer, type Server } from "node:http";
 import { sharedFakeFirestore as store, sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
-import { completeSupplyAgreement } from "./helpers/supply-agreement";
+import { completeSupplyAgreement, syntheticRobotEmbodiment, syntheticSupplyExecutionAdmission } from "./helpers/supply-agreement";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
@@ -40,6 +40,7 @@ function evaluationRun(overrides: Record<string, unknown> = {}, observed: Record
   return { runId, reservationId: `free_${runId}`, teamId, checkpointId: "ckpt_engaged", sceneId, taskFamily: "palletizing",
     evaluationPurpose: "pilot", quotedUsd: 0, quotedEpisodes: 200, state: "completed", episodesRun: 200, moneyResolved: true,
     requestedAtIso: "2026-10-01T00:00:00.000Z", resolvedAtIso: null, note: null,
+    executionAdmission: syntheticSupplyExecutionAdmission(),
     result: { evidenceScope: "development_only", confidencePolicyVersion: "wilson95-success-bands.v2", runId, teamId, checkpointId: "ckpt_engaged", sceneId,
       // What the Pipeline states for a team's scored evaluation (runResultScoring.ts).
       scoring: { schemaVersion: "blueprint.agent_run_result_scoring.v1", runtime: "team_evaluation_scored",
@@ -129,6 +130,51 @@ describe("recording Blueprint's recommended pilot", () => {
     expect((await post({ ...plan, teamId: "engaged" })).status).toBe(200);
     expect(doc().pilot_recommendation).toMatchObject({ teamId: "engaged", teamName: "Acme Robotics" });
     expect([...state.docs.keys()].filter(key => key.startsWith("captureOutbox/req1:pilot_recommended:"))).toHaveLength(1);
+  });
+
+  it.each(["humanoid", "wheeled_humanoid", "mobile_manipulator"] as const)("recommends a passing %s evaluation with the team's agreement to that exact setup", async form => {
+    const robotEmbodiment = syntheticRobotEmbodiment(form);
+    state.docs.set("robotTeams/engaged", { ...state.docs.get("robotTeams/engaged"),
+      supplyAgreement: completeSupplyAgreement({ interfaceId: "blueprint_policy_https.v1", robotEmbodiment }) } as never);
+    state.docs.set("evaluationRuns/run_pass", evaluationRun({ executionAdmission: syntheticSupplyExecutionAdmission("blueprint_policy_https.v1", robotEmbodiment) }) as never);
+    expect((await post(plan)).status).toBe(200);
+    expect(doc().pilot_recommendation).toMatchObject({ teamId: "engaged" });
+  });
+
+  it("refuses using a DROID agreement for an own-robot run, a different declared setup, or missing execution binding", async () => {
+    const robotEmbodiment = syntheticRobotEmbodiment();
+    const ownAdmission = syntheticSupplyExecutionAdmission("blueprint_policy_https.v1", robotEmbodiment);
+    const refused = async (executionAdmission: unknown) => {
+      state.docs.set("evaluationRuns/run_pass", evaluationRun({ executionAdmission }) as never);
+      const response = await post(plan);
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "team_supply_interface_mismatch" });
+      expect(doc().pilot_recommendation).toBeUndefined();
+    };
+    await refused(ownAdmission);
+    await refused(undefined);
+    state.docs.set("robotTeams/engaged", { ...state.docs.get("robotTeams/engaged"),
+      supplyAgreement: completeSupplyAgreement({ interfaceId: "blueprint_policy_https.v1", robotEmbodiment }) } as never);
+    await refused(syntheticSupplyExecutionAdmission());
+    await refused(syntheticSupplyExecutionAdmission("blueprint_policy_https.v1",
+      { ...robotEmbodiment, model: { ...robotEmbodiment.model, sha256: `sha256:${"8".repeat(64)}` } }));
+    const listed = await (await fetch(`${base}/jobs/req1/evaluations`)).json();
+    expect(listed.evaluations[0]).toMatchObject({ recommendable: false, teamRefusal: { code: "team_supply_interface_mismatch" } });
+  });
+
+  it("rechecks the agreement inside the recommendation transaction after a withdrawal", async () => {
+    const runTransaction = store.runTransaction.bind(store);
+    vi.spyOn(store, "runTransaction").mockImplementationOnce(callback => {
+      const withdrawn = withdrawSupplyAgreement(state.docs.get("robotTeams/engaged") as never,
+        { withdrawnOn: "2026-10-14", evidenceRef: "signed-note:withdrawal-during-review" }, "operator", "2026-10-16T00:00:00.000Z");
+      if (!withdrawn.ok) throw new Error(withdrawn.problem);
+      state.docs.set("robotTeams/engaged", withdrawn.record as never);
+      return runTransaction(callback);
+    });
+    const response = await post(plan);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "team_supply_agreement_missing" });
+    expect(doc().pilot_recommendation).toBeUndefined();
   });
 
   it("does not replace a booked pilot", async () => {
@@ -405,7 +451,8 @@ describe("recording Blueprint's recommended pilot", () => {
     // Requested against a 98% target, the run (95%) failed; the site then
     // lowered its target to 90%. The result is not re-judged post hoc.
     const funded = (runId: string) => evaluationRun({ runId,
-      executionAdmission: { digestSha256: "sha256:fixture", envelope: { funding: { workspace_request_id: "eval_req" } } } });
+      executionAdmission: { ...syntheticSupplyExecutionAdmission(), envelope: {
+        ...syntheticSupplyExecutionAdmission().envelope, funding: { workspace_request_id: "eval_req" } } } });
     state.docs.set("evaluationRuns/run_funded", funded("run_funded") as never);
     state.docs.set("inboundRequests/eval_req", { requestId: "eval_req",
       workspace_evaluation: { opportunityId: "req1", targetSnapshot: { successRate: 98, cycleTimeSeconds: null } } } as never);

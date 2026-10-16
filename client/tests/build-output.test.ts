@@ -80,7 +80,8 @@ describe("build output", () => {
   it("ships the warehouse walkthrough assets and retained job-fit content", () => {
     const html = fs.readFileSync(distPath("how-it-works/index.html"), "utf8");
     const manifest = JSON.parse(fs.readFileSync("docs/design/warehouse-pilot-sequence-2026-10-06.json", "utf8"));
-    expect(html).toContain("Is your job a fit?");
+    expect(html).toContain("Any robot that fits the task can take part.");
+    expect(html).toContain("Fixed arms, humanoids, wheeled humanoids and mobile manipulators are welcome.");
     expect(html).not.toContain('id="evaluation-example"');
     expect(html).not.toContain('id="match-package"');
     for (const image of manifest.images) {

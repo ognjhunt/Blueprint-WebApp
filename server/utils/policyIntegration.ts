@@ -51,7 +51,7 @@ export function isTeamEvaluationProfile(profile: unknown): boolean {
 }
 /** A policy for Blueprint's simulated DROID Franka (Robotiq 2F-85), served by the team over HTTPS. */
 export const TEAM_CANDIDATE_HTTPS_INTERFACE = "openpi_droid_https.v1";
-/** A policy for the team's own declared arm and cameras (`robotEmbodiment.ts`), served over HTTPS. */
+/** A policy for the team's own declared robot and cameras (`robotEmbodiment.ts`), served over HTTPS. */
 export const TEAM_ROBOT_HTTPS_INTERFACE = "blueprint_policy_https.v1";
 
 /** Whether a job's published execution offer lists the team evaluation. */
