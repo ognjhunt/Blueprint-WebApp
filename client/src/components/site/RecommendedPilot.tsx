@@ -30,6 +30,8 @@ type EvaluationEvidence = {
   passMarkSuccessRate: number; passMarkSource: "job_terms" | "site_task_brief" | "blueprint_default";
   cycleTimeTargetSeconds: number | null; medianCycleSeconds: number | null; cycleTimeMet: boolean | null;
   evaluatedAtIso: string; evidenceScope: "development_only" | "simulation"; boundary: string; resultUrl: string | null;
+  episodeAccounting?: { planned: number; reported: number; scored: number; succeeded: number; failed: number; void: number };
+  uncertainty?: { method: "wilson_two_sided_95"; lower: number; upper: number; boundary: string };
 };
 
 const BETA_FREE = "Blueprint charges nothing during the beta; the pilot's cost is agreed with the robot team.";
@@ -42,6 +44,9 @@ function EvidenceLine({ teamName, evidence }: { teamName: string; evidence: Eval
     : `your pass mark of ${percent(evidence.passMarkSuccessRate)}`;
   return <>
     <p>{teamName} evaluated your job: {evidence.episodesSucceeded} of {evidence.episodesRun} simulated episodes succeeded ({percent(evidence.successRate)}), meeting {mark}.</p>
+    {evidence.episodeAccounting && <p className="ms-field-hint">{evidence.episodeAccounting.planned} prescribed episodes: {evidence.episodeAccounting.scored} scored ({evidence.episodeAccounting.succeeded} successes, {evidence.episodeAccounting.failed} failures), {evidence.episodeAccounting.void} void and excluded from the success-rate denominator.</p>}
+    {evidence.uncertainty && <p className="ms-field-hint">95% Wilson interval: {percent(evidence.uncertainty.lower)}–{percent(evidence.uncertainty.upper)}. The pass mark uses the observed success rate. {evidence.uncertainty.boundary}</p>}
+    {evidence.cycleTimeTargetSeconds !== null && <p>Measured median cycle: {evidence.medianCycleSeconds}s; target: at most {evidence.cycleTimeTargetSeconds}s.</p>}
     <p className="ms-field-hint">Simulation estimate — the physical pilot measures the real result. It does not certify physical performance or safety.</p>
     {evidence.resultUrl && <p><a className="ms-text-link" href={evidence.resultUrl}>See the evaluation results</a></p>}
   </>;

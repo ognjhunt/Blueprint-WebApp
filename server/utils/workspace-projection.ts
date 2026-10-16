@@ -5,7 +5,7 @@ import type {
   WorkspaceTask,
 } from "../../client/src/types/workspace";
 import { teamJobAccess } from "./teamJobAccess";
-import { isSimulatorScoredJobEvidence, type RunResultScoring } from "./runResultScoring";
+import { hasQualifiedSimulationEvidence, type RunResultScoring } from "./runResultScoring";
 import type { EpisodeOutcome } from "./agentRunResults";
 import { sitePilotIntentFrom, siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 
@@ -64,7 +64,7 @@ export function projectWorkspaceResult(
   id: string,
   run: Record<string, any>,
   taskId: string,
-  terms: TaskTerms,
+  _terms: TaskTerms,
 ): WorkspaceResult {
   const benchmark = object(
     run.benchmark_projection ||
@@ -105,7 +105,8 @@ export function projectWorkspaceResult(
     targetsMet: null,
     selected: false,
   };
-  result.targetsMet = targetsMet(result, terms);
+  // Legacy benchmark metrics have no bound scene-qualification and scored-cell
+  // contract. Retain observations without turning them into a site pass claim.
   return result;
 }
 export function projectWorkspaceTask(
@@ -192,8 +193,11 @@ export interface AgentRunForSite {
   state: string;
   /** Beta L5: marks a team evaluation, from admission on. */
   teamEvaluationPurpose?: "scored";
+  quotedEpisodes?: number;
+  executionCaptureId?: string;
+  executionAdmission?: { envelope: Record<string, unknown> };
   result?: {
-    evidenceScope?: "development_only";
+    evidenceScope?: "development_only" | "simulation";
     /** Who scored the episodes; without an admitted statement, targets are never "met". */
     scoring?: RunResultScoring;
     /** A team evaluation's mark and per-episode outcomes, shown to the team that ran it. */
@@ -235,11 +239,12 @@ export function projectAgentRunResult(
     teamAlias: teamAlias(taskId, run.teamId),
     status,
     successRate:
-      hasSamples && observed!.successRate !== null
-        ? Math.round(observed!.successRate * 10000) / 100
+      hasSamples && Number.isInteger(observed!.episodesSucceeded) && observed!.episodesSucceeded >= 0
+        && observed!.episodesSucceeded <= observed!.episodesRun
+        ? observed!.episodesSucceeded / observed!.episodesRun * 100
         : null,
     cycleTimeSeconds:
-      hasSamples && observed!.medianCycleSeconds !== null && observed!.medianCycleSeconds >= 0
+      hasSamples && observed!.medianCycleSeconds !== null && Number.isFinite(observed!.medianCycleSeconds) && observed!.medianCycleSeconds > 0
         ? observed!.medianCycleSeconds
         : null,
     sampleCount: hasSamples ? observed!.episodesRun : null,
@@ -247,8 +252,8 @@ export function projectAgentRunResult(
     targetsMet: null,
     selected: false,
   };
-  // "Met" is a pass claim: only a simulator-scored result in an admitted runtime can make it.
-  result.targetsMet = run.result?.evidenceScope === "development_only" || !isSimulatorScoredJobEvidence(run.result)
-    ? null : targetsMet(result, terms);
+  // A pass label uses the same scene qualification and complete episode
+  // accounting as registry promotion; diagnostic observations remain visible.
+  result.targetsMet = hasQualifiedSimulationEvidence(run) ? targetsMet(result, terms) : null;
   return result;
 }

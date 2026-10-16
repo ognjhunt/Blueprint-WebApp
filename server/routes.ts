@@ -84,7 +84,7 @@ import voiceRouter, {
   voiceWebhookHandler,
 } from "./routes/voice";
 import verifyFirebaseToken, { optionallyVerifyFirebaseToken } from "./middleware/verifyFirebaseToken";
-import { requireAdminRole } from "./middleware/requireAdminRole";
+import { requireAdminRole, requireExecutionRole } from "./middleware/requireAdminRole";
 import { csrfCookieHandler, csrfProtection } from "./middleware/csrf";
 import { requireAppCheck } from "./middleware/appCheck";
 import marketplaceEntitlementsRouter from "./routes/marketplace-entitlements";
@@ -370,6 +370,9 @@ export function registerRoutes(app: Express) {
     "/api/native-g1-team-campaigns",
     csrfProtection,
     verifyFirebaseToken,
+    // G1 is a bounded operator development lane. A signed-in customer's
+    // cost acknowledgement must never authorize Blueprint provider spend.
+    requireExecutionRole,
     nativeG1TeamCampaignsRouter,
   );
   app.use(

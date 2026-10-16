@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import {
   buildDefaultScanTargets,
   renderClaimsGuardReport,
@@ -11,6 +13,33 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
 
 describe("cross-source claims guard", () => {
+  it("finds unsupported capture derivation in default routes, components and API text even with a physical-proof caveat", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "blueprint-claims-surfaces-"));
+    try {
+      const files = ["server/routes/site-content.ts", "client/src/components/site/Example.tsx", "client/public/agent-access.openapi.json"];
+      for (const file of files) {
+        await mkdir(path.dirname(path.join(root, file)), { recursive: true });
+        await writeFile(path.join(root, file), 'A simulation built from your site; not physical proof.');
+      }
+      const result = await scanClaims({ rootDir: root, writeReports: false });
+      for (const file of files) expect(result.findings).toContainEqual(expect.objectContaining({
+        file, type: "unsupported_capture_derivation_claim",
+      }));
+      await writeFile(path.join(root, files[0]), "A simplified simulation of your task, informed by your footage.");
+      const repaired = await scanClaims({ rootDir: root, targets: [files[0]], writeReports: false });
+      expect(repaired.findings).toEqual([]);
+      await writeFile(path.join(root, files[0]), [
+        'const blockedClaims = ["real-world accuracy"];',
+        'const section = { aliases: ["deployment ready"] };',
+        'logger.info("Hosted session reset runtime inputs resolved");',
+        'const response = "A simulation built from your site; not physical proof.";',
+      ].join("\n"));
+      const mixed = await scanClaims({ rootDir: root, targets: [files[0]], writeReports: false });
+      expect(mixed.findings).toEqual([expect.objectContaining({ line: 4, type: "unsupported_capture_derivation_claim" })]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
   it("blocks the required operational-proof drift negative controls", async () => {
     const result = await scanClaims({
       rootDir: repoRoot,
@@ -118,6 +147,10 @@ describe("cross-source claims guard", () => {
     const targets = buildDefaultScanTargets(repoRoot).map((target) => target.relativePath);
 
     expect(targets).toContain("client/src/pages");
+    for (const surface of ["client/src/components", "client/public/agent-access.openapi.json", "client/public/samples",
+      "server/routes", "server/retrieval", "server/agents", "server/utils/robot-agent-contract.ts"]) {
+      expect(targets).toContain(surface);
+    }
     expect(targets).toContain("AGENTS.md");
     expect(targets).toContain("VISION.md");
     expect(targets).toContain("PLATFORM_CONTEXT.md");

@@ -17,7 +17,8 @@ export type ClaimType =
   | "rights_cleared_claim"
   | "provider_execution_claim"
   | "payment_or_payout_claim"
-  | "support_guarantee_claim";
+  | "support_guarantee_claim"
+  | "unsupported_capture_derivation_claim";
 
 export type ScanTarget = {
   relativePath: string;
@@ -164,6 +165,8 @@ const guardrailPatterns = [
   /\bwithout\b/i,
   /\?\s*$/i,
   /\bnot proof\b/i,
+  /\bnone proves\b/i,
+  /\bmissingEvidence\b/,
   /\bnot a proof\b/i,
   /\bnot enough\b/i,
   /\bnot\b[\s\S]{0,180}\bproof\b/i,
@@ -345,6 +348,15 @@ function hasSim2RealGuaranteeClaim(line: string) {
 }
 
 const rules: ClaimRule[] = [
+  {
+    type: "unsupported_capture_derivation_claim",
+    ownerProofRequired:
+      "Capture-to-scene registration and measured geometry provenance for the exact task; manually authored or synthesized scene content must be disclosed.",
+    safeReplacement:
+      "Use `a simplified simulation of your task, informed by your footage` until the exact scene derivation is established.",
+    matches: (line, context) => !/\/(?:PrivacyPrevious|TermsPrevious)\.tsx$/.test(context.relativeFile)
+      && /\b(?:simulation|scene)\s+built\s+from\s+(?:your\s+(?:site|capture|footage)|the\s+site(?:'s|&rsquo;s)?(?:\s+(?:capture|footage))?)/i.test(line),
+  },
   {
     type: "no_change_churn",
     ownerProofRequired:
@@ -578,6 +590,17 @@ export function buildDefaultScanTargets(rootDir = process.cwd()): ScanTarget[] {
     ["scripts/autonomy/generate-budget-next-goal-queue.ts", "root_doctrine"],
     ["scripts/qa/brand-polish.ts", "root_doctrine"],
     ["client/src/pages", "webapp_pages"],
+    ["client/src/components", "webapp_components"],
+    ["client/src/lib/captureGroundedLanguage.ts", "public_product_copy"],
+    ["client/src/lib/evaluationPricing.ts", "public_product_copy"],
+    ["client/src/lib/betaCohortGuides.ts", "public_product_copy"],
+    ["client/public/agent-access.openapi.json", "public_api_contract"],
+    ["client/public/samples", "public_samples"],
+    ["docs/agent-access/agent-access.openapi.json", "public_api_contract"],
+    ["server/routes", "api_routes"],
+    ["server/retrieval", "retrieval"],
+    ["server/agents", "agent_instructions"],
+    ["server/utils/robot-agent-contract.ts", "public_api_contract"],
     ["../BlueprintCapture/docs/PUBLIC_COPY_TRUTH_INDEX_2026-05-24.md", "capture_public_copy_docs"],
     ["scripts/gtm", "gtm_artifacts"],
     ["ops/paperclip/playbooks", "gtm_artifacts"],
@@ -677,6 +700,9 @@ function scanLine(line: string, context: ScanContext, lineNumber: number): Claim
       return [];
     }
 
+    // A redirect parameter describes navigation, not a successful payment.
+    if (rule.type === "payment_or_payout_claim" && /\bStripe (?:success|cancel) redirect\b/.test(trimmed)) return [];
+
     if (rule.allowed?.(trimmed, context)) {
       return [];
     }
@@ -732,6 +758,8 @@ export async function scanClaims(options: ScanOptions = {}): Promise<ScanResult>
     const text = await fs.readFile(absoluteFile, "utf-8");
     const lines = text.split(/\r?\n/);
     let inMarkdownFence = false;
+    let nonClaimCode: "list" | "log" | null = null;
+    const codeFile = /\.(?:ts|tsx)$/.test(relativeFile);
 
     lines.forEach((line, index) => {
       if (line.trim().startsWith("```")) {
@@ -740,6 +768,18 @@ export async function scanClaims(options: ScanOptions = {}): Promise<ScanResult>
       }
       if (inMarkdownFence) {
         return;
+      }
+      // Search aliases, explicit blocked-claim lists, regex validators and
+      // server logs are code inputs/diagnostics, not product assertions.
+      // Keep response strings and agent instruction text in scope.
+      if (codeFile) {
+        if (/\baliases:\s*\[|\b\w*BlockedClaims\s*=\s*\[/i.test(line)) nonClaimCode = "list";
+        if (/\blogger\.(?:info|debug|warn|error)\(/.test(line)) nonClaimCode = "log";
+        if (nonClaimCode) {
+          if (nonClaimCode === "list" ? /\]/.test(line) : /\);\s*$/.test(line)) nonClaimCode = null;
+          return;
+        }
+        if (/^\s*(?:\/\/|\/\*|\*\/?)|^\s*(?:const|let)\s+\w+\s*=\s*\/.*\/[a-z]*;?\s*$/.test(line)) return;
       }
       findings.push(...scanLine(line, { absoluteFile, relativeFile, sourceGroup }, index + 1));
     });

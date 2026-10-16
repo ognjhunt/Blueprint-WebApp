@@ -28,7 +28,7 @@ vi.mock("../utils/rate-limit-redis",()=>({createRateLimitRedisStore:()=>undefine
 import router from "../routes/internal-checkpoint-policy-credentials";
 import { agentExecutionAdmissionDigest } from "../utils/agentExecutionAdmission";
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
-import { reservationTtlMs } from "../utils/agentRunRecord";
+import { reservationTtlMs, executionTtlMs, executionHeartbeatTtlMs } from "../utils/agentRunRecord";
 import { createHash } from "node:crypto";
 
 const now=Date.parse("2026-09-30T07:00:00Z");
@@ -44,8 +44,8 @@ beforeEach(async()=>{
     execution_authorization:{authorized_by_user_id:"synthetic-owner"},policy_package:{policy_api_endpoint:{endpoint_url:"https://policy.example.test",credential_ref:credentialRef,credential_kind:"bearer"}}};
   fixture.records.set(`checkpointPolicyCredentials/${credentialRef}`,{credential_ref:credentialRef,team_id:"synthetic-team",checkpoint_id:"synthetic-checkpoint",owner_uid:"synthetic-owner",kind:"bearer",reference:"https://policy.example.test",revoked:false,expires_at_iso:new Date(now+86_400_000).toISOString()});
   fixture.records.set("robotCheckpoints/synthetic-checkpoint",{teamId:"synthetic-team",reference:"https://policy.example.test",policyCredential:{ref:credentialRef},status:"active"});
-  fixture.records.set("evaluationRuns/synthetic-run",{teamId:"synthetic-team",checkpointId:"synthetic-checkpoint",state:"requested",moneyResolved:false,cancellationRequested:false,
-    dispatch:{pipelineRunId:"claiming-worker-run"},requestedAtIso:new Date(now-1000).toISOString(),settlementDueAtMs:now+reservationTtlMs(),executionAdmission:{envelope:{canonical_execution_request:canonical}}});
+  fixture.records.set("evaluationRuns/synthetic-run",{runId:"synthetic-run",teamId:"synthetic-team",checkpointId:"synthetic-checkpoint",state:"requested",moneyResolved:false,cancellationRequested:false,
+    dispatch:{pipelineRunId:"claiming-worker-run",startedAtIso:new Date(now-1000).toISOString(),executionDeadlineAtMs:now+executionTtlMs()},requestedAtIso:new Date(now-1000).toISOString(),settlementDueAtMs:now+reservationTtlMs(),executionAdmission:{envelope:{canonical_execution_request:canonical}}});
   body={action:"access",job_id:canonical.job_id,canonical_request_digest:agentExecutionAdmissionDigest(canonical),pipeline_run_id:"claiming-worker-run"};
   const app=express();app.use(express.json());app.use(router);
   server=await new Promise<Server>(resolve=>{const value=app.listen(0,"127.0.0.1",()=>resolve(value));});
@@ -61,10 +61,11 @@ describe("signed checkpoint credential delivery",()=>{
   it.each(["access","registry_lease","bind_admission"])("requires an explicit claiming pipeline run ID before %s decryption",async action=>{expect((await request({action,pipeline_run_id:undefined})).status).toBe(400);expect(fixture.decrypt).not.toHaveBeenCalled();});
   it.each(["access","registry_lease","bind_admission"])("refuses a different worker run before %s even with a valid shared signature",async action=>{expect((await request({action,pipeline_run_id:"different-worker-run"})).status).toBe(409);expect(fixture.decrypt).not.toHaveBeenCalled();});
   it("delivers only to the matching active claimed run",async()=>{const response=await request();expect(response.status).toBe(200);expect((await response.json()).ok).toBe(true);expect(fixture.decrypt).toHaveBeenCalledOnce();});
-  it("honors the dispatch-extended settlement deadline after the original deadline",async()=>{const run=fixture.records.get("evaluationRuns/synthetic-run")!;run.requestedAtIso=new Date(now-reservationTtlMs()-1000).toISOString();expect((await request()).status).toBe(200);});
-  it.each([now,now-1,Number.NaN])("refuses expired or invalid stored settlement deadline %s",async due=>{fixture.records.get("evaluationRuns/synthetic-run")!.settlementDueAtMs=due;expect((await request()).status).toBe(409);expect(fixture.decrypt).not.toHaveBeenCalled();});
-  it("falls back to the original deadline for legacy records without settlementDueAtMs",async()=>{delete fixture.records.get("evaluationRuns/synthetic-run")!.settlementDueAtMs;expect((await request()).status).toBe(200);});
-  it("never uses a legacy fallback to revive an expired legacy run",async()=>{const run=fixture.records.get("evaluationRuns/synthetic-run")!;delete run.settlementDueAtMs;run.requestedAtIso=new Date(now-reservationTtlMs()).toISOString();expect((await request()).status).toBe(409);expect(fixture.decrypt).not.toHaveBeenCalled();});
+  it("honors a healthy execution deadline after the queue reservation expired",async()=>{const run=fixture.records.get("evaluationRuns/synthetic-run")!;run.requestedAtIso=new Date(now-reservationTtlMs()-1000).toISOString();run.dispatch.startedAtIso=run.requestedAtIso;run.settlementDueAtMs=now-1;expect((await request()).status).toBe(200);});
+  it.each([now,now-1,Number.NaN])("refuses expired or invalid execution deadline %s",async due=>{fixture.records.get("evaluationRuns/synthetic-run")!.dispatch.executionDeadlineAtMs=due;expect((await request()).status).toBe(409);expect(fixture.decrypt).not.toHaveBeenCalled();});
+  it("uses a bounded execution deadline for legacy claimed records",async()=>{const run=fixture.records.get("evaluationRuns/synthetic-run")!;delete run.settlementDueAtMs;delete run.dispatch.executionDeadlineAtMs;expect((await request()).status).toBe(200);});
+  it("never uses a legacy fallback to revive an expired legacy worker",async()=>{const run=fixture.records.get("evaluationRuns/synthetic-run")!;delete run.settlementDueAtMs;delete run.dispatch.executionDeadlineAtMs;run.dispatch.startedAtIso=new Date(now-executionTtlMs()).toISOString();expect((await request()).status).toBe(409);expect(fixture.decrypt).not.toHaveBeenCalled();});
+  it("refuses an unstarted or stale-heartbeat worker before decryption",async()=>{const run=fixture.records.get("evaluationRuns/synthetic-run")!;delete run.dispatch.startedAtIso;expect((await request()).status).toBe(409);run.dispatch.startedAtIso=new Date(now-1000).toISOString();run.dispatch.lastHeartbeatAtIso=new Date(now-executionHeartbeatTtlMs()).toISOString();expect((await request()).status).toBe(409);expect(fixture.decrypt).not.toHaveBeenCalled();});
 });
 describe("a team evaluation's single-use bearer lease",()=>{
   // The Pipeline's bearer_lease_id: "policy-access-" plus the first 32 hex digits of
@@ -103,6 +104,18 @@ describe("a team evaluation's single-use bearer lease",()=>{
     fixture.records.get(`checkpointPolicyCredentials/${credentialRef}`)!.expires_at_iso=new Date(now).toISOString();
     expect((await release()).status).toBe(409);
     expect(fixture.records.has(`checkpointPolicyBearerLeases/${leaseId}`)).toBe(false);
+  });
+  it.each(["cancel", "revoke", "retire"])("rechecks live authority after decryption races with %s", async change => {
+    fixture.decrypt.mockImplementationOnce(async () => {
+      if (change === "cancel") fixture.records.get("evaluationRuns/synthetic-run")!.cancellationRequested = true;
+      if (change === "revoke") fixture.records.get(`checkpointPolicyCredentials/${credentialRef}`)!.revoked = true;
+      if (change === "retire") fixture.records.get("robotCheckpoints/synthetic-checkpoint")!.status = "retired";
+      return { kind: "bearer", token: "synthetic-test-only" };
+    });
+    const response = await release();
+    expect(response.status).toBe(409);
+    expect(fixture.records.has(`checkpointPolicyBearerLeases/${leaseId}`)).toBe(false);
+    expect(JSON.stringify(await response.json())).not.toContain("synthetic-test-only");
   });
   it("never returns a team evaluation's token through access",async()=>{
     const response=await request();

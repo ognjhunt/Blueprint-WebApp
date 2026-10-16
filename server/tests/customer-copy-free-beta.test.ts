@@ -3,8 +3,8 @@
  * The messages a site or a robot team actually receives say what the free beta is.
  *
  * Founder decision 2026-10-13: the beta is free for sites and robot teams. A
- * site shows one recurring job, invited robot teams evaluate it in a simulation
- * built from the site's capture, Blueprint recommends one team whose evaluation
+ * site shows one recurring job, invited robot teams evaluate it in a simplified
+ * simulation informed by the site's footage, Blueprint recommends one team whose evaluation
  * passed, and the site books that pilot in one step. No fees, balances,
  * top-ups, checkout, quotes or announced pricing, and no "match" wording.
  *
@@ -189,7 +189,8 @@ describe("site screening emails", () => {
   it("states the free evaluated recommendation and its bound in the qualified reply", () => {
     for (const nextStep of NEXT_STEPS) {
       const { body } = buildQualifiedEmail({ firstName: "Dana", nextStep });
-      expect(body).toMatch(/invited evaluate your job in a simulation/);
+      expect(body).toMatch(/a simplified simulation of your task, informed by your footage/);
+      expect(body).toMatch(/invited evaluate your job in that simulation/);
       expect(body).toMatch(/recommend that one team/);
       expect(body).toMatch(/If no team passes, we tell you that plainly/);
       expect(body).toMatch(/free during the beta/);

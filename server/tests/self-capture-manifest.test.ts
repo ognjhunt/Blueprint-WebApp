@@ -43,6 +43,11 @@ function manifest() {
 }
 
 describe("a browser capture produces a bundle the extractor will actually process", () => {
+  it("leaves collection-time retention unresolved rather than applying a seven-year minimum", () => {
+    expect(manifest().retention).toMatchObject({ policy_id: "website_capture_retention_review.v1",
+      first_received_at_iso: null, collection_policy_version: null,
+      extension_authorized: false, minimum_retention_floor_days_if_delete_is_ever_introduced: null });
+  });
   it("carries the owner's task and confirmation without inventing confirmation", () => {
     const built = buildBrowserCaptureManifest({
       payload: { sceneId: "site-req-1", captureId: "walkthrough-req-1", requestId: "req-1" },

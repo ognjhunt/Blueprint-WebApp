@@ -43,7 +43,7 @@ import { resultNotificationIntent, reconcileAgentRunResultNotifications } from "
  * gain a claim the evidence does not support.
  */
 
-import { isSiteEvaluation } from "./agentRunRecord";
+import { isSiteEvaluation, runExecutionDueAtMs } from "./agentRunRecord";
 import { isDeepStrictEqual } from "node:util";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
@@ -58,9 +58,13 @@ import { settlementAmountUsd } from "./agentEvalRuns";
 import { recordEvaluationOutcome } from "./robotTeamRegistry";
 import type { EvalRunRecord } from "./agentEvalRuns";
 import type { ControlledNativePrivateResult } from "./controlledNativeResult";
-import { isSimulatorScoredJobEvidence, type RunResultScoring } from "./runResultScoring";
+import { hasQualifiedSimulationEvidence, type RunResultScoring } from "./runResultScoring";
 
 const RUNS_COLLECTION = "evaluationRuns";
+
+export class RunResultInactiveError extends Error {
+  constructor() { super("The execution is no longer active; the late receipt is retained as diagnostic evidence only"); }
+}
 
 /** What the Pipeline observed. Numbers, not claims. */
 export interface RunOutcomeReport {
@@ -92,7 +96,7 @@ export interface EpisodeOutcome {
 
 /** What we store and hand back, observation and claim kept apart. */
 export interface EvalRunResult {
-  evidenceScope?: "development_only";
+  evidenceScope?: "development_only" | "simulation";
   confidencePolicyVersion?: string;
   confidenceAnnotation?: string;
   privateExecutionResult?: ControlledNativePrivateResult;
@@ -178,7 +182,10 @@ export async function recordRunResult(params: {
       : null;
 
   const result: EvalRunResult = {
-    ...(run.executionAdmission?.envelope.evidence_scope === "development_only" ? { evidenceScope: "development_only" as const } : {}),
+    ...(run.executionAdmission?.envelope.evidence_scope === "development_only"
+      ? { evidenceScope: "development_only" as const }
+      : params.report.scoring?.siteTaskQualification?.evidenceScope === "simulation"
+        ? { evidenceScope: "simulation" as const } : {}),
     confidencePolicyVersion: CONFIDENCE_POLICY_VERSION,
     runId: run.runId,
     teamId: run.teamId,
@@ -207,7 +214,7 @@ export async function recordRunResult(params: {
     reportedAtIso: new Date().toISOString(),
   };
 
-  await db.runTransaction(async transaction => {
+  const accepted = await db.runTransaction(async transaction => {
     const current = await transaction.get(ref);
     const prior = current.data()?.result as EvalRunResult | undefined;
     if (prior) {
@@ -219,10 +226,23 @@ export async function recordRunResult(params: {
       if (!current.data()?.result_notification_intent) transaction.set(ref, {
         result_notification_intent: resultNotificationIntent(run, prior), result_notification_pending: true,
       }, { merge: true });
-      return;
+      return true;
+    }
+    const currentRun = current.data() as EvalRunRecord | undefined;
+    if (!currentRun || currentRun.cancellationRequested || currentRun.state === "abandoned"
+      || currentRun.state === "blocked"
+      || (currentRun.state === "requested" && runExecutionDueAtMs(currentRun) <= Date.now())) {
+      // Do not promote or notify on late evidence, but preserve the first
+      // receipt for diagnosis instead of losing its executed-episode counts.
+      if (currentRun && !current.data()?.lateDiagnosticResult) transaction.set(ref, {
+        lateDiagnosticResult: result, lateDiagnosticReason: "execution_inactive",
+      }, { merge: true });
+      return false;
     }
     transaction.set(ref, { result, result_notification_intent: resultNotificationIntent(run, result), result_notification_pending: true, resultReportedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    return true;
   });
+  if (!accepted) throw new RunResultInactiveError();
 
   // Only a signed Pipeline result with an executed native episode proves that
   // the submitted policy can run. A failed task score still proves execution.
@@ -257,7 +277,7 @@ export async function recordRunResult(params: {
   // A measured grade is written only from successes the simulator scored
   // against the job's success contract; a team-reported or unverified count
   // is stored on the result and never promoted into the registry.
-  if (isSiteEvaluation(run) && result.evidenceScope !== "development_only" && isSimulatorScoredJobEvidence(result)) {
+  if (isSiteEvaluation(run) && hasQualifiedSimulationEvidence({ ...run, result })) {
     try {
       await recordEvaluationOutcome({
         robotTeamId: run.teamId,

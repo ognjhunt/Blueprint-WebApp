@@ -18,7 +18,7 @@ describe("privacy policy content", () => {
       expect.arrayContaining([
         expect.objectContaining({
           record: "Site footage and capture data",
-          defaultWindow: "No automatic deletion. Kept for at least 7 years unless deleted on request",
+          defaultWindow: "Existing recordings keep their original retention terms; longer retention requires separate authorization",
         }),
         expect.objectContaining({
           record: "Temporary processing files",

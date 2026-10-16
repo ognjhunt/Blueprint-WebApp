@@ -13,7 +13,7 @@ import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
 import { agentExecutionAdmissionDigest } from "../utils/agentExecutionAdmission";
-import { reservationTtlMs, type EvalRunRecord } from "../utils/agentRunRecord";
+import { runExecutionDueAtMs, type EvalRunRecord } from "../utils/agentRunRecord";
 import { normalizeCompanyPolicyContainerContract } from "../utils/companyPolicyContainerContract";
 import { createRegistryCredentialLease, registryCredentialLeaseId, publicRegistryCredentialLease,
   type StoredRegistryCredentialLease } from "../utils/companyPolicyRegistryCredentialLease";
@@ -53,9 +53,10 @@ router.post("/checkpoint-policy-credentials/:credentialRef", createPipelineSyncR
     const runs = await db.collection("evaluationRuns")
       .where("executionAdmission.envelope.canonical_execution_request.job_id", "==", data.job_id).get();
     const active = runs.docs.map((doc) => doc.data() as EvalRunRecord & { settlementDueAtMs?: number }).filter((run) => {
-      const due = run.settlementDueAtMs ?? Date.parse(run.requestedAtIso) + reservationTtlMs();
+      const due = runExecutionDueAtMs(run);
       return (
       run.state === "requested" && !run.moneyResolved && !run.cancellationRequested
+      && Boolean(run.dispatch?.startedAtIso)
       && run.dispatch?.pipelineRunId === data.pipeline_run_id
       && Number.isFinite(due) && due > Date.now());
     });
@@ -85,13 +86,31 @@ router.post("/checkpoint-policy-credentials/:credentialRef", createPipelineSyncR
       if (record.revoked || !(credentialExpiresAtMs > Date.now())) return res.status(409).json({ code: "policy_credential_expired_or_revoked" });
       const lease = { lease_id: leaseId, single_use: true, status: "released", release_count: 1,
         credential_ref: credentialRef, job_id: data.job_id, pipeline_run_id: data.pipeline_run_id };
-      const settlementDueAtMs = run.settlementDueAtMs ?? Date.parse(run.requestedAtIso) + reservationTtlMs();
+      // A bearer lease remains job-bound through the immutable execution
+      // deadline; worker liveness renewals must not truncate the credential.
+      const settlementDueAtMs = run.dispatch?.executionDeadlineAtMs ?? runExecutionDueAtMs(run);
       // Decrypted before the lease is spent, so a failed unwrap leaves it available to retry.
       const credential = await decryptCheckpointPolicyCredential(record);
       if (credential.kind !== "bearer") return res.status(409).json({ code: "policy_credential_lease_invalid" });
       const leaseRef = db.collection(BEARER_LEASE_COLLECTION).doc(leaseId);
       const released = await db.runTransaction(async (transaction) => {
-        if ((await transaction.get(leaseRef)).exists) return false;
+        const [priorLease, currentRunSnapshot, currentCredentialSnapshot, currentCheckpointSnapshot] = await Promise.all([
+          transaction.get(leaseRef),
+          transaction.get(db!.collection("evaluationRuns").doc(run.runId)),
+          transaction.get(db!.collection(POLICY_CREDENTIAL_COLLECTION).doc(credentialRef)),
+          transaction.get(db!.collection("robotCheckpoints").doc(record.checkpoint_id)),
+        ]);
+        const currentRun = currentRunSnapshot.data() as EvalRunRecord | undefined;
+        const currentCredential = currentCredentialSnapshot.data() as PolicyCredentialRecord | undefined;
+        const currentCheckpoint = currentCheckpointSnapshot.data();
+        if (priorLease.exists || !currentRun || !currentCredential
+          || currentRun.state !== "requested" || currentRun.moneyResolved || currentRun.cancellationRequested
+          || currentRun.dispatch?.pipelineRunId !== data.pipeline_run_id || runExecutionDueAtMs(currentRun) <= Date.now()
+          || agentExecutionAdmissionDigest(currentRun.executionAdmission?.envelope) !== agentExecutionAdmissionDigest(run.executionAdmission?.envelope)
+          || currentCredential.revoked || Date.parse(currentCredential.expires_at_iso) <= Date.now()
+          || agentExecutionAdmissionDigest(currentCredential) !== agentExecutionAdmissionDigest(record)
+          || currentCheckpoint?.status === "retired" || currentCheckpoint?.policyCredential?.ref !== credentialRef
+          || currentCheckpoint?.teamId !== record.team_id || currentCheckpoint?.reference !== record.reference) return false;
         transaction.create(leaseRef, { ...lease, canonical_request_digest: data.canonical_request_digest,
           released_at_iso: new Date().toISOString(),
           expires_at_iso: new Date(Math.min(settlementDueAtMs, credentialExpiresAtMs)).toISOString() });

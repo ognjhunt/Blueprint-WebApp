@@ -104,7 +104,7 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
         {item.opportunity === "open" && currentUser && !access?.staff && <TeamJobResponse jobId={item.id} user={currentUser} />}
       </li>)}</ul>
     </>}
-    <p className="ms-field-hint">Invited evaluations are free within the approved scope and share results with the site.</p>
+    <p className="ms-field-hint">Approved beta evaluations are free and share results with the site.</p>
     <p className="ms-field-hint">{!inWorkspace && <><a href="/agent-access.openapi.json">Agent API (OpenAPI spec, JSON)</a> · </>}<a href="mailto:hello@tryblueprint.io">Talk to a person</a></p>
   </section>;
 }

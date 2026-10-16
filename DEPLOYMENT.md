@@ -17,11 +17,11 @@ Release gate:
 npm run alpha:check
 ```
 
-Launch preflight:
-
-```bash
-npm run alpha:preflight
-```
+Production promotion uses the exact-SHA green `CI` gate in
+`.github/workflows/deploy.yml`, followed by the deployed version and readiness
+readbacks. `alpha:preflight` describes the retired autonomous paid alpha; it
+requires Stripe and old automation flags and is not a free-beta release gate.
+Do not enable billing or retired lifecycle/outreach workers to satisfy it.
 
 Live alpha smoke:
 
@@ -596,7 +596,12 @@ Important:
 
 ### Autonomous Alpha Automation
 
-These should be enabled for the no-human-in-the-loop alpha configuration:
+Historical alpha controls below are reference names, not instructions to enable
+them for the free beta. Enable only the worker lanes required by the current
+beta journey and approved runtime configuration. The retired buyer lifecycle
+and lifecycle cadence must stay disabled: their historical commercial messages
+do not describe the free beta. Current job updates use
+`taskLifecycleNotifications.ts` and its durable outbox.
 
 - `BLUEPRINT_WAITLIST_AUTOMATION_ENABLED=1`
 - `BLUEPRINT_INBOUND_AUTOMATION_ENABLED=1`
@@ -606,8 +611,8 @@ These should be enabled for the no-human-in-the-loop alpha configuration:
 - `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED=1`
 - `BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED=1`
 - `BLUEPRINT_CREATIVE_FACTORY_ENABLED=1`
-- `BLUEPRINT_BUYER_LIFECYCLE_ENABLED=1`
-- `BLUEPRINT_LIFECYCLE_CADENCE_ENABLED=1`
+- `BLUEPRINT_BUYER_LIFECYCLE_ENABLED=0` (retired)
+- `BLUEPRINT_LIFECYCLE_CADENCE_ENABLED=0` (retired)
 
 Beta cohort controls are enforced on capturer beta waitlist intake, native
 capture registration (and its preflight), robot-eval buyer intake, and live
@@ -708,7 +713,7 @@ replace that inbox or the approved Gmail human-reply watcher.
 - The voice concierge now supports both web voice and Twilio-compatible PSTN intake. Pricing, legal, privacy, rights, contract, and irreversible commitments remain human-gated, and phone handoff can forward to a live operator when configured.
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.
 - `client/public/robots.txt` must exist at build time and be served in production.
-- `npm run alpha:preflight` is the launch-environment validator for Render and should pass before promoting the service.
+- `npm run alpha:preflight` is historical paid-alpha tooling, not the free-beta Render promotion gate. Use the exact-SHA CI/deploy workflow and its live version/readiness checks; preserve existing automation holds.
 - `npm run smoke:launch` is the live alpha smoke runner for `/health`, `/health/ready`, the selected structured automation provider, inbound qualification, and post-signup workflows.
 
 ### Saved robot setup readback

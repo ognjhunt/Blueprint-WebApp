@@ -33,7 +33,7 @@ export default function About() {
         <h1>We start with one real job.</h1>
         <p className="ms-about-lead">
           Blueprint helps a business show one recurring job. Invited robot teams evaluate it in a
-          simulation built from the site, and we recommend one team whose evaluation passed. The
+          simplified simulation of the task, informed by site footage, and we recommend one team whose evaluation passed. The
           beta is free for sites and robot teams.
         </p>
 
@@ -41,7 +41,7 @@ export default function About() {
           <h2>How it works</h2>
           <ol>
             <li>A site shows us a real job: anyone can start one, and we also onboard sites by hand.</li>
-            <li>Robot teams we have invited evaluate it free, in a simulation built from the site&rsquo;s capture.</li>
+            <li>Robot teams we have invited evaluate it free, in a simplified simulation of the task, informed by the site&rsquo;s footage.</li>
             <li>We recommend one team whose evaluation passed. The site books it in one step and agrees the physical pilot&rsquo;s dates and terms with the team directly.</li>
           </ol>
           <p><a href="/how-it-works">More on how it works</a> · <a href="/beta">Beta program</a></p>

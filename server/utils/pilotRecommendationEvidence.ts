@@ -40,23 +40,25 @@
  * The comparison is the observed success rate against the mark, the same
  * comparison the site's workspace shows, so the site never sees "passed" next
  * to a number its own page calls a miss. The Wilson band is stored beside it
- * as the confidence context. A job cycle-time target, when one exists and the
- * run measured a median, must also be met; an unmeasured cycle time is stored
- * as `cycleTimeMet: null`, never as a pass.
+ * as confidence context, not a second pass threshold. A job cycle-time target
+ * requires a measured median at or below that target. Missing is unknown and
+ * prevents a recommendation.
  *
  * ## What the evidence is not
  *
- * Every run is a simulation. Beta results are `development_only`; they are
- * the beta's evaluation and a recommendation may rest on them, but the scope
- * is carried into the recommendation and the boundary sentence travels with
- * it: a simulation estimate does not certify physical performance or safety,
- * and the physical pilot measures the real result.
+ * Every run is a simulation. Development-only runs demonstrate engine operation
+ * and cannot back a site recommendation. A qualified simulation must retain
+ * the Pipeline's registration and fidelity receipts for the exact capture and
+ * scene revision. Even that qualification does not certify physical performance
+ * or safety; the physical pilot measures the real result.
  */
 import { humanDecisionDigest } from "./human-reply-admission";
 import { isSiteEvaluation, type EvalRunRecord } from "./agentRunRecord";
 import type { EvalRunResult } from "./agentRunResults";
-import { CONFIDENCE_POLICY_VERSION, SUCCESS_RATE_BAND_CLAIM, successRateBand } from "./successRateConfidence";
-import { scoringRefusal, type ScoringRefusal } from "./runResultScoring";
+import { CONFIDENCE_POLICY_VERSION, SUCCESS_RATE_BAND_CLAIM, successRateBand, wilsonLowerBound, wilsonUpperBound } from "./successRateConfidence";
+import { boundSiteTaskQualification, episodeAccountingFor, MINIMUM_SCORED_EVIDENCE_EPISODES, scoringRefusal, SITE_TASK_SIMULATION_CLAIM_CEILING,
+  type EpisodeAccounting, type ScoringRefusal, type SiteTaskQualification } from "./runResultScoring";
+export { episodeAccountingFor, type EpisodeAccounting } from "./runResultScoring";
 
 /** The lowest success rate the confidence policy states as a band. */
 export const DEFAULT_PASS_MARK_SUCCESS_RATE = SUCCESS_RATE_BAND_CLAIM.ninety;
@@ -65,7 +67,7 @@ export const DEFAULT_PASS_MARK_SUCCESS_RATE = SUCCESS_RATE_BAND_CLAIM.ninety;
  * simulator, not the policy, failed) and go uncounted. Fewer counted episodes
  * than this cannot tell a 90% policy from a 75% one.
  */
-export const MINIMUM_EVIDENCE_EPISODES = 190;
+export const MINIMUM_EVIDENCE_EPISODES = MINIMUM_SCORED_EVIDENCE_EPISODES;
 
 export const SIMULATION_EVIDENCE_BOUNDARY =
   "Simulation estimate. It does not certify physical performance or safety; the physical pilot measures the real result.";
@@ -83,12 +85,23 @@ export interface PassMark {
 
 export type EvidenceScope = "development_only" | "simulation";
 
+export interface SuccessRateUncertainty {
+  method: "wilson_two_sided_95";
+  lower: number;
+  upper: number;
+  boundary: string;
+}
+
+export const SUCCESS_RATE_UNCERTAINTY_BOUNDARY =
+  "95% Wilson interval assuming independent episodes in this tested scene; it does not account for correlated episodes or establish performance at other sites.";
+
 /** Who scored the evidence, frozen with it. */
 export interface EvidenceScoring {
   runtime: string;
   successSource: string;
   successContractDigest: string;
   robotFreeProbeReceiptDigest: string;
+  sceneRevisionDigest?: string;
   /** Carried unchanged; an admitted result is never upgraded past it. */
   claimCeiling: string;
 }
@@ -111,12 +124,16 @@ export interface PilotRecommendationEvidence {
   confidenceBand: string | null;
   confidencePolicyVersion: string;
   passMark: PassMark;
-  /** Null when the job set no cycle-time target or the run measured none. */
+  /** Null only when the job set no cycle-time target on qualified evidence. */
   cycleTimeMet: boolean | null;
   passed: true;
   evaluatedAtIso: string;
   evidenceScope: EvidenceScope;
   scoring: EvidenceScoring;
+  qualification?: SiteTaskQualification;
+  episodeAccounting?: EpisodeAccounting;
+  uncertainty?: SuccessRateUncertainty;
+  passRule?: "observed_success_rate.v1";
   boundary: string;
   /**
    * The task kind the simulation scored (the Pipeline's team-evaluation
@@ -136,6 +153,10 @@ export type EvidenceRefusal =
   | "evaluation_too_few_episodes"
   | "evaluation_below_pass_mark"
   | "evaluation_cycle_time_missed"
+  | "evaluation_cycle_time_missing"
+  | "evaluation_development_only"
+  | "evaluation_scene_not_qualified"
+  | "evaluation_episode_accounting_invalid"
   | "evaluation_criteria_changed";
 
 export const EVIDENCE_REFUSAL_MESSAGES: Record<EvidenceRefusal, string> = {
@@ -148,6 +169,10 @@ export const EVIDENCE_REFUSAL_MESSAGES: Record<EvidenceRefusal, string> = {
   evaluation_too_few_episodes: `That evaluation ran fewer than ${MINIMUM_EVIDENCE_EPISODES} episodes, which is too few to recommend on.`,
   evaluation_below_pass_mark: "That evaluation did not meet this job's pass mark. Recommend only a team whose evaluation passed.",
   evaluation_cycle_time_missed: "That evaluation's measured cycle time is slower than this job's target.",
+  evaluation_cycle_time_missing: "This job has a cycle-time target, but the evaluation did not measure a valid cycle time. Measure it in an evaluation against the frozen target before recommending.",
+  evaluation_development_only: "This is development-only evidence. It can demonstrate engine operation but cannot back a qualified recommendation for the site.",
+  evaluation_scene_not_qualified: "This evaluation has no valid registration and fidelity qualification bound to its exact capture and scene revision. Complete scene qualification before recommending.",
+  evaluation_episode_accounting_invalid: "The evaluation must report every prescribed hidden episode exactly once, with successes, failures and voids matching its scored denominator. Retain a complete result before recommending.",
   evaluation_criteria_changed: "The site changed this job's success-rate or cycle-time target after this evaluation was requested. Its result cannot be judged against a target set afterwards; evaluate again against the current target.",
 };
 
@@ -178,6 +203,20 @@ export function passMarkForJob(
 }
 
 export type RunWithResult = EvalRunRecord & { result?: EvalRunResult | null };
+
+export function sceneQualificationFor(run: RunWithResult): SiteTaskQualification | null {
+  return boundSiteTaskQualification(run.result, run.executionCaptureId);
+}
+
+function developmentOnly(run: RunWithResult): boolean {
+  return run.result?.evidenceScope === "development_only"
+    || run.executionAdmission?.envelope.evidence_scope === "development_only";
+}
+
+function uncertaintyFor(succeeded: number, scored: number): SuccessRateUncertainty {
+  return { method: "wilson_two_sided_95", lower: wilsonLowerBound(succeeded, scored), upper: wilsonUpperBound(succeeded, scored),
+    boundary: SUCCESS_RATE_UNCERTAINTY_BOUNDARY };
+}
 
 /** The site job request that funded a run, when its admission recorded one. */
 export function fundingRequestIdFor(run: RunWithResult | null | undefined): string | null {
@@ -232,6 +271,8 @@ export interface EvaluationReading {
   passed: boolean | null;
   /** Null when the simulator scored the result in an admitted runtime. */
   scoringRefusal: ScoringRefusal | null;
+  episodeAccounting: EpisodeAccounting | null;
+  uncertainty: SuccessRateUncertainty | null;
   /** Empty when the run can back a recommendation (team eligibility aside). */
   refusals: EvidenceRefusal[];
 }
@@ -245,6 +286,9 @@ export interface EvaluationReading {
 export function notCountedReason(run: {
   teamEvaluationPurpose?: string;
   result?: Parameters<typeof scoringRefusal>[0];
+  executionAdmission?: { envelope: Record<string, unknown> };
+  executionCaptureId?: string;
+  quotedEpisodes?: number;
 }): string | null {
   if (run.teamEvaluationPurpose !== "scored")
     return "It is not a team evaluation. Only a team evaluation of the job, 200 hidden episodes scored by Blueprint's simulator, can back a recommendation.";
@@ -252,6 +296,10 @@ export function notCountedReason(run: {
   const counted = run.result?.observed?.episodesRun ?? 0;
   if (counted < MINIMUM_EVIDENCE_EPISODES)
     return `Only ${counted} of its episodes were counted; a recommendation needs at least ${MINIMUM_EVIDENCE_EPISODES}.`;
+  const candidate = run as RunWithResult;
+  if (developmentOnly(candidate)) return EVIDENCE_REFUSAL_MESSAGES.evaluation_development_only;
+  if (!sceneQualificationFor(candidate)) return EVIDENCE_REFUSAL_MESSAGES.evaluation_scene_not_qualified;
+  if (!episodeAccountingFor(candidate)) return EVIDENCE_REFUSAL_MESSAGES.evaluation_episode_accounting_invalid;
   return null;
 }
 
@@ -279,14 +327,17 @@ export function readEvaluation(
     const rate = observed!.episodesSucceeded / episodesRun;
     const meetsRate = rate >= passMark.successRate;
     const median = observed!.medianCycleSeconds;
-    // Null means no target or no measurement: never a pass, never a miss.
-    cycleTimeMet = passMark.cycleTimeSeconds !== null && typeof median === "number" && Number.isFinite(median) && median >= 0
+    cycleTimeMet = passMark.cycleTimeSeconds !== null && typeof median === "number" && Number.isFinite(median) && median > 0
       ? median <= passMark.cycleTimeSeconds
       : null;
     if (episodesRun < passMark.minimumEpisodes) refusals.push("evaluation_too_few_episodes");
     if (!meetsRate) refusals.push("evaluation_below_pass_mark");
     if (cycleTimeMet === false) refusals.push("evaluation_cycle_time_missed");
-    passed = unscored === null && episodesRun >= passMark.minimumEpisodes && meetsRate && cycleTimeMet !== false;
+    if (passMark.cycleTimeSeconds !== null && cycleTimeMet === null) refusals.push("evaluation_cycle_time_missing");
+    if (developmentOnly(run)) refusals.push("evaluation_development_only");
+    else if (!sceneQualificationFor(run)) refusals.push("evaluation_scene_not_qualified");
+    if (!episodeAccountingFor(run)) refusals.push("evaluation_episode_accounting_invalid");
+    passed = refusals.length === 0;
   }
   return {
     runId: run.runId,
@@ -299,13 +350,15 @@ export function readEvaluation(
     evaluatedAtIso: result?.reportedAtIso ?? null,
     episodesRun: observed?.episodesRun ?? null,
     episodesSucceeded: observed?.episodesSucceeded ?? null,
-    successRate: observed?.successRate ?? null,
+    successRate: observed && observed.episodesRun > 0 ? observed.episodesSucceeded / observed.episodesRun : null,
     medianCycleSeconds: observed?.medianCycleSeconds ?? null,
     confidenceBand: observed ? successRateBand(observed.episodesSucceeded, observed.episodesRun) : null,
-    evidenceScope: result ? (result.evidenceScope === "development_only" ? "development_only" : "simulation") : null,
+    evidenceScope: result ? (developmentOnly(run) ? "development_only" : sceneQualificationFor(run) ? "simulation" : null) : null,
     cycleTimeMet,
     passed,
     scoringRefusal: unscored,
+    episodeAccounting: episodeAccountingFor(run),
+    uncertainty: observed && observed.episodesRun > 0 ? uncertaintyFor(observed.episodesSucceeded, observed.episodesRun) : null,
     refusals,
   };
 }
@@ -345,7 +398,7 @@ export function verifyRecommendationEvidence(params: {
       sceneId: run.sceneId,
       episodesRun: result.observed.episodesRun,
       episodesSucceeded: result.observed.episodesSucceeded,
-      successRate: result.observed.successRate ?? result.observed.episodesSucceeded / result.observed.episodesRun,
+      successRate: result.observed.episodesSucceeded / result.observed.episodesRun,
       medianCycleSeconds: result.observed.medianCycleSeconds ?? null,
       confidenceBand: reading.confidenceBand,
       confidencePolicyVersion: CONFIDENCE_POLICY_VERSION,
@@ -354,12 +407,17 @@ export function verifyRecommendationEvidence(params: {
       passed: true,
       evaluatedAtIso: result.reportedAtIso,
       evidenceScope: reading.evidenceScope!,
+      qualification: sceneQualificationFor(run)!,
+      episodeAccounting: reading.episodeAccounting!,
+      uncertainty: reading.uncertainty!,
+      passRule: "observed_success_rate.v1",
       // Admitted above, so every field is present (`scoringRefusal`).
       scoring: {
         runtime: result.scoring!.runtime,
         successSource: result.scoring!.successSource,
         successContractDigest: result.scoring!.successContractDigest!,
         robotFreeProbeReceiptDigest: result.scoring!.robotFreeProbeReceiptDigest!,
+        sceneRevisionDigest: result.scoring!.sceneRevisionDigest!,
         claimCeiling: result.scoring!.claimCeiling,
       },
       boundary: SIMULATION_EVIDENCE_BOUNDARY,
@@ -391,16 +449,40 @@ export function evidenceCapabilityBasis(evidence: PilotRecommendationEvidence): 
     + `against a pass mark of ${percent(evidence.passMark.successRate)}. ${SIMULATION_EVIDENCE_BOUNDARY}`;
 }
 
+/** Historical snapshots stay on file, but cannot inherit today's eligibility.
+ * Qualified snapshots include the immutable scene receipts and full denominator.
+ */
+export function isQualifiedRecommendationEvidence(evidence: PilotRecommendationEvidence | null | undefined): evidence is PilotRecommendationEvidence {
+  if (!evidence || evidence.schemaVersion !== "pilot_recommendation_evidence.v1"
+    || evidence.evidenceScope !== "simulation" || evidence.passRule !== "observed_success_rate.v1") return false;
+  const qualification = evidence.qualification;
+  const digest = /^sha256:[a-f0-9]{64}$/;
+  if (!qualification || evidence.scoring?.claimCeiling !== SITE_TASK_SIMULATION_CLAIM_CEILING
+    || qualification.evidenceScope !== "simulation" || !qualification.captureId?.trim()
+    || qualification.sceneRevisionDigest !== evidence.scoring?.sceneRevisionDigest
+    || [qualification.sceneRevisionDigest, qualification.registrationReceiptDigest, qualification.fidelityReviewReceiptDigest]
+      .some(value => typeof value !== "string" || !digest.test(value))) return false;
+  const counts = evidence.episodeAccounting;
+  if (!counts || Object.values(counts).some(value => !Number.isInteger(value) || value < 0)
+    || counts.planned !== 200 || counts.reported !== counts.planned || counts.scored < MINIMUM_EVIDENCE_EPISODES
+    || counts.scored + counts.void !== counts.reported || counts.succeeded + counts.failed !== counts.scored
+    || counts.scored !== evidence.episodesRun || counts.succeeded !== evidence.episodesSucceeded) return false;
+  return counts.succeeded / counts.scored >= evidence.passMark.successRate
+    && (evidence.passMark.cycleTimeSeconds === null || (typeof evidence.medianCycleSeconds === "number"
+      && Number.isFinite(evidence.medianCycleSeconds) && evidence.medianCycleSeconds > 0
+      && evidence.medianCycleSeconds <= evidence.passMark.cycleTimeSeconds && evidence.cycleTimeMet === true));
+}
+
 /** What the site is shown of the evidence. No checkpoint, no run internals. */
 export function projectEvidenceForSite(
   evidence: PilotRecommendationEvidence | null | undefined,
   options: { resultUrl: string | null },
 ) {
-  if (!evidence || evidence.schemaVersion !== "pilot_recommendation_evidence.v1") return null;
+  if (!isQualifiedRecommendationEvidence(evidence)) return null;
   return {
     episodesRun: evidence.episodesRun,
     episodesSucceeded: evidence.episodesSucceeded,
-    successRate: evidence.successRate,
+    successRate: evidence.episodesSucceeded / evidence.episodesRun,
     passMarkSuccessRate: evidence.passMark.successRate,
     passMarkSource: evidence.passMark.source,
     cycleTimeTargetSeconds: evidence.passMark.cycleTimeSeconds,
@@ -410,6 +492,9 @@ export function projectEvidenceForSite(
     evaluatedAtIso: evidence.evaluatedAtIso,
     evidenceScope: evidence.evidenceScope,
     boundary: evidence.boundary,
+    episodeAccounting: evidence.episodeAccounting!,
+    uncertainty: uncertaintyFor(evidence.episodesSucceeded, evidence.episodesRun),
+    passRule: evidence.passRule!,
     resultUrl: options.resultUrl,
   };
 }

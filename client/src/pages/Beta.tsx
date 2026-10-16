@@ -21,7 +21,7 @@ export default function Beta() {
         </section>
         <section>
           <h2>What do I receive?</h2>
-          <p>Invited robot teams evaluate your task in a simulation built from your capture. We recommend one team whose evaluation passed, with what the pilot tests, what you provide and when, and you book it in one step. You do not compare teams.</p>
+          <p>Invited robot teams evaluate your task in a simplified simulation of your task, informed by your footage. We recommend one team whose evaluation passed, with what the pilot tests, what you provide and when, and you book it in one step. You do not compare teams.</p>
           <p style={{ marginTop: "1em" }}>If no team has passed yet, we tell you so and what would change that.</p>
           <p style={{ marginTop: "1em" }}>We email you when something happens on your job: when robot teams can evaluate it, when one starts, when results are in, and when every evaluation so far has finished without a pass. Between those, your job page shows what it is waiting on.</p>
         </section>

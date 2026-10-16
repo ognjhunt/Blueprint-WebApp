@@ -7,6 +7,8 @@ const { sanitizeTaskThumbnail } = await import("../utils/taskThumbnail");
 import { createServer, type Server } from "node:http";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import type { InboundRequest } from "../types/inbound-request";
+import { syntheticQualifiedRun } from "./helpers/recommendation-evidence";
+import { completeSupplyAgreement } from "./helpers/supply-agreement";
 const sendEmail = vi.hoisted(() => vi.fn());
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -20,6 +22,7 @@ const { isRunnableTask } = await import("../utils/teamEvalCandidates");
 const { ensureTaskStatusUpdate, TASK_STATUS_UPDATES } = await import("../utils/taskStatusUpdates");
 const { deliverOutbox } = await import("../utils/captureOutbox");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
+const { verifyRecommendationEvidence, passMarkForJob } = await import("../utils/pilotRecommendationEvidence");
 const router = (await import("../routes/task-listings")).default;
 const publicRouter = (await import("../routes/site-worlds")).default;
 const thumbnail = () => PNG.sync.write({ width: 24, height: 15, data: Buffer.alloc(24 * 15 * 4, 160) }).toString("base64");
@@ -145,6 +148,13 @@ describe("owner authorization and durable demand", () => {
     expect((await book({ recommendationId: "rec_1", authorized: true })).status).toBe(404);
     state.docs.set("inboundRequests/req1", { ...doc(), pilot_recommendation: { id: "rec_1", teamName: "Acme Robotics" } } as never);
     expect((await book({ recommendationId: "rec_0", authorized: true })).status).toBe(409);
+    const run = syntheticQualifiedRun();
+    const verified = verifyRecommendationEvidence({ run, requestId: "req1", passMark: passMarkForJob({}, null) });
+    if (!verified.ok) throw new Error("Synthetic qualified fixture did not qualify");
+    state.docs.set(`evaluationRuns/${run.runId}`, run as never);
+    state.docs.set(`robotTeams/${run.teamId}`, { id: run.teamId, name: "Acme Robotics", status: "engaged", supplyAgreement: completeSupplyAgreement() });
+    state.docs.set("inboundRequests/req1", { ...doc(), pilot_recommendation: { id: "rec_1", teamName: "Acme Robotics",
+      teamId: run.teamId, evaluationRunId: run.runId, evidence: verified.evidence } } as never);
     expect((await book({ recommendationId: "rec_1", authorized: true })).status).toBe(200);
     expect(doc().pilot_booking).toMatchObject({ recommendationId: "rec_1", amountUsd: 0, termsVersion: TERMS_VERSION, state: "awaiting_coordination", commercialBasis: "invited_beta_free" });
   });

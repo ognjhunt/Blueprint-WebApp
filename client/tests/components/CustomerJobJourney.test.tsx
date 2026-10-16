@@ -8,6 +8,7 @@ import nodeFetch from "node-fetch";
 import { createServer } from "node:http";
 import { sharedFakeFirestore as store, sharedFakeFirestoreState as state } from "../../../server/tests/helpers/fake-firestore";
 import { completeSupplyAgreement, syntheticSupplyExecutionAdmission } from "../../../server/tests/helpers/supply-agreement";
+import { syntheticQualifiedRun } from "../../../server/tests/helpers/recommendation-evidence";
 import { TaskBriefReview } from "@/components/site/TaskBriefReview";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { RecommendedPilot } from "@/components/site/RecommendedPilot";
@@ -54,20 +55,12 @@ it("joins the existing job, bounded review, proposal acceptance and evidence-gat
   // Engaged only with its recorded supply agreement; the status word alone is not supply.
   state.docs.set("robotTeams/fixture-team", { id: "fixture-team", name: "Fixture admitted team", status: "engaged", contactEmail: "team@example.test",
     supplyAgreement: completeSupplyAgreement() });
-  // The recommendation must stand on a passing evaluation of this job (simulated, development-only).
-  state.docs.set("evaluationRuns/run_fixture", { runId: "run_fixture", reservationId: "free_fixture", teamId: "fixture-team", checkpointId: "ckpt_fixture",
-    sceneId: "req-1", taskFamily: "palletizing", evaluationPurpose: "pilot", quotedUsd: 0, quotedEpisodes: 200, state: "completed", episodesRun: 200,
-    moneyResolved: true, requestedAtIso: "2026-10-01T00:00:00.000Z", resolvedAtIso: null, note: null,
+  // Synthetic qualified simulation evidence only: it is never physical proof.
+  const qualified = syntheticQualifiedRun("req-1", "run_fixture");
+  state.docs.set("evaluationRuns/run_fixture", { ...qualified, teamId: "fixture-team", checkpointId: "ckpt_fixture",
     executionAdmission: syntheticSupplyExecutionAdmission(),
-    result: { evidenceScope: "development_only", runId: "run_fixture", teamId: "fixture-team", checkpointId: "ckpt_fixture", sceneId: "req-1",
-      // Simulator-scored on the scene's success contract, as only an admitted result can be.
-      scoring: { schemaVersion: "blueprint.agent_run_result_scoring.v1", runtime: "team_evaluation_scored",
-        successSource: "simulator_scored", scoredEpisodeCount: 200, successContractDigest: `sha256:${"1".repeat(64)}`,
-        sceneRevisionDigest: `sha256:${"2".repeat(64)}`, robotFreeProbeReceiptDigest: `sha256:${"3".repeat(64)}`,
-        teamCandidateAdmissionDigest: `sha256:${"4".repeat(64)}`, sessionResultDigest: `sha256:${"5".repeat(64)}`,
-        claimCeiling: "diagnostic_policy_execution" },
-      observed: { episodesRun: 200, episodesSucceeded: 190, successRate: 0.95, medianCycleSeconds: 12 }, claimed: { demonstratedSuccessRate: null, cycleTime: "under_30s" },
-      note: null, artifactUri: null, reportedAtIso: "2026-10-02T00:00:00.000Z" } });
+    result: { ...qualified.result!, teamId: "fixture-team", checkpointId: "ckpt_fixture",
+      observed: { ...qualified.result!.observed, medianCycleSeconds: 12 } } });
   state.docs.set(`robotTeamAccess/${accessRecordId("team@example.test")}`, { status: "approved", company: "Fixture admitted team" });
   const initial = draftBrief({ requestId: "req-1", summary: "Move cartons onto a pallet", captureMode: "self_capture", proposed: [
     { fieldId: "sceneStability", value: "stable", basis: "observation", reading: "Station position in this clip only", atSeconds: 2, confidence: 0.9 },

@@ -29,6 +29,7 @@ import type { CaptureSupplementBinding } from "./captureUploadToken";
 
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { websiteCaptureRetention } from "./websiteCaptureRetention";
 
 export const SITE_CAPTURE_BUNDLE_PLAN_SCHEMA = "site_capture_bundle_plan.v1";
 export const SITE_CAPTURE_BINDING_SCHEMA = "site_capture_binding.v1";
@@ -742,6 +743,7 @@ export function composeServerFiles(input: CompletionInput) {
     rights_profile: rightsProfileFor(rights),
     requested_outputs: [...binding.requested_outputs],
     capture_rights: captureRights,
+    retention: websiteCaptureRetention(plan.created_at_iso),
     site_task_context: siteTaskContext,
     site_self_capture: siteSelfCapture,
     evidence_tier: evidenceTier,
@@ -798,7 +800,7 @@ export function composeServerFiles(input: CompletionInput) {
     consent_scope: rights.consent_scope,
     consent_notes: [],
     redaction_required: true,
-    retention_policy: "standard_blueprint_site_capture",
+    retention_policy: "website_capture_retention_review.v1",
     privacy_processing: {
       redaction_required: true,
       privacy_security_limits: [],
@@ -815,16 +817,7 @@ export function composeServerFiles(input: CompletionInput) {
       provider_authorization_status: "separate_downstream_gate_required",
       capture_manifest_cannot_authorize_provider: true,
     },
-    retention: {
-      policy_id: "blueprint_raw_capture_lifecycle_2026-07-09",
-      policy_reference: "BlueprintCapture docs/STORAGE_RETENTION_POLICY_2026-07-09.md",
-      review_window_days: 30,
-      archive_after_days: 365,
-      routine_delete_rule_present: false,
-      minimum_retention_floor_days_if_delete_is_ever_introduced: 2555,
-      raw_truth_preserved: true,
-      live_enforcement_proven_by_bundle: false,
-    },
+    retention: websiteCaptureRetention(plan.created_at_iso),
     revocation: {
       status_at_capture: rights.consent_revoked ? "revoked" : "no_revocation_record_at_capture",
       revocation_requested_at: null,

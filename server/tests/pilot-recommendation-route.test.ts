@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer, type Server } from "node:http";
 import { sharedFakeFirestore as store, sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
+import { syntheticSiteTaskQualification, syntheticEpisodeOutcomes } from "./helpers/recommendation-evidence";
 import { completeSupplyAgreement, syntheticRobotEmbodiment, syntheticSupplyExecutionAdmission } from "./helpers/supply-agreement";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
@@ -32,7 +33,7 @@ const plan = {
   purpose: "Test carton palletizing at line 3", siteProvides: "One escort", teamProvides: "Robot and operation",
   pilotCost: "$18,000", window: "November",
 };
-/** A completed, passing development-only evaluation of req1 by the engaged team. */
+/** A completed, passing qualified simulation evaluation of req1 by the engaged team. */
 function evaluationRun(overrides: Record<string, unknown> = {}, observed: Record<string, unknown> = {}) {
   const runId = String(overrides.runId ?? "run_pass");
   const teamId = String(overrides.teamId ?? "engaged");
@@ -40,14 +41,14 @@ function evaluationRun(overrides: Record<string, unknown> = {}, observed: Record
   return { runId, reservationId: `free_${runId}`, teamId, checkpointId: "ckpt_engaged", sceneId, taskFamily: "palletizing",
     evaluationPurpose: "pilot", quotedUsd: 0, quotedEpisodes: 200, state: "completed", episodesRun: 200, moneyResolved: true,
     requestedAtIso: "2026-10-01T00:00:00.000Z", resolvedAtIso: null, note: null,
-    executionAdmission: syntheticSupplyExecutionAdmission(),
-    result: { evidenceScope: "development_only", confidencePolicyVersion: "wilson95-success-bands.v2", runId, teamId, checkpointId: "ckpt_engaged", sceneId,
+    executionAdmission: syntheticSupplyExecutionAdmission(), executionCaptureId: "walkthrough-req1",
+    result: { evidenceScope: "simulation", episodeOutcomes: syntheticEpisodeOutcomes(Number(observed.episodesRun ?? 200), Number(observed.episodesSucceeded ?? 190)), confidencePolicyVersion: "wilson95-success-bands.v2", runId, teamId, checkpointId: "ckpt_engaged", sceneId,
       // What the Pipeline states for a team's scored evaluation (runResultScoring.ts).
       scoring: { schemaVersion: "blueprint.agent_run_result_scoring.v1", runtime: "team_evaluation_scored",
         successSource: "simulator_scored", scoredEpisodeCount: Number(observed.episodesRun ?? 200),
         successContractDigest: `sha256:${"1".repeat(64)}`, sceneRevisionDigest: `sha256:${"2".repeat(64)}`,
         robotFreeProbeReceiptDigest: `sha256:${"3".repeat(64)}`, teamCandidateAdmissionDigest: `sha256:${"4".repeat(64)}`,
-        sessionResultDigest: `sha256:${"5".repeat(64)}`, claimCeiling: "diagnostic_policy_execution" },
+        sessionResultDigest: `sha256:${"5".repeat(64)}`, claimCeiling: "site_task_simulation", siteTaskQualification: syntheticSiteTaskQualification("walkthrough-req1") },
       observed: { episodesRun: 200, episodesSucceeded: 190, successRate: 0.95, medianCycleSeconds: 12, ...observed },
       claimed: { demonstratedSuccessRate: null, cycleTime: "under_30s" }, note: null, artifactUri: null, reportedAtIso: "2026-10-02T00:00:00.000Z" },
     ...overrides };
@@ -540,16 +541,16 @@ describe("recording Blueprint's recommended pilot", () => {
     expect(listed.evaluations[0]).toMatchObject({ passed: true, recommendable: false, teamRefusal: { code: "team_supply_agreement_missing" } });
   });
 
-  it("carries the development-only evidence snapshot and the simulation boundary", async () => {
+  it("carries the qualified simulation evidence snapshot and the simulation boundary", async () => {
     const response = await post(plan);
     expect(response.status).toBe(200);
     const saved = doc().pilot_recommendation as unknown as Record<string, any>;
-    expect(saved).toMatchObject({ teamId: "engaged", evaluationRunId: "run_pass", evidenceScope: "development_only" });
+    expect(saved).toMatchObject({ teamId: "engaged", evaluationRunId: "run_pass", evidenceScope: "simulation" });
     expect(saved.evidence).toMatchObject({
       schemaVersion: "pilot_recommendation_evidence.v1", runId: "run_pass", teamId: "engaged", checkpointId: "ckpt_engaged",
       episodesRun: 200, episodesSucceeded: 190, successRate: 0.95, confidenceBand: "ninety",
       passMark: { successRate: 0.9, source: "blueprint_default", minimumEpisodes: 190, cycleTimeSeconds: null },
-      passed: true, evaluatedAtIso: "2026-10-02T00:00:00.000Z", evidenceScope: "development_only",
+      passed: true, evaluatedAtIso: "2026-10-02T00:00:00.000Z", evidenceScope: "simulation",
     });
     expect(saved.evidence.resultId).toMatch(/^[a-f0-9]{64}$/);
     expect(saved.evidence.boundary).toMatch(/does not certify physical performance or safety/);
@@ -558,11 +559,52 @@ describe("recording Blueprint's recommended pilot", () => {
     const token = createCaptureUploadToken({ requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", scope: "owner" });
     const owner = await (await fetch(`${base}/owner/${token}`)).json();
     expect(owner.recommendation.evidence).toMatchObject({ episodesRun: 200, episodesSucceeded: 190, passMarkSuccessRate: 0.9,
-      evidenceScope: "development_only", resultUrl: null });
+      evidenceScope: "simulation", resultUrl: null });
     expect(JSON.stringify(owner.recommendation)).not.toMatch(/ckpt_engaged|run_pass|registryTeamIds/);
     state.docs.set("inboundRequests/req1", { ...doc(), account_owner_uid: "site_uid" } as never);
     const claimed = await (await fetch(`${base}/owner/${token}`)).json();
     expect(claimed.recommendation.evidence.resultUrl).toBe("/app/tasks/req1");
+  });
+
+  it("refuses development or unqualified scenes and missing required cycle time before writing any recommendation", async () => {
+    const original = evaluationRun() as Record<string, any>;
+    for (const [candidate, code] of [
+      [{ ...original, result: { ...original.result, evidenceScope: "development_only" } }, "evaluation_development_only"],
+      [{ ...original, executionCaptureId: "another-capture" }, "evaluation_scene_not_qualified"],
+    ] as const) {
+      state.docs.set("evaluationRuns/run_pass", candidate as never);
+      const response = await post(plan);
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code });
+      expect(doc().pilot_recommendation).toBeUndefined();
+    }
+    state.docs.set("inboundRequests/req1", { ...doc(), workspace_task: { terms: { cycleTimeSeconds: 30 } } } as never);
+    state.docs.set("evaluationRuns/run_pass", evaluationRun({}, { medianCycleSeconds: null }) as never);
+    const response = await post(plan);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "evaluation_cycle_time_missing" });
+    expect(doc().pilot_recommendation).toBeUndefined();
+    expect(siteSends()).toHaveLength(0);
+  });
+
+  it("blocks a new booking on a historical development snapshot and rechecks the qualified run", async () => {
+    expect((await post(plan)).status).toBe(200);
+    const record = state.docs.get("inboundRequests/req1") as Record<string, any>;
+    const recommendation = record.pilot_recommendation;
+    const token = createCaptureUploadToken({ requestId: "req1", sceneId: "site-req1", captureId: "walkthrough-req1", scope: "owner" });
+    const book = () => fetch(`${base}/owner/${token}/book`, { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ recommendationId: recommendation.id, authorized: true }) });
+    state.docs.set("inboundRequests/req1", { ...record, pilot_recommendation: { ...recommendation,
+      evidence: { ...recommendation.evidence, evidenceScope: "development_only" } } });
+    const refused = await book();
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toMatchObject({ code: "recommendation_evidence_ineligible" });
+    const visible = await (await fetch(`${base}/owner/${token}`)).json();
+    expect(visible.recommendation).toMatchObject({ reviewRequired: true, evidence: null });
+    state.docs.set("inboundRequests/req1", record);
+    state.docs.set("evaluationRuns/run_pass", evaluationRun({}, { medianCycleSeconds: 90 }) as never);
+    expect((await book()).status).toBe(409);
+    expect(state.docs.get("inboundRequests/req1")?.pilot_booking).toBeUndefined();
   });
 
   it("freezes the task the simulation scored and shows it to the site, never a guess", async () => {
@@ -590,7 +632,7 @@ describe("recording Blueprint's recommended pilot", () => {
     expect(listed).toMatchObject({ ok: true, requestId: "req1", passMark: { successRate: 0.9, source: "blueprint_default" }, currentRecommendation: null });
     expect(listed.evaluations.map((row: { runId: string }) => row.runId)).toEqual(["run_pass", "run_fail"]);
     expect(listed.evaluations[0]).toMatchObject({ teamId: "engaged", teamName: "Acme Robotics", recommendedTeamId: "engaged",
-      passed: true, recommendable: true, refusals: [], episodesRun: 200, episodesSucceeded: 190, evidenceScope: "development_only" });
+      passed: true, recommendable: true, refusals: [], episodesRun: 200, episodesSucceeded: 190, evidenceScope: "simulation" });
     expect(listed.evaluations[1]).toMatchObject({ passed: false, recommendable: false, refusals: [{ code: "evaluation_below_pass_mark" }] });
     // The same passing numbers, decided by the team's own HTTP responses, are listed and refused.
     const teamReported = evaluationRun({ runId: "run_team_reported" }) as Record<string, any>;

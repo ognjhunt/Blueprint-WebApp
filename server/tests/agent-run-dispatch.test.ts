@@ -7,7 +7,7 @@
  * and is not released as abandoned while it executes, and a scene can count
  * who is being screened against it and the best result so far.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Exercise retained pre-beta ledger/lifecycle behavior; free-beta-guards tests
 // the real release gate independently. This override is test-only.
 vi.mock("../utils/freeBeta", async importOriginal => ({
@@ -45,7 +45,11 @@ const {
   loadSceneScreening,
   reservationTtlMs,
   claimRunCancellation,
+  heartbeatRun,
+  reconcileAgentRunSettlements,
+  reportRunOutcome,
 } = await import("../utils/agentEvalRuns");
+const { executionTtlMs, executionHeartbeatTtlMs } = await import("../utils/agentRunRecord");
 
 async function queue(params: { reservationId: string; teamId: string; sceneId: string }, shared = true) {
   const run = await createRequestedRun({
@@ -69,6 +73,7 @@ function stored(runId: string) {
 beforeEach(() => {
   sharedFakeFirestoreState.docs.clear();
 });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); });
 
 describe("listing queued runs for the Pipeline", () => {
   it("lists requested runs and nothing that already concluded", async () => {
@@ -98,7 +103,7 @@ it("partitions the pending queue before limiting it and excludes expired holds",
 });
 
 describe("marking a run started", () => {
-  it("records the dispatch and pushes the settlement due time out by one TTL from now", async () => {
+  it("records the dispatch with a separate bounded execution deadline", async () => {
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", {
       contact: { email: "owner@example.com" },
     });
@@ -117,7 +122,7 @@ describe("marking a run started", () => {
     const after = stored(run.runId);
     expect((after.dispatch as { pipelineRunId: string }).pipelineRunId).toBe("pipe-77");
     expect(typeof (after.dispatch as { startedAtIso: string }).startedAtIso).toBe("string");
-    expect(Number(after.settlementDueAtMs)).toBeGreaterThanOrEqual(Date.now() + reservationTtlMs() - 5_000);
+    expect(Number(after.settlementDueAtMs)).toBeGreaterThanOrEqual(Date.now() + executionTtlMs() - 5_000);
     expect(after.state).toBe("requested");
     // One email per run: each team picking the task up is its own event.
     const notices = [...sharedFakeFirestoreState.docs.entries()]
@@ -139,6 +144,79 @@ describe("marking a run started", () => {
 
   it("refuses a run it holds no record of", async () => {
     expect(await markRunStarted({ runId: "run_missing" })).toBe(false);
+  });
+});
+
+describe("running work has a recoverable liveness lease", () => {
+  it("accepts a result after seven hours without expiring it at the queue TTL", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-16T00:00:00Z"));
+    const run = await queue({ reservationId: "long", teamId: "team-a", sceneId: "req-1" });
+    await markRunStarted({ runId: run.runId, pipelineRunId: "worker" });
+    // A pre-release worker/run has only its old six-hour settlement marker.
+    sharedFakeFirestoreState.docs.set(`evaluationRuns/${run.runId}`, { ...stored(run.runId),
+      dispatch: { pipelineRunId: "worker", startedAtIso: new Date().toISOString() },
+      settlementDueAtMs: Date.now() + reservationTtlMs() });
+    vi.setSystemTime(new Date("2026-10-16T07:00:00Z"));
+    expect((await reconcileAgentRunSettlements()).abandoned).toBe(0);
+    expect(await heartbeatRun({ runId: run.runId, pipelineRunId: "worker" })).toBe(true);
+    expect(await reportRunOutcome({ runId: run.runId, state: "completed", episodesRun: 50 })).toBe(true);
+    expect(stored(run.runId).state).toBe("completed");
+  });
+
+  it("only the bound owner can renew, and heartbeats never extend the hard deadline", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-16T00:00:00Z"));
+    vi.stubEnv("BLUEPRINT_AGENT_EXECUTION_TTL_MS", "1800000");
+    const run = await queue({ reservationId: "bounded", teamId: "team-a", sceneId: "req-1" });
+    await markRunStarted({ runId: run.runId, pipelineRunId: "worker" });
+    expect(await heartbeatRun({ runId: run.runId, pipelineRunId: "other" })).toBe(false);
+    const deadline = (stored(run.runId).dispatch as { executionDeadlineAtMs: number }).executionDeadlineAtMs;
+    for (const minutes of [10, 20, 29]) {
+      vi.setSystemTime(new Date(Date.parse("2026-10-16T00:00:00Z") + minutes * 60_000));
+      expect(await heartbeatRun({ runId: run.runId, pipelineRunId: "worker" })).toBe(true);
+      expect(Number(stored(run.runId).settlementDueAtMs)).toBeLessThanOrEqual(deadline);
+    }
+    vi.setSystemTime(new Date(deadline + 1));
+    expect(await heartbeatRun({ runId: run.runId, pipelineRunId: "worker" })).toBe(false);
+    expect((await reconcileAgentRunSettlements()).abandoned).toBe(1);
+  });
+
+  it("abandons stale or cancelled workers and refuses heartbeat resurrection", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-16T00:00:00Z"));
+    const run = await queue({ reservationId: "stale", teamId: "team-a", sceneId: "req-1" });
+    await markRunStarted({ runId: run.runId, pipelineRunId: "worker" });
+    expect(await heartbeatRun({ runId: run.runId, pipelineRunId: "worker" })).toBe(true);
+    vi.setSystemTime(new Date(Date.now() + executionHeartbeatTtlMs() + 1));
+    expect(await heartbeatRun({ runId: run.runId, pipelineRunId: "worker" })).toBe(false);
+    expect((await reconcileAgentRunSettlements()).abandoned).toBe(1);
+    expect(await heartbeatRun({ runId: run.runId, pipelineRunId: "worker" })).toBe(false);
+    const cancelled = await queue({ reservationId: "cancelled-live", teamId: "team-a", sceneId: "req-1" });
+    await markRunStarted({ runId: cancelled.runId, pipelineRunId: "worker" });
+    sharedFakeFirestoreState.docs.set(`evaluationRuns/${cancelled.runId}`, { ...stored(cancelled.runId), cancellationRequested: true });
+    expect(await heartbeatRun({ runId: cancelled.runId, pipelineRunId: "worker" })).toBe(false);
+  });
+
+  it("preserves a queue approval expiry earlier than the reservation TTL", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-16T00:00:00Z"));
+    const run = await queue({ reservationId: "approval-expiry", teamId: "team-a", sceneId: "req-1" });
+    sharedFakeFirestoreState.docs.set(`evaluationRuns/${run.runId}`, { ...stored(run.runId), settlementDueAtMs: Date.now() + 60_000 });
+    vi.setSystemTime(new Date(Date.now() + 60_001));
+    expect((await reconcileAgentRunSettlements()).abandoned).toBe(1);
+  });
+
+  it("refuses first completion after the heartbeat lease, before reconciliation runs", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-16T00:00:00Z"));
+    const run = await queue({ reservationId: "late-terminal", teamId: "team-a", sceneId: "req-1" });
+    await markRunStarted({ runId: run.runId, pipelineRunId: "worker" });
+    await heartbeatRun({ runId: run.runId, pipelineRunId: "worker" });
+    vi.setSystemTime(new Date(Date.now() + executionHeartbeatTtlMs() + 1));
+    await expect(reportRunOutcome({ runId: run.runId, state: "completed", episodesRun: 50 }))
+      .rejects.toThrow("execution lease expired");
+    expect(stored(run.runId).state).toBe("requested");
   });
 });
 

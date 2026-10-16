@@ -31,7 +31,7 @@ describe("terms for the free beta", () => {
   it("is reissued with a future effective date and keeps the previous version in force", () => {
     // Owner decision 2026-10-15: published 2026-10-15, in force 30+ days later.
     expect(TERMS_VERSION).toBe("2026-11-15.1");
-    expect(PRIVACY_VERSION).toBe("2026-11-15.1");
+    expect(PRIVACY_VERSION).toBe("2026-11-15.2");
     expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-10-14.1", "2026-10-13.1"]);
     expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 15, 2026");
     expect(legalUpdatePending(Date.parse("2026-11-14T23:59:00-08:00"))).toBe(true);
@@ -98,12 +98,13 @@ describe("privacy for the free beta", () => {
     expect(JSON.stringify(privacySubprocessorCategories)).not.toMatch(/redis/i);
   });
 
-  it("states that raw footage has no automatic deletion and a 7-year floor", () => {
+  it("preserves existing recording terms and does not authorize the proposed seven-year extension", () => {
     const footage = betaRetentionSchedule.find((row) => row.record === "Site footage and capture data")!;
-    expect(footage.defaultWindow).toMatch(/^No automatic deletion\. Kept for at least 7 years/);
-    expect(footage.notes).toMatch(/never deletes it on a schedule/);
-    expect(footage.notes).toMatch(/withdraws permission to use the recording or we complete a verified deletion request/);
-    expect(JSON.stringify(betaRetentionSchedule)).not.toMatch(/180 days/);
+    expect(footage.defaultWindow).toMatch(/Existing recordings keep their original retention terms/);
+    expect(footage.notes).toMatch(/180 days after the job closes/);
+    expect(footage.notes).toMatch(/accepting it later does not extend that period/);
+    expect(footage.notes).toMatch(/requires legal review and the notice and authorization/);
+    expect(footage.notes).toMatch(/does not currently delete originals automatically/);
   });
 
   it("treats footage filmed by Blueprint staff like self-filmed footage", () => {

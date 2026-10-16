@@ -58,13 +58,13 @@ import {
 import {
   getRunForReservation,
   markResolved,
-  reportRunOutcome,
+  reportPipelineRunOutcome,
   RunOutcomeConflictError,
   runIdForReservation,
   settlementAmountUsd,
 } from "../utils/agentEvalRuns";
-import { recordRunResult } from "../utils/agentRunResults";
-import { getRun, listRequestedRuns, markRunStarted } from "../utils/agentEvalRuns";
+import { recordRunResult, RunResultInactiveError } from "../utils/agentRunResults";
+import { getRun, listRequestedRuns, markRunStarted, heartbeatRun } from "../utils/agentEvalRuns";
 import { getCheckpoint } from "../utils/robotCheckpoints";
 import { controlledNativeResultSchema } from "../utils/controlledNativeResult";
 import { TEAM_EVALUATION_PURPOSE } from "../utils/policyIntegration";
@@ -101,6 +101,15 @@ const settlementSchema = z
      * and gives the whole hold back, per the published billing rule.
      */
     blocked_before_any_episode: z.boolean().optional(),
+    execution_status: z.literal("blocked").optional(),
+    execution_progress: z.object({
+      observed_attempted_episode_count: z.number().int().min(0).max(100_000),
+      scored_episode_count: z.number().int().min(0).max(100_000),
+      succeeded_episode_count: z.number().int().min(0).max(100_000),
+      failed_episode_count: z.number().int().min(0).max(100_000),
+      void_episode_count: z.number().int().min(0).max(100_000),
+      measurement_complete: z.boolean(),
+    }).strict().optional(),
     reason: z.string().trim().max(400).optional(),
   })
   .strict();
@@ -239,6 +248,9 @@ router.post(
         claimed: result.claimed,
       });
     } catch (error) {
+      if (error instanceof RunResultInactiveError) return res.status(409).json({
+        error: error.message, code: "agent_run_execution_inactive", diagnostic_receipt_retained: true,
+      });
       logger.error(
         { error, reservationId: parsed.data.reservation_id },
         "Agent run result could not be recorded",
@@ -271,6 +283,15 @@ router.post(
       episodes_run: episodesRun,
       rate_usd: rateUsd,
     } = parsed.data;
+    const progress = parsed.data.execution_progress;
+    if ((parsed.data.execution_status && !progress) || (progress && (
+      progress.scored_episode_count !== episodesRun
+      || progress.scored_episode_count !== progress.succeeded_episode_count + progress.failed_episode_count
+      || progress.observed_attempted_episode_count < progress.scored_episode_count + progress.void_episode_count
+      || (progress.measurement_complete && progress.observed_attempted_episode_count !== progress.scored_episode_count + progress.void_episode_count)
+      || (parsed.data.blocked_before_any_episode && (!progress.measurement_complete || progress.observed_attempted_episode_count !== 0))
+    ))) return res.status(400).json({ code: "agent_run_settlement_invalid", error: "Execution progress counts are inconsistent." });
+    const blocked = parsed.data.execution_status === "blocked" || parsed.data.blocked_before_any_episode || episodesRun === 0;
 
     // Our own record for this hold, keyed on the reservation rather than on the
     // Pipeline's run id — the reservation is the only identifier both sides
@@ -288,17 +309,22 @@ router.post(
       // throws, the outcome is already durable and due, so the reconciler
       // finishes the job on its next pass instead of the hold sitting there
       // waiting for a retry that may never come.
-      const recorded = await reportRunOutcome({
+      const outcome = await reportPipelineRunOutcome({
         runId: recordId,
-        state:
-          parsed.data.blocked_before_any_episode || episodesRun === 0
-            ? "blocked"
-            : "completed",
+        state: blocked ? "blocked" : "completed",
         episodesRun,
         note: parsed.data.reason || `Pipeline run ${runId}`,
+        ...(progress ? { executionProgress: progress } : {}),
+        pipelineBinding: { teamId, pipelineRunId: parsed.data.pipeline_run_id,
+          executionAdmissionDigest: parsed.data.execution_admission_digest },
       });
+      if (outcome.diagnosticOnly) return res.status(200).json({
+        ok: true, diagnostic_only: true, settled: false, reconciled: false, amountUsd: 0,
+      });
+      const recorded = outcome.recorded;
+      if (!recorded) return res.status(404).json({ error: "No funded run exists for this reservation", code: "agent_run_not_found" });
       if (isBlueprintFundedRun(priorRun)) {
-        await markResolved(recordId, episodesRun > 0 ? "completed" : "blocked",
+        await markResolved(recordId, blocked ? "blocked" : "completed",
           "Free evaluation: no customer charge. Pipeline retains sponsor usage and holds.");
         return res.status(200).json({ ok: true, settled: true, amountUsd: 0, reconciled: recorded });
       }
@@ -306,15 +332,15 @@ router.post(
       // A run that never executed an episode is our failure, not a result.
       // Release the whole hold rather than settling it at zero, so the ledger
       // says what happened rather than recording a spend of nothing.
-      if (parsed.data.blocked_before_any_episode || episodesRun === 0) {
+      if (blocked) {
         const balance = await releaseReservation({
           teamId,
           reservationId,
-          reason: parsed.data.reason || `Run ${runId} executed no episodes`,
+          reason: parsed.data.reason || `Run ${runId} was blocked; partial execution counts are retained`,
           idempotencyKey: `settle-release:${reservationId}`,
         });
         if (recorded) {
-          await markResolved(recordId, "blocked", "Released: no episodes ran");
+          await markResolved(recordId, "blocked", "Released: blocked evaluation; observed execution progress is retained.");
         }
         return res.status(200).json({
           ok: true,
@@ -505,6 +531,23 @@ router.post(
   },
 );
 
+router.post("/agent-runs/:runId/heartbeat", createPipelineSyncRateLimiter(), guard, async (req: Request, res: Response) => {
+  const parsed = startedSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ code: "agent_run_heartbeat_invalid" });
+  const runId = String(req.params.runId || "").trim();
+  try {
+    const accepted = await heartbeatRun({ runId, pipelineRunId: parsed.data.pipeline_run_id,
+      executionAdmissionDigest: parsed.data.execution_admission_digest });
+    if (!accepted) return res.status(409).json({ code: "agent_run_heartbeat_refused" });
+    const run = await getRun(runId);
+    return res.json({ ok: true, run_id: runId, execution_deadline_at_ms: run?.dispatch?.executionDeadlineAtMs,
+      last_heartbeat_at_iso: run?.dispatch?.lastHeartbeatAtIso });
+  } catch (error) {
+    logger.error({ error, runId }, "Could not record an agent run heartbeat");
+    return res.status(503).json({ code: "agent_run_heartbeat_unavailable" });
+  }
+});
+
 router.get("/agent-runs/:runId", createPipelineSyncRateLimiter(), guard, async (req: Request, res: Response) => {
   const run = await getRun(String(req.params.runId));
   if (!run) return res.status(404).json({ code: "agent_run_not_found" });
@@ -513,5 +556,7 @@ router.get("/agent-runs/:runId", createPipelineSyncRateLimiter(), guard, async (
     execution_admission: run.executionAdmission?.envelope ?? null,
           execution_admission_canonical_json: run.executionAdmission?.canonicalJson ?? null,
     execution_admission_digest: run.executionAdmission?.digestSha256 ?? null,
-    dispatch: run.dispatch ? { pipeline_run_id: run.dispatch.pipelineRunId, started_at_iso: run.dispatch.startedAtIso } : null });
+    dispatch: run.dispatch ? { pipeline_run_id: run.dispatch.pipelineRunId, started_at_iso: run.dispatch.startedAtIso,
+      execution_deadline_at_ms: run.dispatch.executionDeadlineAtMs ?? null,
+      last_heartbeat_at_iso: run.dispatch.lastHeartbeatAtIso ?? null } : null });
 });

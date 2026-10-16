@@ -486,7 +486,8 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
     });
 
     expect(result).toEqual({ status: 409,
-      body: expect.objectContaining({ code: "agent_run_outcome_conflict" }), lateResultStatus: 200 });
+      body: expect.objectContaining({ code: "agent_run_outcome_conflict" }), lateResultStatus: 409 });
+    expect([...sharedFakeFirestoreState.docs.values()].some(doc => doc.lateDiagnosticResult)).toBe(true);
     const ledger = [...sharedFakeFirestoreState.docs.values()].filter(doc => doc.teamId === TEAM && doc.kind === "settle");
     expect(ledger).toEqual([]);
   });
@@ -552,6 +553,30 @@ describe("the Pipeline cannot charge past what the team authorised", () => {
     expect(result.settlement.released).toBe(true);
     expect(result.balance.spentUsd).toBe(0);
     expect(result.balance.reservedUsd).toBe(0);
+  });
+
+  it("retains partial episode counts while closing a blocked run without charging", async () => {
+    const progress = { observed_attempted_episode_count: 5, scored_episode_count: 4,
+      succeeded_episode_count: 3, failed_episode_count: 1, void_episode_count: 1,
+      measurement_complete: false };
+    const result = await holdThenSettle({ episodes_run: 4, rate_usd: 5,
+      blocked_before_any_episode: false, execution_status: "blocked", execution_progress: progress });
+    expect(result.settlement.released).toBe(true);
+    expect(result.balance.spentUsd).toBe(0);
+    expect(sharedFakeFirestoreState.docs.get(`evaluationRuns/${result.runId}`)).toMatchObject({
+      state: "blocked", episodesRun: 4, executionProgress: progress,
+    });
+  });
+
+  it("does not accept a claim of no execution when the episode measurement is incomplete", async () => {
+    const result = await holdThenSettle({ episodes_run: 0, rate_usd: 5,
+      blocked_before_any_episode: true, execution_status: "blocked", execution_progress: {
+        observed_attempted_episode_count: 0, scored_episode_count: 0, succeeded_episode_count: 0,
+        failed_episode_count: 0, void_episode_count: 0, measurement_complete: false,
+      } });
+    expect(result.settlement.code).toBe("agent_run_settlement_invalid");
+    expect(sharedFakeFirestoreState.docs.get(`evaluationRuns/${result.runId}`)?.state).toBe("requested");
+    expect(result.balance.spentUsd).toBe(0);
   });
 
   it("takes the run out of the settlement queue once the money has moved", async () => {

@@ -14,9 +14,9 @@ describe("Site-led homepage", () => {
     // One example of the deliverable, clearly marked, instead of staged imagery.
     expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Warehouse", "Café", "Laundromat", "Factory", "Hotel", "Lab"]);
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveTextContent(/Example.*Robot team.*Evaluation scope.*Illustrative workflow.*per task.*full totes.*Blueprint fee.*None during the beta.*Pilot cost.*Quoted by the robot team/);
+    expect(panel).toHaveTextContent(/Example.*Robot team.*Evaluation scope.*Illustrative workflow.*per task.*full totes.*Blueprint fee.*Free during the beta.*Pilot cost.*Quoted by the robot team/);
     expect(panel).not.toHaveTextContent(/Passed on your task/);
-    expect(screen.getByText("Book this pilot")).toBeInTheDocument();
+    expect(screen.queryByText("Book this pilot")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Café" }));
     expect(screen.getByRole("tabpanel")).toHaveTextContent(/dish rack/);
     expect(screen.getByRole("img", { name: /café example/i })).toBeInTheDocument();
@@ -135,7 +135,7 @@ describe("Site-led homepage", () => {
     const steps = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(steps).toHaveLength(3);
     expect(steps[0]).toHaveTextContent(/Show us the task.*Describe it or film it on your phone\./);
-    expect(steps[1]).toHaveTextContent(/Robot teams evaluate it.*Invited teams test it in a simulation built from your site\./);
+    expect(steps[1]).toHaveTextContent(/Robot teams evaluate it.*Invited teams test it in a simplified simulation of your task, informed by your footage\./);
     expect(steps[2]).toHaveTextContent(/Book the recommended pilot.*One team whose evaluation passed\. You agree dates and terms with them\./);
     expect(screen.getByText(/A simulated evaluation is an estimate, not proof/)).toBeInTheDocument();
   });

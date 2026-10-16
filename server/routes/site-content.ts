@@ -12,7 +12,7 @@ const definitions = [
   {
     term: "Evaluated pilot recommendation",
     definition:
-      "Blueprint helps a business show one recurring job. Invited robot teams evaluate the job free, in a simulation built from the site's capture. Blueprint recommends one team whose evaluation on the job passed, and the site books the recommended pilot in one step; it does not compare teams. The beta is free for sites and robot teams. After booking, the site and the robot team agree the physical pilot's dates and terms directly; Blueprint takes no cut and charges nothing. A passed simulated evaluation is a bounded estimate, not proof of physical performance or safety. The robot team or its integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.",
+      "Blueprint helps a business show one recurring job. Invited robot teams evaluate the job free, in a simplified simulation of the task, informed by the site's footage. Blueprint recommends one team whose evaluation on the job passed, and the site books the recommended pilot in one step; it does not compare teams. The beta is free for sites and robot teams. After booking, the site and the robot team agree the physical pilot's dates and terms directly; Blueprint takes no cut and charges nothing. A passed simulated evaluation is a bounded estimate, not proof of physical performance or safety. The robot team or its integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.",
   },
   {
     term: "Site sign-up",

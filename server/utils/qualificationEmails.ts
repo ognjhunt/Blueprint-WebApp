@@ -269,7 +269,7 @@ function qualifiedNextStepLine(nextStep: QualifiedNextStep | undefined, calendly
  * It says three things and nothing else: the screen passed, the one concrete
  * thing that happens next, and what follows once there is footage. What
  * follows is the product, stated the same way everywhere: invited robot teams
- * evaluate the job in a simulation built from the capture, Blueprint
+ * evaluate the job in a simplified simulation informed by the footage, Blueprint
  * recommends one team whose evaluation passed (or says plainly that none did),
  * and the site books that pilot in one step. Free during the beta.
  *
@@ -331,12 +331,12 @@ export function buildQualifiedEmail(params: {
     "Once we have footage of the work area:",
     "",
     bulletList(params.jobCardPublished === false ? [
-      "We turn it into a 3D scene.",
+      "We prepare a simplified simulation of your task, informed by your footage.",
       "Your job card is not published, so robot teams cannot see your job or evaluate it, and it cannot lead to a recommended pilot.",
       "To open it to the robot teams we have invited, publish its card from your job page. The card shows only the anonymized text you approve.",
     ] : [
-      "We turn it into a 3D scene.",
-      "Robot teams we have invited evaluate your job in a simulation built from that scene.",
+      "We prepare a simplified simulation of your task, informed by your footage.",
+      "Robot teams we have invited evaluate your job in that simulation.",
       "If a team's evaluation passes, we recommend that one team, and you can book the pilot in one step. If no team passes, we tell you that plainly.",
     ]),
     "",

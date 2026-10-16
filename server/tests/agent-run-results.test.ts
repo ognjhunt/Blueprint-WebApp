@@ -25,6 +25,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { syntheticSiteTaskQualification, syntheticEpisodeOutcomes } from "./helpers/recommendation-evidence";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -66,7 +67,7 @@ function scored(episodes: number, overrides: Record<string, unknown> = {}) {
     successSource: "simulator_scored", scoredEpisodeCount: episodes, successContractDigest: digest("1"),
     sceneRevisionDigest: digest("2"), robotFreeProbeReceiptDigest: digest("3"),
     teamCandidateAdmissionDigest: digest("4"), sessionResultDigest: digest("5"),
-    claimCeiling: "diagnostic_policy_execution", ...overrides,
+    claimCeiling: "site_task_simulation", siteTaskQualification: syntheticSiteTaskQualification(), ...overrides,
   } as const;
 }
 
@@ -78,12 +79,13 @@ function seedRun(runId = "run_res_1", teamId = TEAM) {
     teamId,
     checkpointId: "ckpt-1",
     sceneId: "scene-1",
+    executionCaptureId: "capture-fixture",
     taskFamily: "tote_transfer",
     reservationId: runId.replace(/^run_/, ""),
     quotedUsd: 250,
-    quotedEpisodes: 50,
+    quotedEpisodes: 200,
     state: "completed",
-    episodesRun: 50,
+    episodesRun: 200,
     moneyResolved: true,
     requestedAtIso: "2026-09-17T00:00:00.000Z",
     resolvedAtIso: "2026-09-17T01:00:00.000Z",
@@ -204,7 +206,7 @@ describe("a reported result reaches the registry", () => {
 
     await recordRunResult({
       runId: "run_res_1",
-      report: { episodesRun: 50, episodesSucceeded: 50, scoring: scored(50) },
+      report: { episodesRun: 200, episodesSucceeded: 190, scoring: scored(200), episodeOutcomes: syntheticEpisodeOutcomes(200, 190) },
     });
 
     const team = await getRobotTeam(TEAM);
@@ -222,7 +224,7 @@ describe("a reported result reaches the registry", () => {
 
     await recordRunResult({
       runId: "run_res_1",
-      report: { episodesRun: 1_000, episodesSucceeded: 1_000, scoring: scored(1_000) },
+      report: { episodesRun: 200, episodesSucceeded: 200, scoring: scored(200), episodeOutcomes: syntheticEpisodeOutcomes(200, 200) },
     });
 
     const team = await getRobotTeam(TEAM);
@@ -230,10 +232,10 @@ describe("a reported result reaches the registry", () => {
   });
 
   it("never writes a measured grade from a count the simulator did not score", async () => {
-    // The same fifty-for-fifty that earns `ninety` above, stated as the team's
+    // The same complete scored evaluation, stated as the team's
     // own verdict, unlabelled, or from an unverified runtime: stored, never promoted.
-    for (const scoring of [undefined, scored(50, { runtime: "http_policy_api_observation_probe", successSource: "team_reported" }),
-      scored(50, { runtime: "legacy_robot_eval_command_batch", successSource: "unverified" }), scored(50, { robotFreeProbeReceiptDigest: null })]) {
+    for (const scoring of [undefined, scored(200, { runtime: "http_policy_api_observation_probe", successSource: "team_reported" }),
+      scored(200, { runtime: "legacy_robot_eval_command_batch", successSource: "unverified" }), scored(200, { robotFreeProbeReceiptDigest: null })]) {
       sharedFakeFirestoreState.docs.clear();
       seedRun();
       sharedFakeFirestoreState.docs.set(`robotTeams/${TEAM}`, { id: TEAM, name: "Alpha Robotics", status: "applied",
@@ -241,12 +243,35 @@ describe("a reported result reaches the registry", () => {
         fieldProvenance: { demonstratedSuccessRate: { grade: "self_reported", source: "intake" } },
         createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z" });
       const result = await recordRunResult({ runId: "run_res_1",
-        report: { episodesRun: 50, episodesSucceeded: 50, ...(scoring ? { scoring } : {}) } });
-      expect(result?.observed).toMatchObject({ episodesRun: 50, episodesSucceeded: 50 });
+        report: { episodesRun: 200, episodesSucceeded: 200, episodeOutcomes: syntheticEpisodeOutcomes(200, 200), ...(scoring ? { scoring } : {}) } });
+      expect(result?.observed).toMatchObject({ episodesRun: 200, episodesSucceeded: 200 });
       expect(result?.scoring).toEqual(scoring);
       const team = await getRobotTeam(TEAM);
       expect(team?.capability.demonstratedSuccessRate).toBe("ninetynine_plus");
       expect(team?.fieldProvenance.demonstratedSuccessRate?.grade).toBe("self_reported");
+    }
+  });
+
+  it("retains incomplete or inconsistent qualified observations without promoting supply or capability claims", async () => {
+    const valid = syntheticEpisodeOutcomes(200, 200);
+    const duplicates = structuredClone(valid); duplicates[1].cell_id = duplicates[0].cell_id;
+    const mismatched = structuredClone(valid); mismatched[0].outcome = "failure";
+    for (const candidate of [
+      { episodes: 200, outcomes: undefined },
+      { episodes: 200, outcomes: valid.slice(1) },
+      { episodes: 200, outcomes: duplicates },
+      { episodes: 200, outcomes: mismatched },
+      { episodes: 189, outcomes: syntheticEpisodeOutcomes(189, 189) },
+    ]) {
+      sharedFakeFirestoreState.docs.clear(); seedRun(); seedTeam("self_registered");
+      const result = await recordRunResult({ runId: "run_res_1", report: { episodesRun: candidate.episodes,
+        episodesSucceeded: candidate.episodes, medianCycleSeconds: 12, scoring: scored(candidate.episodes),
+        ...(candidate.outcomes ? { episodeOutcomes: candidate.outcomes } : {}) } });
+      expect(result?.observed).toMatchObject({ episodesRun: candidate.episodes, episodesSucceeded: candidate.episodes });
+      const team = await getRobotTeam(TEAM);
+      expect(team?.status).toBe("self_registered");
+      expect(team?.capability).toEqual({});
+      expect(team?.fieldProvenance).toEqual({});
     }
   });
 
@@ -373,14 +398,15 @@ describe("a run that rules out a claim withdraws it", () => {
     await recordRunResult({
       runId: "run_res_1",
       report: {
-        episodesRun: 50,
-        episodesSucceeded: 30,
+        episodesRun: 200,
+        episodesSucceeded: 120,
         medianCycleSeconds: null,
         cycleSecondsP10: null,
         cycleSecondsP90: null,
         note: null,
         artifactUri: null,
-        scoring: scored(50),
+        scoring: scored(200),
+        episodeOutcomes: syntheticEpisodeOutcomes(200, 120),
       },
     });
 
@@ -430,14 +456,15 @@ describe("a run that rules out a claim withdraws it", () => {
     await recordRunResult({
       runId: "run_res_1",
       report: {
-        episodesRun: 50,
-        episodesSucceeded: 20,
+        episodesRun: 200,
+        episodesSucceeded: 80,
         medianCycleSeconds: null,
         cycleSecondsP10: null,
         cycleSecondsP90: null,
         note: null,
         artifactUri: null,
-        scoring: scored(50),
+        scoring: scored(200),
+        episodeOutcomes: syntheticEpisodeOutcomes(200, 80),
       },
     });
 
@@ -503,6 +530,20 @@ describe("contradiction, not silence", () => {
 
 
 describe("immutable results and repeat delivery", () => {
+  it("retains an expired worker's first result as diagnostic without promoting it", async () => {
+    seedRun();
+    const key = "evaluationRuns/run_res_1";
+    sharedFakeFirestoreState.docs.set(key, { ...sharedFakeFirestoreState.docs.get(key),
+      state: "requested", moneyResolved: false, episodesRun: null,
+      dispatch: { pipelineRunId: "expired-worker", startedAtIso: new Date(Date.now() - 60_000).toISOString(),
+        executionDeadlineAtMs: Date.now() - 1 } });
+    await expect(recordRunResult({ runId: "run_res_1", report: { episodesRun: 50, episodesSucceeded: 49, scoring: scored(50) } }))
+      .rejects.toThrow("late receipt is retained");
+    const after = sharedFakeFirestoreState.docs.get(key)!;
+    expect(after.result).toBeUndefined();
+    expect(after.lateDiagnosticResult).toMatchObject({ observed: { episodesRun: 50, episodesSucceeded: 49 } });
+    expect(after.result_notification_intent).toBeUndefined();
+  });
   it("reuses an identical receipt and meters its episodes once", async () => {
     seedRun(); seedTeam();
     const request = { runId: "run_res_1", report: { episodesRun: 50, episodesSucceeded: 40, artifactUri: "gs://fixtures/receipt.json" } };

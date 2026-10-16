@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import Stripe from "stripe";
 import { stripeAvailable } from "../../constants/stripe";
 import { logger } from "../../logger";
+import { FREE_BETA_ONLY, FREE_BETA_PAID_DISABLED, FREE_BETA_PAID_MESSAGE } from "../../utils/freeBeta";
 
 type PaymentSessionType =
   | "onboarding"
@@ -112,7 +113,19 @@ export default async function handler(req: Request, res: Response) {
       current_product: "Task Evaluation Run",
       request_url: "/contact/robot-team?interest=task-evaluation-run",
       truth:
-        "Historical orders and entitlements remain readable. New runs are scoped and quoted server-side; no Stripe session or charge was created.",
+        "Historical orders and entitlements remain readable. Approved beta evaluations are free; no Stripe session or charge was created.",
+    });
+  }
+
+  // This historical onboarding route is not an exception to the free beta.
+  // Refuse before inspecting Stripe configuration or constructing a client,
+  // including omitted/unknown modes and operator accounts.
+  if (FREE_BETA_ONLY) {
+    return res.status(410).json({
+      error: FREE_BETA_PAID_MESSAGE,
+      code: FREE_BETA_PAID_DISABLED,
+      current_product: "Task Evaluation Run",
+      request_url: "/contact/robot-team?interest=task-evaluation-run",
     });
   }
 

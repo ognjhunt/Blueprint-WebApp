@@ -103,6 +103,8 @@ export interface SceneScreening {
    * supplied one. Absent when not counted, and then nothing says no team passed.
    */
   passed?: number;
+  /** Reported runs whose evidence cannot establish a qualified pass or failure. */
+  ineligible?: number;
 }
 
 /** A fresh, source-bound Pipeline ledger observation; no final robot verdict. */
@@ -216,8 +218,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // Settled and no pass: say so, rather than leave "results are in" standing
   // as if a recommendation might follow from them. Only when the caller counted
   // passes against the job's pass mark and read the recommendation.
-  if (screening && screening.queued + screening.running === 0 && screening.reported + screening.noResult > 0
-    && screening.passed === 0 && input.recommended === false) {
+  if (screening && screening.queued + screening.running === 0 && screening.reported > 0 && screening.noResult === 0
+    && screening.passed === 0 && (screening.ineligible ?? 0) === 0 && input.recommended === false) {
     const runs = countLabel(screening.reported + screening.noResult, "evaluation run");
     return {
       ...base,

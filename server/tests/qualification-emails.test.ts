@@ -234,7 +234,7 @@ describe("the qualified reply", () => {
     expect(email.body.startsWith("Hi Dana,\n")).toBe(true);
     expect(email.body).toContain("Thanks for confirming the job brief for Riverside DC");
     expect(email.body).toContain("upload it here: https://example.test/capture-upload/abc");
-    expect(email.body).toMatch(/Robot teams we have invited evaluate your job in a simulation/);
+    expect(email.body).toMatch(/Robot teams we have invited evaluate your job in that simulation/);
     expect(email.body).toMatch(/recommend that one team, and you can book the pilot in one step/);
     expect(email.body).toMatch(/If no team passes, we tell you that plainly/);
     expect(email.body).toMatch(/free during the beta/);
@@ -285,7 +285,7 @@ describe("the qualified reply", () => {
     const step = { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" } as const;
     const body = buildQualificationEmail({ firstName: "Dana", stage: "brief_confirmed", nextStep: step, jobCardPublished: false,
       triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }) })!.body;
-    expect(body).toMatch(/We turn it into a 3D scene/);
+    expect(body).toMatch(/We prepare a simplified simulation of your task, informed by your footage/);
     expect(body).toMatch(/robot teams cannot see your job or evaluate it, and it cannot lead to a recommended pilot/);
     expect(body).toMatch(/publish its card from your job page/);
     expect(body).not.toMatch(/Robot teams we have invited evaluate your job|we recommend that one team/);

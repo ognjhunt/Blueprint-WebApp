@@ -77,20 +77,16 @@ export const jobClosedDefinition =
  * The one retention schedule. It replaced a second, vaguer list that sat above
  * it and disagreed with it.
  *
- * Site footage: the previous version promised deletion 180 days after a job
- * closed, which the storage never did. Stated here as practiced: raw captures
- * have no lifecycle delete rule (BlueprintCapturePipeline
- * deploy/storage/primary-capture-bucket-lifecycle.json and
- * docs/BETA_DATA_RETENTION_POLICY_2026-07-09.md), every capture manifest
- * declares a 2,555-day minimum floor (server/utils/siteCaptureBundle.ts), and
- * deletion runs only through the withdrawal and verified-request workflows
- * (server/utils/websiteCaptureDeletion.ts), which a legal hold stops.
+ * Storage configuration describes implementation, not permission to extend
+ * the earlier site-facing promise. A later account acceptance never changes
+ * the terms of existing footage. The remaining notice/legal review and
+ * scheduled-deletion gap are tracked in the counsel packet.
  */
 export const betaRetentionSchedule = [
   {
     record: "Site footage and capture data",
-    defaultWindow: "No automatic deletion. Kept for at least 7 years unless deleted on request",
-    notes: "The video, photos, timestamps, motion and depth data, the frames and blurred copies we make from them and store with them, and the record of the site's authority and privacy review, including footage filmed by Blueprint staff. We keep the original as the record of what was filmed: our storage moves it to lower-cost archive storage during its first year and never deletes it on a schedule, and our policy is to keep it, including in backups, for at least 7 years. It is deleted sooner only when the site withdraws permission to use the recording or we complete a verified deletion request, after we confirm the request and check for any legal hold. When a site withdraws permission, we stop using the recording from that moment.",
+    defaultWindow: "Existing recordings keep their original retention terms; longer retention requires separate authorization",
+    notes: "The video, photos, timestamps, motion and depth data, the frames and blurred copies we make from them and store with them, and the record of the site's authority and privacy review, including footage filmed by Blueprint staff. Recordings collected under our previous policy keep its 180 days after the job closes schedule, subject to applicable legal holds. Publishing this update, reaching its effective date, or accepting it later does not extend that period for existing recordings. A proposed period of at least 7 years for newly collected recordings requires legal review and the notice and authorization applicable to those recordings before it can apply. Our storage does not currently delete originals automatically on a schedule; that configuration does not override the applicable retention terms. Withdrawal and verified deletion requests use our deletion process, after we confirm the request and check for any legal hold. When a site withdraws permission, we stop using the recording from that moment.",
   },
   {
     record: "Temporary processing files",
