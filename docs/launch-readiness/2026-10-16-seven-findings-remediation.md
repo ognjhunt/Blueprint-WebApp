@@ -33,7 +33,10 @@ an invalid bearer in a read-only probe with empty candidates; both returned zero
 jobs. This confirms missing authentication, not private-data disclosure. The
 current deployment identity has no deployment permissions in that project; its
 source repair must not be represented as deployed until that backend is updated
-or the owner retires it.
+or the owner retires it. The owner excludes Android from the current release
+requirements. A secondary-project update also needs a legitimate primary-project
+token test: Android authenticates against `blueprint-8c1ca`, so blindly deploying
+default-project token verification in the legacy project is insufficient.
 
 The onboarding checkout handler refuses free-beta payment creation before
 constructing Stripe. G1 campaign routes require freshly verified execution
@@ -139,7 +142,11 @@ absent Capture `api` in `blueprint-8c1ca`; separately resolve deployment access 
 retirement for the live `blueprint-prod-f0f19` backend. WebApp and its worker use the existing exact-SHA
 CI-gated `deploy.yml`; deploy those APIs before the Pipeline runner adopts the
 heartbeat/progress contract. Pipeline deployment must wait for any active paid
-launch to finish; preserve holds and do not restart over running work.
+controller in a unit being restarted to finish. Use the existing default drain
+and paid-launch gate, preserving holds. The deployer can leave an unrelated
+canary on its immutable release only after proving its controller is outside
+the restarted units; otherwise it refuses. Do not stop paid work or bypass that
+check to make a release pass.
 
 GitHub Actions run 38953429649 did not execute any Capture CI steps because
 account payments failed or the Actions spending limit was reached. No check was
