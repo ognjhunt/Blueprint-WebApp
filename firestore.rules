@@ -37,14 +37,19 @@ service cloud.firestore {
 
     function isAdmin() {
       return isSignedIn()
-        && (request.auth.token.admin == true
-          || request.auth.token.role in ['admin', 'ops']
-          || (request.auth.token.keys().hasAny(['roles'])
-            && request.auth.token.roles.hasAny(['admin', 'ops'])));
+        && (request.auth.token.get('admin', false) == true
+          || request.auth.token.get('ops', false) == true
+          || request.auth.token.get('role', '') in ['admin', 'ops']
+          || request.auth.token.get('roles', []).hasAny(['admin', 'ops']));
     }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAssignedCaptureJob(data) {
+      return isSignedIn() && data.get('field_ops', {})
+        .get('capturer_assignment', {}).get('creator_id', '') == request.auth.uid;
     }
 
     function isStringField(field) {
@@ -319,9 +324,13 @@ service cloud.firestore {
       allow write: if false; // written only by server (Admin SDK)
     }
 
-    // ─── Capture jobs (curated opportunities) ───────────────────────────────
+    // ─── Capture jobs (private site assignments) ────────────────────────────
+    // Documents include precise site locations and access instructions.
+    // Assignment is written only by the server; a client-owned reservation
+    // or profile role must never grant location access. Mobile list queries
+    // must constrain field_ops.capturer_assignment.creator_id to their uid.
     match /capture_jobs/{jobId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin() || isAssignedCaptureJob(resource.data);
       allow write: if false;
     }
 
@@ -441,8 +450,15 @@ service cloud.firestore {
     }
 
     // ─── Target state ───────────────────────────────────────────────────────
+    // Legacy state can carry the same precise coordinates as a capture job.
+    // It is not a public POI feed. Preserve owner state and assigned-job state
+    // without letting a self-created reservations document grant access.
     match /target_state/{targetId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin() || (isSignedIn()
+        && (resource.data.get('reservedBy', '') == request.auth.uid
+          || resource.data.get('checkedInBy', '') == request.auth.uid
+          || (exists(/databases/$(database)/documents/capture_jobs/$(targetId))
+            && isAssignedCaptureJob(get(/databases/$(database)/documents/capture_jobs/$(targetId)).data))));
       allow write: if false;
     }
 

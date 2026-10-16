@@ -47,7 +47,7 @@ export const siteAssessment = {
   summary: "An evaluated recommendation for one job at one site.",
   covers: [
     "The job defined: objects, cycle, exceptions, timing, and the pass mark for an evaluation.",
-    "Invited robot teams evaluate the job in a simulation built from your capture, free.",
+    "Invited robot teams evaluate the job in a simplified simulation of your task, informed by your footage. Approved beta evaluations are free.",
     "One recommended robot team whose evaluation on your job passed, or a plain answer that no team has passed yet.",
     "For a recommended pilot: the team, what it tests, what you provide, and one button to book it.",
   ],
@@ -64,7 +64,7 @@ export const siteAssessment = {
    * annex, so the two surfaces cannot promise different things.
    */
   whatWeGetFromIt:
-    "Invited robot teams evaluate a qualified job for free during the beta, and the site pays nothing to receive or book the recommended pilot. Robot teams never receive your recording — it can be reconstructed into a 3D scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
+    "Invited robot teams evaluate a qualified job for free during the beta, and the site pays nothing to receive or book the recommended pilot. Robot teams never receive your recording — it informs a simplified scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
   whatIsNotFree:
     "Nothing Blueprint does costs the site during the beta. The physical pilot is agreed directly between the site and the robot team, and Blueprint takes no cut of it.",
 } as const;

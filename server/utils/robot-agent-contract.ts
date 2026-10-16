@@ -299,7 +299,7 @@ export function buildRobotAgentOpenApiContract() {
       version: ROBOT_AGENT_CONTRACT_VERSION,
       summary: "Headless discovery of scoped site jobs and bounded evaluation tools for robot teams.",
       description:
-        "Blueprint runs a free beta: a site shows one recurring job, invited robot teams evaluate it in a simulation built from the site's capture, and Blueprint recommends one team whose evaluation passed, which the site books in one step. This API exposes capture-backed job discovery, grounded questions, and Task Evaluation Run intake for robot teams; it does not grant an invitation or authorize a physical pilot. Simulation results are bounded estimates, not proof of physical performance or safety. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement, and hosted-session records retain their existing access controls; standalone purchasing is retired.",
+        "Blueprint runs a free beta: a site shows one recurring job, invited robot teams evaluate it in a simplified simulation of the task, informed by the site's footage, and Blueprint recommends one team whose evaluation passed, which the site books in one step. This API exposes capture-backed job discovery, grounded questions, and Task Evaluation Run intake for robot teams; it does not grant an invitation or authorize a physical pilot. Simulation results are bounded estimates, not proof of physical performance or safety. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement, and hosted-session records retain their existing access controls; standalone purchasing is retired.",
     },
     servers: [
       {

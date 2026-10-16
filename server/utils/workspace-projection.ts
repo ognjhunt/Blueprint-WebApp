@@ -193,7 +193,7 @@ export interface AgentRunForSite {
   /** Beta L5: marks a team evaluation, from admission on. */
   teamEvaluationPurpose?: "scored";
   result?: {
-    evidenceScope?: "development_only";
+    evidenceScope?: "development_only" | "simulation";
     /** Who scored the episodes; without an admitted statement, targets are never "met". */
     scoring?: RunResultScoring;
     /** A team evaluation's mark and per-episode outcomes, shown to the team that ran it. */
@@ -235,11 +235,12 @@ export function projectAgentRunResult(
     teamAlias: teamAlias(taskId, run.teamId),
     status,
     successRate:
-      hasSamples && observed!.successRate !== null
-        ? Math.round(observed!.successRate * 10000) / 100
+      hasSamples && Number.isInteger(observed!.episodesSucceeded) && observed!.episodesSucceeded >= 0
+        && observed!.episodesSucceeded <= observed!.episodesRun
+        ? observed!.episodesSucceeded / observed!.episodesRun * 100
         : null,
     cycleTimeSeconds:
-      hasSamples && observed!.medianCycleSeconds !== null && observed!.medianCycleSeconds >= 0
+      hasSamples && observed!.medianCycleSeconds !== null && Number.isFinite(observed!.medianCycleSeconds) && observed!.medianCycleSeconds > 0
         ? observed!.medianCycleSeconds
         : null,
     sampleCount: hasSamples ? observed!.episodesRun : null,

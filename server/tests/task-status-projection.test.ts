@@ -334,7 +334,7 @@ describe("what a waiting job is waiting on", () => {
   });
 
   it("says plainly when every evaluation finished and none passed", () => {
-    const settled = { ...none, teams: 2, reported: 1, noResult: 1, passed: 0 };
+    const settled = { ...none, teams: 2, reported: 2, noResult: 0, passed: 0, ineligible: 0 };
     const status = projectTaskStatus({ ...ready, openForEvaluations: true, recommended: false, screening: settled });
     expect(status.decision).toBe("no_team_passed");
     expect(status.headline).toMatch(/^No team's evaluation has passed yet\. 2 evaluation runs/);
@@ -344,6 +344,8 @@ describe("what a waiting job is waiting on", () => {
     expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, running: 1 } }).decision).toBe("results");
     expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, passed: undefined } }).decision).toBe("results");
     expect(projectTaskStatus({ ...ready, recommended: true, screening: settled }).decision).toBe("results");
+    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, ineligible: 1 } }).decision).toBe("results");
+    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, noResult: 1 } }).decision).toBe("results");
   });
 
   it("tells a site whose card is not published that no team can evaluate the job", () => {

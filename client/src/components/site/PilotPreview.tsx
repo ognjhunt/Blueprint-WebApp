@@ -475,14 +475,13 @@ export function PilotPreview() {
             <div><dt>What the pilot tests</dt><dd>{example.tests}</dd></div>
             <div><dt>What you provide</dt><dd>{example.provide}</dd></div>
             <div><dt>What the team provides</dt><dd>{example.teamProvides}</dd></div>
-            <div><dt>Blueprint fee</dt><dd>None during the beta</dd></div>
+            <div><dt>Blueprint fee</dt><dd>Free during the beta</dd></div>
             <div><dt>Pilot cost</dt><dd>Quoted by the robot team, paid to them</dd></div>
             <div><dt>When</dt><dd>{example.when}</dd></div>
             <div><dt>Still uncertain</dt><dd>{example.uncertain}</dd></div>
           </dl>
         </div>
         <div className="ms-pilot-card-foot">
-          <span className="ms-button" aria-hidden="true">Book this pilot</span>
           <span>Dates and pilot terms are agreed with the team. A simulated pass is an estimate, not proof of on-site performance.</span>
         </div>
       </div>

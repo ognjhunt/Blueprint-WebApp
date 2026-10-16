@@ -635,7 +635,7 @@ export default function Captures() {
             <div className="flex max-w-4xl flex-col gap-14">
               {hasStageContent ? (
                 <p className="text-ink-600">
-                  Everything here is a review of your capture or a simulation built from it. None of it shows a robot
+                  Everything here is a review of your capture or a simplified simulation informed by it. None of it shows a robot
                   can do the task in the real world, and none of it approves safety.
                 </p>
               ) : (

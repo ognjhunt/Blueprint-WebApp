@@ -25,6 +25,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { syntheticSiteTaskQualification } from "./helpers/recommendation-evidence";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -66,7 +67,7 @@ function scored(episodes: number, overrides: Record<string, unknown> = {}) {
     successSource: "simulator_scored", scoredEpisodeCount: episodes, successContractDigest: digest("1"),
     sceneRevisionDigest: digest("2"), robotFreeProbeReceiptDigest: digest("3"),
     teamCandidateAdmissionDigest: digest("4"), sessionResultDigest: digest("5"),
-    claimCeiling: "diagnostic_policy_execution", ...overrides,
+    claimCeiling: "site_task_simulation", siteTaskQualification: syntheticSiteTaskQualification(), ...overrides,
   } as const;
 }
 
@@ -78,6 +79,7 @@ function seedRun(runId = "run_res_1", teamId = TEAM) {
     teamId,
     checkpointId: "ckpt-1",
     sceneId: "scene-1",
+    executionCaptureId: "capture-fixture",
     taskFamily: "tote_transfer",
     reservationId: runId.replace(/^run_/, ""),
     quotedUsd: 250,
@@ -503,6 +505,20 @@ describe("contradiction, not silence", () => {
 
 
 describe("immutable results and repeat delivery", () => {
+  it("retains an expired worker's first result as diagnostic without promoting it", async () => {
+    seedRun();
+    const key = "evaluationRuns/run_res_1";
+    sharedFakeFirestoreState.docs.set(key, { ...sharedFakeFirestoreState.docs.get(key),
+      state: "requested", moneyResolved: false, episodesRun: null,
+      dispatch: { pipelineRunId: "expired-worker", startedAtIso: new Date(Date.now() - 60_000).toISOString(),
+        executionDeadlineAtMs: Date.now() - 1 } });
+    await expect(recordRunResult({ runId: "run_res_1", report: { episodesRun: 50, episodesSucceeded: 49, scoring: scored(50) } }))
+      .rejects.toThrow("late receipt is retained");
+    const after = sharedFakeFirestoreState.docs.get(key)!;
+    expect(after.result).toBeUndefined();
+    expect(after.lateDiagnosticResult).toMatchObject({ observed: { episodesRun: 50, episodesSucceeded: 49 } });
+    expect(after.result_notification_intent).toBeUndefined();
+  });
   it("reuses an identical receipt and meters its episodes once", async () => {
     seedRun(); seedTeam();
     const request = { runId: "run_res_1", report: { episodesRun: 50, episodesSucceeded: 40, artifactUri: "gs://fixtures/receipt.json" } };

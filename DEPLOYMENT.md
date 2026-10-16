@@ -596,7 +596,12 @@ Important:
 
 ### Autonomous Alpha Automation
 
-These should be enabled for the no-human-in-the-loop alpha configuration:
+Historical alpha controls below are reference names, not instructions to enable
+them for the free beta. Enable only the worker lanes required by the current
+beta journey and approved runtime configuration. The retired buyer lifecycle
+and lifecycle cadence must stay disabled: their historical commercial messages
+do not describe the free beta. Current job updates use
+`taskLifecycleNotifications.ts` and its durable outbox.
 
 - `BLUEPRINT_WAITLIST_AUTOMATION_ENABLED=1`
 - `BLUEPRINT_INBOUND_AUTOMATION_ENABLED=1`
@@ -606,8 +611,8 @@ These should be enabled for the no-human-in-the-loop alpha configuration:
 - `BLUEPRINT_EXPERIMENT_AUTOROLLOUT_ENABLED=1`
 - `BLUEPRINT_AUTONOMOUS_RESEARCH_OUTBOUND_ENABLED=1`
 - `BLUEPRINT_CREATIVE_FACTORY_ENABLED=1`
-- `BLUEPRINT_BUYER_LIFECYCLE_ENABLED=1`
-- `BLUEPRINT_LIFECYCLE_CADENCE_ENABLED=1`
+- `BLUEPRINT_BUYER_LIFECYCLE_ENABLED=0` (retired)
+- `BLUEPRINT_LIFECYCLE_CADENCE_ENABLED=0` (retired)
 
 Beta cohort controls are enforced on capturer beta waitlist intake, native
 capture registration (and its preflight), robot-eval buyer intake, and live

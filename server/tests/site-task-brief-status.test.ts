@@ -464,10 +464,10 @@ describe("GET /api/site-task-brief/:token/status", () => {
       result: { observed: { episodesRun: 50, episodesSucceeded: 41, successRate: 0.82, medianCycleSeconds: 40 } },
     });
 
-    // Settled, and an unscored 41 of 50 does not pass: the site is told so.
+    // Unscored observations remain inspectable without implying policy failure.
     const settled = (await status()).body;
-    expect(settled.status.decision).toBe("no_team_passed");
-    expect(settled.status.headline).toMatch(/^No team's evaluation has passed yet\. 1 evaluation run on your job finished without passing/);
+    expect(settled.status.decision).toBe("results");
+    expect(settled.status.headline).toContain("Review each run's observed episodes separately");
 
     sharedFakeFirestoreState.docs.set("evaluationRuns/run_q1", {
       runId: "run_q1", teamId: "team-b", sceneId: "req-1", state: "requested", requestedAtIso: "2026-09-19T00:00:00.000Z",

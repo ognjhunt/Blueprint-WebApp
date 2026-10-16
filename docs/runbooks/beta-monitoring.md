@@ -106,8 +106,14 @@ Redis outages fail open: rate limiting lets requests through within ~750 ms
    section in both versions still say account holders are emailed before a
    material change, so have counsel confirm the banner is enough or change
    that clause in a later reissue. The reissued Privacy Policy states the real
-   footage retention (no automatic deletion, at least 7 years) in place of the
-   previous "180 days after the job closes". Still open from the earlier
+   storage behavior (no automatic deletion) separately from collection-time
+   retention authority. The October 16 clarification (`2026-11-15.2`) preserves
+   existing footage's original terms, including the previous "180 days after
+   the job closes", and requires legal review and applicable notice/authorization
+   before a proposed seven-year period can apply to new recordings. Neither a
+   banner nor later account acceptance retroactively extends existing footage.
+   Follow `docs/launch-readiness/2026-10-16-retention-and-recording-counsel-review.md`
+   for the concrete review and cohort-remediation packet. Still open from the earlier
    notice: confirm the deployed Pipeline strips sound before its own Gemini
    video upload (its `scene_semantics.py` now uploads through
    `audio_free_upload_copy`; check that build is the one running), and have

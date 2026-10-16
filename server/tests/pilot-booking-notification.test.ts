@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer, type Server } from "node:http";
 import { sharedFakeFirestore as store, sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
+import { syntheticQualifiedRun } from "./helpers/recommendation-evidence";
+import { completeSupplyAgreement } from "./helpers/supply-agreement";
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: store, default: { firestore: { FieldValue: { serverTimestamp: () => "server-time" } } } }));
 vi.mock("express-rate-limit", () => ({ default: () => (_req: unknown, _res: unknown, next: () => void) => next() }));
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
@@ -14,6 +16,7 @@ const router = (await import("../routes/task-listings")).default;
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
 const { TERMS_VERSION } = await import("../../client/src/lib/legalAcceptance");
+const { verifyRecommendationEvidence, passMarkForJob } = await import("../utils/pilotRecommendationEvidence");
 
 let server: Server; let base: string;
 const input = { recommendationId: "rec_book", authorized: true };
@@ -24,7 +27,14 @@ const post = (body: unknown = input, scope: "owner" | "film" = "owner") => fetch
 beforeEach(async () => {
   state.docs.clear(); enqueue.mockReset(); enqueue.mockResolvedValue({ enqueued: true });
   sendEmail.mockReset(); sendEmail.mockResolvedValue({ sent: true, provider: "fixture", messageId: "fixture-receipt" });
-  state.docs.set("inboundRequests/req1", { requestId: "req1", contact: { email: "owner@example.test" }, pilot_recommendation: { id: "rec_book", teamName: "Fixture team" } });
+  const run = syntheticQualifiedRun();
+  const verified = verifyRecommendationEvidence({ run, requestId: "req1", passMark: passMarkForJob({}, null) });
+  if (!verified.ok) throw new Error("Synthetic qualified fixture did not qualify");
+  state.docs.set(`evaluationRuns/${run.runId}`, run as never);
+  // No team recipient here: these tests isolate the site's durable confirmation.
+  state.docs.set(`robotTeams/${run.teamId}`, { id: run.teamId, name: "Fixture team", status: "engaged", supplyAgreement: completeSupplyAgreement() });
+  state.docs.set("inboundRequests/req1", { requestId: "req1", contact: { email: "owner@example.test" }, pilot_recommendation: {
+    id: "rec_book", teamName: "Fixture team", teamId: run.teamId, evaluationRunId: run.runId, evidence: verified.evidence } });
   const app = express(); app.use(express.json()); app.use(router);
   server = createServer(app); await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;

@@ -34,6 +34,8 @@ export const RUN_RESULT_SCORING_SCHEMA_VERSION = "blueprint.agent_run_result_sco
  */
 export const TEAM_EVALUATION_SCORED_RUNTIME = "team_evaluation_scored";
 export const SIMULATOR_SCORED = "simulator_scored";
+/** A qualified simulation estimate; never a physical performance claim. */
+export const SITE_TASK_SIMULATION_CLAIM_CEILING = "site_task_simulation";
 
 /** The only (runtime, source) pairs whose successes count. Everything else is refused. */
 export const ADMITTED_SCORING: ReadonlyArray<{ runtime: string; successSource: string }> = Object.freeze([
@@ -42,6 +44,26 @@ export const ADMITTED_SCORING: ReadonlyArray<{ runtime: string; successSource: s
 
 const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/);
 const label = z.string().trim().min(1).max(100).regex(/^[a-z0-9_.-]+$/);
+
+/** Pipeline-owned, artifact-backed qualification of this exact captured scene.
+ * Optional for diagnostic compatibility; absence never qualifies a recommendation.
+ * This is simulation qualification only, not physical validation or owner approval.
+ */
+export const siteTaskQualificationSchema = z.object({
+  evidence_scope: z.literal("simulation"),
+  capture_id: z.string().trim().min(1).max(200),
+  scene_revision_digest: digest,
+  registration_receipt_digest: digest,
+  fidelity_review_receipt_digest: digest,
+}).strict();
+
+export interface SiteTaskQualification {
+  evidenceScope: "simulation";
+  captureId: string;
+  sceneRevisionDigest: string;
+  registrationReceiptDigest: string;
+  fidelityReviewReceiptDigest: string;
+}
 
 /** The Pipeline's wire statement. Unknown labels parse; they are refused later, not lost. */
 export const runResultScoringSchema = z.object({
@@ -55,6 +77,7 @@ export const runResultScoringSchema = z.object({
   team_candidate_admission_digest: digest.nullable(),
   session_result_digest: digest.nullable(),
   claim_ceiling: label,
+  site_task_qualification: siteTaskQualificationSchema.optional(),
 }).strict();
 
 export type RunResultScoringWire = z.infer<typeof runResultScoringSchema>;
@@ -71,6 +94,7 @@ export interface RunResultScoring {
   teamCandidateAdmissionDigest: string | null;
   sessionResultDigest: string | null;
   claimCeiling: string;
+  siteTaskQualification?: SiteTaskQualification;
 }
 
 export function storedScoring(wire: RunResultScoringWire): RunResultScoring {
@@ -85,6 +109,13 @@ export function storedScoring(wire: RunResultScoringWire): RunResultScoring {
     teamCandidateAdmissionDigest: wire.team_candidate_admission_digest,
     sessionResultDigest: wire.session_result_digest,
     claimCeiling: wire.claim_ceiling,
+    ...(wire.site_task_qualification ? { siteTaskQualification: {
+      evidenceScope: wire.site_task_qualification.evidence_scope,
+      captureId: wire.site_task_qualification.capture_id,
+      sceneRevisionDigest: wire.site_task_qualification.scene_revision_digest,
+      registrationReceiptDigest: wire.site_task_qualification.registration_receipt_digest,
+      fidelityReviewReceiptDigest: wire.site_task_qualification.fidelity_review_receipt_digest,
+    } } : {}),
   };
 }
 
@@ -122,4 +153,16 @@ export function scoringRefusal(result: ScoredResult): ScoringRefusal | null {
 
 export function isSimulatorScoredJobEvidence(result: ScoredResult): boolean {
   return scoringRefusal(result) === null;
+}
+
+/** A valid wire statement still must match the run's frozen capture binding. */
+export function boundSiteTaskQualification(result: ScoredResult, captureId: string | null | undefined): SiteTaskQualification | null {
+  const qualification = result?.scoring?.siteTaskQualification;
+  const digestPattern = /^sha256:[a-f0-9]{64}$/;
+  if (!qualification || result?.scoring?.claimCeiling !== SITE_TASK_SIMULATION_CLAIM_CEILING
+    || qualification.evidenceScope !== "simulation" || !captureId
+    || qualification.captureId !== captureId || qualification.sceneRevisionDigest !== result?.scoring?.sceneRevisionDigest
+    || [qualification.sceneRevisionDigest, qualification.registrationReceiptDigest, qualification.fidelityReviewReceiptDigest]
+      .some(value => typeof value !== "string" || !digestPattern.test(value))) return null;
+  return qualification;
 }

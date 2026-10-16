@@ -21,7 +21,8 @@ import { loadCurrentSiteAssessmentView } from "../utils/siteAssessmentPublic";
 import { prepareTeamPilotNotice } from "../utils/robotTeamPilotNotifications";
 import { alertOpsPilotBooked } from "../utils/pilotOpsAlerts";
 import { logger } from "../logger";
-import { projectEvidenceForSite } from "../utils/pilotRecommendationEvidence";
+import { projectEvidenceForSite, isQualifiedRecommendationEvidence, verifyRecommendationEvidence,
+  passMarkForJob, fundingRequestIdFor, criteriaChangedSinceRequest, type RunWithResult } from "../utils/pilotRecommendationEvidence";
 import { pilotConsentRefusal, projectPilotBooking, sitePilotContact, teamPilotContact } from "../utils/pilotContactExchange";
 import { SUPPORTED_TASK_SCOPE, scoredTaskDescription, taskScopeNotSupported } from "../utils/siteTaskScope";
 
@@ -41,7 +42,9 @@ function recommendationForSite(requestId: string, record: Record<string, any> | 
   const scoredTask = evidence && Object.prototype.hasOwnProperty.call(evidence, "scoredTaskKind")
     ? scoredTaskDescription(evidence.scoredTaskKind)
     : scoredTaskDescription(record?.agent_execution_offer?.team_evaluation?.contract?.task_kind);
-  return { ...visible, scoredTask, evidence: projectEvidenceForSite(evidence, { resultUrl }) };
+  const qualified = isQualifiedRecommendationEvidence(evidence);
+  return { ...visible, ...(!qualified ? { reviewRequired: true, capabilityBasis: "The evaluation evidence needs review before this pilot can be booked." } : {}),
+    scoredTask, evidence: projectEvidenceForSite(evidence, { resultUrl }) };
 }
 
 const router = Router();
@@ -170,6 +173,20 @@ router.post("/owner/:token/book", async (req, res) => {
       if (recommendation.reviewRequired) return "stale" as const;
       const booking = record?.pilot_booking;
       if (booking && booking.recommendationId !== recommendation.id) return "stale" as const;
+      // Keep historical acceptances intact, but an old development-only or
+      // incomplete snapshot cannot create a new evidence-backed booking.
+      if (!booking) {
+        if (!isQualifiedRecommendationEvidence(recommendation.evidence) || typeof recommendation.evaluationRunId !== "string") return "evidence_ineligible" as const;
+        const runSnapshot = await transaction.get(store.collection("evaluationRuns").doc(recommendation.evaluationRunId));
+        const run = runSnapshot.data() as RunWithResult | undefined;
+        const brief = await transaction.get(store.collection("siteTaskBriefs").doc(token.requestId));
+        const fundingId = fundingRequestIdFor(run);
+        const funding = fundingId ? (await transaction.get(store.collection("inboundRequests").doc(fundingId))).data() : null;
+        const verified = verifyRecommendationEvidence({ run, requestId: token.requestId,
+          passMark: passMarkForJob(record, brief.data()), expectedResultId: recommendation.evidence.resultId,
+          criteriaChanged: criteriaChangedSinceRequest(record, funding) });
+        if (!verified.ok || verified.evidence.teamId !== recommendation.evidence.teamId) return "evidence_ineligible" as const;
+      }
       const consent = await pilotConsentRefusal(record, transaction);
       if (consent.refusal) return consent.refusal;
       const to = String(await decryptFieldValue(record?.contact?.email ?? "")).trim();
@@ -227,6 +244,8 @@ router.post("/owner/:token/book", async (req, res) => {
     });
     if (outcome === "missing") return res.status(404).json({ error: "There is no pilot proposal to accept yet." });
     if (outcome === "stale") return res.status(409).json({ error: "This recommendation has changed. Reopen your job page to see the current one." });
+    if (outcome === "evidence_ineligible") return res.status(409).json({ code: "recommendation_evidence_ineligible",
+      error: "This pilot needs a qualified evaluation of your job before it can be booked. Blueprint must review its evidence." });
     if (outcome === "contact_missing") return res.status(409).json({ error: "A valid site contact email is needed to confirm acceptance. Contact Blueprint to correct it." });
     if (outcome === "site_consent_withdrawn") return res.status(409).json({ code: outcome,
       error: "Recording permission for this job was withdrawn, so this pilot can no longer be booked." });

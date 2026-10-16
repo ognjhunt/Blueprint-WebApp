@@ -137,7 +137,7 @@ for (const mobile of [false, true]) {
     await expect(selected.getByText("Site's proposed pilot price")).toBeVisible();
     await expect(selected.getByText("Four weeks including setup and provider support")).toBeVisible();
     await expect(selected.getByText("$5,000 per month")).toBeVisible();
-    await expect(page.getByText("Invited evaluations are free within the approved scope and share results with the site.")).toBeVisible();
+    await expect(page.getByText("Approved beta evaluations are free and share results with the site.")).toBeVisible();
     await expect(page.getByRole("button", { name: /Private evaluation|See what we would run|Queue these runs/ })).toHaveCount(0);
     expect(mutations).toEqual([]);
     expect(errors).toEqual([]); await context.close();

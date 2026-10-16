@@ -148,7 +148,8 @@ describe("POST /api/internal/pipeline/agent-runs/:runId/started", () => {
     const listed = await json("/api/internal/pipeline/agent-runs");
     expect(listed.body.runs).toEqual([]);
     const resumed = await json("/api/internal/pipeline/agent-runs/run_r1");
-    expect(resumed.body.dispatch).toEqual({ started_at_iso: started.body.started_at_iso, pipeline_run_id: "pipe-1" });
+    expect(resumed.body.dispatch).toMatchObject({ started_at_iso: started.body.started_at_iso, pipeline_run_id: "pipe-1", last_heartbeat_at_iso: null });
+    expect(resumed.body.dispatch.execution_deadline_at_ms).toBeGreaterThan(Date.now());
     const conflict = await json("/api/internal/pipeline/agent-runs/run_r1/started", {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ pipeline_run_id: "pipe-other" }),
     });
@@ -159,7 +160,7 @@ describe("POST /api/internal/pipeline/agent-runs/:runId/started", () => {
     });
     expect(results.status).toBe(200);
     expect(results.body.runs[0].resultStatus).toBe("awaiting_result");
-    expect(results.body.runs[0].dispatch).toEqual({
+    expect(results.body.runs[0].dispatch).toMatchObject({
       startedAtIso: started.body.started_at_iso,
       pipelineRunId: "pipe-1",
     });
@@ -172,6 +173,28 @@ describe("POST /api/internal/pipeline/agent-runs/:runId/started", () => {
       body: JSON.stringify({ pipeline_run_id: "owner" }),
     });
     expect(status).toBe(409);
+  });
+});
+
+describe("POST /api/internal/pipeline/agent-runs/:runId/heartbeat", () => {
+  const beat = (pipelineRunId: string) => json("/api/internal/pipeline/agent-runs/run_r1/heartbeat", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ pipeline_run_id: pipelineRunId }),
+  });
+  it("renews only the active executor and refuses a cancelled claim", async () => {
+    expect((await beat("pipe-1")).status).toBe(409);
+    await json("/api/internal/pipeline/agent-runs/run_r1/started", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pipeline_run_id: "pipe-1" }),
+    });
+    expect((await beat("other")).status).toBe(409);
+    const renewed = await beat("pipe-1");
+    expect(renewed.status).toBe(200);
+    expect(typeof renewed.body.last_heartbeat_at_iso).toBe("string");
+    expect(renewed.body.execution_deadline_at_ms).toBeGreaterThan(Date.now());
+    const key = "evaluationRuns/run_r1";
+    sharedFakeFirestoreState.docs.set(key, { ...sharedFakeFirestoreState.docs.get(key), cancellationRequested: true });
+    expect((await beat("pipe-1")).status).toBe(409);
   });
 });
 

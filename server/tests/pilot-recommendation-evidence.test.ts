@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import type { RobotTeamRecord } from "../types/robot-team-registry";
+import { syntheticSiteTaskQualification, syntheticEpisodeOutcomes } from "./helpers/recommendation-evidence";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, fakeArrayUnion } = await import("./helpers/fake-firestore");
@@ -20,7 +21,7 @@ const scored = (episodes: number, overrides: Record<string, unknown> = {}) => ({
   schemaVersion: RUN_RESULT_SCORING_SCHEMA_VERSION, runtime: "team_evaluation_scored",
   successSource: "simulator_scored", scoredEpisodeCount: episodes, successContractDigest: digest("1"),
   sceneRevisionDigest: digest("2"), robotFreeProbeReceiptDigest: digest("3"), teamCandidateAdmissionDigest: digest("4"),
-  sessionResultDigest: digest("5"), claimCeiling: "diagnostic_policy_execution", ...overrides,
+  sessionResultDigest: digest("5"), claimCeiling: "site_task_simulation", siteTaskQualification: syntheticSiteTaskQualification(), ...overrides,
 });
 const identity = await import("../utils/robotTeamIdentity");
 const { upsertRobotTeamFromIntake } = await import("../utils/robotTeamRegistry");
@@ -32,7 +33,8 @@ function run(observed: Partial<{ episodesRun: number; episodesSucceeded: number;
   return { runId: "run_1", reservationId: "free_1", teamId: "team_a", checkpointId: "ckpt", sceneId: "job_1", taskFamily: null,
     evaluationPurpose: "pilot" as const, quotedUsd: 0, quotedEpisodes: 200, state: "completed" as const, episodesRun, moneyResolved: true,
     requestedAtIso: "2026-10-01T00:00:00.000Z", resolvedAtIso: null, note: null,
-    result: { evidenceScope: "development_only" as const, scoring: scored(episodesRun) as any, runId: "run_1", teamId: "team_a", checkpointId: "ckpt", sceneId: "job_1",
+    executionCaptureId: "capture-fixture",
+    result: { evidenceScope: "simulation" as const, episodeOutcomes: syntheticEpisodeOutcomes(episodesRun, episodesSucceeded), scoring: scored(episodesRun) as any, runId: "run_1", teamId: "team_a", checkpointId: "ckpt", sceneId: "job_1",
       observed: { episodesRun, episodesSucceeded, successRate: Math.round((episodesSucceeded / episodesRun) * 100) / 100, medianCycleSeconds: observed.medianCycleSeconds ?? null },
       claimed: { demonstratedSuccessRate: null, cycleTime: null }, note: null, artifactUri: null, reportedAtIso: "2026-10-02T00:00:00.000Z" },
     ...overrides };
@@ -55,7 +57,7 @@ describe("the job's pass mark", () => {
   it("passes only a completed, site-visible evaluation of this job that meets the mark", () => {
     const mark = evidence.passMarkForJob({}, null);
     const ok = evidence.verifyRecommendationEvidence({ run: run(), requestId: "job_1", passMark: mark });
-    expect(ok).toMatchObject({ ok: true, evidence: { runId: "run_1", episodesSucceeded: 190, episodesRun: 200, evidenceScope: "development_only",
+    expect(ok).toMatchObject({ ok: true, evidence: { runId: "run_1", episodesSucceeded: 190, episodesRun: 200, evidenceScope: "simulation",
       passMark: mark, passed: true, cycleTimeMet: null, boundary: evidence.SIMULATION_EVIDENCE_BOUNDARY } });
     const refuse = (candidate: Parameters<typeof evidence.verifyRecommendationEvidence>[0]) => {
       const outcome = evidence.verifyRecommendationEvidence(candidate);
@@ -71,6 +73,9 @@ describe("the job's pass mark", () => {
     expect(refuse({ run: run({ episodesRun: 189, episodesSucceeded: 189 }), requestId: "job_1", passMark: mark })).toBe("evaluation_too_few_episodes");
     expect(refuse({ run: run({ medianCycleSeconds: 40 }), requestId: "job_1", passMark: { ...mark, cycleTimeSeconds: 30 } })).toBe("evaluation_cycle_time_missed");
     expect(refuse({ run: run({ medianCycleSeconds: 20 }), requestId: "job_1", passMark: { ...mark, cycleTimeSeconds: 30 } })).toBe("ok");
+    for (const medianCycleSeconds of [null, 0, -1, NaN, Infinity]) {
+      expect(refuse({ run: run({ medianCycleSeconds }), requestId: "job_1", passMark: { ...mark, cycleTimeSeconds: 30 } })).toBe("evaluation_cycle_time_missing");
+    }
     expect(refuse({ run: run(), requestId: "job_1", passMark: mark, expectedResultId: "f".repeat(64) })).toBe("evaluation_result_changed");
   });
 
@@ -84,7 +89,7 @@ describe("the job's pass mark", () => {
     const ok = evidence.verifyRecommendationEvidence({ run: withScoring(scored(200)), requestId: "job_1", passMark: mark });
     expect(ok).toMatchObject({ ok: true, evidence: { scoring: { runtime: "team_evaluation_scored",
       successSource: "simulator_scored", successContractDigest: digest("1"), robotFreeProbeReceiptDigest: digest("3"),
-      claimCeiling: "diagnostic_policy_execution" } } });
+      claimCeiling: "site_task_simulation" } } });
     const cases: [unknown, string][] = [
       [undefined, "scoring_missing"],
       [{ ...scored(200), schemaVersion: "blueprint.agent_run_result_scoring.v0" }, "scoring_missing"],
@@ -112,10 +117,50 @@ describe("the job's pass mark", () => {
     const outcome = evidence.verifyRecommendationEvidence({ run: run(), requestId: "job_1", passMark: evidence.passMarkForJob({}, null) });
     if (!outcome.ok) throw new Error("expected evidence");
     const site = evidence.projectEvidenceForSite(outcome.evidence, { resultUrl: "/app/tasks/job_1" });
-    expect(site).toMatchObject({ episodesSucceeded: 190, episodesRun: 200, passMarkSuccessRate: 0.9, evidenceScope: "development_only", resultUrl: "/app/tasks/job_1" });
+    expect(site).toMatchObject({ episodesSucceeded: 190, episodesRun: 200, passMarkSuccessRate: 0.9, evidenceScope: "simulation", resultUrl: "/app/tasks/job_1" });
     expect(JSON.stringify(site)).not.toMatch(/ckpt|run_1|team_a/);
-    expect(evidence.evidenceCapabilityBasis(outcome.evidence)).toMatch(/development simulation: 190 of 200 episodes.*does not certify physical performance or safety/);
+    expect(evidence.evidenceCapabilityBasis(outcome.evidence)).toMatch(/in simulation: 190 of 200 episodes.*does not certify physical performance or safety/);
     expect(evidence.projectEvidenceForSite(null, { resultUrl: null })).toBeNull();
+  });
+
+  it("keeps the observed pass rule while disclosing voids and the independent-episode confidence interval", () => {
+    const outcome = evidence.verifyRecommendationEvidence({ run: run({ episodesRun: 190, episodesSucceeded: 171 }), requestId: "job_1", passMark: evidence.passMarkForJob({}, null) });
+    expect(outcome).toMatchObject({ ok: true, evidence: { successRate: 0.9, passRule: "observed_success_rate.v1",
+      episodeAccounting: { planned: 200, reported: 200, scored: 190, succeeded: 171, failed: 19, void: 10 } } });
+    if (!outcome.ok) throw new Error("expected evidence");
+    expect(outcome.evidence.uncertainty!.lower).toBeCloseTo(0.84906, 4);
+    expect(outcome.evidence.uncertainty!.boundary).toMatch(/correlated episodes.*other sites/);
+    const rounded = run({ episodesRun: 200, episodesSucceeded: 179 });
+    rounded.result.observed.successRate = 0.9;
+    expect(evidence.readEvaluation(rounded, "job_1", evidence.passMarkForJob({}, null))).toMatchObject({ successRate: 0.895, passed: false });
+  });
+
+  it("requires scene qualification and complete episode accounting, even for perfect scores", () => {
+    const mark = evidence.passMarkForJob({}, null);
+    const variants = [
+      { value: run({}, { executionCaptureId: "another-capture" }), refusal: "evaluation_scene_not_qualified" },
+      { value: run({}, { executionAdmission: { envelope: { evidence_scope: "development_only" } } }), refusal: "evaluation_development_only" },
+    ];
+    const development = run(); development.result.evidenceScope = "development_only" as never;
+    variants.push({ value: development, refusal: "evaluation_development_only" });
+    const missing = run(); delete missing.result.scoring.siteTaskQualification;
+    variants.push({ value: missing, refusal: "evaluation_scene_not_qualified" });
+    const diagnostic = run(); diagnostic.result.scoring.claimCeiling = "diagnostic_policy_execution";
+    variants.push({ value: diagnostic, refusal: "evaluation_scene_not_qualified" });
+    const duplicates = run(); duplicates.result.episodeOutcomes[1].cell_id = duplicates.result.episodeOutcomes[0].cell_id;
+    variants.push({ value: duplicates, refusal: "evaluation_episode_accounting_invalid" });
+    const incomplete = run(); incomplete.result.episodeOutcomes.pop();
+    variants.push({ value: incomplete, refusal: "evaluation_episode_accounting_invalid" });
+    const countMismatch = run(); countMismatch.result.episodeOutcomes[0].outcome = "failure";
+    variants.push({ value: countMismatch, refusal: "evaluation_episode_accounting_invalid" });
+    for (const { value, refusal } of variants) {
+      expect(evidence.verifyRecommendationEvidence({ run: value, requestId: "job_1", passMark: mark })).toEqual({ ok: false, refusal });
+      expect(evidence.readEvaluation(value, "job_1", mark).passed).toBe(false);
+    }
+    const qualified = evidence.verifyRecommendationEvidence({ run: run(), requestId: "job_1", passMark: mark });
+    if (!qualified.ok) throw new Error("expected qualified fixture");
+    expect(evidence.projectEvidenceForSite({ ...qualified.evidence, evidenceScope: "development_only" }, { resultUrl: null })).toBeNull();
+    expect(evidence.projectEvidenceForSite({ ...qualified.evidence, qualification: undefined }, { resultUrl: null })).toBeNull();
   });
 });
 

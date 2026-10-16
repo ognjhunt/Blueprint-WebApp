@@ -58,6 +58,7 @@ import { OWNER_WITHDRAWAL_CONFIRMATION, projectWebsiteCaptureWithdrawal,
   recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
 import { dbAdmin } from "../../client/src/lib/firebaseAdmin";
 import { bundleLimitsFromEnv } from "../utils/siteCaptureBundle";
+import { websiteCaptureRetention } from "../utils/websiteCaptureRetention";
 import {
   acceptBundlePlan,
   appBundlePrivacySource,
@@ -288,6 +289,7 @@ export function buildBrowserCaptureManifest(input: {
   sizeBytes: number;
   taskContext?: { description: string; confirmed: boolean; confirmed_at: string | null };
   captureRights?: ReturnType<typeof projectWebsiteCaptureRights>;
+  firstReceivedAtIso?: string;
 }): Record<string, unknown> {
   return {
     schema_version: "v1",
@@ -313,6 +315,7 @@ export function buildBrowserCaptureManifest(input: {
     os_version: "unknown",
     capture_source: "browser_self_capture",
     capture_rights: input.captureRights ?? projectWebsiteCaptureRights(undefined),
+    retention: websiteCaptureRetention(input.firstReceivedAtIso ?? null),
     capture_tier_hint: "video_only",
     has_lidar: false,
     fps_source: input.video.fps,
@@ -527,15 +530,16 @@ async function finishStoredCapture(params: {
       captureWriteStage = "capture_rights_read";
       const captureRights = await loadWebsiteCaptureRights(payload.requestId);
       captureWriteStage = "manifest_build";
+      const firstReceivedAtIso = new Date().toISOString();
       const manifestJson = JSON.stringify(buildBrowserCaptureManifest({ payload,
         objectPath, video: params.videoMetadata, sizeBytes: params.sizeBytes,
-        captureRights,
+        captureRights, firstReceivedAtIso,
         taskContext: { description: brief?.summary ?? "", confirmed: Boolean(brief?.confirmedAtIso),
           confirmed_at: brief?.confirmedAtIso ?? null },
       }), null, 2);
       storedUpload = { schema_version: "website_browser_stored_upload.v1",
         request_id: payload.requestId, scene_id: payload.sceneId, capture_id: payload.captureId,
-        completed_at_iso: new Date().toISOString(), video: params.video,
+        completed_at_iso: firstReceivedAtIso, video: params.video,
         manifest_json: manifestJson,
         manifest_sha256: `sha256:${createHash("sha256").update(manifestJson).digest("hex")}` };
       captureWriteStage = "stored_upload_record";

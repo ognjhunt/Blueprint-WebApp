@@ -80,9 +80,9 @@ function seedDispatchedRun() {
     runId: RUN, reservationId: RESERVATION, teamId: "team_scoring", checkpointId: "ckpt_scoring", sceneId: JOB,
     taskFamily: "rigid_pick_place", evaluationPurpose: "pilot", teamEvaluationPurpose: "scored", quotedUsd: 0,
     quotedEpisodes: 200, state: "requested",
-    episodesRun: null, moneyResolved: false, requestedAtIso: "2026-10-14T00:00:00.000Z", resolvedAtIso: null, note: null,
+    episodesRun: null, moneyResolved: false, requestedAtIso: new Date().toISOString(), resolvedAtIso: null, note: null,
     executionAdmission: { envelope: { evidence_scope: "development_only" }, digestSha256: sha("a") },
-    dispatch: { startedAtIso: "2026-10-14T00:01:00.000Z", pipelineRunId: ATTEMPT },
+    dispatch: { startedAtIso: new Date().toISOString(), pipelineRunId: ATTEMPT, executionDeadlineAtMs: Date.now() + 3_600_000 },
   } as never);
 }
 
@@ -126,7 +126,32 @@ afterEach(async () => {
 });
 
 describe("a signed Pipeline result and what it may back", () => {
-  it("stores a simulator-scored team-candidate result exactly and lets it back a recommendation", async () => {
+  it("retains exact scene qualification through the signed result and requires it for a site recommendation", async () => {
+    const prior = state.docs.get(`evaluationRuns/${RUN}`) as Record<string, any>;
+    state.docs.set(`evaluationRuns/${RUN}`, { ...prior, executionCaptureId: "capture-scoring",
+      executionAdmission: { ...prior.executionAdmission, envelope: { evidence_scope: "simulation" } } });
+    const payload = admittedPayload();
+    const scoring = { ...payload.scoring, claim_ceiling: "site_task_simulation", site_task_qualification: { evidence_scope: "simulation", capture_id: "capture-scoring",
+      scene_revision_digest: sha("2"), registration_receipt_digest: sha("6"), fidelity_review_receipt_digest: sha("7") } };
+    const response = await signed("/agent-run-results", { ...payload, scoring });
+    expect(response.status, await response.clone().text()).toBe(200);
+    expect(await recommendation()).toMatchObject({ ok: true, evidence: { evidenceScope: "simulation",
+      qualification: { captureId: "capture-scoring", registrationReceiptDigest: sha("6"), fidelityReviewReceiptDigest: sha("7") },
+      episodeAccounting: { planned: 200, scored: 200, succeeded: 195, failed: 5, void: 0 } } });
+  });
+
+  it("never upgrades a development admission because a signed result includes qualification metadata", async () => {
+    const prior = state.docs.get(`evaluationRuns/${RUN}`) as Record<string, any>;
+    state.docs.set(`evaluationRuns/${RUN}`, { ...prior, executionCaptureId: "capture-scoring" });
+    const payload = admittedPayload();
+    const response = await signed("/agent-run-results", { ...payload, scoring: { ...payload.scoring,
+      site_task_qualification: { evidence_scope: "simulation", capture_id: "capture-scoring", scene_revision_digest: sha("2"),
+        registration_receipt_digest: sha("6"), fidelity_review_receipt_digest: sha("7") } } });
+    expect(response.status).toBe(200);
+    expect(await recommendation()).toEqual({ ok: false, refusal: "evaluation_development_only" });
+  });
+
+  it("stores development simulator evidence exactly without qualifying a site recommendation", async () => {
     const unsigned = await fetch(`${base}/api/internal/pipeline/agent-run-results`, { method: "POST",
       headers: { "content-type": "application/json" }, body: JSON.stringify(admittedPayload()) });
     expect(unsigned.status).toBe(401);
@@ -143,9 +168,7 @@ describe("a signed Pipeline result and what it may back", () => {
 
     const outcome = await recommendation();
     expect((stored.episodeOutcomes as unknown[]).length).toBe(200);
-    expect(outcome).toMatchObject({ ok: true, evidence: { episodesRun: 200, episodesSucceeded: 195, evidenceScope: "development_only",
-      scoring: { runtime: "team_evaluation_scored", successSource: "simulator_scored",
-        claimCeiling: "diagnostic_policy_execution" } } });
+    expect(outcome).toEqual({ ok: false, refusal: "evaluation_development_only" });
     // Redelivery of the identical signed result is idempotent.
     expect((await signed("/agent-run-results", admittedPayload())).status).toBe(200);
   });

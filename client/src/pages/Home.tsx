@@ -31,7 +31,7 @@ export default function Home() {
       <section className="ms-method ms-container" id="how-it-works" aria-label="How it works">
         <ol className="ms-steps">
           <li><p className="ms-step-head"><span className="ms-step-number">01</span><span className="ms-step-rule" aria-hidden="true" /><span>Show us the task</span></p><p>Describe it or film it on your phone.</p></li>
-          <li><p className="ms-step-head"><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>Robot teams evaluate it</span></p><p>Invited teams test it in a simulation built from your site.</p></li>
+          <li><p className="ms-step-head"><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>Robot teams evaluate it</span></p><p>Invited teams test it in a simplified simulation of your task, informed by your footage.</p></li>
           <li><p className="ms-step-head"><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Book the recommended pilot</span></p><p>One team whose evaluation passed. You agree dates and terms with them.</p></li>
         </ol>
         <p className="ms-method-note">A simulated evaluation is an estimate, not proof of how a robot performs on site or of its safety. The pilot measures that.</p>

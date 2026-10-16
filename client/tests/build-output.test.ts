@@ -246,7 +246,9 @@ describe("build output", () => {
     expect(homeHtml).toContain("Quoted by the robot team, paid to them");
     expect(homeHtml).not.toContain("The same task, in simulation.");
     expect(homeHtml).toContain("Book the recommended pilot");
-    expect(homeHtml).toContain("None during the beta");
+    expect(homeHtml).toContain("Free during the beta");
+    expect(homeHtml).toContain("a simplified simulation of your task, informed by your footage");
+    expect(homeHtml).not.toContain('aria-hidden="true">Book this pilot</span>');
     // Organization and WebSite structured data ride on the homepage.
     expect(homeHtml).toContain('"@type":"Organization"');
     expect(homeHtml).toContain('"@type":"WebSite"');

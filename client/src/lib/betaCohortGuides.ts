@@ -54,7 +54,7 @@ export const buyerBetaGuide: BetaCohortGuide = {
     {
       title: "First evaluation",
       body:
-        "Each evaluation runs your policy in a simulation built from the site's capture, against the job's pass criteria.",
+        "Each evaluation runs your policy in a simplified simulation of the task, informed by the site's footage, against the job's pass criteria.",
       items: [
         "Confirm the robot and gripper, observation and action interfaces, and any adapter work before the run.",
         "Use Blueprint's simulated DROID Franka (openpi_droid_https.v1), or declare your own robot with blueprint.robot_embodiment.v1 for the blueprint_policy_https.v1 interface.",

@@ -76,6 +76,20 @@ describe("the recommended pilot", () => {
     expect(screen.queryByRole("link", { name: "See the evaluation results" })).toBeNull();
   });
 
+  it("shows the scored denominator, excluded voids and uncertainty without changing the observed pass rule", async () => {
+    const evidence = { episodesRun: 190, episodesSucceeded: 171, successRate: 0.9, passMarkSuccessRate: 0.9, passMarkSource: "job_terms",
+      cycleTimeTargetSeconds: 30, medianCycleSeconds: 24, cycleTimeMet: true, evaluatedAtIso: "2026-10-02T00:00:00Z",
+      evidenceScope: "simulation", boundary: "Simulation estimate.", resultUrl: null,
+      episodeAccounting: { planned: 200, reported: 200, scored: 190, succeeded: 171, failed: 19, void: 10 },
+      uncertainty: { method: "wilson_two_sided_95", lower: 0.8491, upper: 0.9347,
+        boundary: "Assumes independent episodes in this tested scene; correlation and other sites remain unmeasured." } };
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation: { ...recommendation, evidence }, booking: null }) });
+    render(<RecommendedPilot token="tok" />);
+    expect(await screen.findByText(/200 prescribed episodes: 190 scored \(171 successes, 19 failures\), 10 void and excluded/)).toBeInTheDocument();
+    expect(screen.getByText(/95% Wilson interval: 84.9%–93.5%.*pass mark uses the observed success rate/)).toBeInTheDocument();
+    expect(screen.getByText(/Measured median cycle: 24s; target: at most 30s/)).toBeInTheDocument();
+  });
+
   it("shows a booked pilot without a button", async () => {
     fetchMock.mockResolvedValueOnce(loaded({ recommendationId: "rec_1" }));
     render(<RecommendedPilot token="tok" />);

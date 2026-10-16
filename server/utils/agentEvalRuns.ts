@@ -50,11 +50,14 @@ import {
   buildRequestedRunRecord,
   isSiteEvaluation,
   reservationTtlMs,
+  executionTtlMs,
+  runExecutionDueAtMs,
   runIdForReservation,
   type EvalRunRecord,
   type EvalRunState,
   type RequestedRunParams,
   type RunDispatch,
+  type RunExecutionProgress,
 } from "./agentRunRecord";
 import { enqueueTaskLifecycleNotification, notifyIfNoTeamPassed } from "./taskLifecycleNotifications";
 import { notifyTeamOfRunOutcome } from "./robotTeamNotifications";
@@ -129,6 +132,7 @@ export async function reportRunOutcome(params: {
   state: Extract<EvalRunState, "completed" | "blocked">;
   episodesRun: number;
   note?: string | null;
+  executionProgress?: RunExecutionProgress;
 }): Promise<boolean> {
   if (!db) return false;
 
@@ -151,6 +155,10 @@ export async function reportRunOutcome(params: {
       if (run.state !== params.state || run.episodesRun !== episodesRun) {
         throw new RunOutcomeConflictError("Settlement conflicts with the recorded run outcome");
       }
+      if (params.executionProgress && run.executionProgress
+        && Object.entries(params.executionProgress).some(([key, value]) => run.executionProgress?.[key as keyof RunExecutionProgress] !== value)) {
+        throw new RunOutcomeConflictError("Execution progress conflicts with the recorded run outcome");
+      }
       endedWithoutResult = params.state === "blocked" || episodesRun === 0 ? { sceneId: run.sceneId, teamId: run.teamId, siteVisible: isSiteEvaluation(run) } : null;
       // An identical delivery is an idempotent acknowledgement. In particular,
       // do not put an already-resolved run back into the due queue.
@@ -162,12 +170,16 @@ export async function reportRunOutcome(params: {
     if (run.state !== "requested") {
       throw new RunOutcomeConflictError("The run cannot accept a financial outcome in its current state");
     }
+    if (params.state === "completed" && runExecutionDueAtMs(run) <= Date.now()) {
+      throw new RunOutcomeConflictError("The execution lease expired before this outcome arrived");
+    }
     transaction.set(ref, {
       ...(!run.result && (params.state === "blocked" || episodesRun === 0) ? { notificationPending: true, notificationIntent: { kind: "no_result" } } : {}),
       state: params.state,
       dispatchPending: false,
       episodesRun,
       note: params.note ?? null,
+      ...(params.executionProgress ? { executionProgress: params.executionProgress } : {}),
       reportedAtIso: nowIso(),
       settlementDueAtMs: 0,
     }, { merge: true });
@@ -299,7 +311,6 @@ async function resolveDueRuns(
   docs: readonly admin.firestore.QueryDocumentSnapshot[],
 ): Promise<ReconciliationSummary> {
   const summary = emptySummary();
-  const expiryCutoff = Date.now() - reservationTtlMs();
 
   for (const doc of docs) {
     const run = doc.data() as EvalRunRecord;
@@ -340,18 +351,16 @@ async function resolveDueRuns(
         continue;
       }
 
-      // A run the Pipeline has started is measured from when it started, not
-      // from when it was queued: a queue can legitimately hold a run for longer
-      // than one TTL, and releasing a run that is executing would un-bill work
-      // that is happening.
-      const holdAnchorMs = Date.parse(run.dispatch?.startedAtIso || run.requestedAtIso);
-      if (run.cancellationRequested || (run.state === "requested" && holdAnchorMs <= expiryCutoff)) {
+      // A queue reservation is not a runtime limit. Claimed work has a fixed
+      // execution deadline and, once supported by the worker, a liveness lease.
+      const executionDue = runExecutionDueAtMs(run);
+      if (run.cancellationRequested || (run.state === "requested" && executionDue <= Date.now())) {
         const expired = await db!.runTransaction(async transaction => {
           const current = await transaction.get(doc.ref);
           const latest = current.data() as EvalRunRecord | undefined;
           if (!latest || latest.moneyResolved) return false;
-          const anchor = Date.parse(latest.dispatch?.startedAtIso || latest.requestedAtIso);
-          if (!latest.cancellationRequested && (latest.state !== "requested" || anchor > expiryCutoff)) return false;
+          const dueAtMs = runExecutionDueAtMs(latest);
+          if (!latest.cancellationRequested && (latest.state !== "requested" || dueAtMs > Date.now())) return false;
           transaction.set(doc.ref, { state: "abandoned", cancellationRequested: true, dispatchPending: false, settlementDueAtMs: 0 }, { merge: true });
           return true;
         });
@@ -369,13 +378,14 @@ async function resolveDueRuns(
         continue;
       }
 
-      // Due but not actionable: a `requested` run whose clock says it is early,
-      // which happens when the TTL is shortened under it. Push it out to the
-      // expiry it should have had rather than re-reading it every pass.
-      await doc.ref.set(
-        { settlementDueAtMs: holdAnchorMs + reservationTtlMs() },
-        { merge: true },
-      );
+      // Re-read transactionally so a concurrent heartbeat or completion cannot
+      // be overwritten with the stale snapshot's due time.
+      await db!.runTransaction(async transaction => {
+        const current = await transaction.get(doc.ref);
+        const latest = current.data() as EvalRunRecord | undefined;
+        if (!latest || latest.moneyResolved || latest.state !== "requested" || latest.cancellationRequested) return;
+        transaction.set(doc.ref, { settlementDueAtMs: runExecutionDueAtMs(latest) }, { merge: true });
+      });
     } catch (error) {
       summary.failed += 1;
       logger.warn(
@@ -558,9 +568,8 @@ export async function listRequestedRuns(limit = 50, captureId?: string): Promise
 /**
  * The Pipeline has taken a run.
  *
- * Records who took it and when, and pushes the settlement due time out by a
- * full TTL from now, so a run that is executing is not released as abandoned
- * because it waited in a queue first. Only a queued run can be started; a run
+ * Records who took it and when, with a separate bounded execution deadline.
+ * Healthy work can exceed the queue reservation TTL. Only a queued run can be started; a run
  * that already concluded, or that we hold no record of, is refused.
  */
 export async function markRunStarted(params: {
@@ -577,13 +586,13 @@ export async function markRunStarted(params: {
     if (run.executionAdmission && params.executionAdmissionDigest !== run.executionAdmission.digestSha256) return null;
     if (run.moneyResolved || run.cancellationRequested || run.state !== "requested" || run.episodesRun !== null) return null;
     if (!canDispatchFreeBetaRun(run)) return null;
+    if (run.dispatch?.startedAtIso) {
+      return run.dispatch.pipelineRunId === params.pipelineRunId && runExecutionDueAtMs(run) > Date.now() ? run : null;
+    }
     const due = run.settlementDueAtMs ?? Date.parse(run.requestedAtIso) + reservationTtlMs();
     if (!Number.isFinite(due) || due <= Date.now()) return null;
-    if (run.dispatch?.startedAtIso) {
-      return run.dispatch.pipelineRunId === params.pipelineRunId ? run : null;
-    }
-    const dispatch: RunDispatch = { startedAtIso: nowIso(), pipelineRunId: params.pipelineRunId! };
-    transaction.set(ref, { dispatch, dispatchPending: false, settlementDueAtMs: Date.now() + reservationTtlMs() }, { merge: true });
+    const dispatch: RunDispatch = { startedAtIso: nowIso(), pipelineRunId: params.pipelineRunId!, executionDeadlineAtMs: Date.now() + executionTtlMs() };
+    transaction.set(ref, { dispatch, dispatchPending: false, settlementDueAtMs: dispatch.executionDeadlineAtMs }, { merge: true });
     return { ...run, dispatch };
   });
   if (!claimed) return false;
@@ -603,6 +612,31 @@ export async function markRunStarted(params: {
   return true;
 }
 
+/** Renew only the current executor's liveness; never extend the hard deadline. */
+export async function heartbeatRun(params: {
+  runId: string;
+  pipelineRunId: string;
+  executionAdmissionDigest?: string;
+}): Promise<boolean> {
+  if (!db || !params.pipelineRunId.trim()) return false;
+  const ref = db.collection(RUNS_COLLECTION).doc(params.runId);
+  return db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    const run = snapshot.data() as EvalRunRecord | undefined;
+    if (!run || run.state !== "requested" || run.moneyResolved || run.cancellationRequested
+      || !run.dispatch?.startedAtIso || run.dispatch.pipelineRunId !== params.pipelineRunId
+      || (run.executionAdmission && run.executionAdmission.digestSha256 !== params.executionAdmissionDigest)
+      || runExecutionDueAtMs(run) <= Date.now()) return false;
+    const dispatch: RunDispatch = {
+      ...run.dispatch,
+      executionDeadlineAtMs: run.dispatch.executionDeadlineAtMs ?? Date.parse(run.dispatch.startedAtIso) + executionTtlMs(),
+      lastHeartbeatAtIso: nowIso(),
+    };
+    transaction.set(ref, { dispatch, settlementDueAtMs: runExecutionDueAtMs({ ...run, dispatch }) }, { merge: true });
+    return true;
+  });
+}
+
 /**
  * What the runs against one scene add up to, for the site that owns it.
  *
@@ -616,7 +650,7 @@ export async function markRunStarted(params: {
  * which keeps "no team passed" from being said early.
  */
 export async function loadSceneScreening(sceneId: string, passMark?: PassMark): Promise<SceneScreening> {
-  const empty: SceneScreening = { teams: 0, queued: 0, running: 0, reported: 0, noResult: 0, ...(passMark ? { passed: 0 } : {}) };
+  const empty: SceneScreening = { teams: 0, queued: 0, running: 0, reported: 0, noResult: 0, ...(passMark ? { passed: 0, ineligible: 0 } : {}) };
   if (!db || !sceneId) return empty;
 
   const snapshot = await db
@@ -638,8 +672,14 @@ export async function loadSceneScreening(sceneId: string, passMark?: PassMark): 
 
     if (observed && episodes > 0) {
       screening.reported += 1;
-      if (passMark && readEvaluation({ ...run, state: "completed" } as RunWithResult, sceneId, passMark).passed === true)
-        screening.passed = (screening.passed ?? 0) + 1;
+      if (passMark) {
+        const reading = readEvaluation({ ...run, state: "completed" } as RunWithResult, sceneId, passMark);
+        if (reading.passed === true) screening.passed = (screening.passed ?? 0) + 1;
+        // Missing qualification, measurements or accounting is unknown evidence,
+        // never proof that the team's policy failed the job.
+        if (reading.refusals.some(refusal => !["evaluation_below_pass_mark", "evaluation_cycle_time_missed"].includes(refusal)))
+          screening.ineligible = (screening.ineligible ?? 0) + 1;
+      }
       teams.add(run.teamId);
       continue;
     }

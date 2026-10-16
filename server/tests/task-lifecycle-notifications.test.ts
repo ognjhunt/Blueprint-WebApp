@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { syntheticSiteTaskQualification, syntheticEpisodeOutcomes } from "./helpers/recommendation-evidence";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -164,10 +165,12 @@ describe("a waiting job hears what it is waiting on", () => {
   const scored = (episodes: number) => ({ schemaVersion: "blueprint.agent_run_result_scoring.v1", runtime: "team_evaluation_scored",
     successSource: "simulator_scored", scoredEpisodeCount: episodes, successContractDigest: `sha256:${"1".repeat(64)}`,
     sceneRevisionDigest: `sha256:${"2".repeat(64)}`, robotFreeProbeReceiptDigest: `sha256:${"3".repeat(64)}`,
-    teamCandidateAdmissionDigest: `sha256:${"4".repeat(64)}`, sessionResultDigest: `sha256:${"5".repeat(64)}`, claimCeiling: "diagnostic_policy_execution" });
+    teamCandidateAdmissionDigest: `sha256:${"4".repeat(64)}`, sessionResultDigest: `sha256:${"5".repeat(64)}`, claimCeiling: "site_task_simulation",
+    siteTaskQualification: syntheticSiteTaskQualification() });
   const run = (runId: string, state: string, succeeded: number | null) => sharedFakeFirestoreState.docs.set(`evaluationRuns/${runId}`, {
-    runId, teamId: `team-${runId}`, sceneId: "req-1", evaluationPurpose: "pilot", state,
-    ...(succeeded === null ? {} : { result: { scoring: scored(200), observed: { episodesRun: 200, episodesSucceeded: succeeded, medianCycleSeconds: null } } }) });
+    runId, teamId: `team-${runId}`, sceneId: "req-1", evaluationPurpose: "pilot", state, executionCaptureId: "capture-fixture", quotedEpisodes: 200,
+    ...(succeeded === null ? {} : { result: { scoring: scored(200), episodeOutcomes: syntheticEpisodeOutcomes(200, succeeded),
+      observed: { episodesRun: 200, episodesSucceeded: succeeded, medianCycleSeconds: null } } }) });
 
   it("tells the site once that robot teams can evaluate the job, only while true and before any run", async () => {
     const { notifyIfOpenForEvaluations } = await import("../utils/taskLifecycleNotifications");
@@ -202,6 +205,8 @@ describe("a waiting job hears what it is waiting on", () => {
     const { notifyIfNoTeamPassed } = await import("../utils/taskLifecycleNotifications");
     run("run_a", "completed", 120);
     run("run_b", "blocked", null);
+    expect((await notifyIfNoTeamPassed("req-1", "run_b")).enqueued).toBe(false);
+    sharedFakeFirestoreState.docs.delete("evaluationRuns/run_b");
     expect((await notifyIfNoTeamPassed("req-1", "run_b")).enqueued).toBe(true);
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:no_team_passed:run_b") as Record<string, string>;
     expect(row.subject).toBe("No robot team's evaluation has passed yet");
@@ -214,5 +219,17 @@ describe("a waiting job hears what it is waiting on", () => {
     run("run_c", "completed", 100);
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { contact: { email: "encrypted:owner@example.com" }, pilot_recommendation: { id: "rec" } });
     expect((await notifyIfNoTeamPassed("req-1", "run_c")).enqueued).toBe(false);
+  });
+
+  it("does not turn development evidence or missing measurements into a failed-policy notice", async () => {
+    const { notifyIfNoTeamPassed } = await import("../utils/taskLifecycleNotifications");
+    run("run_a", "completed", 120);
+    const value = sharedFakeFirestoreState.docs.get("evaluationRuns/run_a") as Record<string, any>;
+    value.result.evidenceScope = "development_only";
+    expect((await notifyIfNoTeamPassed("req-1", "run_a")).enqueued).toBe(false);
+    delete value.result.evidenceScope;
+    delete value.result.scoring.siteTaskQualification;
+    expect((await notifyIfNoTeamPassed("req-1", "run_a")).enqueued).toBe(false);
+    expect([...sharedFakeFirestoreState.docs.keys()].some(key => key.includes(":no_team_passed:"))).toBe(false);
   });
 });

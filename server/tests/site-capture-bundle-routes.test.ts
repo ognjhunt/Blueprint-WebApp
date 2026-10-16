@@ -748,6 +748,11 @@ describe("completion keeps the web path's order and authority", () => {
     expect(manifest.capture_profile_id).toBe("iphone_arkit_lidar");
     expect(manifest.site_submission_id).toBe(REQUEST_ID);
     expect(manifest.capture_job_id).toBeNull();
+    expect(manifest.retention).toMatchObject({ policy_id: "website_capture_retention_review.v1",
+      extension_authorized: false, minimum_retention_floor_days_if_delete_is_ever_introduced: null,
+      account_reacceptance_extends_existing_recordings: false });
+    const retainedRights = JSON.parse(state.bucket.text(`${RAW}/rights_consent.json`)!);
+    expect(retainedRights.retention).toEqual(manifest.retention);
     expect(manifest.site_self_capture).toMatchObject({
       schema_version: "site_self_capture.v1",
       authored_by: "blueprint_webapp",

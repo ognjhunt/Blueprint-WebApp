@@ -106,7 +106,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   awaiting_evaluations: {
     subject: "Robot teams can now evaluate your job",
-    body: (url) => `Your job is open to robot teams approved for the beta. They see only its anonymized card, and each can request a free evaluation in the simulation built from your capture. No team has started one yet. We will email you when a team starts and when it reports a result. Nothing is needed from you.\n\nOpen your job:\n${url}`,
+    body: (url) => `Your job is open to robot teams approved for the beta. They see only its anonymized card, and each can request a free evaluation in a simplified simulation of your task, informed by your footage. No team has started one yet. We will email you when a team starts and when it reports a result. Nothing is needed from you.\n\nOpen your job:\n${url}`,
   },
   no_team_passed: {
     subject: "No robot team's evaluation has passed yet",
@@ -247,8 +247,8 @@ export async function noTeamHasPassed(requestId: string): Promise<boolean> {
   const [{ getBrief }, { passMarkForJob }, { loadSceneScreening }] = await Promise.all([
     import("./siteTaskBrief"), import("./pilotRecommendationEvidence"), import("./agentEvalRuns")]);
   const screening = await loadSceneScreening(requestId, passMarkForJob(record, await getBrief(requestId) as never));
-  return screening.queued + screening.running === 0 && screening.reported + screening.noResult > 0
-    && screening.passed === 0;
+  return screening.queued + screening.running === 0 && screening.reported > 0 && screening.noResult === 0
+    && screening.passed === 0 && (screening.ineligible ?? 0) === 0;
 }
 
 /** Existing outbox tick repairs a lost enqueue; fresh readback gates dispatch again. */

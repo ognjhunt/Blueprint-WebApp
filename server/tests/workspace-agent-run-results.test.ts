@@ -53,6 +53,15 @@ describe("projectAgentRunResult", () => {
     expect(missed.targetsMet).toBe(false);
   });
 
+  it("uses the exact count ratio rather than a rounded stored rate at the pass boundary", () => {
+    const row = projectAgentRunResult({ ...reported, result: { ...reported.result,
+      scoring: { ...simulatorScored, scoredEpisodeCount: 200 },
+      observed: { ...reported.result.observed, episodesRun: 200, episodesSucceeded: 179, successRate: 0.9 } } },
+      "req-1", { ...termsFor({}), successRate: 90 });
+    expect(row.successRate).toBe(89.5);
+    expect(row.targetsMet).toBe(false);
+  });
+
   it("never calls targets met on a count the simulator did not score", () => {
     const terms = { ...termsFor({}), successRate: 80 };
     const unlabelled = { ...reported, result: { observed: reported.result.observed } };

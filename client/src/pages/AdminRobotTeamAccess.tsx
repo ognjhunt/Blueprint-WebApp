@@ -274,6 +274,8 @@ export type JobEvaluation = {
   confidenceBand: string | null; evidenceScope: "development_only" | "simulation" | null;
   evaluatedAtIso: string | null; passed: boolean | null; recommendable: boolean;
   refusals: Array<{ code: string; error: string }>; teamRefusal: { code: string; error: string } | null;
+  episodeAccounting?: { planned: number; reported: number; scored: number; succeeded: number; failed: number; void: number } | null;
+  uncertainty?: { lower: number; upper: number; boundary: string } | null;
 };
 export type JobEvaluations = {
   passMark: { successRate: number; source: "job_terms" | "site_task_brief" | "blueprint_default"; minimumEpisodes: number; cycleTimeSeconds: number | null };
@@ -299,6 +301,8 @@ export function EvaluationPicker({ evaluations, selected, onSelect }: {
           disabled={!evaluation.recommendable} onChange={() => onSelect(evaluation)} />
         <span><strong>{evaluation.recommendedTeamName ?? evaluation.teamName ?? evaluation.teamId}</strong> · {result}
           {evaluation.confidenceBand ? ` · band ${evaluation.confidenceBand}` : ""} · {evaluation.passed === true ? "passes" : evaluation.passed === false ? "does not pass" : "not evaluated"} the pass mark
+          {evaluation.episodeAccounting && <span className="ms-field-hint" style={{ display: "block" }}>{evaluation.episodeAccounting.planned} prescribed; {evaluation.episodeAccounting.scored} scored; {evaluation.episodeAccounting.failed} failures; {evaluation.episodeAccounting.void} void, excluded from the denominator.</span>}
+          {evaluation.uncertainty && <span className="ms-field-hint" style={{ display: "block" }}>95% Wilson interval: {percent(evaluation.uncertainty.lower)}–{percent(evaluation.uncertainty.upper)}. Pass uses the observed success rate. {evaluation.uncertainty.boundary}</span>}
           {why.length ? <span className="ms-field-hint" style={{ display: "block" }}>{why.join(" ")}</span> : null}</span>
       </label>;
     })}
