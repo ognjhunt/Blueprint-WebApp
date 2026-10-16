@@ -5,7 +5,7 @@ import type {
   WorkspaceTask,
 } from "../../client/src/types/workspace";
 import { teamJobAccess } from "./teamJobAccess";
-import { isSimulatorScoredJobEvidence, type RunResultScoring } from "./runResultScoring";
+import { hasQualifiedSimulationEvidence, type RunResultScoring } from "./runResultScoring";
 import type { EpisodeOutcome } from "./agentRunResults";
 import { sitePilotIntentFrom, siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 
@@ -192,6 +192,9 @@ export interface AgentRunForSite {
   state: string;
   /** Beta L5: marks a team evaluation, from admission on. */
   teamEvaluationPurpose?: "scored";
+  quotedEpisodes?: number;
+  executionCaptureId?: string;
+  executionAdmission?: { envelope: Record<string, unknown> };
   result?: {
     evidenceScope?: "development_only" | "simulation";
     /** Who scored the episodes; without an admitted statement, targets are never "met". */
@@ -248,8 +251,8 @@ export function projectAgentRunResult(
     targetsMet: null,
     selected: false,
   };
-  // "Met" is a pass claim: only a simulator-scored result in an admitted runtime can make it.
-  result.targetsMet = run.result?.evidenceScope === "development_only" || !isSimulatorScoredJobEvidence(run.result)
-    ? null : targetsMet(result, terms);
+  // A pass label uses the same scene qualification and complete episode
+  // accounting as registry promotion; diagnostic observations remain visible.
+  result.targetsMet = hasQualifiedSimulationEvidence(run) ? targetsMet(result, terms) : null;
   return result;
 }

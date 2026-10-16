@@ -17,11 +17,11 @@ Release gate:
 npm run alpha:check
 ```
 
-Launch preflight:
-
-```bash
-npm run alpha:preflight
-```
+Production promotion uses the exact-SHA green `CI` gate in
+`.github/workflows/deploy.yml`, followed by the deployed version and readiness
+readbacks. `alpha:preflight` describes the retired autonomous paid alpha; it
+requires Stripe and old automation flags and is not a free-beta release gate.
+Do not enable billing or retired lifecycle/outreach workers to satisfy it.
 
 Live alpha smoke:
 
@@ -713,7 +713,7 @@ replace that inbox or the approved Gmail human-reply watcher.
 - The voice concierge now supports both web voice and Twilio-compatible PSTN intake. Pricing, legal, privacy, rights, contract, and irreversible commitments remain human-gated, and phone handoff can forward to a live operator when configured.
 - Legacy manual deployment scripts were removed; deployment should always run through project scripts.
 - `client/public/robots.txt` must exist at build time and be served in production.
-- `npm run alpha:preflight` is the launch-environment validator for Render and should pass before promoting the service.
+- `npm run alpha:preflight` is historical paid-alpha tooling, not the free-beta Render promotion gate. Use the exact-SHA CI/deploy workflow and its live version/readiness checks; preserve existing automation holds.
 - `npm run smoke:launch` is the live alpha smoke runner for `/health`, `/health/ready`, the selected structured automation provider, inbound qualification, and post-signup workflows.
 
 ### Saved robot setup readback

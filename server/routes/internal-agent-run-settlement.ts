@@ -58,7 +58,7 @@ import {
 import {
   getRunForReservation,
   markResolved,
-  reportRunOutcome,
+  reportPipelineRunOutcome,
   RunOutcomeConflictError,
   runIdForReservation,
   settlementAmountUsd,
@@ -309,13 +309,20 @@ router.post(
       // throws, the outcome is already durable and due, so the reconciler
       // finishes the job on its next pass instead of the hold sitting there
       // waiting for a retry that may never come.
-      const recorded = await reportRunOutcome({
+      const outcome = await reportPipelineRunOutcome({
         runId: recordId,
         state: blocked ? "blocked" : "completed",
         episodesRun,
         note: parsed.data.reason || `Pipeline run ${runId}`,
         ...(progress ? { executionProgress: progress } : {}),
+        pipelineBinding: { teamId, pipelineRunId: parsed.data.pipeline_run_id,
+          executionAdmissionDigest: parsed.data.execution_admission_digest },
       });
+      if (outcome.diagnosticOnly) return res.status(200).json({
+        ok: true, diagnostic_only: true, settled: false, reconciled: false, amountUsd: 0,
+      });
+      const recorded = outcome.recorded;
+      if (!recorded) return res.status(404).json({ error: "No funded run exists for this reservation", code: "agent_run_not_found" });
       if (isBlueprintFundedRun(priorRun)) {
         await markResolved(recordId, blocked ? "blocked" : "completed",
           "Free evaluation: no customer charge. Pipeline retains sponsor usage and holds.");

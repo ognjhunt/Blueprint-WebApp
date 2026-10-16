@@ -38,6 +38,7 @@ import { canDispatchFreeBetaRun, isBlueprintFundedRun, FREE_BETA_ONLY, FREE_BETA
  * ago, which is the failure this module exists to prevent.
  */
 
+import { isDeepStrictEqual } from "node:util";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import type { SceneScreening } from "./taskStatusProjection";
@@ -127,14 +128,36 @@ export class RunOutcomeConflictError extends Error {
   }
 }
 
-export async function reportRunOutcome(params: {
+interface RunOutcomeParams {
   runId: string;
   state: Extract<EvalRunState, "completed" | "blocked">;
   episodesRun: number;
   note?: string | null;
   executionProgress?: RunExecutionProgress;
-}): Promise<boolean> {
-  if (!db) return false;
+}
+
+interface PipelineOutcomeBinding {
+  teamId: string;
+  pipelineRunId?: string;
+  executionAdmissionDigest?: string;
+}
+
+/** Existing financial callers do not acquire authority to append closed-run diagnostics. */
+export async function reportRunOutcome(params: RunOutcomeParams): Promise<boolean> {
+  return (await recordRunOutcome(params)).recorded;
+}
+
+/** Signed Pipeline delivery may retain a blocked receipt after cancellation, without reopening it. */
+export async function reportPipelineRunOutcome(params: RunOutcomeParams & {
+  pipelineBinding: PipelineOutcomeBinding;
+}): Promise<{ recorded: boolean; diagnosticOnly: boolean }> {
+  return recordRunOutcome(params);
+}
+
+async function recordRunOutcome(params: RunOutcomeParams & {
+  pipelineBinding?: PipelineOutcomeBinding;
+}): Promise<{ recorded: boolean; diagnosticOnly: boolean }> {
+  if (!db) return { recorded: false, diagnosticOnly: false };
 
   const ref = db.collection(RUNS_COLLECTION).doc(params.runId);
   const episodesRun = Math.max(0, Math.round(params.episodesRun));
@@ -142,10 +165,40 @@ export async function reportRunOutcome(params: {
   const accepted = await db.runTransaction(async transaction => {
     const snapshot = await transaction.get(ref);
     // An outcome for a run we never reserved money for has nothing to settle.
-    if (!snapshot.exists) return false;
+    if (!snapshot.exists) return "missing" as const;
     const run = snapshot.data() as EvalRunRecord & {
       result?: { observed?: { episodesRun?: number } } | null;
+      closedExecutionDiagnostic?: Record<string, unknown>;
     };
+    const binding = params.pipelineBinding;
+    const boundClaim = Boolean(binding?.pipelineRunId && binding.executionAdmissionDigest
+      && run.teamId === binding.teamId && run.dispatch?.pipelineRunId === binding.pipelineRunId
+      && run.executionAdmission?.digestSha256 === binding.executionAdmissionDigest);
+    if (binding && (run.teamId !== binding.teamId || (run.executionAdmission && !boundClaim))) {
+      throw new RunOutcomeConflictError("Settlement does not match the current claimed execution");
+    }
+    const closed = run.cancellationRequested || run.state === "abandoned" || run.moneyResolved;
+    if (closed && params.state === "blocked" && params.executionProgress) {
+      if (!boundClaim) throw new RunOutcomeConflictError("A closed-run diagnostic requires its bound Pipeline claim");
+      const diagnostic = {
+        teamId: binding!.teamId,
+        pipelineRunId: binding!.pipelineRunId!,
+        executionAdmissionDigest: binding!.executionAdmissionDigest!,
+        episodesRun,
+        executionProgress: params.executionProgress,
+        note: params.note ?? null,
+      };
+      const prior = run.closedExecutionDiagnostic;
+      if (prior) {
+        const { receivedAtIso: _receivedAt, ...priorEvidence } = prior;
+        if (!isDeepStrictEqual(priorEvidence, diagnostic)) {
+          throw new RunOutcomeConflictError("Closed-run diagnostic conflicts with the recorded receipt");
+        }
+      } else {
+        transaction.set(ref, { closedExecutionDiagnostic: { ...diagnostic, receivedAtIso: nowIso() } }, { merge: true });
+      }
+      return "diagnostic" as const;
+    }
     const observedEpisodes = run.result?.observed?.episodesRun;
     if (typeof observedEpisodes === "number" && observedEpisodes !== episodesRun) {
       throw new RunOutcomeConflictError("Settlement episodes conflict with the recorded result evidence");
@@ -162,7 +215,7 @@ export async function reportRunOutcome(params: {
       endedWithoutResult = params.state === "blocked" || episodesRun === 0 ? { sceneId: run.sceneId, teamId: run.teamId, siteVisible: isSiteEvaluation(run) } : null;
       // An identical delivery is an idempotent acknowledgement. In particular,
       // do not put an already-resolved run back into the due queue.
-      return true;
+      return "recorded" as const;
     }
     if (run.cancellationRequested || run.state === "abandoned" || run.moneyResolved) {
       throw new RunOutcomeConflictError("The run was cancelled or financially resolved before this outcome arrived");
@@ -184,7 +237,7 @@ export async function reportRunOutcome(params: {
       settlementDueAtMs: 0,
     }, { merge: true });
     endedWithoutResult = params.state === "blocked" || episodesRun === 0 ? { sceneId: run.sceneId, teamId: run.teamId, siteVisible: isSiteEvaluation(run) } : null;
-    return true;
+    return "recorded" as const;
   });
   // The site hears about a run that ended with nothing to show, too. A run
   // with episodes gets its email when the result is recorded.
@@ -204,7 +257,7 @@ export async function reportRunOutcome(params: {
       logger.warn({ error, runId: params.runId }, "Could not enqueue the team's no-result notice");
     }
   }
-  return accepted;
+  return { recorded: accepted === "recorded", diagnosticOnly: accepted === "diagnostic" };
 }
 
 export interface ReconciliationSummary {

@@ -25,7 +25,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
-import { syntheticSiteTaskQualification } from "./helpers/recommendation-evidence";
+import { syntheticSiteTaskQualification, syntheticEpisodeOutcomes } from "./helpers/recommendation-evidence";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -83,9 +83,9 @@ function seedRun(runId = "run_res_1", teamId = TEAM) {
     taskFamily: "tote_transfer",
     reservationId: runId.replace(/^run_/, ""),
     quotedUsd: 250,
-    quotedEpisodes: 50,
+    quotedEpisodes: 200,
     state: "completed",
-    episodesRun: 50,
+    episodesRun: 200,
     moneyResolved: true,
     requestedAtIso: "2026-09-17T00:00:00.000Z",
     resolvedAtIso: "2026-09-17T01:00:00.000Z",
@@ -206,7 +206,7 @@ describe("a reported result reaches the registry", () => {
 
     await recordRunResult({
       runId: "run_res_1",
-      report: { episodesRun: 50, episodesSucceeded: 50, scoring: scored(50) },
+      report: { episodesRun: 200, episodesSucceeded: 190, scoring: scored(200), episodeOutcomes: syntheticEpisodeOutcomes(200, 190) },
     });
 
     const team = await getRobotTeam(TEAM);
@@ -224,7 +224,7 @@ describe("a reported result reaches the registry", () => {
 
     await recordRunResult({
       runId: "run_res_1",
-      report: { episodesRun: 1_000, episodesSucceeded: 1_000, scoring: scored(1_000) },
+      report: { episodesRun: 200, episodesSucceeded: 200, scoring: scored(200), episodeOutcomes: syntheticEpisodeOutcomes(200, 200) },
     });
 
     const team = await getRobotTeam(TEAM);
@@ -232,10 +232,10 @@ describe("a reported result reaches the registry", () => {
   });
 
   it("never writes a measured grade from a count the simulator did not score", async () => {
-    // The same fifty-for-fifty that earns `ninety` above, stated as the team's
+    // The same complete scored evaluation, stated as the team's
     // own verdict, unlabelled, or from an unverified runtime: stored, never promoted.
-    for (const scoring of [undefined, scored(50, { runtime: "http_policy_api_observation_probe", successSource: "team_reported" }),
-      scored(50, { runtime: "legacy_robot_eval_command_batch", successSource: "unverified" }), scored(50, { robotFreeProbeReceiptDigest: null })]) {
+    for (const scoring of [undefined, scored(200, { runtime: "http_policy_api_observation_probe", successSource: "team_reported" }),
+      scored(200, { runtime: "legacy_robot_eval_command_batch", successSource: "unverified" }), scored(200, { robotFreeProbeReceiptDigest: null })]) {
       sharedFakeFirestoreState.docs.clear();
       seedRun();
       sharedFakeFirestoreState.docs.set(`robotTeams/${TEAM}`, { id: TEAM, name: "Alpha Robotics", status: "applied",
@@ -243,12 +243,35 @@ describe("a reported result reaches the registry", () => {
         fieldProvenance: { demonstratedSuccessRate: { grade: "self_reported", source: "intake" } },
         createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z" });
       const result = await recordRunResult({ runId: "run_res_1",
-        report: { episodesRun: 50, episodesSucceeded: 50, ...(scoring ? { scoring } : {}) } });
-      expect(result?.observed).toMatchObject({ episodesRun: 50, episodesSucceeded: 50 });
+        report: { episodesRun: 200, episodesSucceeded: 200, episodeOutcomes: syntheticEpisodeOutcomes(200, 200), ...(scoring ? { scoring } : {}) } });
+      expect(result?.observed).toMatchObject({ episodesRun: 200, episodesSucceeded: 200 });
       expect(result?.scoring).toEqual(scoring);
       const team = await getRobotTeam(TEAM);
       expect(team?.capability.demonstratedSuccessRate).toBe("ninetynine_plus");
       expect(team?.fieldProvenance.demonstratedSuccessRate?.grade).toBe("self_reported");
+    }
+  });
+
+  it("retains incomplete or inconsistent qualified observations without promoting supply or capability claims", async () => {
+    const valid = syntheticEpisodeOutcomes(200, 200);
+    const duplicates = structuredClone(valid); duplicates[1].cell_id = duplicates[0].cell_id;
+    const mismatched = structuredClone(valid); mismatched[0].outcome = "failure";
+    for (const candidate of [
+      { episodes: 200, outcomes: undefined },
+      { episodes: 200, outcomes: valid.slice(1) },
+      { episodes: 200, outcomes: duplicates },
+      { episodes: 200, outcomes: mismatched },
+      { episodes: 189, outcomes: syntheticEpisodeOutcomes(189, 189) },
+    ]) {
+      sharedFakeFirestoreState.docs.clear(); seedRun(); seedTeam("self_registered");
+      const result = await recordRunResult({ runId: "run_res_1", report: { episodesRun: candidate.episodes,
+        episodesSucceeded: candidate.episodes, medianCycleSeconds: 12, scoring: scored(candidate.episodes),
+        ...(candidate.outcomes ? { episodeOutcomes: candidate.outcomes } : {}) } });
+      expect(result?.observed).toMatchObject({ episodesRun: candidate.episodes, episodesSucceeded: candidate.episodes });
+      const team = await getRobotTeam(TEAM);
+      expect(team?.status).toBe("self_registered");
+      expect(team?.capability).toEqual({});
+      expect(team?.fieldProvenance).toEqual({});
     }
   });
 
@@ -375,14 +398,15 @@ describe("a run that rules out a claim withdraws it", () => {
     await recordRunResult({
       runId: "run_res_1",
       report: {
-        episodesRun: 50,
-        episodesSucceeded: 30,
+        episodesRun: 200,
+        episodesSucceeded: 120,
         medianCycleSeconds: null,
         cycleSecondsP10: null,
         cycleSecondsP90: null,
         note: null,
         artifactUri: null,
-        scoring: scored(50),
+        scoring: scored(200),
+        episodeOutcomes: syntheticEpisodeOutcomes(200, 120),
       },
     });
 
@@ -432,14 +456,15 @@ describe("a run that rules out a claim withdraws it", () => {
     await recordRunResult({
       runId: "run_res_1",
       report: {
-        episodesRun: 50,
-        episodesSucceeded: 20,
+        episodesRun: 200,
+        episodesSucceeded: 80,
         medianCycleSeconds: null,
         cycleSecondsP10: null,
         cycleSecondsP90: null,
         note: null,
         artifactUri: null,
-        scoring: scored(50),
+        scoring: scored(200),
+        episodeOutcomes: syntheticEpisodeOutcomes(200, 80),
       },
     });
 

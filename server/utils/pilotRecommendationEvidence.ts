@@ -56,7 +56,9 @@ import { humanDecisionDigest } from "./human-reply-admission";
 import { isSiteEvaluation, type EvalRunRecord } from "./agentRunRecord";
 import type { EvalRunResult } from "./agentRunResults";
 import { CONFIDENCE_POLICY_VERSION, SUCCESS_RATE_BAND_CLAIM, successRateBand, wilsonLowerBound, wilsonUpperBound } from "./successRateConfidence";
-import { boundSiteTaskQualification, scoringRefusal, SITE_TASK_SIMULATION_CLAIM_CEILING, type ScoringRefusal, type SiteTaskQualification } from "./runResultScoring";
+import { boundSiteTaskQualification, episodeAccountingFor, MINIMUM_SCORED_EVIDENCE_EPISODES, scoringRefusal, SITE_TASK_SIMULATION_CLAIM_CEILING,
+  type EpisodeAccounting, type ScoringRefusal, type SiteTaskQualification } from "./runResultScoring";
+export { episodeAccountingFor, type EpisodeAccounting } from "./runResultScoring";
 
 /** The lowest success rate the confidence policy states as a band. */
 export const DEFAULT_PASS_MARK_SUCCESS_RATE = SUCCESS_RATE_BAND_CLAIM.ninety;
@@ -65,7 +67,7 @@ export const DEFAULT_PASS_MARK_SUCCESS_RATE = SUCCESS_RATE_BAND_CLAIM.ninety;
  * simulator, not the policy, failed) and go uncounted. Fewer counted episodes
  * than this cannot tell a 90% policy from a 75% one.
  */
-export const MINIMUM_EVIDENCE_EPISODES = 190;
+export const MINIMUM_EVIDENCE_EPISODES = MINIMUM_SCORED_EVIDENCE_EPISODES;
 
 export const SIMULATION_EVIDENCE_BOUNDARY =
   "Simulation estimate. It does not certify physical performance or safety; the physical pilot measures the real result.";
@@ -82,15 +84,6 @@ export interface PassMark {
 }
 
 export type EvidenceScope = "development_only" | "simulation";
-
-export interface EpisodeAccounting {
-  planned: number;
-  reported: number;
-  scored: number;
-  succeeded: number;
-  failed: number;
-  void: number;
-}
 
 export interface SuccessRateUncertainty {
   method: "wilson_two_sided_95";
@@ -211,24 +204,6 @@ export function passMarkForJob(
 
 export type RunWithResult = EvalRunRecord & { result?: EvalRunResult | null };
 
-/** The existing 200-cell protocol permits at most ten voids (190 scored).
- * Count the disclosed cells, rather than trusting a rate or silently dropping
- * missing cells. A retry inside a cell never creates a second evidence episode.
- */
-export function episodeAccountingFor(run: RunWithResult): EpisodeAccounting | null {
-  const result = run.result;
-  const rows = result?.episodeOutcomes;
-  if (!result || !Array.isArray(rows) || run.quotedEpisodes !== 200 || rows.length !== run.quotedEpisodes
-    || rows.some(row => !row.cell_id?.trim() || !["success", "failure", "void"].includes(row.outcome))
-    || new Set(rows.map(row => row.cell_id)).size !== rows.length) return null;
-  const succeeded = rows.filter(row => row.outcome === "success").length;
-  const failed = rows.filter(row => row.outcome === "failure").length;
-  const voided = rows.filter(row => row.outcome === "void").length;
-  const scored = succeeded + failed;
-  if (result.observed.episodesRun !== scored || result.observed.episodesSucceeded !== succeeded) return null;
-  return { planned: run.quotedEpisodes, reported: rows.length, scored, succeeded, failed, void: voided };
-}
-
 export function sceneQualificationFor(run: RunWithResult): SiteTaskQualification | null {
   return boundSiteTaskQualification(run.result, run.executionCaptureId);
 }
@@ -311,7 +286,7 @@ export interface EvaluationReading {
 export function notCountedReason(run: {
   teamEvaluationPurpose?: string;
   result?: Parameters<typeof scoringRefusal>[0];
-  executionAdmission?: EvalRunRecord["executionAdmission"];
+  executionAdmission?: { envelope: Record<string, unknown> };
   executionCaptureId?: string;
   quotedEpisodes?: number;
 }): string | null {

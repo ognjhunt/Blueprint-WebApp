@@ -36,6 +36,8 @@ export const TEAM_EVALUATION_SCORED_RUNTIME = "team_evaluation_scored";
 export const SIMULATOR_SCORED = "simulator_scored";
 /** A qualified simulation estimate; never a physical performance claim. */
 export const SITE_TASK_SIMULATION_CLAIM_CEILING = "site_task_simulation";
+/** Frozen scored-200 protocol: at most ten infrastructure voids. */
+export const MINIMUM_SCORED_EVIDENCE_EPISODES = 190;
 
 /** The only (runtime, source) pairs whose successes count. Everything else is refused. */
 export const ADMITTED_SCORING: ReadonlyArray<{ runtime: string; successSource: string }> = Object.freeze([
@@ -165,4 +167,54 @@ export function boundSiteTaskQualification(result: ScoredResult, captureId: stri
     || [qualification.sceneRevisionDigest, qualification.registrationReceiptDigest, qualification.fidelityReviewReceiptDigest]
       .some(value => typeof value !== "string" || !digestPattern.test(value))) return null;
   return qualification;
+}
+
+export interface EpisodeAccounting {
+  planned: number;
+  reported: number;
+  scored: number;
+  succeeded: number;
+  failed: number;
+  void: number;
+}
+
+/** Only the fields needed to establish evidence eligibility; no storage dependency. */
+export interface SimulationEvidenceInput {
+  quotedEpisodes?: number;
+  executionCaptureId?: string;
+  executionAdmission?: { envelope: Record<string, unknown> };
+  result?: {
+    evidenceScope?: string;
+    scoring?: RunResultScoring;
+    episodeOutcomes?: Array<{ cell_id: string; outcome: "success" | "failure" | "void" }>;
+    observed: { episodesRun: number; episodesSucceeded: number };
+  } | null;
+}
+
+/** Count every prescribed hidden cell exactly once. A retry within a cell
+ * never creates another evidence episode. The scored minimum is checked by
+ * the caller, so invalid and short observations can still be displayed.
+ */
+export function episodeAccountingFor(run: SimulationEvidenceInput): EpisodeAccounting | null {
+  const result = run.result;
+  const rows = result?.episodeOutcomes;
+  if (!result || !Array.isArray(rows) || run.quotedEpisodes !== 200 || rows.length !== run.quotedEpisodes
+    || rows.some(row => !row.cell_id?.trim() || !["success", "failure", "void"].includes(row.outcome))
+    || new Set(rows.map(row => row.cell_id)).size !== rows.length) return null;
+  const succeeded = rows.filter(row => row.outcome === "success").length;
+  const failed = rows.filter(row => row.outcome === "failure").length;
+  const voided = rows.filter(row => row.outcome === "void").length;
+  const scored = succeeded + failed;
+  if (result.observed.episodesRun !== scored || result.observed.episodesSucceeded !== succeeded) return null;
+  return { planned: run.quotedEpisodes, reported: rows.length, scored, succeeded, failed, void: voided };
+}
+
+/** Shared boundary for registry claims and site pass labels. Keep diagnostic
+ * observations inspectable without promoting them into qualified evidence.
+ */
+export function hasQualifiedSimulationEvidence(run: SimulationEvidenceInput): boolean {
+  if (run.result?.evidenceScope !== "simulation" || run.executionAdmission?.envelope.evidence_scope === "development_only"
+    || !isSimulatorScoredJobEvidence(run.result) || !boundSiteTaskQualification(run.result, run.executionCaptureId)) return false;
+  const accounting = episodeAccountingFor(run);
+  return accounting !== null && accounting.scored >= MINIMUM_SCORED_EVIDENCE_EPISODES;
 }

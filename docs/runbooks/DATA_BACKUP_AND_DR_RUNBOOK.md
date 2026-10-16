@@ -4,101 +4,94 @@ Status: Active DR runbook for Blueprint's **authoritative data** — the Firesto
 and the GCS storage buckets (GCP project `blueprint-8c1ca`).
 
 This is **data** DR, not deploy DR. For rolling back a bad *deploy* of the WebApp, use
-`scripts/rollback-deploy.sh` and `docs/runbooks/CI_GATED_DEPLOY_AND_RELEASE.md`. Reach for
+`scripts/deploy-rollback.mjs` and [the routine release runbook](routine-fast-release.md). Reach for
 *this* runbook when the **data itself** is lost, corrupted, or wrongly deleted (a bad batch
 write, a fat-fingered delete, an accidental collection drop, ransomware, or a bucket incident).
 
 ## Remediates audit finding R053
 
-R053 (P1): there was no documented/scheduled backup or DR plan for the authoritative data
-(Firestore DB + GCS buckets). This runbook + the committed backup config and scaffold close it.
+R053 (P1) identified a missing backup and DR plan for authoritative data
+(Firestore DB + GCS buckets). This runbook describes the recovery procedure;
+live configuration readbacks and an archived restore drill establish readiness.
 
 Committed, machine-checked artifacts (in `BlueprintCapturePipeline`, which owns the
 `blueprint-8c1ca` GCP infra):
 
-- Backup/DR config: `BlueprintCapturePipeline/configs/firestore_backup_schedule.json`
-- Validator (fail-closed): `BlueprintCapturePipeline/scripts/validate_firestore_backup_config.py`
-  (+ `..._tests.py`)
-- Export command emitter: `BlueprintCapturePipeline/scripts/emit_firestore_backup_command.py`
-- Scheduled-job scaffold: `BlueprintCapturePipeline/deploy/systemd/blueprint-firestore-backup.{service,timer}`
+- Canonical controls and drill contract: `BlueprintCapturePipeline/docs/CAPTURE_TRUTH_BACKUP_DR_RUNBOOK_2026-07-08.md`
+- Control application script (dry-run supported): `BlueprintCapturePipeline/scripts/apply_capture_truth_backup_policy.sh`
+- Static/drill validator: `BlueprintCapturePipeline/scripts/validate_capture_truth_backup_policy.py`
+- Retention authority: `BlueprintCapturePipeline/docs/BETA_DATA_RETENTION_POLICY_2026-07-09.md`
+  and `BlueprintCapturePipeline/docs/beta_data_retention_policy_2026-07-09.json`
 
-Retention of the same data is governed by the cross-surface policy (R048):
-`BlueprintCapturePipeline/docs/DATA_RETENTION_POLICY.md`. Backups must **never** let raw capture
-bundles be lost before their documented floor — see "Capture-truth invariant" below.
+Original collection terms, verified legal holds, and rights/privacy decisions
+take precedence over internal archive defaults. Recordings collected under the
+earlier site policy retain its 180-day-after-job-close schedule, subject to
+applicable holds. Backup, versioning, and soft-delete settings do not authorize
+a seven-year retention extension. Unknown original terms require review; later
+account acceptance does not replace them. See the
+[retention counsel packet](../launch-readiness/2026-10-16-retention-and-recording-counsel-review.md)
+for the unresolved backup/deletion questions.
 
 ## Targets
 
 | Target | Value | Meaning |
 |--------|-------|---------|
-| **RPO** (Recovery Point Objective) | **≤ 24h** | Max acceptable data loss. Firestore export runs daily; a loss can cost at most one day of writes. Tighten with Firestore Point-in-Time Recovery (below) for minutes-level RPO. |
+| **RPO** (Recovery Point Objective) | **≤ 24h** | Target maximum data loss with verified daily Firestore backups. Point-in-Time Recovery can support a more recent recovery point when enabled. |
 | **RTO** (Recovery Time Objective) | **≤ 4h** | Max time to restore service on recovered data. |
 
-These are encoded as `rpo_hours` / `rto_hours` in the config; the validator fails closed if RPO
-drifts above 24h.
+These are targets in the canonical Pipeline runbook. Static validation does
+not establish that a backup schedule is installed or that a restore meets them.
 
 ## What is backed up, where, and how
 
-### 1. Firestore control-plane → daily managed export to a separate bucket
+### 1. Firestore control-plane → managed backups and PITR
 
-- **What:** the whole `(default)` Firestore database (all collections — `collection_ids: []`).
-- **Where:** `gs://blueprint-8c1ca-backups/firestore-exports/<timestamp>/` — a **dedicated
-  backup bucket, distinct from the primary data bucket** so a primary-bucket incident cannot
-  also destroy the backups. The validator fails closed if the export destination equals the
-  primary bucket.
-- **How (committed):** `emit_firestore_backup_command.py` renders the exact command:
+- The canonical apply script configures PITR, delete protection, and a daily
+  managed backup schedule with 14-day retention. Review its dry-run and verify
+  the actual project configuration before relying on it.
+- Managed exports are an additional recovery source only where an export and
+  its destination bucket have actually been configured and verified. The
+  historical manual export command is:
 
   ```bash
   gcloud firestore export gs://blueprint-8c1ca-backups/firestore-exports/<UTC-timestamp> \
       --project=blueprint-8c1ca --database="(default)"
   ```
 
-- **Schedule (committed scaffold):** daily 07:00 UTC via the systemd timer
-  (`blueprint-firestore-backup.timer`) that runs the emitter with `--execute`.
-- **Backup retention:** exports kept 90 days (`backup_retention_days`), enforced by a lifecycle
-  rule on the backup bucket (human step, below).
+- An export command or a named bucket is not evidence of a scheduled backup.
+  Retain the actual backup ID or verified export URI and its recovery point.
+  Check backup expiry against collection terms and any verified hold; no
+  retention extension is authorized by this runbook.
 
 ### 2. Storage buckets → object versioning + soft-delete
 
 - **Primary authoritative bucket** `gs://blueprint-8c1ca.appspot.com` (raw capture truth under
   `scenes/`, plus derived/hosted artifacts). DR mechanism is **object versioning** (recover an
-  overwritten or deleted object) + a soft-delete window. Versioning retention must clear the
-  **capture-truth floor (7 years)** — the validator fails closed otherwise.
-- **Backup bucket** `gs://blueprint-8c1ca-backups` holds the Firestore exports, also versioned,
-  IAM-restricted to the backup service account.
+  overwritten or deleted object) + a soft-delete window. The canonical control
+  script defaults to 30-day soft delete. These controls must respect the
+  recording's collection-time terms and verified holds; there is no universal
+  seven-year raw-capture floor.
+- If a separate export bucket is used, verify its access restrictions and
+  lifecycle independently. Do not assume `gs://blueprint-8c1ca-backups` exists
+  or has the intended policy from its name in this document.
 
 ## Committed config vs human/dashboard steps (be honest)
 
-**Enforced by committed config / code (fails CI closed on drift):**
-- The backup contract itself (surfaces, RPO/RTO, schedule, retention, isolation) —
-  `firestore_backup_schedule.json` + `validate_firestore_backup_config.py`.
-- The exact export command — `emit_firestore_backup_command.py` (validated before it emits).
-- The daily schedule *unit* — `blueprint-firestore-backup.{service,timer}` scaffold.
+Committed scripts and validators describe intended controls. They do not prove
+the live schedule, permissions, soft-delete settings, backup expiry, or a
+successful restore. Use the canonical Pipeline runbook for an authorized
+control change; start with its dry-run:
 
-**Human / dashboard / gcloud steps (NOT done by committing this — must be performed once in the project):**
-1. **Create the backup bucket** `blueprint-8c1ca-backups` in the same region as Firestore, with
-   **object versioning ON** and a 90-day lifecycle on noncurrent/old exports:
-   ```bash
-   gcloud storage buckets create gs://blueprint-8c1ca-backups --project=blueprint-8c1ca --location=us-central1
-   gcloud storage buckets update gs://blueprint-8c1ca-backups --versioning
-   ```
-2. **Grant the backup service account** `roles/datastore.importExportAdmin` and
-   `roles/storage.objectAdmin` on the backup bucket.
-3. **Install the scheduled job** — either the systemd scaffold on the pipeline control-plane host:
-   ```bash
-   systemctl enable --now blueprint-firestore-backup.timer
-   ```
-   **or** a managed **Cloud Scheduler + Firestore scheduled backup** in the console (preferred if
-   not running the control-plane host).
-4. **Enable object versioning on the primary bucket** `gs://blueprint-8c1ca.appspot.com`:
-   ```bash
-   gcloud storage buckets update gs://blueprint-8c1ca.appspot.com --versioning
-   ```
-5. **(Optional, tighter RPO) Enable Firestore Point-in-Time Recovery (PITR)** for minutes-level
-   RPO within the 7-day PITR window:
-   ```bash
-   gcloud firestore databases update --database="(default)" --enable-pitr --project=blueprint-8c1ca
-   ```
-6. **Verify the first backup landed** and add a monitor/alert if the daily export is missing.
+```bash
+cd ../BlueprintCapturePipeline
+scripts/apply_capture_truth_backup_policy.sh --dry-run \
+    --project blueprint-8c1ca --bucket blueprint-8c1ca.appspot.com --database "(default)"
+```
+
+Applying controls is a production change, not part of this document correction.
+Retain configuration readbacks, the first completed backup, and a restore-drill
+receipt. Resolve any conflict with collection terms before changing retention;
+do not delete recordings or backups merely because an internal default expired.
 
 ## Restore procedure (step-by-step)
 
@@ -107,10 +100,10 @@ drifts above 24h.
 
 ### A. Firestore restore (from a managed export)
 
-1. **Declare the incident** and page per `BETA_INCIDENT_RESPONSE_RUNBOOK.md` (§0 escalation).
+1. **Declare the incident** and follow [the beta ops incident runbook](../beta-ops-incident-runbook-2026-07-08.md).
    Freeze writes if corruption is spreading (put the app in maintenance / disable the writing
    routes).
-2. **Pick the export** to restore from:
+2. **Pick a verified export** to restore from, if managed exports were configured:
    ```bash
    gcloud storage ls gs://blueprint-8c1ca-backups/firestore-exports/
    ```
@@ -140,7 +133,9 @@ drifts above 24h.
        --source-database="(default)" --snapshot-time=<RFC3339-timestamp> \
        --destination-database=recovery-pitr --project=blueprint-8c1ca
    ```
-8. **Re-enable writes**, confirm health per the incident runbook, and record the incident +
+8. Reapply current consent withdrawals, deletion tombstones, access restrictions,
+   and applicable retention/hold decisions before recovered data can be used.
+   **Re-enable writes**, confirm health per the incident runbook, and record the incident +
    chosen recovery point in the durable trail (`ohstnhunt@gmail.com`).
 
 ### B. Storage bucket restore (from versioning / soft-delete)
@@ -154,25 +149,29 @@ drifts above 24h.
    gcloud storage cp gs://blueprint-8c1ca.appspot.com/<object>#<generation> \
        gs://blueprint-8c1ca.appspot.com/<object>
    ```
-3. **Capture-truth invariant:** raw capture bundles under `scenes/` must **never** be lost before
-   the documented 7-year floor. Their bucket lifecycle (`BlueprintCapture/storage.lifecycle.json`,
-   R042) never deletes before that floor, and versioning must retain noncurrent raw objects for
-   ≥ the capture-truth floor. If a restore cannot recover a raw bundle inside its floor, that is a
-   **SEV-1** — escalate to the Founder.
+3. **Capture-truth and authority:** preserve originals against accidental loss
+   while their applicable retention terms or verified hold require them. Check
+   collection-time terms, consent withdrawals, deletion tombstones, and verified
+   holds before restoring an object to active use. Restore does not renew the
+   collection date, extend the 180-day-after-close schedule, or authorize use of
+   withdrawn footage. Escalate a loss inside the applicable preservation period
+   through the incident runbook; do not substitute a universal seven-year floor.
 
 ## Verify (local, no live infra)
 
 ```bash
 cd ../BlueprintCapturePipeline
-python3 scripts/validate_firestore_backup_config.py
-PYTHONDONTWRITEBYTECODE=1 python3 scripts/validate_firestore_backup_config_tests.py
-python3 scripts/emit_firestore_backup_command.py --timestamp 20260709T070000Z   # prints the export cmd
+python3 scripts/validate_capture_truth_backup_policy.py
 ```
+
+The validator checks committed controls. Use its `--require-restore-drill` and
+`--restore-drill-artifact <actual-receipt.json>` options only with a retained
+real drill receipt before claiming restore readiness.
 
 ## Test / drill cadence
 
 - **Quarterly restore drill:** restore the latest export into a throwaway recovery database and
   verify counts. A backup you have never restored is not a backup.
-- **After any schema or collection change:** confirm the export still covers all collections
-  (`collection_ids: []` = all).
-- **Before each new city/provider cohort:** confirm the daily export ran in the last 24h.
+- **After any schema or collection change:** verify the backup/restore path still
+  covers authoritative records and preserves current consent/deletion decisions.
+- **Before an external beta cohort:** confirm a backup completed in the last 24h.

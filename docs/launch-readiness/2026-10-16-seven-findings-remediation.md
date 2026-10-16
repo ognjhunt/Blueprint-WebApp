@@ -25,9 +25,15 @@ observation; the rule vulnerability is confirmed, existing address disclosure
 is not. The shared Capture/WebApp repair scopes private jobs and their state to
 trusted operators or server-recorded assignments/ownership. Android queries
 assignments and clears private cached targets on authentication/access changes;
-current iOS uses signed capture links. The source-only Cloud Functions `api`
-router is absent from the complete deployed inventory and must not be created
-merely to publish this source repair.
+current iOS uses signed capture links. The Cloud Functions `api` router is absent
+from the complete deployed inventory of `blueprint-8c1ca` and must not be created
+there merely to publish this repair. Android's default backend instead names
+`blueprint-prod-f0f19`. That project's live feed accepted an anonymous request and
+an invalid bearer in a read-only probe with empty candidates; both returned zero
+jobs. This confirms missing authentication, not private-data disclosure. The
+current deployment identity has no deployment permissions in that project; its
+source repair must not be represented as deployed until that backend is updated
+or the owner retires it.
 
 The onboarding checkout handler refuses free-beta payment creation before
 constructing Stripe. G1 campaign routes require freshly verified execution
@@ -73,6 +79,10 @@ blocked, retains its counts, and does not create recommendation evidence. The
 existing sponsored-run customer charge remains zero. Infrastructure voids and
 policy failures are classified by cause; a voided episode is not itself proof
 that an entire run was lost. Pipeline retains interruption and teardown receipts.
+If cancellation or expiry closed the run first, a signed blocked-progress receipt
+is retained separately and acknowledged idempotently after rechecking the exact
+team, worker and admission binding. It cannot reopen the run, alter settlement,
+promote capabilities or create a recommendation.
 
 ## 5. Statistical policy and required measurements
 
@@ -124,8 +134,9 @@ historical legal compliance represented as resolved.
 ## Release and verification
 
 Merge the coordinated Capture rules first, then WebApp. Deploy only the existing
-Firestore rules release and compare its exact source SHA256. The absent Capture
-`api` function is source-only. WebApp and its worker use the existing exact-SHA
+Firestore rules release and compare its exact source SHA256. Do not create the
+absent Capture `api` in `blueprint-8c1ca`; separately resolve deployment access or
+retirement for the live `blueprint-prod-f0f19` backend. WebApp and its worker use the existing exact-SHA
 CI-gated `deploy.yml`; deploy those APIs before the Pipeline runner adopts the
 heartbeat/progress contract. Pipeline deployment must wait for any active paid
 launch to finish; preserve holds and do not restart over running work.

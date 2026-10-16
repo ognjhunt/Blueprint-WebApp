@@ -58,7 +58,7 @@ import { settlementAmountUsd } from "./agentEvalRuns";
 import { recordEvaluationOutcome } from "./robotTeamRegistry";
 import type { EvalRunRecord } from "./agentEvalRuns";
 import type { ControlledNativePrivateResult } from "./controlledNativeResult";
-import { boundSiteTaskQualification, isSimulatorScoredJobEvidence, type RunResultScoring } from "./runResultScoring";
+import { hasQualifiedSimulationEvidence, type RunResultScoring } from "./runResultScoring";
 
 const RUNS_COLLECTION = "evaluationRuns";
 
@@ -277,8 +277,7 @@ export async function recordRunResult(params: {
   // A measured grade is written only from successes the simulator scored
   // against the job's success contract; a team-reported or unverified count
   // is stored on the result and never promoted into the registry.
-  if (isSiteEvaluation(run) && result.evidenceScope === "simulation" && boundSiteTaskQualification(result, run.executionCaptureId)
-    && isSimulatorScoredJobEvidence(result)) {
+  if (isSiteEvaluation(run) && hasQualifiedSimulationEvidence({ ...run, result })) {
     try {
       await recordEvaluationOutcome({
         robotTeamId: run.teamId,
