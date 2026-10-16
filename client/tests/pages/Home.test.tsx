@@ -14,7 +14,8 @@ describe("Site-led homepage", () => {
     // One example of the deliverable, clearly marked, instead of staged imagery.
     expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Warehouse", "Café", "Laundromat", "Factory", "Hotel", "Lab"]);
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveTextContent(/Example.*Robot team.*Evaluated in simulation.*Passed on your task \(example\).*small boxed parts.*Blueprint fee.*None during the beta.*Pilot cost.*Quoted by the robot team/);
+    expect(panel).toHaveTextContent(/Example.*Robot team.*Evaluation scope.*Illustrative workflow.*per task.*full totes.*Blueprint fee.*None during the beta.*Pilot cost.*Quoted by the robot team/);
+    expect(panel).not.toHaveTextContent(/Passed on your task/);
     expect(screen.getByText("Book this pilot")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Café" }));
     expect(screen.getByRole("tabpanel")).toHaveTextContent(/dish rack/);
@@ -24,11 +25,11 @@ describe("Site-led homepage", () => {
   });
 
   it.each([
-    ["Warehouse", /humanoid robot/i, /small boxed parts.*scale.*outbound tray/i],
+    ["Warehouse", /humanoid robot/i, /full totes.*packing line.*outbound carts/i],
     ["Café", /fixed robot arm/i, /clean cups.*dish rack.*counter/i],
-    ["Laundromat", /wheeled humanoid/i, /opening.*supply drawer/i],
-    ["Factory", /mobile manipulator/i, /rigid blanks.*conveyor.*tray/i],
-    ["Hotel", /mobile robot with arm/i, /boxed amenities.*stock tray.*service tray/i],
+    ["Laundromat", /wheeled humanoid/i, /folding towels.*wash-and-fold/i],
+    ["Factory", /mobile manipulator/i, /loading blanks.*CNC machine.*unloading finished parts/i],
+    ["Hotel", /mobile robot/i, /linen carts.*laundry room.*each floor/i],
     ["Lab", /fixed robot arm/i, /opening the sample drawer before each batch/i],
   ])("pairs the %s example with its robot and matching illustration", (site, embodiment, task) => {
     render(<Home />);
@@ -40,6 +41,53 @@ describe("Site-led homepage", () => {
     expect(panel).toHaveTextContent(task);
     const illustration = screen.getByRole("img", { name: new RegExp(`${site} example`, "i") });
     expect(illustration).toHaveAccessibleName(embodiment);
+  });
+
+  it.each([
+    {
+      site: "Warehouse",
+      // The original shelving, outbound cart and carried tote surround a biped.
+      landmarks: ['rect[x="20"][y="40"][width="110"][height="140"]', 'rect[x="222"][y="128"][width="88"][height="36"]', 'ellipse[rx="11"][ry="13"]', 'rect[width="32"][height="18"]'],
+    },
+    {
+      site: "Café",
+      // Keep clean cups laid out side by side on the counter.
+      landmarks: ['path[d="M152 130 h16 l-2 10 h-12 z"]', 'path[d="M138 130 h16 l-2 10 h-12 z"]', 'rect[x="204"][y="128"][width="84"][height="12"]'],
+    },
+    {
+      site: "Laundromat",
+      // Washers and folded towels identify the original folding-table scene.
+      landmarks: ['rect[x="18"][y="70"][width="68"][height="110"]', 'rect[x="92"][y="70"][width="68"][height="110"]', 'rect[width="18"][height="6"]', 'path[d="M206 124 H306 M214 124 V180 M298 124 V180"]'],
+    },
+    {
+      site: "Factory",
+      // The full-height CNC, spindle, conveyor and wheeled base remain intact.
+      landmarks: ['rect[x="22"][y="44"][width="118"][height="136"]', 'path[d^="M71 62 V"]', 'rect[x="204"][y="140"][width="100"][height="12"]', 'rect[width="48"][height="18"][rx="4"]'],
+    },
+    {
+      site: "Hotel",
+      // The original elevator, delivery-robot mast and linen on its towed cart.
+      landmarks: ['rect[x="14"][y="36"][width="126"][height="144"]', 'rect[width="8"][height="42"]', 'rect[width="21"][height="12"]', 'rect[width="18"][height="10"]'],
+    },
+    {
+      site: "Lab",
+      // Preserve the existing sample cabinet and fixed-arm pedestal.
+      landmarks: ['rect[x="176"][y="60"][width="114"][height="120"]', 'rect[x="52"][y="128"][width="36"][height="52"]', 'rect[y="104"][width="4"][height="36"]'],
+    },
+  ])("preserves the $site scene landmarks in its paused frame", ({ site, landmarks }) => {
+    render(<Home />);
+    fireEvent.click(screen.getByRole("button", { name: "Pause examples" }));
+    fireEvent.click(screen.getByRole("tab", { name: site }));
+    const illustration = screen.getByRole("img", { name: new RegExp(`${site} example`, "i") });
+    for (const landmark of landmarks) {
+      expect(illustration.querySelector(landmark), landmark).toBeInTheDocument();
+    }
+    if (site === "Laundromat") {
+      expect(illustration.querySelector('rect[x="258"][y="60"][width="52"][height="120"]')).not.toBeInTheDocument();
+    }
+    if (site === "Hotel") {
+      expect(illustration.querySelector('circle[cy="112"][r="5"]')).not.toBeInTheDocument();
+    }
   });
 
   it("keeps a restored example selected and still while paused", () => {
