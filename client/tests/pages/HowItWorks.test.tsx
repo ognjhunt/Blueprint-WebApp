@@ -7,8 +7,11 @@ describe("How it works", () => {
     render(<HowItWorks />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Start with your task.");
     expect(screen.getByRole("heading", { name: "One task, from phone video to a pilot." })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Is your job a fit?" })).toBeInTheDocument();
-    expect(screen.getByText(/Start with repeatable parts handling/)).toHaveTextContent(/A description is enough to start/);
+    const robotFit = screen.getByRole("heading", { name: "Any robot that fits the task can take part." }).closest("aside")!;
+    expect(robotFit).toHaveTextContent(/Fixed arms, humanoids, wheeled humanoids and mobile manipulators are welcome/);
+    expect(robotFit).toHaveTextContent(/multiple robots, policies or checkpoints/);
+    expect(robotFit).toHaveTextContent(/task fit and simulation compatibility for each job/);
+    expect(robotFit).toHaveTextContent(/A description is enough to start/);
     expect(screen.queryByRole("heading", { name: "How matching works." })).not.toBeInTheDocument();
     expect(screen.queryByText("See what a match includes")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Same task. Different policies." })).not.toBeInTheDocument();

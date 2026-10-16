@@ -57,6 +57,8 @@ export const buyerBetaGuide: BetaCohortGuide = {
         "Each evaluation runs your policy in a simulation built from the site's capture, against the job's pass criteria.",
       items: [
         "Confirm the robot and gripper, observation and action interfaces, and any adapter work before the run.",
+        "Use Blueprint's simulated DROID Franka (openpi_droid_https.v1), or declare your own robot with blueprint.robot_embodiment.v1 for the blueprint_policy_https.v1 interface.",
+        "Fixed arms, bimanual systems, mobile manipulators, wheeled humanoids and legged humanoids can be declared. Robot form alone does not decide admission; the Pipeline checks the model, controls, scene and task before execution and reports a specific incompatibility when a setup cannot run.",
         "Serve your policy at one HTTPS URL that accepts a bearer token. Register it as a policy endpoint checkpoint and attach that token; your weights stay on your system.",
         "Private checkpoints are refused, and containers are not admitted for team evaluations.",
         "Each evaluation is 200 hidden episodes across the job's variations, the same for every invited team on the job.",

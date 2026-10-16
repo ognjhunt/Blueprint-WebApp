@@ -1,3 +1,5 @@
+import type { RobotEmbodiment } from "../../client/src/types/robotEmbodiment";
+
 /**
  * The robot-team registry.
  *
@@ -196,8 +198,8 @@ export interface RobotTeamRecord {
  * The three agreements a team must give before it counts as supply
  * (2026-10-14 beta launch audit, L4 and P0-7):
  *
- * - `supportedInterface` — it will run a policy on the interface the website
- *   runtime evaluates today (named by `interfaceId` on the entry);
+ * - `supportedInterface` — it will run a policy on the recorded evaluation
+ *   interface and, for its own robot, the declared robot manifest;
  * - `freeEvaluation` — it accepts a free evaluation on a real site job;
  * - `pilotIfPassed` — it will take the physical pilot if its evaluation passes.
  *
@@ -225,6 +227,8 @@ export interface SupplyAgreementEntry {
   recordedAt: string;
   /** On `supportedInterface` only: the interface the team agreed to run on. */
   interfaceId?: string | null;
+  /** Own-robot setup the team agreed to use; shape validation is not execution proof. */
+  robotEmbodiment?: RobotEmbodiment | null;
 }
 
 export interface SupplyAgreementWithdrawal {

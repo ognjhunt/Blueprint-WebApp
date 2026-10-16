@@ -101,6 +101,7 @@ describe("the robot page", () => {
     }));
     render(<Contact />);
     expect(await screen.findByRole("form", { name: "Early access application" })).toBeInTheDocument();
+    expect(screen.getByText(/Fixed arms, humanoids, wheeled humanoids and mobile manipulators are welcome/)).toHaveTextContent(/task fit and simulation compatibility for each job/);
     expect(screen.queryByRole("region", { name: "Job library" })).toBeNull();
     expect(screen.getByRole("link", { name: /operate a site\? start here/i })).toHaveAttribute(
       "href",

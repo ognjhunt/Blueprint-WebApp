@@ -19,6 +19,12 @@ This mirrors the public guide at [/beta/buyer-guide](https://tryblueprint.io/bet
   every invited team on the job.
 - Confirm the robot and gripper, observation and action interfaces, and any adapter work
   before the run.
+- Use Blueprint's DROID Franka interface or declare your own robot with
+  `blueprint.robot_embodiment.v1` for the `blueprint_policy_https.v1` interface.
+  Fixed arms, bimanual systems, mobile manipulators, wheeled humanoids, and
+  legged humanoids can be declared. Robot form alone does not decide admission;
+  the Pipeline checks the model, controls, scene, and task before execution and
+  reports a specific incompatibility when a setup cannot run.
 - Serve your policy at one HTTPS URL that accepts a bearer token, and keep your weights on
   your system. Register the URL as a checkpoint with runtime `policy_endpoint`, then attach
   the bearer token to it (`POST /api/agent-team/checkpoints/<checkpointId>/credentials`). The

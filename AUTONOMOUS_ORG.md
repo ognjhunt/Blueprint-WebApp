@@ -5,6 +5,14 @@
 > approves primary-service, stack and architecture changes directly. The rest of this file is kept as a historical
 > record of the old role design.
 
+> **Current context, 2026-10-16:** the historical fixed-arm/sole-program language
+> below does not restrict public illustrations or robot-team applications. The
+> free beta and Arm Decision Proof are both active; a team may declare its own
+> robot of any form, subject to the model, interface, scene, and task checks for
+> its run. Use the current [Platform Context preamble](./PLATFORM_CONTEXT.md#read-this-before-the-shared-block)
+> and [Agent Guide](./AGENTS.md#product-rules), including the owner's direction to
+> preserve the approved embodiment examples.
+
 > **Source of truth:** [Blueprint Knowledge](https://www.notion.so/16d80154161d80db869bcfba4fe70be3) — Autonomous Organization Guide
 > This file is the repo-authoritative mirror of Blueprint Knowledge for org structure and agent roles.
 > All Blueprint agent roles and developers consuming this file should treat Notion as the canonical

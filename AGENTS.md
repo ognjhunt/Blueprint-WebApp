@@ -63,6 +63,15 @@ Agents also follow the nearest nested `AGENTS.md` when working under `client/`, 
   product lane. Reliability, accessibility, security, rights/privacy, provenance,
   truthful claims, and existing spending, send, and release controls still apply;
   shared doctrine blocks and their lock remain unchanged.
+- Preserve owner-approved embodiment examples and artwork. The fixed-arm
+  engineering focus and Frozen Work list do not authorize removing or replacing
+  humanoid, wheeled-humanoid, mobile-manipulator, or mobile-robot illustrations,
+  or restricting team applications to fixed arms. The owner reaffirmed this on
+  2026-10-16: restore the exact original Warehouse, Laundromat, Factory, and Hotel
+  animations; preserve Café and Lab. Team setup supports a declared robot of any
+  form (owner direction 2026-10-15, PR #1049); check the specific model, interface,
+  scene, and task before admitting a run. Keep illustrative breadth separate
+  from operational compatibility and physical-validation claims.
 - For work without such an exception, require every issue to name its beta
   journey step or its ADP backlog item and day gate, plus the observed blocker
   and completion artifact.

@@ -26,11 +26,13 @@ import {
 } from "../utils/robotTeamRegistry";
 import {
   isWillingSupply,
+  isWillingSupplyForExecution,
   readSupplyAgreement,
   supplySummary,
   SUPPLY_AGREEMENT_TERM_LABELS,
-  SUPPORTED_SUPPLY_INTERFACE_ID,
+  SUPPORTED_SUPPLY_INTERFACES,
 } from "../utils/robotTeamSupply";
+import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
 import { SUPPLY_AGREEMENT_TERMS } from "../types/robot-team-registry";
 import { hasAnyRole } from "../utils/access-control";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
@@ -162,7 +164,7 @@ const RECOMMENDABLE_STATUSES = new Set(["applied", "engaged"]);
 type TeamRefusal = { code: string; error: string };
 
 async function recommendableTeam(runTeamId: string, requestedTeamId?: string):
-  Promise<{ ok: true; team: RobotTeamRecord; memberIds: string[] } | ({ ok: false } & TeamRefusal)> {
+  Promise<{ ok: true; team: RobotTeamRecord; memberIds: string[]; supplyTeams: RobotTeamRecord[] } | ({ ok: false } & TeamRefusal)> {
   const identity = await resolveRobotTeamIdentity(runTeamId);
   if (!identity) return { ok: false, code: "team_not_registered", error: "The evaluated team has no registry record. Recommend a registered team." };
   if (identity.ambiguous || !identity.canonical) {
@@ -191,11 +193,21 @@ async function recommendableTeam(runTeamId: string, requestedTeamId?: string):
   // team will take the pilot, and the site books on exactly that. Only a
   // recorded supply agreement on this team, or a row linked to it by pointer,
   // makes it supply (`robotTeamSupply`); an email-only match never counts.
-  if (![team, ...identity.members.filter(row => explicitlyLinked(team, row))].some(isWillingSupply)) {
+  const supplyTeams = identity.members.filter(row => row.id === team.id || explicitlyLinked(team, row));
+  if (!supplyTeams.some(isWillingSupply)) {
     return { ok: false, code: "team_supply_agreement_missing",
-      error: `Record this team's supply agreement before recommending it (registry row ${team.id}): it must have agreed to run a policy on the supported interface, to a free evaluation on a real job, and to take the pilot if its evaluation passes. A passing evaluation alone does not show the team will take the pilot.` };
+      error: `Record this team's supply agreement before recommending it (registry row ${team.id}): it must have agreed to the recorded robot interface and setup, to a free evaluation on a real job, and to take the pilot if its evaluation passes. A passing evaluation alone does not show the team will take the pilot.` };
   }
-  return { ok: true, team, memberIds: identity.members.map(row => row.id) };
+  return { ok: true, team, memberIds: identity.members.map(row => row.id), supplyTeams };
+}
+
+function supplyExecutionRefusal(teams: RobotTeamRecord[], run: RunWithResult | undefined): TeamRefusal | null {
+  if (teams.some(row => row.status === "declined")) return { code: "team_declined", error: "This team declined. A declined team is not recommended." };
+  if (!teams.some(isWillingSupply)) return { code: "team_supply_agreement_missing", error: "Record the team's current three supply agreements before recommending it. A withdrawn agreement does not count." };
+  if (!teams.some(row => isWillingSupplyForExecution(row, run?.executionAdmission))) {
+    return { code: "team_supply_interface_mismatch", error: "The supply agreement must name the interface and robot setup this evaluation actually ran. Record the team's agreement for that setup; if this run has no admitted setup binding, request a new evaluation. A DROID agreement does not cover the team's own robot." };
+  }
+  return null;
 }
 
 function evidenceRefusal(res: Response, refusal: EvidenceRefusal) {
@@ -257,6 +269,14 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
       if (record.pilot_booking) return { status: "booked" } as const;
       if (projectWebsiteCaptureRights(record).consent_revoked) return { status: "consent_withdrawn" } as const;
       const run = runSnapshot.data() as RunWithResult | undefined;
+      // Re-read agreements with the recommendation so a withdrawal or decline
+      // between the initial identity lookup and this transaction cannot pass.
+      const supplySnapshots = await Promise.all(eligible.supplyTeams.map(row =>
+        transaction.get(store.collection("robotTeams").doc(row.id))));
+      const currentTeams = supplySnapshots.flatMap(snapshot => snapshot.exists
+        ? [{ ...snapshot.data(), id: snapshot.id } as RobotTeamRecord] : []);
+      const currentTeam = currentTeams.find(row => row.id === team.id);
+      const currentSupplyTeams = currentTeam ? currentTeams.filter(row => row.id === team.id || explicitlyLinked(currentTeam, row)) : [];
       // The team was resolved from this run before the transaction; a run that
       // changed hands since is not the evidence that was reviewed.
       if (run && run.teamId !== preRun.teamId) return { status: "refused", refusal: "evaluation_result_changed" } as const;
@@ -265,6 +285,8 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
         criteriaChanged: criteriaChangedSinceRequest(record, fundingRecord),
         scoredTaskKind: scoredTaskKindFor(record, run) });
       if (!verified.ok) return { status: "refused", refusal: verified.refusal } as const;
+      const supplyRefusal = supplyExecutionRefusal(currentSupplyTeams, run);
+      if (supplyRefusal) return { status: "team_refused", ...supplyRefusal } as const;
       const evidence = verified.evidence;
       const plan = { ...rest, capabilityBasis: capabilityBasis || evidenceCapabilityBasis(evidence) };
       const previous = record.pilot_recommendation;
@@ -334,6 +356,7 @@ router.post("/recommendations/:requestId", async (req: Request, res: Response) =
     if (outcome.status === "contact_missing") return res.status(HTTP_STATUS.CONFLICT).json({ ok: false, error: "Add a valid site contact email before recommending this pilot." });
     if (outcome.status === "consent_withdrawn") return res.status(HTTP_STATUS.CONFLICT).json({ ok: false, code: "capture_consent_withdrawn", error: "The site withdrew recording permission. Its evaluations cannot back a recommendation." });
     if (outcome.status === "refused") return evidenceRefusal(res, outcome.refusal);
+    if (outcome.status === "team_refused") return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, code: outcome.code, error: outcome.error });
     return res.json({ ok: true, id: outcome.id, teamId: team.id, evidence: outcome.evidence, teamNotified: outcome.teamNotified });
   } catch (error) {
     logger.error({ err: error, requestId }, "Failed to record a pilot recommendation");
@@ -381,9 +404,12 @@ router.get("/jobs/:requestId/evaluations", async (req: Request, res: Response) =
       record: await getRobotTeam(teamId), eligibility: await recommendableTeam(teamId),
     }] as const)));
     const consentWithdrawn = projectWebsiteCaptureRights(record).consent_revoked;
+    const runsById = new Map(runs.map(run => [run.runId, run]));
     const evaluations = readings.map(reading => {
       const team = teams.get(reading.teamId)!;
-      const teamRefusal = team.eligibility.ok ? null : { code: team.eligibility.code, error: team.eligibility.error };
+      const teamRefusal = team.eligibility.ok
+        ? supplyExecutionRefusal(team.eligibility.supplyTeams, runsById.get(reading.runId))
+        : { code: team.eligibility.code, error: team.eligibility.error };
       return {
         ...reading,
         refusals: reading.refusals.map(code => ({ code, error: EVIDENCE_REFUSAL_MESSAGES[code] })),
@@ -610,6 +636,7 @@ const supplyTermSchema = z.object({
   agreedOn: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   evidenceRef: z.string().trim().min(3).max(300),
   interfaceId: z.string().trim().min(1).max(120).optional(),
+  robotEmbodiment: robotEmbodimentSchema.optional(),
 }).strict();
 const supplyAgreementSchema = z.object({
   terms: z.array(supplyTermSchema).min(1).max(SUPPLY_AGREEMENT_TERMS.length),
@@ -642,7 +669,8 @@ router.get("/:teamId/supply-agreement", async (req: Request, res: Response) => {
     return res.json({
       ok: true,
       ...supplyResponse(team),
-      supportedInterfaceId: SUPPORTED_SUPPLY_INTERFACE_ID,
+      supportedInterfaceId: team.supplyAgreement?.terms?.supportedInterface?.interfaceId ?? null,
+      supportedInterfaces: SUPPORTED_SUPPLY_INTERFACES,
       terms: SUPPLY_AGREEMENT_TERMS.map((term) => ({ term, label: SUPPLY_AGREEMENT_TERM_LABELS[term],
         recorded: team.supplyAgreement?.terms?.[term] ?? null,
         problem: readSupplyAgreement(team).problems.find((row) => row.term === term)?.problem ?? null })),
@@ -661,7 +689,8 @@ router.post("/:teamId/supply-agreement", async (req: Request, res: Response) => 
   const parsed = supplyAgreementSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, code: "supply_agreement_invalid",
-      error: "Send each agreement as { term, agreedOn: YYYY-MM-DD, evidenceRef }, and confirm you hold the evidence (evidenceHeld: true). Terms: supportedInterface, freeEvaluation, pilotIfPassed." });
+      errors: parsed.error.issues.map(issue => ({ field: issue.path.join("."), problem: issue.message })),
+      error: "Send each agreement as { term, agreedOn: YYYY-MM-DD, evidenceRef }, and confirm evidenceHeld: true. For supportedInterface, explicitly name interfaceId and include robotEmbodiment when using blueprint_policy_https.v1. Terms: supportedInterface, freeEvaluation, pilotIfPassed." });
   }
   const teamId = String(req.params.teamId || "").trim();
   try {

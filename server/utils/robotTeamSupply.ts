@@ -7,9 +7,9 @@
  * and each agreement is on record with the day it was given, a reference to
  * where it is kept, and the operator who recorded it:
  *
- * 1. `supportedInterface`: it will run a policy on the interface the website
- *    runtime evaluates today (a Franka arm with a Robotiq 2F-85 gripper on the
- *    DROID observation/action interface);
+ * 1. `supportedInterface`: it will run a policy on a recorded evaluation
+ *    interface, using either its own declared robot of any form or the
+ *    built-in DROID Franka;
  * 2. `freeEvaluation`: it accepts a free evaluation on a real site job;
  * 3. `pilotIfPassed`: it will take the physical pilot if that evaluation passes.
  *
@@ -38,6 +38,9 @@
  *
  * Everything here is pure, so the rule is tested without a database.
  */
+import { isDeepStrictEqual } from "node:util";
+import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
+import { isTeamEvaluationProfile, TEAM_CANDIDATE_HTTPS_INTERFACE, TEAM_ROBOT_HTTPS_INTERFACE } from "./policyIntegration";
 import {
   SUPPLY_AGREEMENT_SCHEMA_VERSION,
   SUPPLY_AGREEMENT_TERMS,
@@ -50,17 +53,20 @@ import {
 } from "../types/robot-team-registry";
 
 /**
- * The interface the website runtime evaluates today. It is the robot preset
- * every website evaluation run records (`operatorPolicyCanaryRegistration`).
- * An agreement names it, so if the supported interface changes, earlier
- * agreements stop counting until the team agrees to the new one.
+ * Historical DROID agreement identifier. Keep existing records readable;
+ * new records name their interface explicitly and never default to this robot.
  */
-export const SUPPORTED_SUPPLY_INTERFACE_ID = "droid_franka_panda_robotiq_2f85_v1" as const;
-export const SUPPORTED_SUPPLY_INTERFACE_IDS: readonly string[] = [SUPPORTED_SUPPLY_INTERFACE_ID];
+export const LEGACY_DROID_SUPPLY_INTERFACE_ID = "droid_franka_panda_robotiq_2f85_v1" as const;
+export const SUPPORTED_SUPPLY_INTERFACES = [
+  { interfaceId: TEAM_ROBOT_HTTPS_INTERFACE, label: "Team's own robot of any form", robotEmbodimentRequired: true },
+  { interfaceId: TEAM_CANDIDATE_HTTPS_INTERFACE, label: "Blueprint's DROID Franka", robotEmbodimentRequired: false },
+  { interfaceId: LEGACY_DROID_SUPPLY_INTERFACE_ID, label: "DROID Franka (legacy agreement identifier)", robotEmbodimentRequired: false },
+] as const;
+export const SUPPORTED_SUPPLY_INTERFACE_IDS: readonly string[] = SUPPORTED_SUPPLY_INTERFACES.map(row => row.interfaceId);
 
 /** How each agreement is described to an operator, in plain words. */
 export const SUPPLY_AGREEMENT_TERM_LABELS: Record<SupplyAgreementTerm, string> = {
-  supportedInterface: "Runs a policy on the supported interface (Franka + Robotiq 2F-85, DROID observation/action)",
+  supportedInterface: "Runs a policy on the recorded interface and robot setup (own robot of any form, or Blueprint's DROID Franka)",
   freeEvaluation: "Accepts a free evaluation on a real site job",
   pilotIfPassed: "Takes the physical pilot if its evaluation passes",
 };
@@ -101,8 +107,19 @@ export function entryProblem(term: SupplyAgreementTerm, entry: SupplyAgreementEn
   if (typeof entry.recordedBy !== "string" || !entry.recordedBy.trim()) return "nobody is recorded as having recorded it";
   if (!isIsoInstant(entry.recordedAt)) return "the time it was recorded is missing";
   if (entry.agreedOn > entry.recordedAt.slice(0, 10)) return "the agreement date is after the day it was recorded";
-  if (term === "supportedInterface" && !SUPPORTED_SUPPLY_INTERFACE_IDS.includes(String(entry.interfaceId ?? ""))) {
-    return `the team agreed to an interface the website does not evaluate (expected ${SUPPORTED_SUPPLY_INTERFACE_ID})`;
+  if (term === "supportedInterface") {
+    if (!SUPPORTED_SUPPLY_INTERFACE_IDS.includes(String(entry.interfaceId ?? ""))) {
+      return `record the agreed interfaceId explicitly: ${SUPPORTED_SUPPLY_INTERFACE_IDS.join(", ")}`;
+    }
+    if (entry.interfaceId === TEAM_ROBOT_HTTPS_INTERFACE) {
+      const parsed = robotEmbodimentSchema.safeParse(entry.robotEmbodiment);
+      if (!parsed.success) {
+        const issue = parsed.error.issues[0];
+        return `robotEmbodiment must be the team's valid blueprint.robot_embodiment.v1 declaration (${issue.path.join(".") || "robotEmbodiment"}: ${issue.message})`;
+      }
+    } else if (entry.robotEmbodiment != null) {
+      return `a declared own robot uses interfaceId ${TEAM_ROBOT_HTTPS_INTERFACE}; the DROID interface uses its built-in robot`;
+    }
   }
   return null;
 }
@@ -178,12 +195,40 @@ export function isWillingSupply(
   return record.status === "engaged" && effectiveTeamStatus(record) === "engaged";
 }
 
+/**
+ * Willingness must cover the setup this run actually admitted. An agreement
+ * never proves task compatibility or a passing result; those checks remain
+ * with execution admission and recommendation evidence. Missing historical
+ * execution bindings cannot establish a new recommendation's robot setup.
+ */
+export function isWillingSupplyForExecution(
+  record: RobotTeamRecord | null | undefined,
+  executionAdmission: unknown,
+): boolean {
+  if (!record || !isWillingSupply(record)) return false;
+  const admission = executionAdmission as { envelope?: { canonical_execution_request?: {
+    policy_package?: { policy_api_endpoint?: { policy_interface_id?: unknown; execution_profile?: unknown; robot_embodiment?: unknown } };
+  } } } | null | undefined;
+  const policy = admission?.envelope?.canonical_execution_request?.policy_package?.policy_api_endpoint;
+  if (!policy || !isTeamEvaluationProfile(policy.execution_profile)) return false;
+  const entry = record.supplyAgreement!.terms.supportedInterface!;
+  if (policy.policy_interface_id === TEAM_CANDIDATE_HTTPS_INTERFACE) {
+    return [LEGACY_DROID_SUPPLY_INTERFACE_ID, TEAM_CANDIDATE_HTTPS_INTERFACE].includes(String(entry.interfaceId))
+      && policy.robot_embodiment == null;
+  }
+  if (policy.policy_interface_id !== TEAM_ROBOT_HTTPS_INTERFACE || entry.interfaceId !== TEAM_ROBOT_HTTPS_INTERFACE) return false;
+  const executed = robotEmbodimentSchema.safeParse(policy.robot_embodiment);
+  const agreed = robotEmbodimentSchema.safeParse(entry.robotEmbodiment);
+  return executed.success && agreed.success && isDeepStrictEqual(executed.data, agreed.data);
+}
+
 /** What an operator submits for one agreement. */
 export interface SupplyAgreementTermInput {
   term: SupplyAgreementTerm;
   agreedOn: string;
   evidenceRef: string;
   interfaceId?: string | null;
+  robotEmbodiment?: SupplyAgreementEntry["robotEmbodiment"];
 }
 
 export type ApplySupplyAgreementResult =
@@ -242,12 +287,16 @@ export function applySupplyAgreementTerms(
       recordedBy,
       recordedAt: nowIso,
       ...(input.term === "supportedInterface"
-        ? { interfaceId: (typeof input.interfaceId === "string" && input.interfaceId.trim()) || SUPPORTED_SUPPLY_INTERFACE_ID }
+        ? { interfaceId: typeof input.interfaceId === "string" ? input.interfaceId.trim() : "",
+          ...(input.robotEmbodiment != null ? { robotEmbodiment: input.robotEmbodiment } : {}) }
         : {}),
     };
     const problem = entryProblem(input.term, entry);
     if (problem) errors.push({ term: input.term, problem });
-    else entries.push([input.term, entry]);
+    else {
+      if (entry.interfaceId === TEAM_ROBOT_HTTPS_INTERFACE) entry.robotEmbodiment = robotEmbodimentSchema.parse(entry.robotEmbodiment);
+      entries.push([input.term, entry]);
+    }
   }
   if (errors.length) return { ok: false, errors };
 

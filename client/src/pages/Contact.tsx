@@ -40,6 +40,7 @@ export default function Contact() {
               <RobotScene />
               <figcaption className="ms-imagery-caption">Illustrative scene · Robot configuration shown as an example.</figcaption>
             </figure>
+            <p className="ms-beta-embodiments">Fixed arms, humanoids, wheeled humanoids and mobile manipulators are welcome. We confirm task fit and simulation compatibility for each job.</p>
           </div>
         </section>
         <section className="ms-container ms-task-page ms-beta-access" id="robot-team-access" aria-label="Robot-team access">

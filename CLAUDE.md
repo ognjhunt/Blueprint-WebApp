@@ -54,6 +54,13 @@ Key rules:
 - Treat provenance, rights, privacy, and hosted access as first-class product truths.
 - Do not make qualification or one model backend the core story.
 - Avoid fake supply, fake readiness, or fabricated operational states.
+- Preserve owner-approved robot embodiments and illustrations. Fixed-arm
+  engineering priorities do not authorize narrowing public examples or team
+  applications. Owner direction of 2026-10-16 restores the exact original
+  Warehouse, Laundromat, Factory, and Hotel animations while preserving Café and
+  Lab. A team may declare its own robot of any form (PR #1049); admission depends
+  on its model, policy interface, scene, and task compatibility. An illustration
+  never proves a completed evaluation or physical capability.
 - Public-surface work runs `npm run check`, `npx vitest run client/tests`, the
   affected `e2e/` specs, and `e2e/brand-polish.spec.ts`. The vitest suite alone
   does not cover the Playwright copy contracts or the brand-polish route table.
