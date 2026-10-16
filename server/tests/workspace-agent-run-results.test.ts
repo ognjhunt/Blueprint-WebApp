@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { projectAgentRunResult, teamAlias, termsFor } from "../utils/workspace-projection";
+import { projectAgentRunResult, projectWorkspaceResult, teamAlias, termsFor } from "../utils/workspace-projection";
 import { RUN_RESULT_SCORING_SCHEMA_VERSION, type RunResultScoring } from "../utils/runResultScoring";
 import { syntheticSiteTaskQualification, syntheticEpisodeOutcomes } from "./helpers/recommendation-evidence";
 
@@ -60,6 +60,14 @@ describe("projectAgentRunResult", () => {
     const missed = projectAgentRunResult(qualified(), "req-1", { ...termsFor({}), successRate: 90 });
     expect(met.targetsMet).toBe(true);
     expect(missed.targetsMet).toBe(false);
+  });
+
+  it("treats zero cycle duration as missing even for otherwise qualified evidence", () => {
+    const candidate = qualified(200, 190); candidate.result.observed.medianCycleSeconds = 0;
+    const row = projectAgentRunResult(candidate, "req-1", { ...termsFor({}), successRate: 90, cycleTimeSeconds: 30 });
+    expect(row.successRate).toBe(95);
+    expect(row.cycleTimeSeconds).toBeNull();
+    expect(row.targetsMet).toBeNull();
   });
 
   it("uses the exact count ratio rather than a rounded stored rate at the pass boundary", () => {
@@ -135,5 +143,20 @@ describe("projectAgentRunResult", () => {
       termsFor({}),
     );
     expect(row.status).toBe("blocked");
+  });
+});
+
+describe("legacy workspace benchmarks", () => {
+  it.each(["top_level", "nested"])("retains complete %s observations without claiming the site's targets were met", location => {
+    const benchmark = { status: "complete", policy_aggregates: [{ metrics: {
+      full_task_success: { estimate: 0.99, sample_count: 200 },
+    } }] };
+    const run = { status: "completed", buyer_user_id: "team-private", pipeline_result: {
+      cycle_time_seconds: { estimate: 12, unit: "seconds" },
+      ...(location === "nested" ? { benchmark_projection: benchmark } : {}),
+    }, ...(location === "top_level" ? { benchmark_projection: benchmark } : {}) };
+    const row = projectWorkspaceResult("legacy-run", run, "req-1", { ...termsFor({}), successRate: 95, cycleTimeSeconds: 30 });
+    expect(row).toMatchObject({ successRate: 99, cycleTimeSeconds: 12, sampleCount: 200, evidenceLabel: "Simulation", targetsMet: null });
+    expect(row.teamAlias).not.toContain("team-private");
   });
 });

@@ -64,7 +64,7 @@ export function projectWorkspaceResult(
   id: string,
   run: Record<string, any>,
   taskId: string,
-  terms: TaskTerms,
+  _terms: TaskTerms,
 ): WorkspaceResult {
   const benchmark = object(
     run.benchmark_projection ||
@@ -105,7 +105,8 @@ export function projectWorkspaceResult(
     targetsMet: null,
     selected: false,
   };
-  result.targetsMet = targetsMet(result, terms);
+  // Legacy benchmark metrics have no bound scene-qualification and scored-cell
+  // contract. Retain observations without turning them into a site pass claim.
   return result;
 }
 export function projectWorkspaceTask(

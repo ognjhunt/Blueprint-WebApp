@@ -7,6 +7,7 @@ import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { createSiteClaimToken } from "../utils/request-review-auth";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
 import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
+import { syntheticQualifiedRun } from "./helpers/recommendation-evidence";
 const state = vi.hoisted(() => ({
   records: new Map<string, any>(),
   messages: vi.fn(),
@@ -208,6 +209,11 @@ function run(uid = "robot-1") {
     pipeline_result: { cycle_time_seconds: { estimate: 27, unit: "seconds" } },
     private_endpoint: "https://secret.example.com",
   };
+}
+function qualifiedRunForTask() {
+  const qualified = syntheticQualifiedRun("task-1", "qualified-run");
+  qualified.result!.observed.medianCycleSeconds = 27;
+  return qualified;
 }
 const setup = {
   id: "setup-1",
@@ -426,7 +432,7 @@ describe("workspace access and projections", () => {
     expect(response.results[0]).toMatchObject({
       successRate: 96,
       cycleTimeSeconds: 27,
-      targetsMet: true,
+      targetsMet: null,
     });
     expect(JSON.stringify(response)).not.toMatch(
       /SECRET|secret\.example|robot-1/,
@@ -505,9 +511,10 @@ describe("workspace requests and lifecycle", () => {
       workspace_evaluation: { opportunityId: "task-1", targetSnapshot: terms },
     });
     state.records.set("robotEvalJobRequests/run-1", run());
+    state.records.set("evaluationRuns/qualified-run", qualifiedRunForTask());
     const response = await api("/tasks/task-1/pilot", "site-1", {
       action: "invite",
-      resultId: "application-1",
+      resultId: "qualified-run",
       notes: "Review terms",
       siteVisitAnswer: "subject_to_approval",
     });
@@ -792,11 +799,16 @@ describe("workspace requests and lifecycle", () => {
     expect((await api("/tasks/task-1/pilot", "site-1", {
       action: "invite", resultId: "application-1", notes: "Review pilot terms",
     })).status).toBe(400);
+    // A complete legacy benchmark remains an observation, not qualified pilot evidence.
+    expect((await api("/tasks/task-1/pilot", "site-1", {
+      action: "invite", resultId: "application-1", notes: "Review pilot terms", siteVisitAnswer: "yes",
+    })).status).toBe(409);
+    state.records.set("evaluationRuns/qualified-run", qualifiedRunForTask());
     expect(
       (
         await api("/tasks/task-1/pilot", "site-1", {
           action: "invite",
-          resultId: "application-1",
+          resultId: "qualified-run",
           notes: "Review pilot terms",
           siteVisitAnswer: "yes",
         })
@@ -810,7 +822,7 @@ describe("workspace requests and lifecycle", () => {
       (
         await api("/tasks/task-1/pilot", "site-1", {
           action: "invite",
-          resultId: "application-1",
+          resultId: "qualified-run",
           notes: "Again",
           siteVisitAnswer: "yes",
         })
