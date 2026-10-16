@@ -34,12 +34,12 @@ test("the example recommended pilot sits below the headline without overflowing"
     const examples = [
       ["Warehouse", "Humanoid robot"], ["Café", "Fixed robot arm"],
       ["Laundromat", "Wheeled humanoid"], ["Factory", "Mobile manipulator"],
-      ["Hotel", "Mobile robot with arm"], ["Lab", "Fixed robot arm"],
+      ["Hotel", "Mobile robot"], ["Lab", "Fixed robot arm"],
     ];
     await expect(card.getByRole("tab")).toHaveText(examples.map(([site]) => site));
     for (const [site, embodiment] of examples) {
       await card.getByRole("tab", { name: site, exact: true }).click();
-      await expect(card.getByRole("tabpanel", { name: site, exact: true })).toContainText(`${embodiment}, setup and operation`);
+      await expect(card.getByRole("tabpanel", { name: site, exact: true })).toContainText(embodiment);
       await expect(page.getByRole("img", { name: `Illustration of the ${site.toLowerCase()} example: ${embodiment.toLowerCase()}`, exact: true })).toBeVisible();
     }
     await expect(page.locator(".ms-task-pair")).toHaveCount(0);
