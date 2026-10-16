@@ -57,6 +57,7 @@ import {
 import type { GateAnswerSources } from "../../client/src/lib/gateProvenance";
 import type { SitePilotIntent } from "../../client/src/data/sitePilotIntent";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
+import { screenTaskScope, taskScopeRecord, type SiteTaskScope } from "./siteTaskScope";
 
 export const TASK_BRIEFS_COLLECTION = "siteTaskBriefs";
 
@@ -320,6 +321,8 @@ export interface ConfirmationResult {
   sources: GateAnswerSources;
   disposition: string;
   readiness: ReadinessVerdict;
+  /** Whether we can score this kind of job in simulation today, as recorded on the job. */
+  scope: SiteTaskScope;
 }
 
 /**
@@ -409,6 +412,14 @@ export async function confirmBrief(params: {
     unresolved: brief.unresolved.filter((fieldId) => !answers[fieldId]),
   };
 
+  // The kind of job, screened against what the simulation can score. Separate
+  // from the gate verdict: a qualified site can still have a job we cannot
+  // score, and that job is not opened to robot teams (`teamJobAccess`).
+  const scope = taskScopeRecord(screenTaskScope({
+    summary: confirmed.summary,
+    successDefinition: confirmed.successCriteria?.successDefinition ?? null,
+  }), nowIso());
+
   // Confirmation attests to answers, not to footage we have never received.
   const evidence = { hasAny: true, hasVisual: false, explainsTask: true,
     coversScene: false, missingCoverage: undefined as string[] | undefined };
@@ -450,6 +461,7 @@ export async function confirmBrief(params: {
             evaluated_at: nowIso(),
           },
           site_task_brief_confirmed_at: admin.firestore.FieldValue.serverTimestamp(),
+          site_task_scope: scope,
           ...(materialChange && requestSnapshot.data()?.public_task_listing
             && ["cycleTarget", "pilotConditions", "targeting"].some(field => Boolean(requestSnapshot.data()!.public_task_listing.details?.[field])) ? {
             public_task_listing: { ...requestSnapshot.data()!.public_task_listing, enabled: false, reviewRequired: true },
@@ -489,6 +501,7 @@ export async function confirmBrief(params: {
       answered: Object.keys(answers).length,
       unknown: [...unknown],
       stage: readiness.stage,
+      taskScope: scope.supported ? scope.kind : `not_supported:${scope.reason}`,
     },
     "Site task brief confirmed by the operator",
   );
@@ -499,6 +512,7 @@ export async function confirmBrief(params: {
     sources,
     disposition: verdict.disposition,
     readiness,
+    scope,
   };
 }
 

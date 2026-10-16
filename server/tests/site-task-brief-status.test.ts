@@ -17,6 +17,7 @@ import { createServer } from "node:http";
 import type { Server } from "node:http";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { listedTaskCard } from "./helpers/listedTaskCard";
 
 const preparation = vi.hoisted(() => ({ read: vi.fn(async () => ({
   state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
@@ -99,6 +100,8 @@ beforeEach(async () => {
     contact: { email: "ops@acme.example", firstName: "Dana" },
     site_task_brief_confirmed_at: "2026-09-18T00:00:00.000Z",
     capture_coverage: { covers_scene: true, missing_coverage: [], supplement_would_finish: false },
+    // The start form's default: the anonymized card robot teams see.
+    public_task_listing: listedTaskCard(),
   });
   await saveBrief({
     ...draftBrief({ requestId: "req-1", summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [] }),
@@ -461,11 +464,31 @@ describe("GET /api/site-task-brief/:token/status", () => {
       result: { observed: { episodesRun: 50, episodesSucceeded: 41, successRate: 0.82, medianCycleSeconds: 40 } },
     });
 
+    // Settled, and an unscored 41 of 50 does not pass: the site is told so.
+    const settled = (await status()).body;
+    expect(settled.status.decision).toBe("no_team_passed");
+    expect(settled.status.headline).toMatch(/^No team's evaluation has passed yet\. 1 evaluation run on your job finished without passing/);
+
+    sharedFakeFirestoreState.docs.set("evaluationRuns/run_q1", {
+      runId: "run_q1", teamId: "team-b", sceneId: "req-1", state: "requested", requestedAtIso: "2026-09-19T00:00:00.000Z",
+    });
     const { body } = await status();
 
     expect(body.status.decision).toBe("results");
     expect(body.status.headline).toContain("Review each run's observed episodes separately");
     expect(body.status.operatorAction).toBe("Review the results.");
+  });
+
+  it("tells the owner when its job card is not published", async () => {
+    const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, public_task_listing: { ...listedTaskCard(), enabled: false } });
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
+      world_reconstruction: { state: "ready", assets: { launchUrl: "https://viewer.example/world-1", panoUrl: null } },
+    });
+    const { body } = await status();
+    expect(body.status.decision).toBe("not_listed");
+    expect(body.status.operatorAction).toMatch(/publish its job card/);
+    expect(body.status.nextUpdateIso).toBeNull();
   });
 
   it("offers no claim link once an account owns the site", async () => {

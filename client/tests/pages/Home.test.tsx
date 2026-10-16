@@ -12,9 +12,9 @@ describe("Site-led homepage", () => {
     // Robot teams reach their own page from the nav, not from the homepage.
     expect(screen.queryByRole("link", { name: /robot-team beta|early access/i })).not.toBeInTheDocument();
     // One example of the deliverable, clearly marked, instead of staged imagery.
-    expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Warehouse", "Café", "Laundromat", "Factory", "Hotel"]);
+    expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Warehouse", "Café", "Lab"]);
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveTextContent(/Example.*Robot team.*Evaluated in simulation.*Passed on your task \(example\).*Moving full totes.*Blueprint fee.*None during the beta.*Pilot cost.*Quoted by the robot team/);
+    expect(panel).toHaveTextContent(/Example.*Robot team.*Evaluated in simulation.*Passed on your task \(example\).*small boxed parts.*Blueprint fee.*None during the beta.*Pilot cost.*Quoted by the robot team/);
     expect(screen.getByText("Book this pilot")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Café" }));
     expect(screen.getByRole("tabpanel")).toHaveTextContent(/dish rack/);

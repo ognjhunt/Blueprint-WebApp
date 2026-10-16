@@ -451,7 +451,7 @@ export default function PolicyCanarySetup() {
           : "Choose two movement policies above."}</p> : null}
         <p className="ws-note">{managedPacket
           ? "Submit this development choice to the controller. It checks the sealed packet, model rights, and spend admission before GPU work. Results remain private."
-          : "Download this selection for the operator to bind to a sealed scene packet and reviewed model rights. No simulator run or payment starts."}</p>
+          : "Download this selection for the operator to bind to a sealed scene packet and reviewed model rights. No simulator run starts."}</p>
         {packetSetup ? <p className="ws-note">Packet receipt: <span className="break-all">{packetSetup.source_packet_receipt_digest}</span></p> : null}
         <button type="button" className="ws-secondary mt-4" disabled={policyIds.length !== 2 || (g1Packet && movementPolicyIds.length !== 2) || switching} onClick={() => { void downloadChoice(); }}>{g1Packet ? "Download book and movement handoffs" : packetSetup ? "Download task handoff" : "Download pair choice"}</button>
         {managedPacket && g1Packet ? <div className="mt-5">

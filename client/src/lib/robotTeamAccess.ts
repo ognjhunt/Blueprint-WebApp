@@ -26,6 +26,16 @@ export interface EarlyAccessApplication {
 
 export class EarlyAccessApplicationError extends Error {}
 
+/** Ask for a fresh invitation link; it is sent only if the address is approved. */
+export async function requestInvitationLink(email: string): Promise<void> {
+  const response = await fetch("/api/robot-team-access/invitation", {
+    method: "POST",
+    headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ email }),
+  });
+  if (!response.ok) throw new EarlyAccessApplicationError("The link could not be sent. Try again.");
+}
+
 export async function applyForEarlyAccess(application: EarlyAccessApplication): Promise<LibraryAccess["status"]> {
   const response = await fetch("/api/robot-team-access/apply", {
     method: "POST",

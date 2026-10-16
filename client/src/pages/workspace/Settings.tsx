@@ -324,7 +324,7 @@ function WorkspaceSettings() {
                 <Field
                   label="Reference URL"
                   wide
-                  hint="Use an HTTPS, OCI, or Docker URL without credentials or query parameters. Keep credentials in the approved secret store."
+                  hint="Use an HTTPS, OCI, or Docker URL without credentials or query parameters. A hosted endpoint's token goes under Policy token below, never in the URL."
                 >
                   <input
                     name="reference"

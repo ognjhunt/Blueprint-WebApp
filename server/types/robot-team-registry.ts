@@ -120,6 +120,15 @@ export type RobotTeamStatus =
   | "engaged"
   | "declined";
 
+/** A robot-team application's approval, as bound to the team it covers. */
+export interface RobotTeamAccessApproval {
+  /** The `robotTeamAccess` application (keyed by its approved email's hash). */
+  accessRecordId: string;
+  approvedBy: string | null;
+  approvedAtIso: string | null;
+  boundAtIso: string;
+}
+
 export interface RobotTeamRecord {
   id: string;
   name: string;
@@ -161,6 +170,13 @@ export interface RobotTeamRecord {
   accountUid?: string | null;
   accountEmail?: string | null;
   accountBoundAtIso?: string | null;
+  /**
+   * The reviewed robot-team application whose approval covers this team.
+   * Early access belongs to the team: its bound account and its agent keys
+   * see site jobs while that application stays approved, and declining the
+   * application withdraws it. Written only by `bindAccessApprovalToTeam`.
+   */
+  accessApproval?: RobotTeamAccessApproval | null;
   /**
    * What the team agreed to, recorded by a named operator. The only thing that
    * makes a team `engaged`. Written only by `recordSupplyAgreement` and

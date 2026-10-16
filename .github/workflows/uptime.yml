@@ -1,14 +1,17 @@
 name: Uptime
 
-# External uptime probe for the production site. It runs outside Render, so it
-# still fires when the service, its host, or its own alerting is down.
-# Fails the run (GitHub emails the repo owner on scheduled-run failure) and,
-# when the SLACK_WEBHOOK_URL repository secret is set, posts to Slack.
-# See docs/runbooks/beta-monitoring.md.
+# Backstop uptime probe that runs OUTSIDE Render, so it still fires when Render
+# itself, the service, or its own alerting is down.
 #
-# Note: GitHub may delay scheduled runs under load and disables schedules on
-# repositories with no activity for 60 days; Render's own notifications cover
-# deploy and instance failures (configured in the Render dashboard).
+# The every-10-minutes probe is the `blueprint-uptime-probe` Render cron job
+# (render.yaml). GitHub throttles scheduled workflows under load (in practice
+# this one ran every 2-5 hours, not every 10 minutes) and disables schedules on
+# repositories with no activity for 60 days, so this schedule cannot be the
+# primary monitor. Both run the same script, scripts/ops/uptime-probe.mjs:
+# /health, /version.json and /health/worker (the background worker heartbeat).
+# A failure fails the run (GitHub emails the repo owner on scheduled-run
+# failure) and, when the SLACK_WEBHOOK_URL repository secret is set, posts to
+# Slack. See docs/runbooks/beta-monitoring.md.
 
 on:
   schedule:
@@ -20,7 +23,8 @@ on:
         required: false
         default: "https://tryblueprint.io"
 
-permissions: {}
+permissions:
+  contents: read
 
 concurrency:
   group: uptime
@@ -31,48 +35,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Probe /health and /version.json
-        id: probe
-        env:
-          BASE_URL: ${{ github.event.inputs.base_url || 'https://tryblueprint.io' }}
-        run: |
-          set -uo pipefail
-          failures=""
-          probe() {
-            local path="$1" expect_pattern="$2" code="" body=""
-            for attempt in 1 2 3; do
-              body="$(curl -sS -L --max-time 20 -w '\n%{http_code}' "${BASE_URL}${path}" 2>/dev/null || true)"
-              code="$(printf '%s' "${body}" | tail -n1)"
-              body="$(printf '%s' "${body}" | sed '$d')"
-              if [ "${code}" = "200" ] && printf '%s' "${body}" | grep -q "${expect_pattern}"; then
-                echo "OK ${path} (attempt ${attempt})"
-                return 0
-              fi
-              echo "Attempt ${attempt}/3 for ${path}: HTTP ${code:-none}"
-              sleep 20
-            done
-            failures="${failures} ${path}=HTTP_${code:-none}"
-            return 1
-          }
-          probe "/health" '"healthy"' || true
-          probe "/version.json" 'git_sha' || true
-          if [ -n "${failures}" ]; then
-            echo "failures=${failures# }" >> "${GITHUB_OUTPUT}"
-            echo "::error::Uptime probe failed for ${BASE_URL}:${failures}"
-            exit 1
-          fi
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/ops
+          persist-credentials: false
 
-      - name: Post failure to Slack
-        if: failure() && steps.probe.outputs.failures != ''
+      - name: Probe /health, /version.json and /health/worker
         env:
+          UPTIME_BASE_URL: ${{ github.event.inputs.base_url || 'https://tryblueprint.io' }}
+          UPTIME_RETRY_DELAY_MS: "20000"
+          UPTIME_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          FAILURES: ${{ steps.probe.outputs.failures }}
-          BASE_URL: ${{ github.event.inputs.base_url || 'https://tryblueprint.io' }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
-            echo "SLACK_WEBHOOK_URL secret not set; the failed run is the alert."
-            exit 0
-          fi
-          payload="$(node -e 'process.stdout.write(JSON.stringify({text: `:rotating_light: Blueprint uptime probe failed for ${process.env.BASE_URL}: ${process.env.FAILURES}\n${process.env.RUN_URL}`}))')"
-          curl -sS --max-time 15 -X POST -H 'Content-Type: application/json' --data "${payload}" "${SLACK_WEBHOOK_URL}" >/dev/null || echo "Slack post failed"
+        run: node scripts/ops/uptime-probe.mjs

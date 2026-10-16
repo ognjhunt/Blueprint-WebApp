@@ -118,6 +118,12 @@ export interface PilotRecommendationEvidence {
   evidenceScope: EvidenceScope;
   scoring: EvidenceScoring;
   boundary: string;
+  /**
+   * The task kind the simulation scored (the Pipeline's team-evaluation
+   * contract `task_kind`), or null when it could not be tied to this run.
+   * Absent on evidence written before it was recorded.
+   */
+  scoredTaskKind?: string | null;
 }
 
 export type EvidenceRefusal =
@@ -230,6 +236,25 @@ export interface EvaluationReading {
   refusals: EvidenceRefusal[];
 }
 
+/**
+ * Why a run's result can never back a recommendation, in the team's words, or
+ * null when it can (its numbers against the pass mark aside). The same rule
+ * `readEvaluation` applies: a team evaluation the simulator scored under an
+ * admitted statement, with at least `MINIMUM_EVIDENCE_EPISODES` counted.
+ */
+export function notCountedReason(run: {
+  teamEvaluationPurpose?: string;
+  result?: Parameters<typeof scoringRefusal>[0];
+}): string | null {
+  if (run.teamEvaluationPurpose !== "scored")
+    return "It is not a team evaluation. Only a team evaluation of the job, 200 hidden episodes scored by Blueprint's simulator, can back a recommendation.";
+  if (scoringRefusal(run.result)) return "Blueprint's simulator did not score it against the job's success contract.";
+  const counted = run.result?.observed?.episodesRun ?? 0;
+  if (counted < MINIMUM_EVIDENCE_EPISODES)
+    return `Only ${counted} of its episodes were counted; a recommendation needs at least ${MINIMUM_EVIDENCE_EPISODES}.`;
+  return null;
+}
+
 export function readEvaluation(
   run: RunWithResult,
   requestId: string,
@@ -298,6 +323,8 @@ export function verifyRecommendationEvidence(params: {
   expectedResultId?: string | null;
   /** The job's targets moved after the run was requested (`criteriaChangedSinceRequest`). */
   criteriaChanged?: boolean;
+  /** The scored task kind (`scoredTaskKindFor`), frozen with the evidence. */
+  scoredTaskKind?: string | null;
 }): { ok: true; evidence: PilotRecommendationEvidence } | { ok: false; refusal: EvidenceRefusal } {
   const { run, requestId, passMark } = params;
   if (!run) return { ok: false, refusal: "evaluation_run_missing" };
@@ -336,8 +363,21 @@ export function verifyRecommendationEvidence(params: {
         claimCeiling: result.scoring!.claimCeiling,
       },
       boundary: SIMULATION_EVIDENCE_BOUNDARY,
+      scoredTaskKind: params.scoredTaskKind ?? null,
     },
   };
+}
+
+/**
+ * The task kind this run was scored on: the job's published team-evaluation
+ * contract, when that offer is for the capture the run executed. Null when the
+ * two cannot be tied, so the card says "not recorded" instead of guessing.
+ */
+export function scoredTaskKindFor(record: Record<string, any> | null | undefined, run: RunWithResult | null | undefined): string | null {
+  const offer = record?.agent_execution_offer;
+  const kind = offer?.team_evaluation?.contract?.task_kind;
+  if (typeof kind !== "string" || !kind.trim()) return null;
+  return typeof offer.capture_id === "string" && run?.executionCaptureId === offer.capture_id ? kind.trim() : null;
 }
 
 function percent(fraction: number): string {

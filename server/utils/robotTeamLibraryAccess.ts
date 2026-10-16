@@ -46,6 +46,7 @@ export async function libraryAccessForRequest(req: Request): Promise<LibraryAcce
       const context = await resolveAccessContext({ locals: { firebaseUser: decoded } } as unknown as Response);
       if (decoded.email_verified === true && decoded.email) await bindVerifiedPreferenceAccount(decoded.uid, decoded.email);
       return await resolveViewerAccess({
+        uid: decoded.uid,
         email: typeof decoded.email === "string" ? decoded.email : null,
         emailVerified: decoded.email_verified === true,
         isOps: context.isOps,

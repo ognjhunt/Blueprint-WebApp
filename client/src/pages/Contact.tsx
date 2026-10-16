@@ -48,8 +48,8 @@ export default function Contact() {
             <summary>What happens after applying?</summary>
             <p>We review your robot's capabilities against a real site task, then email the next step. Your application remains pending until manual approval. Applying or creating an account does not grant access. Approved teams see anonymized cards authorized when sites start a job; sites can edit or hide them afterward.</p>
             <p>Each evaluation runs your policy in a simulation built from the site's capture. Blueprint recommends a team only when its evaluation on that job passed and it wants the pilot; you confirm the configuration, timing and site conditions before the site sees the recommendation.</p>
-            <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. Executable submissions use a policy endpoint or container; compatibility must be checked for the specific task.</p>
-            <p>Evaluations are free during the beta, with no balances or top-ups. If a site books your recommended pilot, you and the site agree its dates and terms directly; Blueprint takes no cut. An invitation does not guarantee a run, a recommendation, or a deployment.</p>
+            <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. You serve your policy at one HTTPS URL that accepts a bearer token, and register it as a policy endpoint with that token; containers and private checkpoints are not admitted. Each evaluation is 200 hidden episodes.</p>
+            <p>Evaluations are free during the beta. If a site books your recommended pilot, you and the site agree its dates and terms directly; Blueprint takes no cut. An invitation does not guarantee a run, a recommendation, or a deployment.</p>
             <p><a href="/agent-access.openapi.json">Technical API reference</a> · <a href="mailto:hello@tryblueprint.io">Ask about job fit or integration</a></p>
           </details>
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>
@@ -86,6 +86,7 @@ export default function Contact() {
             <summary>How this works</summary>
             {savedJob ? <p className="ms-field-hint">Your private job link shows progress, follow-up questions and, once a team&rsquo;s evaluation passes, your recommended pilot. Keep it to return.</p> : <><p className="ms-field-hint">
               Your job link shows progress and follow-ups. We draft a brief from the evidence for you to correct.
+              Before we build the job&rsquo;s scene, you save the job to an account with your work email.
               Invited robot teams then evaluate the job in simulation, and we recommend one team whose evaluation passed.
               A simulated pass is an estimate; the physical pilot, agreed with the team, tests performance on site.
             </p>

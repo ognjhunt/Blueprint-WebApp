@@ -7,6 +7,7 @@ import { isLocalLaunchSmokeProfile } from "../utils/launch-readiness";
 import { maybeAlertOnLaunchReadinessTransition } from "../utils/ops-alerts";
 import { probeTaskEvaluationLaunchStore } from "../utils/taskEvaluationLaunchStore";
 import { adminRoleDocFallbackStatus } from "../utils/access-control";
+import { readWorkerHeartbeat, type WorkerHeartbeatReading } from "../utils/workerHeartbeat";
 
 const router = Router();
 
@@ -59,6 +60,29 @@ router.get("/health/live", (_req: Request, res: Response) => {
   res.status(200).json({
     status: "alive",
     timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * Background worker liveness, from the heartbeat it writes every minute.
+ * 200 while fresh, 503 when stale, missing or unreadable, so the external
+ * uptime probe (scripts/ops/uptime-probe.mjs) fails when the worker stops.
+ * Cached briefly so probing it costs at most a few Firestore reads a minute.
+ */
+let workerHeartbeatCache: { atMs: number; reading: WorkerHeartbeatReading } | null = null;
+const WORKER_HEARTBEAT_CACHE_MS = 30_000;
+
+router.get("/health/worker", async (_req: Request, res: Response) => {
+  const nowMs = Date.now();
+  if (!workerHeartbeatCache || nowMs - workerHeartbeatCache.atMs > WORKER_HEARTBEAT_CACHE_MS) {
+    workerHeartbeatCache = { atMs: nowMs, reading: await readWorkerHeartbeat() };
+  }
+  const { reading } = workerHeartbeatCache;
+  res.status(reading.status === "fresh" ? 200 : 503).json({
+    status: reading.status,
+    age_seconds: reading.ageMs === null ? null : Math.round(reading.ageMs / 1000),
+    stale_after_seconds: Math.round(reading.staleAfterMs / 1000),
+    timestamp: new Date(nowMs).toISOString(),
   });
 });
 

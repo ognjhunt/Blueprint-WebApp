@@ -18,7 +18,9 @@
  * - free admission, re-checked when Blueprint approves the run
  *   (`freeEvaluationHandoff.ts`);
  * - the agent API's candidate list (`teamEvalCandidates.ts`);
- * - the site's own "Open for evaluations" status (`workspace-projection.ts`).
+ * - the site's own "Open for evaluations" or "Private" status (`workspace-projection.ts`);
+ * - the site's waiting states and the one "robot teams can now evaluate your
+ *   job" notice (`taskStatusProjection.ts`, `taskLifecycleNotifications.ts`).
  *
  * ## The site's consent is the card
  *
@@ -56,6 +58,7 @@ import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { coverageEvidenceFrom } from "./captureCoverageEvidence";
 import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
+import { taskScopeNotSupported } from "./siteTaskScope";
 
 /** Why a job is closed to robot teams, in the order the checks run. */
 export type TeamJobClosedReason =
@@ -63,6 +66,8 @@ export type TeamJobClosedReason =
   | "not_a_site_job"
   /** A placeholder the Pipeline created, not a site's submission. */
   | "pipeline_placeholder"
+  /** The confirmed job is a kind the simulation cannot score yet (`siteTaskScope.ts`). */
+  | "task_not_yet_supported"
   /** No current card grant: the site kept the job private, hid the card, or a material change awaits its review. */
   | "not_listed"
   /** The retired dossier recorded the job as private. */
@@ -173,6 +178,10 @@ export function teamJobAccess(record: RecordLike): TeamJobAccess {
     ({ listed: false, evaluationAvailable: false, reason, details: null });
   if (raw.request?.buyerType !== "site_operator") return closed("not_a_site_job");
   if (raw.debug?.autoCreatedByPipeline === true) return closed("pipeline_placeholder");
+  // An evaluation of a job we cannot score would test a different task, so
+  // teams never see it. Only a recorded screen closes a job; unscreened
+  // records keep their existing access.
+  if (taskScopeNotSupported(raw)) return closed("task_not_yet_supported");
   // A grant is for the card's text fields only. It never authorizes footage or raw intake.
   const details = approvedTaskDetails(raw);
   if (!details) return closed("not_listed");

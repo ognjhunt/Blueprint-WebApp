@@ -17,6 +17,7 @@ import {
   TERMS_VERSION,
   PRIVACY_VERSION,
   isCurrentLegalAcceptance,
+  acceptedVersionsAreCurrent,
 } from "../../client/src/lib/legalAcceptance";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import {
@@ -26,7 +27,8 @@ import {
 } from "../utils/field-encryption";
 import { submitInboundRequest } from "./inbound-request";
 import { verifySiteClaimToken } from "../utils/request-review-auth";
-import { projectTeamJobOpening } from "../utils/teamJobAccess";
+import { projectTeamJobOpening, teamJobAccess } from "../utils/teamJobAccess";
+import { passMarkForJob } from "../utils/pilotRecommendationEvidence";
 import { sendCapturerCommunication } from "../utils/field-ops-automation";
 import {
   object,
@@ -64,11 +66,15 @@ import { issueAgentKey, listAgentKeys, resolveAgentKey, revokeAgentKey } from ".
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
 import { enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
 import { alertOpsEvaluationNeedsAdmission } from "../utils/pilotOpsAlerts";
-import { accessRecordId, resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
+import { accessRecordId, ensureApprovedTeamForAccount, resolveViewerAccess } from "../utils/robotTeamEarlyAccess";
 import { accountHasAdmission } from "../utils/accountInvitations";
 import { resolveAccessContext } from "../utils/access-control";
 import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
+import { projectPilotBooking } from "../utils/pilotContactExchange";
+import { listCheckpoints } from "../utils/robotCheckpoints";
+import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
+import { notCountedReason } from "../utils/pilotRecommendationEvidence";
 
 const router = Router();
 const id = z
@@ -199,11 +205,9 @@ function currentTermsAccepted(user: Record<string, any>) {
   const accepted = object(user.termsAcceptance);
   return (
     (accepted.accepted_terms === true &&
-      accepted.terms_version === TERMS_VERSION &&
-      accepted.privacy_version === PRIVACY_VERSION) ||
+      acceptedVersionsAreCurrent(accepted.terms_version, accepted.privacy_version)) ||
     (user.acceptedTerms === true &&
-      user.termsVersion === TERMS_VERSION &&
-      user.privacyVersion === PRIVACY_VERSION)
+      acceptedVersionsAreCurrent(user.termsVersion, user.privacyVersion))
   );
 }
 function accountProjection(
@@ -328,7 +332,12 @@ router.post(
       else transaction.set(profileRef, patch);
     });
     if (auth.email_verified === true && auth.email) await bindVerifiedPreferenceAccount(auth.uid, auth.email);
-    return res.json({ ok: true, workspaceType: input.workspaceType });
+    // An approved robot team lands in its workspace with its team bound.
+    const teamId = input.workspaceType === "robot_team" && auth.email_verified === true && text(auth.email)
+      ? await ensureApprovedTeamForAccount({ uid: auth.uid, email: text(auth.email).toLowerCase(), verified: true })
+        .catch((error) => { logger.warn({ error }, "Could not bind the approved account to its team at setup"); return null; })
+      : null;
+    return res.json({ ok: true, workspaceType: input.workspaceType, ...(teamId ? { teamId } : {}) });
   }),
 );
 router.use(
@@ -608,20 +617,20 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
       taskStatusInputFrom({
         site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,
         capture_coverage: (record.capture_coverage as never) ?? null,
-        site_task_next_update_iso: (record.site_task_next_update_iso as string | null) ?? null,
         briefDrafted: Boolean(brief),
         consentRevoked,
         scenePreviewReady,
         scenePreparationFailed: reconstruction?.state === "failed",
         preparationStatus,
         stage,
-        screening: await loadSceneScreening(requestId).catch(() => null),
+        screening: await loadSceneScreening(requestId, passMarkForJob(record, brief as never)).catch(() => null),
         site_task_triage: (record.site_task_triage as { disposition?: string | null } | undefined) ?? null,
+        site_task_scope: (record.site_task_scope as { supported?: unknown; reason?: unknown } | undefined) ?? null,
         bookingUrl: bookingUrl(),
+        jobAccess: teamJobAccess(record),
+        recommended: Boolean(record.pilot_recommendation),
       }),
     );
-    // Updates follow events by email; no timed check-in is promised.
-    task.readiness.nextUpdateIso = null;
   } catch {
     task.readiness = null;
   }
@@ -632,6 +641,8 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
       .catch(() => logger.warn("Site advisory workspace return wake unavailable"));
   }
   if (consentRevoked) task.status = "Recording consent withdrawn";
+  // The booked pilot with the robot team's contact, while both consents stand.
+  task.pilotBooking = await projectPilotBooking(record, "site").catch(() => null);
   return task;
 }
 async function listSetups(uid: string): Promise<RobotSetup[]> {
@@ -684,17 +695,29 @@ router.get(
       .limit(200)
       .get();
     const evaluations: WorkspaceEvaluation[] = [];
+    // A booked pilot is shown, with the site's contact, only to the team it
+    // was recommended with.
+    const callerTeamIds = new Set((await teamsForAccount(caller.uid)).map((team) => team.id));
+    const bookedWithCaller = async (record: Record<string, any>) => {
+      const recommendation = object(record.pilot_recommendation);
+      const teamIds = [recommendation.teamId, ...(Array.isArray(recommendation.registryTeamIds) ? recommendation.registryTeamIds : [])];
+      return teamIds.some((teamId) => typeof teamId === "string" && callerTeamIds.has(teamId))
+        ? projectPilotBooking(record, "team").catch(() => null)
+        : null;
+    };
     for (const item of requests.filter(
       (item) => item.record.workspace_evaluation,
     )) {
       const application = object(item.record.workspace_evaluation);
       let task: WorkspaceTask | null = null;
+      let pilotBooking: Awaited<ReturnType<typeof projectPilotBooking>> = null;
       try {
         const source = await readRequest(text(application.opportunityId));
         task = projectWorkspaceTask(
           text(application.opportunityId),
           source.record,
         );
+        pilotBooking = await bookedWithCaller(source.record);
       } catch (error) {
         if ((error as any).status !== 404) throw error;
       }
@@ -735,7 +758,9 @@ router.get(
       const observed = freeRun?.result?.observed;
       evaluations.push({
         ...result,
-        teamEvaluation: freeRun?.teamEvaluationPurpose === "scored",
+        // A free run has no Task Evaluation run record to link to.
+        hasRunRecord: !freeRun && Boolean(run),
+        notCountedReason: notCountedReason(freeRun ?? {}),
         successRateInterval: observed && observed.episodesRun > 0
           ? [Math.round(wilsonLowerBound(observed.episodesSucceeded, observed.episodesRun) * 1000) / 10,
             Math.round(wilsonUpperBound(observed.episodesSucceeded, observed.episodesRun) * 1000) / 10]
@@ -760,6 +785,7 @@ router.get(
           "pilot_complete",
         ].includes(outcome || ""),
         createdAt: iso(item.record.createdAt),
+        pilotBooking,
       });
     }
     for (const run of runs.docs.filter(
@@ -771,6 +797,8 @@ router.get(
       evaluations.push({
         ...projectWorkspaceResult(run.id, data, run.id, termsFor({})),
         runId: run.id,
+        hasRunRecord: true,
+        notCountedReason: notCountedReason({}),
         taskId: null,
         title:
           text(request.decision_question) ||
@@ -1005,6 +1033,8 @@ router.post(
     let teamId = input.teamId ? teams.find((team) => team.id === input.teamId)?.id : teams[0]?.id;
     if (input.teamId && !teamId)
       refuse(404, "That team is not connected to this account.", "team_not_found");
+    // The team an approved account's approval covers; staff accounts have none.
+    if (!teamId) teamId = (await ensureApprovedTeamForAccount(caller)) ?? undefined;
     if (!teamId) {
       const created = await registerSelfServeTeam({
         name: text(caller.user.organizationName || caller.user.company) || caller.email.split("@")[1] || "Robot team",
@@ -1222,7 +1252,7 @@ async function openingForTeam(res: Response, jobId: string) {
   const caller = identity(res);
   if (!caller.verified)
     refuse(403, "Verify your email before requesting an evaluation.");
-  const access = await resolveViewerAccess({ email: caller.email, emailVerified: true, isOps: false });
+  const access = await resolveViewerAccess({ uid: caller.uid, email: caller.email, emailVerified: true, isOps: false });
   if (!access.allowed) refuse(403, "Robot-team early access is required before requesting an evaluation.");
   const notOpen = () => refuse(404, "This job is not open to evaluation requests.", "job_not_open");
   let source: Awaited<ReturnType<typeof readRequest>>;
@@ -1243,6 +1273,18 @@ router.get(
     return res.json({ opening });
   }),
 );
+/**
+ * Why a saved setup cannot be a team evaluation's candidate yet: a hosted
+ * endpoint whose checkpoint (the one the policy token registers) has a
+ * current bearer token on file. Null when one of the team's checkpoints can.
+ */
+async function setupTeamPolicyBlocker(uid: string, setup: RobotSetup): Promise<TeamPolicyBlocker | null> {
+  if (setup.delivery !== "endpoint") return "team_evaluation_policy_endpoint_required";
+  const checkpoints = (await Promise.all((await teamsForAccount(uid)).map((team) => listCheckpoints(team.id)))).flat()
+    .filter((checkpoint) => checkpoint.reference === setup.reference && checkpoint.status !== "retired");
+  const blockers = checkpoints.map((checkpoint) => teamPolicyBlocker(checkpoint, { robotEmbodiment: setup.robotEmbodiment }));
+  return blockers.includes(null) ? null : blockers[0] ?? "team_evaluation_policy_credential_required";
+}
 router.post(
   "/evaluations",
   handle(async (req, res) => {
@@ -1259,6 +1301,11 @@ router.post(
       (item) => item.id === input.setupId,
     );
     if (!setup) refuse(400, "Choose a saved robot and policy.");
+    // A team evaluation is one attempt: refuse a policy it could not call before asking for it.
+    if (offersTeamEvaluation(source.record)) {
+      const blocker = await setupTeamPolicyBlocker(caller.uid, setup);
+      if (blocker) refuse(409, TEAM_POLICY_BLOCKER_MESSAGES[blocker], blocker);
+    }
     res.locals.workspaceIntake = {
       account_owner_uid: caller.uid,
       workspace_evaluation: {
@@ -1434,6 +1481,8 @@ router.post(
       .parse(req.body);
     if (input.action === "invite" && !input.siteVisitAnswer)
       refuse(400, "Say whether the selected robot team could work on site before inviting a pilot.");
+    if (input.action === "invite" && projectWebsiteCaptureRights(item.record).consent_revoked)
+      refuse(409, "Recording permission for this job was withdrawn, so a pilot can no longer be arranged.", "site_consent_withdrawn");
     const task = await hydrateTask(req.params.taskId, item.record);
     const selected = task.results.find(
       (result) => result.id === input.resultId,
@@ -1524,7 +1573,7 @@ router.post(
       ok: true,
       message:
         input.action === "invite"
-          ? "Pilot team selected. Blueprint will coordinate the invitation and terms."
+          ? "Pilot team selected. Blueprint passes on your invitation; you and the team agree the pilot's dates and terms directly."
           : "Outcome recorded.",
     });
   }),

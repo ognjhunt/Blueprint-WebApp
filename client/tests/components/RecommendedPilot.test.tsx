@@ -53,6 +53,19 @@ describe("the recommended pilot", () => {
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
+  it("states what the simulation tested, and says so when it was not recorded", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation: { ...recommendation,
+      scoredTask: "Pick up the object and place it in the target area" }, booking: null }) });
+    const { unmount } = render(<RecommendedPilot token="tok" />);
+    const row = await screen.findByText("What the simulation tested");
+    expect(row.nextElementSibling).toHaveTextContent(/^Pick up the object and place it in the target area\.This is the task the simulation scored\. It can be narrower than your job/);
+    unmount();
+    fetchMock.mockResolvedValueOnce(loaded());
+    render(<RecommendedPilot token="tok" />);
+    expect((await screen.findByText("What the simulation tested")).nextElementSibling)
+      .toHaveTextContent(/^Not recorded\. Ask Blueprint what the simulation tested before you book\./);
+  });
+
   it("offers no result link when the site cannot open the results", async () => {
     const evidence = { episodesRun: 20, episodesSucceeded: 18, successRate: 0.9, passMarkSuccessRate: 0.9, passMarkSource: "blueprint_default",
       cycleTimeTargetSeconds: null, medianCycleSeconds: null, cycleTimeMet: null, evaluatedAtIso: "2026-10-02T00:00:00Z",
@@ -68,6 +81,21 @@ describe("the recommended pilot", () => {
     render(<RecommendedPilot token="tok" />);
     expect(await screen.findByRole("status")).toHaveTextContent(/Pilot booked.*awaiting coordination/);
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("shows the robot team's contact once booked, and withholds it after a withdrawal", async () => {
+    const contact = { name: null, organization: "Acme Robotics", email: "team@example.test", phone: null };
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation, booking: { recommendationId: "rec_1" },
+      pilotBooking: { bookedAtIso: "2026-10-15T00:00:00Z", contact, consentWithdrawn: false } }) });
+    const { unmount } = render(<RecommendedPilot token="tok" />);
+    expect(await screen.findByRole("status")).toHaveTextContent(/agree the pilot's dates and terms directly/);
+    expect(screen.getByRole("link", { name: "team@example.test" })).toHaveAttribute("href", "mailto:team@example.test");
+    unmount();
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation, booking: { recommendationId: "rec_1" },
+      pilotBooking: { bookedAtIso: "2026-10-15T00:00:00Z", contact: null, consentWithdrawn: true } }) });
+    render(<RecommendedPilot token="tok" />);
+    expect(await screen.findByRole("status")).toHaveTextContent(/contact details are no longer shared/);
+    expect(screen.queryByText("team@example.test")).toBeNull();
   });
 
   it("requires explicit authorization even for a programmatic form submission", async () => {

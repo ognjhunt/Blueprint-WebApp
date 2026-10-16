@@ -913,6 +913,7 @@ it.each([true, false])("shows the exact card text before starting and honors the
     expect(keepPrivate).toBeChecked();
     expect(screen.queryByLabelText("Generated public summary")).not.toBeInTheDocument();
     expect(document.querySelector("#start-listing-consent")).toHaveTextContent("This job stays private. Starting does not publish a job card");
+    expect(document.querySelector("#start-listing-consent")).toHaveTextContent("Robot teams cannot see or evaluate a private job, so it cannot lead to a recommended pilot.");
     expect(document.querySelector("#start-listing-consent")).not.toHaveTextContent(/authorize/);
   }
   fireEvent.submit(screen.getByRole("form"));
@@ -969,6 +970,10 @@ it("offers account setup only after the site and job have been saved", async () 
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } }); fillAndSubmit();
   expect(await screen.findByRole("link", { name: "Create an account for this job" })).toHaveAttribute("href", "/claim/job.signed");
   expect(screen.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", "/claim/job.signed?mode=signin");
+  // Not optional: the scene robot teams evaluate is built only for a saved job.
+  const account = screen.getByRole("region", { name: "Save this job to your account" });
+  expect(account).toHaveTextContent("We build the scene robot teams evaluate only for a job saved to an account with owner@example.com.");
+  expect(account).not.toHaveTextContent(/optional/i);
   expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
   expect(postsTo("/api/inbound-request")).toHaveLength(1);
 });

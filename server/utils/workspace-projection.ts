@@ -118,7 +118,10 @@ export function projectWorkspaceTask(
   const match = object(record.site_match);
   // "Open for evaluations" means exactly what approved robot teams see: the
   // job library offers an evaluation and the opening page accepts a request.
-  const published = teamJobAccess(record).evaluationAvailable;
+  // Without a published card no team can see the job, so it reads "Private"
+  // rather than an "In review" that never ends.
+  const access = teamJobAccess(record);
+  const published = access.evaluationAvailable;
   return {
     id,
     recordingPermissionWithdrawn: record.consent_revoked === true,
@@ -141,7 +144,9 @@ export function projectWorkspaceTask(
                 : "Pilot selected"
               : published
                 ? "Open for evaluations"
-                : "In review",
+                : access.reason === "not_listed"
+                  ? "Private"
+                  : "In review",
     nextStep: text(object(record.ops).next_step) || null,
     terms: termsFor(record),
     pilotIntent: sitePilotIntentFrom(workspace.pilotIntent),

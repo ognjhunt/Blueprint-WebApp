@@ -41,6 +41,7 @@ import { canDispatchFreeBetaRun, isBlueprintFundedRun, FREE_BETA_ONLY, FREE_BETA
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import type { SceneScreening } from "./taskStatusProjection";
+import { readEvaluation, type PassMark, type RunWithResult } from "./pilotRecommendationEvidence";
 import {
   releaseReservation,
   settleReservation,
@@ -55,7 +56,7 @@ import {
   type RequestedRunParams,
   type RunDispatch,
 } from "./agentRunRecord";
-import { enqueueTaskLifecycleNotification } from "./taskLifecycleNotifications";
+import { enqueueTaskLifecycleNotification, notifyIfNoTeamPassed } from "./taskLifecycleNotifications";
 import { notifyTeamOfRunOutcome } from "./robotTeamNotifications";
 export {
   buildRequestedRunRecord,
@@ -178,7 +179,10 @@ export async function reportRunOutcome(params: {
   const ended = endedWithoutResult as { sceneId: string; teamId: string; siteVisible: boolean } | null;
   if (ended) {
     try {
-      if (ended.siteVisible) await enqueueTaskLifecycleNotification({ requestId: ended.sceneId, milestone: "run_no_result", eventId: params.runId });
+      if (ended.siteVisible) {
+        await enqueueTaskLifecycleNotification({ requestId: ended.sceneId, milestone: "run_no_result", eventId: params.runId });
+        try { await notifyIfNoTeamPassed(ended.sceneId, params.runId); } catch { /* best-effort */ }
+      }
     } catch (error) {
       logger.warn({ error, runId: params.runId }, "Could not enqueue a no-result notice");
     }
@@ -605,9 +609,14 @@ export async function markRunStarted(params: {
  * Counts only. Observed runs are counted without comparing their outcomes:
  * different protocols and resets are not proven comparable. A blocked or
  * zero-episode completion is counted explicitly as no result.
+ *
+ * With the job's pass mark, `passed` counts reported runs whose result meets
+ * it (`readEvaluation`). A recorded result is final evidence and settlement can
+ * land after it, so it is judged as recorded: this can only over-count passes,
+ * which keeps "no team passed" from being said early.
  */
-export async function loadSceneScreening(sceneId: string): Promise<SceneScreening> {
-  const empty: SceneScreening = { teams: 0, queued: 0, running: 0, reported: 0, noResult: 0 };
+export async function loadSceneScreening(sceneId: string, passMark?: PassMark): Promise<SceneScreening> {
+  const empty: SceneScreening = { teams: 0, queued: 0, running: 0, reported: 0, noResult: 0, ...(passMark ? { passed: 0 } : {}) };
   if (!db || !sceneId) return empty;
 
   const snapshot = await db
@@ -629,6 +638,8 @@ export async function loadSceneScreening(sceneId: string): Promise<SceneScreenin
 
     if (observed && episodes > 0) {
       screening.reported += 1;
+      if (passMark && readEvaluation({ ...run, state: "completed" } as RunWithResult, sceneId, passMark).passed === true)
+        screening.passed = (screening.passed ?? 0) + 1;
       teams.add(run.teamId);
       continue;
     }

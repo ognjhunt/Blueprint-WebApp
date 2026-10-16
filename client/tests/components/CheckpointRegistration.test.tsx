@@ -86,6 +86,34 @@ describe("CheckpointRegistration", () => {
     expect(screen.queryByRole("form")).not.toBeInTheDocument();
   });
 
+  it("takes a hosted endpoint's policy token once and then shows only when it expires", async () => {
+    let tokenExpiresAtIso: string | null = null;
+    fetchMock.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        tokenExpiresAtIso = "2026-11-14T12:00:00.000Z";
+        return json({ ok: true, checkpointId: "ckpt_1", expiresAtIso: tokenExpiresAtIso }, 201);
+      }
+      return json({ teams: [{ teamId: "team-1", name: "Atlas" }], runtimes: [], checkpoints: tokenExpiresAtIso ? [{
+        checkpointId: "ckpt_1", teamId: "team-1", label: "Arm", runtime: "policy_endpoint", reference: "https://policy.atlas.example/v2",
+        status: "registered", unrunnableReason: null, createdAtIso: "2026-10-15T00:00:00.000Z", tokenExpiresAtIso }] : [] });
+    });
+    renderForm();
+    const form = await screen.findByRole("form", { name: "Policy token" });
+    // Only the hosted endpoint setup takes a token.
+    expect(screen.getByLabelText("Hosted endpoint setup").querySelectorAll("option")).toHaveLength(1);
+    expect(screen.getByText("No token is on file for this endpoint.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Token"), { target: { value: "secret-policy-token" } });
+    fireEvent.submit(form);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Token saved.");
+    const post = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "POST")!;
+    expect(post[0]).toBe("/api/workspace/checkpoints/policy-token");
+    expect(JSON.parse(String((post[1] as RequestInit).body))).toEqual({ setupId: "setup-1", token: "secret-policy-token" });
+    expect(await screen.findByText(/A token is on file until/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Token")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Replace token" })).toBeInTheDocument();
+  });
+
   it("shows the server's refusal", async () => {
     fetchMock.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => init?.method === "POST"
       ? json({ error: "Robot-team access requires Blueprint approval.", code: "account_invitation_required" }, 403)

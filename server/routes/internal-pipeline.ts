@@ -57,6 +57,7 @@ import { dispatchTransactionalNotification } from "../utils/transactional-notifi
 import { decryptFieldValue } from "../utils/field-encryption";
 import { createSiteClaimToken } from "../utils/request-review-auth";
 import { enqueueOutbox } from "../utils/captureOutbox";
+import { notifyIfOpenForEvaluations } from "../utils/taskLifecycleNotifications";
 
 const router = Router();
 const pipelineSyncRateLimiter = createPipelineSyncRateLimiter();
@@ -1617,6 +1618,11 @@ router.post(
       // The invitation must never fail the sync that carries the scene.
       logger.warn({ error: claimInviteError }, "Site claim invite could not be enqueued");
     }
+
+    // A sync is what usually proves a scene runnable, which opens the job to
+    // robot teams. The site hears that once; never fails the sync.
+    try { await notifyIfOpenForEvaluations(docRef.id); }
+    catch (error) { logger.warn({ error, requestId: docRef.id }, "Open-for-evaluations notice could not be checked"); }
 
     return res.json({
       ok: true,

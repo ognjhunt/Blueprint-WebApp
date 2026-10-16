@@ -1,6 +1,7 @@
 import { Shield, SlidersHorizontal, SquareStack, Waypoints } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { openCookieSettings } from "@/components/CookieConsent";
+import { CurrentLegalVersionNote } from "@/components/site/LegalVersionNotes";
 import { COMPANY } from "@/data/company";
 import { PRIVACY_VERSION, legalEffectiveDate } from "@/lib/legalAcceptance";
 
@@ -54,7 +55,7 @@ export const capturePrivacyAnnex = [
 export const inPersonVisitPrivacy = [
   ["What we record", "Only the job and work area the site agreed to before the visit: the task as it is done, the objects, and the surrounding layout, with the same phone video, photos, motion and depth data as a self-filmed capture. We avoid people's faces, screens, paperwork and restricted areas where we can."],
   ["People on site", "The site tells its staff and anyone else present that filming will happen, and obtains any permission the law or its own policies require, before we start. Anyone who does not want to appear can step out of the work area, and our staff will pause filming on request."],
-  ["Your rights", "Footage from a visit is handled exactly like footage a site films itself: the same uses, sharing limits, retention windows and rights to access, correct or delete it. People shown in the footage can make requests to us directly."],
+  ["Your rights", "Footage from a visit is handled exactly like footage a site films itself: the same uses, sharing limits, retention and rights to access, correct or delete it. People shown in the footage can make requests to us directly."],
 ] as const;
 
 export const rolePrivacyAnnex = [
@@ -75,17 +76,26 @@ export const jobClosedDefinition =
 /**
  * The one retention schedule. It replaced a second, vaguer list that sat above
  * it and disagreed with it.
+ *
+ * Site footage: the previous version promised deletion 180 days after a job
+ * closed, which the storage never did. Stated here as practiced: raw captures
+ * have no lifecycle delete rule (BlueprintCapturePipeline
+ * deploy/storage/primary-capture-bucket-lifecycle.json and
+ * docs/BETA_DATA_RETENTION_POLICY_2026-07-09.md), every capture manifest
+ * declares a 2,555-day minimum floor (server/utils/siteCaptureBundle.ts), and
+ * deletion runs only through the withdrawal and verified-request workflows
+ * (server/utils/websiteCaptureDeletion.ts), which a legal hold stops.
  */
 export const betaRetentionSchedule = [
   {
     record: "Site footage and capture data",
-    defaultWindow: "180 days after the job closes",
-    notes: "The video, photos, timestamps, motion and depth data, and the record of the site's authority and privacy review, including footage filmed by Blueprint staff.",
+    defaultWindow: "No automatic deletion. Kept for at least 7 years unless deleted on request",
+    notes: "The video, photos, timestamps, motion and depth data, the frames and blurred copies we make from them and store with them, and the record of the site's authority and privacy review, including footage filmed by Blueprint staff. We keep the original as the record of what was filmed: our storage moves it to lower-cost archive storage during its first year and never deletes it on a schedule, and our policy is to keep it, including in backups, for at least 7 years. It is deleted sooner only when the site withdraws permission to use the recording or we complete a verified deletion request, after we confirm the request and check for any legal hold. When a site withdraws permission, we stop using the recording from that moment.",
   },
   {
     record: "Temporary processing files",
-    defaultWindow: "14 days after processing succeeds",
-    notes: "Intermediate files from rebuilding a scene or blurring footage, unless we need one to investigate a failure or an incident.",
+    defaultWindow: "14 days after they are created",
+    notes: "Scratch files from rebuilding a scene or blurring footage that sit in our temporary processing storage, unless a legal hold applies. Frames and blurred copies stored with the capture are kept like the capture.",
   },
   {
     record: "Scenes, evaluation results, pilot records and reports",
@@ -131,8 +141,9 @@ export const privacySubprocessorCategories = [
     category: "Hosting and storage",
     providers: [
       ["Google Cloud and Firebase", "Accounts and sign-in, database, file storage, hosting"],
-      ["Render", "Application and API hosting, including managed Redis for caching and background jobs"],
+      ["Render", "Application and API hosting and background jobs"],
       ["Backblaze B2", "Storage for uploaded footage"],
+      ["DigitalOcean", "Hosting for our internal operations tools, which can receive the company and job details from a request"],
     ],
   },
   {
@@ -146,6 +157,8 @@ export const privacySubprocessorCategories = [
       ["Google Workspace", "Our email and documents"],
       ["Slack", "Internal alerts to our team, which can include your name, email and job"],
       ["Notion", "Internal operations and support records"],
+      ["Twilio", "Calls to our phone line, including the caller's number and what they say or key in, and text messages that send a filming link to a phone number you give us"],
+      ["ElevenLabs", "Speaking our voice assistant's replies and, if you talk to the assistant, processing that conversation"],
     ],
   },
   {
@@ -205,6 +218,7 @@ export default function Privacy() {
     <article className="ms-legal ms-container">
       <h1>Privacy Policy</h1>
       <p>Effective {legalEffectiveDate(PRIVACY_VERSION)}</p>
+      <CurrentLegalVersionNote document="privacy" />
       <p>
         This policy explains how {COMPANY.legalName} (&ldquo;Blueprint&rdquo;, &ldquo;we&rdquo;), {COMPANY.mailingAddress},
         handles personal information on tryblueprint.io, in the private job links we send, in Blueprint accounts

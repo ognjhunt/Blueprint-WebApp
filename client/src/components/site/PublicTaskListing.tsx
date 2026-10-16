@@ -20,6 +20,8 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
   const [consent, setConsent] = useState(false);
   const [state, setState] = useState("loading");
   const [reviewRequired, setReviewRequired] = useState(false);
+  // What robot teams can see now, as saved, not the unsaved checkbox.
+  const [published, setPublished] = useState<boolean | null>(null);
   const [sources, setSources] = useState<Record<string, { basis: string; field: string }>>({});
   useEffect(() => {
     let active = true;
@@ -38,6 +40,7 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
       setSources(dirty.current ? {} : Object.fromEntries(Object.entries(draft?.sources ?? {}).filter(([field]) =>
         !listing || listing.details?.[field] === draft?.details?.[field])) as Record<string, { basis: string; field: string }>);
       setReviewRequired(listing?.reviewRequired === true);
+      setPublished(listing?.enabled === true);
       setState("idle");
     }).catch(() => { if (active) setState("load_error"); });
     return () => { active = false; };
@@ -50,14 +53,18 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
         body: JSON.stringify({ enabled, details, consent, expectedBriefRevision: revision, thumbnailPng, ...(thumbnailPng ? { thumbnailConsent: true } : {}) }),
       });
       if (!r.ok) throw new Error((await r.json()).error || "The card was not saved.");
-      dirty.current = false; setReviewRequired(false); setState("saved");
+      dirty.current = false; setReviewRequired(false); setPublished(enabled); setState("saved");
     } catch (error) { setError(error instanceof Error ? error.message : "The card was not saved."); setState("error"); }
   }
   const previewThumbnail = thumbnailPng === undefined ? existingThumbnail : thumbnailPng;
   const field = (key: Exclude<keyof TaskListingDetails, "targeting">, label: string, maxLength: number, required = false) =>
     <label key={key}>{label}<input value={details[key] ?? ""} maxLength={maxLength} minLength={key === "title" ? 8 : undefined} required={required}
       onChange={e => { dirty.current = true; setDetails({ ...details, [key]: e.target.value }); setConsent(false); setState("idle"); }} /></label>;
-  return <details className="ms-task-interest"><summary>Manage opportunity sharing (optional)</summary>
+  return <>{published === false && <p className="ms-field-hint" role="status">
+    Your job card is not published, so robot teams cannot see or evaluate this job and it cannot lead to a recommended pilot.
+    To open it to robot teams approved for the beta, review and publish the card under &ldquo;Manage opportunity sharing&rdquo;.
+  </p>}
+  <details className="ms-task-interest"><summary>Manage opportunity sharing (optional)</summary>
     <p className="ms-field-hint">Unless you chose to keep this job private when you started it, its anonymized card is listed for robot teams approved for the beta. Edit or hide it here. Your contact details, full footage and scene stay private. Use a general region and leave out identifying details.</p>
     <p className="ms-field-hint">This card belongs to the same job. {sources.title ? "The title comes from your job brief. " : ""}{sources.cycleTarget ? "The cycle target comes from your stated success criteria, not an observed video rate. " : ""}Review changes for public use; saving a private draft does not publish it.</p>
     {reviewRequired && <p role="alert">Your brief changed. The card is hidden for renewed review; your public edits are retained.</p>}
@@ -85,5 +92,5 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
         {state === "saved" && <p role="status">{enabled ? "Public card saved. Listing pauses and rights restrictions still apply." : "Your card is hidden."}</p>}
         {state === "error" && <p role="alert">{error}</p>}
       </form>}
-  </details>;
+  </details></>;
 }

@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   checkpoints: [] as Array<Record<string, any>>,
   registered: [] as Array<Record<string, any>>,
   createdTeams: [] as Array<Record<string, any>>,
+  stored: [] as Array<Record<string, any>>,
 }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
@@ -62,6 +63,13 @@ vi.mock("../utils/robotCheckpoints", () => ({
       unrunnableReason: null, createdAtIso: "2026-10-13T00:00:00.000Z" };
     state.checkpoints.push(checkpoint);
     return { registered: true, checkpoint };
+  },
+}));
+
+vi.mock("../utils/checkpointPolicyCredentials", () => ({
+  storeCheckpointPolicyCredential: async (params: Record<string, any>) => {
+    state.stored.push(params);
+    return { ref: "credential-ref-1", kind: "bearer", expiresAtIso: "2026-11-14T00:00:00.000Z" };
   },
 }));
 
@@ -189,5 +197,42 @@ describe("workspace checkpoint registration", () => {
     expect(body.teams).toEqual([{ teamId: "team-1", name: "Atlas" }]);
     expect(body.checkpoints).toHaveLength(1);
     expect(body.runtimes).toEqual(["policy_endpoint", "customer_hosted", "container_image", "controller_adapter"]);
+  });
+});
+
+describe("a hosted endpoint's policy token", () => {
+  const token = (who: string, body: unknown) => fetch(`${baseUrl}/policy-token`, { method: "POST",
+    headers: { Authorization: `Bearer ${who}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+  it("is stored on the setup's policy_endpoint checkpoint, registered once, and only its expiry comes back", async () => {
+    const first = await token("team", { setupId: "setup-1", token: "secret-policy-token" });
+    expect(first.status).toBe(201);
+    const text = await first.text();
+    expect(JSON.parse(text)).toEqual({ ok: true, checkpointId: "ckpt_1", expiresAtIso: "2026-11-14T00:00:00.000Z" });
+    expect(text).not.toMatch(/secret-policy-token|credential-ref-1/);
+    expect(state.registered).toEqual([{ teamId: "team-1", label: "Arm v2", runtime: "policy_endpoint",
+      reference: "https://policy.atlas.example/v2" }]);
+    expect(state.stored[0]).toMatchObject({ ownerUid: "team-user", checkpoint: { checkpointId: "ckpt_1" },
+      credential: { kind: "bearer", token: "secret-policy-token" } });
+
+    // Replacing it reuses the checkpoint.
+    expect((await token("team", { setupId: "setup-1", token: "next-token" })).status).toBe(201);
+    expect(state.registered).toHaveLength(1);
+    expect(state.stored.map((call) => call.checkpoint.checkpointId)).toEqual(["ckpt_1", "ckpt_1"]);
+
+    // The list says whether one is on file and when it expires, never the token or its reference.
+    state.checkpoints[0].policyCredential = { ref: "credential-ref-1", kind: "bearer", expiresAtIso: "2026-11-14T00:00:00.000Z" };
+    const listed = await (await fetch(baseUrl, { headers: { Authorization: "Bearer team" } })).text();
+    expect(JSON.parse(listed).checkpoints[0].tokenExpiresAtIso).toBe("2026-11-14T00:00:00.000Z");
+    expect(listed).not.toMatch(/credential-ref-1|token"/);
+  });
+
+  it("refuses a setup that is not a hosted endpoint, an unverified account and a multi-line token", async () => {
+    const container = await token("team", { setupId: "setup-2", token: "secret" });
+    expect(container.status).toBe(409);
+    expect((await container.json()).code).toBe("policy_token_endpoint_required");
+    expect((await token("unverified", { setupId: "setup-1", token: "secret" })).status).toBe(403);
+    expect((await token("team", { setupId: "setup-1", token: "secret\nAuthorization: x" })).status).toBe(400);
+    expect(state.stored).toHaveLength(0);
   });
 });

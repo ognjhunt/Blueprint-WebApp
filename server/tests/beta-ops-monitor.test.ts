@@ -5,7 +5,13 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({ dbAdmin: null, authAdmin:
 vi.mock("../utils/slack", () => ({ sendSlackMessage: vi.fn(async () => ({ sent: true })) }));
 vi.mock("../utils/email", () => ({ sendEmail: vi.fn(async () => ({ sent: true })) }));
 
-import { __resetBetaOpsMonitorForTests, scanTerminalOutboxFailures, startBetaOpsMonitor } from "../utils/betaOpsMonitor";
+import {
+  __resetBetaOpsMonitorForTests,
+  checkWorkerHeartbeat,
+  scanOutboxBacklog,
+  scanTerminalOutboxFailures,
+  startBetaOpsMonitor,
+} from "../utils/betaOpsMonitor";
 
 function outboxStore(entries: Array<{ id: string; data: Record<string, unknown> }>) {
   const markers = new Map<string, Record<string, unknown>>();
@@ -89,6 +95,49 @@ describe("terminal outbox failure scan", () => {
     expect(alert).toHaveBeenCalledOnce();
     expect(email).toHaveBeenCalledOnce();
     expect(store.markers.get(entry.idempotencyKey)).toMatchObject({ outbox_key: entry.idempotencyKey, request_id: entry.requestId });
+  });
+});
+
+describe("ongoing conditions", () => {
+  const minutes = (n: number) => n * 60_000;
+  const start = Date.parse("2026-10-15T12:00:00Z");
+
+  it("alerts once when customer email waits too long, reminds hourly on Slack only, and reports the drain", async () => {
+    const pending = [{ id: "a", data: { status: "pending", createdAtIso: new Date(start - minutes(45)).toISOString() } }];
+    const store = outboxStore(pending);
+    const alert = vi.fn(async () => undefined);
+    const email = vi.fn(async () => ({ sent: true }));
+    const scan = (offset: number) => scanOutboxBacklog({ store: store as never, alert, email: email as never, now: () => start + offset, maxPending: 50, maxAgeMs: minutes(30) });
+
+    expect(await scan(0)).toMatchObject({ pending: 1, alerting: true });
+    expect(String(alert.mock.calls[0][1])).toMatch(/1 waiting, the oldest for 45 min/);
+    await scan(minutes(5));
+    expect(alert).toHaveBeenCalledTimes(1);
+    await scan(minutes(61));
+    expect(alert).toHaveBeenCalledTimes(2);
+    expect(email).toHaveBeenCalledTimes(1);
+
+    pending.length = 0;
+    expect(await scan(minutes(62))).toMatchObject({ pending: 0, alerting: false });
+    expect(alert).toHaveBeenLastCalledWith("capture_outbox_backlog:recovered", expect.stringMatching(/moving again/));
+  });
+
+  it("alerts when the worker heartbeat is stale or missing, and not for an unreadable store", async () => {
+    const alert = vi.fn(async () => undefined);
+    const email = vi.fn(async () => ({ sent: true }));
+    const reading = (status: "fresh" | "stale" | "missing" | "unavailable", ageMs: number | null) =>
+      async () => ({ status, ageMs, staleAfterMs: minutes(5), beatAtIso: null, revision: null });
+
+    await checkWorkerHeartbeat({ read: reading("unavailable", null), alert, email: email as never });
+    await checkWorkerHeartbeat({ read: reading("fresh", minutes(1)), alert, email: email as never });
+    expect(alert).not.toHaveBeenCalled();
+    await checkWorkerHeartbeat({ read: reading("stale", minutes(12)), alert, email: email as never });
+    expect(String(alert.mock.calls[0][1])).toMatch(/last heartbeat was 12 min ago/);
+    expect(email).toHaveBeenCalledOnce();
+
+    __resetBetaOpsMonitorForTests();
+    await checkWorkerHeartbeat({ read: reading("missing", null), alert, email: email as never });
+    expect(String(alert.mock.calls[1][1])).toMatch(/no heartbeat on record/);
   });
 });
 

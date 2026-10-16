@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { OwnerRecordingWithdrawal, OWNER_WITHDRAWAL_CONFIRMATION } from "@/components/site/OwnerRecordingWithdrawal";
 
@@ -41,7 +41,7 @@ describe("owner-link withdrawal", () => {
     expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
   });
 
-  it("posts the confirmation once and shows uploads stopped with deletion in progress", async () => {
+  it("posts the confirmation once and says what withdrawal does, without claiming deletion", async () => {
     const fetcher = server(null);
     vi.stubGlobal("fetch", fetcher);
     const onWithdrawn = vi.fn();
@@ -49,8 +49,10 @@ describe("owner-link withdrawal", () => {
     fireEvent.click(await screen.findByText("Withdraw recording permission"));
     fireEvent.click(screen.getByRole("button", { name: "Withdraw permission…" }));
     fireEvent.click(screen.getByRole("button", { name: "Yes, withdraw permission" }));
-    expect(await screen.findByText("Uploads stopped. Deletion of stored footage is in progress.")).toBeInTheDocument();
-    expect(screen.queryByText(/has been deleted/)).not.toBeInTheDocument();
+    expect(await screen.findByText("Recording permission withdrawn.")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/stops further processing and use of this recording/);
+    expect(screen.getByRole("status")).toHaveTextContent(/robot teams can no longer see the job/);
+    expect(screen.queryByText(/deleted|deletion of/i)).not.toBeInTheDocument();
     const posts = fetcher.mock.calls.filter(call => call[1]?.method === "POST");
     expect(posts).toHaveLength(1);
     expect(JSON.parse(String(posts[0][1]!.body))).toEqual({ confirm: OWNER_WITHDRAWAL_CONFIRMATION });
@@ -72,24 +74,19 @@ describe("owner-link withdrawal", () => {
     vi.stubGlobal("fetch", server(status({ storageDeletion: { state: "deleted_late_upload_check_pending", deletedObjectCount: 3,
       lateUploadCheckAtIso: "2026-10-20T01:00:00.000Z", completedAtIso: null } })));
     render(<OwnerRecordingWithdrawal token={TOKEN} />);
-    expect(await screen.findByText("Uploads stopped. Deletion of stored footage is in progress.")).toBeInTheDocument();
-    expect(screen.getByText(/final check for app uploads/)).toBeInTheDocument();
+    expect(await screen.findByText("Recording permission withdrawn.")).toBeInTheDocument();
+    expect(screen.getByText(/is being told to stop/)).toBeInTheDocument();
     expect(screen.queryByText("Withdraw recording permission")).not.toBeInTheDocument();
   });
 
-  it("says footage is deleted only once the server confirms deletion", async () => {
+  it("never says the recording was deleted, and points retained data to the Privacy Policy", async () => {
     vi.stubGlobal("fetch", server(status({ state: "deletion_confirmed", deletionConfirmed: true, pipelineAcknowledged: true,
       storageDeletion: { state: "deleted", deletedObjectCount: 7, lateUploadCheckAtIso: null, completedAtIso: "2026-10-13T02:00:00.000Z" } })));
     render(<OwnerRecordingWithdrawal token={TOKEN} />);
-    expect(await screen.findByText("Recording permission withdrawn. Your stored footage has been deleted.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Terms" })).toHaveAttribute("href", "/terms");
-  });
-
-  it("does not claim deletion when storage is removed but Pipeline has not acknowledged", async () => {
-    vi.stubGlobal("fetch", server(status({ state: "storage_deleted_pipeline_ack_pending",
-      storageDeletion: { state: "deleted", deletedObjectCount: 7, lateUploadCheckAtIso: null, completedAtIso: "2026-10-13T02:00:00.000Z" } })));
-    render(<OwnerRecordingWithdrawal token={TOKEN} />);
-    await waitFor(() => expect(screen.getByText("Uploads stopped. Deletion of stored footage is in progress.")).toBeInTheDocument());
-    expect(screen.getByText(/acknowledges the withdrawal/)).toBeInTheDocument();
+    expect(await screen.findByText("Recording permission withdrawn.")).toBeInTheDocument();
+    expect(screen.getByText(/has confirmed it will no longer process or serve the recording/)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/Withdrawal is not deletion: a copy of the recording and any results already produced are retained/);
+    expect(screen.queryByText(/has been deleted|footage .*deleted/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute("href", "/privacy");
   });
 });

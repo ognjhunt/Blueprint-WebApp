@@ -20,7 +20,8 @@ export async function resolveAccountInvitation(token: string) {
   const email = payload.email.trim().toLowerCase();
   const record = await getAccessRecordForEmail(email);
   if (!record || record.status !== "approved" || !record.decidedBy || record.decidedAtIso !== payload.revision || accessRecordId(email) !== payload.sourceId) return deny();
-  return { ...payload, email, name: record.name, organization: record.company, returnTo: "/contact/robot-team" };
+  // An approved team lands in its workspace, where its team is already bound.
+  return { ...payload, email, name: record.name, organization: record.company, returnTo: "/app" };
 }
 
 /** Independent of client-writable profiles and library-open switches. */
@@ -46,8 +47,11 @@ export async function redeemAccountInvitation(token: string, mode: "password" | 
   // An email-derived UID also makes concurrent redemptions converge; Firebase
   // enforces both UID and email uniqueness, without storing a password in Firestore.
   const uid = `invited_${accessRecordId(invitation.email)}`;
+  // The invitation is bound to this address and was delivered to it, so the
+  // account starts verified: a second verification email would only delay the
+  // approved team's first workspace visit and the binding of its team.
   try {
-    await authAdmin.createUser({ uid, email: invitation.email, emailVerified: false, displayName: invitation.name || undefined, ...(mode === "password" ? { password } : {}) });
+    await authAdmin.createUser({ uid, email: invitation.email, emailVerified: true, displayName: invitation.name || undefined, ...(mode === "password" ? { password } : {}) });
   } catch (error: any) {
     if (["auth/uid-already-exists", "auth/email-already-exists"].includes(error.code)) {
       if (mode === "google") return { ready: true };

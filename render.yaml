@@ -60,3 +60,28 @@ services:
         value: "true"
       - key: BLUEPRINT_DAILY_RESEARCH_WORKER_ENABLED
         value: "false"
+
+  # External uptime probe, every 10 minutes (scripts/ops/uptime-probe.mjs):
+  # /health, /version.json and /health/worker (the worker heartbeat). GitHub
+  # throttles the scheduled .github/workflows/uptime.yml to every few hours, so
+  # that workflow is only the backstop that runs outside Render. Node built-ins
+  # only, so the build installs nothing. Failures post to the ops Slack webhook
+  # and fail the run; enable Render's cron-failure notifications too.
+  #
+  # Like the services above, this is created by hand in the dashboard unless
+  # the Blueprint is synced (see docs/runbooks/beta-monitoring.md). autoDeploy
+  # stays off as for every service: redeploy it by hand when the script changes.
+  - type: cron
+    name: blueprint-uptime-probe
+    runtime: node
+    plan: starter
+    region: virginia
+    schedule: "*/10 * * * *"
+    autoDeploy: false
+    buildCommand: node --version
+    startCommand: node scripts/ops/uptime-probe.mjs
+    envVars:
+      - key: UPTIME_BASE_URL
+        value: https://tryblueprint.io
+      - key: SLACK_WEBHOOK_URL
+        sync: false

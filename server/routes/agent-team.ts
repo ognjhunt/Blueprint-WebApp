@@ -44,7 +44,9 @@ import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 
-import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { authAdmin, dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { resolveAccessContext } from "../utils/access-control";
+import { resolveAccountInvitation } from "../utils/accountInvitations";
 import { logger } from "../logger";
 import { robotGateFields } from "../../client/src/data/robotTeamQualification";
 import { legacyDeploymentGeographies } from "../../client/src/lib/deploymentCoverage";
@@ -68,7 +70,7 @@ import {
   resolveAgentKey,
 } from "../utils/robotTeamAgentKeys";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
-import { TEAM_ACCOUNT_REQUIRED, teamAccountEmail, teamAccountUid } from "../utils/robotTeamAccounts";
+import { TEAM_ACCOUNT_REQUIRED, bindTeamToAccount, teamAccountEmail, teamAccountUid, type AccountHolder } from "../utils/robotTeamAccounts";
 import { ensureSelfServeAgentExecution } from "../utils/selfServeAgentExecution";
 import {
   MAX_TOPUP_USD,
@@ -99,7 +101,7 @@ import {
   runIdForReservation,
 } from "../utils/agentEvalRuns";
 import { createEvalPlanToken, verifyEvalPlanToken } from "../utils/evalPlanToken";
-import { EARLY_ACCESS_REQUIRED, teamHasEarlyAccess } from "../utils/robotTeamEarlyAccess";
+import { EARLY_ACCESS_REQUIRED, accessRecordId, bindAccessApprovalToTeam, getAccessRecordForEmail, teamHasEarlyAccess, teamsCoveredByApproval, reserveApprovalForRegistration } from "../utils/robotTeamEarlyAccess";
 import { getRunForTeam, listRunsForTeam } from "../utils/agentRunResults";
 import { receivePolicyModel, storePolicyModel } from "./policy-model-upload";
 import { checkpointRuntimes } from "../utils/policyIntegration";
@@ -127,12 +129,61 @@ const checkpointSchema = z
 /* ----------------------------------------------------------- registration */
 
 /**
- * Open, because a closed one is a queue.
+ * Who may register a team. Robot teams join by invitation after application
+ * review, so registration needs one of:
  *
+ * - `invitation`: the invitation from the team's approval email;
+ * - a Firebase ID token (`Authorization: Bearer …`) of a verified account
+ *   whose robot-team application is approved;
+ * - a Firebase ID token of Blueprint staff (admin or ops).
+ *
+ * The approval is bound to the team it registers (`accessApproval`), and one
+ * approval registers one team.
+ */
+type RegistrationAdmission =
+  | { ok: true; via: "invitation" | "account" | "staff"; email: string | null; accessRecordId: string | null; holder: AccountHolder | null }
+  | { ok: false; status: 401 | 403; code: string; error: string };
+
+const REGISTRATION_INVITATION_REQUIRED = {
+  status: 401 as const,
+  code: "registration_invitation_required",
+  error: "Robot teams join by invitation after application review. Apply at /contact/robot-team; once approved, "
+    + "register with the `invitation` from your approval email, or with your approved, verified Blueprint account's ID token.",
+};
+
+async function registrationAdmission(req: Request): Promise<RegistrationAdmission> {
+  const invitation = typeof req.body?.invitation === "string" ? req.body.invitation.trim() : "";
+  if (invitation) {
+    try {
+      const resolved = await resolveAccountInvitation(invitation.slice(0, 4000));
+      return { ok: true, via: "invitation", email: resolved.email, accessRecordId: accessRecordId(resolved.email), holder: null };
+    } catch {
+      return { ok: false, status: 403, code: "registration_invitation_invalid",
+        error: "That invitation is not current. Use the link in your latest approval email, or ask for a new one at /contact/robot-team." };
+    }
+  }
+  const presented = presentedAgentKey(req.headers as unknown as Record<string, unknown>);
+  if (!presented || presented.startsWith("bpk_") || !authAdmin) return { ok: false, ...REGISTRATION_INVITATION_REQUIRED };
+  let decoded: { uid: string; email?: string; email_verified?: boolean };
+  try {
+    decoded = await authAdmin.verifyIdToken(presented, true);
+  } catch {
+    return { ok: false, ...REGISTRATION_INVITATION_REQUIRED };
+  }
+  const context = await resolveAccessContext({ locals: { firebaseUser: decoded } } as unknown as Response);
+  if (context.isOps) return { ok: true, via: "staff", email: null, accessRecordId: null, holder: null };
+  const email = String(decoded.email || "").trim().toLowerCase();
+  if (email && decoded.email_verified === true && (await getAccessRecordForEmail(email))?.status === "approved") {
+    return { ok: true, via: "account", email, accessRecordId: accessRecordId(email), holder: { uid: decoded.uid, email, verified: true } };
+  }
+  return { ok: false, status: 403, code: "registration_not_approved",
+    error: "This account's robot-team application is not approved, or its email is not verified. Apply at /contact/robot-team." };
+}
+
+/**
  * Harder than the rest of this surface on purpose: registration is the only
- * route here with no credential, so it is the only one an anonymous caller can
- * reach. Ten a minute per address is far more than a real team needs and far
- * less than a useful way to fill a collection.
+ * route here an anonymous caller can reach, even if only to be refused. Ten a
+ * minute per address is far more than a real team needs.
  */
 const registrationRateLimiter = rateLimit({
   windowMs: 60_000,
@@ -172,6 +223,8 @@ const registerSchema = z
     deploymentRegions: z.string().trim().min(1).max(500).optional(),
     /** Optional, so one call can get a team from nothing to a plan. */
     checkpoint: checkpointSchema.optional(),
+    /** The invitation from the team's approval email (see `registrationAdmission`). */
+    invitation: z.string().trim().min(1).max(4000).optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -200,11 +253,16 @@ const registerSchema = z
  *
  * ## What this grants
  *
- * An identity and nothing else. Zero balance, autonomous spend off, status
+ * An identity for an approved team, and nothing spendable. Status
  * `self_registered`, which is outside the set of teams sites are told about.
- * The key is returned once and never stored in a readable form.
+ * The key is returned once and never stored in a readable form. Who may
+ * register at all is `registrationAdmission`.
  */
 router.post("/register", registrationRateLimiter, async (req: Request, res: Response) => {
+  const admission = await registrationAdmission(req);
+  if (!admission.ok) {
+    return res.status(admission.status).json({ error: admission.error, code: admission.code, apply: EARLY_ACCESS_REQUIRED.apply });
+  }
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({
@@ -219,13 +277,41 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
         deploymentGeography: [...gateValues("deploymentGeography"), ...legacyDeploymentGeographies].join(" | "),
         deploymentRegions: "semicolon-separated countries, states or cities (required for specific_regions)",
         checkpoint: "{ label, runtime, reference } (optional)",
+        invitation: "the invitation from your approval email (or send an approved account's ID token)",
       },
     });
   }
 
+  // One approval registers one team. A second team would be a second
+  // identity the review never saw.
+  if (admission.email) {
+    const covered = await teamsCoveredByApproval(admission.email);
+    if (covered.length) {
+      return res.status(409).json({
+        error: "This approval already registered a team.",
+        code: "registration_team_exists",
+        teamId: covered[0],
+        recovery: "Issue a key for that team from your workspace at /settings?tab=robots, or ask hello@tryblueprint.io.",
+      });
+    }
+  }
+
+  if (admission.accessRecordId) {
+    const reservation = await reserveApprovalForRegistration(admission.accessRecordId);
+    if (reservation !== "reserved") {
+      return res.status(reservation === "not_approved" ? 403 : 409).json({
+        error: reservation === "in_progress" ? "A registration for this approval is already in progress."
+          : reservation === "team_exists" ? "This approval already registered a team." : "This application is not approved.",
+        code: reservation === "in_progress" ? "registration_in_progress"
+          : reservation === "team_exists" ? "registration_team_exists" : "registration_not_approved",
+      });
+    }
+  }
+
   const team = await registerSelfServeTeam({
     name: parsed.data.teamName,
-    contactEmail: parsed.data.contactEmail ?? null,
+    // An approved team's contact is the address its application was approved for.
+    contactEmail: admission.email ?? parsed.data.contactEmail ?? null,
     website: parsed.data.website ?? null,
     taskFamily: parsed.data.taskFamily ?? null,
     capabilityDescription: parsed.data.capabilityDescription ?? null,
@@ -240,6 +326,10 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
       code: "registry_unavailable",
     });
   }
+  // The approval covers this team from now on, and an approved account that
+  // registered it holds it.
+  if (admission.holder) await bindTeamToAccount(team.id, admission.holder);
+  if (admission.accessRecordId) await bindAccessApprovalToTeam(admission.accessRecordId, team.id);
 
   const issued = await issueAgentKey({ teamId: team.id, label: "self-serve" });
   if (!issued) {
@@ -273,22 +363,24 @@ router.post("/register", registrationRateLimiter, async (req: Request, res: Resp
     grants: {
       balanceUsd: 0,
       agentSpendEnabled: false,
-      accountBound: false,
+      accountBound: Boolean(admission.holder),
       note:
-        "This beta offers free invited evaluations only. This key supports capability registration; "
-        + "registration does not authorize execution or spending. Connect the team to a verified Blueprint account to manage access.",
+        "This beta offers free invited evaluations only. This key registers your policy; "
+        + "registration does not start an evaluation. Manage the team from its verified Blueprint account.",
     },
-    next: parsed.data.checkpoint
-      ? [
-          "GET /api/agent-team/checkpoints to review your registered policy capabilities; registration does not start an evaluation.",
-          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team), then manage its checkpoints at /settings?tab=robots.",
-          "Open your workspace at /app or contact Blueprint at /contact/robot-team about free invited evaluations.",
-        ]
-      : [
-          "POST /api/agent-team/checkpoints to register your policy capability; registration does not start an evaluation.",
-          "Connect this team to a verified Blueprint account (sign up at /signup/robot-team), then manage its checkpoints at /settings?tab=robots.",
-          "Open your workspace at /app or contact Blueprint at /contact/robot-team about free invited evaluations.",
-        ],
+    next: [
+      parsed.data.checkpoint
+        ? "GET /api/agent-team/checkpoints to review your registered policy; registration does not start an evaluation."
+        : "POST /api/agent-team/checkpoints with runtime \"policy_endpoint\" and your policy's HTTPS URL; registration does not start an evaluation.",
+      "POST /api/agent-team/checkpoints/<checkpointId>/credentials with {\"kind\": \"bearer\", \"token\": \"<your policy token>\"}. "
+        + "Team evaluations call only an HTTPS policy endpoint with a bearer token; containers and private checkpoints are not admitted.",
+      admission.holder
+        ? "This team is connected to your verified Blueprint account; manage its checkpoints at /settings?tab=robots."
+        : admission.via === "invitation"
+          ? "Create your verified Blueprint account from the invitation link in your approval email; this team is connected to it automatically. Then manage its checkpoints at /settings?tab=robots."
+          : "Connect this team to the approved team's verified Blueprint account with this key (POST /api/workspace/robot-team/connect), then manage its checkpoints at /settings?tab=robots.",
+      "Open your workspace at /app to request free invited evaluations on open jobs, or ask about one at /contact/robot-team.",
+    ],
   });
 });
 

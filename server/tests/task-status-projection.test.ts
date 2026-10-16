@@ -24,7 +24,6 @@ function base(overrides: Partial<Parameters<typeof projectTaskStatus>[0]> = {}) 
     coversScene: null,
     missingViews: [],
     supplementWouldFinish: false,
-    nextUpdateIso: null,
     ...overrides,
   };
 }
@@ -192,11 +191,11 @@ describe("what it will not say", () => {
     );
   });
 
-  it("carries a next-update time only when one was committed", () => {
+  it("never carries a next-update time, because no timed review runs", () => {
     expect(projectTaskStatus(base()).nextUpdateIso).toBeNull();
-    expect(
-      projectTaskStatus(base({ nextUpdateIso: "2026-09-20T12:00:00.000Z" })).nextUpdateIso,
-    ).toBe("2026-09-20T12:00:00.000Z");
+    const stored = taskStatusInputFrom({ briefDrafted: true, stage: null,
+      ...({ site_task_next_update_iso: "2026-09-20T12:00:00.000Z" } as object) });
+    expect(projectTaskStatus(stored).nextUpdateIso).toBeNull();
   });
 });
 
@@ -209,7 +208,6 @@ describe("pulling inputs off a stored request", () => {
         missing_coverage: ["the destination"],
         supplement_would_finish: true,
       },
-      site_task_next_update_iso: "2026-09-20T00:00:00.000Z",
       briefDrafted: true,
       stage: "capture_needed",
     });
@@ -217,7 +215,6 @@ describe("pulling inputs off a stored request", () => {
     expect(input.briefConfirmed).toBe(true);
     expect(input.coversScene).toBe(false);
     expect(input.missingViews).toEqual(["the destination"]);
-    expect(input.nextUpdateIso).toBe("2026-09-20T00:00:00.000Z");
   });
 
   it("treats an absent coverage block as unknown, not as a shortfall", () => {
@@ -320,6 +317,44 @@ it("shows a completed visual preview while keeping simulation readiness separate
   expect(projectTaskStatus(input)).toMatchObject({decision: "assessing", operatorAction: null,
     headline: "Your scene preview is ready. We are preparing the job for simulation."});
   expect(projectTaskStatus({...input, screening: {teams: 1, queued: 0, running: 0, reported: 1, noResult: 0}}).decision).toBe("results");
+});
+
+describe("what a waiting job is waiting on", () => {
+  const ready = base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, scenePreviewReady: true });
+  const none = { teams: 0, queued: 0, running: 0, reported: 0, noResult: 0 };
+  const open = { evaluationAvailable: true, reason: null };
+
+  it("says the job is open to robot teams while none has asked", () => {
+    const status = projectTaskStatus({ ...ready, ...taskStatusInputFrom({ briefDrafted: true, stage: null, jobAccess: open }), screening: none });
+    expect(status.decision).toBe("awaiting_teams");
+    expect(status.headline).toMatch(/open to robot teams approved for the beta\. No team has started an evaluation yet/);
+    expect(projectTaskStatus({ ...ready, openForEvaluations: true, screening: { ...none, teams: 1, queued: 1 } }).decision).toBe("screening");
+    // Not told it is open when the caller did not look at the runs.
+    expect(projectTaskStatus({ ...ready, openForEvaluations: true }).decision).toBe("assessing");
+  });
+
+  it("says plainly when every evaluation finished and none passed", () => {
+    const settled = { ...none, teams: 2, reported: 1, noResult: 1, passed: 0 };
+    const status = projectTaskStatus({ ...ready, openForEvaluations: true, recommended: false, screening: settled });
+    expect(status.decision).toBe("no_team_passed");
+    expect(status.headline).toMatch(/^No team's evaluation has passed yet\. 2 evaluation runs/);
+    expect(status.headline).toMatch(/we email you when one starts an evaluation/);
+    // A pass, a run still in flight, an uncounted pass mark or a recommendation keeps the results rung.
+    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, passed: 1 } }).decision).toBe("results");
+    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, running: 1 } }).decision).toBe("results");
+    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, passed: undefined } }).decision).toBe("results");
+    expect(projectTaskStatus({ ...ready, recommended: true, screening: settled }).decision).toBe("results");
+  });
+
+  it("tells a site whose card is not published that no team can evaluate the job", () => {
+    const input = taskStatusInputFrom({ briefDrafted: true, stage: null, jobAccess: { evaluationAvailable: false, reason: "not_listed" } });
+    expect(input.listed).toBe(false);
+    const status = projectTaskStatus({ ...ready, listed: input.listed });
+    expect(status.decision).toBe("not_listed");
+    expect(status.headline).toMatch(/robot teams cannot see or evaluate this job/);
+    expect(status.operatorAction).toMatch(/publish its job card/);
+    expect(projectTaskStatus({ ...ready, listed: true }).decision).toBe("assessing");
+  });
 });
 
 describe("a confirmed site our screen has not cleared", () => {

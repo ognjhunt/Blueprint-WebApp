@@ -5,6 +5,8 @@
  * was received, its footage landed, its scene was built, its card went live,
  * a robot team picked it up, a result came in, a team asked about a pilot.
  * The scheduled check-in that used to fill the gaps between these is retired.
+ * Waiting is an event too: the job opening to robot teams, and every
+ * evaluation so far finishing without a pass, each send their own notice.
  * Per-run and per-request events carry an `eventId`, so each one is its own
  * email and a retry of the same event is not.
  */
@@ -15,6 +17,7 @@ import { decryptFieldValue } from "./field-encryption";
 import { EMAIL_SIGN_OFF } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
+import { formatPilotContact, type PilotContact } from "./pilotContactExchange";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
@@ -28,6 +31,8 @@ export type TaskLifecycleMilestone = Extract<
   | "screening_started"
   | "results_ready"
   | "run_no_result"
+  | "awaiting_evaluations"
+  | "no_team_passed"
   | "pilot_request"
   | "pilot_recommended"
   | "pilot_booked"
@@ -55,7 +60,7 @@ export function reconstructionIsViewable(record: {
   });
 }
 
-const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string) => string }> = {
+const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, counterpart: string) => string }> = {
   preparation_needs_attention: {
     subject: "An update on your Blueprint job preparation",
     body: (url, detail) => `Job preparation needs our team's review. Keep your original recording. Open your job to see the latest status and next step.${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
@@ -99,20 +104,30 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "A robot team's run ended without a result",
     body: (url) => `A robot team's run against your scene ended before any episode was observed, so there is no result to show from it. Nothing is needed from you.\n\nOpen your job:\n${url}`,
   },
+  awaiting_evaluations: {
+    subject: "Robot teams can now evaluate your job",
+    body: (url) => `Your job is open to robot teams approved for the beta. They see only its anonymized card, and each can request a free evaluation in the simulation built from your capture. No team has started one yet. We will email you when a team starts and when it reports a result. Nothing is needed from you.\n\nOpen your job:\n${url}`,
+  },
+  no_team_passed: {
+    subject: "No robot team's evaluation has passed yet",
+    body: (url) => `Every evaluation of your job so far has finished, and none passed, so there is no pilot to recommend yet. A recommendation needs one team's evaluation on your job to pass. While your job card stays published, robot teams approved for the beta can still evaluate it, and we will email you when one starts. Your job page shows each run. Nothing is needed from you.\n\nOpen your job:\n${url}`,
+  },
   pilot_request: {
     subject: "A robot team asked to evaluate your site for a pilot",
     body: (url) => `A robot team asked to evaluate your site for a pilot. Your details stay private, and there is nothing for you to do. We review every team that shows interest and send you one recommended pilot when the evidence supports it.\n\nOpen your job:\n${url}`,
   },
   pilot_recommended: {
     subject: "Your recommended pilot is ready",
-    body: (url, detail) => `We have one recommended pilot for your job${detail ? `: ${detail}` : ""}. Your job page shows the robot team, what the pilot tests, what you provide, the pilot's cost (paid to the robot team, not to Blueprint), proposed timing and what is still uncertain. If it looks right, book it there in one step; booking costs nothing during the beta. After booking, the agreement with the robot team, the date and preparation responsibilities still need coordination. If it does not look right, reply and tell us why.\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `We have one recommended pilot for your job${detail ? `: ${detail}` : ""}. Your job page shows the robot team, what the pilot tests, what you provide, the pilot's cost (paid to the robot team, not to Blueprint), proposed timing and what is still uncertain. If it looks right, book it there in one step; booking costs nothing during the beta. When you book, you and the robot team receive each other's contact details and agree the pilot's dates and terms directly. If it does not look right, reply and tell us why.\n\nOpen your job:\n${url}`,
   },
   pilot_booked: {
     subject: "Your pilot is booked",
     // A booking made before the free beta keeps whatever terms were accepted
     // then; this email does not restate or waive them. The free-beta sentence
-    // is the one the job page shows beside the booking button.
-    body: (url, detail) => `Your booking is recorded. The pilot is awaiting coordination: provider and site agreement, a confirmed date and agreed preparation responsibilities are still needed. No date is reserved yet. Blueprint owns that next step. ${detail === "invited_beta_free" ? "Blueprint charges nothing during the beta; the pilot's cost is agreed with the robot team." : "Your previously accepted commercial terms remain on file."}\n\nOpen your job:\n${url}`,
+    // is the one the job page shows beside the booking button. The site and the
+    // team agree the pilot directly (owner decision 2026-10-15), so the email
+    // carries the team's contact; dispatch re-checks both consents.
+    body: (url, detail, counterpart) => `Your booking is recorded. You and the robot team agree the pilot's dates and terms directly. No date is reserved yet.${counterpart ? `\n\nRobot team contact:\n${counterpart}` : ""}\n\n${detail === "invited_beta_free" ? "Blueprint charges nothing during the beta; the pilot's cost is agreed with the robot team." : "Your previously accepted commercial terms remain on file."}\n\nOpen your job:\n${url}`,
   },
   pilot_scheduled: {
     subject: "Your pilot is scheduled",
@@ -167,6 +182,8 @@ export function buildTaskLifecycleNotification(params: {
   detail?: string;
   correlationId?: string;
   captureUrl?: string;
+  /** `pilot_booked` only: the robot team's contact, shared at booking. */
+  counterpart?: PilotContact | null;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (params.milestone === "preparation_needs_attention" && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
@@ -184,9 +201,54 @@ export function buildTaskLifecycleNotification(params: {
     subject: message.subject,
     body: `${message.body(url, params.milestone === "preparation_needs_attention"
       ? /^bp-prep-[a-f0-9]{16}$/.test(params.correlationId || "") ? `Reference: ${params.correlationId}.` : ""
-      : params.detail?.trim() ?? "")}\n\n${EMAIL_SIGN_OFF}`,
+      : params.detail?.trim() ?? "", params.milestone === "pilot_booked" && params.counterpart ? formatPilotContact(params.counterpart) : "")}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
   };
+}
+
+/**
+ * Tell the site, once, that robot teams can now request an evaluation of its
+ * job and none has. Read from the stored record by the same predicate the job
+ * library uses, so it is sent only when it is true. Callers that may have just
+ * opened a job (a Pipeline sync, a published card) call this; it is a no-op
+ * otherwise, and the outbox key keeps it to one email per job.
+ */
+export async function notifyIfOpenForEvaluations(requestId: string): Promise<{ enqueued: boolean }> {
+  if (!(await openAndAwaitingEvaluations(requestId))) return { enqueued: false };
+  return enqueueTaskLifecycleNotification({ requestId, milestone: "awaiting_evaluations" });
+}
+
+/** True while the job is open to evaluation requests and no team has requested one. Read again at dispatch. */
+export async function openAndAwaitingEvaluations(requestId: string): Promise<boolean> {
+  if (!db) return false;
+  const snapshot = await db.collection("inboundRequests").doc(requestId).get();
+  const { teamJobAccess } = await import("./teamJobAccess");
+  if (!snapshot.exists || !teamJobAccess(snapshot.data()).evaluationAvailable) return false;
+  const { loadSceneScreening } = await import("./agentEvalRuns");
+  return (await loadSceneScreening(requestId)).teams === 0;
+}
+
+/**
+ * After a site evaluation concludes: when nothing is in flight, nothing passed
+ * the job's pass mark and no pilot is recommended, tell the site no team has
+ * passed yet. Keyed by the run that concluded, so each run is at most one.
+ */
+export async function notifyIfNoTeamPassed(requestId: string, concludedRunId: string): Promise<{ enqueued: boolean }> {
+  if (!(await noTeamHasPassed(requestId))) return { enqueued: false };
+  return enqueueTaskLifecycleNotification({ requestId, milestone: "no_team_passed", eventId: concludedRunId });
+}
+
+/** True while every site evaluation has concluded, none passed and no pilot is recommended. Read again at dispatch. */
+export async function noTeamHasPassed(requestId: string): Promise<boolean> {
+  if (!db) return false;
+  const snapshot = await db.collection("inboundRequests").doc(requestId).get();
+  const record = snapshot.data();
+  if (!snapshot.exists || !record || record.pilot_recommendation) return false;
+  const [{ getBrief }, { passMarkForJob }, { loadSceneScreening }] = await Promise.all([
+    import("./siteTaskBrief"), import("./pilotRecommendationEvidence"), import("./agentEvalRuns")]);
+  const screening = await loadSceneScreening(requestId, passMarkForJob(record, await getBrief(requestId) as never));
+  return screening.queued + screening.running === 0 && screening.reported + screening.noResult > 0
+    && screening.passed === 0;
 }
 
 /** Existing outbox tick repairs a lost enqueue; fresh readback gates dispatch again. */

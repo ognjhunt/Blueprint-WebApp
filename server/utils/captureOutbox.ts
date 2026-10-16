@@ -43,6 +43,10 @@ export type OutboxKind =
   | "screening_started"
   | "results_ready"
   | "run_no_result"
+  /** Robot teams can now request an evaluation, and none has yet. */
+  | "awaiting_evaluations"
+  /** Every evaluation so far finished, none passed, none is in flight. */
+  | "no_team_passed"
   | "pilot_request"
   /** Blueprint's one recommended pilot, and the site booking it. */
   | "pilot_recommended"

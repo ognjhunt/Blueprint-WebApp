@@ -13,8 +13,9 @@ import { decryptFieldValue, decryptInboundRequestForAdmin } from "./field-encryp
 import { listCheckpoints } from "./robotCheckpoints";
 import { reservationTtlMs } from "./agentRunRecord";
 import { MAX_FREE_SPONSOR_CAP_USD } from "./freeBeta";
-import { screeningRound } from "../../client/src/lib/evaluationPricing";
-import { TEAM_EVALUATION_EPISODES } from "./policyIntegration";
+import {
+  jobEvaluationEpisodes, offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker,
+} from "./policyIntegration";
 import { ROBOT_TEAMS_COLLECTION, type RobotTeamRecord } from "../types/robot-team-registry";
 import { effectiveTeamStatus } from "./robotTeamSupply";
 import { object, text, iso } from "./workspace-projection";
@@ -184,8 +185,9 @@ export async function listJobConsoleRows(params: {
   return { rows, nextCursor, scanned: index };
 }
 
-export const ADMISSION_DEFAULTS = (): AdmissionDefaults => ({
-  episodes: screeningRound.episodes,
+/** `episodes` is the job's own count (`jobEvaluationEpisodes`): preparation refuses any other. */
+export const ADMISSION_DEFAULTS = (episodes: number | null): AdmissionDefaults => ({
+  episodes,
   sponsorCapUsd: MAX_FREE_SPONSOR_CAP_USD,
   maxSponsorCapUsd: MAX_FREE_SPONSOR_CAP_USD,
   reservationTtlMs: reservationTtlMs(),
@@ -193,7 +195,7 @@ export const ADMISSION_DEFAULTS = (): AdmissionDefaults => ({
   evidenceScope: "development_only" as const,
 });
 
-async function admissionCandidate(id: string, record: Record<string, any>): Promise<AdmissionCandidate> {
+async function admissionCandidate(id: string, record: Record<string, any>, job: Record<string, any>): Promise<AdmissionCandidate> {
   const selection = object(record.workspace_evaluation);
   const ownerUid = text(record.account_owner_uid) || null;
   const setupId = text(selection.setupId);
@@ -202,6 +204,8 @@ async function admissionCandidate(id: string, record: Record<string, any>): Prom
   let team: AdmissionCandidate["team"] = null;
   let setup: AdmissionCandidate["setup"] = { setupId, name: text(selection.setupName) || null, reference: null, missing: true };
   let matchingCheckpoints: AdmissionCandidate["matchingCheckpoints"] = [];
+  let robotEmbodiment: unknown = null;
+  let teamBlocker: ReturnType<typeof teamPolicyBlocker> = null;
   if (ownerUid && db) {
     const teams = await db.collection(ROBOT_TEAMS_COLLECTION).where("accountUid", "==", ownerUid).limit(5).get();
     const first = teams.docs[0];
@@ -214,16 +218,23 @@ async function admissionCandidate(id: string, record: Record<string, any>): Prom
         try {
           const payload = JSON.parse(await decryptFieldValue(stored.data()!.payload));
           setup = { setupId, name: text(payload.name) || setup.name, reference: text(payload.reference) || null, missing: false };
+          robotEmbodiment = payload.robotEmbodiment ?? null;
         } catch {
           blockers.push("The saved setup could not be read.");
         }
       }
     }
     if (team && setup.reference) {
-      matchingCheckpoints = (await listCheckpoints(team.teamId))
+      // A team evaluation runs only an authenticated HTTPS policy: those come first, so the
+      // form's default is one admission accepts.
+      const blockerOf = (checkpoint: Record<string, any>) =>
+        offersTeamEvaluation(job) ? teamPolicyBlocker(checkpoint, { robotEmbodiment }) : null;
+      const matching = (await listCheckpoints(team.teamId))
         .filter((checkpoint) => checkpoint.reference === setup.reference && checkpoint.status !== "retired")
-        .map((checkpoint) => ({ checkpointId: checkpoint.checkpointId, label: checkpoint.label,
-          runtime: checkpoint.runtime, status: checkpoint.status }));
+        .sort((a, b) => Number(Boolean(blockerOf(a))) - Number(Boolean(blockerOf(b))));
+      teamBlocker = matching.length ? blockerOf(matching[0]) : null;
+      matchingCheckpoints = matching.map((checkpoint) => ({ checkpointId: checkpoint.checkpointId, label: checkpoint.label,
+        runtime: checkpoint.runtime, status: checkpoint.status }));
     }
   }
   if (!ownerUid) blockers.push("The request has no account owner.");
@@ -231,9 +242,10 @@ async function admissionCandidate(id: string, record: Record<string, any>): Prom
   if (setup.missing) blockers.push("The team removed or never saved the setup this request names.");
   if (team && setup.reference && !matchingCheckpoints.length)
     blockers.push("No registered checkpoint matches the setup reference. Ask the team to register one under Settings → Robots & policies.");
+  if (teamBlocker) blockers.push(`Team evaluation (${teamBlocker}): ${TEAM_POLICY_BLOCKER_MESSAGES[teamBlocker]}`);
+  if (jobEvaluationEpisodes(job) === null) blockers.push("The Pipeline has not published this job's execution offer yet.");
   return {
     evaluationRequestId: id,
-    episodes: TEAM_EVALUATION_EPISODES,
     submittedAtIso: iso(selection.submittedAt) ?? iso(record.createdAt),
     admitted: evaluationRequestAdmitted(record),
     handoff: text(handoff.runId) ? { runId: text(handoff.runId),
@@ -253,13 +265,13 @@ export async function getJobConsoleDetail(requestId: string): Promise<JobConsole
   if (!isSiteJobRecord(record)) return null;
   const [inputs] = await loadInputs([{ id: requestId, data: () => record }]);
   const row = rowFromInputs(inputs);
-  const admissions = await Promise.all(inputs.evaluationRequests.map((request) => admissionCandidate(request.id, request.record)));
+  const admissions = await Promise.all(inputs.evaluationRequests.map((request) => admissionCandidate(request.id, request.record, record!)));
   return {
     job: row,
     timeline: buildJobTimeline(inputs, row),
     runs: projectRuns(inputs),
     admissions,
-    admissionDefaults: ADMISSION_DEFAULTS(),
+    admissionDefaults: ADMISSION_DEFAULTS(jobEvaluationEpisodes(record)),
     links: {
       lead: `/admin/leads/${encodeURIComponent(requestId)}`,
       recommendation: `/admin/robot-team-access?job=${encodeURIComponent(requestId)}`,

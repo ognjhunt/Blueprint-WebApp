@@ -37,9 +37,9 @@ export class TeamAccountError extends Error {
 /** Refusal body for an agent route that needs an account-bound team. */
 export const TEAM_ACCOUNT_REQUIRED = {
   error:
-    "Connect this team to a verified Blueprint account before paying or running. Create an "
-    + "account at /signup/robot-team, verify your email, then connect the team from the plan page "
-    + "or email hello@tryblueprint.io for a key.",
+    "Connect this team to its approved, verified Blueprint account before it runs anything. Create the "
+    + "account from the invitation link in your approval email (a new link: /contact/robot-team), then "
+    + "connect the team from your workspace or email hello@tryblueprint.io for a key.",
   code: "team_account_required",
 } as const;
 

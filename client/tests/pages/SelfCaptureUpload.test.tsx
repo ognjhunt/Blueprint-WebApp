@@ -235,7 +235,7 @@ describe("description first owner return", () => {
     fireEvent.click(screen.getByRole("button", { name: "Withdraw permission…" }));
     expect(fetchMock.mock.calls.some(call => String(call[0]).endsWith("/withdrawal") && call[1]?.method === "POST")).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Yes, withdraw permission" }));
-    expect(await screen.findByText("Uploads stopped. Deletion of stored footage is in progress.")).toBeInTheDocument();
+    expect(await screen.findByText("Recording permission withdrawn.")).toBeInTheDocument();
     expect(await screen.findByText("Recording permission was withdrawn. This link no longer accepts footage.")).toBeInTheDocument();
     expect(videoUpload.send).not.toHaveBeenCalled();
   });

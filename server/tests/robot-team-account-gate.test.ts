@@ -109,10 +109,15 @@ function account(path: string, uid: string, body?: unknown, extra: Record<string
 async function register(checkpoint?: { label: string; runtime: string; reference: string }): Promise<{
   teamId: string; agentKey: string; grants: Record<string, unknown>; next: string[];
 }> {
+  // Registration is by invitation: the approved owner's emailed invitation.
+  const { accessRecordId } = await import("../utils/robotTeamEarlyAccess");
+  const { robotTeamAccountInvitation } = await import("../utils/accountInvitations");
+  const approval = sharedFakeFirestoreState.docs.get(`robotTeamAccess/${accessRecordId("robot-owner@example.com")}`);
   const response = await fetch(`${base}/api/agent-team/register`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
+      invitation: robotTeamAccountInvitation(approval as never),
       teamName: "Acme Robotics",
       contactEmail: "robot-owner@example.com",
       hardwareMaturity: "pilots",

@@ -15,6 +15,7 @@ import { assessAccessFit, libraryIsThin } from "../utils/robotTeamAccessFit";
 import { enqueueAccessEmail } from "../utils/robotTeamAccessEmails";
 import {
   accessRecordId,
+  getAccessRecordForEmail,
   recordAccessApplication,
 } from "../utils/robotTeamEarlyAccess";
 import { libraryAccessForRequest } from "../utils/robotTeamLibraryAccess";
@@ -63,8 +64,11 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
     // Registration records interest; only the existing staff decision/invite routes grant admission.
     const current = record;
     const autoApproved = false;
-    // A previously approved email keeps its admission and should not get a pending receipt.
-    if (current.status !== "approved") await enqueueAccessEmail({ kind: "robot_team_access_received", recordId, record: current, thinLibrary: libraryIsThin(listed.length) }).catch((error) => {
+    // A previously approved email keeps its admission: instead of a pending
+    // receipt it gets a fresh invitation link, which the page says it sent.
+    await enqueueAccessEmail(current.status === "approved"
+      ? { kind: "robot_team_access_approved", recordId, record: current, resend: true }
+      : { kind: "robot_team_access_received", recordId, record: current, thinLibrary: libraryIsThin(listed.length) }).catch((error) => {
       logger.warn({ error }, "Could not queue the early-access email");
     });
     if (created) {
@@ -75,6 +79,30 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
     logger.error({ error }, "Could not record a robot-team application");
     return res.status(503).json({ error: "The application could not be saved. Try again shortly.", code: "application_unavailable" });
   }
+});
+
+const invitationRequestSchema = z.object({ email: z.string().trim().email().max(320) }).strict();
+
+/**
+ * An approved team whose invitation link is lost or expired asks for a new
+ * one. The link goes only to the approved address, and the answer is the same
+ * whether or not the address is approved.
+ */
+router.post("/invitation", applyLimiter, async (req: Request, res: Response) => {
+  const parsed = invitationRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Enter the email address your team was approved with.", code: "invitation_request_invalid" });
+  }
+  try {
+    const record = await getAccessRecordForEmail(parsed.data.email);
+    if (record?.status === "approved") {
+      await enqueueAccessEmail({ kind: "robot_team_access_approved", recordId: accessRecordId(record.email), record, resend: true });
+    }
+  } catch (error) {
+    logger.warn({ error }, "Could not queue a fresh robot-team invitation");
+    return res.status(503).json({ error: "The link could not be sent. Try again shortly.", code: "invitation_request_unavailable" });
+  }
+  return res.status(202).json({ ok: true, message: "If that address is approved, a new invitation link is on its way to it." });
 });
 
 /** The caller's own access state, for the page to decide what to show. */

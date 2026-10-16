@@ -102,7 +102,9 @@ describe("Sites", () => {
     }), { status: 200 }));
     render(<Sites />);
     expect(await screen.findByRole("form", { name: "Early access application" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Create your account" })).toHaveAttribute("href", "/signup/business?buyerType=robot_team");
+    // An approved team gets a fresh invitation link, never a sign-up page that sends it back here.
+    expect(screen.queryByRole("link", { name: "Create your account" })).not.toBeInTheDocument();
+    expect(screen.getByRole("form", { name: "Request a new invitation link" })).toBeInTheDocument();
     expect(screen.queryByText(/Already have a robot policy/)).not.toBeInTheDocument();
   });
 

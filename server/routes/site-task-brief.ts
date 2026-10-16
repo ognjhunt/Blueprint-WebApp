@@ -52,7 +52,8 @@ import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparation
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
-import { buildQualificationEmail } from "../utils/qualificationEmails";
+import { buildQualificationEmail, buildTaskNotYetSupportedEmail } from "../utils/qualificationEmails";
+import { taskScopeNotYet } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { describeBrowserUpload } from "../utils/websiteBrowserUploadStatus";
@@ -61,6 +62,8 @@ import { storedCaptureMarkerExists } from "../utils/captureParts";
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
 import { loadSceneScreening } from "../utils/agentEvalRuns";
+import { teamJobAccess } from "../utils/teamJobAccess";
+import { passMarkForJob } from "../utils/pilotRecommendationEvidence";
 import { FOLLOW_UP_IDS, FOLLOW_UP_QUESTIONS, selectFollowUps, type FollowUpId } from "../utils/siteTaskFollowUp";
 import { createSiteClaimToken } from "../utils/request-review-auth";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
@@ -130,14 +133,19 @@ async function readRequestForStatus(requestId: string): Promise<{
     missing_coverage?: string[] | null;
     supplement_would_finish?: boolean | null;
   } | null;
-  site_task_next_update_iso?: string | null;
   contactEmail?: string | null;
   contactFirstName?: string | null;
   /** Set once the operator has claimed the site into an account. */
   account_owner_uid?: string | null;
   site_task_triage?: { disposition?: string | null } | null;
+  site_task_scope?: { supported?: unknown; reason?: unknown } | null;
   siteName?: string | null;
   captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
+  /** Whether robot teams can see the job and request an evaluation. */
+  jobAccess: ReturnType<typeof teamJobAccess> | null;
+  recommended: boolean;
+  /** The job's own targets, which set the pass mark. */
+  workspace_task: { terms?: unknown } | null;
 } | null> {
   if (!db) return null;
   const snap = await db.collection("inboundRequests").doc(requestId).get();
@@ -159,7 +167,6 @@ async function readRequestForStatus(requestId: string): Promise<{
     siteTaskGates: gateAnswersOnFile(data),
     site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
     capture_coverage: (data.capture_coverage as never) ?? null,
-    site_task_next_update_iso: (data.site_task_next_update_iso as string | null) ?? null,
     contactEmail,
     contactFirstName,
     siteName: await plain((data.request as { siteName?: unknown } | undefined)?.siteName),
@@ -168,6 +175,11 @@ async function readRequestForStatus(requestId: string): Promise<{
         ? data.account_owner_uid
         : null,
     site_task_triage: (data.site_task_triage as SiteTaskTriageSummary | undefined) ?? null,
+    // Stored plaintext fields, which is what the access predicate reads.
+    jobAccess: (() => { try { return teamJobAccess(data); } catch { return null; } })(),
+    recommended: Boolean(data.pilot_recommendation),
+    workspace_task: (data.workspace_task as { terms?: unknown } | undefined) ?? null,
+    site_task_scope: (data.site_task_scope as { supported?: unknown; reason?: unknown } | undefined) ?? null,
   };
 }
 
@@ -202,6 +214,12 @@ function screeningOutcome(disposition: string): {
     };
   }
   return null;
+}
+
+/** What a site hears when its job is a kind we cannot score yet. */
+function taskScopeOutcome(reason: unknown) {
+  const notYet = taskScopeNotYet(reason);
+  return { headline: notYet.headline, detail: `${notYet.detail} ${notYet.nextStep}`, bookingUrl: null };
 }
 
 /**
@@ -743,9 +761,29 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
 
     // Screening occurs here for public-form sites. Queue the actual verdict
     // before returning; the outbox can retry delivery without a timed check-in.
+    // A job we cannot score hears that instead, whatever its gate verdict: it
+    // is not opened to robot teams, so no other next step is true for it.
+    const scoreable = result.scope.supported;
     try {
       const request = await readRequestForStatus(payload.requestId);
-      if (request?.contactEmail) {
+      if (request?.contactEmail && !scoreable) {
+        const email = buildTaskNotYetSupportedEmail({
+          firstName: request.contactFirstName || "there",
+          siteName: request.siteName,
+          reason: result.scope.reason,
+          jobUrl: captureUploadUrlFor(payload.requestId),
+        });
+        await enqueueOutbox({
+          idempotencyKey: `${payload.requestId}:brief-screening:task-not-yet-supported`,
+          requestId: payload.requestId,
+          to: request.contactEmail,
+          kind: "screening_not_now",
+          subject: email.subject,
+          body: email.body,
+        });
+        void deliverOutbox({ limit: 5 }).catch((error) =>
+          logger.warn({ error, requestId: payload.requestId }, "Task scope email delivery deferred to outbox"));
+      } else if (request?.contactEmail) {
         // The verdict `confirmBrief` just wrote. Its own disposition stands in
         // for a record that has not caught up, so a qualified site always hears
         // its next step.
@@ -768,6 +806,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
             ? { kind: "capturer_visit", taskUrl: captureUploadUrlFor(payload.requestId) }
             : { kind: "self_capture", uploadUrl: captureUploadUrlFor(payload.requestId) },
           accountNeeded: !request.account_owner_uid,
+          ...(request.jobAccess ? { jobCardPublished: request.jobAccess.reason !== "not_listed" } : {}),
         });
         await enqueueOutbox({
           idempotencyKey: `${payload.requestId}:brief-screening:${result.disposition}`,
@@ -787,7 +826,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     // A site that needs a call gets no scene until ops records the call, so
     // ops has to hear about it: the request carries the next step and Slack
     // rings. Best-effort; neither may fail the operator's confirmation.
-    if (result.disposition === "needs_conversation" && db) {
+    if (scoreable && result.disposition === "needs_conversation" && db) {
       const agenda = await db.collection("inboundRequests").doc(payload.requestId).get()
         .then((snap) => (snap.data()?.site_task_triage?.open_questions as string[] | undefined) ?? [])
         .catch(() => []);
@@ -800,7 +839,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
 
     return res.status(200).json({
       ok: true,
-      screening: screeningOutcome(result.disposition),
+      screening: scoreable ? screeningOutcome(result.disposition) : taskScopeOutcome(result.scope.reason),
       // The verdict, and what it means for them next. Both, because a
       // disposition on its own tells an operator nothing they can act on.
       disposition: result.disposition,
@@ -840,15 +879,18 @@ router.get("/:token/status", async (req: Request, res: Response) => {
   }
 
   try {
-    const [brief, request, screening, captureSession] = await Promise.all([
+    const [brief, request, captureSession] = await Promise.all([
       getBrief(payload.requestId),
       readRequestForStatus(payload.requestId),
-      // Best-effort: an unreadable run queue is a missing rung, not a broken page.
-      loadSceneScreening(payload.requestId).catch(() => null),
       db
         ? db.collection("captureUploadSessions").doc(payload.captureId).get().catch(() => null)
         : Promise.resolve(null),
     ]);
+    // Best-effort: an unreadable run queue is a missing rung, not a broken page.
+    // Passes are counted against the pass mark the job itself set.
+    const screening = request
+      ? await loadSceneScreening(payload.requestId, passMarkForJob(request as never, brief as never)).catch(() => null)
+      : null;
 
     // The readiness stage, when we can compute it. Absent when there is no
     // brief yet, which `projectTaskStatus` reads as "received".
@@ -907,7 +949,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       taskStatusInputFrom({
         site_task_brief_confirmed_at: request?.site_task_brief_confirmed_at,
         capture_coverage: request?.capture_coverage ?? null,
-        site_task_next_update_iso: request?.site_task_next_update_iso ?? null,
         briefDrafted: Boolean(brief),
         hasStoredCapture,
         consentRevoked: request?.captureRights.consent_revoked,
@@ -918,8 +959,11 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         stage,
         screening: request?.captureRights.consent_revoked ? null : screening,
         site_task_triage: request?.site_task_triage ?? null,
+        site_task_scope: request?.site_task_scope ?? null,
         bookingUrl: bookingUrl(),
         account_owner_uid: request?.account_owner_uid ?? null,
+        jobAccess: request?.jobAccess ?? null,
+        ...(request ? { recommended: request.recommended } : {}),
       }),
     );
 
@@ -932,8 +976,6 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         ?? "Your video is saved. Processing has not been confirmed. Keep your original video; you do not need to record or upload it again.";
       status.operatorAction = null;
     }
-    // Updates follow events by email; no timed check-in is promised.
-    status.nextUpdateIso = null;
     // Keep the optional claim from brief confirmation onward, including the
     // first visual scene. A reconstruction is not an evaluation result.
     const claimUrl =

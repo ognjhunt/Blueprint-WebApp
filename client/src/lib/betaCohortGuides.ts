@@ -57,8 +57,9 @@ export const buyerBetaGuide: BetaCohortGuide = {
         "Each evaluation runs your policy in a simulation built from the site's capture, against the job's pass criteria.",
       items: [
         "Confirm the robot and gripper, observation and action interfaces, and any adapter work before the run.",
-        "Submit a policy endpoint or container; compatibility is checked for the specific job.",
-        "Blueprint sets the run length, and every invited entry on a job runs under the same conditions.",
+        "Serve your policy at one HTTPS URL that accepts a bearer token. Register it as a policy endpoint checkpoint and attach that token; your weights stay on your system.",
+        "Private checkpoints are refused, and containers are not admitted for team evaluations.",
+        "Each evaluation is 200 hidden episodes across the job's variations, the same for every invited team on the job.",
       ],
     },
     {

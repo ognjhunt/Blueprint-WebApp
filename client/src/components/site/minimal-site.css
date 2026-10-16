@@ -600,3 +600,11 @@
 .ms-site-cta { margin-top: 24px; }
 .ms-site-figure { margin-top: 32px; }
 .ms-site-figure img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; border: 1px solid var(--ms-rule); }
+/* Terms and Privacy update notice (LegalVersionNotes.tsx), on the public site and the workspace. */
+.legal-update-banner { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px 16px; background: #203d2e; color: #f6f5ef; font-size: 13px; line-height: 1.5; }
+.legal-update-banner p { margin: 0; max-width: 120ch; }
+.legal-update-banner a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.legal-update-banner button { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; margin-block: -6px; padding: 0; background: none; border: 0; border-radius: 2px; color: inherit; cursor: pointer; }
+.legal-update-banner :focus-visible { outline: 2px solid #f6f5ef; outline-offset: 2px; }
+.ms-legal .ms-legal-version { color: var(--ms-ink); }
+.ws-content > .legal-update-banner { justify-content: space-between; margin-bottom: 24px; border-radius: 3px; }

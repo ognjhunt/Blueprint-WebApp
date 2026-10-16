@@ -61,6 +61,17 @@ afterEach(() => {
 });
 
 describe("health routes", () => {
+  it("answers 503 for the worker when no heartbeat can be read", async () => {
+    const { server, baseUrl } = await startServer();
+    try {
+      const response = await fetch(`${baseUrl}/health/worker`);
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ status: "unavailable", age_seconds: null, stale_after_seconds: 300 });
+    } finally {
+      await stopServer(server);
+    }
+  });
+
   it("reports the hosted session live-store backend in health status", async () => {
     const { server, baseUrl } = await startServer();
     try {

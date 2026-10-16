@@ -8,7 +8,7 @@ import { listingConsentVersion, taskListingSchema, taskListingDraft } from "../u
 import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { getBrief } from "../utils/siteTaskBrief";
 import { projectPilotCoordination } from "../utils/pilotCoordination";
-import { buildTaskLifecycleNotification, enqueueTaskLifecycleNotification } from "../utils/taskLifecycleNotifications";
+import { buildTaskLifecycleNotification, enqueueTaskLifecycleNotification, notifyIfOpenForEvaluations } from "../utils/taskLifecycleNotifications";
 import { newJobFanoutIntent } from "../utils/newJobAlerts";
 import { enqueueNewTaskAlerts } from "../utils/robotTeamAccessEmails";
 import { TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
@@ -22,6 +22,8 @@ import { prepareTeamPilotNotice } from "../utils/robotTeamPilotNotifications";
 import { alertOpsPilotBooked } from "../utils/pilotOpsAlerts";
 import { logger } from "../logger";
 import { projectEvidenceForSite } from "../utils/pilotRecommendationEvidence";
+import { pilotConsentRefusal, projectPilotBooking, sitePilotContact, teamPilotContact } from "../utils/pilotContactExchange";
+import { SUPPORTED_TASK_SCOPE, scoredTaskDescription, taskScopeNotSupported } from "../utils/siteTaskScope";
 
 /**
  * The recommendation as the site sees it: the evaluation evidence without the
@@ -33,7 +35,13 @@ function recommendationForSite(requestId: string, record: Record<string, any> | 
   if (!recommendation) return null;
   const { evidence, registryTeamIds: _registry, evaluationRunId: _run, recommendedBy: _by, ...visible } = recommendation;
   const resultUrl = record?.account_owner_uid ? `/app/tasks/${encodeURIComponent(requestId)}` : null;
-  return { ...visible, evidence: projectEvidenceForSite(evidence, { resultUrl }) };
+  // What the simulation scored, frozen with the evidence; older evidence falls
+  // back to the job's published evaluation contract. Null is shown as unknown,
+  // never as the site's own task.
+  const scoredTask = evidence && Object.prototype.hasOwnProperty.call(evidence, "scoredTaskKind")
+    ? scoredTaskDescription(evidence.scoredTaskKind)
+    : scoredTaskDescription(record?.agent_execution_offer?.team_evaluation?.contract?.task_kind);
+  return { ...visible, scoredTask, evidence: projectEvidenceForSite(evidence, { resultUrl }) };
 }
 
 const router = Router();
@@ -65,6 +73,8 @@ router.route("/owner/:token")
         thumbnailPng: image.data()?.pngBase64 ?? null,
         recommendation: recommendationForSite(res.locals.requestId, record),
         booking: snap.data()?.pilot_booking ?? null,
+        // The booked pilot with the robot team's contact, while both consents stand.
+        pilotBooking: await projectPilotBooking(record, "site").catch(() => null),
         coordination: projectPilotCoordination(snap.data()),
         decision: projectCurrentSiteJobDecision(record, brief, assessment.decisionAssessment, assessment.compatibleDecisionAssessments),
       });
@@ -91,6 +101,8 @@ router.route("/owner/:token")
         const revision = humanDecisionDigest(brief.exists ? brief.data() : null);
         if (parsed.data.enabled && ((parsed.data.expectedBriefRevision && parsed.data.expectedBriefRevision !== revision)
           || (current.data()?.public_task_listing?.reviewRequired && parsed.data.expectedBriefRevision !== revision))) throw new Error("listing_review_changed");
+        // A job we cannot score is not opened to robot teams, so its card cannot go live.
+        if (parsed.data.enabled && taskScopeNotSupported(current.data())) throw new Error("task_not_yet_supported");
         const previousDigest = current.data()?.public_task_listing?.thumbnailDigest ?? null;
         wentLive = parsed.data.enabled && current.data()?.public_task_listing?.enabled !== true ? new Date().toISOString() : null;
         transaction.update(ref, {
@@ -114,14 +126,26 @@ router.route("/owner/:token")
         // Approved robot teams hear about it too, so a recommendation never waits on a person.
         await enqueueNewTaskAlerts({ requestId: res.locals.requestId, card: parsed.data.details, wentLiveIso: wentLive })
           .catch(() => undefined);
+        // Publishing can be what opens a runnable job to evaluations.
+        try { await notifyIfOpenForEvaluations(res.locals.requestId); } catch { /* best-effort */ }
       }
       return res.json({ ok: true });
-    } catch (error) { if (error instanceof Error && error.message === "listing_review_changed") return res.status(409).json({ error: "Your job changed. Reopen its public card and review the changes before publishing." }); return res.status(503).json({ error: "The public card was not saved. Try again." }); }
+    } catch (error) {
+      if (error instanceof Error && error.message === "task_not_yet_supported") return res.status(409).json({ code: "task_not_yet_supported",
+        error: `We cannot score this job in simulation today, so its card cannot be shown to robot teams. ${SUPPORTED_TASK_SCOPE}` });
+      if (error instanceof Error && error.message === "listing_review_changed") return res.status(409).json({ error: "Your job changed. Reopen its public card and review the changes before publishing." }); return res.status(503).json({ error: "The public card was not saved. Try again." }); }
   });
 
 const bookSchema = z.object({ recommendationId: z.string().min(1).max(120), authorized: z.literal(true) }).strict();
 
-/** The existing endpoint records proposal acceptance, not a physical booking. */
+/**
+ * The existing endpoint records proposal acceptance, not a physical booking.
+ * Booking exchanges contacts (owner decision 2026-10-15): the site's
+ * confirmation carries the team's contact and the team's notice carries the
+ * site's, in the same commit. It is refused, with a typed code, once the site
+ * has withdrawn recording permission or the team has withdrawn its agreement;
+ * dispatch re-checks both before either contact is sent.
+ */
 router.post("/owner/:token/book", async (req, res) => {
   const token = verifyCaptureUploadToken(String(req.params.token));
   if (!token || token.scope !== "owner") return res.status(403).json({ error: "Use the site owner's link to book this pilot." });
@@ -146,11 +170,14 @@ router.post("/owner/:token/book", async (req, res) => {
       if (recommendation.reviewRequired) return "stale" as const;
       const booking = record?.pilot_booking;
       if (booking && booking.recommendationId !== recommendation.id) return "stale" as const;
+      const consent = await pilotConsentRefusal(record, transaction);
+      if (consent.refusal) return consent.refusal;
       const to = String(await decryptFieldValue(record?.contact?.email ?? "")).trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return "contact_missing" as const;
       const input = buildTaskLifecycleNotification({ requestId: token.requestId, milestone: "pilot_booked",
         eventId: pilotRecommendationEventId(recommendation.id, to), to, captureUrl,
-        detail: !booking || booking.commercialBasis === "invited_beta_free" ? "invited_beta_free" : undefined });
+        detail: !booking || booking.commercialBasis === "invited_beta_free" ? "invited_beta_free" : undefined,
+        counterpart: teamPilotContact(consent.team) });
       const intentRef = store.collection(CAPTURE_OUTBOX_COLLECTION).doc(input.idempotencyKey);
       const intent = await transaction.get(intentRef);
       const legacyKey = `${token.requestId}:pilot_booked:${recommendation.id}`;
@@ -166,7 +193,8 @@ router.post("/owner/:token/book", async (req, res) => {
       // The recommended team hears the booking in the same commit. A retry
       // repairs a missing team row without a second email.
       const teamNotice = typeof recommendation.teamId === "string"
-        ? await prepareTeamPilotNotice(transaction, { kind: "team_pilot_booked", requestId: token.requestId, recommendation }, teamRows)
+        ? await prepareTeamPilotNotice(transaction, { kind: "team_pilot_booked", requestId: token.requestId, recommendation,
+          siteContact: await sitePilotContact(record) }, teamRows)
         : null;
       // All reads precede writes. Confirmation failure rolls back a new
       // booking; a lost-response retry preserves its price, terms and date.
@@ -187,7 +215,7 @@ router.post("/owner/:token/book", async (req, res) => {
         // A Firestore retry may observe a corrected recipient even though the
         // legacy document key stays the same. Never reuse another recipient's
         // cached message merely because its reserved key matches.
-        const rowKey = JSON.stringify([writeInput.idempotencyKey, writeInput.to]);
+        const rowKey = JSON.stringify([writeInput.idempotencyKey, writeInput.to, writeInput.body]);
         if (!rows.has(rowKey)) rows.set(rowKey, buildOutboxEntry(writeInput));
         transaction.create(writeRef, rows.get(rowKey)!);
       } else if (existing.status === "cancelled" && existing.attempts === 0) {
@@ -200,11 +228,17 @@ router.post("/owner/:token/book", async (req, res) => {
     if (outcome === "missing") return res.status(404).json({ error: "There is no pilot proposal to accept yet." });
     if (outcome === "stale") return res.status(409).json({ error: "This recommendation has changed. Reopen your job page to see the current one." });
     if (outcome === "contact_missing") return res.status(409).json({ error: "A valid site contact email is needed to confirm acceptance. Contact Blueprint to correct it." });
-    // Ops hears once that coordination is now Blueprint's to do. Ids only.
+    if (outcome === "site_consent_withdrawn") return res.status(409).json({ code: outcome,
+      error: "Recording permission for this job was withdrawn, so this pilot can no longer be booked." });
+    if (outcome === "team_consent_withdrawn") return res.status(409).json({ code: outcome,
+      error: "The recommended robot team withdrew from this pilot, so it can no longer be booked." });
+    // Ops hears once that a pilot was booked. Ids only.
     const newlyBooked = booked as { recommendationId: string; teamId: string } | null;
     if (newlyBooked) void alertOpsPilotBooked({ requestId: token.requestId, ...newlyBooked })
       .catch(error => logger.warn({ error, requestId: token.requestId }, "Pilot-booked ops alert failed"));
-    return res.json({ ok: true, coordination: projectPilotCoordination((await ref.get()).data()) });
+    const saved = (await ref.get()).data();
+    return res.json({ ok: true, coordination: projectPilotCoordination(saved),
+      pilotBooking: await projectPilotBooking(saved, "site").catch(() => null) });
   } catch { return res.status(503).json({ error: "We could not confirm acceptance. Reopen your job page to check before retrying." }); }
 });
 

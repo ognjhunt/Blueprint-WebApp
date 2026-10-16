@@ -4,8 +4,7 @@ import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProje
 const reference = "bp-prep-0123456789abcdef";
 const base = { briefDrafted: true, briefConfirmed: true, stage: null,
   coversScene: true, missingViews: [], supplementWouldFinish: false,
-  hasStoredCapture: true, disposition: "qualified" as const, claimed: true,
-  nextUpdateIso: null };
+  hasStoredCapture: true, disposition: "qualified" as const, claimed: true };
 
 describe("current source-bound preparation projection", () => {
   it.each([

@@ -1,3 +1,4 @@
+import { taskScopeNotSupported } from "./siteTaskScope";
 import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
 /** Blueprint funds preparation; capture consent never authorizes a site-owner charge. */
 import { z } from "zod";
@@ -179,6 +180,10 @@ export function websiteSceneSponsorship(input: {
     && !developmentSiteTest && !input.assessmentPreparationProposal) {
     throw new Error("website_scene_site_not_qualified");
   }
+  // A job whose confirmed brief screened as one the simulation cannot score
+  // gets no scene: the Pipeline would build it as a different task. Same typed
+  // refusal, so the capture is held while the site can still re-confirm.
+  if (taskScopeNotSupported(input.record) && !developmentSiteTest) throw new Error("website_scene_site_not_qualified");
   // Legacy/evaluation grants retain the account claim gate. Explicit source-
   // bound preparation is funded by the configured Blueprint owner and never
   // invents a site account or a customer charge.

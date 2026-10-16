@@ -101,6 +101,7 @@ function ListingChoice({ task, privateHandling, onPrivateHandlingChange }: {
     {privateHandling ? (
       <p id="start-listing-consent" className="ms-field-hint">
         This job stays private. Starting does not publish a job card; Blueprint uses what you send only to assess your job.
+        Robot teams cannot see or evaluate a private job, so it cannot lead to a recommended pilot. You can publish its card from your job page later.
       </p>
     ) : <>
       <p id="start-listing-consent" className="ms-field-hint">
@@ -721,8 +722,15 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
         {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
         {!state.workspaceUrl && state.claimUrl && <section className="ms-intake-account" aria-label="Save this job to your account">
-          <h2>Keep track of this job</h2>
-          <p className="ms-field-hint">Optional. Save this job to an account with {state.email}, or keep using your private job link.</p>
+          <h2>Save this job to your account</h2>
+          {/* Not optional for evaluation: the scene robot teams run against is
+              built only for a claimed site (`websiteSceneSponsorship`). Saving
+              before footage arrives also keeps the recording's owner the same
+              from upload on, which the Pipeline checks. */}
+          <p className="ms-field-hint">
+            We build the scene robot teams evaluate only for a job saved to an account with {state.email}.
+            {captureReceived ? " Save it now." : " Save it now, before any footage is sent."} Your private job link keeps working either way.
+          </p>
           <div className="ms-intake-account-links">
             <a className="ms-text-link" href={state.claimUrl}>Create an account for this job</a>
             <a className="ms-text-link" href={`${state.claimUrl}?mode=signin`}>Sign in to save this job</a>

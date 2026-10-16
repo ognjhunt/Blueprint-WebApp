@@ -8,7 +8,7 @@ import { reservationTtlMs, runIdForReservation, type EvalRunRecord } from "./age
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { TEAM_EVALUATION_PROVIDER_CAP_USD } from "./teamEvaluationSelection";
 import { teamJobAccess } from "./teamJobAccess";
-import { isTeamEvaluationProfile, TEAM_EVALUATION_PURPOSE } from "./policyIntegration";
+import { isTeamEvaluationProfile, offersTeamEvaluation, TEAM_EVALUATION_PURPOSE, teamPolicyBlocker } from "./policyIntegration";
 import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
@@ -56,6 +56,10 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
     throw new Error("free_evaluation_policy_mismatch");
   // Preparation refuses an episode count other than 200 when the job offers team evaluations.
   const robotEmbodiment = setup.robotEmbodiment ? robotEmbodimentSchema.parse(setup.robotEmbodiment) : null;
+  // A team evaluation calls an authenticated HTTPS policy; anything else is refused before
+  // any prepared request (even an operator-supplied one) is admitted.
+  const teamBlocker = offersTeamEvaluation(scene) ? teamPolicyBlocker(checkpoint, { robotEmbodiment }) : null;
+  if (teamBlocker) throw new Error(teamBlocker);
   let executionRequestId = approval.executionRequestId;
   if (!executionRequestId) {
     const prepared = await prepareFreeAgentExecution({ teamId: approval.teamId,
@@ -89,6 +93,7 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   // Only a team-evaluation policy package is a team evaluation; any other admitted run is not one.
   const request = envelope.canonical_execution_request as Record<string, any> | undefined;
   const profile = request?.policy_package?.policy_api_endpoint?.execution_profile;
+  if (offersTeamEvaluation(scene) && !isTeamEvaluationProfile(profile)) throw new Error("free_evaluation_team_evaluation_required");
   const run: EvalRunRecord = { runId, reservationId, teamId: approval.teamId,
     checkpointId: approval.checkpointId, sceneId: selection.opportunityId,
     taskFamily: String(binding.task_family), evaluationPurpose: "pilot",

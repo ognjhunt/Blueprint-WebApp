@@ -6,6 +6,7 @@ import {canNotifyCurrentWebsitePreparationIssue} from './websitePreparationStatu
 import {decryptFieldValue} from './field-encryption';
 const CAPTURE_DEPENDENT_NOTICES=new Set<OutboxKind>([
  'video_received','scene_ready','screening_cleared','screening_started','results_ready','run_no_result',
+ 'awaiting_evaluations','no_team_passed',
  'brief_confirmed','coverage_shortfall','assessment_ready','input_needed',
 ]);
 /** Call inside the dispatch transaction before recording an external side effect.
@@ -32,5 +33,11 @@ export async function taskLifecycleNotificationIsCurrent(
  if(!db)throw new Error('capture_notification_authority_unavailable');
  const ref=db.collection('inboundRequests').doc(entry.requestId);
  const snapshot=transaction?await transaction.get(ref):await ref.get();
- return snapshot.exists&&!projectWebsiteCaptureRights(snapshot.data()).consent_revoked;
+ if(!snapshot.exists||projectWebsiteCaptureRights(snapshot.data()).consent_revoked)return false;
+ // A waiting notice is sent only while what it says is still true.
+ if(entry.kind==='awaiting_evaluations'||entry.kind==='no_team_passed'){
+  const notices=await import('./taskLifecycleNotifications');
+  return entry.kind==='awaiting_evaluations'?notices.openAndAwaitingEvaluations(entry.requestId):notices.noTeamHasPassed(entry.requestId);
+ }
+ return true;
 }

@@ -176,7 +176,7 @@ describe("GET /api/admin/jobs/:requestId", () => {
   });
 
   it("lists evaluation requests with the team, setup reference and matching checkpoints", async () => {
-    siteJob("job-a", "2026-10-02T00:00:00.000Z");
+    siteJob("job-a", "2026-10-02T00:00:00.000Z", { agent_execution_offer: { episode_count: 50 } });
     table("inboundRequests").set("eval-1", { createdAt: "2026-10-03T00:00:00.000Z", account_owner_uid: "team-owner",
       request: { buyerType: "robot_team" }, workspace_evaluation: { opportunityId: "job-a", setupId: "setup-1", setupName: "Arm v2",
         submittedAt: "2026-10-03T00:00:00.000Z" } });
@@ -205,5 +205,27 @@ describe("GET /api/admin/jobs/:requestId", () => {
       "The team removed or never saved the setup this request names.",
     ]);
     expect(body.timeline.map((entry: Row) => entry.key)).toContain("admitted");
+  });
+
+  it("defaults a team evaluation to its 200 episodes and names a policy it cannot call", async () => {
+    siteJob("job-t", "2026-10-02T00:00:00.000Z", { agent_execution_offer: {
+      policy_execution_profiles: ["team_evaluation_scored_v1"], episode_count: 200 } });
+    table("inboundRequests").set("eval-t", { createdAt: "2026-10-03T00:00:00.000Z", account_owner_uid: "team-owner",
+      request: { buyerType: "robot_team" }, workspace_evaluation: { opportunityId: "job-t", setupId: "setup-1" } });
+    table("robotTeams").set("team-1", { name: "Atlas", accountUid: "team-owner", status: "applied" });
+    table("users/team-owner/robotSetups").set("setup-1", { payload: JSON.stringify({ name: "Arm v2", reference: "https://policy.example.com/v2" }) });
+    const checkpoint = { teamId: "team-1", label: "v2", runtime: "policy_endpoint", reference: "https://policy.example.com/v2", status: "registered" };
+    state.checkpoints.push({ ...checkpoint, checkpointId: "ckpt_plain" });
+
+    let body = await (await fetch(`${baseUrl}/job-t`, admin)).json();
+    expect(body.admissionDefaults.episodes).toBe(200);
+    expect(body.admissions[0].blockers).toEqual([expect.stringContaining("team_evaluation_policy_credential_required")]);
+
+    state.checkpoints.push({ ...checkpoint, checkpointId: "ckpt_token",
+      policyCredential: { ref: "credential-1", kind: "bearer", expiresAtIso: "2100-01-01T00:00:00.000Z" } });
+    body = await (await fetch(`${baseUrl}/job-t`, admin)).json();
+    // The checkpoint admission accepts comes first, so it is the form's default.
+    expect(body.admissions[0]).toMatchObject({ blockers: [],
+      matchingCheckpoints: [{ checkpointId: "ckpt_token" }, { checkpointId: "ckpt_plain" }] });
   });
 });
