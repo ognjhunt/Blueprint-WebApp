@@ -90,10 +90,12 @@ beforeAll(async () => {
     if (url.hostname !== "127.0.0.1") throw new Error("External network forbidden in the request-step journey");
     return originalFetch(input, init);
   });
-  const [{ default: intake }, { default: pipeline }, { default: siteWorlds }, { default: workspace }] = await Promise.all([
-    import("../routes/inbound-request"), import("../routes/internal-pipeline"),
-    import("../routes/site-worlds"), import("../routes/workspace"),
-  ]);
+  // One at a time: these route modules import one another, and loading a
+  // circular graph concurrently can stall the module runner past the hook timeout.
+  const { default: intake } = await import("../routes/inbound-request");
+  const { default: pipeline } = await import("../routes/internal-pipeline");
+  const { default: siteWorlds } = await import("../routes/site-worlds");
+  const { default: workspace } = await import("../routes/workspace");
   const app = express();
   // One forwarded address per site, as Render's proxy reports it, so the
   // per-address intake limits see distinct visitors.
