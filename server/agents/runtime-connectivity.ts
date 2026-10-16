@@ -4,11 +4,13 @@ import {
   describeStructuredAutomationProvider,
   getStructuredAutomationFallbackProvider,
   getOpenAiTimeoutMs,
+  getAnthropicTimeoutMs,
   getStructuredAutomationProvider,
   getTaskModelByProvider,
   isProviderConfigured,
   type StructuredProvider,
 } from "./provider-config";
+import { HAIKU_MODEL, isNativeAnthropicConfigured } from "../utils/anthropicHaikuPricing";
 
 /**
  * The lanes this metadata speaks for.
@@ -32,13 +34,16 @@ const CONNECTIVITY_TASK_KINDS = [
 type ConnectivityTaskKind = (typeof CONNECTIVITY_TASK_KINDS)[number];
 
 function runtimeDefaultModel() {
-  const provider = getStructuredAutomationProvider("operator_thread");
+  const resolution = describeStructuredAutomationProvider("operator_thread");
+  const provider = resolution.provider;
   return getTaskModelByProvider("operator_thread")[provider] || "gpt-5.4";
 }
 
 export function getAgentRuntimeConnectionMetadata() {
-  const provider = getStructuredAutomationProvider();
-  const fallbackProvider = getStructuredAutomationFallbackProvider();
+  // Top-level metadata describes the operator smoke lane; per-task fields
+  // report the separately resolved automation lanes.
+  const provider = getStructuredAutomationProvider("operator_thread");
+  const fallbackProvider = getStructuredAutomationFallbackProvider("operator_thread");
 
   const taskProviders = {} as Record<ConnectivityTaskKind, StructuredProvider>;
   const taskModels = {} as Record<ConnectivityTaskKind, string | null>;
@@ -68,11 +73,11 @@ export function getAgentRuntimeConnectionMetadata() {
   return {
     provider,
     fallback_provider: fallbackProvider,
-    configured: isProviderConfigured(provider),
-    auth_configured: isProviderConfigured(provider),
+    configured: provider === "anthropic_agent_sdk" && runtimeDefaultModel() === HAIKU_MODEL ? isNativeAnthropicConfigured() : isProviderConfigured(provider),
+    auth_configured: provider === "anthropic_agent_sdk" && runtimeDefaultModel() === HAIKU_MODEL ? isNativeAnthropicConfigured() : isProviderConfigured(provider),
     timeout_ms: Number(
       provider === "anthropic_agent_sdk"
-        ? process.env.ANTHROPIC_TIMEOUT_MS ?? 20_000
+        ? getAnthropicTimeoutMs(runtimeDefaultModel())
         : provider === "deepseek_chat"
           ? process.env.DEEPSEEK_TIMEOUT_MS ?? 120_000
         : provider === "codex_local"
@@ -110,7 +115,7 @@ export async function runAgentRuntimeSmokeTest(params?: {
     kind: "operator_thread",
     provider: connectivity.provider,
     runtime: connectivity.provider,
-    model: params?.model?.trim() || runtimeDefaultModel(),
+    model: params?.model?.trim() || connectivity.default_model,
     input: {
       message:
         'Return JSON only with reply="Agent runtime smoke test passed.", summary="Smoke test completed successfully.", suggested_actions=["Continue integration"], requires_human_review=false.',
