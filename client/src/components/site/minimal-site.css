@@ -575,6 +575,7 @@
 .ms-pilot-card-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 20px; padding: 20px 28px 24px; border-top: 1px solid var(--ms-rule); color: var(--ms-muted); font-size: 13px; }
 .ms-pilot-card-foot .ms-button { pointer-events: none; }
 .ms-pilot-art { display: block; width: 100%; max-width: 440px; margin-top: 36px; color: var(--ms-green); }
+.ms-pilot-art-caption { margin-top: 12px; color: var(--ms-muted); font-size: 13px; }
 .ms-pilot-art-scene { animation: ms-pilot-in 420ms ease both; }
 .ms-pilot-panel { animation: ms-pilot-in 420ms ease both; }
 @media (prefers-reduced-motion: reduce) { .ms-pilot-art-scene, .ms-pilot-panel { animation: none; } }

@@ -27,7 +27,7 @@ test("the auth robot scene moves on to the next example after one loop", async (
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/sign-in");
   const scene = page.locator(".auth-art .robot-scene > svg");
-  await expect(scene).toHaveAttribute("aria-label", "Illustration of the warehouse example");
+  await expect(scene).toHaveAttribute("aria-label", "Illustration of the warehouse example: humanoid robot");
   await expect(scene).toHaveAttribute("aria-label", /Illustration of the café example/, { timeout: 20_000 });
 });
 
