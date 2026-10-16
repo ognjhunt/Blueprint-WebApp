@@ -12,7 +12,7 @@ describe("Site-led homepage", () => {
     // Robot teams reach their own page from the nav, not from the homepage.
     expect(screen.queryByRole("link", { name: /robot-team beta|early access/i })).not.toBeInTheDocument();
     // One example of the deliverable, clearly marked, instead of staged imagery.
-    expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Warehouse", "Café", "Lab"]);
+    expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Warehouse", "Café", "Laundromat", "Factory", "Hotel", "Lab"]);
     const panel = screen.getByRole("tabpanel");
     expect(panel).toHaveTextContent(/Example.*Robot team.*Evaluated in simulation.*Passed on your task \(example\).*small boxed parts.*Blueprint fee.*None during the beta.*Pilot cost.*Quoted by the robot team/);
     expect(screen.getByText("Book this pilot")).toBeInTheDocument();
@@ -21,6 +21,64 @@ describe("Site-led homepage", () => {
     expect(screen.getByRole("img", { name: /café example/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pause examples" })).toBeInTheDocument();
     expect(screen.queryByText(/Your criteria/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["Warehouse", /humanoid robot/i, /small boxed parts.*scale.*outbound tray/i],
+    ["Café", /fixed robot arm/i, /clean cups.*dish rack.*counter/i],
+    ["Laundromat", /wheeled humanoid/i, /opening.*supply drawer/i],
+    ["Factory", /mobile manipulator/i, /rigid blanks.*conveyor.*tray/i],
+    ["Hotel", /mobile robot with arm/i, /boxed amenities.*stock tray.*service tray/i],
+    ["Lab", /fixed robot arm/i, /opening the sample drawer before each batch/i],
+  ])("pairs the %s example with its robot and matching illustration", (site, embodiment, task) => {
+    render(<Home />);
+    const tab = screen.getByRole("tab", { name: site });
+    fireEvent.click(tab);
+    expect(tab).toHaveAttribute("aria-selected", "true");
+    const panel = screen.getByRole("tabpanel", { name: site });
+    expect(panel).toHaveTextContent(embodiment);
+    expect(panel).toHaveTextContent(task);
+    const illustration = screen.getByRole("img", { name: new RegExp(`${site} example`, "i") });
+    expect(illustration).toHaveAccessibleName(embodiment);
+  });
+
+  it("keeps a restored example selected and still while paused", () => {
+    vi.useFakeTimers();
+    try {
+      render(<Home />);
+      fireEvent.click(screen.getByRole("button", { name: "Pause examples" }));
+      fireEvent.click(screen.getByRole("tab", { name: "Hotel" }));
+      const art = screen.getByRole("img", { name: /hotel example/i });
+      const stillFrame = art.innerHTML;
+      act(() => { vi.advanceTimersByTime(31000); });
+      expect(screen.getByRole("tab", { name: "Hotel" })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("button", { name: "Play examples" })).toBeInTheDocument();
+      expect(art.innerHTML).toBe(stillFrame);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("allows manual selection without motion when reduced motion is preferred", () => {
+    vi.useFakeTimers();
+    const matchMedia = vi.spyOn(window, "matchMedia").mockImplementation(query => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+    }) as MediaQueryList);
+    try {
+      render(<Home />);
+      expect(screen.getByRole("button", { name: "Play examples" })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("tab", { name: "Laundromat" }));
+      const art = screen.getByRole("img", { name: /laundromat example/i });
+      const stillFrame = art.innerHTML;
+      act(() => { vi.advanceTimersByTime(31000); });
+      expect(screen.getByRole("tab", { name: "Laundromat" })).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("tabpanel")).toHaveTextContent(/wheeled humanoid/i);
+      expect(art.innerHTML).toBe(stillFrame);
+    } finally {
+      matchMedia.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it("shows the three steps without a click, ending in the recommended pilot", () => {
