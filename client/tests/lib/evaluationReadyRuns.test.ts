@@ -39,7 +39,7 @@ describe("evaluation-ready run client contract", () => {
   });
 
   it("adapts the authenticated server setup without exposing team or email inputs", async () => {
-    const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({
+    const setupProjection = {
       schema_version: "task_evaluation_policy_run_setup_projection.v1",
       source_launch_id: "scene-839873-launch",
       offering_digest: digest("a"),
@@ -62,32 +62,40 @@ describe("evaluation-ready run client contract", () => {
       matrix: {
         profile_id: "franka_rigid_relocation_nested_v1",
         preregistration_digest: digest("d"),
-        compiler: { compiler_id: "franka_rigid_relocation_nested_prefix", compiler_version: "v1", selection_rule: "published_ordered_prefix", outcome_independent: true, agent_may_select_cells: false },
+        compiler: {
+          compiler_id: "franka_rigid_relocation_nested_prefix", compiler_version: "v1", selection_rule: "published_ordered_prefix",
+          outcome_independent: true, agent_may_select_cells: false, inventory_seed_digest: digest("5"),
+          coverage_recipe_digest: digest("6"), cell_seed_rule: "sha256_inventory_seed_digest_nul_cell_id",
+        },
         presets: [
           {
             preset_id: "quick_10", label: "Quick", scenario_count_per_policy: 10, availability: "enabled", default: true,
             family_counts: { canonical_anchor: 1, placement_approach: 2, illumination: 1, camera_sensor: 1, bounded_physics: 1, pairwise: 2, held_out: 2 },
-            scenario_set_digest: digest("e"), parent_preset_id: null, parent_prefix_count: 0, nesting_proof_digest: digest("0"),
+            scenario_set_digest: digest("e"), parent_preset_id: null, parent_scenario_set_digest: null, parent_prefix_count: 0, nesting_proof_digest: digest("0"),
             estimate: { status: "estimated", duration_minutes: { minimum: 18, maximum: 25 }, cost_usd: { minimum: 2, maximum: 4 }, basis_digest: digest("f"), as_of: "2026-08-30T12:00:00Z" },
             episode_counts: { learned_episode_count: 20, control_episode_count: 20, total_episode_count: 40 },
           },
           {
             preset_id: "standard_100", label: "Standard", scenario_count_per_policy: 100, availability: "coming_later", default: false,
             family_counts: { canonical_anchor: 1, placement_approach: 24, illumination: 12, camera_sensor: 12, bounded_physics: 12, pairwise: 19, held_out: 20 },
-            scenario_set_digest: digest("1"), parent_preset_id: "quick_10", parent_prefix_count: 10, nesting_proof_digest: digest("2"), estimate: { status: "unavailable" },
+            scenario_set_digest: digest("1"), parent_preset_id: "quick_10", parent_scenario_set_digest: digest("e"), parent_prefix_count: 10, nesting_proof_digest: digest("2"), estimate: { status: "unavailable" },
             episode_counts: { learned_episode_count: 200, control_episode_count: 200, total_episode_count: 400 },
           },
           {
             preset_id: "deep_500", label: "Deep", scenario_count_per_policy: 500, availability: "coming_later", default: false,
             family_counts: { canonical_anchor: 1, placement_approach: 124, illumination: 62, camera_sensor: 62, bounded_physics: 62, pairwise: 94, held_out: 95 },
-            scenario_set_digest: digest("3"), parent_preset_id: "standard_100", parent_prefix_count: 100, nesting_proof_digest: digest("4"), estimate: { status: "unavailable" },
+            scenario_set_digest: digest("3"), parent_preset_id: "standard_100", parent_scenario_set_digest: digest("1"), parent_prefix_count: 100, nesting_proof_digest: digest("4"), estimate: { status: "unavailable" },
             episode_counts: { learned_episode_count: 1000, control_episode_count: 1000, total_episode_count: 2000 },
           },
         ],
       },
       notification: { email_when_ready: true, recipient: "authenticated_account", recipient_email: "friend@example.com" },
       proof_boundary: { setup_is_execution: false, provider_mutation_performed: false, paid_execution_requested: false, simulation_is_physical_success: false },
-    }), { status: 200, headers: { "content-type": "application/json" } }));
+    };
+    const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(
+      JSON.stringify(setupProjection),
+      { status: 200, headers: { "content-type": "application/json" } },
+    ));
     const currentUser = { getIdToken: vi.fn().mockResolvedValue("firebase-token") } as any;
 
     const setup = await fetchEvaluationReadySetup(currentUser, "scene-839873-launch");
@@ -104,6 +112,16 @@ describe("evaluation-ready run client contract", () => {
       "/api/configured-scene-offerings/scene-839873-launch/evaluation-setup",
       expect.objectContaining({ headers: { Authorization: "Bearer firebase-token" } }),
     );
+
+    setupProjection.matrix.presets[1].parent_scenario_set_digest = digest("9");
+    fetcher.mockResolvedValueOnce(new Response(
+      JSON.stringify(setupProjection),
+      { status: 200, headers: { "content-type": "application/json" } },
+    ));
+    await expect(fetchEvaluationReadySetup(
+      currentUser,
+      "scene-839873-launch",
+    )).rejects.toThrow("Evaluation setup did not match the Website contract");
     fetcher.mockRestore();
   });
 });
