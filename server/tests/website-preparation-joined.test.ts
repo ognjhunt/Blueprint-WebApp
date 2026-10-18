@@ -193,11 +193,11 @@ it.skipIf(!process.env.RELIABILITY_PREPARATION_EXPORTER && process.env.RELIABILI
   expect(receipts).toHaveLength(1);
   await reconcileWebsitePreparationNotifications();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(1);
   await record("restart-recovery-local-notification",{database_mode:"JSON checkpoint of in-memory Firestore double",notice_count:noticeRows.length,local_deliveries:seams.send.mock.calls.length});
-  // The source's last delivery stays retryable: the Pipeline records the ending,
+  // Nothing claims the source for a full silence window: the Pipeline records the ending,
   // the site is told preparation could not finish, and receives one email.
   const ended=await producerCommand("exhaust");
   expect(ended.result).toMatchObject({status:"failed_retryable",
-    website_preparation_terminal:{reason:"retry_exhausted",basis:"delivery_attempts_exhausted"}});
+    website_preparation_terminal:{reason:"retry_exhausted",basis:"no_claim_within_silence_window"}});
   const endedDelivery=await producerCommand("deliver");
   expect(endedDelivery.result).toMatchObject({delivered:true,remaining_pending:0,
     acceptance:{schema_version:"website_preparation_status_acceptance.v2",state:"failed_terminal",...producer.selectors}});
