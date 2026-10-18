@@ -62,6 +62,9 @@ type TaskStatus = {
   footageReviewAutomated?: boolean;
 };
 
+/** Robot teams have runs on the job: the account is where they open, not a step before the scene. */
+const RUN_DECISIONS = new Set(["screening", "results", "no_team_passed", "no_qualified_evaluation"]);
+
 const retryUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function retainedAssessmentRetryIdentity(jobId: string, runId: string): string {
   // Only opaque server IDs and a bounded UUID; never store the private link.
@@ -604,13 +607,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
            receives one. */
         <p style={{ margin: "10px 0 0" }}>
           <a className="ms-text-link" href={status.claimUrl}>
-            {status.decision === "results" || status.decision === "screening"
+            {RUN_DECISIONS.has(status.decision)
               ? "Claim your site to see the results"
               : status.sceneViewUrl
                 ? "Save your scene and follow progress"
                 : "Claim your site to follow this job"}
           </a>
-          {status.decision !== "results" && status.decision !== "screening" && (
+          {!RUN_DECISIONS.has(status.decision) && (
             <span className="ms-field-hint" style={{ display: "block", marginTop: "4px" }}>
               Create and verify your site account before Blueprint builds the scene. Your filming link keeps working while you do that.
             </span>

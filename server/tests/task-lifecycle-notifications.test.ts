@@ -226,10 +226,12 @@ describe("a waiting job hears what it is waiting on", () => {
     run("run_a", "completed", 120);
     const value = sharedFakeFirestoreState.docs.get("evaluationRuns/run_a") as Record<string, any>;
     value.result.evidenceScope = "development_only";
-    expect((await notifyIfNoTeamPassed("req-1", "run_a")).enqueued).toBe(false);
+    // It counts neither way: the site hears, once, that none can support a recommendation yet.
+    expect((await notifyIfNoTeamPassed("req-1", "run_a")).enqueued).toBe(true);
     delete value.result.evidenceScope;
     delete value.result.scoring.siteTaskQualification;
     expect((await notifyIfNoTeamPassed("req-1", "run_a")).enqueued).toBe(false);
     expect([...sharedFakeFirestoreState.docs.keys()].some(key => key.includes(":no_team_passed:"))).toBe(false);
+    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.endsWith(":no_qualified_evaluation"))).toHaveLength(1);
   });
 });

@@ -49,6 +49,8 @@ export type OutboxKind =
   | "awaiting_evaluations"
   /** Every evaluation so far finished, none passed, none is in flight. */
   | "no_team_passed"
+  /** Every evaluation so far finished, and none can support a recommendation either way. */
+  | "no_qualified_evaluation"
   | "pilot_request"
   /** Blueprint's one recommended pilot, and the site booking it. */
   | "pilot_recommended"

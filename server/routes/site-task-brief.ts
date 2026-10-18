@@ -1039,7 +1039,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // first visual scene. A reconstruction is not an evaluation result.
     const claimUrl =
       (Boolean(request?.site_task_brief_confirmed_at) || sceneViewUrl
-        || status.decision === "screening" || status.decision === "results") &&
+        || ["screening", "results", "no_team_passed", "no_qualified_evaluation"].includes(status.decision)) &&
       payload.scope !== "film" && !request?.account_owner_uid
         ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
         : null;

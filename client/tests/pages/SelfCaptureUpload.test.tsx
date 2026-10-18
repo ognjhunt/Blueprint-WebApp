@@ -775,3 +775,19 @@ describe("SelfCaptureUpload says how long a waiting stage takes", () => {
     expect(screen.queryByText(/We reply within|Building the simulation usually|Evaluations start once/)).not.toBeInTheDocument();
   });
 });
+
+describe("SelfCaptureUpload once evaluations settle without a pass", () => {
+  it.each(["no_team_passed", "no_qualified_evaluation"])("offers the claim as the way to see the runs (%s)", async (decision) => {
+    setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36");
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}/status`)) return Promise.resolve({ ok: true, json: async () => ({ ok: true,
+        status: { decision, headline: "Evaluations on your job have finished.", operatorAction: null, missingViews: [], nextUpdateIso: null },
+        claimUrl: "/claim/settled" }) });
+      return mockFetch()(input);
+    }));
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByRole("link", { name: "Claim your site to see the results" })).toHaveAttribute("href", "/claim/settled");
+    expect(screen.queryByText(/before Blueprint builds the scene/)).not.toBeInTheDocument();
+  });
+});

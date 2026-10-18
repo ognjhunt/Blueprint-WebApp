@@ -366,6 +366,46 @@ describe("what a waiting job is waiting on", () => {
     expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, noResult: 1 } }).decision).toBe("results");
   });
 
+  // Audit A (2026-10-18): a diagnostic or unqualified run is never a failure,
+  // and a site whose evaluations all ended that way is still told where it stands.
+  it("says evaluations finished with none able to support a recommendation, never calling them failures", () => {
+    const unqualified = { ...none, teams: 2, reported: 2, noResult: 0, passed: 0, ineligible: 2 };
+    const status = projectTaskStatus({ ...ready, openForEvaluations: true, recommended: false, screening: unqualified });
+    expect(status.decision).toBe("no_qualified_evaluation");
+    expect(status.headline).toMatch(/^Evaluations on your job have finished, but none can support a recommendation yet/);
+    expect(status.headline).toMatch(/2 runs could not be scored against your job's pass mark/);
+    expect(status.headline).toMatch(/We email you when a qualified evaluation finishes\.$/);
+    expect(status.headline).not.toMatch(/passed|failed|without passing/i);
+    expect(status.operatorAction).toBeNull();
+    // Runs that ended without an observed episode cannot support one either.
+    const noResult = projectTaskStatus({ ...ready, recommended: false,
+      screening: { ...none, teams: 1, noResult: 1, passed: 0, ineligible: 0 } });
+    expect(noResult.decision).toBe("no_qualified_evaluation");
+    expect(noResult.headline).toMatch(/1 run ended without an observed episode/);
+    // Still in flight, a recommendation, or an uncounted pass mark keeps the earlier rungs.
+    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...unqualified, running: 1 } }).decision).toBe("results");
+    expect(projectTaskStatus({ ...ready, recommended: true, screening: unqualified }).decision).toBe("results");
+    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...unqualified, passed: undefined, ineligible: undefined } }).decision)
+      .toBe("results");
+    // A qualified failure next to an unqualified run is neither: the results rung stands (the rule is kept).
+    expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...unqualified, ineligible: 1 } }).decision).toBe("results");
+  });
+
+  it("says what would change a qualified evaluation that did not pass", () => {
+    const settled = { ...none, teams: 1, reported: 1, noResult: 0, passed: 0, ineligible: 0,
+      closestQualified: { episodesRun: 200, episodesSucceeded: 172, medianCycleSeconds: 34, passMarkRate: 0.95,
+        cycleTimeSeconds: 30, belowPassMark: true, cycleTimeMissed: true } };
+    const status = projectTaskStatus({ ...ready, openForEvaluations: true, recommended: false, screening: settled });
+    expect(status.decision).toBe("no_team_passed");
+    expect(status.headline).toMatch(/The closest qualified evaluation succeeded in 172 of 200 episodes \(86%\), against your pass mark of 95%/);
+    expect(status.headline).toMatch(/its median cycle time was 34 s against your target of 30 s/);
+    expect(status.headline).toMatch(/A recommendation needs one team's evaluation to reach 95% with a median cycle time of 30 s or less/);
+    const rateOnly = projectTaskStatus({ ...ready, recommended: false, screening: { ...settled,
+      closestQualified: { ...settled.closestQualified, medianCycleSeconds: null, cycleTimeSeconds: null, cycleTimeMissed: false } } });
+    expect(rateOnly.headline).toMatch(/A recommendation needs one team's evaluation to reach 95%\./);
+    expect(rateOnly.headline).not.toMatch(/cycle time/);
+  });
+
   it("tells a site whose card is not published that no team can evaluate the job", () => {
     const input = taskStatusInputFrom({ briefDrafted: true, stage: null, jobAccess: { evaluationAvailable: false, reason: "not_listed" } });
     expect(input.listed).toBe(false);
