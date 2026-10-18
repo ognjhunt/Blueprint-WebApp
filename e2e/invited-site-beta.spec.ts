@@ -95,7 +95,9 @@ for (const width of [390, 1440]) {
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
     await expect(page.getByText("Your job description is saved.", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Open your job and assessment", exact: true }).click();
-    await page.getByText("Correct job details (optional)", { exact: true }).click();
+    // Robot teams evaluate only a confirmed job: never labelled optional.
+    await expect(page.getByText(/job details \(optional\)/i)).toHaveCount(0);
+    await page.getByText("Review and confirm your job brief", { exact: true }).click();
     await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
     await expect(page.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("subject_to_review");
     await page.locator("#confirm-name").fill("Synthetic site owner");
@@ -103,11 +105,11 @@ for (const width of [390, 1440]) {
     await page.getByRole("button", { name: "This is right — confirm it", exact: true }).click();
     await expect(page.getByText(/that is confirmed/i)).toBeVisible();
     await page.reload();
-    await page.getByText("Correct job details (optional)", { exact: true }).click();
+    await page.getByText("Edit your job brief", { exact: true }).click();
     await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
     await expect(page.locator("#pilot-consideration")).toHaveValue("evaluation_only");
     await page.reload();
-    await page.getByText("Correct job details (optional)", { exact: true }).click();
+    await page.getByText("Edit your job brief", { exact: true }).click();
     await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
     await expect(page.locator("#pilot-consideration")).toHaveValue("evaluation_only");
     await expect(page.locator("#deployment-path")).toHaveValue("multiple_sites");

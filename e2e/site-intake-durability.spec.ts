@@ -86,6 +86,7 @@ for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stor
             await page.locator("#start-email").fill(`owned-upload-${index + 1}-${Date.now()}@example.invalid`);
             await page.locator("#start-company").fill("Owned isolated reliability fixture");
             await page.locator("#start-method-upload").check();
+            await page.locator("#start-upload-without-account").check();
             await page.locator("#start-footage").setInputFiles(fixture);
             await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
             if (boundary === "browser-kill-after-stored-upload") {

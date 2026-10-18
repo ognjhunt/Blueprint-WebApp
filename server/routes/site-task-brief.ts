@@ -247,6 +247,29 @@ async function siteAccountFor(requestId: string): Promise<{
   };
 }
 
+/**
+ * Whether the walkthrough is saved, whichever device or app sent it. Retention
+ * only: a saved recording does not prove processing started. Null when the
+ * recording's status could not be read, which no caller may take as "not filmed".
+ */
+async function savedWalkthrough(payload: NonNullable<ReturnType<typeof verifyCaptureUploadToken>>) {
+  // A saved recording is distinct from its processing completion marker.
+  // Use the phone receipt's exact generation check: privacy holds and a
+  // failed marker write must not send the laptop back to filming again.
+  const upload = await describeBrowserUpload(payload, false);
+  if (upload.uploadState === "status_unavailable") return null;
+  let received = upload.captureReceived;
+  let uploadState = upload.uploadState;
+  if (!received && storageAdmin) {
+    // Completed app bundles need not use the browser walkthrough filename.
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET?.trim() || "blueprint-8c1ca.appspot.com";
+    received = await storedCaptureMarkerExists(storageAdmin.bucket(bucketName) as never,
+      `scenes/${payload.sceneId}/captures/${payload.captureId}/raw`);
+    if (received) uploadState = "retained";
+  }
+  return { upload, received, uploadState };
+}
+
 /** The gate ids a client is allowed to answer. Anything else is ignored. */
 const GATE_IDS = new Set(gateFields.map((field) => field.id));
 
@@ -766,8 +789,14 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     // A job we cannot score hears that instead, whatever its gate verdict: it
     // is not opened to robot teams, so no other next step is true for it.
     const scoreable = result.scope.supported;
+    // A site that filmed first is never asked to film again. Unknown is not
+    // "not filmed": the job page says which, and the reply does not guess.
+    const walkthrough = await savedWalkthrough(payload).catch(() => null);
+    const jobUrl = captureUploadUrlFor(payload.requestId);
+    let coverageMeasured = false;
     try {
       const request = await readRequestForStatus(payload.requestId);
+      coverageMeasured = typeof request?.capture_coverage?.covers_scene === "boolean";
       if (request?.contactEmail && !scoreable) {
         const email = buildTaskNotYetSupportedEmail({
           firstName: request.contactFirstName || "there",
@@ -804,9 +833,11 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
           siteName: request.siteName,
           triage,
           stage: "brief_confirmed",
-          nextStep: result.brief.captureMode === "site_visit"
-            ? { kind: "capturer_visit", taskUrl: captureUploadUrlFor(payload.requestId) }
-            : { kind: "self_capture", uploadUrl: captureUploadUrlFor(payload.requestId) },
+          nextStep: walkthrough?.received ? { kind: "footage_received", taskUrl: jobUrl }
+            : !walkthrough ? { kind: "job_page", taskUrl: jobUrl }
+            : result.brief.captureMode === "site_visit"
+              ? { kind: "capturer_visit", taskUrl: jobUrl }
+              : { kind: "self_capture", uploadUrl: jobUrl },
           accountNeeded: !request.account_owner_uid,
           ...(request.jobAccess ? { jobCardPublished: request.jobAccess.reason !== "not_listed" } : {}),
         });
@@ -846,7 +877,11 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       // disposition on its own tells an operator nothing they can act on.
       disposition: result.disposition,
       stage: result.readiness.stage,
-      nextAction: result.readiness.nextAction,
+      // The ladder reads unmeasured coverage as "film it"; a saved walkthrough
+      // is being checked, and nothing more is asked of the site for it.
+      nextAction: walkthrough?.received && !coverageMeasured
+        ? "We have your recording and are checking whether it covers the work area. You do not need to film anything else."
+        : result.readiness.nextAction,
       stillNeeded: result.readiness.blockingEvaluation,
       beforeRecording: result.readiness.blockingCapture,
     });
@@ -915,23 +950,12 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       }).stage;
     }
 
-    // A saved recording is distinct from its processing completion marker.
-    // Use the phone receipt's exact generation check: privacy holds and a
-    // failed marker write must not send the laptop back to filming again.
-    const upload = await describeBrowserUpload(payload, false);
-    if (upload.uploadState === "status_unavailable") {
+    const walkthrough = await savedWalkthrough(payload);
+    if (!walkthrough) {
       return res.status(503).json({ error: "The recording status could not be checked. Keep your original video and check again shortly.",
         code: "task_status_unavailable" });
     }
-    let hasStoredCapture = upload.captureReceived;
-    let uploadState = upload.uploadState;
-    if (!hasStoredCapture && storageAdmin) {
-      // Completed app bundles need not use the browser walkthrough filename.
-      const bucketName = process.env.FIREBASE_STORAGE_BUCKET?.trim() || "blueprint-8c1ca.appspot.com";
-      hasStoredCapture = await storedCaptureMarkerExists(storageAdmin.bucket(bucketName) as never,
-        `scenes/${payload.sceneId}/captures/${payload.captureId}/raw`);
-      if (hasStoredCapture) uploadState = "retained";
-    }
+    const { upload, received: hasStoredCapture, uploadState } = walkthrough;
 
     const reconstruction = captureSession?.exists
       ? (captureSession.data()?.world_reconstruction as Record<string, any> | undefined)
@@ -987,6 +1011,12 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       status.headline = upload.processingHold?.detail
         ?? "Your video is saved. Processing has not been confirmed. Keep your original video; you do not need to record or upload it again.";
       status.operatorAction = null;
+    }
+    // A held recording still awaits the brief: the hold is the headline, and
+    // confirming stays the site's one step.
+    if (!request?.captureRights.consent_revoked && status.decision === "confirm_brief" && hasStoredCapture
+      && upload.processingHold) {
+      status.headline = upload.processingHold.detail;
     }
     // Keep the optional claim from brief confirmation onward, including the
     // first visual scene. A reconstruction is not an evaluation result.

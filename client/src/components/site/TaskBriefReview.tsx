@@ -407,8 +407,8 @@ export function TaskBriefReview(props: {
       </h2>
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
         {drafted
-          ? "We used what you sent to prefill this summary. Save material corrections when needed; the assessment remains available without confirming every inference."
-          : "These tell us whether a robot evaluation will hold up at your site. Answer what you know; anything you are not sure about can stay open, and you can clarify it in writing or on a call."}
+          ? "We used what you sent to prefill this summary. Correct anything we got wrong, then confirm it: robot teams can evaluate your job only after you confirm it."
+          : "These tell us whether a robot evaluation will hold up at your site. Answer what you know; anything you are not sure about can stay open, and you can clarify it in writing or on a call. Robot teams can evaluate your job only after you confirm it."}
       </p>
 
       <p style={{ fontWeight: 500 }}>{props.brief.summary}</p>

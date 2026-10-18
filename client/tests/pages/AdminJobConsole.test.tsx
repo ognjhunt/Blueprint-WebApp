@@ -27,6 +27,7 @@ function row(overrides: Partial<JobConsoleRow> = {}): JobConsoleRow {
     brief: { state: "confirmed", unresolvedGates: 0 },
     capture: { state: "covered", missingViews: [] },
     listing: { state: "live" },
+    teamAccess: { listed: true, evaluationAvailable: true, reason: null, sceneHold: null },
     evaluations: { total: 1, pendingAdmission: 1, admitted: 0, pending: [{ requestId: "eval-1", teamName: "Atlas", setupName: "Arm v2" }] },
     runs: { queued: 0, running: 0, reported: 0, noResult: 0, passing: 0, belowTarget: 0, best: null },
     recommendation: { state: "none", recommendationId: null, teamId: null, teamName: null, evaluationRunId: null },
@@ -108,6 +109,19 @@ describe("AdminJobConsole", () => {
     expect(within(items[1]).getByText("Waiting on site to book Nova")).toBeInTheDocument();
     expect(screen.getByLabelText("Stage")).toBeInTheDocument();
     expect(screen.getByLabelText("Search site name")).toBeInTheDocument();
+  });
+
+  it("shows a job robot teams cannot evaluate as not open, with its real next step", async () => {
+    fetchMock.mockImplementation(async () => json({ jobs: [row({ stage: "not_open", actionOwner: "blueprint",
+      nextAction: "Rights review pending: review the capture's rights and privacy", evaluations: { total: 0, pendingAdmission: 0, admitted: 0, pending: [] },
+      teamAccess: { listed: false, evaluationAvailable: false, reason: "rights_needs_review", sceneHold: null } })],
+      nextCursor: null, scanned: 1, stages: [] }));
+    renderPage();
+    const list = await screen.findByRole("list", { name: "Site jobs" });
+    const [item] = within(list).getAllByRole("listitem");
+    expect(within(item).getByText("Not open to teams", { selector: "span" })).toBeInTheDocument();
+    expect(within(item).getByText("Rights review pending: review the capture's rights and privacy")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Stage")).getByRole("option", { name: "Not open to teams" })).toHaveValue("not_open");
   });
 
   it("filters by stage and searches on the server", async () => {

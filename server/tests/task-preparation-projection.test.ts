@@ -20,7 +20,11 @@ describe("current source-bound preparation projection", () => {
     expect(status.headline).toContain(phrase);
     expect(status.headline).toContain("Keep your original recording");
     expect(status.headline).not.toContain("we are preparing it");
-    expect(status.operatorAction).toBeNull();
+    // Teams evaluate only a confirmed job, so the problem carries the site's step.
+    expect(status.operatorAction).toMatch(/confirm it/i);
+    const confirmed = projectTaskStatus({ ...base, preparationStatus: { state, correlationId: reference } } as never);
+    expect(confirmed.headline).toBe(status.headline);
+    expect(confirmed.operatorAction).toBeNull();
   });
   it("includes only a host-validated correlation reference", () => {
     const status = projectTaskStatus({ ...base,
@@ -142,5 +146,20 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
       account_owner_uid: "test-owner", capture_coverage: { covers_scene: true }, hasStoredCapture: true,
       preparationOverdue: true, sceneProgression: { state: "ended" } } as never);
     expect(input).toMatchObject({ preparationOverdue: true, sceneProgression: { state: "ended" } });
+  });
+});
+
+describe("the site's brief confirmation alongside v2 preparation states", () => {
+  const unconfirmed = { ...base, briefConfirmed: false };
+  it("waiting for capacity, like preparing, leaves the confirmation as the site's step", () => {
+    const status = projectTaskStatus({ ...unconfirmed,
+      preparationStatus: { state: "capacity_delayed", correlationId: reference } } as never);
+    expect(status.decision).toBe("confirm_brief");
+  });
+  it("an ending keeps its own headline and still carries the confirmation ask", () => {
+    const status = projectTaskStatus({ ...unconfirmed,
+      preparationStatus: { state: "failed_terminal", correlationId: reference, terminalReason: "retry_exhausted" } } as never);
+    expect(status.headline).toContain("Scene preview preparation could not finish");
+    expect(status.operatorAction).toContain("confirm it");
   });
 });
