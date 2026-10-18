@@ -15,6 +15,8 @@
  * count came from a simulator preview, and an older Pipeline that states no
  * scoring at all.
  */
+import { qualifiedReceipt } from "./helpers/siteTaskQualificationReceipt";
+import { syntheticQualifiedAdmission } from "./helpers/recommendation-evidence";
 import express, { type Request, type Response } from "express";
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -129,16 +131,48 @@ describe("a signed Pipeline result and what it may back", () => {
   it("retains exact scene qualification through the signed result and requires it for a site recommendation", async () => {
     const prior = state.docs.get(`evaluationRuns/${RUN}`) as Record<string, any>;
     state.docs.set(`evaluationRuns/${RUN}`, { ...prior, executionCaptureId: "capture-scoring",
-      executionAdmission: { ...prior.executionAdmission, envelope: { evidence_scope: "simulation" } } });
+      executionAdmission: { ...prior.executionAdmission, envelope: syntheticQualifiedAdmission("capture-scoring", JOB).envelope } });
     const payload = admittedPayload();
-    const scoring = { ...payload.scoring, claim_ceiling: "site_task_simulation", site_task_qualification: { evidence_scope: "simulation", capture_id: "capture-scoring",
-      scene_revision_digest: sha("2"), registration_receipt_digest: sha("6"), fidelity_review_receipt_digest: sha("7") } };
+    const receipt = qualifiedReceipt();
+    const unpublished = await fetch(`${base}/api/internal/pipeline/site-task-qualifications`, { method: "POST",
+      headers: { "content-type": "application/json" }, body: JSON.stringify(receipt) });
+    expect(unpublished.status).toBe(401);
+    const published = await signed("/site-task-qualifications", receipt);
+    expect(published.status, await published.clone().text()).toBe(200);
+    expect(await published.json()).toEqual({ created: true, receiptDigest: receipt.receipt_digest });
+    const replay = await signed("/site-task-qualifications", receipt);
+    expect(await replay.json()).toEqual({ created: false, receiptDigest: receipt.receipt_digest });
+    expect(state.docs.get(`siteTaskQualifications/${receipt.receipt_digest.slice(7)}`)?.receipt).toEqual(receipt);
+    const scoring = { ...payload.scoring, claim_ceiling: "site_task_simulation", site_task_qualification: receipt.qualification };
     const response = await signed("/agent-run-results", { ...payload, scoring });
     expect(response.status, await response.clone().text()).toBe(200);
     expect(await recommendation()).toMatchObject({ ok: true, evidence: { evidenceScope: "simulation",
-      qualification: { captureId: "capture-scoring", registrationReceiptDigest: sha("6"), fidelityReviewReceiptDigest: sha("7") },
+      qualification: { captureId: "capture-scoring", registrationReceiptDigest: receipt.qualification.registration_receipt_digest, fidelityReviewReceiptDigest: receipt.qualification.fidelity_review_receipt_digest },
       episodeAccounting: { planned: 200, scored: 200, succeeded: 195, failed: 5, void: 0 } } });
   });
+
+  it.each(["missing_receipt", "receipt_changed", "success_contract_changed", "registration_changed", "cross_job"])(
+    "retains the actual scored episodes without qualifying a mismatched signed result (%s)", async variant => {
+      const prior = state.docs.get(`evaluationRuns/${RUN}`) as Record<string, any>;
+      const admission = syntheticQualifiedAdmission("capture-scoring", JOB);
+      const receipt = admission.envelope.site_task_qualification_receipt;
+      const payload = admittedPayload();
+      const scoring = { ...payload.scoring, claim_ceiling: "site_task_simulation", site_task_qualification: { ...receipt.qualification } };
+      if (variant === "missing_receipt") delete (admission.envelope as Record<string, unknown>).site_task_qualification_receipt;
+      if (variant === "receipt_changed") receipt.reviewed_by = "changed";
+      if (variant === "success_contract_changed") scoring.success_contract_digest = sha("9");
+      if (variant === "registration_changed") scoring.site_task_qualification.registration_receipt_digest = sha("9");
+      state.docs.set(`evaluationRuns/${RUN}`, { ...prior, executionCaptureId: "capture-scoring",
+        sceneId: variant === "cross_job" ? "another-job" : JOB,
+        executionAdmission: { ...prior.executionAdmission, envelope: admission.envelope } });
+      const response = await signed("/agent-run-results", { ...payload, scoring });
+      expect(response.status, await response.clone().text()).toBe(200);
+      const stored = state.docs.get(`evaluationRuns/${RUN}`)?.result;
+      expect(stored.observed.episodesRun).toBe(200);
+      expect(stored.scoring.siteTaskQualification.registrationReceiptDigest).toBe(scoring.site_task_qualification.registration_receipt_digest);
+      expect(stored.evidenceScope).not.toBe("simulation");
+      expect(await recommendation()).toMatchObject({ ok: false });
+    });
 
   it("never upgrades a development admission because a signed result includes qualification metadata", async () => {
     const prior = state.docs.get(`evaluationRuns/${RUN}`) as Record<string, any>;

@@ -173,6 +173,13 @@ router.post("/owner/:token/book", async (req, res) => {
       if (recommendation.reviewRequired) return "stale" as const;
       const booking = record?.pilot_booking;
       if (booking && booking.recommendationId !== recommendation.id) return "stale" as const;
+      const pilot = record?.workspace_task?.pilot;
+      // Accepting a recommendation selects its exact run for the site's
+      // follow-through. Never replace another selection or physical report.
+      if (!booking && pilot && ((pilot.selectedResultId && pilot.selectedResultId !== recommendation.evaluationRunId)
+        || (["pilot", "pilot_complete", "deployed"].includes(pilot.state) && pilot.selectedResultId !== recommendation.evaluationRunId))) {
+        return "pilot_conflict" as const;
+      }
       // Keep historical acceptances intact, but an old development-only or
       // incomplete snapshot cannot create a new evidence-backed booking.
       if (!booking) {
@@ -218,7 +225,10 @@ router.post("/owner/:token/book", async (req, res) => {
       if (!booking) transaction.update(ref, { pilot_booking: {
         recommendationId: recommendation.id, amountUsd: 0, termsVersion: TERMS_VERSION, commercialBasis: "invited_beta_free",
         acceptedAtIso: bookedAtIso, acceptedBy: "signed_owner_link", state: "awaiting_coordination",
-      } });
+      }, ...(!["pilot", "pilot_complete", "deployed"].includes(pilot?.state) ? {
+        workspace_task: { ...record.workspace_task, pilot: { ...pilot, state: "selected", selectedResultId: recommendation.evaluationRunId,
+          source: "site_booking", recommendationId: recommendation.id, recordedBy: "signed_owner_link", recordedAt: bookedAtIso } },
+      } : {}) });
       if (!booking && typeof recommendation.teamId === "string") booked = { recommendationId: recommendation.id, teamId: recommendation.teamId };
       teamNotice?.write(transaction);
       if (!existing) {
@@ -244,6 +254,8 @@ router.post("/owner/:token/book", async (req, res) => {
     });
     if (outcome === "missing") return res.status(404).json({ error: "There is no pilot proposal to accept yet." });
     if (outcome === "stale") return res.status(409).json({ error: "This recommendation has changed. Reopen your job page to see the current one." });
+    if (outcome === "pilot_conflict") return res.status(409).json({ code: "pilot_selection_conflict",
+      error: "Your job already has a different pilot selection or outcome. Contact Blueprint to review it before booking this recommendation." });
     if (outcome === "evidence_ineligible") return res.status(409).json({ code: "recommendation_evidence_ineligible",
       error: "This pilot needs a qualified evaluation of your job before it can be booked. Blueprint must review its evidence." });
     if (outcome === "contact_missing") return res.status(409).json({ error: "A valid site contact email is needed to confirm acceptance. Contact Blueprint to correct it." });

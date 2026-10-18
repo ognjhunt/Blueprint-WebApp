@@ -1,0 +1,47 @@
+{
+  "schema": "blueprint.beta_audit.manifest.v1",
+  "date": "2026-10-18",
+  "webapp_commit": "b9d4536bdb1e4a91e75a6c9ffa9ba3cac66c5010",
+  "pipeline_commit": "b80387659c130610bb3380727b358cc0a3439b68",
+  "canonical_location": "Blueprint-WebApp/docs/launch-readiness/2026-10-18-beta-launch-audit.md and evidence/2026-10-18-beta",
+  "status": "local uncommitted audit artifacts",
+  "recovery": "Copy or commit the UTF-8 Markdown/JSON and PNG files in the user-owned repository. Re-run the documented read-only owner-system queries with existing authorization for fresh facts. Hashes identify this observation, not continuing runtime state.",
+  "files": [
+    {
+      "path": "docs/launch-readiness/2026-10-18-beta-launch-audit.md",
+      "bytes": 26863,
+      "sha256": "dbb3df73c37817893452efab9ede606d6ba9b9e48d4070047d4d3363424a1643",
+      "format": "md"
+    },
+    {
+      "path": "docs/launch-readiness/evidence/2026-10-18-beta/browser-observations.json",
+      "bytes": 2932,
+      "sha256": "645fce547102f1a47b8fe785b0cd9be0aa7197841b6561cd32fd9e5781ba84e5",
+      "format": "json"
+    },
+    {
+      "path": "docs/launch-readiness/evidence/2026-10-18-beta/home-desktop.png",
+      "bytes": 113352,
+      "sha256": "fa4f1cc4f5a20829dd54943016c87ef9bc32385c23a7d05e5a00c63874269619",
+      "format": "png"
+    },
+    {
+      "path": "docs/launch-readiness/evidence/2026-10-18-beta/pipeline-live-evidence.json",
+      "bytes": 7834,
+      "sha256": "43d4d620158363395b13abcd45cc809f14a2e7dcff91fe0f2d5cf2631ba69b22",
+      "format": "json"
+    },
+    {
+      "path": "docs/launch-readiness/evidence/2026-10-18-beta/release-evidence-aggregate.json",
+      "bytes": 11664,
+      "sha256": "50676ce3e7fff62d7063be22df1ae873b81a428f990f5e9e76dcb6c805c32184",
+      "format": "json"
+    },
+    {
+      "path": "docs/launch-readiness/evidence/2026-10-18-beta/site-intake-mobile.png",
+      "bytes": 61155,
+      "sha256": "2a5ce026e678ab7a9955a6ab5a808934ef222d2e5cae2723f6dfe30472ec7ffb",
+      "format": "png"
+    }
+  ]
+}

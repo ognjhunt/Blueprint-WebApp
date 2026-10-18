@@ -58,7 +58,7 @@ import { settlementAmountUsd } from "./agentEvalRuns";
 import { recordEvaluationOutcome } from "./robotTeamRegistry";
 import type { EvalRunRecord } from "./agentEvalRuns";
 import type { ControlledNativePrivateResult } from "./controlledNativeResult";
-import { hasQualifiedSimulationEvidence, type RunResultScoring } from "./runResultScoring";
+import { frozenSiteTaskQualification, hasQualifiedSimulationEvidence, type RunResultScoring } from "./runResultScoring";
 
 const RUNS_COLLECTION = "evaluationRuns";
 
@@ -184,7 +184,7 @@ export async function recordRunResult(params: {
   const result: EvalRunResult = {
     ...(run.executionAdmission?.envelope.evidence_scope === "development_only"
       ? { evidenceScope: "development_only" as const }
-      : params.report.scoring?.siteTaskQualification?.evidenceScope === "simulation"
+      : frozenSiteTaskQualification(run, { scoring: params.report.scoring })
         ? { evidenceScope: "simulation" as const } : {}),
     confidencePolicyVersion: CONFIDENCE_POLICY_VERSION,
     runId: run.runId,

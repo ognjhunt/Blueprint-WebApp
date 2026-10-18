@@ -62,6 +62,8 @@ import {
 } from "./agentRunRecord";
 import { enqueueTaskLifecycleNotification, notifyIfNoTeamPassed } from "./taskLifecycleNotifications";
 import { notifyTeamOfRunOutcome } from "./robotTeamNotifications";
+import type { NoResultObservation } from "./runNoResultObservation";
+import { teamJobAccess } from "./teamJobAccess";
 export {
   buildRequestedRunRecord,
   reservationTtlMs,
@@ -161,7 +163,7 @@ async function recordRunOutcome(params: RunOutcomeParams & {
 
   const ref = db.collection(RUNS_COLLECTION).doc(params.runId);
   const episodesRun = Math.max(0, Math.round(params.episodesRun));
-  let endedWithoutResult: { sceneId: string; teamId: string; siteVisible: boolean } | null = null;
+  let endedWithoutResult: { sceneId: string; teamId: string; siteVisible: boolean; progress: NoResultObservation } | null = null;
   const accepted = await db.runTransaction(async transaction => {
     const snapshot = await transaction.get(ref);
     // An outcome for a run we never reserved money for has nothing to settle.
@@ -212,7 +214,8 @@ async function recordRunOutcome(params: RunOutcomeParams & {
         && Object.entries(params.executionProgress).some(([key, value]) => run.executionProgress?.[key as keyof RunExecutionProgress] !== value)) {
         throw new RunOutcomeConflictError("Execution progress conflicts with the recorded run outcome");
       }
-      endedWithoutResult = params.state === "blocked" || episodesRun === 0 ? { sceneId: run.sceneId, teamId: run.teamId, siteVisible: isSiteEvaluation(run) } : null;
+      endedWithoutResult = params.state === "blocked" || episodesRun === 0 ? { sceneId: run.sceneId, teamId: run.teamId, siteVisible: isSiteEvaluation(run),
+        progress: { episodesRun: run.episodesRun, executionProgress: run.executionProgress } } : null;
       // An identical delivery is an idempotent acknowledgement. In particular,
       // do not put an already-resolved run back into the due queue.
       return "recorded" as const;
@@ -236,23 +239,24 @@ async function recordRunOutcome(params: RunOutcomeParams & {
       reportedAtIso: nowIso(),
       settlementDueAtMs: 0,
     }, { merge: true });
-    endedWithoutResult = params.state === "blocked" || episodesRun === 0 ? { sceneId: run.sceneId, teamId: run.teamId, siteVisible: isSiteEvaluation(run) } : null;
+    endedWithoutResult = params.state === "blocked" || episodesRun === 0 ? { sceneId: run.sceneId, teamId: run.teamId, siteVisible: isSiteEvaluation(run),
+      progress: { episodesRun, executionProgress: params.executionProgress ?? run.executionProgress } } : null;
     return "recorded" as const;
   });
-  // The site hears about a run that ended with nothing to show, too. A run
-  // with episodes gets its email when the result is recorded.
-  const ended = endedWithoutResult as { sceneId: string; teamId: string; siteVisible: boolean } | null;
+  // A terminal run without a complete result can still retain partial episode
+  // observations. Carry those observations to both audiences unchanged.
+  const ended = endedWithoutResult as { sceneId: string; teamId: string; siteVisible: boolean; progress: NoResultObservation } | null;
   if (ended) {
     try {
       if (ended.siteVisible) {
-        await enqueueTaskLifecycleNotification({ requestId: ended.sceneId, milestone: "run_no_result", eventId: params.runId });
+        await enqueueTaskLifecycleNotification({ requestId: ended.sceneId, milestone: "run_no_result", eventId: params.runId, runProgress: ended.progress });
         try { await notifyIfNoTeamPassed(ended.sceneId, params.runId); } catch { /* best-effort */ }
       }
     } catch (error) {
       logger.warn({ error, runId: params.runId }, "Could not enqueue a no-result notice");
     }
     try {
-      await notifyTeamOfRunOutcome({ teamId: ended.teamId, runId: params.runId, outcome: { kind: "no_result" } });
+      await notifyTeamOfRunOutcome({ teamId: ended.teamId, runId: params.runId, outcome: { kind: "no_result", progress: ended.progress } });
     } catch (error) {
       logger.warn({ error, runId: params.runId }, "Could not enqueue the team's no-result notice");
     }
@@ -596,6 +600,34 @@ export async function listUnsettledRuns(teamId: string, limit = 50): Promise<Eva
 
 /* ------------------------------------------------ the seam the Pipeline reads */
 
+/** The admitted setup stays frozen, but a revoked grant or a closed site job
+ * cannot authorize a new claim or renew an executor. Read these authorities in
+ * the claim transaction so a concurrent withdrawal forces Firestore to retry. */
+async function workspaceRunAuthorityIsCurrent(transaction: FirebaseFirestore.Transaction, run: EvalRunRecord): Promise<boolean> {
+  const envelope = run.executionAdmission?.envelope;
+  const funding = envelope?.funding as Record<string, unknown> | undefined;
+  if (!funding || !Object.prototype.hasOwnProperty.call(funding, "workspace_request_id")) return true;
+  const requestId = funding.workspace_request_id;
+  const validId = (value: unknown): value is string => typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/.test(value);
+  if (!validId(requestId) || !validId(run.sceneId)) return false;
+  const frozen = envelope?.policy_run_license as Record<string, unknown> | undefined;
+  if (!frozen || frozen.schemaVersion !== "blueprint.policy_run_license.v1" || frozen.revokedAtIso !== undefined
+    || frozen.requestId !== requestId || frozen.opportunityId !== run.sceneId || !validId(frozen.setupId)
+    || typeof frozen.grantedByUid !== "string" || !frozen.grantedByUid
+    || typeof frozen.setupDigest !== "string" || !/^sha256:[a-f0-9]{64}$/.test(frozen.setupDigest)
+    || typeof frozen.grantedAtIso !== "string" || !Number.isFinite(Date.parse(frozen.grantedAtIso))
+    || Date.parse(frozen.grantedAtIso) > Date.now()) return false;
+  const [request, scene] = await Promise.all([
+    transaction.get(db!.collection("inboundRequests").doc(requestId)),
+    transaction.get(db!.collection("inboundRequests").doc(run.sceneId)),
+  ]);
+  const source = request.data(), selection = source?.workspace_evaluation;
+  return request.exists && scene.exists && source?.account_owner_uid === frozen.grantedByUid
+    && selection?.opportunityId === run.sceneId && selection?.setupId === frozen.setupId
+    && isDeepStrictEqual(selection?.policyRunLicense, frozen)
+    && teamJobAccess(scene.data()).evaluationAvailable;
+}
+
 /**
  * Runs waiting to be executed, oldest first.
  *
@@ -639,6 +671,7 @@ export async function markRunStarted(params: {
     if (run.executionAdmission && params.executionAdmissionDigest !== run.executionAdmission.digestSha256) return null;
     if (run.moneyResolved || run.cancellationRequested || run.state !== "requested" || run.episodesRun !== null) return null;
     if (!canDispatchFreeBetaRun(run)) return null;
+    if (!(await workspaceRunAuthorityIsCurrent(transaction, run))) return null;
     if (run.dispatch?.startedAtIso) {
       return run.dispatch.pipelineRunId === params.pipelineRunId && runExecutionDueAtMs(run) > Date.now() ? run : null;
     }
@@ -680,6 +713,7 @@ export async function heartbeatRun(params: {
       || !run.dispatch?.startedAtIso || run.dispatch.pipelineRunId !== params.pipelineRunId
       || (run.executionAdmission && run.executionAdmission.digestSha256 !== params.executionAdmissionDigest)
       || runExecutionDueAtMs(run) <= Date.now()) return false;
+    if (!(await workspaceRunAuthorityIsCurrent(transaction, run))) return false;
     const dispatch: RunDispatch = {
       ...run.dispatch,
       executionDeadlineAtMs: run.dispatch.executionDeadlineAtMs ?? Date.parse(run.dispatch.startedAtIso) + executionTtlMs(),

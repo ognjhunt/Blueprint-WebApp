@@ -232,7 +232,7 @@ async function seed(
       data = { requestId: body.id, ok: true };
     } else if (url.pathname.endsWith("/pilot")) {
       snapshot.tasks[0].pilot = {
-        state: "selected",
+        state: ({ start: "pilot", complete: "pilot_complete", deploy: "deployed" } as Record<string, string>)[body.action] ?? "selected",
         selectedResultId: body.resultId,
         notes: body.notes,
         siteVisitAnswer: body.siteVisitAnswer,
@@ -529,4 +529,28 @@ test("existing connection page uses the shared workspace design", async ({
     "Start the connection from ChatGPT",
   );
   await expect(page.locator("main")).toHaveCount(1);
+});
+
+
+test("a booked recommendation progresses only through explicit site-reported outcomes", async ({ page }, info) => {
+  const snapshot = await seed(page, "site_operator");
+  snapshot.tasks[0].pilot = { state: "selected", selectedResultId: "application-1", notes: null };
+  snapshot.tasks[0].pilotBooking = { recommendationId: "synthetic-booking", bookedAtIso: "2026-10-18T00:00:00Z",
+    contact: { name: "Synthetic team", organization: "Fixture Robotics", email: "team@example.test", phone: null },
+    consentWithdrawn: false };
+  await page.goto("/app/tasks/task-1?tab=results");
+  await expect(page.getByRole("heading", { name: "Pilot booked", exact: true })).toBeVisible();
+  await expect(page.getByText("Outcome recorded by your site.")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "team@example.test" })).toBeVisible();
+  for (const label of ["Record pilot start", "Record pilot outcome", "Record deployment"]) {
+    await page.getByRole("button", { name: new RegExp(label) }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("textbox", { name: "Decision notes" }).fill(`Synthetic local browser test: ${label}`);
+    await dialog.getByRole("button", { name: "Save decision" }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByText("Outcome recorded by your site.")).toBeVisible();
+  }
+  await expect(page.getByRole("heading", { name: "Deployed", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Record deployment/ })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath("booked-pilot-site-reported-outcome.png"), fullPage: true });
 });

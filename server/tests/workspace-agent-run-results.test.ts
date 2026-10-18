@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 
 import { projectAgentRunResult, projectWorkspaceResult, teamAlias, termsFor } from "../utils/workspace-projection";
 import { RUN_RESULT_SCORING_SCHEMA_VERSION, type RunResultScoring } from "../utils/runResultScoring";
-import { syntheticSiteTaskQualification, syntheticEpisodeOutcomes } from "./helpers/recommendation-evidence";
+import { syntheticQualifiedAdmission, syntheticSiteTaskQualification, syntheticEpisodeOutcomes } from "./helpers/recommendation-evidence";
 
 const digest = (char: string) => `sha256:${char.repeat(64)}`;
 const simulatorScored: RunResultScoring = {
@@ -33,10 +33,10 @@ const reported = {
 };
 
 function qualified(scored = 200, succeeded = 164) {
-  return { ...reported, quotedEpisodes: 200, executionCaptureId: "capture-fixture",
+  return { ...reported, sceneId: "req-1", executionAdmission: syntheticQualifiedAdmission("capture-fixture", "req-1"), quotedEpisodes: 200, executionCaptureId: "capture-fixture",
     result: { ...reported.result, evidenceScope: "simulation" as const,
       scoring: { ...simulatorScored, scoredEpisodeCount: scored, claimCeiling: "site_task_simulation",
-        siteTaskQualification: syntheticSiteTaskQualification() }, episodeOutcomes: syntheticEpisodeOutcomes(scored, succeeded),
+        siteTaskQualification: syntheticSiteTaskQualification("capture-fixture", "req-1") }, episodeOutcomes: syntheticEpisodeOutcomes(scored, succeeded),
       observed: { ...reported.result.observed, episodesRun: scored, episodesSucceeded: succeeded, successRate: succeeded / scored } } };
 }
 

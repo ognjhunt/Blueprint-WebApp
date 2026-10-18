@@ -1,3 +1,5 @@
+import { dbAdmin as qualificationDatabase } from "../../client/src/lib/firebaseAdmin";
+import { publishSiteTaskQualificationReceipt } from "../utils/siteTaskQualificationReceipt";
 /**
  * Closing out the money a run reserved.
  *
@@ -84,6 +86,18 @@ function guard(req: Request, res: Response, next: () => void) {
   }
   next();
 }
+
+/** Only the authenticated Pipeline publishes measured scene qualification.
+ * The Pipeline's protected registry owns reviewer/profile authority; this
+ * transport cannot turn a browser assertion into an accepted receipt. */
+router.post("/site-task-qualifications", createPipelineSyncRateLimiter(), guard, async (req, res) => {
+  try {
+    return res.status(200).json(await publishSiteTaskQualificationReceipt(req.body, qualificationDatabase));
+  } catch (error) {
+    logger.warn({ error }, "Site-task qualification publication refused");
+    return res.status(400).json({ code: "site_task_qualification_invalid", error: "Qualification receipt or immutable binding is invalid." });
+  }
+});
 
 const settlementSchema = z
   .object({

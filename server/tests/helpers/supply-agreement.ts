@@ -1,3 +1,4 @@
+import { syntheticQualifiedAdmission } from "./recommendation-evidence";
 /**
  * A complete, valid supply agreement for fixtures.
  *
@@ -51,7 +52,8 @@ export function syntheticRobotEmbodiment(form: "humanoid" | "wheeled_humanoid" |
 }
 
 export function syntheticSupplyExecutionAdmission(interfaceId = TEAM_CANDIDATE_HTTPS_INTERFACE, robotEmbodiment?: RobotEmbodiment) {
-  return { digestSha256: "sha256:synthetic-admission", envelope: { canonical_execution_request: { policy_package: {
+  const qualified = syntheticQualifiedAdmission("walkthrough-req1", "req1");
+  return { ...qualified, envelope: { ...qualified.envelope, canonical_execution_request: { policy_package: {
     policy_api_endpoint: { policy_interface_id: interfaceId, execution_profile: TEAM_EVALUATION_PROFILE,
       ...(robotEmbodiment ? { robot_embodiment: robotEmbodiment } : {}) },
   } } } };

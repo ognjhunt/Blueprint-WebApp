@@ -162,6 +162,23 @@ describe("AdminJobConsole", () => {
     fireEvent.submit(form);
     expect(await within(form).findByRole("alert")).toHaveTextContent("free_evaluation_policy_mismatch");
   });
+
+  it("requests qualified simulation only with the operator's published receipt digest", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Open Dock 4" }));
+    const form = await screen.findByRole("form", { name: "Admit free evaluation eval-1" });
+    const digest = `sha256:${"a".repeat(64)}`;
+    fireEvent.change(within(form).getByLabelText("Published qualification receipt digest (optional)"), {
+      target: { value: digest },
+    });
+    expect(within(form).getByText("simulation")).toBeInTheDocument();
+    fireEvent.submit(form);
+    await screen.findByText("run_free_abc");
+    const call = fetchMock.mock.calls.find(([url]) => url === "/api/admin/free-evaluations/eval-1/admit")!;
+    expect(JSON.parse(String((call[1] as RequestInit).body))).toMatchObject({
+      evidenceScope: "simulation", qualificationReceiptDigest: digest,
+    });
+  });
 });
 
 describe("admission expiry defaults", () => {

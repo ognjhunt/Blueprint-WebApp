@@ -1,0 +1,91 @@
+{
+  "schema": "blueprint.scoped_index_deployment_plan.v1",
+  "createdAt": "2026-10-18T13:54:53.220366+00:00",
+  "status": "review_only_not_applied",
+  "scope": {
+    "project": "blueprint-8c1ca",
+    "database": "(default)",
+    "createOnly": true,
+    "maximumCreates": 2,
+    "deletions": 0,
+    "rulesChanges": 0,
+    "otherResourceChanges": 0
+  },
+  "source": {
+    "path": "/Users/nijelhunt_1/.codex/worktrees/8547/Blueprint-WebApp/firestore.indexes.json",
+    "sha256": "6a027ae610c35d0def5d5ce105abae6679f0d5d340d20b000cb14235eaa5fab7",
+    "sourceCommit": "b9d4536bdb1e4a91e75a6c9ffa9ba3cac66c5010"
+  },
+  "liveIndexCount": 37,
+  "indexes": [
+    {
+      "definition": {
+        "collectionGroup": "evaluationRuns",
+        "queryScope": "COLLECTION",
+        "fields": [
+          {
+            "fieldPath": "teamId",
+            "order": "ASCENDING"
+          },
+          {
+            "fieldPath": "settlementDueAtMs",
+            "order": "ASCENDING"
+          }
+        ]
+      },
+      "liveMatches": [],
+      "action": "create_missing",
+      "commandArgv": [
+        "gcloud",
+        "firestore",
+        "indexes",
+        "composite",
+        "create",
+        "--project=blueprint-8c1ca",
+        "--database=(default)",
+        "--collection-group=evaluationRuns",
+        "--query-scope=collection",
+        "--field-config=field-path=teamId,order=ascending",
+        "--field-config=field-path=settlementDueAtMs,order=ascending",
+        "--async",
+        "--format=json"
+      ]
+    },
+    {
+      "definition": {
+        "collectionGroup": "inboundRequests",
+        "queryScope": "COLLECTION",
+        "fields": [
+          {
+            "fieldPath": "status",
+            "order": "ASCENDING"
+          },
+          {
+            "fieldPath": "createdAt",
+            "order": "DESCENDING"
+          }
+        ]
+      },
+      "liveMatches": [],
+      "action": "create_missing",
+      "commandArgv": [
+        "gcloud",
+        "firestore",
+        "indexes",
+        "composite",
+        "create",
+        "--project=blueprint-8c1ca",
+        "--database=(default)",
+        "--collection-group=inboundRequests",
+        "--query-scope=collection",
+        "--field-config=field-path=status,order=ascending",
+        "--field-config=field-path=createdAt,order=descending",
+        "--async",
+        "--format=json"
+      ]
+    }
+  ],
+  "approval": "Do not execute creates until existing cloud-mutation approval gate is satisfied for these exact definitions.",
+  "verification": "Wait each created index to READY, repeat the two read-only runQuery shapes from release-evidence-aggregate.json, require HTTP200 and no FAILED_PRECONDITION; preserve operation IDs and before/after scoped index metadata.",
+  "safety": "No full firebase deploy, no rules publication, no index deletion, no new budget/services/credentials, no record writes or live application route that settles holds."
+}

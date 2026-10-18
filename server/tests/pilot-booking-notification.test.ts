@@ -17,6 +17,7 @@ const { createCaptureUploadToken } = await import("../utils/captureUploadToken")
 const { deliverOutbox, enqueueOutbox } = await import("../utils/captureOutbox");
 const { TERMS_VERSION } = await import("../../client/src/lib/legalAcceptance");
 const { verifyRecommendationEvidence, passMarkForJob } = await import("../utils/pilotRecommendationEvidence");
+const { projectWorkspaceTask } = await import("../utils/workspace-projection");
 
 let server: Server; let base: string;
 const input = { recommendationId: "rec_book", authorized: true };
@@ -60,8 +61,56 @@ describe("durable pilot booking confirmation", () => {
     })));
     expect((await post()).status).toBe(503);
     expect(doc().pilot_booking).toBeUndefined();
+    expect(doc().workspace_task?.pilot).toBeUndefined();
     expect(rows()).toHaveLength(0);
     expect((await post()).status).toBe(200);
+  });
+
+  it("makes the booked recommendation available for site-reported follow-through without starting the pilot", async () => {
+    state.docs.set("inboundRequests/req1", { ...doc(), workspace_task: { terms: { successRate: 90 },
+      pilot: { state: "not_selected", notes: "Existing site notes" } } });
+    expect((await post()).status).toBe(200);
+    const selectedRunId = doc().pilot_recommendation.evaluationRunId;
+    expect(doc().workspace_task).toMatchObject({ terms: { successRate: 90 }, pilot: {
+      state: "selected", selectedResultId: selectedRunId, notes: "Existing site notes", source: "site_booking",
+      recommendationId: "rec_book", recordedAt: doc().pilot_booking.acceptedAtIso,
+    } });
+    expect(projectWorkspaceTask("req1", doc())).toMatchObject({ status: "Pilot booked",
+      pilot: { state: "selected", selectedResultId: selectedRunId } });
+    expect(doc().workspace_task.pilot).not.toHaveProperty("startedAt");
+    const selected = structuredClone(doc().workspace_task.pilot);
+    expect((await post()).status).toBe(200);
+    expect(doc().workspace_task.pilot).toEqual(selected);
+  });
+
+  it("does not overwrite a site's physical outcome when the booking is retried", async () => {
+    expect((await post()).status).toBe(200);
+    const siteOutcome = { ...doc().workspace_task.pilot, state: "pilot_complete", source: "site_reported",
+      notes: "The site reported the agreed trial complete", recordedAt: "2026-10-18T12:00:00Z" };
+    state.docs.set("inboundRequests/req1", { ...doc(), workspace_task: { pilot: siteOutcome } });
+    expect((await post()).status).toBe(200);
+    expect(doc().workspace_task.pilot).toEqual(siteOutcome);
+    expect(projectWorkspaceTask("req1", doc()).status).toBe("Pilot complete");
+  });
+
+  it("refuses a new booking that conflicts with an existing pilot selection", async () => {
+    const pilot = { state: "pilot", selectedResultId: "another-run", notes: "Physical pilot underway" };
+    state.docs.set("inboundRequests/req1", { ...doc(), workspace_task: { pilot } });
+    const response = await post();
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: "pilot_selection_conflict" });
+    expect(doc().pilot_booking).toBeUndefined();
+    expect(doc().workspace_task.pilot).toEqual(pilot);
+    expect(rows()).toHaveLength(0);
+  });
+
+  it("retains an existing physical outcome for the same run on a new booking", async () => {
+    const pilot = { state: "pilot_complete", selectedResultId: doc().pilot_recommendation.evaluationRunId,
+      source: "site_reported", notes: "The site reported the trial complete" };
+    state.docs.set("inboundRequests/req1", { ...doc(), workspace_task: { pilot } });
+    expect((await post()).status).toBe(200);
+    expect(doc().workspace_task.pilot).toEqual(pilot);
+    expect(projectWorkspaceTask("req1", doc()).status).toBe("Pilot complete");
   });
 
   it("preserves booking identity and confirmation history after a lost response retry", async () => {

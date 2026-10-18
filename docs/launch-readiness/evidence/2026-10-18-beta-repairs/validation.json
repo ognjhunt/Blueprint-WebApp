@@ -1,0 +1,241 @@
+{
+  "schema": "blueprint.beta_repair_validation.v1",
+  "observedAtIso": "2026-10-18T14:27:07.433586+00:00",
+  "webappBaseCommit": "b9d4536bdb1e4a91e75a6c9ffa9ba3cac66c5010",
+  "pipelineCommit": "8e165ff9aa22a2c8aa30896334a2df79cc586356",
+  "pipelinePullRequest": "https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2730",
+  "environment": {
+    "os": "macOS",
+    "node": "v22.21.1",
+    "testCredentials": "scrubbed process environment; explicit fake stores",
+    "dependencies": "reused local runtime; private Express/proxy-addr overlay checked against lockfile integrity, no shared dependency mutation",
+    "cleanLockInstallProven": false
+  },
+  "checks": [
+    {
+      "name": "WebApp final focused contract/UI tests",
+      "command": "vitest run server/tests/site-task-qualification-receipt.test.ts server/tests/free-evaluation-handoff.test.ts server/tests/agent-run-result-scoring.test.ts server/tests/pilot-recommendation-evidence.test.ts server/tests/workspace-run-authority.test.ts server/tests/agent-run-no-result-notifications.test.ts server/tests/pilot-booking-notification.test.ts client/tests/pages/TaskDetail.test.tsx client/tests/pages/AdminJobConsole.test.tsx --maxWorkers=2",
+      "status": "passed",
+      "files": 9,
+      "tests": 163
+    },
+    {
+      "name": "WebApp full local coverage invocation",
+      "command": "npm run test:coverage -- --maxWorkers=2 --coverage.reporter=text --coverage.reporter=json",
+      "status": "failed_with_diagnosed_local_limitations_and_repaired_fixtures",
+      "files": 836,
+      "passedFiles": 828,
+      "failedFiles": 5,
+      "skippedFiles": 3,
+      "passedTests": 10434,
+      "failedTests": 9,
+      "skippedTests": 13,
+      "seconds": 1027.36,
+      "remainingLocalFailures": [
+        "Two unchanged Linux /proc process-inspection tests cannot execute on macOS."
+      ],
+      "resolvedFailures": [
+        "Two capture-record normalization failures fixed and exact journey suite rerun:19 passed.",
+        "Three proxy-boundary failures from reused proxy-addr2.0.7; locked2.0.8 private overlay:6 passed.",
+        "One customer journey fixture overwrote the correct qualification binding; fixed fixture:1 passed.",
+        "One native-helper test assumes literal /tmp prefix; rerun with TMPDIR=/tmp:57 passed."
+      ],
+      "fullCoverageGatePassed": false,
+      "nextGate": "Linux clean-install CI full coverage on exact PR head"
+    },
+    {
+      "name": "Fixture/proxy recheck",
+      "status": "passed",
+      "files": 2,
+      "tests": 25
+    },
+    {
+      "name": "Native-path/customer recheck",
+      "status": "passed",
+      "files": 2,
+      "tests": 58
+    },
+    {
+      "name": "Full typecheck",
+      "command": "npm run check -- --incremental false",
+      "status": "passed"
+    },
+    {
+      "name": "Compile-only production build",
+      "command": "BLUEPRINT_ALLOW_UNCONFIGURED_CLIENT_BUILD=1 npm run build",
+      "status": "passed",
+      "note": "No production Firebase configuration; compile proof only. Separate fake-auth local browser build was used for browser checks."
+    },
+    {
+      "name": "Authenticated local browser journeys",
+      "status": "passed",
+      "tests": 3,
+      "seconds": 21,
+      "journeys": [
+        "site results and recommended pilot",
+        "team saves setup and requests evaluation",
+        "booked recommendation progresses only through explicit site-reported outcomes"
+      ],
+      "scope": "local fake auth and intercepted API fixtures; not a production customer or send"
+    },
+    {
+      "name": "Graphify architecture refresh",
+      "command": "BLUEPRINT_GRAPHIFY_PYTHON=<existing pinned py312 environment> bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz",
+      "status": "passed",
+      "nodes": 1555,
+      "edges": 2910,
+      "communities": 61
+    },
+    {
+      "name": "Portable canonical storage audit",
+      "command": "npx tsx scripts/research-learning/check-portability.ts",
+      "status": "passed",
+      "findings": 0
+    },
+    {
+      "name": "Shared doctrine lock",
+      "command": "npm run doctrine:verify",
+      "status": "passed"
+    },
+    {
+      "name": "Cross-runtime final Python receipt",
+      "status": "passed",
+      "receiptDigest": "sha256:71581e2e87c2e5c354c57b2e5c1ca2ae36db7668af4f50c10000b6b1f7f95af9",
+      "note": "Final Python CLI receipt validates in TypeScript; reverse TypeScript receipt was also validated in Python."
+    },
+    {
+      "name": "Pipeline focused regressions",
+      "status": "passed",
+      "tests": 101
+    },
+    {
+      "name": "Pipeline final qualification suite",
+      "status": "passed",
+      "tests": 30,
+      "includes": "synthetic200-episode admission-to-result, source drift before credentials and closeout, publication retry and relocation"
+    },
+    {
+      "name": "Pipeline lifecycle/import closure",
+      "status": "passed",
+      "tests": 25
+    },
+    {
+      "name": "Independent source review",
+      "status": "passed",
+      "findingsRemaining": 0,
+      "scope": "qualification integrity/freezing, policy grant and current authority, Pipeline source-read TOCTOU/publication retry/relocation"
+    }
+  ],
+  "scope": {
+    "deployed": false,
+    "realQualifiedSite": false,
+    "realGpuEvaluation": false,
+    "emailsSent": false,
+    "dispatchHoldChanged": false,
+    "spendAuthorized": false,
+    "liveMutationException": "One unintended synthetic document create, then user-authorized exact conditional deletion; see cleanup.json"
+  },
+  "sourceFileSha256": {
+    "client/src/components/admin/AdmitFreeEvaluationForm.tsx": "1fed517a8e277c666e90ca789a67a0956e9f8a2dc97ad0ba8777a81223d9d1dd",
+    "client/src/pages/workspace/TaskDetail.tsx": "e0ee961b63783961ccf01b293de8db831d98c9a9db773251e5fc29ef60309585",
+    "client/tests/components/CustomerJobJourney.test.tsx": "a889b4998eb78c681be0cf72a940ac86bce8c7e7778e7d512ae2a0bbc768be7a",
+    "client/tests/pages/AdminJobConsole.test.tsx": "31383bfe1c297dd04f1577a2972f3e853d64adac627ce190cf0db1fa151f6b07",
+    "client/tests/pages/TaskDetail.test.tsx": "32a06f957ac6044a16cd8fef5bd2015a12f09f53d7223bbb031f64fb7bd27573",
+    "docs/runbooks/pilot-recommendation-evidence.md": "9731e97f99adf17d7ad2f1bdf54e3f8dc03f6088aa228b1dd88f406c1936efc7",
+    "docs/runbooks/qualified-site-evaluation.md": "13d7bbdba46bf91ef3582b5f5710ab1a064507e4f56008c5ff5eb213137c9b5a",
+    "e2e/workspace-design.spec.ts": "14c1f7c1ec6ed3382907b077f7fff5856323c83803f2a3bcdb36c4cc33d0d720",
+    "server/routes/admin-free-evaluations.ts": "b10a2a38f99d71fd82bc65fbbdb7c415846f91bc92b1712fe08790cff7d53f6d",
+    "server/routes/internal-agent-run-settlement.ts": "ea023769e060fd21d14aa0d1529879f1f5807831d4738d306a86e8a18c5fbcd9",
+    "server/routes/task-listings.ts": "1e634e8d67fbf8eb98bbc3085ebcc59264ebdb7f239cb4a041bf95ce460b4a08",
+    "server/routes/workspace.ts": "4ecc57c08cd00e823517e0f313961b6470b9e2cbe59709036b1b49c2da741d10",
+    "server/tests/agent-run-no-result-notifications.test.ts": "25ae359740701cf74fb27b418c3141548c7d0408aabfc18ba2dd04761921c930",
+    "server/tests/agent-run-result-scoring.test.ts": "6e187aa07d9785d56ca1b0b8ea4f21d9da2d85a62fc1e30546344eb05374c981",
+    "server/tests/agent-run-results.test.ts": "0a3ac6c62d9f5fe44a3a7424fae248806c26b5ea6b65cc9dfcc06864edd4ad51",
+    "server/tests/agent-run-settlement.test.ts": "87fc7e28acf57a01a6777d6e3a0f41040c114e9c324d2791b76cc56b83ff3cac",
+    "server/tests/free-beta-journey-contract.test.ts": "d97896b1fca7054596551a1242b9c8793be8b6b09963c725486f0aa38b1dc276",
+    "server/tests/free-evaluation-handoff.test.ts": "729266197e59ec67cc9e5cca7fb19b42ee535f6de825f2f5e766a47c0ab7866c",
+    "server/tests/helpers/recommendation-evidence.ts": "59c1d7809cc114526aefcec2ccf2be46e942939af3b742e6ea732fdc78ef270a",
+    "server/tests/helpers/siteTaskQualificationReceipt.ts": "27f219863c79a01c22f37e918f5522137a2de4fff4358b2afdde622bb8485d93",
+    "server/tests/helpers/supply-agreement.ts": "fda31a8734ee360e5e68e64a9c3301569693b50b93e7da83062d282ceb1c6951",
+    "server/tests/pilot-booking-notification.test.ts": "f51b91ddbbc9a7efbf6c00e4261ad935d7cfae30f22dc4700442153b37cd8302",
+    "server/tests/pilot-recommendation-evidence.test.ts": "89fb83b562e73795596faaf9d9b1a392b248d3fe71bf283431845119c4ae1305",
+    "server/tests/pilot-recommendation-route.test.ts": "a22758961414f9eed0a9315d57dc1a324c9dd8735ab64673ebb6612fd3eb9c1f",
+    "server/tests/robot-team-account-gate.test.ts": "97d41cf5348bfa50e21aef66f69926aa94afd25642e149fcdd69484d12161205",
+    "server/tests/site-task-qualification-receipt.test.ts": "7ae8b685fb2000bf185ed50675406a944f4e7816b62266250787857c28f9a32c",
+    "server/tests/task-lifecycle-notifications.test.ts": "5ca1190377c6cb73922a13eaff693991115882cccafb07837a66337617bfd1de",
+    "server/tests/team-evaluation-request-journey.test.ts": "179b67e7443239d8f2cf79b16943c3a8d4443e32124c59163e45851043f8cf95",
+    "server/tests/workspace-agent-run-results.test.ts": "bdb6b37cc076ae90278443a03aee11d11ae90c9c7152d9e7185a2869ebb4e138",
+    "server/tests/workspace-route.test.ts": "95ad965b765f8698fb17bcfef17ec21c96660fead84bd125441a818c09a48026",
+    "server/tests/workspace-run-authority.test.ts": "4310725e30f1c14fd31d82b40c253712abf44f4bc3d5c439dc07f5127fbb1019",
+    "server/utils/agentEvalRuns.ts": "f27a045c2182d6db16355553ea1d2a1732694ec973f97aae6e0d1344d6e8a649",
+    "server/utils/agentRunNotificationRecovery.ts": "ff1736a9cacb9d4bcb4c9c1164db85c156ca105784998cbf51b8f2b1abb63ef3",
+    "server/utils/agentRunResults.ts": "46ff917c3eab29c498893b9d256d5bc81cb8a146304265a85736f3620b58fc4e",
+    "server/utils/freeEvaluationHandoff.ts": "906ee0d27a9a9e10862975da42f5d8502059030bae5835f2a3ea2a4714dc0be4",
+    "server/utils/pilotRecommendationEvidence.ts": "849cb3939496af9086a20b688f7763fef591e882618ae1b67f21f14b7a123526",
+    "server/utils/policyRunLicense.ts": "28079e57063d09fa089e1b37a7c7c343825e40f6715666047041b9176d7a14af",
+    "server/utils/robotTeamNotifications.ts": "ed264026a51ee37552b035e3dafacc95587d34c83d97a09d9bb38e2d5ed334c9",
+    "server/utils/runNoResultObservation.ts": "e092e77bc10dd2c9c4a5584c6517f0bbae3184246e0bd446a812b36a1ac306df",
+    "server/utils/runResultScoring.ts": "937c3ab762244e89cea575233dbb71d3a999b2f2d139658ed22fa8938ea7f62d",
+    "server/utils/siteTaskQualificationReceipt.ts": "5aee9c4152ea1cff232a19e7b19291d5be4573bc767d055e4f56589f0e4ae7e2",
+    "server/utils/taskLifecycleNotifications.ts": "415d36e44e990ad6e8c3b0127b8651228ef73177c6c6d34f42ee54034fd6a1c9",
+    "server/utils/workspace-projection.ts": "11dd0960dcd7142675b03555f05d9d182f3b62c934da4e5ee95f8d1e50898795"
+  },
+  "logEvidence": {
+    "focused": {
+      "localPath": "/tmp/blueprint-beta-release-focused.log",
+      "sha256": "896c20802ac87706b3cbd81d69e51e27b0b03e1cac33188d4a5b8cb7395b46b3",
+      "sizeBytes": 1052
+    },
+    "broad_coverage": {
+      "localPath": "/tmp/blueprint-beta-coverage.log",
+      "sha256": "0eebad830cb9411f000a0033b56fdd1a0feddf677a9aa883d78517b51a31e11f",
+      "sizeBytes": 276616
+    },
+    "fixture_and_proxy_recheck": {
+      "localPath": "/tmp/blueprint-beta-coverage-recheck.log",
+      "sha256": "47dcddffc7298d7d427236dd713bd9c6cade74c238e13ef5ffb56f05e0a2c647",
+      "sizeBytes": 546
+    },
+    "native_path_and_customer_recheck": {
+      "localPath": "/tmp/blueprint-beta-final-rechecks.log",
+      "sha256": "976db93a839c815592e998a0ac20f8eb470eb4b64a8a047f3189ae807523360f",
+      "sizeBytes": 1371
+    },
+    "typecheck": {
+      "localPath": "/tmp/blueprint-beta-typecheck-release-full.log",
+      "sha256": "436a40a819af7016d8cc9576eba53716eb2f9d4e4f0d81a51738b5baeccd7a96",
+      "sizeBytes": 86
+    },
+    "build_compile_only": {
+      "localPath": "/tmp/blueprint-beta-build-release.log",
+      "sha256": "6ee84d40e853957b81c21ec6adbaebde441635f9f362cd3e166b6ec4ae8bfd87",
+      "sizeBytes": 12752
+    },
+    "browser": {
+      "localPath": "/tmp/blueprint-beta-browser.log",
+      "sha256": "76e773ba8a20b5cdcf679c027fbeb3543b98f1ac4e0287e81379f85ef2478dc2",
+      "sizeBytes": 442
+    },
+    "graphify": {
+      "localPath": "/tmp/blueprint-beta-graphify-final.log",
+      "sha256": "b2b8d41c1dcdc83937767aee1e8f4d295ee824230f70c66f93051c784051a359",
+      "sizeBytes": 2097
+    },
+    "cross_runtime": {
+      "localPath": "/tmp/blueprint-beta-cross-runtime-final.log",
+      "sha256": "79601e4d7da647f9701332ca2fef99374797d787b0551d8b2def54cc1bbb515e",
+      "sizeBytes": 157
+    },
+    "portability": {
+      "localPath": "/tmp/blueprint-beta-portability.log",
+      "sha256": "2fbc657ed7df0c1538406e20bd470739d4d07f31261359f9e8e1e9bf3e81b6aa",
+      "sizeBytes": 401
+    },
+    "doctrine": {
+      "localPath": "/tmp/blueprint-beta-doctrine.log",
+      "sha256": "91de3c9ca7cecd48058f67b3ef244935b6bf77d0c3d973915559a8f30652d585",
+      "sizeBytes": 429
+    }
+  },
+  "recovery": "Code, tests, runbooks and this JSON are retained in company GitHub. Re-run listed checks from the exact PR commit; raw local diagnostic logs are supplemental and not canonical business artifacts."
+}

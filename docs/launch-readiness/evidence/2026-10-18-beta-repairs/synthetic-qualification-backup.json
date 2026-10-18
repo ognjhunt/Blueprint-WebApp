@@ -1,0 +1,580 @@
+{
+  "name": "projects/blueprint-8c1ca/databases/(default)/documents/siteTaskQualifications/613edf96606bbd7f748e6e20c1ea60d4b26d2517da0be25763889cb3f1de2ff4",
+  "fields": {
+    "publishedAtIso": {
+      "stringValue": "2026-10-18T14:02:58.206Z"
+    },
+    "receipt": {
+      "mapValue": {
+        "fields": {
+          "receipt_digest": {
+            "stringValue": "sha256:613edf96606bbd7f748e6e20c1ea60d4b26d2517da0be25763889cb3f1de2ff4"
+          },
+          "reviewed_by": {
+            "stringValue": "synthetic-independent-reviewer"
+          },
+          "review_digest": {
+            "stringValue": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+          },
+          "evidence_scope": {
+            "stringValue": "simulation"
+          },
+          "physical_performance_claimed": {
+            "booleanValue": false
+          },
+          "binding": {
+            "mapValue": {
+              "fields": {
+                "task_spec_digest": {
+                  "stringValue": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                },
+                "policy_interface_id": {
+                  "stringValue": "blueprint_policy_https.v1"
+                },
+                "success_contract_digest": {
+                  "stringValue": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                },
+                "testbed_digest_sha256": {
+                  "stringValue": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                },
+                "site_id": {
+                  "stringValue": "site-scoring"
+                },
+                "robot_model_digest": {
+                  "stringValue": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+                },
+                "task_id": {
+                  "stringValue": "task-scoring"
+                },
+                "source_capture_digest": {
+                  "stringValue": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                },
+                "scene_revision_digest": {
+                  "stringValue": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                },
+                "capture_id": {
+                  "stringValue": "capture-scoring"
+                },
+                "scene_request_id": {
+                  "stringValue": "job_scoring"
+                }
+              }
+            }
+          },
+          "authority_digest": {
+            "stringValue": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+          },
+          "fidelity_review_receipt": {
+            "mapValue": {
+              "fields": {
+                "simulator_measurement_digest": {
+                  "stringValue": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+                },
+                "source_measurement_digest": {
+                  "stringValue": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+                },
+                "checks": {
+                  "arrayValue": {
+                    "values": [
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "id": {
+                              "stringValue": "check.task_state"
+                            },
+                            "dimension": {
+                              "stringValue": "task_state"
+                            },
+                            "unit": {
+                              "stringValue": "m"
+                            },
+                            "sample_count": {
+                              "integerValue": "3"
+                            },
+                            "max_abs_error": {
+                              "doubleValue": 0.01
+                            },
+                            "rms_error": {
+                              "doubleValue": 0.005
+                            },
+                            "maximum_absolute_error": {
+                              "doubleValue": 0.05
+                            },
+                            "maximum_rms_error": {
+                              "doubleValue": 0.02
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "id": {
+                              "stringValue": "check.observation"
+                            },
+                            "dimension": {
+                              "stringValue": "observation"
+                            },
+                            "unit": {
+                              "stringValue": "m"
+                            },
+                            "sample_count": {
+                              "integerValue": "3"
+                            },
+                            "max_abs_error": {
+                              "doubleValue": 0.01
+                            },
+                            "rms_error": {
+                              "doubleValue": 0.005
+                            },
+                            "maximum_absolute_error": {
+                              "doubleValue": 0.05
+                            },
+                            "maximum_rms_error": {
+                              "doubleValue": 0.02
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "id": {
+                              "stringValue": "check.task_dynamics"
+                            },
+                            "dimension": {
+                              "stringValue": "task_dynamics"
+                            },
+                            "unit": {
+                              "stringValue": "m"
+                            },
+                            "sample_count": {
+                              "integerValue": "3"
+                            },
+                            "max_abs_error": {
+                              "doubleValue": 0.01
+                            },
+                            "rms_error": {
+                              "doubleValue": 0.005
+                            },
+                            "maximum_absolute_error": {
+                              "doubleValue": 0.05
+                            },
+                            "maximum_rms_error": {
+                              "doubleValue": 0.02
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "schema_version": {
+                  "stringValue": "blueprint.site_task_fidelity_review.v1"
+                },
+                "receipt_digest": {
+                  "stringValue": "sha256:02547be3d5ab04f2f9fcb1c47b18c2e1e477873a7c195f62a8b6bb5f625131ca"
+                },
+                "profile_digest": {
+                  "stringValue": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                },
+                "request_digest": {
+                  "stringValue": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                "binding": {
+                  "mapValue": {
+                    "fields": {
+                      "robot_model_digest": {
+                        "stringValue": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+                      },
+                      "source_capture_digest": {
+                        "stringValue": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                      },
+                      "scene_revision_digest": {
+                        "stringValue": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                      },
+                      "scene_request_id": {
+                        "stringValue": "job_scoring"
+                      },
+                      "task_id": {
+                        "stringValue": "task-scoring"
+                      },
+                      "task_spec_digest": {
+                        "stringValue": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                      },
+                      "policy_interface_id": {
+                        "stringValue": "blueprint_policy_https.v1"
+                      },
+                      "success_contract_digest": {
+                        "stringValue": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                      },
+                      "site_id": {
+                        "stringValue": "site-scoring"
+                      },
+                      "testbed_digest_sha256": {
+                        "stringValue": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                      },
+                      "capture_id": {
+                        "stringValue": "capture-scoring"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "request_digest": {
+            "stringValue": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "expires_at_iso": {
+            "stringValue": "2099-10-18T00:00:00Z"
+          },
+          "registration_receipt": {
+            "mapValue": {
+              "fields": {
+                "profile_digest": {
+                  "stringValue": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                },
+                "request_digest": {
+                  "stringValue": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                "checks": {
+                  "arrayValue": {
+                    "values": [
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "id": {
+                              "stringValue": "check.scale"
+                            },
+                            "dimension": {
+                              "stringValue": "scale"
+                            },
+                            "unit": {
+                              "stringValue": "m"
+                            },
+                            "sample_count": {
+                              "integerValue": "3"
+                            },
+                            "max_abs_error": {
+                              "doubleValue": 0.01
+                            },
+                            "rms_error": {
+                              "doubleValue": 0.005
+                            },
+                            "maximum_absolute_error": {
+                              "doubleValue": 0.05
+                            },
+                            "maximum_rms_error": {
+                              "doubleValue": 0.02
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "id": {
+                              "stringValue": "check.registration"
+                            },
+                            "dimension": {
+                              "stringValue": "registration"
+                            },
+                            "unit": {
+                              "stringValue": "m"
+                            },
+                            "sample_count": {
+                              "integerValue": "3"
+                            },
+                            "max_abs_error": {
+                              "doubleValue": 0.01
+                            },
+                            "rms_error": {
+                              "doubleValue": 0.005
+                            },
+                            "maximum_absolute_error": {
+                              "doubleValue": 0.05
+                            },
+                            "maximum_rms_error": {
+                              "doubleValue": 0.02
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "id": {
+                              "stringValue": "check.collision"
+                            },
+                            "dimension": {
+                              "stringValue": "collision"
+                            },
+                            "unit": {
+                              "stringValue": "m"
+                            },
+                            "sample_count": {
+                              "integerValue": "3"
+                            },
+                            "max_abs_error": {
+                              "doubleValue": 0.01
+                            },
+                            "rms_error": {
+                              "doubleValue": 0.005
+                            },
+                            "maximum_absolute_error": {
+                              "doubleValue": 0.05
+                            },
+                            "maximum_rms_error": {
+                              "doubleValue": 0.02
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "simulator_measurement_digest": {
+                  "stringValue": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+                },
+                "source_measurement_digest": {
+                  "stringValue": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+                },
+                "schema_version": {
+                  "stringValue": "blueprint.site_task_registration.v1"
+                },
+                "binding": {
+                  "mapValue": {
+                    "fields": {
+                      "capture_id": {
+                        "stringValue": "capture-scoring"
+                      },
+                      "site_id": {
+                        "stringValue": "site-scoring"
+                      },
+                      "source_capture_digest": {
+                        "stringValue": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                      },
+                      "task_spec_digest": {
+                        "stringValue": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                      },
+                      "scene_revision_digest": {
+                        "stringValue": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                      },
+                      "robot_model_digest": {
+                        "stringValue": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+                      },
+                      "scene_request_id": {
+                        "stringValue": "job_scoring"
+                      },
+                      "task_id": {
+                        "stringValue": "task-scoring"
+                      },
+                      "testbed_digest_sha256": {
+                        "stringValue": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                      },
+                      "policy_interface_id": {
+                        "stringValue": "blueprint_policy_https.v1"
+                      },
+                      "success_contract_digest": {
+                        "stringValue": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                      }
+                    }
+                  }
+                },
+                "receipt_digest": {
+                  "stringValue": "sha256:df1d9c05bece9c1a8820013d705a4ebcc6407a78a78517e0f8e770103d033726"
+                }
+              }
+            }
+          },
+          "source_artifacts": {
+            "arrayValue": {
+              "values": [
+                {
+                  "mapValue": {
+                    "fields": {
+                      "role": {
+                        "stringValue": "capture"
+                      },
+                      "uri": {
+                        "stringValue": "gs://synthetic-test-only/capture.json"
+                      },
+                      "sha256": {
+                        "stringValue": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                      },
+                      "size_bytes": {
+                        "integerValue": "100"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "role": {
+                        "stringValue": "scene"
+                      },
+                      "uri": {
+                        "stringValue": "gs://synthetic-test-only/scene.json"
+                      },
+                      "sha256": {
+                        "stringValue": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                      },
+                      "size_bytes": {
+                        "integerValue": "100"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "role": {
+                        "stringValue": "testbed"
+                      },
+                      "uri": {
+                        "stringValue": "gs://synthetic-test-only/testbed.json"
+                      },
+                      "sha256": {
+                        "stringValue": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                      },
+                      "size_bytes": {
+                        "integerValue": "100"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "role": {
+                        "stringValue": "task_spec"
+                      },
+                      "uri": {
+                        "stringValue": "gs://synthetic-test-only/task_spec.json"
+                      },
+                      "sha256": {
+                        "stringValue": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                      },
+                      "size_bytes": {
+                        "integerValue": "100"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "role": {
+                        "stringValue": "success_contract"
+                      },
+                      "uri": {
+                        "stringValue": "gs://synthetic-test-only/success_contract.json"
+                      },
+                      "sha256": {
+                        "stringValue": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                      },
+                      "size_bytes": {
+                        "integerValue": "100"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "role": {
+                        "stringValue": "robot_model"
+                      },
+                      "uri": {
+                        "stringValue": "gs://synthetic-test-only/robot_model.json"
+                      },
+                      "sha256": {
+                        "stringValue": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+                      },
+                      "size_bytes": {
+                        "integerValue": "100"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "role": {
+                        "stringValue": "measurement"
+                      },
+                      "uri": {
+                        "stringValue": "gs://synthetic-test-only/measurement.json"
+                      },
+                      "sha256": {
+                        "stringValue": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+                      },
+                      "size_bytes": {
+                        "integerValue": "100"
+                      }
+                    }
+                  }
+                },
+                {
+                  "mapValue": {
+                    "fields": {
+                      "role": {
+                        "stringValue": "simulator_measurement"
+                      },
+                      "uri": {
+                        "stringValue": "gs://synthetic-test-only/simulator_measurement.json"
+                      },
+                      "sha256": {
+                        "stringValue": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+                      },
+                      "size_bytes": {
+                        "integerValue": "100"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "profile_digest": {
+            "stringValue": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          },
+          "adp_qualified_evidence_eligible": {
+            "booleanValue": false
+          },
+          "qualification": {
+            "mapValue": {
+              "fields": {
+                "registration_receipt_digest": {
+                  "stringValue": "sha256:df1d9c05bece9c1a8820013d705a4ebcc6407a78a78517e0f8e770103d033726"
+                },
+                "fidelity_review_receipt_digest": {
+                  "stringValue": "sha256:02547be3d5ab04f2f9fcb1c47b18c2e1e477873a7c195f62a8b6bb5f625131ca"
+                },
+                "evidence_scope": {
+                  "stringValue": "simulation"
+                },
+                "scene_revision_digest": {
+                  "stringValue": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+                },
+                "capture_id": {
+                  "stringValue": "capture-scoring"
+                }
+              }
+            }
+          },
+          "reviewed_at_iso": {
+            "stringValue": "2026-10-18T00:00:00Z"
+          },
+          "schema_version": {
+            "stringValue": "blueprint.site_task_simulation_qualification.v1"
+          }
+        }
+      }
+    }
+  },
+  "createTime": "2026-10-18T14:02:59.219005Z",
+  "updateTime": "2026-10-18T14:02:59.219005Z"
+}

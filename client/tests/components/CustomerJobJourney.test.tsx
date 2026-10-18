@@ -58,7 +58,8 @@ it("joins the existing job, bounded review, proposal acceptance and evidence-gat
   // Synthetic qualified simulation evidence only: it is never physical proof.
   const qualified = syntheticQualifiedRun("req-1", "run_fixture");
   state.docs.set("evaluationRuns/run_fixture", { ...qualified, teamId: "fixture-team", checkpointId: "ckpt_fixture",
-    executionAdmission: syntheticSupplyExecutionAdmission(),
+    executionAdmission: { ...qualified.executionAdmission, envelope: { ...qualified.executionAdmission!.envelope,
+      canonical_execution_request: syntheticSupplyExecutionAdmission().envelope.canonical_execution_request } },
     result: { ...qualified.result!, teamId: "fixture-team", checkpointId: "ckpt_fixture",
       observed: { ...qualified.result!.observed, medianCycleSeconds: 12 } } });
   state.docs.set(`robotTeamAccess/${accessRecordId("team@example.test")}`, { status: "approved", company: "Fixture admitted team" });

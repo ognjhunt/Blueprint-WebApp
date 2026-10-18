@@ -25,7 +25,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
-import { syntheticSiteTaskQualification, syntheticEpisodeOutcomes } from "./helpers/recommendation-evidence";
+import { syntheticQualifiedAdmission, syntheticSiteTaskQualification, syntheticEpisodeOutcomes } from "./helpers/recommendation-evidence";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -67,7 +67,7 @@ function scored(episodes: number, overrides: Record<string, unknown> = {}) {
     successSource: "simulator_scored", scoredEpisodeCount: episodes, successContractDigest: digest("1"),
     sceneRevisionDigest: digest("2"), robotFreeProbeReceiptDigest: digest("3"),
     teamCandidateAdmissionDigest: digest("4"), sessionResultDigest: digest("5"),
-    claimCeiling: "site_task_simulation", siteTaskQualification: syntheticSiteTaskQualification(), ...overrides,
+    claimCeiling: "site_task_simulation", siteTaskQualification: syntheticSiteTaskQualification("capture-fixture", "scene-1"), ...overrides,
   } as const;
 }
 
@@ -79,7 +79,7 @@ function seedRun(runId = "run_res_1", teamId = TEAM) {
     teamId,
     checkpointId: "ckpt-1",
     sceneId: "scene-1",
-    executionCaptureId: "capture-fixture",
+    executionCaptureId: "capture-fixture", executionAdmission: syntheticQualifiedAdmission("capture-fixture", "scene-1"),
     taskFamily: "tote_transfer",
     reservationId: runId.replace(/^run_/, ""),
     quotedUsd: 250,

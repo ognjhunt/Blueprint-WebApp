@@ -1,0 +1,66 @@
+{
+  "schema": "blueprint.beta_audit.browser_observations.v1",
+  "observed_date": "2026-10-18",
+  "timezone": "America/Chicago",
+  "origin": "https://tryblueprint.io",
+  "method": "Live Playwright navigation, rendered DOM inspection, console inspection, viewport checks and screenshots. No business forms submitted or accounts created.",
+  "release_commit": "b9d4536bdb1e4a91e75a6c9ffa9ba3cac66c5010",
+  "public_routes_inspected": ["/", "/contact/site-operator", "/beta", "/how-it-works", "/contact/robot-team", "/sign-in", "/signup", "/forgot-password", "/sites", "/about", "/terms", "/privacy"],
+  "public_navigation_http_status": 200,
+  "redirect_observations": {
+    "/signup": "/contact/site-operator",
+    "/app/tasks": "/sign-in",
+    "/app/runs/new": "/sign-in"
+  },
+  "homepage_viewport_widths_without_document_overflow": [390, 768, 1440],
+  "other_route_mobile_viewport_width": 390,
+  "other_route_mobile_document_overflow_observed": false,
+  "console_errors_observed_in_inspected_pages": 0,
+  "how_it_works_images": {
+    "count": 7,
+    "all_decoded_after_scroll": true,
+    "all_have_descriptive_alt_text": true,
+    "loading": "lazy",
+    "note": "Offscreen unloaded images were checked after scrolling and are not broken-image findings."
+  },
+  "homepage": {
+    "title": "Blueprint | Start with one real task",
+    "canonical": "https://tryblueprint.io/",
+    "font": "DM Sans",
+    "primary_cta": "Show us a task",
+    "primary_cta_path": "/contact/site-operator",
+    "animation_pause_control_label": "Pause examples",
+    "simulation_boundary_visible": true,
+    "free_beta_copy_visible": true
+  },
+  "site_intake": {
+    "context_optional": true,
+    "required_visible_fields": ["Location", "Work email", "Company"],
+    "capture_options": ["Upload a video now", "Film it later on a phone", "Have Blueprint film it"],
+    "anonymized_card_preview": true,
+    "keep_private_option": true,
+    "recording_help": true,
+    "human_contact_link": true,
+    "submit_not_exercised": true
+  },
+  "team_intake": {
+    "manual_invitation_review_explained": true,
+    "application_fields_labelled": true,
+    "lost_invitation_recovery_present": true,
+    "optional_marketing_opt_in_separate": true,
+    "submit_not_exercised": true
+  },
+  "legal_presentation": {
+    "announced_effective_date": "2026-11-15",
+    "previous_versions_stated_to_remain_in_force": true,
+    "previous_version_links_present": true,
+    "counsel_or_notice_adequacy_not_established": true
+  },
+  "limits": [
+    "No authenticated site or team session was exercised.",
+    "No upload, application, invitation email, password-reset email, evaluation, booking or withdrawal was submitted.",
+    "Viewport resizing is not a physical-device Safari or mobile Google sign-in test.",
+    "No full WCAG, contrast, screen-reader or field Core Web Vitals certification is claimed.",
+    "Warm browser timings are not a cold-load performance benchmark."
+  ]
+}

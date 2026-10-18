@@ -684,7 +684,7 @@ describe("workspace requests and lifecycle", () => {
     });
     state.records.set("inboundRequests/task-1", openJob());
     await api("/setups", "robot-1", setup);
-    const request1 = { id: "application-1", opportunityId: "task-1", setupId: "setup-1", notes: "" };
+    const request1 = { id: "application-1", opportunityId: "task-1", setupId: "setup-1", notes: "", licenseToRun: true };
     expect((await api("/openings/task-1", "robot-1")).status).toBe(403);
     expect((await api("/evaluations", "robot-1", request1)).status).toBe(403);
     const accessId = createHash("sha256").update("robot-1@example.com").digest("hex");
@@ -695,6 +695,11 @@ describe("workspace requests and lifecycle", () => {
     expect(opening).toEqual({ ...card, id: "task-1", publishedAtIso: "2026-09-13T10:00:00Z", thumbnailUrl: null, evaluation: null });
     expect(JSON.stringify(opening)).not.toMatch(/Confidential Site|123 Private|Pack cartons"|gs:\/\/|robot-1|successRate/);
     expect((await api("/openings/task-1", "site-1")).status).toBe(403);
+    for (const licenseToRun of [undefined, false]) {
+      const refused = await api("/evaluations", "robot-1", { ...request1, licenseToRun });
+      expect(refused.status).toBe(400);
+    }
+    expect(state.intakes).toHaveLength(0);
     expect((await api("/evaluations", "robot-1", request1)).status).toBe(201);
     expect(state.intakes[0].body).toMatchObject({ taskStatement: card.title, siteName: "Private site", siteLocation: "" });
     expect(JSON.stringify(state.intakes[0].body)).not.toMatch(/Confidential Site|123 Private/);

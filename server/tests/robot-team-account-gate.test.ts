@@ -319,7 +319,7 @@ describe("the team hears when its evaluation run reports", () => {
     expect(result.body).toContain("https://tryblueprint.io/app");
     expect(result.body).not.toContain("settings?tab=agent");
     const noResult = rows.find((row) => row.kind === "team_run_no_result")!.body;
-    expect(noResult).toMatch(/nothing is charged for it/);
+    expect(noResult).toMatch(/nothing is charged for it/i);
     for (const body of [result.body, noResult]) expect(body).not.toMatch(/\bbalance\b|\bhold\b|top-?up/i);
   });
 });

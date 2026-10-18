@@ -16,6 +16,7 @@ import { enqueueOutbox } from "./captureOutbox";
 import { EMAIL_SIGN_OFF } from "./emailLayout";
 import { teamAccountEmail } from "./robotTeamAccounts";
 import { COMPANY } from "../../client/src/data/company";
+import { noResultObservationText, type NoResultObservation } from "./runNoResultObservation";
 
 /** The workspace overview lists active evaluations; finished ones stay under History. */
 const EVALUATIONS_URL = `${COMPANY.website}/app`;
@@ -25,7 +26,7 @@ export async function notifyTeamOfRunOutcome(params: {
   runId: string;
   outcome:
     | { kind: "result"; episodesSucceeded: number; episodesRun: number }
-    | { kind: "no_result" };
+    | { kind: "no_result"; progress?: NoResultObservation };
 }): Promise<{ enqueued: boolean; reason?: string }> {
   const to = await teamAccountEmail(params.teamId);
   if (!to) return { enqueued: false, reason: "contact_missing" };
@@ -43,7 +44,7 @@ export async function notifyTeamOfRunOutcome(params: {
       ].join("\n\n")
     : [
         "Hi,",
-        "Your evaluation run ended before any episode was observed, so there is no result to show, and nothing is charged for it. If you expected your policy to run, reply to this email and we will look into it.",
+        `Your evaluation run ended without a complete scored result. ${noResultObservationText(params.outcome.kind === "no_result" ? params.outcome.progress : undefined)} Nothing is charged for it. Review the run in your workspace; reply if you need help understanding what happened.`,
         `See your evaluations in your Blueprint workspace:\n${EVALUATIONS_URL}`,
         EMAIL_SIGN_OFF,
       ].join("\n\n");

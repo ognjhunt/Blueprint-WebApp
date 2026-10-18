@@ -335,11 +335,13 @@ export default function TaskDetail() {
               <section className="ws-task-pilot ws-section">
                 <div>
                   <h2>
-                    {task.pilotBooking
-                      ? "Pilot booked"
-                      : task.pilot.selectedResultId
-                        ? statusLabel(task.pilot.state)
-                        : "Pilot"}
+                    {["pilot", "pilot_complete", "deployed"].includes(task.pilot.state)
+                      ? statusLabel(task.pilot.state)
+                      : task.pilotBooking
+                        ? "Pilot booked"
+                        : task.pilot.selectedResultId
+                          ? statusLabel(task.pilot.state)
+                          : "Pilot"}
                   </h2>
                   {task.pilotBooking ? (
                     <PilotBookingDetails booking={task.pilotBooking} other="robot team" />
