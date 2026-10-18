@@ -764,8 +764,20 @@ export async function loadSceneScreening(sceneId: string, passMark?: PassMark): 
         if (reading.passed === true) screening.passed = (screening.passed ?? 0) + 1;
         // Missing qualification, measurements or accounting is unknown evidence,
         // never proof that the team's policy failed the job.
-        if (reading.refusals.some(refusal => !["evaluation_below_pass_mark", "evaluation_cycle_time_missed"].includes(refusal)))
-          screening.ineligible = (screening.ineligible ?? 0) + 1;
+        const ineligible = reading.refusals.some(refusal => !["evaluation_below_pass_mark", "evaluation_cycle_time_missed"].includes(refusal));
+        if (ineligible) screening.ineligible = (screening.ineligible ?? 0) + 1;
+        // A qualified run short of the pass mark says what would change the
+        // outcome; keep the one that came closest (audit A).
+        else if (reading.passed === false && reading.episodesRun && reading.episodesSucceeded !== null) {
+          const candidate = { episodesRun: reading.episodesRun, episodesSucceeded: reading.episodesSucceeded,
+            medianCycleSeconds: typeof reading.medianCycleSeconds === "number" ? reading.medianCycleSeconds : null,
+            passMarkRate: passMark.successRate, cycleTimeSeconds: passMark.cycleTimeSeconds,
+            belowPassMark: reading.refusals.includes("evaluation_below_pass_mark"),
+            cycleTimeMissed: reading.refusals.includes("evaluation_cycle_time_missed") };
+          const best = screening.closestQualified;
+          if (!best || candidate.episodesSucceeded / candidate.episodesRun > best.episodesSucceeded / best.episodesRun)
+            screening.closestQualified = candidate;
+        }
       }
       teams.add(run.teamId);
       continue;

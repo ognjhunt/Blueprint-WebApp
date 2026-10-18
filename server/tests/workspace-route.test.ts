@@ -1292,8 +1292,10 @@ describe("agent screening runs on the site's task", () => {
     });
     expect(JSON.stringify(body)).not.toContain("team-alpha");
     expect(JSON.stringify(body)).not.toContain("ckpt-secret");
-    // An unscored result is unknown evidence, not proof that the team failed.
-    expect(siteTask.readiness?.decision).toBe("results");
+    // An unscored result is unknown evidence, not proof that the team failed:
+    // with nothing else in flight it cannot support a recommendation either way.
+    expect(siteTask.readiness?.decision).toBe("no_qualified_evaluation");
+    expect(siteTask.readiness?.headline).not.toMatch(/passed|failed|without passing/i);
     expect(siteTask.readiness?.nextUpdateIso).toBeNull();
     expect(JSON.stringify(body)).not.toContain("private-secret");
     state.records.delete("evaluationRuns/run_r1");

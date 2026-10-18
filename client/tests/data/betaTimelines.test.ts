@@ -27,9 +27,10 @@ describe("the beta's expected timelines", () => {
     expect(waitingTimeline("footage_received")).toBe(REPLY_TIMELINE);
     expect(waitingTimeline("assessing")).toBe(SIMULATION_BUILD_TIMELINE);
     expect(waitingTimeline("awaiting_teams")).toBe(EVALUATION_START_TIMELINE);
-    expect(waitingTimeline("no_qualified_evaluation")).toBe(EVALUATION_START_TIMELINE);
+    // Settled evaluations: the headline already says what comes next, and its
+    // evaluations have finished, so "evaluations start" would read wrong.
     for (const decision of ["confirm_brief", "record", "add_views", "save_account", "not_listed", "call_needed", "not_now",
-      "not_yet_supported", "screening", "results", "no_team_passed", undefined, null, "unknown"]) {
+      "not_yet_supported", "screening", "results", "no_team_passed", "no_qualified_evaluation", undefined, null, "unknown"]) {
       expect(waitingTimeline(decision)).toBeNull();
     }
   });

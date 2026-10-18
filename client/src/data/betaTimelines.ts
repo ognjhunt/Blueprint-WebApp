@@ -33,7 +33,6 @@ export function waitingTimeline(decision: string | null | undefined): string | n
     case "assessing":
       return SIMULATION_BUILD_TIMELINE;
     case "awaiting_teams":
-    case "no_qualified_evaluation":
       return EVALUATION_START_TIMELINE;
     default:
       return null;

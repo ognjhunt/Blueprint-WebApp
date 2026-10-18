@@ -63,7 +63,13 @@ export type TaskDecision =
   /** The job card is not published, so no robot team can see or evaluate the job. */
   | "not_listed"
   /** Every evaluation so far has finished, none passed, and none is in flight. */
-  | "no_team_passed";
+  | "no_team_passed"
+  /**
+   * Every evaluation so far has finished, and none can support a recommendation
+   * either way: diagnostic, unqualified or unscored runs, or runs with no
+   * observed episode. Never called a failure (audit A, 2026-10-18).
+   */
+  | "no_qualified_evaluation";
 
 export interface TaskStatus {
   decision: TaskDecision;
@@ -105,6 +111,47 @@ export interface SceneScreening {
   passed?: number;
   /** Reported runs whose evidence cannot establish a qualified pass or failure. */
   ineligible?: number;
+  /**
+   * The qualified run that came closest to the job's pass mark, when qualified
+   * runs reported and none passed: what would change the outcome. Absent when
+   * not counted.
+   */
+  closestQualified?: ClosestQualifiedRun | null;
+}
+
+/** A qualified evaluation that did not pass, against the job's own pass mark. */
+export interface ClosestQualifiedRun {
+  episodesRun: number;
+  episodesSucceeded: number;
+  medianCycleSeconds: number | null;
+  /** The job's pass mark, as a fraction. */
+  passMarkRate: number;
+  /** The job's cycle-time target, when it set one. */
+  cycleTimeSeconds: number | null;
+  belowPassMark: boolean;
+  cycleTimeMissed: boolean;
+}
+
+function percent(fraction: number): string {
+  return `${Math.round(fraction * 1000) / 10}%`;
+}
+
+/**
+ * How far the closest qualified evaluation fell short, and what a pass needs,
+ * in the site's terms. One wording for the job page and the email, as /beta
+ * promises: "we tell you so and what would change that".
+ */
+export function qualifiedGap(closest: ClosestQualifiedRun | null | undefined): { shortfall: string; requirement: string } {
+  if (!closest || closest.episodesRun <= 0) return { shortfall: "", requirement: "pass" };
+  const mark = percent(closest.passMarkRate);
+  const cycle = closest.cycleTimeMissed && closest.medianCycleSeconds !== null && closest.cycleTimeSeconds !== null
+    ? `, and its median cycle time was ${Math.round(closest.medianCycleSeconds * 10) / 10} s against your target of ${closest.cycleTimeSeconds} s`
+    : "";
+  return {
+    shortfall: `The closest qualified evaluation succeeded in ${closest.episodesSucceeded} of ${closest.episodesRun} episodes `
+      + `(${percent(closest.episodesSucceeded / closest.episodesRun)}), against your pass mark of ${mark}${cycle}.`,
+    requirement: `reach ${mark}${closest.cycleTimeSeconds !== null ? ` with a median cycle time of ${closest.cycleTimeSeconds} s or less` : ""}`,
+  };
 }
 
 /** A fresh, source-bound Pipeline ledger observation; no final robot verdict. */
@@ -262,10 +309,30 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   if (screening && screening.queued + screening.running === 0 && screening.reported > 0 && screening.noResult === 0
     && screening.passed === 0 && (screening.ineligible ?? 0) === 0 && input.recommended === false) {
     const runs = countLabel(screening.reported + screening.noResult, "evaluation run");
+    const gap = qualifiedGap(screening.closestQualified);
     return {
       ...base,
       decision: "no_team_passed",
-      headline: `No team's evaluation has passed yet. ${runs} on your job finished without passing, so there is no recommended pilot. A recommendation needs one team's evaluation to pass${input.openForEvaluations ? "; your job is still open to robot teams, and we email you when one starts an evaluation" : ""}.`,
+      headline: `No team's evaluation has passed yet. ${runs} on your job finished without passing, so there is no recommended pilot. ${gap.shortfall ? `${gap.shortfall} ` : ""}A recommendation needs one team's evaluation to ${gap.requirement}${input.openForEvaluations ? "; your job is still open to robot teams, and we email you when one starts an evaluation" : ""}.`,
+      operatorAction: null,
+    };
+  }
+  // Settled with nothing that can count either way: diagnostic, unqualified or
+  // unscored runs, or runs with no observed episode. Saying "no team passed"
+  // would call them failures; saying nothing left the site with no next step.
+  if (screening && screening.passed === 0 && screening.ineligible !== undefined
+    && screening.queued + screening.running === 0 && screening.reported + screening.noResult > 0
+    && screening.reported - screening.ineligible === 0 && input.recommended === false) {
+    const reasons = [
+      screening.ineligible > 0
+        ? `${countLabel(screening.ineligible, "run")} could not be scored against your job's pass mark (for example, a diagnostic run, or a scene not yet qualified for scored evaluations)`
+        : "",
+      screening.noResult > 0 ? `${countLabel(screening.noResult, "run")} ended without an observed episode` : "",
+    ].filter(Boolean).join(", and ");
+    return {
+      ...base,
+      decision: "no_qualified_evaluation",
+      headline: `Evaluations on your job have finished, but none can support a recommendation yet: ${reasons}, so none counts as a pass or a failure. We email you when a qualified evaluation finishes.`,
       operatorAction: null,
     };
   }

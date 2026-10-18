@@ -36,6 +36,7 @@ export type TaskLifecycleMilestone = Extract<
   | "run_no_result"
   | "awaiting_evaluations"
   | "no_team_passed"
+  | "no_qualified_evaluation"
   | "pilot_request"
   | "pilot_recommended"
   | "pilot_booked"
@@ -136,7 +137,13 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   no_team_passed: {
     subject: "No robot team's evaluation has passed yet",
-    body: (url, _detail, _counterpart, workspaceUrl) => `Every evaluation of your job so far has finished, and none passed, so there is no pilot to recommend yet. A recommendation needs one team's evaluation on your job to pass. While your job card stays published, robot teams approved for the beta can still evaluate it, and we will email you when one starts. Nothing is needed from you.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+    // `detail` is what would change that (`qualifiedGap`), as /beta promises.
+    body: (url, detail, _counterpart, workspaceUrl) => `Every evaluation of your job so far has finished, and none passed, so there is no pilot to recommend yet. ${detail || "A recommendation needs one team's evaluation on your job to pass."} While your job card stays published, robot teams approved for the beta can still evaluate it, and we will email you when one starts. Nothing is needed from you.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+  },
+  no_qualified_evaluation: {
+    subject: "Your job's evaluations finished, with no result that counts yet",
+    // Never a failure: diagnostic, unqualified or unscored runs count neither way.
+    body: (url, _detail, _counterpart, workspaceUrl) => `The robot-team evaluations of your job so far have finished, but none can support a recommendation yet: they were diagnostic runs, ran before your scene was qualified for scored evaluations, could not be scored against your job's pass mark, or ended without an observed episode. So none counts as a pass or a failure. Nothing is needed from you. We email you when a qualified evaluation finishes.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   pilot_request: {
     subject: "A robot team asked to evaluate your site for a pilot",
@@ -301,26 +308,63 @@ export async function openAndAwaitingEvaluations(requestId: string): Promise<boo
 }
 
 /**
- * After a site evaluation concludes: when nothing is in flight, nothing passed
- * the job's pass mark and no pilot is recommended, tell the site no team has
- * passed yet. Keyed by the run that concluded, so each run is at most one.
+ * After a site evaluation concludes, when nothing is in flight, nothing passed
+ * the job's pass mark and no pilot is recommended:
+ *
+ * - every concluded run qualified and fell short: tell the site no team has
+ *   passed yet, and what would change that (the closest run's gap). Keyed by
+ *   the run that concluded, so each run is at most one;
+ * - no reported run can count either way (diagnostic, unqualified or
+ *   unscored): tell the site once that none can support a recommendation yet.
+ *   Never "no team passed": that would call it a failure.
  */
 export async function notifyIfNoTeamPassed(requestId: string, concludedRunId: string): Promise<{ enqueued: boolean }> {
-  if (!(await noTeamHasPassed(requestId))) return { enqueued: false };
-  return enqueueTaskLifecycleNotification({ requestId, milestone: "no_team_passed", eventId: concludedRunId });
+  const settled = await settledWithoutPass(requestId);
+  if (settled?.state === "no_team_passed") {
+    const { qualifiedGap } = await import("./taskStatusProjection");
+    const gap = qualifiedGap(settled.screening.closestQualified);
+    return enqueueTaskLifecycleNotification({ requestId, milestone: "no_team_passed", eventId: concludedRunId,
+      detail: gap.shortfall ? `${gap.shortfall} A recommendation needs one team's evaluation to ${gap.requirement}.` : undefined });
+  }
+  if (settled?.state === "no_qualified_evaluation") {
+    return enqueueTaskLifecycleNotification({ requestId, milestone: "no_qualified_evaluation" });
+  }
+  return { enqueued: false };
+}
+
+/** The job's runs against its own pass mark, or null while a recommendation stands or the job is missing. */
+async function settledScreening(requestId: string) {
+  if (!db) return null;
+  const snapshot = await db.collection("inboundRequests").doc(requestId).get();
+  const record = snapshot.data();
+  if (!snapshot.exists || !record || record.pilot_recommendation) return null;
+  const [{ getBrief }, { passMarkForJob }, { loadSceneScreening }] = await Promise.all([
+    import("./siteTaskBrief"), import("./pilotRecommendationEvidence"), import("./agentEvalRuns")]);
+  return loadSceneScreening(requestId, passMarkForJob(record, await getBrief(requestId) as never));
+}
+
+/** Which settled state the job is in, if any. The same rules as the job page (`projectTaskStatus`). */
+async function settledWithoutPass(requestId: string) {
+  const screening = await settledScreening(requestId);
+  if (!screening || screening.queued + screening.running > 0 || screening.passed !== 0) return null;
+  const ineligible = screening.ineligible ?? 0;
+  if (screening.reported > 0 && screening.noResult === 0 && ineligible === 0)
+    return { state: "no_team_passed" as const, screening };
+  // Runs that only ended without an observed episode each sent their own
+  // run_no_result notice; the page still shows this state for them.
+  if (ineligible > 0 && screening.reported - ineligible === 0)
+    return { state: "no_qualified_evaluation" as const, screening };
+  return null;
 }
 
 /** True while every site evaluation has concluded, none passed and no pilot is recommended. Read again at dispatch. */
 export async function noTeamHasPassed(requestId: string): Promise<boolean> {
-  if (!db) return false;
-  const snapshot = await db.collection("inboundRequests").doc(requestId).get();
-  const record = snapshot.data();
-  if (!snapshot.exists || !record || record.pilot_recommendation) return false;
-  const [{ getBrief }, { passMarkForJob }, { loadSceneScreening }] = await Promise.all([
-    import("./siteTaskBrief"), import("./pilotRecommendationEvidence"), import("./agentEvalRuns")]);
-  const screening = await loadSceneScreening(requestId, passMarkForJob(record, await getBrief(requestId) as never));
-  return screening.queued + screening.running === 0 && screening.reported > 0 && screening.noResult === 0
-    && screening.passed === 0 && (screening.ineligible ?? 0) === 0;
+  return (await settledWithoutPass(requestId))?.state === "no_team_passed";
+}
+
+/** True while every site evaluation has concluded and none can support a recommendation. Read again at dispatch. */
+export async function noQualifiedEvaluationYet(requestId: string): Promise<boolean> {
+  return (await settledWithoutPass(requestId))?.state === "no_qualified_evaluation";
 }
 
 /** Existing outbox tick repairs a lost enqueue; fresh readback gates dispatch again. */
