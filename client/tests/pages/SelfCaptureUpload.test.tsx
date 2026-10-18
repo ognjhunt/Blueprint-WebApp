@@ -747,3 +747,31 @@ describe("SelfCaptureUpload for footage sent with no description", () => {
     expect(screen.queryByText("Your site task")).not.toBeInTheDocument();
   });
 });
+
+describe("SelfCaptureUpload says how long a waiting stage takes", () => {
+  function withStatus(decision: string) {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}/status`)) return Promise.resolve({ ok: true, json: async () => ({ ok: true,
+        status: { decision, headline: `Status for ${decision}.`, operatorAction: null, missingViews: [], nextUpdateIso: null } }) });
+      return mockFetch()(input);
+    }));
+  }
+  it.each([
+    ["assessing", "Building the simulation usually takes one to three weeks during the beta."],
+    ["awaiting_teams", "Evaluations start once an invited robot team takes up your job; we can't promise a date yet, and we email you when one starts."],
+    ["received", "We reply within two business days."],
+  ])("shows the expected wait while %s", async (decision, line) => {
+    setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36");
+    withStatus(decision);
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByText(line)).toBeInTheDocument();
+  });
+  it("shows no wait for a step that is the site's own", async () => {
+    setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36");
+    withStatus("confirm_brief");
+    render(<SelfCaptureUpload />);
+    await screen.findByText("Status for confirm_brief.");
+    expect(screen.queryByText(/We reply within|Building the simulation usually|Evaluations start once/)).not.toBeInTheDocument();
+  });
+});

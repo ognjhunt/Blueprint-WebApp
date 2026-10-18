@@ -131,3 +131,16 @@ describe("booking a pilot", () => {
     expect(screen.getByText(/Blueprint recommends one pilot for this job/)).toBeInTheDocument();
   });
 });
+
+describe("job progress timelines", () => {
+  it("says how long the stage the job is waiting in usually takes", () => {
+    fixture.task = { readiness: { decision: "assessing", headline: "We are preparing your job.", operatorAction: null, missingViews: [], nextUpdateIso: null } };
+    render(<TaskDetail />);
+    expect(screen.getByText("Building the simulation usually takes one to three weeks during the beta.")).toBeInTheDocument();
+  });
+  it("adds nothing for a step that is the site's own", () => {
+    fixture.task = { readiness: { decision: "confirm_brief", headline: "Confirm your job brief.", operatorAction: "Confirm it.", missingViews: [], nextUpdateIso: null } };
+    render(<TaskDetail />);
+    expect(screen.queryByText(/We reply within|Building the simulation usually|Evaluations start once/)).not.toBeInTheDocument();
+  });
+});

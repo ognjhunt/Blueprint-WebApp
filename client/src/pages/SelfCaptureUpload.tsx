@@ -4,6 +4,7 @@ import { isLikelyPhone } from "@/lib/device";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { RecommendedPilot } from "@/components/site/RecommendedPilot";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
+import { waitingTimeline } from "@/data/betaTimelines";
 /**
  * The page an operator or filmer opens from a private job link.
  *
@@ -577,6 +578,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>
           {status.operatorAction}
         </p>
+      )}
+      {waitingTimeline(status.decision) && (
+        <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>{waitingTimeline(status.decision)}</p>
       )}
       <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />
       <SiteAdvisoryReport advisory={status.siteAdvisory} />

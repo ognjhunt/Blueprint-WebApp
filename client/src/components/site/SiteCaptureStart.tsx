@@ -12,6 +12,7 @@ import {
   isApprovedCaptureRegion,
   type CaptureRegion,
 } from "@/data/captureResidency";
+import { BETA_TIMELINES } from "@/data/betaTimelines";
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withAppCheckHeader } from "@/lib/appCheck";
@@ -1016,6 +1017,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         Free during the beta: robot teams evaluate your job and we recommend one pilot you can book. <a href="/beta#scope">The physical pilot is agreed with the team</a>. By selecting Start free assessment,
         you agree to our <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and{" "}
         <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and confirm: “{DESCRIPTION_AUTHORITY_STATEMENT}”
+      </p>
+
+      <p className="ms-form-note" role="note" aria-label="How long it takes">
+        <strong>How long it takes:</strong> {BETA_TIMELINES.join(" ")}
       </p>
 
       <button className="ms-button ms-button-large" type="submit" disabled={!interactive || state.status === "working" || clearStatus === "working" || loading}>

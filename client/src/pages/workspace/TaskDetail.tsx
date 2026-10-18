@@ -15,6 +15,7 @@ import {
 } from "@/components/workspace/WorkspaceUI";
 import type { WorkspaceTask, WorkspaceResult } from "@/types/workspace";
 import { deploymentPathOptions, optionLabel, pilotConsiderationOptions, siteVisitOptions } from "@/data/sitePilotIntent";
+import { waitingTimeline } from "@/data/betaTimelines";
 function Facts({ rows }: { rows: Array<[string, string]> }) {
   return (
     <dl className="ws-facts">
@@ -104,6 +105,7 @@ export default function TaskDetail() {
                 {task.readiness.missingViews.length > 0 && task.readiness.decision !== "add_views" && (
                   <p>Still needed: {task.readiness.missingViews.join(", ")}.</p>
                 )}
+                {waitingTimeline(task.readiness.decision) && <p>{waitingTimeline(task.readiness.decision)}</p>}
                 <p className="ws-note">Check this page for updates.</p>
               </div>
             )}
