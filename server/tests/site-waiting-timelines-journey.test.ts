@@ -254,8 +254,10 @@ describe("the job page says how long each waiting stage usually takes", () => {
     await sendFootage(token);
     await confirmBrief(token);
     await claim(jobId);
-    // Footage is in and ours to review.
-    expect(await pageWait(token)).toEqual({ decision: "footage_received", wait: REPLY_TIMELINE });
+    // Footage is in and ours to review, on both job pages.
+    const reviewing = { decision: "footage_received", wait: REPLY_TIMELINE };
+    expect(await pageWait(token)).toEqual(reviewing);
+    expect(await workspaceWait(jobId)).toEqual(reviewing);
 
     await footageCoversTheScene(jobId);
     const building = { decision: "assessing", wait: SIMULATION_BUILD_TIMELINE };

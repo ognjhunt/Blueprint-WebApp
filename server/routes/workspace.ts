@@ -78,6 +78,8 @@ import { projectPilotBooking } from "../utils/pilotContactExchange";
 import { listCheckpoints } from "../utils/robotCheckpoints";
 import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
 import { notCountedReason } from "../utils/pilotRecommendationEvidence";
+import { savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
+import { isSiteVideoEvidenceEnabled } from "../config/env";
 
 const router = Router();
 const id = z
@@ -619,12 +621,19 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     task.thumbnailUrl = consentRevoked ? null : (reconstruction?.state === "ready" ? httpsUrl(reconstruction?.assets?.thumbnailUrl) : null)
       ?? (/^[a-f0-9]{64}$/.test(String(record.public_task_listing?.thumbnailDigest ?? "")) && record.public_task_listing?.enabled === true
         ? `/api/site-worlds/tasks/${encodeURIComponent(requestId)}/thumbnail` : null);
+    // Whether the site has filmed, read as the private job page reads it, so a
+    // filmed site is never told to film. Unreadable is not "not filmed": it
+    // leaves the readiness line out (the catch below) rather than guess.
+    const walkthrough = consentRevoked ? null : await savedWalkthrough(siteWalkthroughIdentity(requestId));
+    if (!consentRevoked && !walkthrough) throw new Error("walkthrough_status_unavailable");
     task.readiness = projectTaskStatus(
       taskStatusInputFrom({
         site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,
         capture_coverage: (record.capture_coverage as never) ?? null,
         briefDrafted: Boolean(brief),
+        hasStoredCapture: walkthrough?.received === true,
         consentRevoked,
+        footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady,
         scenePreparationFailed: reconstruction?.state === "failed",
         preparationStatus,
