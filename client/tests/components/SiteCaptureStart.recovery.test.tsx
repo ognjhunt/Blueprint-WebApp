@@ -91,6 +91,8 @@ it("RETURN-004: an acknowledged upload recovers without requiring lost File byte
     return {ok:true,status:200,json:async()=>({state:"pending",captureReceived:false,features:[]})};
   });
   const view=await renderReady(<SiteCaptureStart />);fill();fireEvent.click(document.querySelector("#start-method-upload")!);
+  // A guest sends the video with the form only by choosing to (P1-8).
+  fireEvent.click(document.querySelector("#start-upload-without-account")!);
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
   submit();
   await screen.findByRole("heading",{name:"Your job is saved. Check your video upload."});
@@ -108,6 +110,8 @@ it("ACCESS-004: late intake acceptance after account switch cannot start origina
     return {ok:true,status:200,json:async()=>({features:[],workspaceType:"site_operator"})};
   });
   const view=await renderReady(<SiteCaptureStart />);fill();fireEvent.click(document.querySelector("#start-method-upload")!);
+  // A guest sends the video with the form only by choosing to (P1-8).
+  fireEvent.click(document.querySelector("#start-upload-without-account")!);
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
   submit();
   await vi.waitFor(()=>expect(sent).toHaveLength(1));
@@ -142,6 +146,8 @@ it("CROSS-TAB-012 adopting another tab's freeze does not upload this tab's selec
     return {ok:true,status:200,json:async()=>({features:[]})};
   });
   await renderReady(<SiteCaptureStart />);fill();fireEvent.click(document.querySelector("#start-method-upload")!);
+  // A guest sends the video with the form only by choosing to (P1-8).
+  fireEvent.click(document.querySelector("#start-upload-without-account")!);
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
   // A competing tab shares the hydrated identity and freezes through the real helper.
   await act(async () => {});

@@ -164,7 +164,7 @@ describe("SiteCaptureStart and the country", () => {
 
   it.each(["Berlin, Germany", "London UK", "Toronto, Canada"])("recognizes explicit non-US geography and keeps its upload hold (%s)", async (location) => {
     await renderReady(<SiteCaptureStart />);
-    fireEvent.click(document.querySelector("#start-method-upload")!);
+    chooseUploadNow();
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: location } });
     expectInferredOutsideUnitedStates();
     expect(screen.getByText(/Outside the US we set up the data-transfer terms/)).toBeInTheDocument();
@@ -351,6 +351,16 @@ function postsTo(url: string) {
   return fetchMock.mock.calls.filter(c => c[0] === url && c[1]?.method === "POST");
 }
 
+/**
+ * A guest who has the video and chooses to send it with the form, without an
+ * account (P1-8: otherwise the video waits for the account).
+ */
+function chooseUploadNow() {
+  fireEvent.click(document.querySelector("#start-method-upload")!);
+  const withoutAccount = document.querySelector("#start-upload-without-account") as HTMLInputElement | null;
+  if (withoutAccount && !withoutAccount.checked) fireEvent.click(withoutAccount);
+}
+
 it("saves a description with explicit site authority and no recording or fee grant", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: "/capture-upload/tok.signed" } }]);
   await renderReady(<SiteCaptureStart />);
@@ -388,6 +398,7 @@ it("asks one question about the video and offers no separate rights step", async
   expect(document.querySelector("#start-rights")).toBeNull();
 
   fireEvent.click(screen.getByRole("radio", { name: "Upload a video now" }));
+  fireEvent.click(screen.getByLabelText(/Send the video now, without an account/));
   expect(document.querySelector("#start-rights")).toBeNull();
   fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
@@ -508,7 +519,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
 
   function fillFor(video: File | null) {
     fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
-    fireEvent.click(document.querySelector("#start-method-upload")!);
+    chooseUploadNow();
     if (video) fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video] } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } });
@@ -520,7 +531,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     await renderReady(<SiteCaptureStart />);
     expect(document.querySelector("#start-footage")).toBeNull();
 
-    fireEvent.click(document.querySelector("#start-method-upload")!);
+    chooseUploadNow();
 
     const input = document.querySelector("#start-footage") as HTMLInputElement;
     expect(input).toBeRequired();
@@ -534,7 +545,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
 
   it("refuses a file that is not a .mov or .mp4 before anything is sent", async () => {
     await renderReady(<SiteCaptureStart />);
-    fireEvent.click(document.querySelector("#start-method-upload")!);
+    chooseUploadNow();
     fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [new File(["x"], "site.jpg", { type: "image/jpeg" })] } });
     expect(screen.getByRole("alert")).toHaveTextContent(/not a \.mov or \.mp4/);
   });
@@ -542,7 +553,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
   it("does not ask for the upload from a site outside the US", async () => {
     fetchMock.mockResolvedValue(photon([{ name: "Munich", country: "Germany", countrycode: "DE" }]));
     await renderReady(<SiteCaptureStart />);
-    fireEvent.click(document.querySelector("#start-method-upload")!);
+    chooseUploadNow();
     expect(document.querySelector("#start-footage")).not.toBeNull();
 
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "munich" } });
@@ -574,7 +585,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     upload.send.mockResolvedValue({ status: "done" });
     const file = video();
     await renderReady(<SiteCaptureStart />);
-    fireEvent.click(document.querySelector("#start-method-upload")!);
+    chooseUploadNow();
     fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [file] } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } });
@@ -595,7 +606,7 @@ describe("SiteCaptureStart and a video that already exists", () => {
     upload.send.mockResolvedValue({ status: "done" });
     await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-task")!, { target: { value: SITE_CAPTURE_START_FORM.task } });
-    fireEvent.click(document.querySelector("#start-method-upload")!);
+    chooseUploadNow();
     fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: SITE_CAPTURE_START_FORM.location } });
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: SITE_CAPTURE_START_FORM.email } });
@@ -784,7 +795,7 @@ it("replays uncertain original answers without attaching newly selected footage"
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "original@example.invalid" } });
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByText("Uncertain save");
-  fireEvent.click(document.querySelector("#start-method-upload")!);
+  chooseUploadNow();
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "other@example.invalid" } });
   fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [new File(["synthetic"], "new.mp4")] } });
   fireEvent.submit(screen.getByRole("form"));
@@ -976,4 +987,107 @@ it("offers account setup only after the site and job have been saved", async () 
   expect(account).not.toHaveTextContent(/optional/i);
   expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
   expect(postsTo("/api/inbound-request")).toHaveLength(1);
+});
+
+/**
+ * Audit P1-8 (interim): the Pipeline refuses to prepare footage whose owner
+ * changed after upload (`website_preparation_status.py`), and the scene robot
+ * teams evaluate is built only for a claimed site. A guest's video sent with
+ * the form, then saved to an account, can never reach a team evaluation. Until
+ * the verified-claim resume ships (WebApp #1035, Pipeline #2696), a guest is
+ * offered the account first, and is never told to save the job after sending.
+ */
+describe("SiteCaptureStart offers an account before a guest sends its video", () => {
+  const captureUrl = "https://tryblueprint.io/capture-upload/tok.signed";
+  const claimUrl = "/claim/job.signed";
+  const video = () => new File(["frames"], "cycle.mov", { type: "video/quicktime" });
+  function answer(body: Record<string, unknown>) {
+    fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
+      if (String(url).startsWith("/api/site-task-brief/") && String(url).endsWith("/status")) return { ok: true, json: async () => ({ status: { headline: "", stage: null }, captureReceived: false }) };
+      if (String(url).endsWith("/api/self-capture/uploads/tok.signed/status")) return { ok: true, json: async () => ({ state: "ready", captureReceived: false, uploadState: "not_received" }) };
+      if (init?.method === "POST") return { ok: true, status: 200, json: async () => body };
+      return photon([]);
+    });
+  }
+  function fillGuest() {
+    fireEvent.change(document.querySelector("#start-task")!, { target: { value: SITE_CAPTURE_START_FORM.task } });
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: SITE_CAPTURE_START_FORM.location } });
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: SITE_CAPTURE_START_FORM.email } });
+    fireEvent.change(document.querySelector("#start-company")!, { target: { value: SITE_CAPTURE_START_FORM.company } });
+  }
+
+  it("asks for no file until the guest chooses to send it without an account", async () => {
+    await renderReady(<SiteCaptureStart />);
+    fireEvent.click(document.querySelector("#start-method-upload")!);
+    const note = screen.getByRole("note", { name: "Save this job to an account first" });
+    expect(note).toHaveTextContent(/Robot teams can evaluate your job only if its video is sent after the job is saved to an account/);
+    expect(screen.getByRole("link", { name: "Sign in first" })).toHaveAttribute("href", "/sign-in");
+    expect(document.querySelector("#start-footage")).toBeNull();
+    const withoutAccount = screen.getByLabelText(/Send the video now, without an account/) as HTMLInputElement;
+    expect(withoutAccount.checked).toBe(false);
+    fireEvent.click(withoutAccount);
+    expect(document.querySelector("#start-footage")).not.toBeNull();
+  });
+
+  it("remembers the form when the guest signs in first", async () => {
+    await renderReady(<SiteCaptureStart />);
+    fireEvent.click(document.querySelector("#start-method-upload")!);
+    fireEvent.click(screen.getByRole("link", { name: "Sign in first" }));
+    expect(window.sessionStorage.getItem("redirectAfterAuth")).toBe(`${window.location.pathname}${window.location.search}`);
+  });
+
+  it("saves the job, sends nothing, and offers the account before the video", async () => {
+    answer({ captureUrl, claimUrl });
+    await renderReady(<SiteCaptureStart />);
+    fireEvent.click(document.querySelector("#start-method-upload")!);
+    fillGuest();
+    fireEvent.submit(screen.getByRole("form"));
+
+    await screen.findByRole("heading", { name: "Save your job to your account, then send your video." });
+    // The same submission the request-step journey starts from; only the upload waits.
+    const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
+    expect(sent).toEqual(siteCaptureStartSubmission({ requestId: sent.requestId, retryToken: sent.retryToken,
+      sourcePageUrl: window.location.href }));
+    expect(upload.send).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("link", { name: "Create an account for this job" })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Create an account for this job" })).toHaveAttribute("href", claimUrl);
+    expect(screen.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", `${claimUrl}?mode=signin`);
+    expect(screen.getByRole("link", { name: "Open the uploader" })).toHaveAttribute("href", `${captureUrl}?video=existing`);
+  });
+
+  it("lets a guest send it now without an account, and then never tells it to save the job", async () => {
+    answer({ captureUrl, claimUrl });
+    upload.send.mockResolvedValue({ status: "done" });
+    const file = video();
+    await renderReady(<SiteCaptureStart />);
+    fireEvent.click(document.querySelector("#start-method-upload")!);
+    fireEvent.click(screen.getByLabelText(/Send the video now, without an account/));
+    fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [file] } });
+    fillGuest();
+    fireEvent.submit(screen.getByRole("form"));
+
+    await screen.findByText("Your recording is in.", { selector: "h2" });
+    expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
+    expect(screen.queryByRole("link", { name: "Create an account for this job" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Save this job to your account" })).not.toBeInTheDocument();
+    expect(screen.getByRole("note", { name: "Sent without an account" }))
+      .toHaveTextContent(/robot teams cannot evaluate a job whose video was sent before the job was saved to an account/i);
+  });
+
+  it("sends the video with the form for a signed-in site account, which owns the job from the start", async () => {
+    signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl } }]);
+    upload.send.mockResolvedValue({ status: "done" });
+    const file = video();
+    await renderReady(<SiteCaptureStart />);
+    await screen.findByText(/Saving to your workspace as owner@example.com/);
+    fireEvent.click(document.querySelector("#start-method-upload")!);
+    expect(screen.queryByRole("note", { name: "Save this job to an account first" })).not.toBeInTheDocument();
+    fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [file] } });
+    fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
+    fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+    fireEvent.submit(screen.getByRole("form"));
+    await screen.findByRole("link", { name: "Saved in your workspace" });
+    expect(postsTo("/api/workspace/capture-start")).toHaveLength(1);
+    expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
+  });
 });

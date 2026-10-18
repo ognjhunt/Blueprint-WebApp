@@ -76,6 +76,7 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
     await page.locator("#start-email").fill("qa@example.invalid");
     await page.locator("#start-company").fill("Owned synthetic QA");
     await page.locator("#start-method-upload").check();
+    await page.locator("#start-upload-without-account").check();
     await page.locator("#start-footage").setInputFiles(fixture);
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
     await expect.poll(() => interrupted).toBe(true);
@@ -89,7 +90,8 @@ for (const receipt of ["not-received", "received-pending"] as const) test(`brows
       await expect(page.getByRole("heading", { name: "Video received. Processing is not confirmed." })).toBeVisible();
       await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart");
     } else {
-      await expect(page.getByRole("heading", { name: "Your job is saved. Check your video upload." })).toBeVisible();
+      // A guest's unsent video waits for the account (P1-8).
+      await expect(page.getByRole("heading", { name: "Save your job to your account, then send your video." })).toBeVisible();
       await expect(page.getByRole("link", { name: "Open the uploader", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-upload-restart?video=existing");
     }
     await context.tracing.stop({ path: testInfo.outputPath("after-browser-restart.zip") });

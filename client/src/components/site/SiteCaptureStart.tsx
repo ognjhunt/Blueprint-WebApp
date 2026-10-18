@@ -61,6 +61,10 @@ type State =
       // What became of the video attached to the form. "none" is no video, not
       // a failure; "failed" means the job is saved but receipt is unconfirmed.
       uploaded: "none" | VideoUploadResult["status"];
+      // A guest's video waits for the account: the scene robot teams evaluate
+      // is built only for a claimed site, and the Pipeline refuses footage
+      // whose owner changed after upload (audit P1-8, interim).
+      videoAwaitsAccount: boolean;
       uploadMessage: string | null;
       processingRetryAvailable: boolean;
     }
@@ -304,6 +308,13 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // When it is ticked the video is attached right here, so the form is the
   // whole submission rather than a step before another upload page.
   const hasFootage = method === "upload";
+  // A guest's video sent with the form, then saved to an account, cannot reach
+  // a robot team's evaluation until a verified claim can resume it (WebApp
+  // #1035, Pipeline #2696). So a guest is offered the account first, and sends
+  // the video now only by choosing to, with that consequence stated.
+  const [sendWithoutAccount, setSendWithoutAccount] = useState(false);
+  // A signed-in site workspace owns the job from the start, so its video goes with the form.
+  const videoWithForm = siteWorkspace || sendWithoutAccount;
   const [footage, setFootage] = useState<File | null>(null);
   const [footageError, setFootageError] = useState<string | null>(null);
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
@@ -347,7 +358,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     setPending(other.pending);
     if (changed && resetChanged) {
       setClaudeConsent(false); setSolAgentsConsent(false);
-      setFootage(null); setResetVersion(value => value + 1);
+      setFootage(null); setSendWithoutAccount(false); setResetVersion(value => value + 1);
     }
   }
   function retainDraft(place?: ChosenPlace) {
@@ -385,7 +396,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setClaudeConsent(false); setSolAgentsConsent(false);
       setMethod("phone"); setRegion(""); setCountryMissing(false);
       setPrivateHandling(false); setTaskForPreview("");
-      setFootage(null); setFootageError(null); setCaptureReceived(false);
+      setFootage(null); setFootageError(null); setCaptureReceived(false); setSendWithoutAccount(false);
       setResetVersion(value => value + 1);
       // A completion is visible only after both stores commit the fresh authority.
       setClearStatus("done");
@@ -393,6 +404,15 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       if (active.current) { setStorageAvailable(false); setClearStatus("failed"); }
     } finally { operationInFlight.current = false; }
   }
+  /** Sign-in returns here (`AuthContext` reads `redirectAfterAuth`), so the site account sends the video with this form. */
+  function rememberThisForm() {
+    try {
+      window.sessionStorage.setItem("redirectAfterAuth", `${window.location.pathname}${window.location.search}`);
+    } catch {
+      // Sign-in still works; the person comes back to this page by hand.
+    }
+  }
+
   // Whether the phone handoff below is worth anything here. This form is
   // filled in from whatever device is at hand, including the phone that is
   // about to do the filming -- and a code pointing a phone at itself is not a
@@ -412,7 +432,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       document.querySelector<HTMLInputElement>("#start-location")?.focus();
       return;
     }
-    if (!retained && footageWanted && !footage) return;
+    if (!retained && footageWanted && videoWithForm && !footage) return;
+    const chosenWithoutAccount = sendWithoutAccount;
 
     const data = new FormData(formRef.current!);
     const operationRecovery = recovery.current;
@@ -580,7 +601,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       let uploadMessage: string | null = null;
       let processingRetryAvailable = false;
       const captureToken = captureUrl ? captureTokenFromUrl(captureUrl) : null;
-      if (!recoveredSubmission && submissionFootageWanted && footage && regionApproved && captureToken) {
+      // Only a job saved to an account from the start, or a guest who chose to
+      // send it now, uploads here. Otherwise the video waits for the account.
+      const uploadNow = savedToWorkspace || (chosenWithoutAccount && !recoveredSubmission);
+      const videoAwaitsAccount = submissionFootageWanted && regionApproved && !uploadNow;
+      if (!recoveredSubmission && uploadNow && submissionFootageWanted && footage && regionApproved && captureToken) {
         setUploadPercent(0);
         const outcome = await uploadSelfCaptureVideo(captureToken, footage, setUploadPercent);
         uploaded = outcome.status;
@@ -609,6 +634,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         uploaded,
         uploadMessage,
         processingRetryAvailable,
+        videoAwaitsAccount,
       });
       if (recoveredSubmission && captureUrl) void refreshReceivedVideo(captureUrl);
     } catch {
@@ -624,6 +650,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   }
 
   if (state.status === "done") {
+    // A guest's footage is in: saving the job to an account now would change
+    // the recording's owner, which the Pipeline refuses, so it is not offered.
+    const footageSentWithoutAccount = !state.workspaceUrl
+      && (captureReceived || ["done", "processing_pending", "held"].includes(state.uploaded));
     return (
       <div className="ms-form ms-intake-confirmation" aria-live="polite">
         {!state.hasFootage && state.captureUrl && !captureReceived ? (
@@ -658,6 +688,26 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             <CaptureLiveStatus compact captureUrl={state.captureUrl} />
             <p style={{ marginTop: "20px" }}>
               <a className="ms-button ms-button-large ms-intake-job-link" href={state.captureUrl}>Open your job and assessment</a>
+            </p>
+          </>
+        ) : state.videoAwaitsAccount && state.captureUrl ? (
+          <>
+            {/* The account comes before the video: the scene robot teams
+                evaluate is built only for a claimed site, and a video sent
+                first could not be resumed under the account (P1-8). */}
+            <h2 style={{ marginTop: 0 }}>Save your job to your account, then send your video.</h2>
+            <p className="ms-field-hint">
+              Robot teams can evaluate your job only if its video is sent after the job is saved to an account.
+              Create your account or sign in with {state.email}, then open your job and send the video you already have.
+            </p>
+            {state.claimUrl && <div className="ms-intake-account-links">
+              <a className="ms-button ms-button-large" href={state.claimUrl}>Create an account for this job</a>
+              <a className="ms-text-link" href={`${state.claimUrl}?mode=signin`}>Sign in to save this job</a>
+            </div>}
+            <p className="ms-field-hint" style={{ marginTop: "20px" }}>
+              After you save it, send the video from your job page:{" "}
+              <a className="ms-text-link" href={`${state.captureUrl}${state.captureUrl.includes("?") ? "&" : "?"}video=existing`}>Open the uploader</a>.
+              Keep this private link; we also email it to {state.email}.
             </p>
           </>
         ) : state.selfRecording && state.captureUrl ? (
@@ -721,15 +771,20 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         )}
         {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
         {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
-        {!state.workspaceUrl && state.claimUrl && <section className="ms-intake-account" aria-label="Save this job to your account">
+        {footageSentWithoutAccount && <p className="ms-field-hint" role="note" aria-label="Sent without an account">
+          This video was sent without an account. Robot teams cannot evaluate a job whose video was sent before the job
+          was saved to an account; your free assessment continues on your job page.
+        </p>}
+        {!state.workspaceUrl && state.claimUrl && !state.videoAwaitsAccount && !footageSentWithoutAccount && <section className="ms-intake-account" aria-label="Save this job to your account">
           <h2>Save this job to your account</h2>
           {/* Not optional for evaluation: the scene robot teams run against is
               built only for a claimed site (`websiteSceneSponsorship`). Saving
               before footage arrives also keeps the recording's owner the same
-              from upload on, which the Pipeline checks. */}
+              from upload on, which the Pipeline checks; once a guest's footage
+              is in, saving is not offered at all (P1-8). */}
           <p className="ms-field-hint">
             We build the scene robot teams evaluate only for a job saved to an account with {state.email}.
-            {captureReceived ? " Save it now." : " Save it now, before any footage is sent."} Your private job link keeps working either way.
+            {" "}Save it now, before any footage is sent. Your private job link keeps working either way.
           </p>
           <div className="ms-intake-account-links">
             <a className="ms-text-link" href={state.claimUrl}>Create an account for this job</a>
@@ -825,7 +880,30 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             anything is uploaded, and we will tell you when to send it.
           </p>
         ) : (
-          <label htmlFor="start-footage">
+          <>
+          {!siteWorkspace && <div className="ms-intake-account-first" role="note" aria-label="Save this job to an account first">
+            <p className="ms-field-hint">
+              <strong>Save this job to an account before you send the video.</strong> Robot teams can evaluate your job
+              only if its video is sent after the job is saved to an account.
+            </p>
+            <p className="ms-field-hint">
+              New to Blueprint? Start the job here, then create your account and send the video from your job page.
+              Already have a site account? <a className="ms-text-link" href="/sign-in" onClick={rememberThisForm}>Sign in first</a> and
+              send it with this form.
+            </p>
+            <label className="ms-check-row" htmlFor="start-upload-without-account">
+              <input id="start-upload-without-account" type="checkbox" checked={sendWithoutAccount}
+                onChange={(event) => {
+                  setSendWithoutAccount(event.target.checked);
+                  if (!event.target.checked) { setFootage(null); setFootageError(null); }
+                }} />
+              <span>Send the video now, without an account. You still get the free assessment, but robot teams cannot
+                evaluate a job whose video was sent before the job was saved to an account.</span>
+            </label>
+            {/* Starting with footage is the recording grant, video now or later, so the notice is read here too. */}
+            {!videoWithForm && <p className="ms-field-hint">{FOOTAGE_UPLOAD_NOTICE}</p>}
+          </div>}
+          {videoWithForm && <label htmlFor="start-footage">
             <span>Upload the video</span>
             <span className="ms-field-hint">
               A .mov or .mp4 file, straight from the phone or camera that recorded it. One complete
@@ -853,7 +931,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             />
             {footageError && <span role="alert" className="ms-field-hint" style={{ color: "var(--ms-alert, #b00)" }}>{footageError}</span>}
             {footage && <span className="ms-field-hint">{formatBytes(footage.size)}. It uploads when you select Start free assessment.</span>}
-          </label>
+          </label>}
+          </>
         )
       ) : null}
 
