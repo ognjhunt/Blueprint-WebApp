@@ -89,7 +89,7 @@ describe("description first owner return", () => {
       return mockFetch()(input);
     });
   }
-  it("keeps account claiming available inside optional corrections without gating the summary", async () => {
+  it("keeps account saving optional inside the brief confirmation without gating the summary", async () => {
     const fetcher = ownerFetch(false);
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => String(input) === `/api/site-task-brief/${TOKEN}`
       ? Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner", account: { claimed: false, email: "owner@example.test", claimToken: "synthetic-claim-token" },
@@ -97,8 +97,8 @@ describe("description first owner return", () => {
       : fetcher(input)));
     render(<SelfCaptureUpload />);
     await screen.findByRole("heading", { name: "Your job summary" });
-    expect(screen.getByText("Correct job details (optional)").closest("details")).not.toHaveAttribute("open");
-    fireEvent.click(screen.getByText("Correct job details (optional)"));
+    expect(screen.getByText("Review and confirm your job brief").closest("details")).not.toHaveAttribute("open");
+    fireEvent.click(screen.getByText("Review and confirm your job brief"));
     expect(screen.queryByLabelText("Choose a password")).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Also save this job to my account (optional)"));
     expect(screen.getByLabelText("Choose a password")).toBeInTheDocument();
@@ -126,7 +126,7 @@ describe("description first owner return", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     const first = render(<SelfCaptureUpload />);
-    fireEvent.click(await screen.findByText("Correct job details (optional)"));
+    fireEvent.click(await screen.findByText("Edit your job brief"));
     fireEvent.click(screen.getByText("Your recorded pilot preferences (optional corrections)"));
     expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("subject_to_review");
     expect(screen.getByRole("combobox", { name: /what could happen next/ })).toHaveValue("multiple_sites");
@@ -142,7 +142,7 @@ describe("description first owner return", () => {
     expect(JSON.parse(posts[1][1]!.body as string).pilotIntent).toEqual({ pilotConsideration: "evaluation_only", deploymentPath: "multiple_sites" });
     first.unmount();
     render(<SelfCaptureUpload />);
-    fireEvent.click(await screen.findByText("Correct job details (optional)"));
+    fireEvent.click(await screen.findByText("Edit your job brief"));
     fireEvent.click(screen.getByText("Your recorded pilot preferences (optional corrections)"));
     expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("evaluation_only");
     expect(screen.getByRole("combobox", { name: /what could happen next/ })).toHaveValue("multiple_sites");
@@ -390,8 +390,9 @@ describe("explicit assessment retry", () => {
     expect(await screen.findByText("Video received.")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Your saved job" })).toBeVisible();
     expect(screen.getByText("Job reference: bp-advisory-aaaaaaaaaaaaaaaa")).toBeVisible();
-    expect(screen.getByText("Correct job details (optional)")).toBeVisible();
-    expect(screen.getByText("Correct job details (optional)").closest("details")).not.toHaveAttribute("open");
+    // The brief stays the site's open, required step through the refusal.
+    expect(screen.getByRole("region", { name: "Confirm your job brief" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Confirm your job brief" }).closest("details")).toBeNull();
     expect(read.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(1);
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(videoUpload.retry).not.toHaveBeenCalled();
@@ -456,7 +457,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
   const DESKTOP_UA =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";
 
-  it("shows the saved layout with optional corrections on a laptop, instead of the QR code", async () => {
+  it("shows the saved layout with the brief confirmation on a laptop, instead of the QR code", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
@@ -487,8 +488,8 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     expect(screen.queryByRole("heading", { name: "Point your phone at this." })).not.toBeInTheDocument();
     expect(await screen.findByText("What throughput is required?")).toBeInTheDocument();
     expect(screen.queryByRole("heading", {name:"What would a good result look like?"})).not.toBeInTheDocument();
-    const details = screen.getByText("Correct job details (optional)").closest("details")!;
-    expect(details.open).toBe(false);
+    // Teams evaluate only a confirmed job: the brief is open on the page.
+    expect(screen.getByRole("region", { name: "Confirm your job brief" }).closest("details")).toBeNull();
     fireEvent.click(screen.getByText("Add photos of the job items"));
     expect(await screen.findByPlaceholderText("e.g. Dishes")).toBeInTheDocument();
     expect(screen.getByRole("button", {name:"Add photos"})).toBeInTheDocument();
@@ -652,5 +653,80 @@ describe("SelfCaptureUpload for a site that asked for a visit", () => {
     render(<SelfCaptureUpload />);
     expect(await screen.findByText("Something is in the way.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "I'll film it myself instead" })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Audit N1: robot teams can evaluate only a confirmed job (`teamJobAccess`), so
+ * once footage is in, confirming the brief is a visible, required step on the
+ * owner page, never a collapsed "optional" correction.
+ */
+describe("SelfCaptureUpload asks for the brief confirmation teams need", () => {
+  const DESKTOP_UA =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";
+
+  function ownerFetch(options: { captureReceived: boolean; confirmedAtIso: string | null }) {
+    return vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) {
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true, state: "open", accepts: ["mov", "mp4"],
+          expiresAt: "2099-01-01T00:00:00Z", ...(options.captureReceived ? { captureReceived: true, uploadState: "processing_ready" } : {}) }) });
+      }
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}/status`)) {
+        return Promise.resolve({ ok: true, json: async () => ({ ok: true, scope: "owner", captureReceived: options.captureReceived,
+          status: options.confirmedAtIso
+            ? { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null }
+            : { decision: "confirm_brief", headline: "We have your recording. Next, confirm your job brief: robot teams can evaluate your job only after you confirm it.",
+              operatorAction: "Open your job brief, check the summary and answers, correct anything that is wrong, and confirm it.", missingViews: [], nextUpdateIso: null } }) });
+      }
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}`)) {
+        return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner", brief: {
+          summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: options.confirmedAtIso,
+        } }) });
+      }
+      if (url.includes("/clarification?mode=assessment")) {
+        return Promise.resolve({ ok: true, json: async () => ({ revision: "a".repeat(64), needed: false, questions: [], assessmentState: "queued" }) });
+      }
+      if (url.includes("/items")) return Promise.resolve({ ok: true, json: async () => ({ items: [], allItemsCovered: false, requestedShots: [] }) });
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false, scope: "film" }) });
+    });
+  }
+
+  it("shows an unconfirmed brief as an open, required step once footage is in", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", ownerFetch({ captureReceived: true, confirmedAtIso: null }));
+    render(<SelfCaptureUpload />);
+
+    const step = await screen.findByRole("region", { name: "Confirm your job brief" });
+    expect(step.closest("details")).toBeNull();
+    expect(step).toHaveTextContent(/robot teams can evaluate your job only after you confirm/i);
+    // The confirm control is on the page, with nothing to open first.
+    expect(screen.getByRole("button", { name: "This is right — confirm it" })).toBeVisible();
+    expect(screen.queryByText(/job details \(optional\)/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/no confirmation is required|without confirming/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps a confirmed brief to one line with an edit link", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", ownerFetch({ captureReceived: true, confirmedAtIso: "2026-10-18T00:00:00Z" }));
+    render(<SelfCaptureUpload />);
+
+    expect(await screen.findByText(/Your job brief is confirmed\./)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Confirm your job brief" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit your answers" })).toBeInTheDocument();
+  });
+
+  it("says the brief must be confirmed before any footage, without calling it optional", async () => {
+    setUserAgent(DESKTOP_UA);
+    vi.stubGlobal("fetch", ownerFetch({ captureReceived: false, confirmedAtIso: null }));
+    render(<SelfCaptureUpload />);
+
+    await screen.findByRole("heading", { name: "Your job summary" });
+    const disclosure = screen.getByText("Review and confirm your job brief", { selector: "summary" });
+    expect(disclosure).toBeVisible();
+    // Said beside the summary, before anything is opened.
+    expect(screen.getAllByText(/robot teams can evaluate your job only after you confirm/i)[0]).toBeVisible();
+    expect(screen.queryByText(/job details \(optional\)/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/confirmation is needed only/i)).not.toBeInTheDocument();
   });
 });

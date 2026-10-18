@@ -420,15 +420,16 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.claimUrl).toMatch(/\/claim\/.+/);
   });
 
-  it("shows known assessment status without mandatory confirmation while retaining claim controls", async () => {
+  it("asks a filmed site to confirm its brief, which teams need, while retaining claim controls", async () => {
     const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
     const { site_task_brief_confirmed_at: _confirmed, ...unconfirmed } = record;
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", unconfirmed);
 
     const { body } = await status();
 
-    expect(body.status.decision).toBe("assessing");
-    expect(body.status.operatorAction).toBeNull();
+    expect(body.status.decision).toBe("confirm_brief");
+    expect(body.status.headline).toMatch(/robot teams can evaluate your job only after you confirm it/i);
+    expect(body.status.operatorAction).toMatch(/confirm it/i);
     expect(body.claimUrl ?? null).toBeNull();
   });
 

@@ -20,7 +20,11 @@ describe("current source-bound preparation projection", () => {
     expect(status.headline).toContain(phrase);
     expect(status.headline).toContain("Keep your original recording");
     expect(status.headline).not.toContain("we are preparing it");
-    expect(status.operatorAction).toBeNull();
+    // Teams evaluate only a confirmed job, so the problem carries the site's step.
+    expect(status.operatorAction).toMatch(/confirm it/i);
+    const confirmed = projectTaskStatus({ ...base, preparationStatus: { state, correlationId: reference } } as never);
+    expect(confirmed.headline).toBe(status.headline);
+    expect(confirmed.operatorAction).toBeNull();
   });
   it("includes only a host-validated correlation reference", () => {
     const status = projectTaskStatus({ ...base,
