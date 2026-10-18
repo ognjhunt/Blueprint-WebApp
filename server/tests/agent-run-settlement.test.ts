@@ -437,7 +437,8 @@ describe("a reported run settles for what it ran", () => {
     await reportRunOutcome({ runId: run.runId, state: "blocked", episodesRun: 0, note: "scene would not load" });
 
     expect(lifecycleNotice).toHaveBeenCalledTimes(2);
-    expect(lifecycleNotice).toHaveBeenCalledWith({ requestId: "scene-1", milestone: "run_no_result", eventId: run.runId });
+    expect(lifecycleNotice).toHaveBeenCalledWith({ requestId: "scene-1", milestone: "run_no_result", eventId: run.runId,
+      runProgress: { episodesRun: 0, executionProgress: undefined } });
   });
 
   it("reports an outcome as due immediately rather than waiting for expiry", async () => {

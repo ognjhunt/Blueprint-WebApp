@@ -123,6 +123,9 @@ export function projectWorkspaceTask(
   // rather than an "In review" that never ends.
   const access = teamJobAccess(record);
   const published = access.evaluationAvailable;
+  const booking = object(record.pilot_booking), recommendation = object(record.pilot_recommendation);
+  const bookedSelection = Boolean(booking.recommendationId && booking.recommendationId === recommendation.id
+    && pilot.selectedResultId && pilot.selectedResultId === recommendation.evaluationRunId);
   return {
     id,
     recordingPermissionWithdrawn: record.consent_revoked === true,
@@ -139,15 +142,17 @@ export function projectWorkspaceTask(
           ? "Pilot complete"
           : pilot.state === "pilot"
             ? "Pilot underway"
-            : pilot.selectedResultId
-              ? pilot.state === "invited"
-                ? "Pilot invited"
-                : "Pilot selected"
-              : published
-                ? "Open for evaluations"
-                : access.reason === "not_listed"
-                  ? "Private"
-                  : "In review",
+            : bookedSelection
+              ? "Pilot booked"
+              : pilot.selectedResultId
+                ? pilot.state === "invited"
+                  ? "Pilot invited"
+                  : "Pilot selected"
+                : published
+                  ? "Open for evaluations"
+                  : access.reason === "not_listed"
+                    ? "Private"
+                    : "In review",
     nextStep: text(object(record.ops).next_step) || null,
     terms: termsFor(record),
     pilotIntent: sitePilotIntentFrom(workspace.pilotIntent),

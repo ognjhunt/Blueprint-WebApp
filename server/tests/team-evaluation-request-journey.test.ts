@@ -213,7 +213,7 @@ async function openJob() {
   await pipelineSync(jobId);
   return jobId;
 }
-function requestEvaluation(jobId: string, uid = ROBOT, licensed = false) {
+function requestEvaluation(jobId: string, uid = ROBOT, licensed = true) {
   return workspaceApi("/evaluations", uid, { id: next("application"), opportunityId: jobId, setupId: SETUP.id, notes: "",
     ...(licensed ? { licenseToRun: true } : {}) });
 }

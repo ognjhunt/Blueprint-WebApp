@@ -1,4 +1,6 @@
 // @vitest-environment node
+import { syntheticRobotEmbodiment } from "./helpers/supply-agreement";
+import { qualifiedReceipt } from "./helpers/siteTaskQualificationReceipt";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({ dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore }));
@@ -18,6 +20,7 @@ vi.mock("../utils/agentExecutionAdmission", async () => {
   return { discoverAgentExecutionAdmission: admission, canonicalJson,
     agentExecutionAdmissionDigest: (value: unknown) => `sha256:${createHash("sha256").update(canonicalJson(value)).digest("hex")}` };
 });
+import { buildPolicyRunLicense } from "../utils/policyRunLicense";
 import { admitFreeWorkspaceEvaluation } from "../utils/freeEvaluationHandoff";
 import { canDispatchFreeBetaRun } from "../utils/freeBeta";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
@@ -48,11 +51,33 @@ beforeEach(() => {
   state.docs.set("users/owner/robotSetups/setup", { payload: JSON.stringify({ reference: "https://policy.test/action", version: "v1" }) });
   state.docs.set("robotCheckpoints/checkpoint", { teamId: "team", reference: "https://policy.test/action" });
   state.docs.set("robotEvalJobRequests/prepared", { buyer_user_id: "owner" });
+  state.docs.get("inboundRequests/application")!.workspace_evaluation.policyRunLicense = buildPolicyRunLicense({
+    ownerUid: "owner", requestId: "application", opportunityId: "scene", setupId: "setup",
+    setup: JSON.parse(state.docs.get("users/owner/robotSetups/setup")!.payload),
+  });
   admission.mockResolvedValue({ admitted: true, digestSha256: "sha256:" + "a".repeat(64),
     envelope: { binding: { capture_id: "capture", task_family: "pick_place" },
       canonical_execution_request: { execution_authorization: { max_cost_usd: 10, episodes: 1 } } } });
 });
 describe("operator-approved workspace handoff", () => {
+  it("refuses a legacy request with no bound policy license before preparation", async () => {
+    delete state.docs.get("inboundRequests/application")!.workspace_evaluation.policyRunLicense;
+    await expect(admitFreeWorkspaceEvaluation("application", command(), "operator")).rejects.toThrow("policy_license_required");
+    expect(prepare).not.toHaveBeenCalled();
+    expect(admission).not.toHaveBeenCalled();
+  });
+
+  it.each(["grantedByUid", "requestId", "opportunityId", "setupId", "setupDigest", "revokedAtIso"])("refuses a mismatched or revoked policy grant (%s)", async field => {
+    state.docs.get("inboundRequests/application")!.workspace_evaluation.policyRunLicense[field] = "changed";
+    await expect(admitFreeWorkspaceEvaluation("application", command(), "operator")).rejects.toThrow("policy_license_required");
+    expect(admission).not.toHaveBeenCalled();
+  });
+  it("requires a fresh grant after the selected setup changes", async () => {
+    const setup = state.docs.get("users/owner/robotSetups/setup")!;
+    setup.payload = JSON.stringify({ ...JSON.parse(setup.payload), version: "v2" });
+    await expect(admitFreeWorkspaceEvaluation("application", command(), "operator")).rejects.toThrow("policy_license_required");
+    expect(prepare).not.toHaveBeenCalled();
+  });
   it.each([
     {},
     { request: { consent_attestation: { granted: false, statement_version: RECORDING_CONSENT_VERSION, recorded_at_iso: "2026-10-01T00:00:00Z" } } },
@@ -179,4 +204,70 @@ it.each(["scene", "team"])("refuses a concurrent %s authority change after admis
   });
   await expect(admitFreeWorkspaceEvaluation("application", command(), "operator")).rejects.toThrow("source_changed");
   expect([...state.docs.keys()].some(key => key.startsWith("evaluationRuns/"))).toBe(false);
+});
+
+
+describe("qualified captured-site admission", () => {
+  function qualifiedApproval() {
+    const robotEmbodiment = syntheticRobotEmbodiment();
+    const setup = { reference: "https://policy.test/action", version: "v1", robotEmbodiment };
+    state.docs.set("users/owner/robotSetups/setup", { payload: JSON.stringify(setup) });
+    state.docs.get("inboundRequests/application")!.workspace_evaluation.policyRunLicense = buildPolicyRunLicense({
+      ownerUid: "owner", requestId: "application", opportunityId: "scene", setupId: "setup", setup,
+    });
+    const receipt = qualifiedReceipt({ binding: { scene_request_id: "scene", capture_id: "capture",
+      policy_interface_id: "blueprint_policy_https.v1", robot_model_digest: robotEmbodiment.model.sha256 } });
+    state.docs.get("inboundRequests/scene")!.pipeline.capture_job_id = "capture-session";
+    state.docs.set("captureUploadSessions/capture-session", { capture_id: "capture", fixtureOnly: true });
+    state.docs.set(`siteTaskQualifications/${receipt.receipt_digest.slice(7)}`, { receipt });
+    admission.mockResolvedValue({ admitted: true, digestSha256: "sha256:" + "a".repeat(64), envelope: {
+      binding: { capture_id: "capture", scene_request_id: "scene", task_family: "rigid_pick_place",
+        task_id: receipt.binding.task_id, site_id: receipt.binding.site_id,
+        capture_digest_sha256: receipt.binding.source_capture_digest, testbed_digest_sha256: receipt.binding.testbed_digest_sha256 },
+      canonical_execution_request: { execution_authorization: { max_cost_usd: 10, episodes: 200 }, policy_package: {
+        policy_api_endpoint: { policy_interface_id: "blueprint_policy_https.v1", execution_profile: "team_evaluation_scored_v1", robot_embodiment: robotEmbodiment },
+      } },
+    } });
+    return { receipt, approval: { ...command(), episodes: 200, evidenceScope: "simulation",
+      qualificationReceiptDigest: receipt.receipt_digest } };
+  }
+  it("freezes the published receipt and exact binding without starting or claiming physical proof", async () => {
+    const { receipt, approval } = qualifiedApproval();
+    const created = await admitFreeWorkspaceEvaluation("application", approval, "operator");
+    expect(created).toMatchObject({ created: true, evidenceScope: "simulation" });
+    const run = state.docs.get(`evaluationRuns/${created.runId}`)!;
+    expect(run.executionAdmission.envelope).toMatchObject({ evidence_scope: "simulation",
+      site_task_qualification: receipt.qualification, site_task_qualification_receipt: receipt });
+    expect(run.dispatch).toBeUndefined();
+    expect(run.quotedUsd).toBe(0);
+    expect(await admitFreeWorkspaceEvaluation("application", approval, "operator")).toEqual({ ...created, created: false });
+  });
+  it.each(["missing", "wrong_job", "wrong_capture", "wrong_interface", "expired", "future_review", "too_short"])(
+    "refuses an unavailable or inapplicable qualification (%s)", async variant => {
+      const configured = qualifiedApproval();
+      let receipt = configured.receipt;
+      if (variant === "wrong_job") receipt = qualifiedReceipt({ binding: { ...receipt.binding, scene_request_id: "other" } });
+      if (variant === "wrong_capture") receipt = qualifiedReceipt({ binding: { ...receipt.binding, capture_id: "other" } });
+      if (variant === "wrong_interface") receipt = qualifiedReceipt({ binding: { ...receipt.binding, policy_interface_id: "openpi_droid_https.v1" } });
+      if (variant === "expired") receipt = qualifiedReceipt({ binding: receipt.binding, reviewed_at_iso: "2020-01-01T00:00:00Z", expires_at_iso: "2020-01-02T00:00:00Z" });
+      if (variant === "future_review") receipt = qualifiedReceipt({ binding: receipt.binding, reviewed_at_iso: "2098-01-01T00:00:00Z" });
+      if (variant === "too_short") receipt = qualifiedReceipt({ binding: receipt.binding, expires_at_iso: new Date(Date.now() + 3_600_000).toISOString() });
+      if (variant === "missing") state.docs.delete(`siteTaskQualifications/${receipt.receipt_digest.slice(7)}`);
+      else state.docs.set(`siteTaskQualifications/${receipt.receipt_digest.slice(7)}`, { receipt });
+      await expect(admitFreeWorkspaceEvaluation("application", { ...configured.approval,
+        qualificationReceiptDigest: receipt.receipt_digest }, "operator")).rejects.toThrow();
+      expect([...state.docs.keys()].some(key => key.startsWith("evaluationRuns/"))).toBe(false);
+    });
+  it("refuses changing the licensed robot through an operator-supplied request", async () => {
+    const { approval } = qualifiedApproval();
+    const prepared = await admission();
+    prepared.envelope.canonical_execution_request.policy_package.policy_api_endpoint.robot_embodiment = { model: "other" };
+    await expect(admitFreeWorkspaceEvaluation("application", approval, "operator")).rejects.toThrow("policy_robot_mismatch");
+  });
+  it("rejects scope-only promotion and diagnostics carrying a qualification reference", async () => {
+    for (const patch of [{ evidenceScope: "simulation" }, { qualificationReceiptDigest: "sha256:" + "f".repeat(64) }]) {
+      await expect(admitFreeWorkspaceEvaluation("application", { ...command(), ...patch }, "operator")).rejects.toThrow();
+    }
+    expect(admission).not.toHaveBeenCalled();
+  });
 });

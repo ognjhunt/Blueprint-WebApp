@@ -145,15 +145,15 @@ describe("recording Blueprint's recommended pilot", () => {
   it("refuses using a DROID agreement for an own-robot run, a different declared setup, or missing execution binding", async () => {
     const robotEmbodiment = syntheticRobotEmbodiment();
     const ownAdmission = syntheticSupplyExecutionAdmission("blueprint_policy_https.v1", robotEmbodiment);
-    const refused = async (executionAdmission: unknown) => {
+    const refused = async (executionAdmission: unknown, code = "team_supply_interface_mismatch") => {
       state.docs.set("evaluationRuns/run_pass", evaluationRun({ executionAdmission }) as never);
       const response = await post(plan);
       expect(response.status).toBe(400);
-      expect(await response.json()).toMatchObject({ code: "team_supply_interface_mismatch" });
+      expect(await response.json()).toMatchObject({ code });
       expect(doc().pilot_recommendation).toBeUndefined();
     };
     await refused(ownAdmission);
-    await refused(undefined);
+    await refused(undefined, "evaluation_scene_not_qualified");
     state.docs.set("robotTeams/engaged", { ...state.docs.get("robotTeams/engaged"),
       supplyAgreement: completeSupplyAgreement({ interfaceId: "blueprint_policy_https.v1", robotEmbodiment }) } as never);
     await refused(syntheticSupplyExecutionAdmission());

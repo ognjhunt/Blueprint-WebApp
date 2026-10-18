@@ -26,6 +26,7 @@
  * here certifies physical performance or safety.
  */
 import { z } from "zod";
+import { validateSiteTaskQualificationReceipt } from "./siteTaskQualificationReceipt";
 
 export const RUN_RESULT_SCORING_SCHEMA_VERSION = "blueprint.agent_run_result_scoring.v1";
 /**
@@ -180,6 +181,7 @@ export interface EpisodeAccounting {
 
 /** Only the fields needed to establish evidence eligibility; no storage dependency. */
 export interface SimulationEvidenceInput {
+  sceneId?: string;
   quotedEpisodes?: number;
   executionCaptureId?: string;
   executionAdmission?: { envelope: Record<string, unknown> };
@@ -209,12 +211,46 @@ export function episodeAccountingFor(run: SimulationEvidenceInput): EpisodeAccou
   return { planned: run.quotedEpisodes, reported: rows.length, scored, succeeded, failed, void: voided };
 }
 
+/** A result may only claim the qualification frozen before execution. The
+ * signed result cannot introduce a new receipt or silently replace the scene,
+ * success contract or capture after seeing the score. */
+export function frozenSiteTaskQualification(
+  run: Pick<SimulationEvidenceInput, "sceneId" | "executionCaptureId" | "executionAdmission">,
+  result: ScoredResult,
+): SiteTaskQualification | null {
+  const envelope = run.executionAdmission?.envelope;
+  if (envelope?.evidence_scope !== "simulation") return null;
+  const qualification = boundSiteTaskQualification(result, run.executionCaptureId);
+  if (!qualification) return null;
+  try {
+    const receipt = validateSiteTaskQualificationReceipt(envelope.site_task_qualification_receipt);
+    const binding = envelope.binding as Record<string, unknown> | undefined;
+    const expected = receipt.qualification;
+    if (receipt.binding.scene_request_id !== run.sceneId || receipt.binding.capture_id !== run.executionCaptureId
+      || receipt.binding.success_contract_digest !== result?.scoring?.successContractDigest
+      || receipt.binding.scene_revision_digest !== result?.scoring?.sceneRevisionDigest
+      || receipt.binding.site_id !== binding?.site_id || receipt.binding.task_id !== binding?.task_id
+      || receipt.binding.source_capture_digest !== binding?.capture_digest_sha256
+      || receipt.binding.testbed_digest_sha256 !== binding?.testbed_digest_sha256
+      || receipt.binding.scene_request_id !== binding?.scene_request_id || receipt.binding.capture_id !== binding?.capture_id
+      || expected.capture_id !== qualification.captureId
+      || expected.scene_revision_digest !== qualification.sceneRevisionDigest
+      || expected.registration_receipt_digest !== qualification.registrationReceiptDigest
+      || expected.fidelity_review_receipt_digest !== qualification.fidelityReviewReceiptDigest) return null;
+    const frozen = siteTaskQualificationSchema.safeParse(envelope.site_task_qualification);
+    if (!frozen.success || Object.entries(expected).some(([key, value]) => frozen.data[key as keyof typeof frozen.data] !== value)) return null;
+    return qualification;
+  } catch {
+    return null;
+  }
+}
+
 /** Shared boundary for registry claims and site pass labels. Keep diagnostic
  * observations inspectable without promoting them into qualified evidence.
  */
 export function hasQualifiedSimulationEvidence(run: SimulationEvidenceInput): boolean {
   if (run.result?.evidenceScope !== "simulation" || run.executionAdmission?.envelope.evidence_scope === "development_only"
-    || !isSimulatorScoredJobEvidence(run.result) || !boundSiteTaskQualification(run.result, run.executionCaptureId)) return false;
+    || !isSimulatorScoredJobEvidence(run.result) || !frozenSiteTaskQualification(run, run.result)) return false;
   const accounting = episodeAccountingFor(run);
   return accounting !== null && accounting.scored >= MINIMUM_SCORED_EVIDENCE_EPISODES;
 }

@@ -56,7 +56,7 @@ import { humanDecisionDigest } from "./human-reply-admission";
 import { isSiteEvaluation, type EvalRunRecord } from "./agentRunRecord";
 import type { EvalRunResult } from "./agentRunResults";
 import { CONFIDENCE_POLICY_VERSION, SUCCESS_RATE_BAND_CLAIM, successRateBand, wilsonLowerBound, wilsonUpperBound } from "./successRateConfidence";
-import { boundSiteTaskQualification, episodeAccountingFor, MINIMUM_SCORED_EVIDENCE_EPISODES, scoringRefusal, SITE_TASK_SIMULATION_CLAIM_CEILING,
+import { frozenSiteTaskQualification, episodeAccountingFor, MINIMUM_SCORED_EVIDENCE_EPISODES, scoringRefusal, SITE_TASK_SIMULATION_CLAIM_CEILING,
   type EpisodeAccounting, type ScoringRefusal, type SiteTaskQualification } from "./runResultScoring";
 export { episodeAccountingFor, type EpisodeAccounting } from "./runResultScoring";
 
@@ -205,7 +205,7 @@ export function passMarkForJob(
 export type RunWithResult = EvalRunRecord & { result?: EvalRunResult | null };
 
 export function sceneQualificationFor(run: RunWithResult): SiteTaskQualification | null {
-  return boundSiteTaskQualification(run.result, run.executionCaptureId);
+  return frozenSiteTaskQualification(run, run.result);
 }
 
 function developmentOnly(run: RunWithResult): boolean {

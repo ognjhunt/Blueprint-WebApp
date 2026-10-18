@@ -1,3 +1,4 @@
+import { buildPolicyRunLicense } from "../utils/policyRunLicense";
 import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
 import { updatePreferencesInputSchema } from "../../client/src/types/updatePreferences";
 import { buildUpdatePreferences, savedUpdatePreferences, bindVerifiedPreferenceAccount } from "../utils/updatePreferences";
@@ -1292,7 +1293,7 @@ router.post(
     const input = z
         .object({ id, opportunityId: id, setupId: id, notes: prose,
           // The team licenses Blueprint to run its policy for this evaluation; the simulator scores it.
-          licenseToRun: z.literal(true).optional() })
+          licenseToRun: z.literal(true) })
         .strict()
         .parse(req.body),
       caller = identity(res);
@@ -1311,7 +1312,9 @@ router.post(
       workspace_evaluation: {
         opportunityId: input.opportunityId,
         setupId: input.setupId,
-        ...(input.licenseToRun ? { licenseToRunGrantedAt: new Date().toISOString() } : {}),
+        licenseToRunGrantedAt: new Date().toISOString(),
+        policyRunLicense: buildPolicyRunLicense({ ownerUid: caller.uid, requestId: input.id,
+          opportunityId: input.opportunityId, setupId: input.setupId, setup }),
         targetSnapshot: {
           successRate: termsFor(source.record).successRate,
           cycleTimeSeconds: termsFor(source.record).cycleTimeSeconds,

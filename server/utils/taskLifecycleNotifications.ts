@@ -1,3 +1,4 @@
+import { noResultObservationText, type NoResultObservation } from "./runNoResultObservation";
 /**
  * Durable, deduplicated notices for every real event on a site's task.
  *
@@ -102,7 +103,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   run_no_result: {
     subject: "A robot team's run ended without a result",
-    body: (url) => `A robot team's run against your scene ended before any episode was observed, so there is no result to show from it. Nothing is needed from you.\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `A robot team's run against your scene ended without a complete scored result. ${detail || noResultObservationText()} Review the run on your job page; reply if you need help understanding what happened.\n\nOpen your job:\n${url}`,
   },
   awaiting_evaluations: {
     subject: "Robot teams can now evaluate your job",
@@ -148,6 +149,7 @@ export async function enqueueTaskLifecycleNotification(params: {
   /** One clause of event detail for the body, e.g. "12 of 50 episodes succeeded". */
   detail?: string;
   correlationId?: string;
+  runProgress?: NoResultObservation;
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn" }> {
   if (!db) return { enqueued: false, reason: "store_unavailable" };
   const requestId = params.requestId.trim();
@@ -184,6 +186,7 @@ export function buildTaskLifecycleNotification(params: {
   captureUrl?: string;
   /** `pilot_booked` only: the robot team's contact, shared at booking. */
   counterpart?: PilotContact | null;
+  runProgress?: NoResultObservation;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (params.milestone === "preparation_needs_attention" && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
@@ -199,7 +202,7 @@ export function buildTaskLifecycleNotification(params: {
     ...(params.milestone === "preparation_needs_attention" ? {preparationEventId: params.eventId} : {}),
     to: params.to,
     subject: message.subject,
-    body: `${message.body(url, params.milestone === "preparation_needs_attention"
+    body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress) : params.milestone === "preparation_needs_attention"
       ? /^bp-prep-[a-f0-9]{16}$/.test(params.correlationId || "") ? `Reference: ${params.correlationId}.` : ""
       : params.detail?.trim() ?? "", params.milestone === "pilot_booked" && params.counterpart ? formatPilotContact(params.counterpart) : "")}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",

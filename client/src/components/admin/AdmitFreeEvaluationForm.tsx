@@ -42,6 +42,7 @@ export function AdmitFreeEvaluationForm({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [outcome, setOutcome] = useState<Outcome>(null);
+  const [qualificationReceiptDigest, setQualificationReceiptDigest] = useState("");
   const checkpoints = candidate.matchingCheckpoints;
   const ttlHours = Math.round((defaults.reservationTtlMs / 3_600_000) * 10) / 10;
 
@@ -61,7 +62,8 @@ export function AdmitFreeEvaluationForm({
       sponsorCapUsd: Number(values.get("sponsorCapUsd")),
       expiresAtIso: expiresAt.toISOString(),
       maxAttempts: 1,
-      evidenceScope: "development_only",
+      evidenceScope: qualificationReceiptDigest.trim() ? "simulation" : "development_only",
+      ...(qualificationReceiptDigest.trim() ? { qualificationReceiptDigest: qualificationReceiptDigest.trim() } : {}),
     };
     setPending(true);
     setError("");
@@ -167,9 +169,20 @@ export function AdmitFreeEvaluationForm({
             Must fall within {ttlHours} hours of now.
           </p>
         </div>
+        <div className="sm:col-span-2">
+          <label className="runway-label" htmlFor={field("qualification")}>Published qualification receipt digest (optional)</label>
+          <input id={field("qualification")} name="qualificationReceiptDigest" className="runway-input"
+            value={qualificationReceiptDigest} onChange={(event) => setQualificationReceiptDigest(event.target.value)}
+            pattern="sha256:[a-f0-9]{64}" maxLength={71} aria-describedby={field("qualification-hint")} />
+          <p id={field("qualification-hint")} className="mt-2 text-xs text-runway-mute">
+            Paste the digest of a published site-task qualification receipt to request simulation evidence.
+            Admission checks the receipt against this site, task, scene, and licensed robot setup.
+            Leave blank for development evidence.
+          </p>
+        </div>
         <dl className="grid grid-cols-2 gap-3 text-sm">
           <div><dt className="runway-meta">Max attempts</dt><dd className="runway-num mt-1 text-runway-text">{defaults.maxAttempts}</dd></div>
-          <div><dt className="runway-meta">Evidence scope</dt><dd className="mt-1 text-runway-text">{defaults.evidenceScope}</dd></div>
+          <div><dt className="runway-meta">Evidence scope</dt><dd className="mt-1 text-runway-text">{qualificationReceiptDigest.trim() ? "simulation" : defaults.evidenceScope}</dd></div>
         </dl>
       </div>
       {error ? <p role="alert" className="text-sm text-runway-red">{error}</p> : null}

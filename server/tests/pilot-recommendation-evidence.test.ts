@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import type { RobotTeamRecord } from "../types/robot-team-registry";
-import { syntheticSiteTaskQualification, syntheticEpisodeOutcomes } from "./helpers/recommendation-evidence";
+import { syntheticQualifiedAdmission, syntheticSiteTaskQualification, syntheticEpisodeOutcomes } from "./helpers/recommendation-evidence";
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, fakeArrayUnion } = await import("./helpers/fake-firestore");
@@ -21,7 +21,7 @@ const scored = (episodes: number, overrides: Record<string, unknown> = {}) => ({
   schemaVersion: RUN_RESULT_SCORING_SCHEMA_VERSION, runtime: "team_evaluation_scored",
   successSource: "simulator_scored", scoredEpisodeCount: episodes, successContractDigest: digest("1"),
   sceneRevisionDigest: digest("2"), robotFreeProbeReceiptDigest: digest("3"), teamCandidateAdmissionDigest: digest("4"),
-  sessionResultDigest: digest("5"), claimCeiling: "site_task_simulation", siteTaskQualification: syntheticSiteTaskQualification(), ...overrides,
+  sessionResultDigest: digest("5"), claimCeiling: "site_task_simulation", siteTaskQualification: syntheticSiteTaskQualification("capture-fixture", "job_1"), ...overrides,
 });
 const identity = await import("../utils/robotTeamIdentity");
 const { upsertRobotTeamFromIntake } = await import("../utils/robotTeamRegistry");
@@ -33,7 +33,7 @@ function run(observed: Partial<{ episodesRun: number; episodesSucceeded: number;
   return { runId: "run_1", reservationId: "free_1", teamId: "team_a", checkpointId: "ckpt", sceneId: "job_1", taskFamily: null,
     evaluationPurpose: "pilot" as const, quotedUsd: 0, quotedEpisodes: 200, state: "completed" as const, episodesRun, moneyResolved: true,
     requestedAtIso: "2026-10-01T00:00:00.000Z", resolvedAtIso: null, note: null,
-    executionCaptureId: "capture-fixture",
+    executionCaptureId: "capture-fixture", executionAdmission: syntheticQualifiedAdmission("capture-fixture", "job_1"),
     result: { evidenceScope: "simulation" as const, episodeOutcomes: syntheticEpisodeOutcomes(episodesRun, episodesSucceeded), scoring: scored(episodesRun) as any, runId: "run_1", teamId: "team_a", checkpointId: "ckpt", sceneId: "job_1",
       observed: { episodesRun, episodesSucceeded, successRate: Math.round((episodesSucceeded / episodesRun) * 100) / 100, medianCycleSeconds: observed.medianCycleSeconds ?? null },
       claimed: { demonstratedSuccessRate: null, cycleTime: null }, note: null, artifactUri: null, reportedAtIso: "2026-10-02T00:00:00.000Z" },

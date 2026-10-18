@@ -1,3 +1,4 @@
+import { buildPolicyRunLicense } from "../utils/policyRunLicense";
 // @vitest-environment node
 /**
  * ADP day-14/day-28/day-42: one correction request remains one task through
@@ -146,7 +147,11 @@ it("retains correction lineage through actual free admission and signed failed-r
   state.docs.set(`inboundRequests/${APPLICATION}`, { requestId: APPLICATION, account_owner_uid: ROBOT,
     contact: { firstName: "Fixture", lastName: "Team", email: `${ROBOT}@example.test`, roleTitle: "Engineer", company: "Fixture team" },
     request: { buyerType: "robot_team" }, workspace_evaluation: { opportunityId: SITE, setupId: "setup-journey",
-      targetSnapshot: terms, opportunityTitle: brief.summary } });
+      targetSnapshot: terms, opportunityTitle: brief.summary,
+      policyRunLicense: buildPolicyRunLicense({ ownerUid: ROBOT, requestId: APPLICATION,
+        opportunityId: SITE, setupId: "setup-journey", setup: { id: "setup-journey", name: "Fixture arm", delivery: "endpoint",
+          reference: "https://policy.example.test/action", version: "fixture-v1" } }),
+    } });
   const approval = { teamId: TEAM, checkpointId: CHECKPOINT, episodes: 1, sponsorCapUsd: 10,
     maxAttempts: 1, evidenceScope: "development_only", expiresAtIso: new Date(Date.now() + 600_000).toISOString() };
 

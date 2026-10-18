@@ -19,9 +19,21 @@ Set before any run, read from the job in this order:
 
 A run passes when it is a site evaluation (`evaluationPurpose` `pilot` or
 historical unset) of this job (`run.sceneId === jobId`), `state: "completed"`
-with a recorded result of at least 10 episodes, observed
-`episodesSucceeded / episodesRun >= passMark.successRate`, and — when the job
-has a cycle-time target and the run measured a median — median <= target.
+with a qualified, simulator-scored result that accounts for all 200 prescribed
+episodes exactly once. At least 190 episodes must be scored (success or
+failure); at most 10 may be void. A retry within one prescribed cell is not
+another evidence episode. The observed
+`episodesSucceeded / episodesRun` must meet `passMark.successRate`. When the job
+has a cycle-time target, a finite, positive measured median at or below that
+target is required; missing or invalid cycle time prevents a recommendation.
+
+Qualified evidence retains the admitted simulator scoring bindings and the
+Pipeline registration and fidelity-review receipts for the exact capture and
+scene revision. `development_only`, unqualified scenes, and incomplete or
+inconsistent episode accounting cannot support a recommendation. The 95%
+Wilson interval and confidence band describe uncertainty alongside the
+observed-rate pass rule; they are not an additional pass threshold or proof of
+physical performance.
 
 ## GET `/jobs/:requestId/evaluations`
 
@@ -84,13 +96,28 @@ Refusals (`{ ok: false, code, error }`):
 
 | status | code |
 | --- | --- |
-| 400 | `evaluation_run_required`, `evaluation_run_missing`, `evaluation_run_other_job`, `evaluation_run_private`, `evaluation_result_missing`, `evaluation_result_changed`, `evaluation_too_few_episodes`, `evaluation_below_pass_mark`, `evaluation_cycle_time_missed`, `evaluation_criteria_changed` (the job's targets moved after the run's evaluation request froze them in `workspace_evaluation.targetSnapshot`) |
+| 400 | `evaluation_run_required`, `evaluation_run_missing`, `evaluation_run_other_job`, `evaluation_run_private`, `evaluation_result_missing`, `evaluation_result_changed`, `evaluation_too_few_episodes`, `evaluation_below_pass_mark`, `evaluation_cycle_time_missed`, `evaluation_cycle_time_missing`, `evaluation_not_simulator_scored`, `evaluation_development_only`, `evaluation_scene_not_qualified`, `evaluation_episode_accounting_invalid`, `evaluation_criteria_changed` (the job's targets moved after the run's evaluation request froze them in `workspace_evaluation.targetSnapshot`) |
 | 400 | `evaluation_team_mismatch`, `team_not_registered`, `team_identity_ambiguous`, `team_declined`, `team_not_recommendable`, `team_supply_agreement_missing` (no recorded agreement to run on the supported interface, accept a free evaluation and take the pilot; see `docs/beta/ROBOT_TEAM_SUPPLY_AGREEMENTS.md`) |
 | 409 | `capture_consent_withdrawn`; booked pilot; brief changed; site contact missing |
 
 Team eligibility: registry status `applied`/`engaged` with approved access, or
 `self_registered` bound to a verified account whose email has approved access.
 No row of the team's identity may be `declined`.
+
+## Booking and site-reported follow-through
+
+A new owner booking rechecks the exact qualified recommendation and commits
+`pilot_booking`, the associated contact-exchange notice intents, and
+`workspace_task.pilot.selectedResultId` together. The selected result is the
+recommendation's `evaluationRunId`; its initial state is `selected` with
+`source: "site_booking"`. The workspace displays “Pilot booked” and offers
+“Record pilot start”. Booking does not assert that physical work started.
+
+The site records start, completion, and deployment through the existing
+workspace pilot actions, with notes and `source: "site_reported"`. Booking
+retries preserve recorded outcomes and historical booking terms. A new booking
+that would replace a different pilot selection is refused with
+`pilot_selection_conflict`; Blueprint must review that conflict first.
 
 ## Notifications
 

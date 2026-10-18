@@ -1,0 +1,386 @@
+{
+  "schema": "blueprint.beta_audit.readonly_aggregate.v1",
+  "observedAt": "2026-10-18T13:41:54.059938+00:00",
+  "method": "Authenticated Firestore documents:runQuery; full collection projections without filters or limit; aggregation in memory. No document IDs, contact fields, credentials or raw documents persisted. POST runQuery is read-only.",
+  "scope": {
+    "project": "blueprint-8c1ca",
+    "database": "(default)",
+    "selections": {
+      "robotTeams": [
+        "status",
+        "supplyAgreement.schemaVersion",
+        "supplyAgreement.terms.supportedInterface.agreedOn",
+        "supplyAgreement.terms.freeEvaluation.agreedOn",
+        "supplyAgreement.terms.pilotIfPassed.agreedOn"
+      ],
+      "evaluationRuns": [
+        "state",
+        "evaluationPurpose",
+        "teamEvaluationPurpose",
+        "result.observed.episodesRun",
+        "result.scoring.claimCeiling"
+      ],
+      "inboundRequests": [
+        "status",
+        "request.buyerType",
+        "workspace_evaluation",
+        "public_task_listing.status",
+        "public_task_listing.approvedAtIso",
+        "pilot_recommendation.id",
+        "pilot_recommendation.evidence.evidenceScope",
+        "pilot_booking.recommendationId"
+      ],
+      "robotTeamAccess": [
+        "status"
+      ]
+    }
+  },
+  "counts": {
+    "robotTeams": {
+      "total": 83,
+      "status": {
+        "prospect": 77,
+        "self_registered": 6
+      },
+      "supplyAgreementPresent": 0,
+      "allThreeDatedTermsPresent": 0
+    },
+    "evaluationRuns": {
+      "total": 37,
+      "state": {
+        "completed": 14,
+        "blocked": 23
+      },
+      "evaluationPurpose": {
+        "private": 37
+      },
+      "teamEvaluationPurpose": {
+        "<absent>": 37
+      },
+      "scoredCompleted": 0,
+      "positiveObservedEpisodes": 14
+    },
+    "inboundRequests": {
+      "total": 54,
+      "status": {
+        "needs_more_evidence": 33,
+        "not_ready_yet": 13,
+        "submitted": 7,
+        "qualified_ready": 1
+      },
+      "recommendationRefs": 0,
+      "bookingRefs": 0
+    },
+    "siteJobs": {
+      "definition": "request.buyerType == site_operator and not workspace_evaluation, matching server/utils/jobConsoleData.ts:isSiteJobRecord",
+      "total": 47,
+      "status": {
+        "needs_more_evidence": 33,
+        "not_ready_yet": 7,
+        "submitted": 7
+      },
+      "publicListingStatus": {
+        "<absent>": 47
+      },
+      "publicListingApprovedDatePresent": 5
+    },
+    "robotTeamAccess": {
+      "total": 1,
+      "status": {
+        "approved": 1
+      }
+    }
+  },
+  "limits": [
+    "Stored status qualified_ready does not establish qualified simulation evidence.",
+    "Private historical run counts do not establish a scored beta team evaluation.",
+    "No agreement records observed does not prove no offline conversations.",
+    "This is an owner-system readback, not a new end-to-end execution."
+  ],
+  "queryShapeChecks": {
+    "observedAt": "2026-10-18T13:42:13.474916+00:00",
+    "method": "Authenticated read-only runQuery; limit1 and document-name projection; identifiers never retained. Synthetic team ID for hold-reconciliation shape check.",
+    "checks": [
+      {
+        "name": "team_hold_reconciliation",
+        "httpStatus": 400,
+        "status": "FAILED_PRECONDITION",
+        "indexError": true,
+        "query": {
+          "collection": "evaluationRuns",
+          "filter": {
+            "compositeFilter": {
+              "op": "AND",
+              "filters": [
+                {
+                  "fieldFilter": {
+                    "field": {
+                      "fieldPath": "teamId"
+                    },
+                    "op": "EQUAL",
+                    "value": {
+                      "stringValue": "__audit_no_match__"
+                    }
+                  }
+                },
+                {
+                  "fieldFilter": {
+                    "field": {
+                      "fieldPath": "settlementDueAtMs"
+                    },
+                    "op": "LESS_THAN_OR_EQUAL",
+                    "value": {
+                      "integerValue": "1792330932631"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "orderBy": [
+            {
+              "field": {
+                "fieldPath": "settlementDueAtMs"
+              },
+              "direction": "ASCENDING"
+            }
+          ],
+          "limit": 1,
+          "projection": [
+            "__name__"
+          ]
+        }
+      },
+      {
+        "name": "admin_status_export",
+        "httpStatus": 400,
+        "status": "FAILED_PRECONDITION",
+        "indexError": true,
+        "query": {
+          "collection": "inboundRequests",
+          "filter": {
+            "fieldFilter": {
+              "field": {
+                "fieldPath": "status"
+              },
+              "op": "EQUAL",
+              "value": {
+                "stringValue": "submitted"
+              }
+            }
+          },
+          "orderBy": [
+            {
+              "field": {
+                "fieldPath": "createdAt"
+              },
+              "direction": "DESCENDING"
+            }
+          ],
+          "limit": 1,
+          "projection": [
+            "__name__"
+          ]
+        }
+      },
+      {
+        "name": "new_job_alert_recipients",
+        "httpStatus": 200,
+        "rowsReturned": 0,
+        "indexError": false,
+        "query": {
+          "collection": "robotTeamAccess",
+          "filter": {
+            "compositeFilter": {
+              "op": "AND",
+              "filters": [
+                {
+                  "fieldFilter": {
+                    "field": {
+                      "fieldPath": "status"
+                    },
+                    "op": "EQUAL",
+                    "value": {
+                      "stringValue": "approved"
+                    }
+                  }
+                },
+                {
+                  "fieldFilter": {
+                    "field": {
+                      "fieldPath": "newJobAlertsOptIn"
+                    },
+                    "op": "EQUAL",
+                    "value": {
+                      "booleanValue": true
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "orderBy": [
+            {
+              "field": {
+                "fieldPath": "__name__"
+              },
+              "direction": "ASCENDING"
+            }
+          ],
+          "limit": 1,
+          "projection": [
+            "__name__"
+          ]
+        }
+      },
+      {
+        "name": "new_job_fanout_source",
+        "httpStatus": 200,
+        "rowsReturned": 0,
+        "indexError": false,
+        "query": {
+          "collection": "inboundRequests",
+          "filter": {
+            "fieldFilter": {
+              "field": {
+                "fieldPath": "newJobAlertFanout.status"
+              },
+              "op": "EQUAL",
+              "value": {
+                "stringValue": "pending"
+              }
+            }
+          },
+          "orderBy": [
+            {
+              "field": {
+                "fieldPath": "__name__"
+              },
+              "direction": "ASCENDING"
+            }
+          ],
+          "limit": 1,
+          "projection": [
+            "__name__"
+          ]
+        }
+      },
+      {
+        "name": "pending_pipeline_dispatch",
+        "httpStatus": 200,
+        "rowsReturned": 0,
+        "indexError": false,
+        "query": {
+          "collection": "evaluationRuns",
+          "filter": {
+            "compositeFilter": {
+              "op": "AND",
+              "filters": [
+                {
+                  "fieldFilter": {
+                    "field": {
+                      "fieldPath": "dispatchPending"
+                    },
+                    "op": "EQUAL",
+                    "value": {
+                      "booleanValue": true
+                    }
+                  }
+                },
+                {
+                  "fieldFilter": {
+                    "field": {
+                      "fieldPath": "settlementDueAtMs"
+                    },
+                    "op": "GREATER_THAN",
+                    "value": {
+                      "integerValue": "1792330932631"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "orderBy": [
+            {
+              "field": {
+                "fieldPath": "settlementDueAtMs"
+              },
+              "direction": "ASCENDING"
+            }
+          ],
+          "limit": 1,
+          "projection": [
+            "__name__"
+          ]
+        }
+      }
+    ]
+  },
+  "releaseReadback": {
+    "observedAt": "2026-10-18T13:36:59Z",
+    "webappSourceSHA": "b9d4536bdb1e4a91e75a6c9ffa9ba3cac66c5010",
+    "versionURL": "https://tryblueprint.io/version.json",
+    "liveSHA": "b9d4536bdb1e4a91e75a6c9ffa9ba3cac66c5010",
+    "healthHTTP": 200,
+    "readyHTTP": 200,
+    "blockerCount": 0,
+    "workerHTTP": 200,
+    "workerStatus": "fresh",
+    "workerAgeSeconds": 9,
+    "ciURL": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/38959632417",
+    "deployURL": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/38960577356",
+    "tests": {
+      "passed": 10359,
+      "skipped": 13,
+      "filesPassed": 830,
+      "filesSkipped": 3,
+      "rulesEmulatorPassed": 126
+    },
+    "pipelineRemoteMainSHA": "b80387659c130610bb3380727b358cc0a3439b68",
+    "pipelineLocalSHA": "b06417b07152616b6d8aef8420eb0934fb6ca97a",
+    "pipelineLiveIdentitySource": "pipeline_audit agent operator-door readback; exact b80387659c commit_proven=true, blockers=[]"
+  },
+  "firestoreRules": {
+    "observedAt": "2026-10-18T13:39:14Z",
+    "releaseUpdated": "2026-10-16T19:21:43.909814Z",
+    "liveSHA256": "918b36bebfa5f93a66a7127186bb4a902973b6634dc3007c20c5ac1a69f99a85",
+    "sourceSHA256": "918b36bebfa5f93a66a7127186bb4a902973b6634dc3007c20c5ac1a69f99a85",
+    "exactMatch": true,
+    "method": "Authenticated Firebase Rules GET, buffered UTF8-safe JSON decode. Shell verifier comment-only drift was a chunk-decoding false positive."
+  },
+  "storageReadback": {
+    "observedAt": "2026-10-18T13:40:00Z",
+    "primary": {
+      "bucket": "blueprint-8c1ca.appspot.com",
+      "rulesExactSourceMatch": true,
+      "softDeleteRetentionSeconds": 604800,
+      "versioningReturned": false,
+      "lifecycleReturned": false,
+      "uniformBucketLevelAccess": false,
+      "publicAccessPrevention": "inherited"
+    },
+    "transfer": {
+      "bucket": "blueprint-8c1ca-for-transfer",
+      "metadataHTTP": 404,
+      "metadataError": "The specified bucket does not exist.",
+      "rulesRelease": "A stale Firebase Rules release still contains unrestricted allow read,write.",
+      "sourceUse": "No reference found in current WebApp and inspected Pipeline source/config.",
+      "conclusion": "Not observed active exposed storage; do not present as active data exposure or beta blocker.",
+      "anonymousContentFetched": false
+    }
+  },
+  "backupReadback": {
+    "observedAt": "2026-10-18T13:38:00Z",
+    "method": "Read-only gcloud firestore database describe, backups schedules list, backups list",
+    "project": "blueprint-8c1ca",
+    "database": "(default)",
+    "pitr": "POINT_IN_TIME_RECOVERY_ENABLED",
+    "versionRetentionPeriodSeconds": 604800,
+    "deleteProtection": "DELETE_PROTECTION_DISABLED",
+    "schedulesObserved": 0,
+    "backupsObserved": 0,
+    "restoreDrillObserved": false,
+    "note": "PITR is available. No managed backup schedule/backup or restore-drill evidence observed in this audit. No backup controls changed."
+  }
+}

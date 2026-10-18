@@ -1,0 +1,35 @@
+{
+  "schema_version": "blueprint.single_document_cleanup_evidence.v1",
+  "observed_at_iso": "2026-10-18T14:09:21.748701Z",
+  "authorization": "Explicit human approval relayed by accountable root agent for this exact document only.",
+  "document_name": "projects/blueprint-8c1ca/databases/(default)/documents/siteTaskQualifications/613edf96606bbd7f748e6e20c1ea60d4b26d2517da0be25763889cb3f1de2ff4",
+  "receipt_digest": "sha256:613edf96606bbd7f748e6e20c1ea60d4b26d2517da0be25763889cb3f1de2ff4",
+  "backup": {
+    "path": "/tmp/blueprint-beta-audit-20261018/synthetic-qualification-613edf96606bbd7f748e6e20c1ea60d4b26d2517da0be25763889cb3f1de2ff4.raw.json",
+    "format": "Firestore REST document JSON UTF-8",
+    "sha256": "a34c625995acb60eba9cd6275a78b144a040ac474a7a559792a977c3063a94c6",
+    "preserved": true,
+    "canonical_git_copy": "docs/launch-readiness/evidence/2026-10-18-beta-repairs/synthetic-qualification-backup.json"
+  },
+  "pre_delete": {
+    "exact_document_matches_backup": true,
+    "createTime": "2026-10-18T14:02:59.219005Z",
+    "updateTime": "2026-10-18T14:02:59.219005Z",
+    "synthetic_identities_verified": true,
+    "synthetic_source_namespace_verified": true
+  },
+  "delete": {
+    "method": "DELETE",
+    "url": "https://firestore.googleapis.com/v1/projects/blueprint-8c1ca/databases/(default)/documents/siteTaskQualifications/613edf96606bbd7f748e6e20c1ea60d4b26d2517da0be25763889cb3f1de2ff4?currentDocument.updateTime=2026-10-18T14%3A02%3A59.219005Z",
+    "currentDocument.updateTime": "2026-10-18T14:02:59.219005Z",
+    "http_status": 200,
+    "response_body": "{}\n"
+  },
+  "readback": {
+    "method": "GET",
+    "url": "https://firestore.googleapis.com/v1/projects/blueprint-8c1ca/databases/(default)/documents/siteTaskQualifications/613edf96606bbd7f748e6e20c1ea60d4b26d2517da0be25763889cb3f1de2ff4",
+    "http_status": 404,
+    "error_status": "NOT_FOUND"
+  },
+  "scope": "This exact document only; no collection delete, other document, rule, index, provider, send, or execution mutation."
+}

@@ -1,0 +1,214 @@
+{
+  "active_release": {
+    "commit": "b80387659c130610bb3380727b358cc0a3439b68",
+    "link": "/opt/blueprint/task-evaluation-control-plane",
+    "target": "/opt/blueprint/task-evaluation-control-plane-releases/b80387659c130610bb3380727b358cc0a3439b68"
+  },
+  "capacity": {
+    "alerts": [
+      {
+        "code": "utilization_critical",
+        "mount": "/mnt/blueprint-work",
+        "severity": "warn",
+        "used_fraction": 0.9077
+      },
+      {
+        "code": "floor_within_three_days",
+        "days_until_floor": 2.14,
+        "mount": "/mnt/blueprint-work",
+        "severity": "page"
+      },
+      {
+        "code": "provider_credit_insufficient",
+        "provider": "vast",
+        "severity": "warn"
+      },
+      {
+        "allocated_bytes": 100013004894,
+        "code": "orphan_scratch_large",
+        "count": 58,
+        "largest_bytes": 36674180717,
+        "severity": "page"
+      },
+      {
+        "allocated_bytes": 4657131520,
+        "code": "usage_unclassified_root",
+        "root": "/opt/blueprint/artisan",
+        "severity": "warn"
+      },
+      {
+        "allocated_bytes": 1688084875,
+        "code": "usage_unclassified_root",
+        "root": "/var/lib/blueprint/cold-engineering-relocated",
+        "severity": "warn"
+      },
+      {
+        "attributed_fraction": 0.1433,
+        "code": "usage_attribution_low",
+        "mount": "/",
+        "severity": "warn"
+      },
+      {
+        "attributed_fraction": 0.4771,
+        "code": "usage_attribution_low",
+        "mount": "/mnt/blueprint-work",
+        "severity": "warn"
+      },
+      {
+        "code": "reclaim_ineffective",
+        "severity": "page",
+        "top_retained_reasons": [
+          "pinned",
+          "result_registry",
+          "hot"
+        ]
+      }
+    ],
+    "level": "critical",
+    "mounts": [
+      {
+        "available_bytes": 50261590016,
+        "floor_bytes": 8589934592,
+        "forecast": {
+          "days_until_floor": 6.89,
+          "growth_bytes_per_day": 7295938356,
+          "recent": {
+            "decline_bytes_per_hour": 5259082,
+            "reserved_bytes": 0,
+            "status": "not_declining",
+            "window_seconds": 3092
+          },
+          "status": "growing"
+        },
+        "free_bytes": 58851524608,
+        "level": "ok",
+        "mount": "/var/lib/blueprint",
+        "refused_roles": [],
+        "reserved_bytes": 0,
+        "status": "measured",
+        "total_bytes": 165295407104,
+        "used_fraction": 0.644
+      },
+      {
+        "available_bytes": 13380907008,
+        "floor_bytes": 15823241216,
+        "forecast": {
+          "days_until_floor": 2.14,
+          "growth_bytes_per_day": 6254322229,
+          "recent": {
+            "decline_bytes_per_hour": 14303,
+            "reserved_bytes": 0,
+            "status": "not_declining",
+            "window_seconds": 3092
+          },
+          "status": "growing"
+        },
+        "free_bytes": 29204148224,
+        "level": "critical",
+        "mount": "/mnt/blueprint-work",
+        "refused_roles": [],
+        "reserved_bytes": 0,
+        "status": "measured",
+        "total_bytes": 316464824320,
+        "used_fraction": 0.9077
+      }
+    ],
+    "observed_at_epoch": 1792330443.9373372,
+    "report_digest": "sha256:8ba52be4e59b400bce60a707ee046528c99596f92828790d8fb77f5481d2a127"
+  },
+  "claim_boundary": "Live service identity and retained terminal readback only. No job launched, spending, deployment, sending, mutation or site/customer qualification. Diagnostic is not a trained team policy or recommendation.",
+  "deployed_identity": {
+    "blockers": [],
+    "claim_ceiling": "deployed_service_identity_only",
+    "commit_proven": true,
+    "source_commit": "b80387659c130610bb3380727b358cc0a3439b68"
+  },
+  "diagnostic": {
+    "canonical_host_path": "/var/lib/blueprint/pipeline-control-plane/internal-team-evaluation-diagnostic-20261015/reset-recovery-79a65e05f65f/internal_diagnostic_result.json",
+    "customer_recommendation_permitted": false,
+    "episode_outcome_count": 200,
+    "evidence_scope": "development_only",
+    "raw_file_bytes": 90584,
+    "raw_file_sha256": "sha256:ce1bfb5a15d3ae71709f94c87aa64f0a798b793eb36b217358257a24ae986a79",
+    "terminal": {
+      "episodes_run": 200,
+      "episodes_succeeded": 0,
+      "job_id": "internal-team-diagnostic-scoring-8ac9a7afcc25",
+      "median_cycle_seconds": null,
+      "provider_zero_verified": true,
+      "schema_version": "blueprint.team_candidate_quick10_terminal.v1",
+      "scoring": {
+        "claim_ceiling": "diagnostic_policy_execution",
+        "robot_free_probe_receipt_digest": "sha256:20d8d23886bc11c4fbe1f6ccdb03f94aacb9ae085652c2dcfa86b67965d1d918",
+        "runtime": "team_evaluation_scored",
+        "scene_revision_digest": "sha256:e0fd71e52b0fcc8f16f42668e13bd9a9bd727d2db3cc0df95b785ee0191d2a81",
+        "schema_version": "blueprint.agent_run_result_scoring.v1",
+        "scored_episode_count": 200,
+        "session_result_digest": "sha256:6bd502ac2463efecab0286d4b2ab7a908381078e7cc1edb0973cd1c365595fd4",
+        "success_contract_digest": "sha256:c4faf026331e9bf3687b96f5b3c80a484f4a975a7e3812fec96f9524158bb962",
+        "success_source": "simulator_scored",
+        "team_candidate_admission_digest": "sha256:126ec3e544b371013ba3518728cb25888a79bfe9fbd5945e4e1e73c5e492388c"
+      },
+      "sealed_at_iso": "2026-10-16T22:05:50.576111+00:00",
+      "status": "completed",
+      "terminal_digest": "sha256:3f5e6a3b68cfed5cdb0dee902c9bd1d37c0ba6707f8cf890c158002978fd402d"
+    },
+    "trained_policy_evaluated": false
+  },
+  "holds": [
+    {
+      "created_at": "2026-10-02T12:55:04+00:00",
+      "expired": true,
+      "expires_at": "2026-10-03T12:55:04+00:00",
+      "owner": "paired-checkpoint-rollout-20260930",
+      "reason": "Founder stop 2026-10-02: keep paid agent-run dispatch paused until the founder explicitly authorizes resumption. Reviewed explicit-release stop preservation; no dispatch authority.",
+      "remaining_seconds": 0,
+      "request_id": "20261002T125503Z-hold-5e24c243",
+      "requested_by": "cloud-scene-runs",
+      "require_explicit_release": true,
+      "unit": "blueprint-agent-run-dispatcher.timer"
+    }
+  ],
+  "known_access_limits": [
+    "Detailed diagnostic media_verification_200_20261016T221307Z.json read returned HTTP 403 open_failed; not bypassed.",
+    "Detailed diagnostic final_official_billing_20261016T222032Z.json read returned HTTP 403 open_failed; not bypassed."
+  ],
+  "live_source": "https://paperclip.tryblueprint.io/api/live-pipeline/operator/v1/status",
+  "live_status_generated_at": "2026-10-18T13:42:01+00:00",
+  "observed_at_utc": "2026-10-18T13:42:00.879954+00:00",
+  "provider_admission": {
+    "digitalocean": {
+      "admission_allowed": true,
+      "blockers": []
+    },
+    "runpod": {
+      "admission_allowed": false,
+      "blockers": [
+        "billing_reconciliation_provider_uncovered:runpod"
+      ]
+    },
+    "vast": {
+      "admission_allowed": true,
+      "blockers": []
+    }
+  },
+  "provider_guard_generated_at": "2026-10-18T13:38:40.294429+00:00",
+  "provider_zero": {
+    "blockers": [],
+    "claim_boundary": "Provider-zero is verified only when every required provider inventory query succeeds with zero returned resources and the global reported live inventory and burn are zero. Retired/excluded providers remain unverified; this is not proof of their absence.",
+    "excluded_retired_provider_ids": [
+      "aws"
+    ],
+    "global_live_instance_count": 0,
+    "global_total_burn_per_hour_usd": 0,
+    "required_provider_ids": [
+      "digitalocean",
+      "runpod",
+      "vast"
+    ],
+    "scope": "required_active_provider_inventory",
+    "status": "verified"
+  },
+  "schema_version": "blueprint.beta_audit_readonly_evidence.v1",
+  "source_commit": "b80387659c130610bb3380727b358cc0a3439b68"
+}
