@@ -109,8 +109,32 @@ export interface SceneScreening {
 
 /** A fresh, source-bound Pipeline ledger observation; no final robot verdict. */
 export interface TaskPreparationStatus {
-  state: "preparing" | "awaiting_inputs" | "failed_retryable" | "authority_ended" | "handed_off" | "unavailable";
+  state: "preparing" | "awaiting_inputs" | "capacity_delayed" | "failed_retryable" | "failed_terminal"
+    | "authority_ended" | "handed_off" | "unavailable";
   correlationId: string | null;
+  /** Why preparation ended for good; only with `failed_terminal`. */
+  terminalReason?: string | null;
+}
+
+/**
+ * Where the job's simulation scene stands after the capture was handed off.
+ * `ended` is a block the scene cannot leave on its own; `waiting` is a block
+ * on our side that may clear. Coarse by design: no Pipeline detail reaches a site.
+ */
+export interface TaskSceneProgression {
+  state: "in_progress" | "waiting" | "ended" | "completed";
+}
+
+/** One sentence per reason the Pipeline can give; an unknown reason adds nothing. */
+const ENDED_REASON: Record<string, string> = {
+  retry_exhausted: "We tried several times and could not get past a problem on our side.",
+  budget_exhausted: "Your scene needed more processing than the free beta provides for one job.",
+  capacity_blocked: "Our processing capacity stayed full for too long.",
+  permanent_invalid: "We could not read this recording.",
+  out_of_scope: "This job is outside what the beta can build a scene for.",
+};
+export function preparationEndedSentence(reason: string | null | undefined): string {
+  return reason && Object.hasOwn(ENDED_REASON, reason) ? ENDED_REASON[reason] : "";
 }
 
 interface TaskStatusInput {
@@ -131,6 +155,14 @@ interface TaskStatusInput {
   /** Current persisted preview reconstruction failed; not a robot-run verdict. */
   scenePreparationFailed?: boolean;
   preparationStatus?: TaskPreparationStatus | null;
+  /**
+   * The WebApp's own watch says preparation has gone quiet past its bound: no
+   * status since the upload, or one state unchanged too long. Our team is
+   * alerted by the beta ops monitor at the same bound.
+   */
+  preparationOverdue?: boolean;
+  /** After hand-off: the job's simulation scene, when the caller looked. */
+  sceneProgression?: TaskSceneProgression | null;
   /** Runs against the scene, when the caller looked. Absent means it did not. */
   screening?: SceneScreening | null;
   /**
@@ -311,18 +343,25 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   if (preparation && preparation.state !== "handed_off") {
     const reference = /^bp-prep-[a-f0-9]{16}$/.test(preparation.correlationId || "")
       ? ` Reference: ${preparation.correlationId}.` : "";
+    // A terminal ending is final; "taking longer" is for a state that can still move.
+    const overdue = input.preparationOverdue && preparation.state !== "failed_terminal" && preparation.state !== "unavailable"
+      ? " This is taking longer than it should, and our team has been told." : "";
+    const ended = preparationEndedSentence(preparation.terminalReason);
     const headlines: Record<Exclude<TaskPreparationStatus["state"], "handed_off">, string> = {
       preparing: "We are preparing your job. Keep your original recording.",
       awaiting_inputs: "Job preparation needs more information. Keep your original recording; our team needs to review it.",
+      capacity_delayed: "Your recording is saved and queued. Preparation is waiting for processing capacity on our side; nothing is needed from you. Keep your original recording.",
       failed_retryable: "Job preparation encountered a problem. Keep your original recording; our team needs to review it.",
+      failed_terminal: `Scene preview preparation could not finish, and we have stopped trying.${ended ? ` ${ended}` : ""} Nothing more is needed from you, and our team has been told. Keep your original recording.`,
       authority_ended: "Processing is on hold while our team checks its authorization. Keep your original recording.",
       unavailable: "Your recording is saved. We could not verify the latest preparation status. Keep your original recording and check again shortly.",
     };
+    const inProgress = preparation.state === "preparing" || preparation.state === "capacity_delayed";
     return {
       ...base,
-      decision: preparation.state === "preparing" ? "assessing" : "footage_received",
-      stage: preparation.state === "preparing" ? input.stage : null,
-      headline: headlines[preparation.state] + reference,
+      decision: inProgress ? "assessing" : "footage_received",
+      stage: inProgress ? input.stage : null,
+      headline: headlines[preparation.state] + overdue + reference,
       operatorAction: null,
     };
   }
@@ -339,12 +378,45 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
+  // No preparation status has reached us since the upload, past the watch's
+  // bound. Say so rather than let a later rung claim we are preparing it.
+  if (!preparation && input.preparationOverdue) {
+    return {
+      ...base,
+      decision: "footage_received",
+      stage: null,
+      headline: "Your recording is saved. Preparing it is taking longer than it should, and our team has been told. Keep your original recording; you do not need to record it again.",
+      operatorAction: null,
+    };
+  }
+
+  // After hand-off the job's simulation scene has its own progress. A block it
+  // cannot leave is stated plainly; a wait on our side is not a site step.
+  if (input.sceneProgression?.state === "ended") {
+    return {
+      ...base,
+      decision: "footage_received",
+      stage: null,
+      headline: `${input.scenePreviewReady ? "Your scene preview is ready, but we" : "We"} could not finish preparing your job for robot evaluations, and we have stopped trying. Nothing more is needed from you, and our team has been told. Keep your original recording.`,
+      operatorAction: null,
+    };
+  }
   if (input.scenePreviewReady && input.listed === false) {
     return {
       ...base,
       decision: "not_listed",
       headline: "Your scene preview is ready. Your job card is not published, so robot teams cannot see or evaluate this job, and it cannot lead to a recommended pilot.",
       operatorAction: "To open it to robot teams approved for the beta, publish its job card from your job page.",
+    };
+  }
+
+  // Publishing the card above is still the site's own step; this wait is ours.
+  if (input.sceneProgression?.state === "waiting") {
+    return {
+      ...base,
+      decision: "assessing",
+      headline: `${input.scenePreviewReady ? "Your scene preview is ready. " : ""}Preparing the job for simulation is waiting on our team; nothing is needed from you.`,
+      operatorAction: null,
     };
   }
 
@@ -422,6 +494,8 @@ export function taskStatusInputFrom(record: {
   scenePreviewReady?: boolean;
   scenePreparationFailed?: boolean;
   preparationStatus?: TaskPreparationStatus | null;
+  preparationOverdue?: boolean;
+  sceneProgression?: TaskSceneProgression | null;
   stage: ReadinessStage | null;
   screening?: SceneScreening | null;
   site_task_triage?: { disposition?: string | null } | null;
@@ -443,6 +517,8 @@ export function taskStatusInputFrom(record: {
     scenePreviewReady: Boolean(record.scenePreviewReady),
     scenePreparationFailed: record.scenePreparationFailed === true,
     preparationStatus: record.preparationStatus ?? null,
+    ...(record.preparationOverdue === true ? { preparationOverdue: true } : {}),
+    sceneProgression: record.sceneProgression ?? null,
     briefDrafted: record.briefDrafted,
     briefConfirmed: Boolean(record.site_task_brief_confirmed_at),
     stage: record.stage,

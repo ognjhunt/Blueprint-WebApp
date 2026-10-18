@@ -79,3 +79,68 @@ describe("current source-bound preparation projection", () => {
     expect(projectTaskStatus(input).headline).toContain("encountered a problem");
   });
 });
+
+describe("preparation that waits on capacity or ends for good (beta L3/L6)", () => {
+  const preparing = (state: string, extra: Record<string, unknown> = {}) =>
+    projectTaskStatus({ ...base, preparationStatus: { state, correlationId: reference, ...extra }, ...extra } as never);
+  it("capacity_delayed is ours to wait on, not a request for information", () => {
+    const status = preparing("capacity_delayed");
+    expect(status.decision).toBe("assessing");
+    expect(status.headline).toContain("waiting for processing capacity on our side; nothing is needed from you");
+    expect(status.headline).not.toContain("needs more information");
+    expect(status.operatorAction).toBeNull();
+  });
+  it.each([
+    ["retry_exhausted", "tried several times"],
+    ["budget_exhausted", "more processing than the free beta provides"],
+    ["capacity_blocked", "capacity stayed full"],
+    ["permanent_invalid", "could not read this recording"],
+    ["out_of_scope", "outside what the beta can build"],
+  ])("failed_terminal %s says preparation could not finish, and why", (terminalReason, phrase) => {
+    const status = preparing("failed_terminal", { terminalReason });
+    expect(status.decision).toBe("footage_received");
+    expect(status.stage).toBeNull();
+    expect(status.headline).toContain("Scene preview preparation could not finish, and we have stopped trying.");
+    expect(status.headline).toContain(phrase);
+    expect(status.headline).toContain("Keep your original recording");
+    expect(status.headline).toContain(reference);
+    expect(status.headline).not.toMatch(/budget|we are preparing|needs more information/i);
+    expect(status.operatorAction).toBeNull();
+  });
+  it("an unknown or missing reason adds no sentence of its own", () => {
+    expect(preparing("failed_terminal", { terminalReason: "provider_failed" }).headline)
+      .toBe(preparing("failed_terminal", { terminalReason: null }).headline);
+  });
+  it("an overdue watch adds 'taking longer' to a live state, never to an ending", () => {
+    expect(preparing("preparing", { preparationOverdue: true }).headline).toContain("taking longer than it should, and our team has been told");
+    expect(preparing("failed_terminal", { preparationOverdue: true }).headline).not.toContain("taking longer");
+  });
+  it("no status since the upload, past the bound, is said plainly instead of 'preparing'", () => {
+    const status = projectTaskStatus({ ...base, preparationOverdue: true } as never);
+    expect(status.headline).toContain("Preparing it is taking longer than it should, and our team has been told");
+    expect(status.headline).not.toContain("we are preparing it");
+    expect(projectTaskStatus({ ...base } as never).headline).toContain("we are preparing it");
+  });
+  it("a scene that stopped after hand-off says so, ahead of an unpublished card", () => {
+    const ended = projectTaskStatus({ ...base, scenePreviewReady: true, listed: false,
+      preparationStatus: { state: "handed_off", correlationId: reference }, sceneProgression: { state: "ended" } } as never);
+    expect(ended.headline).toContain("Your scene preview is ready, but we could not finish preparing your job for robot evaluations");
+    const waiting = projectTaskStatus({ ...base, scenePreviewReady: true, listed: false,
+      preparationStatus: { state: "handed_off", correlationId: reference }, sceneProgression: { state: "waiting" } } as never);
+    expect(waiting.decision).toBe("not_listed");
+    const open = projectTaskStatus({ ...base, scenePreviewReady: true,
+      preparationStatus: { state: "handed_off", correlationId: reference }, sceneProgression: { state: "waiting" } } as never);
+    expect(open.headline).toContain("waiting on our team; nothing is needed from you");
+  });
+  it("consent withdrawal and earlier gates still win over an ending", () => {
+    expect(projectTaskStatus({ ...base, consentRevoked: true,
+      preparationStatus: { state: "failed_terminal", correlationId: reference, terminalReason: "retry_exhausted" } } as never).headline)
+      .toContain("withdrawn");
+  });
+  it("the shared route adapter carries the watch and scene progression", () => {
+    const input = taskStatusInputFrom({ briefDrafted: true, stage: null, site_task_brief_confirmed_at: "2026-10-08T12:00:00Z",
+      account_owner_uid: "test-owner", capture_coverage: { covers_scene: true }, hasStoredCapture: true,
+      preparationOverdue: true, sceneProgression: { state: "ended" } } as never);
+    expect(input).toMatchObject({ preparationOverdue: true, sceneProgression: { state: "ended" } });
+  });
+});

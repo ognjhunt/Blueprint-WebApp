@@ -49,6 +49,18 @@ it("ADVISORY-PRODUCER-001 normal new publication durably creates one source-boun
   expect([...state.docs.keys()].filter(key => key.startsWith("siteAssessmentJobs/"))).toHaveLength(1);
 });
 
+it("publication starts the website preparation watch once, in the same commit (beta L3/L6)", async () => {
+  const before = Date.now();
+  await publishBrowserPending(pending);
+  const session = state.docs.get(`captureUploadSessions/${pending.capture_id}`) as Record<string, any>;
+  expect(session.website_preparation_watch).toMatchObject({ kind: "awaiting_first_status", request_id: pending.request_id,
+    capture_id: pending.capture_id, alerted_at_iso: null });
+  expect(session.website_preparation_watch_due_at_ms).toBeGreaterThanOrEqual(before + 2 * 60 * 60 * 1000);
+  const first = session.website_preparation_watch;
+  await publishBrowserPending(pending);
+  expect((state.docs.get(`captureUploadSessions/${pending.capture_id}`) as Record<string, any>).website_preparation_watch).toEqual(first);
+});
+
 const hash = (packet: unknown) => createHash("sha256").update(JSON.stringify(packet)).digest("hex");
 const selectedJob = () => [...state.docs].find(([key]) => key.startsWith("siteAssessmentJobs/"))!;
 const storedPacket = (id: string, job: any) => {

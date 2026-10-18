@@ -41,6 +41,28 @@ function resolveArrayUnion(existing: unknown, value: unknown): unknown {
   return [...base, ...items];
 }
 
+type SetOptions = { merge?: boolean; mergeFields?: string[] };
+
+/**
+ * `set` as Firestore applies it: `merge` deep-merges maps, `mergeFields`
+ * replaces each named top-level field whole (and only those), and no option
+ * replaces the document.
+ */
+function applySet(existing: StoredDoc, payload: StoredDoc, options?: SetOptions): StoredDoc {
+  if (options?.mergeFields) {
+    const next = clone(existing);
+    for (const field of options.mergeFields) {
+      if (field.includes(".")) throw new Error(`fake-firestore: nested mergeFields path ${field} not modelled`);
+      if (!(field in payload)) throw new Error(`fake-firestore: mergeFields names ${field} without data`);
+      const value = payload[field];
+      if (value === FAKE_FIELD_DELETE) delete next[field];
+      else next[field] = value === undefined ? undefined : clone(value);
+    }
+    return next;
+  }
+  return options?.merge ? deepMerge(existing, payload) : clone(payload);
+}
+
 export type FakeFirestoreState = {
   docs: Map<string, StoredDoc>;
 };
@@ -155,12 +177,9 @@ export function createFakeFirestore(state: FakeFirestoreState) {
         exists: Boolean(readDoc(collectionName, id)),
         data: () => readDoc(collectionName, id),
       }),
-      set: async (payload: StoredDoc, options?: { merge?: boolean }) => {
+      set: async (payload: StoredDoc, options?: SetOptions) => {
         const existing = readDoc(collectionName, id) || {};
-        state.docs.set(
-          docKey(collectionName, id),
-          options?.merge ? deepMerge(existing, payload) : clone(payload),
-        );
+        state.docs.set(docKey(collectionName, id), applySet(existing, payload, options));
       },
       update: async (payload: StoredDoc) => {
         const existing = readDoc(collectionName, id) || {};
@@ -275,7 +294,7 @@ export function createFakeFirestore(state: FakeFirestoreState) {
           exists: boolean;
           data: () => StoredDoc | undefined;
         }>;
-        set: (ref: MockDocRef, payload: StoredDoc, options?: { merge?: boolean }) => void;
+        set: (ref: MockDocRef, payload: StoredDoc, options?: SetOptions) => void;
         create: (ref: MockDocRef, payload: StoredDoc) => void;
         update: (ref: MockDocRef, payload: StoredDoc) => void;
         delete: (ref: MockDocRef) => void;
@@ -306,13 +325,10 @@ export function createFakeFirestore(state: FakeFirestoreState) {
             data: () => readDoc(docRef.__collection, docRef.id),
           };
         },
-        set: (ref: MockDocRef, payload: StoredDoc, options?: { merge?: boolean }) => {
+        set: (ref: MockDocRef, payload: StoredDoc, options?: SetOptions) => {
           writes.push(() => {
             const existing = readDoc(ref.__collection, ref.id) || {};
-            state.docs.set(
-              docKey(ref.__collection, ref.id),
-              options?.merge ? deepMerge(existing, payload) : clone(payload),
-            );
+            state.docs.set(docKey(ref.__collection, ref.id), applySet(existing, payload, options));
           });
         },
         update: (ref: MockDocRef, payload: StoredDoc) => {

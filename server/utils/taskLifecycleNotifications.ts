@@ -19,6 +19,7 @@ import { EMAIL_SIGN_OFF } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
 import { drainPendingWebsitePreparationNotifications } from "./websitePreparationStatus";
 import { formatPilotContact, type PilotContact } from "./pilotContactExchange";
+import { preparationEndedSentence } from "./taskStatusProjection";
 
 export type TaskLifecycleMilestone = Extract<
   OutboxKind,
@@ -26,6 +27,7 @@ export type TaskLifecycleMilestone = Extract<
   | "video_received"
   | "scene_ready"
   | "preparation_needs_attention"
+  | "preparation_ended"
   | "listing_live"
   | "screening_cleared"
   | "screening_not_now"
@@ -65,6 +67,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   preparation_needs_attention: {
     subject: "An update on your Blueprint job preparation",
     body: (url, detail) => `Job preparation needs our team's review. Keep your original recording. Open your job to see the latest status and next step.${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
+  },
+  // One per terminal transition. The detail is only a fixed reason sentence and a reference.
+  preparation_ended: {
+    subject: "We stopped preparing your Blueprint scene",
+    body: (url, detail) => `We could not finish building the scene preview for your job, and we have stopped trying.${detail ? ` ${detail}` : ""} Nothing more is needed from you, and our team has been told. Keep your original recording. Your job page shows the latest status.\n\nOpen your job:\n${url}`,
   },
   task_received: {
     subject: "We have your Blueprint job — here is your link",
@@ -141,6 +148,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
  * message per request and milestone. Calling this again repairs a missed
  * enqueue while the outbox document id prevents a duplicate delivery intent.
  */
+/** Source/context-bound preparation notices: an exact event id and current recipient are required. */
+export function isWebsitePreparationNotice(milestone: string): milestone is "preparation_needs_attention" | "preparation_ended" {
+  return milestone === "preparation_needs_attention" || milestone === "preparation_ended";
+}
+
 export async function enqueueTaskLifecycleNotification(params: {
   requestId: string;
   milestone: TaskLifecycleMilestone;
@@ -150,6 +162,8 @@ export async function enqueueTaskLifecycleNotification(params: {
   detail?: string;
   correlationId?: string;
   runProgress?: NoResultObservation;
+  /** `preparation_ended` only: the Pipeline's typed reason; unknown values add nothing. */
+  terminalReason?: string | null;
 }): Promise<{ enqueued: boolean; reason?: "store_unavailable" | "request_missing" | "contact_missing" | "consent_withdrawn" }> {
   if (!db) return { enqueued: false, reason: "store_unavailable" };
   const requestId = params.requestId.trim();
@@ -158,12 +172,12 @@ export async function enqueueTaskLifecycleNotification(params: {
   // New private-link notices bind recipient admission as well as source.
   // Older notice kinds retain their existing ordering and authority behavior.
   let preparationRecipient: string | undefined;
-  if (params.milestone === "preparation_needs_attention") {
+  if (isWebsitePreparationNotice(params.milestone)) {
     try { preparationRecipient = String(await decryptFieldValue(snapshot.data()?.contact?.email ?? "")).trim(); }
     catch { throw new Error("website_preparation_recipient_unavailable"); }
   }
   if (!(await taskLifecycleNotificationIsCurrent({ requestId, kind: params.milestone,
-    ...(params.milestone === "preparation_needs_attention" ? {preparationEventId: params.eventId, to: preparationRecipient} : {}) }))) {
+    ...(isWebsitePreparationNotice(params.milestone) ? {preparationEventId: params.eventId, to: preparationRecipient} : {}) }))) {
     return { enqueued: false, reason: "consent_withdrawn" };
   }
   const to = preparationRecipient ?? String(await decryptFieldValue(snapshot.data()?.contact?.email ?? "")).trim();
@@ -187,23 +201,30 @@ export function buildTaskLifecycleNotification(params: {
   /** `pilot_booked` only: the robot team's contact, shared at booking. */
   counterpart?: PilotContact | null;
   runProgress?: NoResultObservation;
+  /** `preparation_ended` only: rendered through a fixed sentence per known reason. */
+  terminalReason?: string | null;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
-  if (params.milestone === "preparation_needs_attention" && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
+  if (isWebsitePreparationNotice(params.milestone) && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
     throw new Error("website_preparation_event_invalid");
   }
   const message = copy[params.milestone];
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
+  // Preparation notices never carry caller text: only a validated reference and,
+  // for an ending, the fixed sentence for its reason.
+  const reference = /^bp-prep-[a-f0-9]{16}$/.test(params.correlationId || "") ? `Reference: ${params.correlationId}.` : "";
+  const preparationDetail = params.milestone === "preparation_ended"
+    ? [preparationEndedSentence(params.terminalReason), reference].filter(Boolean).join(" ") : reference;
   return {
     idempotencyKey: `${requestId}:${params.milestone}${eventId ? `:${eventId}` : ""}`,
     requestId,
     kind: params.milestone,
-    ...(params.milestone === "preparation_needs_attention" ? {preparationEventId: params.eventId} : {}),
+    ...(isWebsitePreparationNotice(params.milestone) ? {preparationEventId: params.eventId} : {}),
     to: params.to,
     subject: message.subject,
-    body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress) : params.milestone === "preparation_needs_attention"
-      ? /^bp-prep-[a-f0-9]{16}$/.test(params.correlationId || "") ? `Reference: ${params.correlationId}.` : ""
+    body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress)
+      : isWebsitePreparationNotice(params.milestone) ? preparationDetail
       : params.detail?.trim() ?? "", params.milestone === "pilot_booked" && params.counterpart ? formatPilotContact(params.counterpart) : "")}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
   };
@@ -259,9 +280,9 @@ export async function reconcileWebsitePreparationNotifications(limit = 1): Promi
   if (!db) return;
   const store = db;
   await drainPendingWebsitePreparationNotifications(async intent => {
-    const result = await enqueueTaskLifecycleNotification({...intent, milestone: "preparation_needs_attention"});
+    const result = await enqueueTaskLifecycleNotification({...intent, milestone: intent.milestone});
     if (result.enqueued) return "enqueued";
-    const key = `${intent.requestId}:preparation_needs_attention:${intent.eventId.replace(/[^A-Za-z0-9._-]/g, "_")}`;
+    const key = `${intent.requestId}:${intent.milestone}:${intent.eventId.replace(/[^A-Za-z0-9._-]/g, "_")}`;
     return (await store.collection(CAPTURE_OUTBOX_COLLECTION).doc(key).get()).exists ? "duplicate" : "unavailable";
   }, undefined, Math.max(1, Math.min(limit, 1)));
 }

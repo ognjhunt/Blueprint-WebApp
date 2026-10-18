@@ -46,6 +46,8 @@ import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
 import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
+import { websitePreparationOverdue } from "../utils/websitePreparationWatch";
+import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
 import { listRunsForScene, loadSceneScreening } from "../utils/agentEvalRuns";
 import type { InboundRequestStored } from "../types/inbound-request";
 import type {
@@ -599,6 +601,9 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     const reconstruction = captureSession.data()?.world_reconstruction;
     const preparationStatus = !consentRevoked && captureSession.data()?.website_preparation
       ? await loadCurrentWebsitePreparationStatus(requestId, `walkthrough-${requestId}`) : null;
+    const preparationOverdue = !consentRevoked && websitePreparationOverdue(captureSession.data()?.website_preparation_watch);
+    const sceneProgression = preparationStatus?.state === "handed_off"
+      ? await loadWebsiteSceneProgression(requestId, `walkthrough-${requestId}`) : null;
     const scenePreviewReady = !consentRevoked && reconstruction?.state === "ready"
       && [reconstruction?.assets?.launchUrl, reconstruction?.assets?.panoUrl].some((value: unknown) => {
         try { const url = new URL(String(value || "")); return url.protocol === "https:" && !url.username && !url.password; }
@@ -623,6 +628,8 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         scenePreviewReady,
         scenePreparationFailed: reconstruction?.state === "failed",
         preparationStatus,
+        preparationOverdue,
+        sceneProgression,
         stage,
         screening: await loadSceneScreening(requestId, passMarkForJob(record, brief as never)).catch(() => null),
         site_task_triage: (record.site_task_triage as { disposition?: string | null } | undefined) ?? null,

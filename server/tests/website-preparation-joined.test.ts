@@ -158,7 +158,7 @@ it.skipIf(!process.env.RELIABILITY_PREPARATION_EXPORTER && process.env.RELIABILI
   await record("actual-producer-failure-ready",{selectors_digest:crossRuntimeDigest(producer.selectors),base_url_mode:"ephemeral-loopback",provider_mode:"no-provider"});
   const delivery=await producerCommand("deliver");
   expect(delivery.result).toMatchObject({delivered:true,remaining_pending:0,delivery_counts:{attempted:1,delivered:1},
-    acceptance:{schema_version:"website_preparation_status_acceptance.v1",accepted:true,...producer.selectors}});
+    acceptance:{schema_version:"website_preparation_status_acceptance.v2",accepted:true,...producer.selectors}});
   await record("actual-producer-pending-delivery-retry",delivery);
   const accepted=await callback(base,source.captureId,producer.selectors);expect(accepted.code).toBe(200);expect(accepted.body.accepted).toBe(true);
   expect(accepted.body.native_execution_complete).toBe(false);

@@ -19,7 +19,10 @@ import { readWorkerHeartbeat, type WorkerHeartbeatReading } from "./workerHeartb
  *     nothing polls /health/ready;
  *  4. alerts when customer email backs up in the outbox (too many waiting, or
  *     one waiting too long), which a stalled pump or provider causes;
- *  5. alerts when the background worker's heartbeat goes stale.
+ *  5. alerts when the background worker's heartbeat goes stale;
+ *  6. alerts once per website capture whose preparation went quiet (no status
+ *     since upload, or one state too long) or ended, and once per website
+ *     scene that stopped after hand-off (websitePreparationOpsAlerts).
  */
 
 const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
@@ -263,6 +266,11 @@ async function checkLaunchReadiness() {
   await maybeAlertOnLaunchReadinessTransition(buildLaunchReadinessSnapshot());
 }
 
+async function scanWebsitePreparations() {
+  const { scanWebsitePreparationWatch, scanEndedWebsiteSceneIntakes } = await import("./websitePreparationOpsAlerts");
+  return { watch: await scanWebsitePreparationWatch(), intakes: await scanEndedWebsiteSceneIntakes() };
+}
+
 export async function runBetaOpsMonitorPass() {
   const results = await Promise.allSettled([
     sweepIntakeOpsNotices(),
@@ -270,11 +278,14 @@ export async function runBetaOpsMonitorPass() {
     checkLaunchReadiness(),
     scanOutboxBacklog(),
     workerHeartbeatCheckEnabled() ? checkWorkerHeartbeat() : Promise.resolve(null),
+    // 6. website captures whose preparation went quiet or ended (beta L3/L6).
+    scanWebsitePreparations(),
   ]);
   for (const [index, result] of results.entries()) {
     if (result.status === "rejected") {
       logger.warn(
-        { err: result.reason, step: ["intake_notice_sweep", "outbox_failure_scan", "readiness_check", "outbox_backlog_scan", "worker_heartbeat_check"][index] },
+        { err: result.reason, step: ["intake_notice_sweep", "outbox_failure_scan", "readiness_check", "outbox_backlog_scan",
+          "worker_heartbeat_check", "website_preparation_scan"][index] },
         "Beta ops monitor step failed",
       );
     }

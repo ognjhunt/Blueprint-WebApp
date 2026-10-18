@@ -8,6 +8,7 @@ import type { CapturePrivacyProducerSource } from "./capturePrivacyRecord";
 import { logger } from "../logger";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { enqueueNewPublishedSiteAssessment } from "./siteAssessmentQueue";
+import { websitePreparationUploadWatchFields } from "./websitePreparationWatch";
 
 export interface BrowserPending {
   schema_version: "website_browser_pending.v1";
@@ -306,7 +307,10 @@ export async function publishBrowserPending(selected: BrowserPending): Promise<v
       // New source publication and its advisory intent share one commit. An
       // older already-published row is intentionally never backfilled.
       await enqueueNewPublishedSiteAssessment(transaction, value);
-      transaction.set(ref, { browser_pending_delivery: { ...value, state: "published" } }, { merge: true });
+      // The preparation watch starts with the upload (beta L3/L6), so an upload
+      // the Pipeline never reports on still reaches an operator.
+      transaction.set(ref, { browser_pending_delivery: { ...value, state: "published" },
+        ...websitePreparationUploadWatchFields(value.request_id, value.scene_id, value.capture_id) }, { merge: true });
       return true;
     }
     return false;

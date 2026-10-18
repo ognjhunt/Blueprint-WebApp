@@ -17,7 +17,8 @@ export async function taskLifecycleNotificationIsCurrent(
  entry:{kind:OutboxKind;requestId:string;preparationEventId?:string;to?:string},
  transaction?:FirebaseFirestore.Transaction,
 ):Promise<boolean>{
- if(entry.kind==='preparation_needs_attention'){
+ // Both preparation notices: current consent and recipient, and the same current event.
+ if(entry.kind==='preparation_needs_attention'||entry.kind==='preparation_ended'){
   if(!/^sha256:[a-f0-9]{64}$/.test(entry.preparationEventId||''))return false;
   if(!db)throw new Error('website_preparation_recipient_unavailable');
   const ref=db.collection('inboundRequests').doc(entry.requestId);
