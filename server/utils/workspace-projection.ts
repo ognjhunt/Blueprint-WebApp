@@ -5,6 +5,7 @@ import type {
   WorkspaceTask,
 } from "../../client/src/types/workspace";
 import { teamJobAccess } from "./teamJobAccess";
+import { isQualifiedRecommendationEvidence } from "./pilotRecommendationEvidence";
 import { hasQualifiedSimulationEvidence, type RunResultScoring } from "./runResultScoring";
 import type { EpisodeOutcome } from "./agentRunResults";
 import { sitePilotIntentFrom, siteVisitOptions } from "../../client/src/data/sitePilotIntent";
@@ -187,6 +188,11 @@ export function projectWorkspaceTask(
       notes: text(pilot.notes) || null,
       siteVisitAnswer: siteVisitOptions.find((option) => option.value === pilot.siteVisitAnswer)?.value ?? null,
     },
+    // What the owner booking route accepts for a new booking (`task-listings.ts`):
+    // a recorded recommendation, not awaiting review, on qualified evidence.
+    // Nothing else may read as "book it" (audit N14).
+    pilotRecommended: Boolean(text(recommendation.id)) && recommendation.reviewRequired !== true
+      && isQualifiedRecommendationEvidence(recommendation.evidence),
     createdAt: iso(record.createdAt),
   };
 }

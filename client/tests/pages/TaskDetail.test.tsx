@@ -110,3 +110,24 @@ describe("booked pilot follow-through", () => {
     expect(screen.queryByRole("button", { name: /Record deployment/ })).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Audit N14: the job page said "Book it on your task page" before Blueprint had
+ * recommended anything, so a site went looking for a booking that did not exist.
+ */
+describe("booking a pilot", () => {
+  beforeEach(() => window.history.replaceState({}, "", "/app/tasks/owned-task?tab=results"));
+
+  it("offers no booking until Blueprint recommends a pilot, and says what comes first", () => {
+    render(<TaskDetail />);
+    expect(screen.queryByRole("button", { name: /Book it/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/No pilot is recommended yet\. When a robot team's evaluation on this job passes/)).toBeInTheDocument();
+  });
+
+  it("offers to book the pilot Blueprint recommended", () => {
+    fixture.task = { pilotRecommended: true };
+    render(<TaskDetail />);
+    expect(screen.getByRole("button", { name: "Book it on your task page →" })).toBeInTheDocument();
+    expect(screen.getByText(/Blueprint recommends one pilot for this job/)).toBeInTheDocument();
+  });
+});
