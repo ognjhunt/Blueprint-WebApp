@@ -1,6 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
 import { SEO } from "@/components/SEO";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
+import { BETA_TIMELINES } from "@/data/betaTimelines";
 
 const description = "A free beta for real sites and recurring tasks. Sites start a job today; invited robot teams evaluate it in simulation, and Blueprint recommends one team whose evaluation passed.";
 
@@ -24,6 +25,7 @@ export default function Beta() {
           <p>Invited robot teams evaluate your task in a simplified simulation of your task, informed by your footage. We recommend one team whose evaluation passed, with what the pilot tests, what you provide and when, and you book it in one step. You do not compare teams.</p>
           <p style={{ marginTop: "1em" }}>If no team has passed yet, we tell you so and what would change that.</p>
           <p style={{ marginTop: "1em" }}>We email you when something happens on your job: when robot teams can evaluate it, when one starts, when results are in, and when every evaluation so far has finished without a pass. Between those, your job page shows what it is waiting on.</p>
+          <p style={{ marginTop: "1em" }}>How long it takes: {BETA_TIMELINES.join(" ")}</p>
         </section>
         <section id="scope">
           <h2>What does it cost?</h2>

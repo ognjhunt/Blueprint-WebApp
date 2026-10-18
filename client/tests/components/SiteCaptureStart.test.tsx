@@ -1091,3 +1091,11 @@ describe("SiteCaptureStart offers an account before a guest sends its video", ()
     expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
   });
 });
+
+it("states how long each step takes, right above the start button", async () => {
+  const { BETA_TIMELINES } = await import("@/data/betaTimelines");
+  await renderReady(<SiteCaptureStart />);
+  const note = screen.getByRole("note", { name: "How long it takes" });
+  for (const line of BETA_TIMELINES) expect(note).toHaveTextContent(line);
+  expect(note.nextElementSibling).toBe(screen.getByRole("button", { name: "Start free assessment" }));
+});
