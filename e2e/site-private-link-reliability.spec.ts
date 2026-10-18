@@ -45,7 +45,7 @@ test("owner can request an authorized assessment retry while keeping the saved r
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Correct job details (optional)", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Try assessment again", exact: true })).toBeVisible();
   expect(writes).toEqual([]);
   await page.getByRole("button", { name: "Try assessment again", exact: true }).dblclick();
@@ -66,7 +66,7 @@ test("owner can request an authorized assessment retry while keeping the saved r
   await expect(page.getByRole("button",{name:"Add photos",exact:true})).toBeVisible();
   await page.screenshot({path:info.outputPath("known-item-placeholder-local-fixture.png"),fullPage:true});
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Correct job details (optional)", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toBeVisible();
   expect(writes).toEqual([`/api/self-capture/uploads/${token}/advisory-retry`, `/api/self-capture/uploads/${token}/advisory-retry`]);
   await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
 });
@@ -101,7 +101,7 @@ test("returning owner can explicitly replace a received recording without confir
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Correct job details (optional)", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
   const choose = page.getByRole("button", { name: "Upload a new recording", exact: true });
@@ -118,7 +118,7 @@ test("returning owner can explicitly replace a received recording without confir
   expect(posted).toContain('filename="synthetic-replacement.mp4"');
   expect(posted).toContain('name="metadata"');
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Correct job details (optional)", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toBeVisible();
   await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
 });
 

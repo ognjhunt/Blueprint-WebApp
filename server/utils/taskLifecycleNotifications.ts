@@ -61,7 +61,25 @@ export function reconstructionIsViewable(record: {
   });
 }
 
-const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, counterpart: string) => string }> = {
+/** The site's job in its workspace, where run results open once the site is claimed. */
+function workspaceTaskUrl(requestId: string): string {
+  const origin = (process.env.VITE_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim() || "https://tryblueprint.io")
+    .replace(/\/+$/, "");
+  return `${origin}/app/tasks/${encodeURIComponent(requestId)}`;
+}
+
+/**
+ * Where a site sees its runs. Results open in the site's account, so a
+ * claimed site is sent there; an unclaimed one is told first that its job page
+ * will ask it to save the site to an account (audit N12).
+ */
+function whereRunsAre(url: string, workspaceUrl: string | null, action: string): string {
+  return workspaceUrl
+    ? `${action} in your workspace:\n${workspaceUrl}`
+    : `Run results open in your Blueprint account. ${action} there: open your job and save this site to your account; your private link keeps working.\n\nOpen your job:\n${url}`;
+}
+
+const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, counterpart: string, workspaceUrl: string | null) => string }> = {
   preparation_needs_attention: {
     subject: "An update on your Blueprint job preparation",
     body: (url, detail) => `Job preparation needs our team's review. Keep your original recording. Open your job to see the latest status and next step.${detail ? ` ${detail}` : ""}\n\nOpen your job:\n${url}`,
@@ -99,11 +117,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   results_ready: {
     subject: "Results are in from a robot team",
-    body: (url, detail) => `A robot team's evaluation run against your scene has finished${detail ? `: ${detail}` : ""}. This is a simulation result for one team's robot, not a physical test or a recommendation.\n\nSee it on your job page:\n${url}`,
+    body: (url, detail, _counterpart, workspaceUrl) => `A robot team's evaluation run against your scene has finished${detail ? `: ${detail}` : ""}. This is a simulation result for one team's robot, not a physical test or a recommendation.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
   },
   run_no_result: {
     subject: "A robot team's run ended without a result",
-    body: (url, detail) => `A robot team's run against your scene ended without a complete scored result. ${detail || noResultObservationText()} Review the run on your job page; reply if you need help understanding what happened.\n\nOpen your job:\n${url}`,
+    body: (url, detail, _counterpart, workspaceUrl) => `A robot team's run against your scene ended without a complete scored result. ${detail || noResultObservationText()} Reply if you need help understanding what happened.\n\n${whereRunsAre(url, workspaceUrl, "Review the run")}`,
   },
   awaiting_evaluations: {
     subject: "Robot teams can now evaluate your job",
@@ -111,7 +129,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   no_team_passed: {
     subject: "No robot team's evaluation has passed yet",
-    body: (url) => `Every evaluation of your job so far has finished, and none passed, so there is no pilot to recommend yet. A recommendation needs one team's evaluation on your job to pass. While your job card stays published, robot teams approved for the beta can still evaluate it, and we will email you when one starts. Your job page shows each run. Nothing is needed from you.\n\nOpen your job:\n${url}`,
+    body: (url, _detail, _counterpart, workspaceUrl) => `Every evaluation of your job so far has finished, and none passed, so there is no pilot to recommend yet. A recommendation needs one team's evaluation on your job to pass. While your job card stays published, robot teams approved for the beta can still evaluate it, and we will email you when one starts. Nothing is needed from you.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   pilot_request: {
     subject: "A robot team asked to evaluate your site for a pilot",
@@ -135,6 +153,25 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     body: (url) => `The provider and site agreement, date and preparation responsibilities have been recorded and checked against the calendar. Open your job for the agreed date and responsibilities.\n\nOpen your job:\n${url}`,
   },
 };
+
+/**
+ * `video_received` for a site whose drafted brief is still unconfirmed. Same
+ * event, same outbox key, so still one email when the footage lands; it names
+ * the step that is the site's own, because robot teams can evaluate a job only
+ * once its brief is confirmed (`teamJobAccess`).
+ */
+const VIDEO_RECEIVED_CONFIRM_BRIEF = {
+  subject: "We received your walkthrough. Next, confirm your job brief",
+  body: (url: string) => `Your walkthrough arrived safely. One step is yours: confirm your job brief. Robot teams can evaluate your job only after you confirm it. Open your job, check the summary and the answers we drafted from what you sent, correct anything that is wrong, and confirm it.\n\nOpen your job:\n${url}`,
+};
+
+/** A drafted brief the site has not confirmed. Read only for `video_received`. */
+async function briefAwaitsConfirmation(requestId: string, record: Record<string, any> | undefined): Promise<boolean> {
+  if (record?.request?.buyerType !== "site_operator" || record.site_task_brief_confirmed_at) return false;
+  const { getBrief } = await import("./siteTaskBrief");
+  const brief = await getBrief(requestId);
+  return Boolean(brief && !brief.confirmedAtIso);
+}
 
 /**
  * Resolve the owner from the authoritative encrypted request and enqueue one
@@ -170,7 +207,12 @@ export async function enqueueTaskLifecycleNotification(params: {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     return { enqueued: false, reason: "contact_missing" };
   }
-  return enqueueOutbox(buildTaskLifecycleNotification({ ...params, requestId, to }));
+  const briefConfirmationNeeded = params.milestone === "video_received"
+    && await briefAwaitsConfirmation(requestId, snapshot.data());
+  // Run results open in the site's account; only a claimed site has one.
+  const workspaceUrl = typeof snapshot.data()?.account_owner_uid === "string" && snapshot.data()?.account_owner_uid
+    ? workspaceTaskUrl(requestId) : null;
+  return enqueueOutbox(buildTaskLifecycleNotification({ ...params, requestId, to, briefConfirmationNeeded, workspaceUrl }));
 }
 
 /** Build the existing notice without a database write or delivery. Atomic
@@ -187,12 +229,17 @@ export function buildTaskLifecycleNotification(params: {
   /** `pilot_booked` only: the robot team's contact, shared at booking. */
   counterpart?: PilotContact | null;
   runProgress?: NoResultObservation;
+  /** `video_received` only: the drafted brief still awaits the site's confirmation. */
+  briefConfirmationNeeded?: boolean;
+  /** The job in the site's workspace, when the site is claimed. Run notices send it there. */
+  workspaceUrl?: string | null;
 }): Parameters<typeof enqueueOutbox>[0] {
   const requestId = params.requestId.trim();
   if (params.milestone === "preparation_needs_attention" && !/^sha256:[a-f0-9]{64}$/.test(params.eventId || "")) {
     throw new Error("website_preparation_event_invalid");
   }
-  const message = copy[params.milestone];
+  const message = params.milestone === "video_received" && params.briefConfirmationNeeded
+    ? VIDEO_RECEIVED_CONFIRM_BRIEF : copy[params.milestone];
   const url = params.captureUrl ?? captureUploadUrlFor(requestId, "owner");
   const eventId = params.eventId?.trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120);
   return {
@@ -204,7 +251,8 @@ export function buildTaskLifecycleNotification(params: {
     subject: message.subject,
     body: `${message.body(url, params.milestone === "run_no_result" ? noResultObservationText(params.runProgress) : params.milestone === "preparation_needs_attention"
       ? /^bp-prep-[a-f0-9]{16}$/.test(params.correlationId || "") ? `Reference: ${params.correlationId}.` : ""
-      : params.detail?.trim() ?? "", params.milestone === "pilot_booked" && params.counterpart ? formatPilotContact(params.counterpart) : "")}\n\n${EMAIL_SIGN_OFF}`,
+      : params.detail?.trim() ?? "", params.milestone === "pilot_booked" && params.counterpart ? formatPilotContact(params.counterpart) : "",
+      params.workspaceUrl ?? null)}\n\n${EMAIL_SIGN_OFF}`,
     replyTo: "hello@tryblueprint.io",
   };
 }

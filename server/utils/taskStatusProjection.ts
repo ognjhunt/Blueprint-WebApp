@@ -164,10 +164,19 @@ function countLabel(count: number, noun: string): string {
 }
 
 /**
+ * What the site does about an unconfirmed brief. Robot teams can evaluate only
+ * a confirmed job (`teamJobAccess` → `isRunnableTask`), so this is never optional.
+ */
+const CONFIRM_BRIEF_ACTION = "Open your job brief, check the summary and answers, correct anything that is wrong, and confirm it.";
+
+/**
  * Project the status. Pure, so the two surfaces cannot diverge.
  */
 export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const base = { stage: input.stage, missingViews: input.missingViews, nextUpdateIso: null };
+  // A drafted brief the site has not confirmed. Where a rung's headline is
+  // ours to resolve (a preparation problem), the confirmation rides with it.
+  const confirmationAsk = input.briefDrafted && !input.briefConfirmed ? CONFIRM_BRIEF_ACTION : null;
   if (input.consentRevoked) {
     return {
       decision: input.hasStoredCapture ? "footage_received" : "received",
@@ -292,6 +301,23 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
+  // Filmed, and the brief we drafted is still unconfirmed: the one step left
+  // that is the site's own. No later waiting rung may stand in for it. "We
+  // are checking your footage" or "your preview is ready" read as though
+  // nothing were asked of the site, and the job waited unopened. A
+  // preparation problem keeps its own headline below and carries the ask.
+  const preparationProblem = input.scenePreparationFailed === true || Boolean(input.preparationStatus
+    && input.preparationStatus.state !== "preparing" && input.preparationStatus.state !== "handed_off");
+  if (confirmationAsk && !preparationProblem
+    && (input.hasStoredCapture || input.scenePreviewReady || input.coversScene === true)) {
+    return {
+      ...base,
+      decision: "confirm_brief",
+      headline: "We have your recording. Next, confirm your job brief: robot teams can evaluate your job only after you confirm it.",
+      operatorAction: confirmationAsk,
+    };
+  }
+
   // Cleared, but Blueprint builds the scene only for a site saved to an
   // account. Until then "we are preparing it" would not be true.
   if (input.disposition === "qualified" && input.claimed === false && !input.scenePreviewReady) {
@@ -323,7 +349,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       decision: preparation.state === "preparing" ? "assessing" : "footage_received",
       stage: preparation.state === "preparing" ? input.stage : null,
       headline: headlines[preparation.state] + reference,
-      operatorAction: null,
+      operatorAction: confirmationAsk,
     };
   }
 
@@ -335,7 +361,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       decision: "footage_received",
       stage: null,
       headline: "Scene preview preparation could not finish. Our team needs to review it. Keep your original recording.",
-      operatorAction: null,
+      operatorAction: confirmationAsk,
     };
   }
 
@@ -389,8 +415,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "confirm_brief",
-      headline: "Your prefilled job summary is available. Correct material mistakes if needed; you can view the assessment without confirming it.",
-      operatorAction: null,
+      headline: "Your job brief is ready. Confirm it so robot teams can evaluate your job; you can confirm it before or after you film.",
+      operatorAction: CONFIRM_BRIEF_ACTION,
     };
   }
 

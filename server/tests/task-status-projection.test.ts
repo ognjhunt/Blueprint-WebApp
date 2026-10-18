@@ -40,7 +40,10 @@ describe("a persisted preview preparation failure", () => {
   });
   it("preserves withdrawal, brief and disposition gates", () => {
     expect(projectTaskStatus({ ...failed(), consentRevoked: true }).headline).toMatch(/withdrawn/i);
-    expect(projectTaskStatus({ ...failed(), briefConfirmed: false }).decision).toBe("footage_received");
+    // The preparation problem stays the headline; the confirmation rides with it.
+    const unconfirmed = projectTaskStatus({ ...failed(), briefConfirmed: false });
+    expect(unconfirmed.decision).toBe("footage_received");
+    expect(unconfirmed.operatorAction).toMatch(/confirm it/i);
     expect(projectTaskStatus({ ...failed(), disposition: "needs_conversation" }).decision).toBe("call_needed");
     expect(projectTaskStatus({ ...failed(), disposition: "not_now" }).decision).toBe("not_now");
     const unclaimed = projectTaskStatus({ ...failed(), disposition: "qualified", claimed: false });
@@ -71,8 +74,23 @@ describe("the decision ladder", () => {
   it("asks for a confirmation once a brief is drafted", () => {
     const status = projectTaskStatus(base({ briefDrafted: true }));
     expect(status.decision).toBe("confirm_brief");
-    expect(status.operatorAction).toBeNull();
-    expect(status.headline).toMatch(/without confirming/i);
+    // Robot teams evaluate only a confirmed job, so the step is never optional.
+    expect(status.headline).toMatch(/robot teams can evaluate your job/i);
+    expect(status.headline).not.toMatch(/without confirming|optional/i);
+    expect(status.operatorAction).toMatch(/confirm it/i);
+  });
+
+  it("keeps asking for the confirmation once a recording lands, whatever is waiting on us", () => {
+    for (const filmed of [{ hasStoredCapture: true }, { coversScene: true }, { scenePreviewReady: true },
+      { hasStoredCapture: true, preparationStatus: { state: "preparing", correlationId: null } }] as const) {
+      const status = projectTaskStatus(base({ briefDrafted: true, ...filmed }));
+      expect(status.decision).toBe("confirm_brief");
+      expect(status.headline).toMatch(/confirm your job brief/i);
+      expect(status.operatorAction).toMatch(/confirm it/i);
+    }
+    // A named coverage gap is still the most actionable step.
+    expect(projectTaskStatus(base({ briefDrafted: true, hasStoredCapture: true, coversScene: false,
+      missingViews: ["infeed"] })).decision).toBe("add_views");
   });
 
   it("asks for a recording once the brief is confirmed and coverage is unknown", () => {

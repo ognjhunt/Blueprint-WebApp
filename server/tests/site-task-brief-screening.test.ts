@@ -15,8 +15,15 @@ import type { Server } from "node:http";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 import { listedTaskCard } from "./helpers/listedTaskCard";
 
+// Nothing filmed yet unless a test says so. An unreadable bucket is not
+// "nothing filmed": the reply must not guess either way.
+const storage = vi.hoisted(() => ({ unreadable: false }));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
+  const { createFakeUploadBucket } = await import("./helpers/fake-upload-bucket");
+  const empty = createFakeUploadBucket();
+  const down = () => { throw Object.assign(new Error("storage unavailable"), { code: 503 }); };
+  const unreadable = { file: () => ({ getMetadata: async () => down(), exists: async () => down() }) };
   return {
     default: {
       firestore: {
@@ -27,7 +34,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
       },
     },
     dbAdmin: sharedFakeFirestore,
-    storageAdmin: null,
+    storageAdmin: { bucket: () => (storage.unreadable ? unreadable : empty.bucket) },
   };
 });
 
@@ -55,6 +62,7 @@ let baseUrl: string;
 
 beforeEach(async () => {
   sharedFakeFirestoreState.docs.clear();
+  storage.unreadable = false;
   notifySlackScreeningCallNeeded.mockClear();
   vi.mocked(enqueueOutbox).mockClear();
   const app = express();
@@ -150,6 +158,15 @@ describe("the confirmation says what our screen decided", () => {
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({
       workspace_task: { terms: { successDefinition: "Carton reaches pallet intact", successRate: 95, cycleTimeSeconds: 30 } },
     });
+  });
+
+  it("does not ask to film when the recording's status cannot be read", async () => {
+    storage.unreadable = true;
+    const response = await confirm(clearAnswers());
+    expect((await response.json()).disposition).toBe("qualified");
+    const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { body: string };
+    expect(sent.body).toMatch(/Your job page shows the next step: http\S+\/capture-upload\//);
+    expect(sent.body).not.toMatch(/film the work area|upload it here/i);
   });
 
   it("promises a private job no evaluation or recommendation", async () => {

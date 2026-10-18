@@ -644,8 +644,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {descriptionFirst && (link.status === "valid" || link.status === "held") && (
         <section aria-label="Your job summary" style={{ marginBottom: "28px" }}>
           <h2>Your job summary</h2>
-          {brief ? <><p>{brief.summary}</p><p className="ms-field-hint">Blueprint uses what you already supplied. Correct material mistakes below; confirmation is needed only for consequential claims or commitments.</p>
-            <details><summary>Correct job details (optional)</summary><TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount
+          {/* Robot teams evaluate only a confirmed job (`teamJobAccess`), so the
+              brief is never presented as an optional correction. Before
+              footage it can wait; once footage lands it becomes the page. */}
+          {brief ? <><p>{brief.summary}</p><p className="ms-field-hint">{briefConfirmed
+            ? "Your job brief is confirmed. Correct it here if something changes."
+            : "Robot teams can evaluate your job only after you confirm this brief. You can confirm it now or after you add footage."}</p>
+            <details><summary>{briefConfirmed ? "Edit your job brief" : "Review and confirm your job brief"}</summary><TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount
               onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }} /></details>
           </> : <p className="ms-field-hint">Your job is saved. Blueprint will use the supplied information to prepare the next useful step and notify you of meaningful progress.</p>}
         </section>
@@ -818,10 +823,26 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   </button>
                 </p>
               )}
-              {scope === "owner" && brief && (!briefConfirmed || editingBrief) && (
-                <details open={editingBrief || undefined} style={{ marginBottom: "8px" }}>
-                  <summary>{editingBrief ? "Edit your job brief" : "Correct job details (optional)"}</summary>
-                  <p className="ms-field-hint">Your prefilled summary is available for material corrections. No confirmation is required to view your assessment or proposal. Consequential operating claims still need an authorized answer before we rely on them.</p>
+              {/* The footage is in; the brief is the one step left that is the
+                  site's own. Robot teams evaluate only a confirmed job
+                  (`teamJobAccess`), so it is open on the page, not tucked in a
+                  disclosure labelled optional. */}
+              {scope === "owner" && brief && !briefConfirmed && !editingBrief && (
+                <section aria-label="Confirm your job brief" style={{ border: "1px solid var(--ms-rule)", padding: "16px", margin: "16px 0" }}>
+                  <h2 style={{ marginTop: 0 }}>Confirm your job brief</h2>
+                  <p className="ms-field-hint">Robot teams can evaluate your job only after you confirm this brief. Check the summary and answers, correct anything that is wrong, then confirm it.</p>
+                  <TaskBriefReview
+                    key={token}
+                    token={token}
+                    brief={brief}
+                    account={siteAccount} optionalAccount
+                    onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }}
+                  />
+                </section>
+              )}
+              {scope === "owner" && brief && editingBrief && (
+                <details open style={{ marginBottom: "8px" }}>
+                  <summary>Edit your job brief</summary>
                   <TaskBriefReview
                     key={token}
                     token={token}
@@ -988,13 +1009,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   <summary>
                     {briefBlocksCapture
                       ? "A couple of answers refine what to film"
-                      : "Review your job brief"}
+                      : editingBrief ? "Edit your job brief" : "Review and confirm your job brief"}
                   </summary>
                   <p className="ms-field-hint">
                     {brief.proposed.some((answer) => answer.basis !== "assumption")
                       ? "We drafted this from what you sent."
                       : "A few questions about the job."}{" "}
-                    Use the existing evidence first. Correct material mistakes here; we request additional information only when it changes an evaluation or proposed commitment.
+                    Robot teams can evaluate your job only after you confirm this brief. You can confirm it before or after you film.
                   </p>
                   <TaskBriefReview
                     key={token}

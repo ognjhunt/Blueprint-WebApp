@@ -162,6 +162,8 @@ export function buildLetsTalkEmail(params: {
     "open_questions" | "incomplete" | "open_question_field_ids"
   >;
   calendlyUrl?: string;
+  /** The site's footage is already saved, so filming is not the way to settle it. */
+  footageReceived?: boolean;
 }): QualificationEmail {
   const { firstName, siteName, triage } = params;
   const calendly = params.calendlyUrl || bookingUrl();
@@ -173,9 +175,11 @@ export function buildLetsTalkEmail(params: {
    * for a call to discuss what a camera would show is the expensive way to
    * learn it. A blank gate is not a marginal answer at all, so an incomplete
    * submission keeps the call: nobody described the thing we would be filming.
+   * A site that already sent its footage keeps the call too: asking it to
+   * film the room again would ask for what we have.
    */
-  const footageAnswers =
-    !triage.incomplete && footageSettlesAll(triage.open_question_field_ids);
+  const footageAnswers = !params.footageReceived
+    && !triage.incomplete && footageSettlesAll(triage.open_question_field_ids);
 
   const subject = footageAnswers
     ? site
@@ -238,9 +242,19 @@ export type QualifiedNextStep =
    */
   | { kind: "capturer_visit"; taskUrl?: string }
   /** Held. We say we are reviewing rather than inventing a next step. */
-  | { kind: "held" };
+  | { kind: "held" }
+  /** The walkthrough is already saved, so there is nothing to film. */
+  | { kind: "footage_received"; taskUrl: string }
+  /** Whether footage is saved could not be read. The job page says; the email does not guess. */
+  | { kind: "job_page"; taskUrl: string };
 
 function qualifiedNextStepLine(nextStep: QualifiedNextStep | undefined, calendly: string): string {
+  if (nextStep?.kind === "footage_received") {
+    return `We already have your footage of the work area, so you do not need to film anything. Your job page shows where it stands: ${nextStep.taskUrl}`;
+  }
+  if (nextStep?.kind === "job_page") {
+    return `Your job page shows the next step: ${nextStep.taskUrl}`;
+  }
   if (nextStep?.kind === "self_capture") {
     return `Next, film the work area on a phone and upload it here: ${nextStep.uploadUrl}\n\nIt takes about a minute, and you do not need an app or a call.`;
   }
@@ -328,7 +342,7 @@ export function buildQualifiedEmail(params: {
       ? "Before we build the scene, create and verify your site account from your job page."
       : "",
     "",
-    "Once we have footage of the work area:",
+    params.nextStep?.kind === "footage_received" ? "What happens next:" : "Once we have footage of the work area:",
     "",
     bulletList(params.jobCardPublished === false ? [
       "We prepare a simplified simulation of your task, informed by your footage.",
@@ -390,6 +404,8 @@ export function buildQualificationEmail(params: {
       firstName: params.firstName,
       siteName: params.siteName,
       triage,
+      // A site whose footage is in, or may be, is never asked to film it again.
+      footageReceived: params.nextStep?.kind === "footage_received" || params.nextStep?.kind === "job_page",
     });
   }
 
