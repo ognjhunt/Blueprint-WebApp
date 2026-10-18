@@ -702,7 +702,8 @@ describe("SelfCaptureUpload asks for the brief confirmation teams need", () => {
     expect(step).toHaveTextContent(/robot teams can evaluate your job only after you confirm/i);
     // The confirm control is on the page, with nothing to open first.
     expect(screen.getByRole("button", { name: "This is right — confirm it" })).toBeVisible();
-    expect(screen.queryByText(/job details \(optional\)/i)).not.toBeInTheDocument();
+    // The brief, never the job card's own optional extras, is what must not read as optional.
+    expect(screen.queryByText("Correct job details (optional)")).not.toBeInTheDocument();
     expect(screen.queryByText(/no confirmation is required|without confirming/i)).not.toBeInTheDocument();
   });
 
@@ -726,7 +727,8 @@ describe("SelfCaptureUpload asks for the brief confirmation teams need", () => {
     expect(disclosure).toBeVisible();
     // Said beside the summary, before anything is opened.
     expect(screen.getAllByText(/robot teams can evaluate your job only after you confirm/i)[0]).toBeVisible();
-    expect(screen.queryByText(/job details \(optional\)/i)).not.toBeInTheDocument();
+    // The brief, never the job card's own optional extras, is what must not read as optional.
+    expect(screen.queryByText("Correct job details (optional)")).not.toBeInTheDocument();
     expect(screen.queryByText(/confirmation is needed only/i)).not.toBeInTheDocument();
   });
 });
