@@ -732,3 +732,18 @@ describe("SelfCaptureUpload asks for the brief confirmation teams need", () => {
     expect(screen.queryByText(/confirmation is needed only/i)).not.toBeInTheDocument();
   });
 });
+
+describe("SelfCaptureUpload for footage sent with no description", () => {
+  it("asks for one sentence instead of showing the placeholder as the job", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}`)) return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner",
+        brief: { summary: "Your site task", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } }) });
+      return mockFetch()(input);
+    }));
+    render(<SelfCaptureUpload />);
+    await screen.findByRole("heading", { name: "Your job summary" });
+    expect(screen.getByText(/No job description yet\. Describe the job in one sentence/)).toBeVisible();
+    expect(screen.queryByText("Your site task")).not.toBeInTheDocument();
+  });
+});

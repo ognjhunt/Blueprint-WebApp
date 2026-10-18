@@ -12,9 +12,13 @@
  */
 import { anonymizedOpportunityDraft } from "../../../client/src/types/taskBrowse";
 
-/** What the person types into the start form. */
+/**
+ * What the person types into the start form. The job is the one kind a robot
+ * team's evaluation can run (`siteTaskScope.ts`): one rigid object, placed at
+ * another spot on the surface it starts on.
+ */
 export const SITE_CAPTURE_START_FORM = {
-  task: "Pack cartons into totes",
+  task: "Pick up each packed carton and place it at the end of the table",
   location: "Austin, TX",
   email: "owner@example.com",
   company: "Acme Foods",

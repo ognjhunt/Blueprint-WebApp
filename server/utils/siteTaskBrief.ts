@@ -132,6 +132,26 @@ function nowIso() {
 }
 
 /**
+ * The summary a brief starts with when the site sent footage and no
+ * description (`inbound-request.ts`). It says nothing about the job, so it is
+ * never screened or confirmed as the job: the site is asked for one sentence.
+ */
+export const PLACEHOLDER_TASK_SUMMARY = "Your site task";
+
+/** A summary that does not describe a job yet. */
+export function isPlaceholderSummary(summary: string | null | undefined): boolean {
+  const text = (summary ?? "").trim();
+  return !text || text === PLACEHOLDER_TASK_SUMMARY;
+}
+
+/** A confirmation of a brief whose summary still describes no job (audit N3). */
+export class BriefSummaryRequiredError extends Error {
+  constructor() {
+    super("brief_summary_required");
+  }
+}
+
+/**
  * Draft a brief from whatever arrived.
  *
  * Deliberately not a model call. The reading of free text and footage is
@@ -359,9 +379,15 @@ export async function confirmBrief(params: {
   operatorUnknown?: readonly string[];
   successCriteria?: { successDefinition: string | null; successRate: number | null; cycleTimeSeconds: number | null; unknown: boolean };
   pilotIntent?: SitePilotIntent;
+  /** The job in the site's own sentence, replacing the drafted summary. Required while that is a placeholder. */
+  summary?: string;
 }): Promise<ConfirmationResult | null> {
   const brief = await getBrief(params.requestId);
   if (!brief) return null;
+  // The summary is what the job is screened and prepared as. A placeholder
+  // describes nothing, so it is asked for rather than screened as out of scope.
+  const summary = params.summary?.trim() || brief.summary;
+  if (isPlaceholderSummary(summary)) throw new BriefSummaryRequiredError();
 
   const unknown = new Set(params.operatorUnknown ?? brief.operatorUnknown ?? []);
   const supplied = { ...brief.operatorAnswers, ...params.operatorAnswers };
@@ -402,6 +428,7 @@ export async function confirmBrief(params: {
 
   const confirmed: SiteTaskBriefRecord = {
     ...brief,
+    summary,
     confirmedAtIso: nowIso(),
     confirmedBy: params.confirmedBy,
     operatorAnswers: answers,

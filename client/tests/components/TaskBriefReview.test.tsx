@@ -95,7 +95,8 @@ describe("confirming a brief is an attestation", () => {
   it("shows what we understood, with where each answer came from", () => {
     render(<TaskBriefReview token="tok" brief={brief()} />);
 
-    expect(screen.getByText(/Cartons from a conveyor onto a pallet/)).toBeInTheDocument();
+    // The summary is the site's to correct: it is what the job is screened as.
+    expect(screen.getByLabelText(/what is the job, in one sentence/i)).toHaveValue("Cartons from a conveyor onto a pallet");
     // The confirmable answer shows its basis.
     expect(screen.getByText(/from your footage/i)).toBeInTheDocument();
     // The assumption is not pre-filled as an answer -- it is an open question,
@@ -280,5 +281,61 @@ describe("the same step saves the site to an account", () => {
     render(<TaskBriefReview token="tok" brief={brief()} account={{ claimed: true, email: "dana@acme.example", claimToken: null }} />);
     expect(screen.queryByText(/save this site to your account/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /confirm it/i })).toBeInTheDocument();
+  });
+});
+
+/**
+ * Audit N3: a site can start with footage and no description, so its brief's
+ * summary is a placeholder. The job is screened and prepared from that
+ * sentence, so the review asks for it, and a site can correct a summary we read
+ * wrong before confirming.
+ */
+describe("the job in the site's own sentence", () => {
+  const confirmed = { ok: true, status: 200, json: async () => ({ ok: true, disposition: "qualified", stage: "capture_needed", nextAction: "Done." }) };
+
+  it("requires one sentence when the brief has no description, and sends it", async () => {
+    fetchMock.mockResolvedValueOnce(confirmed);
+    render(<TaskBriefReview token="tok" brief={brief({ summary: "Your site task" })} />);
+
+    const summary = screen.getByLabelText(/what is the job, in one sentence/i) as HTMLInputElement;
+    expect(summary.value).toBe("");
+    expect(summary).toBeRequired();
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
+    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/one sentence/i);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/confirm"))).toBe(false);
+
+    fireEvent.change(summary, { target: { value: "Pick up each carton and place it at the end of the table" } });
+    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
+    await waitFor(() => expect(screen.getByText(/that is confirmed/i)).toBeInTheDocument());
+    expect(lastConfirmBody().summary).toBe("Pick up each carton and place it at the end of the table");
+  });
+
+  it("starts from the drafted summary and sends it only when the site changes it", async () => {
+    fetchMock.mockResolvedValue(confirmed);
+    const { unmount } = render(<TaskBriefReview token="tok" brief={brief()} />);
+    expect(screen.getByLabelText(/what is the job, in one sentence/i)).toHaveValue("Cartons from a conveyor onto a pallet");
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
+    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
+    await waitFor(() => expect(screen.getByText(/that is confirmed/i)).toBeInTheDocument());
+    expect(lastConfirmBody()).not.toHaveProperty("summary");
+    unmount();
+
+    fetchMock.mockClear();
+    render(<TaskBriefReview token="tok" brief={brief()} />);
+    fireEvent.change(screen.getByLabelText(/what is the job, in one sentence/i), { target: { value: "Pick each carton off the conveyor and set it on the table" } });
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
+    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
+    await waitFor(() => expect(screen.getByText(/that is confirmed/i)).toBeInTheDocument());
+    expect(lastConfirmBody().summary).toBe("Pick each carton off the conveyor and set it on the table");
+  });
+
+  it("shows the server's field error when the sentence is still missing", async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ code: "task_brief_summary_required",
+      error: "Describe the job in one sentence, for example “Pick up each carton and place it at the end of the table.”" }) });
+    render(<TaskBriefReview token="tok" brief={brief()} />);
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: "Dana" } });
+    fireEvent.click(screen.getByRole("button", { name: /confirm it/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Describe the job in one sentence/);
   });
 });

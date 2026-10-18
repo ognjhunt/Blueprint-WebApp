@@ -97,6 +97,13 @@ function optionLabel(fieldId: string, value: string): string {
   return fieldOptions(fieldId).find((option) => option.value === value)?.label ?? value;
 }
 
+/**
+ * The summary a brief starts with when the site sent footage and no
+ * description (server `PLACEHOLDER_TASK_SUMMARY`). It names no job, so the
+ * review asks for one sentence instead of showing it.
+ */
+const PLACEHOLDER_SUMMARY = "Your site task";
+
 export function TaskBriefReview(props: {
   token: string;
   brief: DraftedBrief;
@@ -107,6 +114,9 @@ export function TaskBriefReview(props: {
 }) {
   const [state, setState] = useState<State>({ status: "reviewing" });
   const [name, setName] = useState(props.brief.confirmedBy ?? "");
+  // The job is screened and prepared from this sentence (audit N3).
+  const placeholderSummary = !props.brief.summary.trim() || props.brief.summary.trim() === PLACEHOLDER_SUMMARY;
+  const [summary, setSummary] = useState(placeholderSummary ? "" : props.brief.summary);
   const [successDefinition, setSuccessDefinition] = useState(props.brief.successCriteria?.successDefinition ?? "");
   const [successRate, setSuccessRate] = useState(props.brief.successCriteria?.successRate?.toString() ?? "");
   const [cycleTimeSeconds, setCycleTimeSeconds] = useState(props.brief.successCriteria?.cycleTimeSeconds?.toString() ?? "");
@@ -201,6 +211,7 @@ export function TaskBriefReview(props: {
   }
 
   function problem(): string | null {
+    if (!summary.trim()) return "Describe the job in one sentence, so we know what the robot should do.";
     if (!name.trim()) return "Please add your name so we know who confirmed this.";
     if (touchedSuccess.current && !successUnknown && !successDefinition.trim() && (successRate || cycleTimeSeconds)) return "Describe which outcome the edited target measures, or leave the targets open.";
     return null;
@@ -246,8 +257,10 @@ export function TaskBriefReview(props: {
       return;
     }
 
+    const summaryChanged = summary.trim() !== props.brief.summary.trim();
     const confirmedBrief: DraftedBrief = {
       ...props.brief,
+      summary: summary.trim(),
       operatorAnswers: answers,
       operatorUnknown: [...unknown],
       successCriteria: !touchedSuccess.current ? props.brief.successCriteria : {
@@ -270,6 +283,7 @@ export function TaskBriefReview(props: {
           unknown: confirmedBrief.operatorUnknown,
           ...(confirmedBrief.successCriteria ? { successCriteria: confirmedBrief.successCriteria } : {}),
           ...(confirmedBrief.pilotIntent ? { pilotIntent: confirmedBrief.pilotIntent } : {}),
+          ...(summaryChanged ? { summary: confirmedBrief.summary } : {}),
         }),
       });
       const body = (await response.json().catch(() => ({}))) as Partial<Verdict> & {
@@ -411,7 +425,16 @@ export function TaskBriefReview(props: {
           : "These tell us whether a robot evaluation will hold up at your site. Answer what you know; anything you are not sure about can stay open, and you can clarify it in writing or on a call. Robot teams can evaluate your job only after you confirm it."}
       </p>
 
-      <p style={{ fontWeight: 500 }}>{props.brief.summary}</p>
+      <label htmlFor="brief-summary">
+        <span>What is the job, in one sentence?</span>
+        <span className="ms-field-hint">
+          {placeholderSummary
+            ? "Your footage shows the work area, not what the robot should do. For example: “Pick up each carton and place it at the end of the table.”"
+            : "We wrote this from what you sent. Correct it if we read the job wrong."}
+        </span>
+        <input id="brief-summary" type="text" value={summary} onChange={(event) => setSummary(event.target.value)}
+          required maxLength={300} />
+      </label>
       {props.brief.proposed.some(answer => answer.basis === "observation") && <details><summary>What your footage shows</summary>
         {props.brief.proposed.filter(answer => answer.basis === "observation").map(answer => <p key={answer.fieldId}>{answer.reading} <span className="ms-field-hint">(from your footage{answer.confidence !== undefined ? `; confidence ${Math.round(answer.confidence * 100)}%` : ""}{answer.atSeconds != null ? `; at ${answer.atSeconds}s` : ""}). This is an observation of the clip; the job across shifts remains a separate question.</span></p>)}
       </details>}
