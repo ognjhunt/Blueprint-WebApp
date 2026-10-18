@@ -106,6 +106,12 @@ export type WorkspaceTask = {
   /** The site booked Blueprint's recommended pilot; carries the team's contact. */
   pilotBooking?: PilotBookingView | null;
   /**
+   * Blueprint has recommended a pilot the site can book from its task page:
+   * recorded, not awaiting review, and backed by qualified evaluation evidence,
+   * as the owner booking route requires. Absent on older payloads.
+   */
+  pilotRecommended?: boolean;
+  /**
    * Where the task stands on the assessment ladder, when it is a site task.
    *
    * Optional because this type is shared with the robot-team role, and because

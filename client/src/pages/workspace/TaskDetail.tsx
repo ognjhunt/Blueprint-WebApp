@@ -347,8 +347,9 @@ export default function TaskDetail() {
                     <PilotBookingDetails booking={task.pilotBooking} other="robot team" />
                   ) : (
                     <p className="ws-muted">
-                      {task.pilot.notes ||
-                        "We review these results and send you one recommended pilot. You book it from your task page."}
+                      {task.pilot.notes || (task.pilotRecommended
+                        ? "Blueprint recommends one pilot for this job. Review it and book it from your task page."
+                        : "No pilot is recommended yet. When a robot team's evaluation on this job passes, we recommend that team and you book the pilot from your task page.")}
                     </p>
                   )}
                   {task.pilot.siteVisitAnswer && (
@@ -360,7 +361,8 @@ export default function TaskDetail() {
                     <p className="ws-note">Outcome recorded by your site.</p>
                   )}
                 </div>
-                {!task.archived && !task.pilot.selectedResultId && !task.pilotBooking && (
+                {/* Only a pilot Blueprint recommended can be booked (audit N14). */}
+                {!task.archived && task.pilotRecommended && !task.pilot.selectedResultId && !task.pilotBooking && (
                   <button
                     className="ws-link"
                     type="button"

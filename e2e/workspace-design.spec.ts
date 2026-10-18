@@ -77,6 +77,8 @@ const task = {
     },
   ],
   pilot: { state: "not_selected", selectedResultId: null, notes: null },
+  // Blueprint has recommended one bookable pilot (server `pilotRecommended`).
+  pilotRecommended: true,
   createdAt: "2026-09-10T12:00:00Z",
 };
 const evaluation = {
@@ -127,6 +129,7 @@ async function seed(
               status: "Capture scheduled",
               results: [],
               published: false,
+              pilotRecommended: false,
             },
             {
               ...structuredClone(task),
@@ -437,8 +440,12 @@ test("site reviews results without picking a team; Blueprint recommends one pilo
   await page.goto("/app/tasks/task-1");
   await expect(page.getByRole("button", { name: /Invite to pilot/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Pilot", exact: true })).toBeVisible();
-  await expect(page.getByText(/send you one recommended pilot\. You book it from your task page\./)).toBeVisible();
+  await expect(page.getByText(/Blueprint recommends one pilot for this job\. Review it and book it from your task page\./)).toBeVisible();
   await expect(page.getByRole("button", { name: "Book it on your task page →" })).toBeVisible();
+  // Nothing to book before Blueprint recommends a pilot (audit N14).
+  await page.goto("/app/tasks/task-2");
+  await expect(page.getByText(/No pilot is recommended yet\./)).toBeVisible();
+  await expect(page.getByRole("button", { name: /Book it/ })).toHaveCount(0);
 });
 test("robot team saves a setup and requests an evaluation from an opening", async ({
   page,

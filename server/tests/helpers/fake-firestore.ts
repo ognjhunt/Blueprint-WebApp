@@ -150,10 +150,13 @@ export function createFakeFirestore(state: FakeFirestoreState) {
       path: docKey(collectionName, id),
       collection: (name: string) => makeCollection(`${collectionName}/${id}/${name}`),
       __collection: collectionName,
+      // A snapshot carries its own reference, as Firestore's does, so a route
+      // that reads a document and then writes through `snap.ref` works here.
       get: async () => ({
         id,
         exists: Boolean(readDoc(collectionName, id)),
         data: () => readDoc(collectionName, id),
+        ref: makeDocRef(collectionName, id),
       }),
       set: async (payload: StoredDoc, options?: { merge?: boolean }) => {
         const existing = readDoc(collectionName, id) || {};
@@ -304,6 +307,7 @@ export function createFakeFirestore(state: FakeFirestoreState) {
             id: docRef.id,
             exists: Boolean(readDoc(docRef.__collection, docRef.id)),
             data: () => readDoc(docRef.__collection, docRef.id),
+            ref: docRef,
           };
         },
         set: (ref: MockDocRef, payload: StoredDoc, options?: { merge?: boolean }) => {
