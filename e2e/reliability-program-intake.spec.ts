@@ -140,6 +140,8 @@ for (const width of [1440, 390]) {
     await page.screenshot({path: info.outputPath(`intake-before-upload-${width}.png`), fullPage: true});
     await fill(page);
     await page.locator("#start-method-upload").check();
+    // A guest sends the video with the form only by choosing to (P1-8).
+    await page.locator("#start-upload-without-account").check();
     await page.locator("#start-footage").setInputFiles(path.resolve("e2e/fixtures/synthetic-transport.mp4"));
     await page.getByRole("button", {name: "Start free assessment", exact: true}).click();
     await expect.poll(() => uploads).toBe(1);
@@ -152,7 +154,9 @@ for (const width of [1440, 390]) {
     await expect(page.getByText("Generic assessment caveat")).not.toBeVisible();
     await expect(page.getByText("Assessment notes")).toBeVisible();
     await expect(page.getByText("What should I record?", {exact: true})).toHaveCount(0);
-    await expect(page.getByRole("link", {name: "Create an account for this job"})).toHaveClass("ms-text-link");
+    // The guest's video is in, so saving the job to an account is not offered (P1-8).
+    await expect(page.getByRole("link", {name: "Create an account for this job"})).toHaveCount(0);
+    await expect(page.getByRole("note", {name: "Sent without an account"})).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.getByText("How much pull force is required?",{exact:true})).toBeVisible();
     await expect(page.getByRole("textbox",{name:"Your answers",exact:true})).toBeVisible();
@@ -300,7 +304,7 @@ test("UI-RETURN-005 real browser termination during video transport returns to t
   });
   try {
     const page=await first.newPage();await page.goto(`${origin}/contact/site-operator`);await fill(page);
-    await page.locator("#start-method-upload").check();await page.locator("#start-footage").setInputFiles(video);
+    await page.locator("#start-method-upload").check();await page.locator("#start-upload-without-account").check();await page.locator("#start-footage").setInputFiles(video);
     await page.getByRole("button",{name:"Start free assessment",exact:true}).click();
     await uploading; const saved=await first.storageState();
     await firstBrowser.close();
