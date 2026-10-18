@@ -2,6 +2,7 @@
 import express from "express";
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 
 type Row = Record<string, any>;
 const state = vi.hoisted(() => ({
@@ -136,10 +137,15 @@ describe("GET /api/admin/jobs", () => {
   });
 
   it("filters by stage and searches by site name", async () => {
-    siteJob("job-a", "2026-10-02T00:00:00.000Z");
+    // A current card grant, but no current recording grant: listed, and still not open to teams.
+    siteJob("job-a", "2026-10-02T00:00:00.000Z", { public_task_listing: { enabled: true, consentVersion: "public-task-card-v1",
+      approvedAtIso: "2026-10-02T00:00:00.000Z", details: anonymizedOpportunityDraft("Pack cartons into totes") } });
     siteJob("job-b", "2026-10-01T00:00:00.000Z", { public_task_listing: null });
     const byStage = await (await fetch(`${baseUrl}?stage=listing`, admin)).json();
     expect(byStage.jobs.map((job: Row) => job.requestId)).toEqual(["job-b"]);
+    const notOpen = await (await fetch(`${baseUrl}?stage=not_open`, admin)).json();
+    expect(notOpen.jobs.map((job: Row) => [job.requestId, job.nextAction])).toEqual([
+      ["job-a", "Waiting on site to grant current recording permission"]]);
     const bySearch = await (await fetch(`${baseUrl}?q=${encodeURIComponent("site JOB-A")}`, admin)).json();
     expect(bySearch.jobs.map((job: Row) => job.requestId)).toEqual(["job-a"]);
   });

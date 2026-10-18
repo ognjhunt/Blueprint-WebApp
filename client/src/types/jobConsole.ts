@@ -20,6 +20,50 @@ export type BookingState = "none" | "booked" | "awaiting_coordination" | "schedu
 export type WithdrawalState =
   | "none" | "requested" | "cleanup_pending" | "legal_hold" | "external_pending" | "complete";
 
+/**
+ * Why approved robot teams cannot evaluate a job: `teamJobAccess`'s reasons
+ * (`server/utils/teamJobAccess.ts`). `jobConsoleFacts.ts` stops compiling if
+ * that predicate gains a reason this list does not name.
+ */
+export type TeamAccessReason =
+  | "not_a_site_job"
+  | "pipeline_placeholder"
+  | "task_not_yet_supported"
+  | "not_listed"
+  | "kept_private"
+  | "restricted_to_named_teams"
+  | "operator_paused"
+  | "consent_withdrawn"
+  | "development_only"
+  | "rights_blocked"
+  | "rights_needs_review"
+  | "recording_consent_missing"
+  | "scene_not_runnable";
+
+/**
+ * For `scene_not_runnable`: the first runnable-scene condition (`isRunnableTask`)
+ * the job is missing, the site's before screening's before the Pipeline's.
+ */
+export type SceneHold =
+  /** The site has not confirmed the brief. */
+  | "brief_unconfirmed"
+  /** Screening needs a conversation, and the site's written clarification awaits review. */
+  | "clarification_review"
+  /** Screening needs a conversation, and no written clarification awaits review. */
+  | "screening_call"
+  /** Screening said not now, so no scene is built. */
+  | "not_now"
+  /** The brief is confirmed but no screening decision is on file. */
+  | "unscreened"
+  /** Qualified, but the site has not saved the job to an account and no scene grant is on file; the scene is built only for a claimed site. */
+  | "unclaimed"
+  /** Qualified, and claimed or granted a scene; the Pipeline has not reported a built scene. */
+  | "scene_not_built"
+  /** Built, but the Pipeline has not proven an evaluation can run on it. */
+  | "scene_not_proven"
+  /** Built and proven, but a gate an evaluation needs is unanswered. */
+  | "gates_open";
+
 export interface PendingAdmission {
   /** The evaluation request's own inboundRequests id; the admit endpoint takes this. */
   requestId: string;
@@ -51,6 +95,19 @@ export interface JobFacts {
   brief: { state: BriefState; unresolvedGates: number };
   capture: { state: CaptureState; missingViews: string[] };
   listing: { state: ListingState };
+  /**
+   * The answer every team-facing surface gives (`teamJobAccess` on the stored
+   * record): whether approved robot teams can evaluate this job now, and if
+   * not, why. The console never invites teams to a job this closes.
+   */
+  teamAccess: {
+    listed: boolean;
+    evaluationAvailable: boolean;
+    /** Null when teams can evaluate the job. */
+    reason: TeamAccessReason | null;
+    /** Set only for `scene_not_runnable`; null when no known condition is missing. */
+    sceneHold: SceneHold | null;
+  };
   evaluations: {
     total: number;
     pendingAdmission: number;
@@ -90,6 +147,7 @@ export const JOB_STAGES = [
   "brief_review",
   "capture",
   "listing",
+  "not_open",
   "awaiting_teams",
   "admission",
   "evaluating",
@@ -109,6 +167,7 @@ export const JOB_STAGE_LABELS: Record<JobStage, string> = {
   brief_review: "Brief review",
   capture: "Capture",
   listing: "Public card",
+  not_open: "Not open to teams",
   awaiting_teams: "Awaiting teams",
   admission: "Admit evaluation",
   evaluating: "Evaluating",

@@ -9,6 +9,10 @@ import { projectPilotCoordination } from "./pilotCoordination";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { criteriaChangedSinceRequest, passMarkForJob, type PassMark } from "./pilotRecommendationEvidence";
 import { iso, object, text } from "./workspace-projection";
+import { teamJobAccess } from "./teamJobAccess";
+import { sceneRunnableReadiness } from "./sceneRunnableReadiness";
+import { gateAnswersOnFile } from "./gateAnswersOnFile";
+import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import type {
   BestRunSummary,
   BookingState,
@@ -20,6 +24,7 @@ import type {
   ProjectedRun,
   RecommendationState,
   RunOutcome,
+  SceneHold,
   TimelineEntry,
   WithdrawalState,
 } from "./jobConsoleStage";
@@ -156,9 +161,16 @@ export function briefStateOf(record: Record<string, any>, brief: Record<string, 
   return brief.confirmedAtIso || record.site_task_brief_confirmed_at ? "confirmed" : "draft";
 }
 
+/** The Pipeline's report that it rebuilt the scene: the same field `teamJobAccess` reads. */
+function hasBuiltScene(record: Record<string, any>) {
+  return Boolean(text(object(object(record.pipeline).artifacts).worldlabs_world_manifest_uri));
+}
+
 export function captureStateOf(record: Record<string, any>, session: Record<string, any> | null): CaptureState {
   const reconstruction = text(object(session?.world_reconstruction).state);
-  if (reconstruction === "ready") return "scene_ready";
+  // A rebuilt scene settles the capture, whatever review flag is still set:
+  // otherwise a job teams can evaluate reads as "review capture coverage".
+  if (reconstruction === "ready" || hasBuiltScene(record)) return "scene_ready";
   if (reconstruction === "failed") return "scene_failed";
   const coverage = object(record.capture_coverage);
   if (coverage.covers_scene === true) return "covered";
@@ -176,6 +188,54 @@ export function listingStateOf(record: Record<string, any>): ListingState {
   if (listing.enabled === true) return "live";
   if (listing.reviewRequired === true) return "review_required";
   return "hidden";
+}
+
+/**
+ * For a job `teamJobAccess` holds back as `scene_not_runnable`: the first of
+ * `isRunnableTask`'s conditions the record is missing, in the order a person
+ * can act on them. Null when every condition reads as met, so the console
+ * never names a step it cannot see.
+ */
+export function sceneHoldOf(record: Record<string, any>): SceneHold | null {
+  if (!record.site_task_brief_confirmed_at) return "brief_unconfirmed";
+  const disposition = object(record.site_task_triage).disposition;
+  if (disposition === "needs_conversation") {
+    return object(record.site_task_clarification).state === "review_required" ? "clarification_review" : "screening_call";
+  }
+  if (disposition === "not_now") return "not_now";
+  if (disposition !== "qualified") return "unscreened";
+  if (!hasBuiltScene(record)) {
+    // A scene grant on file (`websiteSceneSponsorship`) means the build is authorized, claimed or not.
+    return text(record.account_owner_uid) || record.website_scene_sponsorship ? "scene_not_built" : "unclaimed";
+  }
+  if (!sceneRunnableReadiness(record.evaluation_readiness).runnable) return "scene_not_proven";
+  const { blockingEvaluation } = assessReadiness({
+    answers: gateAnswersOnFile(record),
+    captureMode: object(record.request).capture_mode ?? null,
+    briefDrafted: true,
+    briefConfirmed: true,
+    evidence: { hasAny: true, hasVisual: true, explainsTask: true, coversScene: true },
+    reconstructed: true,
+  });
+  return blockingEvaluation.length ? "gates_open" : null;
+}
+
+/**
+ * Whether approved robot teams can evaluate the job, asked exactly as every
+ * team-facing surface asks it. The record must be the stored one:
+ * `decryptInboundRequestForAdmin` drops the recording grant `teamJobAccess`
+ * reads (see its "Which record to pass").
+ */
+export function teamAccessOf(record: Record<string, any>): JobFacts["teamAccess"] {
+  const access = teamJobAccess(record);
+  return {
+    listed: access.listed,
+    evaluationAvailable: access.evaluationAvailable,
+    // Typed against the console's list: a reason `teamJobAccess` adds without a
+    // console mapping fails to compile here rather than reading as open.
+    reason: access.reason,
+    sceneHold: access.reason === "scene_not_runnable" ? sceneHoldOf(record) : null,
+  };
 }
 
 export function withdrawalStateOf(record: Record<string, any>): WithdrawalState {
@@ -264,6 +324,7 @@ export function projectJobFacts(inputs: RawJobInputs): JobFacts {
       missingViews: Array.isArray(coverage.missing_coverage) ? coverage.missing_coverage.map(String) : [],
     },
     listing: { state: listingStateOf(record) },
+    teamAccess: teamAccessOf(record),
     evaluations: { total: inputs.evaluationRequests.length, pendingAdmission: pending.length, admitted, pending },
     runs: {
       queued: runs.filter((run) => run.outcome === "queued").length,
