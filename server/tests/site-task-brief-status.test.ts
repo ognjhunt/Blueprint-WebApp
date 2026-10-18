@@ -136,6 +136,42 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(enqueueOutbox).not.toHaveBeenCalled();
   });
+  it("PREP-UI-004 an ending reaches the site as 'could not finish', with its reason and no write", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
+    preparation.read.mockResolvedValueOnce({ state: "failed_terminal", correlationId: "bp-prep-1234567890abcdef",
+      terminalReason: "capacity_blocked" } as never);
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const { code, body } = await status();
+    expect(code).toBe(200);
+    expect(body.status).toMatchObject({ decision: "footage_received", stage: null, operatorAction: null });
+    expect(body.status.headline).toContain("Scene preview preparation could not finish, and we have stopped trying.");
+    expect(body.status.headline).toContain("capacity stayed full");
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect(enqueueOutbox).not.toHaveBeenCalled();
+  });
+  it("PREP-UI-005 an upload with no status past the watch bound is not shown as being prepared", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation_watch: {
+      schema_version: "website_preparation_watch.v1", request_id: "req-1", capture_id: "walkthrough-req-1",
+      kind: "awaiting_first_status", state: null, terminal_reason: null, attempt_count: null,
+      since_iso: "2026-10-01T00:00:00.000Z", due_at_ms: null, alerted_at_iso: "2026-10-01T02:00:00.000Z" } });
+    const { body } = await status();
+    expect(preparation.read).not.toHaveBeenCalled();
+    expect(body.status.headline).toContain("Preparing it is taking longer than it should, and our team has been told");
+    expect(body.status.headline).not.toContain("we are preparing it");
+    const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
+    const filmed = await (await fetch(`${baseUrl}/api/site-task-brief/${film}/status`)).json();
+    expect(JSON.stringify(filmed)).not.toContain("taking longer");
+  });
+  it("PREP-UI-006 a scene that stopped after hand-off is read from its intake and said plainly", async () => {
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
+    sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-1", { website_request_id: "req-1",
+      source_session_id: "cap-1", state: "accepted", created_at_iso: "2026-10-10T00:00:00.000Z",
+      pipeline_status: { status: "blocked", phase: "scene_configuration_failed", blockers: ["PRIVATE_detail"] } });
+    preparation.read.mockResolvedValueOnce({ state: "handed_off", correlationId: "bp-prep-1234567890abcdef" } as never);
+    const { body } = await status();
+    expect(body.status.headline).toContain("could not finish preparing your job for robot evaluations");
+    expect(JSON.stringify(body)).not.toContain("PRIVATE_detail");
+  });
   it("PREP-UI-002 keeps preparation readback outside film-link scope", async () => {
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { website_preparation: { selector: {} } });
     const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });

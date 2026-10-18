@@ -20,7 +20,7 @@ vi.mock("../utils/websitePreparationStatus", () => ({
   canNotifyCurrentWebsitePreparationIssue: seam.authority,
   drainPendingWebsitePreparationNotifications: seam.drain,
 }));
-const {buildTaskLifecycleNotification, enqueueTaskLifecycleNotification} = await import("../utils/taskLifecycleNotifications");
+const {buildTaskLifecycleNotification, enqueueTaskLifecycleNotification, reconcileWebsitePreparationNotifications} = await import("../utils/taskLifecycleNotifications");
 const {enqueueOutbox, deliverOutbox, reconcileOutboxDeliveries} = await import("../utils/captureOutbox");
 const eventId = `sha256:${"a".repeat(64)}`;
 const params = {requestId: "r1", milestone: "preparation_needs_attention" as const, eventId,
@@ -114,3 +114,50 @@ describe("source/context preparation notice uses existing durable outbox", () =>
     expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${key}`)).toMatchObject({status: "claimed", attempts: 0});
   });
 });
+
+describe("preparation ended for good: one email per terminal transition (beta L3/L6)", () => {
+  const endedId = `sha256:${"e".repeat(64)}`;
+  const ended = {requestId: "r1", milestone: "preparation_ended" as const, eventId: endedId,
+    correlationId: "bp-prep-1234567890abcdef", terminalReason: "budget_exhausted"};
+  const endedKey = `r1:preparation_ended:sha256_${"e".repeat(64)}`;
+  it("PREP-NOTICE-010 states the ending, its fixed reason and reference, and nothing a caller supplied", () => {
+    const row = buildTaskLifecycleNotification({...ended, to: "owner@example.test", detail: "PRIVATE provider /path"});
+    expect(row).toMatchObject({idempotencyKey: endedKey, kind: "preparation_ended", preparationEventId: endedId,
+      subject: "We stopped preparing your Blueprint scene"});
+    expect(row.body).toContain("could not finish building the scene preview for your job, and we have stopped trying");
+    expect(row.body).toContain("more processing than the free beta provides for one job");
+    expect(row.body).toContain("Reference: bp-prep-1234567890abcdef.");
+    expect(row.body).toContain("Keep your original recording");
+    expect(row.body).not.toMatch(/budget|completed|automatically retry|robot can|PRIVATE|\/path/i);
+    const unknown = buildTaskLifecycleNotification({...ended, terminalReason: "provider said no", to: "owner@example.test"});
+    expect(unknown.body).not.toContain("provider said no");
+    expect(() => buildTaskLifecycleNotification({...ended, eventId: undefined, to: "owner@example.test"})).toThrow();
+  });
+  it("PREP-NOTICE-011 enqueues once, re-checks the same current ending at dispatch and sends once", async () => {
+    expect((await enqueueTaskLifecycleNotification(ended)).enqueued).toBe(true);
+    expect((await enqueueTaskLifecycleNotification(ended)).enqueued).toBe(false);
+    expect(seam.authority.mock.calls[0]?.slice(0, 2)).toEqual(["r1", endedId]);
+    await deliverOutbox();
+    expect(seam.send).toHaveBeenCalledTimes(1);
+    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${endedKey}`)).toMatchObject({status: "sent"});
+  });
+  it("PREP-NOTICE-012 a re-driven preparation cancels an unsent ending without a send", async () => {
+    await enqueueTaskLifecycleNotification(ended); seam.current = false;
+    await deliverOutbox();
+    expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${endedKey}`)).toMatchObject({status: "cancelled", attempts: 0});
+    expect(seam.send).not.toHaveBeenCalled();
+  });
+  it("PREP-NOTICE-013 the drain enqueues each notice under its own milestone", async () => {
+    seam.drain.mockImplementationOnce(async (enqueue: (intent: any) => Promise<string>) => {
+      expect(await enqueue({requestId: "r1", captureId: "walkthrough-r1", eventId: endedId, correlationId: ended.correlationId,
+        milestone: "preparation_ended", terminalReason: "capacity_blocked"})).toBe("enqueued");
+      expect(await enqueue({requestId: "r1", captureId: "walkthrough-r1", eventId: endedId, correlationId: ended.correlationId,
+        milestone: "preparation_ended", terminalReason: "capacity_blocked"})).toBe("duplicate");
+      return {enqueued: 1, pending: 0};
+    });
+    await reconcileWebsitePreparationNotifications();
+    const row = sharedFakeFirestoreState.docs.get(`captureOutbox/${endedKey}`) as any;
+    expect(row.body).toContain("capacity stayed full");
+  });
+});
+

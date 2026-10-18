@@ -49,6 +49,8 @@ import {
   taskStatusInputFrom,
 } from "../utils/taskStatusProjection";
 import { loadCurrentWebsitePreparationStatus } from "../utils/websitePreparationStatus";
+import { websitePreparationOverdue } from "../utils/websitePreparationWatch";
+import { loadWebsiteSceneProgression } from "../utils/websiteSceneProgression";
 import admin, { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { deliverOutbox, enqueueOutbox } from "../utils/captureOutbox";
 import { decryptFieldValue } from "../utils/field-encryption";
@@ -968,6 +970,12 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     const preparationStatus = payload.scope !== "film" && !request?.captureRights.consent_revoked
       && captureSession?.data()?.website_preparation
       ? await loadCurrentWebsitePreparationStatus(payload.requestId, payload.captureId) : null;
+    // The WebApp's own watch (beta L3/L6): no status since the upload, or one
+    // state too long. It covers uploads the Pipeline never reported on.
+    const preparationOverdue = payload.scope !== "film" && !request?.captureRights.consent_revoked
+      && websitePreparationOverdue(captureSession?.data()?.website_preparation_watch);
+    const sceneProgression = preparationStatus?.state === "handed_off"
+      ? await loadWebsiteSceneProgression(payload.requestId, payload.captureId) : null;
 
     const status = projectTaskStatus(
       taskStatusInputFrom({
@@ -980,6 +988,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         scenePreviewReady: Boolean(sceneViewUrl),
         scenePreparationFailed: reconstruction?.state === "failed",
         preparationStatus,
+        preparationOverdue,
+        sceneProgression,
         stage,
         screening: request?.captureRights.consent_revoked ? null : screening,
         site_task_triage: request?.site_task_triage ?? null,
@@ -994,8 +1004,10 @@ router.get("/:token/status", async (req: Request, res: Response) => {
     // Retention alone is not an active review or permission to process. The
     // desktop must show the same hold as the phone while preserving the saved
     // receipt (and must never ask for a replacement recording in that state).
+    // A specific hold still wins; an overdue watch keeps its own, newer message.
     if (!request?.captureRights.consent_revoked && reconstruction?.state !== "failed" && !preparationStatus
-      && status.decision === "footage_received" && (upload.processingHold || uploadState !== "processing_ready")) {
+      && status.decision === "footage_received"
+      && (upload.processingHold || (uploadState !== "processing_ready" && !preparationOverdue))) {
       status.headline = upload.processingHold?.detail
         ?? "Your video is saved. Processing has not been confirmed. Keep your original video; you do not need to record or upload it again.";
       status.operatorAction = null;

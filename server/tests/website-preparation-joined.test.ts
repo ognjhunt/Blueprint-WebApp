@@ -114,7 +114,9 @@ async function startProducer(resumeOnly=false){const exporter=process.env.RELIAB
   let stdout="",stderr="";
   child.stdout!.on("data",chunk=>{stdout+=chunk;});child.stderr!.on("data",chunk=>{stderr+=chunk;});
   return new Promise<{base_url:string;selectors:Record<string,unknown>;ledger:Record<string,unknown>;provider_calls:number}>((resolve,reject)=>{
-    const timer=setTimeout(()=>reject(Error(`joined exporter unavailable: ${stderr.slice(-1000)}`)),20000);
+    // The Pipeline bridge imports the full listener; slower hosts may widen the window.
+    const readyMs=Number(process.env.RELIABILITY_PREPARATION_PRODUCER_READY_MS)||20000;
+    const timer=setTimeout(()=>reject(Error(`joined exporter unavailable: ${stderr.slice(-1000)}`)),readyMs);
     child!.once("exit",code=>{clearTimeout(timer);reject(Error(`joined exporter exited ${code}: ${stderr.slice(-1000)}`));});
     child!.stdout!.on("data",()=>{for(const line of stdout.split("\n")){try{const value=JSON.parse(line);
       if(value.event==="ready"||value.schema_version==="website_preparation_joined_ready.v1"){clearTimeout(timer);resolve(value);return;}}catch{}}});
@@ -158,7 +160,7 @@ it.skipIf(!process.env.RELIABILITY_PREPARATION_EXPORTER && process.env.RELIABILI
   await record("actual-producer-failure-ready",{selectors_digest:crossRuntimeDigest(producer.selectors),base_url_mode:"ephemeral-loopback",provider_mode:"no-provider"});
   const delivery=await producerCommand("deliver");
   expect(delivery.result).toMatchObject({delivered:true,remaining_pending:0,delivery_counts:{attempted:1,delivered:1},
-    acceptance:{schema_version:"website_preparation_status_acceptance.v1",accepted:true,...producer.selectors}});
+    acceptance:{schema_version:"website_preparation_status_acceptance.v2",accepted:true,...producer.selectors}});
   await record("actual-producer-pending-delivery-retry",delivery);
   const accepted=await callback(base,source.captureId,producer.selectors);expect(accepted.code).toBe(200);expect(accepted.body.accepted).toBe(true);
   expect(accepted.body.native_execution_complete).toBe(false);
@@ -191,6 +193,23 @@ it.skipIf(!process.env.RELIABILITY_PREPARATION_EXPORTER && process.env.RELIABILI
   expect(receipts).toHaveLength(1);
   await reconcileWebsitePreparationNotifications();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(1);
   await record("restart-recovery-local-notification",{database_mode:"JSON checkpoint of in-memory Firestore double",notice_count:noticeRows.length,local_deliveries:seams.send.mock.calls.length});
+  // Nothing claims the source for a full silence window: the Pipeline records the ending,
+  // the site is told preparation could not finish, and receives one email.
+  const ended=await producerCommand("exhaust");
+  expect(ended.result).toMatchObject({status:"failed_retryable",
+    website_preparation_terminal:{reason:"retry_exhausted",basis:"no_claim_within_silence_window"}});
+  const endedDelivery=await producerCommand("deliver");
+  expect(endedDelivery.result).toMatchObject({delivered:true,remaining_pending:0,
+    acceptance:{schema_version:"website_preparation_status_acceptance.v2",state:"failed_terminal",...producer.selectors}});
+  const endedCustomer=await customer();expect(endedCustomer.code).toBe(200);
+  expect(endedCustomer.body.status.headline).toContain("Scene preview preparation could not finish, and we have stopped trying.");
+  expect(endedCustomer.body.status.headline).toContain("tried several times");
+  await reconcileWebsitePreparationNotifications();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(2);
+  const endedRows=[...sharedFakeFirestoreState.docs].filter(([key])=>key.startsWith("captureOutbox/")&&key.split("/").length===2&&key.includes(":preparation_ended:"));
+  expect(endedRows).toHaveLength(1);expect(endedRows[0][1]).toMatchObject({status:"sent",attempts:1});
+  await reconcileWebsitePreparationNotifications();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(2);
+  await record("terminal-ending-reaches-customer-and-one-email",{acceptance:endedDelivery.result.acceptance,
+    customer_status:endedCustomer.body.status,ending_notices:endedRows.length,local_deliveries:seams.send.mock.calls.length});
   // A new canonical video must invalidate the old source callback and customer error.
   const old=seams.objects.get(source.video.object_name)!.metadata.generation;
   seams.objects.get(source.video.object_name)!.metadata.generation="90071992547409999";
@@ -205,8 +224,8 @@ it.skipIf(!process.env.RELIABILITY_PREPARATION_EXPORTER && process.env.RELIABILI
   expect((await callback(base,source.captureId,producer.selectors)).code).toBe(503);
   const withdrawn=await customer();await record("withdrawal-customer-response",withdrawn);expect(withdrawn.code).toBe(200);expect(withdrawn.body.status.headline).toContain("Recording consent was withdrawn.");
   expect(withdrawn.body.summary).toBeNull();expect(withdrawn.body.sceneViewUrl).toBeNull();
-  expect(withdrawn.body.status.headline).not.toContain("Job preparation encountered a problem.");
-  await reconcileOutboxDeliveries();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(1);
+  expect(withdrawn.body.status.headline).not.toContain("Job preparation encountered a problem.");expect(withdrawn.body.status.headline).not.toContain("could not finish");
+  await reconcileOutboxDeliveries();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(2);
   await record("withdrawal-overrides-retained-status",{callback:503,customer_status:withdrawn.body.status,additional_deliveries:0});
   await writeFile(path.join(output,"webapp-final-documents.json"),JSON.stringify([...sharedFakeFirestoreState.docs]),{mode:0o600});
 });

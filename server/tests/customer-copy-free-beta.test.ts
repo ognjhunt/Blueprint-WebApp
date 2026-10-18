@@ -203,7 +203,7 @@ describe("site screening emails", () => {
 
 describe("site lifecycle notices", () => {
   const milestones = [
-    "task_received", "video_received", "scene_ready", "preparation_needs_attention", "listing_live",
+    "task_received", "video_received", "scene_ready", "preparation_needs_attention", "preparation_ended", "listing_live",
     "screening_cleared", "screening_not_now", "screening_started", "results_ready", "run_no_result",
     "pilot_request", "pilot_recommended", "pilot_booked", "pilot_scheduled",
   ] as const;
@@ -216,8 +216,9 @@ describe("site lifecycle notices", () => {
           milestone,
           to: "owner@example.test",
           captureUrl: "https://tryblueprint.io/capture-upload/tok",
-          eventId: milestone === "preparation_needs_attention" ? `sha256:${"a".repeat(64)}` : undefined,
+          eventId: milestone === "preparation_needs_attention" || milestone === "preparation_ended" ? `sha256:${"a".repeat(64)}` : undefined,
           detail,
+          ...(milestone === "preparation_ended" ? { terminalReason: "budget_exhausted" } : {}),
         });
         expectClean(`${milestone} (${detail ?? "no detail"})`, `${notice.subject}\n${notice.body}`, SITE_EMAIL);
       }

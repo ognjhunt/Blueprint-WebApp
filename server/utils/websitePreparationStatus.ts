@@ -16,6 +16,8 @@ import { verifiedPendingManifest, verifiedPendingMarker } from "./websiteBrowser
 import type { BrowserPending } from "./websiteBrowserPending";
 import { retainedWebsiteScenePurpose, currentWebsitePreparationStatusContext } from "./websiteSceneSponsorship";
 import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent, type PreparedAssessmentProposal } from "./siteAssessmentPreparation";
+import { nextWebsitePreparationWatch, parseWebsitePreparationWatch, WEBSITE_PREPARATION_WATCH_DUE_FIELD,
+  WEBSITE_PREPARATION_WATCH_FIELD } from "./websitePreparationWatch";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/);
 const sceneId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,124}$/);
@@ -27,22 +29,43 @@ export const websitePreparationSelectorSchema = z.object({
   producer_delivery_key: digest, source_payload_sha256: z.string().regex(/^[a-f0-9]{64}$/), task_context_digest: digest,
 }).strict().refine(v => v.scene_id === `site-${v.request_id}`, "scene binding mismatch");
 export type WebsitePreparationSelector = z.infer<typeof websitePreparationSelectorSchema>;
-const states = ["preparing", "awaiting_inputs", "failed_retryable", "authority_ended", "handed_off"] as const;
+const statesV1 = ["preparing", "awaiting_inputs", "failed_retryable", "authority_ended", "handed_off"] as const;
+/** v2 is additive (beta L3/L6): a capacity-only wait, and an ending with a reason. */
+const statesV2 = [...statesV1, "capacity_delayed", "failed_terminal"] as const;
+export const WEBSITE_PREPARATION_TERMINAL_REASONS = ["permanent_invalid", "retry_exhausted", "budget_exhausted",
+  "capacity_blocked", "out_of_scope"] as const;
+export type WebsitePreparationTerminalReason = typeof WEBSITE_PREPARATION_TERMINAL_REASONS[number];
 const codes = { preparing: "preparation_in_progress", awaiting_inputs: "preparation_inputs_pending",
   failed_retryable: "preparation_retryable_failure", authority_ended: "preparation_authority_ended",
-  handed_off: "preparation_handed_off" } as const;
-export const websitePreparationReceiptSchema = websitePreparationSelectorSchema.innerType().extend({
-  schema_version: z.literal("website_preparation_status.v1"),
+  handed_off: "preparation_handed_off", capacity_delayed: "preparation_capacity_delayed",
+  failed_terminal: "preparation_failed_terminal" } as const;
+const receiptBase = websitePreparationSelectorSchema.innerType().extend({
   attempt_count: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
-  revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER), state: z.enum(states),
-  code: z.enum(Object.values(codes) as [string, ...string[]]),
+  revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   correlation_id: digest, status_digest: digest,
+});
+const receiptV1 = receiptBase.extend({
+  schema_version: z.literal("website_preparation_status.v1"), state: z.enum(statesV1),
+  code: z.enum(statesV1.map(state => codes[state]) as [string, ...string[]]),
 }).strict();
+const receiptV2 = receiptBase.extend({
+  schema_version: z.literal("website_preparation_status.v2"), state: z.enum(statesV2),
+  code: z.enum(statesV2.map(state => codes[state]) as [string, ...string[]]),
+  terminal_reason: z.enum(WEBSITE_PREPARATION_TERMINAL_REASONS).nullable(),
+}).strict();
+/** A Pipeline that predates v2 keeps answering v1; both stay readable. */
+export const websitePreparationReceiptSchema = z.union([receiptV1, receiptV2]);
 export type WebsitePreparationReceipt = z.infer<typeof websitePreparationReceiptSchema>;
+type PreparationState = typeof statesV2[number];
+/** Asks the Pipeline for v2; a Pipeline that predates it ignores the header. */
+export const WEBSITE_PREPARATION_STATUS_VERSION_HEADER = "x-blueprint-preparation-status-version";
 export type PublicWebsitePreparationStatus = {
-  state: typeof states[number] | "unavailable"; correlationId: string | null;
+  state: PreparationState | "unavailable"; correlationId: string | null;
+  terminalReason?: WebsitePreparationTerminalReason | null;
 };
-export type WebsitePreparationIntent = {requestId: string; captureId: string; eventId: string; correlationId: string};
+export type WebsitePreparationNoticeMilestone = "preparation_needs_attention" | "preparation_ended";
+export type WebsitePreparationIntent = {requestId: string; captureId: string; eventId: string; correlationId: string;
+  milestone: WebsitePreparationNoticeMilestone; terminalReason: WebsitePreparationTerminalReason | null};
 export interface StoredWebsitePreparation {
   selector: WebsitePreparationSelector; status: WebsitePreparationReceipt;
   notification: { eventId: string; state: "pending" | "enqueued" } | null;
@@ -63,11 +86,26 @@ const needsAttention = (state: string) => state === "failed_retryable" || state 
 export function websitePreparationEventId(selector: WebsitePreparationSelector): string {
   return crossRuntimeDigest({ ...selector, milestone: "preparation_needs_attention" });
 }
+/** One per terminal transition: a re-driven attempt that ends again is a new event. */
+export function websitePreparationEndedEventId(selector: WebsitePreparationSelector, attemptCount: number): string {
+  return crossRuntimeDigest({ ...selector, milestone: "preparation_ended", attempt_count: attemptCount });
+}
+/** The single notice a current status calls for, if any. */
+function noticeFor(selector: WebsitePreparationSelector, status: WebsitePreparationReceipt):
+  {eventId: string; milestone: WebsitePreparationNoticeMilestone} | null {
+  if (status.state === "failed_terminal")
+    return {eventId: websitePreparationEndedEventId(selector, status.attempt_count), milestone: "preparation_ended"};
+  return needsAttention(status.state)
+    ? {eventId: websitePreparationEventId(selector), milestone: "preparation_needs_attention"} : null;
+}
+const terminalReasonOf = (status: WebsitePreparationReceipt) =>
+  status.schema_version === "website_preparation_status.v2" ? status.terminal_reason : null;
 function parseReceipt(raw: unknown, selector: WebsitePreparationSelector): WebsitePreparationReceipt {
   const receipt = websitePreparationReceiptSchema.parse(raw);
   websitePreparationSelectorSchema.parse(receiptSelectors(receipt));
   if (crossRuntimeDigest(receiptSelectors(receipt)) !== crossRuntimeDigest(selector)
       || codes[receipt.state] !== receipt.code
+      || (receipt.state === "failed_terminal") !== (terminalReasonOf(receipt) !== null)
       || crossRuntimeArtifactDigest(receipt as unknown as Record<string, unknown>, "status_digest") !== receipt.status_digest)
     throw unavailable();
   return receipt;
@@ -84,19 +122,27 @@ function parseStored(value: unknown): StoredWebsitePreparation | null {
     notification: z.object({eventId: digest, state: z.enum(["pending", "enqueued"])}).strict().nullable(),
   }).strict().parse(value);
   parseReceipt(parsed.status, parsed.selector);
-  if (parsed.notification && parsed.notification.eventId !== websitePreparationEventId(parsed.selector)) throw unavailable();
+  if (parsed.notification && parsed.notification.eventId !== websitePreparationEventId(parsed.selector)
+    && parsed.notification.eventId !== noticeFor(parsed.selector, parsed.status)?.eventId) throw unavailable();
   return parsed;
 }
-/** An exact lower/reused revision cannot downgrade newer persisted authority. */
+/** An exact lower/reused revision cannot downgrade newer persisted authority. The same
+ * revision read in the other receipt version is the same ledger state, not a replay. */
 export function mergeWebsitePreparationStatus(prior: StoredWebsitePreparation | null,
   selector: WebsitePreparationSelector, status: WebsitePreparationReceipt): StoredWebsitePreparation {
   parseReceipt(status, selector);
   const same = prior && crossRuntimeDigest(prior.selector) === crossRuntimeDigest(selector);
   if (same && (status.attempt_count < prior.status.attempt_count || status.revision < prior.status.revision
-    || status.revision === prior.status.revision && status.status_digest !== prior.status.status_digest)) throw unavailable();
-  const eventId = websitePreparationEventId(selector);
-  return {selector, status, notification: same && prior.notification?.eventId === eventId ? prior.notification
-    : needsAttention(status.state) ? {eventId, state: "pending"} : null};
+    || status.revision === prior.status.revision && status.schema_version === prior.status.schema_version
+      && status.status_digest !== prior.status.status_digest)) throw unavailable();
+  const attentionId = websitePreparationEventId(selector);
+  const notice = noticeFor(selector, status);
+  // One durable intent per event: a replay keeps it; a newer event replaces an
+  // unsent one; a state that calls for no notice keeps only the attention intent.
+  const notification = notice
+    ? same && prior.notification?.eventId === notice.eventId ? prior.notification : {eventId: notice.eventId, state: "pending" as const}
+    : same && prior.notification?.eventId === attentionId ? prior.notification : null;
+  return {selector, status, notification};
 }
 /** Existing signed client admission, bounded response, no redirect or arbitrary caller destination. */
 async function readCanonicalLedger(selector: WebsitePreparationSelector, signal?: AbortSignal): Promise<unknown> {
@@ -114,7 +160,7 @@ async function readCanonicalLedger(selector: WebsitePreparationSelector, signal?
   const response = await fetch(url, {method: "POST", redirect: "error", signal: signal ?? AbortSignal.timeout(5_000),
     body, headers: {"content-type": "application/json", "x-blueprint-pipeline-timestamp": timestamp,
       "x-blueprint-pipeline-client-id": client, "x-blueprint-pipeline-nonce": nonce,
-      "x-blueprint-pipeline-signature": `sha256=${signature}`}});
+      "x-blueprint-pipeline-signature": `sha256=${signature}`, [WEBSITE_PREPARATION_STATUS_VERSION_HEADER]: "2"}});
   if (!response.ok || !response.body || Number(response.headers.get("content-length")) > 8192) throw unavailable();
   const reader = response.body.getReader(); let length = 0; const chunks: Buffer[] = [];
   try {
@@ -209,8 +255,15 @@ const defaultDeps: WebsitePreparationDeps = {
           captureId: selector.capture_id, captureBinding: authority.binding,
           assessmentPreparationProposal: authority.preparation?.proposal}).context_digest !== selector.task_context_digest) throw unavailable();
       const preparation = mergeWebsitePreparationStatus(parseStored(session.website_preparation), selector, status);
+      const watch = nextWebsitePreparationWatch(parseWebsitePreparationWatch(session[WEBSITE_PREPARATION_WATCH_FIELD]),
+        preparation, Date.now());
+      // mergeFields replaces each named field whole: Firestore's merge would keep
+      // a v2-only key such as terminal_reason under a later v1 receipt.
       tx.set(ref, {website_preparation: preparation,
-        website_preparation_notification_pending: preparation.notification?.state === "pending"}, {merge: true});
+        website_preparation_notification_pending: preparation.notification?.state === "pending",
+        [WEBSITE_PREPARATION_WATCH_FIELD]: watch, [WEBSITE_PREPARATION_WATCH_DUE_FIELD]: watch?.due_at_ms ?? null},
+      {mergeFields: ["website_preparation", "website_preparation_notification_pending",
+        WEBSITE_PREPARATION_WATCH_FIELD, WEBSITE_PREPARATION_WATCH_DUE_FIELD]});
     });
   },
   async pending(limit) {
@@ -235,7 +288,8 @@ const defaultDeps: WebsitePreparationDeps = {
       const stored = parseStored((await tx.get(ref)).data()?.website_preparation);
       if (stored?.notification?.eventId !== eventId) return;
       tx.set(ref, {website_preparation: {...stored, notification: {eventId, state: "enqueued"}},
-        website_preparation_notification_pending: false}, {merge: true});
+        website_preparation_notification_pending: false},
+      {mergeFields: ["website_preparation", "website_preparation_notification_pending"]});
     });
   },
 };
@@ -279,7 +333,8 @@ export async function loadCurrentWebsitePreparationStatus(requestId: string, cap
     id.parse(requestId); websitePreparationSelectorSchema.innerType().shape.capture_id.parse(captureId);
     const {status} = await fresh(captureId, requestId, deps);
     // Customer correlation is company-derived; never trust caller supplied correlation text.
-    return {state: status.state, correlationId: `bp-prep-${status.status_digest.slice(7, 23)}`};
+    return {state: status.state, correlationId: `bp-prep-${status.status_digest.slice(7, 23)}`,
+      terminalReason: terminalReasonOf(status)};
   } catch { return {state: "unavailable", correlationId: null}; }
 }
 export async function canNotifyCurrentWebsitePreparationIssue(requestId: string, eventId: string,
@@ -295,7 +350,8 @@ export async function canNotifyCurrentWebsitePreparationIssue(requestId: string,
       // Read-only admission: all tx reads precede caller's dispatch marker; no nested status commit.
       const {latest} = await latestVerified(match.selector, deps, signal, transaction);
       mergeWebsitePreparationStatus(match, match.selector, latest);
-      return needsAttention(latest.state) && websitePreparationEventId(match.selector) === eventId;
+      // Still the same event: a needs-attention state, or the same terminal transition.
+      return noticeFor(match.selector, latest)?.eventId === eventId;
     });
   } catch (error) {
     if ((error as Error).message === "website_preparation_authority_ended") return false;
@@ -310,10 +366,11 @@ export async function drainPendingWebsitePreparationNotifications(
   for (const row of await deps.pending(limit)) {
     try {
       const current = await fresh(row.selector.capture_id, row.selector.request_id, deps);
-      if (!needsAttention(current.status.state) || !row.notification
-        || row.notification.eventId !== websitePreparationEventId(current.selector)) { pending++; continue; }
+      const notice = noticeFor(current.selector, current.status);
+      if (!notice || !row.notification || row.notification.eventId !== notice.eventId) { pending++; continue; }
       const result = await enqueue({requestId: row.selector.request_id, captureId: row.selector.capture_id,
-        eventId: row.notification.eventId, correlationId: `bp-prep-${current.status.status_digest.slice(7, 23)}`});
+        eventId: row.notification.eventId, correlationId: `bp-prep-${current.status.status_digest.slice(7, 23)}`,
+        milestone: notice.milestone, terminalReason: terminalReasonOf(current.status)});
       if (result === "unavailable") {pending++; continue;}
       await deps.acknowledge(row.selector.capture_id, row.notification.eventId); enqueued++;
     } catch { pending++; }

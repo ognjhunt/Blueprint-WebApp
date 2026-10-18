@@ -37,6 +37,8 @@ export type OutboxKind =
   | "video_received"
   | "scene_ready"
   | "preparation_needs_attention"
+  /** Website scene preparation ended for good (website_preparation_status.v2 failed_terminal). */
+  | "preparation_ended"
   | "listing_live"
   | "screening_cleared"
   | "screening_not_now"

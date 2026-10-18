@@ -20,6 +20,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { captureUploadIdentity } from "./captureUploadIdentity";
 import type { BundleClient, BundleTarget } from "./siteCaptureBundle";
 import { captureStorageBucketName } from "./siteCaptureBundleStorage";
+import { websitePreparationUploadWatchFields } from "./websitePreparationWatch";
 
 export const SITE_CAPTURE_SESSIONS_COLLECTION = "captureUploadSessions";
 
@@ -64,6 +65,9 @@ export async function recordSiteCaptureUploadIdentity(params: {
           client: params.client,
           recorded_at_iso: new Date().toISOString(),
         },
+        // The preparation watch starts with the finished upload, supplements
+        // included (beta L3/L6): an upload never reported on still alerts.
+        ...websitePreparationUploadWatchFields(params.requestId, params.target.sceneId, params.target.captureId),
       },
       { merge: true },
     );

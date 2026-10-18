@@ -46,8 +46,10 @@ export function createWebsitePreparationRouter(deps?: WebsitePreparationDeps) {
       } catch { return res.status(400).json({code: "website_preparation_selector_invalid"}); }
       try {
         const status = await syncWebsitePreparationStatus(selector, deps);
-        // Sanitized reply omits all private source record/ownership/provider details.
-        return res.status(200).json({schema_version: "website_preparation_status_acceptance.v1",
+        // Sanitized reply omits all private source record/ownership/provider details. It names
+        // the receipt version read, so a Pipeline that predates v2 still sees exactly v1.
+        return res.status(200).json({schema_version: status.schema_version === "website_preparation_status.v2"
+            ? "website_preparation_status_acceptance.v2" : "website_preparation_status_acceptance.v1",
           accepted: true, ...selector, status_digest: status.status_digest, state: status.state, native_execution_complete: false,
           correlation_id: `bp-prep-${status.status_digest.slice(7, 23)}`});
       } catch { return res.status(503).json({code: "website_preparation_status_unavailable"}); }
