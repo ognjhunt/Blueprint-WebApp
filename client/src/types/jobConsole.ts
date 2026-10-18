@@ -107,6 +107,11 @@ export interface JobFacts {
     reason: TeamAccessReason | null;
     /** Set only for `scene_not_runnable`; null when no known condition is missing. */
     sceneHold: SceneHold | null;
+    /**
+     * Set only for `task_not_yet_supported`: the recorded screen's reason
+     * (`site_task_scope.reason`). `unclear` waits on the site's one sentence.
+     */
+    scopeReason?: string | null;
   };
   evaluations: {
     total: number;

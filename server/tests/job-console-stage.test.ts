@@ -146,6 +146,16 @@ describe("deriveJobStage", () => {
       expect(result).toMatchObject(expected);
     });
 
+    it("waits on the site's one sentence when its brief screened as unclear, not on a job kind we cannot score", () => {
+      const unclear = deriveJobStage(facts({ capture: { state: "scene_ready" },
+        teamAccess: { ...closedTo("task_not_yet_supported"), scopeReason: "unclear" } }));
+      expect(unclear).toMatchObject({ stage: "brief_review", actionOwner: "site",
+        nextAction: "Waiting on site to describe the job in one sentence and confirm the brief again" });
+      expect(deriveJobStage(facts({ capture: { state: "scene_ready" },
+        teamAccess: { ...closedTo("task_not_yet_supported"), scopeReason: "liquid" } })))
+        .toMatchObject({ stage: "not_open", actionOwner: "none" });
+    });
+
     // `scene_not_runnable`: the specific condition the runnable-scene check is missing.
     const byHold: Array<[SceneHold | null, { stage: string; nextAction: string; actionOwner: string }]> = [
       ["brief_unconfirmed", { stage: "brief_review", actionOwner: "site", nextAction: "Waiting on site to confirm the brief" }],

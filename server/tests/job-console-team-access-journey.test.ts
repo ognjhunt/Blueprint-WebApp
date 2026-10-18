@@ -267,6 +267,11 @@ const closedJobs: Closed[] = [
   { label: "a job we cannot score yet", start: { task: "Fold towels into stacks", successDefinition: "Every towel folded and stacked" },
     reason: "task_not_yet_supported",
     expected: { stage: "not_open", nextAction: "No action: our simulation cannot score this kind of job yet", actionOwner: "none" } },
+  // A brief the screen could not read needs the site's one sentence, not "no action".
+  { label: "a brief the screen could not read", start: { task: "Cartons on the line", successDefinition: "Cartons stay intact" },
+    reason: "task_not_yet_supported",
+    expected: { stage: "brief_review", nextAction: "Waiting on site to describe the job in one sentence and confirm the brief again",
+      actionOwner: "site" } },
   { label: "brief not yet confirmed by the site", confirmed: false, reason: "scene_not_runnable",
     expected: { stage: "brief_review", nextAction: "Waiting on site to confirm the brief", actionOwner: "site" } },
   { label: "no current recording grant", change: id => patch(id, r => { r.request.consent_attestation = null; }),

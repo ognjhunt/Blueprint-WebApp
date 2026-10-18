@@ -108,7 +108,10 @@ export function closedJobStep(facts: JobFacts): Step {
       return step("not_open", "Private under the retired dossier: ask the site whether approved teams may see it", "blueprint");
     case "restricted_to_named_teams":
       return step("not_open", "Retired dossier names only certain teams: ask the site whether every approved team may see it", "blueprint");
-    case "task_not_yet_supported": return step("not_open", "No action: our simulation cannot score this kind of job yet", "none");
+    // A brief the screen could not read is not out of scope: the site owes one sentence.
+    case "task_not_yet_supported": return facts.teamAccess.scopeReason === "unclear"
+      ? step("brief_review", "Waiting on site to describe the job in one sentence and confirm the brief again", "site")
+      : step("not_open", "No action: our simulation cannot score this kind of job yet", "none");
     case "development_only": return step("not_open", "No action: a development capture is never opened to teams", "none");
     case "rights_needs_review": return step("not_open", "Rights review pending: review the capture's rights and privacy", "blueprint");
     case "rights_blocked":
