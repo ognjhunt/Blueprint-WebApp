@@ -4,17 +4,26 @@
  * ## Why this screen exists
  *
  * A website job's scene is prepared as one of two tasks (Pipeline
- * `website_task_preparation`): picking up one rigid object and placing it in a
- * target area (scored on a lift and a placement), or opening a door or drawer.
- * Pushing is not one of them: no website success contract scores a push, so a
- * push job is refused like any other. Opening only: the articulated
- * success contract scores an opening interval that excludes the closed
- * position (`articulatedTaskSuccessContract.ts`, Pipeline
- * `ARTICULATED_SUCCESS`), so a closing job would be scored as a different task
- * and is refused like any other. The Pipeline builds every
- * non-articulated website job as `pick_and_place`, so a towel-folding job
- * could "pass" a pick-and-place it never asked for. Nothing screened the kind
- * of task at intake. This does, when the site confirms its job brief.
+ * `website_task_preparation`): picking up one rigid object and placing it at a
+ * target spot (scored on a lift and a placement), or opening a door or drawer.
+ * The beta's evaluation is a robot team's run, and the team scene packet
+ * (Pipeline `team_scene_packet.py`) accepts only the first: it refuses
+ * articulated tasks and destination bodies by name. The preparation also
+ * blocks placing an object inside a container (`task_destination_interior_
+ * geometry_required`) and needs the target spot on the surface the object
+ * starts on. So the one job a team can evaluate is a rigid pick-and-place onto
+ * that surface, and opening jobs and container placements are refused here
+ * rather than left to wait for an evaluation that cannot run (audit N4).
+ * Pushing is not scored: no website success contract scores a push, so a push
+ * job is refused like any other. A closing job would be scored as a different
+ * task and is refused too. The Pipeline builds every non-articulated website
+ * job as `pick_and_place`, so a towel-folding job could "pass" a pick-and-place
+ * it never asked for. Nothing screened the kind of task at intake. This does,
+ * when the site confirms its job brief.
+ *
+ * Whether the target spot is on the same surface is not something a keyword
+ * screen can read; the supported line says it plainly, and the Pipeline's
+ * preparation holds a job whose spot is elsewhere.
  *
  * ## How it reads the brief
  *
@@ -33,6 +42,11 @@
  * brief always screens the same way, and anyone can see why.
  */
 
+/**
+ * `articulated_open_close` is read from screens recorded before team
+ * evaluations were the beta's evaluation; this screen no longer returns it as
+ * supported.
+ */
 export type SupportedTaskKind = "rigid_pick_and_place" | "articulated_open_close";
 
 export type UnsupportedTaskReason =
@@ -42,6 +56,8 @@ export type UnsupportedTaskReason =
   | "mobile"
   | "closing"
   | "push"
+  | "container"
+  | "articulated"
   | "other"
   | "multi_step"
   | "unclear";
@@ -61,15 +77,14 @@ export interface SiteTaskScope extends SiteTaskScopeVerdict {
   screenedAtIso: string;
 }
 
-/** The scope, in the words every surface uses. */
+/** The scope, in the words every surface uses: what a robot team's evaluation can run. */
 export const SUPPORTED_TASK_LINES = [
-  "Picking up one rigid object and placing it in a target area",
-  "Opening a door or drawer",
+  "Picking up one rigid object and placing it at another spot on the same table, shelf or counter",
 ] as const;
 
 export const SUPPORTED_TASK_SCOPE =
-  "Today our simulation can score two kinds of job: picking up one rigid object and placing it in a target area, "
-  + "and opening a door or drawer.";
+  "Today our simulation can score one kind of job: picking up one rigid object and placing it at another spot "
+  + "on the same table, shelf or counter.";
 
 const UNSUPPORTED: ReadonlyArray<[Exclude<UnsupportedTaskReason, "multi_step" | "unclear">, RegExp]> = [
   ["deformable", /\b(fold(s|ed|ing)?|unfold\w*|towels?|cloths?|clothes|clothing|laundry|linens?|garments?|shirts?|fabrics?|textiles?|napkins?|socks?|bed ?sheets?|blankets?|ropes?|cables?|wires?|hoses?|strings?|bags?|bagging|sacks?|pouch(es)?|wrap(s|ped|ping)?|tape|taping|dough|sew(s|ed|ing)?)\b/g],
@@ -77,6 +92,8 @@ const UNSUPPORTED: ReadonlyArray<[Exclude<UnsupportedTaskReason, "multi_step" | 
   ["assembly", /\b(assembl\w*|insert\w*|screw\w*|unscrew\w*|bolt(s|ed|ing)?|fasten\w*|plug(s|ged|ging)?|pegs?|snap(s|ped|ping)?|install\w*|thread(s|ed|ing)?|weld\w*|glu(e|es|ed|ing)|solder\w*|tighten\w*|loosen\w*|attach\w*|crimp\w*|cnc|fixtures?|chucks?|press[- ]fit\w*|kitting|machine tending)\b/g],
   ["mobile", /\b(walk\w*|driv(e|es|ing)|drove|navigat\w*|deliver\w*|tow(s|ed|ing)?|forklifts?|pallet jacks?|elevators?|hallways?|corridors?|(each|every) floor|room to room|between (rooms|floors|buildings|sites)|across the (room|floor|site|building|warehouse|store|plant|kitchen)|(push|pull|wheel|roll)\w*[^.;]*\b(carts?|trolleys?|dolly|dollies))\b/g],
   ["closing", /\b(clos(e|es|ed|ing)|shut(s|ting)?)\b[^.;]*\b(doors?|drawers?|cabinets?|cupboards?|lockers?|hatch(es)?|gates?)\b|\b(doors?|drawers?|cabinets?|cupboards?|lockers?|hatch(es)?|gates?)\b[^.;]*\b(clos(e|es|ed|ing)|shut)\b/g],
+  // Placing an object inside something: the preparation holds it before a scene exists.
+  ["container", /\b(in|into|inside)\s+(?:(?:the|a|an|each|every|its|their|one|its own)\s+)?(?:\w+\s+){0,2}?(bins?|totes?|box(es)?|crates?|containers?|baskets?|buckets?|tubs?|cartons?|cases?)\b/g],
   // After "mobile", so pushing a cart reads as moving around the site.
   ["push", /\b(push(es|ed|ing)?|slid(e|es|ing)|nudg(e|es|ed|ing)|shov(e|es|ed|ing))\b/g],
   ["other", /\b(cut(s|ting)?|slic\w*|peel\w*|chop\w*|cook\w*|fry(ing)?|fried|grill\w*|paint\w*|sand(s|ed|ing)?|polish\w*|cleaning|clean(s|ed)?\s+(the|up|down|off|out|all)|wip(e|es|ed|ing)|scrub\w*|mop(s|ped|ping)?|vacuum\w*|sweep\w*|inspect\w*|scan(s|ned|ning)?|label(s|ed|led|ing|ling)?|sort(s|ed|ing)?|count(s|ed|ing)?|weigh(s|ed|ing)?|measur\w*|buttons?|switch(es)?)\b/g],
@@ -136,6 +153,8 @@ function classifyAction(text: string): SiteTaskScopeVerdict | null {
   if (kinds.size > 1 || readings.some((reading) => !reading.kinds.size)) {
     return { supported: false, kind: null, reason: "multi_step", matched };
   }
+  // An opening job is prepared as a scene, but no robot team's evaluation can run it.
+  if (kinds.has("articulated_open_close")) return { supported: false, kind: null, reason: "articulated", matched };
   return { supported: true, kind: [...kinds][0], reason: null, matched };
 }
 
@@ -177,8 +196,10 @@ const REASON_SENTENCES: Record<UnsupportedTaskReason, string> = {
   liquid: "Your job involves liquids, and our simulation cannot score those yet.",
   assembly: "Your job involves fitting, inserting or fastening parts, and our simulation cannot score that yet.",
   mobile: "Your job involves moving around the site, and our simulation scores work at one station today.",
-  closing: "Your job closes a door or drawer, and our simulation scores opening one today.",
+  closing: "Your job closes a door or drawer, and our simulation cannot score that yet.",
   push: "Your job pushes or slides an object, and our simulation scores picking it up and placing it today.",
+  container: "Your job places an object inside a container, such as a bin or tote, and our simulation scores placing it on a surface today.",
+  articulated: "Your job opens a door or drawer, and a robot team's evaluation cannot score that yet.",
   other: "Your job involves an action our simulation cannot score yet.",
   multi_step: "Your job has more than one step, and our simulation scores one action at a time today.",
   unclear: "From your job brief, we could not tell which kind of job this is.",
@@ -188,14 +209,23 @@ export function taskScopeReasonSentence(reason: unknown): string {
   return REASON_SENTENCES[(reason as UnsupportedTaskReason)] ?? REASON_SENTENCES.other;
 }
 
-/** What the site is told, on the confirmation, the job page and by email. */
+/**
+ * What the site is told, on the confirmation, the job page and by email. A
+ * brief we could not read is not out of scope: it needs one sentence, so it
+ * is asked for, not refused (audit N3).
+ */
 export function taskScopeNotYet(reason: unknown): { headline: string; detail: string; nextStep: string } {
+  if (reason === "unclear") {
+    return {
+      headline: "Your job brief needs one sentence about the job before robot teams can evaluate it.",
+      detail: `${taskScopeReasonSentence(reason)} ${SUPPORTED_TASK_SCOPE}`,
+      nextStep: "Describe the job in one sentence at the top of your job brief and confirm it again.",
+    };
+  }
   return {
     headline: "Not yet: we cannot score this job in simulation today, so it is not open to robot teams.",
     detail: `${taskScopeReasonSentence(reason)} ${SUPPORTED_TASK_SCOPE}`,
-    nextStep: reason === "unclear"
-      ? "If your job is one of these, say so in the Successful cycle field of your job brief and confirm it again."
-      : "Your job stays on file. If we read it wrong, reply to our email.",
+    nextStep: "Your job stays on file. If we read it wrong, reply to our email.",
   };
 }
 

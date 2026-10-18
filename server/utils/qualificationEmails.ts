@@ -116,7 +116,9 @@ export function buildNotYetEmail(params: {
  * A job we cannot score in simulation yet, whatever its gate verdict.
  *
  * Names the scope plainly, and says the job is not opened to robot teams, so
- * the site never waits on an evaluation that would test a different task.
+ * the site never waits on an evaluation that would test a different task. A
+ * brief we could not read is asked for one sentence instead: it is not out of
+ * scope, it is undescribed (audit N3).
  */
 export function buildTaskNotYetSupportedEmail(params: {
   firstName: string;
@@ -126,24 +128,28 @@ export function buildTaskNotYetSupportedEmail(params: {
 }): QualificationEmail {
   const site = params.siteName?.trim();
   const notYet = taskScopeNotYet(params.reason);
+  const unclear = params.reason === "unclear";
   const body = [
     emailGreeting(firstNameOf(params.firstName)),
     "",
     site ? `Thanks for confirming the job brief for ${site}.` : "Thanks for confirming your job brief.",
     taskScopeReasonSentence(params.reason),
     "",
-    "Today our simulation can score two kinds of job:",
+    "Today our simulation can score one kind of job:",
     bulletList(SUPPORTED_TASK_LINES),
     "",
-    "So we have not opened this job to robot teams, and no robot team will evaluate it. Your job stays on file.",
+    unclear
+      ? "Robot teams can evaluate your job once we can tell it is that kind of job, so it is not open to them yet. Your job stays on file."
+      : "So we have not opened this job to robot teams, and no robot team will evaluate it. Your job stays on file.",
     "",
-    params.reason === "unclear"
+    unclear
       ? `${notYet.nextStep}${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`
       : `If we read your job wrong, reply to this email.${params.jobUrl ? ` Your job page shows the same: ${params.jobUrl}` : ""}`,
     "",
     EMAIL_SIGN_OFF,
   ].join("\n");
-  return { subject: "Your job: not something we can score yet", body, variant: "not_yet" };
+  return { subject: unclear ? "Your job brief needs one sentence about the job" : "Your job: not something we can score yet",
+    body, variant: "not_yet" };
 }
 
 /**

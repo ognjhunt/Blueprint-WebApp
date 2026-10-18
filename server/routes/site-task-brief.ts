@@ -29,6 +29,7 @@ import { z } from "zod";
 import { logger } from "../logger";
 import { captureUploadUrlFor, requestIdFromExpiredCaptureUploadToken, verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import {
+  BriefSummaryRequiredError,
   confirmBrief,
   getBrief,
   type SiteTaskBriefRecord,
@@ -289,6 +290,8 @@ const confirmSchema = z
       pilotConsideration: z.enum(["yes", "subject_to_review", "evaluation_only", "undecided"]),
       deploymentPath: z.enum(["this_site", "multiple_sites", "pilot_only", "undecided"]),
     }).strict().optional(),
+    /** The job in the site's own sentence. Required while the drafted summary is a placeholder. */
+    summary: z.string().trim().min(1).max(300).optional(),
   })
   .strict();
 
@@ -773,7 +776,21 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       operatorUnknown: parsed.data.unknown?.filter((id) => GATE_IDS.has(id)),
       successCriteria: parsed.data.successCriteria,
       pilotIntent: parsed.data.pilotIntent,
+      summary: parsed.data.summary,
+    }).catch((error: unknown) => {
+      if (error instanceof BriefSummaryRequiredError) return "summary_required" as const;
+      throw error;
     });
+
+    // Footage alone does not say what the robot should do. The site is asked
+    // for one sentence, and nothing is recorded until it gives one.
+    if (result === "summary_required") {
+      return res.status(400).json({
+        error: "Describe the job in one sentence, for example “Pick up each carton and place it at the end of the table.”",
+        code: "task_brief_summary_required",
+        field: "summary",
+      });
+    }
 
     if (!result) {
       return res.status(404).json({

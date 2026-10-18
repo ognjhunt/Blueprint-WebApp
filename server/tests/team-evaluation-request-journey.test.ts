@@ -21,7 +21,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
-import { siteCaptureStartSubmission } from "./helpers/siteCaptureStartSubmission";
+import { SITE_CAPTURE_START_FORM, siteCaptureStartSubmission } from "./helpers/siteCaptureStartSubmission";
 import type { TaskBrowseCard, TeamJobOpening } from "../../client/src/types/taskBrowse";
 
 const sendEmail = vi.hoisted(() => vi.fn(async (_message: { to?: unknown }) => ({ sent: true })));
@@ -241,7 +241,7 @@ describe("a job started from the public form", () => {
     const stored = doc(`inboundRequests/${jobId}`);
     // What the real intake wrote: the site's card grant, and no retired dossier.
     expect(stored.public_task_listing).toMatchObject({ enabled: true, consentVersion: "public-task-card-v1",
-      details: anonymizedOpportunityDraft("Pack cartons into totes") });
+      details: anonymizedOpportunityDraft(SITE_CAPTURE_START_FORM.task) });
     expect(stored.request.pilotOpportunity ?? null).toBeNull();
 
     // Listed straight away, but nothing is offered until the scene can run.
@@ -264,9 +264,10 @@ describe("a job started from the public form", () => {
     expect(opened.status).toBe(200);
     const { opening } = await opened.json() as { opening: TeamJobOpening };
     // The e2e workspace spec mocks exactly this projection for its job.
-    expect(opening).toEqual({ ...anonymizedOpportunityDraft("Pack cartons into totes"), id: jobId,
+    expect(opening).toEqual({ ...anonymizedOpportunityDraft(SITE_CAPTURE_START_FORM.task), id: jobId,
       publishedAtIso: stored.public_task_listing.approvedAtIso, thumbnailUrl: null, evaluation: null });
-    expect(JSON.stringify(opening)).not.toMatch(/Austin|@example|Acme|Pack cartons into totes|gs:\/\/|successRate|walkthrough/);
+    expect(JSON.stringify(opening)).not.toMatch(/Austin|@example|Acme|gs:\/\/|successRate|walkthrough/);
+    expect(JSON.stringify(opening)).not.toContain(SITE_CAPTURE_START_FORM.task);
 
     // Once the Pipeline publishes team evaluations, the opening says what a team is asked to do and
     // how it is judged: the instruction, the scored variations and the policy interfaces, never the

@@ -225,7 +225,9 @@ describe("the confirmation says what our screen decided", () => {
     expect(enqueueOutbox).toHaveBeenCalledTimes(1);
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { kind: string; subject: string; body: string; idempotencyKey: string };
     expect(sent).toMatchObject({ kind: "screening_not_now", idempotencyKey: "req-1:brief-screening:task-not-yet-supported" });
-    expect(sent.body).toMatch(/- Picking up one rigid object and placing it in a target area\n- Opening a door or drawer\n\n/);
+    // Only the job kind a robot team's evaluation can run (audit N4).
+    expect(sent.body).toMatch(/one kind of job:\n- Picking up one rigid object and placing it at another spot on the same table, shelf or counter\n\n/);
+    expect(sent.body).not.toMatch(/door or drawer/);
     expect(sent.body).toMatch(/not opened this job to robot teams/);
     expect(`${sent.subject}\n${sent.body}`).not.toMatch(/\bmatch|\$|price/i);
     expect(notifySlackScreeningCallNeeded).not.toHaveBeenCalled();

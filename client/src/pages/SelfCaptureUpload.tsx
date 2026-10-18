@@ -647,7 +647,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           {/* Robot teams evaluate only a confirmed job (`teamJobAccess`), so the
               brief is never presented as an optional correction. Before
               footage it can wait; once footage lands it becomes the page. */}
-          {brief ? <><p>{brief.summary}</p><p className="ms-field-hint">{briefConfirmed
+          {brief ? <><p>{brief.summary.trim() && brief.summary.trim() !== "Your site task" ? brief.summary
+            : "No job description yet. Describe the job in one sentence when you confirm your brief."}</p><p className="ms-field-hint">{briefConfirmed
             ? "Your job brief is confirmed. Correct it here if something changes."
             : "Robot teams can evaluate your job only after you confirm this brief. You can confirm it now or after you add footage."}</p>
             <details><summary>{briefConfirmed ? "Edit your job brief" : "Review and confirm your job brief"}</summary><TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount

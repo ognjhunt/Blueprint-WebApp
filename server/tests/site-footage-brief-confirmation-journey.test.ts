@@ -121,12 +121,12 @@ beforeEach(() => {
 });
 
 /** A site starts a job on the public form, exactly as the browser sends it, and keeps its link. */
-async function startJob() {
+async function startJob(options: { task?: string } = {}) {
   const requestId = `site-footage-${++sequence}`;
   const response = await fetch(`${base}/api/inbound-request`, { method: "POST",
     headers: { "content-type": "application/json", "x-forwarded-for": `203.0.113.${(sequence % 250) + 1}` },
     body: JSON.stringify(siteCaptureStartSubmission({ requestId, retryToken: `r${requestId}`.padEnd(64, "x"),
-      sourcePageUrl: "https://tryblueprint.io/contact/site-operator", email: `${requestId}@example.test` })) });
+      sourcePageUrl: "https://tryblueprint.io/contact/site-operator", email: `${requestId}@example.test`, task: options.task })) });
   expect(response.status, await response.clone().text()).toBe(201);
   const { captureUrl } = await response.json() as { captureUrl: string };
   const token = captureUrl.split("/capture-upload/")[1];
@@ -161,14 +161,18 @@ async function jobStatus(token: string) {
 }
 
 /** The site confirms the brief from its owner link, as the job page sends it. */
-async function confirmBrief(token: string) {
-  const response = await fetch(`${base}/api/site-task-brief/${token}/confirm`, { method: "POST",
+function postConfirmation(token: string, extra: Record<string, unknown> = {}) {
+  return fetch(`${base}/api/site-task-brief/${token}/confirm`, { method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ confirmedBy: "Site owner", answers: { sceneStability: "stable", taskShape: "single",
       objectVariety: "under_10", deploymentTimeline: "this_quarter", accessWindow: "scheduled" }, unknown: [],
-      successCriteria: { successDefinition: "Every carton packed upright", successRate: 95, cycleTimeSeconds: 30, unknown: false } }) });
+      successCriteria: { successDefinition: "Every carton set down upright", successRate: 95, cycleTimeSeconds: 30, unknown: false },
+      ...extra }) });
+}
+async function confirmBrief(token: string, extra: Record<string, unknown> = {}) {
+  const response = await postConfirmation(token, extra);
   expect(response.status, await response.clone().text()).toBe(200);
-  return response.json() as Promise<{ disposition: string }>;
+  return response.json() as Promise<{ disposition: string; screening: { headline: string } | null }>;
 }
 
 describe("a site that sends its footage before confirming its brief", () => {
@@ -292,4 +296,49 @@ it("words the no-pass notice the same way, for unclaimed and claimed sites", asy
     workspaceUrl: "https://tryblueprint.io/app/tasks/job-1" });
   expect(claimed.body).toContain("https://tryblueprint.io/app/tasks/job-1");
   expect(claimed.body).not.toMatch(/save this site to your account/);
+});
+
+/**
+ * Audit N3: a site may start with footage and no description. Its brief's
+ * summary is a placeholder, and the scope screen read only typed text, so the
+ * job screened as "not something we can score yet" and was closed to teams.
+ * A placeholder needs one sentence: the confirmation asks for it, and a brief
+ * that still says nothing readable is asked for one, not refused.
+ */
+describe("a site that sends footage with no description", () => {
+  it("is asked for one sentence at confirmation, and that sentence is what is screened", async () => {
+    const { teamJobAccess } = await import("../utils/teamJobAccess");
+    const { getBrief } = await import("../utils/siteTaskBrief");
+    const { jobId, token } = await startJob({ task: "" });
+    await sendFootage(token);
+
+    const refused = await postConfirmation(token);
+    expect(refused.status).toBe(400);
+    expect(await refused.json()).toMatchObject({ code: "task_brief_summary_required", error: expect.stringMatching(/one sentence/i) });
+    // Nothing was recorded: no attestation, no screen, no reply.
+    expect(doc(`inboundRequests/${jobId}`).site_task_brief_confirmed_at).toBeUndefined();
+    expect(doc(`inboundRequests/${jobId}`).site_task_scope).toBeUndefined();
+    expect(queuedKinds(jobId)).toEqual(["task_received", "video_received"]);
+
+    const summary = "Pick up each carton and place it at the end of the table";
+    expect((await confirmBrief(token, { summary })).disposition).toBe("qualified");
+    expect((await getBrief(jobId))?.summary).toBe(summary);
+    expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: true, kind: "rigid_pick_and_place" });
+    expect(teamJobAccess(doc(`inboundRequests/${jobId}`)).reason).not.toBe("task_not_yet_supported");
+    expect(outbox(`${jobId}:brief-screening:task-not-yet-supported`)).toBeUndefined();
+  });
+
+  it("is asked for one sentence again, not told the job is out of scope, when the sentence names no job", async () => {
+    const { jobId, token } = await startJob({ task: "" });
+    await sendFootage(token);
+    const body = await confirmBrief(token, { summary: "Cartons", successCriteria: { successDefinition: null, successRate: null,
+      cycleTimeSeconds: null, unknown: true } });
+    expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "unclear" });
+    expect(body.screening?.headline).toMatch(/one sentence/i);
+    const notice = outbox(`${jobId}:brief-screening:task-not-yet-supported`);
+    expect(notice?.subject).toMatch(/one sentence/i);
+    expect(notice?.subject).not.toMatch(/not something we can score/i);
+    expect(notice?.body).toMatch(/Describe the job in one sentence/);
+    expect((await jobStatus(token)).status.headline).toMatch(/one sentence/i);
+  });
 });

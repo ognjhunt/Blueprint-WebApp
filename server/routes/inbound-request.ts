@@ -20,7 +20,7 @@ import {
   isCaptureRegion,
   type CaptureRegion,
 } from "../../client/src/data/captureResidency";
-import { draftBrief, saveBrief } from "../utils/siteTaskBrief";
+import { PLACEHOLDER_TASK_SUMMARY, draftBrief, saveBrief } from "../utils/siteTaskBrief";
 import { deliverIntakeOpsNoticeAtIntake, initialIntakeOpsNotice } from "../utils/intakeOpsNotice";
 import { admitInboundQualificationRun } from "../utils/inboundQualificationGate";
 import { logger } from "../logger";
@@ -1970,7 +1970,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
         await saveBrief(
           draftBrief({
             requestId: payload.requestId,
-            summary: taskStatement || "Your site task",
+            summary: taskStatement || PLACEHOLDER_TASK_SUMMARY,
             captureMode,
             proposed,
           }),
