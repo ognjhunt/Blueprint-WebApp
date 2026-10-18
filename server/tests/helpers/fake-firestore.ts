@@ -249,6 +249,8 @@ export function createFakeFirestore(state: FakeFirestoreState) {
   return {
     doc: (path: string) => makeDocRef(path.slice(0, path.lastIndexOf("/")), path.slice(path.lastIndexOf("/") + 1)),
     collection: makeCollection,
+    /** `Firestore.getAll`: one snapshot per ref, in order, missing ones with `exists: false`. */
+    getAll: async (...refs: MockDocRef[]) => Promise.all(refs.map((ref) => ref.get())),
     batch: () => {
       const creates: Array<{ ref: MockDocRef; payload: StoredDoc }> = [];
       const batch = {
