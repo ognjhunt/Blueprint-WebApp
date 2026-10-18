@@ -15,6 +15,8 @@ const state = vi.hoisted(() => ({
   notices: vi.fn(async () => ({ enqueued: true })),
 }));
 const admission = vi.hoisted(() => vi.fn(async () => true));
+/** Whether the walkthrough bucket can be read; it starts empty (nothing filmed). */
+const storage = vi.hoisted(() => ({ readable: true }));
 vi.mock("../utils/accountInvitations", () => ({ accountHasAdmission: admission }));
 
 const preparation = vi.hoisted(() => ({ read: vi.fn(async () => ({
@@ -90,22 +92,30 @@ function collection(
     },
   };
 }
-vi.mock("../../client/src/lib/firebaseAdmin", () => ({
-  default: {
-    firestore: {
-      FieldValue: { serverTimestamp: () => new Date().toISOString() },
+vi.mock("../../client/src/lib/firebaseAdmin", async () => {
+  const { sharedUploadBucket } = await import("./helpers/fake-upload-bucket");
+  return {
+    default: {
+      firestore: {
+        FieldValue: { serverTimestamp: () => new Date().toISOString() },
+      },
     },
-  },
-  dbAdmin: {
-    collection: (name: string) => collection(name),
-    runTransaction: async (fn: any) =>
-      fn({
-        get: (r: any) => r.get(),
-        update: (r: any, data: any) => r.update(data),
-        set: (r: any, data: any, options?: any) => r.set(data, options),
-      }),
-  },
-}));
+    dbAdmin: {
+      collection: (name: string) => collection(name),
+      runTransaction: async (fn: any) =>
+        fn({
+          get: (r: any) => r.get(),
+          update: (r: any, data: any) => r.update(data),
+          set: (r: any, data: any, options?: any) => r.set(data, options),
+        }),
+    },
+    // The job page reads whether the walkthrough is saved, as the private page does.
+    storageAdmin: { bucket: () => {
+      if (!storage.readable) throw Object.assign(new Error("Storage is unreachable"), { code: 503 });
+      return sharedUploadBucket.bucket;
+    } },
+  };
+});
 vi.mock("../utils/field-encryption", () => ({
   decryptInboundRequestForAdmin: async (value: any) => {
     const decoded = structuredClone(value);
@@ -227,6 +237,8 @@ const setup = {
 };
 let server: Server, base: string;
 beforeEach(async () => {
+  storage.readable = true;
+  (await import("./helpers/fake-upload-bucket")).sharedUploadBucket.clear();
   admission.mockClear();
   admission.mockResolvedValue(true);
   state.records.clear();
@@ -282,6 +294,21 @@ async function api(
   });
 }
 describe("workspace access and projections", () => {
+  it("leaves the progress line out, never asking a site to film, when its footage status cannot be read", async () => {
+    state.records.set("inboundRequests/task-1", { ...task(), site_task_brief_confirmed_at: "2026-09-18T00:00:00Z" });
+    state.records.set("siteTaskBriefs/task-1", { requestId: "task-1", summary: "Task reading",
+      proposed: [], unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
+      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: "2026-09-18T00:00:00Z" });
+    // Readable and empty: nothing is filmed, so filming is the site's next step.
+    expect((await (await api("/tasks/task-1", "site-1")).json()).readiness).toMatchObject({ decision: "record" });
+    // Unreadable is not "not filmed": the job still loads, without a progress line.
+    storage.readable = false;
+    const response = await api("/tasks/task-1", "site-1");
+    expect(response.status).toBe(200);
+    const viewed = await response.json();
+    expect(viewed.id).toBe("task-1");
+    expect(viewed.readiness).toBeNull();
+  });
   it("PREP-UI-003 shows verified preparation failure only to the current owner", async () => {
     state.records.set("inboundRequests/task-1", { ...task(),
       site_task_brief_confirmed_at: "2026-09-18T00:00:00Z", capture_coverage: { covers_scene: true } });

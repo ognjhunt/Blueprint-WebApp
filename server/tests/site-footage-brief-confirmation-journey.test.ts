@@ -175,6 +175,28 @@ async function confirmBrief(token: string, extra: Record<string, unknown> = {}) 
   return response.json() as Promise<{ disposition: string; screening: { headline: string } | null }>;
 }
 
+/** The site saves the job to an account through the real claim route, as the claim page does. */
+async function claim(jobId: string) {
+  const { createSiteClaimToken } = await import("../utils/request-review-auth");
+  const { TERMS_VERSION, PRIVACY_VERSION } = await import("../../client/src/lib/legalAcceptance");
+  const uid = `site-owner-${jobId}`;
+  state.docs.set(`users/${uid}`, { buyerType: "site_operator", email: `${jobId}@example.test`,
+    acceptedTerms: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION });
+  const response = await fetch(`${base}/api/workspace/claim`, { method: "POST",
+    headers: { "content-type": "application/json", "x-fixture-user": uid, "x-fixture-email": `${jobId}@example.test` },
+    body: JSON.stringify({ token: createSiteClaimToken(jobId) }) });
+  expect(response.status, await response.clone().text()).toBe(200);
+  expect(doc(`inboundRequests/${jobId}`).account_owner_uid).toBe(uid);
+}
+
+/** The job as the site's workspace job page reads it, once the site has saved it. */
+async function workspaceTask(jobId: string) {
+  const response = await fetch(`${base}/api/workspace/tasks/${encodeURIComponent(jobId)}`, {
+    headers: { "x-fixture-user": `site-owner-${jobId}`, "x-fixture-email": `${jobId}@example.test` } });
+  expect(response.status, await response.clone().text()).toBe(200);
+  return (await response.json()) as { readiness: { decision: string; headline: string; operatorAction: string | null } | null };
+}
+
 describe("a site that sends its footage before confirming its brief", () => {
   it("is told on its job page that confirming the brief is its step, and why", async () => {
     const { jobId, token } = await startJob();
@@ -219,6 +241,19 @@ describe("a site that sends its footage before confirming its brief", () => {
     // The page moves past the confirmation step.
     expect((await jobStatus(token)).status.decision).not.toBe("confirm_brief");
   });
+
+  it("is never asked to film on its workspace job page once it saves the job", async () => {
+    const { jobId, token } = await startJob();
+    await sendFootage(token);
+    await confirmBrief(token);
+    await claim(jobId);
+    const page = (await jobStatus(token)).status;
+    expect(page.decision).toBe("footage_received");
+    // The workspace job page tells the same story as the private one.
+    const { readiness } = await workspaceTask(jobId);
+    expect(readiness).toMatchObject({ decision: page.decision, headline: page.headline, operatorAction: page.operatorAction });
+    expect(`${readiness?.headline} ${readiness?.operatorAction ?? ""}`).not.toMatch(/film the work area|recording of the work area is the next step/i);
+  });
 });
 
 describe("a site that confirms before it films", () => {
@@ -240,19 +275,6 @@ describe("a site that confirms before it films", () => {
  * "see it on your job page", which then asked for a claim nobody had mentioned.
  */
 describe("the results emails say where a site sees its runs", () => {
-  /** The site saves the job to an account through the real claim route, as the claim page does. */
-  async function claim(jobId: string) {
-    const { createSiteClaimToken } = await import("../utils/request-review-auth");
-    const { TERMS_VERSION, PRIVACY_VERSION } = await import("../../client/src/lib/legalAcceptance");
-    const uid = `site-owner-${jobId}`;
-    state.docs.set(`users/${uid}`, { buyerType: "site_operator", email: `${jobId}@example.test`,
-      acceptedTerms: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION });
-    const response = await fetch(`${base}/api/workspace/claim`, { method: "POST",
-      headers: { "content-type": "application/json", "x-fixture-user": uid, "x-fixture-email": `${jobId}@example.test` },
-      body: JSON.stringify({ token: createSiteClaimToken(jobId) }) });
-    expect(response.status, await response.clone().text()).toBe(200);
-    expect(doc(`inboundRequests/${jobId}`).account_owner_uid).toBe(uid);
-  }
   // `no_team_passed` is sent only while it is true (every run concluded, none
   // passed); its wording is pinned through the same builder below.
   const notices = [
