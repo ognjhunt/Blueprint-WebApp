@@ -14,8 +14,8 @@ import { sendRateLimitedOpsAlert } from "./opsProcessAlerts";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { projectWebsiteSceneProgression } from "./websiteSceneProgression";
-import { parseWebsitePreparationWatch, WEBSITE_PREPARATION_WATCH_DUE_FIELD, WEBSITE_PREPARATION_WATCH_FIELD,
-  type WebsitePreparationWatch } from "./websitePreparationWatch";
+import { firstStatusAlertMs, isWebsitePreparationCapture, parseWebsitePreparationWatch, stuckAlertMs,
+  WEBSITE_PREPARATION_WATCH_DUE_FIELD, WEBSITE_PREPARATION_WATCH_FIELD, type WebsitePreparationWatch } from "./websitePreparationWatch";
 
 const SESSIONS = "captureUploadSessions";
 /** Create-only markers, one per ended scene intake, so it is reported once. */
@@ -94,6 +94,62 @@ export async function scanWebsitePreparationWatch(deps: AlertDeps = {}): Promise
     `${fresh.length} website capture(s) need a look: preparation stuck, never reported, or ended`);
   }
   return { due: rows.docs.length, alerted: fresh.length };
+}
+
+const FINAL_STATES = new Set(["handed_off", "authority_ended"]);
+
+/**
+ * A capture uploaded before the watch shipped has none, so a capture that is
+ * already stuck would never alert. Give each one a watch dated from its own
+ * recorded upload; the due scan then reports it like any other. A field that is
+ * present (a watch, or null after a final status) is never touched again.
+ */
+export async function backfillWebsitePreparationWatches(deps: AlertDeps = {}): Promise<{ scanned: number; started: number }> {
+  const store = deps.store === undefined ? (dbAdmin as unknown as Store | null) : deps.store;
+  if (!store) return { scanned: 0, started: 0 };
+  const nowMs = (deps.now || Date.now)();
+  const limit = Math.max(1, Math.min(deps.limit ?? 50, 100));
+  let scanned = 0, started = 0;
+  for (const [field, value, cursor] of [
+    ["browser_pending_delivery.state", "published", "website_preparation_watch_backfill_browser"],
+    ["site_capture_bundle.schema_version", "site_capture_bundle_session.v1", "website_preparation_watch_backfill_bundle"],
+  ] as const) {
+    const rows = await automationBatch(store as unknown as FirebaseFirestore.Firestore,
+      store.collection(SESSIONS).where(field, "==", value) as unknown as FirebaseFirestore.Query, cursor, limit) as unknown as { docs: Doc[] };
+    for (const row of rows.docs) {
+      scanned++;
+      if (row.data()?.[WEBSITE_PREPARATION_WATCH_FIELD] !== undefined) continue;
+      try {
+        const began = await store.runTransaction(async tx => {
+          const ref = store.collection(SESSIONS).doc(row.id);
+          const data = (await tx.get(ref)).data();
+          if (!data || data[WEBSITE_PREPARATION_WATCH_FIELD] !== undefined) return false;
+          const source = data.browser_pending_delivery?.state === "published" ? data.browser_pending_delivery : data.site_capture_bundle;
+          const { request_id: requestId, scene_id: sceneId, capture_id: captureId } = source ?? {};
+          if (typeof requestId !== "string" || typeof sceneId !== "string" || captureId !== row.id
+            || !isWebsitePreparationCapture(requestId, sceneId, captureId)) return false;
+          const uploaded = Date.parse(String(source.completed_at_iso ?? source.recorded_at_iso ?? ""));
+          const since = Number.isFinite(uploaded) ? Math.min(uploaded, nowMs) : nowMs;
+          const status = data.website_preparation?.status;
+          const state = typeof status?.state === "string" ? status.state : null;
+          const attempt = Number.isSafeInteger(status?.attempt_count) && status.attempt_count > 0 ? status.attempt_count : null;
+          const watch: WebsitePreparationWatch | null = state && FINAL_STATES.has(state) ? null : {
+            schema_version: "website_preparation_watch.v1", request_id: requestId, capture_id: captureId,
+            kind: state === "failed_terminal" ? "ended" : state ? "unchanged_state" : "awaiting_first_status",
+            state, terminal_reason: state === "failed_terminal" && typeof status?.terminal_reason === "string" ? status.terminal_reason : null,
+            attempt_count: attempt, since_iso: new Date(since).toISOString(), alerted_at_iso: null,
+            due_at_ms: state === "failed_terminal" ? nowMs : since + (state ? stuckAlertMs() : firstStatusAlertMs()) };
+          tx.set(ref, { [WEBSITE_PREPARATION_WATCH_FIELD]: watch, [WEBSITE_PREPARATION_WATCH_DUE_FIELD]: watch?.due_at_ms ?? null },
+            { mergeFields: [WEBSITE_PREPARATION_WATCH_FIELD, WEBSITE_PREPARATION_WATCH_DUE_FIELD] });
+          return watch !== null;
+        });
+        if (began) started++;
+      } catch (error) {
+        logger.warn({ err: error, captureId: row.id }, "Could not start a website preparation watch");
+      }
+    }
+  }
+  return { scanned, started };
 }
 
 /** Alert once per website scene intake that can no longer become runnable after hand-off. */

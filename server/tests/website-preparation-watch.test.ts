@@ -13,7 +13,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 
 const watch = await import("../utils/websitePreparationWatch");
-const { scanWebsitePreparationWatch, scanEndedWebsiteSceneIntakes } = await import("../utils/websitePreparationOpsAlerts");
+const { backfillWebsitePreparationWatches, scanWebsitePreparationWatch, scanEndedWebsiteSceneIntakes } = await import("../utils/websitePreparationOpsAlerts");
 const { projectWebsiteSceneProgression, loadWebsiteSceneProgression } = await import("../utils/websiteSceneProgression");
 const { recordSiteCaptureUploadIdentity } = await import("../utils/siteCaptureUploadIdentity");
 type Stored = import("../utils/websitePreparationStatus").StoredWebsitePreparation;
@@ -126,6 +126,47 @@ describe("ops alert", () => {
     expect(await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 1, alert, email: vi.fn(async () => ({}) as never) }))
       .toEqual({ due: 1, alerted: 0 });
     expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_DUE_FIELD]).toBeNull();
+  });
+});
+
+describe("captures uploaded before the watch shipped", () => {
+  const published = (captureId: string, requestId: string, extra: Record<string, unknown> = {}) =>
+    state.docs.set(`captureUploadSessions/${captureId}`, { browser_pending_delivery: { state: "published", request_id: requestId,
+      scene_id: `site-${requestId}`, capture_id: captureId, completed_at_iso: new Date(0).toISOString() }, ...extra });
+  it("BACKFILL-001 dates a missing watch from the recorded upload, so a stuck capture alerts on the same pass", async () => {
+    published("walkthrough-r1", "r1");
+    published("walkthrough-r2", "r2", { website_preparation: { status: { state: "failed_retryable", attempt_count: 5 } } });
+    published("walkthrough-r3", "r3", { website_preparation: { status: { state: "handed_off", attempt_count: 2 } } });
+    published("walkthrough-r4", "r4", { [watch.WEBSITE_PREPARATION_WATCH_FIELD]: null });
+    published("creator-capture-1", "r5");
+    state.docs.set("captureUploadSessions/supplement-" + "f".repeat(40), { site_capture_bundle: {
+      schema_version: "site_capture_bundle_session.v1", request_id: "r1", scene_id: "site-r1",
+      capture_id: "supplement-" + "f".repeat(40), recorded_at_iso: new Date(0).toISOString() } });
+    for (const id of ["r2", "r3", "r4", "r5"]) state.docs.set(`inboundRequests/${id}`, state.docs.get("inboundRequests/r1")!);
+    expect(await backfillWebsitePreparationWatches({ store: sharedFakeFirestore as never, now: () => 30 * HOUR }))
+      .toEqual({ scanned: 6, started: 3 });
+    expect(session("walkthrough-r1")?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toMatchObject({ kind: "awaiting_first_status",
+      since_iso: new Date(0).toISOString(), due_at_ms: 2 * HOUR });
+    expect(session("walkthrough-r2")?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toMatchObject({ kind: "unchanged_state",
+      state: "failed_retryable", attempt_count: 5, due_at_ms: 24 * HOUR });
+    expect(session("walkthrough-r3")?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toBeNull();
+    expect(session("walkthrough-r4")?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toBeNull();
+    expect(session("creator-capture-1")?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toBeUndefined();
+    const alert = vi.fn(async () => undefined);
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 30 * HOUR, alert,
+      email: vi.fn(async () => ({}) as never) })).alerted).toBe(3);
+    // Nothing is backfilled twice, so nothing alerts twice.
+    expect((await backfillWebsitePreparationWatches({ store: sharedFakeFirestore as never, now: () => 31 * HOUR })).started).toBe(0);
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 31 * HOUR, alert,
+      email: vi.fn(async () => ({}) as never) })).alerted).toBe(0);
+  });
+  it("BACKFILL-002 a recent legacy upload waits out its own bound", async () => {
+    state.docs.set("captureUploadSessions/walkthrough-r1", { browser_pending_delivery: { state: "published", request_id: "r1",
+      scene_id: "site-r1", capture_id: "walkthrough-r1", completed_at_iso: new Date(29 * HOUR).toISOString() } });
+    await backfillWebsitePreparationWatches({ store: sharedFakeFirestore as never, now: () => 30 * HOUR });
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 30 * HOUR,
+      alert: vi.fn(async () => undefined), email: vi.fn(async () => ({}) as never) })).alerted).toBe(0);
+    expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_DUE_FIELD]).toBe(31 * HOUR);
   });
 });
 

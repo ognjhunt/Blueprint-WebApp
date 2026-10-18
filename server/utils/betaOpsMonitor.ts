@@ -267,8 +267,12 @@ async function checkLaunchReadiness() {
 }
 
 async function scanWebsitePreparations() {
-  const { scanWebsitePreparationWatch, scanEndedWebsiteSceneIntakes } = await import("./websitePreparationOpsAlerts");
-  return { watch: await scanWebsitePreparationWatch(), intakes: await scanEndedWebsiteSceneIntakes() };
+  const { backfillWebsitePreparationWatches, scanWebsitePreparationWatch, scanEndedWebsiteSceneIntakes } =
+    await import("./websitePreparationOpsAlerts");
+  // Uploads recorded before the watch existed get one first, so a capture
+  // already stuck is reported by the same pass.
+  const backfill = await backfillWebsitePreparationWatches();
+  return { backfill, watch: await scanWebsitePreparationWatch(), intakes: await scanEndedWebsiteSceneIntakes() };
 }
 
 export async function runBetaOpsMonitorPass() {

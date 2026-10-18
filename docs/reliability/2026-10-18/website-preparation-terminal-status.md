@@ -57,6 +57,10 @@ and would keep a v2-only key under a later v1 receipt.
 
 The beta ops monitor alerts once per due watch (Slack plus one ops email, ids
 and admin links only): no status since upload, one state too long, or an ending.
+Captures uploaded before the watch existed get one on the monitor's first passes
+(a rotating, bounded scan), dated from their own recorded upload, so a capture
+already stuck at deploy time is reported too; a present watch field (including
+null after a final status) is never rewritten.
 The due index is cleared in the transaction that re-reads it, so a concurrent
 status commit with a newer clock wins, and a withdrawn recording is not
 reported. It also alerts once per website scene intake that stopped after
