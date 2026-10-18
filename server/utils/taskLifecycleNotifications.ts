@@ -73,10 +73,10 @@ function workspaceTaskUrl(requestId: string): string {
  * claimed site is sent there; an unclaimed one is told first that its job page
  * will ask it to save the site to an account (audit N12).
  */
-function whereRunsAre(url: string, workspaceUrl: string | null, what: string): string {
+function whereRunsAre(url: string, workspaceUrl: string | null, action: string): string {
   return workspaceUrl
-    ? `Your workspace shows ${what}:\n${workspaceUrl}`
-    : `Run results open in your Blueprint account. To see ${what}, open your job and save this site to your account; your private link keeps working.\n\nOpen your job:\n${url}`;
+    ? `${action} in your workspace:\n${workspaceUrl}`
+    : `Run results open in your Blueprint account. ${action} there: open your job and save this site to your account; your private link keeps working.\n\nOpen your job:\n${url}`;
 }
 
 const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string, detail: string, counterpart: string, workspaceUrl: string | null) => string }> = {
@@ -117,11 +117,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   results_ready: {
     subject: "Results are in from a robot team",
-    body: (url, detail, _counterpart, workspaceUrl) => `A robot team's evaluation run against your scene has finished${detail ? `: ${detail}` : ""}. This is a simulation result for one team's robot, not a physical test or a recommendation.\n\n${whereRunsAre(url, workspaceUrl, "the run")}`,
+    body: (url, detail, _counterpart, workspaceUrl) => `A robot team's evaluation run against your scene has finished${detail ? `: ${detail}` : ""}. This is a simulation result for one team's robot, not a physical test or a recommendation.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
   },
   run_no_result: {
     subject: "A robot team's run ended without a result",
-    body: (url, detail, _counterpart, workspaceUrl) => `A robot team's run against your scene ended without a complete scored result. ${detail || noResultObservationText()} Reply if you need help understanding what happened.\n\n${whereRunsAre(url, workspaceUrl, "the run")}`,
+    body: (url, detail, _counterpart, workspaceUrl) => `A robot team's run against your scene ended without a complete scored result. ${detail || noResultObservationText()} Reply if you need help understanding what happened.\n\n${whereRunsAre(url, workspaceUrl, "Review the run")}`,
   },
   awaiting_evaluations: {
     subject: "Robot teams can now evaluate your job",
@@ -129,7 +129,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   no_team_passed: {
     subject: "No robot team's evaluation has passed yet",
-    body: (url, _detail, _counterpart, workspaceUrl) => `Every evaluation of your job so far has finished, and none passed, so there is no pilot to recommend yet. A recommendation needs one team's evaluation on your job to pass. While your job card stays published, robot teams approved for the beta can still evaluate it, and we will email you when one starts. Nothing is needed from you.\n\n${whereRunsAre(url, workspaceUrl, "each run")}`,
+    body: (url, _detail, _counterpart, workspaceUrl) => `Every evaluation of your job so far has finished, and none passed, so there is no pilot to recommend yet. A recommendation needs one team's evaluation on your job to pass. While your job card stays published, robot teams approved for the beta can still evaluate it, and we will email you when one starts. Nothing is needed from you.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   pilot_request: {
     subject: "A robot team asked to evaluate your site for a pilot",
