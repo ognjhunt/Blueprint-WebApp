@@ -967,6 +967,12 @@ export interface SiteVideoEvidenceSummary {
 
 export interface InboundRequest {
   requestId: string;
+  /**
+   * The site account that owns the job, once saved to one: the claim route, or
+   * a job started from a signed-in site workspace. Footage is accepted only
+   * while this is set (`authorizeCaptureUpload`).
+   */
+  account_owner_uid?: string | null;
   /** Hash of the public form's private retry token; never store the token itself. */
   intake_retry_token_hash?: string | null;
   site_submission_id: string;

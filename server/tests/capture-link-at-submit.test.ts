@@ -230,13 +230,20 @@ function tokenFrom(url: string): string {
   return url.split("/capture-upload/")[1];
 }
 
+/**
+ * A site request the screen has read. Saved to the site's account unless a case
+ * says otherwise: footage waits for a saved job (`authorizeCaptureUpload`), and
+ * these cases are about what else the link is allowed to do.
+ */
 function seedRequest(
   requestId: string,
   triage: Record<string, unknown>,
   captureMode: string | null = "self_capture",
+  owner: string | null = "site-owner",
 ) {
   sharedFakeFirestoreState.docs.set(`inboundRequests/${requestId}`, {
     requestId,
+    ...(owner ? { account_owner_uid: owner } : {}),
     contact: { email: "owner@example.com" },
     request: { buyerType: "site_operator", capture_mode: captureMode, capture_region: "us",
       consent_attestation: { granted: true, statement_version: "2026-09-18.v1",
@@ -1741,6 +1748,7 @@ describe("a site that asked for a visit can film it itself instead", () => {
   it("clears the visit-only service-area block, and keeps what a call already settled", async () => {
     sharedFakeFirestoreState.docs.set("inboundRequests/req-far", {
       requestId: "req-far",
+      account_owner_uid: "site-owner",
       request: {
         buyerType: "site_operator",
         consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-01-01T00:00:00Z" },
@@ -1804,6 +1812,15 @@ it("refuses a missing recording grant before writing any uploaded bytes", async 
   const result = await withRoutes(base => uploadFor(base, "req-no-consent"));
   expect(result.status).toBe(409);
   expect(result.body.code).toBe("recording_consent_required");
+  expect(storedVersions.size).toBe(0);
+  expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+});
+it("refuses footage for a job not yet saved to an account before writing any uploaded bytes", async () => {
+  // A cleared job with a current recording grant: only the account is missing.
+  seedRequest("req-unsaved", { disposition: "qualified" }, "self_capture", null);
+  const result = await withRoutes(base => uploadFor(base, "req-unsaved"));
+  expect(result.status).toBe(409);
+  expect(result.body.code).toBe("site_account_required");
   expect(storedVersions.size).toBe(0);
   expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
 });

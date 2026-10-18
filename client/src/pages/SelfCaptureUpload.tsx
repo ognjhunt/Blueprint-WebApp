@@ -601,10 +601,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           </a>
         </p>
       )}
-      {status.claimUrl && (
-        /* The account moment. Offered from the confirmed brief onward. The URL is minted
-           server-side for the owner's link alone; a film-only link never
-           receives one. */
+      {status.claimUrl && !(link.status === "held" && link.holdReason === "site_account_required") && (
+        /* The account moment, offered from the start: footage waits for a
+           saved job. The URL is minted server-side for the owner's link alone;
+           a film-only link never receives one. While the link waits for the
+           account, the held section below carries the step instead. */
         <p style={{ margin: "10px 0 0" }}>
           <a className="ms-text-link" href={status.claimUrl}>
             {RUN_DECISIONS.has(status.decision)
@@ -707,7 +708,24 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               </p>
             </section>
           )}
-          {link.holdReason !== "capturer_visit_scheduled" && (
+          {link.holdReason === "site_account_required" ? (
+            /* Footage waits for a saved job (owner decision 2026-10-18), so the
+               account is the step: the upload routes refuse a video before it. */
+            scope === "owner" ? (
+              <section aria-label="Save this job to your account" style={{ marginBottom: "24px" }}>
+                <p style={{ marginBottom: "12px" }}>{link.detail}</p>
+                {status?.claimUrl && <div className="ms-intake-account-links">
+                  <a className="ms-button" href={status.claimUrl}>Create an account for this job</a>
+                  <a className="ms-text-link" href={`${status.claimUrl}?mode=signin`}>Sign in to save this job</a>
+                </div>}
+              </section>
+            ) : (
+              <p style={{ color: "var(--ms-muted)", marginBottom: "24px" }}>
+                The job's owner needs to save it to their Blueprint account before the video can be sent.
+                Ask them to open their job link; this link takes the video once they have.
+              </p>
+            )
+          ) : link.holdReason !== "capturer_visit_scheduled" && (
             <p style={{ color: "var(--ms-muted)", marginBottom: "24px" }}>{link.detail}</p>
           )}
 

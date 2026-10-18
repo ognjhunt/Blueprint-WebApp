@@ -30,7 +30,8 @@ describe("free beta authority", () => {
     expect(hasCurrentRecordingConsent(value)).toBe(false);
   });
   it("rechecks recording consent after a link is issued", async () => {
-    const request = { request: { consent_attestation: { ...grant } } };
+    // Saved to an account: footage waits for a saved job, so this isolates consent.
+    const request = { account_owner_uid: "site-owner", request: { consent_attestation: { ...grant } } };
     sharedFakeFirestoreState.docs.set("inboundRequests/request", request);
     expect((await authorizeCaptureUpload("request")).allowed).toBe(true);
     request.request.consent_attestation.granted = false;

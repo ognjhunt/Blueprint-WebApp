@@ -43,6 +43,22 @@ function fill(task = "Move sealed cartons") {
   fireEvent.change(document.querySelector("#start-company")!, {target: {value: "Fixture company"}});
 }
 function submit() { fireEvent.submit(screen.getByRole("form")); }
+/**
+ * Footage waits for a saved job (owner decision 2026-10-18): only a signed-in
+ * site account sends its video with the form, so the upload cases are its.
+ */
+const SITE_OWNER = { uid: "site-owner-fixture", email: "owner@example.test", getIdToken: async () => "fixture" };
+async function renderAsSiteOwner() {
+  identity.user = SITE_OWNER;
+  const view = await renderReady(<SiteCaptureStart />);
+  await screen.findByText(/Saving to your workspace as owner@example.test/);
+  return view;
+}
+/** A site account is asked for neither an email nor a company: the account has both. */
+function fillSigned(task = "Move sealed cartons") {
+  fireEvent.change(document.querySelector("#start-task")!, {target: {value: task}});
+  fireEvent.change(document.querySelector("#start-location")!, {target: {value: "Austin, TX"}});
+}
 beforeEach(() => {
   durability.rows.clear();
   vi.stubGlobal("navigator", {userAgent:navigator.userAgent, locks:{request:async (_key:string, action:()=>unknown)=>action()}});
@@ -88,15 +104,13 @@ it("RETURN-004: an acknowledged upload recovers without requiring lost File byte
   const sender = vi.spyOn(upload,"uploadSelfCaptureVideo").mockResolvedValue({status:"failed",message:"interrupted"});
   fetchMock.mockImplementation(async (url: string, init?: any) => {
     if (init?.method === "POST") {sent.push({url,body:JSON.parse(init.body)}); return {ok:true,status:200,json:async()=>({captureUrl:"/capture-upload/fixture"})};}
-    return {ok:true,status:200,json:async()=>({state:"pending",captureReceived:false,features:[]})};
+    return {ok:true,status:200,json:async()=>({state:"pending",captureReceived:false,features:[],workspaceType:"site_operator"})};
   });
-  const view=await renderReady(<SiteCaptureStart />);fill();fireEvent.click(document.querySelector("#start-method-upload")!);
-  // A guest sends the video with the form only by choosing to (P1-8).
-  fireEvent.click(document.querySelector("#start-upload-without-account")!);
+  const view=await renderAsSiteOwner();fillSigned();fireEvent.click(document.querySelector("#start-method-upload")!);
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
   submit();
   await screen.findByRole("heading",{name:"Your job is saved. Check your video upload."});
-  view.unmount();await renderReady(<SiteCaptureStart />);
+  view.unmount();await renderAsSiteOwner();
   fireEvent.click(screen.getByRole("button",{name:"Return to saved job"}));
   await screen.findByRole("link",{name:"Open the uploader"});
   expect(sent).toHaveLength(2);expect(sent[1].body).toEqual(sent[0].body);expect(sender).toHaveBeenCalledTimes(1);
@@ -109,9 +123,7 @@ it("ACCESS-004: late intake acceptance after account switch cannot start origina
     if(init?.method==="POST") {sent.push({url,body:JSON.parse(init.body)});return new Promise(resolve=>{accept=resolve;});}
     return {ok:true,status:200,json:async()=>({features:[],workspaceType:"site_operator"})};
   });
-  const view=await renderReady(<SiteCaptureStart />);fill();fireEvent.click(document.querySelector("#start-method-upload")!);
-  // A guest sends the video with the form only by choosing to (P1-8).
-  fireEvent.click(document.querySelector("#start-upload-without-account")!);
+  const view=await renderAsSiteOwner();fillSigned();fireEvent.click(document.querySelector("#start-method-upload")!);
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
   submit();
   await vi.waitFor(()=>expect(sent).toHaveLength(1));
@@ -143,17 +155,16 @@ it("CROSS-TAB-012 adopting another tab's freeze does not upload this tab's selec
   const upload=await import("@/lib/selfCaptureVideo");const sender=vi.spyOn(upload,"uploadSelfCaptureVideo");
   fetchMock.mockImplementation(async(url:string,init?:any)=>{
     if(init?.method==="POST"){sent.push({url,body:JSON.parse(init.body)});return {ok:true,status:200,json:async()=>({captureUrl:"/capture-upload/fixture"})};}
-    return {ok:true,status:200,json:async()=>({features:[]})};
+    return {ok:true,status:200,json:async()=>({features:[],workspaceType:"site_operator"})};
   });
-  await renderReady(<SiteCaptureStart />);fill();fireEvent.click(document.querySelector("#start-method-upload")!);
-  // A guest sends the video with the form only by choosing to (P1-8).
-  fireEvent.click(document.querySelector("#start-upload-without-account")!);
+  await renderAsSiteOwner();fillSigned();fireEvent.click(document.querySelector("#start-method-upload")!);
   fireEvent.change(document.querySelector("#start-footage")!,{target:{files:[new File(["fixture"],"video.mp4",{type:"video/mp4"})]}});
   // A competing tab shares the hydrated identity and freezes through the real helper.
   await act(async () => {});
-  const winner=helper.readSiteCaptureRecovery(helper.siteCaptureDraftKey(null,"default"))!;winner.draft={...winner.draft,method:"phone",task:"Winning description",location:"Austin, TX",region:"us",email:"winner@example.test"};
-  winner.pending={endpoint:"/api/inbound-request",acknowledged:false,body:JSON.stringify({requestId:winner.requestId,retryToken:winner.retryToken,buyerType:"site_operator",taskStatement:winner.draft.task,siteLocation:winner.draft.location,captureRegion:"us",email:winner.draft.email,descriptionOnly:true})};
-  await helper.freezeSiteCaptureRecovery(helper.siteCaptureDraftKey(null,"default"),winner);
+  const key=helper.siteCaptureDraftKey(SITE_OWNER.uid,"default");
+  const winner=helper.readSiteCaptureRecovery(key)!;winner.draft={...winner.draft,method:"phone",task:"Winning description",location:"Austin, TX",region:"us"};
+  winner.pending={endpoint:"/api/workspace/capture-start",acknowledged:false,body:JSON.stringify({requestId:winner.requestId,retryToken:winner.retryToken,buyerType:"site_operator",taskStatement:winner.draft.task,siteLocation:winner.draft.location,captureRegion:"us",descriptionOnly:true})};
+  await helper.freezeSiteCaptureRecovery(key,winner);
   submit();
   await screen.findByRole("link",{name:"Open your job and assessment"});
   expect(sent).toHaveLength(1);expect(sent[0].body).toEqual(JSON.parse(winner.pending.body));expect(sender).not.toHaveBeenCalled();sender.mockRestore();

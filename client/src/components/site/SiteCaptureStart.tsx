@@ -309,13 +309,12 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // When it is ticked the video is attached right here, so the form is the
   // whole submission rather than a step before another upload page.
   const hasFootage = method === "upload";
-  // A guest's video sent with the form, then saved to an account, cannot reach
-  // a robot team's evaluation until a verified claim can resume it (WebApp
-  // #1035, Pipeline #2696). So a guest is offered the account first, and sends
-  // the video now only by choosing to, with that consequence stated.
-  const [sendWithoutAccount, setSendWithoutAccount] = useState(false);
-  // A signed-in site workspace owns the job from the start, so its video goes with the form.
-  const videoWithForm = siteWorkspace || sendWithoutAccount;
+  // Footage waits for a saved job (owner decision 2026-10-18). A video sent
+  // before its job has an account is born with no owner, and saving the job
+  // afterwards is an owner change the Pipeline refuses for that capture. A
+  // signed-in site workspace owns the job from the start, so only its video
+  // goes with the form; the upload routes refuse any other.
+  const videoWithForm = siteWorkspace;
   const [footage, setFootage] = useState<File | null>(null);
   const [footageError, setFootageError] = useState<string | null>(null);
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
@@ -359,7 +358,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     setPending(other.pending);
     if (changed && resetChanged) {
       setClaudeConsent(false); setSolAgentsConsent(false);
-      setFootage(null); setSendWithoutAccount(false); setResetVersion(value => value + 1);
+      setFootage(null); setResetVersion(value => value + 1);
     }
   }
   function retainDraft(place?: ChosenPlace) {
@@ -397,7 +396,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setClaudeConsent(false); setSolAgentsConsent(false);
       setMethod("phone"); setRegion(""); setCountryMissing(false);
       setPrivateHandling(false); setTaskForPreview("");
-      setFootage(null); setFootageError(null); setCaptureReceived(false); setSendWithoutAccount(false);
+      setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
       // A completion is visible only after both stores commit the fresh authority.
       setClearStatus("done");
@@ -434,7 +433,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       return;
     }
     if (!retained && footageWanted && videoWithForm && !footage) return;
-    const chosenWithoutAccount = sendWithoutAccount;
 
     const data = new FormData(formRef.current!);
     const operationRecovery = recovery.current;
@@ -602,9 +600,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       let uploadMessage: string | null = null;
       let processingRetryAvailable = false;
       const captureToken = captureUrl ? captureTokenFromUrl(captureUrl) : null;
-      // Only a job saved to an account from the start, or a guest who chose to
-      // send it now, uploads here. Otherwise the video waits for the account.
-      const uploadNow = savedToWorkspace || (chosenWithoutAccount && !recoveredSubmission);
+      // Only a job saved to an account from the start uploads here. Otherwise
+      // the video waits for the account.
+      const uploadNow = savedToWorkspace;
       const videoAwaitsAccount = submissionFootageWanted && regionApproved && !uploadNow;
       if (!recoveredSubmission && uploadNow && submissionFootageWanted && footage && regionApproved && captureToken) {
         setUploadPercent(0);
@@ -651,10 +649,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   }
 
   if (state.status === "done") {
-    // A guest's footage is in: saving the job to an account now would change
-    // the recording's owner, which the Pipeline refuses, so it is not offered.
-    const footageSentWithoutAccount = !state.workspaceUrl
-      && (captureReceived || ["done", "processing_pending", "held"].includes(state.uploaded));
     return (
       <div className="ms-form ms-intake-confirmation" aria-live="polite">
         {!state.hasFootage && state.captureUrl && !captureReceived ? (
@@ -772,20 +766,15 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         )}
         {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
         {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
-        {footageSentWithoutAccount && <p className="ms-field-hint" role="note" aria-label="Sent without an account">
-          This video was sent without an account. Robot teams cannot evaluate a job whose video was sent before the job
-          was saved to an account; your free assessment continues on your job page.
-        </p>}
-        {!state.workspaceUrl && state.claimUrl && !state.videoAwaitsAccount && !footageSentWithoutAccount && <section className="ms-intake-account" aria-label="Save this job to your account">
+        {!state.workspaceUrl && state.claimUrl && !state.videoAwaitsAccount && <section className="ms-intake-account" aria-label="Save this job to your account">
           <h2>Save this job to your account</h2>
           {/* Not optional for evaluation: the scene robot teams run against is
-              built only for a claimed site (`websiteSceneSponsorship`). Saving
-              before footage arrives also keeps the recording's owner the same
-              from upload on, which the Pipeline checks; once a guest's footage
-              is in, saving is not offered at all (P1-8). */}
+              built only for a claimed site (`websiteSceneSponsorship`), and its
+              video is accepted only once the job is saved, so the recording's
+              owner is the same from upload on, as the Pipeline requires. */}
           <p className="ms-field-hint">
             We build the scene robot teams evaluate only for a job saved to an account with {state.email}.
-            {" "}Save it now, before any footage is sent. Your private job link keeps working either way.
+            {" "}Save it now: we accept its video once it is saved. Your private job link keeps working either way.
           </p>
           <div className="ms-intake-account-links">
             <a className="ms-text-link" href={state.claimUrl}>Create an account for this job</a>
@@ -892,15 +881,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
               Already have a site account? <a className="ms-text-link" href="/sign-in" onClick={rememberThisForm}>Sign in first</a> and
               send it with this form.
             </p>
-            <label className="ms-check-row" htmlFor="start-upload-without-account">
-              <input id="start-upload-without-account" type="checkbox" checked={sendWithoutAccount}
-                onChange={(event) => {
-                  setSendWithoutAccount(event.target.checked);
-                  if (!event.target.checked) { setFootage(null); setFootageError(null); }
-                }} />
-              <span>Send the video now, without an account. You still get the free assessment, but robot teams cannot
-                evaluate a job whose video was sent before the job was saved to an account.</span>
-            </label>
             {/* Starting with footage is the recording grant, video now or later, so the notice is read here too. */}
             {!videoWithForm && <p className="ms-field-hint">{FOOTAGE_UPLOAD_NOTICE}</p>}
           </div>}

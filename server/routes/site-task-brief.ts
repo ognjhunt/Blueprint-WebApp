@@ -1010,14 +1010,12 @@ router.get("/:token/status", async (req: Request, res: Response) => {
       && upload.processingHold) {
       status.headline = upload.processingHold.detail;
     }
-    // Keep the optional claim from brief confirmation onward, including the
-    // first visual scene. A reconstruction is not an evaluation result.
-    const claimUrl =
-      (Boolean(request?.site_task_brief_confirmed_at) || sceneViewUrl
-        || ["screening", "results", "no_team_passed", "no_qualified_evaluation"].includes(status.decision)) &&
-      payload.scope !== "film" && !request?.account_owner_uid
-        ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
-        : null;
+    // Footage waits for a saved job (`authorizeCaptureUpload`), so an unclaimed
+    // owner link offers the claim from the start, not from brief confirmation
+    // onward. A film-only link never receives one.
+    const claimUrl = request && payload.scope !== "film" && !request.account_owner_uid
+      ? `${(process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "")}/claim/${createSiteClaimToken(payload.requestId)}`
+      : null;
 
     const siteAdvisory = payload.scope === "owner"
       ? await loadCurrentSiteAdvisory(payload.requestId, payload.captureId, { expectedOwnerUid: request?.account_owner_uid ?? null }) : null;

@@ -32,6 +32,16 @@
  * the rule's own reason — so the sentence a site reads on the page and the
  * sentence in our logs are the same sentence, and there is no way for the two
  * to drift apart.
+ *
+ * ## Footage waits for a saved job
+ *
+ * Two preconditions sit beside the rule: the current recording grant, and an
+ * account that owns the job. A walkthrough is born in the Pipeline with the
+ * job's owner at that moment; a video sent before the job was saved to an
+ * account is born with none, and saving the job afterwards is an owner change
+ * the Pipeline refuses for that capture for good (owner decision 2026-10-18).
+ * So bytes are accepted only for a saved job, on every upload route, and the
+ * hold says so in the one sentence the page and the logs share.
  */
 
 import { hasCurrentRecordingConsent } from "./recordingConsent";
@@ -61,6 +71,11 @@ export interface CaptureUploadAuthorization {
   /** Only an owner of a new prose-only job may make its first recording grant. */
   recordingConsentAvailable?: boolean;
 }
+
+/** The hold for footage sent before its job is saved to an account. */
+export const SITE_ACCOUNT_REQUIRED = "site_account_required";
+export const SITE_ACCOUNT_REQUIRED_DETAIL = "Save this job to your account before you send its video. "
+  + "Robot teams can evaluate a job only if its video is sent after the job is saved to an account.";
 
 function held(
   holdReason: string,
@@ -134,6 +149,10 @@ export async function authorizeCaptureUpload(
       "This site is set up for a capturer visit rather than a self-recorded walkthrough.",
       request,
     );
+  }
+
+  if (typeof request.account_owner_uid !== "string" || !request.account_owner_uid) {
+    return held(SITE_ACCOUNT_REQUIRED, SITE_ACCOUNT_REQUIRED_DETAIL, request);
   }
 
   return {

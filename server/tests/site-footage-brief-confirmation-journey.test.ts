@@ -3,6 +3,8 @@
  * Audit N1 and N11: a site that sends its footage is told, on its job page
  * and by email, that confirming its job brief is the one step left that is
  * its own, and the brief-confirmed email never asks a filmed site to film.
+ * Footage waits for a saved job (owner decision 2026-10-18), so each site here
+ * saves its job through the real claim before its video goes.
  *
  * Robot teams can evaluate a job only once its brief is confirmed
  * (`teamJobAccess` → `isRunnableTask`). The owner page used to call that step
@@ -200,6 +202,7 @@ async function workspaceTask(jobId: string) {
 describe("a site that sends its footage before confirming its brief", () => {
   it("is told on its job page that confirming the brief is its step, and why", async () => {
     const { jobId, token } = await startJob();
+    await claim(jobId);
     await sendFootage(token);
     const { teamJobAccess } = await import("../utils/teamJobAccess");
     // The reason the step is not optional: no robot team can evaluate the job yet.
@@ -216,6 +219,7 @@ describe("a site that sends its footage before confirming its brief", () => {
 
   it("gets one email when the footage lands, and it asks for the confirmation", async () => {
     const { jobId, token } = await startJob();
+    await claim(jobId);
     await sendFootage(token);
     const notice = outbox(`${jobId}:video_received`);
     expect(notice?.kind).toBe("video_received");
@@ -232,6 +236,7 @@ describe("a site that sends its footage before confirming its brief", () => {
 
   it("is never asked to film again once it confirms", async () => {
     const { jobId, token } = await startJob();
+    await claim(jobId);
     await sendFootage(token);
     expect((await confirmBrief(token)).disposition).toBe("qualified");
     const confirmed = outbox(`${jobId}:brief-screening:qualified`);
@@ -242,11 +247,11 @@ describe("a site that sends its footage before confirming its brief", () => {
     expect((await jobStatus(token)).status.decision).not.toBe("confirm_brief");
   });
 
-  it("is never asked to film on its workspace job page once it saves the job", async () => {
+  it("is never asked to film on its workspace job page once its footage is in", async () => {
     const { jobId, token } = await startJob();
+    await claim(jobId);
     await sendFootage(token);
     await confirmBrief(token);
-    await claim(jobId);
     const page = (await jobStatus(token)).status;
     expect(page.decision).toBe("footage_received");
     // The workspace job page tells the same story as the private one.
@@ -262,6 +267,7 @@ describe("a site that confirms before it films", () => {
     expect((await confirmBrief(token)).disposition).toBe("qualified");
     // Nothing filmed yet: the confirmed email asks for the walkthrough.
     expect(outbox(`${jobId}:brief-screening:qualified`)?.body).toMatch(/film the work area/i);
+    await claim(jobId);
     await sendFootage(token);
     const notice = outbox(`${jobId}:video_received`);
     expect(notice?.subject).toBe("We received your Blueprint walkthrough");
@@ -332,6 +338,7 @@ describe("a site that sends footage with no description", () => {
     const { teamJobAccess } = await import("../utils/teamJobAccess");
     const { getBrief } = await import("../utils/siteTaskBrief");
     const { jobId, token } = await startJob({ task: "" });
+    await claim(jobId);
     await sendFootage(token);
 
     const refused = await postConfirmation(token);
@@ -352,6 +359,7 @@ describe("a site that sends footage with no description", () => {
 
   it("is asked for one sentence again, not told the job is out of scope, when the sentence names no job", async () => {
     const { jobId, token } = await startJob({ task: "" });
+    await claim(jobId);
     await sendFootage(token);
     const body = await confirmBrief(token, { summary: "Cartons", successCriteria: { successDefinition: null, successRate: null,
       cycleTimeSeconds: null, unknown: true } });
