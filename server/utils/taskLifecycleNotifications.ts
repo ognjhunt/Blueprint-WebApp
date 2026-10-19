@@ -94,7 +94,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   // One per terminal transition. The detail is only a fixed reason sentence and a reference.
   preparation_ended: {
     subject: "We stopped preparing your Blueprint scene",
-    body: (url, detail) => `We could not finish building the scene preview for your job, and we have stopped trying.${detail ? ` ${detail}` : ""} Nothing more is needed from you, and our team has been told. Keep your original recording. Your job page shows the latest status.\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `We could not finish building the scene preview for your job, and we have stopped trying.${detail ? ` ${detail}` : ""} Nothing more is needed from you. This needs our team's review. Keep your original recording. Your job page shows the latest status.\n\nOpen your job:\n${url}`,
   },
   task_received: {
     subject: "We have your Blueprint job — here is your link",
