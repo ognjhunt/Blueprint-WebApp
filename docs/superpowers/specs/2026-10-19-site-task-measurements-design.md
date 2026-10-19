@@ -148,8 +148,12 @@ friction. Each template check states which of these its simulator reading uses.
   and success-contract digests do not exist before a run, and the robot model
   digest is per team. So the binding is an input, checked for shape and for
   `scene_request_id` equal to the job. `observed_at_iso` is the latest
-  included reading's time, rounded up to the second. Nothing is written; the
-  export is logged.
+  included reading's time, rounded up to the second. Each export is kept
+  immutably at `siteTaskMeasurements/{requestId}/exports/{sha256 hex}`: the
+  exact bytes plus the binding, producer, calibration readings, revision and
+  admin. A lost download or a later edit therefore never loses the evidence.
+  `GET .../site-measurements/exports/:digest` is the recovery route. The export
+  is refused once recording consent is withdrawn, as the site's own links are.
 - The admin job console shows the readings and offers the export as a JSON
   download.
 - Measurements are not added to the Pipeline task-context export. That would

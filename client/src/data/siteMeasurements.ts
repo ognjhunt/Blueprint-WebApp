@@ -359,3 +359,44 @@ export interface SourceMeasurementExportResponse {
   /** What the exported readings can fill, check by check, after calibration readings are left out. */
   coverage: MeasurementCoverage;
 }
+
+/** Where an export is kept: immutable, keyed by its sha256, so a lost download can be recovered. */
+export interface RetainedExportReference {
+  path: string;
+  retainedAtIso: string;
+  /** The same bytes were exported before; the first record stands. */
+  alreadyRetained: boolean;
+}
+
+/** The admin export response: the document and the reference to its retained copy. */
+export interface RetainedSourceMeasurementExportResponse extends SourceMeasurementExportResponse {
+  retained: RetainedExportReference;
+}
+
+/** One retained export as the job console lists it. */
+export interface RetainedExportSummary {
+  path: string;
+  sha256: string;
+  sizeBytes: number;
+  fileName: string;
+  revision: number;
+  producerId: string;
+  calibrationSampleIds: string[];
+  exportedAtIso: string;
+}
+
+/** A retained export in full: the exact bytes and the inputs that produced them. */
+export interface RetainedExport extends RetainedExportSummary {
+  requestId: string;
+  json: string;
+  binding: Record<string, string>;
+  exportedBy: string | null;
+}
+
+/** `GET /api/admin/jobs/:requestId/site-measurements`. */
+export interface SiteMeasurementsConsoleResponse {
+  measurements: AdminSiteMeasurements | null;
+  /** Recording consent was withdrawn: exports are refused. */
+  consentRevoked: boolean;
+  exports: RetainedExportSummary[];
+}

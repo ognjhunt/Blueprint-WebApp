@@ -58,7 +58,13 @@ three inputs:
 The response is the document's exact bytes, their sha256 and size, and which
 checks the readings can fill. Retain those bytes unchanged as the request's
 `measurement` artifact. A `site_job:` producer must name this job, and every
-earlier save of the readings stays in `siteTaskMeasurements/{requestId}/revisions`. The Pipeline's
+earlier save of the readings stays in `siteTaskMeasurements/{requestId}/revisions`.
+WebApp also keeps each export immutably at
+`siteTaskMeasurements/{requestId}/exports/{sha256 hex}`, with its binding,
+producer, calibration readings and revision. If a download is lost, recover
+the exact bytes from the console's retained-export list or
+`GET /api/admin/jobs/:requestId/site-measurements/exports/:digest`. Once the
+site withdraws recording consent, the export is refused. The Pipeline's
 `site_task_fidelity_profile_templates` coverage command reports any check the
 readings cannot fill. Its profile command stays refused until the founder has
 reviewed the templates' thresholds. A Pipeline service identity produces the

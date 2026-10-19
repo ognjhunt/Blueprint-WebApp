@@ -38,6 +38,13 @@
  * the binding is an input, checked for shape and for naming this job. A reading
  * that set the scene's metric scale is named in `calibrationSampleIds` and left
  * out of every check, because it cannot also check that scale.
+ *
+ * Every export is retained, immutably and keyed by its sha256, at
+ * `siteTaskMeasurements/{requestId}/exports/{hex}`: the exact bytes plus the
+ * binding, producer, calibration readings and revision that made them. A lost
+ * download or a later edit therefore never loses the evidence handed to the
+ * Pipeline; `getRetainedExport` is the recovery route. The admin route refuses
+ * to export at all once recording consent is withdrawn.
  */
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -68,6 +75,9 @@ import {
   type PresentedSiteMeasurements,
   type ReadingBasis,
   type ReferencePaper,
+  type RetainedExport,
+  type RetainedExportReference,
+  type RetainedExportSummary,
   type SourceMeasurementExportResponse,
 } from "../../client/src/data/siteMeasurements";
 
@@ -429,4 +439,82 @@ export function buildSourceMeasurementDocument(
     // Check by check, so a check exported with too few readings is named here, not first at qualification.
     coverage: coverageOf(record.family, includedIds),
   };
+}
+
+const RETAINED_EXPORT_SCHEMA = "blueprint.webapp.site_task_measurement_export.v1";
+const RETAINED_EXPORTS_LISTED = 20;
+
+function exportsOf(requestId: string) {
+  return store().doc(requestId).collection("exports");
+}
+
+function summaryOf(path: string, data: Record<string, any>): RetainedExportSummary {
+  return {
+    path,
+    sha256: String(data.sha256),
+    sizeBytes: Number(data.sizeBytes),
+    fileName: String(data.fileName),
+    revision: Number(data.revision),
+    producerId: String(data.producerId),
+    calibrationSampleIds: Array.isArray(data.calibrationSampleIds) ? data.calibrationSampleIds.map(String) : [],
+    exportedAtIso: String(data.exportedAtIso),
+  };
+}
+
+/**
+ * Keep the exact export and the inputs that produced it, keyed by its sha256.
+ * Create-only: identical bytes were exported before, so the first record stands.
+ */
+export async function retainSourceMeasurementExport(
+  record: SiteTaskMeasurementRecord,
+  exported: SourceMeasurementExportResponse,
+  inputs: { producerId: string; calibrationSampleIds: string[] },
+  actor: { uid: string | null },
+  now: Date = new Date(),
+): Promise<RetainedExportReference> {
+  const ref = exportsOf(record.requestId).doc(exported.sha256.slice("sha256:".length));
+  return db!.runTransaction(async (tx) => {
+    const snapshot = await tx.get(ref);
+    if (snapshot.exists) {
+      return { path: ref.path, retainedAtIso: String(snapshot.data()?.exportedAtIso ?? ""), alreadyRetained: true };
+    }
+    const exportedAtIso = now.toISOString();
+    tx.set(ref, {
+      schemaVersion: RETAINED_EXPORT_SCHEMA,
+      requestId: record.requestId,
+      revision: record.revision,
+      sha256: exported.sha256,
+      sizeBytes: exported.sizeBytes,
+      fileName: exported.fileName,
+      json: exported.json,
+      binding: JSON.parse(exported.json).binding,
+      producerId: inputs.producerId,
+      calibrationSampleIds: [...inputs.calibrationSampleIds],
+      exportedAtIso,
+      exportedBy: actor.uid,
+    });
+    return { path: ref.path, retainedAtIso: exportedAtIso, alreadyRetained: false };
+  });
+}
+
+/** The recovery route: one retained export by its digest's hex, or null. */
+export async function getRetainedExport(requestId: string, digestHex: string): Promise<RetainedExport | null> {
+  const ref = exportsOf(requestId).doc(digestHex);
+  const snapshot = await ref.get();
+  const data = snapshot.exists ? snapshot.data() : undefined;
+  if (!data) return null;
+  return {
+    ...summaryOf(ref.path, data),
+    requestId: String(data.requestId),
+    json: String(data.json),
+    binding: (data.binding ?? {}) as Record<string, string>,
+    exportedBy: data.exportedBy ?? null,
+  };
+}
+
+/** The most recent retained exports for a job, newest first. */
+export async function listRetainedExports(requestId: string): Promise<RetainedExportSummary[]> {
+  const snapshot = await exportsOf(requestId).orderBy("exportedAtIso", "desc").limit(RETAINED_EXPORTS_LISTED).get();
+  return snapshot.docs.map((doc: { ref: { path: string }; data: () => Record<string, any> }) =>
+    summaryOf(doc.ref.path, doc.data()));
 }

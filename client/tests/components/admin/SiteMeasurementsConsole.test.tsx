@@ -75,7 +75,7 @@ afterEach(() => {
 
 describe("the readings", () => {
   it("loads nothing until opened, then shows SI values, provenance and what cannot be filled", async () => {
-    fetchMock.mockResolvedValueOnce(json({ measurements: MEASUREMENTS }));
+    fetchMock.mockResolvedValueOnce(json({ measurements: MEASUREMENTS, consentRevoked: false, exports: [] }));
     const { container } = render(<SiteMeasurementsConsole requestId="job-a" currentUser={null} />);
     expect(fetchMock).not.toHaveBeenCalled();
     const details = container.querySelector("details")!;
@@ -93,7 +93,7 @@ describe("the readings", () => {
   });
 
   it("says so when the site recorded nothing", async () => {
-    fetchMock.mockResolvedValueOnce(json({ measurements: null }));
+    fetchMock.mockResolvedValueOnce(json({ measurements: null, consentRevoked: false, exports: [] }));
     await open();
     expect(await screen.findByText("No measurements recorded for this job yet.")).toBeInTheDocument();
   });
@@ -101,7 +101,7 @@ describe("the readings", () => {
 
 describe("the source document export", () => {
   async function ready() {
-    fetchMock.mockResolvedValueOnce(json({ measurements: MEASUREMENTS }));
+    fetchMock.mockResolvedValueOnce(json({ measurements: MEASUREMENTS, consentRevoked: false, exports: [] }));
     await open();
     await screen.findByRole("table");
   }
@@ -121,11 +121,19 @@ describe("the source document export", () => {
     });
     expect(screen.getByLabelText("Measurement producer")).toHaveValue("site_job:job-a");
     fireEvent.click(screen.getByLabelText("Long edge of the sheet set the scene's metric scale"));
+    const path = `siteTaskMeasurements/job-a/exports/${"9".repeat(64)}`;
     fetchMock.mockResolvedValueOnce(json({ json: "{\n}\n", sha256: SHA("9"), sizeBytes: 4,
       fileName: "site-task-measurements-job-a-r2.json", sampleCount: 1,
-      coverage: { complete: false, missingDimensions: ["collision", "observation", "task_dynamics", "task_state"], checks: [] } }));
+      coverage: { complete: false, missingDimensions: ["collision", "observation", "task_dynamics", "task_state"], checks: [] },
+      retained: { path, retainedAtIso: "2026-10-19T12:00:00.000Z", alreadyRetained: false } }));
+    // The quiet refresh after an export lists the retained copy.
+    fetchMock.mockResolvedValueOnce(json({ measurements: MEASUREMENTS, consentRevoked: false, exports: [{ path,
+      sha256: SHA("9"), sizeBytes: 4, fileName: "site-task-measurements-job-a-r2.json", revision: 2,
+      producerId: "site_job:job-a", calibrationSampleIds: ["reference_sheet_long_edge"],
+      exportedAtIso: "2026-10-19T12:00:00.000Z" }] }));
     fireEvent.click(screen.getByRole("button", { name: "Build source document" }));
-    expect(await screen.findByText(SHA("9"))).toBeInTheDocument();
+    expect(await screen.findByText(`Retained at ${path}.`)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: `Download retained export ${SHA("9")}` })).toBeInTheDocument();
     const [url, init] = fetchMock.mock.calls[1];
     expect(url).toBe("/api/admin/jobs/job-a/site-measurements/source-document");
     expect(init.method).toBe("POST");
@@ -149,5 +157,27 @@ describe("the source document export", () => {
       error: "That binding names a different site job." }, 400));
     fireEvent.click(screen.getByRole("button", { name: "Build source document" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("That binding names a different site job.");
+  });
+
+  it("offers no export once recording consent is withdrawn", async () => {
+    fetchMock.mockResolvedValueOnce(json({ measurements: MEASUREMENTS, consentRevoked: true, exports: [] }));
+    await open();
+    expect(await screen.findByText(/Recording consent was withdrawn for this job/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Build source document" })).toBeNull();
+  });
+});
+
+describe("recovering a retained export", () => {
+  it("downloads the exact retained bytes by digest", async () => {
+    const summary = { path: `siteTaskMeasurements/job-a/exports/${"7".repeat(64)}`, sha256: SHA("7"), sizeBytes: 6,
+      fileName: "site-task-measurements-job-a-r1.json", revision: 1, producerId: "site_job:job-a",
+      calibrationSampleIds: [], exportedAtIso: "2026-10-18T12:00:00.000Z" };
+    fetchMock.mockResolvedValueOnce(json({ measurements: null, consentRevoked: false, exports: [summary] }));
+    await open();
+    fetchMock.mockResolvedValueOnce(json({ ...summary, requestId: "job-a", json: "{ }\n\n", binding: BINDING, exportedBy: "admin" }));
+    fireEvent.click(await screen.findByRole("button", { name: `Download retained export ${SHA("7")}` }));
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
+    expect(fetchMock.mock.calls[1][0]).toBe(`/api/admin/jobs/job-a/site-measurements/exports/${"7".repeat(64)}`);
+    expect((createObjectURL.mock.calls[0][0] as Blob).size).toBe(5);
   });
 });
