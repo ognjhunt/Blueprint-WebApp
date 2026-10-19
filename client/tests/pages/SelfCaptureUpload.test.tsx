@@ -830,3 +830,39 @@ describe("SelfCaptureUpload before the job is saved to an account", () => {
     expect(screen.queryByRole("link", { name: "Create an account for this job" })).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Owner decision 2026-10-18: a job whose video arrived before its account says
+ * so, and its link never invites a second video that could not be used.
+ */
+describe("SelfCaptureUpload for a video that arrived before the job's account", () => {
+  const ARRIVED = "Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. You don't need to send it again; we email you when that changes.";
+  function heldForArrival(claimUrl: string | null) {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) return Promise.resolve({ ok: true, json: async () => ({
+        ok: true, state: "held", holdReason: "footage_before_account", detail: ARRIVED, blockers: [], openQuestions: [] }) });
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}/status`)) return Promise.resolve({ ok: true, json: async () => ({ ok: true,
+        status: { decision: "footage_before_account", headline: ARRIVED, operatorAction: claimUrl ? "Save this job to your account." : null,
+          missingViews: [], nextUpdateIso: null }, claimUrl }) });
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}`)) return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false, scope: "owner" }) });
+      return mockFetch()(input);
+    }));
+  }
+
+  it("offers an unsaved job the account, once, and no uploader", async () => {
+    heldForArrival("/claim/owner-claim");
+    render(<SelfCaptureUpload />);
+    expect((await screen.findAllByText(ARRIVED)).length).toBeGreaterThan(0);
+    expect(await screen.findByRole("link", { name: "Create an account for this job" })).toHaveAttribute("href", "/claim/owner-claim");
+    expect(screen.queryByRole("link", { name: /Claim your site/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Upload|Record/ })).not.toBeInTheDocument();
+  });
+
+  it("tells a saved job the same, with nothing to do", async () => {
+    heldForArrival(null);
+    render(<SelfCaptureUpload />);
+    expect((await screen.findAllByText(ARRIVED)).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: "Create an account for this job" })).not.toBeInTheDocument();
+  });
+});

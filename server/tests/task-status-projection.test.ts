@@ -487,3 +487,30 @@ describe("a cleared site that is not saved to an account yet", () => {
     expect(taskStatusInputFrom({ briefDrafted: true, stage: null }).claimed).toBeUndefined();
   });
 });
+
+/** Owner decision 2026-10-18: a video that arrived before the job's account. */
+describe("a video that arrived before the job's account", () => {
+  const ARRIVED = /^Your video arrived before this job was saved to an account, so we can't use it to build your scene yet\./;
+  it("is said plainly, ahead of any preparation state, with the account as an unsaved job's step", () => {
+    const unsaved = projectTaskStatus(base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true,
+      footageBeforeAccount: true, claimed: false, preparationStatus: { state: "preparing", correlationId: "bp-prep-0000000000000000" } as never }));
+    expect(unsaved).toMatchObject({ decision: "footage_before_account", operatorAction: "Save this job to your account." });
+    expect(unsaved.headline).toMatch(ARRIVED);
+    expect(unsaved.headline).not.toMatch(/preparing|taking longer/i);
+    const saved = projectTaskStatus(base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, footageBeforeAccount: true }));
+    expect(saved).toMatchObject({ decision: "footage_before_account", operatorAction: null });
+    expect(saved.headline).toMatch(/You don't need to send it again; we email you when that changes\.$/);
+  });
+
+  it("yields to a scene or an evaluation, which would prove otherwise", () => {
+    expect(projectTaskStatus(base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true,
+      footageBeforeAccount: true, scenePreviewReady: true })).decision).not.toBe("footage_before_account");
+    expect(projectTaskStatus(base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, footageBeforeAccount: true,
+      screening: { queued: 1, running: 0, reported: 0, noResult: 0 } as never })).decision).not.toBe("footage_before_account");
+  });
+
+  it("never outranks withdrawn consent", () => {
+    expect(projectTaskStatus(base({ hasStoredCapture: true, footageBeforeAccount: true, consentRevoked: true })).headline)
+      .toMatch(/Recording consent was withdrawn/);
+  });
+});

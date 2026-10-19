@@ -554,6 +554,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const descriptionFirst = scope === "owner" && !saved && !existingVideoOnly
     && status?.captureReceived !== true && upload.status !== "done";
 
+  // The link waits on the account: before a video, or after one that arrived before it.
+  const accountHold = link.status === "held"
+    && (link.holdReason === "site_account_required" || link.holdReason === "footage_before_account");
+
   // "Where this stands", for the operator who has no account. It carries a
   // re-film request when there is one, so it is never dropped -- but on a
   // recordable link the camera is the page, so it moves below the camera. When
@@ -601,7 +605,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           </a>
         </p>
       )}
-      {status.claimUrl && !(link.status === "held" && link.holdReason === "site_account_required") && (
+      {status.claimUrl && !accountHold && (
         /* The account moment, offered from the start: footage waits for a
            saved job. The URL is minted server-side for the owner's link alone;
            a film-only link never receives one. While the link waits for the
@@ -708,23 +712,22 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               </p>
             </section>
           )}
-          {link.holdReason === "site_account_required" ? (
-            /* Footage waits for a saved job (owner decision 2026-10-18), so the
-               account is the step: the upload routes refuse a video before it. */
-            scope === "owner" ? (
-              <section aria-label="Save this job to your account" style={{ marginBottom: "24px" }}>
-                <p style={{ marginBottom: "12px" }}>{link.detail}</p>
-                {status?.claimUrl && <div className="ms-intake-account-links">
-                  <a className="ms-button" href={status.claimUrl}>Create an account for this job</a>
-                  <a className="ms-text-link" href={`${status.claimUrl}?mode=signin`}>Sign in to save this job</a>
-                </div>}
-              </section>
-            ) : (
-              <p style={{ color: "var(--ms-muted)", marginBottom: "24px" }}>
-                The job's owner needs to save it to their Blueprint account before the video can be sent.
-                Ask them to open their job link; this link takes the video once they have.
-              </p>
-            )
+          {link.holdReason === "site_account_required" && scope !== "owner" ? (
+            <p style={{ color: "var(--ms-muted)", marginBottom: "24px" }}>
+              The job's owner needs to save it to their Blueprint account before the video can be sent.
+              Ask them to open their job link; this link takes the video once they have.
+            </p>
+          ) : accountHold ? (
+            /* Footage waits for a saved job (owner decision 2026-10-18): the
+               account is the step before a video, and a video that already
+               arrived before the account is said so, never asked for again. */
+            <div style={{ marginBottom: "24px" }}>
+              <p style={{ marginBottom: "12px" }}>{link.detail}</p>
+              {scope === "owner" && status?.claimUrl && <section aria-label="Save this job to your account" className="ms-intake-account-links">
+                <a className="ms-button" href={status.claimUrl}>Create an account for this job</a>
+                <a className="ms-text-link" href={`${status.claimUrl}?mode=signin`}>Sign in to save this job</a>
+              </section>}
+            </div>
           ) : link.holdReason !== "capturer_visit_scheduled" && (
             <p style={{ color: "var(--ms-muted)", marginBottom: "24px" }}>{link.detail}</p>
           )}

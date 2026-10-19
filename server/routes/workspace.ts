@@ -78,7 +78,7 @@ import { projectPilotBooking } from "../utils/pilotContactExchange";
 import { listCheckpoints } from "../utils/robotCheckpoints";
 import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
 import { notCountedReason } from "../utils/pilotRecommendationEvidence";
-import { savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
+import { footageArrivedBeforeAccount, savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 
 const router = Router();
@@ -601,7 +601,10 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     }
     const captureSession = await db!.collection("captureUploadSessions").doc(`walkthrough-${requestId}`).get();
     const reconstruction = captureSession.data()?.world_reconstruction;
-    const preparationStatus = !consentRevoked && captureSession.data()?.website_preparation
+    // A video that arrived before the job's account cannot be prepared after
+    // the account exists; its status is never read as progress (2026-10-18).
+    const footageBeforeAccount = !consentRevoked && await footageArrivedBeforeAccount(requestId, record) === true;
+    const preparationStatus = !footageBeforeAccount && !consentRevoked && captureSession.data()?.website_preparation
       ? await loadCurrentWebsitePreparationStatus(requestId, `walkthrough-${requestId}`) : null;
     const preparationOverdue = !consentRevoked && websitePreparationOverdue(captureSession.data()?.website_preparation_watch);
     const sceneProgression = preparationStatus?.state === "handed_off"
@@ -632,6 +635,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         capture_coverage: (record.capture_coverage as never) ?? null,
         briefDrafted: Boolean(brief),
         hasStoredCapture: walkthrough?.received === true,
+        footageBeforeAccount,
         consentRevoked,
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady,

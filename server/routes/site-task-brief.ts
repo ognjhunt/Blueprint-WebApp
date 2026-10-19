@@ -59,7 +59,7 @@ import { buildQualificationEmail, buildTaskNotYetSupportedEmail } from "../utils
 import { taskScopeNotYet } from "../utils/siteTaskScope";
 import type { SiteTaskTriageSummary } from "../types/inbound-request";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
-import { savedWalkthrough } from "../utils/siteWalkthrough";
+import { footageArrivedBeforeAccount, savedWalkthrough } from "../utils/siteWalkthrough";
 import { projectWebsiteCaptureRights, loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { sendFilmLinkHandoff } from "../utils/filmLinkHandoff";
 import { loadSceneScreening } from "../utils/agentEvalRuns";
@@ -138,6 +138,8 @@ async function readRequestForStatus(requestId: string): Promise<{
   contactFirstName?: string | null;
   /** Set once the operator has claimed the site into an account. */
   account_owner_uid?: string | null;
+  /** When the claim saved the job to that account; absent for a job started signed in. */
+  claimed_at_iso?: string | null;
   site_task_triage?: { disposition?: string | null } | null;
   site_task_scope?: { supported?: unknown; reason?: unknown } | null;
   siteName?: string | null;
@@ -175,6 +177,7 @@ async function readRequestForStatus(requestId: string): Promise<{
       typeof data.account_owner_uid === "string" && data.account_owner_uid
         ? data.account_owner_uid
         : null,
+    claimed_at_iso: typeof data.claimed_at_iso === "string" ? data.claimed_at_iso : null,
     site_task_triage: (data.site_task_triage as SiteTaskTriageSummary | undefined) ?? null,
     // Stored plaintext fields, which is what the access predicate reads.
     jobAccess: (() => { try { return teamJobAccess(data); } catch { return null; } })(),
@@ -957,9 +960,13 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         ? safeSceneViewUrl(reconstruction?.assets?.launchUrl)
           || safeSceneViewUrl(reconstruction?.assets?.panoUrl)
         : null;
+    // A video that arrived before the job's account cannot be prepared after
+    // the account exists; its status is never read as progress (2026-10-18).
+    const footageBeforeAccount = Boolean(request) && !request?.captureRights.consent_revoked
+      && await footageArrivedBeforeAccount(payload.requestId, request) === true;
     // Presence is only a readback hint. The stored failure itself is never
     // customer truth: verify current Pipeline/source/rights/context again.
-    const preparationStatus = payload.scope !== "film" && !request?.captureRights.consent_revoked
+    const preparationStatus = !footageBeforeAccount && payload.scope !== "film" && !request?.captureRights.consent_revoked
       && captureSession?.data()?.website_preparation
       ? await loadCurrentWebsitePreparationStatus(payload.requestId, payload.captureId) : null;
     // The WebApp's own watch (beta L3/L6): no status since the upload, or one
@@ -975,6 +982,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         capture_coverage: request?.capture_coverage ?? null,
         briefDrafted: Boolean(brief),
         hasStoredCapture,
+        footageBeforeAccount,
         consentRevoked: request?.captureRights.consent_revoked,
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady: Boolean(sceneViewUrl),

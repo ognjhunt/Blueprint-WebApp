@@ -41,7 +41,9 @@
  * account is born with none, and saving the job afterwards is an owner change
  * the Pipeline refuses for that capture for good (owner decision 2026-10-18).
  * So bytes are accepted only for a saved job, on every upload route, and the
- * hold says so in the one sentence the page and the logs share.
+ * hold says so in the one sentence the page and the logs share. A job whose
+ * video already arrived before its account is held too: sending it again
+ * cannot be used either, so the link says that rather than take it.
  */
 
 import { hasCurrentRecordingConsent } from "./recordingConsent";
@@ -50,6 +52,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { decideDispatchForRequest } from "../agents/workflows";
 import type { InboundRequest } from "../types/inbound-request";
 import type { CaptureDispatchDecision } from "./captureDispatch";
+import { footageArrivedBeforeAccount } from "./siteWalkthrough";
 
 export interface CaptureUploadAuthorization {
   /** Whether bytes may be written for this request right now. */
@@ -76,6 +79,10 @@ export interface CaptureUploadAuthorization {
 export const SITE_ACCOUNT_REQUIRED = "site_account_required";
 export const SITE_ACCOUNT_REQUIRED_DETAIL = "Save this job to your account before you send its video. "
   + "Robot teams can evaluate a job only if its video is sent after the job is saved to an account.";
+/** The hold for a job whose video arrived before it was saved to an account. */
+export const FOOTAGE_BEFORE_ACCOUNT = "footage_before_account";
+export const FOOTAGE_BEFORE_ACCOUNT_DETAIL = "Your video arrived before this job was saved to an account, so we can't "
+  + "use it to build your scene yet. You don't need to send it again; we email you when that changes.";
 
 function held(
   holdReason: string,
@@ -127,6 +134,12 @@ export async function authorizeCaptureUpload(
   if (!hasCurrentRecordingConsent(request.request?.consent_attestation)) {
     return { ...held("recording_consent_required", "The site owner must confirm the current recording permission before uploading.", request),
       recordingConsentAvailable: canGrantInitialRecordingConsent(request) };
+  }
+
+  // Before the dispatch rule: what is already true of the footage outranks a
+  // hold on sending more. Unreadable is not "yes"; the account rule below holds.
+  if (await footageArrivedBeforeAccount(requestId, request) === true) {
+    return held(FOOTAGE_BEFORE_ACCOUNT, FOOTAGE_BEFORE_ACCOUNT_DETAIL, request);
   }
 
   // `requiresHumanReview` is false here on purpose, and it is worth saying why:
