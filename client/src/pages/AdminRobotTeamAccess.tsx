@@ -70,7 +70,7 @@ function InviteTeam({ onInvited, send }: {
   onInvited: () => Promise<void>;
   send: (body: Record<string, unknown>) => Promise<Response>;
 }) {
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "already" | "error">("idle");
+  const [state, setState] = useState<"idle" | "sending" | "queued" | "sent" | "needs_attention" | "error">("idle");
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -84,8 +84,8 @@ function InviteTeam({ onInvited, send }: {
         ...(read("note") ? { note: read("note") } : {}),
       });
       if (!response.ok) throw new Error(String(response.status));
-      const body = (await response.json()) as { alreadyApproved?: boolean };
-      setState(body.alreadyApproved ? "already" : "sent");
+      const body = (await response.json()) as { notificationStatus?: "queued" | "sent" | "needs_attention" };
+      setState(body.notificationStatus ?? "needs_attention");
       form.reset();
       await onInvited();
     } catch {
@@ -95,7 +95,7 @@ function InviteTeam({ onInvited, send }: {
   return (
     <Card pad="lg" className="mt-8">
       <h2 className="text-lg font-semibold text-runway-text">Invite a team you spoke with</h2>
-      <p className="mt-1 text-sm text-runway-mute">Grants access to that work email and sends the sign-up email. Use it after a call.</p>
+      <p className="mt-1 text-sm text-runway-mute">Grants access to that work email and queues the sign-up email. Use it after a call.</p>
       <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={submit} aria-label="Invite a team">
         <label className="runway-meta flex flex-col gap-1">Name<input name="name" required maxLength={120} className="border border-line bg-transparent px-3 py-2 text-runway-text" /></label>
         <label className="runway-meta flex flex-col gap-1">Work email<input name="email" type="email" required maxLength={320} className="border border-line bg-transparent px-3 py-2 text-runway-text" /></label>
@@ -104,7 +104,9 @@ function InviteTeam({ onInvited, send }: {
         <div className="flex items-center gap-3 sm:col-span-2">
           <Button variant="secondary" iconLeft={<Send />} disabled={state === "sending"}>{state === "sending" ? "Sending…" : "Invite"}</Button>
           <span role="status" className="text-sm text-runway-mute">
-            {state === "sent" ? "Invited. They have the sign-up email." : state === "already" ? "Already approved; nothing sent." : state === "error" ? "The invite was not saved." : ""}
+            {state === "queued" ? "Approval saved. Sign-up email queued." : state === "sent" ? "Approval saved. Sign-up email sent."
+              : state === "needs_attention" ? "Approval saved. Invitation delivery needs attention; check the outbox before retrying."
+                : state === "error" ? "The invitation could not be confirmed. Retry safely; an existing approval is preserved." : ""}
           </span>
         </div>
       </form>

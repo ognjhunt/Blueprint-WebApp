@@ -137,6 +137,11 @@ describe("preparation ended for good: one email per terminal transition (beta L3
     expect((await enqueueTaskLifecycleNotification(ended)).enqueued).toBe(true);
     expect((await enqueueTaskLifecycleNotification(ended)).enqueued).toBe(false);
     expect(seam.authority.mock.calls[0]?.slice(0, 2)).toEqual(["r1", endedId]);
+    const queued = sharedFakeFirestoreState.docs.get(`captureOutbox/${endedKey}`) as Record<string, unknown>;
+    expect(queued.status).toBe("pending");
+    expect(queued.body).toContain("This needs our team's review");
+    expect(queued.body).not.toMatch(/our team has been told|team has been notified/i);
+    expect(seam.send).not.toHaveBeenCalled();
     await deliverOutbox();
     expect(seam.send).toHaveBeenCalledTimes(1);
     expect(sharedFakeFirestoreState.docs.get(`captureOutbox/${endedKey}`)).toMatchObject({status: "sent"});

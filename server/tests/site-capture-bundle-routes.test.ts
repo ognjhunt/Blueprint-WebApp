@@ -213,6 +213,52 @@ async function uploadEverything(device: DeviceBundle, bindingDigest: string) {
 }
 
 describe("the link check tells the app what to record", () => {
+  it("does not issue a supplement token or mutate existing captures", async () => {
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const response = await api("POST", `${token()}/supplement`, {});
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("capture_replacement_requires_new_job");
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect(state.bucket.writeLog).toEqual([]);
+    expect(state.bucket.calls.getSignedUrl + state.bucket.calls.createResumableUpload).toBe(0);
+  });
+
+  it("keeps an old supplement's receipts readable but refuses new browser and bundle writes", async () => {
+    const captureId = `supplement-${"a".repeat(40)}`;
+    const supplement = { parent_capture_id: CAPTURE_ID, parent_bundle_digest: `sha256:${"b".repeat(64)}`,
+      parent_manifest_uri: `gs://blueprint-8c1ca.appspot.com/${RAW}/manifest.json`, coverage_digest: "c".repeat(64) };
+    const linkToken = createCaptureUploadToken({ requestId: REQUEST_ID, sceneId: SCENE_ID, captureId, supplement });
+    const raw = `scenes/${SCENE_ID}/captures/${captureId}/raw`;
+    sharedFakeFirestoreState.docs.set(`captureSupplements/${captureId}`, { requestId: REQUEST_ID,
+      sceneId: SCENE_ID, supplement, state: "held" });
+    sharedFakeFirestoreState.docs.set(`captureUploadSessions/${captureId}`, { retained_receipt: "preserve" });
+    state.bucket.seed(`${raw}/walkthrough.mov`, "saved-original");
+    state.bucket.seed(`${raw}/capture_upload_complete.json`, "retained-marker");
+    const beforeDocs = structuredClone([...sharedFakeFirestoreState.docs]);
+    const beforeObjects = [...state.bucket.objects];
+    for (const suffix of ["", "/status"]) {
+      const read = await api("GET", `${linkToken}${suffix}`);
+      expect(read.status).toBe(200);
+      expect(read.body.captureReceived).toBe(true);
+    }
+    for (const suffix of ["bundle", "bundle/targets", "bundle/complete", "parts/complete", "processing-retry"]) {
+      const result = await api("POST", `${linkToken}/${suffix}`, { parts: 1, extension: "mov", sizeBytes: 20,
+        metadata: { widthPx: 1920, heightPx: 1080, durationSeconds: 61, fps: 30, recordedAtEpochMs: 1_758_000_000_000 } });
+      expect(result.status).toBe(409);
+      expect(result.body.code).toBe("capture_replacement_requires_new_job");
+    }
+    for (const [method, suffix] of [["POST", ""], ["PUT", "/parts/0?extension=mov"]]) {
+      const result = await fetch(`${baseUrl}/api/self-capture/uploads/${linkToken}${suffix}`, { method });
+      expect(result.status).toBe(409);
+      expect(await result.json()).toMatchObject({ code: "capture_replacement_requires_new_job" });
+    }
+    expect([...sharedFakeFirestoreState.docs]).toEqual(beforeDocs);
+    expect([...state.bucket.objects]).toEqual(beforeObjects);
+    expect(state.bucket.calls.getSignedUrl + state.bucket.calls.createResumableUpload).toBe(0);
+    expect(state.privacy).toEqual([]);
+    expect(state.coverage).toEqual([]);
+  });
+
   it("returns server-issued ids, the rights binding and the device contract", async () => {
     const link = await linkCheck();
     expect(link.status).toBe(200);

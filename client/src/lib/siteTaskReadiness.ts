@@ -251,18 +251,15 @@ export function assessReadiness(input: ReadinessInput): ReadinessVerdict {
   }
 
   if (!input.evidence.coversScene) {
-    // Three different things to say here, and the difference matters to whoever
-    // has to act on it. What we must never say is "film it again" to someone
-    // whose footage we are keeping.
-    // Three cases, and the difference is what the operator can act on. The one
-    // thing we never say is "film it again" to someone whose footage we intend
-    // to keep -- or "we need more views" to someone who has not filmed at all.
+    // Keep the original recording and distinguish a fresh job from a retry of
+    // retained processing. A measured gap cannot authorize same-link additions.
     const nextAction = input.evidence.hasVisual && input.evidence.explainsTask
-      ? input.evidence.missingCoverage?.length
+      ? (input.evidence.missingCoverage?.length
         ? "Your footage shows the job clearly. To prepare the scene we also need "
           + `${input.evidence.missingCoverage.join(", ")}.`
         : "Your footage shows the job clearly. To prepare the scene we need a few more views of "
-          + "the work area — we will tell you which."
+          + "the work area — we will tell you which.")
+        + " Contact hello@tryblueprint.io with your job reference for help starting a new job with a complete walkthrough and fresh recording permission. Your original footage stays saved; this link cannot add to or replace it. The new job needs its own review before evaluation."
       : blockingEvaluation.length
         ? "We have enough to guide the recording. Some answers are still needed before a robot "
           + "team can evaluate this, and you can film the work area now."

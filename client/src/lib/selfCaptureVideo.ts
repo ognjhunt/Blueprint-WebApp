@@ -141,7 +141,7 @@ function measureFps(video: HTMLVideoElement): Promise<number | null> {
 }
 
 export type VideoUploadResult =
-  | { status: "done" }
+  | { status: "done"; message?: string }
   /**
    * The upload worked and what is in it needs a person.
    *
@@ -155,6 +155,13 @@ export type VideoUploadResult =
 /** Only storage-verified receipt may replace an upload with a saved layout. */
 export function receivedVideoResult(data: Record<string, unknown> | null): VideoUploadResult | null {
   if (data?.captureReceived !== true) return null;
+  if (data.code === "capture_replacement_requires_new_job") {
+    const message = String(data.message || data.detail || data.error
+      || "Your original recording is saved. No new recording was accepted. Contact Blueprint for help starting a new job.");
+    if (data.uploadState === "processing_pending") return { status: "processing_pending", message,
+      processingRetryAvailable: data.processingRetryAvailable === true };
+    return { status: data.uploadState === "processing_ready" ? "done" : "held", message };
+  }
   if (data.state === "held") {
     return { status: "held", message: String(data.detail || data.message || data.error
       || "Your video is retained. Processing is on hold while authorization or review is resolved.") };

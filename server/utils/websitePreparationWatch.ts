@@ -22,7 +22,22 @@ const FIRST_STATUS_ALERT_MS_ENV = "BLUEPRINT_WEBSITE_PREPARATION_FIRST_STATUS_AL
 const STUCK_ALERT_MS_ENV = "BLUEPRINT_WEBSITE_PREPARATION_STUCK_ALERT_MS";
 const FINAL_STATES = new Set(["handed_off", "authority_ended"]);
 
-// Every key is always present, so Firestore's merge of this map is a replacement.
+/** Delivery is retained with the watch so an unchanged status preserves retry/lease state.
+ * A new state writes delivery:null and invalidates the previous sender's lease. */
+export const websitePreparationAlertDeliverySchema = z.object({
+  schema_version: z.literal("website_preparation_ops_delivery.v1"),
+  state: z.enum(["pending", "claimed", "delivered", "cancelled"]),
+  attempts: z.number().int().nonnegative(),
+  lease_id: z.string().max(80).nullable(),
+  lease_until_ms: z.number().int().nonnegative().nullable(),
+  email_state: z.enum(["not_started", "sending", "not_sent", "unknown", "sent"]),
+  acknowledged_at_iso: z.string().max(40).nullable(),
+  last_error: z.string().max(80).nullable(),
+  legacy_alerted_at_iso: z.string().max(40).nullable(),
+}).strict();
+export type WebsitePreparationAlertDelivery = z.infer<typeof websitePreparationAlertDeliverySchema>;
+
+// New maps include delivery:null; old records parse without it for migration.
 const watchSchema = z.object({
   schema_version: z.literal("website_preparation_watch.v1"),
   request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
@@ -34,6 +49,7 @@ const watchSchema = z.object({
   since_iso: z.string().max(40),
   due_at_ms: z.number().int().nonnegative().nullable(),
   alerted_at_iso: z.string().max(40).nullable(),
+  delivery: websitePreparationAlertDeliverySchema.nullable().optional(),
 }).strict();
 export type WebsitePreparationWatch = z.infer<typeof watchSchema>;
 
@@ -62,7 +78,7 @@ export function websitePreparationUploadWatchFields(requestId: string, sceneId: 
   if (!isWebsitePreparationCapture(requestId, sceneId, captureId)) return {};
   const watch: WebsitePreparationWatch = {schema_version: "website_preparation_watch.v1", request_id: requestId,
     capture_id: captureId, kind: "awaiting_first_status", state: null, terminal_reason: null, attempt_count: null,
-    since_iso: new Date(nowMs).toISOString(), due_at_ms: nowMs + firstStatusAlertMs(), alerted_at_iso: null};
+    since_iso: new Date(nowMs).toISOString(), due_at_ms: nowMs + firstStatusAlertMs(), alerted_at_iso: null, delivery: null};
   return {[WEBSITE_PREPARATION_WATCH_FIELD]: watch, [WEBSITE_PREPARATION_WATCH_DUE_FIELD]: watch.due_at_ms};
 }
 
@@ -72,7 +88,7 @@ export function nextWebsitePreparationWatch(previous: WebsitePreparationWatch | 
   const {selector, status} = preparation;
   if (FINAL_STATES.has(status.state)) return null;
   const base = {schema_version: "website_preparation_watch.v1" as const, request_id: selector.request_id,
-    capture_id: selector.capture_id, since_iso: new Date(nowMs).toISOString(), alerted_at_iso: null};
+    capture_id: selector.capture_id, since_iso: new Date(nowMs).toISOString(), alerted_at_iso: null, delivery: null};
   if (status.state === "failed_terminal") {
     // Each terminal transition is reported to operators once.
     if (previous?.kind === "ended" && previous.attempt_count === status.attempt_count) return previous;

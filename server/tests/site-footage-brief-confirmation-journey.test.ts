@@ -146,14 +146,16 @@ function quickTime(): Buffer {
 }
 
 /** The video the site already had, sent through its job link. */
-async function sendFootage(token: string) {
+async function sendFootage(token: string, expectedStatus = 201) {
   const form = new FormData();
   form.append("video", new Blob([quickTime()], { type: "video/quicktime" }), "walkthrough.mov");
   form.append("metadata", JSON.stringify({ widthPx: 1920, heightPx: 1080, durationSeconds: 61, fps: 30,
     recordedAtEpochMs: 1_758_000_000_000 }));
   const response = await fetch(`${base}/api/self-capture/uploads/${token}`, { method: "POST", body: form });
-  expect([200, 201], await response.clone().text()).toContain(response.status);
-  expect((await response.json()).captureReceived).toBe(true);
+  expect(response.status, await response.clone().text()).toBe(expectedStatus);
+  const body = await response.json();
+  expect(body.captureReceived).toBe(true);
+  return body;
 }
 
 async function jobStatus(token: string) {
@@ -229,8 +231,17 @@ describe("a site that sends its footage before confirming its brief", () => {
     expect(notice?.body).toContain(`/capture-upload/`);
     // One email for the event: the intake receipt, then the footage notice.
     expect(queuedKinds(jobId)).toEqual(["task_received", "video_received"]);
-    // A second upload of the same job is the same event, not a second email.
-    await sendFootage(token);
+    const original = structuredClone(doc(`captureUploadSessions/walkthrough-${jobId}`).browser_pending_delivery);
+    const [originalBytes] = await sharedUploadBucket.bucket.file(original.video.object_name,
+      { generation: original.video.generation }).download();
+    // An ambiguous new upload is refused; the retained original creates no second notice.
+    expect(await sendFootage(token, 409)).toMatchObject({ captureReceived: true,
+      uploadState: "processing_ready", code: "capture_replacement_requires_new_job" });
+    expect(doc(`captureUploadSessions/walkthrough-${jobId}`).browser_pending_delivery).toEqual(original);
+    const originalFile = sharedUploadBucket.bucket.file(original.video.object_name);
+    expect((await originalFile.getMetadata())[0].generation).toBe(original.video.generation);
+    expect((await originalFile.download())[0]).toEqual(originalBytes);
+    expect((await jobStatus(token)).captureReceived).toBe(true);
     expect(queuedKinds(jobId)).toEqual(["task_received", "video_received"]);
   });
 

@@ -19,6 +19,7 @@ describe("current source-bound preparation projection", () => {
     expect(status.stage).toBeNull();
     expect(status.headline).toContain(phrase);
     expect(status.headline).toContain("Keep your original recording");
+    expect(status.headline).not.toContain("our team has been told");
     expect(status.headline).not.toContain("we are preparing it");
     // Teams evaluate only a confirmed job, so the problem carries the site's step.
     expect(status.operatorAction).toMatch(/confirm it/i);
@@ -105,6 +106,8 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     expect(status.decision).toBe("footage_received");
     expect(status.stage).toBeNull();
     expect(status.headline).toContain("Scene preview preparation could not finish, and we have stopped trying.");
+    expect(status.headline).toContain("This needs our team's review");
+    expect(status.headline).not.toContain("our team has been told");
     expect(status.headline).toContain(phrase);
     expect(status.headline).toContain("Keep your original recording");
     expect(status.headline).toContain(reference);
@@ -116,12 +119,15 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
       .toBe(preparing("failed_terminal", { terminalReason: null }).headline);
   });
   it("an overdue watch adds 'taking longer' to a live state, never to an ending", () => {
-    expect(preparing("preparing", { preparationOverdue: true }).headline).toContain("taking longer than it should, and our team has been told");
+    const overdue = preparing("preparing", { preparationOverdue: true });
+    expect(overdue.headline).toContain("taking longer than it should and needs review");
+    expect(overdue.headline).not.toContain("our team has been told");
     expect(preparing("failed_terminal", { preparationOverdue: true }).headline).not.toContain("taking longer");
   });
   it("no status since the upload, past the bound, is said plainly instead of 'preparing'", () => {
     const status = projectTaskStatus({ ...base, preparationOverdue: true } as never);
-    expect(status.headline).toContain("Preparing it is taking longer than it should, and our team has been told");
+    expect(status.headline).toContain("Preparing it is taking longer than it should and needs review");
+    expect(status.headline).not.toContain("our team has been told");
     expect(status.headline).not.toContain("we are preparing it");
     expect(projectTaskStatus({ ...base } as never).headline).toContain("we are preparing it");
   });
@@ -129,6 +135,8 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     const ended = projectTaskStatus({ ...base, scenePreviewReady: true, listed: false,
       preparationStatus: { state: "handed_off", correlationId: reference }, sceneProgression: { state: "ended" } } as never);
     expect(ended.headline).toContain("Your scene preview is ready, but we could not finish preparing your job for robot evaluations");
+    expect(ended.headline).toContain("This needs our team's review");
+    expect(ended.headline).not.toContain("our team has been told");
     const waiting = projectTaskStatus({ ...base, scenePreviewReady: true, listed: false,
       preparationStatus: { state: "handed_off", correlationId: reference }, sceneProgression: { state: "waiting" } } as never);
     expect(waiting.decision).toBe("not_listed");

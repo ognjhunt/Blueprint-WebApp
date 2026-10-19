@@ -209,6 +209,12 @@ export default function Evaluation() {
                     </tbody>
                   </table>
                 </div>
+                {counts && item.cycleTimeSeconds !== null && (
+                  <p className="ws-note">
+                    Cycle time is measured on the simulator clock, including settling. Policy-service
+                    latency is recorded separately and is excluded. The physical pilot measures actual throughput.
+                  </p>
+                )}
                 <p className="ws-note">
                   {item.evidenceLabel}
                   {episodes ? ` · ${episodes}` : ""}

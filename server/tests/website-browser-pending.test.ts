@@ -21,9 +21,10 @@ describe("browser pending upload identity", () => {
   it("refuses a later V2 while V1 is held, rather than pairing V1 privacy with V2", () => {
     expect(selectBrowserPending(pending("1"), pending("2"))).toEqual({ action: "conflict" });
   });
-  it("allows a new original delivery after the earlier one has published", () => {
-    expect(selectBrowserPending(pending("1", "published"), pending("2"))).toEqual({
-      action: "record", selected: pending("2"),
+  it("preserves a published original when a different recording arrives", () => {
+    expect(selectBrowserPending(pending("1", "published"), pending("2"))).toEqual({ action: "conflict" });
+    expect(selectBrowserPending(pending("1", "published"), pending("1"))).toEqual({
+      action: "replay", selected: pending("1", "published"),
     });
   });
 });
