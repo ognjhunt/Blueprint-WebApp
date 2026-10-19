@@ -119,6 +119,14 @@ ID, polls it, and keeps each output file bound to the input frame it came from.
 It refuses to run until a reviewed Atlas price is configured. Every result keeps
 `claim_ceiling: development_only` and `metric_measurement_proven: false`.
 
+Its spend is reserved as `world_labs_atlas`, not Marble's `world_labs`. Atlas
+receives unedited source frames, people included, under its own terms. A site's
+consent to the Marble terms covers neither, so `preparationSpendRequest` in
+`server/utils/websiteSceneSponsorship.ts` deliberately does not accept that
+provider yet. Every Atlas reservation is refused until a sponsorship records
+the site's consent to Atlas's terms. That change waits on the founder's decision
+on those terms.
+
 Captures without a sponsorship still wait at `needs_input`
 (`website_source_camera_depth_registration_required`). They keep waiting until a
 side-by-side comparison against the pinned MapAnything registration shows
