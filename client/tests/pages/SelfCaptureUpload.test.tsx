@@ -208,7 +208,7 @@ describe("description first owner return", () => {
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(videoUpload.retry).not.toHaveBeenCalled();
   });
-  it("keeps a measured additional-views request in the recording flow", async () => {
+  it("keeps a measured coverage gap on the saved job and routes a new recording through support", async () => {
     const fetcher = ownerFetch(false);
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
@@ -217,7 +217,12 @@ describe("description first owner return", () => {
       return fetcher(input);
     }));
     render(<SelfCaptureUpload />);
-    expect(await screen.findByRole("button", { name: "Upload a video file" })).toBeVisible();
+    expect(await screen.findByText("Video received.")).toBeVisible();
+    expect(screen.getByRole("link", { name: "contact Blueprint" })).toHaveAttribute("href", expect.stringContaining("mailto:hello@tryblueprint.io"));
+    expect(screen.queryByRole("button", { name: "Upload a video file" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Upload a new recording" })).not.toBeInTheDocument();
+    expect(screen.getByText(/fresh recording permission/)).toBeInTheDocument();
+    expect(videoUpload.send).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Add footage when you are ready (optional)" })).not.toBeInTheDocument();
   });
   it("lets the owner link withdraw recording permission after an explicit confirmation", async () => {

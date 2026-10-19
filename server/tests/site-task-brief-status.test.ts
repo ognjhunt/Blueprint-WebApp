@@ -145,6 +145,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(code).toBe(200);
     expect(body.status).toMatchObject({ decision: "footage_received", stage: null, operatorAction: null });
     expect(body.status.headline).toContain("Scene preview preparation could not finish, and we have stopped trying.");
+    expect(body.status.headline).not.toContain("our team has been told");
     expect(body.status.headline).toContain("capacity stayed full");
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(enqueueOutbox).not.toHaveBeenCalled();
@@ -156,7 +157,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
       since_iso: "2026-10-01T00:00:00.000Z", due_at_ms: null, alerted_at_iso: "2026-10-01T02:00:00.000Z" } });
     const { body } = await status();
     expect(preparation.read).not.toHaveBeenCalled();
-    expect(body.status.headline).toContain("Preparing it is taking longer than it should, and our team has been told");
+    expect(body.status.headline).toContain("Preparing it is taking longer than it should and needs review");
+    expect(body.status.headline).not.toContain("our team has been told");
     expect(body.status.headline).not.toContain("we are preparing it");
     const film = createCaptureUploadToken({ requestId: "req-1", captureId: "cap-1", sceneId: "scene-1", scope: "film" });
     const filmed = await (await fetch(`${baseUrl}/api/site-task-brief/${film}/status`)).json();

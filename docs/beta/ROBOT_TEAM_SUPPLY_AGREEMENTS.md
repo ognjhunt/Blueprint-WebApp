@@ -34,6 +34,10 @@ team's own declared robot of any form. There are two policy interfaces:
   observation/action interface for a Franka with a Robotiq 2F-85 gripper.
   Existing supply agreements recorded as
   `droid_franka_panda_robotiq_2f85_v1` remain valid for that preset.
+  This preset is currently **diagnostic-only**: default runtime assets lack the
+  exact model-byte binding required for qualified simulation evidence. Its
+  runs cannot support a pilot recommendation. Explain this before integration;
+  an agreement does not remove that restriction.
 - **The team's own robot:** `blueprint_policy_https.v1`, with a complete
   `blueprint.robot_embodiment.v1` declaration. This can describe fixed arms,
   bimanual systems, mobile manipulators, wheeled humanoids, legged humanoids,
@@ -48,11 +52,21 @@ and workspace robot settings collect that declaration.
 A recorded agreement proves the team's willingness, not compatibility with
 every job. Before execution, the Pipeline checks the exact model, interface,
 scene, and task and names an incompatibility when it cannot admit the setup.
-Rigid-object pick/place and articulated open/close remain the scored task
-families; a broader robot form does not add a scorer for cloth folding or a
-complete delivery workflow. Check the actual job's published offer and bounds.
+The normal website-to-team evaluation supports **one rigid object picked up and
+placed at another spot on the same table, shelf or counter**. It does not admit
+container placement, cross-surface moves, articulated opening/closing or pushing.
+Other scene-preparation or historical runtime capabilities do not expand this
+route. Check the actual job's published offer and bounds.
 Do not reject a team merely because its robot is mobile, wheeled, or humanoid,
 and do not promise that every model or task can run.
+
+For a recommendation-capable evaluation, use the team's declared robot with
+verified model bytes and a reviewed site/task qualification receipt. Confirm an
+approved delivery route for its self-contained USD model before asking for
+proprietary files; do not assume the team can publish a model or that its private
+download URL is supported. Keep policy weights on the team's server. The
+[qualified-evaluation runbook](../runbooks/qualified-site-evaluation.md) names the
+exact evidence, authority and admission requirements.
 
 For new agreements, record `interfaceId` explicitly. An own-robot agreement
 also requires `robotEmbodiment`. If the team changes its agreed interface or
@@ -87,10 +101,15 @@ Tell them only what is true today:
   (`client/src/components/workspace/PolicyInterfaceGuide.tsx`).
 - **The run:** a team evaluation is 200 hidden episodes across the job's
   variations, scored by Blueprint's simulator.
+- **Cycle time:** the reported cycle is simulator duration including settling,
+  excluding policy-service latency. Service latency is retained separately;
+  physical throughput is measured during the pilot, not established by this
+  simulation metric.
 - **Dates:** do not promise a date for the first evaluation. The audit lists
-  the work still open before a team's own policy can be evaluated end to end
-  (P0-5, P0-6). Say evaluations start as the first teams are onboarded, and
-  that you will tell them when their first job is ready.
+  real site/robot qualification and authorized execution still needed. Tell
+  the team its named owner, next action and next update, then notify it when
+  its selected job is ready. Do not treat an API response saying an email was
+  queued as evidence of delivery; inspect delivery status and invitation recovery.
 
 Do not use "match" when describing the offer, and do not ask a team to compare
 itself with other teams.
@@ -172,7 +191,8 @@ with the header `x-blueprint-native-client: blueprint-capture`.
    }
    ```
 
-   This example selects Blueprint's DROID preset. For the team's own robot,
+   This example records willingness for Blueprint's diagnostic DROID preset;
+   it does not make the preset eligible for recommendation. For the team's own robot,
    set that term's `interfaceId` to `blueprint_policy_https.v1` and include
    `robotEmbodiment` containing the complete validated declaration; never
    substitute a preset, a form label, or an empty object. The other two terms

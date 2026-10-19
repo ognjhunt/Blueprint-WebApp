@@ -27,6 +27,7 @@ import type { AccessFit } from "./robotTeamAccessFit";
 import { getRobotTeam, registerSelfServeTeam } from "./robotTeamRegistry";
 import { bindTeamToAccount, teamsForAccount, type AccountHolder } from "./robotTeamAccounts";
 import { ROBOT_TEAMS_COLLECTION, type RobotTeamRecord } from "../types/robot-team-registry";
+import type { AccessEmailNotification } from "./robotTeamAccessEmails";
 
 export const ROBOT_TEAM_ACCESS_COLLECTION = "robotTeamAccess";
 
@@ -120,8 +121,9 @@ export async function getAccessRecordForEmail(email: string | null | undefined):
 export async function recordAccessApplication(
   application: RobotTeamAccessApplication,
   options: { fit?: AccessFit | null } = {},
-): Promise<{ record: RobotTeamAccessRecord; created: boolean }> {
+): Promise<{ record: RobotTeamAccessRecord; created: boolean; notification: AccessEmailNotification }> {
   if (!db) throw new Error("firestore_unavailable");
+  const { prepareAccessEmail } = await import("./robotTeamAccessEmails");
   const email = normalizeAccessEmail(application.email);
   const ref = db.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(accessRecordId(email));
   const now = new Date().toISOString();
@@ -148,8 +150,12 @@ export async function recordAccessApplication(
       // The teams an approval already covers survive a re-application.
       ...(prior?.status === "approved" && prior.teamIds?.length ? { teamIds: prior.teamIds } : {}),
     };
+    const notice = await prepareAccessEmail(tx, { recordId: ref.id, record,
+      kind: record.status === "approved" ? "robot_team_access_approved" : "robot_team_access_received",
+      resend: record.status === "approved" });
     tx.set(ref, record);
-    return { record, created: !prior };
+    notice.write();
+    return { record, created: !prior, notification: notice.notification };
   });
 }
 
@@ -158,21 +164,35 @@ export async function decideAccessApplication(params: {
   status: Exclude<RobotTeamAccessStatus, "applied">;
   note: string | null;
   decidedBy: string;
-}): Promise<RobotTeamAccessRecord | null> {
+  /** A reviewer may handle a decline personally. Approval always queues its invitation. */
+  notify?: boolean;
+}): Promise<{ record: RobotTeamAccessRecord; notification: AccessEmailNotification } | null> {
   if (!db) throw new Error("firestore_unavailable");
+  const { prepareAccessEmail, NO_ACCESS_EMAIL } = await import("./robotTeamAccessEmails");
   const ref = db.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(params.id);
-  const snap = await ref.get();
-  if (!snap.exists) return null;
-  const now = new Date().toISOString();
-  const update = {
-    status: params.status,
-    decidedAtIso: now,
-    decidedBy: params.decidedBy,
-    decisionNote: params.note,
-    updatedAtIso: now,
-  };
-  await ref.set(update, { merge: true });
-  return { ...(snap.data() as RobotTeamAccessRecord), ...update };
+  return db.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return null;
+    const prior = snap.data() as RobotTeamAccessRecord;
+    // Replaying the same decision keeps its invitation revision and notice key.
+    // A new decision must be newer even if two decisions share a clock tick.
+    const unchanged = prior.status === params.status && prior.decidedAtIso && prior.decidedBy;
+    const now = new Date(Math.max(Date.now(), (Date.parse(prior.decidedAtIso ?? "") || 0) + 1)).toISOString();
+    const update = {
+      status: params.status,
+      decidedAtIso: unchanged ? prior.decidedAtIso : now,
+      decidedBy: unchanged ? prior.decidedBy : params.decidedBy,
+      decisionNote: params.note,
+      updatedAtIso: now,
+    };
+    const record = { ...prior, ...update };
+    const kind = record.status === "approved" ? "robot_team_access_approved"
+      : params.notify === false ? null : "robot_team_access_not_yet";
+    const notice = kind ? await prepareAccessEmail(tx, { kind, recordId: params.id, record }) : null;
+    tx.set(ref, update, { merge: true });
+    notice?.write();
+    return { record, notification: notice?.notification ?? NO_ACCESS_EMAIL };
+  });
 }
 
 /**
@@ -186,15 +206,20 @@ export async function inviteRobotTeam(params: {
   company: string;
   note: string | null;
   invitedBy: string;
-}): Promise<{ record: RobotTeamAccessRecord; created: boolean; alreadyApproved: boolean }> {
+}): Promise<{ record: RobotTeamAccessRecord; created: boolean; alreadyApproved: boolean; notification: AccessEmailNotification }> {
   if (!db) throw new Error("firestore_unavailable");
+  const { prepareAccessEmail } = await import("./robotTeamAccessEmails");
   const email = normalizeAccessEmail(params.email);
   const ref = db.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(accessRecordId(email));
-  const now = new Date().toISOString();
   return db.runTransaction(async (tx) => {
     const existing = await tx.get(ref);
     const prior = existing.exists ? (existing.data() as RobotTeamAccessRecord) : null;
-    if (prior?.status === "approved") return { record: prior, created: false, alreadyApproved: true };
+    if (prior?.status === "approved") {
+      const notice = await prepareAccessEmail(tx, { kind: "robot_team_access_approved", recordId: ref.id, record: prior });
+      notice.write();
+      return { record: prior, created: false, alreadyApproved: true, notification: notice.notification };
+    }
+    const now = new Date(Math.max(Date.now(), (Date.parse(prior?.decidedAtIso ?? "") || 0) + 1)).toISOString();
     const record: RobotTeamAccessRecord = {
       ...(prior?.updatePreferences ? { updatePreferences: prior.updatePreferences } : {}),
       ...(prior?.preferencesAccountUid ? { preferencesAccountUid: prior.preferencesAccountUid } : {}),
@@ -217,8 +242,24 @@ export async function inviteRobotTeam(params: {
       decidedBy: params.invitedBy,
       decisionNote: params.note,
     };
+    const notice = await prepareAccessEmail(tx, { kind: "robot_team_access_approved", recordId: ref.id, record });
     tx.set(ref, record);
-    return { record, created: !prior, alreadyApproved: false };
+    notice.write();
+    return { record, created: !prior, alreadyApproved: false, notification: notice.notification };
+  });
+}
+
+/** An explicit lost-link request rechecks current approval in the queue transaction. */
+export async function requestAccessInvitation(email: string): Promise<AccessEmailNotification | null> {
+  if (!db) throw new Error("firestore_unavailable");
+  const { prepareAccessEmail } = await import("./robotTeamAccessEmails");
+  const ref = db.collection(ROBOT_TEAM_ACCESS_COLLECTION).doc(accessRecordId(email));
+  return db.runTransaction(async tx => {
+    const record = (await tx.get(ref)).data() as RobotTeamAccessRecord | undefined;
+    if (record?.status !== "approved") return null;
+    const notice = await prepareAccessEmail(tx, { kind: "robot_team_access_approved", recordId: ref.id, record, resend: true });
+    notice.write();
+    return notice.notification;
   });
 }
 

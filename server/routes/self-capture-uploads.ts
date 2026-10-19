@@ -14,7 +14,6 @@
  */
 
 import { Router, type Request, type Response } from "express";
-import { issueCaptureSupplement, validateCaptureSupplement } from "../utils/captureSupplement";
 import { createReadStream } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import os from "node:os";
@@ -396,15 +395,42 @@ async function beginBrowserCanonicalWrite(
   payload: { requestId: string; sceneId: string; captureId: string }, objectPath: string,
 ): Promise<{ reservation: BrowserWriteReservation; ifGenerationMatch: number | string }> {
   if (!storageAdmin) throw new Error("Storage is unavailable");
+  const bucket = storageAdmin.bucket(storageBucketName());
+  const rawPrefix = objectPath.slice(0, objectPath.lastIndexOf("/"));
+  const assertNoRetainedSource = async () => {
+    const generations = await Promise.all(["capture_upload_complete.json", "walkthrough.mov", "walkthrough.mp4"]
+      .map(name => currentObjectGeneration(bucket, `${rawPrefix}/${name}`)));
+    if (generations.some(generation => String(generation) !== "0")) throw new Error("browser_capture_finalized");
+  };
+  // Refuse legacy sources before a modern reservation could fence off their
+  // existing receipt/privacy recovery path. Recheck after the transaction too.
+  await assertNoRetainedSource();
   const reservation = await reserveBrowserUpload({ request_id: payload.requestId,
-    scene_id: payload.sceneId, capture_id: payload.captureId });
+    scene_id: payload.sceneId, capture_id: payload.captureId, canonical_video_name: objectPath });
   try {
-    const ifGenerationMatch = await currentObjectGeneration(storageAdmin.bucket(storageBucketName()), objectPath);
-    return { reservation, ifGenerationMatch };
+    // Legacy finalizations may have no typed Firestore receipt. A retained
+    // video also survives interrupted receipt writes; neither may be replaced.
+    await assertNoRetainedSource();
+    // A writer whose reservation expires cannot overwrite a later accepted
+    // video between the read above and its eventual storage response.
+    return { reservation, ifGenerationMatch: 0 };
   } catch (error) {
     await releaseBrowserUpload(reservation);
     throw error;
   }
+}
+
+const NEW_CAPTURE_JOB_MESSAGE = "This link cannot replace or extend the job's original recording. No new recording was accepted. Contact hello@tryblueprint.io with your job reference so we can help you start a new job with a complete walkthrough and fresh recording permission. The new job needs its own review before evaluation.";
+
+/** The write request carries no source identity; expose its retained receipt without claiming a replay. */
+async function finalizedCaptureResponse(payload: CaptureIdentity, res: Response) {
+  const authorization = await authorizeCaptureUpload(payload.requestId);
+  const receipt = await describeBrowserUpload(payload, authorization.allowed);
+  const message = `${receipt.captureReceived ? "Your original recording is saved. " : "Keep your original file while its saved status is checked. "}${NEW_CAPTURE_JOB_MESSAGE}`;
+  return res.status(409).json({
+    ...receipt, code: "capture_replacement_requires_new_job", retryable: false,
+    message, detail: message, error: message,
+  });
 }
 
 /**
@@ -729,16 +755,15 @@ export function bundleServiceDeps(storage: BundleStorage): BundleServiceDeps {
 }
 
 /**
- * The browser recorder overwrites its own video, manifest and marker by design.
- * An app bundle's raw files are immutable, so once one is recorded for a link
- * the browser routes stand aside rather than write over it.
+ * App bundles and accepted browser recordings keep their original identity.
+ * Browser routes never write over a claimed app bundle.
  */
 async function refuseIfAppBundle(
   payload: { requestId: string; sceneId: string; captureId: string; supplement?: unknown },
   res: Response,
 ): Promise<boolean> {
   if (payload.supplement) {
-    res.status(409).json({ error: "Open this supplementary capture in the Blueprint app.", code: "supplement_requires_app" });
+    res.status(409).json({ error: NEW_CAPTURE_JOB_MESSAGE, code: "capture_replacement_requires_new_job" });
     return true;
   }
   let occupied = false;
@@ -751,7 +776,7 @@ async function refuseIfAppBundle(
   }
   if (!occupied) return false;
   res.status(409).json({
-    error: "This space was already recorded with the Blueprint app on an iPhone, so it cannot be replaced from a browser.",
+    error: NEW_CAPTURE_JOB_MESSAGE,
     code: "capture_recorded_in_app",
   });
   return true;
@@ -849,7 +874,7 @@ async function respondCaptureUploadStatus(req: Request, res: Response, recoverLe
     const authorization = await authorizeCaptureUpload(payload.requestId);
     // Existing app/legacy consumers still recover through their status polling
     // contract. Modern browser receipts use the explicit retry route below.
-    if (recoverLegacy) {
+    if (recoverLegacy && !payload.supplement) {
       try {
         if (await legacyStatusRecoveryAllowed(payload, authorization.allowed)) await resumeStoredCapture(payload);
       } catch (error) {
@@ -1032,6 +1057,7 @@ router.post("/:token/advisory-retry", async (req: Request, res: Response) => {
 router.post("/:token/processing-retry", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
+  if (payload.supplement) return res.status(409).json({ code: "capture_replacement_requires_new_job", error: NEW_CAPTURE_JOB_MESSAGE });
   res.setHeader("Cache-Control", "no-store");
   const authorization = await authorizeCaptureUpload(payload.requestId);
   if (!authorization.allowed) return res.status(409).json({ state: "held", processingRetryAvailable: false,
@@ -1184,6 +1210,7 @@ function authorizeBeforeCaptureBody(kind: "walkthrough" | "part" | "item_image")
       if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
       const authorization = await authorizeCaptureUpload(payload.requestId);
       if (!authorization.allowed) return res.status(409).json({ code: authorization.holdReason, error: authorization.detail });
+      if (payload.supplement) return res.status(409).json({ code: "capture_replacement_requires_new_job", error: NEW_CAPTURE_JOB_MESSAGE });
       if (!(await admitUploadRequest(req, res, kind, payload))) return;
       res.once("finish", () => { void discardUploadedFile((req as UploadRequest).file); });
       next();
@@ -1264,6 +1291,7 @@ router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCap
     write = await beginBrowserCanonicalWrite(payload, objectPath);
   } catch (error) {
     await discardUploadedFile(file);
+    if ((error as Error).message === "browser_capture_finalized") return finalizedCaptureResponse(payload, res);
     const conflict = (error as Error).message === "browser_pending_conflict";
     return res.status(conflict ? 409 : 503).json({
       error: conflict ? "Another upload is still writing or awaiting review." : "Uploads are unavailable right now.",
@@ -1520,6 +1548,7 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
   try {
     write = await beginBrowserCanonicalWrite(payload, objectPath);
   } catch (error) {
+    if ((error as Error).message === "browser_capture_finalized") return finalizedCaptureResponse(payload, res);
     const conflict = (error as Error).message === "browser_pending_conflict";
     return res.status(conflict ? 409 : 503).json({
       error: conflict ? "Another upload is still writing or awaiting review." : "Uploads are unavailable right now.",
@@ -1577,8 +1606,10 @@ async function bundleGate(req: Request, res: Response) {
     return null;
   }
   const authorization = await authorizeCaptureUpload(payload.requestId);
-  try { await validateCaptureSupplement(payload); }
-  catch { res.status(409).json({ error: "The original capture could not be verified.", code: "supplement_parent_changed" }); return null; }
+  if (payload.supplement) {
+    res.status(409).json({ code: "capture_replacement_requires_new_job", error: NEW_CAPTURE_JOB_MESSAGE });
+    return null;
+  }
   if (!authorization.allowed) {
     res.status(409).json({
       error: authorization.detail || "This capture cannot start yet.",
@@ -1598,13 +1629,9 @@ async function bundleGate(req: Request, res: Response) {
 router.post("/:token/supplement", async (req, res) => {
   const gate = await bundleGate(req, res);
   if (!gate) return;
-  try {
-    const result = await issueCaptureSupplement(gate.payload);
-    return res.json({ ok: true, ...result });
-  } catch (error) {
-    return res.status(error instanceof Error && error.message.startsWith("supplement_") ? 409 : 503)
-      .json({ error: "Additional footage could not be started. Please retry from your job page." });
-  }
+  // Existing supplemental records remain retained and inspectable. The current
+  // Pipeline owner observer cannot admit them, so do not issue another token.
+  return res.status(409).json({ code: "capture_replacement_requires_new_job", error: NEW_CAPTURE_JOB_MESSAGE });
 });
 router.post("/:token/bundle", async (req: Request, res: Response) => {
   const gate = await bundleGate(req, res);

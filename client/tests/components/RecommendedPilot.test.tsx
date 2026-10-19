@@ -87,7 +87,8 @@ describe("the recommended pilot", () => {
     render(<RecommendedPilot token="tok" />);
     expect(await screen.findByText(/200 prescribed episodes: 190 scored \(171 successes, 19 failures\), 10 void and excluded/)).toBeInTheDocument();
     expect(screen.getByText(/95% Wilson interval: 84.9%–93.5%.*pass mark uses the observed success rate/)).toBeInTheDocument();
-    expect(screen.getByText(/Measured median cycle: 24s; target: at most 30s/)).toBeInTheDocument();
+    expect(screen.getByText(/Simulated median cycle: 24s; target: at most 30s/)).toBeInTheDocument();
+    expect(screen.getByText(/excludes policy-service latency/)).toBeInTheDocument();
   });
 
   it("shows a booked pilot without a button", async () => {

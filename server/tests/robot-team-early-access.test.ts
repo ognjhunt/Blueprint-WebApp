@@ -11,11 +11,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import { createServer, type Server } from "node:http";
 
-import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
+import { sharedFakeFirestoreState as state, sharedFakeFirestore as store } from "./helpers/fake-firestore";
 import { listedTaskCard } from "./helpers/listedTaskCard";
 
 const tokens = vi.hoisted(() => new Map<string, Record<string, unknown>>());
 const slack = vi.hoisted(() => vi.fn(async () => ({ sent: true })));
+const sendEmail = vi.hoisted(() => vi.fn(async () => { throw new Error("This test must only queue notices"); }));
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
@@ -34,6 +35,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 });
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 vi.mock("../utils/slack", () => ({ notifySlackRobotTeamAccessApplication: slack }));
+vi.mock("../utils/email", () => ({ sendEmail }));
 // The per-address limit would otherwise carry across tests from one address.
 vi.mock("express-rate-limit", () => ({
   default: () => (_req: unknown, _res: unknown, next: () => void) => next(),
@@ -116,6 +118,8 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  expect(sendEmail).not.toHaveBeenCalled();
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
@@ -208,7 +212,7 @@ describe("applying", () => {
     expect((await post({})).status).toBe(403);
     const first = await post(CSRF);
     expect(first.status).toBe(202);
-    expect(await first.json()).toEqual({ status: "applied" });
+    expect(await first.json()).toMatchObject({ status: "applied", notificationStatus: "queued" });
     expect((await post(CSRF)).status).toBe(202);
 
     const records = [...state.docs.entries()].filter(([key]) => key.startsWith("robotTeamAccess/"));
@@ -277,7 +281,7 @@ describe("the review queue", () => {
     await early.recordAccessApplication({ ...application, website: null, region: null });
     const response = await decide("ops", early.accessRecordId("ada@arm.example"), "declined");
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ emailed: true });
+    expect(await response.json()).toMatchObject({ emailed: false, notificationStatus: "queued" });
     expect([...state.docs.keys()].some((key) => key.startsWith("captureOutbox/robot_team_access_approved"))).toBe(false);
     const notYet = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_access_not_yet"));
     expect(notYet).toHaveLength(1);
@@ -289,7 +293,7 @@ describe("the review queue", () => {
       headers: { "content-type": "application/json", Authorization: "Bearer ops", ...CSRF },
       body: JSON.stringify({ status: "declined", notify: false }),
     });
-    expect(await quiet.json()).toMatchObject({ emailed: false, application: { status: "declined" } });
+    expect(await quiet.json()).toMatchObject({ emailed: false, notificationStatus: "not_requested", application: { status: "declined" } });
     expect([...state.docs.keys()].filter((key) => key.startsWith("captureOutbox/robot_team_access_not_yet"))).toHaveLength(1);
   });
 
@@ -311,7 +315,7 @@ describe("the fit checklist", () => {
   const listFive = () => ["a", "b", "c", "d", "e"].forEach((id) => listedSite(`site-${id}`));
 
   it("records its reasons, and with nothing listed yet a person replies to everyone", async () => {
-    expect(await (await apply({ ...application, testSite: "Our pilot warehouse in Ohio" })).json()).toEqual({ status: "applied" });
+    expect(await (await apply({ ...application, testSite: "Our pilot warehouse in Ohio" })).json()).toMatchObject({ status: "applied" });
     const record = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`) as Record<string, any>;
     expect(record.testSite).toBe("Our pilot warehouse in Ohio");
     expect(record.fit).toMatchObject({ clearFit: true, listedTaskCount: 0 });
@@ -327,7 +331,7 @@ describe("the fit checklist", () => {
   it("keeps a clear matching-domain fit pending even with listed tasks and a legacy auto-approval setting", async () => {
     listedSite("site-1");
     vi.stubEnv("BLUEPRINT_ROBOT_TEAM_AUTO_APPROVE_MIN_TASKS", "1");
-    expect(await (await apply(application)).json()).toEqual({ status: "applied" });
+    expect(await (await apply(application)).json()).toMatchObject({ status: "applied" });
     const record = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@arm.example")}`) as Record<string, any>;
     expect(record).toMatchObject({ status: "applied", decidedBy: null });
     expect(outbox("robot_team_access_approved")).toHaveLength(0);
@@ -339,10 +343,10 @@ describe("the fit checklist", () => {
 
   it("leaves anything short of a clear fit, or a switched-off rule, to a person", async () => {
     listFive();
-    expect(await (await apply({ ...application, email: "ada@gmail.com" })).json()).toEqual({ status: "applied" });
-    expect(await (await apply({ ...application, email: "ada@other.example" })).json()).toEqual({ status: "applied" });
+    expect(await (await apply({ ...application, email: "ada@gmail.com" })).json()).toMatchObject({ status: "applied" });
+    expect(await (await apply({ ...application, email: "ada@other.example" })).json()).toMatchObject({ status: "applied" });
     vi.stubEnv("BLUEPRINT_ROBOT_TEAM_AUTO_APPROVE_MIN_TASKS", "off");
-    expect(await (await apply({ ...application, email: "grace@arm.example" })).json()).toEqual({ status: "applied" });
+    expect(await (await apply({ ...application, email: "grace@arm.example" })).json()).toMatchObject({ status: "applied" });
     expect(outbox("robot_team_access_approved")).toHaveLength(0);
     const personal = state.docs.get(`robotTeamAccess/${early.accessRecordId("ada@gmail.com")}`) as Record<string, any>;
     expect(personal.fit.checks[0]).toMatchObject({ passed: false, detail: "gmail.com is a personal email provider" });
@@ -364,7 +368,7 @@ describe("inviting a team after a call", () => {
     const first = await invite("ops", { name: "Ada Lovelace", email: "Ada@Arm.Example", company: "Arm Co", note: "Tote picking" });
     expect(first.status).toBe(201);
     expect(await first.json()).toMatchObject({
-      alreadyApproved: false, emailed: true,
+      alreadyApproved: false, emailed: false, notificationStatus: "queued",
       application: { status: "approved", source: "invite", decidedBy: "ops@tryblueprint.io", email: "ada@arm.example" },
     });
     const emails = [...state.docs.entries()].filter(([key]) => key.startsWith("captureOutbox/robot_team_access_approved"));
@@ -474,6 +478,191 @@ describe("an approved team that lost its invitation link", () => {
     expect(sent).toHaveLength(1);
     expect(sent[0][1]).toMatchObject({ to: "ada@arm.example" });
     expect(String((sent[0][1] as { body: string }).body)).toMatch(/signup\/business\?invitation=/);
+  });
+});
+
+describe("access decisions and their durable email intent", () => {
+  const email = "ada@arm.example";
+  const recordKey = () => `robotTeamAccess/${early.accessRecordId(email)}`;
+  const notices = (kind = "robot_team_access_approved") => [...state.docs.entries()]
+    .filter(([key]) => key.startsWith(`captureOutbox/${kind}`));
+  const post = (path: string, body: Record<string, unknown>) => fetch(`${base}${path}`, {
+    method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer ops", ...CSRF },
+    body: JSON.stringify(body),
+  });
+  const invite = () => post("/api/admin/robot-team-access/invites", {
+    name: "Ada", email, company: "Arm Co", prerequisitesReviewed: true,
+  });
+  const decide = () => post(`/api/admin/robot-team-access/${early.accessRecordId(email)}/decision`, {
+    status: "approved", prerequisitesReviewed: true,
+  });
+  const resend = () => post("/api/robot-team-access/invitation", { email });
+
+  function failOutboxWriteOnce() {
+    const original = store.runTransaction.bind(store);
+    vi.spyOn(store, "runTransaction").mockImplementationOnce(fn => original(async tx => fn({
+      ...tx,
+      create: (ref, row) => {
+        if (ref.path.startsWith("captureOutbox/")) throw new Error("outbox_write_unavailable");
+        tx.create(ref, row);
+      },
+    })));
+  }
+
+  beforeEach(() => {
+    tokens.set("ops", { uid: "ops", email: "ops@tryblueprint.io", email_verified: true, ops: true });
+  });
+
+  it("does not acknowledge an application whose receipt could not commit; retry saves both", async () => {
+    failOutboxWriteOnce();
+    expect((await post("/api/robot-team-access/apply", application)).status).toBe(503);
+    expect(state.docs.has(recordKey())).toBe(false);
+    expect(notices("robot_team_access_received")).toHaveLength(0);
+    expect(await (await post("/api/robot-team-access/apply", application)).json())
+      .toMatchObject({ status: "applied", notificationStatus: "queued" });
+    expect(notices("robot_team_access_received")).toHaveLength(1);
+  });
+
+  it("preserves the pending application when invitation storage fails, then commits approval and notice together", async () => {
+    await early.recordAccessApplication({ ...application, website: null, region: null });
+    failOutboxWriteOnce();
+    expect((await decide()).status).toBe(503);
+    expect(state.docs.get(recordKey())).toMatchObject({ status: "applied", decidedAtIso: null });
+    expect(notices()).toHaveLength(0);
+    const approved = await (await decide()).json();
+    expect(approved).toMatchObject({ emailed: false, notificationStatus: "queued", application: { status: "approved" } });
+    const repeated = await (await decide()).json();
+    expect(repeated.application.decidedAtIso).toBe(approved.application.decidedAtIso);
+    expect(notices()).toHaveLength(1);
+  });
+
+  it("rolls back a new direct invitation on outbox failure without manufacturing approval", async () => {
+    failOutboxWriteOnce();
+    expect((await invite()).status).toBe(503);
+    expect(state.docs.has(recordKey())).toBe(false);
+    expect(notices()).toHaveLength(0);
+    expect((await invite()).status).toBe(201);
+    expect(notices()).toHaveLength(1);
+  });
+
+  it("retains a committed approval and invitation after response loss, and replay does not send another", async () => {
+    const original = store.runTransaction.bind(store);
+    vi.spyOn(store, "runTransaction").mockImplementationOnce(async fn => {
+      await original(fn);
+      throw new Error("response_lost_after_commit");
+    });
+    expect((await invite()).status).toBe(503);
+    const revision = state.docs.get(recordKey())!.decidedAtIso;
+    expect(notices()).toHaveLength(1);
+    const retry = await invite();
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toMatchObject({ alreadyApproved: true, emailed: false,
+      notificationStatus: "queued", application: { decidedAtIso: revision } });
+    expect(notices()).toHaveLength(1);
+  });
+
+  it("repairs a legacy approved record's missing notice under concurrent explicit invite retries", async () => {
+    approve(email);
+    const revision = state.docs.get(recordKey())!.decidedAtIso;
+    const responses = await Promise.all([invite(), invite(), invite()]);
+    for (const response of responses) expect(await response.json()).toMatchObject({ alreadyApproved: true,
+      notificationStatus: "queued", emailed: false, application: { decidedAtIso: revision } });
+    expect(notices()).toHaveLength(1);
+    expect(state.docs.get(recordKey())!.decidedAtIso).toBe(revision);
+  });
+
+  it("keeps concurrent approval retries on one decision revision and one invitation", async () => {
+    await early.recordAccessApplication({ ...application, website: null, region: null });
+    const responses = await Promise.all([decide(), decide(), decide()]);
+    const bodies = await Promise.all(responses.map(response => response.json()));
+    expect(new Set(bodies.map(body => body.application.decidedAtIso)).size).toBe(1);
+    expect(notices()).toHaveLength(1);
+  });
+
+  it("gives a rapid revoke/reinvite a newer revision even on the same clock tick", async () => {
+    const now = Date.parse("2026-10-19T10:00:00.000Z");
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const first = await (await invite()).json();
+    await early.decideAccessApplication({ id: early.accessRecordId(email), status: "declined", note: null,
+      decidedBy: "fixture-ops", notify: false });
+    const declinedRevision = String(state.docs.get(recordKey())!.decidedAtIso);
+    const second = await (await invite()).json();
+    expect(Date.parse(declinedRevision)).toBeGreaterThan(Date.parse(first.application.decidedAtIso));
+    expect(Date.parse(second.application.decidedAtIso)).toBeGreaterThan(Date.parse(declinedRevision));
+    expect(notices()).toHaveLength(2);
+  });
+
+  it.each(["sent", "unknown", "failed", "cancelled"] as const)("reports an existing %s notice without resetting or duplicating it", async status => {
+    await invite();
+    const [key, original] = notices()[0];
+    state.docs.set(key, { ...original, status, attempts: 2 });
+    expect(await (await invite()).json()).toMatchObject({ emailed: status === "sent",
+      notificationStatus: status === "sent" ? "sent" : "needs_attention", notification: { outboxStatus: status } });
+    expect(notices()).toHaveLength(1);
+    expect(state.docs.get(key)).toMatchObject({ status, attempts: 2 });
+  });
+
+  it("preserves approval on resend queue failure and deduplicates concurrent explicit resends", async () => {
+    approve(email);
+    const originalApproval = structuredClone(state.docs.get(recordKey()));
+    failOutboxWriteOnce();
+    expect((await resend()).status).toBe(503);
+    expect(state.docs.get(recordKey())).toEqual(originalApproval);
+    const responses = await Promise.all([resend(), resend(), resend()]);
+    expect(responses.map(response => response.status)).toEqual([202, 202, 202]);
+    expect(notices()).toHaveLength(1);
+    expect(state.docs.get(recordKey())).toEqual(originalApproval);
+  });
+
+  it("never queues a resend after approval has been withdrawn", async () => {
+    approve(email);
+    await early.decideAccessApplication({ id: early.accessRecordId(email), status: "declined", note: null,
+      decidedBy: "fixture-ops", notify: false });
+    expect((await resend()).status).toBe(202);
+    expect(notices()).toHaveLength(0);
+  });
+
+  it.each(["pending", "sent", "unknown"] as const)("reissues a same-hour resend for a new approval while preserving the prior %s notice", async status => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-19T10:00:00.000Z"));
+    try {
+      approve(email);
+      const first = await early.requestAccessInvitation(email);
+      const originalKey = `captureOutbox/${first!.outboxId}`;
+      const original = { ...state.docs.get(originalKey)!, status, attempts: 2 };
+      state.docs.set(originalKey, original);
+      await early.decideAccessApplication({ id: early.accessRecordId(email), status: "declined", note: null,
+        decidedBy: "fixture-ops", notify: false });
+      await early.decideAccessApplication({ id: early.accessRecordId(email), status: "approved", note: null,
+        decidedBy: "fixture-ops", notify: false });
+      const next = await early.requestAccessInvitation(email);
+      expect(next).toMatchObject({ status: "queued", outboxStatus: "pending" });
+      expect(next!.outboxId).not.toBe(first!.outboxId);
+      expect(state.docs.get(originalKey)).toEqual(original);
+      const replacement = state.docs.get(`captureOutbox/${next!.outboxId}`)!;
+      expect(replacement.robotTeamAccessNotice).toMatchObject({ revision: state.docs.get(recordKey())!.decidedAtIso });
+      const token = /invitation=([^\s]+)/.exec(String(replacement.body))![1];
+      const { resolveAccountInvitation } = await import("../utils/accountInvitations");
+      expect(await resolveAccountInvitation(decodeURIComponent(token)))
+        .toMatchObject({ revision: state.docs.get(recordKey())!.decidedAtIso });
+      expect(await early.requestAccessInvitation(email)).toEqual(next);
+      expect(notices().filter(([key]) => key.includes(":resend-"))).toHaveLength(2);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.each(["pending", "sent", "unknown"] as const)("preserves an unbound legacy hourly %s resend for review without blindly requeuing", async status => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-19T10:00:00.000Z"));
+    try {
+      approve(email);
+      const legacyId = `robot_team_access_approved:${early.accessRecordId(email)}:resend-2026-10-19T10`;
+      const original = { kind: "robot_team_access_approved", requestId: `robot-team-access:${early.accessRecordId(email)}`,
+        to: email, status, attempts: 2, body: "retained legacy invitation" };
+      state.docs.set(`captureOutbox/${legacyId}`, original);
+      expect(await early.requestAccessInvitation(email)).toEqual({ status: "needs_attention", outboxStatus: status, outboxId: legacyId });
+      expect(notices()).toHaveLength(1);
+      expect(state.docs.get(`captureOutbox/${legacyId}`)).toEqual(original);
+    } finally { vi.useRealTimers(); }
   });
 });
 

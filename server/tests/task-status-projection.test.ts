@@ -140,7 +140,7 @@ describe("the decision ladder", () => {
 });
 
 describe("a measured coverage shortfall takes priority, because it is the most actionable", () => {
-  it("names the views and says a supplement will finish it", () => {
+  it("names the views and requires a new job instead of promising supplemental continuation", () => {
     const status = projectTaskStatus(
       base({
         briefDrafted: true,
@@ -153,7 +153,9 @@ describe("a measured coverage shortfall takes priority, because it is the most a
 
     expect(status.decision).toBe("add_views");
     expect(status.operatorAction).toContain("a view of the pallet area");
-    expect(status.headline).toMatch(/would finish the scene/i);
+    expect(status.headline).not.toMatch(/would finish/i);
+    expect(status.operatorAction).toMatch(/new job.*complete walkthrough.*fresh recording permission/i);
+    expect(status.operatorAction).toMatch(/cannot add to or replace/i);
   });
 
   it("does not claim a supplement will finish it when it would not", () => {

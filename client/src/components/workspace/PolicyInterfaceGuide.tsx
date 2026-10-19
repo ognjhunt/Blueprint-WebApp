@@ -61,6 +61,13 @@ export default function PolicyInterfaceGuide() {
   return (
     <details className="ws-section">
       <summary>How Blueprint calls your policy</summary>
+      <p className="ws-note">
+        Before integrating, confirm the job and your robot with Blueprint. Today a site job can be
+        scored when it involves picking up one rigid object and placing it at another spot on the
+        same table, shelf or counter. Container placement, moves between surfaces and opening doors
+        or drawers are outside this evaluation path. Any robot form can apply; compatibility depends
+        on the exact model, controls, cameras and job.
+      </p>
       <ol className="ws-note">
         <li>
           Serve your policy at one HTTPS URL that accepts a bearer token. Blueprint&rsquo;s simulator runs
@@ -83,6 +90,11 @@ export default function PolicyInterfaceGuide() {
         <li>Request an evaluation from an open job: 200 episodes across the job&rsquo;s variations.</li>
       </ol>
       <h3>Your own robot (<code>blueprint_policy_https.v1</code>)</h3>
+      <p className="ws-note">
+        An evaluation that can support a pilot recommendation requires your declared robot and its
+        exact verified model file. Confirm an approved way to provide a self-contained USD model with
+        Blueprint before sharing proprietary files. Keep policy weights on your own server.
+      </p>
       <p className="ws-note">
         Before every request Blueprint reads your service&rsquo;s identity with a <code>GET</code> on the same
         URL. It must be identical to this; any difference is refused like an invalid answer:
@@ -108,6 +120,11 @@ export default function PolicyInterfaceGuide() {
       </details>
       <h3>Blueprint&rsquo;s DROID Franka (<code>openpi_droid_https.v1</code>)</h3>
       <p className="ws-note">
+        This preset currently supports diagnostic runs only. Its default model has not been bound to
+        the verified model file required for a qualified evaluation, so these runs cannot support a
+        pilot recommendation. For that path, use your own declared, verified robot model above.
+      </p>
+      <p className="ws-note">
         Leave the manifest empty. Your identity is the same as above with schema{" "}
         <code>blueprint.droid_https_policy_metadata.v1</code>, interface <code>openpi_droid_https.v1</code>, an{" "}
         <code>action_chunk_rows</code> of 10 or 15 and no <code>embodiment_id</code>. Requests carry schema{" "}
@@ -115,6 +132,11 @@ export default function PolicyInterfaceGuide() {
         <code>observation/exterior_image_1_left</code> and <code>observation/wrist_image_left</code> (224×224
         PNG), <code>observation/joint_position</code> (7), <code>observation/gripper_position</code> (1) and{" "}
         <code>prompt</code>; each action row is seven joint positions then gripper closure.
+      </p>
+      <p className="ws-note">
+        Reported simulation cycle time includes task execution and settling in the simulator. Policy
+        service latency is recorded separately and is excluded from that clock. The physical pilot
+        measures actual throughput and performance.
       </p>
     </details>
   );

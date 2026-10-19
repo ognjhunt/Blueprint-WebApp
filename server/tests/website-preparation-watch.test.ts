@@ -33,7 +33,7 @@ beforeEach(() => {
   state.docs.set("inboundRequests/r1", { request: { consent_attestation: { granted: true, statement_version: "2026-09-18.v1",
     recorded_at_iso: "2026-09-29T00:00:00.000Z" } } });
 });
-afterEach(() => { vi.unstubAllEnvs(); });
+afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
 
 describe("watch transitions", () => {
   it("WATCH-001 starts at the upload for walkthrough and supplement captures only", () => {
@@ -87,12 +87,12 @@ describe("ops alert", () => {
   }
   const quiet = (since: number) => ({ ...watch.websitePreparationUploadWatchFields("r1", "site-r1", "walkthrough-r1", since)
     [watch.WEBSITE_PREPARATION_WATCH_FIELD] as Record<string, unknown> });
-  it("ALERT-001 alerts once per due watch, by Slack and one ops email, with ids and links only", async () => {
+  it("ALERT-001 acknowledges a due watch only after Slack confirms, with ids and links only", async () => {
     due("walkthrough-r1", quiet(0));
-    const alert = vi.fn(async () => undefined), email = vi.fn(async () => ({ sent: true }) as never);
+    const alert = vi.fn(async () => ({ sent: true })), email = vi.fn(async () => ({ sent: true }) as never);
     expect(await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 3 * HOUR, alert, email }))
       .toEqual({ due: 1, alerted: 1 });
-    expect(alert).toHaveBeenCalledTimes(1); expect(email).toHaveBeenCalledTimes(1);
+    expect(alert).toHaveBeenCalledTimes(1); expect(email).not.toHaveBeenCalled();
     const text = (alert.mock.calls[0] as unknown as [string, string])[1];
     expect(text).toContain("walkthrough-r1 (request r1): no preparation status since its upload");
     expect(text).toContain("/admin/leads/r1");
@@ -105,7 +105,7 @@ describe("ops alert", () => {
   });
   it("ALERT-002 a not-yet-due watch, a newer status clock and a withdrawn recording do not alert", async () => {
     due("walkthrough-r1", quiet(0));
-    const alert = vi.fn(async () => undefined), email = vi.fn(async () => ({ sent: true }) as never);
+    const alert = vi.fn(async () => ({ sent: true })), email = vi.fn(async () => ({ sent: true }) as never);
     expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => HOUR, alert, email })).alerted).toBe(0);
     const record = state.docs.get("inboundRequests/r1") as any;
     record.request.consent_attestation.withdrawn_at_iso = "2026-10-10T00:00:00.000Z";
@@ -115,17 +115,156 @@ describe("ops alert", () => {
   });
   it("ALERT-003 an ending alerts at once and names its reason", async () => {
     due("walkthrough-r1", watch.nextWebsitePreparationWatch(null, stored("failed_terminal", 5), 1_000) as never);
-    const alert = vi.fn(async () => undefined);
+    const alert = vi.fn(async () => ({ sent: true }));
     await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 1_000, alert, email: vi.fn(async () => ({}) as never) });
     expect((alert.mock.calls[0] as unknown as [string, string])[1]).toContain("ended for good (budget_exhausted)");
   });
   it("ALERT-004 an unreadable watch leaves the index without an alert", async () => {
     state.docs.set("captureUploadSessions/walkthrough-r1", { [watch.WEBSITE_PREPARATION_WATCH_FIELD]: { kind: "forged" },
       [watch.WEBSITE_PREPARATION_WATCH_DUE_FIELD]: 0 });
-    const alert = vi.fn(async () => undefined);
+    const alert = vi.fn(async () => ({ sent: true }));
     expect(await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 1, alert, email: vi.fn(async () => ({}) as never) }))
       .toEqual({ due: 1, alerted: 0 });
     expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_DUE_FIELD]).toBeNull();
+  });
+  it("ALERT-005 failed transports retain due work with capped backoff, then acknowledge recovery", async () => {
+    due("walkthrough-r1", quiet(0));
+    let now = 3 * HOUR;
+    const alert = vi.fn(async () => ({ sent: false, suppressed: false }));
+    const email = vi.fn(async () => ({ sent: false, provider: "resend", outcome: "not_sent" }) as never);
+    const deps = { store: sharedFakeFirestore as never, now: () => now, alert, email };
+    for (let attempt = 1; attempt <= 9; attempt++) {
+      expect((await scanWebsitePreparationWatch(deps)).alerted).toBe(0);
+      const saved = session()?.[watch.WEBSITE_PREPARATION_WATCH_FIELD];
+      expect(saved).toMatchObject({ alerted_at_iso: null, delivery: { state: "pending", attempts: attempt, email_state: "not_sent" } });
+      expect(saved.due_at_ms - now).toBe(Math.min(6 * HOUR, HOUR / 4 * 2 ** (attempt - 1)));
+      expect((await scanWebsitePreparationWatch(deps)).alerted).toBe(0);
+      expect(alert).toHaveBeenCalledTimes(attempt);
+      now = saved.due_at_ms;
+    }
+    alert.mockResolvedValue({ sent: true, suppressed: false });
+    expect((await scanWebsitePreparationWatch(deps)).alerted).toBe(1);
+    expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toMatchObject({ due_at_ms: null,
+      delivery: { state: "delivered", attempts: 10, acknowledged_at_iso: new Date(now).toISOString() } });
+    expect(email).toHaveBeenCalledTimes(9);
+  });
+  it("ALERT-006 an explicit Slack failure falls back to one acknowledged ops email", async () => {
+    due("walkthrough-r1", quiet(0));
+    const alert = vi.fn(async () => ({ sent: false, suppressed: true }));
+    const email = vi.fn(async () => ({ sent: true, provider: "resend" }) as never);
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 3 * HOUR, alert, email })).alerted).toBe(1);
+    expect(email).toHaveBeenCalledTimes(1);
+    expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toMatchObject({ delivery: { state: "delivered", email_state: "sent" } });
+  });
+  it("ALERT-007 concurrent monitor passes send a due watch once", async () => {
+    due("walkthrough-r1", quiet(0));
+    const alert = vi.fn(async () => ({ sent: true })), email = vi.fn(async () => ({ sent: true }) as never);
+    const deps = { store: sharedFakeFirestore as never, now: () => 3 * HOUR, alert, email };
+    const results = await Promise.all([scanWebsitePreparationWatch(deps), scanWebsitePreparationWatch(deps)]);
+    expect(results.reduce((sum, row) => sum + row.alerted, 0)).toBe(1);
+    expect(alert).toHaveBeenCalledTimes(1); expect(email).not.toHaveBeenCalled();
+  });
+  it("ALERT-008 a process lost after claiming resumes after the lease expires", async () => {
+    due("walkthrough-r1", quiet(0));
+    const alert = vi.fn(async () => ({ sent: true })), email = vi.fn(async () => ({ sent: true }) as never);
+    const lostProcessStore = { ...sharedFakeFirestore, runTransaction: async (action: any) => {
+      await sharedFakeFirestore.runTransaction(action);
+      throw new Error("process lost after durable claim");
+    } };
+    expect((await scanWebsitePreparationWatch({ store: lostProcessStore as never, now: () => 3 * HOUR, alert, email })).alerted).toBe(0);
+    expect(alert).not.toHaveBeenCalled();
+    expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toMatchObject({ alerted_at_iso: null, delivery: { state: "claimed", attempts: 1 } });
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 3 * HOUR + 4 * 60_000, alert, email })).alerted).toBe(0);
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 3 * HOUR + 6 * 60_000, alert, email })).alerted).toBe(1);
+    expect(alert).toHaveBeenCalledTimes(1);
+  });
+  it("ALERT-009 an email accepted before a lost durable acknowledgement is never blindly resent", async () => {
+    due("walkthrough-r1", quiet(0));
+    const alert = vi.fn(async () => ({ sent: false })), email = vi.fn(async () => ({ sent: true }) as never);
+    const lostAckStore = { ...sharedFakeFirestore, runTransaction: (action: any) => sharedFakeFirestore.runTransaction(async tx => action({
+      ...tx, set: (ref: any, payload: any, options: any) => {
+        if (payload[watch.WEBSITE_PREPARATION_WATCH_FIELD]?.delivery?.state === "delivered") throw new Error("ack commit unavailable");
+        tx.set(ref, payload, options);
+      },
+    })) };
+    expect((await scanWebsitePreparationWatch({ store: lostAckStore as never, now: () => 3 * HOUR, alert, email })).alerted).toBe(0);
+    expect(email).toHaveBeenCalledTimes(1);
+    expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toMatchObject({ delivery: { state: "claimed", email_state: "sending" } });
+    const later = 3 * HOUR + 6 * 60_000;
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => later, alert, email })).alerted).toBe(0);
+    expect(email).toHaveBeenCalledTimes(1);
+    expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toMatchObject({ delivery: { state: "pending", email_state: "unknown",
+      last_error: "email_acknowledgement_unknown" } });
+    alert.mockResolvedValue({ sent: true });
+    const retryAt = session()?.[watch.WEBSITE_PREPARATION_WATCH_DUE_FIELD];
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => retryAt, alert, email })).alerted).toBe(1);
+    expect(email).toHaveBeenCalledTimes(1);
+  });
+  it.each(["unknown", "throw", "missing"])("ALERT-010 %s email acknowledgement stays unknown and only Slack retries", async failure => {
+    due("walkthrough-r1", quiet(0));
+    const alert = vi.fn(async () => ({ sent: false }));
+    const email = vi.fn(async () => {
+      if (failure === "throw") throw new Error("connection lost after submission");
+      return (failure === "unknown" ? { sent: false, provider: "resend", outcome: "unknown" } : {}) as never;
+    });
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 3 * HOUR, alert, email })).alerted).toBe(0);
+    expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toMatchObject({ delivery: { state: "pending", email_state: "unknown" } });
+    const retryAt = session()?.[watch.WEBSITE_PREPARATION_WATCH_DUE_FIELD];
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => retryAt, alert, email })).alerted).toBe(0);
+    expect(email).toHaveBeenCalledTimes(1); expect(alert).toHaveBeenCalledTimes(2);
+  });
+  it("ALERT-011 a new preparation state fences a sender's late acknowledgement", async () => {
+    due("walkthrough-r1", quiet(0));
+    const replacement = watch.nextWebsitePreparationWatch(null, stored("preparing"), 3 * HOUR)!;
+    const alert = vi.fn(async () => { due("walkthrough-r1", replacement); return { sent: true }; });
+    const email = vi.fn(async () => ({ sent: true }) as never);
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 3 * HOUR, alert, email })).alerted).toBe(0);
+    expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toEqual(replacement);
+    expect(email).not.toHaveBeenCalled();
+  });
+  it("ALERT-012 withdrawn consent during Slack failure cancels the email fallback", async () => {
+    due("walkthrough-r1", quiet(0));
+    const alert = vi.fn(async () => {
+      (state.docs.get("inboundRequests/r1") as any).request.consent_attestation.withdrawn_at_iso = "2026-10-19T00:00:00Z";
+      return { sent: false };
+    });
+    const email = vi.fn(async () => ({ sent: true }) as never);
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 3 * HOUR, alert, email })).alerted).toBe(0);
+    expect(email).not.toHaveBeenCalled();
+    expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toMatchObject({ due_at_ms: null, delivery: { state: "cancelled" } });
+  });
+  it("ALERT-013 a newer status observed immediately after a claim prevents sending it", async () => {
+    due("walkthrough-r1", quiet(0));
+    let replaced = false;
+    const store = { ...sharedFakeFirestore, runTransaction: async (action: any) => {
+      const result = await sharedFakeFirestore.runTransaction(action);
+      if (!replaced) { replaced = true; due("walkthrough-r1", watch.nextWebsitePreparationWatch(null, stored("preparing"), 3 * HOUR)!); }
+      return result;
+    } };
+    const alert = vi.fn(async () => ({ sent: true })), email = vi.fn(async () => ({ sent: true }) as never);
+    expect((await scanWebsitePreparationWatch({ store: store as never, now: () => 3 * HOUR, alert, email })).alerted).toBe(0);
+    expect(alert).not.toHaveBeenCalled(); expect(email).not.toHaveBeenCalled();
+  });
+  it("ALERT-014 every acknowledged capture is included in a bounded message batch", async () => {
+    for (let index = 0; index < 45; index++) {
+      const id = `walkthrough-batch${index}`;
+      due(id, { ...quiet(0), capture_id: id });
+    }
+    const alert = vi.fn(async () => ({ sent: true })), email = vi.fn(async () => ({ sent: true }) as never);
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 3 * HOUR, alert, email })).alerted).toBe(45);
+    expect(alert).toHaveBeenCalledTimes(5);
+    const messages = alert.mock.calls.map(call => (call as unknown as [string, string])[1]);
+    expect(messages.every(message => message.split("\n").length <= 11)).toBe(true);
+    for (let index = 0; index < 45; index++) expect(messages.join("\n")).toContain(`walkthrough-batch${index} (request r1)`);
+  });
+  it("ALERT-015 a hung email leaves recoverable unknown delivery at the transport bound", async () => {
+    vi.useFakeTimers();
+    due("walkthrough-r1", quiet(0));
+    const alert = vi.fn(async () => ({ sent: false })), email = vi.fn(() => new Promise<never>(() => {}));
+    const pass = scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 3 * HOUR, alert, email });
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect((await pass).alerted).toBe(0);
+    expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toMatchObject({ delivery: { state: "pending", email_state: "unknown" } });
   });
 });
 
@@ -152,7 +291,7 @@ describe("captures uploaded before the watch shipped", () => {
     expect(session("walkthrough-r3")?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toBeNull();
     expect(session("walkthrough-r4")?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toBeNull();
     expect(session("creator-capture-1")?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toBeUndefined();
-    const alert = vi.fn(async () => undefined);
+    const alert = vi.fn(async () => ({ sent: true }));
     expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 30 * HOUR, alert,
       email: vi.fn(async () => ({}) as never) })).alerted).toBe(3);
     // Nothing is backfilled twice, so nothing alerts twice.
@@ -165,8 +304,25 @@ describe("captures uploaded before the watch shipped", () => {
       scene_id: "site-r1", capture_id: "walkthrough-r1", completed_at_iso: new Date(29 * HOUR).toISOString() } });
     await backfillWebsitePreparationWatches({ store: sharedFakeFirestore as never, now: () => 30 * HOUR });
     expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 30 * HOUR,
-      alert: vi.fn(async () => undefined), email: vi.fn(async () => ({}) as never) })).alerted).toBe(0);
+      alert: vi.fn(async () => ({ sent: true })), email: vi.fn(async () => ({}) as never) })).alerted).toBe(0);
     expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_DUE_FIELD]).toBe(31 * HOUR);
+  });
+  it("BACKFILL-003 repairs an old pre-send alert marker without blindly sending email again", async () => {
+    const legacy = watch.websitePreparationUploadWatchFields("r1", "site-r1", "walkthrough-r1", 0)
+      [watch.WEBSITE_PREPARATION_WATCH_FIELD] as Record<string, unknown>;
+    delete legacy.delivery;
+    Object.assign(legacy, { due_at_ms: null, alerted_at_iso: new Date(3 * HOUR).toISOString() });
+    published("walkthrough-r1", "r1", { [watch.WEBSITE_PREPARATION_WATCH_FIELD]: legacy, [watch.WEBSITE_PREPARATION_WATCH_DUE_FIELD]: null });
+    expect((await backfillWebsitePreparationWatches({ store: sharedFakeFirestore as never, now: () => 30 * HOUR })).started).toBe(1);
+    expect(session()?.[watch.WEBSITE_PREPARATION_WATCH_FIELD]).toMatchObject({ due_at_ms: 30 * HOUR, alerted_at_iso: null,
+      delivery: { email_state: "unknown", legacy_alerted_at_iso: new Date(3 * HOUR).toISOString() } });
+    const alert = vi.fn(async () => ({ sent: false })), email = vi.fn(async () => ({ sent: true }) as never);
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => 30 * HOUR, alert, email })).alerted).toBe(0);
+    expect(email).not.toHaveBeenCalled();
+    alert.mockResolvedValue({ sent: true });
+    const retryAt = session()?.[watch.WEBSITE_PREPARATION_WATCH_DUE_FIELD];
+    expect((await scanWebsitePreparationWatch({ store: sharedFakeFirestore as never, now: () => retryAt, alert, email })).alerted).toBe(1);
+    expect(email).not.toHaveBeenCalled();
   });
 });
 
@@ -201,11 +357,68 @@ describe("scene progression after hand-off", () => {
       pipeline_status: { status: "blocked", phase: "preparation", blockers: ["retry_cap_exhausted"] } });
     state.docs.set("taskEvaluationSceneIntakes/scene-c", { owner_user_id: "team", state: "blocked" });
     state.docs.set("taskEvaluationSceneIntakes/scene-d", { website_request_id: "r1", state: "revoked" });
-    const alert = vi.fn(async () => undefined), email = vi.fn(async () => ({}) as never);
+    const alert = vi.fn(async () => ({ sent: true })), email = vi.fn(async () => ({}) as never);
     expect(await scanEndedWebsiteSceneIntakes({ store: sharedFakeFirestore as never, alert, email })).toEqual({ ended: 2, alerted: 2 });
     // The rotating cursor finishes the batch, then wraps; no pass alerts the same intake again.
     expect((await scanEndedWebsiteSceneIntakes({ store: sharedFakeFirestore as never, alert, email })).alerted).toBe(0);
     expect(await scanEndedWebsiteSceneIntakes({ store: sharedFakeFirestore as never, alert, email })).toEqual({ ended: 2, alerted: 0 });
     expect(alert).toHaveBeenCalledTimes(1);
+  });
+  it("PROG-004 a failed scene alert remains pending across cursor wraps and retries after its bound", async () => {
+    state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", state: "blocked" });
+    const alert = vi.fn(async () => ({ sent: false }));
+    const email = vi.fn(async () => ({ sent: false, provider: null }) as never);
+    let now = 3 * HOUR;
+    const deps = { store: sharedFakeFirestore as never, now: () => now, alert, email };
+    expect((await scanEndedWebsiteSceneIntakes(deps)).alerted).toBe(0);
+    const marker = state.docs.get("opsWebsiteSceneIntakeAlerts/scene-a") as any;
+    expect(marker).toMatchObject({ alerted_at_iso: null, next_attempt_at_ms: now + HOUR / 4,
+      delivery: { state: "pending", attempts: 1, email_state: "not_sent" } });
+    await scanEndedWebsiteSceneIntakes(deps);
+    expect((await scanEndedWebsiteSceneIntakes(deps)).alerted).toBe(0);
+    expect(alert).toHaveBeenCalledTimes(1);
+    now = marker.next_attempt_at_ms;
+    await scanEndedWebsiteSceneIntakes(deps);
+    alert.mockResolvedValue({ sent: true });
+    expect((await scanEndedWebsiteSceneIntakes(deps)).alerted).toBe(1);
+    expect(state.docs.get("opsWebsiteSceneIntakeAlerts/scene-a")).toMatchObject({ next_attempt_at_ms: null,
+      delivery: { state: "delivered", attempts: 2 } });
+  });
+  it("PROG-005 concurrent scene scans share one durable claim", async () => {
+    state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", state: "blocked" });
+    const alert = vi.fn(async () => ({ sent: true })), email = vi.fn(async () => ({ sent: true }) as never);
+    const deps = { store: sharedFakeFirestore as never, now: () => 3 * HOUR, alert, email };
+    const results = await Promise.all([scanEndedWebsiteSceneIntakes(deps), scanEndedWebsiteSceneIntakes(deps)]);
+    expect(results.reduce((sum, row) => sum + row.alerted, 0)).toBe(1);
+    expect(alert).toHaveBeenCalledTimes(1);
+  });
+  it("PROG-006 a resumed scene cancels an in-flight fallback", async () => {
+    state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", state: "blocked" });
+    const alert = vi.fn(async () => {
+      state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", state: "accepted", pipeline_status: { status: "running" } });
+      return { sent: false };
+    });
+    const email = vi.fn(async () => ({ sent: true }) as never);
+    expect((await scanEndedWebsiteSceneIntakes({ store: sharedFakeFirestore as never, now: () => 3 * HOUR, alert, email })).alerted).toBe(0);
+    expect(email).not.toHaveBeenCalled();
+    expect(state.docs.get("opsWebsiteSceneIntakeAlerts/scene-a")).toMatchObject({ next_attempt_at_ms: null, delivery: { state: "cancelled" } });
+  });
+  it("PROG-007 a legacy scene marker has unverified delivery and only retries Slack", async () => {
+    state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", state: "blocked" });
+    state.docs.set("opsWebsiteSceneIntakeAlerts/scene-a", { intake_id: "scene-a", request_id: "r1", alerted_at_iso: "2026-10-06T00:00:00Z" });
+    const alert = vi.fn(async () => ({ sent: false })), email = vi.fn(async () => ({ sent: true }) as never);
+    expect((await scanEndedWebsiteSceneIntakes({ store: sharedFakeFirestore as never, now: () => 3 * HOUR, alert, email })).alerted).toBe(0);
+    expect(alert).toHaveBeenCalledTimes(1); expect(email).not.toHaveBeenCalled();
+    expect(state.docs.get("opsWebsiteSceneIntakeAlerts/scene-a")).toMatchObject({ delivery: { state: "pending", email_state: "unknown",
+      legacy_alerted_at_iso: "2026-10-06T00:00:00Z" } });
+  });
+  it("PROG-008 unknown delivery metadata is preserved without inferring permission to resend", async () => {
+    state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", state: "blocked" });
+    const existing = { intake_id: "scene-a", request_id: "r1", delivery: { schema_version: "future", state: "unknown" } };
+    state.docs.set("opsWebsiteSceneIntakeAlerts/scene-a", existing);
+    const alert = vi.fn(async () => ({ sent: true })), email = vi.fn(async () => ({ sent: true }) as never);
+    expect((await scanEndedWebsiteSceneIntakes({ store: sharedFakeFirestore as never, now: () => 3 * HOUR, alert, email })).alerted).toBe(0);
+    expect(alert).not.toHaveBeenCalled(); expect(email).not.toHaveBeenCalled();
+    expect(state.docs.get("opsWebsiteSceneIntakeAlerts/scene-a")).toEqual(existing);
   });
 });

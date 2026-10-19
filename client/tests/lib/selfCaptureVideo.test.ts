@@ -55,6 +55,23 @@ describe("verified receipt versus processing", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("preserves a refused replacement message alongside the original successful receipt", async () => {
+    const message = "Your original recording is saved. No new recording was accepted. Start a new job with help from Blueprint.";
+    xhrOutcome.status = 409;
+    xhrOutcome.body = { code: "capture_replacement_requires_new_job", captureReceived: true,
+      uploadState: "processing_ready", message };
+    expect(await uploadSelfCaptureVideo(token, new File(["different"], "replacement.mov")))
+      .toEqual({ status: "done", message });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps the original processing retry available after refusing different footage", () => {
+    const message = "Your original recording is saved. No new recording was accepted.";
+    expect(receivedVideoResult({ code: "capture_replacement_requires_new_job", captureReceived: true,
+      uploadState: "processing_pending", processingRetryAvailable: true, message }))
+      .toEqual({ status: "processing_pending", processingRetryAvailable: true, message });
+  });
+
   it.each(["error", "abort", "timeout"])("checks receipt with GET only after %s", async (event) => {
     xhrOutcome.event = event;
     expect(await uploadSelfCaptureVideo(token, new File(["synthetic"], "original.mp4")))

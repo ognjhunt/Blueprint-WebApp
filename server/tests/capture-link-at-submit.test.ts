@@ -372,10 +372,10 @@ function quickTime(content: string | Buffer = "x"): Buffer {
 }
 
 /** A well-formed upload for a site that cleared the screen. */
-async function uploadFor(baseUrl: string, requestId: string, bytes = "x") {
+async function uploadFor(baseUrl: string, requestId: string, bytes = "x", extension = "mov") {
   const token = tokenFrom(captureUploadUrlFor(requestId));
   const form = new FormData();
-  form.append("video", new Blob([quickTime(bytes)], { type: "video/quicktime" }), "walk.mov");
+  form.append("video", new Blob([quickTime(bytes)], { type: "video/quicktime" }), `walk.${extension}`);
   form.append(
     "metadata",
     JSON.stringify({
@@ -930,6 +930,48 @@ describe("the privacy question is asked before anything is derived", () => {
     });
   });
 
+  it("does not let an expired writer escape create-only protection by changing extensions", async () => {
+    seedRequest("req-extension-race", { disposition: "qualified" });
+    let entered!: () => void;
+    let resume!: () => void;
+    const writing = new Promise<void>(resolve => { entered = resolve; });
+    writeGate.current = { entered, wait: new Promise<void>(resolve => { resume = resolve; }) };
+    await withRoutes(async baseUrl => {
+      const stale = uploadFor(baseUrl, "req-extension-race", "V1", "mov");
+      await writing;
+      const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-extension-race") as Record<string, any>;
+      session.browser_upload_reservation.expires_at_ms = Date.now() - 1;
+      try {
+        expect((await uploadFor(baseUrl, "req-extension-race", "V2", "mp4")).status).toBe(409);
+        expect((await uploadFor(baseUrl, "req-extension-race", "V2", "mov")).status).toBe(201);
+      } finally { resume(); }
+      expect((await stale).status).toBe(502);
+      const prefix = "scenes/site-req-extension-race/captures/walkthrough-req-extension-race/raw";
+      const videos = [...storedVersions].filter(([key]) => /walkthrough\.(mov|mp4)@/.test(key));
+      expect(videos).toHaveLength(1);
+      expect(videos[0][0]).toContain(`${prefix}/walkthrough.mov@`);
+      expect(videos[0][1].body.equals(quickTime("V2"))).toBe(true);
+      expect(JSON.parse(written.get(`${prefix}/capture_upload_complete.json`)!).producer_delivery.raw_video_generation)
+        .toBe(videos[0][1].metadata.generation);
+    });
+  });
+
+  it("protects a legacy finalized marker and video even without a Firestore session", async () => {
+    seedRequest("req-legacy-no-session", { disposition: "qualified" });
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-legacy-no-session", "original")).status).toBe(201);
+      await waitForUploadRelease("req-legacy-no-session");
+      const sessionPath = "captureUploadSessions/walkthrough-req-legacy-no-session";
+      sharedFakeFirestoreState.docs.delete(sessionPath);
+      const before = [...storedVersions];
+      expect(await uploadFor(baseUrl, "req-legacy-no-session", "replacement", "mp4"))
+        .toMatchObject({ status: 409, body: { captureReceived: true, uploadState: "retained",
+          code: "capture_replacement_requires_new_job" } });
+      expect(sharedFakeFirestoreState.docs.has(sessionPath)).toBe(false);
+      expect([...storedVersions]).toEqual(before);
+    });
+  });
+
   it("refuses a parts completion before compose when a V1 delivery is held", async () => {
     seedRequest("req-parts-held", { disposition: "qualified" });
     screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
@@ -944,7 +986,7 @@ describe("the privacy question is asked before anything is derived", () => {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
       });
       expect(result.status).toBe(409);
-      expect((await result.json()).code).toBe("capture_delivery_held");
+      expect((await result.json()).code).toBe("capture_replacement_requires_new_job");
     });
   });
 
@@ -1049,7 +1091,8 @@ describe("the privacy question is asked before anything is derived", () => {
       delete session.browser_pending_delivery;
       delete session.browser_modern_attempt;
       const reservation = await reserveBrowserUpload({ request_id: "req-legacy-writing",
-        scene_id: "site-req-legacy-writing", capture_id: "walkthrough-req-legacy-writing" });
+        scene_id: "site-req-legacy-writing", capture_id: "walkthrough-req-legacy-writing",
+        canonical_video_name: "scenes/site-req-legacy-writing/captures/walkthrough-req-legacy-writing/raw/walkthrough.mov" });
       const token = tokenFrom(captureUploadUrlFor("req-legacy-writing"));
       await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
       const markerName = "scenes/site-req-legacy-writing/captures/walkthrough-req-legacy-writing/raw/capture_upload_complete.json";
@@ -1060,24 +1103,29 @@ describe("the privacy question is asked before anything is derived", () => {
     });
   });
 
-  it("does not publish a legacy marker after a failed modern write replaced the old video", async () => {
+  it("refuses replacement without disabling the original legacy privacy recovery", async () => {
     seedRequest("req-legacy-failed", { disposition: "qualified" });
     screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: false, eligibility: "pending",
       outcome: "review_unavailable", detail: "Hold", evidence: null });
     await withRoutes(async (baseUrl) => {
       expect((await uploadFor(baseUrl, "req-legacy-failed", "V1")).body.state).toBe("held");
+      await waitForUploadRelease("req-legacy-failed");
       const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-legacy-failed") as Record<string, unknown>;
       delete session.browser_pending_delivery;
       delete session.browser_modern_attempt;
-      writeFault.manifestOnce = true;
-      expect((await uploadFor(baseUrl, "req-legacy-failed", "V2")).status).toBe(502);
+      const originalVersions = [...storedVersions.keys()];
+      expect((await uploadFor(baseUrl, "req-legacy-failed", "V2")).status).toBe(409);
       expect(session.browser_upload_reservation).toBeNull();
+      expect(session.browser_modern_attempt).toBeUndefined();
+      expect([...storedVersions.keys()]).toEqual(originalVersions);
+      screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "unscreened",
+        outcome: "not_reviewed", detail: null, evidence: null });
       const token = tokenFrom(captureUploadUrlFor("req-legacy-failed"));
-      await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
+      expect((await fetch(`${baseUrl}/api/self-capture/uploads/${token}`)).status).toBe(200);
       const markerName = "scenes/site-req-legacy-failed/captures/walkthrough-req-legacy-failed/raw/capture_upload_complete.json";
-      expect(written.has(markerName)).toBe(false);
-      expect((sharedFakeFirestoreState.docs.get("inboundRequests/req-legacy-failed") as Record<string, any>)
-        .capture_privacy_screen.eligibility).toBe("pending");
+      expect(JSON.parse(written.get(markerName) ?? "null")).toMatchObject({ capture_id: "walkthrough-req-legacy-failed" });
+      expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@")))
+        .toEqual(originalVersions.filter(name => name.includes("/walkthrough.mov@")));
     });
   });
 
@@ -1161,41 +1209,44 @@ describe("the privacy question is asked before anything is derived", () => {
     });
   });
 
-  it("never reuses V1's recorded privacy clearance for a newer V2 pending delivery", async () => {
+  it.each(["mov", "mp4"])("refuses a new %s recording after publication without changing the original receipt", async extension => {
     seedRequest("req-privacy-generation", { disposition: "qualified" });
-    screenCaptureForPrivacy.mockResolvedValueOnce({ proceed: true, eligibility: "unscreened",
-      outcome: "not_reviewed", detail: null, evidence: null });
-    let entered!: () => void;
-    let resume!: () => void;
-    const screening = new Promise<void>((resolve) => { entered = resolve; });
-    const continueScreen = new Promise<void>((resolve) => { resume = resolve; });
-    screenCaptureForPrivacy.mockImplementationOnce(async () => {
-      entered();
-      await continueScreen;
-      return { proceed: false, eligibility: "pending", outcome: "review_unavailable",
-        detail: "Hold", evidence: null };
-    });
     await withRoutes(async (baseUrl) => {
       expect((await uploadFor(baseUrl, "req-privacy-generation", "V1")).status).toBe(201);
-      const markerName = "scenes/site-req-privacy-generation/captures/walkthrough-req-privacy-generation/raw/capture_upload_complete.json";
-      const firstMarker = written.get(markerName);
-      const firstVersions = [...storedVersions.keys()].filter((name) => name.startsWith(`${markerName}@`));
-      const second = uploadFor(baseUrl, "req-privacy-generation", "V2");
-      await screening;
-      try {
-        const stored = sharedFakeFirestoreState.docs.get("inboundRequests/req-privacy-generation") as Record<string, any>;
-        const session = sharedFakeFirestoreState.docs.get("captureUploadSessions/walkthrough-req-privacy-generation") as
-          Record<string, any>;
-        expect(stored.capture_privacy_screen.producer_source.key).not.toBe(
-          browserPendingDecisionKey(session.browser_pending_delivery));
-        const token = tokenFrom(captureUploadUrlFor("req-privacy-generation"));
-        await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
-        expect(written.get(markerName)).toBe(firstMarker);
-        expect([...storedVersions.keys()].filter((name) => name.startsWith(`${markerName}@`))).toEqual(firstVersions);
-      } finally {
-        resume();
+      await waitForUploadRelease("req-privacy-generation");
+      const before = [...storedVersions];
+      const refused = await uploadFor(baseUrl, "req-privacy-generation", "V2", extension);
+      expect(refused).toMatchObject({ status: 409, body: { captureReceived: true,
+        uploadState: "processing_ready", code: "capture_replacement_requires_new_job" } });
+      expect(refused.body.message).toContain("No new recording was accepted");
+      expect(refused.body.state).toBeUndefined();
+      expect([...storedVersions]).toEqual(before);
+      expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
+      expect((await uploadStatus(baseUrl, "req-privacy-generation")).body)
+        .toMatchObject({ captureReceived: true, uploadState: "processing_ready" });
+      expect(await retryProcessing(baseUrl, "req-privacy-generation"))
+        .toMatchObject({ status: 200, body: { captureReceived: true, state: "processing_ready" } });
+      expect([...storedVersions]).toEqual(before);
+    });
+  });
+
+  it("refuses ambiguous parts completion after publication and leaves the original receipt readable", async () => {
+    seedRequest("req-complete-again", { disposition: "qualified" });
+    await withRoutes(async baseUrl => {
+      expect((await uploadFor(baseUrl, "req-complete-again", "V1")).status).toBe(201);
+      const before = [...storedVersions];
+      const token = tokenFrom(captureUploadUrlFor("req-complete-again"));
+      for (const sizeBytes of [quickTime("V1").length, 234]) {
+        const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/complete`, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ parts: 1, extension: "mov", sizeBytes,
+            metadata: { widthPx: 1920, heightPx: 1080, durationSeconds: 61, fps: 30, recordedAtEpochMs: 1_758_000_000_000 } }),
+        });
+        expect(response.status).toBe(409);
+        expect(await response.json()).toMatchObject({ captureReceived: true, uploadState: "processing_ready",
+          code: "capture_replacement_requires_new_job" });
       }
-      expect((await second).body.state).toBe("held");
+      expect([...storedVersions]).toEqual(before);
     });
   });
 

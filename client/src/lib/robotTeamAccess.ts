@@ -26,6 +26,8 @@ export interface EarlyAccessApplication {
 
 export class EarlyAccessApplicationError extends Error {}
 
+export type AccessNotificationStatus = "queued" | "sent" | "needs_attention" | "not_requested";
+
 /** Ask for a fresh invitation link; it is sent only if the address is approved. */
 export async function requestInvitationLink(email: string): Promise<void> {
   const response = await fetch("/api/robot-team-access/invitation", {
@@ -36,15 +38,19 @@ export async function requestInvitationLink(email: string): Promise<void> {
   if (!response.ok) throw new EarlyAccessApplicationError("The link could not be sent. Try again.");
 }
 
-export async function applyForEarlyAccess(application: EarlyAccessApplication): Promise<LibraryAccess["status"]> {
+export async function applyForEarlyAccess(application: EarlyAccessApplication): Promise<{
+  status: LibraryAccess["status"]; notificationStatus: AccessNotificationStatus;
+}> {
   const response = await fetch("/api/robot-team-access/apply", {
     method: "POST",
     headers: await withCsrfHeader({ "Content-Type": "application/json" }),
     body: JSON.stringify(application),
   });
-  const body = (await response.json().catch(() => ({}))) as { status?: LibraryAccess["status"]; error?: string };
+  const body = (await response.json().catch(() => ({}))) as {
+    status?: LibraryAccess["status"]; notificationStatus?: AccessNotificationStatus; error?: string;
+  };
   if (!response.ok) {
     throw new EarlyAccessApplicationError(body.error || "The application could not be sent. Try again.");
   }
-  return body.status ?? "applied";
+  return { status: body.status ?? "applied", notificationStatus: body.notificationStatus ?? "needs_attention" };
 }

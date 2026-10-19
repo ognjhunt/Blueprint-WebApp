@@ -12,6 +12,8 @@ How it works: invited robot teams evaluate your job free, in a simulation built 
 4. Your job card: before you start, the form shows the exact anonymized card that robot teams approved for the beta can see, and a **Keep this job private instead** checkbox. Leave it unticked to list the job, or tick it and no card is published. A listed card can be edited or hidden from your job page at any time; hiding it stops new evaluations. An account is offered when you save ownership and follow the job; the initial description does not require one. Robot teams join by invitation, and their evaluations are free.
 5. Blueprint presents one recommended pilot only when a team's evaluation on your job passed and that team wants the pilot. Review what the pilot tests, what each party provides, timing, and remaining uncertainty. **Book this pilot** is your one approval and costs nothing; there is no Blueprint fee, invoice or payment step. The robot team quotes any physical pilot cost to you directly. Site access, dates, and physical work are agreed between you and the team after booking.
 
+Before recording, confirm the task with Blueprint. The current website evaluation route supports picking up one rigid object and placing it elsewhere on the same support surface. Moving between surfaces, placing into containers, or manipulating doors and other articulated objects needs a separately supported route. You can still describe the useful job you have; Blueprint should explain the specific compatibility gap before asking you to collect footage.
+
 ## Footage and permission
 
 Only provide footage you are authorized to share and use for the stated purpose. Before filming, tell people in the work area that you are recording and that the video will be shared with Blueprint, and get any permission the law requires. Film the work and objects; avoid identifiable people, conversations, confidential screens, restricted areas, and private records. Phone videos can record sound: turn it off where your camera allows. Blueprint keeps the original upload as received and removes the sound before any automated review or provider processing; it does not analyze speech. Review the [privacy policy](https://tryblueprint.io/privacy) and the permission statement before uploading. Do not put credentials or sensitive footage in support email. Keep your original file until receipt is confirmed.
@@ -30,7 +32,7 @@ A few tape-measure readings let Blueprint check the rebuilt scene against your s
 
 Blueprint reviews the readings with your footage. They are evidence for that check, never a result. A reading cannot make an evaluation pass, and a part of the scene with no reading stays unchecked. You can correct a reading at any time; the record keeps who saved each one and when.
 
-## Recover without starting over
+## Recover a saved job
 
 | What you see | Next action |
 | --- | --- |
@@ -38,6 +40,7 @@ Blueprint reviews the readings with your footage. They are evidence for that che
 | Link cannot be checked or has expired | Reopen it; use **Email me a fresh link** if offered. A successful request is not proof of delivery. If it remains blocked, contact support. |
 | Upload failed or status is unknown | Keep the original video. Reopen the job page to check receipt before selecting it again. |
 | Video received; processing not confirmed | Use **Retry processing** only when offered. This reuses the saved video. Otherwise contact support with the displayed reason. |
+| More views or a replacement recording are needed after receipt | Contact support with the job reference. The accepted recording cannot be replaced or extended through its original link. Blueprint helps you start a new job with one complete walkthrough, fresh recording permission, and its own preparation and qualification review. Keep the original job and receipt; a new upload is not automatically joined to them. |
 | Consent or rights hold | Stop processing attempts. Resolve the named permission issue with the site owner/support. |
 | Brief correction failed | Keep the page open and retry the correction. Reopen the job link to verify the saved answers. |
 | Recommendation changed or booking acknowledgment interrupted | Reopen the job page to inspect the current recommendation and booking before retrying. Do not infer booking or payment from a missing response. |

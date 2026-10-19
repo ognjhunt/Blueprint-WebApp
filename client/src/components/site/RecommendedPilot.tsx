@@ -46,7 +46,10 @@ function EvidenceLine({ teamName, evidence }: { teamName: string; evidence: Eval
     <p>{teamName} evaluated your job: {evidence.episodesSucceeded} of {evidence.episodesRun} simulated episodes succeeded ({percent(evidence.successRate)}), meeting {mark}.</p>
     {evidence.episodeAccounting && <p className="ms-field-hint">{evidence.episodeAccounting.planned} prescribed episodes: {evidence.episodeAccounting.scored} scored ({evidence.episodeAccounting.succeeded} successes, {evidence.episodeAccounting.failed} failures), {evidence.episodeAccounting.void} void and excluded from the success-rate denominator.</p>}
     {evidence.uncertainty && <p className="ms-field-hint">95% Wilson interval: {percent(evidence.uncertainty.lower)}–{percent(evidence.uncertainty.upper)}. The pass mark uses the observed success rate. {evidence.uncertainty.boundary}</p>}
-    {evidence.cycleTimeTargetSeconds !== null && <p>Measured median cycle: {evidence.medianCycleSeconds}s; target: at most {evidence.cycleTimeTargetSeconds}s.</p>}
+    {evidence.cycleTimeTargetSeconds !== null && <>
+      <p>Simulated median cycle: {evidence.medianCycleSeconds}s; target: at most {evidence.cycleTimeTargetSeconds}s.</p>
+      <p className="ms-field-hint">Includes settling in the simulator; excludes policy-service latency. The physical pilot measures actual throughput.</p>
+    </>}
     <p className="ms-field-hint">Simulation estimate — the physical pilot measures the real result. It does not certify physical performance or safety.</p>
     {evidence.resultUrl && <p><a className="ms-text-link" href={evidence.resultUrl}>See the evaluation results</a></p>}
   </>;

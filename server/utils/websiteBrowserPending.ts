@@ -106,7 +106,6 @@ export function selectBrowserPending(
 ): { action: "record" | "replay"; selected: BrowserPending } | { action: "conflict" } {
   if (!existing) return { action: "record", selected: incoming };
   if (sameDelivery(existing, incoming)) return { action: "replay", selected: existing };
-  if (existing.state === "published") return { action: "record", selected: incoming };
   return { action: "conflict" };
 }
 
@@ -121,12 +120,15 @@ function validPending(value: unknown): value is BrowserPending {
 }
 
 /** Claim the capture before either canonical video or manifest can be written. */
-export async function reserveBrowserUpload(input: { request_id: string; scene_id: string; capture_id: string },
+export async function reserveBrowserUpload(input: { request_id: string; scene_id: string; capture_id: string;
+  canonical_video_name?: string },
   nowMs = Date.now()): Promise<BrowserWriteReservation> {
   if (!db || !Number.isSafeInteger(nowMs) || nowMs < 1
       || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(input.request_id)
       || input.scene_id !== `site-${input.request_id}`
-      || input.capture_id !== `walkthrough-${input.request_id}`)
+      || input.capture_id !== `walkthrough-${input.request_id}`
+      || (input.canonical_video_name !== undefined && !["mov", "mp4"].some(extension =>
+        input.canonical_video_name === `scenes/${input.scene_id}/captures/${input.capture_id}/raw/walkthrough.${extension}`)))
     throw new Error("browser_pending_unavailable");
   const reservation: BrowserWriteReservation = { schema_version: "website_browser_write_reservation.v1",
     ...input, id: randomUUID(), expires_at_ms: nowMs + WRITE_RESERVATION_MS };
@@ -139,6 +141,10 @@ export async function reserveBrowserUpload(input: { request_id: string; scene_id
     if (snapshot.data()?.browser_legacy_finish_claim) throw new Error("browser_pending_conflict");
     const value = snapshot.data()?.browser_pending_delivery;
     if (value != null && !validPending(value)) throw new Error("browser_pending_invalid");
+    // Pipeline binds this capture ID to its first admitted delivery. A later
+    // recording needs a new job, even if its earlier processing has finished.
+    if (value?.state === "published" || snapshot.data()?.immutable_upload_identity)
+      throw new Error("browser_capture_finalized");
     if (value?.state === "held") throw new Error("browser_pending_conflict");
     // A completed video with an interrupted manifest write must be retried,
     // rather than overwritten by a second upload of the same footage.
@@ -146,10 +152,16 @@ export async function reserveBrowserUpload(input: { request_id: string; scene_id
     const active = snapshot.data()?.browser_upload_reservation;
     if (active != null && !validReservation(active)) throw new Error("browser_pending_invalid");
     if (active && active.expires_at_ms > nowMs) throw new Error("browser_pending_conflict");
+    // Every retry shares one create-only destination. Otherwise an expired
+    // .mov writer and its .mp4 successor could each create a different video.
+    const canonicalName = snapshot.data()?.browser_canonical_video_name;
+    if (canonicalName != null && canonicalName !== input.canonical_video_name)
+      throw new Error("browser_pending_conflict");
     // Keep this evidence after release or a failed write: canonical video may
     // already have changed even when no pending delivery was recorded.
     transaction.set(ref, { browser_upload_reservation: reservation,
-      browser_modern_attempt: true }, { merge: true });
+      browser_modern_attempt: true,
+      ...(input.canonical_video_name ? { browser_canonical_video_name: input.canonical_video_name } : {}) }, { merge: true });
     return reservation;
   });
 }

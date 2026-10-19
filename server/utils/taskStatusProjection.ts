@@ -285,16 +285,13 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  // Coverage measured a shortfall we can name. This is the most actionable
-  // state and it takes priority: it is a specific, cheap thing they can do.
+  // Name measured gaps without promising an unsupported same-link supplement.
   if (input.coversScene === false && input.missingViews.length) {
     return {
       ...base,
       decision: "add_views",
-      headline: input.supplementWouldFinish
-        ? "Your footage shows the job. One or two more views would finish the scene."
-        : "Your footage needs more coverage before we can build the scene.",
-      operatorAction: `Add: ${input.missingViews.join(", ")}.`,
+      headline: "Your footage is saved, but it needs more coverage before we can build the scene.",
+      operatorAction: `Still needed: ${input.missingViews.join(", ")}. Contact hello@tryblueprint.io with your job reference for help starting a new job with a complete walkthrough and fresh recording permission. This link cannot add to or replace the original recording; the new job needs its own review before evaluation.`,
     };
   }
 
@@ -471,14 +468,14 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ? ` Reference: ${preparation.correlationId}.` : "";
     // A terminal ending is final; "taking longer" is for a state that can still move.
     const overdue = input.preparationOverdue && preparation.state !== "failed_terminal" && preparation.state !== "unavailable"
-      ? " This is taking longer than it should, and our team has been told." : "";
+      ? " This is taking longer than it should and needs review." : "";
     const ended = preparationEndedSentence(preparation.terminalReason);
     const headlines: Record<Exclude<TaskPreparationStatus["state"], "handed_off">, string> = {
       preparing: "We are preparing your job. Keep your original recording.",
       awaiting_inputs: "Job preparation needs more information. Keep your original recording; our team needs to review it.",
       capacity_delayed: "Your recording is saved and queued. Preparation is waiting for processing capacity on our side; nothing is needed from you. Keep your original recording.",
       failed_retryable: "Job preparation encountered a problem. Keep your original recording; our team needs to review it.",
-      failed_terminal: `Scene preview preparation could not finish, and we have stopped trying.${ended ? ` ${ended}` : ""} Nothing more is needed from you, and our team has been told. Keep your original recording.`,
+      failed_terminal: `Scene preview preparation could not finish, and we have stopped trying.${ended ? ` ${ended}` : ""} Nothing more is needed from you. This needs our team's review. Keep your original recording.`,
       authority_ended: "Processing is on hold while our team checks its authorization. Keep your original recording.",
       unavailable: "Your recording is saved. We could not verify the latest preparation status. Keep your original recording and check again shortly.",
     };
@@ -511,7 +508,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "footage_received",
       stage: null,
-      headline: "Your recording is saved. Preparing it is taking longer than it should, and our team has been told. Keep your original recording; you do not need to record it again.",
+      headline: "Your recording is saved. Preparing it is taking longer than it should and needs review. Keep your original recording; you do not need to record it again.",
       operatorAction: null,
     };
   }
@@ -523,7 +520,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "footage_received",
       stage: null,
-      headline: `${input.scenePreviewReady ? "Your scene preview is ready, but we" : "We"} could not finish preparing your job for robot evaluations, and we have stopped trying. Nothing more is needed from you, and our team has been told. Keep your original recording.`,
+      headline: `${input.scenePreviewReady ? "Your scene preview is ready, but we" : "We"} could not finish preparing your job for robot evaluations, and we have stopped trying. Nothing more is needed from you. This needs our team's review. Keep your original recording.`,
       operatorAction: null,
     };
   }

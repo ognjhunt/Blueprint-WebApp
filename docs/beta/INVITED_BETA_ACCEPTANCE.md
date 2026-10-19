@@ -1,52 +1,111 @@
-# Invited beta acceptance and operating checklist
+# Beta acceptance and operating checklist
 
-> **2026-10-13 update:** the beta is now free for everyone (founder decision). Booking the recommended pilot carries no Blueprint fee; references below to the "$2,500" booking fee describe the 2026-10-06 verification and are superseded. Sites sign up openly; robot teams join by invitation.
+Updated 2026-10-19. The beta is free for sites and invited robot teams. Sites can
+sign up openly; Blueprint may also onboard them by hand. The site and team agree
+physical pilot terms directly, with no Blueprint fee or cut.
 
-Owner: Nijel Hunt (founder), until he assigns a named replacement in the existing operating record. Scope: one description-first site journey and support for a few invited users. This packet does not authorize contacts, invitations, paid runs, charges, or production fixture writes.
+Nijel Hunt owns first-cohort follow-through until a named replacement accepts it
+in the existing operating record. Each job records its owner, missing input,
+next action and agreed next update. A working intake does not establish a
+completed evaluated-and-recommended-pilot journey.
 
 ## Current evidence boundary
 
-Source baseline: Web `493b3c42916a12fb6957da98de90a6038a00d0fd`. Fresh non-mutating production GETs on **2026-10-06 at 23:25 UTC** returned Web `3c66debc04b0586a4358d59fa380f76d5016fb02`, `/health` healthy, and `/health/ready` ready with zero blockers. These are service-health observations, not complete journey proof.
+The read-only audit on 2026-10-19 observed WebApp
+`c483b858e246c685df045e69830d233b03da7a33` healthy and ready, a fresh worker
+heartbeat, and Pipeline `a4f278a0babccde3762ed9ad98cece38acb058b9` with proven
+source identity. The worker commit came from the latest deployment receipt.
+These are dated baseline observations, not the release identity of subsequent
+repairs. Use the final merged commit, successful CI and authenticated deployment
+receipt in each repair PR, then read back the live identity.
 
-The coordinated release remains held: Deploy workflow `314852802` disabled, Render auto-deploy off, worker `c4db1d2`, daily research/comms off (parent-confirmed at 22:56 UTC). This task must not re-enable or deploy around recovery or transfer the pending diagnostic packet.
+The audit found 47 site-job records with owners and next actions, no published
+site-task qualification receipt, no recorded team supply agreement, and no
+recommendation or booking reference. Offline agreements were not ruled out.
+The retained October 16 diagnostic scored 200 episodes with zero successes using
+an authored hold-position policy; it remains development-only and is not a
+trained team's successful manipulation or a qualified customer evaluation.
 
-Native/Pipeline execution remains owned by the existing native task: `01a11186-8288-7476-aeab-c71530faf0ef`, with read-only Mac diagnostics in `01a11380-555c-72a1-82bb-cdc4879a30d6`. Parent reported Pipeline target `312ef0d6` after #2636/#2638; active native source `20159f08`, version timeout, and installer authentication/validation failure. Check fresh owner evidence before relying on those snapshots. No native, provider, or robot availability is required to begin an email-first site conversation.
+The Pipeline founder dispatch hold requires explicit release. Provider capacity,
+credit and retention preflight must be checked for the selected run. Deployment
+authority does not release dispatch holds or authorize new provider spend.
+The superseded October 6 evidence and operating snapshot are retained in
+[the historical acceptance record](./2026-10-06-acceptance-history.md).
 
-## Acceptance map
+## First-pair onboarding
 
-| Journey seam | Owning source / check | What the evidence proves |
-| --- | --- | --- |
-| Description-first intake, optional existing footage, returned private link | `SiteCaptureStart.tsx`; `SiteCaptureStart.test.tsx`; isolated browser rehearsal | Description and recording authority are separate; upload failure does not erase the job. |
-| Brief correction, unknowns, pilot preferences on return | `SelfCaptureUpload.tsx`, `TaskBriefReview.tsx`; their component tests | Persisted preferences survive reload; uncertainty stays open; a correction can be retried. |
-| Upload receipt, processing uncertainty, retry and reload | `selfCaptureVideo.ts`, `self-capture-uploads.ts`; `selfCaptureVideo.test.ts`, `self-capture-manifest.test.ts` | Storage receipt is distinct from dispatch/execution; retry rechecks authority and reuses retained footage. |
-| Assessment, ownership and next action | `site-task-brief.ts`; `site-task-brief-status.test.ts`, `site-task-brief.test.ts` | Status derives from recorded evidence, and account/claim steps retain their existing authority. |
-| One scoped partner recommendation and explicit booking | `admin-robot-teams.ts`, `task-listings.ts`, `RecommendedPilot.tsx`; route/component tests | Recommendations require a registered, invitation-approved team whose supply agreement is on record (it agreed to run on the supported interface, accept a free evaluation and take the pilot if it passes; [runbook](./ROBOT_TEAM_SUPPLY_AGREEMENTS.md)); booking binds the displayed recommendation (no Blueprint fee since 2026-10-13; the 2026-10-06 check covered the then-current $2,500 fee). Neither a registry entry nor a fixture proves a team is willing for a live pilot. Booking acknowledgment is not payment proof. |
-| Back/Forward, stale booking, interrupted response | `RecommendedPilot.test.tsx`, `SelfCaptureUpload.test.tsx` | Old private-link state/authorization cannot appear on another job; repeated clicks are suppressed; server acknowledgment is required. |
-| Withdrawn consent and failure/support recovery | `websiteCaptureWithdrawal.ts`; withdrawal/manifest tests; site guide | Consent holds cannot be cleared by a processing retry; downstream withdrawal requires a matching acknowledgment. |
+1. **Site:** use the [site guide](./SITE_OPERATOR_BETA_GUIDE.md); describe one useful
+   recurring job before collecting footage. Check that it fits the current
+   website evaluation route: one rigid object picked and placed elsewhere on
+   the same support surface. Container, cross-surface and articulated tasks
+   need a separately supported route; keep that limitation visible to the owner.
+2. **Recording:** verify authority, the applicable collection terms, privacy
+   conditions, source retention/deletion deadlines and the named withdrawal
+   owner before footage collection. A description does not grant recording
+   permission. The existing recording/retention review packet is not approval.
+3. **Team:** use the [supply agreement runbook](./ROBOT_TEAM_SUPPLY_AGREEMENTS.md).
+   Verify invitation delivery, willingness to accept a free evaluation and a
+   possible direct pilot, exact robot model/interface, and permission for the
+   saved policy setup. An approved access record or queued email is not a
+   delivered invitation or supply agreement.
+4. **Model:** bind the exact self-contained USD bytes, actuated joints, cameras
+   and control rate. Agree approved private delivery before sharing proprietary
+   bytes. The empty-model DROID preset is diagnostic-only and cannot support a
+   qualified recommendation. Any robot form may apply; actual compatibility is
+   specific to the model, task, scene and control interface.
+5. **Qualification:** the Pipeline producer and an authorized independent
+   reviewer bind actual source/simulator measurements, frozen tolerances and
+   source/model/scene hashes to the receipt. Measure the task-critical scale,
+   registration, collision, task state, observation and dynamics. Do not invent
+   samples or relax tolerances to obtain a passing receipt.
+6. **Run admission:** obtain the existing exact-run founder authority and check
+   capacity, funding limits, permissions and teardown/retention requirements.
+   Internal cost limits are not an additional budget step for the site.
 
-The isolated browser rehearsal runs the real frontend at 390px and 1440px with fixture identity and named local API responses. It blocks all non-loopback requests and fails on unmapped APIs. Its retained-video, willing-team and booking records are synthetic. It proves UI handoffs only, never real footage processing, a willing partner, payment, physical performance, or production delivery.
+Recruitment can begin before the evaluation is complete. If a useful job falls
+outside current support, explain that exact gap and decide the next step with
+the site; do not imply a broad workflow was tested by one primitive.
 
-Local verification on 2026-10-06: **141 tests across 10 focused files passed**, **both browser widths passed**, TypeScript passed, and Graphify's installed AST runner completed (106 corpus files). A fresh Chrome read of the deployed contact page at approximately 23:33 UTC confirmed description-first entry, optional existing video, separate description/recording permission, free invited robot-team evaluation, the $2,500 booking wording, support link, and the distinction between simulation and physical trials. No form, consent grant, email, upload, or booking was submitted in production. Full production return, processing, withdrawal and booking handoffs remain unchecked until the release gate below is satisfied.
+## Release and journey acceptance
 
-## Checks to repeat for this change
+| Evidence | Completion condition |
+| --- | --- |
+| Code and deployment | Independent review; required CI at the exact commit; normal protected merge; authenticated web/worker and Pipeline deploy receipts; matching live version/health readback. Keep dispatch, sends, schedules and spending controls unchanged. |
+| Site return | A consented participant saves the job, receives its private link, authenticates and returns after interruption to the same record. A different account cannot access private material. |
+| Footage and brief | Original receipt, applicable rights, approved task/criteria and correct revision are linked. After receipt, additional or replacement footage requires a new job with one complete walkthrough, fresh recording permission, preparation and qualification. Preserve the original job; the current route does not merge or admit supplements into it. |
+| Team onboarding | Actual invitation delivery, recorded supply agreement, verified robot/policy configuration and saved exact-setup permission. |
+| Valid score | Qualified receipt for the exact scene/robot. A robot-free probe does not establish grasp feasibility. |
+| Evaluation | Observe the first-shard interface gate and all 200 prescribed cells: at least 190 scored and at most 10 void under the existing acceptance rule, with independent outcomes and required media. Do not discard policy failures or change criteria after seeing results. |
+| Result delivery | Both participant accounts see the correct result and actual notification delivery is inspected. Failed/abstained results explain limitations and next steps. Simulator cycle time includes settling and excludes policy-service latency; physical throughput remains unmeasured. |
+| Recommendation and booking | Only a genuinely passing, willing team is recommended. Bind the current recommendation, book once and inspect the actual contact handoff. If nobody passes, do not manufacture a booking. |
+| Recovery | Under explicit authority, demonstrate interrupted processing recovery and withdrawal through downstream acknowledgement. Retain artifact recovery evidence, actual provider receipts, elapsed time, bytes, operator interventions and provider-zero teardown. Database PITR alone does not prove artifact restore. |
+
+For the first task, we recommend that the evaluation operator, with team input,
+check a plausible successful robot-action baseline and discriminating
+idle/wrong-state failures before relying on the decision. This confidence check
+is not an added automated admission requirement or a new site/team approval step.
+
+Local fixtures and hermetic tests prove code behavior. A successful build,
+matching release hash or healthy service does not prove participant delivery,
+policy execution, scientific validity, withdrawal completion or physical results.
+
+## Verification and retained evidence
+
+Use the repository's normal required CI and deployment workflows. Focused
+checks for the repaired paths include invitation/outbox route tests, capture
+watcher delivery/failure/retry tests, workspace/result component tests, and the
+isolated invited-site browser rehearsal. The rehearsal blocks external requests
+and uses synthetic APIs; it must never be reported as production journey proof.
 
 ```bash
-node node_modules/typescript/bin/tsc -p tsconfig.full.json --noEmit --incremental false
-node node_modules/vitest/vitest.mjs run client/tests/components/RecommendedPilot.test.tsx client/tests/pages/SelfCaptureUpload.test.tsx client/tests/components/SiteCaptureStart.test.tsx client/tests/components/TaskBriefReview.test.tsx server/tests/pilot-recommendation-route.test.ts server/tests/site-task-brief.test.ts server/tests/site-task-brief-status.test.ts server/tests/website-capture-withdrawal.test.ts server/tests/self-capture-manifest.test.ts client/tests/lib/selfCaptureVideo.test.ts --maxWorkers 1 --no-file-parallelism --cache false --configLoader runner
-RESULT_CONSUMER_QA_PORT=42879 RESULT_CONSUMER_QA_OUTPUT=/tmp/invited-beta-browser node node_modules/@playwright/test/cli.js test --config playwright.invited-beta.config.ts
+npm run check
+RESULT_CONSUMER_QA_PORT=42879 node node_modules/@playwright/test/cli.js test --config playwright.invited-beta.config.ts
 bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz
 ```
 
-Use the already installed Graphify interpreter via `BLUEPRINT_GRAPHIFY_PYTHON` if the default Python lacks it. Do not install duplicate dependencies on a constrained Mac. Promotion still requires the normal required CI checks and independent review at the final commit.
-
-## Minimal launch checklist
-
-- [ ] Independent review accepts the exact final commit; required CI passes; parent/release owner merges through the normal path.
-- [ ] Release/recovery owner clears the existing hold and records authenticated deploy receipts for the intended web/worker SHAs. Fresh `/version.json`, `/health`, and `/health/ready` match the release. Keep daily/comms state under that owner's control.
-- [ ] After deployment, inspect the public description form, separate footage permission, proof limits, and recovery copy without submitting a live job. Attach the observed version and time. A full production handoff needs a specifically authorized isolated fixture or consented participant; do not claim it from local mocks.
-- [ ] Before each invited site starts, founder confirms the participant received the [site guide](./SITE_OPERATOR_BETA_GUIDE.md), the support address, and an agreed next update. Record the job owner, next action, missing input, and update time in the existing record. No automatic enrollment or invitation is implied.
-- [ ] For any real footage, verify exact current rights/privacy authority and receipt. Resolve holds before processing; preserve the source and report pending downstream withdrawal acknowledgments.
-- [ ] Before recommending a live pilot, record the team's supply agreement ([runbook](./ROBOT_TEAM_SUPPLY_AGREEMENTS.md); the recommendation route refuses a team without it) and corroborate team willingness, bounded evidence/uncertainties, scope, costs, site/team contributions, and accountable owners. Confirm dates/site access separately. Record payment truth only from its owning receipt/system.
-- [ ] Before claiming full automated evaluation, native owner supplies authenticated deployment, matching version/health, linked request/capture/consent identities, execution/result receipts, and the actual journey readback. Local software tests do not replace this gate.
-
-**Done for initial discovery:** the deployed description/return/recovery path is observed, and each invited user has a named owner and next action; initial contact does not wait for robot-team or native execution commitments. **Done for a complete evaluated journey:** all production handoffs, exact evidence, willing partner, booking/payment state and measured-pilot preparation are verified under their own authority. Until those readbacks exist, report the remaining gate and owner.
+For a release, retain the PR and full commit identities, CI/deploy run URLs,
+timestamped sanitized live readbacks, checksums, schemas/formats and canonical
+company-controlled artifact paths. Use existing approved storage and access;
+provider session IDs and optional Library copies are not canonical evidence.
+Keep deployment receipts separate from the first real participant acceptance
+record. The latter is still required before calling the complete journey proven.
