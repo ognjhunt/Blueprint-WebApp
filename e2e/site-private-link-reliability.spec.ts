@@ -1,6 +1,4 @@
 import { expect, test } from "@playwright/test";
-import { copyFileSync } from "node:fs";
-import path from "node:path";
 
 const summary = (name: string, email = "operator@example.test") => ({
   ok: true, requestId: `fixture-${name}`, alreadyClaimed: false,
@@ -71,21 +69,13 @@ test("owner can request an authorized assessment retry while keeping the saved r
   await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
 });
 
-test("returning owner can explicitly replace a received recording without confirming the brief", async ({ page }, info) => {
-  const token = "replacement-fixture";
-  const video = info.outputPath("synthetic-replacement.mp4");
-  // Owned synthetic pixels exercise actual decoding and transport, not video judgment.
-  copyFileSync(path.resolve("e2e/fixtures/synthetic-transport.mp4"), video);
+test("returning owner keeps the received recording and gets fresh-job recovery guidance without new writes", async ({ page }, info) => {
+  const token = "retained-recording-fixture";
   const writes: string[] = [];
-  let posted = "";
   await page.route("**/api/**", route => {
     const request = route.request();
     const url = new URL(request.url());
     if (request.method() !== "GET") writes.push(url.pathname);
-    if (url.pathname === `/api/self-capture/uploads/${token}` && request.method() === "POST") {
-      posted = request.postDataBuffer()!.toString("latin1");
-      return route.fulfill({ json: { captureReceived: true, uploadState: "processing_ready" } });
-    }
     if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
       ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"],
     } });
@@ -102,24 +92,25 @@ test("returning owner can explicitly replace a received recording without confir
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Upload a new recording", exact: true })).toHaveCount(0);
+  await expect(page.locator('input[type="file"]')).toHaveCount(0);
+  expect(writes).toEqual([]);
   await page.reload();
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  const choose = page.getByRole("button", { name: "Upload a new recording", exact: true });
-  await expect(choose).toBeVisible();
-  expect(writes).toEqual([]);
-  const chooserEvent = page.waitForEvent("filechooser");
-  await choose.click();
-  const chooser = await chooserEvent;
-  // Opening or canceling the picker leaves the acknowledged source untouched.
-  await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
-  expect(writes).toEqual([]);
-  await chooser.setFiles(video);
-  await expect.poll(() => writes).toEqual([`/api/self-capture/uploads/${token}`]);
-  expect(posted).toContain('filename="synthetic-replacement.mp4"');
-  expect(posted).toContain('name="metadata"');
-  await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Upload a new recording", exact: true })).toHaveCount(0);
+  await expect(page.locator('input[type="file"]')).toHaveCount(0);
+  await expect(page.getByText(/This link keeps your original recording/)).toContainText(
+    "for help starting a new job with a complete walkthrough and fresh recording permission.");
+  await expect(page.getByText(/This link keeps your original recording/)).toContainText(
+    "Your existing job stays saved; the new job needs its own review before evaluation.");
+  const support = page.getByRole("link", { name: "contact Blueprint", exact: true });
+  await expect(support).toHaveAttribute("href", "mailto:hello@tryblueprint.io?subject=Help%20with%20a%20new%20capture%20job");
+  expect(await support.getAttribute("href")).not.toContain(token);
   await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toBeVisible();
   await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath("retained-recording-fresh-job-guidance.png"), fullPage: true });
+  // Neither returning nor reloading uploads bytes, grants new permission, or confirms the brief.
+  expect(writes).toEqual([]);
 });
 
 test.beforeEach(async ({ context }) => {
