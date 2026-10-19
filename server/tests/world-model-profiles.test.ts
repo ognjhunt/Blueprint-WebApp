@@ -32,11 +32,18 @@ describe("world model profiles", () => {
     expect(resolveWorldModelProfile("Marble 0.1-plus").model).toBe("marble-1.0");
   });
 
-  it("keeps Atlas unreachable until its real API has been seen", () => {
-    const atlas = WORLD_MODEL_PROFILES.atlas;
-    expect(atlas.available).toBe(false);
-    expect(atlas.maxFrames).toBe(100);
-    expect(atlas.note).toMatch(/no published request schema/i);
+  it("never resolves Atlas to a worlds:generate model, under any spelling", () => {
+    // Atlas is a set of task endpoints (posed RGB-D, generated views), not a
+    // world model. Every spelling must stay unreachable here instead of falling
+    // through to the unknown-model rule below, which would send Atlas a
+    // Marble-shaped request.
+    for (const name of ["atlas", "Atlas", "atlas-beta", "atlas2", " atlas "]) {
+      const profile = resolveWorldModelProfile(name);
+      expect(profile.available).toBe(false);
+      expect(profile.maxFrames).toBe(0);
+      expect(profile.note).toMatch(/not a worlds:generate model/i);
+    }
+    expect(WORLD_MODEL_PROFILES).not.toHaveProperty("atlas");
   });
 
   it("holds Marble to its published input caps", () => {
@@ -55,7 +62,6 @@ describe("world model profiles", () => {
 
 describe("frame selection", () => {
   const marble = resolveWorldModelProfile("marble-1.1-plus");
-  const atlas = WORLD_MODEL_PROFILES.atlas;
 
   it("passes every frame through when the walkthrough is already under the cap", () => {
     const selection = selectFramesForModel(frames(3), marble);
@@ -116,10 +122,9 @@ describe("frame selection", () => {
     expect(selection.consideredCount).toBe(2);
   });
 
-  it("lets the Atlas budget through unchanged, which is the point of the profile", () => {
-    const selection = selectFramesForModel(frames(600), atlas);
-    expect(selection.frames).toHaveLength(100);
-    expect(selection.requiresReconstructFlag).toBe(false);
+  it("selects nothing for a refused Atlas profile", () => {
+    const selection = selectFramesForModel(frames(600), resolveWorldModelProfile("atlas"));
+    expect(selection.frames).toHaveLength(0);
   });
 });
 
