@@ -74,11 +74,16 @@ the site; do not imply a broad workflow was tested by one primitive.
 | Site return | A consented participant saves the job, receives its private link, authenticates and returns after interruption to the same record. A different account cannot access private material. |
 | Footage and brief | Original receipt, applicable rights, approved task/criteria and correct revision are linked. After receipt, additional or replacement footage requires a new job with one complete walkthrough, fresh recording permission, preparation and qualification. Preserve the original job; the current route does not merge or admit supplements into it. |
 | Team onboarding | Actual invitation delivery, recorded supply agreement, verified robot/policy configuration and saved exact-setup permission. |
-| Valid score | Qualified receipt for the exact scene/robot; a plausible successful robot-action baseline and discriminating idle/wrong-state failures before relying on the first decision. A robot-free probe does not establish grasp feasibility. |
+| Valid score | Qualified receipt for the exact scene/robot. A robot-free probe does not establish grasp feasibility. |
 | Evaluation | Observe the first-shard interface gate and all 200 prescribed cells: at least 190 scored and at most 10 void under the existing acceptance rule, with independent outcomes and required media. Do not discard policy failures or change criteria after seeing results. |
 | Result delivery | Both participant accounts see the correct result and actual notification delivery is inspected. Failed/abstained results explain limitations and next steps. Simulator cycle time includes settling and excludes policy-service latency; physical throughput remains unmeasured. |
 | Recommendation and booking | Only a genuinely passing, willing team is recommended. Bind the current recommendation, book once and inspect the actual contact handoff. If nobody passes, do not manufacture a booking. |
 | Recovery | Under explicit authority, demonstrate interrupted processing recovery and withdrawal through downstream acknowledgement. Retain artifact recovery evidence, actual provider receipts, elapsed time, bytes, operator interventions and provider-zero teardown. Database PITR alone does not prove artifact restore. |
+
+For the first task, we recommend that the evaluation operator, with team input,
+check a plausible successful robot-action baseline and discriminating
+idle/wrong-state failures before relying on the decision. This confidence check
+is not an added automated admission requirement or a new site/team approval step.
 
 Local fixtures and hermetic tests prove code behavior. A successful build,
 matching release hash or healthy service does not prove participant delivery,
