@@ -7,7 +7,7 @@ How it works: invited robot teams evaluate your job free, in a simulation built 
 ## Your next steps
 
 1. Keep the private job link returned by the form. Review and correct the drafted brief, including open questions, success targets, and pilot preferences. “I don't know” is an acceptable answer; missing evidence stays visible.
-2. Add existing video or record later if useful. Recording permission is separate from permission to describe the job. A description can still be reviewed while recording is on hold.
+2. Add existing video or record later if useful. Recording permission is separate from permission to describe the job. A description can still be reviewed while recording is on hold. When you film, a sheet of printer paper on the work surface and a few tape-measure readings help; see [Measurements](#measurements-optional).
 3. Follow the assessment's current next action. Saved video, accepted processing, scene availability, completed evaluation, and physical results are separate states. A realistic scene or simulated result does not certify physical performance or safety.
 4. Your job card: before you start, the form shows the exact anonymized card that robot teams approved for the beta can see, and a **Keep this job private instead** checkbox. Leave it unticked to list the job, or tick it and no card is published. A listed card can be edited or hidden from your job page at any time; hiding it stops new evaluations. An account is offered when you save ownership and follow the job; the initial description does not require one. Robot teams join by invitation, and their evaluations are free.
 5. Blueprint presents one recommended pilot only when a team's evaluation on your job passed and that team wants the pilot. Review what the pilot tests, what each party provides, timing, and remaining uncertainty. **Book this pilot** is your one approval and costs nothing; there is no Blueprint fee, invoice or payment step. The robot team quotes any physical pilot cost to you directly. Site access, dates, and physical work are agreed between you and the team after booking.
@@ -19,6 +19,16 @@ Only provide footage you are authorized to share and use for the stated purpose.
 The private owner link carries authority over the job; keep it private. Use the dedicated film-only link when asking an authorized colleague to record. Public listing approval does not make private footage public.
 
 To withdraw recording permission, open your private job link and choose **Withdraw recording permission**, then confirm. Uploads stop at once, the job pauses, queued evaluations are asked to cancel, and deletion of the stored footage starts. The page reports the footage as deleted only after the server confirms it; until then, withdrawal is not proof that every copy is gone. Results already produced may be kept as the Terms describe. Do not upload again to clear a withdrawal hold. If you no longer have the link, or want another handling or deletion request reviewed, contact **hello@tryblueprint.io** with the job reference.
+
+## Measurements (optional)
+
+A few tape-measure readings let Blueprint check the rebuilt scene against your site. An evaluation can count toward a recommendation only after that check. Open **Add measurements (optional)** on your job page, from your private job link or the film-only link, and record what you can. Leave the rest blank. Each reading keeps the unit you typed: cm or inches, kg or lb.
+
+- **Moving an object from one place to another:** the height of the surface where it starts and of the one where it ends; how far it moves; the object's length, width and height; the open floor in front of the starting surface, and the open height above it if something is above; and its weight, if you have a scale.
+- **Opening or closing a door, drawer or lid:** the handle's height; the front's width; how far it opens; the handle's distance from the hinge side; the open floor in front when it is fully open; and the pull needed to start it, if you have a luggage scale. For a drawer, "how far it opens" is how far the front moves out. For a door or lid opened fully, measure straight across from its outer edge to the frame edge it closes against.
+- **A sheet of printer paper:** lay one flat on the work surface while you film. It gives the scene a known size. Say which paper it is, and measure its long edge only if it is not US Letter or A4.
+
+Blueprint reviews the readings with your footage. They are evidence for that check, never a result. A reading cannot make an evaluation pass, and a part of the scene with no reading stays unchecked. You can correct a reading at any time; the record keeps who saved each one and when.
 
 ## Recover without starting over
 
