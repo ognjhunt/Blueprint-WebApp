@@ -45,6 +45,7 @@
     "pipeline:capture-intake-contract:verify": "tsx scripts/pipeline/verify-capture-intake-contract.ts",
     "pipeline:task-candidate-contract:verify": "tsx scripts/pipeline/verify-task-candidate-contract.ts",
     "pipeline:testbed-compilation-contract:verify": "tsx scripts/pipeline/verify-testbed-compilation-contract.ts",
+    "pipeline:site-task-measurement-catalog:verify": "tsx scripts/pipeline/verify-site-task-measurement-catalog.ts",
     "smoke:launch": "node scripts/launch-smoke.mjs",
     "smoke:launch:local": "node scripts/launch-smoke-local.mjs",
     "deploy:rollback": "node scripts/deploy-rollback.mjs",
