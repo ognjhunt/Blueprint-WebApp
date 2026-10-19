@@ -14,6 +14,9 @@ import { noResultObservationText, type NoResultObservation } from "./runNoResult
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { captureUploadUrlFor } from "./captureUploadToken";
 import { enqueueOutbox, CAPTURE_OUTBOX_COLLECTION, type OutboxKind } from "./captureOutbox";
+import { automationBatch } from "./automationBatch";
+import { logger } from "../logger";
+import { footageArrivedBeforeAccount } from "./siteWalkthrough";
 import { decryptFieldValue } from "./field-encryption";
 import { EMAIL_SIGN_OFF } from "./emailLayout";
 import { taskLifecycleNotificationIsCurrent } from "./taskLifecycleNotificationAuthority";
@@ -37,6 +40,7 @@ export type TaskLifecycleMilestone = Extract<
   | "awaiting_evaluations"
   | "no_team_passed"
   | "no_qualified_evaluation"
+  | "footage_before_account"
   | "pilot_request"
   | "pilot_recommended"
   | "pilot_booked"
@@ -144,6 +148,12 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "Your job's evaluations finished, with no result that counts yet",
     // Never a failure: diagnostic, unqualified or unscored runs count neither way.
     body: (url, _detail, _counterpart, workspaceUrl) => `The robot-team evaluations of your job so far have finished, but none can support a recommendation yet: they were diagnostic runs, ran before your scene was qualified for scored evaluations, could not be scored against your job's pass mark, or ended without an observed episode. So none counts as a pass or a failure. Nothing is needed from you. We email you when a qualified evaluation finishes.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+  },
+  footage_before_account: {
+    subject: "Your video arrived before your job was saved to an account",
+    // Owner decision 2026-10-18: said once, plainly. A re-upload cannot help on
+    // Pipeline main, so it is never asked for.
+    body: (url, _detail, _counterpart, workspaceUrl) => `Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. You don't need to send it again. ${workspaceUrl ? `Your job is saved to your account:\n${workspaceUrl}` : `Save the job to your account from your job page, so you can follow it there:\n${url}`}\n\nWe email you when that changes.`,
   },
   pilot_request: {
     subject: "A robot team asked to evaluate your site for a pilot",
@@ -379,6 +389,77 @@ export async function reconcileWebsitePreparationNotifications(limit = 1): Promi
   }, undefined, Math.max(1, Math.min(limit, 1)));
 }
 
+
+/**
+ * Whether the job page shows `footage_before_account` right now, from the same
+ * projection and the same inputs the job pages use (owner decision
+ * 2026-10-18). The notice is queued and sent only while this holds, so it
+ * never tells a site its video cannot be used once a scope verdict, a step of
+ * its own, a scene preview or an evaluation says something truer.
+ */
+export async function footageBeforeAccountShown(requestId: string): Promise<boolean> {
+  if (!db) return false;
+  const snapshot = await db.collection("inboundRequests").doc(requestId).get();
+  const record = snapshot.data();
+  if (!snapshot.exists || !record || await footageArrivedBeforeAccount(requestId, record) !== true) return false;
+  const [{ getBrief }, { passMarkForJob }, { loadSceneScreening }, { teamJobAccess }, { projectWebsiteCaptureRights },
+    { projectTaskStatus, taskStatusInputFrom }] = await Promise.all([
+    import("./siteTaskBrief"), import("./pilotRecommendationEvidence"), import("./agentEvalRuns"), import("./teamJobAccess"),
+    import("./websiteTaskContext"), import("./taskStatusProjection")]);
+  const [brief, session] = await Promise.all([getBrief(requestId),
+    db.collection("captureUploadSessions").doc(`walkthrough-${requestId}`).get()]);
+  const consentRevoked = projectWebsiteCaptureRights(record).consent_revoked;
+  const reconstruction = session.data()?.world_reconstruction;
+  const status = projectTaskStatus(taskStatusInputFrom({
+    site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,
+    capture_coverage: record.capture_coverage ?? null,
+    briefDrafted: Boolean(brief),
+    // The `video_received` notice footageArrivedBeforeAccount read is the receipt.
+    hasStoredCapture: true,
+    footageBeforeAccount: true,
+    consentRevoked,
+    scenePreviewReady: !consentRevoked && reconstructionIsViewable({ ...reconstruction, worldId: reconstruction?.world_id }),
+    scenePreparationFailed: reconstruction?.state === "failed",
+    // The job pages never read preparation for this capture, which cannot be prepared.
+    preparationStatus: null,
+    stage: null,
+    screening: consentRevoked ? null
+      : await loadSceneScreening(requestId, passMarkForJob(record as never, brief as never)).catch(() => null),
+    site_task_triage: record.site_task_triage ?? null,
+    site_task_scope: record.site_task_scope ?? null,
+    account_owner_uid: typeof record.account_owner_uid === "string" && record.account_owner_uid ? record.account_owner_uid : null,
+    jobAccess: teamJobAccess(record),
+    recommended: Boolean(record.pilot_recommendation),
+  }));
+  return status.decision === "footage_before_account";
+}
+
+/**
+ * One honest email for each job whose video arrived before it was saved to an
+ * account (owner decision 2026-10-18), including jobs saved before this
+ * existed. Footage now waits for a saved job, so no new job joins them; the
+ * scan turns through the footage notices a few at a time and queues only
+ * while the job page shows `footage_before_account` (re-checked at dispatch),
+ * and the outbox key keeps it to one email per job.
+ */
+export async function reconcileFootageBeforeAccountNotices(limit = 5): Promise<void> {
+  if (!db) return;
+  const store = db;
+  const query = store.collection(CAPTURE_OUTBOX_COLLECTION).where("kind", "==", "video_received");
+  let rows = await automationBatch(store, query, "footage_before_account_notices", limit);
+  if (!rows.docs.length) rows = await automationBatch(store, query, "footage_before_account_notices", limit);
+  for (const row of rows.docs) {
+    const requestId = String(row.data()?.requestId ?? "").trim();
+    if (!requestId) continue;
+    try {
+      if ((await store.collection(CAPTURE_OUTBOX_COLLECTION).doc(`${requestId}:footage_before_account`).get()).exists) continue;
+      if (!(await footageBeforeAccountShown(requestId))) continue;
+      await enqueueTaskLifecycleNotification({ requestId, milestone: "footage_before_account" });
+    } catch (error) {
+      logger.warn({ error, requestId }, "Could not queue the footage-before-account notice");
+    }
+  }
+}
 
 /** Recover scene notices even when the controller stops polling a ready world. */
 export async function reconcileSceneReadyNotifications(limit = 20): Promise<void> {

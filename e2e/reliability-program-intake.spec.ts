@@ -4,6 +4,16 @@ import path from "node:path";
 const origin = "http://127.0.0.1:42879";
 const create = "/api/inbound-request";
 const fixtureLink = "/capture-upload/reliability-fixture";
+// Footage waits for a saved job (owner decision 2026-10-18): the start form
+// sends a video only for a signed-in site account, so the transport cases run
+// on the second, fake-signed-in frontend and create the job in its workspace.
+const siteOrigin = "http://127.0.0.1:42880";
+const siteCreate = "/api/workspace/capture-start";
+/** A signed-in site account is asked for neither an email nor a company. */
+async function fillSite(page: Page) {
+  await page.locator("#start-task").fill("Move sealed cartons to the pallet");
+  await page.locator("#start-location").fill("Austin, TX");
+}
 async function fill(page: Page) {
   await page.locator("#start-task").fill("Move sealed cartons to the pallet");
   await page.locator("#start-location").fill("Austin, TX");
@@ -13,8 +23,9 @@ async function fill(page: Page) {
 test.beforeEach(async ({ context }) => {
   await context.route("**/*", route => {
     const url = new URL(route.request().url());
-    if (url.origin !== origin) return route.abort();
+    if (url.origin !== origin && url.origin !== siteOrigin) return route.abort();
     if (url.pathname === "/api/csrf") return route.fulfill({json: {csrfToken: "fixture"}});
+    if (url.pathname === "/api/workspace/setup") return route.fulfill({json: {workspaceType: "site_operator"}});
     if (url.pathname.startsWith("/api/")) return route.fulfill({status: 503, json: {error: "Unstubbed isolated API"}});
     return route.continue();
   });
@@ -103,7 +114,7 @@ for (const width of [1440, 390]) {
     let releaseUpload!: () => void;
     const uploadHeld = new Promise<void>(resolve => { releaseUpload = resolve; });
     let uploads = 0;
-    await page.route(`**${create}`, route => route.fulfill({json: {captureUrl: fixtureLink, claimUrl: "/claim/local-fixture"}}));
+    await page.route(`**${siteCreate}`, route => route.fulfill({json: {captureUrl: fixtureLink}}));
     await page.route("**/api/self-capture/uploads/reliability-fixture", async route => {
       uploads++;
       await uploadHeld;
@@ -134,14 +145,12 @@ for (const width of [1440, 390]) {
       return route.fulfill({json:{questions:[],answers:{}}});
     });
     await page.setViewportSize({width, height: 1000});
-    await page.goto("/contact/site-operator");
+    await page.goto(`${siteOrigin}/contact/site-operator`);
     await page.getByRole("button", {name: "Reject all", exact: true}).click();
     await expect(page.getByRole("heading", {name: "Start with one task.", exact: true})).toBeVisible();
     await page.screenshot({path: info.outputPath(`intake-before-upload-${width}.png`), fullPage: true});
-    await fill(page);
+    await fillSite(page);
     await page.locator("#start-method-upload").check();
-    // A guest sends the video with the form only by choosing to (P1-8).
-    await page.locator("#start-upload-without-account").check();
     await page.locator("#start-footage").setInputFiles(path.resolve("e2e/fixtures/synthetic-transport.mp4"));
     await page.getByRole("button", {name: "Start free assessment", exact: true}).click();
     await expect.poll(() => uploads).toBe(1);
@@ -154,9 +163,9 @@ for (const width of [1440, 390]) {
     await expect(page.getByText("Generic assessment caveat")).not.toBeVisible();
     await expect(page.getByText("Assessment notes")).toBeVisible();
     await expect(page.getByText("What should I record?", {exact: true})).toHaveCount(0);
-    // The guest's video is in, so saving the job to an account is not offered (P1-8).
+    // The job was saved to the account from the start, so no account step is offered.
     await expect(page.getByRole("link", {name: "Create an account for this job"})).toHaveCount(0);
-    await expect(page.getByRole("note", {name: "Sent without an account"})).toBeVisible();
+    await expect(page.getByRole("link", {name: "Saved in your workspace"})).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.getByText("How much pull force is required?",{exact:true})).toBeVisible();
     await expect(page.getByRole("textbox",{name:"Your answers",exact:true})).toBeVisible();
@@ -291,9 +300,10 @@ test("UI-RETURN-005 real browser termination during video transport returns to t
   const firstBrowser=await chromium.launch(launch); const first=await firstBrowser.newContext();
   const bodies:string[]=[]; let began!:()=>void; const uploading=new Promise<void>(resolve=>{began=resolve;});
   await first.route("**/*", async route=>{
-    const url=new URL(route.request().url()); if(url.origin!==origin) return route.abort();
+    const url=new URL(route.request().url()); if(url.origin!==siteOrigin) return route.abort();
     if(url.pathname==="/api/csrf") return route.fulfill({json:{csrfToken:"fixture"}});
-    if(url.pathname===create) {bodies.push(route.request().postData()!);return route.fulfill({json:{captureUrl:fixtureLink}});}
+    if(url.pathname==="/api/workspace/setup") return route.fulfill({json:{workspaceType:"site_operator"}});
+    if(url.pathname===siteCreate) {bodies.push(route.request().postData()!);return route.fulfill({json:{captureUrl:fixtureLink}});}
     if(url.pathname==="/api/self-capture/uploads/reliability-fixture" && route.request().method()==="POST") {
       // The actual client decoded the generated MP4 and started its real XHR.
       // Keep the intercepted transport in flight until this browser terminates.
@@ -303,24 +313,25 @@ test("UI-RETURN-005 real browser termination during video transport returns to t
     return route.continue();
   });
   try {
-    const page=await first.newPage();await page.goto(`${origin}/contact/site-operator`);await fill(page);
-    await page.locator("#start-method-upload").check();await page.locator("#start-upload-without-account").check();await page.locator("#start-footage").setInputFiles(video);
+    const page=await first.newPage();await page.goto(`${siteOrigin}/contact/site-operator`);await fillSite(page);
+    await page.locator("#start-method-upload").check();await page.locator("#start-footage").setInputFiles(video);
     await page.getByRole("button",{name:"Start free assessment",exact:true}).click();
     await uploading; const saved=await first.storageState();
     await firstBrowser.close();
     const resumedBrowser=await chromium.launch(launch);const resumed=await resumedBrowser.newContext({storageState:saved});
     let repeatedUploads=0;
     await resumed.route("**/*",route=>{
-      const url=new URL(route.request().url());if(url.origin!==origin)return route.abort();
+      const url=new URL(route.request().url());if(url.origin!==siteOrigin)return route.abort();
       if(url.pathname==="/api/csrf")return route.fulfill({json:{csrfToken:"resumed-fixture"}});
-      if(url.pathname===create){bodies.push(route.request().postData()!);return route.fulfill({json:{captureUrl:fixtureLink}});}
+      if(url.pathname==="/api/workspace/setup")return route.fulfill({json:{workspaceType:"site_operator"}});
+      if(url.pathname===siteCreate){bodies.push(route.request().postData()!);return route.fulfill({json:{captureUrl:fixtureLink}});}
       if(url.pathname==="/api/self-capture/uploads/reliability-fixture" && route.request().method()==="POST")repeatedUploads++;
       if(url.pathname==="/api/self-capture/uploads/reliability-fixture/status")return route.fulfill({json:{state:"pending",captureReceived:false}});
       if(url.pathname.startsWith("/api/"))return route.fulfill({status:503,json:{error:"isolated fixture"}});
       return route.continue();
     });
     try {
-      const returning=await resumed.newPage();await returning.goto(`${origin}/contact/site-operator`);
+      const returning=await resumed.newPage();await returning.goto(`${siteOrigin}/contact/site-operator`);
       await returning.getByRole("button",{name:"Return to saved job"}).click();
       await expect(returning.getByRole("link",{name:"Open the uploader"})).toHaveAttribute("href",`${fixtureLink}?video=existing`);
       expect(bodies).toHaveLength(2);expect(bodies[1]).toBe(bodies[0]);expect(repeatedUploads).toBe(0);

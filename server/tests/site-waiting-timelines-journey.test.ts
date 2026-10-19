@@ -242,8 +242,8 @@ describe("the job page says how long each waiting stage usually takes", () => {
     const { token } = await startJob();
     expect(await pageWait(token)).toEqual({ decision: "confirm_brief", wait: null });
     await completeBriefReview();
-    await sendFootage(token);
     expect(await pageWait(token)).toEqual({ decision: "confirm_brief", wait: null });
+    // Footage waits for a saved job, so saving it is the site's next step.
     await confirmBrief(token);
     expect(await pageWait(token)).toEqual({ decision: "save_account", wait: null });
   });
@@ -251,9 +251,9 @@ describe("the job page says how long each waiting stage usually takes", () => {
   it("follows a saved job from its footage review to waiting for a robot team", async () => {
     const { jobId, token } = await startJob();
     await completeBriefReview();
+    await claim(jobId);
     await sendFootage(token);
     await confirmBrief(token);
-    await claim(jobId);
     // Footage is in and ours to review, on both job pages.
     const reviewing = { decision: "footage_received", wait: REPLY_TIMELINE };
     expect(await pageWait(token)).toEqual(reviewing);

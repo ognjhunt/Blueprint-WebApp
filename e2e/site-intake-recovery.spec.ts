@@ -34,7 +34,10 @@ test("lost create response survives reload with the same private retry identity"
   await context.tracing.stop({ path: testInfo.outputPath("recovery-trace.zip") });
 });
 
-for (const receipt of ["not-received", "received-pending"] as const) test(`browser process restart during upload reconciles ${receipt} on same job`, async ({}, testInfo) => {
+// Footage waits for a saved job (owner decision 2026-10-18): a guest no longer sends its video
+// with the form, and the local backend refuses it. These cases need a signed-in site account
+// against the local backend (as playwright.reliability-intake.config.ts now has) before they can run.
+for (const receipt of ["not-received", "received-pending"] as const) test.fixme(`browser process restart during upload reconciles ${receipt} on same job`, async ({}, testInfo) => {
   const { chromium } = await import("@playwright/test");
   const { mkdtemp, rm } = await import("node:fs/promises");
   const os = await import("node:os");

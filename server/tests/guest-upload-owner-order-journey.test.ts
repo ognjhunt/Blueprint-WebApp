@@ -1,15 +1,17 @@
 // @vitest-environment node
 /**
- * Audit P1-8 (interim): why the start form offers a guest the account before
- * its video.
+ * Audit P1-8, then the owner decision of 2026-10-18: footage waits for a saved
+ * job.
  *
  * The Pipeline prepares a website capture only while the owner it observed
  * when the capture was born is still the owner (`website_preparation_status.py`
  * requires the current `capture_owner` to equal the birth
  * `capture_owner_user_id`), and the scene robot teams evaluate is built only
  * for a claimed site. So the order of "save the job to an account" and "send
- * the video" decides whether the job can ever reach a team evaluation, until a
- * verified claim can resume a guest upload (WebApp #1035, Pipeline #2696).
+ * the video" decides whether the job can ever reach a team evaluation. A
+ * re-upload cannot repair the wrong order either: the Pipeline keys the birth
+ * on the capture and refuses a second delivery to it. So every upload route
+ * refuses footage until the job is saved (`authorizeCaptureUpload`).
  *
  * Nothing here is a hand-built job record. Each job starts from the real
  * `POST /api/inbound-request` handler with the exact body the public start form
@@ -148,13 +150,14 @@ function quickTime(): Buffer {
 }
 
 /** The video, through the job link, as the uploader page sends it. */
-async function sendFootage(token: string) {
+async function sendFootage(token: string, expected = 201) {
   const form = new FormData();
   form.append("video", new Blob([quickTime()], { type: "video/quicktime" }), "walkthrough.mov");
   form.append("metadata", JSON.stringify({ widthPx: 1920, heightPx: 1080, durationSeconds: 61, fps: 30,
     recordedAtEpochMs: 1_758_000_000_000 }));
   const response = await fetch(`${base}/api/self-capture/uploads/${token}`, { method: "POST", body: form });
-  expect(response.status, await response.clone().text()).toBe(201);
+  expect(response.status, await response.clone().text()).toBe(expected);
+  return response.json() as Promise<{ code?: string }>;
 }
 
 /** The owner the Pipeline reads for this capture, through the real observation. */
@@ -193,14 +196,13 @@ describe("the order of saving the job and sending the video", () => {
     expect(await observedOwner(jobId)).toBe(birth);
   });
 
-  it("changes the owner the Pipeline checks when a guest's video is sent before the account", async () => {
+  it("refuses a guest's video before the account, so the owner the Pipeline checks never changes", async () => {
     const { jobId, token } = await startJob();
-    await sendFootage(token);
-    const birth = await observedOwner(jobId);
-    expect(birth).toBeNull();
+    expect((await sendFootage(token, 409)).code).toBe("site_account_required");
+    // Nothing was born: there is no capture for the Pipeline to observe.
+    await expect(observedOwner(jobId)).rejects.toThrow();
     const uid = await claim(jobId);
-    // What the Pipeline refuses: the current owner is not the birth owner.
+    await sendFootage(token);
     expect(await observedOwner(jobId)).toBe(uid);
-    expect(uid).not.toBe(birth);
   });
 });

@@ -51,6 +51,8 @@ export type OutboxKind =
   | "no_team_passed"
   /** Every evaluation so far finished, and none can support a recommendation either way. */
   | "no_qualified_evaluation"
+  /** The job's video arrived before it was saved to an account (owner decision 2026-10-18). */
+  | "footage_before_account"
   | "pilot_request"
   /** Blueprint's one recommended pilot, and the site booking it. */
   | "pilot_recommended"
@@ -237,6 +239,10 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const { reconcileWebsitePreparationNotifications } = await import("./taskLifecycleNotifications");
     await reconcileWebsitePreparationNotifications(Math.min(limit, 1));
   } catch { logger.warn({ code: "website_preparation_reconcile_unavailable" }, "Could not reconcile preparation notices"); }
+  try {
+    const { reconcileFootageBeforeAccountNotices } = await import("./taskLifecycleNotifications");
+    await reconcileFootageBeforeAccountNotices(Math.min(limit, 5));
+  } catch (error) { logger.warn({ error }, "Could not reconcile footage-before-account notices"); }
   try {
     const { reconcileAgentRunResultNotifications } = await import("./agentRunResultNotifications");
     await reconcileAgentRunResultNotifications(limit);

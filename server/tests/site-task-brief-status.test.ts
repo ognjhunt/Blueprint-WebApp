@@ -466,7 +466,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.status.decision).toBe("confirm_brief");
     expect(body.status.headline).toMatch(/robot teams can evaluate your job only after you confirm it/i);
     expect(body.status.operatorAction).toMatch(/confirm it/i);
-    expect(body.claimUrl ?? null).toBeNull();
+    // Footage waits for a saved job, so an unclaimed owner link offers the claim from the start.
+    expect(body.claimUrl).toMatch(/\/claim\/.+/);
   });
 
   it("reads screening once a run is queued, and offers the claim link", async () => {

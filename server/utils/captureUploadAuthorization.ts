@@ -32,6 +32,18 @@
  * the rule's own reason — so the sentence a site reads on the page and the
  * sentence in our logs are the same sentence, and there is no way for the two
  * to drift apart.
+ *
+ * ## Footage waits for a saved job
+ *
+ * Two preconditions sit beside the rule: the current recording grant, and an
+ * account that owns the job. A walkthrough is born in the Pipeline with the
+ * job's owner at that moment; a video sent before the job was saved to an
+ * account is born with none, and saving the job afterwards is an owner change
+ * the Pipeline refuses for that capture for good (owner decision 2026-10-18).
+ * So bytes are accepted only for a saved job, on every upload route, and the
+ * hold says so in the one sentence the page and the logs share. A job whose
+ * video already arrived before its account is held too: sending it again
+ * cannot be used either, so the link says that rather than take it.
  */
 
 import { hasCurrentRecordingConsent } from "./recordingConsent";
@@ -40,6 +52,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { decideDispatchForRequest } from "../agents/workflows";
 import type { InboundRequest } from "../types/inbound-request";
 import type { CaptureDispatchDecision } from "./captureDispatch";
+import { footageArrivedBeforeAccount } from "./siteWalkthrough";
 
 export interface CaptureUploadAuthorization {
   /** Whether bytes may be written for this request right now. */
@@ -61,6 +74,15 @@ export interface CaptureUploadAuthorization {
   /** Only an owner of a new prose-only job may make its first recording grant. */
   recordingConsentAvailable?: boolean;
 }
+
+/** The hold for footage sent before its job is saved to an account. */
+export const SITE_ACCOUNT_REQUIRED = "site_account_required";
+export const SITE_ACCOUNT_REQUIRED_DETAIL = "Save this job to your account before you send its video. "
+  + "Robot teams can evaluate a job only if its video is sent after the job is saved to an account.";
+/** The hold for a job whose video arrived before it was saved to an account. */
+export const FOOTAGE_BEFORE_ACCOUNT = "footage_before_account";
+export const FOOTAGE_BEFORE_ACCOUNT_DETAIL = "Your video arrived before this job was saved to an account, so we can't "
+  + "use it to build your scene yet. You don't need to send it again; we email you when that changes.";
 
 function held(
   holdReason: string,
@@ -114,6 +136,12 @@ export async function authorizeCaptureUpload(
       recordingConsentAvailable: canGrantInitialRecordingConsent(request) };
   }
 
+  // Before the dispatch rule: what is already true of the footage outranks a
+  // hold on sending more. Unreadable is not "yes"; the account rule below holds.
+  if (await footageArrivedBeforeAccount(requestId, request) === true) {
+    return held(FOOTAGE_BEFORE_ACCOUNT, FOOTAGE_BEFORE_ACCOUNT_DETAIL, request);
+  }
+
   // `requiresHumanReview` is false here on purpose, and it is worth saying why:
   // the flag lives on a qualification result this path does not have. Passing
   // false asks the narrower question — "do the gates and provenance allow a
@@ -134,6 +162,10 @@ export async function authorizeCaptureUpload(
       "This site is set up for a capturer visit rather than a self-recorded walkthrough.",
       request,
     );
+  }
+
+  if (typeof request.account_owner_uid !== "string" || !request.account_owner_uid) {
+    return held(SITE_ACCOUNT_REQUIRED, SITE_ACCOUNT_REQUIRED_DETAIL, request);
   }
 
   return {

@@ -5,7 +5,7 @@
  * workspace job page (`GET /api/workspace/tasks/:taskId`) both read it here,
  * so they cannot disagree about whether a site has filmed.
  */
-import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
+import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { storedCaptureMarkerExists } from "./captureParts";
 import { describeBrowserUpload } from "./websiteBrowserUploadStatus";
 
@@ -37,4 +37,32 @@ export async function savedWalkthrough(payload: CaptureIdentity) {
     if (received) uploadState = "retained";
   }
   return { upload, received, uploadState };
+}
+
+/**
+ * Whether the job's walkthrough arrived before the job was saved to an
+ * account (owner decision 2026-10-18).
+ *
+ * Such a capture is born in the Pipeline with no owner, and saving the job
+ * afterwards is an owner change the Pipeline refuses for that capture for
+ * good; a re-upload cannot replace the first birth on Pipeline main. The
+ * moment footage first landed is the WebApp's own durable `video_received`
+ * notice (the capture outbox row, `CAPTURE_OUTBOX_COLLECTION`, never pruned);
+ * the moment the job was saved is the claim's own `claimed_at_iso`. A job
+ * started from a signed-in site workspace has an owner from the start.
+ * Null when the notice cannot be read, which no caller may take as "yes".
+ */
+export async function footageArrivedBeforeAccount(requestId: string,
+  record: { account_owner_uid?: unknown; claimed_at_iso?: unknown } | null | undefined): Promise<boolean | null> {
+  if (!db || !record) return null;
+  let receivedIso: string | null;
+  try {
+    const notice = await db.collection("captureOutbox").doc(`${requestId}:video_received`).get();
+    receivedIso = notice.exists && typeof notice.data()?.createdAtIso === "string" ? notice.data()!.createdAtIso : null;
+  } catch { return null; }
+  if (!receivedIso) return false;
+  if (typeof record.account_owner_uid !== "string" || !record.account_owner_uid) return true;
+  const claimedIso = typeof record.claimed_at_iso === "string" ? record.claimed_at_iso : null;
+  const received = Date.parse(receivedIso), claimed = claimedIso ? Date.parse(claimedIso) : Number.NaN;
+  return Number.isFinite(received) && Number.isFinite(claimed) && received < claimed;
 }

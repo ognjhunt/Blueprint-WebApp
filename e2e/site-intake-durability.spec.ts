@@ -24,8 +24,11 @@ test.afterAll(async () => {
     await writeFile(path.join(outputRoot, "source-after-run.json"), JSON.stringify(after,null,2));
     expect(after.files, "Source changed after launcher start; restart before scoring").toEqual(launchedSource.files);
 });
+// Footage waits for a saved job (owner decision 2026-10-18): a guest no longer sends its video
+// with the form, and the local backend refuses it. These cases need a signed-in site account
+// against the local backend (as playwright.reliability-intake.config.ts now has) before they can run.
 for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stored-upload"].entries())
-    test(`${index === 0 ? "A-UJ-1" : "A-UJ-3"} normal UI ${boundary}`, async ({}, testInfo) => {
+    test.fixme(`${index === 0 ? "A-UJ-1" : "A-UJ-3"} normal UI ${boundary}`, async ({}, testInfo) => {
         const { execFileSync } = await import("node:child_process");
         const caseId = index === 0 ? "A-UJ-1" : "A-UJ-3";
         const source = await sourceReceipt();

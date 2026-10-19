@@ -791,3 +791,78 @@ describe("SelfCaptureUpload once evaluations settle without a pass", () => {
     expect(screen.queryByText(/before Blueprint builds the scene/)).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Owner decision 2026-10-18: footage waits for a saved job. Until the job is
+ * saved to an account, its link is a status page whose next step is the account.
+ */
+describe("SelfCaptureUpload before the job is saved to an account", () => {
+  const ACCOUNT_HOLD = "Save this job to your account before you send its video. Robot teams can evaluate a job only if its video is sent after the job is saved to an account.";
+  function heldForAccount(scope: "owner" | "film") {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) return Promise.resolve({ ok: true, json: async () => ({
+        ok: true, state: "held", holdReason: "site_account_required", detail: ACCOUNT_HOLD, blockers: [], openQuestions: [] }) });
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}/status`)) return Promise.resolve({ ok: true, json: async () => ({ ok: true,
+        status: { decision: "confirm_brief", headline: "Confirm your job brief.", operatorAction: null, missingViews: [], nextUpdateIso: null },
+        claimUrl: scope === "owner" ? "/claim/owner-claim" : null }) });
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}`)) return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false, scope }) });
+      return mockFetch()(input);
+    }));
+  }
+
+  it("offers the owner the account as the way to send the video", async () => {
+    heldForAccount("owner");
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByText(ACCOUNT_HOLD)).toBeInTheDocument();
+    const create = await screen.findByRole("link", { name: "Create an account for this job" });
+    expect(create).toHaveAttribute("href", "/claim/owner-claim");
+    expect(screen.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", "/claim/owner-claim?mode=signin");
+    // One account step on the page, not a second generic claim link.
+    expect(screen.queryByRole("link", { name: /Claim your site/ })).not.toBeInTheDocument();
+  });
+
+  it("tells someone filming for the owner that the owner saves it first", async () => {
+    heldForAccount("film");
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByText(/The job's owner needs to save it to their Blueprint account before the video can be sent/)).toBeInTheDocument();
+    expect(screen.queryByText(ACCOUNT_HOLD)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Create an account for this job" })).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Owner decision 2026-10-18: a job whose video arrived before its account says
+ * so, and its link never invites a second video that could not be used.
+ */
+describe("SelfCaptureUpload for a video that arrived before the job's account", () => {
+  const ARRIVED = "Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. You don't need to send it again; we email you when that changes.";
+  function heldForArrival(claimUrl: string | null) {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) return Promise.resolve({ ok: true, json: async () => ({
+        ok: true, state: "held", holdReason: "footage_before_account", detail: ARRIVED, blockers: [], openQuestions: [] }) });
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}/status`)) return Promise.resolve({ ok: true, json: async () => ({ ok: true,
+        status: { decision: "footage_before_account", headline: ARRIVED, operatorAction: claimUrl ? "Save this job to your account." : null,
+          missingViews: [], nextUpdateIso: null }, claimUrl }) });
+      if (url.endsWith(`/api/site-task-brief/${TOKEN}`)) return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false, scope: "owner" }) });
+      return mockFetch()(input);
+    }));
+  }
+
+  it("offers an unsaved job the account, once, and no uploader", async () => {
+    heldForArrival("/claim/owner-claim");
+    render(<SelfCaptureUpload />);
+    expect((await screen.findAllByText(ARRIVED)).length).toBeGreaterThan(0);
+    expect(await screen.findByRole("link", { name: "Create an account for this job" })).toHaveAttribute("href", "/claim/owner-claim");
+    expect(screen.queryByRole("link", { name: /Claim your site/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Upload|Record/ })).not.toBeInTheDocument();
+  });
+
+  it("tells a saved job the same, with nothing to do", async () => {
+    heldForArrival(null);
+    render(<SelfCaptureUpload />);
+    expect((await screen.findAllByText(ARRIVED)).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: "Create an account for this job" })).not.toBeInTheDocument();
+  });
+});
