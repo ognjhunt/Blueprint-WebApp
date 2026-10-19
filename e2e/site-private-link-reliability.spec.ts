@@ -213,3 +213,49 @@ test("desktop handoff recognizes retained footage without claiming processing co
   await expect(page.getByRole("button", { name: "Retry processing" })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath("desktop-held-footage.png"), fullPage: true });
 });
+
+test("the person filming records measurements beside the item photos, each in its own unit", async ({ page }, info) => {
+  const token = "measurements-fixture";
+  const puts: Array<Record<string, any>> = [];
+  let saved: Record<string, unknown> | null = null;
+  const empty = { ok: true, scope: "film", revision: 0, family: null, articulation: null, referencePaper: null,
+    referenceSheetLongEdge: null, readings: {}, measuredBy: null, note: null, updatedAtIso: null };
+  await page.route("**/api/**", route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: { ready: false, scope: "film" } });
+    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
+    if (url.pathname === `/api/site-task-brief/${token}/measurements`) {
+      if (request.method() === "PUT") {
+        const body = request.postDataJSON();
+        puts.push(body);
+        saved = { ...empty, revision: 1, family: body.family, articulation: body.articulation, referencePaper: body.referencePaper,
+          readings: Object.fromEntries(Object.entries(body.readings as Record<string, object>).map(([id, reading]) =>
+            [id, { ...reading, recordedAtIso: "2026-10-19T10:00:00.000Z", recordedByScope: "film" }])),
+          updatedAtIso: "2026-10-19T10:00:00.000Z" };
+        return route.fulfill({ json: saved });
+      }
+      return route.fulfill({ json: saved ?? empty });
+    }
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}`);
+  await page.getByText("Add measurements (optional)", { exact: true }).click();
+  await page.getByRole("radio", { name: "Opens or closes a door, drawer or lid", exact: true }).check();
+  await page.getByRole("radio", { name: "It slides out, like a drawer", exact: true }).check();
+  await expect(page.getByLabel("How far it opens", { exact: true })).toHaveCount(0);
+  await page.getByLabel("Height of the handle", { exact: true }).fill("80");
+  await page.getByLabel("Unit for Height of the handle", { exact: true }).selectOption("cm");
+  await page.getByLabel("How far it pulls out", { exact: true }).fill("18");
+  await page.getByLabel("Unit for How far it pulls out", { exact: true }).selectOption("in");
+  await page.getByRole("radio", { name: "Yes, A4", exact: true }).check();
+  await page.getByRole("button", { name: "Save measurements", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Measurements saved." })).toBeVisible();
+  expect(puts).toEqual([{ revision: 0, family: "articulated_open_close", articulation: "sliding",
+    readings: { handle_height: { value: 80, unit: "cm" }, opening_travel: { value: 18, unit: "in" } },
+    referencePaper: "a4", referenceSheetLongEdge: null, measuredBy: null, note: null }]);
+  await page.screenshot({ path: info.outputPath("measurements-saved-local-fixture.png"), fullPage: true });
+});

@@ -1220,7 +1220,9 @@ router.put("/:token/measurements", async (req: Request, res: Response) => {
       error: "These measurements could not be read. Reload the page and try again." });
   }
   try {
-    const record = await saveMeasurements(payload.requestId, parsed.data, { scope: payload.scope });
+    // The verifier reads an absent scope as owner; the record keeps that reading.
+    const record = await saveMeasurements(payload.requestId, parsed.data,
+      { scope: payload.scope === "film" ? "film" : "owner" });
     return res.status(200).json({ ok: true, scope: payload.scope, ...presentMeasurements(record) });
   } catch (error) {
     if (error instanceof MeasurementInputError) {
