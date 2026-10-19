@@ -239,16 +239,12 @@ export async function reviewCaptureCoverage(params: {
           requestId: params.requestId,
           to: contact.email,
           kind: "coverage_shortfall",
-          subject: "Blueprint — one more view would finish your capture",
+          subject: "Blueprint — next steps for your capture coverage",
           body:
             `${emailGreeting(contact.firstName)}\n\n`
-            + (finding.supplementWouldFinish
-              ? "Your footage shows the job clearly. To finish the scene we just need a little more:\n\n"
-              : "Your footage needs more coverage before we can build the scene:\n\n")
+            + "Your footage is saved. These views are still needed before we can build the scene:\n\n"
             + finding.missingCoverage.map((view) => `- ${view}`).join("\n")
-            + (snap?.data()?.capture_privacy_source_bound_decision?.producer_source?.kind === "app_bundle_completion"
-              ? "\n\nExtra views cannot be added to an app recording yet. Reply to this email so we can arrange a new capture link.\n\n"
-              : "\n\nYou can add these from the same capture link — no need to film it all again.\n\n")
+            + "\n\nReply with your job reference so we can help you start a new job with a complete walkthrough and fresh recording permission. Your original job and footage stay saved. The existing link cannot add to or replace that recording, and the new job needs its own review before evaluation.\n\n"
             + EMAIL_SIGN_OFF,
         });
       }

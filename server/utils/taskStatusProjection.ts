@@ -285,16 +285,13 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  // Coverage measured a shortfall we can name. This is the most actionable
-  // state and it takes priority: it is a specific, cheap thing they can do.
+  // Name measured gaps without promising an unsupported same-link supplement.
   if (input.coversScene === false && input.missingViews.length) {
     return {
       ...base,
       decision: "add_views",
-      headline: input.supplementWouldFinish
-        ? "Your footage shows the job. One or two more views would finish the scene."
-        : "Your footage needs more coverage before we can build the scene.",
-      operatorAction: `Add: ${input.missingViews.join(", ")}.`,
+      headline: "Your footage is saved, but it needs more coverage before we can build the scene.",
+      operatorAction: `Still needed: ${input.missingViews.join(", ")}. Contact hello@tryblueprint.io with your job reference for help starting a new job with a complete walkthrough and fresh recording permission. This link cannot add to or replace the original recording; the new job needs its own review before evaluation.`,
     };
   }
 
@@ -511,7 +508,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "footage_received",
       stage: null,
-      headline: "Your recording is saved. Preparing it is taking longer than it should, and our team has been told. Keep your original recording; you do not need to record it again.",
+      headline: "Your recording is saved. Preparing it is taking longer than it should and needs review. Keep your original recording; you do not need to record it again.",
       operatorAction: null,
     };
   }

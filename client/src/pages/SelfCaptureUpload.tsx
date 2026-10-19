@@ -547,12 +547,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
   // Saved on this device, or on another one: the laptop that showed the QR
   // code reaches the same layout once the phone's recording lands.
-  // A named coverage gap keeps the camera in front instead.
+  // A coverage gap never grants a second recording under the saved identity.
   const saved = upload.status === "processing_pending" || upload.status === "held"
-    || (upload.status === "done" && status?.decision !== "add_views")
-    || (upload.status === "idle" && status?.captureReceived === true && status.decision !== "add_views");
-  const descriptionFirst = scope === "owner" && !saved && !existingVideoOnly
-    && status?.captureReceived !== true && upload.status !== "done";
+    || upload.status === "done" || status?.captureReceived === true;
+  const descriptionFirst = scope === "owner" && !saved && !existingVideoOnly;
 
   // The link waits on the account: before a video, or after one that arrived before it.
   const accountHold = link.status === "held"
@@ -578,7 +576,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </>}
       <strong>{upload.status === "processing_pending" || upload.status === "held"
         ? "Your video is saved."
-        : existingVideoOnly && !saved && upload.status !== "done" && status.decision !== "add_views"
+        : existingVideoOnly && !saved && status.decision !== "add_views"
           ? "Your job is saved."
           : status.headline}</strong>
       {status.operatorAction && (
@@ -793,7 +791,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           {descriptionFirst && <button type="button" className="ms-text-link" aria-expanded={addingFootage}
             onClick={() => setAddingFootage(current => !current)}>Add footage when you are ready (optional)</button>}
           {(!descriptionFirst || addingFootage) && <div>
-          {(!saved || upload.status === "done") && (
+          {!saved && (
             <input
               ref={inputRef}
               type="file"
@@ -814,7 +812,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               >
                 <strong>Video received.</strong>
                 <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
-                  {upload.status === "processing_pending" || upload.status === "held"
+                  {upload.status === "processing_pending" || upload.status === "held" || (upload.status === "done" && upload.message)
                     ? upload.message
                     : status?.footageReviewAutomated === false
                     ? "Our team is reviewing whether it covers the work area."
@@ -824,13 +822,12 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     : "A few answers can help define the job while review continues."}
                 </p>
               </div>
-              {upload.status === "done" && (
-                <p>
-                  <button type="button" className="ms-text-link" onClick={() => inputRef.current?.click()}>
-                    Upload a new recording
-                  </button>
-                </p>
-              )}
+              <p className="ms-field-hint">
+                This link keeps your original recording. If another recording is needed, <a
+                  className="ms-text-link" href="mailto:hello@tryblueprint.io?subject=Help%20with%20a%20new%20capture%20job">contact Blueprint</a>
+                {" "}for help starting a new job with a complete walkthrough and fresh recording permission.
+                Your existing job stays saved; the new job needs its own review before evaluation.
+              </p>
               {upload.status === "processing_pending" && upload.processingRetryAvailable && (
                 <p><button type="button" className="ms-button" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
                   {retryingProcessing ? "Retrying processing…" : "Retry processing"}
