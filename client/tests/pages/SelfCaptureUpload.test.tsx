@@ -8,7 +8,7 @@
  * the phone" are the two ways it silently breaks.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
 
 const route = vi.hoisted(() => ({ token: "tok-e2e" }));
@@ -864,5 +864,27 @@ describe("SelfCaptureUpload for a video that arrived before the job's account", 
     render(<SelfCaptureUpload />);
     expect((await screen.findAllByText(ARRIVED)).length).toBeGreaterThan(0);
     expect(screen.queryByRole("link", { name: "Create an account for this job" })).not.toBeInTheDocument();
+  });
+});
+
+describe("measurements beside the item photos", () => {
+  it("offers the person filming the measurements step and loads it only when opened", async () => {
+    setUserAgent(PHONE_UA);
+    const fetchMock = mockFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<SelfCaptureUpload />);
+    const summary = await screen.findByText("Add measurements (optional)");
+    expect(screen.getByText("Add photos of the job items")).toBeInTheDocument();
+    expect(screen.getByText(/lay a sheet\s+of printer paper flat on the work surface first/)).toBeInTheDocument();
+    const measurementCalls = () => fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/measurements"));
+    expect(measurementCalls()).toHaveLength(0);
+    const details = summary.closest("details")!;
+    // Opening queues the toggle event as a task; flush it inside act.
+    await act(async () => {
+      details.open = true;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await waitFor(() => expect(measurementCalls().map(([input]) => String(input)))
+      .toEqual([`/api/site-task-brief/${TOKEN}/measurements`]));
   });
 });

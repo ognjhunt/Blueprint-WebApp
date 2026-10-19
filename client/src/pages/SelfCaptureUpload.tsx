@@ -27,6 +27,7 @@ import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
 import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/components/site/TaskBriefReview";
 import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
+import { SiteMeasurementsDisclosure } from "@/components/site/SiteMeasurementsPanel";
 import { TaskClarification } from "@/components/site/TaskClarification";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdrawal";
@@ -883,6 +884,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               )}
 
               <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>
+              <SiteMeasurementsDisclosure token={token} />
 
             </>
           ) : existingVideoOnly ? (
@@ -937,7 +939,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
               <p className="ms-field-hint" style={{ marginTop: "12px" }}>
                 Move slowly and overlap your passes. Cover every surface near where the work
-                happens, from a few heights. Keep the scene still, with nobody in frame. {FILMING_NOTICE}
+                happens, from a few heights. Keep the scene still, with nobody in frame. If you can, lay a sheet
+                of printer paper flat on the work surface first: it gives the scene a known size. {FILMING_NOTICE}
               </p>
             </>
           )}
@@ -1061,6 +1064,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   items and take a few photos of each to build sim-ready versions.
                   A film-only link can add the photos; only an owner edits the list. */}
               <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>
+              {/* A tape measure at the work area: optional readings the rebuilt
+                  scene is checked against. Film links record them too. */}
+              <SiteMeasurementsDisclosure token={token} />
 
               {/* Least privilege for the person who actually films. An owner who
                   is handing this to a colleague sends a link that can record and
