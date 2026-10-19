@@ -117,7 +117,8 @@ describe("POST /api/admin/jobs/:requestId/site-measurements/source-document", ()
     expect(exported.sha256).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(JSON.parse(exported.json)).toMatchObject({ producer_id: "site_job:job-1",
       binding: { scene_request_id: "job-1" } });
-    expect(exported.dimensionsWithoutSamples).toEqual(["collision", "observation", "scale", "task_dynamics"]);
+    expect(exported.sizeBytes).toBe(Buffer.byteLength(exported.json, "utf8"));
+    expect(exported.coverage.missingDimensions).toEqual(["collision", "observation", "scale", "task_dynamics"]);
     expect(JSON.stringify([...sharedFakeFirestoreState.docs.entries()])).toBe(before);
   });
 

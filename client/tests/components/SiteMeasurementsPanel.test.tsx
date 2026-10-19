@@ -17,7 +17,7 @@ import { SiteMeasurementsDisclosure, SiteMeasurementsPanel } from "@/components/
 const fetchMock = vi.fn();
 
 const EMPTY = { ok: true, scope: "owner", revision: 0, family: null, articulation: null, referencePaper: null,
-  referenceSheetLongEdge: null, readings: {}, measuredBy: null, note: null, updatedAtIso: null };
+  referenceSheetLongEdge: null, readings: {}, note: null, updatedAtIso: null };
 
 function respond(body: unknown, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => body };
@@ -127,27 +127,65 @@ describe("saving", () => {
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
   });
 
-  it("loads the newer save instead of overwriting it", async () => {
+  it("keeps what this person typed and fills in a newer save from someone else", async () => {
     fetchMock.mockResolvedValueOnce(respond(EMPTY));
     render(<SiteMeasurementsPanel token="tok" />);
     fireEvent.click(await screen.findByRole("radio", { name: "Moves an object from one place to another" }));
     fireEvent.change(screen.getByLabelText("Height of the surface where the object starts"), { target: { value: "31" } });
+    fireEvent.change(screen.getByLabelText("Unit for Height of the surface where the object starts"), { target: { value: "in" } });
     fetchMock.mockResolvedValueOnce(respond({ ...EMPTY, code: "measurements_changed", revision: 2, family: "rigid_pick_place",
-      readings: { pick_surface_height: { value: 30, unit: "in", recordedAtIso: "2026-10-19T10:00:00.000Z", recordedByScope: "owner" } } }, 409));
+      readings: {
+        pick_surface_height: { value: 30, unit: "in", recordedAtIso: "2026-10-19T10:00:00.000Z", recordedByScope: "owner" },
+        object_mass: { value: 2, unit: "kg", recordedAtIso: "2026-10-19T10:00:00.000Z", recordedByScope: "owner" },
+      } }, 409));
     fireEvent.click(screen.getByRole("button", { name: "Save measurements" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Someone else saved measurements for this job");
-    expect(screen.getByLabelText("Height of the surface where the object starts")).toHaveValue(30);
-    expect(screen.getByLabelText("Unit for Height of the surface where the object starts")).toHaveValue("in");
+    expect(screen.getByLabelText("Height of the surface where the object starts")).toHaveValue("31");
+    expect(screen.getByLabelText("Object weight")).toHaveValue("2");
+    fetchMock.mockResolvedValueOnce(respond({ ...EMPTY, revision: 3, family: "rigid_pick_place" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save measurements" }));
+    await screen.findByRole("status");
+    const puts = fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT").map(([, init]) => JSON.parse(String(init.body)));
+    expect(puts[1]).toMatchObject({ revision: 2, readings: {
+      pick_surface_height: { value: 31, unit: "in" }, object_mass: { value: 2, unit: "kg" } } });
+  });
+
+  it("reads a decimal comma and inch fractions as a tape shows them", async () => {
+    fetchMock.mockResolvedValueOnce(respond(EMPTY));
+    render(<SiteMeasurementsPanel token="tok" />);
+    fireEvent.click(await screen.findByRole("radio", { name: "Moves an object from one place to another" }));
+    fireEvent.change(screen.getByLabelText("Height of the surface where the object starts"), { target: { value: "30 1/4" } });
+    fireEvent.change(screen.getByLabelText("Unit for Height of the surface where the object starts"), { target: { value: "in" } });
+    fireEvent.change(screen.getByLabelText("How far the object moves"), { target: { value: "152,5" } });
+    fireEvent.change(screen.getByLabelText("Unit for How far the object moves"), { target: { value: "cm" } });
+    fetchMock.mockResolvedValueOnce(respond({ ...EMPTY, revision: 1, family: "rigid_pick_place" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save measurements" }));
+    await screen.findByRole("status");
+    expect(lastPut().readings).toEqual({ pick_surface_height: { value: 30.25, unit: "in" },
+      pick_to_place_distance: { value: 152.5, unit: "cm" } });
+  });
+
+  it("refuses text it cannot read as a number instead of dropping the reading", async () => {
+    fetchMock.mockResolvedValueOnce(respond(EMPTY));
+    render(<SiteMeasurementsPanel token="tok" />);
+    fireEvent.click(await screen.findByRole("radio", { name: "Moves an object from one place to another" }));
+    fireEvent.change(screen.getByLabelText("Object weight"), { target: { value: "about 2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save measurements" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Object weight: enter a number");
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
   });
 
   it("shows a saved job's readings as they were typed", async () => {
     fetchMock.mockResolvedValueOnce(respond({ ...EMPTY, revision: 3, family: "articulated_open_close", articulation: "sliding",
       referencePaper: "none", readings: { opening_travel: { value: 18, unit: "in", recordedAtIso: "2026-10-19T10:00:00.000Z",
-        recordedByScope: "film" } }, measuredBy: "Sam", note: "Bottom drawer." }));
+        recordedByScope: "film" } }, note: "Bottom drawer." }));
     render(<SiteMeasurementsPanel token="tok" />);
-    expect(await screen.findByLabelText("How far it pulls out")).toHaveValue(18);
+    expect(await screen.findByLabelText("How far it pulls out")).toHaveValue("18");
     expect(screen.getByRole("radio", { name: "No" })).toBeChecked();
-    expect(screen.getByLabelText("Your name (optional)")).toHaveValue("Sam");
+    expect(screen.getByLabelText("Anything you could not measure, or that was hard to measure? (optional)"))
+      .toHaveValue("Bottom drawer.");
+    // Whoever saves next types their own name; it is never pre-filled with someone else's.
+    expect(screen.getByLabelText("Your name (optional)")).toHaveValue("");
   });
 });
 

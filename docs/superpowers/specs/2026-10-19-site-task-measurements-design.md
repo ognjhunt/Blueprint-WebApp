@@ -130,7 +130,10 @@ friction. Each template check states which of these its simulator reading uses.
   recorded time, link scope and optional name), the sheet answer, a note and a
   revision. A save replaces the set. An unchanged reading keeps its original
   time and author. A stale revision is refused, so two people at the work area
-  cannot silently overwrite each other.
+  cannot silently overwrite each other; the second person keeps what they
+  typed. Every save is also kept as an append-only revision (`revisions/{n}`),
+  so a reviewer can see what changed before an export. The site page never
+  pre-fills a name, so each reading keeps the name of whoever saved it.
 - `GET`/`PUT /api/site-task-brief/:token/measurements`, through the existing
   signed-link middleware. Owner and film-only links can both record, because
   measuring is capture, like item photos. The record names which link saved
@@ -139,12 +142,14 @@ friction. Each template check states which of these its simulator reading uses.
   `GET /api/admin/jobs/:requestId/site-measurements` shows the readings and
   dimension coverage. `POST .../site-measurements/source-document` takes the
   qualification request's `binding`, a `producer_id` and the calibration
-  exclusions. It returns the measurement document's exact JSON bytes and their
-  `sha256`. WebApp cannot compute the binding itself: scene revision, task-spec
+  exclusions. It returns the measurement document's exact JSON bytes, their
+  `sha256` and size, and coverage check by check. A `site_job:` producer must
+  name this job. WebApp cannot compute the binding itself: scene revision, task-spec
   and success-contract digests do not exist before a run, and the robot model
   digest is per team. So the binding is an input, checked for shape and for
   `scene_request_id` equal to the job. `observed_at_iso` is the latest
-  included reading's time. Nothing is written; the export is logged.
+  included reading's time, rounded up to the second. Nothing is written; the
+  export is logged.
 - The admin job console shows the readings and offers the export as a JSON
   download.
 - Measurements are not added to the Pipeline task-context export. That would
@@ -161,7 +166,9 @@ pinned by an authorized producer and accepted by an authorized reviewer.
 template per family (`blueprint.site_task_fidelity_profile_template.v1`). Each
 check has its six profile fields plus `sample_ids`, `site_reading`,
 `simulator_reading` and `threshold_basis`. Each template has a
-`threshold_review` block. Rendered copies are checked in under
+`threshold_review` block. A review records a digest of the checks it covered,
+so any later change to a threshold, unit, minimum count or reading makes it
+stale. Rendered copies are checked in under
 `docs/site_task_fidelity_profiles/`, and the shared catalog (no thresholds)
 under `docs/schemas/site_task_measurement_catalog.v1.json`. WebApp mirrors the
 catalog byte for byte in `contracts/pipeline/`, with a verify script like the
@@ -237,9 +244,10 @@ the simulator producer, and the founder is the reviewer. Each site's
   RMS ≤ maximum, valid labels, no duplicate IDs); rendered docs and catalog
   equal to the builder; the review gate; coverage; an end-to-end qualification
   on the existing synthetic fixture using a WebApp-shaped export. It passes
-  inside the thresholds and fails with `fidelity_failed:<check>` outside them,
-  with `samples_insufficient` for a missing reading and with a mismatch for the
-  other family.
+  inside the thresholds and fails with `fidelity_failed:<check>` outside them.
+  A check with no readings fails with `samples_binding_mismatch`, one with too
+  few with `samples_insufficient`, and the other family's profile with a
+  mismatch.
 
 ## Note after merging main (#1069)
 

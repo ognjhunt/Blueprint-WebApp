@@ -8,12 +8,16 @@
  *
  * Entry stays light. Nothing is required, there is no robot, budget or
  * simulation question, and each reading keeps the unit it was typed in, so a
- * saved 30 inches never quietly becomes 30 cm. Owner and film-only links see
- * the same form (founder decision, 2026-10-19): the person holding the tape is
- * often the colleague who films, and the server records which link saved each
- * reading.
+ * saved 30 inches never quietly becomes 30 cm. Entry is text, read strictly:
+ * a decimal point or comma, or inches as a tape shows them ("30 1/4"); what
+ * cannot be read is refused, never dropped. Owner and film-only links see the
+ * same form (founder decision, 2026-10-19): the person holding the tape is
+ * often the colleague who films. The server records which link saved each
+ * reading, and the name field is never pre-filled with someone else's name.
+ * If someone else saved first, what this person typed is kept and only the
+ * fields they did not touch take the newer values.
  */
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { withCsrfHeader } from "@/lib/csrf";
 import {
@@ -24,6 +28,7 @@ import {
   SITE_MEASUREMENT_FAMILIES,
   UNIT_LABELS,
   familySpec,
+  parseReading,
   readingsFor,
   toSi,
   unitsFor,
@@ -73,7 +78,7 @@ function ReadingRow({ id, reading, entry, onChange }: {
       <label htmlFor={id}>{reading.label}</label>
       <span id={`${id}-hint`} className="ms-field-hint">{reading.hint}</span>
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 7.5rem", gap: "8px" }}>
-        <input id={id} type="number" inputMode="decimal" min="0" step="any" value={entry.value}
+        <input id={id} type="text" inputMode="decimal" autoComplete="off" value={entry.value}
           aria-describedby={`${id}-hint`} onChange={(event) => onChange({ ...entry, value: event.target.value })} />
         <select aria-label={`Unit for ${reading.label}`} value={entry.unit}
           onChange={(event) => onChange({ ...entry, unit: event.target.value as EntryUnit })}>
@@ -96,19 +101,34 @@ export function SiteMeasurementsPanel({ token }: { token: string }) {
   const [measuredBy, setMeasuredBy] = useState("");
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  // What this person changed since the last load or save: kept if a newer save arrives first.
+  const touched = useRef(new Set<string>());
+  const touch = (key: string) => touched.current.add(key);
 
-  const adopt = useCallback((data: PresentedSiteMeasurements) => {
+  const adopt = useCallback((data: PresentedSiteMeasurements, mode: "replace" | "merge" = "replace") => {
+    const keep = mode === "merge" ? new Set(touched.current) : new Set<string>();
     setRevision(data.revision);
-    setFamily(data.family);
-    setArticulation(data.articulation);
-    setEntries(Object.fromEntries(Object.entries(data.readings ?? {}).map(([sampleId, reading]) =>
-      [sampleId, { value: String(reading.value), unit: reading.unit }])));
-    setPaper(data.referencePaper);
-    setSheet(data.referenceSheetLongEdge
-      ? { value: String(data.referenceSheetLongEdge.value), unit: data.referenceSheetLongEdge.unit }
-      : { value: "", unit: defaultUnit("length") });
-    setMeasuredBy(data.measuredBy ?? "");
-    setNote(data.note ?? "");
+    if (!keep.has("family")) setFamily(data.family);
+    if (!keep.has("articulation")) setArticulation(data.articulation);
+    const saved: Record<string, Entry> = Object.fromEntries(Object.entries(data.readings ?? {}).map(
+      ([sampleId, reading]) => [sampleId, { value: String(reading.value), unit: reading.unit }]));
+    setEntries((current) => {
+      const next = { ...saved };
+      for (const key of keep) {
+        if (!key.startsWith("reading:")) continue;
+        const sampleId = key.slice("reading:".length);
+        if (current[sampleId]) next[sampleId] = current[sampleId];
+      }
+      return next;
+    });
+    if (!keep.has("paper")) setPaper(data.referencePaper);
+    if (!keep.has("sheet")) {
+      setSheet(data.referenceSheetLongEdge
+        ? { value: String(data.referenceSheetLongEdge.value), unit: data.referenceSheetLongEdge.unit }
+        : { value: "", unit: defaultUnit("length") });
+    }
+    if (!keep.has("note")) setNote(data.note ?? "");
+    if (mode === "replace") touched.current = new Set();
   }, []);
 
   const load = useCallback(async () => {
@@ -141,16 +161,18 @@ export function SiteMeasurementsPanel({ token }: { token: string }) {
     if (family === "articulated_open_close" && !articulation) return "Say whether it opens on hinges or slides out.";
     for (const reading of readings) {
       const entry = entries[reading.sampleId];
-      if (!entry || !entry.value.trim()) continue;
-      const value = Number(entry.value);
-      if (!Number.isFinite(value) || value <= 0) return `${reading.label}: enter a number above zero.`;
-      if (toSi(value, entry.unit) > reading.maxSi) {
-        return `${reading.label}: ${entry.value} ${UNIT_LABELS[entry.unit]} is more than this reading can be. Check the units.`;
+      const value = entry ? parseReading(entry.value) : undefined;
+      if (value === undefined) continue;
+      if (value === null) return `${reading.label}: enter a number, such as 76.5 or 30 1/4.`;
+      if (value <= 0) return `${reading.label}: enter a number above zero.`;
+      if (toSi(value, entry!.unit) > reading.maxSi) {
+        return `${reading.label}: ${entry!.value.trim()} ${UNIT_LABELS[entry!.unit]} is more than this reading can be. Check the units.`;
       }
     }
     if (paper === "other") {
-      const si = toSi(Number(sheet.value), sheet.unit);
-      if (!sheet.value.trim() || !(si >= REFERENCE_SHEET_BOUNDS_M.min && si <= REFERENCE_SHEET_BOUNDS_M.max)) {
+      const edge = parseReading(sheet.value);
+      const si = typeof edge === "number" ? toSi(edge, sheet.unit) : NaN;
+      if (!(si >= REFERENCE_SHEET_BOUNDS_M.min && si <= REFERENCE_SHEET_BOUNDS_M.max)) {
         return "Enter the length of the sheet's long edge, between 10 and 100 cm (4 and 39 inches).";
       }
     }
@@ -170,10 +192,11 @@ export function SiteMeasurementsPanel({ token }: { token: string }) {
       articulation: family === "articulated_open_close" ? articulation : null,
       readings: Object.fromEntries(readings.flatMap((reading) => {
         const entry = entries[reading.sampleId];
-        return entry && entry.value.trim() ? [[reading.sampleId, { value: Number(entry.value), unit: entry.unit }]] : [];
+        const value = entry ? parseReading(entry.value) : undefined;
+        return typeof value === "number" ? [[reading.sampleId, { value, unit: entry!.unit }]] : [];
       })),
       referencePaper: paper,
-      referenceSheetLongEdge: paper === "other" ? { value: Number(sheet.value), unit: sheet.unit } : null,
+      referenceSheetLongEdge: paper === "other" ? { value: parseReading(sheet.value) as number, unit: sheet.unit } : null,
       measuredBy: measuredBy.trim() || null,
       note: note.trim() || null,
     };
@@ -192,9 +215,9 @@ export function SiteMeasurementsPanel({ token }: { token: string }) {
         return;
       }
       if (response.status === 409 && typeof data.revision === "number") {
-        adopt(data as PresentedSiteMeasurements);
+        adopt(data as PresentedSiteMeasurements, "merge");
         setStatus({ kind: "error", message: "Someone else saved measurements for this job after you opened it. "
-          + "Their readings are shown now; check them and save again." });
+          + "What you typed is kept, and their readings fill the rest; check them and save again." });
         return;
       }
       setStatus({ kind: "error", message: data.error || "We could not save the measurements. Try again." });
@@ -234,7 +257,7 @@ export function SiteMeasurementsPanel({ token }: { token: string }) {
         {SITE_MEASUREMENT_FAMILIES.map((spec) => (
           <label key={spec.family} className="ms-check-row">
             <input type="radio" name={`${ids}-family`} value={spec.family} checked={family === spec.family}
-              onChange={() => { setFamily(spec.family); changed(); }} />
+              onChange={() => { setFamily(spec.family); touch("family"); changed(); }} />
             <span>{spec.label}</span>
           </label>
         ))}
@@ -254,7 +277,7 @@ export function SiteMeasurementsPanel({ token }: { token: string }) {
           {ARTICULATIONS.map((value) => (
             <label key={value} className="ms-check-row">
               <input type="radio" name={`${ids}-articulation`} value={value} checked={articulation === value}
-                onChange={() => { setArticulation(value); changed(); }} />
+                onChange={() => { setArticulation(value); touch("articulation"); changed(); }} />
               <span>{ARTICULATION_LABELS[value]}</span>
             </label>
           ))}
@@ -265,7 +288,11 @@ export function SiteMeasurementsPanel({ token }: { token: string }) {
         <>
           {readings.map((reading) => (
             <ReadingRow key={reading.sampleId} id={`${ids}-${reading.sampleId}`} reading={reading} entry={entryFor(reading)}
-              onChange={(entry) => { setEntries((current) => ({ ...current, [reading.sampleId]: entry })); changed(); }} />
+              onChange={(entry) => {
+                setEntries((current) => ({ ...current, [reading.sampleId]: entry }));
+                touch(`reading:${reading.sampleId}`);
+                changed();
+              }} />
           ))}
 
           <fieldset className="ms-choice" aria-describedby={`${ids}-sheet-hint`}>
@@ -276,20 +303,20 @@ export function SiteMeasurementsPanel({ token }: { token: string }) {
             {REFERENCE_PAPERS.map((value) => (
               <label key={value} className="ms-check-row">
                 <input type="radio" name={`${ids}-paper`} value={value} checked={paper === value}
-                  onChange={() => { setPaper(value); changed(); }} />
+                  onChange={() => { setPaper(value); touch("paper"); changed(); }} />
                 <span>{PAPER_LABELS[value]}</span>
               </label>
             ))}
           </fieldset>
           {paper === "other" && (
             <ReadingRow id={`${ids}-sheet`} reading={SHEET_READING} entry={sheet}
-              onChange={(entry) => { setSheet(entry); changed(); }} />
+              onChange={(entry) => { setSheet(entry); touch("sheet"); changed(); }} />
           )}
 
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <label htmlFor={`${ids}-note`}>Anything you could not measure, or that was hard to measure? (optional)</label>
             <textarea id={`${ids}-note`} rows={3} maxLength={1000} value={note}
-              onChange={(event) => { setNote(event.target.value); changed(); }} />
+              onChange={(event) => { setNote(event.target.value); touch("note"); changed(); }} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <label htmlFor={`${ids}-name`}>Your name (optional)</label>

@@ -14,6 +14,7 @@ import {
   catalogProjection,
   coverageOf,
   familySpec,
+  parseReading,
   readingsFor,
   toSi,
   unitsFor,
@@ -85,5 +86,22 @@ describe("coverage", () => {
       complete: false,
       missingDimensions: ["task_dynamics", "task_state"],
     });
+  });
+});
+
+describe("reading what a site types", () => {
+  it("accepts a decimal point or comma, and inch fractions as a tape shows them", () => {
+    expect(parseReading("76.5")).toBe(76.5);
+    expect(parseReading(" 76,5 ")).toBe(76.5);
+    expect(parseReading(".5")).toBe(0.5);
+    expect(parseReading("30 1/4")).toBe(30.25);
+    expect(parseReading("30-1/4")).toBe(30.25);
+    expect(parseReading("3/4")).toBe(0.75);
+  });
+
+  it("treats a blank as not measured and refuses anything else rather than guessing", () => {
+    expect(parseReading("")).toBeUndefined();
+    expect(parseReading("   ")).toBeUndefined();
+    for (const text of ["abc", "2.5.1", "-3", "1/0", "30 1/", "1e3", "30cm"]) expect(parseReading(text)).toBeNull();
   });
 });

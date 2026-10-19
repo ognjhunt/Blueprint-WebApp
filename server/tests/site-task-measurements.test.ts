@@ -195,12 +195,24 @@ describe("saving keeps who measured what, and when", () => {
     expect(record.readings.pick_front_clearance).toBeUndefined();
     expect(record.readings.reference_sheet_long_edge).toMatchObject({ recordedAtIso: FIRST.toISOString() });
   });
+
+  it("keeps every save as an append-only revision, so a reviewer can see what changed", async () => {
+    await saveMeasurements("req-1", PICK_PLACE_INPUT, { scope: "owner" }, FIRST);
+    await saveMeasurements("req-1", { ...PICK_PLACE_INPUT, revision: 1,
+      readings: { ...PICK_PLACE_INPUT.readings, object_mass: { value: 1.6, unit: "kg" } } }, { scope: "film" }, LATER);
+    const first = sharedFakeFirestoreState.docs.get("siteTaskMeasurements/req-1/revisions/1") as Record<string, any>;
+    const second = sharedFakeFirestoreState.docs.get("siteTaskMeasurements/req-1/revisions/2") as Record<string, any>;
+    expect(first).toMatchObject({ revision: 1, savedByScope: "owner", savedAtIso: FIRST.toISOString() });
+    expect(first.readings.object_mass).toMatchObject({ value: 3.5, unit: "lb" });
+    expect(second).toMatchObject({ revision: 2, savedByScope: "film", savedAtIso: LATER.toISOString() });
+    expect(second.readings.object_mass).toMatchObject({ value: 1.6, unit: "kg" });
+  });
 });
 
 describe("what each page sees", () => {
   it("gives a job without measurements an empty form at revision 0", () => {
     expect(presentMeasurements(null)).toEqual({ revision: 0, family: null, articulation: null, referencePaper: null,
-      referenceSheetLongEdge: null, readings: {}, measuredBy: null, note: null, updatedAtIso: null });
+      referenceSheetLongEdge: null, readings: {}, note: null, updatedAtIso: null });
   });
 
   it("shows the site what it typed, and the sheet through the paper question", async () => {
@@ -211,7 +223,8 @@ describe("what each page sees", () => {
       recordedAtIso: FIRST.toISOString(), recordedByScope: "film" });
     expect(presented.readings.reference_sheet_long_edge).toBeUndefined();
     expect(presented.referenceSheetLongEdge).toEqual({ value: 14, unit: "in" });
-    expect(presented.measuredBy).toBe("Dana Okafor");
+    // Names stay in the record and the admin view; the next person's page never pre-fills them.
+    expect(JSON.stringify(presented)).not.toContain("Dana Okafor");
   });
 
   it("shows an admin SI values, basis, provenance and coverage", async () => {
@@ -254,16 +267,18 @@ describe("the source measurement document", () => {
     expect(exported.sha256).toBe(`sha256:${createHash("sha256").update(pinned).digest("hex")}`);
     expect(exported.fileName).toBe(`site-task-measurements-${requestId}-r1.json`);
     expect(JSON.parse(exported.json).observed_at_iso).toBe("2026-10-17T09:00:00Z");
-    expect(exported.dimensionsWithoutSamples).toEqual([]);
+    expect(exported.sizeBytes).toBe(Buffer.byteLength(pinned, "utf8"));
+    expect(exported.coverage).toMatchObject({ complete: true, missingDimensions: [] });
   });
 
-  it("dates the document by its latest included reading, to the second", async () => {
+  it("dates the document by its latest included reading, rounded up to the second", async () => {
     await saved(PICK_PLACE_INPUT, "req-1");
     const record = await saveMeasurements("req-1", { ...PICK_PLACE_INPUT, revision: 1,
       readings: { ...PICK_PLACE_INPUT.readings, object_mass: { value: 1.6, unit: "kg" } } }, { scope: "film" }, LATER);
     const document = JSON.parse(buildSourceMeasurementDocument(record, { binding: binding("req-1"),
       producerId: "site_job:req-1" }).json);
-    expect(document.observed_at_iso).toBe("2026-10-17T09:42:17Z");
+    // Rounded up: a reading saved within a second after a review must not read as before it.
+    expect(document.observed_at_iso).toBe("2026-10-17T09:42:18Z");
     const withoutMass = JSON.parse(buildSourceMeasurementDocument(record, { binding: binding("req-1"),
       producerId: "site_job:req-1", calibrationSampleIds: ["object_mass"] }).json);
     expect(withoutMass.observed_at_iso).toBe("2026-10-17T09:00:00Z");
@@ -287,7 +302,16 @@ describe("the source measurement document", () => {
     const exported = buildSourceMeasurementDocument(record, { binding: binding("req-1"), producerId: "site_job:req-1" });
     expect(JSON.parse(exported.json).checks.map((check: { id: string }) => check.id))
       .not.toContain("pick_place.task_dynamics.object_mass");
-    expect(exported.dimensionsWithoutSamples).toEqual(["task_dynamics"]);
+    expect(exported.coverage.missingDimensions).toEqual(["task_dynamics"]);
+  });
+
+  it("warns about a check exported with fewer readings than it needs", async () => {
+    const { object_width: _width, ...rest } = PICK_PLACE_INPUT.readings;
+    const record = await saved({ ...PICK_PLACE_INPUT, readings: rest }, "req-1");
+    const exported = buildSourceMeasurementDocument(record, { binding: binding("req-1"), producerId: "site_job:req-1" });
+    expect(JSON.parse(exported.json).checks.map((check: { id: string }) => check.id))
+      .toContain("pick_place.task_state.object_size");
+    expect(exported.coverage.missingDimensions).toEqual(["task_state"]);
   });
 
   it("refuses a binding that is not the request's exact binding for this job", async () => {
@@ -306,6 +330,8 @@ describe("the source measurement document", () => {
     const record = await saved(PICK_PLACE_INPUT, "req-1");
     expectExportError(() => buildSourceMeasurementDocument(record, { binding: binding("req-1"), producerId: "" }),
       "producer_invalid");
+    expectExportError(() => buildSourceMeasurementDocument(record, { binding: binding("req-1"),
+      producerId: "site_job:req-2" }), "producer_job_mismatch");
     expectExportError(() => buildSourceMeasurementDocument(record, { binding: binding("req-1"),
       producerId: "site_job:req-1", calibrationSampleIds: ["handle_height"] }), "calibration_invalid");
     const all = Object.keys(record.readings);

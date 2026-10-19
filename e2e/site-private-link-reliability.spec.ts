@@ -250,3 +250,44 @@ test("the person filming records measurements beside the item photos, each in it
     referencePaper: "a4", referenceSheetLongEdge: null, measuredBy: null, note: null }]);
   await page.screenshot({ path: info.outputPath("measurements-saved-local-fixture.png"), fullPage: true });
 });
+
+test("readings typed while the video lands on another device survive the switch to the saved layout", async ({ page }) => {
+  const token = "measurements-handoff-fixture";
+  let received = false;
+  const puts: Array<Record<string, any>> = [];
+  const empty = { ok: true, scope: "film", revision: 0, family: null, articulation: null, referencePaper: null,
+    referenceSheetLongEdge: null, readings: {}, note: null, updatedAtIso: null };
+  await page.route("**/api/**", route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: { ready: false, scope: "film" } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
+      scope: "film", captureReceived: received,
+      status: { decision: "assessing", headline: "Preparing your scene", operatorAction: null, missingViews: [] } } });
+    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
+    if (url.pathname === `/api/site-task-brief/${token}/measurements`) {
+      if (request.method() === "PUT") {
+        puts.push(request.postDataJSON());
+        return route.fulfill({ json: { ...empty, revision: 1, family: "rigid_pick_place" } });
+      }
+      return route.fulfill({ json: empty });
+    }
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}`);
+  await expect(page.getByRole("heading", { name: "Point your phone at this." })).toBeVisible();
+  await page.getByText("Add measurements (optional)", { exact: true }).click();
+  await page.getByRole("radio", { name: "Moves an object from one place to another", exact: true }).check();
+  await page.getByLabel("Height of the surface where the object starts", { exact: true }).fill("30 1/4");
+  await page.getByLabel("Unit for Height of the surface where the object starts", { exact: true }).selectOption("in");
+  received = true; // The phone's recording lands; the next status poll switches the layout.
+  await expect(page.getByText("Video received.", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByLabel("Height of the surface where the object starts", { exact: true })).toHaveValue("30 1/4");
+  await page.getByRole("button", { name: "Save measurements", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Measurements saved." })).toBeVisible();
+  expect(puts).toHaveLength(1);
+  expect(puts[0].readings).toEqual({ pick_surface_height: { value: 30.25, unit: "in" } });
+});

@@ -215,6 +215,22 @@ export function siUnitFor(quantity: MeasurementQuantity): SiUnit {
   return SI_UNIT[quantity];
 }
 
+/**
+ * A number from what a site typed: a decimal with a point or a comma, or
+ * inches as a tape shows them ("30 1/4", "30-1/4", "3/4"). Blank is
+ * `undefined` (not measured); anything else is `null`, never a guess.
+ */
+export function parseReading(text: string): number | null | undefined {
+  const value = text.trim();
+  if (!value) return undefined;
+  if (/^(?:\d+(?:[.,]\d+)?|[.,]\d+)$/.test(value)) return Number(value.replace(",", "."));
+  const fraction = /^(?:(\d+)(?:\s+|-))?(\d+)\/(\d+)$/.exec(value);
+  if (fraction && Number(fraction[3]) > 0) {
+    return Number(fraction[1] ?? 0) + Number(fraction[2]) / Number(fraction[3]);
+  }
+  return null;
+}
+
 /** The SI value of what a site typed, rounded to a micrometre (or milligram, or micronewton). */
 export function toSi(value: number, unit: EntryUnit): number {
   return Math.round(value * TO_SI[unit] * 1e6) / 1e6;
@@ -282,7 +298,6 @@ export interface PresentedSiteMeasurements {
   /** Only for a sheet that is not US Letter or A4. */
   referenceSheetLongEdge: { value: number; unit: EntryUnit } | null;
   readings: Record<string, PresentedReading>;
-  measuredBy: string | null;
   note: string | null;
   updatedAtIso: string | null;
 }
@@ -334,9 +349,13 @@ export interface AdminSiteMeasurements {
 }
 
 export interface SourceMeasurementExportResponse {
+  /** The exact bytes to retain as the request's `measurement` artifact. */
   json: string;
   sha256: string;
+  /** For the request's `source_artifacts[].size_bytes`. */
+  sizeBytes: number;
   fileName: string;
   sampleCount: number;
-  dimensionsWithoutSamples: MeasurementDimension[];
+  /** What the exported readings can fill, check by check, after calibration readings are left out. */
+  coverage: MeasurementCoverage;
 }

@@ -17,7 +17,9 @@
  * tape is often the colleague who films. Every reading keeps the link scope,
  * the name typed with it and the time it was recorded; a later save that leaves
  * it unchanged keeps that first record. A save names the revision it read, so
- * two people at the work area cannot silently overwrite each other.
+ * two people at the work area cannot silently overwrite each other, and every
+ * save is also kept as an append-only revision (`revisions/{n}`), so a
+ * reviewer can see what changed before an export.
  *
  * ## What a reading is
  *
@@ -61,7 +63,6 @@ import {
   type AdminSiteMeasurements,
   type Articulation,
   type EntryUnit,
-  type MeasurementDimension,
   type MeasurementFamily,
   type MeasurementSaveInput,
   type PresentedSiteMeasurements,
@@ -272,15 +273,22 @@ export async function saveMeasurements(
       updatedAtIso: nowIso,
     };
     tx.set(ref, { ...record, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    // Append-only: a reading replaced or cleared later stays visible to a reviewer.
+    tx.set(ref.collection("revisions").doc(String(record.revision)),
+      { ...record, savedAtIso: nowIso, savedByScope: actor.scope });
     return record;
   });
 }
 
-/** What the job page loads: the values as typed, not their SI conversion or per-reading names. */
+/**
+ * What the job page loads: the values as typed, without their SI conversion or
+ * anyone's name. A name is never pre-filled for the next person, so each
+ * reading keeps the name of whoever actually saved it.
+ */
 export function presentMeasurements(record: SiteTaskMeasurementRecord | null): PresentedSiteMeasurements {
   if (!record) {
     return { revision: 0, family: null, articulation: null, referencePaper: null, referenceSheetLongEdge: null,
-      readings: {}, measuredBy: null, note: null, updatedAtIso: null };
+      readings: {}, note: null, updatedAtIso: null };
   }
   const readings: PresentedSiteMeasurements["readings"] = {};
   for (const [sampleId, reading] of Object.entries(record.readings)) {
@@ -297,7 +305,6 @@ export function presentMeasurements(record: SiteTaskMeasurementRecord | null): P
     referenceSheetLongEdge: record.referencePaper === "other" && sheet?.value != null && sheet.unit
       ? { value: sheet.value, unit: sheet.unit } : null,
     readings,
-    measuredBy: record.measuredBy,
     note: record.note,
     updatedAtIso: record.updatedAtIso,
   };
@@ -363,8 +370,9 @@ function exactBinding(value: unknown, requestId: string): Binding {
   return Object.fromEntries(BINDING_FIELDS.map((field) => [field, row![field] as string])) as Binding;
 }
 
-function toSecondIso(iso: string) {
-  return iso.replace(/\.\d+Z$/, "Z");
+/** Rounded up: a reading saved within a second after a review must never read as before it. */
+function ceilToSecondIso(iso: string) {
+  return new Date(Math.ceil(Date.parse(iso) / 1000) * 1000).toISOString().replace(/\.000Z$/, "Z");
 }
 
 /** The `blueprint.site_task_measurement_samples.v1` document, as exact bytes and their sha256. */
@@ -376,6 +384,10 @@ export function buildSourceMeasurementDocument(
   if (typeof options.producerId !== "string" || !SAMPLE_LABEL.test(options.producerId)) {
     throw new SourceMeasurementExportError("producer_invalid",
       "Name the measurement producer the operator registry allows, for example site_job:<job id>.");
+  }
+  if (options.producerId.startsWith("site_job:") && options.producerId !== `site_job:${record.requestId}`) {
+    throw new SourceMeasurementExportError("producer_job_mismatch",
+      `A site producer names its own job. This job's site is site_job:${record.requestId}.`);
   }
   const spec = familySpec(record.family);
   const familyIds = new Set(spec.readings.map((reading) => reading.sampleId));
@@ -398,23 +410,23 @@ export function buildSourceMeasurementDocument(
   if (!checks.length) {
     throw new SourceMeasurementExportError("no_readings", "No recorded reading remains to export for this job.");
   }
-  const observed = Object.keys(record.readings).filter(included)
-    .map((sampleId) => record.readings[sampleId].recordedAtIso).sort().at(-1)!;
+  const includedIds = Object.keys(record.readings).filter(included);
+  const observed = includedIds.map((sampleId) => record.readings[sampleId].recordedAtIso).sort().at(-1)!;
   const document = {
     schema_version: SITE_MEASUREMENT_SAMPLES_SCHEMA,
     binding,
     producer_id: options.producerId,
-    observed_at_iso: toSecondIso(observed),
+    observed_at_iso: ceilToSecondIso(observed),
     checks,
   };
   const json = `${JSON.stringify(document, null, 2)}\n`;
-  const covered = new Set<MeasurementDimension>(checks.map((check) => check.dimension));
   return {
     json,
     sha256: `sha256:${createHash("sha256").update(json, "utf8").digest("hex")}`,
+    sizeBytes: Buffer.byteLength(json, "utf8"),
     fileName: `site-task-measurements-${record.requestId}-r${record.revision}.json`,
     sampleCount: checks.reduce((total, check) => total + check.samples.length, 0),
-    dimensionsWithoutSamples: [...new Set(spec.checks.map((check) => check.dimension))]
-      .filter((dimension) => !covered.has(dimension)).sort(),
+    // Check by check, so a check exported with too few readings is named here, not first at qualification.
+    coverage: coverageOf(record.family, includedIds),
   };
 }

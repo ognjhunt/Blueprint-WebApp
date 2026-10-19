@@ -143,6 +143,14 @@ describe("PUT /:token/measurements", () => {
     expect((await response.json()).code).toBe("measurements_invalid");
   });
 
+  it("is closed to reads too once recording consent is withdrawn", async () => {
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", {
+      requestId: "req-1", request: { buyerType: "site_operator" }, capture_rights: { consent_revoked: true },
+    });
+    const response = await fetch(`${baseUrl}/api/site-task-brief/${tokenFor("film")}/measurements`);
+    expect(response.status).toBe(409);
+  });
+
   it("is closed once recording consent is withdrawn", async () => {
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", {
       requestId: "req-1",

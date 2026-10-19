@@ -55,8 +55,10 @@ three inputs:
 - any readings that set the scene's metric scale, which the export leaves out
   of every check.
 
-The response is the document's exact bytes and their sha256. Retain those
-bytes unchanged as the request's `measurement` artifact. The Pipeline's
+The response is the document's exact bytes, their sha256 and size, and which
+checks the readings can fill. Retain those bytes unchanged as the request's
+`measurement` artifact. A `site_job:` producer must name this job, and every
+earlier save of the readings stays in `siteTaskMeasurements/{requestId}/revisions`. The Pipeline's
 `site_task_fidelity_profile_templates` coverage command reports any check the
 readings cannot fill. Its profile command stays refused until the founder has
 reviewed the templates' thresholds. A Pipeline service identity produces the

@@ -203,9 +203,12 @@ export function SiteMeasurementsConsole({ requestId, currentUser }: {
               <div role="status" className="grid gap-2 border border-runway-green-dim p-4 text-sm text-runway-body">
                 <p>Retain these exact bytes as the request's measurement artifact.</p>
                 <p className="runway-num break-all text-runway-text">{exported.sha256}</p>
-                <p>{exported.sampleCount} samples.{exported.dimensionsWithoutSamples.length
-                  ? ` No samples for: ${dimensions(exported.dimensionsWithoutSamples)}. The qualifier will refuse these checks.`
-                  : ""}</p>
+                <p>
+                  {exported.sampleCount} {exported.sampleCount === 1 ? "sample" : "samples"}, {exported.sizeBytes} bytes.
+                  {exported.coverage.complete
+                    ? " Every check has its minimum readings."
+                    : ` Cannot fill: ${dimensions(exported.coverage.missingDimensions)}. The qualifier will refuse these checks.`}
+                </p>
                 <div>
                   <Button type="button" size="sm" variant="secondary" onClick={() => download(exported)}
                     aria-label={`Download ${exported.fileName}`}>Download JSON</Button>

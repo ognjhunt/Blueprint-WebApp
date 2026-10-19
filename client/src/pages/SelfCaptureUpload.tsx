@@ -881,7 +881,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               )}
 
               <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>
-              <SiteMeasurementsDisclosure token={token} />
 
             </>
           ) : existingVideoOnly ? (
@@ -1061,9 +1060,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   items and take a few photos of each to build sim-ready versions.
                   A film-only link can add the photos; only an owner edits the list. */}
               <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>
-              {/* A tape measure at the work area: optional readings the rebuilt
-                  scene is checked against. Film links record them too. */}
-              <SiteMeasurementsDisclosure token={token} />
 
               {/* Least privilege for the person who actually films. An owner who
                   is handing this to a colleague sends a link that can record and
@@ -1074,6 +1070,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
             </>
           )}
+          {/* A tape measure at the work area: optional readings the rebuilt
+              scene is checked against; film links record them too. Mounted once,
+              outside the saved/unsaved branches, so readings typed while a video
+              lands on another device survive the switch to the saved layout. */}
+          <SiteMeasurementsDisclosure token={token} />
           </div>}
         </>
       )}

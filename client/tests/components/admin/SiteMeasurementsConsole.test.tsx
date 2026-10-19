@@ -121,8 +121,9 @@ describe("the source document export", () => {
     });
     expect(screen.getByLabelText("Measurement producer")).toHaveValue("site_job:job-a");
     fireEvent.click(screen.getByLabelText("Long edge of the sheet set the scene's metric scale"));
-    fetchMock.mockResolvedValueOnce(json({ json: "{\n}\n", sha256: SHA("9"), fileName: "site-task-measurements-job-a-r2.json",
-      sampleCount: 1, dimensionsWithoutSamples: ["collision", "observation", "task_dynamics", "task_state"] }));
+    fetchMock.mockResolvedValueOnce(json({ json: "{\n}\n", sha256: SHA("9"), sizeBytes: 4,
+      fileName: "site-task-measurements-job-a-r2.json", sampleCount: 1,
+      coverage: { complete: false, missingDimensions: ["collision", "observation", "task_dynamics", "task_state"], checks: [] } }));
     fireEvent.click(screen.getByRole("button", { name: "Build source document" }));
     expect(await screen.findByText(SHA("9"))).toBeInTheDocument();
     const [url, init] = fetchMock.mock.calls[1];
@@ -131,7 +132,8 @@ describe("the source document export", () => {
     expect(init.headers).toMatchObject({ Authorization: "Bearer token", "X-CSRF-Token": "csrf" });
     expect(JSON.parse(init.body)).toEqual({ binding: BINDING, producerId: "site_job:job-a",
       calibrationSampleIds: ["reference_sheet_long_edge"] });
-    expect(screen.getByText(/No samples for: collision, observation, task dynamics, task state/)).toBeInTheDocument();
+    expect(screen.getByText(/1 sample, 4 bytes\./)).toBeInTheDocument();
+    expect(screen.getByText(/Cannot fill: collision, observation, task dynamics, task state\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Download site-task-measurements-job-a-r2.json" }));
     await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
     const blob = createObjectURL.mock.calls[0][0] as Blob;
