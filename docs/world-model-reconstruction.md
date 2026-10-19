@@ -112,14 +112,18 @@ is also where Atlas's posed RGB-D output is consumed. Under this proposal:
 
 ## Atlas in the Pipeline
 
-The Pipeline decides when Atlas is used. Its admitted pose operation uploads the
-source frames, submits one `images2PosedRGBD` operation, saves the operation ID,
-polls it, and keeps each output file bound to the input frame it came from.
-Every result keeps `claim_ceiling: development_only` and
-`metric_measurement_proven: false`. Captures without a sponsorship still wait at
-`needs_input` (`website_source_camera_depth_registration_required`) until a side-by-side
-comparison against the pinned MapAnything registration shows whether Atlas can
-fill that gap. The Pipeline docs own that plan.
+The Pipeline decides when Atlas is used. Its admitted pose operation is
+described in the Pipeline's `docs/website-atlas-pose-operation.md`. It uploads
+the source frames, submits one `images2PosedRGBD` operation, saves the operation
+ID, polls it, and keeps each output file bound to the input frame it came from.
+It refuses to run until a reviewed Atlas price is configured. Every result keeps
+`claim_ceiling: development_only` and `metric_measurement_proven: false`.
+
+Captures without a sponsorship still wait at `needs_input`
+(`website_source_camera_depth_registration_required`). They keep waiting until a
+side-by-side comparison against the pinned MapAnything registration shows
+whether Atlas can fill that gap. That plan is the Pipeline's
+`docs/atlas-vs-mapanything-registration-plan.md`.
 
 ## What comes back
 
