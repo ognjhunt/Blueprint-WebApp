@@ -275,26 +275,6 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  // A video sent before the job had an account is born in the Pipeline with no
-  // owner, and saving the job afterwards is refused for that capture for good.
-  // Said plainly instead of an indefinite "preparing" or an unreadable status,
-  // until a scene or an evaluation proves otherwise.
-  if (input.footageBeforeAccount && !input.scenePreviewReady
-      && !(input.screening && input.screening.queued + input.screening.running + input.screening.reported + input.screening.noResult > 0)) {
-    const unsaved = input.claimed === false;
-    return {
-      decision: "footage_before_account",
-      stage: null,
-      headline: "Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. "
-        + (unsaved
-          ? "You don't need to send it again: save the job to your account, and we email you when that changes."
-          : "You don't need to send it again; we email you when that changes."),
-      operatorAction: unsaved ? "Save this job to your account." : null,
-      missingViews: [],
-      nextUpdateIso: null,
-    };
-  }
-
   if (input.taskScope) {
     const notYet = taskScopeNotYet(input.taskScope.reason);
     return {
@@ -457,6 +437,29 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
         ? "Your job clears our screen. Save it to your account so our team can review the scene preview preparation issue."
         : "Your job clears our screen. Save it to your account and we start building your scene.",
       operatorAction: "Save this site to your account and verify your email.",
+    };
+  }
+
+  // A video sent before the job had an account is born in the Pipeline with no
+  // owner, and saving the job afterwards is refused for that capture for good.
+  // It outranks only the preparation states below: said plainly instead of an
+  // indefinite "preparing" or an unreadable status. Every verdict, evaluation
+  // and step of the site's own above stays truer than it, and a scene preview
+  // or any run proves otherwise. The notice is sent only while this rung is
+  // what the job page shows (`footageBeforeAccountShown`).
+  if (input.footageBeforeAccount && !input.scenePreviewReady
+      && !(input.screening && input.screening.queued + input.screening.running + input.screening.reported + input.screening.noResult > 0)) {
+    const unsaved = input.claimed === false;
+    return {
+      decision: "footage_before_account",
+      stage: null,
+      headline: "Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. "
+        + (unsaved
+          ? "You don't need to send it again: save the job to your account, and we email you when that changes."
+          : "You don't need to send it again; we email you when that changes."),
+      operatorAction: unsaved ? "Save this job to your account." : null,
+      missingViews: [],
+      nextUpdateIso: null,
     };
   }
 

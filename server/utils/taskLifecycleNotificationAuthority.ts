@@ -38,7 +38,7 @@ export async function taskLifecycleNotificationIsCurrent(
  // A waiting notice is sent only while what it says is still true.
  if(entry.kind==='footage_before_account'){
   const notices=await import('./taskLifecycleNotifications');
-  return notices.footageStillBeforeAccount(entry.requestId);
+  return notices.footageBeforeAccountShown(entry.requestId);
  }
  if(entry.kind==='awaiting_evaluations'||entry.kind==='no_team_passed'||entry.kind==='no_qualified_evaluation'){
   const notices=await import('./taskLifecycleNotifications');

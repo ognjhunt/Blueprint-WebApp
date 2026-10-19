@@ -509,6 +509,15 @@ describe("a video that arrived before the job's account", () => {
       screening: { queued: 1, running: 0, reported: 0, noResult: 0 } as never })).decision).not.toBe("footage_before_account");
   });
 
+  it("never outranks a scope verdict, a step of the site's own or saving the job", () => {
+    const arrived = { briefDrafted: true, hasStoredCapture: true, footageBeforeAccount: true } as const;
+    expect(projectTaskStatus(base({ ...arrived, briefConfirmed: true,
+      taskScope: { supported: false, reason: "container" } } as never)).decision).toBe("not_yet_supported");
+    expect(projectTaskStatus(base({ ...arrived, briefConfirmed: false })).decision).toBe("confirm_brief");
+    expect(projectTaskStatus(base({ ...arrived, briefConfirmed: true, disposition: "qualified", claimed: false })).decision)
+      .toBe("save_account");
+  });
+
   it("never outranks withdrawn consent", () => {
     expect(projectTaskStatus(base({ hasStoredCapture: true, footageBeforeAccount: true, consentRevoked: true })).headline)
       .toMatch(/Recording consent was withdrawn/);

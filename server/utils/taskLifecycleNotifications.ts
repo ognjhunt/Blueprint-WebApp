@@ -390,19 +390,57 @@ export async function reconcileWebsitePreparationNotifications(limit = 1): Promi
 }
 
 
-/** Whether a job's video still predates its account, for the notice's dispatch-time check. */
-export async function footageStillBeforeAccount(requestId: string): Promise<boolean> {
+/**
+ * Whether the job page shows `footage_before_account` right now, from the same
+ * projection and the same inputs the job pages use (owner decision
+ * 2026-10-18). The notice is queued and sent only while this holds, so it
+ * never tells a site its video cannot be used once a scope verdict, a step of
+ * its own, a scene preview or an evaluation says something truer.
+ */
+export async function footageBeforeAccountShown(requestId: string): Promise<boolean> {
   if (!db) return false;
   const snapshot = await db.collection("inboundRequests").doc(requestId).get();
-  return snapshot.exists && await footageArrivedBeforeAccount(requestId, snapshot.data()) === true;
+  const record = snapshot.data();
+  if (!snapshot.exists || !record || await footageArrivedBeforeAccount(requestId, record) !== true) return false;
+  const [{ getBrief }, { passMarkForJob }, { loadSceneScreening }, { teamJobAccess }, { projectWebsiteCaptureRights },
+    { projectTaskStatus, taskStatusInputFrom }] = await Promise.all([
+    import("./siteTaskBrief"), import("./pilotRecommendationEvidence"), import("./agentEvalRuns"), import("./teamJobAccess"),
+    import("./websiteTaskContext"), import("./taskStatusProjection")]);
+  const [brief, session] = await Promise.all([getBrief(requestId),
+    db.collection("captureUploadSessions").doc(`walkthrough-${requestId}`).get()]);
+  const consentRevoked = projectWebsiteCaptureRights(record).consent_revoked;
+  const reconstruction = session.data()?.world_reconstruction;
+  const status = projectTaskStatus(taskStatusInputFrom({
+    site_task_brief_confirmed_at: record.site_task_brief_confirmed_at,
+    capture_coverage: record.capture_coverage ?? null,
+    briefDrafted: Boolean(brief),
+    // The `video_received` notice footageArrivedBeforeAccount read is the receipt.
+    hasStoredCapture: true,
+    footageBeforeAccount: true,
+    consentRevoked,
+    scenePreviewReady: !consentRevoked && reconstructionIsViewable({ ...reconstruction, worldId: reconstruction?.world_id }),
+    scenePreparationFailed: reconstruction?.state === "failed",
+    // The job pages never read preparation for this capture, which cannot be prepared.
+    preparationStatus: null,
+    stage: null,
+    screening: consentRevoked ? null
+      : await loadSceneScreening(requestId, passMarkForJob(record as never, brief as never)).catch(() => null),
+    site_task_triage: record.site_task_triage ?? null,
+    site_task_scope: record.site_task_scope ?? null,
+    account_owner_uid: typeof record.account_owner_uid === "string" && record.account_owner_uid ? record.account_owner_uid : null,
+    jobAccess: teamJobAccess(record),
+    recommended: Boolean(record.pilot_recommendation),
+  }));
+  return status.decision === "footage_before_account";
 }
 
 /**
  * One honest email for each job whose video arrived before it was saved to an
  * account (owner decision 2026-10-18), including jobs saved before this
  * existed. Footage now waits for a saved job, so no new job joins them; the
- * scan turns through the footage notices a few at a time, writes only for
- * those jobs, and the outbox key keeps it to one email per job.
+ * scan turns through the footage notices a few at a time and queues only
+ * while the job page shows `footage_before_account` (re-checked at dispatch),
+ * and the outbox key keeps it to one email per job.
  */
 export async function reconcileFootageBeforeAccountNotices(limit = 5): Promise<void> {
   if (!db) return;
@@ -415,7 +453,7 @@ export async function reconcileFootageBeforeAccountNotices(limit = 5): Promise<v
     if (!requestId) continue;
     try {
       if ((await store.collection(CAPTURE_OUTBOX_COLLECTION).doc(`${requestId}:footage_before_account`).get()).exists) continue;
-      if (!(await footageStillBeforeAccount(requestId))) continue;
+      if (!(await footageBeforeAccountShown(requestId))) continue;
       await enqueueTaskLifecycleNotification({ requestId, milestone: "footage_before_account" });
     } catch (error) {
       logger.warn({ error, requestId }, "Could not queue the footage-before-account notice");
