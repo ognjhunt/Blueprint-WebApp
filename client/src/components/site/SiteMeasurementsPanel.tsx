@@ -241,6 +241,14 @@ export function SiteMeasurementsPanel({ token }: { token: string }) {
       </fieldset>
 
       {family === "articulated_open_close" && (
+        // The current website route evaluates rigid pick and place on one surface (site guide).
+        <p className="ms-field-hint">
+          Blueprint confirms a door, drawer or lid job with you before any evaluation. Your readings stay with the
+          job either way.
+        </p>
+      )}
+
+      {family === "articulated_open_close" && (
         <fieldset className="ms-choice">
           <legend>How does it open?</legend>
           {ARTICULATIONS.map((value) => (

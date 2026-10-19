@@ -51,7 +51,10 @@ describe("what the panel asks", () => {
   it("follows the kind of front for a door, drawer or lid", async () => {
     fetchMock.mockResolvedValueOnce(respond(EMPTY));
     render(<SiteMeasurementsPanel token="tok" />);
+    expect(screen.queryByText(/confirms a door, drawer or lid job/)).toBeNull();
     fireEvent.click(await screen.findByRole("radio", { name: "Opens or closes a door, drawer or lid" }));
+    // The current website route evaluates rigid pick and place; articulated jobs are confirmed first.
+    expect(screen.getByText(/Blueprint confirms a door, drawer or lid job with you before any evaluation/)).toBeInTheDocument();
     expect(screen.getByLabelText("Height of the handle")).toBeInTheDocument();
     expect(screen.queryByLabelText("How far it opens")).toBeNull();
     fireEvent.click(screen.getByRole("radio", { name: "It slides out, like a drawer" }));

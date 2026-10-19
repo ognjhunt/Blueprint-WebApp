@@ -241,6 +241,17 @@ the simulator producer, and the founder is the reviewer. Each site's
   with `samples_insufficient` for a missing reading and with a mismatch for the
   other family.
 
+## Note after merging main (#1069)
+
+The site guide now says the current website route evaluates one rigid object
+placed elsewhere on the same support surface. Moving between surfaces, placing
+into containers, and doors or other articulated objects need a separately
+supported route. The panel still collects open-and-close readings, because the
+Pipeline scores that family and its template exists. When a site chooses a
+door, drawer or lid, the panel says Blueprint confirms that job before any
+evaluation. The place-surface reading asks for the same height when the object
+stays on one surface.
+
 ## Out of scope
 
 - The simulator-side measurement producer: reading each quantity from the
