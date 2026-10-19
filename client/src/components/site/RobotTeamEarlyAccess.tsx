@@ -14,6 +14,7 @@ import {
   applyForEarlyAccess,
   EarlyAccessApplicationError,
   requestInvitationLink,
+  type AccessNotificationStatus,
   type LibraryAccess,
 } from "@/lib/robotTeamAccess";
 
@@ -50,7 +51,7 @@ function ApprovedTeamAccess() {
           <label>Approved email<input disabled={!interactive} name="approvedEmail" type="email" autoComplete="email" maxLength={320} required /></label>
           <button className="ms-button" disabled={!interactive || state === "sending"}>{state === "sending" ? "Sending…" : "Email my invitation link"}</button>
         </form>
-        {state === "sent" && <p role="status">If that address is approved, a new invitation link is on its way. Open it to create your account.</p>}
+        {state === "sent" && <p role="status">If that address is approved, check its inbox for your invitation. If it does not arrive, <a href="mailto:hello@tryblueprint.io">contact us</a>.</p>}
         {state === "error" && <p role="alert">The link could not be sent. Try again, or email <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a>.</p>}
       </details>
     </div>
@@ -60,6 +61,7 @@ function ApprovedTeamAccess() {
 function ApplicationForm({ email }: { email: string | null }) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "approved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [notificationStatus, setNotificationStatus] = useState<AccessNotificationStatus>("needs_attention");
   const [interactive, setInteractive] = useState(false);
   // A link from a job record (/sites/:slug) names the site the team asked
   // about; carry it into the application rather than dropping it.
@@ -77,7 +79,7 @@ function ApplicationForm({ email }: { email: string | null }) {
     setState("sending");
     setError(null);
     try {
-      const status = await applyForEarlyAccess({
+      const result = await applyForEarlyAccess({
         name: read("name"),
         email: email ?? read("email"),
         company: read("company"),
@@ -87,7 +89,8 @@ function ApplicationForm({ email }: { email: string | null }) {
         acceptedTerms: true,
         optionalUpdates: data.get("optionalUpdates") === "on",
       });
-      setState(status === "approved" ? "approved" : "sent");
+      setNotificationStatus(result.notificationStatus);
+      setState(result.status === "approved" ? "approved" : "sent");
     } catch (failure) {
       setError(failure instanceof EarlyAccessApplicationError ? failure.message : "The application could not be sent. Try again.");
       setState("error");
@@ -98,7 +101,10 @@ function ApplicationForm({ email }: { email: string | null }) {
     return (
       <div className="ms-task-empty" role="status">
         <h2>You are approved.</h2>
-        <p>We emailed you a new invitation link. Open it to create your account with that email address; your workspace opens with your team set up and the site jobs open to it.</p>
+        <p>{notificationStatus === "sent" ? "Your invitation email was sent."
+          : notificationStatus === "queued" ? "Your invitation email is queued."
+            : "Your approval is saved, but we could not confirm delivery of your invitation."} Open the invitation to create your account with that email address; your workspace opens with your team set up and the site jobs open to it.</p>
+        <p>If it does not arrive, <a href="mailto:hello@tryblueprint.io">contact us</a> for help.</p>
       </div>
     );
   }

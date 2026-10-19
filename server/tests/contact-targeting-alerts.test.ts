@@ -28,7 +28,9 @@ function job() {
     public_task_listing: { ...listedTaskCard(), wentLiveIso: event }, newJobAlertFanout: newJobFanoutIntent(event) });
 }
 function contact(email: string, preferences: any = preference()) {
-  state.docs.set(`robotTeamAccess/${accessRecordId(email)}`, { name: 'Ada', email, status: 'approved', newJobAlertsOptIn: preferences?.newJobAlerts === true, updatedAtIso: event, updatePreferences: preferences });
+  state.docs.set(`robotTeamAccess/${accessRecordId(email)}`, { name: 'Ada', email, status: 'approved',
+    decidedAtIso: event, decidedBy: 'fixture-ops', appliedAtIso: event,
+    newJobAlertsOptIn: preferences?.newJobAlerts === true, updatedAtIso: event, updatePreferences: preferences });
 }
 const alerts = () => [...state.docs].filter(([key]) => key.startsWith('captureOutbox/'));
 beforeEach(() => { state.docs.clear(); send.mockClear(); fence.mockReset().mockResolvedValue(true); job(); });

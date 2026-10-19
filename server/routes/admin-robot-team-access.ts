@@ -15,7 +15,6 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { robotTeamAccountInvitation } from "../utils/accountInvitations";
 import type { RobotTeamAccessRecord } from "../utils/robotTeamEarlyAccess";
 import { autoApproveMinimumTasks, OPEN_LIBRARY_SUGGESTED_AT_TASKS } from "../utils/robotTeamAccessFit";
-import { enqueueAccessEmail } from "../utils/robotTeamAccessEmails";
 import {
   accessRecordId,
   decideAccessApplication,
@@ -73,22 +72,16 @@ router.post("/:id/decision", async (req: Request, res: Response) => {
   }
   if (parsed.data.status === "approved" && parsed.data.prerequisitesReviewed !== true) return res.status(400).json({ error: "Review the team's prerequisites and confirm approval before inviting it." });
   try {
-    const record = await decideAccessApplication({
+    const result = await decideAccessApplication({
       id,
       status: parsed.data.status,
       note: parsed.data.note || null,
       decidedBy: operatorName(res),
+      notify: parsed.data.notify,
     });
-    if (!record) return res.status(404).json({ error: "Application not found" });
-    const kind = record.status === "approved"
-      ? "robot_team_access_approved" as const
-      : parsed.data.notify === false ? null : "robot_team_access_not_yet" as const;
-    if (kind) {
-      await enqueueAccessEmail({ kind, recordId: id, record }).catch((error) => {
-        logger.warn({ error, id, kind }, "Could not queue the early-access decision email");
-      });
-    }
-    return res.json({ application: { id, ...record }, emailed: Boolean(kind) });
+    if (!result) return res.status(404).json({ error: "Application not found" });
+    return res.json({ application: { id, ...result.record }, emailed: result.notification.status === "sent",
+      notificationStatus: result.notification.status, notification: result.notification });
   } catch (error) {
     logger.error({ error, id }, "Could not record a robot-team access decision");
     return res.status(503).json({ error: "The decision could not be saved" });
@@ -112,21 +105,18 @@ router.post("/invites", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Send the team's name, work email and company." });
   }
   try {
-    const { record, created, alreadyApproved } = await inviteRobotTeam({
+    const { record, created, alreadyApproved, notification } = await inviteRobotTeam({
       ...parsed.data,
       note: parsed.data.note || null,
       invitedBy: operatorName(res),
     });
     const id = accessRecordId(record.email);
-    if (!alreadyApproved) {
-      await enqueueAccessEmail({ kind: "robot_team_access_approved", recordId: id, record }).catch((error) => {
-        logger.warn({ error, id }, "Could not queue the early-access invite email");
-      });
-    }
     return res.status(created ? 201 : 200).json({
       application: { id, ...record },
       alreadyApproved,
-      emailed: !alreadyApproved,
+      emailed: notification.status === "sent",
+      notificationStatus: notification.status,
+      notification,
     });
   } catch (error) {
     logger.error({ error }, "Could not invite a robot team");

@@ -24,6 +24,7 @@ import { sendEmail } from "./email";
 import { brandedEmail, CUSTOMER_JOB_EMAIL_IDENTITY } from "./emailLayout";
 import { getOpsAutomationLeaderLease } from "./automationLeaderLease";
 import { accountNoticeDigest, accountNoticeDispatchBlocker, type AccountNoticeContext } from "./accountNotice";
+import { robotTeamAccessNotificationAuthority, type RobotTeamAccessNoticeContext } from "./robotTeamAccessNotificationAuthority";
 
 export const CAPTURE_OUTBOX_COLLECTION = "captureOutbox";
 
@@ -92,6 +93,7 @@ export interface OutboxEntry {
   preparationEventId?: string;
   jobAlert?: JobAlertContext;
   accountNotice?: AccountNoticeContext;
+  robotTeamAccessNotice?: RobotTeamAccessNoticeContext;
   status: OutboxStatus;
   attempts: number;
   createdAtIso: string;
@@ -130,6 +132,7 @@ function messageDigest(entry: OutboxEntry): string {
   if (entry.preparationEventId !== undefined) fields.push(entry.preparationEventId);
   if (entry.jobAlert !== undefined) fields.push(JSON.stringify(entry.jobAlert));
   if (entry.accountNotice !== undefined) fields.push(accountNoticeDigest(entry.accountNotice));
+  if (entry.robotTeamAccessNotice !== undefined) fields.push(JSON.stringify(entry.robotTeamAccessNotice));
   return createHash("sha256").update(JSON.stringify(fields)).digest("hex");
 }
 
@@ -161,7 +164,7 @@ function nowIso() {
  * asking. Delivery retries use the same durable intent.
  */
 export type OutboxInput = Pick<OutboxEntry,
-  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo" | "preparationEventId" | "jobAlert" | "accountNotice">;
+  "idempotencyKey" | "requestId" | "kind" | "to" | "subject" | "body" | "replyTo" | "preparationEventId" | "jobAlert" | "accountNotice" | "robotTeamAccessNotice">;
 
 /** Build a durable intent for an owning business transaction. This function
  * performs no I/O; callers create the row atomically with their state change. */
@@ -290,6 +293,11 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
         tx.set(doc.ref, { status: "review_required", lastError: accountBlocker }, { merge: true });
         return false;
       }
+      const accessNotice = await robotTeamAccessNotificationAuthority(entry, tx);
+      if (accessNotice === "review_required") {
+        tx.set(doc.ref, { status: "review_required", lastError: "robot_team_access_notice_revision_unverified" }, { merge: true });
+        return false;
+      }
       // Re-read recommendation/recipient authority in this same transaction.
       // A source read/decrypt failure leaves a recoverable pre-dispatch claim;
       // an obsolete notice is cancelled without consuming a send attempt.
@@ -299,7 +307,7 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
       // still describe the provider effect and are never recast as cancelled.
       const currentCaptureNotice = await taskLifecycleNotificationIsCurrent(entry, tx);
       const currentJobAlert = await jobAlertIsCurrent(entry, tx);
-      if (!currentNotice || !currentRecommendation || !currentCaptureNotice || !currentJobAlert) {
+      if (accessNotice === "obsolete" || !currentNotice || !currentRecommendation || !currentCaptureNotice || !currentJobAlert) {
         tx.set(doc.ref, { status: "cancelled" }, { merge: true });
         return false;
       }

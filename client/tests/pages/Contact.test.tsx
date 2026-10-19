@@ -121,12 +121,16 @@ describe("the robot page", () => {
     expect(screen.queryByRole("form", { name: "Early access application" })).toBeNull();
   });
 
-  it("sends the site a team would test at, and says so when a clear fit is approved on the spot", async () => {
+  it.each([
+    ["queued", "Your invitation email is queued."],
+    ["sent", "Your invitation email was sent."],
+    ["needs_attention", "Your approval is saved, but we could not confirm delivery of your invitation."],
+  ])("preserves an existing approval and reports %s invitation delivery truthfully", async (notificationStatus, message) => {
     mockLocation = "/contact/robot-team";
     const fetchMock = vi.fn(async (url: string) => ({
       ok: true,
       json: async () => url.includes("/apply")
-        ? { status: "approved" }
+        ? { status: "approved", notificationStatus }
         : { items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } },
     }));
     vi.stubGlobal("fetch", fetchMock);
@@ -143,6 +147,8 @@ describe("the robot page", () => {
     fill(/a site or customer you would want to test at/i, "Our pilot warehouse");
     fireEvent.submit(form);
     expect(await screen.findByRole("heading", { name: "You are approved." })).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(message.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toBeInTheDocument();
+    expect(screen.queryByText(/We emailed you a new invitation link/)).toBeNull();
     const apply = fetchMock.mock.calls.find(([url]) => String(url).includes("/apply"))!;
     expect(JSON.parse(String((apply[1] as RequestInit).body))).toMatchObject({
       testSite: "Our pilot warehouse",

@@ -1,13 +1,8 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { logger } from "../logger";
-import { enqueueOutbox } from "./captureOutbox";
+import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION, type OutboxStatus } from "./captureOutbox";
 import { EMAIL_SIGN_OFF, emailGreeting } from "./emailLayout";
 import { robotTeamAccountInvitation } from "./accountInvitations";
-import {
-  accessRecordId,
-  ROBOT_TEAM_ACCESS_COLLECTION,
-  type RobotTeamAccessRecord,
-} from "./robotTeamEarlyAccess";
+import type { RobotTeamAccessRecord } from "./robotTeamEarlyAccess";
 
 const APP_URL = () => (process.env.APP_URL || "https://tryblueprint.io").replace(/\/+$/, "");
 
@@ -101,35 +96,99 @@ export function accessNotYetEmail(record: Pick<RobotTeamAccessRecord, "name">) {
   };
 }
 
-export async function enqueueAccessEmail(params: {
+export type AccessEmailNotification = {
+  status: "queued" | "sent" | "needs_attention" | "not_requested";
+  outboxStatus: OutboxStatus | null;
+  outboxId: string | null;
+};
+
+export const NO_ACCESS_EMAIL: AccessEmailNotification = { status: "not_requested", outboxStatus: null, outboxId: null };
+
+/**
+ * Read the deduplicated notice before the business transaction writes anything.
+ * Its write() creates the existing outbox intent in that same commit. A storage
+ * failure therefore cannot leave a newly approved team without its invitation.
+ * Replaying an action also repairs an older decision whose enqueue was lost,
+ * without changing the approval revision or resetting an existing delivery.
+ */
+export async function prepareAccessEmail(transaction: FirebaseFirestore.Transaction, params: {
   kind: AccessEmailKind;
   recordId: string;
   record: RobotTeamAccessRecord;
   thinLibrary?: boolean;
-  /** An approved team asked for a fresh invitation link: at most one an hour. */
+  /** An approved team asked for a fresh link: at most one per approval an hour. */
   resend?: boolean;
-}): Promise<{ enqueued: boolean }> {
+}): Promise<{ notification: AccessEmailNotification; write: () => void }> {
+  if (!db) throw new Error("firestore_unavailable");
+  // One of each per application: a re-application does not send a second
+  // receipt, and a decision is announced once.
+  const resendHour = params.resend && params.kind === "robot_team_access_approved"
+    ? new Date().toISOString().slice(0, 13) : null;
+  const revision = params.kind === "robot_team_access_received" ? params.record.appliedAtIso
+    : params.record.decidedAtIso ?? params.record.updatedAtIso;
+  const stamp = resendHour
+    ? `resend-${revision}-${resendHour}`
+    : params.kind === "robot_team_access_received"
+      ? params.record.appliedAtIso
+      : params.record.decidedAtIso ?? params.record.updatedAtIso;
+  const outboxId = `${params.kind}:${params.recordId}:${stamp}`;
+  const ref = db.collection(CAPTURE_OUTBOX_COLLECTION).doc(outboxId);
+  let current = await transaction.get(ref);
+  let existingOutboxId = outboxId;
+  let legacyUnverified = false;
+  if (!current.exists && resendHour) {
+    const legacyId = `${params.kind}:${params.recordId}:resend-${resendHour}`;
+    const legacy = await transaction.get(db.collection(CAPTURE_OUTBOX_COLLECTION).doc(legacyId));
+    if (legacy.exists) {
+      const context = legacy.data()?.robotTeamAccessNotice;
+      const bound = context?.schemaVersion === "robot_team_access_notice.v1"
+        && context.recordId === params.recordId && context.status === "approved"
+        && typeof context.revision === "string" && Number.isFinite(Date.parse(context.revision));
+      // Preserve a prior uncertain send. Only a proven different approval can
+      // receive a separate link; an unbound legacy row needs operator review.
+      if (!bound || context.revision === revision) {
+        current = legacy;
+        existingOutboxId = legacyId;
+        legacyUnverified = !bound;
+      }
+    }
+  }
+  if (current.exists) {
+    const row = current.data();
+    if (row?.kind !== params.kind || row.requestId !== `robot-team-access:${params.recordId}` || row.to !== params.record.email)
+      throw new Error("access_notification_identity_conflict");
+    const outboxStatus = ["pending", "claimed", "dispatching", "unknown", "sent", "failed", "cancelled", "review_required"]
+      .includes(row.status) ? row.status as OutboxStatus : null;
+    return {
+      notification: { status: legacyUnverified ? "needs_attention" : outboxStatus === "sent" ? "sent"
+        : outboxStatus && ["pending", "claimed", "dispatching"].includes(outboxStatus) ? "queued" : "needs_attention",
+      outboxStatus, outboxId: existingOutboxId },
+      write: () => undefined,
+    };
+  }
   const message = params.kind === "robot_team_access_received"
     ? accessReceivedEmail(params.record, { thinLibrary: params.thinLibrary })
     : params.kind === "robot_team_access_approved"
       ? accessApprovedEmail(params.record)
       : accessNotYetEmail(params.record);
-  // One of each per application: a re-application does not send a second
-  // receipt, and a decision is announced once.
-  const stamp = params.resend && params.kind === "robot_team_access_approved"
-    ? `resend-${new Date().toISOString().slice(0, 13)}`
-    : params.kind === "robot_team_access_received"
-      ? params.record.appliedAtIso
-      : params.record.decidedAtIso ?? params.record.updatedAtIso;
-  return enqueueOutbox({
-    idempotencyKey: `${params.kind}:${params.recordId}:${stamp}`,
+  const entry = buildOutboxEntry({
+    idempotencyKey: outboxId,
     requestId: `robot-team-access:${params.recordId}`,
     kind: params.kind,
     to: params.record.email,
     subject: message.subject,
     body: message.body,
     replyTo: "hello@tryblueprint.io",
+    robotTeamAccessNotice: {
+      schemaVersion: "robot_team_access_notice.v1", recordId: params.recordId,
+      status: params.kind === "robot_team_access_approved" ? "approved"
+        : params.kind === "robot_team_access_not_yet" ? "declined" : "applied",
+      revision: params.kind === "robot_team_access_received" ? params.record.appliedAtIso
+        : params.record.decidedAtIso!,
+    },
   });
+  return { notification: { status: "queued", outboxStatus: "pending", outboxId },
+    write: () => { transaction.create(ref, entry); } };
 }
 
 type ListedCard = { title: string; taskFamily?: string; siteType?: string; region?: string };
