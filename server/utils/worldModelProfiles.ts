@@ -5,20 +5,22 @@
  * site with a phone, and a World Labs world model turns that walkthrough into
  * a navigable 3D scene. We do no reconstruction ourselves.
  *
- * The only thing that differs between the model we can call today (Marble) and
- * the one we are waiting on (Atlas) is *how much of the walkthrough a single
- * request will accept*. Auth, endpoints, polling and the returned asset shapes
- * are the same surface. So the model is data, not code: pick a profile, and the
- * adapter in `worldlabs.ts` does the rest.
+ * Every profile here is a Marble model on the `worlds:generate` surface. They
+ * differ only in *how much of the walkthrough a single request will accept*, so
+ * the model is data, not code: pick a profile, and the adapter in
+ * `worldlabs.ts` does the rest.
  *
- * That is what makes the Atlas cutover a config change. When the Atlas key
- * arrives, set WORLDLABS_DEFAULT_MODEL=atlas and the frame budget goes from 8
- * to 100 with no code edit.
+ * World Labs Atlas is not one of these models, and switching to it is not a
+ * config change. Its beta (https://atlas-beta.worldlabs.ai/docs, read
+ * 2026-10-19) exposes task endpoints on a different API:
+ * `tasks:images2PosedRGBD` returns a camera, a linear-depth EXR and a
+ * confidence map per frame, in world units with no stated metric scale;
+ * `tasks:atlasGenerate` returns RGB views at target cameras. Neither returns a
+ * world, splats, a collider or a mesh. So any model name starting with "atlas"
+ * resolves to a refused profile, and the WebApp never sends Atlas a request.
+ * Atlas calls belong to the Pipeline (see docs/world-model-reconstruction.md).
  *
- * Limits are transcribed from the published World Labs docs. Where the public
- * record is silent — everything about the Atlas request schema — the profile
- * says so rather than guessing, and `available: false` keeps it unreachable
- * until someone has actually seen the API.
+ * Limits are transcribed from the published World Labs docs.
  *
  * Sources:
  * - Input caps (video 30s/100MB, images 1024px/20MB):
@@ -27,8 +29,7 @@
  *   `MultiImagePrompt.reconstruct_images` in
  *   https://docs.worldlabs.ai/api/reference/openapi.yaml
  * - Model names: https://docs.worldlabs.ai/api/models
- * - Atlas 100+ images into one spatial context, early access only:
- *   https://www.worldlabs.ai/blog/atlas
+ * - Atlas task endpoints: https://atlas-beta.worldlabs.ai/docs/api-reference
  */
 
 export interface WorldModelProfile {
@@ -37,9 +38,8 @@ export interface WorldModelProfile {
   /** Human label for admin surfaces. */
   readonly label: string;
   /**
-   * Whether we can actually call this model today. Atlas is early-access only
-   * and has no published request schema, so it ships unreachable until an
-   * operator turns it on deliberately.
+   * Whether `worlds:generate` may be called with this model. False only for a
+   * name that is not a world-generation model at all, such as Atlas.
    */
   readonly available: boolean;
   /** Most frames this model accepts in one multi-image generate request. */
@@ -91,38 +91,35 @@ function marbleProfile(model: string, label: string): WorldModelProfile {
 }
 
 /**
- * Atlas: announced, not yet callable.
- *
- * The blog states Atlas folds 100+ images into a single shared spatial context,
- * which is the capability this whole pipeline is built to use. Nothing else
- * about its API is public — no endpoint, no request schema, no model string, no
- * pricing. So this profile carries only the frame budget we can cite, is marked
- * unavailable, and inherits Marble's request shape on the assumption that the
- * `worlds:generate` surface is kept. That assumption is recorded here so it can
- * be checked against the real spec rather than discovered in production.
+ * Atlas is refused, not pending. The profile below exists only so a refusal
+ * reads as a configuration state (`worldlabs_model_unavailable`) instead of a
+ * failed capture. It accepts no frames, and nothing may flip it on: an
+ * Atlas-shaped request has to be built against Atlas's own task API, which the
+ * Pipeline owns.
  */
-const ATLAS_PROFILE: WorldModelProfile = {
-  model: "atlas",
-  label: "Atlas (early access)",
-  available: false,
-  maxFrames: 100,
-  framesWithoutReconstructFlag: 100,
-  supportsReconstructFlag: false,
-  supportsVideoPrompt: false,
-  maxVideoSeconds: null,
-  maxVideoBytes: null,
-  note:
-    "Early access only; no published request schema. Frame budget is from the Atlas " +
-    "announcement. Assumes the worlds:generate surface is retained — verify against " +
-    "the real spec before enabling.",
-};
+function refusedAtlasProfile(model: string): WorldModelProfile {
+  return {
+    model,
+    label: "Atlas (not a world model)",
+    available: false,
+    maxFrames: 0,
+    framesWithoutReconstructFlag: 0,
+    supportsReconstructFlag: false,
+    supportsVideoPrompt: false,
+    maxVideoSeconds: null,
+    maxVideoBytes: null,
+    note:
+      "Atlas is not a worlds:generate model. Its beta exposes tasks:images2PosedRGBD and " +
+      "tasks:atlasGenerate, which return posed RGB-D and generated views, not a world. " +
+      "The Pipeline owns Atlas calls; the WebApp never sends them.",
+  };
+}
 
 export const WORLD_MODEL_PROFILES: Readonly<Record<string, WorldModelProfile>> = Object.freeze({
   "marble-1.1-plus": marbleProfile("marble-1.1-plus", "Marble 1.1 Plus"),
   "marble-1.1": marbleProfile("marble-1.1", "Marble 1.1"),
   "marble-1.0": marbleProfile("marble-1.0", "Marble 1.0"),
   "marble-1.0-draft": marbleProfile("marble-1.0-draft", "Marble 1.0 Draft"),
-  atlas: ATLAS_PROFILE,
 });
 
 /**
@@ -148,6 +145,12 @@ export function resolveWorldModelProfile(model?: string | null): WorldModelProfi
   const requested = String(model || "").trim();
   if (!requested) {
     return WORLD_MODEL_PROFILES[DEFAULT_WORLD_MODEL];
+  }
+
+  // Checked before the unknown-model fallback below, which would otherwise
+  // treat "atlas-beta" as a newer Marble and send it a Marble-shaped request.
+  if (/^atlas/i.test(requested)) {
+    return refusedAtlasProfile(requested);
   }
 
   const direct = WORLD_MODEL_PROFILES[requested];

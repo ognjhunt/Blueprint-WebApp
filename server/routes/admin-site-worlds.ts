@@ -328,8 +328,8 @@ router.post("/:siteWorldId/worldlabs-preview/generate", async (req: Request, res
  *
  * This is the path a real site goes through. The video prompt caps at 30
  * seconds, which no useful walkthrough fits inside, so frames are what we
- * actually send — and frames are the same input shape Atlas scales to 100+.
- * How many get sent is the model profile's call, not this route's.
+ * actually send. How many get sent is the model profile's call, not this
+ * route's, and an Atlas model name is refused there (see worldModelProfiles).
  */
 router.post("/:siteWorldId/worldlabs-preview/generate-from-frames", async (req: Request, res: Response) => {
   try {

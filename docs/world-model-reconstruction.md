@@ -1,11 +1,11 @@
 # World-model reconstruction
 
-How a paid walkthrough becomes a 3D scene, and what changes when Atlas arrives.
+How a paid walkthrough becomes a 3D scene, and why Atlas is not a model switch.
 
 Blueprint does not reconstruct anything. A capturer is sent to a site, records
 one video, and a World Labs world model turns that video into a navigable
-scene. This document covers the path that runs today and the single switch that
-moves it to Atlas.
+scene. This document covers the path that runs today, why World Labs Atlas
+cannot be switched on inside it, and which service should own World Labs calls.
 
 ## The chain
 
@@ -31,13 +31,11 @@ Marble's video prompt caps at **30 seconds and 100 MB**. No walkthrough of a
 real site fits in that, so handing over the whole video is not an option for the
 work we actually sell.
 
-Frames are. They are also the input shape Atlas is built around — its
-announcement describes folding 100+ images into a single shared spatial
-context — so the path that works today is the same path that gets better later.
+Frames are.
 
-## The frame budget is the only thing that changes
+## The frame budget
 
-Every model profile lives in `server/utils/worldModelProfiles.ts`.
+Every Marble model profile lives in `server/utils/worldModelProfiles.ts`.
 
 | Model | Frames per request | Notes |
 |---|---|---|
@@ -45,7 +43,7 @@ Every model profile lives in `server/utils/worldModelProfiles.ts`.
 | `marble-1.1` | 4 / 8 | |
 | `marble-1.0` | 4 / 8 | |
 | `marble-1.0-draft` | 4 / 8 | Cheapest |
-| `atlas` | **100** | `available: false` — see below |
+| any name starting `atlas` | **0** | Refused. Atlas is not a `worlds:generate` model; see below |
 
 A 5 FPS two-minute walk is 600 frames against a budget of 8. Taking the first
 eight would reconstruct the first 1.6 seconds of the site, so
@@ -57,27 +55,71 @@ data.
 The full extracted frame set is kept regardless of what gets sent. Raising the
 budget later re-reads frames that already exist rather than needing a re-capture.
 
-## Switching to Atlas
+## Atlas is not a model switch
 
-**Atlas is not callable yet.** It is early access with select partners, and no
-request schema, endpoint, model string or pricing has been published. Its
-profile therefore ships `available: false`, and `startWorldReconstruction`
-returns the blocker `worldlabs_model_unavailable` rather than sending a request
-built on a guess.
+This section replaces an earlier three-step "Switching to Atlas" procedure: set
+`WORLDLABS_DEFAULT_MODEL=atlas`, then flip the profile to available. That
+procedure assumed Atlas kept Marble's `worlds:generate` request. It does not.
+Following it would have sent Atlas a Marble-shaped request.
 
-When access arrives:
+The Atlas beta docs (https://atlas-beta.worldlabs.ai/docs, read 2026-10-19)
+describe a separate task API under `/api/v2`, with its own project-scoped keys
+and asset uploads:
 
-1. Set `WORLDLABS_API_KEY` to the key with Atlas access.
-2. Set `WORLDLABS_DEFAULT_MODEL=atlas`.
-3. In `worldModelProfiles.ts`, flip `ATLAS_PROFILE.available` to `true` and set
-   `model` to the real model string.
+| Task | Returns | Not in the docs |
+|---|---|---|
+| `POST /api/v2/tasks:images2PosedRGBD`, described as a Marble 2 beta endpoint | Per frame: a camera, a linear-depth EXR and a confidence map, in "world units". The docs state no metric scale. Delivered as an async operation. | A world, splats, a collider or a mesh |
+| `POST /api/v2/tasks:atlasGenerate`, enabled per account | RGB frames at target cameras on a 1280×720 grid, with optional depth | Splats, a mesh, a collider or USD |
 
-Then **check the assumption the profile records**: it inherits Marble's request
-shape on the expectation that `worlds:generate` is retained. If Atlas's schema
-differs, `generateWorldFromFrames` is where that lands — the multi-image prompt
-construction, not the frame selection or the orchestration.
+Pricing is not published. The billing page says the beta converts 1,000
+credits per US dollar and that usage appears only on the platform's Usage page,
+not on the operation.
 
-Nothing else moves. The frame budget goes from 8 to 100 on the profile alone.
+So the WebApp refuses Atlas under any spelling. `resolveWorldModelProfile`
+maps every model name that starts with `atlas` to a refused profile that accepts
+no frames. That covers an explicit `model` and `WORLDLABS_DEFAULT_MODEL`.
+`generateWorldFromFrames` then throws `worldlabs_model_unavailable` before it
+uploads a frame, and `startWorldReconstruction` records that blocker. Without
+the refusal, a name such as `atlas-beta` would fall through to the
+unknown-model rule and be treated as a newer Marble release.
+
+Atlas does not lift the measurement requirement. Its depth carries no stated
+metric scale, so a measured site dimension is still required whichever
+registration a scene uses.
+
+## Who calls World Labs (proposal, awaiting the founder)
+
+Two services call World Labs today:
+
+- **WebApp** (this document): Marble `worlds:generate` through
+  `server/utils/worldReconstruction.ts`, reached from
+  `routes/internal-capture-worlds.ts` and `routes/admin-site-worlds.ts`.
+- **Pipeline**: Marble generation for website scene preparation
+  (`website_worldlabs.py`), behind its paid-resource admission and the
+  WebApp-signed preparation spend reservation.
+
+**Proposal: the Pipeline becomes the single owner of World Labs calls, Atlas
+included.** Its paid-resource admission, spend reservation and retained-operation
+recovery are where provider spend is bound to a sponsorship. Its geometry stage
+is also where Atlas's posed RGB-D output is consumed. Under this proposal:
+
+- The WebApp sends no Atlas request. This is already enforced, as described
+  above.
+- The Pipeline's admitted `images2PosedRGBD` operation is the only Atlas
+  caller. It refuses to run until a reviewed Atlas price is configured.
+- The WebApp's Marble path stays as it is until the founder decides whether to
+  move it to the Pipeline. Moving it is separate work.
+
+## Atlas in the Pipeline
+
+The Pipeline decides when Atlas is used. Its admitted pose operation uploads the
+source frames, submits one `images2PosedRGBD` operation, saves the operation ID,
+polls it, and keeps each output file bound to the input frame it came from.
+Every result keeps `claim_ceiling: development_only` and
+`metric_measurement_proven: false`. Captures without a sponsorship still wait at
+`needs_input` (`website_source_camera_depth_registration_required`) until a side-by-side
+comparison against the pinned MapAnything registration shows whether Atlas can
+fill that gap. The Pipeline docs own that plan.
 
 ## What comes back
 
@@ -136,7 +178,7 @@ trigger that has to write the reason down.
 |---|---|
 | `capture_frames_empty` | Extraction produced no frames |
 | `capture_frames_unreadable` | The frame index could not be read |
-| `worldlabs_model_unavailable` | The configured model is not callable yet — **a config state, not a bad capture** |
+| `worldlabs_model_unavailable` | The configured model is not a `worlds:generate` model, for example any Atlas name. **A config state, not a bad capture** |
 | `worldlabs_generation_failed` | The model rejected or failed the request |
 | `worldlabs_splat_export_failed` | The world exists; the PLY export did not settle |
 | `webapp_unreachable` | `extract-frames` could not reach the WebApp; the capture stays reconstructible |

@@ -414,9 +414,9 @@ export interface GenerateWorldFromFramesResult {
  *
  * This is the path Blueprint runs on. The video prompt caps at 30 seconds,
  * which is far shorter than a real walkthrough, so handing over selected frames
- * is the only way to cover a whole site — and it is the same shape Atlas scales
- * to 100+ frames. The frame budget comes from the model profile, so moving to
- * Atlas is a model string, not a rewrite.
+ * is the only way to cover a whole site. The frame budget comes from the Marble
+ * model profile. Atlas is not reachable from here: it is a different API whose
+ * tasks return posed RGB-D and generated views rather than a world.
  */
 export async function generateWorldFromFrames(
   params: GenerateWorldFromFramesParams,
@@ -424,8 +424,8 @@ export async function generateWorldFromFrames(
   const profile = resolveWorldModelProfile(params.model || configuredWorldModel());
 
   if (!profile.available) {
-    // Atlas lands here until someone has seen the real spec. Failing loudly
-    // beats shipping a request built on a guessed schema.
+    // Atlas lands here under any spelling. A worlds:generate request is the
+    // wrong shape for it, so refuse before uploading a single frame.
     throw new Error(
       `worldlabs_model_unavailable:${profile.model}:${profile.note}`,
     );
