@@ -43,6 +43,14 @@ import {
   initializeItemInventory,
   upsertItem,
 } from "../utils/taskItemInventory";
+import {
+  MeasurementInputError,
+  MeasurementRevisionConflict,
+  getMeasurements,
+  measurementSaveSchema,
+  presentMeasurements,
+  saveMeasurements,
+} from "../utils/siteTaskMeasurements";
 import { gateFields } from "../../client/src/data/siteTaskQualification";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import {
@@ -1182,6 +1190,51 @@ router.delete("/:token/items/:itemId", async (req: Request, res: Response) => {
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not remove a task item");
     return res.status(503).json({ error: "The item could not be removed", code: "item_inventory_unavailable" });
+  }
+});
+
+/** The job's tape-measure readings. Either link scope: measuring is capture, like item photos. */
+router.get("/:token/measurements", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(404).json({ error: "This link is not valid or has expired." });
+  }
+  try {
+    const record = await getMeasurements(payload.requestId);
+    return res.status(200).json({ ok: true, scope: payload.scope, ...presentMeasurements(record) });
+  } catch (error) {
+    logger.error({ error, requestId: payload.requestId }, "Could not load site measurements");
+    return res.status(503).json({ error: "The measurements could not be loaded.", code: "measurements_unavailable" });
+  }
+});
+
+/** Replace the readings. The body names the revision it read; a newer save wins and is returned. */
+router.put("/:token/measurements", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(404).json({ error: "This link is not valid or has expired." });
+  }
+  const parsed = measurementSaveSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ code: "measurements_invalid",
+      error: "These measurements could not be read. Reload the page and try again." });
+  }
+  try {
+    // The verifier reads an absent scope as owner; the record keeps that reading.
+    const record = await saveMeasurements(payload.requestId, parsed.data,
+      { scope: payload.scope === "film" ? "film" : "owner" });
+    return res.status(200).json({ ok: true, scope: payload.scope, ...presentMeasurements(record) });
+  } catch (error) {
+    if (error instanceof MeasurementInputError) {
+      return res.status(400).json({ code: "measurements_invalid", error: error.message });
+    }
+    if (error instanceof MeasurementRevisionConflict) {
+      return res.status(409).json({ code: "measurements_changed",
+        error: "Someone saved measurements for this job after this page loaded.",
+        scope: payload.scope, ...presentMeasurements(error.latest) });
+    }
+    logger.error({ error, requestId: payload.requestId }, "Could not save site measurements");
+    return res.status(503).json({ error: "The measurements could not be saved.", code: "measurements_unavailable" });
   }
 });
 

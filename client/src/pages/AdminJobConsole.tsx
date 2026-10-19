@@ -4,6 +4,7 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 
 import { Button, Card, Eyebrow, StatusChip } from "@/components/blueprint";
 import { AdmitFreeEvaluationForm } from "@/components/admin/AdmitFreeEvaluationForm";
+import { SiteMeasurementsConsole } from "@/components/admin/SiteMeasurementsConsole";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
@@ -168,6 +169,8 @@ function JobDetail({ requestId, onClose }: { requestId: string; onClose: () => v
               ))}
             </ol>
           </div>
+
+          <SiteMeasurementsConsole requestId={requestId} currentUser={api.currentUser} />
 
           <div>
             <h3 className="runway-rule-head runway-meta">Evaluation requests</h3>

@@ -42,6 +42,34 @@ frozen limits. All six dimensions must pass:
 | `registration_receipt` | `scale`, `registration`, `collision` |
 | `fidelity_review_receipt` | `task_state`, `observation`, `task_dynamics` |
 
+For cohort 1 the site produces the source measurements (founder decision,
+2026-10-19). It records optional tape-measure readings on its job page, which
+WebApp keeps in `siteTaskMeasurements/{requestId}`. Open **Site measurements**
+in the admin job console, or call
+`POST /api/admin/jobs/:requestId/site-measurements/source-document`, with
+three inputs:
+
+- the qualification request's exact `binding`, whose `scene_request_id` must
+  be this job;
+- the producer identity `site_job:<requestId>`;
+- any readings that set the scene's metric scale, which the export leaves out
+  of every check.
+
+The response is the document's exact bytes, their sha256 and size, and which
+checks the readings can fill. Retain those bytes unchanged as the request's
+`measurement` artifact. A `site_job:` producer must name this job, and every
+earlier save of the readings stays in `siteTaskMeasurements/{requestId}/revisions`.
+WebApp also keeps each export immutably at
+`siteTaskMeasurements/{requestId}/exports/{sha256 hex}`, with its binding,
+producer, calibration readings and revision. If a download is lost, recover
+the exact bytes from the console's retained-export list or
+`GET /api/admin/jobs/:requestId/site-measurements/exports/:digest`. Once the
+site withdraws recording consent, the export is refused. The Pipeline's
+`site_task_fidelity_profile_templates` coverage command reports any check the
+readings cannot fill. Its profile command stays refused until the founder has
+reviewed the templates' thresholds. A Pipeline service identity produces the
+simulator measurements, and the founder reviews.
+
 The measurement producer, simulator producer and reviewer must be distinct
 authorized identities. Measurements precede review. The existing protected
 operator registry pins the exact request, fidelity profile and review digests,

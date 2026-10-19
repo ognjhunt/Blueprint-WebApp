@@ -27,6 +27,7 @@ import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
 import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/components/site/TaskBriefReview";
 import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
+import { SiteMeasurementsDisclosure } from "@/components/site/SiteMeasurementsPanel";
 import { TaskClarification } from "@/components/site/TaskClarification";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdrawal";
@@ -934,7 +935,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
               <p className="ms-field-hint" style={{ marginTop: "12px" }}>
                 Move slowly and overlap your passes. Cover every surface near where the work
-                happens, from a few heights. Keep the scene still, with nobody in frame. {FILMING_NOTICE}
+                happens, from a few heights. Keep the scene still, with nobody in frame. If you can, lay a sheet
+                of printer paper flat on the work surface first: it gives the scene a known size. {FILMING_NOTICE}
               </p>
             </>
           )}
@@ -1068,6 +1070,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
             </>
           )}
+          {/* A tape measure at the work area: optional readings the rebuilt
+              scene is checked against; film links record them too. Mounted once,
+              outside the saved/unsaved branches, so readings typed while a video
+              lands on another device survive the switch to the saved layout. */}
+          <SiteMeasurementsDisclosure token={token} />
           </div>}
         </>
       )}
