@@ -52,6 +52,8 @@ import {
   saveMeasurements,
 } from "../utils/siteTaskMeasurements";
 import { getSiteRobotFit } from "../utils/siteRobotFit";
+import { getSiteReadiness } from "../utils/siteReadiness";
+import { operationsSaveSchema, saveOperations } from "../utils/siteTaskOperations";
 import { gateFields } from "../../client/src/data/siteTaskQualification";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import {
@@ -1254,6 +1256,47 @@ router.get("/:token/robot-fit", async (req: Request, res: Response) => {
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load robot fit");
     return res.status(503).json({ error: "Robot fit could not be loaded.", code: "robot_fit_unavailable" });
+  }
+});
+
+/**
+ * The owner's readiness read: steps to a pilot, the next three things, how the
+ * job runs today, what it takes today in the site's own numbers, and the robot
+ * readiness report while Blueprint shares it. Never a team.
+ */
+router.get("/:token/readiness", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(404).json({ error: "This link is not valid or has expired." });
+  }
+  if (payload.scope !== "owner") return res.status(403).json({ error: "This link is for filming only." });
+  try {
+    const readiness = await getSiteReadiness(payload.requestId);
+    if (!readiness) return res.status(404).json({ error: "This job could not be found." });
+    return res.status(200).json(readiness);
+  } catch (error) {
+    logger.error({ error, requestId: payload.requestId }, "Could not load site readiness");
+    return res.status(503).json({ error: "Your readiness report could not be loaded.", code: "readiness_unavailable" });
+  }
+});
+
+/** How the job runs today: times a day, days a week and people nearby. Owner link only; every answer optional. */
+router.put("/:token/operations", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(404).json({ error: "This link is not valid or has expired." });
+  }
+  if (payload.scope !== "owner") return res.status(403).json({ error: "This link is for filming only." });
+  const parsed = operationsSaveSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ code: "operations_invalid",
+      error: "Use whole numbers: up to 100,000 times a day, and 1 to 7 days a week." });
+  }
+  try {
+    return res.status(200).json({ ok: true, operations: await saveOperations(payload.requestId, parsed.data) });
+  } catch (error) {
+    logger.error({ error, requestId: payload.requestId }, "Could not save how the job runs");
+    return res.status(503).json({ error: "Your answers could not be saved.", code: "operations_unavailable" });
   }
 });
 

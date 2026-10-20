@@ -25,6 +25,7 @@ import {
   retainSourceMeasurementExport,
 } from "../utils/siteTaskMeasurements";
 import { RobotFitError, getAdminRobotFit, rankTeamsForJob, setRobotFitSharing } from "../utils/siteRobotFit";
+import { getReadinessPreview } from "../utils/siteReadiness";
 import { loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
 
 const router = Router();
@@ -170,10 +171,11 @@ router.get("/:requestId/robot-fit", async (req: Request, res: Response) => {
   const parsed = requestId.safeParse(req.params.requestId);
   if (!parsed.success) return res.status(400).json({ error: "Invalid job id." });
   try {
-    const fit = await getAdminRobotFit(parsed.data);
+    const [fit, readiness] = await Promise.all([getAdminRobotFit(parsed.data), getReadinessPreview(parsed.data)]);
     if (!fit) return res.status(404).json({ error: "Site job not found." });
     res.set("Cache-Control", "no-store");
-    return res.json(fit);
+    // The readiness report as the site would see it once shared, and what the job takes today.
+    return res.json({ ...fit, readiness });
   } catch (error) {
     logger.error({ err: error, requestId: parsed.data }, "Robot fit read failed");
     return res.status(503).json({ error: "Robot fit is unavailable. Try again." });

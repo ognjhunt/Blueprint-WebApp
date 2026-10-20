@@ -52,6 +52,7 @@ function response(overrides: Partial<AdminRobotFitResponse> = {}): AdminRobotFit
     sharing: null,
     site: { needs: ["It has to pick the object up and put it down at another spot."], forms: [], unknowns: [], note: SITE_ROBOT_FIT_NOTE },
     consentRevoked: false,
+    readiness: null,
     ...overrides,
   };
 }
@@ -90,7 +91,7 @@ describe("RobotFitConsole", () => {
     expect(within(forms).getByText("Not a fit")).toBeInTheDocument();
     expect(screen.getByText("It has to move between the spots: the object moves 300 cm (you measured this).")).toBeInTheDocument();
     expect(screen.getByText(/whether people work near the job \(ask the site\)/)).toBeInTheDocument();
-    expect(screen.getByText("Not shared. The owner's job page shows nothing about robot fit.")).toBeInTheDocument();
+    expect(screen.getByText(/Not shared\. The owner's job page shows the steps to a pilot/)).toBeInTheDocument();
     expect(screen.getByText("Not ranked yet.")).toBeInTheDocument();
   });
 
@@ -110,7 +111,7 @@ describe("RobotFitConsole", () => {
     const sharing = { shared: true, changedAtIso: "2026-10-20T12:00:00.000Z", changedBy: "admin-1" };
     fetchMock.mockResolvedValueOnce(json({ sharing }));
     fetchMock.mockResolvedValueOnce(json(response({ sharing })));
-    fireEvent.click(await screen.findByRole("button", { name: "Share with the site" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Share the readiness report with the site" }));
     expect(await screen.findByRole("button", { name: "Stop sharing" })).toBeInTheDocument();
     const [url, init] = fetchMock.mock.calls[1];
     expect(url).toBe("/api/admin/jobs/job-1/robot-fit/sharing");
@@ -157,7 +158,7 @@ describe("RobotFitConsole", () => {
     await open();
     expect(await screen.findByText(/Recording consent was withdrawn/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Rank researched teams" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Share with the site" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Share the readiness report with the site" })).toBeDisabled();
   });
 
   it("says when a job is not rated", async () => {

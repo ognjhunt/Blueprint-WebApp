@@ -348,7 +348,7 @@ export function SiteMeasurementsPanel({ token }: { token: string }) {
 export function SiteMeasurementsDisclosure({ token }: { token: string }) {
   const [opened, setOpened] = useState(false);
   return (
-    <details className="ms-task-interest" onToggle={(event) => { if (event.currentTarget.open) setOpened(true); }}>
+    <details id="site-measurements" className="ms-task-interest" onToggle={(event) => { if (event.currentTarget.open) setOpened(true); }}>
       <summary>Add measurements (optional)</summary>
       {opened && <SiteMeasurementsPanel token={token} />}
     </details>

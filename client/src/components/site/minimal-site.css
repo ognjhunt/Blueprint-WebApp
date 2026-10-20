@@ -647,3 +647,11 @@
   .ms-faq-items { grid-template-columns: 1fr; }
   .ms-faq { padding-top: 40px; }
 }
+
+/* The one-page robot readiness brief: print or save as a PDF from the owner's job page. */
+@media print {
+  .ms-print-hide { display: none !important; }
+  .ms-brief-page { max-width: none; padding: 0; }
+  .ms-brief-page a { color: inherit; }
+  .ms-brief-page .ms-task-interest { break-inside: avoid-page; }
+}

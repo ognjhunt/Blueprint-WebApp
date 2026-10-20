@@ -292,46 +292,130 @@ test("readings typed while the video lands on another device survive the switch 
   expect(puts[0].readings).toEqual({ pick_surface_height: { value: 30.25, unit: "in" } });
 });
 
-test("the owner reads a shared robot fit across every form of robot, above the measurements, with no robot team named", async ({ page }, info) => {
-  const token = "robot-fit-fixture";
+const READINESS_NOTE = "Blueprint invites robot teams whose robots look right for this job to evaluate it in a simulation of your site. If Blueprint recommends a team, it will be one whose evaluation of your job passed. This is a first read from what you told us and measured, not a promise that any robot can do the job.";
+
+function readinessFixture(overrides: Record<string, unknown> = {}) {
   const notNeeded = "between spots isn't needed: the object moves 90 cm (you measured this).";
-  const robotFit = {
-    needs: ["It has to pick the object up and put it down at another spot.",
-      "It can work from one place: the object moves 90 cm (you measured this).",
-      "It has to work safely alongside people in the same space (you told us)."],
-    forms: [
-      { id: "fixed_base_arm", label: "One arm on a fixed stand", description: "A single robot arm fixed in place at the work area.", verdict: "fits", reasons: [] },
-      { id: "bimanual_arm", label: "Two arms on a fixed stand", description: "Two robot arms working together from one fixed spot.", verdict: "fits", reasons: [] },
-      { id: "mobile_manipulator", label: "Arm on a wheeled base", description: "A robot arm on a base that drives between spots.", verdict: "fits", reasons: [`Driving ${notNeeded}`] },
-      { id: "wheeled_humanoid", label: "Wheeled humanoid", description: "A human-like upper body with two arms, on a wheeled base.", verdict: "fits", reasons: [`Driving ${notNeeded}`] },
-      { id: "humanoid", label: "Walking humanoid", description: "A human-shaped robot with two arms that walks on two legs.", verdict: "fits", reasons: [`Walking ${notNeeded}`] },
-      { id: "legged_manipulator", label: "Legged robot with an arm", description: "A robot that walks on legs, such as four, with an arm on top.", verdict: "fits", reasons: [`Walking ${notNeeded}`] },
+  return {
+    ok: true,
+    summary: "Pack finished parts into cartons",
+    tracker: { steps: [
+      { id: "video", label: "Video received", state: "done", detail: null, owner: "site" },
+      { id: "brief", label: "Job brief confirmed", state: "done", detail: null, owner: "site" },
+      { id: "measurements", label: "Measurements", state: "partial", detail: "1 of 6", owner: "site" },
+      { id: "operations", label: "How the job runs today", state: "todo", detail: null, owner: "site" },
+      { id: "scene", label: "Your site rebuilt in 3D", state: "in_progress", detail: null, owner: "blueprint" },
+      { id: "recommendation", label: "Blueprint recommends one team", state: "pending", detail: null, owner: "blueprint" },
+    ], meanwhile: "Blueprint is rebuilding your work area in 3D from your video." },
+    nextThings: [
+      { id: "times_per_day", action: "Tell us how many times a day the job is done", why: "It lets us work out the hours this job takes.", target: "operations" },
+      { id: "weigh_object", action: "Weigh one object", why: "It tells us how much the robot has to lift.", target: "measurements" },
     ],
-    unknowns: ["How heavy the object is. You can add it under Add measurements (optional) on this page."],
-    note: "Blueprint invites robot teams whose robots look right for this job to evaluate it in a simulation of your site. If Blueprint recommends a team, it will be one whose evaluation of your job passed. This is a first read from what you told us and measured, not a promise that any robot can do the job.",
+    operations: { timesPerDay: null, daysPerWeek: null, peopleNearby: null, updatedAtIso: null },
+    workload: null,
+    speed: { state: "needs_target", sentence: "Your people take about 60 seconds per cycle (measured from your video). Set a target time per cycle in your job brief, and the evaluation checks a robot against it." },
+    report: {
+      robotFit: {
+        needs: ["It has to pick the object up and put it down at another spot.", "It can work from one place: the object moves 90 cm (you measured this)."],
+        forms: [
+          { id: "fixed_base_arm", label: "One arm on a fixed stand", description: "A single robot arm fixed in place at the work area.", verdict: "fits", reasons: [] },
+          { id: "bimanual_arm", label: "Two arms on a fixed stand", description: "Two robot arms working together from one fixed spot.", verdict: "fits", reasons: [] },
+          { id: "mobile_manipulator", label: "Arm on a wheeled base", description: "A robot arm on a base that drives between spots.", verdict: "fits", reasons: [`Driving ${notNeeded}`] },
+          { id: "wheeled_humanoid", label: "Wheeled humanoid", description: "A human-like upper body with two arms, on a wheeled base.", verdict: "fits", reasons: [`Driving ${notNeeded}`] },
+          { id: "humanoid", label: "Walking humanoid", description: "A human-shaped robot with two arms that walks on two legs.", verdict: "fits", reasons: [`Walking ${notNeeded}`] },
+          { id: "legged_manipulator", label: "Legged robot with an arm", description: "A robot that walks on legs, such as four, with an arm on top.", verdict: "fits", reasons: [`Walking ${notNeeded}`] },
+        ],
+        unknowns: ["How heavy the object is. You can add it under Add measurements (optional) on this page."],
+        note: READINESS_NOTE,
+      },
+      checklist: [
+        { id: "floor_space", title: "Floor space at the station", state: "unknown", detail: "We don't know yet how much open floor is in front of the starting surface. You can add it under Add measurements (optional) on this page.", why: "A robot needs room to stand, or to drive up, beside the work." },
+        { id: "power_network", title: "Power and network", state: "confirm", detail: "A power outlet near the work area, and Wi-Fi along the route for a robot that drives between spots. The robot team tells you exactly what its robot needs.", why: "A robot needs power where it works." },
+      ],
+      successFactors: [{ id: "exceptions", title: "Jams and damaged items", detail: "Your job mentions \"damaged\".", test: "Jams and damaged items are not in the simulation. Plan who handles them; your success target sets how many a person catches.", where: "pilot" }],
+      safety: ["Before a robot works at your site, the robot team does a risk assessment of the job with you. It follows the robot-safety standards: ISO 10218, adopted in the US as ANSI/A3 R15.06, and ANSI/A3 R15.08 for robots that drive between spots.",
+        "Blueprint's evaluation runs in a simulation of your site. It does not certify that any robot is safe, or that a robot will perform the same at your site."],
+      examples: [{ id: "line-side-packing", name: "Line-side packing", status: "emerging", evidence: "Reported on an assembly line at a components manufacturer, packing a single product family into cartons.",
+        sources: [{ label: "China Daily: humanoid robots move onto fast track", href: "https://global.chinadaily.com.cn/a/202606/11/WS6a2ac863a310d6866eb4dcd2.html" }] }],
+      examplesFootnote: "These are third-party deployments cited as evidence about which environments qualify. None is a Blueprint customer and none was prepared by Blueprint.",
+    },
+    ...overrides,
   };
+}
+
+test("the owner works through the readiness panel above the measurements, with every form of robot and no robot team named", async ({ page }, info) => {
+  const token = "readiness-fixture";
+  const puts: Array<Record<string, unknown>> = [];
+  let answered = false;
   await page.route("**/api/**", route => {
-    const url = new URL(route.request().url());
+    const request = route.request();
+    const url = new URL(request.url());
     if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
     if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
       ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" } });
     if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: { ready: false, scope: "owner" } });
     if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: { captureReceived: true,
+      sceneViewUrl: "https://scene.example/view",
       status: { stage: "footage_received", headline: "Your footage is retained; review is pending." } } });
     if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
-    if (url.pathname === `/api/site-task-brief/${token}/robot-fit`) return route.fulfill({ json: { ok: true, robotFit } });
+    if (url.pathname === `/api/site-task-brief/${token}/operations` && request.method() === "PUT") {
+      puts.push(request.postDataJSON());
+      answered = true;
+      return route.fulfill({ json: { ok: true, operations: { timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared", updatedAtIso: "2026-10-20T12:00:00.000Z" } } });
+    }
+    if (url.pathname === `/api/site-task-brief/${token}/readiness`) return route.fulfill({ json: answered ? readinessFixture({
+      operations: { timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared", updatedAtIso: "2026-10-20T12:00:00.000Z" },
+      workload: { hoursPerDay: 2, hoursPerWeek: 10, sentence: "This job takes about 2 person-hours a day, about 10 a week.",
+        basis: "120 times a day, 5 days a week (you told us), at about 60 seconds per cycle (measured from your video). It counts time on this job only." },
+    }) : readinessFixture() });
+    if (url.pathname === `/api/site-task-brief/${token}/measurements`) return route.fulfill({ json: { ok: true, scope: "owner", revision: 0,
+      family: null, articulation: null, referencePaper: null, referenceSheetLongEdge: null, readings: {}, note: null, updatedAtIso: null } });
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });
   await page.goto(`/capture-upload/${token}`);
-  const section = page.getByRole("region", { name: "What kind of robot fits this job" });
-  await expect(section.getByRole("heading", { name: "What kind of robot fits this job" })).toBeVisible();
-  for (const form of robotFit.forms) await expect(section.getByText(form.label, { exact: true })).toBeVisible();
-  await expect(section.getByText(robotFit.needs[2])).toBeVisible();
-  await expect(section.getByText(robotFit.unknowns[0])).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open your site in 3D" })).toHaveAttribute("href", "https://scene.example/view");
+  const steps = page.getByRole("region", { name: "Steps to a pilot" });
+  await expect(steps.getByText("1 of 6")).toBeVisible();
+  await expect(page.getByText("Blueprint is rebuilding your work area in 3D from your video.")).toBeVisible();
+
+  const report = page.getByRole("region", { name: "Robot readiness report" });
+  for (const label of ["One arm on a fixed stand", "Two arms on a fixed stand", "Arm on a wheeled base", "Wheeled humanoid",
+    "Walking humanoid", "Legged robot with an arm"]) await expect(report.getByText(label, { exact: true })).toBeVisible();
+  await expect(report.getByText("Checked in the pilot, not the simulation")).toBeVisible();
+  await expect(report.getByRole("link", { name: "China Daily: humanoid robots move onto fast track" })).toBeVisible();
+  await expect(report).not.toContainText(/match/i);
   const measurements = page.getByText("Add measurements (optional)", { exact: true });
-  await expect(measurements).toBeVisible();
-  const [sectionBox, measurementsBox] = [await section.boundingBox(), await measurements.boundingBox()];
-  expect(sectionBox!.y).toBeLessThan(measurementsBox!.y);
-  await expect(section).not.toContainText(/match/i);
-  await page.screenshot({ path: info.outputPath("robot-fit-shared-local-fixture.png"), fullPage: true });
+  expect((await report.boundingBox())!.y).toBeLessThan((await measurements.boundingBox())!.y);
+
+  // A next thing opens the step that answers it.
+  await page.getByRole("button", { name: "Weigh one object" }).click();
+  await expect(page.locator("details#site-measurements")).toHaveAttribute("open", "");
+
+  const form = page.getByRole("form", { name: "How the job runs today" });
+  await form.getByLabel("How many times a day is the job done?").fill("120");
+  await form.getByLabel("On how many days a week?").selectOption("5");
+  await form.getByLabel("People work in the same space").check();
+  await form.getByRole("button", { name: "Save answers" }).click();
+  await expect(page.getByText("This job takes about 2 person-hours a day, about 10 a week.")).toBeVisible();
+  expect(puts).toEqual([{ timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared" }]);
+  await expect(report.getByRole("link", { name: /one-page robot readiness brief/ })).toHaveAttribute("href", `/capture-upload/${token}/brief`);
+  await page.screenshot({ path: info.outputPath("readiness-panel-local-fixture.png"), fullPage: true });
+});
+
+test("the one-page robot readiness brief lays out the report to print", async ({ page }, info) => {
+  const token = "readiness-brief-fixture";
+  await page.route("**/api/**", route => {
+    const url = new URL(route.request().url());
+    if (url.pathname === `/api/site-task-brief/${token}/readiness`) return route.fulfill({ json: readinessFixture() });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}/brief`);
+  await expect(page.getByRole("heading", { level: 1, name: "Pack finished parts into cartons" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Where things stand" }).getByText("Video received")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Robot readiness report" }).getByText("Walking humanoid", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "What is left to check" }).getByText("Weigh one object")).toBeVisible();
+  await page.emulateMedia({ media: "print" });
+  await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeHidden();
+  await page.screenshot({ path: info.outputPath("readiness-brief-print-local-fixture.png"), fullPage: true });
 });

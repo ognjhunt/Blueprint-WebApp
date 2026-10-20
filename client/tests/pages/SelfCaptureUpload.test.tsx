@@ -894,15 +894,17 @@ describe("measurements beside the item photos", () => {
   });
 });
 
-describe("robot fit above the measurements", () => {
-  const FIT = { needs: ["It can work from one place: the object moves 90 cm (you measured this)."], forms: [], unknowns: [],
-    note: "Fixed note." };
+describe("the readiness panel above the measurements", () => {
+  const READINESS = { ok: true, summary: "Pack parts", report: null, workload: null, speed: null,
+    tracker: { steps: [{ id: "video", label: "Video received", state: "done", detail: null, owner: "site" }], meanwhile: null },
+    nextThings: [{ id: "measure_distance", action: "Measure how far the object moves", why: "It tells us which robots can reach both spots.", target: "measurements" }],
+    operations: { timesPerDay: null, daysPerWeek: null, peopleNearby: null, updatedAtIso: null } };
   function fetchFor(scope: "owner" | "film") {
     const fallback = mockFetch();
     return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false, scope }) });
-      if (url.endsWith("/robot-fit")) return Promise.resolve({ ok: true, json: async () => ({ ok: true, robotFit: FIT }) });
+      if (url.endsWith("/readiness")) return Promise.resolve({ ok: true, json: async () => READINESS });
       // Footage has arrived: the owner's page leaves description-first for the saved layout with its measurements.
       if (url === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({ ok: true,
         status: { decision: "processing", headline: "Your video arrived.", operatorAction: null, missingViews: [],
@@ -911,14 +913,15 @@ describe("robot fit above the measurements", () => {
     });
   }
 
-  it("shows the owner a shared read right above the measurements its unknowns point to", async () => {
+  it("shows the owner the steps to a pilot and the next things, above the measurements they open", async () => {
     setUserAgent(PHONE_UA);
     vi.stubGlobal("fetch", fetchFor("owner"));
     render(<SelfCaptureUpload />);
-    const heading = await screen.findByRole("heading", { name: "What kind of robot fits this job" });
+    const heading = await screen.findByRole("heading", { name: "Steps to a pilot" });
     const measurements = screen.getByText("Add measurements (optional)");
     expect(heading.compareDocumentPosition(measurements) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText("It can work from one place: the object moves 90 cm (you measured this).")).toBeInTheDocument();
+    expect(measurements.closest("details")).toHaveAttribute("id", "site-measurements");
+    expect(screen.getByRole("button", { name: "Measure how far the object moves" })).toBeInTheDocument();
   });
 
   it("never asks for it on a film-only link", async () => {
@@ -927,7 +930,7 @@ describe("robot fit above the measurements", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<SelfCaptureUpload />);
     await screen.findByText("Add measurements (optional)");
-    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/robot-fit"))).toBe(false);
-    expect(screen.queryByRole("heading", { name: "What kind of robot fits this job" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/readiness"))).toBe(false);
+    expect(screen.queryByRole("heading", { name: "Steps to a pilot" })).not.toBeInTheDocument();
   });
 });

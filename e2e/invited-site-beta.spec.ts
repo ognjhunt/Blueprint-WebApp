@@ -80,8 +80,10 @@ for (const width of [390, 1440]) {
         return route.fulfill({ json: { ok: true } });
       }
       if (path.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
-      // Robot fit stays hidden until Blueprint shares it; this journey's job has not been shared.
-      if (path === "/api/site-task-brief/synthetic-owner/robot-fit" && !post) return route.fulfill({ json: { ok: true, robotFit: null } });
+      // The readiness panel answers for itself; this journey's job is not shared and asks for nothing.
+      if (path === "/api/site-task-brief/synthetic-owner/readiness" && !post) return route.fulfill({ json: { ok: true, summary: null,
+        tracker: { steps: [], meanwhile: null }, nextThings: [], operations: { timesPerDay: null, daysPerWeek: null, peopleNearby: null,
+          updatedAtIso: null }, workload: null, speed: null, report: null } });
       if (path === "/api/site-task-brief/synthetic-owner/clarification" && !post) {
         if (url.searchParams.has("mode")) expect(url.searchParams.get("mode")).toBe("assessment");
         return route.fulfill({ json: { revision: "a".repeat(64), needed: false, questions: [], assessmentState: "queued" } });

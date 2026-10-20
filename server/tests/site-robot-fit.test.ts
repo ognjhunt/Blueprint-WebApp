@@ -57,6 +57,7 @@ function inputs(overrides: Partial<{ request: Record<string, any>; brief: Record
     brief: (overrides.brief === undefined ? { requestId: "job-1", summary: "Move sealed cartons from the conveyor onto a pallet" }
       : overrides.brief) as Inputs["brief"],
     measurements: overrides.measurements ?? null,
+    operations: null,
   };
 }
 
@@ -181,11 +182,14 @@ describe("the site version", () => {
     expect(site.note).not.toContain("match");
   });
 
-  it("never asks the site a question its page cannot answer", () => {
+  it("points every unknown to the step on the page that answers it", () => {
     const site = projectSiteRobotFit(computeRobotFitJob(inputs()))!;
     expect(site.forms).toEqual([]);
-    expect(site.unknowns).toHaveLength(2);
-    expect(site.unknowns.join(" ")).not.toContain("people");
+    expect(site.unknowns).toEqual([
+      "How far the object moves. You can add it under Add measurements (optional) on this page.",
+      "How heavy the object is. You can add it under Add measurements (optional) on this page.",
+      "Whether people work near the job. You can answer it under How the job runs today on this page.",
+    ]);
   });
 });
 

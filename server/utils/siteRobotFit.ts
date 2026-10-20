@@ -55,6 +55,7 @@ import {
   type RobotFormRating,
   type SiteRobotFit,
 } from "../../client/src/data/robotFit";
+import type { SiteOperations } from "../../client/src/data/siteReadiness";
 import { UNIT_LABELS, type EntryUnit } from "../../client/src/data/siteMeasurements";
 import { robotFitRankingOutputSchema, type RobotFitRankingInput } from "../agents/tasks/robot-fit-ranking";
 import type { AgentResult, AgentTask } from "../agents/types";
@@ -65,6 +66,7 @@ import { supplySummary } from "./robotTeamSupply";
 import { getBrief, isPlaceholderSummary, type SiteTaskBriefRecord } from "./siteTaskBrief";
 import { taskScopeReasonSentence } from "./siteTaskScope";
 import { getMeasurements, type SiteTaskMeasurementRecord, type StoredReading } from "./siteTaskMeasurements";
+import { getOperations } from "./siteTaskOperations";
 import { teamEvaluationTerms } from "./teamJobAccess";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 
@@ -99,16 +101,19 @@ export interface RobotFitInputs {
   request: Record<string, any> | null;
   brief: SiteTaskBriefRecord | null;
   measurements: SiteTaskMeasurementRecord | null;
+  /** How the job runs today, from the site's optional form; null when never answered. */
+  operations: SiteOperations | null;
 }
 
 export async function loadRobotFitInputs(requestId: string): Promise<RobotFitInputs> {
   if (!db) throw new Error("site_robot_fit_store_unavailable");
-  const [requestSnap, brief, measurements] = await Promise.all([
+  const [requestSnap, brief, measurements, operations] = await Promise.all([
     db.collection("inboundRequests").doc(requestId).get(),
     getBrief(requestId),
     getMeasurements(requestId),
+    getOperations(requestId),
   ]);
-  return { request: (requestSnap.data() as Record<string, any> | undefined) ?? null, brief, measurements };
+  return { request: (requestSnap.data() as Record<string, any> | undefined) ?? null, brief, measurements, operations };
 }
 
 /* ----------------------------------------------------------- requirements */
@@ -133,9 +138,14 @@ const PEOPLE_DISPLAY = {
 } as const;
 type People = keyof typeof PEOPLE_DISPLAY;
 const PEOPLE_NEED: Record<People, string> = {
-  isolated: "It can work in an area kept clear of people (you told us).",
-  nearby: "It has to work safely with people passing nearby (you told us).",
-  shared: "It has to work safely alongside people in the same space (you told us).",
+  isolated: "It can work in an area kept clear of people",
+  nearby: "It has to work safely with people passing nearby",
+  shared: "It has to work safely alongside people in the same space",
+};
+/** What the video reader saw, mapped only where it says something about the space. */
+const PEOPLE_FROM_VIDEO: Record<string, People> = {
+  working_in_the_space: "shared",
+  passing_nearby: "nearby",
 };
 
 /**
@@ -155,13 +165,13 @@ function formatNumber(value: number) {
   return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
 }
 
-function measuredDisplay(reading: StoredReading): string {
+export function measuredDisplay(reading: StoredReading): string {
   if (reading.value === null || !reading.unit) return `${formatNumber(reading.si)} m`;
   return `${formatNumber(reading.value)} ${UNIT_LABELS[reading.unit as EntryUnit] ?? reading.unit}`;
 }
 
 /** A rigid pick-and-place reading. Zero is a real height (the floor), so only negatives are refused. */
-function measured(inputs: RobotFitInputs, sampleId: string): StoredReading | null {
+export function measured(inputs: RobotFitInputs, sampleId: string): StoredReading | null {
   const record = inputs.measurements;
   if (!record || record.family !== "rigid_pick_place") return null;
   const reading = record.readings?.[sampleId];
@@ -222,33 +232,51 @@ function largestSide(inputs: RobotFitInputs): Quantity | null {
     min: largest.si, max: largest.si };
 }
 
-function peopleNearby(inputs: RobotFitInputs): { value: People; display: string } | null {
-  const answer = specAnswer(inputs, "humanProximity");
-  if (!answer || !Object.prototype.hasOwnProperty.call(PEOPLE_DISPLAY, answer)) return null;
-  return { value: answer as People, display: PEOPLE_DISPLAY[answer as People] };
+/** A usable reading of the site's video, or null. */
+export function videoEvidence(inputs: RobotFitInputs): { measuredCycleSeconds: number | null; people: string | null } | null {
+  const evidence = inputs.request?.site_video_evidence as Record<string, unknown> | undefined;
+  if (!evidence || evidence.status !== "analysed"
+    || (evidence.footage_status !== "usable" && evidence.footage_status !== "partially_usable")) return null;
+  const seconds = evidence.measured_cycle_seconds;
+  return {
+    measuredCycleSeconds: typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0 ? seconds : null,
+    people: typeof evidence.people_relationship_to_work === "string" ? evidence.people_relationship_to_work : null,
+  };
+}
+
+export type PeopleReading = { value: People; display: string; source: RequirementSource };
+
+/** The site's answer in how the job runs today, then its earlier answers, then what its video shows. */
+export function peopleNearby(inputs: RobotFitInputs): PeopleReading | null {
+  const answered = inputs.operations?.peopleNearby ?? specAnswer(inputs, "humanProximity");
+  if (answered && Object.prototype.hasOwnProperty.call(PEOPLE_DISPLAY, answered)) {
+    return { value: answered as People, display: PEOPLE_DISPLAY[answered as People], source: "site_stated" };
+  }
+  const seen = PEOPLE_FROM_VIDEO[videoEvidence(inputs)?.people ?? ""];
+  return seen ? { value: seen, display: PEOPLE_DISPLAY[seen], source: "video_observed" } : null;
 }
 
 /* ------------------------------------------------------- needs and ratings */
 
-const cite = (quantity: { display: string; source: RequirementSource }) =>
+export const cite = (quantity: { display: string; source: RequirementSource }) =>
   `${quantity.display} (${REQUIREMENT_SOURCE_LABELS[quantity.source]})`;
 
 function check(requirement: RequirementKey, outcome: CheckOutcome, text: string): FitCheck {
   return { requirement, outcome, text };
 }
 
-interface JobFacts {
+export interface JobFacts {
   distance: Quantity | null;
   /** Straight-line span between the spots, using the heights when both are known. */
   span: number | null;
   mass: Quantity | null;
   size: Quantity | null;
   extremes: Array<{ height: Quantity; low: boolean }>;
-  people: { value: People; display: string } | null;
+  people: PeopleReading | null;
 }
 
 /** "large" when the object is known to be large or heavy; "maybe" when a weight band straddles the line. */
-function handsNeed(facts: JobFacts): "large" | "maybe" | null {
+export function handsNeed(facts: JobFacts): "large" | "maybe" | null {
   const { size, mass } = facts;
   if ((size && size.min > SCREENING.largeSideM) || (mass && mass.min > SCREENING.largeMassKg)) return "large";
   if (mass && mass.max > SCREENING.largeMassKg) return "maybe";
@@ -282,7 +310,7 @@ function needsOf(facts: JobFacts): string[] {
     needs.push(low ? `It has to reach down near the floor: the object is ${where} at ${cite(height)}.`
       : `It has to reach up high: the object is ${where} at ${cite(height)}.`);
   }
-  if (facts.people) needs.push(PEOPLE_NEED[facts.people.value]);
+  if (facts.people) needs.push(`${PEOPLE_NEED[facts.people.value]} (${REQUIREMENT_SOURCE_LABELS[facts.people.source]}).`);
   return needs;
 }
 
@@ -341,6 +369,26 @@ function notRated(inputs: RobotFitInputs): string | null {
   return null;
 }
 
+/** What the site's own data says about the job, for the ratings here and the readiness report. */
+export function jobFactsOf(inputs: RobotFitInputs): JobFacts & { pick: Quantity | null; place: Quantity | null } {
+  const distance = lengthRequirement(inputs, "pick_to_place_span", "pick_to_place_distance", "How far the object moves");
+  const pick = lengthRequirement(inputs, "pick_height", "pick_surface_height", "Height where it is picked up");
+  const place = lengthRequirement(inputs, "place_height", "place_surface_height", "Height where it is put down");
+  const [low, high] = SCREENING.comfortableHeightM;
+  return {
+    distance,
+    pick,
+    place,
+    span: distance ? (pick && place ? Math.hypot(distance.min, pick.min - place.min) : distance.min) : null,
+    mass: massRequirement(inputs),
+    size: largestSide(inputs),
+    extremes: [pick, place].filter((entry): entry is Quantity => Boolean(entry))
+      .filter((height) => height.min < low || height.min > high)
+      .map((height) => ({ height, low: height.min < low })),
+    people: peopleNearby(inputs),
+  };
+}
+
 /** The rule-based half. Pure: the same inputs always give the same report. */
 export function computeRobotFitJob(inputs: RobotFitInputs): RobotFitJob {
   const summary = typeof inputs.brief?.summary === "string" && !isPlaceholderSummary(inputs.brief.summary)
@@ -351,34 +399,17 @@ export function computeRobotFitJob(inputs: RobotFitInputs): RobotFitJob {
     return { rated: false, notRatedReason: reason, summary, instruction, requirements: [], needs: [], unknowns: [], forms: [] };
   }
 
-  const distance = lengthRequirement(inputs, "pick_to_place_span", "pick_to_place_distance", "How far the object moves");
-  const pick = lengthRequirement(inputs, "pick_height", "pick_surface_height", "Height where it is picked up");
-  const place = lengthRequirement(inputs, "place_height", "place_surface_height", "Height where it is put down");
-  const mass = massRequirement(inputs);
-  const size = largestSide(inputs);
-  const people = peopleNearby(inputs);
-  const [low, high] = SCREENING.comfortableHeightM;
-  const facts: JobFacts = {
-    distance,
-    span: distance ? (pick && place ? Math.hypot(distance.min, pick.min - place.min) : distance.min) : null,
-    mass,
-    size,
-    extremes: [pick, place].filter((entry): entry is Quantity => Boolean(entry))
-      .filter((height) => height.min < low || height.min > high)
-      .map((height) => ({ height, low: height.min < low })),
-    people,
-  };
-
-  const requirements: FitRequirement[] = [distance, pick, place, mass, size]
+  const facts = jobFactsOf(inputs);
+  const { distance, mass, size, people } = facts;
+  const requirements: FitRequirement[] = [distance, facts.pick, facts.place, mass, size]
     .filter((entry): entry is Quantity => Boolean(entry))
     .map(({ key, label, display, source }) => ({ key, label, display, source }));
-  if (people) requirements.push({ key: "people_nearby", label: "People near the job", display: people.display, source: "site_stated" });
+  if (people) requirements.push({ key: "people_nearby", label: "People near the job", display: people.display, source: people.source });
 
   const unknowns: FitUnknown[] = [];
   if (!distance) unknowns.push({ key: "pick_to_place_span", label: "How far the object moves", resolve: "measurements" });
   if (!mass) unknowns.push({ key: "object_mass", label: "How heavy the object is", resolve: "measurements" });
-  // The job page asks no question about people, so only staff can resolve it.
-  if (!people) unknowns.push({ key: "people_nearby", label: "Whether people work near the job", resolve: "staff" });
+  if (!people) unknowns.push({ key: "people_nearby", label: "Whether people work near the job", resolve: "operations" });
 
   return {
     rated: true, notRatedReason: null, summary, instruction, requirements, needs: needsOf(facts), unknowns,
@@ -402,8 +433,9 @@ export function projectSiteRobotFit(job: RobotFitJob): SiteRobotFit | null {
       // Passing checks repeat the needs above; the rest are what tells the forms apart.
       reasons: rating.checks.filter((entry) => entry.outcome !== "pass").map((entry) => entry.text),
     })) : [],
-    unknowns: job.unknowns.filter((entry) => entry.resolve === "measurements")
-      .map((entry) => `${entry.label}. You can add it under Add measurements (optional) on this page.`),
+    unknowns: job.unknowns.filter((entry) => entry.resolve !== "staff").map((entry) => entry.resolve === "measurements"
+      ? `${entry.label}. You can add it under Add measurements (optional) on this page.`
+      : `${entry.label}. You can answer it under How the job runs today on this page.`),
     note: SITE_ROBOT_FIT_NOTE,
   };
 }

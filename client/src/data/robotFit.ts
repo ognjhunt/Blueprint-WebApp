@@ -71,11 +71,12 @@ export type RequirementKey =
   | "people_nearby";
 
 /** Where a requirement came from, in the words the site reads. */
-export type RequirementSource = "site_measured" | "site_stated";
+export type RequirementSource = "site_measured" | "site_stated" | "video_observed";
 
 export const REQUIREMENT_SOURCE_LABELS: Record<RequirementSource, string> = {
   site_measured: "you measured this",
   site_stated: "you told us",
+  video_observed: "seen in your video",
 };
 
 export interface FitRequirement {
@@ -88,14 +89,14 @@ export interface FitRequirement {
 }
 
 /**
- * What the rules could not read. `measurements` points the site to the
- * measurements step; `staff` is a question only Blueprint can ask today, so
- * the site is not shown it.
+ * What the rules could not read, and where the site answers it: the
+ * measurements step, or the "How the job runs today" form. `staff` is a
+ * question only Blueprint can ask, so the site is not shown it.
  */
 export interface FitUnknown {
   key: RequirementKey;
   label: string;
-  resolve: "measurements" | "staff";
+  resolve: "measurements" | "operations" | "staff";
 }
 
 /**
@@ -206,7 +207,17 @@ export interface AdminRobotFitResponse {
   /** Exactly what the site would see if shared, or null when there is nothing to show. */
   site: SiteRobotFit | null;
   consentRevoked: boolean;
+  /** The whole readiness report as the site would see it once shared, and what the job takes today. */
+  readiness: AdminReadinessPreview | null;
 }
+
+/** Imported by type only, so this module stays free of the readiness copy. */
+export type AdminReadinessPreview = {
+  report: import("./siteReadiness").SiteReadinessReport | null;
+  operations: import("./siteReadiness").SiteOperations;
+  workload: import("./siteReadiness").Workload | null;
+  speed: import("./siteReadiness").SpeedCheck | null;
+};
 
 export interface SiteRobotFitResponse {
   ok: true;

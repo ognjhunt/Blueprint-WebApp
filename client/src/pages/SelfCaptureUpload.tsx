@@ -28,7 +28,7 @@ import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRe
 import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/components/site/TaskBriefReview";
 import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
 import { SiteMeasurementsDisclosure } from "@/components/site/SiteMeasurementsPanel";
-import { SiteRobotFitSection } from "@/components/site/SiteRobotFitSection";
+import { SiteReadinessPanel } from "@/components/site/SiteReadinessPanel";
 import { TaskClarification } from "@/components/site/TaskClarification";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdrawal";
@@ -881,7 +881,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 </details>
               )}
 
-              <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>
+              <details id="job-item-photos" className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>
 
             </>
           ) : existingVideoOnly ? (
@@ -1026,7 +1026,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   into supply, before or after filming. A film-only link never
                   sees it: attestation is not theirs to make. */}
               {!descriptionFirst && scope === "owner" && brief && briefConfirmed && !editingBrief && (
-                <p className="ms-field-hint" style={{ marginTop: "28px", marginBottom: "8px" }}>
+                <p id="job-brief" className="ms-field-hint" style={{ marginTop: "28px", marginBottom: "8px" }}>
                   Your job brief is confirmed.{" "}
                   <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>
                     Edit your answers
@@ -1034,7 +1034,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 </p>
               )}
               {!descriptionFirst && scope === "owner" && brief && (!briefConfirmed || editingBrief) && (
-                <details open={editingBrief || undefined} style={{ marginTop: "28px", marginBottom: "8px" }}>
+                <details id="job-brief" open={editingBrief || undefined} style={{ marginTop: "28px", marginBottom: "8px" }}>
                   <summary>
                     {briefBlocksCapture
                       ? "A couple of answers refine what to film"
@@ -1060,7 +1060,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   the cartons, and those are often filmed clear -- so we list the
                   items and take a few photos of each to build sim-ready versions.
                   A film-only link can add the photos; only an owner edits the list. */}
-              <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>
+              <details id="job-item-photos" className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>
 
               {/* Least privilege for the person who actually films. An owner who
                   is handing this to a colleague sends a link that can record and
@@ -1075,10 +1075,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               scene is checked against; film links record them too. Mounted once,
               outside the saved/unsaved branches, so readings typed while a video
               lands on another device survive the switch to the saved layout. */}
-          {/* What kind of robot fits, once Blueprint shares it: fixed sentences and the
-              site's own data, never a team. Right above the measurements its unknowns
-              point to, and only for the owner. */}
-          {scope === "owner" && <SiteRobotFitSection token={token} />}
+          {/* The owner's readiness panel: steps to a pilot, the next three things,
+              how the job runs and what it takes today, and the robot readiness
+              report once Blueprint shares it. Fixed sentences and the site's own
+              data, never a team. Right above the measurements its next steps open. */}
+          {scope === "owner" && <SiteReadinessPanel token={token} sceneViewUrl={status?.sceneViewUrl ?? null} />}
           <SiteMeasurementsDisclosure token={token} />
           </div>}
         </>
