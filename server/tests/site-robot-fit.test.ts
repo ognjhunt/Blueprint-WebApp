@@ -249,6 +249,17 @@ describe("validateRanking", () => {
     expect(result.teams[0]).toMatchObject({ fit: "weak", concerns: ["Its form (one arm on a fixed stand) is rated not a fit for this job."] });
   });
 
+  it("believes the model's robot form only where the team's research says it", () => {
+    const verdicts = new Map([["fixed_base_arm", "not_a_fit"], ["mobile_manipulator", "fits"]] as const);
+    // Pallet Co's research says cobots, not a mobile base: the claimed form cannot carry it past the cap.
+    const claimed = validateRanking({ ranked: [entry("a", "Mixed-case palletizing at distribution centers",
+      { form: "mobile_manipulator" })] }, candidates, verdicts);
+    expect(claimed.teams[0]).toMatchObject({ form: "unknown", fit: "possible",
+      concerns: [expect.stringContaining("does not establish its robot form")] });
+    const supported = validateRanking({ ranked: [entry("a", "Mixed-case palletizing at distribution centers")] }, candidates);
+    expect(supported.teams[0]).toMatchObject({ form: "fixed_base_arm", fit: "strong", concerns: [] });
+  });
+
   it("refuses output that is not the schema", () => {
     expect(() => validateRanking({ ranked: [{ teamId: "a" }] }, candidates)).toThrow();
   });
@@ -324,6 +335,23 @@ describe("ranking, staleness and sharing", () => {
     await rankTeamsForJob("job-1", { actor: "older", run: async () => ranked as never, now: () => new Date(NOW) });
     expect(sharedFakeFirestoreState.docs.get("siteRobotFit/job-1")).toMatchObject({
       ranking: { rankedBy: "newer" }, lastAttempt: { by: "newer" } });
+  });
+
+  it("runs one ranking at a time, and lets a claim left by a run that died be taken over", async () => {
+    seedJob();
+    let release!: () => void;
+    const slow = vi.fn(() => new Promise((resolve) => { release = () => resolve(ranked); }));
+    const first = rankTeamsForJob("job-1", { actor: "a", run: slow as never, now: () => new Date(NOW) });
+    await vi.waitFor(() => expect(slow).toHaveBeenCalledTimes(1));
+    await expect(rankTeamsForJob("job-1", { actor: "b", run: slow as never, now: () => new Date(Date.parse(NOW) + 60_000) }))
+      .rejects.toMatchObject({ code: "ranking_in_progress" });
+    release();
+    await first;
+    expect(slow).toHaveBeenCalledTimes(1);
+    expect(sharedFakeFirestoreState.docs.get("siteRobotFit/job-1")).toMatchObject({ runningSinceIso: null });
+    sharedFakeFirestoreState.docs.set("siteRobotFit/job-1", { runningSinceIso: NOW });
+    await expect(rankTeamsForJob("job-1", { actor: "c", run: async () => ranked as never,
+      now: () => new Date(Date.parse(NOW) + 11 * 60_000) })).resolves.toMatchObject({ attempt: { state: "ranked" } });
   });
 
   it("refuses after consent withdrawal and when the job says nothing yet", async () => {

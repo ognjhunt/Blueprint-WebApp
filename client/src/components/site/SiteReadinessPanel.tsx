@@ -10,7 +10,7 @@
  * reasons and what is still unknown. It reads again whenever the measurements
  * step or the how-it-runs form saves. Never a robot team.
  */
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import { SiteRobotFitView } from "@/components/site/SiteRobotFitSection";
 import { SITE_MEASUREMENTS_SAVED_EVENT } from "@/data/robotFit";
@@ -210,11 +210,16 @@ function robotCount(report: SiteReadinessReport | null) {
  */
 export function SiteReadinessPanel({ token }: { token: string }) {
   const [readiness, setReadiness] = useState<SiteReadinessResponse | null>(null);
+  // Only the newest read may land: an older response that arrives late never replaces a fresher one.
+  const latestRead = useRef(0);
 
   const read = useCallback((isCurrent: () => boolean) => {
+    const generation = ++latestRead.current;
     fetch(`/api/site-task-brief/${encodeURIComponent(token)}/readiness`)
       .then((response) => (response.ok ? response.json() as Promise<SiteReadinessResponse> : null))
-      .then((value) => { if (isCurrent() && value?.tracker && Array.isArray(value.nextThings)) setReadiness(value); })
+      .then((value) => {
+        if (isCurrent() && generation === latestRead.current && value?.tracker && Array.isArray(value.nextThings)) setReadiness(value);
+      })
       .catch(() => { /* Optional reading: the page works without it, and keeps what it last showed. */ });
   }, [token]);
 

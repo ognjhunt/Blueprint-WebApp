@@ -446,7 +446,8 @@ export type RobotFitRankingCandidate = RobotFitRankingInput["candidates"][number
 export type RankRunner = (task: AgentTask<RobotFitRankingInput>) => Promise<AgentResult<unknown>>;
 
 export class RobotFitError extends Error {
-  constructor(readonly code: "job_not_found" | "consent_revoked" | "job_details_missing" | "no_candidates" | "nothing_to_share",
+  constructor(readonly code: "job_not_found" | "consent_revoked" | "job_details_missing" | "no_candidates" | "nothing_to_share"
+    | "ranking_in_progress",
     message: string) {
     super(message);
     this.name = "RobotFitError";
@@ -540,9 +541,32 @@ function quoteFound(candidate: RobotFitRankingCandidate, quote: string) {
 const clean = (value: string, limit: number) => value.replace(/\s+/g, " ").trim().slice(0, limit);
 
 /**
+ * What a team's own research must say before the model's reading of its robot
+ * form is believed. A form the research does not support is treated as
+ * unknown, so a wrong label can never carry a team past the "not a fit" cap.
+ */
+const FORM_EVIDENCE: Record<RatedForm, RegExp> = {
+  fixed_base_arm: /\b(robot(?:ic)? arms?|cobots?|collaborative robots?|industrial robots?|fixed arms?|franka|universal robots)\b/i,
+  bimanual_arm: /\b(dual[- ]arms?|two[- ]armed|two arms|bimanual)\b/i,
+  mobile_manipulator: /\b(mobile manipulat\w*|mobile robot arms?|arms? on (?:an? )?(?:mobile|wheeled) bases?|amrs? with (?:an? )?arms?)\b/i,
+  wheeled_humanoid: /\b(wheeled humanoids?|humanoids? on wheels)\b/i,
+  humanoid: /\b(humanoids?|bipedal|biped)\b/i,
+  legged_manipulator: /\b(quadrupeds?|legged robots?|four-legged|robot dogs?)\b/i,
+};
+
+function groundedForm(candidate: RobotFitRankingCandidate, form: RankedTeam["form"]): RankedTeam["form"] {
+  if (!(RATED_FORMS as readonly string[]).includes(form)) return form;
+  const research = [candidate.notes, candidate.whatGoesWrong ?? "", ...candidate.recorded].join(" \n ");
+  return FORM_EVIDENCE[form as RatedForm].test(research) ? form : "unknown";
+}
+
+/**
  * Keep what the research supports. Unknown or repeated teams and unquoted
- * reasons are dropped and counted. A team whose form the rules rate "not a
- * fit" for this job is a weak fit at most, whatever the model said.
+ * reasons are dropped and counted. The model's reading of a team's robot form
+ * stands only where the team's research says it. A team whose form the rules
+ * rate "not a fit" for this job is a weak fit at most; while the job rules any
+ * form out, a team whose form the research does not establish is a possible
+ * fit at most.
  */
 export function validateRanking(output: unknown, candidates: RobotFitRankingCandidate[],
   formVerdicts: ReadonlyMap<RatedForm, FitVerdict> = new Map()) {
@@ -567,14 +591,18 @@ export function validateRanking(output: unknown, candidates: RobotFitRankingCand
     seen.add(entry.teamId);
     let fit = entry.fit;
     const concerns = entry.concerns.map((concern) => clean(concern, 300)).filter(Boolean);
-    const rated = (RATED_FORMS as readonly string[]).includes(entry.form) ? formVerdicts.get(entry.form as RatedForm) : undefined;
+    const form = groundedForm(candidate, entry.form);
+    const rated = (RATED_FORMS as readonly string[]).includes(form) ? formVerdicts.get(form as RatedForm) : undefined;
     if (rated === "not_a_fit") {
       fit = "weak";
-      concerns.unshift(`Its form (${ROBOT_FORM_COPY[entry.form as RatedForm].label.toLowerCase()}) is rated not a fit for this job.`);
+      concerns.unshift(`Its form (${ROBOT_FORM_COPY[form as RatedForm].label.toLowerCase()}) is rated not a fit for this job.`);
+    } else if (!rated && [...formVerdicts.values()].includes("not_a_fit")) {
+      if (fit === "strong") fit = "possible";
+      concerns.unshift("Its research does not establish its robot form, and this job rules some forms out: check it against the job's needs.");
     }
     teams.push({
       teamId: candidate.teamId, name: candidate.name, status: candidate.status, agreed: candidate.agreed,
-      fit, form: entry.form,
+      fit, form,
       reasons: reasons.map((reason) => ({ claim: clean(reason.claim, 300), quote: clean(reason.quote, 400) })),
       concerns: concerns.slice(0, 4),
     });
@@ -587,7 +615,12 @@ async function defaultRunner(task: AgentTask<RobotFitRankingInput>) {
   return runAgentTask<RobotFitRankingInput, unknown>(task);
 }
 
-type Stored = { ranking?: RobotFitRanking | null; lastAttempt?: RobotFitAttempt | null; sharing?: RobotFitSharing | null };
+type Stored = { ranking?: RobotFitRanking | null; lastAttempt?: RobotFitAttempt | null; sharing?: RobotFitSharing | null;
+  /** Set while a ranking run holds the job, so a second click cannot pay for a second run. */
+  runningSinceIso?: string | null };
+
+/** A claim older than this belongs to a run that died; the next run may take it over. */
+const RUN_CLAIM_MS = 10 * 60 * 1000;
 
 /**
  * Keep a run in one transaction: a good ranking replaces the stored one, a
@@ -604,8 +637,24 @@ async function keepRun(requestId: string, ranking: RobotFitRanking | null, attem
     const update: Record<string, unknown> = { schemaVersion: SCHEMA_VERSION, requestId, updatedAtIso: attempt.atIso };
     if (ranking && !(current.ranking && current.ranking.rankedAtIso > ranking.rankedAtIso)) update.ranking = ranking;
     if (!(current.lastAttempt && current.lastAttempt.atIso > attempt.atIso)) update.lastAttempt = attempt;
+    // Release only this run's own claim; a run that took over a stale claim keeps it.
+    if (current.runningSinceIso === attempt.atIso) update.runningSinceIso = null;
     transaction.set(ref, update, { merge: true });
     transaction.set(history, { schemaVersion: SCHEMA_VERSION, requestId, attempt, ranking });
+  });
+}
+
+/** Claim the job for one ranking run before any model call; a fresh claim refuses a second run. */
+async function claimRun(requestId: string, atIso: string, actor: string | null) {
+  if (!db) throw new Error("site_robot_fit_store_unavailable");
+  const ref = db.collection(SITE_ROBOT_FIT_COLLECTION).doc(requestId);
+  await db.runTransaction(async (transaction) => {
+    const current = ((await transaction.get(ref)).data() as Stored | undefined) ?? {};
+    const since = current.runningSinceIso ? Date.parse(current.runningSinceIso) : Number.NaN;
+    if (Number.isFinite(since) && Date.parse(atIso) - since < RUN_CLAIM_MS) {
+      throw new RobotFitError("ranking_in_progress", "A ranking is already running for this job. It usually finishes within a few minutes.");
+    }
+    transaction.set(ref, { schemaVersion: SCHEMA_VERSION, requestId, runningSinceIso: atIso, runningBy: actor }, { merge: true });
   });
 }
 
@@ -632,6 +681,7 @@ export async function rankTeamsForJob(requestId: string, options: { actor: strin
   const jobInput = rankingJob(job, inputs);
   const started = (options.now ?? (() => new Date()))();
   const atIso = started.toISOString();
+  await claimRun(requestId, atIso, options.actor);
   const failed = (error: string, provider: string | null = null): RobotFitAttempt =>
     ({ state: "failed", atIso, by: options.actor, error: clean(`${error}${provider ? ` (${provider})` : ""}`, 300) });
   let ranking: RobotFitRanking | null = null;

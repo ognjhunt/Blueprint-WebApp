@@ -143,6 +143,18 @@ describe("SiteReadinessPanel", () => {
     expect(container.textContent).not.toMatch(/\bmatch/i);
   });
 
+  it("lets only the newest read land", async () => {
+    let resolveFirst!: (value: unknown) => void;
+    fetchMock.mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; }));
+    render(<SiteReadinessPanel token="tok" />);
+    fetchMock.mockResolvedValueOnce(respond(readiness({ nextThings: [] })));
+    await act(async () => { window.dispatchEvent(new Event(SITE_MEASUREMENTS_SAVED_EVENT)); });
+    expect(await screen.findByText("Nothing is needed from you right now.")).toBeInTheDocument();
+    await act(async () => { resolveFirst(respond(readiness())); });
+    expect(screen.getByText("Nothing is needed from you right now.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Measure how far the object moves" })).toBeNull();
+  });
+
   it("reads again when measurements are saved, and shows nothing it could not read", async () => {
     fetchMock.mockResolvedValueOnce(respond({ error: "unavailable" }, 503));
     const { container } = render(<SiteReadinessPanel token="tok" />);
