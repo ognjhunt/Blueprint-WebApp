@@ -1,10 +1,9 @@
 import { Router, type Response } from "express";
 import { z } from "zod";
-import { requireAdminRole } from "../middleware/requireAdminRole";
-import { AccountDeletionError, requestAccountDeletion, getAccountDeletionRequest, listAccountDeletionRequests, beginAccountDeletionReview } from "../utils/accountDeletion";
+import accountDeletionAdminRouter from "./account-deletion-admin";
+import { AccountDeletionError, requestAccountDeletion, getAccountDeletionRequest } from "../utils/accountDeletion";
 
 const router = Router();
-const id = z.string().regex(/^deletion_[a-f0-9]{64}$/);
 const submit = z.object({ confirmation: z.literal("DELETE") }).strict();
 function accountIdentity(res: Response) {
   const user = res.locals.firebaseUser;
@@ -39,16 +38,5 @@ router.post("/", async (req, res) => {
     return res.status(result.created ? 202 : 200).json(result);
   } catch (error) { return fail(error, res); }
 });
-router.get("/admin", requireAdminRole, async (req, res) => {
-  try {
-    const cursor = req.query.cursor === undefined ? undefined : id.parse(req.query.cursor);
-    return res.json(await listAccountDeletionRequests(cursor));
-  } catch (error) { return fail(error, res); }
-});
-router.post("/admin/:id/review", requireAdminRole, async (req, res) => {
-  try {
-    z.object({}).strict().parse(req.body);
-    return res.json({ request: await beginAccountDeletionReview(id.parse(req.params.id), accountIdentity(res).uid) });
-  } catch (error) { return fail(error, res); }
-});
+router.use("/admin", accountDeletionAdminRouter);
 export default router;
