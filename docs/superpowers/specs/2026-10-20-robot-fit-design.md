@@ -2,11 +2,13 @@
 
 Status: approved by the founder on 2026-10-20 ("build the robot-fit section
 now"), revised the same day after founder review: rate every form of robot,
-never only arms.
+never only arms. Revised again the same day: the site sends its video and
+nothing else, so the needs rest on what the video shows and what the video
+reader estimates (`2026-10-20-site-readiness-report-design.md`).
 
 ## Why
 
-A site's video, brief and measurements, together with public information about
+A site's video and brief, together with public information about
 robot teams, can tell us what a job needs from a robot, which kinds of robot
 can meet that, and which researched teams look right for it. That decides whom
 Blueprint invites to evaluate a job and what we tell them. It also gives the
@@ -42,14 +44,17 @@ examples or team applications.
 
 One report per site job, in three parts.
 
-1. **What the job needs.** The sources are the site's tape-measure readings
-   (`siteTaskMeasurements`), its answers, the weight it typed, and the
-   instruction the Pipeline derived from the video (`teamEvaluationTerms`). The
-   needs are stated as sentences in the site's own numbers: picking the object
-   up, whether the robot can work from one place or has to move between spots,
-   what it lifts, whether the object takes two hands, reaching low or high, and
-   people nearby. Whatever is missing becomes an unknown, with the step that
-   would resolve it.
+1. **What the job needs.** The sources, in order: any tape-measure readings
+   already on file (`siteTaskMeasurements`), the site's answers and the weight
+   it typed, then the video reader's estimates (`job_estimates`) and what it saw
+   of people nearby. The instruction the Pipeline derived from the video
+   (`teamEvaluationTerms`) is shown to staff. The needs are stated as sentences
+   in the job's own numbers, each with its source in the site's words, such as
+   "about 90 cm (estimated from your video)": picking the object up, whether the
+   robot can work from one place or has to move between spots, what it lifts,
+   whether the object takes two hands, reaching low or high, and people nearby.
+   Whatever neither the video nor anything on file gives is a note for staff,
+   never a question to the site.
 2. **Every form, rated.** Fixed rules rate each form `fits`, `possible` or
    `not_a_fit` against the needs, with the reasons. No model is involved.
 3. **Teams (internal).** A model reads every research note in the registry and
@@ -69,7 +74,7 @@ rated, says why, and has nothing to share.
 | Two hands | Largest side over 0.6 m or weight over 15 kg | One-armed forms are possible (wide gripper or suction cups); two-armed forms fit. A weight band that straddles 15 kg gives possible. |
 | Heavy load | Weight over 25 kg | Every form is possible: check the robot can lift it. |
 | Low or high spots | A pick or place surface below 0.3 m or above 1.6 m | Every form is possible: it has to reach that spot. |
-| People nearby | `humanProximity`, when the site answered it | Stated as a need. It does not separate forms. |
+| People nearby | `humanProximity` when the site answered it, else what the video shows | Stated as a need. It does not separate forms. |
 
 A form is `not_a_fit` if any check fails, `possible` if any check is a caution
 or unknown, and `fits` otherwise. A note that moving is not needed never lowers
@@ -130,8 +135,7 @@ flagged stale when either changes.
 | --- | --- | --- |
 | `GET /api/admin/jobs/:requestId/robot-fit` | admin | Report, ranking, last attempt, sharing and site preview |
 | `POST /api/admin/jobs/:requestId/robot-fit/ranking` | admin | Run a ranking. Returns the run's attempt and its ranking. Refused after consent withdrawal or without job details. |
-| `POST /api/admin/jobs/:requestId/robot-fit/sharing` | admin | Share or stop sharing the site version |
-| `GET /api/site-task-brief/:token/robot-fit` | owner link | The site version, only while shared |
+| `POST /api/admin/jobs/:requestId/robot-fit/sharing` | admin | Share or stop sharing the site version, inside the readiness report |
 
 The ranking runs on the OpenAI lane by default (`robot_fit_ranking`).
 `BLUEPRINT_ROBOT_FIT_RANKING_PROVIDER` and `<PROVIDER>_ROBOT_FIT_RANKING_MODEL`
@@ -139,23 +143,21 @@ override it.
 
 ## The site version
 
-It is shown on the owner's job page, just above the measurements step, only
-after an admin shares it and only while consent stands. It is built from fixed
-sentences filled with the site's own data:
+It is part of the robot readiness report, shown folded on the owner's job page
+only after an admin shares it and only while consent stands. It is built from
+fixed sentences filled with the job's own data:
 
 - What this job needs from a robot.
 - Every form, its verdict, and the reasons that set it apart, such as "Walking
-  between spots isn't needed: the object moves 90 cm (you measured this)."
-  Passing checks are left out because they repeat the needs.
-- What the site can still add under the measurements step. A question the page
-  cannot answer, such as whether people work nearby, is not shown.
+  between spots isn't needed: the object moves about 90 cm (estimated from your
+  video)." Passing checks are left out because they repeat the needs.
 - A fixed note: Blueprint invites robot teams whose robots look right for the
   job; if Blueprint recommends a team, it will be one whose evaluation of the
-  job passed; and this is a first read, not a promise that any robot can do the
-  job.
+  job passed; and this is a first read from the video, not a promise that any
+  robot can do the job.
 
-It never names a team, counts teams, quotes a research note, gives a price or
-says "match". It reads again when the measurements step saves.
+It never names a team, counts teams, quotes a research note, gives a price,
+says "match" or asks the site anything.
 
 ## Where it appears
 
@@ -163,7 +165,8 @@ says "match". It reads again when the measurements step saves.
 - Pilot proposal review: the same section, so whoever writes "why the evidence
   supports it" sees the job's needs and each team's quoted reasons next to the
   evaluation.
-- The owner's job page: the site version, once shared.
+- The owner's job page and the printable brief: the site version, inside the
+  readiness report, once shared.
 
 ## Not in this change
 
@@ -172,6 +175,4 @@ says "match". It reads again when the measurements step saves.
 - **Writing back to `robotTeams`.** Ranking never edits the registry or creates
   capability proposals.
 - **Rating jobs other than one rigid object picked up and put down.** The rules
-  have no measurements for them yet. Ranking still reads their task text, for staff.
-- **Asking the site whether people work nearby.** The capture-first flow asks no
-  spec question, so this is usually unknown and stays internal.
+  have no needs for them yet. Ranking still reads their task text, for staff.

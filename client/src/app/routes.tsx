@@ -46,6 +46,7 @@ const Beta = lazyRoute(() => import("../pages/Beta"));
 const About = lazyRoute(() => import("../pages/About"));
 const Home = lazyRoute(() => import("../pages/Home"));
 const SelfCaptureUpload = lazyRoute(() => import("../pages/SelfCaptureUpload"));
+const RobotReadinessBrief = lazyRoute(() => import("../pages/RobotReadinessBrief"));
 const ClaimSite = lazyRoute(() => import("../pages/ClaimSite"));
 const CapturerAccount = lazyRoute(() => import("../pages/CapturerAccount"));
 const BusinessSignUpFlow = lazyRoute(() => import("../pages/BusinessSignUpFlow"));
@@ -257,6 +258,10 @@ export const appRoutes: AppRoute[] = [
   // The link in a dispatch email. Bare shell and no nav: whoever opens this was
   // sent here to do one thing, and has no account to navigate with.
   { path: "/capture-upload/:token", layout: "public", shell: "bare", component: SelfCaptureUpload },
+  // The printable robot readiness brief, by its own read-only link: the owner's
+  // job link never goes on paper. Outside /capture-upload/*, which the capture
+  // app claims as its universal link.
+  { path: "/readiness-brief/:briefToken", layout: "public", shell: "bare", component: RobotReadinessBrief },
   { path: "/claim/:token", layout: "public", shell: "bare", component: ClaimSite },
   { path: "/capture-app", layout: "public", shell: "bare", component: SiteOperatorCaptureRedirect },
   { path: "/capture-app/account", layout: "protected", shell: "bare", component: CapturerAccount },

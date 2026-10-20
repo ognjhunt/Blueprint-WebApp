@@ -14,10 +14,14 @@
  *
  * ## Two halves with different trust
  *
- * Needs and form ratings are rules over the site's own data: its tape-measure
- * readings, its answers and the weight it typed. They are computed on every
- * read, so they never go stale, and they are the only part a site may see, as
- * fixed sentences filled with its own numbers.
+ * Needs and form ratings are rules over the site's own data. The site sends its
+ * video and nothing else (founder direction, 2026-10-20), so most of that data
+ * is what the video reader saw and estimated: the object's size and weight, how
+ * far it moves, the two heights and the people nearby. Anything the site did
+ * measure or tell us still comes first. Every figure carries its source in the
+ * site's words ("estimated from your video"). The rules run on every read, so
+ * they never go stale, and they are the only part a site may see, as fixed
+ * sentences filled with its own numbers.
  *
  * The team ranking is a model reading Blueprint's research notes. Notes are
  * not measurements and a prospect has agreed to nothing, so the ranking stays
@@ -133,9 +137,14 @@ const PEOPLE_DISPLAY = {
 } as const;
 type People = keyof typeof PEOPLE_DISPLAY;
 const PEOPLE_NEED: Record<People, string> = {
-  isolated: "It can work in an area kept clear of people (you told us).",
-  nearby: "It has to work safely with people passing nearby (you told us).",
-  shared: "It has to work safely alongside people in the same space (you told us).",
+  isolated: "It can work in an area kept clear of people",
+  nearby: "It has to work safely with people passing nearby",
+  shared: "It has to work safely alongside people in the same space",
+};
+/** What the video reader saw, mapped only where it says something about the space. */
+const PEOPLE_FROM_VIDEO: Record<string, People> = {
+  working_in_the_space: "shared",
+  passing_nearby: "nearby",
 };
 
 /**
@@ -155,13 +164,27 @@ function formatNumber(value: number) {
   return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
 }
 
-function measuredDisplay(reading: StoredReading): string {
+/** A length in the words a site uses: centimetres below a metre, metres with one decimal above. */
+export function lengthText(metres: number) {
+  const centimetres = Math.round(metres * 100);
+  return centimetres < 100 ? `${centimetres} cm` : `${Number(metres.toFixed(1))} m`;
+}
+
+/** A weight range in grams below a kilogram, else kilograms; one figure when both ends read the same. */
+function massRangeText(low: number, high: number) {
+  const grams = high < 1;
+  const figure = (kg: number) => (grams ? String(Math.round(kg * 1000)) : kg < 10 ? String(Number(kg.toFixed(1))) : String(Math.round(kg)));
+  const [from, to] = [figure(low), figure(high)];
+  return `about ${from === to ? from : `${from}–${to}`} ${grams ? "g" : "kg"}`;
+}
+
+export function measuredDisplay(reading: StoredReading): string {
   if (reading.value === null || !reading.unit) return `${formatNumber(reading.si)} m`;
   return `${formatNumber(reading.value)} ${UNIT_LABELS[reading.unit as EntryUnit] ?? reading.unit}`;
 }
 
 /** A rigid pick-and-place reading. Zero is a real height (the floor), so only negatives are refused. */
-function measured(inputs: RobotFitInputs, sampleId: string): StoredReading | null {
+export function measured(inputs: RobotFitInputs, sampleId: string): StoredReading | null {
   const record = inputs.measurements;
   if (!record || record.family !== "rigid_pick_place") return null;
   const reading = record.readings?.[sampleId];
@@ -205,50 +228,163 @@ function massRequirement(inputs: RobotFitInputs): Quantity | null {
     const { range: [min, max], display } = MASS_BANDS[band];
     return { key: "object_mass", label, display, source: "site_stated", min, max };
   }
-  return null;
+  const estimate = videoEvidence(inputs)?.estimates?.massKg;
+  return estimate ? { key: "object_mass", label, display: massRangeText(estimate.low, estimate.high), source: "video_estimate",
+    min: estimate.low, max: estimate.high } : null;
 }
 
-function lengthRequirement(inputs: RobotFitInputs, key: RequirementKey, sampleId: string, label: string): Quantity | null {
+function lengthRequirement(inputs: RobotFitInputs, key: RequirementKey, sampleId: string, label: string,
+  estimate: number | null | undefined): Quantity | null {
   const reading = measured(inputs, sampleId);
-  return reading ? { key, label, display: measuredDisplay(reading), source: "site_measured", min: reading.si, max: reading.si } : null;
+  if (reading) return { key, label, display: measuredDisplay(reading), source: "site_measured", min: reading.si, max: reading.si };
+  return typeof estimate === "number" ? { key, label, display: estimate === 0 ? "floor level" : `about ${lengthText(estimate)}`,
+    source: "video_estimate", min: estimate, max: estimate } : null;
 }
 
 function largestSide(inputs: RobotFitInputs): Quantity | null {
+  const label = "Object's largest side";
   const sides = ["object_length", "object_width", "object_height"]
     .map((sampleId) => measured(inputs, sampleId)).filter((reading): reading is StoredReading => Boolean(reading));
-  if (!sides.length) return null;
-  const largest = sides.reduce((best, reading) => (reading.si > best.si ? reading : best));
-  return { key: "object_size", label: "Object's largest side", display: measuredDisplay(largest), source: "site_measured",
-    min: largest.si, max: largest.si };
+  if (sides.length) {
+    const largest = sides.reduce((best, reading) => (reading.si > best.si ? reading : best));
+    return { key: "object_size", label, display: measuredDisplay(largest), source: "site_measured", min: largest.si, max: largest.si };
+  }
+  const estimate = videoEvidence(inputs)?.estimates?.largestSideM;
+  return typeof estimate === "number"
+    ? { key: "object_size", label, display: `about ${lengthText(estimate)}`, source: "video_estimate", min: estimate, max: estimate } : null;
 }
 
-function peopleNearby(inputs: RobotFitInputs): { value: People; display: string } | null {
-  const answer = specAnswer(inputs, "humanProximity");
-  if (!answer || !Object.prototype.hasOwnProperty.call(PEOPLE_DISPLAY, answer)) return null;
-  return { value: answer as People, display: PEOPLE_DISPLAY[answer as People] };
+/** The video reader's estimates, in SI. Never measurements: shown as "estimated from your video". */
+export interface VideoEstimates {
+  largestSideM: number | null;
+  massKg: { low: number; high: number } | null;
+  surface: "matte" | "shiny" | "transparent" | "mixed" | null;
+  pickToPlaceM: number | null;
+  pickHeightM: number | null;
+  placeHeightM: number | null;
+  frontClearanceM: number | null;
+  otherItemsLikely: string[];
+  cycleSeconds: number | null;
+}
+
+/** A stored number only inside the reader's own bounds; anything else reads as no estimate. */
+function bounded(value: unknown, min: number, max: number, exclusiveMin = false): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value <= max && (exclusiveMin ? value > min : value >= min) ? value : null;
+}
+
+const SURFACE_VALUES = new Set(["matte", "shiny", "transparent", "mixed"]);
+
+/**
+ * An unseen item as a plain noun phrase, or nothing: the name reaches the site's
+ * report, so a link, a code or anything naming a robot is dropped.
+ */
+function itemName(item: unknown): string | null {
+  if (typeof item !== "string") return null;
+  const name = item.replace(/\s+/g, " ").trim();
+  if (!/^[\p{L}][\p{L}\p{N} ,'&()/-]{0,59}$/u.test(name) || /robot/i.test(name)) return null;
+  return name.charAt(0).toLowerCase() + name.slice(1);
+}
+
+function estimatesOf(raw: unknown): VideoEstimates | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  const low = bounded(value.object_mass_kg_low, 0.001, 2000);
+  const high = bounded(value.object_mass_kg_high, 0.001, 2000);
+  const ends = [low ?? high, high ?? low] as const;
+  return {
+    largestSideM: bounded(value.object_largest_side_m, 0.005, 5),
+    massKg: ends[0] !== null && ends[1] !== null ? { low: Math.min(ends[0], ends[1]), high: Math.max(ends[0], ends[1]) } : null,
+    surface: typeof value.object_surface === "string" && SURFACE_VALUES.has(value.object_surface)
+      ? value.object_surface as VideoEstimates["surface"] : null,
+    pickToPlaceM: bounded(value.pick_to_place_m, 0, 50, true),
+    pickHeightM: bounded(value.pick_height_m, 0, 4),
+    placeHeightM: bounded(value.place_height_m, 0, 4),
+    // Zero is a reading: no open floor at all.
+    frontClearanceM: bounded(value.front_clearance_m, 0, 20),
+    otherItemsLikely: (Array.isArray(value.other_items_likely) ? value.other_items_likely : [])
+      .map(itemName).filter((item): item is string => Boolean(item)).slice(0, 5),
+    cycleSeconds: bounded(value.cycle_seconds, 1, 7200),
+  };
+}
+
+function usableReading(value: unknown): Record<string, unknown> | null {
+  const evidence = value as Record<string, unknown> | null | undefined;
+  return evidence?.status === "analysed" && (evidence.footage_status === "usable" || evidence.footage_status === "partially_usable")
+    ? evidence : null;
+}
+
+/** Each estimate from the walkthrough where it has one, else from the intake link's reading. */
+function mergeEstimates(first: VideoEstimates | null, second: VideoEstimates | null): VideoEstimates | null {
+  if (!first || !second) return first ?? second;
+  return {
+    largestSideM: first.largestSideM ?? second.largestSideM,
+    massKg: first.massKg ?? second.massKg,
+    surface: first.surface ?? second.surface,
+    pickToPlaceM: first.pickToPlaceM ?? second.pickToPlaceM,
+    pickHeightM: first.pickHeightM ?? second.pickHeightM,
+    placeHeightM: first.placeHeightM ?? second.placeHeightM,
+    frontClearanceM: first.frontClearanceM ?? second.frontClearanceM,
+    otherItemsLikely: first.otherItemsLikely.length ? first.otherItemsLikely : second.otherItemsLikely,
+    cycleSeconds: first.cycleSeconds ?? second.cycleSeconds,
+  };
+}
+
+/**
+ * What the site's video tells us, or null. Estimates come from the uploaded
+ * walkthrough's coverage review first (the one reading every website job gets),
+ * then from a link the site shared at intake. A timed cycle and people nearby
+ * come only from the intake link's footage reader, and only while usable.
+ */
+export function videoEvidence(inputs: RobotFitInputs): {
+  measuredCycleSeconds: number | null; people: string | null; estimates: VideoEstimates | null;
+} | null {
+  const link = usableReading(inputs.request?.site_video_evidence);
+  const walkthrough = (inputs.request?.walkthrough_job_estimates as { job_estimates?: unknown } | null | undefined)?.job_estimates;
+  const estimates = mergeEstimates(estimatesOf(walkthrough), link ? estimatesOf(link.job_estimates) : null);
+  if (!link && !estimates) return null;
+  const seconds = link?.measured_cycle_seconds;
+  return {
+    measuredCycleSeconds: typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0 ? seconds : null,
+    people: typeof link?.people_relationship_to_work === "string" ? link.people_relationship_to_work : null,
+    estimates,
+  };
+}
+
+export type PeopleReading = { value: People; display: string; source: RequirementSource };
+
+/** The site's own answer if it ever gave one, else what its video shows. */
+export function peopleNearby(inputs: RobotFitInputs): PeopleReading | null {
+  const answered = specAnswer(inputs, "humanProximity");
+  if (answered && Object.prototype.hasOwnProperty.call(PEOPLE_DISPLAY, answered)) {
+    return { value: answered as People, display: PEOPLE_DISPLAY[answered as People], source: "site_stated" };
+  }
+  const seen = PEOPLE_FROM_VIDEO[videoEvidence(inputs)?.people ?? ""];
+  return seen ? { value: seen, display: PEOPLE_DISPLAY[seen], source: "video_observed" } : null;
 }
 
 /* ------------------------------------------------------- needs and ratings */
 
-const cite = (quantity: { display: string; source: RequirementSource }) =>
+export const cite = (quantity: { display: string; source: RequirementSource }) =>
   `${quantity.display} (${REQUIREMENT_SOURCE_LABELS[quantity.source]})`;
 
 function check(requirement: RequirementKey, outcome: CheckOutcome, text: string): FitCheck {
   return { requirement, outcome, text };
 }
 
-interface JobFacts {
+export interface JobFacts {
   distance: Quantity | null;
   /** Straight-line span between the spots, using the heights when both are known. */
   span: number | null;
+  /** The span rests on a video estimate, so it never rules a form out on its own. */
+  spanEstimated: boolean;
   mass: Quantity | null;
   size: Quantity | null;
   extremes: Array<{ height: Quantity; low: boolean }>;
-  people: { value: People; display: string } | null;
+  people: PeopleReading | null;
 }
 
 /** "large" when the object is known to be large or heavy; "maybe" when a weight band straddles the line. */
-function handsNeed(facts: JobFacts): "large" | "maybe" | null {
+export function handsNeed(facts: JobFacts): "large" | "maybe" | null {
   const { size, mass } = facts;
   if ((size && size.min > SCREENING.largeSideM) || (mass && mass.min > SCREENING.largeMassKg)) return "large";
   if (mass && mass.max > SCREENING.largeMassKg) return "maybe";
@@ -282,7 +418,7 @@ function needsOf(facts: JobFacts): string[] {
     needs.push(low ? `It has to reach down near the floor: the object is ${where} at ${cite(height)}.`
       : `It has to reach up high: the object is ${where} at ${cite(height)}.`);
   }
-  if (facts.people) needs.push(PEOPLE_NEED[facts.people.value]);
+  if (facts.people) needs.push(`${PEOPLE_NEED[facts.people.value]} (${REQUIREMENT_SOURCE_LABELS[facts.people.source]}).`);
   return needs;
 }
 
@@ -297,6 +433,9 @@ function rateForm(id: RatedForm, facts: JobFacts): RobotFormRating {
       checks.push(check("pick_to_place_span", "pass", `It can reach both spots from where it stands: ${moved}.`));
     } else if (facts.span <= SCREENING.fixedSpanMaxM) {
       checks.push(check("pick_to_place_span", "caution", `It stays in one place, so it needs a long reach: ${moved}.`));
+    } else if (facts.spanEstimated) {
+      // A guess from the video cannot rule a form out, and the site has no step to correct it.
+      checks.push(check("pick_to_place_span", "caution", `It stays in one place, and ${moved}, likely too far to reach both spots.`));
     } else {
       checks.push(check("pick_to_place_span", "fail", `It stays in one place, and ${moved}, too far to reach both spots.`));
     }
@@ -341,6 +480,29 @@ function notRated(inputs: RobotFitInputs): string | null {
   return null;
 }
 
+/** What the site's own data says about the job, for the ratings here and the readiness report. */
+export function jobFactsOf(inputs: RobotFitInputs): JobFacts & { pick: Quantity | null; place: Quantity | null } {
+  const estimates = videoEvidence(inputs)?.estimates;
+  const distance = lengthRequirement(inputs, "pick_to_place_span", "pick_to_place_distance", "How far the object moves", estimates?.pickToPlaceM);
+  const pick = lengthRequirement(inputs, "pick_height", "pick_surface_height", "Height where it is picked up", estimates?.pickHeightM);
+  const place = lengthRequirement(inputs, "place_height", "place_surface_height", "Height where it is put down", estimates?.placeHeightM);
+  const [low, high] = SCREENING.comfortableHeightM;
+  return {
+    distance,
+    pick,
+    place,
+    span: distance ? (pick && place ? Math.hypot(distance.min, pick.min - place.min) : distance.min) : null,
+    spanEstimated: [distance, ...(distance && pick && place ? [pick, place] : [])]
+      .some((entry) => entry?.source === "video_estimate"),
+    mass: massRequirement(inputs),
+    size: largestSide(inputs),
+    extremes: [pick, place].filter((entry): entry is Quantity => Boolean(entry))
+      .filter((height) => height.min < low || height.min > high)
+      .map((height) => ({ height, low: height.min < low })),
+    people: peopleNearby(inputs),
+  };
+}
+
 /** The rule-based half. Pure: the same inputs always give the same report. */
 export function computeRobotFitJob(inputs: RobotFitInputs): RobotFitJob {
   const summary = typeof inputs.brief?.summary === "string" && !isPlaceholderSummary(inputs.brief.summary)
@@ -351,34 +513,18 @@ export function computeRobotFitJob(inputs: RobotFitInputs): RobotFitJob {
     return { rated: false, notRatedReason: reason, summary, instruction, requirements: [], needs: [], unknowns: [], forms: [] };
   }
 
-  const distance = lengthRequirement(inputs, "pick_to_place_span", "pick_to_place_distance", "How far the object moves");
-  const pick = lengthRequirement(inputs, "pick_height", "pick_surface_height", "Height where it is picked up");
-  const place = lengthRequirement(inputs, "place_height", "place_surface_height", "Height where it is put down");
-  const mass = massRequirement(inputs);
-  const size = largestSide(inputs);
-  const people = peopleNearby(inputs);
-  const [low, high] = SCREENING.comfortableHeightM;
-  const facts: JobFacts = {
-    distance,
-    span: distance ? (pick && place ? Math.hypot(distance.min, pick.min - place.min) : distance.min) : null,
-    mass,
-    size,
-    extremes: [pick, place].filter((entry): entry is Quantity => Boolean(entry))
-      .filter((height) => height.min < low || height.min > high)
-      .map((height) => ({ height, low: height.min < low })),
-    people,
-  };
-
-  const requirements: FitRequirement[] = [distance, pick, place, mass, size]
+  const facts = jobFactsOf(inputs);
+  const { distance, mass, size, people } = facts;
+  const requirements: FitRequirement[] = [distance, facts.pick, facts.place, mass, size]
     .filter((entry): entry is Quantity => Boolean(entry))
     .map(({ key, label, display, source }) => ({ key, label, display, source }));
-  if (people) requirements.push({ key: "people_nearby", label: "People near the job", display: people.display, source: "site_stated" });
+  if (people) requirements.push({ key: "people_nearby", label: "People near the job", display: people.display, source: people.source });
 
   const unknowns: FitUnknown[] = [];
-  if (!distance) unknowns.push({ key: "pick_to_place_span", label: "How far the object moves", resolve: "measurements" });
-  if (!mass) unknowns.push({ key: "object_mass", label: "How heavy the object is", resolve: "measurements" });
-  // The job page asks no question about people, so only staff can resolve it.
-  if (!people) unknowns.push({ key: "people_nearby", label: "Whether people work near the job", resolve: "staff" });
+  // What neither the video nor anything on file gives: notes for staff, never questions to the site.
+  if (!distance) unknowns.push({ key: "pick_to_place_span", label: "How far the object moves" });
+  if (!mass) unknowns.push({ key: "object_mass", label: "How heavy the object is" });
+  if (!people) unknowns.push({ key: "people_nearby", label: "Whether people work near the job" });
 
   return {
     rated: true, notRatedReason: null, summary, instruction, requirements, needs: needsOf(facts), unknowns,
@@ -387,9 +533,9 @@ export function computeRobotFitJob(inputs: RobotFitInputs): RobotFitJob {
 }
 
 /**
- * What the owner's job page shows: the job's needs, each form's verdict with
- * the reasons that set it apart, and what the site can still add. No team,
- * count, quote, price or screening limit, and nothing the page cannot resolve.
+ * What the owner's job page shows: the job's needs and each form's verdict
+ * with the reasons that set it apart. No team, count, quote, price, screening
+ * limit or question: the site sends its video and nothing else.
  */
 export function projectSiteRobotFit(job: RobotFitJob): SiteRobotFit | null {
   if (!job.rated) return null;
@@ -402,8 +548,6 @@ export function projectSiteRobotFit(job: RobotFitJob): SiteRobotFit | null {
       // Passing checks repeat the needs above; the rest are what tells the forms apart.
       reasons: rating.checks.filter((entry) => entry.outcome !== "pass").map((entry) => entry.text),
     })) : [],
-    unknowns: job.unknowns.filter((entry) => entry.resolve === "measurements")
-      .map((entry) => `${entry.label}. You can add it under Add measurements (optional) on this page.`),
     note: SITE_ROBOT_FIT_NOTE,
   };
 }
@@ -414,7 +558,8 @@ export type RobotFitRankingCandidate = RobotFitRankingInput["candidates"][number
 export type RankRunner = (task: AgentTask<RobotFitRankingInput>) => Promise<AgentResult<unknown>>;
 
 export class RobotFitError extends Error {
-  constructor(readonly code: "job_not_found" | "consent_revoked" | "job_details_missing" | "no_candidates" | "nothing_to_share",
+  constructor(readonly code: "job_not_found" | "consent_revoked" | "job_details_missing" | "no_candidates" | "nothing_to_share"
+    | "ranking_in_progress",
     message: string) {
     super(message);
     this.name = "RobotFitError";
@@ -508,9 +653,57 @@ function quoteFound(candidate: RobotFitRankingCandidate, quote: string) {
 const clean = (value: string, limit: number) => value.replace(/\s+/g, " ").trim().slice(0, limit);
 
 /**
+ * What a team's own research must say before the model's reading of its robot
+ * form is believed. A form the research does not support is treated as
+ * unknown, so a wrong label can never carry a team past the "not a fit" cap.
+ */
+const FORM_EVIDENCE: Record<RatedForm, RegExp> = {
+  fixed_base_arm: /\b(robot(?:ic)? arms?|cobots?|collaborative robots?|industrial robots?|fixed arms?|franka|universal robots)\b/i,
+  bimanual_arm: /\b(dual[- ]arms?|two[- ]armed|two arms|bimanual)\b/i,
+  mobile_manipulator: /\b(mobile manipulat\w*|mobile robot arms?|arms? on (?:an? )?(?:mobile|wheeled) bases?|amrs? with (?:an? )?arms?)\b/i,
+  wheeled_humanoid: /\b(wheeled humanoids?|humanoids? on wheels)\b/i,
+  humanoid: /\b(humanoids?|bipedal|biped)\b/i,
+  legged_manipulator: /\b(quadrupeds?|legged robots?|four-legged|robot dogs?)\b/i,
+};
+
+/** Most specific first: "mobile robot arm" is evidence of an arm that moves, never also of a fixed arm. */
+const FORM_EVIDENCE_ORDER: readonly RatedForm[] = ["wheeled_humanoid", "mobile_manipulator", "legged_manipulator", "bimanual_arm",
+  "humanoid", "fixed_base_arm"];
+
+/** A generic form whose research also names a more specific kind of robot is ambiguous, so it reads as unknown. */
+const MORE_SPECIFIC_FORMS: Partial<Record<RatedForm, readonly RatedForm[]>> = {
+  fixed_base_arm: ["mobile_manipulator", "legged_manipulator", "wheeled_humanoid", "humanoid"],
+  bimanual_arm: ["mobile_manipulator", "wheeled_humanoid", "humanoid"],
+  humanoid: ["wheeled_humanoid"],
+};
+
+/** The forms a team's research names, each phrase counted once, for its most specific form. */
+function evidencedForms(research: string): Set<RatedForm> {
+  const found = new Set<RatedForm>();
+  let rest = research;
+  for (const form of FORM_EVIDENCE_ORDER) {
+    const pattern = new RegExp(FORM_EVIDENCE[form].source, "gi");
+    const remaining = rest.replace(pattern, " ");
+    if (remaining !== rest) found.add(form);
+    rest = remaining;
+  }
+  return found;
+}
+
+function groundedForm(candidate: RobotFitRankingCandidate, form: RankedTeam["form"]): RankedTeam["form"] {
+  if (!(RATED_FORMS as readonly string[]).includes(form)) return form;
+  const found = evidencedForms([candidate.notes, candidate.whatGoesWrong ?? "", ...candidate.recorded].join(" \n "));
+  const rated = form as RatedForm;
+  return found.has(rated) && !(MORE_SPECIFIC_FORMS[rated] ?? []).some((specific) => found.has(specific)) ? form : "unknown";
+}
+
+/**
  * Keep what the research supports. Unknown or repeated teams and unquoted
- * reasons are dropped and counted. A team whose form the rules rate "not a
- * fit" for this job is a weak fit at most, whatever the model said.
+ * reasons are dropped and counted. The model's reading of a team's robot form
+ * stands only where the team's research says it. A team whose form the rules
+ * rate "not a fit" for this job is a weak fit at most; while the job rules any
+ * form out, a team whose form the research does not establish is a possible
+ * fit at most.
  */
 export function validateRanking(output: unknown, candidates: RobotFitRankingCandidate[],
   formVerdicts: ReadonlyMap<RatedForm, FitVerdict> = new Map()) {
@@ -535,14 +728,18 @@ export function validateRanking(output: unknown, candidates: RobotFitRankingCand
     seen.add(entry.teamId);
     let fit = entry.fit;
     const concerns = entry.concerns.map((concern) => clean(concern, 300)).filter(Boolean);
-    const rated = (RATED_FORMS as readonly string[]).includes(entry.form) ? formVerdicts.get(entry.form as RatedForm) : undefined;
+    const form = groundedForm(candidate, entry.form);
+    const rated = (RATED_FORMS as readonly string[]).includes(form) ? formVerdicts.get(form as RatedForm) : undefined;
     if (rated === "not_a_fit") {
       fit = "weak";
-      concerns.unshift(`Its form (${ROBOT_FORM_COPY[entry.form as RatedForm].label.toLowerCase()}) is rated not a fit for this job.`);
+      concerns.unshift(`Its form (${ROBOT_FORM_COPY[form as RatedForm].label.toLowerCase()}) is rated not a fit for this job.`);
+    } else if (!rated && [...formVerdicts.values()].includes("not_a_fit")) {
+      if (fit === "strong") fit = "possible";
+      concerns.unshift("Its research does not establish its robot form, and this job rules some forms out: check it against the job's needs.");
     }
     teams.push({
       teamId: candidate.teamId, name: candidate.name, status: candidate.status, agreed: candidate.agreed,
-      fit, form: entry.form,
+      fit, form,
       reasons: reasons.map((reason) => ({ claim: clean(reason.claim, 300), quote: clean(reason.quote, 400) })),
       concerns: concerns.slice(0, 4),
     });
@@ -555,7 +752,12 @@ async function defaultRunner(task: AgentTask<RobotFitRankingInput>) {
   return runAgentTask<RobotFitRankingInput, unknown>(task);
 }
 
-type Stored = { ranking?: RobotFitRanking | null; lastAttempt?: RobotFitAttempt | null; sharing?: RobotFitSharing | null };
+type Stored = { ranking?: RobotFitRanking | null; lastAttempt?: RobotFitAttempt | null; sharing?: RobotFitSharing | null;
+  /** Set while a ranking run holds the job, so a second click cannot pay for a second run. */
+  runningSinceIso?: string | null };
+
+/** A claim older than this belongs to a run that died; the next run may take it over. */
+const RUN_CLAIM_MS = 10 * 60 * 1000;
 
 /**
  * Keep a run in one transaction: a good ranking replaces the stored one, a
@@ -572,8 +774,24 @@ async function keepRun(requestId: string, ranking: RobotFitRanking | null, attem
     const update: Record<string, unknown> = { schemaVersion: SCHEMA_VERSION, requestId, updatedAtIso: attempt.atIso };
     if (ranking && !(current.ranking && current.ranking.rankedAtIso > ranking.rankedAtIso)) update.ranking = ranking;
     if (!(current.lastAttempt && current.lastAttempt.atIso > attempt.atIso)) update.lastAttempt = attempt;
+    // Release only this run's own claim; a run that took over a stale claim keeps it.
+    if (current.runningSinceIso === attempt.atIso) update.runningSinceIso = null;
     transaction.set(ref, update, { merge: true });
     transaction.set(history, { schemaVersion: SCHEMA_VERSION, requestId, attempt, ranking });
+  });
+}
+
+/** Claim the job for one ranking run before any model call; a fresh claim refuses a second run. */
+async function claimRun(requestId: string, atIso: string, actor: string | null) {
+  if (!db) throw new Error("site_robot_fit_store_unavailable");
+  const ref = db.collection(SITE_ROBOT_FIT_COLLECTION).doc(requestId);
+  await db.runTransaction(async (transaction) => {
+    const current = ((await transaction.get(ref)).data() as Stored | undefined) ?? {};
+    const since = current.runningSinceIso ? Date.parse(current.runningSinceIso) : Number.NaN;
+    if (Number.isFinite(since) && Date.parse(atIso) - since < RUN_CLAIM_MS) {
+      throw new RobotFitError("ranking_in_progress", "A ranking is already running for this job. It usually finishes within a few minutes.");
+    }
+    transaction.set(ref, { schemaVersion: SCHEMA_VERSION, requestId, runningSinceIso: atIso, runningBy: actor }, { merge: true });
   });
 }
 
@@ -600,6 +818,7 @@ export async function rankTeamsForJob(requestId: string, options: { actor: strin
   const jobInput = rankingJob(job, inputs);
   const started = (options.now ?? (() => new Date()))();
   const atIso = started.toISOString();
+  await claimRun(requestId, atIso, options.actor);
   const failed = (error: string, provider: string | null = null): RobotFitAttempt =>
     ({ state: "failed", atIso, by: options.actor, error: clean(`${error}${provider ? ` (${provider})` : ""}`, 300) });
   let ranking: RobotFitRanking | null = null;
@@ -666,12 +885,4 @@ export async function setRobotFitSharing(requestId: string, shared: boolean, opt
   await db.collection(SITE_ROBOT_FIT_COLLECTION).doc(requestId)
     .set({ schemaVersion: SCHEMA_VERSION, requestId, sharing, updatedAtIso: nowIso }, { merge: true });
   return sharing;
-}
-
-/** The owner's job page: the site version while shared, otherwise nothing. */
-export async function getSiteRobotFit(requestId: string): Promise<SiteRobotFit | null> {
-  const [inputs, stored] = await Promise.all([loadRobotFitInputs(requestId), readStored(requestId)]);
-  if (!inputs.request || stored.sharing?.shared !== true) return null;
-  if (projectWebsiteCaptureRights(inputs.request).consent_revoked) return null;
-  return projectSiteRobotFit(computeRobotFitJob(inputs));
 }

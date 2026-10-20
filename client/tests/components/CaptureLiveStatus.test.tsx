@@ -39,7 +39,7 @@ describe("the desktop reflecting the phone from server state", () => {
     await screen.findByText("Video received");
     expect(screen.queryByText("Inline follow-up questions")).not.toBeInTheDocument();
   });
-  it("keeps generic advisory boilerplate out of the compact saved-job view", async () => {
+  it("keeps the assessment's questions and proposed steps out of the compact saved-job view", async () => {
     fetchMock.mockResolvedValue({ok: true, json: async () => ({
       status: {headline: "Checking the work area", stage: "review"},
       siteAdvisory: {state: "ready", sections: [], unknowns: ["Generic caveat"], nextAction: "Generic proposal", correlationId: "fixture-reference"},
@@ -47,35 +47,24 @@ describe("the desktop reflecting the phone from server state", () => {
     render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
     await screen.findByText("Checking the work area");
     expect(screen.queryByText("Your job assessment")).not.toBeInTheDocument();
-    expect(screen.getByText("Generic caveat").closest("details")).not.toHaveAttribute("open");
-    expect(screen.getByText("Assessment notes").closest("details")).not.toHaveAttribute("open");
-    expect(screen.queryByText("Your job assessment")).not.toBeInTheDocument();
+    expect(screen.queryByText("Generic caveat")).not.toBeInTheDocument();
+    expect(screen.queryByText("Generic proposal")).not.toBeInTheDocument();
+    expect(screen.queryByText("Assessment notes")).not.toBeInTheDocument();
     expect(screen.getByText("Support reference").closest("details")).not.toHaveAttribute("open");
   });
 
-  it("retains source-bound assessment content and uncertainties in a disclosure", async () => {
+  it("shows what the video shows in a disclosure, never a question or a step for the site", async () => {
     fetchMock.mockResolvedValue({ok: true, json: async () => ({
       status: {headline: "Checking the work area", stage: "review"},
-      siteAdvisory: {state: "ready", sections: [{title: "Observed task", claims: [{text: "A carton moves from the conveyor to a tote.", verificationStatus: "source_bound", basis: "observed", evidence: [{kind: "video", atSeconds: 4}]}]}], unknowns: ["Carton weight still needs a measurement."], nextAction: "Measure the carton weight.", correlationId: "fixture-reference"},
+      siteAdvisory: {state: "ready", sections: [{title: "Observed task", claims: [{text: "A carton moves from the conveyor to a tote.", verificationStatus: "source_bound", basis: "observed", evidence: [{kind: "video", atSeconds: 4}]}]}], unknowns: ["Question to resolve: What is the measured pull force?"], nextAction: "Recommended next step (proposal): Measure the carton weight.", correlationId: "fixture-reference"},
     })});
     render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
     await screen.findByText("Assessment notes");
     expect(screen.getByText("Assessment notes").closest("details")).not.toHaveAttribute("open");
     expect(screen.getByText("A carton moves from the conveyor to a tote.")).toBeInTheDocument();
-    expect(screen.getByText("Carton weight still needs a measurement.")).toBeInTheDocument();
-    expect(screen.getByText("This is a proposed next step, not a recorded outcome.")).toBeInTheDocument();
-  });
-
-  it("retains customer-projected questions and proposed actions without claims", async () => {
-    fetchMock.mockResolvedValue({ok: true, json: async () => ({
-      status: {headline: "Recording received", stage: "review"},
-      siteAdvisory: {state: "ready", sections: [], unknowns: ["Question to resolve: What is the measured pull force?"], nextAction: "Recommended next step (proposal): Measure pull force.", correlationId: "fixture-reference"},
-    })});
-    render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
-    await screen.findByText("Assessment notes");
-    expect(screen.getByText("What is the measured pull force?")).toBeInTheDocument();
-    expect(screen.getByText("Measure pull force.")).toBeInTheDocument();
-    expect(screen.getByText("This is a proposed next step, not a recorded outcome.")).toBeInTheDocument();
+    expect(screen.queryByText(/pull force/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Measure the carton weight/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/proposed next step/)).not.toBeInTheDocument();
   });
 
   it.each(["needs_review", "unavailable"])("keeps an assessment %s notice visible", async state => {
@@ -89,24 +78,14 @@ describe("the desktop reflecting the phone from server state", () => {
     expect(screen.queryByRole("link", {name: "Contact Blueprint"})).not.toBeInTheDocument();
   });
 
-  it.each(["owner", "film"])("shows inline answer forms only for signed %s authority", async scope => {
+  it.each(["owner", "film"])("never shows answer forms, for signed %s authority either", async scope => {
     fetchMock.mockResolvedValue({ok: true, json: async () => ({scope,
       status: {headline: "Recording received", stage: "review"}, siteAdvisory: null,
     })});
     render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
     await screen.findByText("Recording received");
-    expect(Boolean(screen.queryByText("Inline assessment questions"))).toBe(scope === "owner");
-    expect(screen.queryByText("Inline follow-up questions")).not.toBeInTheDocument();
-  });
-
-  it("withdraws inline forms when capture authority ends", async () => {
-    fetchMock.mockResolvedValue({ok: true, json: async () => ({scope: "owner",
-      status: {headline: "Recording retained", stage: "held"},
-      siteAdvisory: {state:"authority_ended", sections:[], unknowns:[], nextAction:null, correlationId:null},
-    })});
-    render(<CaptureLiveStatus compact captureUrl={CAPTURE_URL} />);
-    await screen.findByText("Recording retained");
     expect(screen.queryByText("Inline assessment questions")).not.toBeInTheDocument();
+    expect(screen.queryByText("Inline follow-up questions")).not.toBeInTheDocument();
   });
 
   it("shows the stage the server reports, polling the token from the capture URL", async () => {

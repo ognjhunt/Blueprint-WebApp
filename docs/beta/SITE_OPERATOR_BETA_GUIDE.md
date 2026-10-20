@@ -7,8 +7,8 @@ How it works: invited robot teams evaluate your job free, in a simulation built 
 ## Your next steps
 
 1. Keep the private job link returned by the form. Review and correct the drafted brief, including open questions, success targets, and pilot preferences. “I don't know” is an acceptable answer; missing evidence stays visible.
-2. Add existing video or record later if useful. Recording permission is separate from permission to describe the job. A description can still be reviewed while recording is on hold. When you film, a sheet of printer paper on the work surface and a few tape-measure readings help; see [Measurements](#measurements-optional).
-3. Follow the assessment's current next action. Saved video, accepted processing, scene availability, completed evaluation, and physical results are separate states. A realistic scene or simulated result does not certify physical performance or safety.
+2. Send a video of the job, existing footage or a recording made later. That is all Blueprint needs from you: there is nothing to measure, weigh or photograph, and no follow-up form. See [What Blueprint works out from your video](#what-blueprint-works-out-from-your-video). Recording permission is separate from permission to describe the job. A description can still be reviewed while recording is on hold.
+3. Your job page shows where the job stands. Saved video, accepted processing, scene availability, completed evaluation, and physical results are separate states. A realistic scene or simulated result does not certify physical performance or safety.
 4. Your job card: before you start, the form shows the exact anonymized card that robot teams approved for the beta can see, and a **Keep this job private instead** checkbox. Leave it unticked to list the job, or tick it and no card is published. A listed card can be edited or hidden from your job page at any time; hiding it stops new evaluations. An account is offered when you save ownership and follow the job; the initial description does not require one. Robot teams join by invitation, and their evaluations are free.
 5. Blueprint presents one recommended pilot only when a team's evaluation on your job passed and that team wants the pilot. Review what the pilot tests, what each party provides, timing, and remaining uncertainty. **Book this pilot** is your one approval and costs nothing; there is no Blueprint fee, invoice or payment step. The robot team quotes any physical pilot cost to you directly. Site access, dates, and physical work are agreed between you and the team after booking.
 
@@ -22,21 +22,25 @@ The private owner link carries authority over the job; keep it private. Use the 
 
 To withdraw recording permission, open your private job link and choose **Withdraw recording permission**, then confirm. Uploads stop at once, the job pauses, queued evaluations are asked to cancel, and deletion of the stored footage starts. The page reports the footage as deleted only after the server confirms it; until then, withdrawal is not proof that every copy is gone. Results already produced may be kept as the Terms describe. Do not upload again to clear a withdrawal hold. If you no longer have the link, or want another handling or deletion request reviewed, contact **hello@tryblueprint.io** with the job reference.
 
-## Measurements (optional)
+## What Blueprint works out from your video
 
-A few tape-measure readings let Blueprint check the rebuilt scene against your site. An evaluation can count toward a recommendation only after that check. Open **Add measurements (optional)** on your job page, from your private job link or the film-only link, and record what you can. Leave the rest blank. Each reading keeps the unit you typed: cm or inches, kg or lb.
+You send the video; Blueprint works out the rest. Its video reader estimates what a robot would need to know: the object's size and weight, how far it moves, the height of the surfaces it moves between, the open floor around the work, how long one cycle takes, whether people work nearby, and other items the station probably handles that the video did not show. It sizes things against what is in frame, such as a pallet or a door.
 
-- **Moving an object from one place to another:** the height of the surface where it starts and of the one where it ends; how far it moves; the object's length, width and height; the open floor in front of the starting surface, and the open height above it if something is above; and its weight, if you have a scale.
-- **Opening or closing a door, drawer or lid:** the handle's height; the front's width; how far it opens; the handle's distance from the hinge side; the open floor in front when it is fully open; and the pull needed to start it, if you have a luggage scale. For a drawer, "how far it opens" is how far the front moves out. For a door or lid opened fully, measure straight across from its outer edge to the frame edge it closes against. These jobs need a separately supported route, so Blueprint confirms one with you before any evaluation.
-- **A sheet of printer paper:** lay one flat on the work surface while you film. It gives the scene a known size. Say which paper it is, and measure its long edge only if it is not US Letter or A4.
+These are estimates, never measurements. Wherever they appear they say "estimated from your video", and anything you already measured or told us comes first. An estimate never makes an evaluation pass.
 
-Blueprint reviews the readings with your footage. They are evidence for that check, never a result. A reading cannot make an evaluation pass, and a part of the scene with no reading stays unchecked. You can correct a reading at any time; the record keeps who saved each one and when.
+## Your robot readiness report
 
-## What kind of robot fits this job
+Once Blueprint has reviewed your job, your job page shows **Your robot readiness report**, folded. Its title shows how many kinds of robot fit. Inside:
 
-Once Blueprint has reviewed your job, your job page may show **What kind of robot fits this job**, just above the measurements. It says what your job needs from a robot, such as whether it can work from one place, how much it lifts, or whether the object takes two hands. It then rates every kind of robot against those needs: one arm or two arms on a fixed stand, an arm on a wheeled base, a wheeled humanoid, a walking humanoid and a legged robot with an arm. Each gets "Fits", "Possible" or "Not a fit", with the reason in your own numbers. The section also lists what we don't know yet, which you can usually add under **Add measurements (optional)**; it updates when you save.
+- what your job needs, and how every kind of robot measures up: one arm or two arms on a fixed stand, an arm on a wheeled base, a wheeled humanoid, a walking humanoid and a legged robot with an arm;
+- getting your site ready, with each item either ready or one to confirm with the robot team;
+- what decides success here, and whether the simulation tests it or the pilot checks it;
+- safety in plain English;
+- jobs like this on the public record. None is a Blueprint customer.
 
-It is a first read, not a promise that any robot can do the job. It names no robot team: Blueprint invites teams whose robots look right for the job, and if it recommends one, it will be a team whose evaluation of your job passed. You do not need to compare teams.
+You can print it, or save it as a PDF, for anyone else who needs to agree. The printable brief has its own read-only link, so the printout never carries your private job link.
+
+The report names no robot team: Blueprint invites teams whose robots look right for the job, and if it recommends one, it will be a team whose evaluation of your job passed. It is a first read, not a promise that any robot can do the job.
 
 ## Recover a saved job
 

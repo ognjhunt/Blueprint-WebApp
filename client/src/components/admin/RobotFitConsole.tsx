@@ -3,8 +3,9 @@
  *
  * Three parts. What the job needs and how every form of robot rates against
  * it (one arm, two arms, an arm on a wheeled base, wheeled and walking
- * humanoids, legged robots) are rules over the site's own data, computed on
- * every read. The site preview is exactly what the owner's job page shows once
+ * humanoids, legged robots) are rules over the site's own data (its video,
+ * the video reader's estimates and anything it told us), computed on every
+ * read. The site preview is exactly what the owner's job page shows once
  * shared, and it never names a team. The researched-team ranking is a model's
  * reading of Blueprint's research notes, every reason quoting the research: it
  * decides whom to ask to evaluate the job, and it is reference beside the
@@ -27,6 +28,7 @@ import {
   type RobotFitSharing,
   type TeamFit,
 } from "@/data/robotFit";
+import { READINESS_STATE_LABELS } from "@/data/siteReadiness";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 
@@ -152,7 +154,7 @@ export function RobotFitConsole({ requestId, currentUser }: {
                   ) : null}
                   {fit.job.unknowns.length ? (
                     <p className="text-xs text-runway-mute">
-                      Unknown: {fit.job.unknowns.map((entry) => `${entry.label.toLowerCase()} (${entry.resolve === "measurements" ? "site measurements" : "ask the site"})`).join("; ")}.
+                      Not in the video or its estimates: {fit.job.unknowns.map((entry) => entry.label.toLowerCase()).join("; ")}. The site is never asked; Blueprint settles these.
                     </p>
                   ) : null}
                 </section>
@@ -183,8 +185,8 @@ export function RobotFitConsole({ requestId, currentUser }: {
               <h4 className="runway-label">What the site sees</h4>
               <p className="text-sm text-runway-body">
                 {shared
-                  ? `Shared on the owner's job page since ${dateLabel(fit.sharing!.changedAtIso)}.`
-                  : "Not shared. The owner's job page shows nothing about robot fit."}
+                  ? `The readiness report is on the owner's job page since ${dateLabel(fit.sharing!.changedAtIso)}.`
+                  : "Not shared. The owner's job page shows no robot read until you share it."}
               </p>
               {fit.site ? (
                 <div className="grid gap-1 border border-runway-line p-3 text-xs text-runway-body">
@@ -192,7 +194,20 @@ export function RobotFitConsole({ requestId, currentUser }: {
                   {fit.site.forms.map((form) => (
                     <p key={form.id}>{form.label}: {FIT_VERDICT_LABELS[form.verdict]}.{form.reasons.length ? ` ${form.reasons.join(" ")}` : ""}</p>
                   ))}
-                  {fit.site.unknowns.map((line, index) => <p key={`site-unknown-${index}`}>Not known yet: {line}</p>)}
+                  {fit.readiness?.report ? (
+                    <>
+                      {fit.readiness.report.checklist.map((item) => (
+                        <p key={item.id}>{item.title}: {READINESS_STATE_LABELS[item.state]}. {item.detail}</p>
+                      ))}
+                      {fit.readiness.report.successFactors.map((factor) => (
+                        <p key={factor.id}>Decides success: {factor.title}. {factor.detail} {factor.test}</p>
+                      ))}
+                      <p>Safety: {fit.readiness.report.safety.join(" ")}</p>
+                      {fit.readiness.report.examples.map((example) => (
+                        <p key={example.id}>On the public record: {example.name} ({example.sources.map((source) => source.label).join("; ")})</p>
+                      ))}
+                    </>
+                  ) : null}
                   <p className="text-runway-mute">{fit.site.note}</p>
                 </div>
               ) : <p className="text-xs text-runway-mute">Nothing to show the site for this job.</p>}
@@ -202,7 +217,7 @@ export function RobotFitConsole({ requestId, currentUser }: {
                     onClick={() => void act("sharing", { shared: false }, "Sharing could not be changed")}>Stop sharing</Button>
                 ) : (
                   <Button type="button" size="sm" disabled={busy !== null || !fit.site || fit.consentRevoked}
-                    onClick={() => void act("sharing", { shared: true }, "Sharing could not be changed")}>Share with the site</Button>
+                    onClick={() => void act("sharing", { shared: true }, "Sharing could not be changed")}>Share the readiness report with the site</Button>
                 )}
               </div>
             </section>

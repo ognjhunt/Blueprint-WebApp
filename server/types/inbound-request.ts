@@ -942,6 +942,26 @@ export interface SiteTaskTriageSummary {
  * things the submitter told us, and the encryption boundary spreads the top
  * level so derived state survives a round trip intact.
  */
+/**
+ * The video reader's educated estimates of the job, so the site is never asked
+ * to measure (`jobEstimatesSchema`). Estimates, never measurements; null where
+ * the footage gave no basis.
+ */
+export interface SiteVideoJobEstimates {
+  object: string | null;
+  object_largest_side_m: number | null;
+  object_mass_kg_low: number | null;
+  object_mass_kg_high: number | null;
+  object_surface: "matte" | "shiny" | "transparent" | "mixed" | null;
+  pick_to_place_m: number | null;
+  pick_height_m: number | null;
+  place_height_m: number | null;
+  front_clearance_m: number | null;
+  other_items_likely: string[];
+  cycle_seconds: number | null;
+  basis: string | null;
+}
+
 export interface SiteVideoEvidenceSummary {
   status: "analysed" | "unreadable" | "skipped" | "failed";
   /** Null unless status is "analysed". */
@@ -959,6 +979,8 @@ export interface SiteVideoEvidenceSummary {
   /** Footage centred on identifiable people. Routes to a human; never changes a verdict. */
   privacy_flag: boolean;
   summary: string | null;
+  /** Absent on summaries written before estimates existed. */
+  job_estimates?: SiteVideoJobEstimates | null;
   /** Populated when status is "unreadable" or "failed" — e.g. a share page rather than a file. */
   error_code: string | null;
   model: string | null;
@@ -1014,6 +1036,12 @@ export interface InboundRequest {
    */
   siteTaskGates?: Record<string, string> | null;
   site_video_evidence?: SiteVideoEvidenceSummary | null;
+  /**
+   * The job estimates read off the site's uploaded walkthrough by its coverage
+   * review (`capture-coverage.ts`), the one reading every website job gets.
+   * They feed only robot fit and the readiness report, never qualification.
+   */
+  walkthrough_job_estimates?: { capture_id: string; job_estimates: SiteVideoJobEstimates; reviewed_at_iso: string } | null;
   /** The last match run against the robot-team registry. Derived, like the triage. */
   site_match?: SiteMatchSummaryRecord | null;
   human_review_required?: boolean | null;

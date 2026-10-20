@@ -1,7 +1,6 @@
 import type { SiteAdvisory } from "@/types/siteAdvisory";
 import { SiteAdvisoryReport } from "./SiteAdvisoryReport";
 import { NextTaskUpdate } from "./NextTaskUpdate";
-import { TaskClarification } from "./TaskClarification";
 /**
  * The desktop reflecting what the phone is doing — from the server, not a guess.
  *
@@ -96,7 +95,7 @@ export function CaptureLiveStatus({
   }, [token, loadAttempt]);
 
   if (!status) return compact && token ? <div className="ms-intake-progress">
-    <p role={loadError ? "alert" : "status"}>{loadError ? "Job updates could not be loaded. Your saved job is still here." : "Loading job updates and video-analysis questions…"}</p>
+    <p role={loadError ? "alert" : "status"}>{loadError ? "Job updates could not be loaded. Your saved job is still here." : "Loading job updates…"}</p>
     {loadError && <button type="button" className="ms-text-link" onClick={() => setLoadAttempt(value => value + 1)}>Retry job updates</button>}
   </div> : null;
 
@@ -105,23 +104,17 @@ export function CaptureLiveStatus({
     const sections = advisory?.state === "ready" ? advisory.sections.filter(section => section.claims.length > 0) : [];
     return <div className="ms-intake-progress">
       <p role="status">{status.headline}</p>
-      {status.scope === "owner" && advisory?.state !== "authority_ended" && <>
-        <TaskClarification key={`clarification-${token}`} token={token!} mode="assessment" refreshKey={JSON.stringify([advisory?.state, advisory?.correlationId, advisory?.unknowns])} />
-      </>}
-      {advisory?.state === "ready" && (sections.length > 0 || advisory.unknowns.length > 0 || advisory.nextAction) && <details className="ms-intake-assessment">
+      {/* What the video shows, never a question or a step for the site: the
+          site sends its video and nothing else (founder direction, 2026-10-20). */}
+      {sections.length > 0 && <details className="ms-intake-assessment">
         <summary>Assessment notes</summary>
         {sections.map(section => <section key={section.title}>
           <h3>{section.title}</h3>
           <ul>{section.claims.map(claim => <li key={claim.text}>{claim.text}</li>)}</ul>
         </section>)}
-        {advisory.unknowns.length > 0 && <ul>{advisory.unknowns.map(text => <li key={text}>{text.replace(/^(Question to resolve:|Unresolved:)\s*/, "")}</li>)}</ul>}
-        {advisory.nextAction && <>
-          <p>{advisory.nextAction.replace(/^Recommended next step \(proposal\):\s*/, "")}</p>
-          <p className="ms-field-hint">This is a proposed next step, not a recorded outcome.</p>
-        </>}
       </details>}
       {(advisory?.state === "needs_review" || advisory?.state === "unavailable") && <p>
-        {advisory.state === "needs_review" ? "We need to review an assessment issue." : "We could not check the assessment."} Keep your original video. Questions and answers remain with this job.
+        {advisory.state === "needs_review" ? "We need to review an assessment issue." : "We could not check the assessment."} Keep your original video.
       </p>}
       {advisory?.state !== "authority_ended" && advisory?.correlationId && <details className="ms-intake-reference">
         <summary>Support reference</summary>

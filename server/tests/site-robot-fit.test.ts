@@ -32,7 +32,7 @@ const { robotFitRankingTask } = await import("../agents/tasks/robot-fit-ranking"
 const { RATED_FORMS } = await import("../../client/src/data/robotFit");
 const { ROBOT_FORMS } = await import("../../client/src/types/robotEmbodiment");
 const {
-  computeRobotFitJob, getAdminRobotFit, getSiteRobotFit, parseStatedWeight, projectSiteRobotFit, rankTeamsForJob,
+  computeRobotFitJob, getAdminRobotFit, parseStatedWeight, projectSiteRobotFit, rankTeamsForJob,
   rankingCandidates, setRobotFitSharing, validateRanking, RobotFitError,
 } = fit;
 type Inputs = Parameters<typeof computeRobotFitJob>[0];
@@ -174,18 +174,34 @@ describe("the site version", () => {
     expect(site.forms.find((form) => form.id === "fixed_base_arm")).toMatchObject({ verdict: "fits", reasons: [] });
     expect(site.forms.find((form) => form.id === "humanoid")?.reasons)
       .toEqual(["Walking between spots isn't needed: the object moves 30 inches (you measured this)."]);
-    expect(site.unknowns).toEqual(["How heavy the object is. You can add it under Add measurements (optional) on this page."]);
-    const built = JSON.stringify({ needs: site.needs, forms: site.forms, unknowns: site.unknowns });
+    const built = JSON.stringify({ needs: site.needs, forms: site.forms });
     for (const forbidden of ["1.2", "2.4", "15 kg", "25 kg", "match", "team"]) expect(built).not.toContain(forbidden);
     expect(site.note).toContain("If Blueprint recommends a team, it will be one whose evaluation of your job passed.");
+    expect(site.note).toContain("This is a first read from your video, not a promise that any robot can do the job.");
     expect(site.note).not.toContain("match");
   });
 
-  it("never asks the site a question its page cannot answer", () => {
-    const site = projectSiteRobotFit(computeRobotFitJob(inputs()))!;
+  it("rates every form from the video's estimates alone, and says they are estimates", () => {
+    const job = computeRobotFitJob(inputs({ request: { request: {}, ...SCREENED, walkthrough_job_estimates: { capture_id: "walkthrough-job-1",
+      job_estimates: { pick_to_place_m: 3, object_mass_kg_low: 4, object_mass_kg_high: 6 } } } }));
+    // A guess never rules a form out: a stationary form is possible, with the reason.
+    expect(verdicts(job)).toMatchObject({ fixed_base_arm: "possible", bimanual_arm: "possible", mobile_manipulator: "fits" });
+    expect(rating(job, "fixed_base_arm").checks[0].text)
+      .toBe("It stays in one place, and the object moves about 3 m (estimated from your video), likely too far to reach both spots.");
+    expect(job.requirements.map((entry) => [entry.key, entry.source])).toEqual([["pick_to_place_span", "video_estimate"],
+      ["object_mass", "video_estimate"]]);
+  });
+
+  it("asks the site nothing: what is still unknown is a note for staff", () => {
+    const job = computeRobotFitJob(inputs());
+    const site = projectSiteRobotFit(job)!;
     expect(site.forms).toEqual([]);
-    expect(site.unknowns).toHaveLength(2);
-    expect(site.unknowns.join(" ")).not.toContain("people");
+    expect(site).not.toHaveProperty("unknowns");
+    expect(job.unknowns).toEqual([
+      { key: "pick_to_place_span", label: "How far the object moves" },
+      { key: "object_mass", label: "How heavy the object is" },
+      { key: "people_nearby", label: "Whether people work near the job" },
+    ]);
   });
 });
 
@@ -243,6 +259,35 @@ describe("validateRanking", () => {
     const result = validateRanking({ ranked: [entry("a", "Mixed-case palletizing at distribution centers")] }, candidates,
       new Map([["fixed_base_arm", "not_a_fit"]]));
     expect(result.teams[0]).toMatchObject({ fit: "weak", concerns: ["Its form (one arm on a fixed stand) is rated not a fit for this job."] });
+  });
+
+  it("believes the model's robot form only where the team's research says it", () => {
+    const verdicts = new Map([["fixed_base_arm", "not_a_fit"], ["mobile_manipulator", "fits"]] as const);
+    // Pallet Co's research says cobots, not a mobile base: the claimed form cannot carry it past the cap.
+    const claimed = validateRanking({ ranked: [entry("a", "Mixed-case palletizing at distribution centers",
+      { form: "mobile_manipulator" })] }, candidates, verdicts);
+    expect(claimed.teams[0]).toMatchObject({ form: "unknown", fit: "possible",
+      concerns: [expect.stringContaining("does not establish its robot form")] });
+    const supported = validateRanking({ ranked: [entry("a", "Mixed-case palletizing at distribution centers")] }, candidates);
+    expect(supported.teams[0]).toMatchObject({ form: "fixed_base_arm", fit: "strong", concerns: [] });
+  });
+
+  it("reads a phrase that names a specific form only as that form, so a generic claim cannot borrow it", () => {
+    const research = (id: string, note: string) => rankingCandidates([team(id, id, note)] as never);
+    const form = (pool: ReturnType<typeof research>, id: string, claimed: string) =>
+      validateRanking({ ranked: [entry(id, pool[0].notes.slice(0, 40), { form: claimed })] }, pool).teams[0].form;
+    const mobile = research("m", "Builds mobile robot arms that drive between warehouse stations and pick totes.");
+    expect(form(mobile, "m", "fixed_base_arm")).toBe("unknown");
+    expect(form(mobile, "m", "mobile_manipulator")).toBe("mobile_manipulator");
+    const wheeled = research("w", "Its wheeled humanoid restocks shelves in convenience stores at night.");
+    expect(form(wheeled, "w", "humanoid")).toBe("unknown");
+    expect(form(wheeled, "w", "wheeled_humanoid")).toBe("wheeled_humanoid");
+    const walking = research("h", "A walking humanoid with two arms that carries totes between racks.");
+    expect(form(walking, "h", "bimanual_arm")).toBe("unknown");
+    expect(form(walking, "h", "humanoid")).toBe("humanoid");
+    const legged = research("q", "A quadruped with a robot arm that opens doors on inspection rounds.");
+    expect(form(legged, "q", "fixed_base_arm")).toBe("unknown");
+    expect(form(legged, "q", "legged_manipulator")).toBe("legged_manipulator");
   });
 
   it("refuses output that is not the schema", () => {
@@ -322,6 +367,23 @@ describe("ranking, staleness and sharing", () => {
       ranking: { rankedBy: "newer" }, lastAttempt: { by: "newer" } });
   });
 
+  it("runs one ranking at a time, and lets a claim left by a run that died be taken over", async () => {
+    seedJob();
+    let release!: () => void;
+    const slow = vi.fn(() => new Promise((resolve) => { release = () => resolve(ranked); }));
+    const first = rankTeamsForJob("job-1", { actor: "a", run: slow as never, now: () => new Date(NOW) });
+    await vi.waitFor(() => expect(slow).toHaveBeenCalledTimes(1));
+    await expect(rankTeamsForJob("job-1", { actor: "b", run: slow as never, now: () => new Date(Date.parse(NOW) + 60_000) }))
+      .rejects.toMatchObject({ code: "ranking_in_progress" });
+    release();
+    await first;
+    expect(slow).toHaveBeenCalledTimes(1);
+    expect(sharedFakeFirestoreState.docs.get("siteRobotFit/job-1")).toMatchObject({ runningSinceIso: null });
+    sharedFakeFirestoreState.docs.set("siteRobotFit/job-1", { runningSinceIso: NOW });
+    await expect(rankTeamsForJob("job-1", { actor: "c", run: async () => ranked as never,
+      now: () => new Date(Date.parse(NOW) + 11 * 60_000) })).resolves.toMatchObject({ attempt: { state: "ranked" } });
+  });
+
   it("refuses after consent withdrawal and when the job says nothing yet", async () => {
     seedJob({ capture_rights: { consent_revoked: true } });
     const run = vi.fn();
@@ -333,16 +395,16 @@ describe("ranking, staleness and sharing", () => {
     expect(run).not.toHaveBeenCalled();
   });
 
-  it("shows the site nothing until shared, and stops when consent is withdrawn", async () => {
+  it("shares only while consent stands, and the site preview never names a team", async () => {
     seedJob();
-    expect(await getSiteRobotFit("job-1")).toBeNull();
-    await setRobotFitSharing("job-1", true, { actor: "admin-1", now: () => new Date(NOW) });
-    const site = await getSiteRobotFit("job-1");
-    expect(site?.forms.find((entry) => entry.id === "bimanual_arm")?.verdict).toBe("fits");
-    expect(JSON.stringify(site)).not.toContain("Pallet Co");
+    await expect(setRobotFitSharing("job-1", true, { actor: "admin-1", now: () => new Date(NOW) }))
+      .resolves.toMatchObject({ shared: true, changedBy: "admin-1", changedAtIso: NOW });
+    const view = await getAdminRobotFit("job-1");
+    expect(view?.sharing?.shared).toBe(true);
+    expect(view?.site?.forms.find((entry) => entry.id === "bimanual_arm")?.verdict).toBe("fits");
+    expect(JSON.stringify(view?.site)).not.toContain("Pallet Co");
     sharedFakeFirestoreState.docs.set("inboundRequests/job-1", { requestId: "job-1", request: {}, ...SCREENED,
       capture_rights: { consent_revoked: true } });
-    expect(await getSiteRobotFit("job-1")).toBeNull();
     await expect(setRobotFitSharing("job-1", true, { actor: null })).rejects.toMatchObject({ code: "consent_revoked" });
     await expect(setRobotFitSharing("job-1", false, { actor: null })).resolves.toMatchObject({ shared: false });
   });

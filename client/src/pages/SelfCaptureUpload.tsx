@@ -26,10 +26,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CaptureHandoffQr } from "@/components/site/CaptureHandoffQr";
 import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRecorder";
 import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/components/site/TaskBriefReview";
-import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
-import { SiteMeasurementsDisclosure } from "@/components/site/SiteMeasurementsPanel";
-import { SiteRobotFitSection } from "@/components/site/SiteRobotFitSection";
-import { TaskClarification } from "@/components/site/TaskClarification";
+import { SiteReadinessPanel } from "@/components/site/SiteReadinessPanel";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdrawal";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
@@ -821,7 +818,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     : "We are checking whether it covers the work area."}{" "}
                   {upload.status === "processing_pending" || upload.status === "held"
                     ? "You can check the job brief while processing is pending."
-                    : "A few answers can help define the job while review continues."}
+                    : null}
                 </p>
               </div>
               <p className="ms-field-hint">
@@ -835,12 +832,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   {retryingProcessing ? "Retrying processing…" : "Retry processing"}
                 </button></p>
               )}
-              {scope === "owner" && status?.siteAdvisory?.state !== "authority_ended" && <TaskClarification token={token} mode="assessment" refreshKey={JSON.stringify([status?.siteAdvisory?.state, status?.siteAdvisory?.correlationId, status?.siteAdvisory?.unknowns])} />}
               {/* Saved is not finished. The brief confirmation is the site's
-                  attestation — the thing that lets a robot team be matched — and
-                  the item photos are the objects the task turns on. Hiding both
-                  the moment a video lands used to end the visit with the
-                  qualification undone, recoverable only by knowing to reload. */}
+                  attestation, the thing that lets a robot team evaluate the job.
+                  Hiding it the moment a video lands used to end the visit with the
+                  qualification undone, recoverable only by knowing to reload. The
+                  site sends only its video otherwise: Blueprint infers the rest. */}
               {statusCard}
 
               {scope === "owner" && brief && briefConfirmed && !editingBrief && (
@@ -880,9 +876,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   />
                 </details>
               )}
-
-              <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>
-
             </>
           ) : existingVideoOnly ? (
             <p className="ms-field-hint">Choose the video you already have. You do not need to record it again.</p>
@@ -936,8 +929,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
               <p className="ms-field-hint" style={{ marginTop: "12px" }}>
                 Move slowly and overlap your passes. Cover every surface near where the work
-                happens, from a few heights. Keep the scene still, with nobody in frame. If you can, lay a sheet
-                of printer paper flat on the work surface first: it gives the scene a known size. {FILMING_NOTICE}
+                happens, from a few heights. Keep the scene still, with nobody in frame. {FILMING_NOTICE}
               </p>
             </>
           )}
@@ -1026,7 +1018,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   into supply, before or after filming. A film-only link never
                   sees it: attestation is not theirs to make. */}
               {!descriptionFirst && scope === "owner" && brief && briefConfirmed && !editingBrief && (
-                <p className="ms-field-hint" style={{ marginTop: "28px", marginBottom: "8px" }}>
+                <p id="job-brief" className="ms-field-hint" style={{ marginTop: "28px", marginBottom: "8px" }}>
                   Your job brief is confirmed.{" "}
                   <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>
                     Edit your answers
@@ -1034,7 +1026,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 </p>
               )}
               {!descriptionFirst && scope === "owner" && brief && (!briefConfirmed || editingBrief) && (
-                <details open={editingBrief || undefined} style={{ marginTop: "28px", marginBottom: "8px" }}>
+                <details id="job-brief" open={editingBrief || undefined} style={{ marginTop: "28px", marginBottom: "8px" }}>
                   <summary>
                     {briefBlocksCapture
                       ? "A couple of answers refine what to film"
@@ -1056,12 +1048,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 </details>
               )}
 
-              {/* The room is not the objects. A robot grasps the tote and stacks
-                  the cartons, and those are often filmed clear -- so we list the
-                  items and take a few photos of each to build sim-ready versions.
-                  A film-only link can add the photos; only an owner edits the list. */}
-              <details className="ms-task-interest"><summary>Add photos of the job items</summary><TaskItemsPanel token={token} scope={scope} /></details>
-
               {/* Least privilege for the person who actually films. An owner who
                   is handing this to a colleague sends a link that can record and
                   upload but cannot attest -- so a forwarded QR never carries the
@@ -1071,15 +1057,11 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
             </>
           )}
-          {/* A tape measure at the work area: optional readings the rebuilt
-              scene is checked against; film links record them too. Mounted once,
-              outside the saved/unsaved branches, so readings typed while a video
-              lands on another device survive the switch to the saved layout. */}
-          {/* What kind of robot fits, once Blueprint shares it: fixed sentences and the
-              site's own data, never a team. Right above the measurements its unknowns
-              point to, and only for the owner. */}
-          {scope === "owner" && <SiteRobotFitSection token={token} />}
-          <SiteMeasurementsDisclosure token={token} />
+          {/* The site sends its video and nothing else (founder direction,
+              2026-10-20): no measurements, item photos or follow-up questions.
+              Blueprint infers the rest from the video. The owner sees the robot
+              readiness report here once Blueprint shares it, folded. */}
+          {scope === "owner" && <SiteReadinessPanel token={token} />}
           </div>}
         </>
       )}

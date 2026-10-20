@@ -411,8 +411,9 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole("link", { name: "Contact Blueprint about this job" })).toHaveCSS("color", "rgb(32, 61, 46)");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`task-detail-${width}.png`), fullPage: true });
-    await page.getByText("Open questions (2)", { exact: true }).click();
-    await expect(page.getByText(snapshot.tasks[0].siteAdvisory.unknowns[0], { exact: true })).toBeVisible();
+    // The site sends its video and nothing else: the assessment's questions stay with Blueprint.
+    await expect(page.getByText(/Open questions/)).toHaveCount(0);
+    await expect(page.getByText(snapshot.tasks[0].siteAdvisory.unknowns[0], { exact: true })).toHaveCount(0);
     await page.getByText("Support reference", { exact: true }).click();
     await expect(page.getByText("fixture-support-reference", { exact: true })).toBeVisible();
     await page.getByRole("tab", { name: "Overview", exact: true }).click();
