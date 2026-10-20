@@ -32,6 +32,12 @@ A few tape-measure readings let Blueprint check the rebuilt scene against your s
 
 Blueprint reviews the readings with your footage. They are evidence for that check, never a result. A reading cannot make an evaluation pass, and a part of the scene with no reading stays unchecked. You can correct a reading at any time; the record keeps who saved each one and when.
 
+## What kind of robot fits this job
+
+Once Blueprint has reviewed your job, your job page may show **What kind of robot fits this job**, just above the measurements. It says what your job needs from a robot, such as whether it can work from one place, how much it lifts, or whether the object takes two hands. It then rates every kind of robot against those needs: one arm or two arms on a fixed stand, an arm on a wheeled base, a wheeled humanoid, a walking humanoid and a legged robot with an arm. Each gets "Fits", "Possible" or "Not a fit", with the reason in your own numbers. The section also lists what we don't know yet, which you can usually add under **Add measurements (optional)**; it updates when you save.
+
+It is a first read, not a promise that any robot can do the job. It names no robot team: Blueprint invites teams whose robots look right for the job, and if it recommends one, it will be a team whose evaluation of your job passed. You do not need to compare teams.
+
 ## Recover a saved job
 
 | What you see | Next action |

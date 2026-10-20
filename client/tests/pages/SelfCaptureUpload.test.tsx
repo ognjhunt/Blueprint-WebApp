@@ -893,3 +893,41 @@ describe("measurements beside the item photos", () => {
       .toEqual([`/api/site-task-brief/${TOKEN}/measurements`]));
   });
 });
+
+describe("robot fit above the measurements", () => {
+  const FIT = { needs: ["It can work from one place: the object moves 90 cm (you measured this)."], forms: [], unknowns: [],
+    note: "Fixed note." };
+  function fetchFor(scope: "owner" | "film") {
+    const fallback = mockFetch();
+    return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false, scope }) });
+      if (url.endsWith("/robot-fit")) return Promise.resolve({ ok: true, json: async () => ({ ok: true, robotFit: FIT }) });
+      // Footage has arrived: the owner's page leaves description-first for the saved layout with its measurements.
+      if (url === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({ ok: true,
+        status: { decision: "processing", headline: "Your video arrived.", operatorAction: null, missingViews: [],
+          nextUpdateIso: null }, captureReceived: true, claimUrl: null, sceneViewUrl: null }) });
+      return fallback(input, init);
+    });
+  }
+
+  it("shows the owner a shared read right above the measurements its unknowns point to", async () => {
+    setUserAgent(PHONE_UA);
+    vi.stubGlobal("fetch", fetchFor("owner"));
+    render(<SelfCaptureUpload />);
+    const heading = await screen.findByRole("heading", { name: "What kind of robot fits this job" });
+    const measurements = screen.getByText("Add measurements (optional)");
+    expect(heading.compareDocumentPosition(measurements) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("It can work from one place: the object moves 90 cm (you measured this).")).toBeInTheDocument();
+  });
+
+  it("never asks for it on a film-only link", async () => {
+    setUserAgent(PHONE_UA);
+    const fetchMock = fetchFor("film");
+    vi.stubGlobal("fetch", fetchMock);
+    render(<SelfCaptureUpload />);
+    await screen.findByText("Add measurements (optional)");
+    expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/robot-fit"))).toBe(false);
+    expect(screen.queryByRole("heading", { name: "What kind of robot fits this job" })).not.toBeInTheDocument();
+  });
+});

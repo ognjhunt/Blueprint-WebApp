@@ -51,6 +51,7 @@ import {
   presentMeasurements,
   saveMeasurements,
 } from "../utils/siteTaskMeasurements";
+import { getSiteRobotFit } from "../utils/siteRobotFit";
 import { gateFields } from "../../client/src/data/siteTaskQualification";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import {
@@ -1235,6 +1236,24 @@ router.put("/:token/measurements", async (req: Request, res: Response) => {
     }
     logger.error({ error, requestId: payload.requestId }, "Could not save site measurements");
     return res.status(503).json({ error: "The measurements could not be saved.", code: "measurements_unavailable" });
+  }
+});
+
+/**
+ * What kind of robot fits the job, as the site sees it: fixed sentences and its
+ * own data, never a team. Owner link only, and only once Blueprint has shared it.
+ */
+router.get("/:token/robot-fit", async (req: Request, res: Response) => {
+  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
+  if (!payload) {
+    return res.status(404).json({ error: "This link is not valid or has expired." });
+  }
+  if (payload.scope !== "owner") return res.status(403).json({ error: "This link is for filming only." });
+  try {
+    return res.status(200).json({ ok: true, robotFit: await getSiteRobotFit(payload.requestId) });
+  } catch (error) {
+    logger.error({ error, requestId: payload.requestId }, "Could not load robot fit");
+    return res.status(503).json({ error: "Robot fit could not be loaded.", code: "robot_fit_unavailable" });
   }
 });
 

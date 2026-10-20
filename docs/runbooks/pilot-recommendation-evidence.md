@@ -9,6 +9,31 @@ performance or safety. Code: `server/utils/pilotRecommendationEvidence.ts`,
 
 All routes below are under `/api/admin/robot-teams`, admin/ops only.
 
+## Robot fit: whom to ask, never whom to recommend
+
+The job console and the pilot proposal review both show **Robot fit**
+(`server/utils/siteRobotFit.ts`, routes under `/api/admin/jobs/:requestId/robot-fit`;
+design: `docs/superpowers/specs/2026-10-20-robot-fit-design.md`).
+
+- **What the job needs, and every robot form's rating** (one arm, two arms, an arm
+  on a wheeled base, wheeled and walking humanoids, a legged robot with an arm) are
+  rules over the site's own measurements and answers, computed on every read.
+  They use Blueprint's screening bands, which describe the job, not any robot.
+- **Researched teams** come from one model run over every research note in the
+  registry (**Rank researched teams**). Each reason is the model's reading of a
+  quote the server found word for word in one field of the team's research; judge
+  the claim against the quote. A team whose robot form is rated not a fit is a
+  weak fit at most. A ranking is flagged stale once the job or the notes change,
+  and a failed run never hides the last good ranking. Ranking is refused after
+  recording consent is withdrawn, and it never writes to `robotTeams`.
+- **What the site sees** is fixed sentences and the site's own data, never a
+  team. It reaches the owner's job page only after **Share with the site**.
+
+Use the ranking to choose which teams to invite to evaluate the job, and as
+reference while writing "why the evidence supports it". A prospect has agreed
+to nothing. The recommendation itself still names the team whose evaluation of
+the job passed, picked below.
+
 ## Pass mark
 
 Set before any run, read from the job in this order:

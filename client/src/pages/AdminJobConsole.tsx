@@ -4,6 +4,7 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 
 import { Button, Card, Eyebrow, StatusChip } from "@/components/blueprint";
 import { AdmitFreeEvaluationForm } from "@/components/admin/AdmitFreeEvaluationForm";
+import { RobotFitConsole } from "@/components/admin/RobotFitConsole";
 import { SiteMeasurementsConsole } from "@/components/admin/SiteMeasurementsConsole";
 import { AccountDeletionQueue } from "@/components/admin/AccountDeletionQueue";
 import { useAuth } from "@/contexts/AuthContext";
@@ -172,6 +173,7 @@ function JobDetail({ requestId, onClose }: { requestId: string; onClose: () => v
           </div>
 
           <SiteMeasurementsConsole requestId={requestId} currentUser={api.currentUser} />
+          <RobotFitConsole key={requestId} requestId={requestId} currentUser={api.currentUser} />
 
           <div>
             <h3 className="runway-rule-head runway-meta">Evaluation requests</h3>

@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { withCsrfHeader } from "@/lib/csrf";
+import { SITE_MEASUREMENTS_SAVED_EVENT } from "@/data/robotFit";
 import {
   ARTICULATIONS,
   REFERENCE_PAPERS,
@@ -212,6 +213,8 @@ export function SiteMeasurementsPanel({ token }: { token: string }) {
       if (response.ok) {
         adopt(data as PresentedSiteMeasurements);
         setStatus({ kind: "saved" });
+        // The robot-fit read above rests on these readings; let it refresh in place.
+        window.dispatchEvent(new Event(SITE_MEASUREMENTS_SAVED_EVENT));
         return;
       }
       if (response.status === 409 && typeof data.revision === "number") {
