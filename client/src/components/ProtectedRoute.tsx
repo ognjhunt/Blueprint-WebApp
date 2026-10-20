@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -12,13 +12,21 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children, requireRoles }: ProtectedRouteProps) {
   const { currentUser, userData, tokenClaims, loading } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+  const search = useSearch();
+  // Account privacy belongs to every authenticated account, including capture
+  // accounts and accounts whose workspace profile is missing. This exception
+  // must track query changes and must never waive an explicit role requirement.
+  const isAccountPrivacy = location === "/settings"
+    && new URLSearchParams(search).get("privacy") === "1"
+    && !requireRoles?.length;
   // Derive visibility from this render's authority. A sticky ready flag can
   // keep private children mounted after sign-out or role revocation while
   // the navigation effect runs.
   const isCapturer = userData?.role === "capturer" || userData?.roles?.includes("capturer") === true;
-  const isReady = !loading && Boolean(currentUser && userData) && !isCapturer
-    && (!requireRoles?.length || hasAnyRole(requireRoles, userData, tokenClaims));
+  const isReady = !loading && Boolean(currentUser) && (isAccountPrivacy || (
+    Boolean(userData) && !isCapturer
+    && (!requireRoles?.length || hasAnyRole(requireRoles, userData, tokenClaims))));
 
   useEffect(() => {
     // Only proceed when loading is complete
@@ -31,6 +39,8 @@ export default function ProtectedRoute({ children, requireRoles }: ProtectedRout
           window.location.hash;
         sessionStorage.setItem("redirectAfterAuth", currentPath);
         setLocation("/sign-in");
+      } else if (isAccountPrivacy) {
+        return;
       } else if (!userData) {
         // Wait for user data to be loaded
         return;
@@ -49,9 +59,9 @@ export default function ProtectedRoute({ children, requireRoles }: ProtectedRout
         setLocation("/");
       }
     }
-  }, [currentUser, userData, tokenClaims, loading, setLocation, requireRoles]);
+  }, [currentUser, userData, tokenClaims, loading, setLocation, requireRoles, isAccountPrivacy]);
 
-  if (loading || (!loading && currentUser && !userData)) {
+  if (loading || (!loading && currentUser && !userData && !isAccountPrivacy)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />

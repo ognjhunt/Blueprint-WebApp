@@ -8,6 +8,7 @@ import {
   OPT_OUT_VAR,
   REQUIRED_CLIENT_ENV_KEYS,
   missingClientEnvKeys,
+  unsafeClientCredentialKeys,
 } from "./verify-client-env.mjs";
 
 const projectRoot = path.resolve(__dirname, "..");
@@ -74,5 +75,31 @@ describe("client env build guard", () => {
     // This suite shells out to `npm run build` itself; without the exemption
     // the guard fails it in any lane where dist/ is absent.
     expect(read("client/tests/build-output.test.ts")).toContain(OPT_OUT_VAR);
+  });
+  it("rejects secret-shaped browser env names while permitting documented public keys", () => {
+    expect(unsafeClientCredentialKeys({
+      VITE_OPENAI_API_KEY: "fixture",
+      VITE_GOOGLE_GENAI_API_KEY: "fixture",
+      VITE_INTERNAL_SCENE_ACCESS_CODE: "fixture",
+      VITE_STRIPE_SECRET_KEY: "fixture",
+      VITE_PUBLIC_POSTHOG_PROJECT_TOKEN: "fixture",
+      VITE_FIREBASE_API_KEY: "fixture",
+      VITE_FIREBASE_APPCHECK_SITE_KEY: "fixture",
+      VITE_GOOGLE_MAPS_API_KEY: "fixture",
+      VITE_GOOGLE_API_KEY: "fixture",
+      VITE_EMPTY_SECRET: "",
+      OPENAI_API_KEY: "fixture",
+    })).toEqual([
+      "VITE_GOOGLE_GENAI_API_KEY", "VITE_INTERNAL_SCENE_ACCESS_CODE", "VITE_OPENAI_API_KEY", "VITE_STRIPE_SECRET_KEY",
+    ]);
+  });
+  it("rejects fused and mixed-case credential aliases without exposing their values", () => {
+    expect(unsafeClientCredentialKeys({
+      VITE_OPENAI_APIKEY: "fixture",
+      VITE_google_privateKey: "fixture",
+      VITE_SUPABASE_SERVICE_ROLE: "fixture",
+      VITE_serviceRoleKey: "fixture",
+      VITE_PUBLIC_APP_URL: "https://example.invalid",
+    })).toEqual(["VITE_OPENAI_APIKEY", "VITE_SUPABASE_SERVICE_ROLE", "VITE_google_privateKey", "VITE_serviceRoleKey"]);
   });
 });

@@ -1,4 +1,4 @@
-import { redactInvitationUrl } from "./invitationPrivacy";
+import { redactInvitationUrl, sanitizeTelemetry } from "./invitationPrivacy";
 import {
   getDemandAttributionFromSearchParams,
   hasDemandAttribution,
@@ -29,6 +29,8 @@ const POSTHOG_PROJECT_TOKEN =
 const POSTHOG_HOST =
   (viteEnv.VITE_PUBLIC_POSTHOG_HOST as string | undefined)?.trim() || "";
 
+let analyticsConsent: AnalyticsConsent = { analytics: false, marketing: false };
+let consentRevision = 0;
 let gaInitialized = false;
 let posthogInitialized = false;
 let analyticsSessionId: string | null = null;
@@ -75,8 +77,8 @@ function hasConfiguredPostHog() {
 
 function normalizeConsent(consent: AnalyticsConsent | null | undefined) {
   return {
-    analytics: Boolean(consent?.analytics),
-    marketing: Boolean(consent?.marketing),
+    analytics: consent?.analytics === true,
+    marketing: consent?.marketing === true,
   };
 }
 
@@ -118,11 +120,41 @@ function currentDemandAttribution(): DemandAttribution | null {
   return hasDemandAttribution(attribution) ? attribution : null;
 }
 
+function analyticsAllowed() {
+  return analyticsRuntimeEnabled() && analyticsConsent.analytics &&
+    !window.location.pathname.startsWith("/capture-upload");
+}
+
+function setGaDisabled(disabled: boolean) {
+  if (hasConfiguredGa()) {
+    (window as unknown as Record<string, unknown>)[`ga-disable-${GA_MEASUREMENT_ID}`] = disabled;
+  }
+}
+
+function clearOptionalAnalyticsStorage() {
+  analyticsSessionId = null;
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key === "bp.analytics.anonymousId" || key.startsWith("ph_")) localStorage.removeItem(key);
+    }
+  } catch { /* Blocked storage must not prevent withdrawal. */ }
+  const hostname = window.location.hostname;
+  const domains = ["", ...hostname.split(".").map((_, index, parts) => parts.slice(index).join("."))];
+  for (const cookie of document.cookie.split(";")) {
+    const name = cookie.split("=", 1)[0].trim();
+    if (!/^(?:_ga(?:_|$)|_gid$|_gat(?:_|$)|_gcl_|ph_)/.test(name)) continue;
+    for (const domain of domains) {
+      document.cookie = `${name}=; Max-Age=0; Path=/${domain ? `; Domain=${domain}` : ""}`;
+    }
+  }
+}
+
 function ensureGaLoaded() {
-  if (!analyticsRuntimeEnabled() || !hasConfiguredGa()) {
+  if (!analyticsAllowed() || !hasConfiguredGa()) {
     return;
   }
 
+  setGaDisabled(false);
   if (!window.dataLayer) {
     window.dataLayer = [];
   }
@@ -156,7 +188,9 @@ function ensureGaLoaded() {
     document.head.appendChild(script);
   }
 
+  applyGaConsent(analyticsConsent);
   window.gtag("config", GA_MEASUREMENT_ID, {
+    send_page_view: false,
     anonymize_ip: true,
     page_location: redactInvitationUrl(window.location.href),
     page_referrer: redactInvitationUrl(document.referrer),
@@ -171,28 +205,30 @@ async function ingestFirstPartyEvent(
   parameters?: Record<string, string | number | boolean | undefined>,
   page?: { path?: string; title?: string },
 ) {
-  if (typeof window === "undefined") {
+  if (typeof window === "undefined" || !analyticsAllowed()) {
     return;
   }
 
+  const revision = consentRevision;
   try {
     const headers = await withCsrfHeader({ "Content-Type": "application/json" });
+    if (!analyticsAllowed() || revision !== consentRevision) return;
     await fetch("/api/analytics/ingest", {
       method: "POST",
       headers,
-      body: JSON.stringify({
+      body: JSON.stringify(sanitizeTelemetry({
         event,
         source: "webapp",
         anonymousId: getOrCreateExperimentAnonymousId(),
         sessionId: getAnalyticsSessionId(),
-        pagePath: page?.path || window.location.pathname,
+        pagePath: redactInvitationUrl(page?.path || window.location.pathname),
         pageTitle: page?.title || document.title,
         currentUrl: redactInvitationUrl(window.location.href),
         referrer: redactInvitationUrl(document.referrer) || null,
         experiments: getActiveExperimentAssignments(),
-        properties: parameters || {},
+        properties: sanitizeTelemetry(parameters || {}),
         attribution: currentDemandAttribution(),
-      }),
+      })),
     });
   } catch {
     // Event ingestion should never break the customer-facing flow.
@@ -207,111 +243,113 @@ function applyGaConsent(consent: AnalyticsConsent | null | undefined) {
   const normalized = normalizeConsent(consent);
   window.gtag("consent", "update", {
     analytics_storage: normalized.analytics ? "granted" : "denied",
-    ad_storage: normalized.marketing ? "granted" : "denied",
+    ad_storage: normalized.marketing && normalized.analytics ? "granted" : "denied",
+    ad_user_data: normalized.marketing && normalized.analytics ? "granted" : "denied",
+    ad_personalization: normalized.marketing && normalized.analytics ? "granted" : "denied",
   });
 }
 
-async function ensurePostHogLoaded(consent: AnalyticsConsent | null | undefined) {
-  if (!analyticsRuntimeEnabled() || !hasConfiguredPostHog() || posthogInitialized) {
-    return;
-  }
-
-  const normalized = normalizeConsent(consent);
+async function ensurePostHogLoaded() {
+  if (!analyticsAllowed() || !hasConfiguredPostHog() || posthogInitialized) return;
   const posthog = await loadPostHogClient();
+  // Consent can be withdrawn while the lazy SDK import is in flight.
+  if (!analyticsAllowed() || posthogInitialized) return;
   posthog.init(POSTHOG_PROJECT_TOKEN, {
     api_host: POSTHOG_HOST,
     defaults: "2026-01-30",
-    autocapture: true,
-    capture_pageview: true,
-    capture_pageleave: true,
+    autocapture: false,
+    capture_pageview: false,
+    capture_pageleave: false,
+    disable_session_recording: true,
+    capture_heatmaps: false,
+    capture_performance: false,
     before_send: event => {
-      if (!event) return event;
-      const properties = { ...event.properties };
+      if (!event || !analyticsAllowed()) return null;
+      const properties = sanitizeTelemetry({ ...event.properties });
       for (const key of Object.keys(properties)) {
         if (typeof properties[key] === "string") properties[key] = redactInvitationUrl(properties[key]);
       }
       return { ...event, properties };
     },
-    persistence: normalized.analytics ? "localStorage+cookie" : "memory",
-    opt_out_capturing_by_default: !normalized.analytics,
+    persistence: "localStorage+cookie",
+    opt_out_capturing_by_default: true,
   });
-
   posthogInitialized = true;
+  applyPostHogConsent();
 }
 
-function applyPostHogConsent(consent: AnalyticsConsent | null | undefined) {
-  if (
-    !analyticsRuntimeEnabled() ||
-    !hasConfiguredPostHog() ||
-    !posthogInitialized ||
-    !posthogClient
-  ) {
-    return;
-  }
-
-  const normalized = normalizeConsent(consent);
-  posthogClient.set_config({
-    persistence: normalized.analytics ? "localStorage+cookie" : "memory",
-  });
-
-  if (normalized.analytics) {
+function applyPostHogConsent() {
+  if (!posthogInitialized || !posthogClient) return;
+  if (analyticsAllowed()) {
+    posthogClient.set_config({ disable_persistence: false, persistence: "localStorage+cookie" });
     posthogClient.opt_in_capturing();
   } else {
     posthogClient.opt_out_capturing();
+    posthogClient.set_config({ disable_persistence: true, persistence: "memory" });
   }
 }
 
 export function initializeAnalytics(consent: AnalyticsConsent | null | undefined) {
-  if (!analyticsRuntimeEnabled()) {
-    return;
-  }
-
-  ensureGaLoaded();
-  applyGaConsent(consent);
-  void ensurePostHogLoaded(consent).then(() => {
-    applyPostHogConsent(consent);
-  });
+  updateAnalyticsConsent(consent);
 }
 
 export function updateAnalyticsConsent(consent: AnalyticsConsent | null | undefined) {
-  applyGaConsent(consent);
-  applyPostHogConsent(consent);
+  analyticsConsent = normalizeConsent(consent);
+  consentRevision += 1;
+  if (!analyticsAllowed()) {
+    setGaDisabled(true);
+    applyGaConsent({ analytics: false, marketing: false });
+    applyPostHogConsent();
+    clearOptionalAnalyticsStorage();
+    document.getElementById("ga-script")?.remove();
+    // A later opt-in can load a fresh tag after removal.
+    gaInitialized = false;
+    return;
+  }
+  ensureGaLoaded();
+  applyGaConsent(analyticsConsent);
+  applyPostHogConsent();
+  void ensurePostHogLoaded();
 }
 
 export function trackPageView(path: string, title?: string) {
+  if (!analyticsAllowed()) return;
+  const safeTitle = sanitizeTelemetry(title);
   if (window.gtag && hasConfiguredGa()) {
     window.gtag("event", "page_view", {
       page_path: redactInvitationUrl(path),
       page_location: redactInvitationUrl(window.location.href),
       page_referrer: redactInvitationUrl(document.referrer),
-      page_title: title,
+      page_title: safeTitle,
     });
   }
 
   if (posthogInitialized && hasConfiguredPostHog() && posthogClient) {
     posthogClient.capture("$pageview", {
-      path,
-      title,
+      path: redactInvitationUrl(path),
+      title: safeTitle,
       current_url: redactInvitationUrl(window.location.href),
     });
   }
 
-  void ingestFirstPartyEvent("$pageview", undefined, { path, title });
+  void ingestFirstPartyEvent("$pageview", undefined, { path, title: safeTitle });
 }
 
 export function trackEvent(
   eventName: string,
   parameters?: Record<string, string | number | boolean | undefined>
 ) {
+  if (!analyticsAllowed()) return;
+  const safeParameters = sanitizeTelemetry(parameters);
   if (window.gtag && hasConfiguredGa()) {
-    window.gtag("event", eventName, parameters);
+    window.gtag("event", eventName, safeParameters);
   }
 
   if (posthogInitialized && hasConfiguredPostHog() && posthogClient) {
-    posthogClient.capture(eventName, parameters);
+    posthogClient.capture(eventName, safeParameters);
   }
 
-  void ingestFirstPartyEvent(eventName, parameters);
+  void ingestFirstPartyEvent(eventName, safeParameters);
 }
 
 function getSafeErrorType(error: unknown) {

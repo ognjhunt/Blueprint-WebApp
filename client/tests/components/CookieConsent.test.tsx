@@ -10,7 +10,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CookieConsent, getCookieConsent, openCookieSettings } from "@/components/CookieConsent";
+import { CookieConsent, getCookieConsent, openCookieSettings, refreshCookieConsentFromStorage } from "@/components/CookieConsent";
 
 function atPath(path: string) {
   window.history.pushState({}, "", path);
@@ -18,6 +18,7 @@ function atPath(path: string) {
 
 beforeEach(() => {
   window.localStorage.clear();
+  refreshCookieConsentFromStorage();
   vi.useFakeTimers();
 });
 
@@ -98,5 +99,49 @@ describe("Global Privacy Control", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: /Analytics/ }));
     fireEvent.click(screen.getByRole("button", { name: "Save preferences" }));
     expect(getCookieConsent()).toMatchObject({ analytics: true, marketing: false, gpc: true });
+  });
+});
+
+
+describe("cookie choice resilience", () => {
+  it("asks again for malformed stored choices", () => {
+    atPath("/privacy");
+    window.localStorage.setItem("blueprint_cookie_consent", '{"analytics":"false"}');
+    renderAndElapse();
+    expect(screen.getByRole("region", { name: "Cookie preferences" })).toBeInTheDocument();
+    expect(getCookieConsent()).toBeNull();
+  });
+
+  it("allows rejection even when browser storage is blocked", () => {
+    atPath("/privacy");
+    renderAndElapse();
+    const blocked = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("blocked"); });
+    fireEvent.click(screen.getByRole("button", { name: "Reject all", exact: true }));
+    expect(screen.queryByRole("region", { name: "Cookie preferences" })).not.toBeInTheDocument();
+    blocked.mockRestore();
+  });
+
+  it("reopens a saved opt-in and allows withdrawal", () => {
+    atPath("/privacy");
+    renderAndElapse();
+    fireEvent.click(screen.getByRole("button", { name: "Accept all", exact: true }));
+    act(() => openCookieSettings());
+    expect(screen.getByRole("checkbox", { name: /Analytics/ })).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Reject all", exact: true }));
+    expect(getCookieConsent()).toMatchObject({ analytics: false, marketing: false });
+  });
+  it("keeps rejection effective when an old opt-in cannot be overwritten", () => {
+    atPath("/privacy");
+    window.localStorage.setItem("blueprint_cookie_consent", JSON.stringify({ analytics: true, marketing: true, necessary: true }));
+    renderAndElapse();
+    act(() => openCookieSettings());
+    const blocked = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("read only"); });
+    fireEvent.click(screen.getByRole("button", { name: "Reject all", exact: true }));
+    expect(JSON.parse(localStorage.getItem("blueprint_cookie_consent")!)).toMatchObject({ analytics: true });
+    expect(getCookieConsent()).toMatchObject({ analytics: false, marketing: false });
+    // Reopening/navigation reads the session choice, not the stale grant.
+    act(() => openCookieSettings());
+    expect(screen.getByRole("checkbox", { name: /Analytics/ })).not.toBeChecked();
+    blocked.mockRestore();
   });
 });

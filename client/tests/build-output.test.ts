@@ -59,6 +59,7 @@ describe("build output", () => {
       "forgot-password/index.html",
       "privacy/index.html",
       "terms/index.html",
+      "refunds/index.html",
     ].forEach((file) => {
       expect(fs.existsSync(distPath(file))).toBe(true);
     });
@@ -180,10 +181,10 @@ describe("build output", () => {
   it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
-    ["/", "/how-it-works", "/beta", "/contact/site-operator", "/contact/robot-team", "/sites", "/about", "/privacy", "/terms"].forEach((route) => {
+    ["/", "/how-it-works", "/beta", "/contact/site-operator", "/contact/robot-team", "/sites", "/about", "/privacy", "/terms", "/refunds"].forEach((route) => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
-    expect((sitemap.match(/<loc>/g) || []).length).toBe(9);
+    expect((sitemap.match(/<loc>/g) || []).length).toBe(10);
 
     [
       "https://tryblueprint.io/product",

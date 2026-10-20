@@ -1,4 +1,5 @@
 import { UpdatePreferencesForm } from "@/components/workspace/UpdatePreferencesForm";
+import AccountDeletion from "@/components/AccountDeletion";
 import { useState } from "react";
 import { Link, useSearch } from "wouter";
 import { AppShell } from "@/components/blueprint/app/AppShell";
@@ -108,6 +109,7 @@ function WorkspaceSettings() {
           <UpdatePreferencesForm preferences={query.data?.profile.updatePreferences} pending={action.pending} save={input => { void action.perform("/update-preferences", input, undefined, "PATCH"); }} />
           <section className="ws-section">
             <h2>Security</h2>
+            <p className="ws-note"><Link className="ws-link" href="/settings?privacy=1">Delete my account and data →</Link></p>
             <dl className="ws-facts">
               <div>
                 <dt>Password</dt>
@@ -428,11 +430,14 @@ function WorkspaceSettings() {
 
 export default function Settings() {
   const search = useSearch();
+  if (new URLSearchParams(search).get("privacy") === "1")
+    return <AppShell active="settings" breadcrumb="Account privacy"><AccountDeletion /></AppShell>;
   const manage = new URLSearchParams(search).get("setup") === "1";
   if (manage)
     return (
       <AppShell active="settings" breadcrumb="Workspace setup">
         <WorkspaceSetup manage />
+        <p className="ws-note"><Link className="ws-link" href="/settings?privacy=1">Delete my account and data →</Link></p>
       </AppShell>
     );
   return <WorkspaceSettings />;

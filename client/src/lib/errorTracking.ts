@@ -1,4 +1,5 @@
 import { withCsrfHeader } from "./csrf";
+import { sanitizeTelemetry } from "./invitationPrivacy";
 
 /**
  * Error Tracking Service
@@ -61,7 +62,12 @@ class ErrorTrackingService {
       this.sentryEnabled = true;
       void import("@sentry/react")
         .then((sentry) => {
-          sentry.init({ dsn, environment, enabled: true });
+          sentry.init({
+            dsn, environment, enabled: true, sendDefaultPii: false,
+            replaysSessionSampleRate: 0, replaysOnErrorSampleRate: 0,
+            beforeSend: (event: Record<string, unknown>) => sanitizeTelemetry(event),
+            beforeBreadcrumb: (breadcrumb: Record<string, unknown>) => sanitizeTelemetry(breadcrumb),
+          });
           this.sentry = sentry;
           for (const apply of this.sentryPending.splice(0)) apply(sentry);
         })
@@ -169,7 +175,7 @@ class ErrorTrackingService {
     const eventId = this.sendToBackend(error, context);
 
     // Also send to our own API for logging
-    this.sendToOwnApi(errorData);
+    this.sendToOwnApi(sanitizeTelemetry(errorData));
 
     return eventId;
   }
@@ -185,16 +191,17 @@ class ErrorTrackingService {
    * Add a breadcrumb for debugging
    */
   addBreadcrumb(data: BreadcrumbData) {
+    const safeData = sanitizeTelemetry(data);
     this.breadcrumbs.push({
-      ...data,
+      ...safeData,
       level: data.level || "info",
     });
 
     this.withSentry((sentry) => sentry.addBreadcrumb({
-      category: data.category,
-      message: data.message,
-      level: data.level,
-      data: data.data,
+      category: safeData.category,
+      message: safeData.message,
+      level: safeData.level,
+      data: safeData.data,
     }));
 
     // Keep only the last N breadcrumbs
@@ -211,11 +218,11 @@ class ErrorTrackingService {
     if (user) {
       this.addBreadcrumb({
         category: "auth",
-        message: `User identified: ${user.email || user.id || "unknown"}`,
+        message: "Authenticated user identified",
       });
     }
 
-    this.withSentry((sentry) => sentry.setUser(user ?? null));
+    this.withSentry((sentry) => sentry.setUser(user?.id ? { id: user.id } : null));
   }
 
   /** Runs now if the SDK has loaded, otherwise once it has (bounded). */
@@ -251,7 +258,7 @@ class ErrorTrackingService {
       }
 
       if (context.user) {
-        scope.setUser(context.user);
+        scope.setUser(context.user.id ? { id: context.user.id } : null);
       }
 
       if (context.componentStack) {

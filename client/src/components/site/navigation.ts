@@ -35,6 +35,7 @@ export const footerEvidenceLinks = [
   { href: "/about", label: "About" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
+  { href: "/refunds", label: "Refunds" },
 ];
 
 export const footerCompanyLinks = [

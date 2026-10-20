@@ -1,9 +1,10 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
-import { getCookieConsent } from "./CookieConsent";
+import { getCookieConsent, refreshCookieConsentFromStorage } from "./CookieConsent";
 import {
   analyticsEvents,
   initializeAnalytics,
+  updateAnalyticsConsent,
   trackEvent,
   trackPageView,
 } from "@/lib/analytics";
@@ -51,13 +52,22 @@ export function Analytics() {
   const [location] = useLocation();
 
   useEffect(() => {
-    return scheduleAnalyticsTask(() => {
+    const cancel = scheduleAnalyticsTask(() => {
       initializeAnalytics(getCookieConsent());
     });
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "blueprint_cookie_consent" || event.key === null) {
+        updateAnalyticsConsent(refreshCookieConsentFromStorage());
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => { cancel(); window.removeEventListener("storage", onStorage); };
   }, []);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
+    // Navigation into the capture tool must disable already-loaded providers.
+    updateAnalyticsConsent(getCookieConsent());
     return scheduleAnalyticsTask(() => {
       trackPageView(location, document.title);
     });

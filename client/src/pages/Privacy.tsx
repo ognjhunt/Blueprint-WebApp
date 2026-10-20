@@ -246,8 +246,9 @@ export default function Privacy() {
         <p>
           Analytics cookies, from Google Analytics and PostHog, tell us which pages are used so we can improve them.
           Marketing cookies let Google Analytics measure whether our outreach works. Both are off until you allow them,
-          and neither is pre-selected. Until you do, Google Analytics runs without cookies, and we count page views on our
-          own servers without cookies. If your browser sends a Global Privacy Control signal, we keep both off unless you
+          and neither is pre-selected. Google Analytics, PostHog and optional analytics events sent to our own servers
+          stay off until you allow the corresponding category. Session recording is disabled. Necessary service and
+          security requests still run. If your browser sends a Global Privacy Control signal, we keep both off unless you
           turn them on yourself.
         </p>
         <p>
@@ -293,7 +294,16 @@ export default function Privacy() {
         <LegalRows rows={betaRetentionSchedule.map((item) => [item.record, `${item.defaultWindow}. ${item.notes}`])} />
       </section>
 
-      <section><h2>Your rights and how to use them</h2>{privacyRightsRequestSteps.map((step) => <p key={step}>{step}</p>)}</section>
+      <section>
+        <h2>Your rights and how to use them</h2>
+        <p>
+          To request deletion of your account and personal data, open <a href="/settings?privacy=1">account deletion in Settings</a>.
+          You can view your request reference and status there. Submitting the request starts our review; it does not mean
+          your account is already closed or every copy is erased. We review shared site and team records, provider copies,
+          backups and any required retention before confirming the outcome. You can also email us, including if you cannot sign in.
+        </p>
+        {privacyRightsRequestSteps.map((step) => <p key={step}>{step}</p>)}
+      </section>
 
       <section>
         <h2>California privacy rights</h2>

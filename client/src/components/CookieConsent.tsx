@@ -33,6 +33,15 @@ export function globalPrivacyControlEnabled(): boolean {
 }
 
 const optionalOff: ConsentPreferences = { analytics: false, marketing: false, necessary: true };
+// A failed storage write must not resurrect a previous opt-in on navigation.
+let sessionChoice: ConsentPreferences | undefined;
+
+/** Storage events are a new choice from another tab; ordinary reads retain this tab's latest choice. */
+export function refreshCookieConsentFromStorage(): ConsentPreferences | null {
+  sessionChoice = undefined;
+  return getCookieConsent();
+}
+
 
 export function CookieConsent() {
   const [isVisible, setIsVisible] = useState(false);
@@ -64,8 +73,7 @@ export function CookieConsent() {
     // there, so there is nothing on it to consent to.
     const isCaptureToolPage = window.location.pathname.startsWith("/capture-upload");
     // Check if consent was already given
-    let consent: string | null = null;
-    try { consent = localStorage.getItem(COOKIE_CONSENT_KEY); } catch { /* Storage blocked: ask. */ }
+    const consent = getCookieConsent();
     // A browser sending Global Privacy Control has already answered for the
     // optional cookies: they stay off, so there is nothing to ask. The footer
     // link still opens the choices for anyone who wants to opt in.
@@ -76,6 +84,16 @@ export function CookieConsent() {
     }
   }, []);
 
+  const saveChoice = (consent: ConsentPreferences & { timestamp: string }) => {
+    sessionChoice = consent;
+    try { localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(consent)); } catch {
+      // Apply the choice for this page even when browser storage is blocked.
+    }
+    setPreferences(consent);
+    setIsVisible(false);
+    updateAnalyticsConsent(consent);
+  };
+
   const handleAcceptAll = () => {
     const fullConsent = {
       analytics: true,
@@ -84,9 +102,7 @@ export function CookieConsent() {
       ...(gpc ? { gpc: true } : {}),
       timestamp: new Date().toISOString(),
     };
-    localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(fullConsent));
-    setIsVisible(false);
-    updateAnalyticsConsent(fullConsent);
+    saveChoice(fullConsent);
   };
 
   const handleAcceptSelected = () => {
@@ -95,9 +111,7 @@ export function CookieConsent() {
       ...(gpc ? { gpc: true } : {}),
       timestamp: new Date().toISOString(),
     };
-    localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(consent));
-    setIsVisible(false);
-    updateAnalyticsConsent(consent);
+    saveChoice(consent);
   };
 
   const handleRejectAll = () => {
@@ -107,9 +121,7 @@ export function CookieConsent() {
       necessary: true,
       timestamp: new Date().toISOString(),
     };
-    localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(minimalConsent));
-    setIsVisible(false);
-    updateAnalyticsConsent(minimalConsent);
+    saveChoice(minimalConsent);
   };
 
   if (!isVisible) return null;
@@ -235,10 +247,15 @@ export function CookieConsent() {
 // recorded without the signal is read as opted out: only a choice made while
 // the signal was present can turn analytics or marketing on.
 export function getCookieConsent(): ConsentPreferences | null {
+  if (sessionChoice) {
+    return globalPrivacyControlEnabled() && sessionChoice.gpc !== true
+      ? { ...sessionChoice, ...optionalOff } : sessionChoice;
+  }
   try {
     const consent = localStorage.getItem(COOKIE_CONSENT_KEY);
     if (consent) {
       const stored = JSON.parse(consent) as ConsentPreferences;
+      if (!stored || typeof stored.analytics !== "boolean" || typeof stored.marketing !== "boolean") return null;
       if (globalPrivacyControlEnabled() && stored?.gpc !== true) {
         return { ...stored, ...optionalOff };
       }

@@ -58,7 +58,7 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
         </div>
         <nav aria-label="Footer navigation">
           <a href={`mailto:${COMPANY.emails.hello}`}>Get in touch <ArrowUpRight size={14} aria-hidden="true" /></a>
-          <a href="/contact/robot-team">For robot teams</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a>
+          <a href="/contact/robot-team">For robot teams</a><a href="/about">About</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/refunds">Refunds</a>
           <button type="button" className="ms-footer-link" onClick={openCookieSettings}>Cookie settings</button>
         </nav>
       </footer>

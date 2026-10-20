@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { analyticsEvents } from "../src/lib/analytics";
+import { analyticsEvents, initializeAnalytics } from "../src/lib/analytics";
+
+vi.hoisted(() => {
+  vi.stubEnv("VITE_GA_MEASUREMENT_ID", "");
+  vi.stubEnv("VITE_FIREBASE_MEASUREMENT_ID", "");
+  vi.stubEnv("VITE_PUBLIC_POSTHOG_PROJECT_TOKEN", "");
+});
 
 const fetchMock = vi.hoisted(() => vi.fn());
 const withCsrfHeaderMock = vi.hoisted(() =>
@@ -49,6 +55,8 @@ function latestAnalyticsPayload() {
 
 describe("Austin Proof-Motion Analytics Events", () => {
   beforeEach(() => {
+    vi.stubEnv("VITE_ENABLE_ANALYTICS", "1");
+    initializeAnalytics({ analytics: true, marketing: false });
     fetchMock.mockReset();
     fetchMock.mockResolvedValue(new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -59,6 +67,7 @@ describe("Austin Proof-Motion Analytics Events", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
@@ -81,7 +90,7 @@ describe("Austin Proof-Motion Analytics Events", () => {
         variant_id: "hosted_review",
         cta_id: "home_hero_primary",
         cta_label: "Scope hosted review",
-        destination: "/contact?persona=robot-team",
+        destination: "/contact",
         source: "home-hero-primary",
         conversion_goal: "structured_robot_team_intake",
       },
