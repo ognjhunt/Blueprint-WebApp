@@ -30,7 +30,11 @@ router.get("/", async (req, res) => {
 router.post("/:id/review", async (req, res) => {
   try {
     z.object({}).strict().parse(req.body);
-    return res.json({ request: await beginAccountDeletionReview(id.parse(req.params.id), res.locals.firebaseUser.uid) });
+    const user = res.locals.firebaseUser;
+    if (!user?.uid || user.localRouteProof === true) {
+      throw new AccountDeletionError("Sign in to manage account privacy requests.", 401, "authentication_required");
+    }
+    return res.json({ request: await beginAccountDeletionReview(id.parse(req.params.id), user.uid) });
   } catch (error) { return fail(error, res); }
 });
 export default router;
