@@ -5,6 +5,7 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 import { Button, Card, Eyebrow, StatusChip } from "@/components/blueprint";
 import { AdmitFreeEvaluationForm } from "@/components/admin/AdmitFreeEvaluationForm";
 import { SiteMeasurementsConsole } from "@/components/admin/SiteMeasurementsConsole";
+import { AccountDeletionQueue } from "@/components/admin/AccountDeletionQueue";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
@@ -361,6 +362,7 @@ export default function AdminJobConsole() {
             ) : null}
           </>
         )}
+        <AccountDeletionQueue />
       </div>
     </main>
   );

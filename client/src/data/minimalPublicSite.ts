@@ -15,7 +15,7 @@ export const minimalMarketingRedirects: Record<string, string> = {
   "/beta/capturer-guide": "/contact/site-operator",
 };
 
-export const minimalPublicPaths = ["/", "/sites", "/how-it-works", "/beta", "/contact/site-operator", "/contact/robot-team", "/about", "/privacy", "/terms", "/privacy/previous", "/terms/previous"] as const;
+export const minimalPublicPaths = ["/", "/sites", "/how-it-works", "/beta", "/contact/site-operator", "/contact/robot-team", "/about", "/privacy", "/terms", "/refunds", "/privacy/previous", "/terms/previous"] as const;
 
 /** Public pages with a dynamic segment that also render on the minimal shell. */
 const minimalPublicPathPatterns = [/^\/sites\/[^/]+$/] as const;

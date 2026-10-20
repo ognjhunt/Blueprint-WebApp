@@ -43,6 +43,29 @@ export const REQUIRED_CLIENT_ENV_KEYS = [
 
 export const OPT_OUT_VAR = "BLUEPRINT_ALLOW_UNCONFIGURED_CLIENT_BUILD";
 
+// Vite exposes every VITE_ variable to the browser, including dynamic env
+// object reads. These are the only credential-shaped values intended to be
+// public; their provider-side API/origin restrictions are checked separately.
+export const PUBLIC_CLIENT_CREDENTIAL_KEYS = new Set([
+  "VITE_FIREBASE_API_KEY",
+  "VITE_FIREBASE_APPCHECK_SITE_KEY",
+  "VITE_GOOGLE_MAPS_API_KEY",
+  "VITE_GOOGLE_API_KEY",
+  "VITE_PUBLIC_POSTHOG_PROJECT_TOKEN",
+]);
+
+export function unsafeClientCredentialKeys(env) {
+  return Object.keys(env).filter((key) => {
+    const normalized = key.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const credentialShaped =
+      /(?:^|_)(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|CREDENTIALS|ACCESS_CODE)(?:_|$)/i.test(key) ||
+      /APIKEY|PRIVATEKEY|SECRETKEY|SERVICEROLE|ACCESSTOKEN|REFRESHTOKEN|AUTHTOKEN|ACCESSCODE|PASSWORD|CREDENTIAL|CLIENTSECRET/.test(normalized);
+    return key.startsWith("VITE_") && credentialShaped &&
+      !PUBLIC_CLIENT_CREDENTIAL_KEYS.has(key) && Boolean(String(env[key] ?? "").trim());
+  }).sort();
+}
+
+
 /** Keys the build would inline as empty, in declaration order. */
 export function missingClientEnvKeys(env) {
   return REQUIRED_CLIENT_ENV_KEYS.filter((key) => !String(env[key] ?? "").trim());
@@ -71,6 +94,13 @@ function report(missing) {
 
 export function main() {
   const env = loadEnv("production", CLIENT_ENV_DIR, "VITE_");
+  const unsafe = unsafeClientCredentialKeys(env);
+  if (unsafe.length) {
+    console.error("[verify-client-env] Refusing to expose server credentials in the browser:");
+    for (const key of unsafe) console.error(`  - ${key} (value redacted)`);
+    console.error("Remove these VITE_ variables; server credentials belong in server-only environment variables.");
+    return 1;
+  }
   const missing = missingClientEnvKeys(env);
 
   if (!missing.length) {

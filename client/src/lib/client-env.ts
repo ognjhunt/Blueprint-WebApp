@@ -1,8 +1,6 @@
 type ClientEnvKey =
   | "VITE_GOOGLE_MAPS_API_KEY"
-  | "VITE_GOOGLE_GENAI_API_KEY"
   | "VITE_GOOGLE_API_KEY"
-  | "VITE_INTERNAL_SCENE_ACCESS_CODE"
   | "VITE_GOOGLE_CLIENT_ID"
   | "VITE_GOOGLE_APP_ID"
   | "VITE_PUBLIC_APP_URL"
@@ -78,18 +76,10 @@ export function getGoogleMapsApiKey(): string | null {
   return getOptionalClientEnv("VITE_GOOGLE_MAPS_API_KEY");
 }
 
-export function getGoogleGenerativeAiKey(): string | null {
-  return getOptionalClientEnv("VITE_GOOGLE_GENAI_API_KEY");
-}
-
 export function getGoogleApiKey(): string {
   return getRequiredClientEnv("VITE_GOOGLE_API_KEY", {
     feature: "Google Drive upload",
   });
-}
-
-export function getInternalSceneAccessCode(): string | null {
-  return getOptionalClientEnv("VITE_INTERNAL_SCENE_ACCESS_CODE");
 }
 
 export function getGoogleClientId(): string {

@@ -1,6 +1,7 @@
 import taskListingsRouter from "./routes/task-listings";
 import robotTeamAccessRouter from "./routes/robot-team-access";
 import accountInvitationsRouter from "./routes/account-invitations";
+import accountDeletionRouter from "./routes/account-deletion";
 import passwordResetRouter from "./routes/password-reset";
 import adminRobotTeamAccessRouter from "./routes/admin-robot-team-access";
 import type { Express } from "express";
@@ -136,6 +137,7 @@ export function registerRoutes(app: Express) {
   // Founder job console: one row per site job with its loop stage. Read-only;
   // admin/ops role enforced inside the router.
   app.use("/api/admin/jobs", csrfProtection, verifyFirebaseToken, requireAdminRole, adminJobConsoleRouter);
+  app.use("/api/account-deletion", csrfProtection, verifyFirebaseToken, accountDeletionRouter);
   app.use("/api/experiments", experimentsRouter);
   app.use("/api/public/launch", publicLaunchRouter);
   app.use("/api/internal/pipeline", internalPipelineRouter);

@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { analyticsEvents } from "@/lib/analytics";
+import { analyticsEvents, initializeAnalytics } from "@/lib/analytics";
+
+vi.hoisted(() => {
+  vi.stubEnv("VITE_GA_MEASUREMENT_ID", "");
+  vi.stubEnv("VITE_FIREBASE_MEASUREMENT_ID", "");
+  vi.stubEnv("VITE_PUBLIC_POSTHOG_PROJECT_TOKEN", "");
+});
 
 const fetchMock = vi.hoisted(() => vi.fn());
 const withCsrfHeaderMock = vi.hoisted(() =>
@@ -53,6 +59,8 @@ function parseAnalyticsPayload(callIndex = 0) {
 
 describe("analytics contract", () => {
   beforeEach(() => {
+    vi.stubEnv("VITE_ENABLE_ANALYTICS", "1");
+    initializeAnalytics({ analytics: true, marketing: false });
     fetchMock.mockReset();
     fetchMock.mockResolvedValue(new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -68,6 +76,7 @@ describe("analytics contract", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
   });

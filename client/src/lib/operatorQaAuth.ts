@@ -103,7 +103,10 @@ export function resolveOperatorQaAuth(env: ViteEnvLike): OperatorQaAuthSnapshot 
       isAnonymous: false,
       emailVerified: true,
       getIdToken: async () => "operator-qa-local-token",
-      getIdTokenResult: async () => ({ claims }),
+      // DEV-only fixture: sensitive account flows inspect actual sign-in age.
+      // Production Firebase auth never reads this fake token or timestamp.
+      getIdTokenResult: async () => ({ claims, authTime: new Date().toISOString(),
+        issuedAtTime: new Date().toISOString(), expirationTime: new Date(Date.now() + 3_600_000).toISOString() }),
     },
     userData,
     tokenClaims: claims,

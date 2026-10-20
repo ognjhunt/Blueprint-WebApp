@@ -1,0 +1,239 @@
+{
+  "schema": "blueprint.launch_privacy_verification.v1",
+  "audit_date": "2026-10-19",
+  "baseline_git_sha": "0413fec05c16ad1ad7bfc8aa467cb6581be7ebb3",
+  "uncommitted_changes": true,
+  "deployed": false,
+  "tests": {
+    "focused_suites": 15,
+    "focused_tests_passed": 116,
+    "browser_tests_passed": 9,
+    "typecheck": "passed",
+    "build": "passed_compile_only_missing_production_firebase_config",
+    "portability": "passed_static_only",
+    "graphify": "passed_pinned_python313",
+    "diff_whitespace": "passed"
+  },
+  "boundaries": [
+    "No live deletion or privacy-request submission",
+    "Policy drafts not adopted",
+    "No external sends or credential rotations",
+    "Live provider settings and legal contact ownership unverified",
+    "Deletion execution and completion are operator-managed"
+  ],
+  "snapshot_sha256": "a09571bf9433230700bd77522350af0678b7082143092b406a1d1c99d54bcb81",
+  "files": [
+    {
+      "path": "client/src/app/routes.tsx",
+      "sha256": "360754f58bab9c6f256b532622da6c831777d6724c561ed10b20bdaa655018f1"
+    },
+    {
+      "path": "client/src/components/AccountDeletion.tsx",
+      "sha256": "ddf36a6cb477cc0cc68c293904ae8c6b13671dcecf2157b280fe1409ae8ce21f"
+    },
+    {
+      "path": "client/src/components/Analytics.tsx",
+      "sha256": "01fcde63e401c41bdece747e40199705293ed70aff5cd604582e44a8b8dfdc91"
+    },
+    {
+      "path": "client/src/components/CookieConsent.tsx",
+      "sha256": "9e4dc9af53ca0a6c527a831820908b1326840186b71362fa635d6fb898837ff7"
+    },
+    {
+      "path": "client/src/components/ProtectedRoute.tsx",
+      "sha256": "652234b4ef244cf9a9c00db0d377dafed563ccb4cdd5b4855dae4715dcdda522"
+    },
+    {
+      "path": "client/src/components/admin/AccountDeletionQueue.tsx",
+      "sha256": "03542af49edb2fad59f61f1b89cce70c18ac0afd862aae5848ae9c4beb141273"
+    },
+    {
+      "path": "client/src/components/site/MinimalSiteLayout.tsx",
+      "sha256": "8a636c0652e71e3774bbff5c9112795cd534afed59a8ef52c9c6e15f3aebb16f"
+    },
+    {
+      "path": "client/src/components/site/navigation.ts",
+      "sha256": "4109f118ebf5fe307e0f103fe698261ed6a4849cf83b510456eec26d561a0f62"
+    },
+    {
+      "path": "client/src/data/minimalPublicSite.ts",
+      "sha256": "34051a8e4d11d00dcff5d77894d20b2af668837547cb974f290ea18d4941143c"
+    },
+    {
+      "path": "client/src/lib/analytics.ts",
+      "sha256": "90d25ae4cfe81a6dbc45270ad77e4225d63cfd8a868f3209761e422b60bc24aa"
+    },
+    {
+      "path": "client/src/lib/client-env.ts",
+      "sha256": "2e0db2b98e5b030b5a5dbce52e293552321988a096e43165e88340bcfbe45e44"
+    },
+    {
+      "path": "client/src/lib/errorTracking.ts",
+      "sha256": "948bbb6d870edf3650c949fbc986d9fcd1c5c39061bc68699d2744988f14b502"
+    },
+    {
+      "path": "client/src/lib/invitationPrivacy.test.ts",
+      "sha256": "4e46842dea621e9f5b4cc8ec18cc5d68fb109f3c9005ddf7ad4227eb6604dc72"
+    },
+    {
+      "path": "client/src/lib/invitationPrivacy.ts",
+      "sha256": "bfa90fc963c373340aaf5e267788250a6f79303a33190dea97aa8723e7281aa1"
+    },
+    {
+      "path": "client/src/lib/legalAcceptance.ts",
+      "sha256": "488dffbd467c7030ff12e994d3e456c733f2265f3f21c1c933f31277e91906ec"
+    },
+    {
+      "path": "client/src/lib/operatorQaAuth.ts",
+      "sha256": "b89ff2561776d49a02992068aa10c470d84b31776e17fb0c3cd02c0ee096cc5d"
+    },
+    {
+      "path": "client/src/pages/AdminJobConsole.tsx",
+      "sha256": "5cecb70d609ebaf7e0b6a5331c1ca4bef3c489800eb3dab641505d4aae3e2eae"
+    },
+    {
+      "path": "client/src/pages/Beta.tsx",
+      "sha256": "fdc6efd31116e5549ba977ed5f96055eb801d90a211e8df43089e7c48b910274"
+    },
+    {
+      "path": "client/src/pages/CapturerAccount.tsx",
+      "sha256": "2bf2852d7d84293bafb97d4cdca54cf33dd3d19faa20c6b509891a34ee24565e"
+    },
+    {
+      "path": "client/src/pages/Privacy.tsx",
+      "sha256": "cb3e969d92d75fd24472091871994641caff633aa98ba15cef661dcdcf44c5b1"
+    },
+    {
+      "path": "client/src/pages/Refunds.tsx",
+      "sha256": "09cadbc087eb0ebf6e9fd45c735857afe5f3846382d33cce03425b5c9dc7f0f2"
+    },
+    {
+      "path": "client/src/pages/workspace/Settings.tsx",
+      "sha256": "917bb2b063f793d5a2790c69850789277a09f16395b76c6e46341e9daa29841f"
+    },
+    {
+      "path": "client/src/types/accountDeletion.ts",
+      "sha256": "c335bb05159a72cae9bbe9cb6f9c3bce645b95705384a8b225f8fef12f3a68e3"
+    },
+    {
+      "path": "client/tests/analytics.test.ts",
+      "sha256": "6ccb36205009fda5671c5935713fc832d698924b03f28121e96630254a077fb8"
+    },
+    {
+      "path": "client/tests/components/AccountDeletion.test.tsx",
+      "sha256": "b7c0abe1ad02c9cfbffada00aa722cadf92e4adcf0cce34d31a7db27cabb5faa"
+    },
+    {
+      "path": "client/tests/components/CookieConsent.test.tsx",
+      "sha256": "c6752b4fd03cad4cb269991ff87d0c6d1e0c06af781c60c3b3ed502866f145e4"
+    },
+    {
+      "path": "client/tests/components/ProtectedRoute.test.tsx",
+      "sha256": "01ad0940cf7af624f9ff2dee41c1e4c36becf730c5c0ef0ae33fb59c5e6a040c"
+    },
+    {
+      "path": "client/tests/lib/analytics-consent.test.ts",
+      "sha256": "c347f31b941c4883a25c349af303e17359b0237adf308be8f168098e2294350a"
+    },
+    {
+      "path": "client/tests/lib/analytics.test.ts",
+      "sha256": "d7970cfd07a5b76afb20271c3a00a251a07452419f74f4aadc6cd82c8193d28d"
+    },
+    {
+      "path": "client/tests/lib/error-tracking-privacy.test.ts",
+      "sha256": "a628f7a759683817f3b4f5e7b5545aa99cbefb9aa55b95ac4550ab4ebea29c17"
+    },
+    {
+      "path": "client/tests/pages/legal-free-beta.test.ts",
+      "sha256": "aae1128b4b66001b4b32006e585659b9c3f2d2c2d18a2ebd3cd780ee858520cc"
+    },
+    {
+      "path": "client/tests/security/client-source-secret-guard.test.ts",
+      "sha256": "fae25cb9921e06b3958868d165e583d820a7e1ee00283dfc8cb9a40b602dfc4d"
+    },
+    {
+      "path": "docs/legal/privacy-policy-draft-2026-10-19.md",
+      "sha256": "463891b449058f59993f0ddf14051b20bbdd7eec54c8d5890001f5fe51f73a96"
+    },
+    {
+      "path": "docs/legal/refund-policy-draft-2026-10-19.md",
+      "sha256": "c848ef4ec55c889b958291adeab55f31d1df25053934cf5a4022feb46ee106bc"
+    },
+    {
+      "path": "docs/legal/terms-of-service-draft-2026-10-19.md",
+      "sha256": "2a5e3aa2b8c3bd228d53aa253cb9729284c12a201af2e1bab7d17712554f8f6b"
+    },
+    {
+      "path": "docs/runbooks/account-data-deletion.md",
+      "sha256": "89dbf3cafe17c99022b51cea8aa898e8c904e6719684521591dab3d638525ad8"
+    },
+    {
+      "path": "docs/security/credential-variable-inventory-2026-10-19.json",
+      "sha256": "2bc9697cb103ff99b8adc6da89306558e2067e088af6c018db742da06ea7a5b1"
+    },
+    {
+      "path": "docs/security/frontend-privacy-audit-2026-10-19.md",
+      "sha256": "011903e598eb893667eaa8e5df4a868a9193d2bbd3b4d4f0d865e635f78c0a17"
+    },
+    {
+      "path": "docs/security/launch-privacy-audit-2026-10-19.md",
+      "sha256": "aeb37ab5a5727346205031fefb122d687eb6b38f17638338c88b3ab2f726501d"
+    },
+    {
+      "path": "docs/security/public-frontend-secret-scan-2026-10-19.json",
+      "sha256": "bc29f34e9fe9fc5fadf3e0f684c882f5a77e44eeba89fd4be69ef73ec9cb9266"
+    },
+    {
+      "path": "docs/security/third-party-data-inventory-2026-10-19.md",
+      "sha256": "381f7284f1fc619b0a6df81177d810f740b02157fcdf9e8ff65eb3803a80eb30"
+    },
+    {
+      "path": "e2e/account-deletion.spec.ts",
+      "sha256": "02995fe8c0c679eee08df5545731697f9c72ffb768f1945426c8e7878da6860f"
+    },
+    {
+      "path": "e2e/cookie-consent.spec.ts",
+      "sha256": "0d2398dc2f6984295384201b697f2614b20068fcb6f280faf341c955e6904dd2"
+    },
+    {
+      "path": "e2e/privacy-pages.spec.ts",
+      "sha256": "7a4901d2f51830e68698ecfe90212d44ad86e40dc2e98f5bf61107d7cecb4c3c"
+    },
+    {
+      "path": "playwright.privacy.config.ts",
+      "sha256": "f65aa70355d1d013cb8fcbac98bdfc30628c272253c67ddf6f1a7ce5aff65d71"
+    },
+    {
+      "path": "scripts/prerender.tsx",
+      "sha256": "a26f516932a98212d3282eeefcb2cc622eb9f4d4d1b4e06d6ffbea89198f058f"
+    },
+    {
+      "path": "scripts/verify-client-env.mjs",
+      "sha256": "0512b514790b7a227d6a38568100257ddcd833f11f4c53a14e35eee02cf05ec8"
+    },
+    {
+      "path": "scripts/verify-client-env.test.ts",
+      "sha256": "e3c8e3d93609397e5c7c8be92d307e3328956610b87c2212cc8387e162b92fb4"
+    },
+    {
+      "path": "server/routes.ts",
+      "sha256": "b7095c5e88eb769a7f98ec6046853b833aac410a8c3ffd2b56ae14fc04cad51e"
+    },
+    {
+      "path": "server/routes/account-deletion.ts",
+      "sha256": "05892dd4d3f4a9e1f531fb725e1464b48adbf42d5bb7076afa95db65236a2457"
+    },
+    {
+      "path": "server/tests/account-deletion.test.ts",
+      "sha256": "bdbdd5af92eca212224410b233bd424cddd97a33fe1e260f9872804d3d8370e0"
+    },
+    {
+      "path": "server/utils/accountDeletion.ts",
+      "sha256": "c824de8386566ec84f6e2c943fec455280e3feb42e41e1a919c250b9f27f7e97"
+    },
+    {
+      "path": "server/utils/public-artifacts.ts",
+      "sha256": "c0d346509a0f9104512f09ec43b48803955f04a2f18857eedfd27051c6882e8a"
+    }
+  ]
+}

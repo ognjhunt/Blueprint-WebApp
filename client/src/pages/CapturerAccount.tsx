@@ -105,6 +105,7 @@ export default function CapturerAccount() {
             <StatusChip tone={statusTone(applicationStatus)} square>{applicationStatus?.replace(/_/g, " ") || "Not recorded"}</StatusChip>
           </div>
         </header>
+        <a className="text-sm underline" href="/settings?privacy=1">Delete my account and data</a>
 
         {!applicationStatus ? (
           <ProofBoundary level="info" title="No application state is recorded" icon={Clock3}>
