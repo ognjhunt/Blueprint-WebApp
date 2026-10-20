@@ -62,12 +62,13 @@ afterEach(() => {
 });
 
 describe("SiteReadinessPanel", () => {
-  it("shows only the next steps and what Blueprint is doing, with the rest folded", async () => {
+  it("shows only the next steps, as links, with everything else folded", async () => {
     fetchMock.mockResolvedValue(respond(readiness()));
     const { container } = render(<SiteReadinessPanel token="tok" />);
     const steps = await screen.findByRole("region", { name: "Your next steps" });
     expect(within(steps).getByRole("button", { name: "Measure how far the object moves" })).toBeInTheDocument();
-    expect(within(steps).getByText("Blueprint is rebuilding your work area in 3D from your video.")).toBeInTheDocument();
+    // No explanations, status lines or robot lists on the job page: the brief carries them.
+    expect(steps.textContent).toBe("Your next stepsMeasure how far the object moves →");
     expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/tok/readiness");
     // The full tracker lives on the printable brief, not the job page.
     expect(screen.queryByText("2 of 6")).toBeNull();
@@ -105,12 +106,11 @@ describe("SiteReadinessPanel", () => {
     fetchMock.mockResolvedValueOnce(respond({ ok: true, operations: { timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared", updatedAtIso: "t" } }));
     fetchMock.mockResolvedValueOnce(respond(readiness({
       operations: { timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared", updatedAtIso: "t" },
-      workload: { hoursPerDay: 2, hoursPerWeek: 10, sentence: "This job takes about 2 person-hours a day, about 10 a week.",
+      workload: { headline: "about 10 person-hours a week", hoursPerDay: 2, hoursPerWeek: 10, sentence: "This job takes about 2 person-hours a day, about 10 a week.",
         basis: "120 times a day, 5 days a week (you told us), at about 60 seconds per cycle (measured from your video). It counts time on this job only." },
     })));
     fireEvent.click(within(form).getByRole("button", { name: "Save answers" }));
-    const steps = screen.getByRole("region", { name: "Your next steps" });
-    expect(await within(steps).findByText("This job takes about 2 person-hours a day, about 10 a week.")).toBeInTheDocument();
+    expect(await screen.findByText("How the job runs today · about 10 person-hours a week")).toBeInTheDocument();
     const [url, init] = fetchMock.mock.calls[1];
     expect(url).toBe("/api/site-task-brief/tok/operations");
     expect(init).toMatchObject({ method: "PUT", headers: { "X-CSRF-Token": "csrf" } });
@@ -128,12 +128,12 @@ describe("SiteReadinessPanel", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("names the kinds of robot that fit in one line, and folds the shared report with its sources and brief", async () => {
+  it("counts the kinds of robot that fit in the folded report's title, with its sources and brief inside", async () => {
     fetchMock.mockResolvedValue(respond(readiness({ report: REPORT })));
     const { container } = render(<SiteReadinessPanel token="tok" />);
-    const steps = await screen.findByRole("region", { name: "Your next steps" });
-    expect(within(steps).getByText("Robots that fit your job: wheeled humanoid.")).toBeInTheDocument();
-    const report = [...container.querySelectorAll("details")].find((details) => details.querySelector("summary")?.textContent === "Your robot readiness report")!;
+    await screen.findByRole("region", { name: "Your next steps" });
+    const report = [...container.querySelectorAll("details")]
+      .find((details) => details.querySelector("summary")?.textContent === "Your robot readiness report · 1 kind of robot fits")!;
     expect(report.open).toBe(false);
     expect(within(report).getByText("Check this")).toBeInTheDocument();
     expect(within(report).getByText("Tested in the simulation")).toBeInTheDocument();

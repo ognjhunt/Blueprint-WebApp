@@ -74,7 +74,7 @@ describe("what the job takes today", () => {
   it("multiplies the site's times a day by its video's measured pace, and says what it rests on", () => {
     const value = inputs({ request: { request: {}, ...SCREENED, ...VIDEO(84) },
       operations: { timesPerDay: 120, daysPerWeek: 5, peopleNearby: null, updatedAtIso: NOW } });
-    expect(workloadOf(value)).toEqual({ hoursPerDay: 2.8, hoursPerWeek: 14,
+    expect(workloadOf(value)).toEqual({ headline: "about 14 person-hours a week", hoursPerDay: 2.8, hoursPerWeek: 14,
       sentence: "This job takes about 2.8 person-hours a day, about 14 a week.",
       basis: "120 times a day, 5 days a week (you told us), at about 84 seconds per cycle (measured from your video). It counts time on this job only." });
   });
@@ -84,7 +84,8 @@ describe("what the job takes today", () => {
     expect(workloadOf(inputs({ operations: { timesPerDay: 10, daysPerWeek: null, peopleNearby: null, updatedAtIso: NOW } }))).toBeNull();
     const perDay = workloadOf(inputs({ request: { request: {}, ...VIDEO(360) },
       operations: { timesPerDay: 10, daysPerWeek: null, peopleNearby: null, updatedAtIso: NOW } }));
-    expect(perDay).toMatchObject({ hoursPerDay: 1, hoursPerWeek: null, sentence: "This job takes about 1 person-hour a day." });
+    expect(perDay).toMatchObject({ headline: "about 1 person-hour a day", hoursPerDay: 1, hoursPerWeek: null,
+      sentence: "This job takes about 1 person-hour a day." });
     expect(perDay?.basis).toContain("10 times a day (you told us), at about 6 minutes per cycle");
   });
 

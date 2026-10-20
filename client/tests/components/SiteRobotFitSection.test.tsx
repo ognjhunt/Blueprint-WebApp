@@ -26,19 +26,25 @@ const FIT: SiteRobotFit = {
 };
 
 describe("SiteRobotFitView", () => {
-  it("shows what the job needs, every form with its verdict and reasons, and what is unknown", () => {
+  it("shows what the job needs and every form with its verdict and reasons, without descriptions or unknowns", () => {
     const { container } = render(<SiteRobotFitView fit={FIT} />);
     expect(screen.getByText(FIT.needs[1])).toBeInTheDocument();
     for (const form of FIT.forms) expect(screen.getByText(form.label)).toBeInTheDocument();
     expect(screen.getAllByText("Fits")).toHaveLength(2);
     expect(screen.getByText("Not a fit")).toBeInTheDocument();
     expect(screen.getByText(FIT.forms[1].reasons[0])).toBeInTheDocument();
-    expect(screen.getByText(FIT.unknowns[0])).toBeInTheDocument();
+    expect(screen.queryByText(FIT.forms[0].description)).toBeNull();
+    expect(screen.queryByText(FIT.unknowns[0])).toBeNull();
     expect(container.textContent).not.toMatch(/\bmatch/i);
   });
 
+  it("lists what is still unknown where asked, as on the printable brief", () => {
+    render(<SiteRobotFitView fit={FIT} showUnknowns />);
+    expect(screen.getByText(FIT.unknowns[0])).toBeInTheDocument();
+  });
+
   it("leaves out what it has nothing to say about", () => {
-    const { container } = render(<SiteRobotFitView fit={{ ...FIT, forms: [], unknowns: [] }} />);
+    const { container } = render(<SiteRobotFitView fit={{ ...FIT, forms: [] }} showUnknowns={false} />);
     expect(screen.queryByRole("list", { name: "Robot forms" })).toBeNull();
     expect(container.querySelectorAll("ul")).toHaveLength(1);
   });

@@ -4,12 +4,13 @@
  * humanoids and legged robots. Every sentence is fixed copy filled with the
  * site's own measurements and answers. It never names a robot team, because
  * the site does not compare teams: it approves the one Blueprint recommends,
- * whose evaluation of the job passed. Presentational: the readiness panel and
- * the printable brief pass it what Blueprint shared.
+ * whose evaluation of the job passed. Presentational and kept short: the
+ * readiness panel and the printable brief pass it what Blueprint shared, and
+ * only the brief lists what is still unknown (the panel's next steps ask for it).
  */
 import { FIT_VERDICT_LABELS, type SiteRobotFit } from "@/data/robotFit";
 
-export function SiteRobotFitView({ fit }: { fit: SiteRobotFit }) {
+export function SiteRobotFitView({ fit, showUnknowns = false }: { fit: SiteRobotFit; showUnknowns?: boolean }) {
   return (
     <>
       {fit.needs.length ? (
@@ -28,13 +29,12 @@ export function SiteRobotFitView({ fit }: { fit: SiteRobotFit }) {
                 <span>{form.label}</span>
                 <span className="ms-site-stage" style={{ marginLeft: "10px" }}>{FIT_VERDICT_LABELS[form.verdict]}</span>
               </p>
-              <p className="ms-fit-test">{form.description}</p>
               {form.reasons.map((reason) => <p key={reason} className="ms-fit-failure">{reason}</p>)}
             </li>
           ))}
         </ul>
       ) : null}
-      {fit.unknowns.length ? (
+      {showUnknowns && fit.unknowns.length ? (
         <ul className="ms-fit-list" aria-label="What we don't know yet">
           <li>
             <h3 className="ms-fit-name">What we don't know yet</h3>

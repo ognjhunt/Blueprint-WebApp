@@ -74,7 +74,7 @@ export default function RobotReadinessBrief() {
           {readiness.report ? (
             <section className="ms-task-interest" aria-label="Robot readiness report">
               <h2 style={{ marginTop: 0 }}>Robot readiness report</h2>
-              <ReadinessReportView report={readiness.report} />
+              <ReadinessReportView report={readiness.report} full />
             </section>
           ) : (
             <section className="ms-task-interest" aria-label="Robot readiness report">

@@ -13,55 +13,68 @@ as the expert that knows what it takes.
 
 ## What the owner's job page shows
 
-Founder direction (2026-10-20): keep the UI as simple as possible, and show the
-site exactly what it needs and no more. The panel sits above the measurements
-step and appears for the owner once footage has arrived. It shows three things
-by default.
+Founder direction (2026-10-20): keep the UI as simple as possible and the text
+to a minimum, showing the site exactly what it needs. The panel sits above the
+measurements step and appears for the owner once footage has arrived.
 
-1. **Your next steps.** Up to three missing facts, in priority order. Each says
-   why it matters and opens the step on the page where it is answered. When
-   nothing is missing, the panel says nothing is needed.
-2. **One line on what Blueprint is doing**, only from a recorded state: a rebuild
-   in progress, a recommendation on file, or a booking.
-3. **Two short lines, once known:**
-   - the hours the job takes, from the site's answers × the time per cycle
-     measured from its video (`site_video_evidence.measured_cycle_seconds`);
-   - once shared, the kinds of robot that fit.
+Shown by default:
 
-Two sections stay folded until the site opens them:
+- **Your next steps.** Up to three short links, in priority order. Each opens
+  the step on the page where it is answered. When nothing is missing, the panel
+  says nothing is needed.
 
-- **How the job runs today (optional).** One small form: how many times a day
-  the job is done, on how many days a week, and whether people work near it. It
-  is stored apart from the digest-bound brief, in `siteTaskOperations/{requestId}`.
-  Beside it sit what the hours rest on, and the speed check (today's measured
-  pace against the target time per cycle). There are no prices and no market figures.
-- **Your robot readiness report**, once an admin shares it (the robot-fit sharing
-  switch shares the whole report):
-  - **What the job needs, and every form of robot rated** (robot fit).
-  - **Getting your site ready.** A checklist matched to the forms that fit: floor
-    space at the station from the measured clearance; where a robot stands, or
-    parks and charges; power, and Wi-Fi for robots that move; a safe working zone
-    from people nearby; and how objects arrive, from the confirmed screening answers.
-  - **What decides success here.** Up to three things, by fixed triggers in this
-    order: speed shortfall, item variety, placement drift, shiny or see-through
-    packaging, jams and damage, tight space, a large or heavy object, a high
-    reliability target, then people. Each says what the simulation tests, or that
-    it is checked in the pilot.
-  - **Safety in plain English.** The robot team's risk assessment under ISO 10218
-    (adopted in the US as ANSI/A3 R15.06), and ANSI/A3 R15.08 for robots that drive
-    between spots. Standards for walking robots are still being written. It also
-    covers how robots work near people, and what Blueprint does not certify.
-  - **Robots already do jobs like this.** Matching examples from the curated,
+Two sections stay folded until opened. Each title carries the one number worth
+seeing.
+
+- **How the job runs today**, titled for example "· about 14 person-hours a
+  week" once known, and "(optional)" before that.
+  - One small form: how many times a day the job is done, on how many days a
+    week, and whether people work near it. It is stored apart from the
+    digest-bound brief, in `siteTaskOperations/{requestId}`.
+  - Inside: the hours, from the site's answers × the time per cycle measured
+    from its video (`site_video_evidence.measured_cycle_seconds`), and what they
+    rest on.
+  - The speed check: today's measured pace against the target time per cycle.
+    There are no prices and no market figures.
+- **Your robot readiness report**, titled for example "· 6 kinds of robot fit".
+  It appears once an admin shares it; the robot-fit sharing switch shares the
+  whole report. It holds:
+  - What the job needs, and every form of robot with its verdict and reasons
+    (robot fit).
+  - Getting your site ready, matched to the forms that fit:
+    - floor space at the station, from the measured clearance;
+    - where a robot stands, or parks and charges;
+    - power, and Wi-Fi for robots that move;
+    - a safe working zone, from people nearby;
+    - how objects arrive, from the confirmed screening answers.
+  - What decides success here: up to three things, by fixed triggers in this
+    order. They are speed shortfall, item variety, placement drift, shiny or
+    see-through packaging, jams and damage, tight space, a large or heavy
+    object, a high reliability target, then people. Each says what the
+    simulation tests, or that it is checked in the pilot.
+  - Safety in plain English: the robot team's risk assessment under ISO 10218
+    (adopted in the US as ANSI/A3 R15.06), and ANSI/A3 R15.08 for robots that
+    drive between spots. Standards for walking robots are still being written.
+    It also covers how robots work near people, and what Blueprint does not
+    certify.
+  - Robots already do jobs like this: matching examples from the curated,
     sourced `deployedEnvironments`, with their status, evidence, sources and the
     footnote that none is a Blueprint customer.
-  - A link to **print or save a one-page brief**.
+  - A link to print or save a one-page brief.
 
-The one-page brief (`/capture-upload/:token/brief`) is the full picture, for the
-person who has to convince someone else. It covers the complete steps to a pilot
-(video, brief, measurements n of 6, how the job runs, success target, access
-window, then Blueprint's steps), what the job takes today, the report, and what
-is left to check. The 3D scene stays where it already is: the status card's
-"View your scene" link.
+The job page shows no explanations, status lines, robot descriptions or
+unknowns. The next steps already ask for what is unknown, and the status card
+already says where the job stands and links to the 3D scene.
+
+The one-page brief (`/capture-upload/:token/brief`) carries the fuller picture,
+for the person who has to convince someone else:
+
+- the steps to a pilot (video, brief, measurements n of 6, how the job runs,
+  success target, access window, then Blueprint's steps) and what Blueprint is
+  doing;
+- what the job takes today;
+- the report, with what is still unknown;
+- what is left to check, with why each matters.
 
 People nearby now comes from the site's answer in the new form, else its earlier
 answers, else what the video shows (`people_relationship_to_work`: people working

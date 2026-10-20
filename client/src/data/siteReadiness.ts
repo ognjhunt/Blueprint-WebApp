@@ -41,6 +41,8 @@ export const MAX_TIMES_PER_DAY = 100_000;
 /* ------------------------------------------------------ what it takes today */
 
 export interface Workload {
+  /** Short, for a folded section's title: "about 14 person-hours a week". */
+  headline: string;
   hoursPerDay: number;
   /** Null until the site says on how many days a week. */
   hoursPerWeek: number | null;

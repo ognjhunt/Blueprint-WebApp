@@ -1,14 +1,14 @@
 /**
  * The owner's readiness panel on the job page: an expert's first read of the
- * job, in the site's own numbers, kept as simple as the site needs.
+ * job, in the site's own numbers, with as little text as the site needs.
  *
- * Shown by default: the next three things (each opens the step on this page
- * that answers it), one line on what Blueprint is doing, and, once known, the
- * hours the job takes and which kinds of robot fit. Folded until opened: how
- * the job runs today, and, once Blueprint shares it, the robot readiness report
- * with its printable one-page brief. The full steps to a pilot live on that
- * brief. It reads again whenever the measurements step or the how-it-runs form
- * saves. Never a robot team.
+ * Shown by default: the next three things, each a link that opens the step on
+ * this page that answers it. Folded until opened, with one number in each
+ * title: how the job runs today (the hours it takes), and, once Blueprint
+ * shares it, the robot readiness report (how many kinds of robot fit) with its
+ * printable one-page brief. The brief carries the full steps to a pilot, the
+ * reasons and what is still unknown. It reads again whenever the measurements
+ * step or the how-it-runs form saves. Never a robot team.
  */
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
@@ -64,10 +64,10 @@ export function TrackerView({ tracker }: { tracker: Tracker }) {
   );
 }
 
-export function ReadinessReportView({ report }: { report: SiteReadinessReport }) {
+export function ReadinessReportView({ report, full = false }: { report: SiteReadinessReport; full?: boolean }) {
   return (
     <>
-      <SiteRobotFitView fit={report.robotFit} />
+      <SiteRobotFitView fit={report.robotFit} showUnknowns={full} />
       <ul className="ms-fit-list" aria-label="Getting your site ready">
         <li><h3 className="ms-fit-name">Getting your site ready</h3></li>
         {report.checklist.map((item) => (
@@ -77,7 +77,6 @@ export function ReadinessReportView({ report }: { report: SiteReadinessReport })
               <span className="ms-site-stage" style={{ marginLeft: "10px" }}>{READINESS_STATE_LABELS[item.state]}</span>
             </p>
             <p className="ms-fit-test">{item.detail}</p>
-            <p className="ms-fit-failure">{item.why}</p>
           </li>
         ))}
       </ul>
@@ -194,25 +193,20 @@ function OperationsForm({ token, operations }: { token: string; operations: Site
   );
 }
 
-/** "a, b and c". */
-function listed(items: string[]) {
-  return items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
-}
-
-/** One line on which kinds of robot fit, from the shared report. */
-function robotLine(report: SiteReadinessReport | null) {
+/** The count of kinds of robot that fit, for the folded report's title. */
+function robotCount(report: SiteReadinessReport | null) {
   if (!report) return null;
   const forms = report.robotFit.forms;
-  const fits = forms.filter((form) => form.verdict === "fits").map((form) => form.label.toLowerCase());
-  const possible = forms.filter((form) => form.verdict === "possible").map((form) => form.label.toLowerCase());
-  if (fits.length) return `Robots that fit your job: ${listed(fits)}.`;
-  return possible.length ? `Robots that may fit your job: ${listed(possible)}.` : null;
+  const fits = forms.filter((form) => form.verdict === "fits").length;
+  const possible = forms.filter((form) => form.verdict === "possible").length;
+  if (fits) return `${fits} ${fits === 1 ? "kind of robot fits" : "kinds of robot fit"}`;
+  return possible ? `${possible} ${possible === 1 ? "kind of robot may fit" : "kinds of robot may fit"}` : null;
 }
 
 /**
- * Simple by default: the site's next steps, one line on what Blueprint is
- * doing, and, once known, the hours the job takes and the kinds of robot that
- * fit. The form and the full report stay folded until the site opens them.
+ * As little as the site needs: its next steps, and two folded sections whose
+ * titles carry the one number worth seeing (the hours the job takes, how many
+ * kinds of robot fit). Everything else waits until the site opens it.
  */
 export function SiteReadinessPanel({ token }: { token: string }) {
   const [readiness, setReadiness] = useState<SiteReadinessResponse | null>(null);
@@ -239,7 +233,7 @@ export function SiteReadinessPanel({ token }: { token: string }) {
   }, [read]);
 
   if (!readiness) return null;
-  const robots = robotLine(readiness.report);
+  const robots = robotCount(readiness.report);
   return (
     <>
       <section className="ms-task-interest" aria-label="Your next steps">
@@ -248,30 +242,24 @@ export function SiteReadinessPanel({ token }: { token: string }) {
           <ol className="ms-fit-list">
             {readiness.nextThings.map((thing) => (
               <li key={thing.id}>
-                <p className="ms-fit-name">
-                  <button type="button" className="ms-text-link" onClick={() => openTarget(thing.target)}>
-                    {thing.action}<span aria-hidden="true"> →</span>
-                  </button>
-                </p>
-                <p className="ms-fit-test">{thing.why}</p>
+                <button type="button" className="ms-text-link" onClick={() => openTarget(thing.target)}>
+                  {thing.action}<span aria-hidden="true"> →</span>
+                </button>
               </li>
             ))}
           </ol>
         ) : <p>Nothing is needed from you right now.</p>}
-        {readiness.tracker.meanwhile ? <p className="ms-field-hint" style={{ marginTop: "12px" }}>{readiness.tracker.meanwhile}</p> : null}
-        {readiness.workload ? <p style={{ marginTop: "12px" }}>{readiness.workload.sentence}</p> : null}
-        {robots ? <p style={{ marginTop: "12px" }}>{robots}</p> : null}
       </section>
       <details id={NEXT_THING_ANCHORS.operations} className="ms-task-interest">
-        <summary>How the job runs today (optional)</summary>
+        <summary>How the job runs today{readiness.workload ? ` · ${readiness.workload.headline}` : " (optional)"}</summary>
         <OperationsForm key={readiness.operations.updatedAtIso ?? "unanswered"} token={token} operations={readiness.operations} />
-        {readiness.workload ? <p className="ms-field-hint">{readiness.workload.basis}</p>
+        {readiness.workload ? <p className="ms-field-hint">{readiness.workload.sentence} {readiness.workload.basis}</p>
           : readiness.operations.timesPerDay ? <p className="ms-field-hint">We work out the hours this job takes once a full cycle is measured from your video.</p> : null}
         {readiness.speed ? <p className="ms-field-hint">{readiness.speed.sentence}</p> : null}
       </details>
       {readiness.report ? (
         <details className="ms-task-interest">
-          <summary>Your robot readiness report</summary>
+          <summary>Your robot readiness report{robots ? ` · ${robots}` : ""}</summary>
           <ReadinessReportView report={readiness.report} />
           <p style={{ marginTop: "14px" }}>
             <a className="ms-text-link" href={`/capture-upload/${encodeURIComponent(token)}/brief`} target="_blank" rel="noreferrer">

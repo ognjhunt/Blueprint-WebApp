@@ -365,7 +365,7 @@ test("the owner sees simple next steps above the measurements, with the robot re
     }
     if (url.pathname === `/api/site-task-brief/${token}/readiness`) return route.fulfill({ json: answered ? readinessFixture({
       operations: { timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared", updatedAtIso: "2026-10-20T12:00:00.000Z" },
-      workload: { hoursPerDay: 2, hoursPerWeek: 10, sentence: "This job takes about 2 person-hours a day, about 10 a week.",
+      workload: { headline: "about 10 person-hours a week", hoursPerDay: 2, hoursPerWeek: 10, sentence: "This job takes about 2 person-hours a day, about 10 a week.",
         basis: "120 times a day, 5 days a week (you told us), at about 60 seconds per cycle (measured from your video). It counts time on this job only." },
     }) : readinessFixture() });
     if (url.pathname === `/api/site-task-brief/${token}/measurements`) return route.fulfill({ json: { ok: true, scope: "owner", revision: 0,
@@ -374,11 +374,9 @@ test("the owner sees simple next steps above the measurements, with the robot re
   });
   await page.goto(`/capture-upload/${token}`);
   const steps = page.getByRole("region", { name: "Your next steps" });
-  await expect(steps.getByText("Blueprint is rebuilding your work area in 3D from your video.")).toBeVisible();
-  await expect(steps.getByText("Robots that fit your job: one arm on a fixed stand, two arms on a fixed stand, arm on a wheeled base, "
-    + "wheeled humanoid, walking humanoid and legged robot with an arm.")).toBeVisible();
-  // Simple by default: the form and the full report stay folded until opened.
-  const report = page.locator("details", { has: page.locator("summary", { hasText: "Your robot readiness report" }) });
+  await expect(steps).toHaveText("Your next stepsTell us how many times a day the job is done →Weigh one object →");
+  // As little text as the site needs: the form and the full report stay folded, one number in each title.
+  const report = page.locator("details", { has: page.locator("summary", { hasText: "Your robot readiness report · 6 kinds of robot fit" }) });
   await expect(report).not.toHaveAttribute("open", "");
   await expect(page.locator("details#how-the-job-runs")).not.toHaveAttribute("open", "");
   const measurements = page.getByText("Add measurements (optional)", { exact: true });
@@ -396,7 +394,7 @@ test("the owner sees simple next steps above the measurements, with the robot re
   await form.getByLabel("On how many days a week?").selectOption("5");
   await form.getByLabel("People work in the same space").check();
   await form.getByRole("button", { name: "Save answers" }).click();
-  await expect(steps.getByText("This job takes about 2 person-hours a day, about 10 a week.")).toBeVisible();
+  await expect(page.getByText("How the job runs today · about 10 person-hours a week")).toBeVisible();
   expect(puts).toEqual([{ timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared" }]);
 
   await report.locator("summary").click();

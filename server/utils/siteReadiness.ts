@@ -133,7 +133,10 @@ export function workloadOf(inputs: RobotFitInputs): Workload | null {
   const days = inputs.operations?.daysPerWeek ?? null;
   const hoursPerWeek = days ? hoursPerDay * days : null;
   const perDay = hoursText(hoursPerDay);
+  const perWeek = hoursPerWeek !== null ? hoursText(hoursPerWeek) : null;
   return {
+    headline: perWeek !== null ? `about ${perWeek} ${perWeek === "1" ? "person-hour" : "person-hours"} a week`
+      : `about ${perDay} ${perDay === "1" ? "person-hour" : "person-hours"} a day`,
     hoursPerDay,
     hoursPerWeek,
     sentence: `This job takes about ${perDay} ${perDay === "1" ? "person-hour" : "person-hours"} a day`
