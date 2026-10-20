@@ -9,7 +9,9 @@ test("homepage speaks to sites, with robot teams one nav link away", async ({ pa
   await expect(nav.getByRole("link", { name: "For robot teams" })).toHaveAttribute("href", "/contact/robot-team");
   await expect(nav.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
   const main = page.locator("main");
-  await expect(main.getByRole("link", { name: "Show us a task" })).toHaveAttribute("href", "/contact/site-operator");
+  const starts = main.getByRole("link", { name: "Show us a task" });
+  await expect(starts).toHaveCount(2);
+  for (const start of await starts.all()) await expect(start).toHaveAttribute("href", "/contact/site-operator");
   await expect(main.getByText("Free during the beta, for sites and robot teams.")).toBeVisible();
   await expect(main.getByRole("link", { name: /robot-team beta|early access/i })).toHaveCount(0);
   await expect(main.getByText("One team whose evaluation passed. You agree dates and terms with them.")).toBeVisible();

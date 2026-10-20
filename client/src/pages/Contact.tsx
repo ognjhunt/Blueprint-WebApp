@@ -8,6 +8,7 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 
 import { SEO } from "@/components/SEO";
+import { JobFitQuestions } from "@/components/site/JobFitQuestions";
 import { RobotScene } from "@/components/site/PilotPreview";
 import { SiteCaptureStart } from "@/components/site/SiteCaptureStart";
 import { TaskBrowse } from "@/components/site/TaskBrowse";
@@ -112,6 +113,12 @@ export default function Contact() {
             </a>
           </p>
         </div>
+        {!savedJob && <section className="ms-inquiry-fit" aria-labelledby="inquiry-fit-title">
+          <h2 id="inquiry-fit-title">Is your job a fit?</h2>
+          <p>We screen every job against four questions. Not sure about one? Start anyway, and we tell you which it misses and what it would take to pass.</p>
+          <JobFitQuestions />
+          <a className="ms-text-link" href="/how-it-works#job-fit">Why each one matters <ArrowRight size={16} aria-hidden="true" /></a>
+        </section>}
       </section>
     </>
   );

@@ -30,7 +30,7 @@ export default function Beta() {
         <section id="scope">
           <h2>What does it cost?</h2>
           <p>Nothing. The beta is free for sites and robot teams: submitting a job, screening, evaluation, our recommendation and booking the pilot. After you book, you and the robot team agree the physical pilot’s dates and terms directly. Blueprint takes no cut of the pilot and charges nothing for it.</p>
-          <p><a href="/refunds">Refunds for prior purchases and pilot cancellations</a></p>
+          <p className="ms-field-hint">Paid for something before the free beta, or need to cancel a pilot? <a href="/refunds">Refunds and cancellations</a></p>
         </section>
         <section>
           <h2>What is experimental?</h2>

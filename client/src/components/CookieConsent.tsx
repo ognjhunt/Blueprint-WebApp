@@ -126,19 +126,24 @@ export function CookieConsent() {
 
   if (!isVisible) return null;
 
+  // On wide screens the first prompt is one slim bar, so it covers as little of a
+  // page (a start form especially) as possible; Customize opens the full panel.
+  const bar = !showDetails;
+  const asBar = (classes: string) => (bar ? ` ${classes}` : "");
+
   return (
-    <div className="ms-cookie-consent fixed inset-x-0 bottom-0 z-50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:p-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
-      <div className="ms-cookie-panel mx-auto max-w-xl p-6 sm:ml-auto sm:mr-0" role="region" aria-labelledby="cookie-preferences-title">
+    <div className="ms-cookie-consent pointer-events-none fixed inset-x-0 bottom-0 z-50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:p-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
+      <div className={`ms-cookie-panel pointer-events-auto mx-auto max-w-xl p-6 sm:ml-auto sm:mr-0${asBar("lg:mx-auto lg:grid lg:max-w-6xl lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center lg:gap-x-6 lg:py-4")}`} role="region" aria-labelledby="cookie-preferences-title">
         {/* Header */}
-        <div className="mb-4 flex items-start justify-between">
-          <div className="flex items-center gap-3">
+        <div className={`mb-4 flex items-start justify-between${asBar("lg:contents")}`}>
+          <div className={`flex items-center gap-3${asBar("lg:col-start-1 lg:row-start-1 lg:mb-1")}`}>
             <div>
               <h2 id="cookie-preferences-title" className="text-lg font-medium tracking-tight text-[#22251e]">Cookie preferences</h2>
             </div>
           </div>
           <button
             onClick={handleRejectAll}
-            className="flex h-11 w-11 items-center justify-center text-[#62645d] transition hover:bg-[#eef0e7] hover:text-[#22251e]"
+            className={`flex h-11 w-11 items-center justify-center text-[#62645d] transition hover:bg-[#eef0e7] hover:text-[#22251e]${asBar("lg:col-start-3 lg:row-span-3 lg:row-start-1")}`}
             aria-label="Reject optional cookies and close"
           >
             <X className="h-5 w-5" />
@@ -146,12 +151,12 @@ export function CookieConsent() {
         </div>
 
         {/* Description */}
-        <p className="mb-4 text-sm text-[#62645d]">
+        <p className={`mb-4 text-sm text-[#62645d]${asBar("lg:col-start-1 lg:mb-0")}`}>
           Essential cookies keep the site working. Choose whether to allow analytics and marketing cookies. Read our{" "}
           <a href="/privacy" className="font-medium text-[#203d2e] underline underline-offset-4">privacy policy</a>.
         </p>
         {gpc && (
-          <p className="mb-4 text-sm text-[#62645d]">
+          <p className={`mb-4 text-sm text-[#62645d]${asBar("lg:col-start-1 lg:mb-0 lg:mt-2")}`}>
             Your browser sends a Global Privacy Control signal, so analytics and marketing cookies stay off unless you turn them on here.
           </p>
         )}
@@ -204,7 +209,7 @@ export function CookieConsent() {
         )}
 
         {/* Actions */}
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className={`flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between${asBar("lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:gap-5")}`}>
           <button
             onClick={() => setShowDetails(!showDetails)}
             aria-expanded={showDetails}

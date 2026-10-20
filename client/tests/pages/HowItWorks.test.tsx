@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import HowItWorks from "@/pages/HowItWorks";
 
@@ -7,6 +7,12 @@ describe("How it works", () => {
     render(<HowItWorks />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Start with your task.");
     expect(screen.getByRole("heading", { name: "One task, from phone video to a pilot." })).toBeInTheDocument();
+    const jobFit = screen.getByRole("region", { name: "Is your job a fit?" });
+    expect(jobFit).toHaveAttribute("id", "job-fit");
+    expect(jobFit).toHaveTextContent(/our own criteria, not an industry standard/);
+    const questions = within(jobFit).getAllByRole("listitem");
+    expect(questions.map(question => question.querySelector(".ms-fit-name")?.textContent)).toEqual(["Fixed scene", "Bounded job", "Known objects", "Clear window"]);
+    questions.forEach(question => expect(question).toHaveTextContent(/If not:/));
     const robotFit = screen.getByRole("heading", { name: "Any robot that fits the task can take part." }).closest("aside")!;
     expect(robotFit).toHaveTextContent(/Fixed arms, humanoids, wheeled humanoids and mobile manipulators are welcome/);
     expect(robotFit).toHaveTextContent(/multiple robots, policies or checkpoints/);

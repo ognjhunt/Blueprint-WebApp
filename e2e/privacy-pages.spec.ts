@@ -15,7 +15,7 @@ test("refund information is next to the cost explanation and available on mobile
   await page.getByRole("button", { name: "Reject all", exact: true }).click();
   const cost = page.locator("#scope");
   await expect(cost).toContainText("Nothing. The beta is free");
-  await cost.getByRole("link", { name: "Refunds for prior purchases and pilot cancellations" }).click();
+  await cost.getByRole("link", { name: "Refunds and cancellations" }).click();
   await expect(page).toHaveURL(/\/refunds$/);
   await expect(page.getByRole("heading", { name: "Refunds and cancellations", exact: true })).toBeVisible();
   await expect(page.getByText("Purchases made before the free beta", { exact: true })).toBeVisible();

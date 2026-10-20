@@ -608,3 +608,42 @@
 .legal-update-banner :focus-visible { outline: 2px solid #f6f5ef; outline-offset: 2px; }
 .ms-legal .ms-legal-version { color: var(--ms-ink); }
 .ws-content > .legal-update-banner { justify-content: space-between; margin-bottom: 24px; border-radius: 3px; }
+
+/* Blueprint's four screening questions: the full set on How it works, the short set beside the start form. */
+.ms-fit-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.ms-fit-list li { border-top: 1px solid var(--ms-rule); padding-block: 14px; }
+.ms-fit-list li:last-child { padding-bottom: 0; }
+.ms-fit-list .ms-fit-name { margin: 0; font-size: 15px; font-weight: 500; line-height: 1.5; color: var(--ms-ink); }
+.ms-fit-list .ms-fit-test { margin: 2px 0 0; font-size: 14px; line-height: 1.6; color: var(--ms-muted); }
+.ms-fit-list .ms-fit-failure { margin: 6px 0 0; font-size: 13px; line-height: 1.6; color: var(--ms-muted); }
+.ms-fit-list .ms-fit-failure span { color: var(--ms-ink); font-weight: 500; }
+.ms-how-fit h2 + p { margin-top: 14px; }
+.ms-how-fit + .ms-how-robots { margin-top: 0; border-top: 0; }
+.ms-inquiry-fit { max-width: 480px; padding-top: 26px; border-top: 1px solid var(--ms-rule); }
+@media (min-width: 701px) {
+  .ms-inquiry:has(> .ms-inquiry-fit) { grid-template-rows: auto 1fr; row-gap: 44px; }
+  .ms-inquiry:has(> .ms-inquiry-fit) > .ms-inquiry-forms { grid-column: 2; grid-row: 1 / span 2; }
+  .ms-inquiry-fit { grid-column: 1; grid-row: 2; align-self: start; }
+}
+.ms-inquiry-fit h2 { font-size: 18px; letter-spacing: -.03em; }
+.ms-inquiry-fit > p { margin-top: 8px; font-size: 14px; line-height: 1.65; color: var(--ms-muted); }
+.ms-inquiry-fit .ms-fit-list { margin-top: 16px; }
+.ms-inquiry-fit .ms-fit-list li { padding-block: 10px; }
+.ms-inquiry-fit .ms-text-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; font-size: 13px; }
+.ms-legal .ms-field-hint { margin-top: 12px; font-size: 13px; }
+
+/* Home: the questions a site asks before starting, then the one action again. */
+.ms-faq { padding-block: 56px 8px; }
+.ms-faq h2, .ms-closing h2 { font-size: clamp(26px, 2.6vw, 36px); line-height: 1.15; letter-spacing: -.045em; }
+.ms-faq-items { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 60px; margin-top: 26px; }
+.ms-faq-items > div { border-top: 1px solid var(--ms-rule); padding-block: 20px 24px; }
+.ms-faq h3 { font-size: 17px; line-height: 1.4; letter-spacing: -.02em; color: var(--ms-ink); }
+.ms-faq-items p { margin-top: 8px; max-width: 58ch; font-size: 14px; line-height: 1.7; color: var(--ms-muted); }
+.ms-faq-items a { text-decoration: underline; text-underline-offset: 4px; }
+.ms-closing { padding-block: 44px 72px; }
+.ms-closing p { margin-top: 12px; font-size: 16px; line-height: 1.6; color: var(--ms-muted); }
+.ms-closing .ms-button { margin-top: 24px; }
+@media (max-width: 700px) {
+  .ms-faq-items { grid-template-columns: 1fr; }
+  .ms-faq { padding-top: 40px; }
+}

@@ -7,7 +7,10 @@ describe("Site-led homepage", () => {
   it("speaks to sites only, with one call to action and the price", () => {
     render(<Home />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Could a robot take over a repetitive task at your site?");
-    expect(screen.getByRole("link", { name: "Show us a task" })).toHaveAttribute("href", "/contact/site-operator");
+    // One action, offered in the hero and again after the questions.
+    const starts = screen.getAllByRole("link", { name: "Show us a task" });
+    expect(starts).toHaveLength(2);
+    starts.forEach(link => expect(link).toHaveAttribute("href", "/contact/site-operator"));
     expect(screen.getByText("Free during the beta, for sites and robot teams.")).toBeInTheDocument();
     // Robot teams reach their own page from the nav, not from the homepage.
     expect(screen.queryByRole("link", { name: /robot-team beta|early access/i })).not.toBeInTheDocument();
@@ -138,6 +141,24 @@ describe("Site-led homepage", () => {
     expect(steps[1]).toHaveTextContent(/Robot teams evaluate it.*Invited teams test it in a simplified simulation of your task, informed by your footage\./);
     expect(steps[2]).toHaveTextContent(/Book the recommended pilot.*One team whose evaluation passed\. You agree dates and terms with them\./);
     expect(screen.getByText(/A simulated evaluation is an estimate, not proof/)).toBeInTheDocument();
+  });
+
+  it("answers the questions a site asks before starting, from the published terms", () => {
+    render(<Home />);
+    const faq = screen.getByRole("region", { name: "Questions sites ask" });
+    expect(within(faq).getAllByRole("heading", { level: 3 }).map(heading => heading.textContent)).toEqual([
+      "Why not call robot vendors myself?",
+      "Is it really free?",
+      "What if no robot team passes?",
+      "Who is responsible for the on-site pilot?",
+      "What happens to my footage?",
+    ]);
+    expect(faq).toHaveTextContent(/same simulation, built from your site, against the same success criteria, and we recommend one team whose evaluation passed/);
+    expect(faq).toHaveTextContent(/takes no cut of the pilot/);
+    expect(faq).toHaveTextContent(/Blueprint is not a party to the pilot/);
+    expect(faq).toHaveTextContent(/Robot teams never receive your recording/);
+    expect(faq).not.toHaveTextContent(/match|guarantee|certif|best/i);
+    expect(screen.getByRole("region", { name: "Start with one recurring task." })).toHaveTextContent("We reply within two business days.");
   });
 
   it("keeps the example still while a keyboard user is inside it, even after the pointer leaves", () => {
