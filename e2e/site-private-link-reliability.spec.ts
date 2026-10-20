@@ -343,7 +343,7 @@ function readinessFixture(overrides: Record<string, unknown> = {}) {
   };
 }
 
-test("the owner works through the readiness panel above the measurements, with every form of robot and no robot team named", async ({ page }, info) => {
+test("the owner sees simple next steps above the measurements, with the robot report folded and no robot team named", async ({ page }, info) => {
   const token = "readiness-fixture";
   const puts: Array<Record<string, unknown>> = [];
   let answered = false;
@@ -373,32 +373,39 @@ test("the owner works through the readiness panel above the measurements, with e
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });
   await page.goto(`/capture-upload/${token}`);
-  await expect(page.getByRole("link", { name: "Open your site in 3D" })).toHaveAttribute("href", "https://scene.example/view");
-  const steps = page.getByRole("region", { name: "Steps to a pilot" });
-  await expect(steps.getByText("1 of 6")).toBeVisible();
-  await expect(page.getByText("Blueprint is rebuilding your work area in 3D from your video.")).toBeVisible();
-
-  const report = page.getByRole("region", { name: "Robot readiness report" });
-  for (const label of ["One arm on a fixed stand", "Two arms on a fixed stand", "Arm on a wheeled base", "Wheeled humanoid",
-    "Walking humanoid", "Legged robot with an arm"]) await expect(report.getByText(label, { exact: true })).toBeVisible();
-  await expect(report.getByText("Checked in the pilot, not the simulation")).toBeVisible();
-  await expect(report.getByRole("link", { name: "China Daily: humanoid robots move onto fast track" })).toBeVisible();
-  await expect(report).not.toContainText(/match/i);
+  const steps = page.getByRole("region", { name: "Your next steps" });
+  await expect(steps.getByText("Blueprint is rebuilding your work area in 3D from your video.")).toBeVisible();
+  await expect(steps.getByText("Robots that fit your job: one arm on a fixed stand, two arms on a fixed stand, arm on a wheeled base, "
+    + "wheeled humanoid, walking humanoid and legged robot with an arm.")).toBeVisible();
+  // Simple by default: the form and the full report stay folded until opened.
+  const report = page.locator("details", { has: page.locator("summary", { hasText: "Your robot readiness report" }) });
+  await expect(report).not.toHaveAttribute("open", "");
+  await expect(page.locator("details#how-the-job-runs")).not.toHaveAttribute("open", "");
   const measurements = page.getByText("Add measurements (optional)", { exact: true });
-  expect((await report.boundingBox())!.y).toBeLessThan((await measurements.boundingBox())!.y);
+  expect((await steps.boundingBox())!.y).toBeLessThan((await measurements.boundingBox())!.y);
+  await page.screenshot({ path: info.outputPath("readiness-default-local-fixture.png"), fullPage: true });
 
   // A next thing opens the step that answers it.
-  await page.getByRole("button", { name: "Weigh one object" }).click();
+  await steps.getByRole("button", { name: "Weigh one object" }).click();
   await expect(page.locator("details#site-measurements")).toHaveAttribute("open", "");
+  await steps.getByRole("button", { name: "Tell us how many times a day the job is done" }).click();
+  await expect(page.locator("details#how-the-job-runs")).toHaveAttribute("open", "");
 
   const form = page.getByRole("form", { name: "How the job runs today" });
   await form.getByLabel("How many times a day is the job done?").fill("120");
   await form.getByLabel("On how many days a week?").selectOption("5");
   await form.getByLabel("People work in the same space").check();
   await form.getByRole("button", { name: "Save answers" }).click();
-  await expect(page.getByText("This job takes about 2 person-hours a day, about 10 a week.")).toBeVisible();
+  await expect(steps.getByText("This job takes about 2 person-hours a day, about 10 a week.")).toBeVisible();
   expect(puts).toEqual([{ timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared" }]);
-  await expect(report.getByRole("link", { name: /one-page robot readiness brief/ })).toHaveAttribute("href", `/capture-upload/${token}/brief`);
+
+  await report.locator("summary").click();
+  for (const label of ["One arm on a fixed stand", "Two arms on a fixed stand", "Arm on a wheeled base", "Wheeled humanoid",
+    "Walking humanoid", "Legged robot with an arm"]) await expect(report.getByText(label, { exact: true })).toBeVisible();
+  await expect(report.getByText("Checked in the pilot, not the simulation")).toBeVisible();
+  await expect(report.getByRole("link", { name: "China Daily: humanoid robots move onto fast track" })).toBeVisible();
+  await expect(report.getByRole("link", { name: "Print or save a one-page brief" })).toHaveAttribute("href", `/capture-upload/${token}/brief`);
+  await expect(page.locator("body")).not.toContainText(/\bmatch/i);
   await page.screenshot({ path: info.outputPath("readiness-panel-local-fixture.png"), fullPage: true });
 });
 

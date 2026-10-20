@@ -32,24 +32,21 @@ A few tape-measure readings let Blueprint check the rebuilt scene against your s
 
 Blueprint reviews the readings with your footage. They are evidence for that check, never a result. A reading cannot make an evaluation pass, and a part of the scene with no reading stays unchecked. You can correct a reading at any time; the record keeps who saved each one and when.
 
-## Your readiness panel
+## Your next steps
 
-Once your video is in, your job page shows a few things just above the measurements:
+Once your video is in, your job page shows **Your next steps** just above the measurements. That is the most useful thing you can do next, what Blueprint is doing, and, once known, the hours your job takes and the kinds of robot that fit. Each step opens the place on the page where you answer it.
 
-- **Your site, rebuilt:** the 3D scene we built from your video, when it is ready.
-- **Steps to a pilot:** what is done, what is left, and what Blueprint is doing now.
-- **Your next three things:** the most useful facts we are missing. Each one opens the step on the page where you answer it.
-- **How the job runs today:** how many times a day the job is done, on how many days a week, and whether people work near it. Every answer is optional. With your answers and the time per cycle we measure from your video, the page works out the hours the job takes today. It also compares that pace with your target time per cycle.
+Two parts stay folded until you open them:
 
-Once Blueprint has reviewed your job, the panel also shows your **robot readiness report**:
+- **How the job runs today (optional):** how many times a day the job is done, on how many days a week, and whether people work near it. With the time per cycle we measure from your video, this gives the hours the job takes today, and compares that pace with your target time per cycle.
+- **Your robot readiness report:** this appears once Blueprint has reviewed your job. It covers:
+  - what your job needs from a robot, and how every kind of robot measures up: one arm or two arms on a fixed stand, an arm on a wheeled base, a wheeled humanoid, a walking humanoid and a legged robot with an arm;
+  - getting your site ready;
+  - what decides success here;
+  - safety in plain English;
+  - published examples of robots doing this kind of job, with their sources. None is a Blueprint customer.
 
-- **What your job needs from a robot**, and how every kind of robot measures up: one arm or two arms on a fixed stand, an arm on a wheeled base, a wheeled humanoid, a walking humanoid and a legged robot with an arm. Each gets "Fits", "Possible" or "Not a fit", with the reason in your own numbers.
-- **Getting your site ready:** floor space at the station, where a robot would stand or park and charge, power and Wi-Fi, a safe working zone, and how objects arrive.
-- **What decides success here:** up to three things that make your job hard. Each says whether the simulation tests it, or whether it is checked in the pilot.
-- **Safety in plain English:** the robot team's risk assessment under the robot-safety standards, how robots work near people, and what Blueprint does not certify.
-- **Robots already do jobs like this:** where they exist, published examples of this kind of task, with their sources. None is a Blueprint customer.
-
-You can print the report, or save it as a PDF, from **Open your one-page robot readiness brief**, for anyone else who needs to agree. It names no robot team: Blueprint invites teams whose robots look right for the job, and if it recommends one, it will be a team whose evaluation of your job passed. You do not need to compare teams. The report is a first read, not a promise that any robot can do the job.
+From the report you can print or save a one-page brief, for anyone else who needs to agree. The report names no robot team: Blueprint invites teams whose robots look right for the job, and if it recommends one, it will be a team whose evaluation of your job passed. It is a first read, not a promise that any robot can do the job.
 
 ## Recover a saved job
 

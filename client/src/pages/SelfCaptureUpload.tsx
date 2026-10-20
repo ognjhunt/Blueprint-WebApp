@@ -1075,11 +1075,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               scene is checked against; film links record them too. Mounted once,
               outside the saved/unsaved branches, so readings typed while a video
               lands on another device survive the switch to the saved layout. */}
-          {/* The owner's readiness panel: steps to a pilot, the next three things,
-              how the job runs and what it takes today, and the robot readiness
-              report once Blueprint shares it. Fixed sentences and the site's own
+          {/* The owner's next steps, kept short, with how the job runs and the robot
+              readiness report folded until opened. Fixed sentences and the site's own
               data, never a team. Right above the measurements its next steps open. */}
-          {scope === "owner" && <SiteReadinessPanel token={token} sceneViewUrl={status?.sceneViewUrl ?? null} />}
+          {scope === "owner" && <SiteReadinessPanel token={token} />}
           <SiteMeasurementsDisclosure token={token} />
           </div>}
         </>

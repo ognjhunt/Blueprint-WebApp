@@ -62,16 +62,24 @@ afterEach(() => {
 });
 
 describe("SiteReadinessPanel", () => {
-  it("shows the steps to a pilot, what Blueprint is doing, and the next three things", async () => {
+  it("shows only the next steps and what Blueprint is doing, with the rest folded", async () => {
     fetchMock.mockResolvedValue(respond(readiness()));
-    render(<SiteReadinessPanel token="tok" sceneViewUrl={null} />);
-    const steps = await screen.findByRole("region", { name: "Steps to a pilot" });
-    expect(within(steps).getByText("2 of 6")).toBeInTheDocument();
-    expect(within(steps).getByText("In progress")).toBeInTheDocument();
-    expect(screen.getByText("Blueprint is rebuilding your work area in 3D from your video.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Measure how far the object moves" })).toBeInTheDocument();
+    const { container } = render(<SiteReadinessPanel token="tok" />);
+    const steps = await screen.findByRole("region", { name: "Your next steps" });
+    expect(within(steps).getByRole("button", { name: "Measure how far the object moves" })).toBeInTheDocument();
+    expect(within(steps).getByText("Blueprint is rebuilding your work area in 3D from your video.")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith("/api/site-task-brief/tok/readiness");
-    expect(screen.queryByRole("region", { name: "Robot readiness report" })).toBeNull();
+    // The full tracker lives on the printable brief, not the job page.
+    expect(screen.queryByText("2 of 6")).toBeNull();
+    const folded = [...container.querySelectorAll("details")];
+    expect(folded.map((details) => details.querySelector("summary")?.textContent)).toEqual(["How the job runs today (optional)"]);
+    expect(folded.every((details) => !details.open)).toBe(true);
+  });
+
+  it("says when nothing is needed from the site", async () => {
+    fetchMock.mockResolvedValue(respond(readiness({ nextThings: [] })));
+    render(<SiteReadinessPanel token="tok" />);
+    expect(await screen.findByText("Nothing is needed from you right now.")).toBeInTheDocument();
   });
 
   it("opens the step that answers a next thing", async () => {
@@ -81,15 +89,15 @@ describe("SiteReadinessPanel", () => {
     details.innerHTML = "<summary>Add measurements (optional)</summary>";
     details.scrollIntoView = vi.fn();
     document.body.appendChild(details);
-    render(<SiteReadinessPanel token="tok" sceneViewUrl={null} />);
+    render(<SiteReadinessPanel token="tok" />);
     fireEvent.click(await screen.findByRole("button", { name: "Measure how far the object moves" }));
     expect(details.open).toBe(true);
     expect(details.scrollIntoView).toHaveBeenCalled();
   });
 
-  it("saves how the job runs, then reads again", async () => {
+  it("saves how the job runs, then reads again and shows the hours in the next steps", async () => {
     fetchMock.mockResolvedValueOnce(respond(readiness()));
-    render(<SiteReadinessPanel token="tok" sceneViewUrl={null} />);
+    render(<SiteReadinessPanel token="tok" />);
     const form = await screen.findByRole("form", { name: "How the job runs today" });
     fireEvent.change(within(form).getByLabelText("How many times a day is the job done?"), { target: { value: "120" } });
     fireEvent.change(within(form).getByLabelText("On how many days a week?"), { target: { value: "5" } });
@@ -101,7 +109,8 @@ describe("SiteReadinessPanel", () => {
         basis: "120 times a day, 5 days a week (you told us), at about 60 seconds per cycle (measured from your video). It counts time on this job only." },
     })));
     fireEvent.click(within(form).getByRole("button", { name: "Save answers" }));
-    expect(await screen.findByText("This job takes about 2 person-hours a day, about 10 a week.")).toBeInTheDocument();
+    const steps = screen.getByRole("region", { name: "Your next steps" });
+    expect(await within(steps).findByText("This job takes about 2 person-hours a day, about 10 a week.")).toBeInTheDocument();
     const [url, init] = fetchMock.mock.calls[1];
     expect(url).toBe("/api/site-task-brief/tok/operations");
     expect(init).toMatchObject({ method: "PUT", headers: { "X-CSRF-Token": "csrf" } });
@@ -111,7 +120,7 @@ describe("SiteReadinessPanel", () => {
 
   it("refuses a times-a-day answer that is not a whole number without sending it", async () => {
     fetchMock.mockResolvedValueOnce(respond(readiness()));
-    render(<SiteReadinessPanel token="tok" sceneViewUrl={null} />);
+    render(<SiteReadinessPanel token="tok" />);
     const form = await screen.findByRole("form", { name: "How the job runs today" });
     fireEvent.change(within(form).getByLabelText("How many times a day is the job done?"), { target: { value: "2.5" } });
     fireEvent.click(within(form).getByRole("button", { name: "Save answers" }));
@@ -119,28 +128,28 @@ describe("SiteReadinessPanel", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("shows the shared report, its sources, the scene and the printable brief", async () => {
+  it("names the kinds of robot that fit in one line, and folds the shared report with its sources and brief", async () => {
     fetchMock.mockResolvedValue(respond(readiness({ report: REPORT })));
-    render(<SiteReadinessPanel token="tok" sceneViewUrl="https://scene.example/view" />);
-    const report = await screen.findByRole("region", { name: "Robot readiness report" });
-    expect(within(report).getByText("Wheeled humanoid")).toBeInTheDocument();
+    const { container } = render(<SiteReadinessPanel token="tok" />);
+    const steps = await screen.findByRole("region", { name: "Your next steps" });
+    expect(within(steps).getByText("Robots that fit your job: wheeled humanoid.")).toBeInTheDocument();
+    const report = [...container.querySelectorAll("details")].find((details) => details.querySelector("summary")?.textContent === "Your robot readiness report")!;
+    expect(report.open).toBe(false);
     expect(within(report).getByText("Check this")).toBeInTheDocument();
     expect(within(report).getByText("Tested in the simulation")).toBeInTheDocument();
     expect(within(report).getByRole("link", { name: "China Daily" })).toHaveAttribute("href", "https://example.org/source");
     expect(within(report).getByText(REPORT.examplesFootnote)).toBeInTheDocument();
-    expect(within(report).getByRole("link", { name: /one-page robot readiness brief/ })).toHaveAttribute("href", "/capture-upload/tok/brief");
-    expect(screen.getByRole("link", { name: "Open your site in 3D" })).toHaveAttribute("href", "https://scene.example/view");
-    expect(report.textContent).not.toMatch(/\bmatch/i);
+    expect(within(report).getByRole("link", { name: "Print or save a one-page brief" })).toHaveAttribute("href", "/capture-upload/tok/brief");
+    expect(container.textContent).not.toMatch(/\bmatch/i);
   });
 
-  it("reads again when measurements are saved, and shows only the scene when it cannot read", async () => {
+  it("reads again when measurements are saved, and shows nothing it could not read", async () => {
     fetchMock.mockResolvedValueOnce(respond({ error: "unavailable" }, 503));
-    render(<SiteReadinessPanel token="tok" sceneViewUrl="https://scene.example/view" />);
+    const { container } = render(<SiteReadinessPanel token="tok" />);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    expect(screen.getByRole("region", { name: "Your site, rebuilt" })).toBeInTheDocument();
-    expect(screen.queryByRole("region", { name: "Steps to a pilot" })).toBeNull();
+    expect(container).toBeEmptyDOMElement();
     fetchMock.mockResolvedValueOnce(respond(readiness()));
     await act(async () => { window.dispatchEvent(new Event(SITE_MEASUREMENTS_SAVED_EVENT)); });
-    expect(await screen.findByRole("region", { name: "Steps to a pilot" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Your next steps" })).toBeInTheDocument();
   });
 });

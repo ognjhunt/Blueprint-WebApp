@@ -913,11 +913,11 @@ describe("the readiness panel above the measurements", () => {
     });
   }
 
-  it("shows the owner the steps to a pilot and the next things, above the measurements they open", async () => {
+  it("shows the owner the next steps, above the measurements they open", async () => {
     setUserAgent(PHONE_UA);
     vi.stubGlobal("fetch", fetchFor("owner"));
     render(<SelfCaptureUpload />);
-    const heading = await screen.findByRole("heading", { name: "Steps to a pilot" });
+    const heading = await screen.findByRole("heading", { name: "Your next steps" });
     const measurements = screen.getByText("Add measurements (optional)");
     expect(heading.compareDocumentPosition(measurements) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(measurements.closest("details")).toHaveAttribute("id", "site-measurements");
@@ -931,6 +931,6 @@ describe("the readiness panel above the measurements", () => {
     render(<SelfCaptureUpload />);
     await screen.findByText("Add measurements (optional)");
     expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/readiness"))).toBe(false);
-    expect(screen.queryByRole("heading", { name: "Steps to a pilot" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Your next steps" })).not.toBeInTheDocument();
   });
 });

@@ -1,14 +1,14 @@
 /**
  * The owner's readiness panel on the job page: an expert's first read of the
- * job, in the site's own numbers.
+ * job, in the site's own numbers, kept as simple as the site needs.
  *
- * From the start: the site rebuilt in 3D, the steps to a pilot, the next three
- * things (each opens the step on this page that answers it), how the job runs
- * today, and what it takes today. Once Blueprint shares it: the robot readiness
- * report, with what the job needs and every form of robot, getting the site
- * ready, what decides success, safety, and where robots already do this kind of
- * job, plus a printable one-page brief. It reads again whenever the
- * measurements step or the how-it-runs form saves. Never a robot team.
+ * Shown by default: the next three things (each opens the step on this page
+ * that answers it), one line on what Blueprint is doing, and, once known, the
+ * hours the job takes and which kinds of robot fit. Folded until opened: how
+ * the job runs today, and, once Blueprint shares it, the robot readiness report
+ * with its printable one-page brief. The full steps to a pilot live on that
+ * brief. It reads again whenever the measurements step or the how-it-runs form
+ * saves. Never a robot team.
  */
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
@@ -194,7 +194,27 @@ function OperationsForm({ token, operations }: { token: string; operations: Site
   );
 }
 
-export function SiteReadinessPanel({ token, sceneViewUrl }: { token: string; sceneViewUrl: string | null }) {
+/** "a, b and c". */
+function listed(items: string[]) {
+  return items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
+}
+
+/** One line on which kinds of robot fit, from the shared report. */
+function robotLine(report: SiteReadinessReport | null) {
+  if (!report) return null;
+  const forms = report.robotFit.forms;
+  const fits = forms.filter((form) => form.verdict === "fits").map((form) => form.label.toLowerCase());
+  const possible = forms.filter((form) => form.verdict === "possible").map((form) => form.label.toLowerCase());
+  if (fits.length) return `Robots that fit your job: ${listed(fits)}.`;
+  return possible.length ? `Robots that may fit your job: ${listed(possible)}.` : null;
+}
+
+/**
+ * Simple by default: the site's next steps, one line on what Blueprint is
+ * doing, and, once known, the hours the job takes and the kinds of robot that
+ * fit. The form and the full report stay folded until the site opens them.
+ */
+export function SiteReadinessPanel({ token }: { token: string }) {
   const [readiness, setReadiness] = useState<SiteReadinessResponse | null>(null);
 
   const read = useCallback((isCurrent: () => boolean) => {
@@ -218,68 +238,47 @@ export function SiteReadinessPanel({ token, sceneViewUrl }: { token: string; sce
     };
   }, [read]);
 
+  if (!readiness) return null;
+  const robots = robotLine(readiness.report);
   return (
     <>
-      {sceneViewUrl ? (
-        <section className="ms-task-interest" aria-label="Your site, rebuilt">
-          <h2 style={{ marginTop: 0 }}>Your site, rebuilt</h2>
-          <p>We rebuilt your work area in 3D from your video. Robot teams are evaluated in a simulation built from the same footage.</p>
-          <p><a className="ms-button" href={sceneViewUrl} target="_blank" rel="noreferrer">Open your site in 3D</a></p>
-        </section>
-      ) : null}
-      {readiness ? (
-        <>
-          <section className="ms-task-interest" aria-label="Steps to a pilot">
-            <h2 style={{ marginTop: 0 }}>Steps to a pilot</h2>
-            <TrackerView tracker={readiness.tracker} />
-          </section>
-          <section className="ms-task-interest" aria-label="Your next three things">
-            <h2 style={{ marginTop: 0 }}>Your next three things</h2>
-            {readiness.nextThings.length ? (
-              <ol className="ms-fit-list">
-                {readiness.nextThings.map((thing) => (
-                  <li key={thing.id}>
-                    <p className="ms-fit-name">
-                      <button type="button" className="ms-text-link" onClick={() => openTarget(thing.target)}>
-                        {thing.action}<span aria-hidden="true"> →</span>
-                      </button>
-                    </p>
-                    <p className="ms-fit-test">{thing.why}</p>
-                  </li>
-                ))}
-              </ol>
-            ) : <p className="ms-field-hint">You've given us everything we need for now.</p>}
-          </section>
-          <section className="ms-task-interest" aria-label="How the job runs today" id={NEXT_THING_ANCHORS.operations}>
-            <h2 style={{ marginTop: 0 }}>How the job runs today</h2>
-            <OperationsForm key={readiness.operations.updatedAtIso ?? "unanswered"} token={token} operations={readiness.operations} />
-            {readiness.workload || readiness.speed || readiness.operations.timesPerDay ? (
-              <div style={{ marginTop: "18px" }}>
-                <h3 className="ms-fit-name">What this job takes today</h3>
-                {readiness.workload ? (
-                  <>
-                    <p>{readiness.workload.sentence}</p>
-                    <p className="ms-field-hint">{readiness.workload.basis}</p>
-                  </>
-                ) : readiness.operations.timesPerDay ? (
-                  <p className="ms-field-hint">We work out the hours this job takes once a full cycle is measured from your video.</p>
-                ) : null}
-                {readiness.speed ? <p>{readiness.speed.sentence}</p> : null}
-              </div>
-            ) : null}
-          </section>
-          {readiness.report ? (
-            <section className="ms-task-interest" aria-label="Robot readiness report">
-              <h2 style={{ marginTop: 0 }}>Robot readiness report</h2>
-              <ReadinessReportView report={readiness.report} />
-              <p style={{ marginTop: "14px" }}>
-                <a className="ms-text-link" href={`/capture-upload/${encodeURIComponent(token)}/brief`} target="_blank" rel="noreferrer">
-                  Open your one-page robot readiness brief to print or share
-                </a>
-              </p>
-            </section>
-          ) : null}
-        </>
+      <section className="ms-task-interest" aria-label="Your next steps">
+        <h2 style={{ marginTop: 0 }}>Your next steps</h2>
+        {readiness.nextThings.length ? (
+          <ol className="ms-fit-list">
+            {readiness.nextThings.map((thing) => (
+              <li key={thing.id}>
+                <p className="ms-fit-name">
+                  <button type="button" className="ms-text-link" onClick={() => openTarget(thing.target)}>
+                    {thing.action}<span aria-hidden="true"> →</span>
+                  </button>
+                </p>
+                <p className="ms-fit-test">{thing.why}</p>
+              </li>
+            ))}
+          </ol>
+        ) : <p>Nothing is needed from you right now.</p>}
+        {readiness.tracker.meanwhile ? <p className="ms-field-hint" style={{ marginTop: "12px" }}>{readiness.tracker.meanwhile}</p> : null}
+        {readiness.workload ? <p style={{ marginTop: "12px" }}>{readiness.workload.sentence}</p> : null}
+        {robots ? <p style={{ marginTop: "12px" }}>{robots}</p> : null}
+      </section>
+      <details id={NEXT_THING_ANCHORS.operations} className="ms-task-interest">
+        <summary>How the job runs today (optional)</summary>
+        <OperationsForm key={readiness.operations.updatedAtIso ?? "unanswered"} token={token} operations={readiness.operations} />
+        {readiness.workload ? <p className="ms-field-hint">{readiness.workload.basis}</p>
+          : readiness.operations.timesPerDay ? <p className="ms-field-hint">We work out the hours this job takes once a full cycle is measured from your video.</p> : null}
+        {readiness.speed ? <p className="ms-field-hint">{readiness.speed.sentence}</p> : null}
+      </details>
+      {readiness.report ? (
+        <details className="ms-task-interest">
+          <summary>Your robot readiness report</summary>
+          <ReadinessReportView report={readiness.report} />
+          <p style={{ marginTop: "14px" }}>
+            <a className="ms-text-link" href={`/capture-upload/${encodeURIComponent(token)}/brief`} target="_blank" rel="noreferrer">
+              Print or save a one-page brief
+            </a>
+          </p>
+        </details>
       ) : null}
     </>
   );
