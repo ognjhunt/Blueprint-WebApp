@@ -1,5 +1,8 @@
 import { defineConfig } from "@playwright/test";
 
+// The spec and its isolated frontend must agree on the DEV-only auth fixture.
+process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH = "1";
+
 // Loopback frontend only. Specs mock APIs; no Firebase/backend or provider jobs.
 export default defineConfig({
   testDir: "./e2e",
