@@ -1,107 +1,162 @@
 # Site readiness report: an expert's first read of a site's job
 
 Status: approved by the founder on 2026-10-20 ("do all of these and implement
-in full"). It builds on robot fit (`2026-10-20-robot-fit-design.md`).
+in full"), then cut down the same day: "keep the UI/UX as simple as possible",
+"too much text", and finally "they literally should ONLY have to submit the
+video and that's it". It builds on robot fit (`2026-10-20-robot-fit-design.md`).
 
 ## Why
 
 A site that has never bought a robot has questions it does not know to ask:
-will it work here, what has to change, is it worth it, is it safe, what could go
-wrong, what next, and how to convince someone else. An integrator answers them on
-day one. This report answers them from the site's own numbers, so Blueprint reads
-as the expert that knows what it takes.
+will it work here, what has to change, is it safe, what could go wrong, and how
+to convince someone else. An integrator answers them on day one. This report
+answers them from the site's video, so Blueprint reads as the expert that knows
+what it takes, and the site does nothing but send the video.
+
+## The site sends its video and nothing else
+
+Founder direction (2026-10-20): no friction for the site. Blueprint infers what
+it needs and makes educated guesses where it must. The founder chose what goes:
+
+| Removed from the site's job page | Instead |
+| --- | --- |
+| The measurements step and its printer-paper sheet | The video reader estimates sizes, weights, distances and heights |
+| Item photos | The video reader names the items the station probably also handles |
+| Follow-up questions, and the assessment's open questions and proposed next steps | Blueprint resolves them; staff still see them in the job console |
+| The how-it-runs form, the next steps and the hours worked | Nothing to answer; the speed check uses the timed or estimated cycle |
+
+The brief confirmation stays: it is the site's one attestation, and teams
+evaluate only a confirmed job.
+
+## What Blueprint infers from the video
+
+The footage reader (`site_video_evidence`, Gemini) returns `job_estimates`
+beside its observations:
+
+- the main object, its largest side and a weight range;
+- its surface (matte, shiny, see-through or mixed);
+- how far it moves, and the heights of the surfaces it moves between;
+- the open floor in front of the starting surface;
+- up to five other items the station probably handles that the clip did not
+  show;
+- a cycle time, when no complete cycle was timed;
+- what it sized things against, such as a pallet or a door.
+
+The estimates are walled off from the observations. They never change a
+stance, a gate, a timed cycle or the footage status. A malformed estimate reads
+as null rather than failing the reading, because the same reading gates
+reconstruction. Nothing is estimated from unusable footage.
+
+The reading of the site's own walkthrough is kept on the job as
+`walkthrough_video_evidence` when the pre-reconstruction footage review
+completes. It is kept apart from `site_video_evidence`, the intake link's
+reading that feeds qualification. Robot fit reads the walkthrough's reading
+first, then the link's, and only a usable one.
+
+Source order for every figure: what the site measured, then what it told us,
+then the video's estimate. Every figure carries its source in the site's words:
+"you measured this", "you told us", "seen in your video" or "estimated from
+your video".
+
+The reader runs only with `BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED=true` and a
+Gemini key. That flag also turns on the pre-reconstruction footage gate, the
+upload privacy screen, the coverage review and the site assessment, which
+already depended on it.
 
 ## What the owner's job page shows
 
-Founder direction (2026-10-20): keep the UI as simple as possible and the text
-to a minimum, showing the site exactly what it needs. The panel sits above the
-measurements step and appears for the owner once footage has arrived.
+Nothing until Blueprint shares the report. Then one folded section, **Your
+robot readiness report**, whose title carries the one number worth seeing, for
+example "· 6 kinds of robot fit". It holds:
 
-Shown by default:
+- What the job needs, and every form of robot with its verdict and reasons
+  (robot fit).
+- Getting your site ready, matched to the forms that fit. Each item either
+  "Looks ready" or is one to "Confirm with the robot team":
+  - floor space at the station, from a reading on file or the estimated
+    clearance;
+  - where a robot stands, or parks and charges;
+  - power, and Wi-Fi for robots that move;
+  - a safe working zone, from people nearby;
+  - how objects arrive, from the confirmed screening answers. It is left out
+    when there are none.
+- What decides success here: up to three things, by fixed triggers in this
+  order. They are a speed shortfall, more items than the video shows, placement
+  drift, shiny or see-through items, jams and damage, tight space, a large or
+  heavy object, a high reliability target, then people. Each says whether the
+  simulation tests it or the pilot checks it.
+- Safety in plain English: ask the robot team for its risk assessment of the
+  job. Robot safety follows ISO 10218 (adopted in the US as ANSI/A3 R15.06),
+  and ANSI/A3 R15.08 for robots that drive between spots. Standards for walking
+  robots are still being written. It also covers how robots work near people,
+  and what Blueprint does not certify.
+- Jobs like this on the public record: matching documented deployments from the
+  curated, sourced `deployedEnvironments`, by environment name and source only,
+  with the footnote that none is a Blueprint customer. The evidence text names
+  robot companies, and a site never weighs teams, so it is not shown. Emerging
+  environments with no operating site on record are left out.
+- A link to print or save the brief.
 
-- **Your next steps.** Up to three short links, in priority order. Each opens
-  the step on the page where it is answered. When nothing is missing, the panel
-  says nothing is needed.
+## The printable brief, by its own read-only link
 
-Two sections stay folded until opened. Each title carries the one number worth
-seeing.
+The brief is made to be printed or saved as a PDF, and browsers print a page's
+address on it. The owner's job link cannot be that address: it confirms the
+brief, books the pilot and withdraws consent. So the brief opens at
+`/capture-upload/brief/:briefToken`. The token is signed with the capture
+link's secret under its own `kind` (`readiness_brief`), lasts 14 days and reads
+one job's brief. A brief link opens nothing else, and no other link opens the
+brief. Withdrawn consent closes it.
 
-- **How the job runs today**, titled for example "· about 14 person-hours a
-  week" once known, and "(optional)" before that.
-  - One small form: how many times a day the job is done, on how many days a
-    week, and whether people work near it. It is stored apart from the
-    digest-bound brief, in `siteTaskOperations/{requestId}`.
-  - Inside: the hours, from the site's answers × the time per cycle measured
-    from its video (`site_video_evidence.measured_cycle_seconds`), and what they
-    rest on.
-  - The speed check: today's measured pace against the target time per cycle.
-    There are no prices and no market figures.
-- **Your robot readiness report**, titled for example "· 6 kinds of robot fit".
-  It appears once an admin shares it; the robot-fit sharing switch shares the
-  whole report. It holds:
-  - What the job needs, and every form of robot with its verdict and reasons
-    (robot fit).
-  - Getting your site ready, matched to the forms that fit:
-    - floor space at the station, from the measured clearance;
-    - where a robot stands, or parks and charges;
-    - power, and Wi-Fi for robots that move;
-    - a safe working zone, from people nearby;
-    - how objects arrive, from the confirmed screening answers.
-  - What decides success here: up to three things, by fixed triggers in this
-    order. They are speed shortfall, item variety, placement drift, shiny or
-    see-through packaging, jams and damage, tight space, a large or heavy
-    object, a high reliability target, then people. Each says what the
-    simulation tests, or that it is checked in the pilot.
-  - Safety in plain English: the robot team's risk assessment under ISO 10218
-    (adopted in the US as ANSI/A3 R15.06), and ANSI/A3 R15.08 for robots that
-    drive between spots. Standards for walking robots are still being written.
-    It also covers how robots work near people, and what Blueprint does not
-    certify.
-  - Robots already do jobs like this: matching examples from the curated,
-    sourced `deployedEnvironments`, with their status, evidence, sources and the
-    footnote that none is a Blueprint customer.
-  - A link to print or save a one-page brief.
-
-The job page shows no explanations, status lines, robot descriptions or
-unknowns. The next steps already ask for what is unknown, and the status card
-already says where the job stands and links to the 3D scene.
-
-The one-page brief (`/capture-upload/:token/brief`) carries the fuller picture,
-for the person who has to convince someone else:
-
-- the steps to a pilot (video, brief, measurements n of 6, how the job runs,
-  success target, access window, then Blueprint's steps) and what Blueprint is
-  doing;
-- what the job takes today;
-- the report, with what is still unknown;
-- what is left to check, with why each matters.
-
-People nearby now comes from the site's answer in the new form, else its earlier
-answers, else what the video shows (`people_relationship_to_work`: people working
-in the space or passing nearby, labelled "seen in your video").
+The brief carries where the job stands (video, brief, the 3D scene, the
+evaluation, the recommendation and booking) and the report, once shared.
 
 ## Rules and copy
 
-- Everything is deterministic: fixed sentences filled with the site's own data. No model call is added.
-- Screening bands describe the job, never a robot's specification. The new ones are: open floor of at least 1.0 m in front of the starting surface is ready; 0.6–1.0 m is tight; under 0.4 m above the surface is tight.
-- No team names, counts, prices or "match". Every answer is framed as a first read, not a promise.
-- What the simulation tests is stated only where the evaluation contract tests it:
+- Everything is deterministic: fixed sentences filled with the job's own data.
+  The report adds no model call; the estimates come from the existing footage
+  reader.
+- Screening bands describe the job, never a robot's specification. Open floor
+  of at least 1.0 m in front of the starting surface is ready; 0.6–1.0 m is
+  tight; less than 0.6 m reads "only"; under 0.4 m above the surface is tight.
+- The tracker calls a recommendation bookable only as the booking route does: a
+  recorded recommendation, not awaiting review, on qualified evidence. A job
+  out of scope says so instead of promising robot teams.
+- Nothing claims a check that no process runs. There is no "Blueprint checks
+  this" state.
+- A cycle the reader timed reads "timed from your video". A cycle it estimated
+  reads "estimated from your video".
+- No team names, counts, prices or "match". Every answer is a first read, not a
+  promise.
+- What the simulation tests is stated only where the evaluation contract tests
+  it:
   - variation of the object's start position and turn, the light and the grip;
   - your fixtures in the rebuilt scene;
   - cycle time against your target;
   - your pass mark.
 
-  Everything else says it is checked in the pilot.
+  Everything else, including items the video did not show, says it is checked in
+  the pilot.
 
 ## Routes
 
 | Route | Who | What |
 | --- | --- | --- |
-| `GET /api/site-task-brief/:token/readiness` | owner link | Tracker, next three things, how the job runs, workload, speed check, and the report while shared |
-| `PUT /api/site-task-brief/:token/operations` | owner link | Save how the job runs today |
-| `GET /api/admin/jobs/:requestId/robot-fit` | admin | Now also returns the full report preview |
+| `GET /api/site-task-brief/:token/readiness` | owner link | Where the job stands, the report while shared, and the brief's read-only link |
+| `GET /api/site-task-brief/readiness-brief/:briefToken` | brief link | The same read, for the printable brief; it mints no further link |
+| `GET /api/admin/jobs/:requestId/robot-fit` | admin | Also returns the full report preview |
 
-Withdrawn consent closes the link routes, as before.
+The owner's `GET /:token/robot-fit` and `PUT /:token/operations` routes are
+removed. Withdrawn consent closes the link routes, as before.
+
+## Open decision: who measures the rebuilt scene
+
+Qualification compares the rebuilt scene with independent source measurements
+(`docs/runbooks/qualified-site-evaluation.md`), and a bookable recommendation
+needs a qualified evaluation. Since 2026-10-19 the site produced those readings
+on its job page. The site is no longer asked, and video estimates can never
+stand in: they come from the same footage the scene is built from. Readings
+already on file still export. For new jobs, the founder decides who produces
+the source measurements, for example Blueprint staff on a site visit.
 
 ## Not in this change
 

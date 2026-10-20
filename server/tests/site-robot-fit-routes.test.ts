@@ -1,10 +1,10 @@
 // @vitest-environment node
 /**
- * Robot fit over HTTP: the console's three admin routes and the owner link's
- * read. What this pins is the route's side: admins only, a ranking runs one
- * model task and keeps its result, sharing gates what the site sees, the film
- * link sees nothing, and withdrawn consent closes the link route like every
- * other capture-derived read.
+ * Robot fit over HTTP: the console's three admin routes and what the owner's
+ * readiness read carries of it. What this pins is the route's side: admins
+ * only, a ranking runs one model task and keeps its result, sharing gates what
+ * the site sees, the film link sees nothing, and withdrawn consent closes the
+ * link route like every other capture-derived read.
  */
 import express from "express";
 import { createServer, type Server } from "node:http";
@@ -83,7 +83,7 @@ const admin = { Authorization: "Bearer admin", "content-type": "application/json
 const post = (path: string, body: unknown, headers: Record<string, string> = admin) =>
   fetch(`${base}/admin/jobs/job-1/robot-fit${path}`, { method: "POST", headers, body: JSON.stringify(body) });
 const siteRead = (scope: "owner" | "film") => fetch(`${base}/site-task-brief/${createCaptureUploadToken({
-  requestId: "job-1", captureId: "walkthrough-job-1", sceneId: "site-job-1", scope })}/robot-fit`);
+  requestId: "job-1", captureId: "walkthrough-job-1", sceneId: "site-job-1", scope })}/readiness`);
 
 describe("admin robot fit", () => {
   it("is for admins only", async () => {
@@ -102,7 +102,8 @@ describe("admin robot fit", () => {
       ["fixed_base_arm", "fits"], ["bimanual_arm", "fits"], ["mobile_manipulator", "fits"], ["wheeled_humanoid", "fits"],
       ["humanoid", "fits"], ["legged_manipulator", "fits"]]);
     expect(body.job.needs).toContain("It has to work safely alongside people in the same space (you told us).");
-    expect(body).toMatchObject({ ranking: null, lastAttempt: null, sharing: null, consentRevoked: false, site: { unknowns: [] } });
+    expect(body).toMatchObject({ ranking: null, lastAttempt: null, sharing: null, consentRevoked: false, site: { forms: expect.any(Array) } });
+    expect(body.site).not.toHaveProperty("unknowns");
     expect((await fetch(`${base}/admin/jobs/nope/robot-fit`, { headers: admin })).status).toBe(404);
   });
 
@@ -136,17 +137,17 @@ describe("admin robot fit", () => {
 });
 
 describe("the owner's link", () => {
-  it("shows nothing until shared, then the site version, and never to the film link", async () => {
+  it("shows nothing until shared, then the site version in the readiness report, and never to the film link", async () => {
     seed();
-    expect(await (await siteRead("owner")).json()).toEqual({ ok: true, robotFit: null });
+    expect((await (await siteRead("owner")).json()).report).toBeNull();
     expect((await post("/sharing", { shared: true })).status).toBe(200);
     const shared = await (await siteRead("owner")).json();
-    expect(shared.robotFit.forms.find((entry: { id: string }) => entry.id === "wheeled_humanoid")).toMatchObject({
+    expect(shared.report.robotFit.forms.find((entry: { id: string }) => entry.id === "wheeled_humanoid")).toMatchObject({
       verdict: "fits", reasons: ["Driving between spots isn't needed: the object moves 80 cm (you measured this)."] });
-    expect(shared.robotFit.needs).toContain("It has to lift 5 kg (you measured this).");
+    expect(shared.report.robotFit.needs).toContain("It has to lift 5 kg (you measured this).");
     expect(JSON.stringify(shared)).not.toContain("Pallet Co");
     expect((await siteRead("film")).status).toBe(403);
-    expect((await fetch(`${base}/site-task-brief/not-a-token/robot-fit`)).status).toBe(404);
+    expect((await fetch(`${base}/site-task-brief/not-a-token/readiness`)).status).toBe(404);
   });
 
   it("closes once recording consent is withdrawn", async () => {

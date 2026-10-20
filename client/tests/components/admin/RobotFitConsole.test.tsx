@@ -36,11 +36,11 @@ function response(overrides: Partial<AdminRobotFitResponse> = {}): AdminRobotFit
   return {
     job: { rated: true, notRatedReason: null, summary: "Move sealed cartons onto a pallet",
       instruction: "Pick up the carton and place it on the pallet.",
-      requirements: [{ key: "pick_to_place_span", label: "How far the object moves", display: "300 cm", source: "site_measured" }],
+      requirements: [{ key: "pick_to_place_span", label: "How far the object moves", display: "300 cm", source: "site_measured" },
+        { key: "object_mass", label: "Object weight", display: "about 3–5 kg", source: "video_estimate" }],
       needs: ["It has to pick the object up and put it down at another spot.",
         "It has to move between the spots: the object moves 300 cm (you measured this)."],
-      unknowns: [{ key: "object_mass", label: "How heavy the object is", resolve: "measurements" },
-        { key: "people_nearby", label: "Whether people work near the job", resolve: "staff" }],
+      unknowns: [{ key: "people_nearby", label: "Whether people work near the job" }],
       forms: [
         { id: "fixed_base_arm", verdict: "not_a_fit", checks: [{ requirement: "pick_to_place_span", outcome: "fail",
           text: "It stays in one place, and the object moves 300 cm (you measured this), too far to reach both spots." }] },
@@ -50,7 +50,7 @@ function response(overrides: Partial<AdminRobotFitResponse> = {}): AdminRobotFit
     ranking: null,
     lastAttempt: null,
     sharing: null,
-    site: { needs: ["It has to pick the object up and put it down at another spot."], forms: [], unknowns: [], note: SITE_ROBOT_FIT_NOTE },
+    site: { needs: ["It has to pick the object up and put it down at another spot."], forms: [], note: SITE_ROBOT_FIT_NOTE },
     consentRevoked: false,
     readiness: null,
     ...overrides,
@@ -90,8 +90,10 @@ describe("RobotFitConsole", () => {
     expect(within(forms).getByText("Walking humanoid")).toBeInTheDocument();
     expect(within(forms).getByText("Not a fit")).toBeInTheDocument();
     expect(screen.getByText("It has to move between the spots: the object moves 300 cm (you measured this).")).toBeInTheDocument();
-    expect(screen.getByText(/whether people work near the job \(ask the site\)/)).toBeInTheDocument();
-    expect(screen.getByText(/Not shared\. The owner's job page shows the steps to a pilot/)).toBeInTheDocument();
+    expect(screen.getByText(/object weight about 3–5 kg \(estimated from your video\)/)).toBeInTheDocument();
+    expect(screen.getByText("Not in the video or its estimates: whether people work near the job. The site is never asked; Blueprint settles these."))
+      .toBeInTheDocument();
+    expect(screen.getByText("Not shared. The owner's job page shows no robot read until you share it.")).toBeInTheDocument();
     expect(screen.getByText("Not ranked yet.")).toBeInTheDocument();
   });
 

@@ -1,20 +1,23 @@
 // @vitest-environment node
 /**
- * The site readiness report: an expert's first read of a site's job, in the
- * site's own numbers.
+ * The site readiness report: an expert's first read of a site's job, built
+ * from its video. The site sends its video and nothing else (founder
+ * direction, 2026-10-20).
  *
  * What this pins:
- * - the arithmetic uses only the site's answers and its video's measured pace;
- * - the tracker reports only recorded states, and says what Blueprint is doing
- *   only from a real one;
- * - the next three things follow their priority, and skip pick-and-place
- *   readings where they mean nothing;
- * - the checklist, success factors and safety copy follow the rules in the
- *   design note;
+ * - the video reader's estimates fill what nobody measured, always labelled
+ *   "estimated from your video", and anything the site measured or told us
+ *   still comes first;
+ * - nothing asks the site anything: its only steps are its video, its brief
+ *   and booking, and every checklist item is ready or one to confirm with the
+ *   robot team, never a check no process runs;
+ * - the tracker reports recorded states only, calls a recommendation bookable
+ *   exactly as the booking route does, and says when a job is out of scope;
  * - the simulation is credited only with what the evaluation contract tests;
- * - examples match precisely or not at all;
- * - the report reaches the site only while shared and while consent stands;
- * - people nearby comes from the site's answer, then earlier answers, then its video.
+ * - exceptions are read from real exceptions, not lookalike phrases;
+ * - examples are deployments on the public record, by environment, with no
+ *   robot company named;
+ * - the report reaches the site only while shared and while consent stands.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -35,18 +38,31 @@ vi.mock("../utils/siteWalkthrough", () => ({
   siteWalkthroughIdentity: (requestId: string) => ({ requestId, sceneId: `site-${requestId}`, captureId: `walkthrough-${requestId}` }),
   savedWalkthrough: async () => (walkthrough.received === null ? null : { received: walkthrough.received }),
 }));
+// Qualified evidence is a long receipt chain with its own tests; here only its answer matters.
+vi.mock("../utils/pilotRecommendationEvidence", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../utils/pilotRecommendationEvidence")>()),
+  isQualifiedRecommendationEvidence: (evidence: { qualified?: boolean } | null | undefined) => evidence?.qualified === true,
+}));
 
 const readiness = await import("../utils/siteReadiness");
 const fit = await import("../utils/siteRobotFit");
-const { checklistOf, examplesOf, getSiteReadiness, nextThingsOf, safetyOf, speedOf, successFactorsOf, trackerOf, workloadOf,
-  buildReadinessReport } = readiness;
-const { computeRobotFitJob, jobFactsOf, projectSiteRobotFit } = fit;
+const { buildReadinessReport, checklistOf, examplesOf, getSiteReadiness, safetyOf, successFactorsOf, trackerOf } = readiness;
+const { computeRobotFitJob, jobFactsOf, projectSiteRobotFit, videoEvidence } = fit;
 type Inputs = Parameters<typeof trackerOf>[0];
 
 const NOW = "2026-10-20T12:00:00.000Z";
 const SCREENED = { site_task_scope: { supported: true, kind: "rigid_pick_and_place", reason: null } };
-const VIDEO = (seconds: number | null, people: string | null = null) => ({ site_video_evidence: { status: "analysed",
-  footage_status: "usable", measured_cycle_seconds: seconds, people_relationship_to_work: people } });
+
+type Estimates = Partial<{ object: string; object_largest_side_m: number; object_mass_kg_low: number; object_mass_kg_high: number;
+  object_surface: string; pick_to_place_m: number; pick_height_m: number; place_height_m: number; front_clearance_m: number;
+  other_items_likely: string[]; cycle_seconds: number }>;
+
+/** The walkthrough's own reading, as the footage review stores it. */
+function walkthroughReading(options: { cycle?: number | null; people?: string | null; estimates?: Estimates | null; footage?: string } = {}) {
+  return { walkthrough_video_evidence: { status: options.footage === "unusable" ? "unreadable" : "analysed",
+    footage_status: options.footage ?? "usable", measured_cycle_seconds: options.cycle ?? null,
+    people_relationship_to_work: options.people ?? null, job_estimates: options.estimates ?? null, capture_id: "walkthrough-job-1" } };
+}
 
 function reading(value: number, unit: string, si: number) {
   return { value, unit, si, basis: unit === "kg" ? "scale" : "tape", recordedAtIso: NOW, recordedByScope: "owner", recordedByName: null };
@@ -59,94 +75,125 @@ function inputs(overrides: Partial<Inputs> & { readings?: Record<string, ReturnT
     brief: { requestId: "job-1", summary: "Move sealed cartons from the conveyor onto a pallet", confirmedAtIso: NOW } as never,
     measurements: readings ? { requestId: "job-1", family: "rigid_pick_place", articulation: null, referencePaper: null, readings,
       measuredBy: null, note: null, revision: 1, updatedAtIso: NOW } as never : null,
-    operations: null,
     walkthroughReceived: true,
     reconstructionState: null,
-    itemPhotosMissing: false,
     shared: false,
     ...rest,
   };
 }
 
-const report = (value: Inputs) => buildReadinessReport(value, computeRobotFitJob(value))!;
+const withVideo = (options: Parameters<typeof walkthroughReading>[0], request: Record<string, unknown> = {}) =>
+  inputs({ request: { requestId: "job-1", request: {}, ...SCREENED, ...walkthroughReading(options), ...request } });
 
-describe("what the job takes today", () => {
-  it("multiplies the site's times a day by its video's measured pace, and says what it rests on", () => {
-    const value = inputs({ request: { request: {}, ...SCREENED, ...VIDEO(84) },
-      operations: { timesPerDay: 120, daysPerWeek: 5, peopleNearby: null, updatedAtIso: NOW } });
-    expect(workloadOf(value)).toEqual({ headline: "about 14 person-hours a week", hoursPerDay: 2.8, hoursPerWeek: 14,
-      sentence: "This job takes about 2.8 person-hours a day, about 14 a week.",
-      basis: "120 times a day, 5 days a week (you told us), at about 84 seconds per cycle (measured from your video). It counts time on this job only." });
+describe("estimates from the video", () => {
+  const ESTIMATES: Estimates = { object: "sealed carton", object_largest_side_m: 0.45, object_mass_kg_low: 3, object_mass_kg_high: 5,
+    pick_to_place_m: 0.9, pick_height_m: 0.8, place_height_m: 0.15, front_clearance_m: 1.3 };
+
+  it("fills what nobody measured with the video's estimates, and says so every time", () => {
+    const value = withVideo({ estimates: ESTIMATES });
+    const facts = jobFactsOf(value);
+    expect(facts.distance).toMatchObject({ display: "about 90 cm", source: "video_estimate" });
+    expect(facts.mass).toMatchObject({ display: "about 3–5 kg", source: "video_estimate", min: 3, max: 5 });
+    expect(facts.size).toMatchObject({ display: "about 45 cm", source: "video_estimate" });
+    const job = computeRobotFitJob(value);
+    expect(job.needs).toEqual(expect.arrayContaining([
+      "It can work from one place: the object moves about 90 cm (estimated from your video).",
+      "It has to lift about 3–5 kg (estimated from your video).",
+      "It has to reach down near the floor: the object is put down at about 15 cm (estimated from your video).",
+    ]));
+    expect(job.unknowns.map((entry) => entry.key)).toEqual(["people_nearby"]);
+    expect(projectSiteRobotFit(job)?.forms).toHaveLength(6);
   });
 
-  it("waits for both the answer and a measured cycle, and never guesses the days a week", () => {
-    expect(workloadOf(inputs({ request: { request: {}, ...VIDEO(84) } }))).toBeNull();
-    expect(workloadOf(inputs({ operations: { timesPerDay: 10, daysPerWeek: null, peopleNearby: null, updatedAtIso: NOW } }))).toBeNull();
-    const perDay = workloadOf(inputs({ request: { request: {}, ...VIDEO(360) },
-      operations: { timesPerDay: 10, daysPerWeek: null, peopleNearby: null, updatedAtIso: NOW } }));
-    expect(perDay).toMatchObject({ headline: "about 1 person-hour a day", hoursPerDay: 1, hoursPerWeek: null,
-      sentence: "This job takes about 1 person-hour a day." });
-    expect(perDay?.basis).toContain("10 times a day (you told us), at about 6 minutes per cycle");
+  it("keeps anything the site measured or told us ahead of an estimate", () => {
+    const value = inputs({ request: { requestId: "job-1", request: { siteTaskSpec: { payloadWeight: "two_to_ten" } }, ...SCREENED,
+      ...walkthroughReading({ estimates: ESTIMATES }) }, readings: { pick_to_place_distance: reading(120, "cm", 1.2) } });
+    const facts = jobFactsOf(value);
+    expect(facts.distance).toMatchObject({ display: "120 cm", source: "site_measured" });
+    expect(facts.mass).toMatchObject({ display: "2–10 kg", source: "site_stated" });
+    expect(facts.size).toMatchObject({ source: "video_estimate" });
   });
 
-  it("checks the site's target against today's measured pace", () => {
-    const target = (cycleTimeSeconds: number | null) => ({ requestId: "job-1", summary: "x", successCriteria:
-      { successDefinition: null, successRate: null, cycleTimeSeconds, unknown: false } }) as never;
-    expect(speedOf(inputs({ request: { request: {}, ...VIDEO(60) }, brief: target(45) }))).toMatchObject({
-      state: "target_faster_than_today", sentence: expect.stringContaining("faster than your people take today: about 60 seconds") });
-    expect(speedOf(inputs({ request: { request: {}, ...VIDEO(40) }, brief: target(45) }))?.state).toBe("target_within_today");
-    expect(speedOf(inputs({ request: { request: {}, ...VIDEO(40) }, brief: target(null) }))?.state).toBe("needs_target");
-    expect(speedOf(inputs({ brief: target(45) }))?.state).toBe("needs_measurement");
-    expect(speedOf(inputs())).toBeNull();
+  it("reads the walkthrough's own reading first, and never a reading of unusable footage", () => {
+    const link = { site_video_evidence: { status: "analysed", footage_status: "usable", measured_cycle_seconds: 50,
+      people_relationship_to_work: null, job_estimates: { pick_to_place_m: 2 } } };
+    expect(videoEvidence(withVideo({ estimates: { pick_to_place_m: 0.9 } }, link))?.estimates?.pickToPlaceM).toBe(0.9);
+    expect(videoEvidence(withVideo({ footage: "unusable", estimates: { pick_to_place_m: 0.9 } }, link))).toMatchObject({
+      measuredCycleSeconds: 50, estimates: { pickToPlaceM: 2 } });
+    expect(videoEvidence(withVideo({ footage: "unusable", estimates: { pick_to_place_m: 0.9 } }))).toBeNull();
+  });
+
+  it("reads a stored estimate only inside the reader's own bounds", () => {
+    const estimates = videoEvidence(withVideo({ estimates: { object_largest_side_m: 9, object_mass_kg_low: 6, object_mass_kg_high: 2,
+      pick_to_place_m: 0, front_clearance_m: -1, cycle_seconds: Number.NaN, object_surface: "glittery",
+      other_items_likely: ["  trays ", "", 4 as never, "lids", "bags", "boxes", "bins", "extra"] } }))?.estimates;
+    expect(estimates).toEqual({ largestSideM: null, massKg: { low: 2, high: 6 }, surface: null, pickToPlaceM: null, pickHeightM: null,
+      placeHeightM: null, frontClearanceM: null, otherItemsLikely: ["trays", "lids", "bags", "boxes", "bins"], cycleSeconds: null });
+    expect(videoEvidence(withVideo({ estimates: { object_mass_kg_high: 0.4 } }))?.estimates?.massKg).toEqual({ low: 0.4, high: 0.4 });
+  });
+
+  it("writes a light object's weight in grams", () => {
+    expect(jobFactsOf(withVideo({ estimates: { object_mass_kg_low: 0.25, object_mass_kg_high: 0.4 } })).mass?.display).toBe("about 250–400 g");
+    expect(jobFactsOf(withVideo({ estimates: { object_mass_kg_low: 2, object_mass_kg_high: 2 } })).mass?.display).toBe("about 2 kg");
   });
 });
 
 describe("steps to a pilot", () => {
-  it("reports recorded states only, with the measurements counted against six key readings", () => {
-    const tracker = trackerOf(inputs({ readings: { pick_to_place_distance: reading(90, "cm", 0.9), object_length: reading(40, "cm", 0.4) },
-      operations: { timesPerDay: 50, daysPerWeek: null, peopleNearby: null, updatedAtIso: NOW }, reconstructionState: "processing" }));
-    const state = Object.fromEntries(tracker.steps.map((entry) => [entry.id, [entry.state, entry.detail]]));
-    expect(state).toEqual({ video: ["done", null], brief: ["done", null], measurements: ["partial", "2 of 6"],
-      operations: ["partial", null], success_target: ["todo", null], access_window: ["todo", null], scene: ["in_progress", null],
-      evaluation: ["pending", null], recommendation: ["pending", null], booking: ["pending", null] });
+  const states = (value: Inputs) => Object.fromEntries(trackerOf(value).steps.map((entry) => [entry.id, entry.state]));
+
+  it("asks the site only for its video and its brief, and reports recorded states only", () => {
+    const tracker = trackerOf(inputs({ reconstructionState: "processing" }));
+    expect(tracker.steps.map((entry) => [entry.id, entry.state, entry.owner])).toEqual([
+      ["video", "done", "site"], ["brief", "done", "site"], ["scene", "in_progress", "blueprint"],
+      ["evaluation", "pending", "blueprint"], ["recommendation", "pending", "blueprint"], ["booking", "pending", "site"]]);
     expect(tracker.meanwhile).toBe("Blueprint is rebuilding your work area in 3D from your video.");
+  });
+
+  it("calls a recommendation bookable only as the booking route does", () => {
+    const request = (recommendation: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
+      inputs({ request: { requestId: "job-1", request: {}, ...SCREENED, pilot_recommendation: recommendation, ...extra } });
+    const bookable = request({ id: "r1", evidence: { qualified: true } });
+    expect(states(bookable)).toMatchObject({ evaluation: "done", recommendation: "done", booking: "pending" });
+    expect(trackerOf(bookable).meanwhile).toBe("Blueprint has recommended one team for your job. You can review and book it on your job page.");
+    for (const held of [request({ id: "r1", evidence: { qualified: true }, reviewRequired: true }), request({ id: "r1", evidence: {} })]) {
+      expect(states(held)).toMatchObject({ evaluation: "done", recommendation: "in_progress" });
+      expect(trackerOf(held).meanwhile).toBe("Blueprint is reviewing its recommendation against your job brief.");
+    }
+    const booked = request({ id: "r1", evidence: { qualified: true }, reviewRequired: true }, { pilot_booking: { recommendationId: "r1" } });
+    expect(states(booked)).toMatchObject({ recommendation: "done", booking: "done" });
+    expect(trackerOf(booked).meanwhile).toBe("Your pilot is booked. You and the robot team agree its details directly.");
+  });
+
+  it("says so when a job is out of scope, rather than promising robot teams", () => {
+    const tracker = trackerOf(inputs({ reconstructionState: "ready",
+      request: { requestId: "job-1", request: {}, site_task_scope: { supported: false, reason: "deformable" } } }));
+    expect(tracker.meanwhile).toBe("Not yet: we cannot score this job in simulation today, so it is not open to robot teams.");
   });
 
   it("says what comes next only from a real state", () => {
     expect(trackerOf(inputs({ reconstructionState: "ready" })).meanwhile).toContain("Next, Blueprint invites robot teams");
     expect(trackerOf(inputs({ reconstructionState: "failed" })).meanwhile).toBeNull();
-    expect(trackerOf(inputs({ request: { request: {}, pilot_recommendation: { id: "r1" } } })).meanwhile)
-      .toBe("Blueprint has recommended one team for your job. You can review and book it on this page.");
     expect(trackerOf(inputs({ walkthroughReceived: null })).steps[0].state).toBe("pending");
   });
 });
 
-describe("your next three things", () => {
-  it("asks for the most useful missing facts first", () => {
-    const value = inputs({ brief: { requestId: "job-1", summary: "x", confirmedAtIso: null } as never, itemPhotosMissing: true });
-    expect(nextThingsOf(value, jobFactsOf(value)).map((entry) => [entry.id, entry.target])).toEqual([
-      ["confirm_brief", "brief"], ["measure_distance", "measurements"], ["times_per_day", "operations"]]);
-  });
-
-  it("moves on as answers arrive, and skips pick-and-place readings for a job they do not fit", () => {
-    const answered = inputs({ readings: { pick_to_place_distance: reading(90, "cm", 0.9), object_mass: reading(4, "kg", 4) },
-      operations: { timesPerDay: 50, daysPerWeek: 5, peopleNearby: "shared", updatedAtIso: NOW }, itemPhotosMissing: true });
-    expect(nextThingsOf(answered, jobFactsOf(answered)).map((entry) => entry.id)).toEqual(["floor_space", "success_target", "item_photos"]);
-    const unsupported = inputs({ request: { request: {}, site_task_scope: { supported: false, reason: "deformable" } } });
-    expect(nextThingsOf(unsupported, jobFactsOf(unsupported)).map((entry) => entry.id)).toEqual(["times_per_day", "people_nearby", "success_target"]);
-  });
-});
-
 describe("getting the site ready", () => {
-  const item = (value: Inputs, id: string) => checklistOf(value, jobFactsOf(value), computeRobotFitJob(value)).find((entry) => entry.id === id)!;
+  const checklist = (value: Inputs) => checklistOf(value, jobFactsOf(value), computeRobotFitJob(value));
+  const item = (value: Inputs, id: string) => checklist(value).find((entry) => entry.id === id)!;
 
-  it("reads the floor space and the open height from the site's measurements", () => {
+  it("reads the floor space from the site's measurement, else the video's estimate", () => {
     expect(item(inputs({ readings: { pick_front_clearance: reading(120, "cm", 1.2) } }), "floor_space")).toMatchObject({ state: "ready",
-      detail: "There is 120 cm of open floor in front of the starting surface (you measured this), room for a robot's stand or base." });
-    expect(item(inputs({ readings: { pick_front_clearance: reading(80, "cm", 0.8) } }), "floor_space").detail).toContain("tight for a robot's stand or base");
+      detail: "There is 120 cm (you measured this) of open floor in front of the starting surface, room for a robot's stand or base." });
+    expect(item(withVideo({ estimates: { front_clearance_m: 1.3 } }), "floor_space")).toMatchObject({ state: "ready",
+      detail: "There is about 1.3 m (estimated from your video) of open floor in front of the starting surface, room for a robot's stand or base." });
+    expect(item(withVideo({ estimates: { front_clearance_m: 0.8 } }), "floor_space")).toMatchObject({ state: "confirm",
+      detail: "There is about 80 cm (estimated from your video) of open floor in front of the starting surface, tight for a robot's "
+        + "stand or base. Confirm the space with the robot team." });
+    expect(item(withVideo({ estimates: { front_clearance_m: 0.4 } }), "floor_space").detail).toMatch(/^There is only about 40 cm/);
     const low = item(inputs({ readings: { pick_front_clearance: reading(120, "cm", 1.2), pick_overhead_clearance: reading(30, "cm", 0.3) } }), "floor_space");
-    expect(low).toMatchObject({ state: "check", detail: expect.stringContaining("30 cm of open height (you measured this), tight for an arm") });
-    expect(item(inputs(), "floor_space")).toMatchObject({ state: "unknown" });
+    expect(low).toMatchObject({ state: "confirm", detail: expect.stringContaining("30 cm of open height (you measured this), tight for an arm") });
+    expect(item(inputs(), "floor_space")).toEqual({ id: "floor_space", title: "Floor space at the station", state: "confirm",
+      detail: "The robot team confirms the floor space its robot needs beside the work." });
   });
 
   it("matches where the robot stands, and the network, to the forms that fit", () => {
@@ -154,84 +201,126 @@ describe("getting the site ready", () => {
     expect(item(near, "standing_spot").detail).toBe("For a robot on a fixed stand: a level spot where the stand can be bolted down "
       + "or weighted. For a robot that moves: a place to park and charge, and a clear, level path between the spots.");
     expect(item(near, "power_network").detail).toContain("Wi-Fi along the route for a robot that drives between spots");
-    const far = inputs({ readings: { pick_to_place_distance: reading(300, "cm", 3) } });
+    const far = withVideo({ estimates: { pick_to_place_m: 3 } });
     expect(item(far, "standing_spot").detail).toBe("For a robot that moves: a place to park and charge, and a clear, level path between the spots.");
   });
 
-  it("plans the safe zone from people nearby, wherever that answer came from", () => {
-    expect(item(inputs({ operations: { timesPerDay: null, daysPerWeek: null, peopleNearby: "isolated", updatedAtIso: NOW } }), "safe_zone"))
+  it("plans the safe zone from people nearby, wherever that came from", () => {
+    expect(item(inputs({ request: { requestId: "job-1", request: { siteTaskSpec: { humanProximity: "isolated" } }, ...SCREENED } }), "safe_zone"))
       .toMatchObject({ state: "ready", detail: "The area is clear of people while it runs (you told us), so the robot can work in an area kept clear of people." });
-    expect(item(inputs({ request: { request: {}, ...SCREENED, ...VIDEO(null, "working_in_the_space") } }), "safe_zone"))
-      .toMatchObject({ state: "check", detail: expect.stringContaining("People work in the same space (seen in your video).") });
-    expect(item(inputs(), "safe_zone").state).toBe("unknown");
+    expect(item(withVideo({ people: "working_in_the_space" }), "safe_zone"))
+      .toMatchObject({ state: "confirm", detail: expect.stringContaining("People work in the same space (seen in your video).") });
+    expect(item(inputs(), "safe_zone")).toMatchObject({ state: "confirm",
+      detail: "The robot team's risk assessment settles how its robot works around people." });
   });
 
-  it("repeats the site's own screening answers for how objects arrive", () => {
-    const value = inputs({ request: { request: {}, ...SCREENED, siteTaskGates: { sceneStability: "minor_drift", taskShape: "single",
-      objectVariety: "under_10" } } });
-    expect(item(value, "object_arrival")).toMatchObject({ state: "check", detail: "Work area: small things move, but the layout holds. "
-      + "The job: one job, done the same way each time. Different items: fewer than ten (you told us)." });
+  it("repeats the screening answers on file for how objects arrive, and leaves the item out when there are none", () => {
+    const answers = (gates: Record<string, string>) => inputs({ request: { requestId: "job-1", request: {}, ...SCREENED, siteTaskGates: gates } });
+    expect(item(answers({ sceneStability: "minor_drift", taskShape: "single", objectVariety: "under_10" }), "object_arrival")).toMatchObject({
+      state: "confirm", detail: "Work area: small things move, but the layout holds. "
+        + "The job: one job, done the same way each time. Different items: fewer than ten (you told us)." });
+    expect(item(answers({ sceneStability: "stable", taskShape: "single" }), "object_arrival").state).toBe("ready");
+    expect(checklist(inputs()).map((entry) => entry.id)).toEqual(["floor_space", "standing_spot", "power_network", "safe_zone"]);
+  });
+
+  it("never claims a check that no process runs", () => {
+    for (const value of [inputs(), withVideo({ people: "passing_nearby", estimates: { front_clearance_m: 0.5 } })]) {
+      const items = checklist(value);
+      expect(items.every((entry) => entry.state === "ready" || entry.state === "confirm")).toBe(true);
+      expect(JSON.stringify(items)).not.toMatch(/Blueprint checks/);
+    }
   });
 });
 
 describe("what decides success here", () => {
+  const target = (cycleTimeSeconds: number, summary = "Move sealed cartons from the conveyor onto a pallet", successRate: number | null = null) =>
+    ({ requestId: "job-1", summary, confirmedAtIso: NOW, successCriteria: { successDefinition: null, successRate, cycleTimeSeconds, unknown: false } }) as never;
+
   it("picks at most three, in priority order, each saying what tests it", () => {
     const value = inputs({
-      request: { request: {}, ...SCREENED, ...VIDEO(60, "passing_nearby"), siteTaskGates: { objectVariety: "many_but_listable", sceneStability: "reconfigured" } },
-      brief: { requestId: "job-1", summary: "Move shrink-wrapped cases, clear jams", confirmedAtIso: NOW,
-        successCriteria: { successDefinition: null, successRate: 99.5, cycleTimeSeconds: 45, unknown: false } } as never,
+      request: { requestId: "job-1", request: {}, ...SCREENED, siteTaskGates: { sceneStability: "reconfigured" },
+        ...walkthroughReading({ people: "passing_nearby", estimates: { cycle_seconds: 60, other_items_likely: ["smaller cartons", "trays"] } }) },
+      brief: target(45, "Move shrink-wrapped cases, clear jams", 99.5),
     });
     const factors = successFactorsOf(value, jobFactsOf(value));
-    expect(factors.map((entry) => [entry.id, entry.where])).toEqual([["speed", "simulation"], ["variety", "simulation"], ["placement", "simulation"]]);
-    expect(factors[0].test).toBe("The evaluation measures cycle time against your target.");
+    expect(factors.map((entry) => [entry.id, entry.where])).toEqual([["speed", "simulation"], ["variety", "pilot"], ["placement", "simulation"]]);
+    expect(factors[0]).toMatchObject({ detail: "Your target, 45 seconds per cycle, is faster than today's 60 seconds (estimated from your video).",
+      test: "The evaluation measures cycle time against your target." });
+    expect(factors[1]).toMatchObject({ detail: "Probably also handled here, though not in your video: smaller cartons, trays (estimated from your video).",
+      test: "The evaluation tests the object in your rebuilt scene. Other items are checked in the pilot." });
+  });
+
+  it("calls a cycle the reader timed timed, not measured", () => {
+    const value = inputs({ request: { requestId: "job-1", request: {}, ...SCREENED, ...walkthroughReading({ cycle: 60 }) }, brief: target(45) });
+    expect(successFactorsOf(value, jobFactsOf(value))[0].detail).toBe("Your target, 45 seconds per cycle, is faster than today's 60 seconds (timed from your video).");
   });
 
   it("leaves to the pilot what the simulation cannot show", () => {
     const value = inputs({ brief: { requestId: "job-1", summary: "Pick glass jars and set aside damaged ones", confirmedAtIso: NOW } as never });
-    const factors = successFactorsOf(value, jobFactsOf(value));
-    expect(factors.map((entry) => [entry.id, entry.where, entry.detail])).toEqual([
-      ["surfaces", "pilot", "Your job mentions \"glass\"."], ["exceptions", "pilot", "Your job mentions \"damaged\"."]]);
+    expect(successFactorsOf(value, jobFactsOf(value)).map((entry) => [entry.id, entry.title, entry.where, entry.detail])).toEqual([
+      ["surfaces", "Shiny or see-through items", "pilot", "Your job mentions \"glass\"."],
+      ["exceptions", "Jams and damaged items", "pilot", "Your job mentions \"damaged\"."]]);
+    const seen = withVideo({ estimates: { object_surface: "transparent" } });
+    expect(successFactorsOf(seen, jobFactsOf(seen))[0]).toMatchObject({ id: "surfaces", detail: "The object looks transparent in your video." });
+  });
+
+  it("reads a real exception, not a phrase that only looks like one", () => {
+    const exception = (summary: string) => {
+      const value = inputs({ brief: { requestId: "job-1", summary, confirmedAtIso: NOW } as never });
+      return successFactorsOf(value, jobFactsOf(value)).some((entry) => entry.id === "exceptions");
+    };
+    for (const lookalike of ["Fill jam jars", "Broken-case picking from totes", "Fit spill-proof lids", "Zero damaged items a shift",
+      "Parcels dropped off at the dock"]) expect(exception(lookalike), lookalike).toBe(false);
+    for (const real of ["Clear jams on the infeed", "Set aside damaged cartons", "Pick up a dropped carton", "Wipe up spills"]) {
+      expect(exception(real), real).toBe(true);
+    }
   });
 });
 
 describe("safety in plain English", () => {
-  it("names the standards that apply to the forms in play, and what Blueprint does not certify", () => {
-    const near = inputs({ readings: { pick_to_place_distance: reading(90, "cm", 0.9) },
-      operations: { timesPerDay: null, daysPerWeek: null, peopleNearby: "shared", updatedAtIso: NOW } });
+  it("asks the robot team for its risk assessment, names the standards for the forms in play, and what Blueprint does not certify", () => {
+    const near = inputs({ request: { requestId: "job-1", request: { siteTaskSpec: { humanProximity: "shared" } }, ...SCREENED },
+      readings: { pick_to_place_distance: reading(90, "cm", 0.9) } });
     const lines = safetyOf(jobFactsOf(near), computeRobotFitJob(near));
-    expect(lines[0]).toBe("Before a robot works at your site, the robot team does a risk assessment of the job with you. It follows the "
-      + "robot-safety standards: ISO 10218, adopted in the US as ANSI/A3 R15.06, and ANSI/A3 R15.08 for robots that drive between spots.");
+    expect(lines[0]).toBe("Before a robot works at your site, ask the robot team for its risk assessment of the job. Robot safety follows "
+      + "the standards ISO 10218, adopted in the US as ANSI/A3 R15.06, and ANSI/A3 R15.08 for robots that drive between spots.");
     expect(lines[1]).toContain("Safety standards for walking robots are still being written");
     expect(lines).toContain("People work in the same space (you told us), so this decides how the robot works alongside them.");
     expect(lines.at(-1)).toContain("It does not certify that any robot is safe");
   });
 });
 
-describe("robots already do jobs like this", () => {
-  it("matches the curated, sourced environments precisely, or not at all", () => {
-    const packing = examplesOf(inputs({ brief: { requestId: "job-1", summary: "Pack finished parts into cartons" } as never }));
-    expect(packing.map((entry) => entry.id)).toEqual(["line-side-packing"]);
-    expect(packing[0].sources[0].href).toMatch(/^https:\/\//);
+describe("jobs like this on the public record", () => {
+  const example = (summary: string) => examplesOf(inputs({ brief: { requestId: "job-1", summary } as never }));
+
+  it("matches documented deployments precisely, by environment and source, and never names a robot company", () => {
+    const parcels = example("Sort parcels onto outbound chutes");
+    expect(parcels).toEqual([{ id: "parcel-sorting", name: "Parcel sorting", sources: expect.any(Array) }]);
+    expect(parcels[0].sources[0].href).toMatch(/^https:\/\//);
+    expect(example("Pick prescriptions for the pharmacy counter").map((entry) => entry.id)).toEqual(["pharmacy"]);
+    expect(JSON.stringify([parcels, example("Pick prescriptions for the pharmacy counter")])).not.toMatch(/Galbot|Robot Era/);
+  });
+
+  it("leaves out environments with no operating site on record, and jobs it cannot place", () => {
+    expect(example("Pack finished parts into cartons")).toEqual([]);
+    expect(example("Pick orders from shelves into totes")).toEqual([]);
     expect(examplesOf(inputs())).toEqual([]);
-    expect(examplesOf(inputs({ brief: { requestId: "job-1", summary: "Sort parcels onto outbound chutes" } as never })).map((entry) => entry.id))
-      .toEqual(["parcel-sorting"]);
   });
 });
 
 describe("the people-nearby answer, wherever it comes from", () => {
-  it("prefers the site's answer, then earlier answers, then what its video shows", () => {
+  it("prefers what the site told us, then what its video shows", () => {
     const people = (value: Inputs) => jobFactsOf(value).people;
-    expect(people(inputs({ request: { request: { siteTaskSpec: { humanProximity: "nearby" } }, ...SCREENED, ...VIDEO(null, "working_in_the_space") },
-      operations: { timesPerDay: null, daysPerWeek: null, peopleNearby: "isolated", updatedAtIso: NOW } }))).toMatchObject({ value: "isolated", source: "site_stated" });
-    expect(people(inputs({ request: { request: { siteTaskSpec: { humanProximity: "nearby" } }, ...SCREENED, ...VIDEO(null, "working_in_the_space") } })))
+    expect(people(withVideo({ people: "working_in_the_space" }, { request: { siteTaskSpec: { humanProximity: "nearby" } } })))
       .toMatchObject({ value: "nearby", source: "site_stated" });
-    expect(people(inputs({ request: { request: {}, ...SCREENED, ...VIDEO(null, "working_in_the_space") } }))).toMatchObject({ value: "shared", source: "video_observed" });
-    expect(people(inputs({ request: { request: {}, ...SCREENED, ...VIDEO(null, "performing_the_task") } }))).toBeNull();
+    expect(people(withVideo({ people: "working_in_the_space" }))).toMatchObject({ value: "shared", source: "video_observed" });
+    expect(people(withVideo({ people: "performing_the_task" }))).toBeNull();
   });
 
-  it("lets the site answer it on its page instead of leaving it to staff", () => {
+  it("never turns what is unknown into a question for the site", () => {
     const site = projectSiteRobotFit(computeRobotFitJob(inputs()))!;
-    expect(site.unknowns).toContain("Whether people work near the job. You can answer it under How the job runs today on this page.");
+    expect(site).not.toHaveProperty("unknowns");
+    expect(JSON.stringify(site)).not.toMatch(/on this page|you can answer|measure it/i);
   });
 });
 
@@ -239,23 +328,21 @@ describe("the owner's read", () => {
   beforeEach(() => {
     sharedFakeFirestoreState.docs.clear();
     walkthrough.received = true;
-    sharedFakeFirestoreState.docs.set("inboundRequests/job-1", { requestId: "job-1", request: {}, ...SCREENED, ...VIDEO(84) });
-    sharedFakeFirestoreState.docs.set("siteTaskBriefs/job-1", { requestId: "job-1", summary: "Pack finished parts into cartons", confirmedAtIso: NOW });
-    sharedFakeFirestoreState.docs.set("siteTaskOperations/job-1", { requestId: "job-1", timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared", updatedAtIso: NOW });
-    sharedFakeFirestoreState.docs.set("siteTaskMeasurements/job-1", { requestId: "job-1", family: "rigid_pick_place", articulation: null,
-      referencePaper: null, measuredBy: null, note: null, revision: 1, updatedAtIso: NOW,
-      readings: { pick_to_place_distance: reading(90, "cm", 0.9) } });
+    sharedFakeFirestoreState.docs.set("inboundRequests/job-1", { requestId: "job-1", request: {}, ...SCREENED,
+      ...walkthroughReading({ cycle: 84, estimates: { pick_to_place_m: 0.9, object_mass_kg_low: 1, object_mass_kg_high: 2 } }) });
+    sharedFakeFirestoreState.docs.set("siteTaskBriefs/job-1", { requestId: "job-1", summary: "Sort parcels onto outbound chutes", confirmedAtIso: NOW });
   });
 
-  it("gives the tracker, next things and what the job takes, and the report only while shared", async () => {
+  it("gives where the job stands, and the report only while shared and while consent stands", async () => {
     const unshared = await getSiteReadiness("job-1");
-    expect(unshared).toMatchObject({ ok: true, summary: "Pack finished parts into cartons", report: null,
-      operations: { timesPerDay: 120, peopleNearby: "shared" }, workload: { hoursPerWeek: 14 } });
+    expect(Object.keys(unshared!).sort()).toEqual(["briefPath", "ok", "report", "summary", "tracker"]);
+    expect(unshared).toMatchObject({ ok: true, summary: "Sort parcels onto outbound chutes", report: null, briefPath: null });
     sharedFakeFirestoreState.docs.set("siteRobotFit/job-1", { sharing: { shared: true, changedAtIso: NOW, changedBy: "admin" } });
     const shared = await getSiteReadiness("job-1");
     expect(shared?.report?.robotFit.forms).toHaveLength(6);
-    expect(shared?.report?.examples.map((entry) => entry.id)).toEqual(["line-side-packing"]);
-    expect(JSON.stringify(shared)).not.toMatch(/\bmatch|price|\$/i);
+    expect(shared?.report?.robotFit.needs).toContain("It can work from one place: the object moves about 90 cm (estimated from your video).");
+    expect(shared?.report?.examples.map((entry) => entry.id)).toEqual(["parcel-sorting"]);
+    expect(JSON.stringify(shared)).not.toMatch(/\bmatch|price|\$|Galbot|Robot Era/i);
     sharedFakeFirestoreState.docs.set("inboundRequests/job-1", { requestId: "job-1", request: {}, ...SCREENED, capture_rights: { consent_revoked: true } });
     expect((await getSiteReadiness("job-1"))?.report).toBeNull();
   });
@@ -265,6 +352,6 @@ describe("the owner's read", () => {
   });
 
   it("builds no report for a job that is not rated", () => {
-    expect(report(inputs({ request: { request: {} } }))).toBeNull();
+    expect(buildReadinessReport(inputs({ request: { request: {} } }))).toBeNull();
   });
 });

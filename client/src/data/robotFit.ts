@@ -70,13 +70,18 @@ export type RequirementKey =
   | "object_size"
   | "people_nearby";
 
-/** Where a requirement came from, in the words the site reads. */
-export type RequirementSource = "site_measured" | "site_stated" | "video_observed";
+/**
+ * Where a requirement came from, in the words the site reads. The site is
+ * never asked: most jobs rest on what the video shows and what the video
+ * reader estimates from it. Readings the site already gave still come first.
+ */
+export type RequirementSource = "site_measured" | "site_stated" | "video_observed" | "video_estimate";
 
 export const REQUIREMENT_SOURCE_LABELS: Record<RequirementSource, string> = {
   site_measured: "you measured this",
   site_stated: "you told us",
   video_observed: "seen in your video",
+  video_estimate: "estimated from your video",
 };
 
 export interface FitRequirement {
@@ -88,15 +93,10 @@ export interface FitRequirement {
   source: RequirementSource;
 }
 
-/**
- * What the rules could not read, and where the site answers it: the
- * measurements step, or the "How the job runs today" form. `staff` is a
- * question only Blueprint can ask, so the site is not shown it.
- */
+/** What the rules could not read or estimate: a note for staff, never a question to the site. */
 export interface FitUnknown {
   key: RequirementKey;
   label: string;
-  resolve: "measurements" | "operations" | "staff";
 }
 
 /**
@@ -190,14 +190,13 @@ export interface RobotFitSharing {
 export interface SiteRobotFit {
   needs: string[];
   forms: Array<{ id: RatedForm; label: string; description: string; verdict: FitVerdict; reasons: string[] }>;
-  unknowns: string[];
   note: string;
 }
 
 export const SITE_ROBOT_FIT_NOTE =
   "Blueprint invites robot teams whose robots look right for this job to evaluate it in a simulation of your site. "
-  + "If Blueprint recommends a team, it will be one whose evaluation of your job passed. This is a first read from what "
-  + "you told us and measured, not a promise that any robot can do the job.";
+  + "If Blueprint recommends a team, it will be one whose evaluation of your job passed. This is a first read from your "
+  + "video, not a promise that any robot can do the job.";
 
 export interface AdminRobotFitResponse {
   job: RobotFitJob;
@@ -207,22 +206,12 @@ export interface AdminRobotFitResponse {
   /** Exactly what the site would see if shared, or null when there is nothing to show. */
   site: SiteRobotFit | null;
   consentRevoked: boolean;
-  /** The whole readiness report as the site would see it once shared, and what the job takes today. */
+  /** The whole readiness report as the site would see it once shared. */
   readiness: AdminReadinessPreview | null;
 }
 
 /** Imported by type only, so this module stays free of the readiness copy. */
 export type AdminReadinessPreview = {
   report: import("./siteReadiness").SiteReadinessReport | null;
-  operations: import("./siteReadiness").SiteOperations;
-  workload: import("./siteReadiness").Workload | null;
-  speed: import("./siteReadiness").SpeedCheck | null;
 };
 
-export interface SiteRobotFitResponse {
-  ok: true;
-  robotFit: SiteRobotFit | null;
-}
-
-/** Sent by the measurements step after a save, so the robot-fit read refreshes in place. */
-export const SITE_MEASUREMENTS_SAVED_EVENT = "blueprint:site-measurements-saved";

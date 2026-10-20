@@ -206,7 +206,7 @@ describe("customer advisory decision details through the existing DTO", () => {
     expect(JSON.stringify(result)).not.toContain("A robot has already passed");
     expect(result).toMatchObject({ schemaVersion: "site_customer_advisory.v1", state: "ready", correlationId: "bp-advisory-test" });
   });
-  it("keeps decisive missing facts and questions with their decision consequence in the mounted customer report", () => {
+  it("keeps decisive missing facts and questions in the projection for staff, and asks the site none of them", () => {
     const raw = assessment(); raw.status = "needs_operator_input";
     raw.missing = [{ text: "The required number of rack operations per hour is unknown", basis: "unknown", evidence: [] }];
     raw.questions = [{ question: "How many rack operations must finish each hour?", decision_it_changes: "Whether a slower assisted workflow could meet your production requirement" }];
@@ -214,11 +214,15 @@ describe("customer advisory decision details through the existing DTO", () => {
       why: { text: "A rate target could change the workflow recommendation", basis: "unknown", evidence: [] } };
     const result = project(raw), html = renderToStaticMarkup(createElement(SiteAdvisoryReport, { advisory: result }));
     expect(result.unknowns).toContain("Unresolved: The required number of rack operations per hour is unknown");
-    expect(html).toContain("How many rack operations must finish each hour?");
-    expect(html).toContain("Whether a slower assisted workflow could meet your production requirement");
-    expect(html).toContain("Confirm the required hourly rate");
+    const projected = JSON.stringify(result);
+    expect(projected).toContain("How many rack operations must finish each hour?");
+    expect(projected).toContain("Whether a slower assisted workflow could meet your production requirement");
+    expect(projected).toContain("Confirm the required hourly rate");
     expect(result.nextAction).not.toContain("Reasoning to check:");
-    expect(html).not.toContain("Clarify unresolved job facts and success criteria.");
+    // The site sends its video and nothing else (founder direction, 2026-10-20): its report asks nothing.
+    for (const asked of ["How many rack operations", "Whether a slower assisted workflow", "Confirm the required hourly rate",
+      "Clarify unresolved job facts"]) expect(html).not.toContain(asked);
+    expect(html).toContain("Your video has been reviewed against the job details.");
   });
   it("retains safe questions while refusing the raw recommendation when factual bindings failed", () => {
     const raw = assessment(); raw.job[0].evidence[0].selector = null;

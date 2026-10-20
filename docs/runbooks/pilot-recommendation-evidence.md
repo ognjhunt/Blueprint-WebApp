@@ -26,14 +26,15 @@ design: `docs/superpowers/specs/2026-10-20-robot-fit-design.md`).
   weak fit at most. A ranking is flagged stale once the job or the notes change,
   and a failed run never hides the last good ranking. Ranking is refused after
   recording consent is withdrawn, and it never writes to `robotTeams`.
-- **What the site sees** is fixed sentences and the site's own data, never a team.
-  The owner always sees the steps to a pilot, the next three things, how the job
-  runs today, and what it takes today. **Share the readiness report with the
-  site** adds the robot readiness report. That is the robot forms, getting the
-  site ready, what decides success, safety in plain English, and sourced examples
-  of robots doing this kind of job, plus a printable one-page brief. The console
-  previews all of it before you share. Design:
-  `docs/superpowers/specs/2026-10-20-site-readiness-report-design.md`.
+- **What the site sees** is fixed sentences and the job's own data, never a
+  team, and it asks the site nothing: the site sends its video and nothing else.
+  Until you **Share the readiness report with the site**, the owner's job page
+  shows no robot read. Sharing adds the robot readiness report, folded: the
+  robot forms, getting the site ready, what decides success, safety in plain
+  English, and jobs like this on the public record, plus a printable brief by
+  its own read-only link. Most figures are the video reader's estimates and say
+  "estimated from your video". The console previews all of it before you share.
+  Design: `docs/superpowers/specs/2026-10-20-site-readiness-report-design.md`.
 
 Use the ranking to choose which teams to invite to evaluate the job, and as
 reference while writing "why the evidence supports it". A prospect has agreed

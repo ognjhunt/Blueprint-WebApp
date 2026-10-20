@@ -1,11 +1,11 @@
 /**
- * The one-page robot readiness brief, for the person who found Blueprint to
+ * The printable robot readiness brief, for the person who found Blueprint to
  * print or save as a PDF and hand to whoever has to agree: the job, where it
- * stands, what it takes today, and, once Blueprint has shared it, what the job
- * needs, which kinds of robot fit, getting the site ready, what decides
- * success, safety and where robots already do this kind of job. Then what is
- * left to check. It reads the owner's private link, so it is printed, never
- * forwarded as a link. Never a robot team.
+ * stands, and, once Blueprint has shared it, what the job needs, which kinds of
+ * robot fit, getting the site ready, what decides success, safety and where
+ * jobs like this are on the public record. It opens with its own read-only
+ * link, never the owner's job link, because browsers print a page's address on
+ * the paper and the job link can book the pilot. Never a robot team.
  */
 import { useEffect, useState } from "react";
 import { Helmet } from "@/lib/helmet";
@@ -17,14 +17,14 @@ import { READINESS_BRIEF_FOOTER, type SiteReadinessResponse } from "@/data/siteR
 type Loaded = { status: "loading" } | { status: "failed"; message: string } | { status: "ready"; readiness: SiteReadinessResponse };
 
 export default function RobotReadinessBrief() {
-  const [, params] = useRoute("/capture-upload/:token/brief");
-  const token = params?.token ?? "";
+  const [, params] = useRoute("/capture-upload/brief/:briefToken");
+  const briefToken = params?.briefToken ?? "";
   const [loaded, setLoaded] = useState<Loaded>({ status: "loading" });
 
   useEffect(() => {
     let current = true;
     setLoaded({ status: "loading" });
-    fetch(`/api/site-task-brief/${encodeURIComponent(token)}/readiness`)
+    fetch(`/api/site-task-brief/readiness-brief/${encodeURIComponent(briefToken)}`)
       .then(async (response) => {
         const value = await response.json().catch(() => ({})) as Partial<SiteReadinessResponse> & { error?: string };
         if (!current) return;
@@ -36,7 +36,7 @@ export default function RobotReadinessBrief() {
       })
       .catch(() => { if (current) setLoaded({ status: "failed", message: "This brief could not be loaded. Check your connection." }); });
     return () => { current = false; };
-  }, [token]);
+  }, [briefToken]);
 
   const readiness = loaded.status === "ready" ? loaded.readiness : null;
   return (
@@ -64,34 +64,10 @@ export default function RobotReadinessBrief() {
             <h2 style={{ marginTop: 0 }}>Where things stand</h2>
             <TrackerView tracker={readiness.tracker} />
           </section>
-          {readiness.workload || readiness.speed ? (
-            <section className="ms-task-interest" aria-label="What this job takes today">
-              <h2 style={{ marginTop: 0 }}>What this job takes today</h2>
-              {readiness.workload ? <p>{readiness.workload.sentence} <span className="ms-field-hint">{readiness.workload.basis}</span></p> : null}
-              {readiness.speed ? <p>{readiness.speed.sentence}</p> : null}
-            </section>
-          ) : null}
           {readiness.report ? (
             <section className="ms-task-interest" aria-label="Robot readiness report">
               <h2 style={{ marginTop: 0 }}>Robot readiness report</h2>
-              <ReadinessReportView report={readiness.report} full />
-            </section>
-          ) : (
-            <section className="ms-task-interest" aria-label="Robot readiness report">
-              <p className="ms-field-hint">Blueprint's read of which robots fit this job appears here once Blueprint has reviewed your job.</p>
-            </section>
-          )}
-          {readiness.nextThings.length ? (
-            <section className="ms-task-interest" aria-label="What is left to check">
-              <h2 style={{ marginTop: 0 }}>What is left to check</h2>
-              <ol className="ms-fit-list">
-                {readiness.nextThings.map((thing) => (
-                  <li key={thing.id}>
-                    <p className="ms-fit-name">{thing.action}</p>
-                    <p className="ms-fit-test">{thing.why}</p>
-                  </li>
-                ))}
-              </ol>
+              <ReadinessReportView report={readiness.report} />
             </section>
           ) : null}
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>{READINESS_BRIEF_FOOTER}</p>

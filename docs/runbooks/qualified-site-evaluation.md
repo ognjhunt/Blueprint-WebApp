@@ -42,9 +42,15 @@ frozen limits. All six dimensions must pass:
 | `registration_receipt` | `scale`, `registration`, `collision` |
 | `fidelity_review_receipt` | `task_state`, `observation`, `task_dynamics` |
 
-For cohort 1 the site produces the source measurements (founder decision,
-2026-10-19). It records optional tape-measure readings on its job page, which
-WebApp keeps in `siteTaskMeasurements/{requestId}`. Open **Site measurements**
+For cohort 1 the site produced the source measurements (founder decision,
+2026-10-19): optional tape-measure readings on its job page, which WebApp keeps
+in `siteTaskMeasurements/{requestId}`. Since 2026-10-20 the site sends its video
+and nothing else (founder direction), so its job page no longer asks for
+readings. Readings already on file still export as below. Who produces the
+source measurements for a new job is an open founder decision, for example
+Blueprint staff on a site visit. The video reader's `job_estimates` are never
+source measurements: they come from the same footage the scene is built from,
+so they cannot check it. Open **Site measurements**
 in the admin job console, or call
 `POST /api/admin/jobs/:requestId/site-measurements/source-document`, with
 three inputs:

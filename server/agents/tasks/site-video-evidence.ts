@@ -42,6 +42,17 @@
  * and retains custody of, so the only safe thing to extract is what the *work*
  * looks like. `people_present` counts and says where they are relative to the
  * work — that is the clear-window gate — and stops there.
+ *
+ * ## Estimates, kept apart from observations
+ *
+ * The site sends its video and nothing else (founder direction, 2026-10-20),
+ * so what a robot would need to know and nobody measured is estimated here
+ * instead of asked for: the object's size and weight, how far it moves, the two
+ * surface heights, the floor in front of the work, the items the clip did not
+ * show, and a cycle time when no complete cycle is visible. `job_estimates` is
+ * the one block that guesses, and it is walled off: it moves no stance, gate,
+ * cycle or footage status, and wherever it is shown it reads "estimated from
+ * your video".
  */
 import { z } from "zod";
 
@@ -141,6 +152,41 @@ const cycleMeasurementSchema = z
   })
   .strict();
 
+/**
+ * Educated estimates of the job, so the site is never asked to measure.
+ *
+ * Every field is null when the footage gives no basis. A malformed field reads
+ * as null and an extra key is dropped, rather than failing the whole reading:
+ * the same reading gates reconstruction, and a bad guess must never block it.
+ * The bounds only reject the impossible; they say nothing about any robot.
+ */
+const estimate = (min: number, max: number) => z.number().finite().min(min).max(max).nullable().catch(null);
+
+export const jobEstimatesSchema = z.object({
+  /** The main item the job handles, in a few words. */
+  object: z.string().trim().min(1).max(120).nullable().catch(null),
+  object_largest_side_m: estimate(0.005, 5),
+  object_mass_kg_low: estimate(0.001, 2000),
+  object_mass_kg_high: estimate(0.001, 2000),
+  object_surface: z.enum(["matte", "shiny", "transparent", "mixed"]).nullable().catch(null),
+  /** From where the object is picked up to where it is put down. */
+  pick_to_place_m: estimate(0, 50),
+  pick_height_m: estimate(0, 4),
+  place_height_m: estimate(0, 4),
+  /** Open floor in front of the surface the object is picked from. */
+  front_clearance_m: estimate(0, 20),
+  /** Other items the station probably handles that the clip did not show. */
+  other_items_likely: z.array(z.unknown()).catch([]).transform((items) => items
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim().slice(0, 80)).filter(Boolean).slice(0, 5)),
+  /** One full cycle, estimated, when no complete cycle was measured. */
+  cycle_seconds: estimate(1, 7200),
+  /** What things were sized and weighed against. */
+  basis: z.string().trim().min(1).max(600).nullable().catch(null),
+});
+
+export type SiteVideoJobEstimatesOutput = z.infer<typeof jobEstimatesSchema>;
+
 export const siteVideoEvidenceOutputSchema = z
   .object({
     /**
@@ -182,6 +228,12 @@ export const siteVideoEvidenceOutputSchema = z
      * Routes to a human rather than changing any verdict.
      */
     privacy_flag: z.boolean(),
+    /**
+     * Absent on readings made before estimates existed. Anything malformed
+     * reads as null rather than failing the reading it rides on.
+     */
+    job_estimates: z.any().transform((value): SiteVideoJobEstimatesOutput | null | undefined =>
+      value === undefined ? undefined : jobEstimatesSchema.safeParse(value).data ?? null),
   })
   .strict();
 
@@ -231,10 +283,12 @@ export const siteVideoEvidenceTask: StructuredTaskDefinition<
         "Every observation names the field it bears on and cites at least one timestamp.",
         "Anything not visible is reported as not_visible rather than inferred.",
         "No individual person is described.",
+        "job_estimates holds educated estimates sized against references in frame, and null where the footage gives no basis.",
       ],
       self_checks: [
         "Could a reviewer scrub to each cited timestamp and see what was claimed?",
         "Is any observation actually an inference from the task description rather than from the footage?",
+        "Is every job estimate sized against something in frame rather than taken from the task description?",
       ],
       proof_requirements: ["Timestamps for every observation that is not not_visible."],
       pass_threshold: 0.8,
@@ -275,6 +329,20 @@ Footage status:
 - footage_status="unusable" when the clip is too dark, too short, too shaky or does not show the task. Say so and stop rather than producing observations you cannot support.
 - not_evidenced lists what you looked for and could not see. An empty list claims you saw everything; that is rarely true.
 
+Estimating the job (job_estimates):
+Blueprint never asks the site to measure anything, so estimate what a robot would need to know from what the footage shows. These are educated estimates and are always shown as estimates. They never change a stance, an implied_value, cycle_measurement or footage_status. The scoring and measuring rules above govern observations and cycle_measurement only; estimating here is expected. The hard limits below still apply.
+- Size things against references in frame: a standard pallet (1.2 m by 1.0 m), a door (about 2 m tall), a table, bench or counter (about 0.75 to 0.9 m high), a tote, a carton, a floor tile.
+- object: the main item the job handles, in a few words. object_largest_side_m: its largest side, in metres.
+- object_mass_kg_low and object_mass_kg_high: a plausible weight range from its size, its material, how full it looks and how it is lifted (one hand or two, the effort it takes).
+- object_surface: matte, shiny, transparent or mixed, from how it looks.
+- pick_to_place_m: how far the object travels from where it is picked up to where it is put down. pick_height_m and place_height_m: the height above the floor of the surface it is picked from and of the one it is put on.
+- front_clearance_m: the open floor in front of the surface the object is picked from, where a robot could stand.
+- other_items_likely: up to five other items this station probably handles that the clip does not show, such as other sizes or variants of the same product. Empty when nothing suggests any.
+- cycle_seconds: your best estimate of one full cycle when cycle_measurement has no complete cycle, from partial cycles and the pace of the motions you saw. Null when a complete cycle was measured.
+- basis: one or two sentences on what you sized and weighed things against.
+- Use taskDescription only to know which object and which two spots the job is about, never as a number.
+- Give null for any estimate the footage gives no basis for. A wild guess is worse than null.
+
 Hard limits:
 - Never describe any individual person: no appearance, clothing, role, gender, age, or anything identifying. people_present is a count and a spatial relationship only.
 - Set privacy_flag=true if the footage centres on identifiable people rather than on the work. This is an observation, not a hold or a site verdict.
@@ -311,6 +379,20 @@ Hard limits:
         },
         not_evidenced: [],
         privacy_flag: false,
+        job_estimates: {
+          object: "string or null",
+          object_largest_side_m: null,
+          object_mass_kg_low: null,
+          object_mass_kg_high: null,
+          object_surface: "matte | shiny | transparent | mixed | null",
+          pick_to_place_m: null,
+          pick_height_m: null,
+          place_height_m: null,
+          front_clearance_m: null,
+          other_items_likely: [],
+          cycle_seconds: null,
+          basis: "string or null",
+        },
       },
       payload: input,
     });

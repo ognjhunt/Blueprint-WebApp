@@ -126,19 +126,12 @@ for (const width of [1440, 390]) {
       status: {headline: "We have your recording and are checking whether it covers the work area.", stage: "footage_received"},
       siteAdvisory: {state: "ready", sections: [], unknowns: ["Generic assessment caveat"], nextAction: "Generic proposed action", correlationId: "local-fixture-reference"},
     }}));
-    const revision = "a".repeat(64);
-    let clarificationAnswer: string | null = null;
+    // Questions are on offer here, so the journey fails if anything on the page ever asks them again.
+    let clarificationRequests = 0;
     let followUpRequests = 0;
     await page.route("**/api/site-task-brief/reliability-fixture/clarification*", route => {
-      if (route.request().method() === "POST") {
-        const body = route.request().postDataJSON();
-        expect(body.revision).toBe(revision);
-        expect(body.mode).toBe("assessment");
-        expect(route.request().headers()["x-csrf-token"]).toBe("fixture");
-        clarificationAnswer = body.explanation;
-        return route.fulfill({json: {id:"local-answer",state:"review_required"}});
-      }
-      return route.fulfill({json: {revision,needed:true,questions:["How much pull force is required?"],response:clarificationAnswer ? {revision,explanation:clarificationAnswer,state:"review_required"}:null}});
+      clarificationRequests++;
+      return route.fulfill({json: {revision: "a".repeat(64), needed: true, questions: ["How much pull force is required?"], response: null}});
     });
     await page.route("**/api/site-task-brief/reliability-fixture/follow-up", route => {
       followUpRequests++;
@@ -160,36 +153,34 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole("heading", {name: "Your recording is in.", exact: true})).toBeVisible();
     await expect(page.getByRole("link", {name: "Open your job and assessment", exact: true})).toHaveAttribute("href", fixtureLink);
     await expect(page.getByRole("link",{name:"Open your job and assessment",exact:true})).toBeVisible();
-    await expect(page.getByText("Generic assessment caveat")).not.toBeVisible();
-    await expect(page.getByText("Assessment notes")).toBeVisible();
+    // The site sends its video and nothing else (founder direction, 2026-10-20): after upload it is asked nothing,
+    // and the assessment's caveats and proposed steps stay with Blueprint.
+    await expect(page.getByText("Generic assessment caveat")).toHaveCount(0);
+    await expect(page.getByText("Generic proposed action")).toHaveCount(0);
+    await expect(page.getByText("Assessment notes")).toHaveCount(0);
     await expect(page.getByText("What should I record?", {exact: true})).toHaveCount(0);
     // The job was saved to the account from the start, so no account step is offered.
     await expect(page.getByRole("link", {name: "Create an account for this job"})).toHaveCount(0);
     await expect(page.getByRole("link", {name: "Saved in your workspace"})).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await expect(page.getByText("How much pull force is required?",{exact:true})).toBeVisible();
-    await expect(page.getByRole("textbox",{name:"Your answers",exact:true})).toBeVisible();
-    await expect(page.getByRole("heading",{name:"Questions from your video",exact:true})).toBeVisible();
-    await expect(page.getByRole("heading",{name:"What would a good result look like?",exact:true})).toHaveCount(0);
-    await expect(page.getByRole("link",{name:"Contact Blueprint about this job"})).toHaveCount(0);
-    await expect(page.getByRole("link",{name:"Open your job and assessment",exact:true})).toHaveCSS("background-color","rgba(0, 0, 0, 0)");
-    await page.screenshot({path: info.outputPath(`intake-inline-questions-${width}-local-fixture.png`), fullPage: true});
-    await page.getByRole("textbox",{name:"Your answers",exact:true}).fill("30 N");
-    await page.getByRole("button",{name:"Save answers",exact:true}).click();
-    await expect(page.getByText("Your answer is saved with this job for review.")).toBeVisible();
-    expect(clarificationAnswer).toBe("30 N");
-    expect(followUpRequests).toBe(0);
-    await expect(page.getByRole("link",{name:"Open your job and assessment",exact:true})).toHaveCSS("background-color","rgba(0, 0, 0, 0)");
-    await page.screenshot({path: info.outputPath(`intake-inline-saved-${width}-local-fixture.png`), fullPage: true});
+    await expect(page.getByText("How much pull force is required?", {exact: true})).toHaveCount(0);
+    await expect(page.getByRole("textbox", {name: "Your answers", exact: true})).toHaveCount(0);
+    await expect(page.getByRole("heading", {name: "Questions from your video", exact: true})).toHaveCount(0);
+    await expect(page.getByRole("heading", {name: "What would a good result look like?", exact: true})).toHaveCount(0);
+    await expect(page.getByRole("link", {name: "Contact Blueprint about this job"})).toHaveCount(0);
+    // With nothing to answer, opening the job is the page's one action, so it keeps the filled button.
+    await expect(page.getByRole("link", {name: "Open your job and assessment", exact: true})).toHaveCSS("background-color", "rgb(32, 61, 46)");
+    await page.screenshot({path: info.outputPath(`intake-video-only-${width}-local-fixture.png`), fullPage: true});
     await page.reload();
     await expect(page.getByRole("heading", {name: "Your saved job", exact: true})).toBeVisible();
     await page.getByRole("button", {name: "Return to saved job", exact: true}).click();
     await expect(page.getByRole("heading", {name: "Your recording is in.", exact: true})).toBeVisible();
     expect(uploads).toBe(1);
-    await expect(page.getByText("Your answer is saved with this job for review.")).toBeVisible();
-    await expect(page.getByRole("button",{name:"Edit your answer"})).toBeVisible();
-    await expect(page.getByRole("link",{name:"Open your job and assessment",exact:true})).toHaveCSS("background-color","rgba(0, 0, 0, 0)");
-    await page.screenshot({path: info.outputPath(`intake-inline-returned-${width}-local-fixture.png`), fullPage: true});
+    await expect(page.getByRole("textbox", {name: "Your answers", exact: true})).toHaveCount(0);
+    expect(clarificationRequests).toBe(0);
+    expect(followUpRequests).toBe(0);
+    await expect(page.getByRole("link", {name: "Open your job and assessment", exact: true})).toHaveCSS("background-color", "rgb(32, 61, 46)");
+    await page.screenshot({path: info.outputPath(`intake-video-only-returned-${width}-local-fixture.png`), fullPage: true});
   });
 }
 

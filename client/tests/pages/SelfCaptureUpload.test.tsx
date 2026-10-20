@@ -464,7 +464,7 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
 
   it("shows the saved layout with the brief confirmation on a laptop, instead of the QR code", async () => {
     setUserAgent(DESKTOP_UA);
-    vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.startsWith("/api/site-task-brief/") && url.endsWith("/status")) {
         return Promise.resolve({ ok: true, json: async () => ({ ok: true, captureReceived: true, status: {
@@ -486,22 +486,24 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
         return Promise.resolve({ ok: true, json: async () => ({ ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" }) });
       }
       return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false, scope: "film" }) });
-    }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
     render(<SelfCaptureUpload />);
 
-    await screen.findByRole("heading", { name: "Your job assessment" });
-    expect(screen.queryByRole("heading", { name: "Point your phone at this." })).not.toBeInTheDocument();
-    expect(await screen.findByText("What throughput is required?")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", {name:"What would a good result look like?"})).not.toBeInTheDocument();
     // Teams evaluate only a confirmed job: the brief is open on the page.
-    expect(screen.getByRole("region", { name: "Confirm your job brief" }).closest("details")).toBeNull();
-    fireEvent.click(screen.getByText("Add photos of the job items"));
-    expect(await screen.findByPlaceholderText("e.g. Dishes")).toBeInTheDocument();
-    expect(screen.getByRole("button", {name:"Add photos"})).toBeInTheDocument();
+    const brief = await screen.findByRole("region", { name: "Confirm your job brief" });
+    expect(brief.closest("details")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Point your phone at this." })).not.toBeInTheDocument();
+    // The site sends its video and nothing else: no follow-up questions, item photos or measurements.
+    expect(screen.queryByText("What throughput is required?")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", {name:"What would a good result look like?"})).not.toBeInTheDocument();
+    expect(screen.queryByText("Add photos of the job items")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Add measurements/)).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([input]) => String(input)).filter((url) => /\/(clarification|items|measurements|follow-up)\b/.test(url))).toEqual([]);
     expect(screen.queryByRole("button", { name: "Add another video" })).not.toBeInTheDocument();
   });
 
-  it("shows questions on a return visit while the received video remains held", async () => {
+  it("shows a held video's status on a return visit, and asks nothing", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
@@ -518,9 +520,9 @@ describe("SelfCaptureUpload after the phone has uploaded", () => {
     }));
     render(<SelfCaptureUpload />);
 
-    expect(await screen.findByText("How much payload must the robot handle?")).toBeInTheDocument();
+    expect(await screen.findByText(/Review is still in progress/)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Point your phone at this." })).not.toBeInTheDocument();
-    expect(screen.getByText(/Review is still in progress/)).toBeInTheDocument();
+    expect(screen.queryByText("How much payload must the robot handle?")).not.toBeInTheDocument();
   });
 });
 
@@ -872,40 +874,33 @@ describe("SelfCaptureUpload for a video that arrived before the job's account", 
   });
 });
 
-describe("measurements beside the item photos", () => {
-  it("offers the person filming the measurements step and loads it only when opened", async () => {
+describe("the site sends its video and nothing else", () => {
+  it("asks the person filming for no measurements, item photos or follow-up answers", async () => {
     setUserAgent(PHONE_UA);
     const fetchMock = mockFetch();
     vi.stubGlobal("fetch", fetchMock);
     render(<SelfCaptureUpload />);
-    const summary = await screen.findByText("Add measurements (optional)");
-    expect(screen.getByText("Add photos of the job items")).toBeInTheDocument();
-    expect(screen.getByText(/lay a sheet\s+of printer paper flat on the work surface first/)).toBeInTheDocument();
-    const measurementCalls = () => fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/measurements"));
-    expect(measurementCalls()).toHaveLength(0);
-    const details = summary.closest("details")!;
-    // Opening queues the toggle event as a task; flush it inside act.
-    await act(async () => {
-      details.open = true;
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-    await waitFor(() => expect(measurementCalls().map(([input]) => String(input)))
-      .toEqual([`/api/site-task-brief/${TOKEN}/measurements`]));
+    expect(await screen.findByRole("button", { name: "Choose or record a video" })).toBeInTheDocument();
+    expect(screen.queryByText(/Add measurements/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Add photos of the job items")).not.toBeInTheDocument();
+    expect(screen.queryByText(/printer paper/)).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([input]) => String(input)).filter((url) => /\/(clarification|items|measurements|follow-up)\b/.test(url))).toEqual([]);
   });
 });
 
-describe("the readiness panel above the measurements", () => {
-  const READINESS = { ok: true, summary: "Pack parts", report: null, workload: null, speed: null,
-    tracker: { steps: [{ id: "video", label: "Video received", state: "done", detail: null, owner: "site" }], meanwhile: null },
-    nextThings: [{ id: "measure_distance", action: "Measure how far the object moves", why: "It tells us which robots can reach both spots.", target: "measurements" }],
-    operations: { timesPerDay: null, daysPerWeek: null, peopleNearby: null, updatedAtIso: null } };
+describe("the robot readiness report on the owner's page", () => {
+  const READINESS = { ok: true, summary: "Sort parcels", briefPath: "/capture-upload/brief/brief-token.signature",
+    tracker: { steps: [{ id: "video", label: "Video received", state: "done", owner: "site" }], meanwhile: null },
+    report: { robotFit: { needs: ["It has to pick the object up and put it down at another spot."], forms: [
+      { id: "humanoid", label: "Walking humanoid", description: "", verdict: "fits", reasons: [] }], note: "A first read." },
+      checklist: [], successFactors: [], safety: ["Blueprint's evaluation runs in a simulation of your site."], examples: [], examplesFootnote: "" } };
   function fetchFor(scope: "owner" | "film") {
     const fallback = mockFetch();
     return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({ ok: true, ready: false, scope }) });
       if (url.endsWith("/readiness")) return Promise.resolve({ ok: true, json: async () => READINESS });
-      // Footage has arrived: the owner's page leaves description-first for the saved layout with its measurements.
+      // Footage has arrived: the owner's page leaves description-first for the saved layout.
       if (url === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({ ok: true,
         status: { decision: "processing", headline: "Your video arrived.", operatorAction: null, missingViews: [],
           nextUpdateIso: null }, captureReceived: true, claimUrl: null, sceneViewUrl: null }) });
@@ -913,24 +908,23 @@ describe("the readiness panel above the measurements", () => {
     });
   }
 
-  it("shows the owner the next steps, above the measurements they open", async () => {
+  it("shows the owner the shared report, folded, with the brief by its own link", async () => {
     setUserAgent(PHONE_UA);
     vi.stubGlobal("fetch", fetchFor("owner"));
     render(<SelfCaptureUpload />);
-    const heading = await screen.findByRole("heading", { name: "Your next steps" });
-    const measurements = screen.getByText("Add measurements (optional)");
-    expect(heading.compareDocumentPosition(measurements) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(measurements.closest("details")).toHaveAttribute("id", "site-measurements");
-    expect(screen.getByRole("button", { name: "Measure how far the object moves" })).toBeInTheDocument();
+    const summary = await screen.findByText("Your robot readiness report · 1 kind of robot fits");
+    expect(summary.closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByRole("link", { name: "Print or save the brief" })).toHaveAttribute("href", READINESS.briefPath);
+    expect(screen.queryByRole("heading", { name: "Your next steps" })).not.toBeInTheDocument();
   });
 
-  it("never asks for it on a film-only link", async () => {
+  it("never reads it on a film-only link", async () => {
     setUserAgent(PHONE_UA);
     const fetchMock = fetchFor("film");
     vi.stubGlobal("fetch", fetchMock);
     render(<SelfCaptureUpload />);
-    await screen.findByText("Add measurements (optional)");
+    expect((await screen.findAllByText("Your video arrived.")).length).toBeGreaterThan(0);
     expect(fetchMock.mock.calls.some(([input]) => String(input).endsWith("/readiness"))).toBe(false);
-    expect(screen.queryByRole("heading", { name: "Your next steps" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Your robot readiness report/)).not.toBeInTheDocument();
   });
 });

@@ -1,9 +1,10 @@
 // @vitest-environment node
 /**
- * The readiness routes over HTTP: the owner's read and how-the-job-runs save on
- * the private link, and the staff preview beside robot fit. What this pins is
- * the route's side: owner link only, strict whole-number answers, the report
- * only while shared, and withdrawn consent closing the link like every other
+ * The readiness routes over HTTP: the owner's read on the private link, the
+ * printable brief by its own read-only link, and the staff preview beside
+ * robot fit. What this pins is the route's side: owner link only, nothing for
+ * the site to save, a brief link that reads and opens nothing else, the report
+ * only while shared, and withdrawn consent closing both links like every other
  * capture-derived read.
  */
 import express from "express";
@@ -36,6 +37,7 @@ vi.mock("../utils/siteWalkthrough", async (importOriginal) => ({
 const { default: adminRouter } = await import("../routes/admin-job-console");
 const { default: briefRouter } = await import("../routes/site-task-brief");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
+const { createReadinessBriefToken } = await import("../utils/readinessBriefToken");
 
 const NOW = "2026-10-20T12:00:00.000Z";
 let server: Server;
@@ -44,8 +46,9 @@ let base: string;
 function seed(extra: Record<string, unknown> = {}) {
   sharedFakeFirestoreState.docs.set("inboundRequests/job-1", { requestId: "job-1", request: { buyerType: "site_operator" },
     site_task_scope: { supported: true, kind: "rigid_pick_and_place", reason: null },
-    site_video_evidence: { status: "analysed", footage_status: "usable", measured_cycle_seconds: 60, people_relationship_to_work: null }, ...extra });
-  sharedFakeFirestoreState.docs.set("siteTaskBriefs/job-1", { requestId: "job-1", summary: "Pack finished parts into cartons", confirmedAtIso: NOW });
+    walkthrough_video_evidence: { status: "analysed", footage_status: "usable", measured_cycle_seconds: 60, people_relationship_to_work: null,
+      job_estimates: { pick_to_place_m: 0.9, object_mass_kg_low: 1, object_mass_kg_high: 2 }, capture_id: "walkthrough-job-1" }, ...extra });
+  sharedFakeFirestoreState.docs.set("siteTaskBriefs/job-1", { requestId: "job-1", summary: "Sort parcels onto outbound chutes", confirmedAtIso: NOW });
 }
 
 beforeEach(async () => {
@@ -70,43 +73,69 @@ afterEach(async () => {
 
 const token = (scope: "owner" | "film") => createCaptureUploadToken({ requestId: "job-1", captureId: "walkthrough-job-1", sceneId: "site-job-1", scope });
 const readiness = (scope: "owner" | "film" = "owner") => fetch(`${base}/site-task-brief/${token(scope)}/readiness`);
-const saveOperations = (body: unknown, scope: "owner" | "film" = "owner") => fetch(`${base}/site-task-brief/${token(scope)}/operations`, {
-  method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+const brief = (briefToken: string) => fetch(`${base}/site-task-brief/readiness-brief/${encodeURIComponent(briefToken)}`);
 
 describe("the owner's readiness read", () => {
-  it("returns the tracker, next things and what the job takes, with no report until shared", async () => {
+  it("returns where the job stands and a read-only brief link, with no report until shared", async () => {
     seed();
     const response = await readiness();
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body).toMatchObject({ ok: true, summary: "Pack finished parts into cartons", report: null, workload: null,
-      speed: { state: "needs_target" } });
+    expect(Object.keys(body).sort()).toEqual(["briefPath", "ok", "report", "summary", "tracker"]);
+    expect(body).toMatchObject({ ok: true, summary: "Sort parcels onto outbound chutes", report: null });
+    expect(body.briefPath).toMatch(/^\/capture-upload\/brief\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+    expect(body.briefPath).not.toContain(token("owner"));
     expect(body.tracker.steps[0]).toMatchObject({ id: "video", state: "done" });
-    expect(body.nextThings.map((entry: { id: string }) => entry.id)).toEqual(["measure_distance", "times_per_day", "weigh_object"]);
     expect((await readiness("film")).status).toBe(403);
     expect((await fetch(`${base}/site-task-brief/not-a-token/readiness`)).status).toBe(404);
   });
 
-  it("saves how the job runs, turns it into hours, and refuses what is not a whole-number answer", async () => {
+  it("has nothing for the site to fill in", async () => {
     seed();
-    const saved = await saveOperations({ timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared" });
-    expect(saved.status).toBe(200);
-    expect((await saved.json()).operations).toMatchObject({ timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared" });
-    expect(sharedFakeFirestoreState.docs.get("siteTaskOperations/job-1")).toMatchObject({ savedByScope: "owner", timesPerDay: 120 });
-    const body = await (await readiness()).json();
-    expect(body.workload).toMatchObject({ hoursPerDay: 2, hoursPerWeek: 10 });
-    for (const bad of [{ timesPerDay: 1.5, daysPerWeek: null, peopleNearby: null }, { timesPerDay: 10, daysPerWeek: 8, peopleNearby: null },
-      { timesPerDay: 10, daysPerWeek: null, peopleNearby: "everyone" }, { timesPerDay: 10 }]) {
-      const refused = await saveOperations(bad);
-      expect(refused.status).toBe(400);
-      expect((await refused.json()).code).toBe("operations_invalid");
-    }
-    expect((await saveOperations({ timesPerDay: 1, daysPerWeek: null, peopleNearby: null }, "film")).status).toBe(403);
+    const saved = await fetch(`${base}/site-task-brief/${token("owner")}/operations`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ timesPerDay: 120 }) });
+    expect(saved.status).toBe(404);
+    expect(sharedFakeFirestoreState.docs.has("siteTaskOperations/job-1")).toBe(false);
   });
 
   it("closes once recording consent is withdrawn", async () => {
     seed({ capture_rights: { consent_revoked: true } });
     const response = await readiness();
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("capture_processing_not_authorized");
+  });
+});
+
+describe("the printable brief's own link", () => {
+  it("reads what the owner's read shows, and the report once shared, without minting another link", async () => {
+    seed();
+    const briefPath = (await (await readiness()).json()).briefPath as string;
+    const unshared = await brief(briefPath.split("/").pop()!);
+    expect(unshared.status).toBe(200);
+    expect(await unshared.json()).toMatchObject({ ok: true, summary: "Sort parcels onto outbound chutes", report: null, briefPath: null });
+    sharedFakeFirestoreState.docs.set("siteRobotFit/job-1", { sharing: { shared: true, changedAtIso: NOW, changedBy: "admin" } });
+    const shared = await (await brief(createReadinessBriefToken("job-1"))).json();
+    expect(shared.report.robotFit.forms).toHaveLength(6);
+    expect(shared.report.robotFit.needs).toContain("It can work from one place: the object moves about 90 cm (estimated from your video).");
+  });
+
+  it("opens nothing else, and nothing else opens it", async () => {
+    seed();
+    const briefToken = createReadinessBriefToken("job-1");
+    for (const path of [`${briefToken}/readiness`, `${briefToken}/robot-fit`, briefToken]) {
+      expect((await fetch(`${base}/site-task-brief/${path}`)).status, path).toBe(404);
+    }
+    const confirm = await fetch(`${base}/site-task-brief/${briefToken}/confirm`, { method: "POST",
+      headers: { "content-type": "application/json" }, body: JSON.stringify({}) });
+    expect(confirm.status).toBeGreaterThanOrEqual(400);
+    expect((await brief(token("owner"))).status).toBe(404);
+    expect((await brief(createReadinessBriefToken("job-1", -60))).status).toBe(404);
+    expect((await brief(`${briefToken}x`)).status).toBe(404);
+  });
+
+  it("closes once recording consent is withdrawn", async () => {
+    seed({ capture_rights: { consent_revoked: true } });
+    const response = await brief(createReadinessBriefToken("job-1"));
     expect(response.status).toBe(409);
     expect((await response.json()).code).toBe("capture_processing_not_authorized");
   });
@@ -119,9 +148,9 @@ describe("staff preview", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.sharing).toBeNull();
+    expect(Object.keys(body.readiness)).toEqual(["report"]);
     expect(body.readiness.report.checklist.map((entry: { id: string }) => entry.id))
-      .toEqual(["floor_space", "standing_spot", "power_network", "safe_zone", "object_arrival"]);
-    expect(body.readiness.report.examples.map((entry: { id: string }) => entry.id)).toEqual(["line-side-packing"]);
-    expect(body.readiness.speed.state).toBe("needs_target");
+      .toEqual(["floor_space", "standing_spot", "power_network", "safe_zone"]);
+    expect(body.readiness.report.examples.map((entry: { id: string }) => entry.id)).toEqual(["parcel-sorting"]);
   });
 });

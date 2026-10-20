@@ -258,8 +258,9 @@ export const appRoutes: AppRoute[] = [
   // The link in a dispatch email. Bare shell and no nav: whoever opens this was
   // sent here to do one thing, and has no account to navigate with.
   { path: "/capture-upload/:token", layout: "public", shell: "bare", component: SelfCaptureUpload },
-  // The owner's one-page robot readiness brief, to print or save as a PDF.
-  { path: "/capture-upload/:token/brief", layout: "public", shell: "bare", component: RobotReadinessBrief },
+  // The printable robot readiness brief, by its own read-only link: the owner's
+  // job link never goes on paper.
+  { path: "/capture-upload/brief/:briefToken", layout: "public", shell: "bare", component: RobotReadinessBrief },
   { path: "/claim/:token", layout: "public", shell: "bare", component: ClaimSite },
   { path: "/capture-app", layout: "public", shell: "bare", component: SiteOperatorCaptureRedirect },
   { path: "/capture-app/account", layout: "protected", shell: "bare", component: CapturerAccount },

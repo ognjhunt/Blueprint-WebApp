@@ -42,7 +42,9 @@ import {
   type CaptureVideoPrivacyOutput,
 } from "../agents/tasks/capture-video-privacy";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
+import { getGeminiVideoModel } from "../agents/provider-config";
 import { decryptInboundRequestForAdmin } from "./field-encryption";
+import { summariseVideoEvidence } from "./siteVideoEvidence";
 import { selfCaptureObjectPath } from "./captureUploadToken";
 import { gateAnswersOnFile } from "./gateAnswersOnFile";
 import {
@@ -239,6 +241,32 @@ export async function buildCapturePrivacyReviewer(params: {
   };
 }
 
+/**
+ * Keep the site's own walkthrough reading on the job, for robot fit and the
+ * readiness report: what the video showed and what the reader estimated from
+ * it, so the site is never asked. Only the walkthrough itself, never an added
+ * view, which shows part of the work. Kept apart from `site_video_evidence`,
+ * which feeds qualification, and replaced whole so a later reading never
+ * inherits an earlier one's estimates. Best effort: a failed write never
+ * blocks the review it records.
+ */
+export async function recordWalkthroughEvidence(params: {
+  requestId: string; captureId: string; output: SiteVideoEvidenceOutput; model: string;
+}): Promise<void> {
+  if (!db || params.captureId !== `walkthrough-${params.requestId}`) return;
+  try {
+    const ref = db.collection("inboundRequests").doc(params.requestId);
+    // Never a stub request for a job that is gone.
+    if (!(await ref.get()).exists) return;
+    await ref.set({
+      walkthrough_video_evidence: { ...summariseVideoEvidence(params.output, params.model), capture_id: params.captureId },
+    }, { mergeFields: ["walkthrough_video_evidence"] });
+  } catch (error) {
+    logger.warn({ error, requestId: params.requestId, captureId: params.captureId },
+      "Could not keep the walkthrough's video reading for robot fit");
+  }
+}
+
 export interface CaptureFootageReviewer {
   review: () => Promise<SiteVideoEvidenceOutput | null>;
   bindingFieldIds: readonly string[];
@@ -308,6 +336,8 @@ export async function buildCaptureFootageReviewer(params: {
         return null;
       }
 
+      await recordWalkthroughEvidence({ requestId: params.requestId, captureId: params.captureId,
+        output: result.output, model: result.model || getGeminiVideoModel() });
       if (sourceBrief) await mergeFootageIntoBrief({ requestId: params.requestId,
         captureId: params.captureId, evidence: result.output, briefDigest: humanDecisionDigest(sourceBrief) });
       return result.output;

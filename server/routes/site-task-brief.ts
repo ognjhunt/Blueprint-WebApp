@@ -51,9 +51,8 @@ import {
   presentMeasurements,
   saveMeasurements,
 } from "../utils/siteTaskMeasurements";
-import { getSiteRobotFit } from "../utils/siteRobotFit";
 import { getSiteReadiness } from "../utils/siteReadiness";
-import { operationsSaveSchema, saveOperations } from "../utils/siteTaskOperations";
+import { readinessBriefPathFor, verifyReadinessBriefToken } from "../utils/readinessBriefToken";
 import { gateFields } from "../../client/src/data/siteTaskQualification";
 import { assessReadiness } from "../../client/src/lib/siteTaskReadiness";
 import {
@@ -106,6 +105,32 @@ router.use("/:token", async (req, res, next) => {
   }
 });
 
+
+/**
+ * The printable brief, by its read-only link (`readinessBriefToken.ts`). It
+ * reads what the owner's readiness read shows and changes nothing, so a
+ * printout or PDF can carry the link. Withdrawn recording consent closes it,
+ * like every other read derived from the capture.
+ */
+router.get("/readiness-brief/:briefToken", async (req: Request, res: Response) => {
+  res.setHeader("Cache-Control", "no-store");
+  const requestId = verifyReadinessBriefToken(String(req.params.briefToken || ""));
+  if (!requestId) {
+    return res.status(404).json({ error: "This brief link is not valid or has expired. Open the brief again from your job page." });
+  }
+  try {
+    if ((await loadWebsiteCaptureRights(requestId)).consent_revoked) {
+      return res.status(409).json({ code: "capture_processing_not_authorized",
+        error: "Recording consent was withdrawn, so this brief is no longer available." });
+    }
+    const readiness = await getSiteReadiness(requestId);
+    if (!readiness) return res.status(404).json({ error: "This job could not be found." });
+    return res.status(200).json(readiness);
+  } catch (error) {
+    logger.error({ error, requestId }, "Could not load the readiness brief");
+    return res.status(503).json({ error: "This brief could not be loaded.", code: "readiness_unavailable" });
+  }
+});
 
 router.get("/:token/clarification", async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -1242,27 +1267,9 @@ router.put("/:token/measurements", async (req: Request, res: Response) => {
 });
 
 /**
- * What kind of robot fits the job, as the site sees it: fixed sentences and its
- * own data, never a team. Owner link only, and only once Blueprint has shared it.
- */
-router.get("/:token/robot-fit", async (req: Request, res: Response) => {
-  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
-  if (!payload) {
-    return res.status(404).json({ error: "This link is not valid or has expired." });
-  }
-  if (payload.scope !== "owner") return res.status(403).json({ error: "This link is for filming only." });
-  try {
-    return res.status(200).json({ ok: true, robotFit: await getSiteRobotFit(payload.requestId) });
-  } catch (error) {
-    logger.error({ error, requestId: payload.requestId }, "Could not load robot fit");
-    return res.status(503).json({ error: "Robot fit could not be loaded.", code: "robot_fit_unavailable" });
-  }
-});
-
-/**
- * The owner's readiness read: steps to a pilot, the next three things, how the
- * job runs today, what it takes today in the site's own numbers, and the robot
- * readiness report while Blueprint shares it. Never a team.
+ * The owner's readiness read: where the job stands, the robot readiness report
+ * while Blueprint shares it, and a read-only link to the printable brief. The
+ * site is asked for nothing. Never a team.
  */
 router.get("/:token/readiness", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
@@ -1273,30 +1280,10 @@ router.get("/:token/readiness", async (req: Request, res: Response) => {
   try {
     const readiness = await getSiteReadiness(payload.requestId);
     if (!readiness) return res.status(404).json({ error: "This job could not be found." });
-    return res.status(200).json(readiness);
+    return res.status(200).json({ ...readiness, briefPath: readinessBriefPathFor(payload.requestId) });
   } catch (error) {
     logger.error({ error, requestId: payload.requestId }, "Could not load site readiness");
     return res.status(503).json({ error: "Your readiness report could not be loaded.", code: "readiness_unavailable" });
-  }
-});
-
-/** How the job runs today: times a day, days a week and people nearby. Owner link only; every answer optional. */
-router.put("/:token/operations", async (req: Request, res: Response) => {
-  const payload = verifyCaptureUploadToken(String(req.params.token || ""));
-  if (!payload) {
-    return res.status(404).json({ error: "This link is not valid or has expired." });
-  }
-  if (payload.scope !== "owner") return res.status(403).json({ error: "This link is for filming only." });
-  const parsed = operationsSaveSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ code: "operations_invalid",
-      error: "Use whole numbers: up to 100,000 times a day, and 1 to 7 days a week." });
-  }
-  try {
-    return res.status(200).json({ ok: true, operations: await saveOperations(payload.requestId, parsed.data) });
-  } catch (error) {
-    logger.error({ error, requestId: payload.requestId }, "Could not save how the job runs");
-    return res.status(503).json({ error: "Your answers could not be saved.", code: "operations_unavailable" });
   }
 });
 

@@ -14,10 +14,14 @@
  *
  * ## Two halves with different trust
  *
- * Needs and form ratings are rules over the site's own data: its tape-measure
- * readings, its answers and the weight it typed. They are computed on every
- * read, so they never go stale, and they are the only part a site may see, as
- * fixed sentences filled with its own numbers.
+ * Needs and form ratings are rules over the site's own data. The site sends its
+ * video and nothing else (founder direction, 2026-10-20), so most of that data
+ * is what the video reader saw and estimated: the object's size and weight, how
+ * far it moves, the two heights and the people nearby. Anything the site did
+ * measure or tell us still comes first. Every figure carries its source in the
+ * site's words ("estimated from your video"). The rules run on every read, so
+ * they never go stale, and they are the only part a site may see, as fixed
+ * sentences filled with its own numbers.
  *
  * The team ranking is a model reading Blueprint's research notes. Notes are
  * not measurements and a prospect has agreed to nothing, so the ranking stays
@@ -55,7 +59,6 @@ import {
   type RobotFormRating,
   type SiteRobotFit,
 } from "../../client/src/data/robotFit";
-import type { SiteOperations } from "../../client/src/data/siteReadiness";
 import { UNIT_LABELS, type EntryUnit } from "../../client/src/data/siteMeasurements";
 import { robotFitRankingOutputSchema, type RobotFitRankingInput } from "../agents/tasks/robot-fit-ranking";
 import type { AgentResult, AgentTask } from "../agents/types";
@@ -66,7 +69,6 @@ import { supplySummary } from "./robotTeamSupply";
 import { getBrief, isPlaceholderSummary, type SiteTaskBriefRecord } from "./siteTaskBrief";
 import { taskScopeReasonSentence } from "./siteTaskScope";
 import { getMeasurements, type SiteTaskMeasurementRecord, type StoredReading } from "./siteTaskMeasurements";
-import { getOperations } from "./siteTaskOperations";
 import { teamEvaluationTerms } from "./teamJobAccess";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 
@@ -101,19 +103,16 @@ export interface RobotFitInputs {
   request: Record<string, any> | null;
   brief: SiteTaskBriefRecord | null;
   measurements: SiteTaskMeasurementRecord | null;
-  /** How the job runs today, from the site's optional form; null when never answered. */
-  operations: SiteOperations | null;
 }
 
 export async function loadRobotFitInputs(requestId: string): Promise<RobotFitInputs> {
   if (!db) throw new Error("site_robot_fit_store_unavailable");
-  const [requestSnap, brief, measurements, operations] = await Promise.all([
+  const [requestSnap, brief, measurements] = await Promise.all([
     db.collection("inboundRequests").doc(requestId).get(),
     getBrief(requestId),
     getMeasurements(requestId),
-    getOperations(requestId),
   ]);
-  return { request: (requestSnap.data() as Record<string, any> | undefined) ?? null, brief, measurements, operations };
+  return { request: (requestSnap.data() as Record<string, any> | undefined) ?? null, brief, measurements };
 }
 
 /* ----------------------------------------------------------- requirements */
@@ -163,6 +162,20 @@ function specAnswer(inputs: RobotFitInputs, fieldId: string): string | null {
 
 function formatNumber(value: number) {
   return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+}
+
+/** A length in the words a site uses: centimetres below a metre, metres with one decimal above. */
+export function lengthText(metres: number) {
+  const centimetres = Math.round(metres * 100);
+  return centimetres < 100 ? `${centimetres} cm` : `${Number(metres.toFixed(1))} m`;
+}
+
+/** A weight range in grams below a kilogram, else kilograms; one figure when both ends read the same. */
+function massRangeText(low: number, high: number) {
+  const grams = high < 1;
+  const figure = (kg: number) => (grams ? String(Math.round(kg * 1000)) : kg < 10 ? String(Number(kg.toFixed(1))) : String(Math.round(kg)));
+  const [from, to] = [figure(low), figure(high)];
+  return `about ${from === to ? from : `${from}–${to}`} ${grams ? "g" : "kg"}`;
 }
 
 export function measuredDisplay(reading: StoredReading): string {
@@ -215,40 +228,102 @@ function massRequirement(inputs: RobotFitInputs): Quantity | null {
     const { range: [min, max], display } = MASS_BANDS[band];
     return { key: "object_mass", label, display, source: "site_stated", min, max };
   }
-  return null;
+  const estimate = videoEvidence(inputs)?.estimates?.massKg;
+  return estimate ? { key: "object_mass", label, display: massRangeText(estimate.low, estimate.high), source: "video_estimate",
+    min: estimate.low, max: estimate.high } : null;
 }
 
-function lengthRequirement(inputs: RobotFitInputs, key: RequirementKey, sampleId: string, label: string): Quantity | null {
+function lengthRequirement(inputs: RobotFitInputs, key: RequirementKey, sampleId: string, label: string,
+  estimate: number | null | undefined): Quantity | null {
   const reading = measured(inputs, sampleId);
-  return reading ? { key, label, display: measuredDisplay(reading), source: "site_measured", min: reading.si, max: reading.si } : null;
+  if (reading) return { key, label, display: measuredDisplay(reading), source: "site_measured", min: reading.si, max: reading.si };
+  return typeof estimate === "number"
+    ? { key, label, display: `about ${lengthText(estimate)}`, source: "video_estimate", min: estimate, max: estimate } : null;
 }
 
 function largestSide(inputs: RobotFitInputs): Quantity | null {
+  const label = "Object's largest side";
   const sides = ["object_length", "object_width", "object_height"]
     .map((sampleId) => measured(inputs, sampleId)).filter((reading): reading is StoredReading => Boolean(reading));
-  if (!sides.length) return null;
-  const largest = sides.reduce((best, reading) => (reading.si > best.si ? reading : best));
-  return { key: "object_size", label: "Object's largest side", display: measuredDisplay(largest), source: "site_measured",
-    min: largest.si, max: largest.si };
+  if (sides.length) {
+    const largest = sides.reduce((best, reading) => (reading.si > best.si ? reading : best));
+    return { key: "object_size", label, display: measuredDisplay(largest), source: "site_measured", min: largest.si, max: largest.si };
+  }
+  const estimate = videoEvidence(inputs)?.estimates?.largestSideM;
+  return typeof estimate === "number"
+    ? { key: "object_size", label, display: `about ${lengthText(estimate)}`, source: "video_estimate", min: estimate, max: estimate } : null;
 }
 
-/** A usable reading of the site's video, or null. */
-export function videoEvidence(inputs: RobotFitInputs): { measuredCycleSeconds: number | null; people: string | null } | null {
-  const evidence = inputs.request?.site_video_evidence as Record<string, unknown> | undefined;
-  if (!evidence || evidence.status !== "analysed"
-    || (evidence.footage_status !== "usable" && evidence.footage_status !== "partially_usable")) return null;
+/** The video reader's estimates, in SI. Never measurements: shown as "estimated from your video". */
+export interface VideoEstimates {
+  largestSideM: number | null;
+  massKg: { low: number; high: number } | null;
+  surface: "matte" | "shiny" | "transparent" | "mixed" | null;
+  pickToPlaceM: number | null;
+  pickHeightM: number | null;
+  placeHeightM: number | null;
+  frontClearanceM: number | null;
+  otherItemsLikely: string[];
+  cycleSeconds: number | null;
+}
+
+/** A stored number only inside the reader's own bounds; anything else reads as no estimate. */
+function bounded(value: unknown, min: number, max: number, exclusiveMin = false): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value <= max && (exclusiveMin ? value > min : value >= min) ? value : null;
+}
+
+const SURFACE_VALUES = new Set(["matte", "shiny", "transparent", "mixed"]);
+
+function estimatesOf(raw: unknown): VideoEstimates | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  const low = bounded(value.object_mass_kg_low, 0.001, 2000);
+  const high = bounded(value.object_mass_kg_high, 0.001, 2000);
+  const ends = [low ?? high, high ?? low] as const;
+  return {
+    largestSideM: bounded(value.object_largest_side_m, 0.005, 5),
+    massKg: ends[0] !== null && ends[1] !== null ? { low: Math.min(ends[0], ends[1]), high: Math.max(ends[0], ends[1]) } : null,
+    surface: typeof value.object_surface === "string" && SURFACE_VALUES.has(value.object_surface)
+      ? value.object_surface as VideoEstimates["surface"] : null,
+    pickToPlaceM: bounded(value.pick_to_place_m, 0, 50, true),
+    pickHeightM: bounded(value.pick_height_m, 0, 4),
+    placeHeightM: bounded(value.place_height_m, 0, 4),
+    frontClearanceM: bounded(value.front_clearance_m, 0, 20, true),
+    otherItemsLikely: (Array.isArray(value.other_items_likely) ? value.other_items_likely : [])
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim().slice(0, 80)).filter(Boolean).slice(0, 5),
+    cycleSeconds: bounded(value.cycle_seconds, 1, 7200),
+  };
+}
+
+function usableReading(value: unknown): Record<string, unknown> | null {
+  const evidence = value as Record<string, unknown> | null | undefined;
+  return evidence?.status === "analysed" && (evidence.footage_status === "usable" || evidence.footage_status === "partially_usable")
+    ? evidence : null;
+}
+
+/**
+ * A usable reading of the site's video, or null: the uploaded walkthrough's own
+ * reading first, then a link the site shared at intake.
+ */
+export function videoEvidence(inputs: RobotFitInputs): {
+  measuredCycleSeconds: number | null; people: string | null; estimates: VideoEstimates | null;
+} | null {
+  const evidence = usableReading(inputs.request?.walkthrough_video_evidence) ?? usableReading(inputs.request?.site_video_evidence);
+  if (!evidence) return null;
   const seconds = evidence.measured_cycle_seconds;
   return {
     measuredCycleSeconds: typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0 ? seconds : null,
     people: typeof evidence.people_relationship_to_work === "string" ? evidence.people_relationship_to_work : null,
+    estimates: estimatesOf(evidence.job_estimates),
   };
 }
 
 export type PeopleReading = { value: People; display: string; source: RequirementSource };
 
-/** The site's answer in how the job runs today, then its earlier answers, then what its video shows. */
+/** The site's own answer if it ever gave one, else what its video shows. */
 export function peopleNearby(inputs: RobotFitInputs): PeopleReading | null {
-  const answered = inputs.operations?.peopleNearby ?? specAnswer(inputs, "humanProximity");
+  const answered = specAnswer(inputs, "humanProximity");
   if (answered && Object.prototype.hasOwnProperty.call(PEOPLE_DISPLAY, answered)) {
     return { value: answered as People, display: PEOPLE_DISPLAY[answered as People], source: "site_stated" };
   }
@@ -371,9 +446,10 @@ function notRated(inputs: RobotFitInputs): string | null {
 
 /** What the site's own data says about the job, for the ratings here and the readiness report. */
 export function jobFactsOf(inputs: RobotFitInputs): JobFacts & { pick: Quantity | null; place: Quantity | null } {
-  const distance = lengthRequirement(inputs, "pick_to_place_span", "pick_to_place_distance", "How far the object moves");
-  const pick = lengthRequirement(inputs, "pick_height", "pick_surface_height", "Height where it is picked up");
-  const place = lengthRequirement(inputs, "place_height", "place_surface_height", "Height where it is put down");
+  const estimates = videoEvidence(inputs)?.estimates;
+  const distance = lengthRequirement(inputs, "pick_to_place_span", "pick_to_place_distance", "How far the object moves", estimates?.pickToPlaceM);
+  const pick = lengthRequirement(inputs, "pick_height", "pick_surface_height", "Height where it is picked up", estimates?.pickHeightM);
+  const place = lengthRequirement(inputs, "place_height", "place_surface_height", "Height where it is put down", estimates?.placeHeightM);
   const [low, high] = SCREENING.comfortableHeightM;
   return {
     distance,
@@ -407,9 +483,10 @@ export function computeRobotFitJob(inputs: RobotFitInputs): RobotFitJob {
   if (people) requirements.push({ key: "people_nearby", label: "People near the job", display: people.display, source: people.source });
 
   const unknowns: FitUnknown[] = [];
-  if (!distance) unknowns.push({ key: "pick_to_place_span", label: "How far the object moves", resolve: "measurements" });
-  if (!mass) unknowns.push({ key: "object_mass", label: "How heavy the object is", resolve: "measurements" });
-  if (!people) unknowns.push({ key: "people_nearby", label: "Whether people work near the job", resolve: "operations" });
+  // What neither the video nor anything on file gives: notes for staff, never questions to the site.
+  if (!distance) unknowns.push({ key: "pick_to_place_span", label: "How far the object moves" });
+  if (!mass) unknowns.push({ key: "object_mass", label: "How heavy the object is" });
+  if (!people) unknowns.push({ key: "people_nearby", label: "Whether people work near the job" });
 
   return {
     rated: true, notRatedReason: null, summary, instruction, requirements, needs: needsOf(facts), unknowns,
@@ -418,9 +495,9 @@ export function computeRobotFitJob(inputs: RobotFitInputs): RobotFitJob {
 }
 
 /**
- * What the owner's job page shows: the job's needs, each form's verdict with
- * the reasons that set it apart, and what the site can still add. No team,
- * count, quote, price or screening limit, and nothing the page cannot resolve.
+ * What the owner's job page shows: the job's needs and each form's verdict
+ * with the reasons that set it apart. No team, count, quote, price, screening
+ * limit or question: the site sends its video and nothing else.
  */
 export function projectSiteRobotFit(job: RobotFitJob): SiteRobotFit | null {
   if (!job.rated) return null;
@@ -433,9 +510,6 @@ export function projectSiteRobotFit(job: RobotFitJob): SiteRobotFit | null {
       // Passing checks repeat the needs above; the rest are what tells the forms apart.
       reasons: rating.checks.filter((entry) => entry.outcome !== "pass").map((entry) => entry.text),
     })) : [],
-    unknowns: job.unknowns.filter((entry) => entry.resolve !== "staff").map((entry) => entry.resolve === "measurements"
-      ? `${entry.label}. You can add it under Add measurements (optional) on this page.`
-      : `${entry.label}. You can answer it under How the job runs today on this page.`),
     note: SITE_ROBOT_FIT_NOTE,
   };
 }
@@ -748,12 +822,4 @@ export async function setRobotFitSharing(requestId: string, shared: boolean, opt
   await db.collection(SITE_ROBOT_FIT_COLLECTION).doc(requestId)
     .set({ schemaVersion: SCHEMA_VERSION, requestId, sharing, updatedAtIso: nowIso }, { merge: true });
   return sharing;
-}
-
-/** The owner's job page: the site version while shared, otherwise nothing. */
-export async function getSiteRobotFit(requestId: string): Promise<SiteRobotFit | null> {
-  const [inputs, stored] = await Promise.all([loadRobotFitInputs(requestId), readStored(requestId)]);
-  if (!inputs.request || stored.sharing?.shared !== true) return null;
-  if (projectWebsiteCaptureRights(inputs.request).consent_revoked) return null;
-  return projectSiteRobotFit(computeRobotFitJob(inputs));
 }

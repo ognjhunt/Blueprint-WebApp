@@ -14,6 +14,7 @@ test("owner can request an authorized assessment retry while keeping the saved r
   const firstResponse = new Promise<void>(resolve => { releaseFirst = resolve; });
   const retries: Array<{ expected_job_id: string; expected_run_id: string; retry_identity: string }> = [];
   const writes: string[] = [];
+  const asks: string[] = [];
   await page.route("**/api/**", async route => {
     const url = new URL(route.request().url());
     if (route.request().method() !== "GET" && url.pathname !== "/api/analytics/ingest") writes.push(url.pathname);
@@ -36,9 +37,10 @@ test("owner can request an authorized assessment retry while keeping the saved r
       siteAdvisory: { schemaVersion: "site_customer_advisory.v1", state: queued ? "queued" : "needs_review", correlationId: "bp-advisory-aaaaaaaaaaaaaaaa", sections: [], unknowns: [], nextAction: null },
       assessment_retry_available: !queued, assessment_job_id: jobId, assessment_run_id: queued ? newRun : originalRun,
     } });
-    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [{itemId:"dishes",label:"Dishes",basis:"suggested",imageCount:0,coverageStatus:"needs_images",imagesStillWanted:2,assetStatus:"pending"}], allItemsCovered: false, requestedShots: [] } });
-    if (url.pathname.endsWith("/clarification")) { expect(url.searchParams.get("mode")).toBe("assessment"); return route.fulfill({json:{revision:"a".repeat(64),needed:false,questions:[],assessmentState:"queued"}}); }
-    if (url.pathname.endsWith("/follow-up")) return route.fulfill({ json: { questions: [] } });
+    // The site sends its video and nothing else: no item photos, measurements or follow-up questions are read.
+    if (/\/(items|clarification|follow-up|measurements)$/.test(url.pathname)) asks.push(url.pathname);
+    if (url.pathname.endsWith("/readiness")) return route.fulfill({ json: { ok: true, summary: null, report: null, briefPath: null,
+      tracker: { steps: [], meanwhile: null } } });
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });
   await page.goto(`/capture-upload/${token}?video=existing`);
@@ -59,10 +61,10 @@ test("owner can request an authorized assessment retry while keeping the saved r
   expect(retries[1]).toEqual(retries[0]);
   await expect(page.getByText("Your video is saved. Blueprint is preparing your job assessment; nothing more is needed from you right now.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Try assessment again", exact: true })).toHaveCount(0);
-  await page.getByText("Add photos of the job items",{exact:true}).click();
-  await expect(page.getByPlaceholder("e.g. Dishes",{exact:true})).toBeVisible();
-  await expect(page.getByRole("button",{name:"Add photos",exact:true})).toBeVisible();
-  await page.screenshot({path:info.outputPath("known-item-placeholder-local-fixture.png"),fullPage:true});
+  await expect(page.getByText("Add photos of the job items", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Add measurements/)).toHaveCount(0);
+  expect(asks).toEqual([]);
+  await page.screenshot({path:info.outputPath("video-only-saved-job-local-fixture.png"),fullPage:true});
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toBeVisible();
   expect(writes).toEqual([`/api/self-capture/uploads/${token}/advisory-retry`, `/api/self-capture/uploads/${token}/advisory-retry`]);
@@ -205,118 +207,47 @@ test("desktop handoff recognizes retained footage without claiming processing co
   await page.screenshot({ path: info.outputPath("desktop-held-footage.png"), fullPage: true });
 });
 
-test("the person filming records measurements beside the item photos, each in its own unit", async ({ page }, info) => {
-  const token = "measurements-fixture";
-  const puts: Array<Record<string, any>> = [];
-  let saved: Record<string, unknown> | null = null;
-  const empty = { ok: true, scope: "film", revision: 0, family: null, articulation: null, referencePaper: null,
-    referenceSheetLongEdge: null, readings: {}, measuredBy: null, note: null, updatedAtIso: null };
+test("the person filming is asked for the video and nothing else", async ({ page }, info) => {
+  const token = "video-only-fixture";
+  const asks: string[] = [];
   await page.route("**/api/**", route => {
-    const request = route.request();
-    const url = new URL(request.url());
+    const url = new URL(route.request().url());
     if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
     if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
       ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" } });
     if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: { ready: false, scope: "film" } });
-    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
-    if (url.pathname === `/api/site-task-brief/${token}/measurements`) {
-      if (request.method() === "PUT") {
-        const body = request.postDataJSON();
-        puts.push(body);
-        saved = { ...empty, revision: 1, family: body.family, articulation: body.articulation, referencePaper: body.referencePaper,
-          readings: Object.fromEntries(Object.entries(body.readings as Record<string, object>).map(([id, reading]) =>
-            [id, { ...reading, recordedAtIso: "2026-10-19T10:00:00.000Z", recordedByScope: "film" }])),
-          updatedAtIso: "2026-10-19T10:00:00.000Z" };
-        return route.fulfill({ json: saved });
-      }
-      return route.fulfill({ json: saved ?? empty });
-    }
-    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
-  });
-  await page.goto(`/capture-upload/${token}`);
-  await page.getByText("Add measurements (optional)", { exact: true }).click();
-  await page.getByRole("radio", { name: "Opens or closes a door, drawer or lid", exact: true }).check();
-  await page.getByRole("radio", { name: "It slides out, like a drawer", exact: true }).check();
-  await expect(page.getByLabel("How far it opens", { exact: true })).toHaveCount(0);
-  await page.getByLabel("Height of the handle", { exact: true }).fill("80");
-  await page.getByLabel("Unit for Height of the handle", { exact: true }).selectOption("cm");
-  await page.getByLabel("How far it pulls out", { exact: true }).fill("18");
-  await page.getByLabel("Unit for How far it pulls out", { exact: true }).selectOption("in");
-  await page.getByRole("radio", { name: "Yes, A4", exact: true }).check();
-  await page.getByRole("button", { name: "Save measurements", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Measurements saved." })).toBeVisible();
-  expect(puts).toEqual([{ revision: 0, family: "articulated_open_close", articulation: "sliding",
-    readings: { handle_height: { value: 80, unit: "cm" }, opening_travel: { value: 18, unit: "in" } },
-    referencePaper: "a4", referenceSheetLongEdge: null, measuredBy: null, note: null }]);
-  await page.screenshot({ path: info.outputPath("measurements-saved-local-fixture.png"), fullPage: true });
-});
-
-test("readings typed while the video lands on another device survive the switch to the saved layout", async ({ page }) => {
-  const token = "measurements-handoff-fixture";
-  let received = false;
-  const puts: Array<Record<string, any>> = [];
-  const empty = { ok: true, scope: "film", revision: 0, family: null, articulation: null, referencePaper: null,
-    referenceSheetLongEdge: null, readings: {}, note: null, updatedAtIso: null };
-  await page.route("**/api/**", route => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
-    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
-      ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" } });
-    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: { ready: false, scope: "film" } });
-    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
-      scope: "film", captureReceived: received,
-      status: { decision: "assessing", headline: "Preparing your scene", operatorAction: null, missingViews: [] } } });
-    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
-    if (url.pathname === `/api/site-task-brief/${token}/measurements`) {
-      if (request.method() === "PUT") {
-        puts.push(request.postDataJSON());
-        return route.fulfill({ json: { ...empty, revision: 1, family: "rigid_pick_place" } });
-      }
-      return route.fulfill({ json: empty });
-    }
+    if (/\/(items|clarification|follow-up|measurements|readiness)$/.test(url.pathname)) asks.push(url.pathname);
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });
   await page.goto(`/capture-upload/${token}`);
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toBeVisible();
-  await page.getByText("Add measurements (optional)", { exact: true }).click();
-  await page.getByRole("radio", { name: "Moves an object from one place to another", exact: true }).check();
-  await page.getByLabel("Height of the surface where the object starts", { exact: true }).fill("30 1/4");
-  await page.getByLabel("Unit for Height of the surface where the object starts", { exact: true }).selectOption("in");
-  received = true; // The phone's recording lands; the next status poll switches the layout.
-  await expect(page.getByText("Video received.", { exact: true })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByLabel("Height of the surface where the object starts", { exact: true })).toHaveValue("30 1/4");
-  await page.getByRole("button", { name: "Save measurements", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Measurements saved." })).toBeVisible();
-  expect(puts).toHaveLength(1);
-  expect(puts[0].readings).toEqual({ pick_surface_height: { value: 30.25, unit: "in" } });
+  // Blueprint infers sizes, weights, distances and pace from the video: the site measures nothing.
+  await expect(page.getByText(/Add measurements/)).toHaveCount(0);
+  await expect(page.getByText("Add photos of the job items", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/printer paper/)).toHaveCount(0);
+  expect(asks).toEqual([]);
+  await page.screenshot({ path: info.outputPath("video-only-film-link-local-fixture.png"), fullPage: true });
 });
 
-const READINESS_NOTE = "Blueprint invites robot teams whose robots look right for this job to evaluate it in a simulation of your site. If Blueprint recommends a team, it will be one whose evaluation of your job passed. This is a first read from what you told us and measured, not a promise that any robot can do the job.";
+const READINESS_NOTE = "Blueprint invites robot teams whose robots look right for this job to evaluate it in a simulation of your site. If Blueprint recommends a team, it will be one whose evaluation of your job passed. This is a first read from your video, not a promise that any robot can do the job.";
 
 function readinessFixture(overrides: Record<string, unknown> = {}) {
-  const notNeeded = "between spots isn't needed: the object moves 90 cm (you measured this).";
+  const notNeeded = "between spots isn't needed: the object moves about 90 cm (estimated from your video).";
   return {
     ok: true,
-    summary: "Pack finished parts into cartons",
+    summary: "Sort parcels onto outbound chutes",
     tracker: { steps: [
-      { id: "video", label: "Video received", state: "done", detail: null, owner: "site" },
-      { id: "brief", label: "Job brief confirmed", state: "done", detail: null, owner: "site" },
-      { id: "measurements", label: "Measurements", state: "partial", detail: "1 of 6", owner: "site" },
-      { id: "operations", label: "How the job runs today", state: "todo", detail: null, owner: "site" },
-      { id: "scene", label: "Your site rebuilt in 3D", state: "in_progress", detail: null, owner: "blueprint" },
-      { id: "recommendation", label: "Blueprint recommends one team", state: "pending", detail: null, owner: "blueprint" },
+      { id: "video", label: "Video received", state: "done", owner: "site" },
+      { id: "brief", label: "Job brief confirmed", state: "done", owner: "site" },
+      { id: "scene", label: "Your site rebuilt in 3D", state: "in_progress", owner: "blueprint" },
+      { id: "evaluation", label: "Robot teams evaluate your job in simulation", state: "pending", owner: "blueprint" },
+      { id: "recommendation", label: "Blueprint recommends one team", state: "pending", owner: "blueprint" },
+      { id: "booking", label: "You book the pilot", state: "pending", owner: "site" },
     ], meanwhile: "Blueprint is rebuilding your work area in 3D from your video." },
-    nextThings: [
-      { id: "times_per_day", action: "Tell us how many times a day the job is done", why: "It lets us work out the hours this job takes.", target: "operations" },
-      { id: "weigh_object", action: "Weigh one object", why: "It tells us how much the robot has to lift.", target: "measurements" },
-    ],
-    operations: { timesPerDay: null, daysPerWeek: null, peopleNearby: null, updatedAtIso: null },
-    workload: null,
-    speed: { state: "needs_target", sentence: "Your people take about 60 seconds per cycle (measured from your video). Set a target time per cycle in your job brief, and the evaluation checks a robot against it." },
+    briefPath: "/capture-upload/brief/brief-token.signature",
     report: {
       robotFit: {
-        needs: ["It has to pick the object up and put it down at another spot.", "It can work from one place: the object moves 90 cm (you measured this)."],
+        needs: ["It has to pick the object up and put it down at another spot.", "It can work from one place: the object moves about 90 cm (estimated from your video)."],
         forms: [
           { id: "fixed_base_arm", label: "One arm on a fixed stand", description: "A single robot arm fixed in place at the work area.", verdict: "fits", reasons: [] },
           { id: "bimanual_arm", label: "Two arms on a fixed stand", description: "Two robot arms working together from one fixed spot.", verdict: "fits", reasons: [] },
@@ -325,17 +256,18 @@ function readinessFixture(overrides: Record<string, unknown> = {}) {
           { id: "humanoid", label: "Walking humanoid", description: "A human-shaped robot with two arms that walks on two legs.", verdict: "fits", reasons: [`Walking ${notNeeded}`] },
           { id: "legged_manipulator", label: "Legged robot with an arm", description: "A robot that walks on legs, such as four, with an arm on top.", verdict: "fits", reasons: [`Walking ${notNeeded}`] },
         ],
-        unknowns: ["How heavy the object is. You can add it under Add measurements (optional) on this page."],
         note: READINESS_NOTE,
       },
       checklist: [
-        { id: "floor_space", title: "Floor space at the station", state: "unknown", detail: "We don't know yet how much open floor is in front of the starting surface. You can add it under Add measurements (optional) on this page.", why: "A robot needs room to stand, or to drive up, beside the work." },
-        { id: "power_network", title: "Power and network", state: "confirm", detail: "A power outlet near the work area, and Wi-Fi along the route for a robot that drives between spots. The robot team tells you exactly what its robot needs.", why: "A robot needs power where it works." },
+        { id: "floor_space", title: "Floor space at the station", state: "confirm", detail: "The robot team confirms the floor space its robot needs beside the work." },
+        { id: "power_network", title: "Power and network", state: "confirm", detail: "A power outlet near the work area, and Wi-Fi along the route for a robot that drives between spots. The robot team tells you exactly what its robot needs." },
       ],
-      successFactors: [{ id: "exceptions", title: "Jams and damaged items", detail: "Your job mentions \"damaged\".", test: "Jams and damaged items are not in the simulation. Plan who handles them; your success target sets how many a person catches.", where: "pilot" }],
-      safety: ["Before a robot works at your site, the robot team does a risk assessment of the job with you. It follows the robot-safety standards: ISO 10218, adopted in the US as ANSI/A3 R15.06, and ANSI/A3 R15.08 for robots that drive between spots.",
+      successFactors: [{ id: "variety", title: "How many different items",
+        detail: "Probably also handled here, though not in your video: flat envelopes, padded mailers (estimated from your video).",
+        test: "The evaluation tests the object in your rebuilt scene. Other items are checked in the pilot.", where: "pilot" }],
+      safety: ["Before a robot works at your site, ask the robot team for its risk assessment of the job. Robot safety follows the standards ISO 10218, adopted in the US as ANSI/A3 R15.06, and ANSI/A3 R15.08 for robots that drive between spots.",
         "Blueprint's evaluation runs in a simulation of your site. It does not certify that any robot is safe, or that a robot will perform the same at your site."],
-      examples: [{ id: "line-side-packing", name: "Line-side packing", status: "emerging", evidence: "Reported on an assembly line at a components manufacturer, packing a single product family into cartons.",
+      examples: [{ id: "parcel-sorting", name: "Parcel sorting",
         sources: [{ label: "China Daily: humanoid robots move onto fast track", href: "https://global.chinadaily.com.cn/a/202606/11/WS6a2ac863a310d6866eb4dcd2.html" }] }],
       examplesFootnote: "These are third-party deployments cited as evidence about which environments qualify. None is a Blueprint customer and none was prepared by Blueprint.",
     },
@@ -343,13 +275,11 @@ function readinessFixture(overrides: Record<string, unknown> = {}) {
   };
 }
 
-test("the owner sees simple next steps above the measurements, with the robot report folded and no robot team named", async ({ page }, info) => {
+test("the owner sees only the shared robot report, folded, with nothing to fill in and no robot team named", async ({ page }, info) => {
   const token = "readiness-fixture";
-  const puts: Array<Record<string, unknown>> = [];
-  let answered = false;
+  const asks: string[] = [];
   await page.route("**/api/**", route => {
-    const request = route.request();
-    const url = new URL(request.url());
+    const url = new URL(route.request().url());
     if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
     if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
       ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" } });
@@ -357,69 +287,45 @@ test("the owner sees simple next steps above the measurements, with the robot re
     if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: { captureReceived: true,
       sceneViewUrl: "https://scene.example/view",
       status: { stage: "footage_received", headline: "Your footage is retained; review is pending." } } });
-    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
-    if (url.pathname === `/api/site-task-brief/${token}/operations` && request.method() === "PUT") {
-      puts.push(request.postDataJSON());
-      answered = true;
-      return route.fulfill({ json: { ok: true, operations: { timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared", updatedAtIso: "2026-10-20T12:00:00.000Z" } } });
-    }
-    if (url.pathname === `/api/site-task-brief/${token}/readiness`) return route.fulfill({ json: answered ? readinessFixture({
-      operations: { timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared", updatedAtIso: "2026-10-20T12:00:00.000Z" },
-      workload: { headline: "about 10 person-hours a week", hoursPerDay: 2, hoursPerWeek: 10, sentence: "This job takes about 2 person-hours a day, about 10 a week.",
-        basis: "120 times a day, 5 days a week (you told us), at about 60 seconds per cycle (measured from your video). It counts time on this job only." },
-    }) : readinessFixture() });
-    if (url.pathname === `/api/site-task-brief/${token}/measurements`) return route.fulfill({ json: { ok: true, scope: "owner", revision: 0,
-      family: null, articulation: null, referencePaper: null, referenceSheetLongEdge: null, readings: {}, note: null, updatedAtIso: null } });
+    if (url.pathname === `/api/site-task-brief/${token}/readiness`) return route.fulfill({ json: readinessFixture() });
+    if (/\/(items|clarification|follow-up|measurements|operations)$/.test(url.pathname)) asks.push(url.pathname);
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });
   await page.goto(`/capture-upload/${token}`);
-  const steps = page.getByRole("region", { name: "Your next steps" });
-  await expect(steps).toHaveText("Your next stepsTell us how many times a day the job is done →Weigh one object →");
-  // As little text as the site needs: the form and the full report stay folded, one number in each title.
+  // As little text as the site needs: one folded section, one number in its title.
   const report = page.locator("details", { has: page.locator("summary", { hasText: "Your robot readiness report · 6 kinds of robot fit" }) });
+  await expect(report).toBeVisible();
   await expect(report).not.toHaveAttribute("open", "");
-  await expect(page.locator("details#how-the-job-runs")).not.toHaveAttribute("open", "");
-  const measurements = page.getByText("Add measurements (optional)", { exact: true });
-  expect((await steps.boundingBox())!.y).toBeLessThan((await measurements.boundingBox())!.y);
+  await expect(page.getByRole("region", { name: "Your next steps" })).toHaveCount(0);
+  await expect(page.getByText(/How the job runs today|Add measurements/)).toHaveCount(0);
   await page.screenshot({ path: info.outputPath("readiness-default-local-fixture.png"), fullPage: true });
-
-  // A next thing opens the step that answers it.
-  await steps.getByRole("button", { name: "Weigh one object" }).click();
-  await expect(page.locator("details#site-measurements")).toHaveAttribute("open", "");
-  await steps.getByRole("button", { name: "Tell us how many times a day the job is done" }).click();
-  await expect(page.locator("details#how-the-job-runs")).toHaveAttribute("open", "");
-
-  const form = page.getByRole("form", { name: "How the job runs today" });
-  await form.getByLabel("How many times a day is the job done?").fill("120");
-  await form.getByLabel("On how many days a week?").selectOption("5");
-  await form.getByLabel("People work in the same space").check();
-  await form.getByRole("button", { name: "Save answers" }).click();
-  await expect(page.getByText("How the job runs today · about 10 person-hours a week")).toBeVisible();
-  expect(puts).toEqual([{ timesPerDay: 120, daysPerWeek: 5, peopleNearby: "shared" }]);
 
   await report.locator("summary").click();
   for (const label of ["One arm on a fixed stand", "Two arms on a fixed stand", "Arm on a wheeled base", "Wheeled humanoid",
     "Walking humanoid", "Legged robot with an arm"]) await expect(report.getByText(label, { exact: true })).toBeVisible();
   await expect(report.getByText("Checked in the pilot, not the simulation")).toBeVisible();
+  await expect(report.getByText("Jobs like this on the public record", { exact: true })).toBeVisible();
   await expect(report.getByRole("link", { name: "China Daily: humanoid robots move onto fast track" })).toBeVisible();
-  await expect(report.getByRole("link", { name: "Print or save a one-page brief" })).toHaveAttribute("href", `/capture-upload/${token}/brief`);
-  await expect(page.locator("body")).not.toContainText(/\bmatch/i);
+  await expect(report.getByRole("link", { name: "Print or save the brief" })).toHaveAttribute("href", "/capture-upload/brief/brief-token.signature");
+  await expect(report.locator("form, input, select, textarea")).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(/\bmatch|Galbot|Robot Era/i);
+  expect(asks).toEqual([]);
   await page.screenshot({ path: info.outputPath("readiness-panel-local-fixture.png"), fullPage: true });
 });
 
-test("the one-page robot readiness brief lays out the report to print", async ({ page }, info) => {
-  const token = "readiness-brief-fixture";
+test("the robot readiness brief opens by its own read-only link and lays out the report to print", async ({ page }, info) => {
+  const briefToken = "brief-token.signature";
   await page.route("**/api/**", route => {
     const url = new URL(route.request().url());
-    if (url.pathname === `/api/site-task-brief/${token}/readiness`) return route.fulfill({ json: readinessFixture() });
+    if (url.pathname === `/api/site-task-brief/readiness-brief/${briefToken}`) return route.fulfill({ json: readinessFixture({ briefPath: null }) });
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });
-  await page.goto(`/capture-upload/${token}/brief`);
-  await expect(page.getByRole("heading", { level: 1, name: "Pack finished parts into cartons" })).toBeVisible();
+  await page.goto(`/capture-upload/brief/${briefToken}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Sort parcels onto outbound chutes" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Where things stand" }).getByText("Video received")).toBeVisible();
   await expect(page.getByRole("region", { name: "Robot readiness report" }).getByText("Walking humanoid", { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "What is left to check" }).getByText("Weigh one object")).toBeVisible();
+  await expect(page.getByRole("region", { name: "What is left to check" })).toHaveCount(0);
   await page.emulateMedia({ media: "print" });
   await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeHidden();
   await page.screenshot({ path: info.outputPath("readiness-brief-print-local-fixture.png"), fullPage: true });

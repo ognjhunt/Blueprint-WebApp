@@ -32,7 +32,7 @@ const { robotFitRankingTask } = await import("../agents/tasks/robot-fit-ranking"
 const { RATED_FORMS } = await import("../../client/src/data/robotFit");
 const { ROBOT_FORMS } = await import("../../client/src/types/robotEmbodiment");
 const {
-  computeRobotFitJob, getAdminRobotFit, getSiteRobotFit, parseStatedWeight, projectSiteRobotFit, rankTeamsForJob,
+  computeRobotFitJob, getAdminRobotFit, parseStatedWeight, projectSiteRobotFit, rankTeamsForJob,
   rankingCandidates, setRobotFitSharing, validateRanking, RobotFitError,
 } = fit;
 type Inputs = Parameters<typeof computeRobotFitJob>[0];
@@ -57,7 +57,6 @@ function inputs(overrides: Partial<{ request: Record<string, any>; brief: Record
     brief: (overrides.brief === undefined ? { requestId: "job-1", summary: "Move sealed cartons from the conveyor onto a pallet" }
       : overrides.brief) as Inputs["brief"],
     measurements: overrides.measurements ?? null,
-    operations: null,
   };
 }
 
@@ -175,20 +174,32 @@ describe("the site version", () => {
     expect(site.forms.find((form) => form.id === "fixed_base_arm")).toMatchObject({ verdict: "fits", reasons: [] });
     expect(site.forms.find((form) => form.id === "humanoid")?.reasons)
       .toEqual(["Walking between spots isn't needed: the object moves 30 inches (you measured this)."]);
-    expect(site.unknowns).toEqual(["How heavy the object is. You can add it under Add measurements (optional) on this page."]);
-    const built = JSON.stringify({ needs: site.needs, forms: site.forms, unknowns: site.unknowns });
+    const built = JSON.stringify({ needs: site.needs, forms: site.forms });
     for (const forbidden of ["1.2", "2.4", "15 kg", "25 kg", "match", "team"]) expect(built).not.toContain(forbidden);
     expect(site.note).toContain("If Blueprint recommends a team, it will be one whose evaluation of your job passed.");
+    expect(site.note).toContain("This is a first read from your video, not a promise that any robot can do the job.");
     expect(site.note).not.toContain("match");
   });
 
-  it("points every unknown to the step on the page that answers it", () => {
-    const site = projectSiteRobotFit(computeRobotFitJob(inputs()))!;
+  it("rates every form from the video's estimates alone, and says they are estimates", () => {
+    const job = computeRobotFitJob(inputs({ request: { request: {}, ...SCREENED, walkthrough_video_evidence: { status: "analysed",
+      footage_status: "usable", job_estimates: { pick_to_place_m: 3, object_mass_kg_low: 4, object_mass_kg_high: 6 } } } }));
+    expect(verdicts(job)).toMatchObject({ fixed_base_arm: "not_a_fit", bimanual_arm: "not_a_fit", mobile_manipulator: "fits" });
+    expect(rating(job, "fixed_base_arm").checks[0].text)
+      .toBe("It stays in one place, and the object moves about 3 m (estimated from your video), too far to reach both spots.");
+    expect(job.requirements.map((entry) => [entry.key, entry.source])).toEqual([["pick_to_place_span", "video_estimate"],
+      ["object_mass", "video_estimate"]]);
+  });
+
+  it("asks the site nothing: what is still unknown is a note for staff", () => {
+    const job = computeRobotFitJob(inputs());
+    const site = projectSiteRobotFit(job)!;
     expect(site.forms).toEqual([]);
-    expect(site.unknowns).toEqual([
-      "How far the object moves. You can add it under Add measurements (optional) on this page.",
-      "How heavy the object is. You can add it under Add measurements (optional) on this page.",
-      "Whether people work near the job. You can answer it under How the job runs today on this page.",
+    expect(site).not.toHaveProperty("unknowns");
+    expect(job.unknowns).toEqual([
+      { key: "pick_to_place_span", label: "How far the object moves" },
+      { key: "object_mass", label: "How heavy the object is" },
+      { key: "people_nearby", label: "Whether people work near the job" },
     ]);
   });
 });
@@ -365,16 +376,16 @@ describe("ranking, staleness and sharing", () => {
     expect(run).not.toHaveBeenCalled();
   });
 
-  it("shows the site nothing until shared, and stops when consent is withdrawn", async () => {
+  it("shares only while consent stands, and the site preview never names a team", async () => {
     seedJob();
-    expect(await getSiteRobotFit("job-1")).toBeNull();
-    await setRobotFitSharing("job-1", true, { actor: "admin-1", now: () => new Date(NOW) });
-    const site = await getSiteRobotFit("job-1");
-    expect(site?.forms.find((entry) => entry.id === "bimanual_arm")?.verdict).toBe("fits");
-    expect(JSON.stringify(site)).not.toContain("Pallet Co");
+    await expect(setRobotFitSharing("job-1", true, { actor: "admin-1", now: () => new Date(NOW) }))
+      .resolves.toMatchObject({ shared: true, changedBy: "admin-1", changedAtIso: NOW });
+    const view = await getAdminRobotFit("job-1");
+    expect(view?.sharing?.shared).toBe(true);
+    expect(view?.site?.forms.find((entry) => entry.id === "bimanual_arm")?.verdict).toBe("fits");
+    expect(JSON.stringify(view?.site)).not.toContain("Pallet Co");
     sharedFakeFirestoreState.docs.set("inboundRequests/job-1", { requestId: "job-1", request: {}, ...SCREENED,
       capture_rights: { consent_revoked: true } });
-    expect(await getSiteRobotFit("job-1")).toBeNull();
     await expect(setRobotFitSharing("job-1", true, { actor: null })).rejects.toMatchObject({ code: "consent_revoked" });
     await expect(setRobotFitSharing("job-1", false, { actor: null })).resolves.toMatchObject({ shared: false });
   });

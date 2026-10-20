@@ -3,8 +3,9 @@
  *
  * Three parts. What the job needs and how every form of robot rates against
  * it (one arm, two arms, an arm on a wheeled base, wheeled and walking
- * humanoids, legged robots) are rules over the site's own data, computed on
- * every read. The site preview is exactly what the owner's job page shows once
+ * humanoids, legged robots) are rules over the site's own data (its video,
+ * the video reader's estimates and anything it told us), computed on every
+ * read. The site preview is exactly what the owner's job page shows once
  * shared, and it never names a team. The researched-team ranking is a model's
  * reading of Blueprint's research notes, every reason quoting the research: it
  * decides whom to ask to evaluate the job, and it is reference beside the
@@ -34,7 +35,6 @@ import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
 const VERDICT_TONE: Record<FitVerdict, "proof" | "warn" | "block"> = { fits: "proof", possible: "warn", not_a_fit: "block" };
 const TEAM_FIT_TONE: Record<TeamFit, "proof" | "warn" | "neutral"> = { strong: "proof", possible: "warn", weak: "neutral" };
 const TEAM_FIT_LABELS: Record<TeamFit, string> = { strong: "Strong fit", possible: "Possible fit", weak: "Weak fit" };
-const UNKNOWN_RESOLVE_LABELS = { measurements: "site measurements", operations: "the site's how-the-job-runs form", staff: "ask the site" } as const;
 
 function dateLabel(value: string) {
   const date = new Date(value);
@@ -154,7 +154,7 @@ export function RobotFitConsole({ requestId, currentUser }: {
                   ) : null}
                   {fit.job.unknowns.length ? (
                     <p className="text-xs text-runway-mute">
-                      Unknown: {fit.job.unknowns.map((entry) => `${entry.label.toLowerCase()} (${UNKNOWN_RESOLVE_LABELS[entry.resolve]})`).join("; ")}.
+                      Not in the video or its estimates: {fit.job.unknowns.map((entry) => entry.label.toLowerCase()).join("; ")}. The site is never asked; Blueprint settles these.
                     </p>
                   ) : null}
                 </section>
@@ -186,21 +186,14 @@ export function RobotFitConsole({ requestId, currentUser }: {
               <p className="text-sm text-runway-body">
                 {shared
                   ? `The readiness report is on the owner's job page since ${dateLabel(fit.sharing!.changedAtIso)}.`
-                  : "Not shared. The owner's job page shows the steps to a pilot, the next three things and how the job runs today, but no robot read."}
+                  : "Not shared. The owner's job page shows no robot read until you share it."}
               </p>
-              {fit.readiness?.workload || fit.readiness?.speed ? (
-                <div className="grid gap-1 text-xs text-runway-body">
-                  {fit.readiness.workload ? <p>{fit.readiness.workload.sentence} {fit.readiness.workload.basis}</p> : null}
-                  {fit.readiness.speed ? <p>{fit.readiness.speed.sentence}</p> : null}
-                </div>
-              ) : null}
               {fit.site ? (
                 <div className="grid gap-1 border border-runway-line p-3 text-xs text-runway-body">
                   {fit.site.needs.map((line, index) => <p key={`site-need-${index}`}>{line}</p>)}
                   {fit.site.forms.map((form) => (
                     <p key={form.id}>{form.label}: {FIT_VERDICT_LABELS[form.verdict]}.{form.reasons.length ? ` ${form.reasons.join(" ")}` : ""}</p>
                   ))}
-                  {fit.site.unknowns.map((line, index) => <p key={`site-unknown-${index}`}>Not known yet: {line}</p>)}
                   {fit.readiness?.report ? (
                     <>
                       {fit.readiness.report.checklist.map((item) => (
@@ -211,7 +204,7 @@ export function RobotFitConsole({ requestId, currentUser }: {
                       ))}
                       <p>Safety: {fit.readiness.report.safety.join(" ")}</p>
                       {fit.readiness.report.examples.map((example) => (
-                        <p key={example.id}>Already done elsewhere: {example.name}. {example.evidence} ({example.sources.map((source) => source.label).join("; ")})</p>
+                        <p key={example.id}>On the public record: {example.name} ({example.sources.map((source) => source.label).join("; ")})</p>
                       ))}
                     </>
                   ) : null}

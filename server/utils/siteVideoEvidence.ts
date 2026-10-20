@@ -58,6 +58,7 @@ function emptySummary(
     people_relationship_to_work: null,
     privacy_flag: false,
     summary: null,
+    job_estimates: null,
     error_code: errorCode,
     model: null,
     evaluated_at: nowIso(),
@@ -97,6 +98,8 @@ export function summariseVideoEvidence(
     people_relationship_to_work: output.people_present.relationship_to_work,
     privacy_flag: output.privacy_flag,
     summary: output.summary,
+    // Estimates off unusable footage would be guesses about nothing.
+    job_estimates: output.footage_status === "unusable" ? null : output.job_estimates ?? null,
     error_code:
       output.footage_status === "unusable"
         ? output.footage_status_reason || "footage_unusable"
