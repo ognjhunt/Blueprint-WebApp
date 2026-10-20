@@ -801,17 +801,14 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       {state.status === "failed" && pending && <p role="alert">{state.message}</p>}
       {recoveryUnavailable && <p role="status" className="ms-field-hint">Saved recovery details expired or could not be read. Use your emailed private job link to return, or clear this browser's draft to start again.</p>}
       {!storageAvailable && <p role="status" className="ms-field-hint">This browser cannot safely save or coordinate recovery details. Use a supported browser with local storage enabled, or email hello@tryblueprint.io for help starting your job. If your job is already saved, use its private link to return.</p>}
-      <ClearDraftControl status={clearStatus} onClear={forgetDraft} disabled={state.status === "working"} />
       <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} className={pending?.acknowledged && state.status !== "working" ? "contents ms-intake-return-fields" : "contents"}>
       <label htmlFor="start-task">
-        <span>Anything we should know? (optional)</span>
+        <span>What&rsquo;s the task? (optional)</span>
         <span className="ms-field-hint">
-          Show us the work; we'll assess the observed task. Add context or what you want to achieve if helpful. We'll ask only when a missing answer changes the recommendation.
+          A video is enough on its own: we draft the job brief from the footage, including the task, the objects and what finished looks like, and you correct it. Add anything the video won&rsquo;t show, such as how often the task runs or what you want to achieve. We&rsquo;ll ask only when a missing answer changes the recommendation.
         </span>
         <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} onChange={event => setTaskForPreview(event.target.value)} maxLength={2000} rows={4} />
       </label>
-
-      <ListingChoice task={taskForPreview} privateHandling={privateHandling} onPrivateHandlingChange={setPrivateHandling} />
 
       {claudeAuthoringRequested && (
         <label htmlFor="start-claude-authoring" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
@@ -856,7 +853,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                 setMethod(value);
                 if (value !== "upload") { setFootage(null); setFootageError(null); }
               }} />
-            <span>{label}</span>
+            <span>{label}{value === "visit" && <span className="ms-field-hint"> · Austin metro only</span>}</span>
           </label>
         ))}
       </fieldset>
@@ -975,6 +972,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         ? <p className="ms-field-hint">Saving to your workspace as {currentUser.email}.</p>
         : <p className="ms-field-hint">Signed in as {currentUser.email}, which is not a site workspace. This site will be saved to the link we email you, and you can claim it later.</p>)}
 
+      <ListingChoice task={taskForPreview} privateHandling={privateHandling} onPrivateHandlingChange={setPrivateHandling} />
+
       {/* Bot bait: hidden from people, honoured by the server. */}
       <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
         <label htmlFor="start-website-hp">Leave this field empty</label>
@@ -1026,6 +1025,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         </div>
       )}
       </fieldset>
+      <ClearDraftControl status={clearStatus} onClear={forgetDraft} disabled={state.status === "working"} />
       <noscript><p>Enable JavaScript to start a capture, or contact <a href="mailto:hello@tryblueprint.io">hello@tryblueprint.io</a> about your job.</p></noscript>
     </form>
   );

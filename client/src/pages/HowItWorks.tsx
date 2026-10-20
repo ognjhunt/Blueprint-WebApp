@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import { JobFitQuestions } from "@/components/site/JobFitQuestions";
 import { WarehousePilotSequence } from "@/components/site/WarehousePilotSequence";
 import { SEO } from "@/components/SEO";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
@@ -14,7 +15,14 @@ export default function HowItWorks() {
         <h1>Start with your task.</h1>
       </header>
       <WarehousePilotSequence />
-      <aside className="ms-how-open" id="job-fit">
+      <section className="ms-how-open ms-how-fit" id="job-fit" aria-labelledby="job-fit-title">
+        <div>
+          <h2 id="job-fit-title">Is your job a fit?</h2>
+          <p>We screen every job against four questions. They are our own criteria, not an industry standard. If a job misses one, we tell you which and what it would take to pass.</p>
+        </div>
+        <JobFitQuestions withFailureModes />
+      </section>
+      <aside className="ms-how-open ms-how-robots" id="robot-fit">
         <h2>Any robot that fits the task can take part.</h2>
         <p>Fixed arms, humanoids, wheeled humanoids and mobile manipulators are welcome. A team can bring multiple robots, policies or checkpoints. We assess task fit and simulation compatibility for each job. Start with one recurring task at your site. A description is enough to start. We confirm what the evaluation can measure and what the physical pilot needs to test.</p>
       </aside>

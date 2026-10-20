@@ -28,7 +28,10 @@ export function MinimalSiteLayout({ children }: PropsWithChildren) {
   return (
     <div className="minimal-site">
       <a className="ms-skip" href="#main-content">Skip to content</a>
-      <LegalUpdateBanner />
+      {/* The announced Terms/Privacy update concerns people who already accepted the
+          previous versions. A first-time visitor accepts the published versions when
+          starting a job, so the public pages leave the notice to account holders. */}
+      {signedIn && <LegalUpdateBanner />}
       <header className="ms-header ms-container">
         <a className="ms-brand" href="/" aria-label="Blueprint home"><span className="ms-brand-mark" aria-hidden="true" />Blueprint</a>
         <nav className="ms-desktop-nav" aria-label="Main navigation">
