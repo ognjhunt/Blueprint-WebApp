@@ -47,6 +47,8 @@ export type AgentTaskKind =
    */
   | "capture_coverage"
   | "robot_capability_extraction"
+  /** Ranks researched robot teams for one site job from their notes; internal, quote-checked. */
+  | "robot_fit_ranking"
   | "capture_dispatch"
   | "outbound_outreach";
 

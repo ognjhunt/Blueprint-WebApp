@@ -291,3 +291,47 @@ test("readings typed while the video lands on another device survive the switch 
   expect(puts).toHaveLength(1);
   expect(puts[0].readings).toEqual({ pick_surface_height: { value: 30.25, unit: "in" } });
 });
+
+test("the owner reads a shared robot fit across every form of robot, above the measurements, with no robot team named", async ({ page }, info) => {
+  const token = "robot-fit-fixture";
+  const notNeeded = "between spots isn't needed: the object moves 90 cm (you measured this).";
+  const robotFit = {
+    needs: ["It has to pick the object up and put it down at another spot.",
+      "It can work from one place: the object moves 90 cm (you measured this).",
+      "It has to work safely alongside people in the same space (you told us)."],
+    forms: [
+      { id: "fixed_base_arm", label: "One arm on a fixed stand", description: "A single robot arm fixed in place at the work area.", verdict: "fits", reasons: [] },
+      { id: "bimanual_arm", label: "Two arms on a fixed stand", description: "Two robot arms working together from one fixed spot.", verdict: "fits", reasons: [] },
+      { id: "mobile_manipulator", label: "Arm on a wheeled base", description: "A robot arm on a base that drives between spots.", verdict: "fits", reasons: [`Driving ${notNeeded}`] },
+      { id: "wheeled_humanoid", label: "Wheeled humanoid", description: "A human-like upper body with two arms, on a wheeled base.", verdict: "fits", reasons: [`Driving ${notNeeded}`] },
+      { id: "humanoid", label: "Walking humanoid", description: "A human-shaped robot with two arms that walks on two legs.", verdict: "fits", reasons: [`Walking ${notNeeded}`] },
+      { id: "legged_manipulator", label: "Legged robot with an arm", description: "A robot that walks on legs, such as four, with an arm on top.", verdict: "fits", reasons: [`Walking ${notNeeded}`] },
+    ],
+    unknowns: ["How heavy the object is. You can add it under Add measurements (optional) on this page."],
+    note: "Blueprint invites robot teams whose robots look right for this job to evaluate it in a simulation of your site. If Blueprint recommends a team, it will be one whose evaluation of your job passed. This is a first read from what you told us and measured, not a promise that any robot can do the job.",
+  };
+  await page.route("**/api/**", route => {
+    const url = new URL(route.request().url());
+    if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: { ready: false, scope: "owner" } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: { captureReceived: true,
+      status: { stage: "footage_received", headline: "Your footage is retained; review is pending." } } });
+    if (url.pathname.endsWith("/items")) return route.fulfill({ json: { items: [], allItemsCovered: false, requestedShots: [] } });
+    if (url.pathname === `/api/site-task-brief/${token}/robot-fit`) return route.fulfill({ json: { ok: true, robotFit } });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}`);
+  const section = page.getByRole("region", { name: "What kind of robot fits this job" });
+  await expect(section.getByRole("heading", { name: "What kind of robot fits this job" })).toBeVisible();
+  for (const form of robotFit.forms) await expect(section.getByText(form.label, { exact: true })).toBeVisible();
+  await expect(section.getByText(robotFit.needs[2])).toBeVisible();
+  await expect(section.getByText(robotFit.unknowns[0])).toBeVisible();
+  const measurements = page.getByText("Add measurements (optional)", { exact: true });
+  await expect(measurements).toBeVisible();
+  const [sectionBox, measurementsBox] = [await section.boundingBox(), await measurements.boundingBox()];
+  expect(sectionBox!.y).toBeLessThan(measurementsBox!.y);
+  await expect(section).not.toContainText(/match/i);
+  await page.screenshot({ path: info.outputPath("robot-fit-shared-local-fixture.png"), fullPage: true });
+});

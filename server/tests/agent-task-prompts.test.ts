@@ -67,6 +67,14 @@ const sampleInputs: Record<AgentTaskKind, unknown> = {
     sources: [{ url: "https://example.com/specs", title: "Specs", text: "Payload: 18 kg." }],
     allowedValues: { payloadCapacity: ["under_2kg", "two_to_ten", "ten_to_twentyfive"] },
   },
+  robot_fit_ranking: {
+    candidates: [{ teamId: "team-1", name: "Example Robotics", status: "prospect", agreed: false,
+      notes: "Task: Mixed-case palletizing.", whatGoesWrong: null, recorded: [] }],
+    job: { summary: "Move cartons onto a pallet", instruction: null, rated: true, notRatedReason: null,
+      needs: ["It has to pick the object up and put it down at another spot."],
+      requirements: [{ label: "How far the object moves", value: "90 cm", source: "site_measured" }],
+      unknowns: ["How heavy the object is"], forms: [{ id: "humanoid", verdict: "possible" }], serviceArea: null },
+  },
   outbound_outreach: {
     prospectId: "prospect-1",
     facilityName: "Example Distribution Center",

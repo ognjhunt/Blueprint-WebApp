@@ -28,6 +28,7 @@ import { CaptureRecorder, type ChecklistItem } from "@/components/site/CaptureRe
 import { TaskBriefReview, type DraftedBrief, type SiteAccount } from "@/components/site/TaskBriefReview";
 import { TaskItemsPanel } from "@/components/site/TaskItemsPanel";
 import { SiteMeasurementsDisclosure } from "@/components/site/SiteMeasurementsPanel";
+import { SiteRobotFitSection } from "@/components/site/SiteRobotFitSection";
 import { TaskClarification } from "@/components/site/TaskClarification";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdrawal";
@@ -1074,6 +1075,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               scene is checked against; film links record them too. Mounted once,
               outside the saved/unsaved branches, so readings typed while a video
               lands on another device survive the switch to the saved layout. */}
+          {/* What kind of robot fits, once Blueprint shares it: fixed sentences and the
+              site's own data, never a team. Right above the measurements its unknowns
+              point to, and only for the owner. */}
+          {scope === "owner" && <SiteRobotFitSection token={token} />}
           <SiteMeasurementsDisclosure token={token} />
           </div>}
         </>

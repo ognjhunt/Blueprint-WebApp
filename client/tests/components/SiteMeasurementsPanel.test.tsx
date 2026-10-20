@@ -13,6 +13,7 @@ vi.mock("@/lib/csrf", () => ({
 }));
 
 import { SiteMeasurementsDisclosure, SiteMeasurementsPanel } from "@/components/site/SiteMeasurementsPanel";
+import { SITE_MEASUREMENTS_SAVED_EVENT } from "@/data/robotFit";
 
 const fetchMock = vi.fn();
 
@@ -88,8 +89,13 @@ describe("saving", () => {
     fetchMock.mockResolvedValueOnce(respond({ ...EMPTY, revision: 1, family: "rigid_pick_place", referencePaper: "letter",
       readings: { pick_surface_height: { value: 30, unit: "in", recordedAtIso: "2026-10-19T10:00:00.000Z", recordedByScope: "owner" } },
       updatedAtIso: "2026-10-19T10:00:00.000Z" }));
+    const saved = vi.fn();
+    window.addEventListener(SITE_MEASUREMENTS_SAVED_EVENT, saved);
     fireEvent.click(screen.getByRole("button", { name: "Save measurements" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Measurements saved.");
+    // The robot-fit read above the step rests on these readings and refreshes on this event.
+    expect(saved).toHaveBeenCalledTimes(1);
+    window.removeEventListener(SITE_MEASUREMENTS_SAVED_EVENT, saved);
     expect(lastPut()).toEqual({
       revision: 0,
       family: "rigid_pick_place",

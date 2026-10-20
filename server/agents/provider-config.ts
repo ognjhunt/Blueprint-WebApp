@@ -38,6 +38,7 @@ const TASK_MODEL_SUFFIXES: Partial<Record<AgentTaskKind, string>> = {
   external_harness_thread: "EXTERNAL_HARNESS_MODEL",
   site_video_evidence: "SITE_VIDEO_EVIDENCE_MODEL",
   robot_capability_extraction: "ROBOT_CAPABILITY_EXTRACTION_MODEL",
+  robot_fit_ranking: "ROBOT_FIT_RANKING_MODEL",
   capture_dispatch: "CAPTURE_DISPATCH_MODEL",
   outbound_outreach: "OUTBOUND_OUTREACH_MODEL",
 };
@@ -280,6 +281,8 @@ const TASK_DEFAULT_PROVIDER: Partial<Record<AgentTaskKind, StructuredProvider>> 
   inbound_qualification: "openai_responses",
   support_triage: "openai_responses",
   post_signup_scheduling: "openai_responses",
+  // Long context (every research note at once) and careful quoting.
+  robot_fit_ranking: "openai_responses",
 };
 
 export type StructuredProviderResolution = {

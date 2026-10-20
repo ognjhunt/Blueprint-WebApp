@@ -14,6 +14,7 @@ import { captureVideoPrivacyTask } from "./capture-video-privacy";
 import { siteTaskBriefReadingTask } from "./site-task-brief-reading";
 import { captureCoverageTask } from "./capture-coverage";
 import { robotCapabilityExtractionTask } from "./robot-capability-extraction";
+import { robotFitRankingTask } from "./robot-fit-ranking";
 import { captureDispatchTask } from "./capture-dispatch";
 import { outboundOutreachTask } from "./outbound-outreach";
 
@@ -33,6 +34,7 @@ export const taskDefinitions = {
   site_task_brief_reading: siteTaskBriefReadingTask,
   capture_coverage: captureCoverageTask,
   robot_capability_extraction: robotCapabilityExtractionTask,
+  robot_fit_ranking: robotFitRankingTask,
   capture_dispatch: captureDispatchTask,
   outbound_outreach: outboundOutreachTask,
 } satisfies Record<AgentTaskKind, StructuredTaskDefinition<any, any>>;

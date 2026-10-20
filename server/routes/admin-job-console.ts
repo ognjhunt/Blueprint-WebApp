@@ -2,10 +2,12 @@
  * The founder's job console: one row per site job, with its loop stage and
  * the next action. Read-only. Every write it links to goes through an
  * existing endpoint with its own checks (free-evaluation admission, the
- * recommendation form, the lead page). The site-measurement export is the one
- * write here: it keeps an immutable copy of exactly what it exported, so the
- * evidence handed to the Pipeline stays recoverable, and it is refused once
- * recording consent is withdrawn.
+ * recommendation form, the lead page). Three writes live here. The
+ * site-measurement export keeps an immutable copy of exactly what it exported,
+ * so the evidence handed to the Pipeline stays recoverable. Robot fit keeps a
+ * team ranking (a model call staff ask for) and whether the site may see its
+ * robot-form read. The export and the ranking are refused once recording
+ * consent is withdrawn, and nothing new is shared with the site after that.
  */
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
@@ -22,6 +24,7 @@ import {
   presentMeasurementsForAdmin,
   retainSourceMeasurementExport,
 } from "../utils/siteTaskMeasurements";
+import { RobotFitError, getAdminRobotFit, rankTeamsForJob, setRobotFitSharing } from "../utils/siteRobotFit";
 import { loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
 
 const router = Router();
@@ -151,6 +154,69 @@ router.get("/:requestId/site-measurements/exports/:digest", async (req: Request,
   } catch (error) {
     logger.error({ err: error, requestId: parsed.data }, "Retained site measurement export read failed");
     return res.status(503).json({ error: "The retained export is unavailable. Try again." });
+  }
+});
+
+function robotFitErrorResponse(res: Response, error: RobotFitError) {
+  return res.status(error.code === "job_not_found" ? 404 : 409).json({ code: error.code, error: error.message });
+}
+
+/**
+ * Robot fit: the job's needs and every robot form's rating (rules over the
+ * site's own data, computed now), the last team ranking (flagged stale when the
+ * job or the research notes changed since), sharing, and the exact site preview.
+ */
+router.get("/:requestId/robot-fit", async (req: Request, res: Response) => {
+  const parsed = requestId.safeParse(req.params.requestId);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid job id." });
+  try {
+    const fit = await getAdminRobotFit(parsed.data);
+    if (!fit) return res.status(404).json({ error: "Site job not found." });
+    res.set("Cache-Control", "no-store");
+    return res.json(fit);
+  } catch (error) {
+    logger.error({ err: error, requestId: parsed.data }, "Robot fit read failed");
+    return res.status(503).json({ error: "Robot fit is unavailable. Try again." });
+  }
+});
+
+/** Rank researched teams for this job: one model call over every research note, each reason quote-checked. */
+router.post("/:requestId/robot-fit/ranking", async (req: Request, res: Response) => {
+  const parsed = requestId.safeParse(req.params.requestId);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid job id." });
+  try {
+    const actor = res.locals.firebaseUser?.uid ?? null;
+    // A failed model run is a recorded attempt, not an HTTP error: the last good ranking stays.
+    const { ranking, attempt } = await rankTeamsForJob(parsed.data, { actor });
+    logger.info({ requestId: parsed.data, actor, state: attempt.state, error: attempt.error, teams: ranking?.teams.length ?? 0,
+      candidates: ranking?.candidateCount ?? null, droppedReasons: ranking?.droppedReasons ?? 0, droppedTeams: ranking?.droppedTeams ?? 0 },
+    "Robot fit ranking run recorded");
+    res.set("Cache-Control", "no-store");
+    return res.json({ ranking, attempt });
+  } catch (error) {
+    if (error instanceof RobotFitError) return robotFitErrorResponse(res, error);
+    logger.error({ err: error, requestId: parsed.data }, "Robot fit ranking failed");
+    return res.status(503).json({ error: "The team ranking could not be run. Try again." });
+  }
+});
+
+const sharingBody = z.object({ shared: z.boolean() }).strict();
+
+/** Show or hide the robot-form read on the owner's job page. It never names a team. */
+router.post("/:requestId/robot-fit/sharing", async (req: Request, res: Response) => {
+  const parsed = requestId.safeParse(req.params.requestId);
+  const body = sharingBody.safeParse(req.body);
+  if (!parsed.success || !body.success) return res.status(400).json({ error: "Send whether the site may see robot fit." });
+  try {
+    const actor = res.locals.firebaseUser?.uid ?? null;
+    const sharing = await setRobotFitSharing(parsed.data, body.data.shared, { actor });
+    logger.info({ requestId: parsed.data, actor, shared: sharing.shared }, "Robot fit sharing changed");
+    res.set("Cache-Control", "no-store");
+    return res.json({ sharing });
+  } catch (error) {
+    if (error instanceof RobotFitError) return robotFitErrorResponse(res, error);
+    logger.error({ err: error, requestId: parsed.data }, "Robot fit sharing change failed");
+    return res.status(503).json({ error: "Sharing could not be changed. Try again." });
   }
 });
 
