@@ -87,11 +87,20 @@ describe("client env build guard", () => {
       VITE_FIREBASE_APPCHECK_SITE_KEY: "fixture",
       VITE_GOOGLE_MAPS_API_KEY: "fixture",
       VITE_GOOGLE_API_KEY: "fixture",
+      VITE_STRIPE_PUBLISHABLE_KEY: "pk_live_fixture",
       VITE_EMPTY_SECRET: "",
       OPENAI_API_KEY: "fixture",
     })).toEqual([
       "VITE_GOOGLE_GENAI_API_KEY", "VITE_INTERNAL_SCENE_ACCESS_CODE", "VITE_OPENAI_API_KEY", "VITE_STRIPE_SECRET_KEY",
     ]);
+  });
+  it("accepts only publishable Stripe key formats under the public alias", () => {
+    for (const value of ["pk_test_fixture", " pk_live_fixture ", ""]) {
+      expect(unsafeClientCredentialKeys({ VITE_STRIPE_PUBLISHABLE_KEY: value })).toEqual([]);
+    }
+    for (const value of ["sk_live_fixture", "rk_test_fixture", "whsec_fixture", "not-a-publishable-key"]) {
+      expect(unsafeClientCredentialKeys({ VITE_STRIPE_PUBLISHABLE_KEY: value })).toEqual(["VITE_STRIPE_PUBLISHABLE_KEY"]);
+    }
   });
   it("rejects fused and mixed-case credential aliases without exposing their values", () => {
     expect(unsafeClientCredentialKeys({

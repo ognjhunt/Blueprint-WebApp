@@ -52,16 +52,23 @@ export const PUBLIC_CLIENT_CREDENTIAL_KEYS = new Set([
   "VITE_GOOGLE_MAPS_API_KEY",
   "VITE_GOOGLE_API_KEY",
   "VITE_PUBLIC_POSTHOG_PROJECT_TOKEN",
+  "VITE_STRIPE_PUBLISHABLE_KEY",
 ]);
 
 export function unsafeClientCredentialKeys(env) {
   return Object.keys(env).filter((key) => {
+    const value = String(env[key] ?? "").trim();
+    // Stripe explicitly publishes pk_test_/pk_live_ keys for client SDKs.
+    // Never let a secret/restricted key pass merely because its env name is public.
+    if (key === "VITE_STRIPE_PUBLISHABLE_KEY" && value) {
+      return !/^pk_(?:test|live)_[A-Za-z0-9]+$/.test(value);
+    }
     const normalized = key.toUpperCase().replace(/[^A-Z0-9]/g, "");
     const credentialShaped =
       /(?:^|_)(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL|CREDENTIALS|ACCESS_CODE)(?:_|$)/i.test(key) ||
       /APIKEY|PRIVATEKEY|SECRETKEY|SERVICEROLE|ACCESSTOKEN|REFRESHTOKEN|AUTHTOKEN|ACCESSCODE|PASSWORD|CREDENTIAL|CLIENTSECRET/.test(normalized);
     return key.startsWith("VITE_") && credentialShaped &&
-      !PUBLIC_CLIENT_CREDENTIAL_KEYS.has(key) && Boolean(String(env[key] ?? "").trim());
+      !PUBLIC_CLIENT_CREDENTIAL_KEYS.has(key) && Boolean(value);
   }).sort();
 }
 
