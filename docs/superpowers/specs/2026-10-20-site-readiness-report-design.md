@@ -30,38 +30,47 @@ evaluate only a confirmed job.
 
 ## What Blueprint infers from the video
 
-The footage reader (`site_video_evidence`, Gemini) returns `job_estimates`
-beside its observations:
+Every uploaded walkthrough gets one Gemini reading in the capture-first flow:
+its coverage review (`capture_coverage`). That review now also returns
+`job_estimates`. A link the site shares at intake gets the footage reader
+(`site_video_evidence`), which returns the same estimates beside its timed
+cycles and people nearby. The estimates are:
 
 - the main object, its largest side and a weight range;
 - its surface (matte, shiny, see-through or mixed);
 - how far it moves, and the heights of the surfaces it moves between;
-- the open floor in front of the starting surface;
-- up to five other items the station probably handles that the clip did not
-  show;
-- a cycle time, when no complete cycle was timed;
+- the open floor in front of the starting surface, zero included;
+- up to five other kinds of item the station probably handles that the clip
+  did not show, as plain nouns, never a brand, company or robot;
+- a cycle time;
 - what it sized things against, such as a pallet or a door.
 
-The estimates are walled off from the observations. They never change a
-stance, a gate, a timed cycle or the footage status. A malformed estimate reads
-as null rather than failing the reading, because the same reading gates
-reconstruction. Nothing is estimated from unusable footage.
+The estimates are walled off. They never change a coverage verdict, stance,
+gate, timed cycle or footage status. A malformed estimate reads as null rather
+than failing the review it rides on. A linked supplement, which shows only part
+of the work, estimates nothing, and nothing is kept from an unreadable clip.
 
-The reading of the site's own walkthrough is kept on the job as
-`walkthrough_video_evidence` when the pre-reconstruction footage review
-completes. It is kept apart from `site_video_evidence`, the intake link's
-reading that feeds qualification. Robot fit reads the walkthrough's reading
-first, then the link's, and only a usable one.
+The walkthrough's estimates are kept on the job as `walkthrough_job_estimates`,
+written beside the coverage finding under the same consent and source checks.
+Robot fit reads each estimate from the walkthrough first, then from the intake
+link's reading. A timed cycle and people nearby come only from the intake
+link's reader. The coverage review never describes people.
 
 Source order for every figure: what the site measured, then what it told us,
 then the video's estimate. Every figure carries its source in the site's words:
 "you measured this", "you told us", "seen in your video" or "estimated from
 your video".
 
-The reader runs only with `BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED=true` and a
-Gemini key. That flag also turns on the pre-reconstruction footage gate, the
-upload privacy screen, the coverage review and the site assessment, which
-already depended on it.
+An estimate is a guess the site has no step to correct, so it never rules
+anything out on its own. An estimated distance too far for a robot that stays in
+one place reads "likely too far" and leaves that form "possible", not "not a
+fit". Estimated floor space is never "Looks ready"; it is confirmed with the
+robot team.
+
+Both readers run only with `BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED=true` and a
+Gemini key. That flag also turns on the upload privacy screen and the site
+assessment, which already depended on it. The estimates add no model call:
+they ride on the coverage review each walkthrough already gets.
 
 ## What the owner's job page shows
 
@@ -74,7 +83,7 @@ example "· 6 kinds of robot fit". It holds:
 - Getting your site ready, matched to the forms that fit. Each item either
   "Looks ready" or is one to "Confirm with the robot team":
   - floor space at the station, from a reading on file or the estimated
-    clearance;
+    clearance; only a reading on file can make it "Looks ready";
   - where a robot stands, or parks and charges;
   - power, and Wi-Fi for robots that move;
   - a safe working zone, from people nearby;
@@ -102,7 +111,8 @@ example "· 6 kinds of robot fit". It holds:
 The brief is made to be printed or saved as a PDF, and browsers print a page's
 address on it. The owner's job link cannot be that address: it confirms the
 brief, books the pilot and withdraws consent. So the brief opens at
-`/capture-upload/brief/:briefToken`. The token is signed with the capture
+`/readiness-brief/:briefToken`, outside `/capture-upload/*`, which the capture
+app claims as its universal link. The token is signed with the capture
 link's secret under its own `kind` (`readiness_brief`), lasts 14 days and reads
 one job's brief. A brief link opens nothing else, and no other link opens the
 brief. Withdrawn consent closes it.

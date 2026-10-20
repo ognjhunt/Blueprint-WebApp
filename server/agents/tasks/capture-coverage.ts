@@ -38,6 +38,16 @@
  * binding gate answered — a model deciding the footage looks lovely cannot
  * move money.
  *
+ * ## It also estimates the job, so the site is never asked
+ *
+ * The site sends its video and nothing else (founder direction, 2026-10-20),
+ * and this is the one reading that runs on every uploaded walkthrough. So it
+ * also returns `job_estimates` (the object's size and weight, how far it
+ * moves, the two heights, the floor in front of the work, unseen items, a
+ * cycle time), with the footage reader's definitions. They are walled off:
+ * they never change a coverage field, a malformed estimate reads as null
+ * instead of failing the review, and a linked supplement returns none.
+ *
  * ## And it never describes a person
  *
  * Same constraint as `site_video_evidence`, for the same reason: the schema has
@@ -51,6 +61,7 @@ import { z } from "zod";
 import { getGeminiVideoModel } from "../provider-config";
 import type { StructuredTaskDefinition } from "../types";
 import { buildCacheFriendlyPrompt } from "./prompt-cache";
+import { JOB_ESTIMATES_INSTRUCTIONS, JOB_ESTIMATES_RETURN_SHAPE, jobEstimatesField } from "./site-video-evidence";
 
 export interface CaptureCoverageInput {
   /** A short-lived signed read URL for the stored walkthrough. */
@@ -109,6 +120,8 @@ export const captureCoverageOutputSchema = z
     /** Anything that stopped the reading. Empty when the clip was readable. */
     unreadable_reasons: z.array(z.string().trim().max(200)).max(10),
     confidence: z.number().min(0).max(1),
+    /** Educated estimates of the job; never a coverage claim. */
+    job_estimates: jobEstimatesField,
   })
   .strict();
 
@@ -140,6 +153,7 @@ export const captureCoverageTask: StructuredTaskDefinition<
         "Every view marked seen or partial cites a timestamp.",
         "Every missing view is phrased as something an operator could go and film.",
         "No individual person is described.",
+        "job_estimates holds educated estimates sized against references in frame, and null where the footage gives no basis.",
       ],
       self_checks: [
         "Could a reviewer scrub to each cited timestamp and see the view claimed?",
@@ -172,6 +186,9 @@ Then:
 - supplement_would_finish: true when one more short clip would do it. False when the recording would need doing again. Do not say true to be kind; being wrong here sends somebody out for a clip that will not help.
 - unreadable_reasons: only when something stopped you reading the footage at all.
 
+${input.supplementaryViewsOnly ? "job_estimates: null. A supplementary recording shows part of the work, so it estimates nothing." : `${JOB_ESTIMATES_INSTRUCTIONS}
+- Here they never change covers_scene, views, missing_views or supplement_would_finish. The hard limits below still apply.`}
+
 Hard limits:
 - Never describe a person. Not their appearance, their role, their clothing, or their number. If people are in the footage, that is a separate review's question and not yours.
 - Do not infer what is in the room from the job description. You are reading the footage.
@@ -190,6 +207,7 @@ Hard limits:
         supplement_would_finish: true,
         unreadable_reasons: [""],
         confidence: 0.0,
+        job_estimates: input.supplementaryViewsOnly ? null : JOB_ESTIMATES_RETURN_SHAPE,
       },
       payload: input,
     });

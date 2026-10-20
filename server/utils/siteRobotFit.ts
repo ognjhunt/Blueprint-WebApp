@@ -237,8 +237,8 @@ function lengthRequirement(inputs: RobotFitInputs, key: RequirementKey, sampleId
   estimate: number | null | undefined): Quantity | null {
   const reading = measured(inputs, sampleId);
   if (reading) return { key, label, display: measuredDisplay(reading), source: "site_measured", min: reading.si, max: reading.si };
-  return typeof estimate === "number"
-    ? { key, label, display: `about ${lengthText(estimate)}`, source: "video_estimate", min: estimate, max: estimate } : null;
+  return typeof estimate === "number" ? { key, label, display: estimate === 0 ? "floor level" : `about ${lengthText(estimate)}`,
+    source: "video_estimate", min: estimate, max: estimate } : null;
 }
 
 function largestSide(inputs: RobotFitInputs): Quantity | null {
@@ -274,6 +274,17 @@ function bounded(value: unknown, min: number, max: number, exclusiveMin = false)
 
 const SURFACE_VALUES = new Set(["matte", "shiny", "transparent", "mixed"]);
 
+/**
+ * An unseen item as a plain noun phrase, or nothing: the name reaches the site's
+ * report, so a link, a code or anything naming a robot is dropped.
+ */
+function itemName(item: unknown): string | null {
+  if (typeof item !== "string") return null;
+  const name = item.replace(/\s+/g, " ").trim();
+  if (!/^[\p{L}][\p{L}\p{N} ,'&()/-]{0,59}$/u.test(name) || /robot/i.test(name)) return null;
+  return name.charAt(0).toLowerCase() + name.slice(1);
+}
+
 function estimatesOf(raw: unknown): VideoEstimates | null {
   if (!raw || typeof raw !== "object") return null;
   const value = raw as Record<string, unknown>;
@@ -291,8 +302,7 @@ function estimatesOf(raw: unknown): VideoEstimates | null {
     // Zero is a reading: no open floor at all.
     frontClearanceM: bounded(value.front_clearance_m, 0, 20),
     otherItemsLikely: (Array.isArray(value.other_items_likely) ? value.other_items_likely : [])
-      .filter((item): item is string => typeof item === "string")
-      .map((item) => item.trim().slice(0, 80)).filter(Boolean).slice(0, 5),
+      .map(itemName).filter((item): item is string => Boolean(item)).slice(0, 5),
     cycleSeconds: bounded(value.cycle_seconds, 1, 7200),
   };
 }
@@ -303,20 +313,40 @@ function usableReading(value: unknown): Record<string, unknown> | null {
     ? evidence : null;
 }
 
+/** Each estimate from the walkthrough where it has one, else from the intake link's reading. */
+function mergeEstimates(first: VideoEstimates | null, second: VideoEstimates | null): VideoEstimates | null {
+  if (!first || !second) return first ?? second;
+  return {
+    largestSideM: first.largestSideM ?? second.largestSideM,
+    massKg: first.massKg ?? second.massKg,
+    surface: first.surface ?? second.surface,
+    pickToPlaceM: first.pickToPlaceM ?? second.pickToPlaceM,
+    pickHeightM: first.pickHeightM ?? second.pickHeightM,
+    placeHeightM: first.placeHeightM ?? second.placeHeightM,
+    frontClearanceM: first.frontClearanceM ?? second.frontClearanceM,
+    otherItemsLikely: first.otherItemsLikely.length ? first.otherItemsLikely : second.otherItemsLikely,
+    cycleSeconds: first.cycleSeconds ?? second.cycleSeconds,
+  };
+}
+
 /**
- * A usable reading of the site's video, or null: the uploaded walkthrough's own
- * reading first, then a link the site shared at intake.
+ * What the site's video tells us, or null. Estimates come from the uploaded
+ * walkthrough's coverage review first (the one reading every website job gets),
+ * then from a link the site shared at intake. A timed cycle and people nearby
+ * come only from the intake link's footage reader, and only while usable.
  */
 export function videoEvidence(inputs: RobotFitInputs): {
   measuredCycleSeconds: number | null; people: string | null; estimates: VideoEstimates | null;
 } | null {
-  const evidence = usableReading(inputs.request?.walkthrough_video_evidence) ?? usableReading(inputs.request?.site_video_evidence);
-  if (!evidence) return null;
-  const seconds = evidence.measured_cycle_seconds;
+  const link = usableReading(inputs.request?.site_video_evidence);
+  const walkthrough = (inputs.request?.walkthrough_job_estimates as { job_estimates?: unknown } | null | undefined)?.job_estimates;
+  const estimates = mergeEstimates(estimatesOf(walkthrough), link ? estimatesOf(link.job_estimates) : null);
+  if (!link && !estimates) return null;
+  const seconds = link?.measured_cycle_seconds;
   return {
     measuredCycleSeconds: typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0 ? seconds : null,
-    people: typeof evidence.people_relationship_to_work === "string" ? evidence.people_relationship_to_work : null,
-    estimates: estimatesOf(evidence.job_estimates),
+    people: typeof link?.people_relationship_to_work === "string" ? link.people_relationship_to_work : null,
+    estimates,
   };
 }
 
@@ -345,6 +375,8 @@ export interface JobFacts {
   distance: Quantity | null;
   /** Straight-line span between the spots, using the heights when both are known. */
   span: number | null;
+  /** The span rests on a video estimate, so it never rules a form out on its own. */
+  spanEstimated: boolean;
   mass: Quantity | null;
   size: Quantity | null;
   extremes: Array<{ height: Quantity; low: boolean }>;
@@ -401,6 +433,9 @@ function rateForm(id: RatedForm, facts: JobFacts): RobotFormRating {
       checks.push(check("pick_to_place_span", "pass", `It can reach both spots from where it stands: ${moved}.`));
     } else if (facts.span <= SCREENING.fixedSpanMaxM) {
       checks.push(check("pick_to_place_span", "caution", `It stays in one place, so it needs a long reach: ${moved}.`));
+    } else if (facts.spanEstimated) {
+      // A guess from the video cannot rule a form out, and the site has no step to correct it.
+      checks.push(check("pick_to_place_span", "caution", `It stays in one place, and ${moved}, likely too far to reach both spots.`));
     } else {
       checks.push(check("pick_to_place_span", "fail", `It stays in one place, and ${moved}, too far to reach both spots.`));
     }
@@ -457,6 +492,8 @@ export function jobFactsOf(inputs: RobotFitInputs): JobFacts & { pick: Quantity 
     pick,
     place,
     span: distance ? (pick && place ? Math.hypot(distance.min, pick.min - place.min) : distance.min) : null,
+    spanEstimated: [distance, ...(distance && pick && place ? [pick, place] : [])]
+      .some((entry) => entry?.source === "video_estimate"),
     mass: massRequirement(inputs),
     size: largestSide(inputs),
     extremes: [pick, place].filter((entry): entry is Quantity => Boolean(entry))

@@ -44,6 +44,7 @@ import {
   type CaptureCoverageInput,
   type CaptureCoverageOutput,
 } from "../agents/tasks/capture-coverage";
+import type { SiteVideoJobEstimatesOutput } from "../agents/tasks/site-video-evidence";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { selfCaptureObjectPath } from "./captureUploadToken";
 import { getBrief } from "./siteTaskBrief";
@@ -218,7 +219,12 @@ export async function reviewCaptureCoverage(params: {
     || requestedViews.some((view: { id: string }) => !output!.views.some(observed => observed.id === view.id
       && observed.status === "seen" && observed.timestamp_seconds != null)))) finding.coversScene = false;
 
-  await recordCoverageFinding(params.requestId, params.captureId, finding, params.binding);
+  // The site's own walkthrough is the one recording read on every website job, so its
+  // estimates are what robot fit infers the job from. Never an unreadable clip's, and
+  // never a supplement's, which shows only part of the work.
+  const estimates = params.captureId === `walkthrough-${params.requestId}` && !finding.unreadableReasons.length
+    ? output.job_estimates ?? null : null;
+  await recordCoverageFinding(params.requestId, params.captureId, finding, params.binding, estimates);
 
   // A named shortfall is the one coverage outcome worth an email: it is a
   // specific, cheap thing the operator can do. "Covers the scene" needs no
@@ -268,6 +274,8 @@ export async function recordCoverageFinding(
   captureId: string,
   finding: CoverageFinding,
   binding?: { source: unknown; brief_digest: string; capture_id: string },
+  /** The walkthrough's job estimates, kept beside the finding for robot fit; only with the walkthrough's own finding. */
+  jobEstimates?: SiteVideoJobEstimatesOutput | null,
 ): Promise<void> {
   if (!db) throw new Error("coverage_store_unavailable");
   const ref = db.collection("inboundRequests").doc(requestId);
@@ -286,6 +294,9 @@ export async function recordCoverageFinding(
       ...(finding.sourceCaptures ? { source_captures: finding.sourceCaptures } : {}),
       reviewed_at: admin.firestore.FieldValue.serverTimestamp(), ...(binding ? { binding } : {}),
     } }, { merge: true });
+    // Replaced whole, under the same consent and source checks as the finding it came with.
+    if (jobEstimates) tx.set(ref, { walkthrough_job_estimates: { capture_id: captureId, job_estimates: jobEstimates,
+      reviewed_at_iso: new Date().toISOString() } }, { mergeFields: ["walkthrough_job_estimates"] });
   });
 }
 

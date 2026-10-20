@@ -7,8 +7,9 @@
  * - the estimates ride on the same reading that gates reconstruction, so a
  *   malformed estimate reads as null and never fails that reading;
  * - the summary keeps them, except off unusable footage;
- * - the site's own walkthrough reading is kept on the job, apart from the
- *   intake link's, and a failed write never blocks the review;
+ * - the coverage review, the one reading every uploaded walkthrough gets,
+ *   carries the same estimates under the same leniency, and a supplement
+ *   estimates nothing;
  * - the printable brief's link reads one job's brief and nothing else.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,7 +29,7 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 
 const { siteVideoEvidenceOutputSchema, siteVideoEvidenceTask } = await import("../agents/tasks/site-video-evidence");
 const { summariseVideoEvidence } = await import("../utils/siteVideoEvidence");
-const { recordWalkthroughEvidence } = await import("../utils/captureFootageReview");
+const { captureCoverageOutputSchema, captureCoverageTask } = await import("../agents/tasks/capture-coverage");
 const { createReadinessBriefToken, readinessBriefPathFor, verifyReadinessBriefToken } = await import("../utils/readinessBriefToken");
 const { createCaptureUploadToken, verifyCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { createRequestReviewToken, verifyRequestReviewToken } = await import("../utils/request-review-auth");
@@ -82,52 +83,40 @@ describe("the reader's job estimates", () => {
       operatorAnswers: {} }));
     expect(prompt).toContain("Estimating the job (job_estimates)");
     expect(prompt).toContain("Blueprint never asks the site to measure anything");
-    expect(prompt).toContain("They never change a stance, an implied_value, cycle_measurement or footage_status.");
+    expect(prompt).toContain("never change a stance, an implied_value, cycle_measurement or footage_status.");
     expect(prompt).toContain("other_items_likely");
     expect(prompt).toContain("A wild guess is worse than null.");
   });
 });
 
-describe("the site's own walkthrough reading", () => {
-  beforeEach(() => {
-    sharedFakeFirestoreState.docs.clear();
-    sharedFakeFirestoreState.docs.set("inboundRequests/job-1", { requestId: "job-1", request: {},
-      site_video_evidence: { status: "analysed", footage_status: "usable" } });
+describe("the coverage review carries the estimates for every uploaded walkthrough", () => {
+  const coverage = (extra: Record<string, unknown> = {}) => ({ covers_scene: true,
+    views: [{ id: "work-area", status: "seen", timestamp_seconds: 3, note: "Whole station." }], missing_views: [],
+    supplement_would_finish: false, unreadable_reasons: [], confidence: 0.9, ...extra });
+
+  it("keeps estimates that fit, reads malformed ones as null, and never fails the coverage verdict over them", () => {
+    expect(captureCoverageOutputSchema.parse(coverage({ job_estimates: ESTIMATES })).job_estimates).toEqual(ESTIMATES);
+    expect(captureCoverageOutputSchema.parse(coverage({ job_estimates: "wide" }))).toMatchObject({ covers_scene: true, job_estimates: null });
+    expect(captureCoverageOutputSchema.parse(coverage({ job_estimates: { ...ESTIMATES, pick_height_m: 9 } })).job_estimates?.pick_height_m).toBeNull();
+    expect(captureCoverageOutputSchema.parse(coverage()).job_estimates).toBeUndefined();
+    expect(captureCoverageOutputSchema.safeParse(coverage({ verdict: "qualified" })).success).toBe(false);
   });
 
-  it("is kept on the job, apart from the intake link's reading, and replaced whole", async () => {
-    sharedFakeFirestoreState.docs.set("inboundRequests/job-1", { ...sharedFakeFirestoreState.docs.get("inboundRequests/job-1"),
-      walkthrough_video_evidence: { stale: true, job_estimates: { ...ESTIMATES, pick_to_place_m: 4 } } });
-    await recordWalkthroughEvidence({ requestId: "job-1", captureId: "walkthrough-job-1", model: "gemini",
-      output: siteVideoEvidenceOutputSchema.parse(output({ job_estimates: ESTIMATES })) });
-    const stored = sharedFakeFirestoreState.docs.get("inboundRequests/job-1") as Record<string, any>;
-    expect(stored.walkthrough_video_evidence).toMatchObject({ status: "analysed", footage_status: "usable", capture_id: "walkthrough-job-1",
-      model: "gemini", job_estimates: ESTIMATES });
-    expect(stored.walkthrough_video_evidence).not.toHaveProperty("stale");
-    expect(stored.site_video_evidence).toEqual({ status: "analysed", footage_status: "usable" });
-  });
-
-  it("is never an added view's reading, and a failed write never blocks the review", async () => {
-    await recordWalkthroughEvidence({ requestId: "job-1", captureId: "views-job-1-2", model: "gemini",
-      output: siteVideoEvidenceOutputSchema.parse(output({ job_estimates: ESTIMATES })) });
-    expect(sharedFakeFirestoreState.docs.get("inboundRequests/job-1")).not.toHaveProperty("walkthrough_video_evidence");
-    await expect(recordWalkthroughEvidence({ requestId: "missing", captureId: "walkthrough-missing", model: "gemini",
-      output: siteVideoEvidenceOutputSchema.parse(output()) })).resolves.toBeUndefined();
-    expect(sharedFakeFirestoreState.docs.has("inboundRequests/missing")).toBe(false);
-    const ref = { get: async () => ({ exists: true }), set: async () => { throw new Error("unavailable"); } };
-    const store = await import("../../client/src/lib/firebaseAdmin");
-    const collection = vi.spyOn(store.dbAdmin as never as { collection: (name: string) => unknown }, "collection")
-      .mockReturnValueOnce({ doc: () => ref });
-    await expect(recordWalkthroughEvidence({ requestId: "job-1", captureId: "walkthrough-job-1", model: "gemini",
-      output: siteVideoEvidenceOutputSchema.parse(output()) })).resolves.toBeUndefined();
-    collection.mockRestore();
+  it("asks for estimates on the walkthrough, and none on a supplement that shows part of the work", () => {
+    const prompt = (supplementaryViewsOnly: boolean) => JSON.stringify(captureCoverageTask.build_prompt({ videoUrl: "https://example.test/v.mp4",
+      supplementaryViewsOnly, taskSummary: "Move cartons", requestedViews: [{ id: "work-area", label: "The whole work area" }] }));
+    expect(prompt(false)).toContain("Estimating the job (job_estimates)");
+    expect(prompt(false)).toContain("they never change covers_scene, views, missing_views or supplement_would_finish");
+    expect(prompt(false)).toContain("Never a brand, company or robot.");
+    expect(prompt(true)).not.toContain("Estimating the job");
+    expect(prompt(true)).toContain("job_estimates: null.");
   });
 });
 
 describe("the printable brief's read-only link", () => {
   it("names one job, and expires", () => {
     expect(verifyReadinessBriefToken(createReadinessBriefToken("job-1"))).toBe("job-1");
-    expect(readinessBriefPathFor("job-1")).toMatch(/^\/capture-upload\/brief\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+    expect(readinessBriefPathFor("job-1")).toMatch(/^\/readiness-brief\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
     expect(verifyReadinessBriefToken(createReadinessBriefToken("job-1", -60))).toBeNull();
     const [payload, signature] = createReadinessBriefToken("job-1").split(".");
     const forged = Buffer.from(JSON.stringify({ kind: "readiness_brief", requestId: "job-2", exp: 9_999_999_999 })).toString("base64url");

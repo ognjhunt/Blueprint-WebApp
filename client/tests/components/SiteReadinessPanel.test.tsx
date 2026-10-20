@@ -32,7 +32,7 @@ function readiness(overrides: Partial<SiteReadinessResponse> = {}): SiteReadines
   return {
     ok: true, summary: "Sort parcels onto outbound chutes",
     tracker: { steps: [{ id: "video", label: "Video received", state: "done", owner: "site" }], meanwhile: null },
-    report: null, briefPath: "/capture-upload/brief/brief-token.signature",
+    report: null, briefPath: "/readiness-brief/brief-token.signature",
     ...overrides,
   };
 }
@@ -76,7 +76,7 @@ describe("SiteReadinessPanel", () => {
     fetchMock.mockResolvedValue(respond(readiness({ report: REPORT })));
     render(<SiteReadinessPanel token="tok" />);
     const link = await screen.findByRole("link", { name: "Print or save the brief" });
-    expect(link).toHaveAttribute("href", "/capture-upload/brief/brief-token.signature");
+    expect(link).toHaveAttribute("href", "/readiness-brief/brief-token.signature");
     expect(link.getAttribute("href")).not.toContain("tok/");
   });
 

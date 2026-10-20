@@ -46,8 +46,9 @@ let base: string;
 function seed(extra: Record<string, unknown> = {}) {
   sharedFakeFirestoreState.docs.set("inboundRequests/job-1", { requestId: "job-1", request: { buyerType: "site_operator" },
     site_task_scope: { supported: true, kind: "rigid_pick_and_place", reason: null },
-    walkthrough_video_evidence: { status: "analysed", footage_status: "usable", measured_cycle_seconds: 60, people_relationship_to_work: null,
-      job_estimates: { pick_to_place_m: 0.9, object_mass_kg_low: 1, object_mass_kg_high: 2 }, capture_id: "walkthrough-job-1" }, ...extra });
+    site_video_evidence: { status: "analysed", footage_status: "usable", measured_cycle_seconds: 60, people_relationship_to_work: null },
+    walkthrough_job_estimates: { capture_id: "walkthrough-job-1", reviewed_at_iso: NOW,
+      job_estimates: { pick_to_place_m: 0.9, object_mass_kg_low: 1, object_mass_kg_high: 2 } }, ...extra });
   sharedFakeFirestoreState.docs.set("siteTaskBriefs/job-1", { requestId: "job-1", summary: "Sort parcels onto outbound chutes", confirmedAtIso: NOW });
 }
 
@@ -83,7 +84,7 @@ describe("the owner's readiness read", () => {
     const body = await response.json();
     expect(Object.keys(body).sort()).toEqual(["briefPath", "ok", "report", "summary", "tracker"]);
     expect(body).toMatchObject({ ok: true, summary: "Sort parcels onto outbound chutes", report: null });
-    expect(body.briefPath).toMatch(/^\/capture-upload\/brief\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+    expect(body.briefPath).toMatch(/^\/readiness-brief\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
     expect(body.briefPath).not.toContain(token("owner"));
     expect(body.tracker.steps[0]).toMatchObject({ id: "video", state: "done" });
     expect((await readiness("film")).status).toBe(403);

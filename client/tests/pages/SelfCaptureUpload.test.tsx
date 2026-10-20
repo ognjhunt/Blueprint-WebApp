@@ -889,7 +889,7 @@ describe("the site sends its video and nothing else", () => {
 });
 
 describe("the robot readiness report on the owner's page", () => {
-  const READINESS = { ok: true, summary: "Sort parcels", briefPath: "/capture-upload/brief/brief-token.signature",
+  const READINESS = { ok: true, summary: "Sort parcels", briefPath: "/readiness-brief/brief-token.signature",
     tracker: { steps: [{ id: "video", label: "Video received", state: "done", owner: "site" }], meanwhile: null },
     report: { robotFit: { needs: ["It has to pick the object up and put it down at another spot."], forms: [
       { id: "humanoid", label: "Walking humanoid", description: "", verdict: "fits", reasons: [] }], note: "A first read." },

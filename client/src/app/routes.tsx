@@ -259,8 +259,9 @@ export const appRoutes: AppRoute[] = [
   // sent here to do one thing, and has no account to navigate with.
   { path: "/capture-upload/:token", layout: "public", shell: "bare", component: SelfCaptureUpload },
   // The printable robot readiness brief, by its own read-only link: the owner's
-  // job link never goes on paper.
-  { path: "/capture-upload/brief/:briefToken", layout: "public", shell: "bare", component: RobotReadinessBrief },
+  // job link never goes on paper. Outside /capture-upload/*, which the capture
+  // app claims as its universal link.
+  { path: "/readiness-brief/:briefToken", layout: "public", shell: "bare", component: RobotReadinessBrief },
   { path: "/claim/:token", layout: "public", shell: "bare", component: ClaimSite },
   { path: "/capture-app", layout: "public", shell: "bare", component: SiteOperatorCaptureRedirect },
   { path: "/capture-app/account", layout: "protected", shell: "bare", component: CapturerAccount },

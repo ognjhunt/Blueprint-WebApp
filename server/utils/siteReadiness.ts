@@ -185,14 +185,14 @@ function formsInPlay(job: RobotFitJob) {
  * the video reader's estimate, as a phrase: "120 cm (you measured this) of open
  * floor", or "no open floor (estimated from your video)" for a zero.
  */
-function frontClearance(inputs: RobotFitInputs): { metres: number; floor: string } | null {
+function frontClearance(inputs: RobotFitInputs): { metres: number; floor: string; measured: boolean } | null {
   const reading = measured(inputs, "pick_front_clearance");
   const estimate = videoEvidence(inputs)?.estimates?.frontClearanceM;
   const found = reading ? { metres: reading.si, figure: measuredDisplay(reading), source: "you measured this" }
     : typeof estimate === "number" ? { metres: estimate, figure: `about ${lengthText(estimate)}`, source: "estimated from your video" }
       : null;
   if (!found) return null;
-  return { metres: found.metres,
+  return { metres: found.metres, measured: Boolean(reading),
     floor: found.metres === 0 ? `no open floor (${found.source})` : `${found.figure} (${found.source}) of open floor` };
 }
 
@@ -203,9 +203,11 @@ export function checklistOf(inputs: RobotFitInputs, facts: JobFacts, job: RobotF
   const overheadTight = overhead && overhead.si < READINESS_SCREENING.overheadTightM
     ? ` Above the surface there is ${measuredDisplay(overhead)} of open height (you measured this), tight for an arm reaching in from above.` : "";
   const roomy = Boolean(front && front.metres >= READINESS_SCREENING.floorReadyM);
-  const floor: ReadinessItem = { id: "floor_space", title: "Floor space at the station", state: roomy && !overheadTight ? "ready" : "confirm",
+  // Only a reading on file makes the floor "Looks ready"; an estimate is confirmed with the robot team.
+  const floor: ReadinessItem = { id: "floor_space", title: "Floor space at the station",
+    state: roomy && front?.measured && !overheadTight ? "ready" : "confirm",
     detail: (!front ? "The robot team confirms the floor space its robot needs beside the work."
-      : roomy ? `There is ${front.floor} in front of the starting surface, room for a robot's stand or base.`
+      : roomy ? `There is ${front.floor} in front of the starting surface, ${front.measured ? "" : "likely "}room for a robot's stand or base.`
         : front.metres === 0 ? `There is ${front.floor} in front of the starting surface, so a robot's stand or base needs another spot. `
           + "Confirm the space with the robot team."
           : `There is ${front.metres >= READINESS_SCREENING.floorTightM ? "" : "only "}${front.floor} in front of the starting surface, `

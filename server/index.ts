@@ -148,6 +148,7 @@ const noIndexPathPatterns = [
   // shared result pages, the workspace, and ops/internal tooling.
   /^\/claim(?:\/|$)/,
   /^\/capture-upload(?:\/|$)/,
+  /^\/readiness-brief(?:\/|$)/,
   /^\/app(?:\/|$)/,
   /^\/ops(?:\/|$)/,
   /^\/internal(?:\/|$)/,

@@ -182,11 +182,12 @@ describe("the site version", () => {
   });
 
   it("rates every form from the video's estimates alone, and says they are estimates", () => {
-    const job = computeRobotFitJob(inputs({ request: { request: {}, ...SCREENED, walkthrough_video_evidence: { status: "analysed",
-      footage_status: "usable", job_estimates: { pick_to_place_m: 3, object_mass_kg_low: 4, object_mass_kg_high: 6 } } } }));
-    expect(verdicts(job)).toMatchObject({ fixed_base_arm: "not_a_fit", bimanual_arm: "not_a_fit", mobile_manipulator: "fits" });
+    const job = computeRobotFitJob(inputs({ request: { request: {}, ...SCREENED, walkthrough_job_estimates: { capture_id: "walkthrough-job-1",
+      job_estimates: { pick_to_place_m: 3, object_mass_kg_low: 4, object_mass_kg_high: 6 } } } }));
+    // A guess never rules a form out: a stationary form is possible, with the reason.
+    expect(verdicts(job)).toMatchObject({ fixed_base_arm: "possible", bimanual_arm: "possible", mobile_manipulator: "fits" });
     expect(rating(job, "fixed_base_arm").checks[0].text)
-      .toBe("It stays in one place, and the object moves about 3 m (estimated from your video), too far to reach both spots.");
+      .toBe("It stays in one place, and the object moves about 3 m (estimated from your video), likely too far to reach both spots.");
     expect(job.requirements.map((entry) => [entry.key, entry.source])).toEqual([["pick_to_place_span", "video_estimate"],
       ["object_mass", "video_estimate"]]);
   });

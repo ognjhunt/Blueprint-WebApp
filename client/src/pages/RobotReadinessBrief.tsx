@@ -17,7 +17,7 @@ import { READINESS_BRIEF_FOOTER, type SiteReadinessResponse } from "@/data/siteR
 type Loaded = { status: "loading" } | { status: "failed"; message: string } | { status: "ready"; readiness: SiteReadinessResponse };
 
 export default function RobotReadinessBrief() {
-  const [, params] = useRoute("/capture-upload/brief/:briefToken");
+  const [, params] = useRoute("/readiness-brief/:briefToken");
   const briefToken = params?.briefToken ?? "";
   const [loaded, setLoaded] = useState<Loaded>({ status: "loading" });
 

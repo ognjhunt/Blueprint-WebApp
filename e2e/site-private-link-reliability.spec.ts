@@ -244,7 +244,7 @@ function readinessFixture(overrides: Record<string, unknown> = {}) {
       { id: "recommendation", label: "Blueprint recommends one team", state: "pending", owner: "blueprint" },
       { id: "booking", label: "You book the pilot", state: "pending", owner: "site" },
     ], meanwhile: "Blueprint is rebuilding your work area in 3D from your video." },
-    briefPath: "/capture-upload/brief/brief-token.signature",
+    briefPath: "/readiness-brief/brief-token.signature",
     report: {
       robotFit: {
         needs: ["It has to pick the object up and put it down at another spot.", "It can work from one place: the object moves about 90 cm (estimated from your video)."],
@@ -306,7 +306,7 @@ test("the owner sees only the shared robot report, folded, with nothing to fill 
   await expect(report.getByText("Checked in the pilot, not the simulation")).toBeVisible();
   await expect(report.getByText("Jobs like this on the public record", { exact: true })).toBeVisible();
   await expect(report.getByRole("link", { name: "China Daily: humanoid robots move onto fast track" })).toBeVisible();
-  await expect(report.getByRole("link", { name: "Print or save the brief" })).toHaveAttribute("href", "/capture-upload/brief/brief-token.signature");
+  await expect(report.getByRole("link", { name: "Print or save the brief" })).toHaveAttribute("href", "/readiness-brief/brief-token.signature");
   await expect(report.locator("form, input, select, textarea")).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText(/\bmatch|Galbot|Robot Era/i);
   expect(asks).toEqual([]);
@@ -320,7 +320,7 @@ test("the robot readiness brief opens by its own read-only link and lays out the
     if (url.pathname === `/api/site-task-brief/readiness-brief/${briefToken}`) return route.fulfill({ json: readinessFixture({ briefPath: null }) });
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });
-  await page.goto(`/capture-upload/brief/${briefToken}`);
+  await page.goto(`/readiness-brief/${briefToken}`);
   await expect(page.getByRole("heading", { level: 1, name: "Sort parcels onto outbound chutes" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Where things stand" }).getByText("Video received")).toBeVisible();

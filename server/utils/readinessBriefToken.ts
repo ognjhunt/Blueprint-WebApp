@@ -73,7 +73,11 @@ export function verifyReadinessBriefToken(token: string): string | null {
   return payload.requestId;
 }
 
-/** The brief's page, relative to the site's origin. */
+/**
+ * The brief's page, relative to the site's origin. Outside `/capture-upload/*`
+ * on purpose: the capture app claims that range as its universal link, and a
+ * brief tapped on an iPhone must open the page, not the camera app.
+ */
 export function readinessBriefPathFor(requestId: string) {
-  return `/capture-upload/brief/${createReadinessBriefToken(requestId)}`;
+  return `/readiness-brief/${createReadinessBriefToken(requestId)}`;
 }

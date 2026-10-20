@@ -1037,12 +1037,11 @@ export interface InboundRequest {
   siteTaskGates?: Record<string, string> | null;
   site_video_evidence?: SiteVideoEvidenceSummary | null;
   /**
-   * The same reader on the site's uploaded walkthrough, kept apart from
-   * `site_video_evidence` (a shared link read at intake) because that one
-   * feeds qualification and this one feeds only robot fit and the readiness
-   * report. Written when the pre-reconstruction footage review completes.
+   * The job estimates read off the site's uploaded walkthrough by its coverage
+   * review (`capture-coverage.ts`), the one reading every website job gets.
+   * They feed only robot fit and the readiness report, never qualification.
    */
-  walkthrough_video_evidence?: (SiteVideoEvidenceSummary & { capture_id: string }) | null;
+  walkthrough_job_estimates?: { capture_id: string; job_estimates: SiteVideoJobEstimates; reviewed_at_iso: string } | null;
   /** The last match run against the robot-team registry. Derived, like the triage. */
   site_match?: SiteMatchSummaryRecord | null;
   human_review_required?: boolean | null;

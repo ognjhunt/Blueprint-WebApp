@@ -57,11 +57,20 @@ type Estimates = Partial<{ object: string; object_largest_side_m: number; object
   object_surface: string; pick_to_place_m: number; pick_height_m: number; place_height_m: number; front_clearance_m: number;
   other_items_likely: string[]; cycle_seconds: number }>;
 
-/** The walkthrough's own reading, as the footage review stores it. */
-function walkthroughReading(options: { cycle?: number | null; people?: string | null; estimates?: Estimates | null; footage?: string } = {}) {
-  return { walkthrough_video_evidence: { status: options.footage === "unusable" ? "unreadable" : "analysed",
-    footage_status: options.footage ?? "usable", measured_cycle_seconds: options.cycle ?? null,
-    people_relationship_to_work: options.people ?? null, job_estimates: options.estimates ?? null, capture_id: "walkthrough-job-1" } };
+/**
+ * The site's video as Blueprint holds it: the walkthrough's estimates from its
+ * coverage review, and an intake link's reading for a timed cycle and people.
+ */
+function walkthroughReading(options: { cycle?: number | null; people?: string | null; estimates?: Estimates | null;
+  linkEstimates?: Estimates | null; footage?: string } = {}) {
+  const link = options.cycle != null || options.people != null || options.linkEstimates != null || options.footage != null;
+  return {
+    ...(options.estimates ? { walkthrough_job_estimates: { capture_id: "walkthrough-job-1", job_estimates: options.estimates,
+      reviewed_at_iso: NOW } } : {}),
+    ...(link ? { site_video_evidence: { status: options.footage === "unusable" ? "unreadable" : "analysed",
+      footage_status: options.footage ?? "usable", measured_cycle_seconds: options.cycle ?? null,
+      people_relationship_to_work: options.people ?? null, job_estimates: options.linkEstimates ?? null } } : {}),
+  };
 }
 
 function reading(value: number, unit: string, si: number) {
@@ -115,22 +124,40 @@ describe("estimates from the video", () => {
     expect(facts.size).toMatchObject({ source: "video_estimate" });
   });
 
-  it("reads the walkthrough's own reading first, and never a reading of unusable footage", () => {
-    const link = { site_video_evidence: { status: "analysed", footage_status: "usable", measured_cycle_seconds: 50,
-      people_relationship_to_work: null, job_estimates: { pick_to_place_m: 2 } } };
-    expect(videoEvidence(withVideo({ estimates: { pick_to_place_m: 0.9 } }, link))?.estimates?.pickToPlaceM).toBe(0.9);
-    expect(videoEvidence(withVideo({ footage: "unusable", estimates: { pick_to_place_m: 0.9 } }, link))).toMatchObject({
-      measuredCycleSeconds: 50, estimates: { pickToPlaceM: 2 } });
-    expect(videoEvidence(withVideo({ footage: "unusable", estimates: { pick_to_place_m: 0.9 } }))).toBeNull();
+  it("reads each estimate from the walkthrough first, then the intake link, and nothing from unusable footage", () => {
+    const link = { cycle: 50, linkEstimates: { pick_to_place_m: 2, object_largest_side_m: 0.5 } };
+    const both = videoEvidence(withVideo({ estimates: { pick_to_place_m: 0.9 }, ...link }));
+    expect(both).toMatchObject({ measuredCycleSeconds: 50, estimates: { pickToPlaceM: 0.9, largestSideM: 0.5 } });
+    expect(videoEvidence(withVideo({ ...link, footage: "unusable" }))).toBeNull();
+    expect(videoEvidence(withVideo({ estimates: { pick_to_place_m: 0.9 }, ...link, footage: "unusable" }))).toMatchObject({
+      measuredCycleSeconds: null, people: null, estimates: { pickToPlaceM: 0.9, largestSideM: null } });
   });
 
   it("reads a stored estimate only inside the reader's own bounds", () => {
     const estimates = videoEvidence(withVideo({ estimates: { object_largest_side_m: 9, object_mass_kg_low: 6, object_mass_kg_high: 2,
       pick_to_place_m: 0, front_clearance_m: -1, cycle_seconds: Number.NaN, object_surface: "glittery",
-      other_items_likely: ["  trays ", "", 4 as never, "lids", "bags", "boxes", "bins", "extra"] } }))?.estimates;
+      other_items_likely: ["  trays ", "", 4 as never, "Lids", "bags", "boxes", "bins", "extra"] } }))?.estimates;
     expect(estimates).toEqual({ largestSideM: null, massKg: { low: 2, high: 6 }, surface: null, pickToPlaceM: null, pickHeightM: null,
       placeHeightM: null, frontClearanceM: null, otherItemsLikely: ["trays", "lids", "bags", "boxes", "bins"], cycleSeconds: null });
+    // The names reach the site's report, so only plain nouns survive.
+    expect(videoEvidence(withVideo({ estimates: { other_items_likely: ["https://example.test/sku", "robot spare parts", "C-12 cartons",
+      "Smaller cartons"] } }))?.estimates?.otherItemsLikely).toEqual(["c-12 cartons", "smaller cartons"]);
+    expect(videoEvidence(withVideo({ estimates: { front_clearance_m: 0 } }))?.estimates?.frontClearanceM).toBe(0);
     expect(videoEvidence(withVideo({ estimates: { object_mass_kg_high: 0.4 } }))?.estimates?.massKg).toEqual({ low: 0.4, high: 0.4 });
+  });
+
+  it("says floor level for a height of zero", () => {
+    expect(computeRobotFitJob(withVideo({ estimates: { pick_to_place_m: 0.9, place_height_m: 0 } })).needs)
+      .toContain("It has to reach down near the floor: the object is put down at floor level (estimated from your video).");
+  });
+
+  it("never lets an estimated distance alone rule a robot form out", () => {
+    const job = computeRobotFitJob(withVideo({ estimates: { pick_to_place_m: 3 } }));
+    expect(job.forms.filter((rating) => rating.verdict === "not_a_fit")).toEqual([]);
+    expect(job.forms.find((rating) => rating.id === "fixed_base_arm")).toMatchObject({ verdict: "possible", checks: [{ outcome: "caution",
+      text: "It stays in one place, and the object moves about 3 m (estimated from your video), likely too far to reach both spots." }] });
+    const measuredFar = computeRobotFitJob(inputs({ readings: { pick_to_place_distance: reading(300, "cm", 3) } }));
+    expect(measuredFar.forms.find((rating) => rating.id === "fixed_base_arm")?.verdict).toBe("not_a_fit");
   });
 
   it("writes a light object's weight in grams", () => {
@@ -198,8 +225,9 @@ describe("getting the site ready", () => {
   it("reads the floor space from the site's measurement, else the video's estimate", () => {
     expect(item(inputs({ readings: { pick_front_clearance: reading(120, "cm", 1.2) } }), "floor_space")).toMatchObject({ state: "ready",
       detail: "There is 120 cm (you measured this) of open floor in front of the starting surface, room for a robot's stand or base." });
-    expect(item(withVideo({ estimates: { front_clearance_m: 1.3 } }), "floor_space")).toMatchObject({ state: "ready",
-      detail: "There is about 1.3 m (estimated from your video) of open floor in front of the starting surface, room for a robot's stand or base." });
+    // Only a reading on file makes the floor "Looks ready"; an estimate is confirmed with the robot team.
+    expect(item(withVideo({ estimates: { front_clearance_m: 1.3 } }), "floor_space")).toMatchObject({ state: "confirm",
+      detail: "There is about 1.3 m (estimated from your video) of open floor in front of the starting surface, likely room for a robot's stand or base." });
     expect(item(withVideo({ estimates: { front_clearance_m: 0.8 } }), "floor_space")).toMatchObject({ state: "confirm",
       detail: "There is about 80 cm (estimated from your video) of open floor in front of the starting surface, tight for a robot's "
         + "stand or base. Confirm the space with the robot team." });
@@ -218,7 +246,7 @@ describe("getting the site ready", () => {
     expect(item(near, "standing_spot").detail).toBe("For a robot on a fixed stand: a level spot where the stand can be bolted down "
       + "or weighted. For a robot that moves: a place to park and charge, and a clear, level path between the spots.");
     expect(item(near, "power_network").detail).toContain("Wi-Fi along the route for a robot that drives between spots");
-    const far = withVideo({ estimates: { pick_to_place_m: 3 } });
+    const far = inputs({ readings: { pick_to_place_distance: reading(300, "cm", 3) } });
     expect(item(far, "standing_spot").detail).toBe("For a robot that moves: a place to park and charge, and a clear, level path between the spots.");
   });
 
