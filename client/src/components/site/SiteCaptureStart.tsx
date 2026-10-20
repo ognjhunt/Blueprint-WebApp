@@ -805,7 +805,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       <label htmlFor="start-task">
         <span>What&rsquo;s the task? (optional)</span>
         <span className="ms-field-hint">
-          A video is enough on its own: we draft the job brief from the footage, including the task, the objects and what finished looks like, and you correct it. Add anything the video won&rsquo;t show, such as how often the task runs or what you want to achieve. We&rsquo;ll ask only when a missing answer changes the recommendation.
+          A video is enough: we draft the job brief from it for you to correct. Add anything the video won&rsquo;t show, like how often the task runs. We&rsquo;ll ask only when a missing answer changes the recommendation.
         </span>
         <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} onChange={event => setTaskForPreview(event.target.value)} maxLength={2000} rows={4} />
       </label>

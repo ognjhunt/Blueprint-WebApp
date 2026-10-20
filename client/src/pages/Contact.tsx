@@ -81,12 +81,6 @@ export default function Contact() {
           {!savedJob && <p className="ms-inquiry-description">
             Show us the work. Robot teams evaluate it in simulation, and we recommend one team whose evaluation passed for you to book. The beta is free; you agree the physical pilot’s dates and terms with the team directly.
           </p>}
-          {!savedJob && <section className="ms-inquiry-fit" aria-labelledby="inquiry-fit-title">
-            <h2 id="inquiry-fit-title">Is your job a fit?</h2>
-            <p>We screen every job against four questions. Not sure about one? Start anyway, and we tell you which it misses and what it would take to pass.</p>
-            <JobFitQuestions />
-            <a className="ms-text-link" href="/how-it-works#job-fit">Why each one matters <ArrowRight size={16} aria-hidden="true" /></a>
-          </section>}
         </div>
         <div className="ms-inquiry-forms">
           <SiteCaptureStart onSavedChange={setSavedJob} />
@@ -119,6 +113,12 @@ export default function Contact() {
             </a>
           </p>
         </div>
+        {!savedJob && <section className="ms-inquiry-fit" aria-labelledby="inquiry-fit-title">
+          <h2 id="inquiry-fit-title">Is your job a fit?</h2>
+          <p>We screen every job against four questions. Not sure about one? Start anyway, and we tell you which it misses and what it would take to pass.</p>
+          <JobFitQuestions />
+          <a className="ms-text-link" href="/how-it-works#job-fit">Why each one matters <ArrowRight size={16} aria-hidden="true" /></a>
+        </section>}
       </section>
     </>
   );

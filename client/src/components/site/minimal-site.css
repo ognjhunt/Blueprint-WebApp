@@ -619,7 +619,12 @@
 .ms-fit-list .ms-fit-failure span { color: var(--ms-ink); font-weight: 500; }
 .ms-how-fit h2 + p { margin-top: 14px; }
 .ms-how-fit + .ms-how-robots { margin-top: 0; border-top: 0; }
-.ms-inquiry-fit { margin-top: 44px; padding-top: 26px; border-top: 1px solid var(--ms-rule); }
+.ms-inquiry-fit { max-width: 480px; padding-top: 26px; border-top: 1px solid var(--ms-rule); }
+@media (min-width: 701px) {
+  .ms-inquiry:has(> .ms-inquiry-fit) { grid-template-rows: auto 1fr; row-gap: 44px; }
+  .ms-inquiry:has(> .ms-inquiry-fit) > .ms-inquiry-forms { grid-column: 2; grid-row: 1 / span 2; }
+  .ms-inquiry-fit { grid-column: 1; grid-row: 2; align-self: start; }
+}
 .ms-inquiry-fit h2 { font-size: 18px; letter-spacing: -.03em; }
 .ms-inquiry-fit > p { margin-top: 8px; font-size: 14px; line-height: 1.65; color: var(--ms-muted); }
 .ms-inquiry-fit .ms-fit-list { margin-top: 16px; }
@@ -641,5 +646,4 @@
 @media (max-width: 700px) {
   .ms-faq-items { grid-template-columns: 1fr; }
   .ms-faq { padding-top: 40px; }
-  .ms-inquiry-fit { margin-top: 32px; }
 }

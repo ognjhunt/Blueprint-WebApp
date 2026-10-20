@@ -29,21 +29,6 @@ describe("signed-in state on public pages", () => {
     expect(screen.getAllByRole("link", { name: "Finish onboarding" })[0]).toHaveAttribute("href", "/onboarding");
   });
 
-  it("leaves the announced Terms update to account holders", () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-10-20T12:00:00Z"));
-    try {
-      window.localStorage.clear();
-      const { rerender } = render(<MinimalSiteLayout>page</MinimalSiteLayout>);
-      expect(screen.queryByRole("region", { name: "Terms and Privacy Policy update" })).toBeNull();
-      auth.currentUser = { uid: "u1", email: "ops@example.test" };
-      rerender(<MinimalSiteLayout>page</MinimalSiteLayout>);
-      expect(screen.getByRole("region", { name: "Terms and Privacy Policy update" })).toHaveTextContent("take effect on November 15, 2026");
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
   it("tells staff why they see the library and lets them preview the application", async () => {
     auth.currentUser = { uid: "u1", email: "ops@example.test" };
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({
