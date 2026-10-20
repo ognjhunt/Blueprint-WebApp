@@ -1,0 +1,141 @@
+{
+  "schema": "blueprint.live-public-privacy-verification.v1",
+  "expectedSha": "b899c9a668f6a331ad9aa2b5a6b0b3567583e7e9",
+  "startedAt": "2026-10-20T03:09:34.151Z",
+  "baseUrl": "https://tryblueprint.io",
+  "authorizationScope": "Fresh anonymous public-browser cookie consent and refund/legal QA. No authentication, user-session access, provider configuration changes, or mocked analytics requests.",
+  "checks": [
+    {
+      "name": "No optional analytics requests, identifiers or analytics cookies before choice",
+      "status": "passed"
+    },
+    {
+      "name": "Reject all persists through reload and keeps analytics off",
+      "status": "passed"
+    },
+    {
+      "name": "Accept all permits real Blueprint analytics HTTP requests and survives navigation; persistence is recorded separately from response booleans",
+      "status": "passed"
+    },
+    {
+      "name": "Withdrawal stops new optional requests and clears identifiers/cookies in the already-loaded document",
+      "status": "passed"
+    },
+    {
+      "name": "Reopening preserves selected choices; withdrawal persists, stops analytics and clears optional identifiers/cookies",
+      "status": "passed"
+    },
+    {
+      "name": "Mobile refund route is linked next to beta cost, renders prior-purchase terms/contact and has no horizontal overflow",
+      "status": "passed"
+    },
+    {
+      "name": "Privacy exposes deletion settings, previous policy, refunds and working terms navigation",
+      "status": "passed"
+    }
+  ],
+  "phases": {
+    "before-choice": {
+      "consent": null,
+      "hasAnalyticsId": false,
+      "analyticsCookieNames": []
+    },
+    "rejected": {
+      "consent": {
+        "analytics": false,
+        "marketing": false,
+        "necessary": true
+      },
+      "hasAnalyticsId": false,
+      "analyticsCookieNames": []
+    },
+    "accepted": {
+      "consent": {
+        "analytics": true,
+        "marketing": true,
+        "necessary": true
+      },
+      "hasAnalyticsId": true,
+      "analyticsCookieNames": [],
+      "requests": 1
+    },
+    "withdrawn-same-document": {
+      "consent": {
+        "analytics": false,
+        "marketing": false,
+        "necessary": true
+      },
+      "hasAnalyticsId": false,
+      "analyticsCookieNames": []
+    },
+    "withdrawn-after-navigation": {
+      "consent": {
+        "analytics": false,
+        "marketing": false,
+        "necessary": true
+      },
+      "hasAnalyticsId": false,
+      "analyticsCookieNames": []
+    }
+  },
+  "network": [
+    {
+      "phase": "accepted",
+      "kind": "blueprint-analytics",
+      "method": "POST",
+      "host": "tryblueprint.io",
+      "path": "/api/analytics/ingest",
+      "syntheticMarkerPresent": false,
+      "startedAt": "2026-10-20T03:09:48.136Z",
+      "status": 202,
+      "ingestionResult": {
+        "persisted": false,
+        "disabled": true,
+        "ok": true
+      }
+    }
+  ],
+  "failures": [],
+  "limitations": [
+    "Observed requests cover these synthetic anonymous journeys only; this does not certify every Google Analytics Enhanced Measurement configuration or event.",
+    "No authenticated deletion was exercised by this script; root owns the separately authorized synthetic-account proof.",
+    "Only sanitized provider host/path classifications, statuses and marker booleans are retained; no credential values, request bodies, query strings, fragments, or cookie values are recorded."
+  ],
+  "versionBefore": {
+    "git_sha": "b899c9a668f6a331ad9aa2b5a6b0b3567583e7e9",
+    "built_at_iso": "2026-10-20T03:06:39.501Z"
+  },
+  "markerProbe": {
+    "exercised": true,
+    "analyticsRequestsContainingSyntheticQueryOrFragmentMarker": 0,
+    "googleCollectorRequestsObserved": 0,
+    "assertion": "Diagnostic observation only; no claim that remote Enhanced Measurement settings are comprehensively verified."
+  },
+  "versionAfter": {
+    "git_sha": "b899c9a668f6a331ad9aa2b5a6b0b3567583e7e9",
+    "built_at_iso": "2026-10-20T03:06:39.501Z"
+  },
+  "status": "passed",
+  "positiveControls": {
+    "blueprintAnalytics": {
+      "requests": 1,
+      "successfulHttpResponses": 1,
+      "responsesWithPersistedTrue": 0,
+      "responsesWithDisabledTrue": 1
+    },
+    "googleTagScript": {
+      "requests": 0,
+      "successfulHttpResponses": 0
+    },
+    "googleAnalyticsCollector": {
+      "requests": 0,
+      "successfulHttpResponses": 0
+    },
+    "posthog": {
+      "requests": 0,
+      "successfulHttpResponses": 0
+    },
+    "interpretation": "Each provider is observed independently. Blueprint 202 responses do not establish GA/PostHog collection or durable Blueprint persistence."
+  },
+  "finishedAt": "2026-10-20T03:10:11.297Z"
+}

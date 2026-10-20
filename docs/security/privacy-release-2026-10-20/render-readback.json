@@ -1,0 +1,24 @@
+{
+  "schema": "blueprint.render_release_readback.v1",
+  "checkedAt": "2026-10-20 03:12:57 UTC",
+  "services": [
+    {
+      "kind": "web",
+      "serviceId": "srv-d4vnmk3e5dus73aiohk0",
+      "deployId": "dep-dbbdl1s9v7es73erquag",
+      "sha": "b899c9a668f6a331ad9aa2b5a6b0b3567583e7e9",
+      "status": "live",
+      "startedAt": "2026-10-20T03:05:43.940502Z",
+      "finishedAt": "2026-10-20T03:08:22.424414Z"
+    },
+    {
+      "kind": "worker",
+      "serviceId": "srv-d9t8gg1t0dsc73am9q70",
+      "deployId": "dep-dbbdl23bc2fs73aqhv50",
+      "sha": "b899c9a668f6a331ad9aa2b5a6b0b3567583e7e9",
+      "status": "live",
+      "startedAt": "2026-10-20T03:05:44.499244Z",
+      "finishedAt": "2026-10-20T03:08:58.429527Z"
+    }
+  ]
+}

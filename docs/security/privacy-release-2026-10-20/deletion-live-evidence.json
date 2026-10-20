@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "privacy_live_deletion_verification.v1",
+  "startedAtIso": "2026-10-20T03:09:43.939Z",
+  "status": "passed",
+  "expectedSha": "b899c9a668f6a331ad9aa2b5a6b0b3567583e7e9",
+  "baseUrl": "https://tryblueprint.io",
+  "firebaseProjectId": "blueprint-8c1ca",
+  "syntheticFixtureOnly": true,
+  "actualErasureExecuted": false,
+  "mailRequested": false,
+  "checks": {
+    "realPasswordSignInStatus": 200,
+    "realPasswordSignInCount": 1,
+    "browserSubmission": {
+      "status": 202,
+      "confirmationRequired": true,
+      "csrfPresent": true,
+      "bearerPresent": true
+    },
+    "reloadRestoredSameRequest": true,
+    "mobileNoHorizontalOverflow": true,
+    "accountRemainsActive": true,
+    "unprivilegedAdminQueueStatus": 403,
+    "adminQueueReadback": "Not attempted: no existing ops identity was independently approved for this run."
+  },
+  "safeNetwork": [
+    {
+      "method": "GET",
+      "path": "/api/account-deletion",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/account-deletion",
+      "status": 202
+    },
+    {
+      "method": "GET",
+      "path": "/api/account-deletion",
+      "status": 200
+    }
+  ],
+  "verifierSha256": "3eca6c2a779cd1a23fdda213931a40224a1a206b2d91c23f0b12d2a5a4968edc",
+  "releaseBefore": {
+    "git_sha": "b899c9a668f6a331ad9aa2b5a6b0b3567583e7e9",
+    "checkedAtIso": "2026-10-20T03:09:44.341Z"
+  },
+  "fixture": {
+    "uid": "privacy-qa-b899c9a668f6-cbeeaec6cf42",
+    "email": "privacy-qa-b899c9a668f6-cbeeaec6cf42@example.invalid",
+    "requestId": "deletion_cc929b6b07a4448d58e8b952261f37f0e1ce5a18922b8d44fec69f2b1dbb3ec4",
+    "createdAtIso": "Tue, 20 Oct 2026 03:09:45 GMT",
+    "customClaimKeys": [],
+    "emailVerified": false
+  },
+  "acceptedReceipt": {
+    "request": {
+      "id": "deletion_cc929b6b07a4448d58e8b952261f37f0e1ce5a18922b8d44fec69f2b1dbb3ec4",
+      "status": "requested",
+      "requestedAtIso": "2026-10-20T03:09:51.654Z",
+      "updatedAtIso": "2026-10-20T03:09:51.654Z",
+      "message": "Your request is recorded for privacy review. Your account remains active until we process it. We will confirm the outcome, including any records that must be retained. This receipt does not confirm deletion."
+    },
+    "created": true
+  },
+  "reloadedReceipt": {
+    "request": {
+      "id": "deletion_cc929b6b07a4448d58e8b952261f37f0e1ce5a18922b8d44fec69f2b1dbb3ec4",
+      "status": "requested",
+      "requestedAtIso": "2026-10-20T03:09:51.654Z",
+      "updatedAtIso": "2026-10-20T03:09:51.654Z",
+      "message": "Your request is recorded for privacy review. Your account remains active until we process it. We will confirm the outcome, including any records that must be retained. This receipt does not confirm deletion."
+    }
+  },
+  "firestoreReadback": {
+    "path": "projects/blueprint-8c1ca/databases/(default)/documents/accountDeletionRequests/deletion_cc929b6b07a4448d58e8b952261f37f0e1ce5a18922b8d44fec69f2b1dbb3ec4",
+    "schemaVersion": "account_deletion_request.v1",
+    "id": "deletion_cc929b6b07a4448d58e8b952261f37f0e1ce5a18922b8d44fec69f2b1dbb3ec4",
+    "accountUid": "privacy-qa-b899c9a668f6-cbeeaec6cf42",
+    "accountEmail": "privacy-qa-b899c9a668f6-cbeeaec6cf42@example.invalid",
+    "status": "requested",
+    "requestedAtIso": "2026-10-20T03:09:51.654Z",
+    "reviewerUid": null,
+    "checkedAtIso": "2026-10-20T03:09:53.328Z"
+  },
+  "profileReadback": {
+    "exists": true,
+    "uidMatches": true,
+    "emailMatches": true,
+    "finishedOnboarding": false
+  },
+  "releaseAfter": {
+    "git_sha": "b899c9a668f6a331ad9aa2b5a6b0b3567583e7e9",
+    "checkedAtIso": "2026-10-20T03:09:54.051Z"
+  },
+  "finishedAtIso": "2026-10-20T03:09:54.052Z",
+  "publication": {
+    "sourceSha256": "dea4396c3849452ad17c7cf9ac51604bfbf8d1999316e8ed6282d7627133b06b",
+    "removedFields": [
+      "fixture.ownerThreadId"
+    ],
+    "containsOnlySyntheticAccountMetadata": true,
+    "credentialsOrTokensIncluded": false
+  }
+}

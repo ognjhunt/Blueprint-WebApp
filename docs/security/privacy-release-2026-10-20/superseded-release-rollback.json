@@ -1,0 +1,20 @@
+{
+  "schema": "blueprint.release-rollback-result.v1",
+  "sha": "0413fec05c16ad1ad7bfc8aa467cb6581be7ebb3",
+  "records": [
+    {
+      "service": "srv-d4vnmk3e5dus73aiohk0",
+      "deployId": "dep-dbbdbfm7bikc738537k0",
+      "sha": "0413fec05c16ad1ad7bfc8aa467cb6581be7ebb3",
+      "status": "live"
+    },
+    {
+      "service": "srv-d9t8gg1t0dsc73am9q70",
+      "deployId": "dep-dbbdbfmq1p3s73c6ob4g",
+      "sha": "0413fec05c16ad1ad7bfc8aa467cb6581be7ebb3",
+      "status": "live"
+    }
+  ],
+  "verifiedAt": "2026-10-20T02:49:21.982Z",
+  "elapsedMs": 244131
+}

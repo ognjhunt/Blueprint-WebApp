@@ -1,0 +1,96 @@
+{
+  "status": "completed",
+  "conclusion": "success",
+  "headSha": "b2111fa74e12b4846c638f615d542480f00f19fd",
+  "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/39360770015",
+  "jobs": [
+    {
+      "name": "release-scope",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-10-20T02:46:58Z",
+      "completedAt": "2026-10-20T02:47:16Z",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/39360770015/job/118426170679"
+    },
+    {
+      "name": "graphify (3.10)",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-10-20T02:46:58Z",
+      "completedAt": "2026-10-20T02:47:33Z",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/39360770015/job/118426170885"
+    },
+    {
+      "name": "graphify (3.12)",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-10-20T02:46:58Z",
+      "completedAt": "2026-10-20T02:47:25Z",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/39360770015/job/118426170898"
+    },
+    {
+      "name": "graphify (3.14)",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-10-20T02:46:58Z",
+      "completedAt": "2026-10-20T02:47:31Z",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/39360770015/job/118426170937"
+    },
+    {
+      "name": "build",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-10-20T02:46:58Z",
+      "completedAt": "2026-10-20T02:48:14Z",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/39360770015/job/118426171045"
+    },
+    {
+      "name": "rules-emulator",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-10-20T02:46:58Z",
+      "completedAt": "2026-10-20T02:48:13Z",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/39360770015/job/118426171051"
+    },
+    {
+      "name": "check",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-10-20T02:46:58Z",
+      "completedAt": "2026-10-20T02:48:09Z",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/39360770015/job/118426171152"
+    },
+    {
+      "name": "test",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-10-20T02:47:18Z",
+      "completedAt": "2026-10-20T02:54:28Z",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/39360770015/job/118426266325"
+    },
+    {
+      "name": "e2e",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-10-20T02:47:19Z",
+      "completedAt": "2026-10-20T02:53:31Z",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/39360770015/job/118426266352"
+    },
+    {
+      "name": "public-copy-contracts",
+      "status": "completed",
+      "conclusion": "skipped",
+      "startedAt": "2026-10-20T02:47:17Z",
+      "completedAt": "2026-10-20T02:47:17Z",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/39360770015/job/118426267737"
+    },
+    {
+      "name": "Observe automatic deployment admission",
+      "status": "completed",
+      "conclusion": "skipped",
+      "startedAt": "2026-10-20T02:54:29Z",
+      "completedAt": "2026-10-20T02:54:28Z",
+      "url": "https://github.com/ognjhunt/Blueprint-WebApp/actions/runs/39360770015/job/118428319913"
+    }
+  ]
+}
