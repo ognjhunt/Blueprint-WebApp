@@ -77,6 +77,7 @@ function inputs(overrides: Partial<Inputs> & { readings?: Record<string, ReturnT
       measuredBy: null, note: null, revision: 1, updatedAtIso: NOW } as never : null,
     walkthroughReceived: true,
     reconstructionState: null,
+    sceneViewable: false,
     shared: false,
     ...rest,
   };
@@ -171,9 +172,22 @@ describe("steps to a pilot", () => {
   });
 
   it("says what comes next only from a real state", () => {
-    expect(trackerOf(inputs({ reconstructionState: "ready" })).meanwhile).toContain("Next, Blueprint invites robot teams");
+    expect(trackerOf(inputs({ reconstructionState: "ready", sceneViewable: true })).meanwhile).toContain("Next, Blueprint invites robot teams");
     expect(trackerOf(inputs({ reconstructionState: "failed" })).meanwhile).toBeNull();
-    expect(trackerOf(inputs({ walkthroughReceived: null })).steps[0].state).toBe("pending");
+  });
+
+  it("calls the scene rebuilt only once it can be viewed", () => {
+    const labelOnly = trackerOf(inputs({ reconstructionState: "ready", sceneViewable: false }));
+    expect(states(inputs({ reconstructionState: "ready", sceneViewable: false })).scene).toBe("pending");
+    expect(labelOnly.meanwhile).toBeNull();
+    expect(states(inputs({ reconstructionState: "ready", sceneViewable: true })).scene).toBe("done");
+  });
+
+  it("never reads a video status it could not check as not filmed", () => {
+    expect(states(inputs({ walkthroughReceived: null })).video).toBe("unknown");
+    expect(states(inputs({ walkthroughReceived: false })).video).toBe("pending");
+    // A scene is only built from a received video.
+    expect(states(inputs({ walkthroughReceived: null, reconstructionState: "processing" })).video).toBe("done");
   });
 });
 
@@ -190,6 +204,9 @@ describe("getting the site ready", () => {
       detail: "There is about 80 cm (estimated from your video) of open floor in front of the starting surface, tight for a robot's "
         + "stand or base. Confirm the space with the robot team." });
     expect(item(withVideo({ estimates: { front_clearance_m: 0.4 } }), "floor_space").detail).toMatch(/^There is only about 40 cm/);
+    expect(item(withVideo({ estimates: { front_clearance_m: 0 } }), "floor_space")).toMatchObject({ state: "confirm",
+      detail: "There is no open floor (estimated from your video) in front of the starting surface, so a robot's stand or base needs "
+        + "another spot. Confirm the space with the robot team." });
     const low = item(inputs({ readings: { pick_front_clearance: reading(120, "cm", 1.2), pick_overhead_clearance: reading(30, "cm", 0.3) } }), "floor_space");
     expect(low).toMatchObject({ state: "confirm", detail: expect.stringContaining("30 cm of open height (you measured this), tight for an arm") });
     expect(item(inputs(), "floor_space")).toEqual({ id: "floor_space", title: "Floor space at the station", state: "confirm",
@@ -248,6 +265,16 @@ describe("what decides success here", () => {
       test: "The evaluation measures cycle time against your target." });
     expect(factors[1]).toMatchObject({ detail: "Probably also handled here, though not in your video: smaller cartons, trays (estimated from your video).",
       test: "The evaluation tests the object in your rebuilt scene. Other items are checked in the pilot." });
+  });
+
+  it("names a tight space in a sentence of its own, a zero clearance included", () => {
+    const tight = (front_clearance_m: number) => {
+      const value = withVideo({ estimates: { front_clearance_m } });
+      return successFactorsOf(value, jobFactsOf(value)).find((entry) => entry.id === "tight_space")?.detail;
+    };
+    expect(tight(0.8)).toBe("About 80 cm (estimated from your video) of open floor in front of the starting surface.");
+    expect(tight(0)).toBe("No open floor (estimated from your video) in front of the starting surface.");
+    expect(tight(1.3)).toBeUndefined();
   });
 
   it("calls a cycle the reader timed timed, not measured", () => {

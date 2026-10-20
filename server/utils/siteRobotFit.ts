@@ -288,7 +288,8 @@ function estimatesOf(raw: unknown): VideoEstimates | null {
     pickToPlaceM: bounded(value.pick_to_place_m, 0, 50, true),
     pickHeightM: bounded(value.pick_height_m, 0, 4),
     placeHeightM: bounded(value.place_height_m, 0, 4),
-    frontClearanceM: bounded(value.front_clearance_m, 0, 20, true),
+    // Zero is a reading: no open floor at all.
+    frontClearanceM: bounded(value.front_clearance_m, 0, 20),
     otherItemsLikely: (Array.isArray(value.other_items_likely) ? value.other_items_likely : [])
       .filter((item): item is string => typeof item === "string")
       .map((item) => item.trim().slice(0, 80)).filter(Boolean).slice(0, 5),
@@ -628,10 +629,35 @@ const FORM_EVIDENCE: Record<RatedForm, RegExp> = {
   legged_manipulator: /\b(quadrupeds?|legged robots?|four-legged|robot dogs?)\b/i,
 };
 
+/** Most specific first: "mobile robot arm" is evidence of an arm that moves, never also of a fixed arm. */
+const FORM_EVIDENCE_ORDER: readonly RatedForm[] = ["wheeled_humanoid", "mobile_manipulator", "legged_manipulator", "bimanual_arm",
+  "humanoid", "fixed_base_arm"];
+
+/** A generic form whose research also names a more specific kind of robot is ambiguous, so it reads as unknown. */
+const MORE_SPECIFIC_FORMS: Partial<Record<RatedForm, readonly RatedForm[]>> = {
+  fixed_base_arm: ["mobile_manipulator", "legged_manipulator", "wheeled_humanoid", "humanoid"],
+  bimanual_arm: ["mobile_manipulator", "wheeled_humanoid", "humanoid"],
+  humanoid: ["wheeled_humanoid"],
+};
+
+/** The forms a team's research names, each phrase counted once, for its most specific form. */
+function evidencedForms(research: string): Set<RatedForm> {
+  const found = new Set<RatedForm>();
+  let rest = research;
+  for (const form of FORM_EVIDENCE_ORDER) {
+    const pattern = new RegExp(FORM_EVIDENCE[form].source, "gi");
+    const remaining = rest.replace(pattern, " ");
+    if (remaining !== rest) found.add(form);
+    rest = remaining;
+  }
+  return found;
+}
+
 function groundedForm(candidate: RobotFitRankingCandidate, form: RankedTeam["form"]): RankedTeam["form"] {
   if (!(RATED_FORMS as readonly string[]).includes(form)) return form;
-  const research = [candidate.notes, candidate.whatGoesWrong ?? "", ...candidate.recorded].join(" \n ");
-  return FORM_EVIDENCE[form as RatedForm].test(research) ? form : "unknown";
+  const found = evidencedForms([candidate.notes, candidate.whatGoesWrong ?? "", ...candidate.recorded].join(" \n "));
+  const rated = form as RatedForm;
+  return found.has(rated) && !(MORE_SPECIFIC_FORMS[rated] ?? []).some((specific) => found.has(specific)) ? form : "unknown";
 }
 
 /**

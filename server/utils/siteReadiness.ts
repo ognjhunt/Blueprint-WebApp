@@ -48,6 +48,7 @@ import {
   type RobotFitInputs,
 } from "./siteRobotFit";
 import { taskScopeNotYet } from "./siteTaskScope";
+import { reconstructionIsViewable } from "./taskLifecycleNotifications";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { savedWalkthrough, siteWalkthroughIdentity } from "./siteWalkthrough";
 
@@ -64,9 +65,11 @@ export const READINESS_SCREENING = {
 } as const;
 
 export interface ReadinessInputs extends RobotFitInputs {
-  /** Whether the walkthrough is saved; null when its status could not be read. */
+  /** Whether the walkthrough is saved; null when its status could not be read, which never reads as "not filmed". */
   walkthroughReceived: boolean | null;
   reconstructionState: string | null;
+  /** A ready scene with a viewable world, the same test the scene-ready notice uses. */
+  sceneViewable: boolean;
   shared: boolean;
 }
 
@@ -78,11 +81,12 @@ export async function loadReadinessInputs(requestId: string): Promise<ReadinessI
     db.collection("captureUploadSessions").doc(`walkthrough-${requestId}`).get(),
     db.collection(SITE_ROBOT_FIT_COLLECTION).doc(requestId).get(),
   ]);
-  const reconstruction = sessionSnap.data()?.world_reconstruction as { state?: unknown } | undefined;
+  const reconstruction = sessionSnap.data()?.world_reconstruction as Parameters<typeof reconstructionIsViewable>[0] | undefined;
   return {
     ...fit,
     walkthroughReceived: walkthrough ? walkthrough.received === true : null,
     reconstructionState: typeof reconstruction?.state === "string" ? reconstruction.state : null,
+    sceneViewable: Boolean(reconstruction && reconstructionIsViewable(reconstruction)),
     shared: (fitSnap.data() as { sharing?: { shared?: unknown } } | undefined)?.sharing?.shared === true,
   };
 }
@@ -145,9 +149,13 @@ export function trackerOf(inputs: ReadinessInputs): Tracker {
     && isQualifiedRecommendationEvidence(recommendation!.evidence as Parameters<typeof isQualifiedRecommendationEvidence>[0]);
   const booked = Boolean(inputs.request?.pilot_booking);
   const scope = inputs.request?.site_task_scope as { supported?: unknown; reason?: unknown } | undefined;
-  const sceneState = inputs.reconstructionState === "ready" ? "done" : REBUILDING.has(inputs.reconstructionState ?? "") ? "in_progress" : "pending";
+  // Done only once the scene can be viewed: a "ready" label without its world is not a rebuilt site.
+  const sceneState = inputs.sceneViewable ? "done" : REBUILDING.has(inputs.reconstructionState ?? "") ? "in_progress" : "pending";
+  // A scene is only ever built from a received video; a status that could not be read is unknown, never "not filmed".
+  const video = inputs.walkthroughReceived === true || sceneState !== "pending" ? "done"
+    : inputs.walkthroughReceived === false ? "pending" : "unknown";
   const steps: TrackerStep[] = [
-    step("video", "Video received", inputs.walkthroughReceived === true ? "done" : "pending", "site"),
+    step("video", "Video received", video, "site"),
     step("brief", "Job brief confirmed", inputs.brief?.confirmedAtIso ? "done" : "pending", "site"),
     step("scene", "Your site rebuilt in 3D", sceneState, "blueprint"),
     step("evaluation", "Robot teams evaluate your job in simulation", booked || proposed ? "done" : "pending", "blueprint"),
@@ -172,12 +180,20 @@ function formsInPlay(job: RobotFitJob) {
     walking: inPlay.some((form) => form.moves === "legs") };
 }
 
-/** The open floor in front of the starting surface: the site's measurement, else the video reader's estimate. */
-function frontClearance(inputs: RobotFitInputs): { metres: number; display: string } | null {
+/**
+ * The open floor in front of the starting surface, the site's measurement else
+ * the video reader's estimate, as a phrase: "120 cm (you measured this) of open
+ * floor", or "no open floor (estimated from your video)" for a zero.
+ */
+function frontClearance(inputs: RobotFitInputs): { metres: number; floor: string } | null {
   const reading = measured(inputs, "pick_front_clearance");
-  if (reading) return { metres: reading.si, display: `${measuredDisplay(reading)} (you measured this)` };
   const estimate = videoEvidence(inputs)?.estimates?.frontClearanceM;
-  return estimate ? { metres: estimate, display: `about ${lengthText(estimate)} (estimated from your video)` } : null;
+  const found = reading ? { metres: reading.si, figure: measuredDisplay(reading), source: "you measured this" }
+    : typeof estimate === "number" ? { metres: estimate, figure: `about ${lengthText(estimate)}`, source: "estimated from your video" }
+      : null;
+  if (!found) return null;
+  return { metres: found.metres,
+    floor: found.metres === 0 ? `no open floor (${found.source})` : `${found.figure} (${found.source}) of open floor` };
 }
 
 export function checklistOf(inputs: RobotFitInputs, facts: JobFacts, job: RobotFitJob): ReadinessItem[] {
@@ -188,10 +204,12 @@ export function checklistOf(inputs: RobotFitInputs, facts: JobFacts, job: RobotF
     ? ` Above the surface there is ${measuredDisplay(overhead)} of open height (you measured this), tight for an arm reaching in from above.` : "";
   const roomy = Boolean(front && front.metres >= READINESS_SCREENING.floorReadyM);
   const floor: ReadinessItem = { id: "floor_space", title: "Floor space at the station", state: roomy && !overheadTight ? "ready" : "confirm",
-    detail: !front ? "The robot team confirms the floor space its robot needs beside the work." + overheadTight
-      : (roomy ? `There is ${front.display} of open floor in front of the starting surface, room for a robot's stand or base.`
-        : `There is ${front.metres >= READINESS_SCREENING.floorTightM ? "" : "only "}${front.display} of open floor in front of the starting surface, `
-          + "tight for a robot's stand or base. Confirm the space with the robot team.") + overheadTight };
+    detail: (!front ? "The robot team confirms the floor space its robot needs beside the work."
+      : roomy ? `There is ${front.floor} in front of the starting surface, room for a robot's stand or base.`
+        : front.metres === 0 ? `There is ${front.floor} in front of the starting surface, so a robot's stand or base needs another spot. `
+          + "Confirm the space with the robot team."
+          : `There is ${front.metres >= READINESS_SCREENING.floorTightM ? "" : "only "}${front.floor} in front of the starting surface, `
+            + "tight for a robot's stand or base. Confirm the space with the robot team.") + overheadTight };
 
   const standing = [
     fixed ? "For a robot on a fixed stand: a level spot where the stand can be bolted down or weighted." : null,
@@ -285,9 +303,9 @@ export function successFactorsOf(inputs: RobotFitInputs, facts: JobFacts): Succe
       test: "Jams and damaged items are not in the simulation. Plan who handles them; your success target sets how many a person catches.",
       where: "pilot" },
     Boolean(tight) && { id: "tight_space", title: "Tight space",
-      detail: [front && front.metres < READINESS_SCREENING.floorReadyM ? `${front.display} of open floor in front of the starting surface` : null,
+      detail: sentence([front && front.metres < READINESS_SCREENING.floorReadyM ? `${front.floor} in front of the starting surface` : null,
         overhead && overhead.si < READINESS_SCREENING.overheadTightM ? `${measuredDisplay(overhead)} of open height above it (you measured this)` : null]
-        .filter(Boolean).join(" and ") + ".",
+        .filter(Boolean).join(" and ")) + ".",
       test: "Your rebuilt scene includes the fixtures around the work, so the evaluation checks that the robot reaches in without hitting them.",
       where: "simulation" },
     Boolean(hands) && { id: "large_or_heavy", title: "A large or heavy object",

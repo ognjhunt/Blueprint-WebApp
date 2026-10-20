@@ -16,7 +16,8 @@ import type { SiteRobotFit } from "./robotFit";
 
 /* ------------------------------------------------------- steps to a pilot */
 
-export type StepState = "done" | "in_progress" | "pending";
+/** "unknown" when a state could not be read just now; it never stands for "not done". */
+export type StepState = "done" | "in_progress" | "pending" | "unknown";
 
 export interface TrackerStep {
   id: string;
@@ -35,6 +36,7 @@ export const STEP_STATE_LABELS: Record<StepState, string> = {
   done: "Done",
   in_progress: "In progress",
   pending: "Not yet",
+  unknown: "Could not be checked just now",
 };
 
 /* ------------------------------------------------- robot readiness report */

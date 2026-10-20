@@ -271,6 +271,24 @@ describe("validateRanking", () => {
     expect(supported.teams[0]).toMatchObject({ form: "fixed_base_arm", fit: "strong", concerns: [] });
   });
 
+  it("reads a phrase that names a specific form only as that form, so a generic claim cannot borrow it", () => {
+    const research = (id: string, note: string) => rankingCandidates([team(id, id, note)] as never);
+    const form = (pool: ReturnType<typeof research>, id: string, claimed: string) =>
+      validateRanking({ ranked: [entry(id, pool[0].notes.slice(0, 40), { form: claimed })] }, pool).teams[0].form;
+    const mobile = research("m", "Builds mobile robot arms that drive between warehouse stations and pick totes.");
+    expect(form(mobile, "m", "fixed_base_arm")).toBe("unknown");
+    expect(form(mobile, "m", "mobile_manipulator")).toBe("mobile_manipulator");
+    const wheeled = research("w", "Its wheeled humanoid restocks shelves in convenience stores at night.");
+    expect(form(wheeled, "w", "humanoid")).toBe("unknown");
+    expect(form(wheeled, "w", "wheeled_humanoid")).toBe("wheeled_humanoid");
+    const walking = research("h", "A walking humanoid with two arms that carries totes between racks.");
+    expect(form(walking, "h", "bimanual_arm")).toBe("unknown");
+    expect(form(walking, "h", "humanoid")).toBe("humanoid");
+    const legged = research("q", "A quadruped with a robot arm that opens doors on inspection rounds.");
+    expect(form(legged, "q", "fixed_base_arm")).toBe("unknown");
+    expect(form(legged, "q", "legged_manipulator")).toBe("legged_manipulator");
+  });
+
   it("refuses output that is not the schema", () => {
     expect(() => validateRanking({ ranked: [{ teamId: "a" }] }, candidates)).toThrow();
   });
