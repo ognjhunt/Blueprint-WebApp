@@ -15,7 +15,7 @@ vi.mock("express-rate-limit", () => ({ default: () => (_req: unknown, _res: unkn
 vi.mock("../utils/pipelineSyncSecurity", async importOriginal => ({ ...await importOriginal<typeof import("../utils/pipelineSyncSecurity")>(),
   createPipelineSyncRateLimiter: () => (_req: unknown, _res: unknown, next: () => void) => next() }));
 const { crossRuntimeArtifactDigest } = await import("../utils/crossRuntimeCanonical");
-const { scientificBriefDigest, jobEvidenceTaskInventoryDigest, verifyJobEvidencePublication, buildJobEvidenceRequest } = await import("../utils/jobEvidenceContract");
+const { scientificBriefDigest, jobEvidenceTaskInventoryDigest, jobEvidenceRequestSchema, verifyJobEvidencePublication, buildJobEvidenceRequest } = await import("../utils/jobEvidenceContract");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { buildPipelineSyncSignature } = await import("../utils/pipelineSyncSecurity");
 const { csrfProtection } = await import("../middleware/csrf");
@@ -78,6 +78,47 @@ describe("job evidence producer and commercial boundary", () => {
     const tampered = structuredClone(roundTrip); tampered.decision_envelope_canonical_json += " ";
     tampered.publication_digest = crossRuntimeArtifactDigest(tampered, "publication_digest");
     expect(() => verifyJobEvidencePublication(tampered)).toThrow("decision_envelope_binding_mismatch");
+  });
+  it("receives the actual producer capability gap without manufacturing a run or a verdict", async () => {
+    const source = jobEvidenceRequestSchema.parse(examples.capability_gap_request);
+    expect(verifyJobEvidencePublication(examples.capability_gap_publication)).toMatchObject({
+      state: "blocked", run_id: null, plan_digest: null, evidence_plan: null, decision_envelope: null,
+    });
+    // Bind only the commercial wrapper to this test's brief. Retain Python's
+    // exact native request/testbed objects and canonical bytes unchanged.
+    const request = { ...source, brief_digest: scientificBriefDigest(brief) };
+    request.request_digest = crossRuntimeArtifactDigest(request, "request_digest");
+    const binding = { schema_version: "job_evidence_source_binding.v1", job_id: "job-1", capture_session_id: request.capture_session_id,
+      intake_id: request.intake_id, source_capture_digest: source.testbed!.source_capture_bundles[0].digest,
+      brief_digest: request.brief_digest, task_inventory_digest: jobEvidenceTaskInventoryDigest(brief, null),
+      command_request_id: "gap-task-command", approved_task_digest: request.approved_task_digest };
+    state.docs.set("inboundRequests/job-1", { ...state.docs.get("inboundRequests/job-1"), job_evidence_source: binding });
+    state.docs.set(`captureUploadSessions/${request.capture_session_id}`, { session_id: request.capture_session_id,
+      request: { intake_id: request.intake_id }, job_evidence_source_binding: binding,
+      approved_task_definition: { approved_task_digest: request.approved_task_digest }, pipeline_site_task_testbed: {
+        job_id: "job-1", brief_digest: request.brief_digest, approved_task_digest: request.approved_task_digest,
+        testbed: source.testbed, decision_evidence_request: source.decision_evidence_request,
+        testbed_canonical_json: source.testbed_canonical_json, decision_request_canonical_json: source.decision_request_canonical_json,
+        compiled_card_canonical_json: source.compiled_card_canonical_json,
+      } });
+    state.docs.set(`inboundRequests/job-1/jobEvidenceRequests/${request.request_id}`,
+      { request, createdAtIso: "2026-10-21T10:00:00Z", sequence: -1 });
+    const publication = { ...structuredClone(examples.capability_gap_publication), brief_digest: request.brief_digest,
+      request_digest: request.request_digest };
+    publication.publication_digest = crossRuntimeArtifactDigest(publication, "publication_digest");
+    const endpoint = "/api/internal/job-evidence-publications";
+    expect((await api(endpoint, "POST", publication, signed(publication))).body.status).toBe("published");
+    expect((await api(endpoint, "POST", publication, signed(publication))).body.status).toBe("replayed");
+    const workflow = (await api(`/api/job-workflow/owner/${token()}`)).body;
+    expect(workflow.evidence[0]).toMatchObject({ requestId: request.request_id, current: true, state: "blocked",
+      runId: null, decisionDigest: null, planDigest: null, testbedDigest: source.testbed!.testbed_digest, claims: [],
+      summary: publication.summary, nextAction: publication.next_action, limitations: publication.limitations });
+    expect(workflow.evidence[0].limitations.join(" ")).toContain("Capability gap for task family 'laundry_folding'");
+    expect(workflow.selection).toBeNull(); expect(workflow.proposals).toEqual([]);
+    expect([...state.docs.keys()].filter(key => key.includes("/jobEvidencePublications/"))).toHaveLength(1);
+    expect([...state.docs.keys()].some(key => /taskEvaluationPolicyRuns|taskEvaluationLaunches/.test(key))).toBe(false);
+    expect(request.decision_request_canonical_json).toBe(examples.capability_gap_request.decision_request_canonical_json);
+    expect(request.testbed_canonical_json).toBe(examples.capability_gap_request.testbed_canonical_json);
   });
   it("retains a recorded job's question without fabricating scientific context and safely reuses its identity", async () => {
     const path = "/api/job-workflow/admin/job-1/evidence";
