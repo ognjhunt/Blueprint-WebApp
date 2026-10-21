@@ -810,7 +810,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       <label htmlFor="start-task">
         <span>What work needs doing?</span>
         <span className="ms-field-hint">
-          Describe one recurring job, including what a good result looks like. A short description is enough to start; video is optional. If you prefer, you can start with video and review the brief we draft from it.
+          Describe the job and what a good result looks like. Video is optional.
         </span>
         <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} onChange={event => setTaskForPreview(event.target.value)} maxLength={2000} rows={4} />
       </label>
