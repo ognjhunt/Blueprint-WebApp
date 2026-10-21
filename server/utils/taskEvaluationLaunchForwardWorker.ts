@@ -1,6 +1,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
+import { isGeminiVideoConfigured } from "../agents/provider-config";
 import { processSceneIntakeQueue } from "./taskEvaluationSceneIntake";
 import { resolveExecutionAccessContext } from "./access-control";
 import type { Response } from "express";
@@ -326,7 +327,7 @@ export function startTaskEvaluationLaunchForwardWorker() {
     launchForwardWorkerEnabled: enabled,
     siteVideoEvidenceEnabled: isSiteVideoEvidenceEnabled(),
     openAiCredentialConfigured: Boolean(process.env.OPENAI_API_KEY?.trim()),
-    geminiCredentialConfigured: ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_AI_STUDIO_API_KEY"].some(key => Boolean(process.env[key]?.trim())),
+    geminiCredentialConfigured: isGeminiVideoConfigured(),
   }, "Task Evaluation launch worker admission");
   if (!enabled) {
     return () => undefined;
@@ -353,9 +354,17 @@ export function startTaskEvaluationLaunchForwardWorker() {
     if (stopped) return;
     // This loop also runs when the broader ops scheduler is intentionally off.
     if (isSiteVideoEvidenceEnabled()) {
-      void import("./siteAssessmentQueue").then(({ tickSiteAssessments }) => { if (!stopped) tickSiteAssessments(2); }).catch(() => {
-        logger.warn("Site advisory worker tick unavailable");
-      });
+      startLane("site-advisory", async () => {
+        const { tickSiteAssessments } = await import("./siteAssessmentQueue");
+        if (!stopped) await tickSiteAssessments(2);
+      }, "Site advisory worker tick unavailable");
+      // Coverage intent survives upload/worker interruption. Its retained footage
+      // reading also drafts the brief; it must not depend on the broader ops
+      // scheduler. This narrow lane records findings without enqueueing email.
+      startLane("capture-coverage", async () => {
+        const { tickCoverageReviews } = await import("./captureCoverageQueue");
+        if (!stopped) await tickCoverageReviews(2, { notifyOwner: false });
+      }, "Capture coverage worker tick unavailable");
     }
     startLane("scene-intake", processSceneIntakeQueue, "Task Evaluation scene intake reconciliation failed");
     startLane("launch-forward", processTaskEvaluationLaunchForwardQueue, "Task Evaluation launch forward reconciliation failed");

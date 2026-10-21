@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { describeSiteVideoEvidenceConfig } from "../utils/siteVideoEvidenceConfig";
 
-const GEMINI_KEYS = ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_AI_STUDIO_API_KEY"];
+const GEMINI_KEYS = ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_AI_STUDIO_API_KEY", "GOOGLE_GENAI_API_KEY"];
 
 function clearGeminiKeys() {
   for (const key of GEMINI_KEYS) vi.stubEnv(key, "");

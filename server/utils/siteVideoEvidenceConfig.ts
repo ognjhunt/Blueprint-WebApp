@@ -27,6 +27,6 @@ export function describeSiteVideoEvidenceConfig(): SiteVideoEvidenceConfig {
     ? "Site footage review is off (BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED); uploads go to manual review."
     : keyed
       ? "Site footage review is on and a Gemini key is configured."
-      : "BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED is on but no Gemini key is set (GEMINI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY or GOOGLE_AI_STUDIO_API_KEY). Every uploaded video would be held in privacy review. Set a key or turn the flag off.";
+      : "BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED is on but no Gemini key is set (GEMINI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, GOOGLE_AI_STUDIO_API_KEY or GOOGLE_GENAI_API_KEY). Every uploaded video would be held in privacy review. Set a key or turn the flag off.";
   return { enabled, keyed, ready, detail };
 }

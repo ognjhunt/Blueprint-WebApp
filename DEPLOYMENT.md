@@ -107,6 +107,28 @@ Render should hold all application secrets in the service environment, not in
 any is missing or invalid, the deploy job fails closed instead of deploying a
 partial control stack or allowing a red or unverified push to deploy.
 
+## Video analysis worker configuration
+
+The dashboard-managed web and worker environments must both have a company
+Gemini binding (`GEMINI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`,
+`GOOGLE_AI_STUDIO_API_KEY`, or `GOOGLE_GENAI_API_KEY`) before enabling
+`BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED=true`. Never transfer a managed coding
+proxy placeholder into Render. The existing readiness check refuses an enabled
+but unkeyed reader; worker startup reports only the key-presence boolean.
+
+With that lane enabled, the existing launch-forward worker drains retained
+site-assessment and coverage intents even while the broader ops scheduler is
+off. Coverage recovery reuses the retained footage reading to draft the brief,
+keeps existing consent/source/lease/budget admission, and records missing views
+without enqueueing owner email. This does not enable the outbox or unrelated
+schedulers. `BLUEPRINT_SITE_VIDEO_EVIDENCE_APPLY` controls automated verdict
+changes separately and is not needed to draft the description from footage.
+
+Save narrowly scoped dashboard configuration without deploying, then release
+through the exact-green-SHA GitHub workflow above. Observe the new worker's
+admission booleans and a source-bound retained reading/brief before claiming
+video analysis works live. Service health alone does not prove a video was read.
+
 ## Client IP behind proxies
 
 Every per-IP rate limit (the global, AI, auth, upload and hosted-session

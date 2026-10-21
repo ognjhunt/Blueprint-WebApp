@@ -179,7 +179,7 @@ describe("agentic video provider contract", () => {
       .rejects.toMatchObject({ code: "gemini_video_incomplete" });
   });
 
-  it("keeps a legacy privacy observation informational", async () => {
+  it.each(["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_AI_STUDIO_API_KEY", "GOOGLE_GENAI_API_KEY"])("dispatches video with %s while keeping a legacy privacy observation informational", async key => {
     const google = gemini(() => reply([{ text: '{"decision":"hold","evidence_seconds":[2]}' }]));
     const fetcher = vi.fn(async (url: string, init: RequestInit = {}) =>
       url === "https://example.com/clip.mp4"
@@ -188,7 +188,8 @@ describe("agentic video provider contract", () => {
         : google(url, init));
     vi.stubGlobal("fetch", fetcher);
     publicVideoFetch.mockImplementation((url, options) => fetcher(url, { signal: options.signal }));
-    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    for (const name of ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_AI_STUDIO_API_KEY", "GOOGLE_GENAI_API_KEY"]) vi.stubEnv(name, "");
+    vi.stubEnv(key, "test-key");
     try {
       const result = await runGeminiVideoTask({
         kind: "capture_video_privacy", model: "gemini-3.8-flash",
@@ -202,6 +203,7 @@ describe("agentic video provider contract", () => {
       const body = JSON.parse((generate[1] as RequestInit).body as string);
       expect(body.contents[0].parts[1].media_processing).toBe("STATIC");
       expect(body.generationConfig.maxOutputTokens).toBe(8_192);
+      expect(new Headers(generate[1].headers).get("x-goog-api-key")).toBe("test-key");
     } finally {
       publicVideoFetch.mockReset();
       vi.unstubAllGlobals();
@@ -447,6 +449,7 @@ describe("sound never reaches the provider", () => {
         : google(url, init));
     vi.stubGlobal("fetch", fetcher);
     publicVideoFetch.mockImplementation((url, options) => fetcher(url, { signal: options.signal }));
+    for (const name of ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_AI_STUDIO_API_KEY", "GOOGLE_GENAI_API_KEY"]) vi.stubEnv(name, "");
     vi.stubEnv("GEMINI_API_KEY", "test-key");
     try {
       const result = await runGeminiVideoTask({
@@ -478,6 +481,7 @@ describe("sound never reaches the provider", () => {
         : google(url, init));
     vi.stubGlobal("fetch", fetcher);
     publicVideoFetch.mockImplementation((url, options) => fetcher(url, { signal: options.signal }));
+    for (const name of ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_AI_STUDIO_API_KEY", "GOOGLE_GENAI_API_KEY"]) vi.stubEnv(name, "");
     vi.stubEnv("GEMINI_API_KEY", "test-key");
     try {
       const result = await runGeminiVideoTask({

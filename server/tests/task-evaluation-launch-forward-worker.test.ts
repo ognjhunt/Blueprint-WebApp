@@ -1,8 +1,9 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const authority = vi.hoisted(()=>({enabled:true, advisoryTick: vi.fn(), db: null as any,
+const authority = vi.hoisted(()=>({enabled:true, advisoryTick: vi.fn(), coverageTick: vi.fn(), db: null as any,
   sceneIntakeTick: vi.fn(async () => {})}));
+vi.mock("../utils/captureCoverageQueue", () => ({tickCoverageReviews: authority.coverageTick}));
 vi.mock("../utils/siteAssessmentQueue", () => ({tickSiteAssessments: authority.advisoryTick}));
 vi.mock("../utils/taskEvaluationSceneIntake", () => ({processSceneIntakeQueue: authority.sceneIntakeTick}));
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({ get dbAdmin() { return authority.db; }, authAdmin:{getUser:async()=>({customClaims:{admin:authority.enabled},disabled:false})} }));
@@ -76,6 +77,8 @@ afterEach(() => {
   authority.enabled=true;
   authority.db=null;
   authority.sceneIntakeTick.mockReset().mockResolvedValue(undefined);
+  authority.advisoryTick.mockReset();
+  authority.coverageTick.mockReset();
   delete process.env.TASK_EVALUATION_LAUNCH_FORWARD_MAX_ATTEMPTS;
 });
 
@@ -312,11 +315,36 @@ it("launch-only loop ticks enabled customer advisory without broad automation an
   try {
     await vi.advanceTimersByTimeAsync(5_000);
     expect(authority.advisoryTick).not.toHaveBeenCalled();
+    expect(authority.coverageTick).not.toHaveBeenCalled();
     vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "true");
     await vi.advanceTimersByTimeAsync(55_000);
     expect(authority.advisoryTick).toHaveBeenCalledExactlyOnceWith(2);
+    expect(authority.coverageTick).toHaveBeenCalledExactlyOnceWith(2, { notifyOwner: false });
     stop();
     await vi.advanceTimersByTimeAsync(60_000);
     expect(authority.advisoryTick).toHaveBeenCalledTimes(1);
+    expect(authority.coverageTick).toHaveBeenCalledTimes(1);
   } finally {stop();vi.useRealTimers();vi.unstubAllEnvs();}
+});
+
+
+it("keeps slow coverage recovery single-flight while other gated lanes progress", async () => {
+  vi.useFakeTimers();
+  vi.stubEnv("BLUEPRINT_TASK_EVALUATION_LAUNCH_FORWARD_WORKER_ENABLED", "true");
+  vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED", "true");
+  vi.stubEnv("TASK_EVALUATION_LAUNCH_FORWARD_WORKER_INTERVAL_MS", "10000");
+  let finish!: () => void;
+  authority.coverageTick.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+  const stop = startTaskEvaluationLaunchForwardWorker();
+  try {
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(authority.coverageTick).toHaveBeenCalledTimes(1);
+    expect(authority.advisoryTick).toHaveBeenCalledTimes(4);
+    finish();
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(authority.coverageTick).toHaveBeenCalledTimes(2);
+    stop();
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(authority.coverageTick).toHaveBeenCalledTimes(2);
+  } finally { stop(); vi.useRealTimers(); vi.unstubAllEnvs(); }
 });
