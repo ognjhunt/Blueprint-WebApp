@@ -44,7 +44,7 @@ for (const width of [390, 1440]) {
       if (path === "/api/analytics/ingest") return route.fulfill({ status: 204, body: "" });
       if (path === "/api/workspace/setup") return route.fulfill({ json: { workspaceType: "robot_team" } });
       if (path === "/api/inbound-request" && post) {
-        expect(body).toMatchObject({ descriptionOnly: true, consentAttestation: null, accountSignup: false, taskDescription: "Move sealed cartons from conveyor to pallet." });
+        expect(body).toMatchObject({ descriptionOnly: true, consentAttestation: null, accountSignup: false, taskDescription: "", taskStatement: "" });
         return route.fulfill({ json: { ok: true, captureUrl: "/capture-upload/synthetic-owner" } });
       }
       // The owner page reads whether recording permission was withdrawn.
@@ -61,7 +61,7 @@ for (const width of [390, 1440]) {
         processingRetryAvailable: received && !retried && !withdrawn,
       } });
       if (path === "/api/site-task-brief/synthetic-owner") return route.fulfill({ json: {
-        ready: true, scope: "owner", account: null, brief: { summary: "Cartons reach the pallet without damage", captureMode: "self_capture",
+        ready: received, scope: "owner", account: null, brief: { summary: "Cartons reach the pallet without damage", captureMode: "self_capture",
           proposed: [], unresolved: [], confirmedAtIso: confirmed ? "2026-10-06T00:00:00Z" : null,
           successCriteria: { successDefinition: "No damaged carton", successRate: 99, cycleTimeSeconds: 30, unknown: false }, pilotIntent },
       } });
@@ -73,8 +73,8 @@ for (const width of [390, 1440]) {
       }
       if (path === "/api/site-task-brief/synthetic-owner/status") return route.fulfill({ json: {
         captureReceived: received, status: { decision: received ? "footage_received" : "description_received",
-          headline: received ? "Video received; physical performance remains uncertain" : "Description received; review the brief",
-          operatorAction: "Founder and site owner agree the next measurement", nextUpdateIso: null, missingViews: [] },
+          headline: received ? "Video received; physical performance remains uncertain" : "Video needed to assess your job",
+          operatorAction: received ? "Founder and site owner agree the next measurement" : "Upload or record the job to continue", nextUpdateIso: null, missingViews: [] },
       } });
       if (path === "/api/self-capture/uploads/synthetic-owner/processing-retry" && post) {
         retried = true;
@@ -98,34 +98,43 @@ for (const width of [390, 1440]) {
     });
 
     await page.goto("/contact/site-operator");
-    await page.locator("#start-task").fill("Move sealed cartons from conveyor to pallet.");
+    await expect(page.locator("#start-task")).toBeHidden();
     await page.locator("#start-location").fill("Austin, TX");
     await expect(page.locator("#start-region")).toHaveCount(0);
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
-    await expect(page.getByText("Your job description is saved.", { exact: true })).toBeVisible();
-    await page.getByRole("link", { name: "Open your job and assessment", exact: true }).click();
-    // Robot teams evaluate only a confirmed job: never labelled optional.
-    await expect(page.getByText(/job details \(optional\)/i)).toHaveCount(0);
-    await page.getByText("Review and confirm your job brief", { exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Film the work area.", exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Open your job page", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Confirm recording permission", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Confirm recording permission", exact: true })).toBeDisabled();
+    await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Add footage when you are ready (optional)", exact: true })).toHaveCount(0);
+
+    // Simulate an actual retained receipt from this existing fixture job. The
+    // analyzed brief is reviewed only after video; no real capture or execution occurs.
+    received = true;
+    await page.reload();
+    await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })
+      .getByRole("button", { name: "This is right — confirm it", exact: true })).toBeVisible();
     await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
     await expect(page.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("subject_to_review");
     await page.locator("#confirm-name").fill("Synthetic site owner");
     await page.locator("#pilot-consideration").selectOption("evaluation_only");
     await page.getByRole("button", { name: "This is right — confirm it", exact: true }).click();
-    await expect(page.getByText(/that is confirmed/i)).toBeVisible();
+    await expect(page.getByText(/Your job brief is confirmed\./)).toBeVisible();
     await page.reload();
-    await page.getByText("Edit your job brief", { exact: true }).click();
+    await page.getByRole("button", { name: "Edit your answers", exact: true }).click();
     await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
     await expect(page.locator("#pilot-consideration")).toHaveValue("evaluation_only");
     await page.reload();
-    await page.getByText("Edit your job brief", { exact: true }).click();
+    await page.getByRole("button", { name: "Edit your answers", exact: true }).click();
     await page.getByText("Your recorded pilot preferences (optional corrections)", { exact: true }).click();
     await expect(page.locator("#pilot-consideration")).toHaveValue("evaluation_only");
     await expect(page.locator("#deployment-path")).toHaveValue("multiple_sites");
     expect(posts.filter(entry => /recording-consent|uploads\/synthetic-owner$/.test(entry.path))).toHaveLength(0);
 
-    // Simulate a previously retained receipt; this is never capture or execution proof.
-    received = true;
+    // The retained video is still available through a processing retry.
     await page.reload();
     await expect(page.getByText(/could not confirm that processing started/i)).toBeVisible();
     await page.getByRole("button", { name: "Retry processing", exact: true }).click();
