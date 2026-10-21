@@ -181,4 +181,36 @@ describe("Site-led homepage", () => {
       vi.useRealTimers();
     }
   });
+
+  it("keeps rotating while the pointer rests on the examples", () => {
+    vi.useFakeTimers();
+    try {
+      render(<Home />);
+      // A page that loads under a resting cursor starts out hovered.
+      fireEvent.mouseEnter(screen.getByRole("tabpanel").closest("section")!);
+      act(() => { vi.advanceTimersByTime(11000); });
+      expect(screen.getByRole("tab", { name: "Café" })).toHaveAttribute("aria-selected", "true");
+      act(() => { vi.advanceTimersByTime(10000); });
+      expect(screen.getByRole("tab", { name: "Laundromat" })).toHaveAttribute("aria-selected", "true");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("resumes rotating after pause and play, though the button keeps focus", () => {
+    vi.useFakeTimers();
+    try {
+      render(<Home />);
+      act(() => screen.getByRole("button", { name: "Pause examples" }).focus());
+      fireEvent.click(screen.getByRole("button", { name: "Pause examples" }));
+      act(() => { vi.advanceTimersByTime(11000); });
+      expect(screen.getByRole("tab", { name: "Warehouse" })).toHaveAttribute("aria-selected", "true");
+      fireEvent.click(screen.getByRole("button", { name: "Play examples" }));
+      expect(screen.getByRole("button", { name: "Pause examples" })).toHaveFocus();
+      act(() => { vi.advanceTimersByTime(11000); });
+      expect(screen.getByRole("tab", { name: "Café" })).toHaveAttribute("aria-selected", "true");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
