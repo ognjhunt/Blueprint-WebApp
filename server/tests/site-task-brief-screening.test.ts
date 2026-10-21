@@ -128,7 +128,7 @@ describe("the confirmation says what our screen decided", () => {
     expect(body.screening.detail).toMatch(/review your answers.*before clearing/i);
     expect(body.screening.bookingUrl).toMatch(/^https:\/\//);
     expect(enqueueOutbox).toHaveBeenCalledWith(expect.objectContaining({
-      to: "ops@acme.example", subject: expect.stringMatching(/call/i),
+      to: "ops@acme.example", kind: "brief_confirmed", subject: "Your job brief is confirmed",
     }));
 
     await vi.waitFor(() => expect(notifySlackScreeningCallNeeded).toHaveBeenCalledTimes(1));
@@ -147,14 +147,14 @@ describe("the confirmation says what our screen decided", () => {
     expect(enqueueOutbox).toHaveBeenCalledWith(expect.objectContaining({
       to: "ops@acme.example", kind: "brief_confirmed", subject: "Your job brief is confirmed",
     }));
-    // The reply names the real next step and what follows, never a team count.
+    // Commercial assessment remains useful without mandatory footage or evaluation.
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { body: string };
     expect(sent.body).toMatch(/^Hi Dana,/);
-    expect(sent.body).toMatch(/upload it here: http\S+\/capture-upload\//);
-    expect(sent.body).toMatch(/review proposals covering scope, total cost, timing and support/);
-    expect(sent.body).toMatch(/If no suitable option is supported, we explain what is missing/);
-    expect(sent.body).toMatch(/free during the beta/);
-    expect(sent.body).not.toMatch(/\bmatch|\bteams? on our list|budget|Austin/i);
+    expect(sent.body).toMatch(/https:\/\/\S+\/capture-upload\//);
+    expect(sent.body).toMatch(/assess suitable options against it.*next useful step/);
+    expect(sent.body).toMatch(/Video and a buying budget are optional/);
+    expect(sent.body).toMatch(/specific information when it changes a real decision/);
+    expect(sent.body).not.toMatch(/film the work area|must upload|teams? on our list|Austin|checkout|fee/i);
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({
       workspace_task: { terms: { successDefinition: "Carton reaches pallet intact", successRate: 95, cycleTimeSeconds: 30 } },
     });
@@ -165,16 +165,17 @@ describe("the confirmation says what our screen decided", () => {
     const response = await confirm(clearAnswers());
     expect((await response.json()).disposition).toBe("qualified");
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { body: string };
-    expect(sent.body).toMatch(/Your job page shows the next step: http\S+\/capture-upload\//);
+    expect(sent.body).toMatch(/https:\/\/\S+\/capture-upload\//);
+    expect(sent.body).toMatch(/Video and a buying budget are optional/);
     expect(sent.body).not.toMatch(/film the work area|upload it here/i);
   });
 
-  it("keeps a private job out of the shared library and asks before sharing", async () => {
+  it("keeps a private job private when its assessment begins", async () => {
     delete (sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>).public_task_listing;
     expect((await (await confirm(clearAnswers())).json()).disposition).toBe("qualified");
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { body: string };
-    expect(sent.body).toMatch(/Your job card is not published, so partners cannot discover it through the shared library/);
-    expect(sent.body).toMatch(/We ask before sharing details with a provider/);
+    expect(sent.body).toMatch(/assess suitable options/);
+    expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).not.toHaveProperty("public_task_listing");
   });
 
   it("answers a visit request without assuming where the site is", async () => {
@@ -185,8 +186,8 @@ describe("the confirmation says what our screen decided", () => {
     expect((await response.json()).disposition).toBe("qualified");
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { subject: string; body: string };
     expect(sent.subject).toBe("Your job brief is confirmed");
-    expect(sent.body).toMatch(/whether a visit is possible for your location/);
-    expect(sent.body).toMatch(/I'll film it myself instead/);
+    expect(sent.body).toMatch(/assess suitable options/);
+    expect(sent.body).not.toMatch(/visit is available|visit is booked|visit confirmed/i);
     expect(`${sent.subject}\n${sent.body}`).not.toMatch(/Austin|visit date/i);
   });
 
@@ -211,7 +212,7 @@ describe("the confirmation says what our screen decided", () => {
     expect(film.brief.pilotIntent).toBeUndefined();
   });
 
-  it("says not yet, names what we can score, and records it, for a job we cannot score", async () => {
+  it("retains an unsupported scientific scope without rejecting the commercial assessment", async () => {
     await saveBrief(draftBrief({
       requestId: "req-1", summary: "Folding towels for wash-and-fold orders", captureMode: "self_capture", proposed: [],
     }));
@@ -224,11 +225,9 @@ describe("the confirmation says what our screen decided", () => {
     expect(body.screening.bookingUrl).toBeNull();
     expect(enqueueOutbox).toHaveBeenCalledTimes(1);
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { kind: string; subject: string; body: string; idempotencyKey: string };
-    expect(sent).toMatchObject({ kind: "screening_not_now", idempotencyKey: "req-1:brief-screening:task-not-yet-supported" });
-    // Only the job kind a robot team's evaluation can run (audit N4).
-    expect(sent.body).toMatch(/one kind of job:\n- Picking up one rigid object and placing it at another spot on the same table, shelf or counter\n\n/);
-    expect(sent.body).not.toMatch(/door or drawer/);
-    expect(sent.body).toMatch(/not admitted to that simulation route/);
+    expect(sent).toMatchObject({ kind: "brief_confirmed", idempotencyKey: "req-1:brief-screening:qualified" });
+    expect(sent.body).toMatch(/assess suitable options/);
+    expect(sent.body).not.toMatch(/passed|physical success|no suitable option exists/i);
     expect(`${sent.subject}\n${sent.body}`).not.toMatch(/\bmatch|\$|price/i);
     expect(notifySlackScreeningCallNeeded).not.toHaveBeenCalled();
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({
@@ -236,14 +235,14 @@ describe("the confirmation says what our screen decided", () => {
     });
   });
 
-  it("says not yet, without a call, when an answer blocks it", async () => {
+  it("keeps a blocked scientific preparation separate from the brief confirmation", async () => {
     const response = await confirm({ ...clearAnswers(), sceneStability: "reconfigured" });
     const body = (await response.json()) as { disposition: string; screening: any };
     expect(body.disposition).toBe("not_now");
     expect(body.screening.headline).toMatch(/not building a scene/);
     expect(body.screening.bookingUrl).toBeNull();
     expect(enqueueOutbox).toHaveBeenCalledWith(expect.objectContaining({
-      to: "ops@acme.example", subject: "Your job, and what would have to change",
+      to: "ops@acme.example", kind: "brief_confirmed", subject: "Your job brief is confirmed",
     }));
   });
 });

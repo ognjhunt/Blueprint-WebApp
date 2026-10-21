@@ -273,11 +273,12 @@ describe("a site that sends its footage before confirming its brief", () => {
 });
 
 describe("a site that confirms before it films", () => {
-  it("still hears the footage email it always did", async () => {
+  it("keeps footage optional at confirmation and acknowledges a later upload", async () => {
     const { jobId, token } = await startJob();
     expect((await confirmBrief(token)).disposition).toBe("qualified");
-    // Nothing filmed yet: the confirmed email asks for the walkthrough.
-    expect(outbox(`${jobId}:brief-screening:qualified`)?.body).toMatch(/film the work area/i);
+    // Nothing filmed yet: assessment can start from the agreed description.
+    expect(outbox(`${jobId}:brief-screening:qualified`)?.body).toMatch(/Video and a buying budget are optional/i);
+    expect(outbox(`${jobId}:brief-screening:qualified`)?.body).not.toMatch(/film the work area|must upload/i);
     await claim(jobId);
     await sendFootage(token);
     const notice = outbox(`${jobId}:video_received`);

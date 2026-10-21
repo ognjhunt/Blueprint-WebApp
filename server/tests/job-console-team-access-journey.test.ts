@@ -204,8 +204,8 @@ describe("the job console invites robot teams only when they can evaluate the jo
 
     await confirm(jobId);
     row = await consoleRow(jobId);
-    // Confirmation queues a coverage review of the footage; no scene exists, and the site has not claimed the job.
-    expect(row).toMatchObject({ stage: "capture", nextAction: "Review capture coverage", actionOwner: "blueprint" });
+    // This legacy team-evaluation seam still has no footage to review or runnable scene.
+    expect(row).toMatchObject({ stage: "capture", nextAction: "Waiting on site to film the work area", actionOwner: "site" });
     expect(row.teamAccess).toMatchObject({ evaluationAvailable: false, reason: "scene_not_runnable", sceneHold: "unclaimed" });
     await accessAgrees(jobId, row);
 
