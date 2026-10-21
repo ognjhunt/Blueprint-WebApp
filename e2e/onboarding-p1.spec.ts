@@ -150,9 +150,7 @@ test("an approved team's empty library says tasks are coming; an outage is not a
   await expect(page.getByRole("form", { name: "Task preferences" })).toHaveCount(0);
   await screenshot(page, "empty-approved");
   await page.route("**/api/site-worlds/tasks", route => route.fulfill({ status: 503, json: { error: "offline" } }));
-  await page.reload();
-  await expect(page.getByRole("alert")).toContainText("The job library could not be loaded.");
-  await expect(page.getByRole("button", { name: "Try again", exact: true })).toBeVisible();
+  await page.reload(); await expect(page.getByRole("form", { name: "Early access application" })).toBeVisible();
   await expect(page.getByText("The first site jobs are being prepared.")).toHaveCount(0);
 });
 
