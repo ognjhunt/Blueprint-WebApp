@@ -38,13 +38,17 @@ describe("platform context preamble", () => {
     expect(contents).toMatch(/qualifying-environment standard/i);
   });
 
-  it("records the current owner override without changing historical shared doctrine", () => {
-    // Founder decision, 2026-10-14: the free beta became an active program.
+  it("records the current owner direction through canonical shared synchronization", () => {
+    // October 21 corrected the journey; canonical synchronization preserves ADP authority.
     expect(contents).toMatch(/Current owner direction.*October 21, 2026/i);
     expect(contents).toMatch(/preserves the capture-first foundation/i);
     const block = extractBlock(contents, "SHARED_PLATFORM_CONTEXT");
     expect(block).toMatch(/### Active Programs/);
-    expect(block).toMatch(/Free Beta: Evaluated, Recommended Pilot/);
+    expect(block).toMatch(/Free Beta: Job-First Automation/);
+    expect(block).toMatch(/requires actual retained video before assessment/);
+    expect(block).toMatch(/substitute for a successful storage receipt/);
+    expect(block).toMatch(/Existing video analysis drafts/);
+    expect(block).toMatch(/Arm\s+Decision Proof keeps sole authority over physical-validation claims/);
     expect(block).toMatch(/free-beta-evaluated-pilot/);
     expect(block).toMatch(/Arm Decision Proof v1/);
     expect(block).not.toMatch(/sole active program/i);
