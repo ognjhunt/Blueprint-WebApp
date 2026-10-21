@@ -75,7 +75,20 @@ export function workflowDigest(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex");
 }
 
-export const proposalScopeRevision = (brief: unknown, requirements: JobBuyingRequirements) => workflowDigest({ brief, requirements });
+/** Quote scope follows confirmed work, not who or when the same brief was confirmed. */
+export function proposalScopeRevision(brief: unknown, requirements: JobBuyingRequirements): string {
+  const value = brief && typeof brief === "object" ? brief as Record<string, any> : {};
+  return workflowDigest({ brief: {
+    summary: value.summary ?? null,
+    captureMode: value.captureMode ?? null,
+    operatorAnswers: value.operatorAnswers ?? {},
+    operatorUnknown: [...(value.operatorUnknown ?? [])].sort(),
+    operatorTaskDetails: value.operatorTaskDetails ?? null,
+    successCriteria: value.successCriteria ?? null,
+    pilotIntent: value.pilotIntent ?? null,
+    unresolved: [...(value.unresolved ?? [])].sort(),
+  }, requirements });
+}
 
 export function requirementsFrom(record: Record<string, any>): JobBuyingRequirements {
   const spec = record.request?.siteTaskSpec ?? {};

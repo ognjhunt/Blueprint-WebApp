@@ -107,6 +107,12 @@ describe("job workflow authority and durable decisions", () => {
       plannedStartIso: "2026-11-01T12:00:00.000Z", siteAgreementReference: "Site signed quote reference", providerAgreementReference: "Provider signed quote reference",
       outcomeRecordingAuthorized: true, outcomeRecordingPermissionReference: "Both parties' signed outcome-recording permission" });
     expect(agreed.status).toBe(200); expect(agreed.body.stage).toBe("pilot_agreed");
+    state.docs.set("siteTaskBriefs/job-1", { ...state.docs.get("siteTaskBriefs/job-1"),
+      confirmedAtIso: "2026-10-21T10:00:00.000Z", confirmedBy: "Another authorized site owner", draftedAtIso: "2026-10-21T09:00:00.000Z" });
+    const reconfirmed = await owner();
+    expect(reconfirmed.body.stage).toBe("pilot_agreed");
+    expect(reconfirmed.body.proposals[0].status).toBe("available");
+    expect(reconfirmed.body.agreement).toEqual(agreed.body.agreement);
     expect((await owner("/requirements", "PATCH", { ongoingBudget: "Changed after agreement" })).body.code).toBe("pilot_already_agreed");
     const reported = await owner("/outcome", "POST", reportBody(row));
     expect(reported.status).toBe(200); expect(reported.body.outcome?.source).toBe("customer_reported");
@@ -130,6 +136,9 @@ describe("job workflow authority and durable decisions", () => {
 
   it("invalidates proposals when requirements or the confirmed brief change", async () => {
     const row = await publish();
+    state.docs.set("siteTaskBriefs/job-1", { ...state.docs.get("siteTaskBriefs/job-1"),
+      confirmedAtIso: "2026-10-21T10:00:00.000Z", confirmedBy: "Another authorized site owner" });
+    expect((await owner()).body.proposals[0].status).toBe("available");
     await owner("/select", "POST", selectBody(row));
     const changed = await owner("/requirements", "PATCH", { requiredOutput: "Now requires twice the original output" });
     expect(changed.body.proposals[0].status).toBe("review_required");

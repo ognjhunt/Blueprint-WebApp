@@ -59,11 +59,11 @@ function EvidenceLine({ teamName, evidence }: { teamName: string; evidence: Eval
  * One concrete pilot proposal, followed by truthful coordination status.
  * Renders nothing until Blueprint has made a recommendation.
  */
-export function RecommendedPilot({ token }: { token: string }) {
-  return <RecommendedPilotForToken key={token} token={token} />;
+export function RecommendedPilot({ token, bookedOnly = false }: { token: string; bookedOnly?: boolean }) {
+  return <RecommendedPilotForToken key={token} token={token} bookedOnly={bookedOnly} />;
 }
 
-function RecommendedPilotForToken({ token }: { token: string }) {
+function RecommendedPilotForToken({ token, bookedOnly }: { token: string; bookedOnly: boolean }) {
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [decision, setDecision] = useState<JobDecision | null>(null);
   const [booked, setBooked] = useState(false);
@@ -117,6 +117,7 @@ function RecommendedPilotForToken({ token }: { token: string }) {
     }
   }
 
+  if (bookedOnly && !booked) return null;
   if (!recommendation && !decision) return null;
   const decisionSummary = decision ? <section className="ms-task-interest" aria-labelledby="job-decision-title">
     <h2 id="job-decision-title">Our recommendation</h2>

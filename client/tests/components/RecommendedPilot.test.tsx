@@ -17,9 +17,15 @@ const loaded = (booking: unknown = null) => ({
 describe("the recommended pilot", () => {
   it("renders nothing until Blueprint recommends a pilot", async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation: null, booking: null }) });
-    const { container } = render(<RecommendedPilot token="tok" />);
+    const { container, unmount } = render(<RecommendedPilot token="tok" />);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(container).toBeEmptyDOMElement();
+    unmount();
+    fetchMock.mockResolvedValueOnce(loaded());
+    render(<RecommendedPilot token="tok" bookedOnly />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("heading", { name: "Evaluation-backed pilot proposal" })).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("requires an authorized choice and explains the separate pilot agreement", async () => {
@@ -102,7 +108,7 @@ describe("the recommended pilot", () => {
     const contact = { name: null, organization: "Acme Robotics", email: "team@example.test", phone: null };
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation, booking: { recommendationId: "rec_1" },
       pilotBooking: { bookedAtIso: "2026-10-15T00:00:00Z", contact, consentWithdrawn: false } }) });
-    const { unmount } = render(<RecommendedPilot token="tok" />);
+    const { unmount } = render(<RecommendedPilot token="tok" bookedOnly />);
     expect(await screen.findByRole("status")).toHaveTextContent(/agree the scope, price, dates and support directly/);
     expect(screen.getByRole("link", { name: "team@example.test" })).toHaveAttribute("href", "mailto:team@example.test");
     unmount();
