@@ -414,11 +414,11 @@ export function PilotPreview() {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const [pinned, setPinned] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
+  // Keyboard focus on the tabs holds the example. Hover does not: the section fills most of
+  // the screen, so a cursor resting on it after a page load stopped rotation indefinitely.
+  const [held, setHeld] = useState(false);
   const [inView, setInView] = useState(true);
   const artRef = useRef<SVGSVGElement>(null);
-  const held = hovered || focused;
 
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) setPaused(true);
@@ -437,10 +437,7 @@ export function PilotPreview() {
   const t = useSceneClock(!paused && inView, example.site);
   const { Art } = example;
   return (
-    <section className="ms-pilot-preview" aria-labelledby="pilot-preview-title"
-      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      onFocus={() => setFocused(true)}
-      onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false); }}>
+    <section className="ms-pilot-preview" aria-labelledby="pilot-preview-title">
       <div className="ms-pilot-preview-intro">
         <p className="ms-eyebrow">What you get</p>
         <h2 id="pilot-preview-title">One job. A clear pilot plan.</h2>
@@ -454,7 +451,10 @@ export function PilotPreview() {
       </div>
       <div className="ms-pilot-card">
         <div className="ms-pilot-tabs">
-          <div role="tablist" aria-label="Example sites" onKeyDown={event => {
+          <div role="tablist" aria-label="Example sites"
+            onFocus={() => setHeld(true)}
+            onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setHeld(false); }}
+            onKeyDown={event => {
             const direction = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
             const next = event.key === "Home" ? 0 : event.key === "End" ? examples.length - 1 : direction ? (active + direction + examples.length) % examples.length : null;
             if (next === null) return;
