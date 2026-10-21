@@ -70,8 +70,14 @@ export async function queueJobEvidenceAction(jobId: string, requestId: string, a
     // Retrying the same pending action does not replace its lease or reset its cap.
     if (ACTIVE.includes(current.deliveryState) && current.deliveryAction === action) return;
     const intent = jobEvidenceDeliveryIntent(action, actor, Date.now(), tenantId);
-    tx.update(ref, intent);
-    tx.update(jobRef, jobEvidenceQueueMarker(intent.deliveryId, intent.deliveryCreatedAtMs));
+    // Let an already sent action's lease expire before a missing-request read
+    // can confirm cancellation. Superseding its intent prevents any replay.
+    const cancellationWaitUntilMs = action === "cancel" ? Math.max(intent.deliveryCreatedAtMs,
+      Number(current.cancellationWaitUntilMs) || 0,
+      current.deliveryState === "delivering" ? Number(current.deliveryLeaseUntilMs) || 0 : 0) : 0;
+    const nextAtMs = Math.max(intent.deliveryNextAtMs, cancellationWaitUntilMs);
+    tx.update(ref, { ...intent, deliveryNextAtMs: nextAtMs, ...(action === "cancel" ? { cancellationWaitUntilMs } : {}) });
+    tx.update(jobRef, jobEvidenceQueueMarker(intent.deliveryId, nextAtMs));
   }));
 }
 
@@ -150,25 +156,39 @@ export async function deliverJobEvidenceRequest(jobId: string, requestId: string
     // immutable. The execute action is ONLY the bridge's read-only local
     // adapters; this replay rule must never be reused for paid policy launches.
     let result = claimed.deliveryAttempts > 0 || action !== "submit" ? await forward({}, suffix, "GET") : null;
+    if (action === "cancel" && result && !result.ok && result.status === 404 && "code" in result && result.code === "job_evidence_not_found") {
+      // Exact authenticated-service absence is a local acknowledgment, not a
+      // fabricated cancelled publication or a reason to submit work again.
+      return await finish(cancellationPatch("not_submitted"));
+    }
     if (result?.ok) {
+      if (action === "cancel" && ["decision", "partial_decision", "abstention"].includes(result.publication.state)) {
+        await acceptJobEvidencePublication(result.publication, { cancellationTerminalHistory: true });
+        return await finish(cancellationPatch("already_terminal"));
+      }
       if (action !== "cancel" || result.publication.state === "cancelled") await acceptJobEvidencePublication(result.publication);
       if ((action === "execute" && !["decision", "partial_decision", "abstention", "failed", "cancelled"].includes(result.publication.state))
         || (action === "cancel" && result.publication.state !== "cancelled")) result = null;
-    } else if (result && result.status !== 404) {
+    } else if (result && (result.status !== 404 || action === "cancel")) {
       // An unavailable GET cannot establish whether the previous effect landed.
       patch = retryPatch(attempts, now, result.reason, Boolean(result.status && result.status >= 400 && result.status < 500 && ![408, 429].includes(result.status)));
       return await finish(patch);
     } else result = null;
     if (!result) {
-      const latest = (await storeTimeout(ref.get())).data();
-      if (!latest || latest.deliveryId !== claimed.deliveryId || latest.deliveryLeaseId !== lease) return false;
       if (action !== "cancel") await currentScope(request);
       if (action === "execute") await currentExecutionActor(claimed);
+      const latest = (await storeTimeout(ref.get())).data();
+      if (!latest || latest.deliveryId !== claimed.deliveryId || latest.deliveryLeaseId !== lease
+        || (action !== "cancel" && latest.cancellationRequested)) return false;
       const payload = action === "execute" ? { request_digest: request.request_digest, authorized_by: { role: "human", identity: claimed.deliveryActor } }
         : action === "cancel" ? { request_digest: request.request_digest, cancelled_by: claimed.deliveryActor } : request;
       // A cancellation for a request never accepted by Pipeline needs no new submit.
       result = await forward(payload, action === "execute" || action === "cancel" ? `${suffix}/${action}` : "");
-      if (result.ok) await acceptJobEvidencePublication(result.publication);
+      if (result.ok) {
+        const terminalCancellation = action === "cancel" && ["decision", "partial_decision", "abstention"].includes(result.publication.state);
+        await acceptJobEvidencePublication(result.publication, terminalCancellation ? { cancellationTerminalHistory: true } : {});
+        if (terminalCancellation) return await finish(cancellationPatch("already_terminal"));
+      }
     }
     patch = result.ok ? { deliveryState: "delivered", deliveryLeaseId: null, deliveryLeaseUntilMs: 0,
       deliveryNextAtMs: Number.MAX_SAFE_INTEGER, forwardingReason: null }
@@ -179,6 +199,12 @@ export async function deliverJobEvidenceRequest(jobId: string, requestId: string
     !(error instanceof JobMarketplaceError && error.status >= 500));
   }
   return await finish(patch);
+
+  function cancellationPatch(resolution: "already_terminal" | "not_submitted") {
+    return { deliveryState: "delivered", deliveryLeaseId: null, deliveryLeaseUntilMs: 0,
+      deliveryNextAtMs: Number.MAX_SAFE_INTEGER, forwardingReason: null,
+      cancellationConfirmedAtIso: new Date(now).toISOString(), cancellationResolution: resolution };
+  }
 
   async function finish(next: Record<string, any>) {
     return storeTimeout(db!.runTransaction(async tx => {

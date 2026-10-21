@@ -172,7 +172,8 @@ export async function forwardJobEvidence(payload: Record<string, unknown>, suffi
         "x-blueprint-pipeline-nonce": nonce, "x-blueprint-pipeline-signature": `sha256=${signature}` },
       ...(method === "GET" ? {} : { body }), signal: AbortSignal.timeout(20_000) });
     const result = await response.json().catch(() => null);
-    if (!response.ok) return { ok: false as const, reason: "Pipeline could not accept this action. The saved question remains available; refresh before retrying.", status: response.status };
+    if (!response.ok) return { ok: false as const, reason: "Pipeline could not accept this action. The saved question remains available; refresh before retrying.", status: response.status,
+      code: typeof result?.detail === "string" ? result.detail : undefined };
     return { ok: true as const, publication: verifyJobEvidencePublication(result?.publication ?? result) };
   } catch { return { ok: false as const, reason: "Pipeline evidence response could not be confirmed. Refresh before retrying; the same request identity will be reused." }; }
 }
