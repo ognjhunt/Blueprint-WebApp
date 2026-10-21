@@ -8,6 +8,7 @@ import { createSiteClaimToken } from "../utils/request-review-auth";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../../client/src/lib/legalAcceptance";
 import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance";
 import { syntheticQualifiedRun } from "./helpers/recommendation-evidence";
+import { deploymentCatalogWithDigest } from "../../client/src/lib/deploymentEmbodimentSupport";
 const state = vi.hoisted(() => ({
   records: new Map<string, any>(),
   messages: vi.fn(),
@@ -18,6 +19,8 @@ const admission = vi.hoisted(() => vi.fn(async () => true));
 /** Whether the walkthrough bucket can be read; it starts empty (nothing filmed). */
 const storage = vi.hoisted(() => ({ readable: true }));
 vi.mock("../utils/accountInvitations", () => ({ accountHasAdmission: admission }));
+// Workspace route tests exercise saved records; inference is a separate boundary.
+vi.mock("../utils/siteAssessmentPublic", () => ({ loadCurrentSiteAdvisory: vi.fn(async () => null) }));
 
 const preparation = vi.hoisted(() => ({ read: vi.fn(async () => ({
   state: "failed_retryable", correlationId: "bp-prep-1234567890abcdef",
@@ -681,6 +684,37 @@ describe("workspace requests and lifecycle", () => {
       expect((await api("/setups","robot-1",{...setup,robotDescription:{...robotDescription,...change}})).status).toBe(400);
     }
   });
+  it("serves the planning catalog only to signed-in accounts", async () => {
+    expect((await api("/deployment-embodiments", "")).status).toBe(401);
+    const response = await api("/deployment-embodiments", "robot-1");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(await deploymentCatalogWithDigest());
+  });
+  it("saves private planning choices without inheriting an executable setup", async () => {
+    const catalog = await deploymentCatalogWithDigest();
+    const robot = catalog.embodiments[0];
+    const robotDescription = { source: "support_option", embodimentId: robot.embodiment_id,
+      catalogDigest: catalog.catalog_digest, policyRouteIds: [robot.policy_routes[0].route_id] };
+    const response = await api("/setups", "robot-1", { ...setup, robotDescription, executionBindingId: "franka" });
+    expect(response.status).toBe(200);
+    const saved = await response.json();
+    expect(saved.robotDescription).toEqual(robotDescription);
+    expect(saved.executionBindingId).toBeUndefined();
+    expect((await (await api("/", "robot-2")).json()).setups).toEqual([]);
+    const legacy = await api("/setups", "robot-1", { ...setup, executionBindingId: "franka" });
+    expect((await legacy.json()).executionBindingId).toBeUndefined();
+    const readback = await (await api("/", "robot-1")).json();
+    expect(readback.setups[0].robotDescription).toEqual(robotDescription);
+  });
+  it("rejects stale, unknown, incompatible and duplicate planning choices", async () => {
+    const catalog = await deploymentCatalogWithDigest(), robot = catalog.embodiments[0];
+    const robotDescription = { source: "support_option", embodimentId: robot.embodiment_id,
+      catalogDigest: catalog.catalog_digest, policyRouteIds: [robot.policy_routes[0].route_id] };
+    for (const change of [{catalogDigest:`sha256:${"0".repeat(64)}`}, {embodimentId:"unknown"},
+      {policyRouteIds:["dreamlabs_dream1"]}, {policyRouteIds:[]},
+      {policyRouteIds:[robot.policy_routes[0].route_id,robot.policy_routes[0].route_id]}, {readiness:"verified_runnable"}])
+      expect((await api("/setups", "robot-1", { ...setup, robotDescription: { ...robotDescription, ...change } })).status).toBe(400);
+  });
   it("rejects credential-bearing and executable references", async () => {
     for (const reference of [
       "javascript:alert(1)",
@@ -727,6 +761,19 @@ describe("workspace requests and lifecycle", () => {
       expect(refused.status).toBe(400);
     }
     expect(state.intakes).toHaveLength(0);
+    const savedSetup = state.records.get("users/robot-1/robotSetups/setup-1");
+    state.records.set("robotTeams/planning-test-team", {accountUid:"robot-1"});
+    state.records.set("robotCheckpoints/planning-test-checkpoint", {teamId:"planning-test-team",reference:"https://policy.test/action",runtime:"policy_endpoint",
+      policyCredential:{ref:"credential",kind:"bearer",expiresAtIso:"2100-01-01T00:00:00Z"}});
+    for (const robotDescription of [{source:"support_option",embodimentId:"almond_axol",catalogDigest:`sha256:${"a".repeat(64)}`,policyRouteIds:["pi_api"]},
+      {source:"model",format:"urdf",reference:"https://robot.test/arm.urdf",mobility:"fixed",details:""}]) {
+      state.records.set("users/robot-1/robotSetups/setup-1", {payload:`encrypted:${JSON.stringify({...setup,delivery:"endpoint",reference:"https://policy.test/action",robotDescription})}`});
+      const refused = await api("/evaluations", "robot-1", request1);
+      expect(refused.status).toBe(409);
+      expect((await refused.json()).code).toBe("team_evaluation_robot_integration_required");
+      expect(state.intakes).toHaveLength(0);
+    }
+    state.records.set("users/robot-1/robotSetups/setup-1", savedSetup);
     expect((await api("/evaluations", "robot-1", request1)).status).toBe(201);
     expect(state.intakes[0].body).toMatchObject({ taskStatement: card.title, siteName: "Private site", siteLocation: "" });
     expect(JSON.stringify(state.intakes[0].body)).not.toMatch(/Confidential Site|123 Private/);

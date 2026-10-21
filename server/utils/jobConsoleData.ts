@@ -14,7 +14,7 @@ import { listCheckpoints } from "./robotCheckpoints";
 import { reservationTtlMs } from "./agentRunRecord";
 import { MAX_FREE_SPONSOR_CAP_USD } from "./freeBeta";
 import {
-  jobEvaluationEpisodes, offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker,
+  jobEvaluationEpisodes, offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, robotSetupIntegrationBlocker,
 } from "./policyIntegration";
 import { ROBOT_TEAMS_COLLECTION, type RobotTeamRecord } from "../types/robot-team-registry";
 import { effectiveTeamStatus } from "./robotTeamSupply";
@@ -205,6 +205,7 @@ async function admissionCandidate(id: string, record: Record<string, any>, job: 
   let setup: AdmissionCandidate["setup"] = { setupId, name: text(selection.setupName) || null, reference: null, missing: true };
   let matchingCheckpoints: AdmissionCandidate["matchingCheckpoints"] = [];
   let robotEmbodiment: unknown = null;
+  let robotDescription: unknown = null;
   let teamBlocker: ReturnType<typeof teamPolicyBlocker> = null;
   if (ownerUid && db) {
     const teams = await db.collection(ROBOT_TEAMS_COLLECTION).where("accountUid", "==", ownerUid).limit(5).get();
@@ -219,6 +220,8 @@ async function admissionCandidate(id: string, record: Record<string, any>, job: 
           const payload = JSON.parse(await decryptFieldValue(stored.data()!.payload));
           setup = { setupId, name: text(payload.name) || setup.name, reference: text(payload.reference) || null, missing: false };
           robotEmbodiment = payload.robotEmbodiment ?? null;
+          robotDescription = payload.robotDescription ?? null;
+          teamBlocker = robotSetupIntegrationBlocker(payload);
         } catch {
           blockers.push("The saved setup could not be read.");
         }
@@ -228,11 +231,11 @@ async function admissionCandidate(id: string, record: Record<string, any>, job: 
       // A team evaluation runs only an authenticated HTTPS policy: those come first, so the
       // form's default is one admission accepts.
       const blockerOf = (checkpoint: Record<string, any>) =>
-        offersTeamEvaluation(job) ? teamPolicyBlocker(checkpoint, { robotEmbodiment }) : null;
+        offersTeamEvaluation(job) ? teamPolicyBlocker(checkpoint, { robotEmbodiment, robotDescription }) : null;
       const matching = (await listCheckpoints(team.teamId))
         .filter((checkpoint) => checkpoint.reference === setup.reference && checkpoint.status !== "retired")
         .sort((a, b) => Number(Boolean(blockerOf(a))) - Number(Boolean(blockerOf(b))));
-      teamBlocker = matching.length ? blockerOf(matching[0]) : null;
+      teamBlocker = teamBlocker || (matching.length ? blockerOf(matching[0]) : null);
       matchingCheckpoints = matching.map((checkpoint) => ({ checkpointId: checkpoint.checkpointId, label: checkpoint.label,
         runtime: checkpoint.runtime, status: checkpoint.status }));
     }

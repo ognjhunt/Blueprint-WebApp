@@ -14,6 +14,8 @@ const modelUrl = z.string().trim().url().max(1000).refine(value => {
 /** A submitted description is an input, never simulation qualification. */
 export const robotDescriptionSchema = z.discriminatedUnion("source", [
   z.object({source:z.literal("catalog"),configurationId:identifier,configurationDigest:digest}).strict(),
+  z.object({source:z.literal("support_option"),embodimentId:identifier,catalogDigest:digest,
+    policyRouteIds:z.array(identifier).min(1)}).strict(),
   z.object({source:z.literal("model"),format:z.enum(["urdf","usd","mjcf"]),reference:modelUrl,
     mobility:z.enum(["fixed","mobile","legged"]),details:z.string().trim().max(2000)}).strict(),
 ]);

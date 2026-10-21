@@ -78,7 +78,8 @@ export type TeamPolicyBlocker =
   | "team_evaluation_policy_https_required"
   | "team_evaluation_policy_credential_required"
   | "team_evaluation_policy_credential_expired"
-  | "team_evaluation_robot_manifest_invalid";
+  | "team_evaluation_robot_manifest_invalid"
+  | "team_evaluation_robot_integration_required";
 
 export const TEAM_POLICY_BLOCKER_MESSAGES: Record<TeamPolicyBlocker, string> = {
   team_evaluation_policy_endpoint_required:
@@ -90,7 +91,17 @@ export const TEAM_POLICY_BLOCKER_MESSAGES: Record<TeamPolicyBlocker, string> = {
   team_evaluation_policy_credential_expired:
     "The policy token on file for this endpoint has expired. Enter a new one under Settings → Robots & policies.",
   team_evaluation_robot_manifest_invalid: "The setup's robot manifest is not valid. Fix it under Settings → Robots & policies.",
+  team_evaluation_robot_integration_required: "This robot is a planning option. Bind its exact model, tools, cameras and policy interface to a validated robot manifest before requesting an evaluation.",
 };
+
+/** A named planning robot must never silently use the legacy DROID default. */
+export function robotSetupIntegrationBlocker(setup: { robotDescription?: unknown; robotEmbodiment?: unknown }): TeamPolicyBlocker | null {
+  const description = setup.robotDescription as { source?: unknown } | null | undefined;
+  if (description?.source === "support_option"
+    || (description?.source === "model" && !robotEmbodimentSchema.safeParse(setup.robotEmbodiment).success))
+    return "team_evaluation_robot_integration_required";
+  return null;
+}
 
 /**
  * Null when this checkpoint can be a team evaluation's one candidate: an
@@ -99,8 +110,10 @@ export const TEAM_POLICY_BLOCKER_MESSAGES: Record<TeamPolicyBlocker, string> = {
  */
 export function teamPolicyBlocker(
   checkpoint: Record<string, any>,
-  options: { robotEmbodiment?: unknown } = {},
+  options: { robotEmbodiment?: unknown; robotDescription?: unknown } = {},
 ): TeamPolicyBlocker | null {
+  const integration = robotSetupIntegrationBlocker(options);
+  if (integration) return integration;
   if (!["policy_endpoint", "customer_hosted"].includes(checkpoint.runtime)) return "team_evaluation_policy_endpoint_required";
   if (!validateIntegrationReference("customer_hosted", String(checkpoint.reference || "").trim()))
     return "team_evaluation_policy_https_required";

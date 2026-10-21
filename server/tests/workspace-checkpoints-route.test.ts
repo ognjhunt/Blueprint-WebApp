@@ -119,6 +119,19 @@ function post(who: string, body: unknown) {
 }
 
 describe("workspace checkpoint registration", () => {
+  it.each(["support_option", "model"])("keeps %s setups out of executable checkpoint and token onboarding", async source => {
+    state.setups.get("team-user/setup-1")!.robotDescription = source === "support_option"
+      ? {source,embodimentId:"almond_axol",catalogDigest:`sha256:${"a".repeat(64)}`,policyRouteIds:["pi_api"]}
+      : {source,format:"urdf",reference:"https://robot.test/arm.urdf",mobility:"fixed",details:""};
+    const registration = await post("team", {setupId:"setup-1",label:"Planning",runtime:"policy_endpoint"});
+    expect(registration.status).toBe(409);
+    expect((await registration.json()).code).toBe("team_evaluation_robot_integration_required");
+    const token = await fetch(`${baseUrl}/policy-token`, {method:"POST",headers:{Authorization:"Bearer team","Content-Type":"application/json"},
+      body:JSON.stringify({setupId:"setup-1",token:"test-only-token"})});
+    expect(token.status).toBe(409);
+    expect((await token.json()).code).toBe("team_evaluation_robot_integration_required");
+    expect(state.registered).toHaveLength(0); expect(state.stored).toHaveLength(0); expect(state.createdTeams).toHaveLength(0);
+  });
   it("requires a signed-in account", async () => {
     expect((await fetch(baseUrl)).status).toBe(401);
     expect((await post("nobody", { setupId: "setup-1", label: "v2", runtime: "policy_endpoint" })).status).toBe(401);

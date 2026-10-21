@@ -9,6 +9,7 @@ import { OfferingThumbnail } from "@/components/blueprint/app/OfferingThumbnail"
 import type { RobotSetup } from "@/types/workspace";
 import { RobotDescriptionFields, readRobotDescription } from "@/components/workspace/RobotDescriptionFields";
 import { TeamEvaluationResults } from "@/components/blueprint/app/TeamEvaluationResults";
+import { DeploymentEmbodimentShortlist } from "@/components/workspace/DeploymentEmbodimentShortlist";
 
 type Configuration={id:string;label:string;binding_digest:string;policy_candidates:Array<{id:string;artifact_digest:string}>};
 type Context={sourceLaunchId:string;sourceProfileDigest:string;sceneRevisionDigest:string;
@@ -64,7 +65,7 @@ export default function TeamEvaluationSelection() {
     return ()=>{cancelled=true;clearInterval(timer);};
   },[receipt?.id,currentUser]);
   const setup=context?.setups.find(s=>s.id===setupId);
-  const configuration=setup?.robotDescription?.source==="model" ? undefined : context?.configurations.find(c=>c.id===(setup?.executionBindingId || configurationId));
+  const configuration=setup?.robotDescription && setup.robotDescription.source!=="catalog" ? undefined : context?.configurations.find(c=>c.id===(setup?.executionBindingId || configurationId));
   const robotVersionChanged=setup?.robotDescription?.source==="catalog"
     && setup.robotDescription.configurationDigest!==configuration?.binding_digest;
   async function submit(event:React.FormEvent<HTMLFormElement>) {
@@ -160,6 +161,7 @@ export default function TeamEvaluationSelection() {
             <dt className="mt-2">Revision</dt><dd className="break-all">{context.dataSummary.sceneRevisionDigest}</dd>
           </dl>
         </details>
+        <div className="mt-8"><DeploymentEmbodimentShortlist sourceLaunchId={sourceLaunchId || null} /></div>
       </>}
       {receipt ? <div role="status" className="mt-6 border-t pt-5">
         <h2 className="text-xl">{statusTitle}</h2>
@@ -196,6 +198,7 @@ export default function TeamEvaluationSelection() {
           </label>
           {!addingSetup && <button type="button" onClick={()=>setAddingSetup(true)} className="text-sm underline">Add a setup</button>}
           {setup?.robotDescription?.source==="model" && <p className="text-sm">This robot model needs simulation validation before this job can run. Your setup is saved.</p>}
+          {setup?.robotDescription?.source==="support_option" && <p className="text-sm">Your robot and policy shortlist is saved. Bind its exact assets and policy access to a validated simulation configuration before starting this job.</p>}
           {robotVersionChanged && <p className="text-sm">This robot configuration has changed. Update your saved setup before starting.</p>}
           {setup && !setup.executionBindingId && !setup.robotDescription && <label className="block">Simulation configuration
             <select required value={configurationId} onChange={e=>setConfigurationId(e.target.value)}

@@ -7,6 +7,7 @@ import { BuyerAppErrorState, BuyerAppLoadingState } from "@/components/blueprint
 import { TaskSuccessContractPanel } from "@/components/blueprint/app/TaskSuccessContractPanel";
 import { TeamPolicyDeliveryConfig } from "@/components/blueprint/app/TeamPolicyDeliveryConfig";
 import { Field } from "@/components/workspace/WorkspaceUI";
+import { DeploymentEmbodimentShortlist } from "@/components/workspace/DeploymentEmbodimentShortlist";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchG1TeamCampaignSetups, submitG1TeamCampaign } from "@/lib/nativeG1TeamCampaigns";
 import { downloadPolicyPairChoice, makePolicyPairChoice } from "@/lib/policyPairChoice";
@@ -352,6 +353,7 @@ export default function PolicyCanarySetup() {
       {packetSetup ? <p className="mt-2">{packetSetup.scene_id} · {packetSetup.task_id}</p>
         : setup ? <p className="mt-2">{setup.offering.scene_id} · {setup.offering.task_id}</p> : null}
     </div></header>
+    <DeploymentEmbodimentShortlist sourceLaunchId={decodedLaunchId || null} />
     {developmentAccess ? <section aria-labelledby="packet-planning-import" className="mb-8">
       <h2 id="packet-planning-import">Retained task packet</h2>
       <p className="ws-note mt-2">Choose an assigned G1 task packet or import a verified Pipeline planning setup for an exact task revision.</p>

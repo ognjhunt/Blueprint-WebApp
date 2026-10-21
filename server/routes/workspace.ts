@@ -57,6 +57,7 @@ import type {
 } from "../../client/src/types/workspace";
 
 import { robotDescriptionSchema } from "../../client/src/types/robotDescription";
+import { canonicalDeploymentSelections, deploymentCatalogWithDigest } from "../../client/src/lib/deploymentEmbodimentSupport";
 import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
 import { wilsonLowerBound, wilsonUpperBound } from "../utils/successRateConfidence";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
@@ -76,7 +77,7 @@ import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
 import { projectPilotBooking } from "../utils/pilotContactExchange";
 import { listCheckpoints } from "../utils/robotCheckpoints";
-import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
+import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, robotSetupIntegrationBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
 import { notCountedReason } from "../utils/pilotRecommendationEvidence";
 import { footageArrivedBeforeAccount, savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
@@ -267,6 +268,10 @@ router.get(
     return res.json({ ...accountProjection(user, auth), siteIntakeRequired: !owned?.docs.length });
   }),
 );
+// This is a planning catalog, never the runnable configuration registry.
+router.get("/deployment-embodiments", handle(async (_req, res) => {
+  return res.json(await deploymentCatalogWithDigest());
+}));
 router.post(
   "/setup",
   handle(async (req, res) => {
@@ -1236,6 +1241,16 @@ router.post(
     // A description cannot inherit an executable configuration for a different robot.
     if (input.robotDescription?.source === "catalog") {
       input.executionBindingId = input.robotDescription.configurationId;
+    } else if (input.robotDescription?.source === "support_option") {
+      const description = input.robotDescription;
+      const catalog = await deploymentCatalogWithDigest();
+      if (description.catalogDigest !== catalog.catalog_digest)
+        refuse(400, "The robot catalog changed. Choose the robot and policy routes again.");
+      try {
+        const [selection] = canonicalDeploymentSelections([{ embodiment_id: description.embodimentId, policy_route_ids: description.policyRouteIds }]);
+        description.policyRouteIds = selection.policy_route_ids;
+      } catch (error) { refuse(400, error instanceof Error ? error.message : "Choose compatible robot and policy routes."); }
+      delete input.executionBindingId;
     } else if (input.robotDescription?.source === "model") {
       delete input.executionBindingId;
     }
@@ -1306,6 +1321,8 @@ router.get(
  * current bearer token on file. Null when one of the team's checkpoints can.
  */
 async function setupTeamPolicyBlocker(uid: string, setup: RobotSetup): Promise<TeamPolicyBlocker | null> {
+  const integration = robotSetupIntegrationBlocker(setup);
+  if (integration) return integration;
   if (setup.delivery !== "endpoint") return "team_evaluation_policy_endpoint_required";
   const checkpoints = (await Promise.all((await teamsForAccount(uid)).map((team) => listCheckpoints(team.id)))).flat()
     .filter((checkpoint) => checkpoint.reference === setup.reference && checkpoint.status !== "retired");
@@ -1328,6 +1345,8 @@ router.post(
       (item) => item.id === input.setupId,
     );
     if (!setup) refuse(400, "Choose a saved robot and policy.");
+    const integration = robotSetupIntegrationBlocker(setup);
+    if (integration) refuse(409, TEAM_POLICY_BLOCKER_MESSAGES[integration], integration);
     // A team evaluation is one attempt: refuse a policy it could not call before asking for it.
     if (offersTeamEvaluation(source.record)) {
       const blocker = await setupTeamPolicyBlocker(caller.uid, setup);

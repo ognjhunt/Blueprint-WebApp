@@ -1,9 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { RobotConfigurationChoice, RobotDescription } from "@/types/robotDescription";
+import { deploymentEmbodimentCatalog, deploymentCatalogWithDigest } from "@/lib/deploymentEmbodimentSupport";
+import { DeploymentEmbodimentDetails, DeploymentPolicyRouteChoices } from "./DeploymentEmbodimentShortlist";
 
 export function readRobotDescription(form: FormData, configurations: RobotConfigurationChoice[]): RobotDescription | undefined {
   const source=String(form.get("robotDescriptionSource") || "");
   if (!source) return undefined;
+  if (source.startsWith("support:")) {
+    const policyRouteIds=form.getAll("robotSupportPolicyRouteIds").map(String);
+    const catalogDigest=String(form.get("robotSupportCatalogDigest") || "");
+    if (!policyRouteIds.length) throw new Error("Choose at least one policy route for this robot.");
+    if (!/^sha256:[a-f0-9]{64}$/.test(catalogDigest)) throw new Error("The robot catalog is loading. Try saving again.");
+    return {source:"support_option",embodimentId:source.slice(8),catalogDigest,policyRouteIds};
+  }
   if (source!=="model") {
     const configuration=configurations.find(row=>row.id===source);
     if (!configuration) throw new Error("Choose a robot model again.");
@@ -18,7 +27,13 @@ export function readRobotDescription(form: FormData, configurations: RobotConfig
 export function RobotDescriptionFields({value,configurations=[]}: {
   value?:RobotDescription;configurations?:RobotConfigurationChoice[];
 }) {
-  const [source,setSource]=useState(value?.source==="catalog"?value.configurationId:value?.source || "");
+  const [source,setSource]=useState(value?.source==="catalog"?value.configurationId:value?.source==="support_option"?`support:${value.embodimentId}`:value?.source || "");
+  const [catalogDigest,setCatalogDigest]=useState(value?.source==="support_option"?value.catalogDigest:"");
+  const [currentCatalogDigest,setCurrentCatalogDigest]=useState("");
+  const [routeIds,setRouteIds]=useState(value?.source==="support_option"?value.policyRouteIds:[]);
+  useEffect(()=>{ let cancelled=false; void deploymentCatalogWithDigest().then(catalog=>{
+    if(!cancelled) {setCurrentCatalogDigest(catalog.catalog_digest);setCatalogDigest(previous=>value?.source!=="support_option" || !previous?catalog.catalog_digest:previous);}
+  }); return ()=>{cancelled=true;}; },[]);
   const choices=value?.source==="catalog" && !configurations.some(row=>row.id===value.configurationId)
     ? [...configurations,{id:value.configurationId,label:"Saved robot model",binding_digest:value.configurationDigest}]
     : configurations;
@@ -27,12 +42,21 @@ export function RobotDescriptionFields({value,configurations=[]}: {
   return <fieldset className="space-y-3 border-t border-line pt-4">
     <legend className="px-1 font-medium">Physical robot</legend>
     <label className="block text-sm">Robot model
-      <select name="robotDescriptionSource" value={source} onChange={event=>setSource(event.target.value)} className={input} required>
+      <select name="robotDescriptionSource" value={source} onChange={event=>{setSource(event.target.value);setRouteIds([]);setCatalogDigest(currentCatalogDigest);}} className={input} required>
         <option value="">Choose a robot model</option>
         {choices.map(row=><option key={row.id} value={row.id}>{row.label}</option>)}
+        <optgroup label="Deployment embodiments · planning options">
+          {deploymentEmbodimentCatalog.embodiments.map(row=><option key={row.embodiment_id} value={`support:${row.embodiment_id}`}>{row.display_name}</option>)}
+        </optgroup>
         <option value="model">Use my robot model</option>
       </select>
     </label>
+    {source.startsWith("support:") && <div className="space-y-4">
+      <input type="hidden" name="robotSupportCatalogDigest" value={catalogDigest} />
+      <DeploymentEmbodimentDetails embodimentId={source.slice(8)} />
+      <DeploymentPolicyRouteChoices embodimentId={source.slice(8)} value={routeIds} onChange={routes=>{setRouteIds(routes);setCatalogDigest(currentCatalogDigest);}} name="robotSupportPolicyRouteIds" />
+      <p className="text-sm text-ink-500">Select at least one policy route. This saves a planning option; the exact robot assets, policy access and simulation configuration must be validated before this setup can run.</p>
+    </div>}
     {source==="model" && <>
       <label className="block text-sm">Robot model URL
         <input name="robotModelReference" type="url" required maxLength={1000} defaultValue={model?.reference} className={input} placeholder="https://example.com/robot.urdf" />
