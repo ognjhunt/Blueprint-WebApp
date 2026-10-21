@@ -342,8 +342,9 @@ describe("PolicyCanarySetup", () => {
     expect(screen.getByText(/AI review of this run only/)).toBeTruthy();
     expect(screen.getByText(/separate \$1\.50 maximum/i)).toBeTruthy();
 
+    expect(screen.queryByRole("heading", { name: "Robot and policy shortlist" })).toBeNull();
     // Raw runtime and policy identifiers stay in the closed details drawer.
-    const details = screen.getByText("Setup details", { selector: "summary" }).closest("details")!;
+    const details = screen.getByText("registry.example/isaac@sha256").closest("details")!;
     expect(details.open).toBe(false);
     expect(within(details).getByText("registry.example/isaac@sha256")).toBeTruthy();
     expect(within(details).getByText(/pi05_droid · adapter-0 · verified-internal-use/)).toBeTruthy();

@@ -64,7 +64,7 @@ export default function TeamEvaluationSelection() {
     return ()=>{cancelled=true;clearInterval(timer);};
   },[receipt?.id,currentUser]);
   const setup=context?.setups.find(s=>s.id===setupId);
-  const configuration=setup?.robotDescription?.source==="model" ? undefined : context?.configurations.find(c=>c.id===(setup?.executionBindingId || configurationId));
+  const configuration=setup?.robotDescription && setup.robotDescription.source!=="catalog" ? undefined : context?.configurations.find(c=>c.id===(setup?.executionBindingId || configurationId));
   const robotVersionChanged=setup?.robotDescription?.source==="catalog"
     && setup.robotDescription.configurationDigest!==configuration?.binding_digest;
   async function submit(event:React.FormEvent<HTMLFormElement>) {
@@ -196,6 +196,7 @@ export default function TeamEvaluationSelection() {
           </label>
           {!addingSetup && <button type="button" onClick={()=>setAddingSetup(true)} className="text-sm underline">Add a setup</button>}
           {setup?.robotDescription?.source==="model" && <p className="text-sm">This robot model needs simulation validation before this job can run. Your setup is saved.</p>}
+          {setup?.robotDescription?.source==="support_option" && <p className="text-sm">Your robot setup is saved. Blueprint must validate it in simulation before this job can run.</p>}
           {robotVersionChanged && <p className="text-sm">This robot configuration has changed. Update your saved setup before starting.</p>}
           {setup && !setup.executionBindingId && !setup.robotDescription && <label className="block">Simulation configuration
             <select required value={configurationId} onChange={e=>setConfigurationId(e.target.value)}

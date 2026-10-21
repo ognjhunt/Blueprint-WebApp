@@ -1,0 +1,158 @@
+{
+  "universal_robots_ur5e": {
+    "src": "/images/deployment-embodiments/ur5e.webp",
+    "source_url": "https://docs.isaacsim.omniverse.nvidia.com/latest/assets/usd_assets_robots_manipulator.html",
+    "download_url": "https://docs.isaacsim.omniverse.nvidia.com/latest/_images/thumb_isim_5_1_full_ref_viewport_isaac_robots_universalrobots_ur5e_ur5e_usd_png.webp",
+    "credit": "NVIDIA Isaac Sim documentation / Universal Robots",
+    "license_note": "Official simulator asset render. Underlying model catalog lists BSD-3; documentation-image reuse is not separately licensed in the observed page. Retained unmodified for authorized UI development/review.",
+    "visual_kind": "simulator_asset_render",
+    "portrayal": "Shows one UR5e arm; no attached gripper.",
+    "sha256": "6ede834999ea62658f7d24ee8264700b9212bbee22792be9a24ab537f4e009e5",
+    "alt": "Shows one UR5e arm; no attached gripper."
+  },
+  "universal_robots_ur5e_bimanual": {
+    "src": "/images/deployment-embodiments/ur5e.webp",
+    "source_url": "https://docs.isaacsim.omniverse.nvidia.com/latest/assets/usd_assets_robots_manipulator.html",
+    "download_url": "https://docs.isaacsim.omniverse.nvidia.com/latest/_images/thumb_isim_5_1_full_ref_viewport_isaac_robots_universalrobots_ur5e_ur5e_usd_png.webp",
+    "credit": "NVIDIA Isaac Sim documentation / Universal Robots",
+    "license_note": "Official simulator asset render. Underlying model catalog lists BSD-3; documentation-image reuse is not separately licensed in the observed page. Retained unmodified for authorized UI development/review.",
+    "visual_kind": "simulator_asset_render",
+    "portrayal": "One arm; selected configuration uses two arms, not the pictured single-arm rig.",
+    "sha256": "6ede834999ea62658f7d24ee8264700b9212bbee22792be9a24ab537f4e009e5",
+    "alt": "One arm; selected configuration uses two arms, not the pictured single-arm rig."
+  },
+  "trlc_dk1_bimanual": {
+    "src": "/images/deployment-embodiments/trlc-dk1-follower.png",
+    "source_url": "https://github.com/robot-learning-co/trlc-dk1/blob/12f5368aefd0381461f2c7ffbb5611b4e8c90de9/media/follower_urdf.png",
+    "download_url": "https://raw.githubusercontent.com/robot-learning-co/trlc-dk1/12f5368aefd0381461f2c7ffbb5611b4e8c90de9/media/follower_urdf.png",
+    "credit": "The Robot Learning Company",
+    "license_note": "Repository license Apache-2.0; retain license/notices. This is its published URDF render, not the separately rights-reserved CAD asset. No endorsement or simulator-readiness claim.",
+    "visual_kind": "manufacturer_urdf_render",
+    "portrayal": "One follower arm; selected configuration uses two arms.",
+    "sha256": "32b5e7bc63f2cd51aae1c0214a420601533ea60c52c5fbbee2bb4ccb43b60f03",
+    "alt": "One follower arm; selected configuration uses two arms.",
+    "notice_url": "/licenses/deployment-embodiments/trlc-dk1-LICENSE.txt"
+  },
+  "almond_axol": {
+    "src": "/images/deployment-embodiments/almond-axol.png",
+    "source_url": "https://github.com/almond-bot/axol/blob/cd199a2f4c847c3a10594c6c2ed2250b4b4be675/assets/axol.png",
+    "download_url": "https://raw.githubusercontent.com/almond-bot/axol/cd199a2f4c847c3a10594c6c2ed2250b4b4be675/assets/axol.png",
+    "credit": "Almond Robotics",
+    "license_note": "MIT repository; retain its license and copyright notice. Official product render, no simulator-readiness claim.",
+    "visual_kind": "manufacturer_product_render",
+    "portrayal": "Shows complete two-arm Axol.",
+    "sha256": "184fd69a41070ece090bb83d7b5faa29c066c7cfdc5ad446bd9da95d4fe935fa",
+    "alt": "Shows complete two-arm Axol.",
+    "notice_url": "/licenses/deployment-embodiments/almond-axol-LICENSE.txt"
+  },
+  "fanuc_crx_10ia_l": {
+    "src": "/images/deployment-embodiments/fanuc-crx10ia-l.webp",
+    "source_url": "https://docs.isaacsim.omniverse.nvidia.com/latest/assets/usd_assets_robots_manipulator.html",
+    "download_url": "https://docs.isaacsim.omniverse.nvidia.com/latest/_images/thumb_isim_6_0_full_ref_viewport_isaac_robots_fanuc_crx10ia_l_crx10ia_l_usd_png.webp",
+    "credit": "NVIDIA Isaac Sim documentation / FANUC",
+    "license_note": "Underlying model catalog names 3D Content Sharing Agreement; no separate documentation-image reuse license observed. Retained unmodified for authorized UI development/review.",
+    "visual_kind": "simulator_asset_render",
+    "portrayal": "Exact CRX-10iA/L asset render, one bare arm.",
+    "sha256": "9ea816dc0415a0df17747e2f0586293fae7379b3a36e684544c1d8154e684b5f",
+    "alt": "Exact CRX-10iA/L asset render, one bare arm."
+  },
+  "yaskawa_gp12": {
+    "src": "/images/deployment-embodiments/yaskawa-gp12.jpg",
+    "source_url": "https://www.motoman.com/en-us/products/robots/industrial/assembly-handling/gp-series/gp12",
+    "download_url": "https://www.motoman.com/getmedia/eaf12253-32ec-4ba8-84b1-301e8ac530e2/GP12_500.jpg.aspx",
+    "credit": "Yaskawa Motoman",
+    "license_note": "Public manufacturer product image; no separate reuse license observed. Retained unmodified for authorized UI development/review; source/copyright retained.",
+    "visual_kind": "manufacturer_product_image",
+    "portrayal": "Exact GP12 product image; no tool or paired rig implied.",
+    "sha256": "cb1b1458b262ab1175dbbb04828db5fb0e7f188d7d42d91b481ba10c30cf9bea",
+    "alt": "Exact GP12 product image; no tool or paired rig implied."
+  },
+  "yaskawa_gp20": {
+    "src": "/images/deployment-embodiments/yaskawa-gp20.png",
+    "source_url": "https://www.yaskawa.eu.com/products/robots/handling-mounting/productdetail/product/gp20_17184",
+    "download_url": "https://www.yaskawa.eu.com/Global%20Assets/Pictures/Products/Robotics/Robots/GP/GP20/YER_GP20_frei_web%20%282%29.png",
+    "credit": "Yaskawa Europe",
+    "license_note": "Public manufacturer product image; no separate reuse license observed. Retained unmodified for authorized UI development/review; source/copyright retained.",
+    "visual_kind": "manufacturer_product_image",
+    "portrayal": "Exact European GP20, distinct from GP20HL.",
+    "sha256": "e837596f6fa435033d645a2d96fde95b9d7196ca8fadccc231ed8d9357369d72",
+    "alt": "Exact European GP20, distinct from GP20HL."
+  },
+  "agilex_piper_bimanual": {
+    "src": "/images/deployment-embodiments/piper.jpg",
+    "source_url": "https://global.agilex.ai/products/piper",
+    "download_url": "https://global.agilex.ai/cdn/shop/files/PIPER-_ac_ee.jpg?v=1792575825&width=600",
+    "credit": "AgileX Robotics",
+    "license_note": "Manufacturer-published product imagery. Copyright retained by source; no open license asserted.",
+    "sha256": "0355bce8fa7831cbd8159b3718fc2b7d161fcfc25f86a62642714fbd3dbd4e93",
+    "visual_kind": "manufacturer_product_image",
+    "portrayal": "AgileX PiPER arm; selected configuration uses two arms",
+    "alt": "AgileX PiPER arm; selected configuration uses two arms"
+  },
+  "standard_bots_core": {
+    "src": "/images/deployment-embodiments/core.avif",
+    "source_url": "https://standardbots.com/products/core",
+    "download_url": "https://cdn.prod.website-files.com/6a79f27a2db19b673bdd1000/6ad0e6e5a3e6b99a212d73f6_6ad0e6bfb3f30813a9d9b42f_standard-bots_products_core-thumbnail.avif",
+    "credit": "Standard Bots",
+    "license_note": "Manufacturer-published product imagery. Copyright retained by source; no open license asserted.",
+    "sha256": "21089c095235332de61187e1ee8d6d705fbff1daf65d4d42df1f2e9df6158f6a",
+    "visual_kind": "manufacturer_product_image",
+    "portrayal": "Standard Bots Core arm",
+    "alt": "Standard Bots Core arm"
+  },
+  "franka_research_3_bimanual": {
+    "src": "/images/deployment-embodiments/fr3-isaac.webp",
+    "source_url": "https://docs.isaacsim.omniverse.nvidia.com/latest/assets/usd_assets_robots_manipulator.html",
+    "download_url": "https://docs.isaacsim.omniverse.nvidia.com/latest/_images/thumb_isim_5_1_full_ref_viewport_isaac_robots_frankarobotics_frankafr3_fr3_usd_png.webp",
+    "credit": "NVIDIA Isaac Sim documentation / Franka Robotics",
+    "license_note": "Official simulator asset render. No separate documentation-image reuse license observed; retained unmodified for authorized UI development/review.",
+    "sha256": "613a1a5143d54804b62fc8779d0bbe20047b5589412f3b2fb2c4f17bd1dce65a",
+    "visual_kind": "simulator_asset_render",
+    "portrayal": "Franka Research 3 arm; selected configuration uses two arms",
+    "alt": "Franka Research 3 arm; selected configuration uses two arms"
+  },
+  "ufactory_xarm7_bimanual": {
+    "src": "/images/deployment-embodiments/xarm7-isaac.webp",
+    "source_url": "https://docs.isaacsim.omniverse.nvidia.com/latest/assets/usd_assets_robots_manipulator.html",
+    "download_url": "https://docs.isaacsim.omniverse.nvidia.com/latest/_images/thumb_isim_5_1_full_ref_viewport_isaac_robots_ufactory_xarm7_xarm7_usd_png.webp",
+    "credit": "NVIDIA Isaac Sim documentation / UFACTORY",
+    "license_note": "Official simulator asset render. No separate documentation-image reuse license observed; retained unmodified for authorized UI development/review.",
+    "sha256": "6d6183d5d37f945b9196f63b0256893c94fe166c609a22d65ff3d85c00be3738",
+    "visual_kind": "simulator_asset_render",
+    "portrayal": "UFACTORY xArm 7 arm; selected configuration uses two arms",
+    "alt": "UFACTORY xArm 7 arm; selected configuration uses two arms"
+  },
+  "kuka_lbr_iiwa_14": {
+    "src": "/images/deployment-embodiments/iiwa.png",
+    "source_url": "https://www.kuka.com/en-us/products/robotics-systems/industrial-robots/lbr-iiwa",
+    "download_url": "https://www.kuka.com/-/media/kuka-corporate/images/products/robots/cta-images/lbr-iiwa.png?rev=-1&w=767&hash=78E7DD844A27074AFD67AEF17C72078A",
+    "credit": "KUKA",
+    "license_note": "Manufacturer-published product imagery. Copyright retained by source; no open license asserted.",
+    "sha256": "82c26aa9991c86846cf6d648ed8830ef201102a804c6c0ab57085491b1f8991f",
+    "visual_kind": "manufacturer_product_image",
+    "portrayal": "KUKA LBR iiwa product family; selected variant is iiwa 14",
+    "alt": "KUKA LBR iiwa product family; selected variant is iiwa 14"
+  },
+  "i2rt_yam_bimanual": {
+    "src": "/images/deployment-embodiments/yam.png",
+    "source_url": "https://i2rt.com/products/yam-6-dof-arm",
+    "download_url": "https://i2rt.com/cdn/shop/files/st0_768396f1-edfb-4839-96c1-f7b5dffa214a.png?v=1788854436&width=550",
+    "credit": "I2RT Robotics",
+    "license_note": "Manufacturer-published product imagery. Copyright retained by source; no open license asserted.",
+    "sha256": "17956caf710b86dbddc46fe7a1e97a266948d78e92c4d65f8e4528773ba4f590",
+    "visual_kind": "manufacturer_product_image",
+    "portrayal": "I2RT YAM arm; selected configuration uses two arms",
+    "alt": "I2RT YAM arm; selected configuration uses two arms"
+  },
+  "kinova_gen3_bimanual": {
+    "src": "/images/deployment-embodiments/gen3.jpg",
+    "source_url": "https://github.com/Kinovarobotics/ros2_kortex",
+    "download_url": "https://raw.githubusercontent.com/Kinovarobotics/ros2_kortex/b2aa46b29ae8fadd5b293c57e3500925c61eb8e8/doc/resources/kinova-gen3-7dof-robotiq-2f-85.jpg",
+    "credit": "Kinova Robotics",
+    "license_note": "Manufacturer-published product imagery. Copyright retained by source; no open license asserted.",
+    "sha256": "560f755a70f6371750e0cbd8e59d676002e2b2bd9090fd24c16be8f4c1cc2f5e",
+    "visual_kind": "manufacturer_product_image",
+    "portrayal": "Kinova Gen3 seven-axis arm with Robotiq gripper; selected configuration uses two arms",
+    "alt": "Kinova Gen3 seven-axis arm with Robotiq gripper; selected configuration uses two arms"
+  }
+}

@@ -28,6 +28,7 @@ function WorkspaceSettings() {
       return requested === "robots" ? requested : "account";
     }),
     [editing, setEditing] = useState<RobotSetup | "new" | null>(null),
+    [setupError, setSetupError] = useState(""),
     [removing, setRemoving] = useState<RobotSetup | null>(null);
   const robot = query.data?.role === "robot_team";
   return (
@@ -249,6 +250,14 @@ function WorkspaceSettings() {
                 event.preventDefault();
                 const values = new FormData(event.currentTarget),
                   value = (name: string) => String(values.get(name) || "");
+                setSetupError("");
+                let robotDescription: RobotSetup["robotDescription"];
+                try {
+                  robotDescription = readRobotDescription(values, editing!=="new" && editing.robotDescription?.source==="catalog" ? [{id:editing.robotDescription.configurationId,label:"Saved robot model",binding_digest:editing.robotDescription.configurationDigest}] : []);
+                } catch (error) {
+                  setSetupError(error instanceof Error ? error.message : "Choose a robot and policy route.");
+                  return;
+                }
                 // A declared robot is evaluated as itself; without one the policy drives the DROID Franka.
                 const manifestField = event.currentTarget.elements.namedItem("robotEmbodiment") as HTMLTextAreaElement | null;
                 let robotEmbodiment: RobotEmbodiment | undefined;
@@ -280,7 +289,7 @@ function WorkspaceSettings() {
                     delivery: value("delivery"),
                     reference: value("reference"),
                     notes: value("notes"),
-                    robotDescription: readRobotDescription(values,editing!=="new" && editing.robotDescription?.source==="catalog" ? [{id:editing.robotDescription.configurationId,label:"Saved robot model",binding_digest:editing.robotDescription.configurationDigest}] : []),
+                    robotDescription,
                     ...(editing !== "new" && editing.executionBindingId ? {executionBindingId:editing.executionBindingId} : {}),
                     ...(robotEmbodiment ? { robotEmbodiment } : {}),
                   },
@@ -289,6 +298,7 @@ function WorkspaceSettings() {
               }}
             >
               <h2>{editing === "new" ? "Add a setup" : "Edit setup"}</h2>
+              {setupError && <p role="alert" className="text-sm">{setupError}</p>}
               <RobotDescriptionFields value={editing==="new"?undefined:editing.robotDescription} />
               <div className="ws-fields ws-section">
                 {[

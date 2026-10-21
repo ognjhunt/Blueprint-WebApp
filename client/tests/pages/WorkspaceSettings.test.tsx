@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Settings from "@/pages/workspace/Settings";
+import { deploymentEmbodimentCatalog } from "@/lib/deploymentEmbodimentSupport";
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
     currentUser: {
@@ -16,6 +17,23 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 afterEach(() => vi.unstubAllGlobals());
 describe("unconfigured account settings", () => {
+  it("keeps internal planning options out of customer robot settings", async () => {
+    window.history.replaceState({}, "", "/settings?tab=robots");
+    const fetch = vi.fn(async (path: RequestInfo | URL) => new Response(JSON.stringify(
+      String(path).includes("/checkpoints") ? {teams:[],checkpoints:[],runtimes:[]}
+        : {role:"robot_team",profile:{name:"Robot Owner",organization:"Robot Team",email:"team@example.test"},
+          tasks:[],setups:[],evaluations:[],results:[]}), {status:200,headers:{"Content-Type":"application/json"}}));
+    vi.stubGlobal("fetch", fetch);
+    const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
+    const view = render(<QueryClientProvider client={client}><Settings /></QueryClientProvider>);
+    fireEvent.click(await screen.findByRole("button",{name:"+ Add setup"}));
+    const source = screen.getByRole("combobox",{name:"Robot model"});
+    for (const robot of deploymentEmbodimentCatalog.embodiments) expect(screen.queryByRole("option",{name:robot.display_name})).toBeNull();
+    expect(screen.getByRole("option",{name:"Use my robot model"})).toBeInTheDocument();
+    expect(screen.queryByRole("heading",{name:"Robot and policy shortlist"})).toBeNull();
+    expect(fetch.mock.calls.some(([path])=>String(path).endsWith("/setups"))).toBe(false);
+    view.unmount(); client.clear(); window.history.replaceState({},"","/");
+  });
   it("shows editable setup and keeps capture access instead of a dead-end retry", async () => {
     const fetch = vi.fn(
       async (path: RequestInfo | URL) =>

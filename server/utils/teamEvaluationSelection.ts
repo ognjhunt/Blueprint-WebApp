@@ -62,7 +62,7 @@ export function buildTeamEvaluationRequest(raw:unknown, context:TeamEvaluationCo
   const command=teamEvaluationCommand.parse(raw);
   const configuration=context.configurations.find(c=>c.id===command.configurationId);
   const robot=setup.robotDescription;
-  if (robot?.source==="model") throw new Error("robot_model_validation_required");
+  if (robot?.source==="model" || robot?.source==="support_option") throw new Error("robot_model_validation_required");
   if (robot?.source==="catalog" && (robot.configurationId!==command.configurationId
       || robot.configurationDigest!==configuration?.binding_digest))
     throw new Error("robot_configuration_changed");

@@ -103,6 +103,12 @@ it("does not route a custom robot model through a saved Franka binding",()=>{
     reference:"https://example.test/custom.urdf",mobility:"mobile" as const,details:""}};
   expect(()=>buildTeamEvaluationRequest(command,context,custom,owner,1000)).toThrow("robot_model_validation_required");
 });
+it("does not execute a planning shortlist through a saved Franka binding",()=>{
+  const {context,command,setup}=fixture();
+  const planning={...setup,robotDescription:{source:"support_option" as const,embodimentId:"almond_axol",
+    catalogDigest:sha("1"),policyRouteIds:["pi_api"]}};
+  expect(()=>buildTeamEvaluationRequest(command,context,planning,owner,1000)).toThrow("robot_model_validation_required");
+});
 it("refuses a robot configuration version changed since the setup was saved",()=>{
   const {context,command,setup}=fixture();
   const saved={...setup,robotDescription:{source:"catalog" as const,configurationId:command.configurationId,

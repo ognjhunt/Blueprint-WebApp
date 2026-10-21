@@ -7,6 +7,7 @@ import { AdmitFreeEvaluationForm } from "@/components/admin/AdmitFreeEvaluationF
 import { RobotFitConsole } from "@/components/admin/RobotFitConsole";
 import { SiteMeasurementsConsole } from "@/components/admin/SiteMeasurementsConsole";
 import { AccountDeletionQueue } from "@/components/admin/AccountDeletionQueue";
+import { DeploymentEmbodimentShortlist } from "@/components/workspace/DeploymentEmbodimentShortlist";
 import { JobWorkflowPanel } from "@/components/admin/JobWorkflowPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
@@ -249,6 +250,7 @@ function JobDetail({ requestId, onClose }: { requestId: string; onClose: () => v
 export default function AdminJobConsole() {
   const api = useAdminFetch();
   const queryClient = useQueryClient();
+  const [planningOpen, setPlanningOpen] = useState(false);
   const [stage, setStage] = useState<JobStage | "">("");
   const [search, setSearch] = useState("");
   const [submittedSearch, setSubmittedSearch] = useState("");
@@ -304,6 +306,10 @@ export default function AdminJobConsole() {
           </div>
         ) : (
           <>
+            <details className="mt-8 border-y border-line py-4" onToggle={event => setPlanningOpen(event.currentTarget.open)}>
+              <summary className="cursor-pointer text-sm font-medium text-runway-text">Robot integration planning</summary>
+              {planningOpen && <div className="embodiment-operator-gallery mx-auto mt-6 max-w-5xl"><DeploymentEmbodimentShortlist /></div>}
+            </details>
             <div className="mt-8 flex flex-col gap-4 md:flex-row md:items-end">
               <div className="md:w-64">
                 <label className="runway-label" htmlFor="job-stage-filter">Stage</label>

@@ -30,6 +30,7 @@ import { storeCheckpointPolicyCredential } from "../utils/checkpointPolicyCreden
 import { bindTeamToAccount, teamsForAccount } from "../utils/robotTeamAccounts";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
 import { ensureApprovedTeamForAccount } from "../utils/robotTeamEarlyAccess";
+import { robotSetupIntegrationBlocker, TEAM_POLICY_BLOCKER_MESSAGES, type TeamPolicyBlocker } from "../utils/policyIntegration";
 
 const router = Router();
 
@@ -91,13 +92,13 @@ function project(checkpoint: RobotCheckpoint) {
   };
 }
 
-async function readSetupReference(uid: string, setupId: string): Promise<{ reference: string; name: string; delivery: string } | null> {
+async function readSetupReference(uid: string, setupId: string): Promise<{ reference: string; name: string; delivery: string; integrationBlocker: TeamPolicyBlocker | null } | null> {
   const stored = await db!.collection("users").doc(uid).collection("robotSetups").doc(setupId).get();
   if (!stored.exists || !stored.data()?.payload) return null;
   const payload = JSON.parse(await decryptFieldValue(stored.data()!.payload));
   const reference = typeof payload.reference === "string" ? payload.reference.trim() : "";
   return reference ? { reference, name: typeof payload.name === "string" ? payload.name : setupId,
-    delivery: typeof payload.delivery === "string" ? payload.delivery : "" } : null;
+    delivery: typeof payload.delivery === "string" ? payload.delivery : "", integrationBlocker: robotSetupIntegrationBlocker(payload) } : null;
 }
 
 type Refusal = { status: number; error: string; code: string };
@@ -170,6 +171,7 @@ router.post("/", async (req: Request, res: Response) => {
     const input = parsed.data;
     const setup = await readSetupReference(caller.uid, input.setupId);
     if (!setup) return res.status(404).json({ error: "That setup is not saved on this account.", code: "setup_not_found" });
+    if (setup.integrationBlocker) return res.status(409).json({ error: TEAM_POLICY_BLOCKER_MESSAGES[setup.integrationBlocker], code: setup.integrationBlocker });
 
     return await serialized(`account:${caller.uid}`, async () => {
       const team = await accountTeam(caller, input.teamId);
@@ -212,6 +214,7 @@ router.post("/policy-token", async (req: Request, res: Response) => {
     const input = parsed.data;
     const setup = await readSetupReference(caller.uid, input.setupId);
     if (!setup) return res.status(404).json({ error: "That setup is not saved on this account.", code: "setup_not_found" });
+    if (setup.integrationBlocker) return res.status(409).json({ error: TEAM_POLICY_BLOCKER_MESSAGES[setup.integrationBlocker], code: setup.integrationBlocker });
     if (setup.delivery !== "endpoint") {
       return res.status(409).json({ error: "A policy token belongs to a setup delivered as a hosted endpoint.",
         code: "policy_token_endpoint_required" });

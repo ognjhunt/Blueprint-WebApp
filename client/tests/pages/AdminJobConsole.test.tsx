@@ -96,6 +96,15 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("AdminJobConsole", () => {
+  it("reveals robot integration planning only in the existing operator console", async () => {
+    renderPage();
+    await screen.findByRole("list", { name: "Site jobs" });
+    expect(screen.queryByRole("heading", { name: "Robot and policy shortlist" })).toBeNull();
+    fireEvent.click(screen.getByText("Robot integration planning", { selector: "summary" }));
+    expect(await screen.findByRole("heading", { name: "Robot and policy shortlist" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Shortlist I2RT YAM (two arms)" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Download robot and policy shortlist" })).toBeDisabled();
+  });
   it("lists one row per job with its stage and next action", async () => {
     renderPage();
     expect(screen.getByRole("heading", { level: 1, name: "Job console" })).toBeInTheDocument();

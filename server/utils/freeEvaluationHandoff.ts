@@ -10,7 +10,7 @@ import { executionTtlMs, reservationTtlMs, runIdForReservation, type EvalRunReco
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { TEAM_EVALUATION_PROVIDER_CAP_USD } from "./teamEvaluationSelection";
 import { teamJobAccess } from "./teamJobAccess";
-import { isTeamEvaluationProfile, offersTeamEvaluation, TEAM_EVALUATION_PURPOSE, teamPolicyBlocker } from "./policyIntegration";
+import { isTeamEvaluationProfile, offersTeamEvaluation, TEAM_EVALUATION_PURPOSE, teamPolicyBlocker, robotSetupIntegrationBlocker } from "./policyIntegration";
 import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
@@ -57,6 +57,8 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   const setupRecord = (await setupRef.get()).data();
   if (!setupRecord?.payload) throw new Error("free_evaluation_setup_missing");
   const setup = JSON.parse(await decryptFieldValue(setupRecord.payload));
+  const integrationBlocker = robotSetupIntegrationBlocker(setup);
+  if (integrationBlocker) throw new Error(integrationBlocker);
   if (!hasCurrentPolicyRunLicense({ ownerUid: owner, requestId, opportunityId: selection.opportunityId,
     setupId: selection.setupId, setup }, selection.policyRunLicense))
     throw new Error("free_evaluation_policy_license_required:request_a_new_evaluation_for_this_setup");

@@ -60,6 +60,20 @@ beforeEach(() => {
       canonical_execution_request: { execution_authorization: { max_cost_usd: 10, episodes: 1 } } } });
 });
 describe("operator-approved workspace handoff", () => {
+  it.each(["support_option", "model"])("refuses a legacy queued %s setup before preparation despite a valid endpoint and token", async source => {
+    const setup = { reference: "https://policy.test/action", version: "v1", delivery: "endpoint", robotDescription: source === "support_option"
+      ? {source,embodimentId:"almond_axol",catalogDigest:`sha256:${"a".repeat(64)}`,policyRouteIds:["pi_api"]}
+      : {source,format:"urdf",reference:"https://robot.test/arm.urdf",mobility:"fixed",details:""} };
+    state.docs.set("users/owner/robotSetups/setup", {payload:JSON.stringify(setup)});
+    state.docs.get("inboundRequests/application")!.workspace_evaluation.policyRunLicense = buildPolicyRunLicense({
+      ownerUid:"owner",requestId:"application",opportunityId:"scene",setupId:"setup",setup,
+    });
+    state.docs.set("robotCheckpoints/checkpoint", {teamId:"team",reference:setup.reference,runtime:"policy_endpoint",
+      policyCredential:{ref:"credential",kind:"bearer",expiresAtIso:"2100-01-01T00:00:00Z"}});
+    await expect(admitFreeWorkspaceEvaluation("application",command(),"operator")).rejects.toThrow("team_evaluation_robot_integration_required");
+    expect(prepare).not.toHaveBeenCalled(); expect(admission).not.toHaveBeenCalled();
+    expect([...state.docs.keys()].some(key=>key.startsWith("evaluationRuns/"))).toBe(false);
+  });
   it("refuses a legacy request with no bound policy license before preparation", async () => {
     delete state.docs.get("inboundRequests/application")!.workspace_evaluation.policyRunLicense;
     await expect(admitFreeWorkspaceEvaluation("application", command(), "operator")).rejects.toThrow("policy_license_required");
