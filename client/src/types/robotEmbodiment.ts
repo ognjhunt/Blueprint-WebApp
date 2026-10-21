@@ -25,6 +25,7 @@ const httpsModel = z.string().trim().url().max(1000).refine(value => {
 }, "Use an HTTPS link to the USD file, without credentials or query parameters.");
 
 export const ROBOT_EMBODIMENT_SCHEMA = "blueprint.robot_embodiment.v1";
+export const ROBOT_EMBODIMENT_SCHEMA_V2 = "blueprint.robot_embodiment.v2";
 export const ROBOT_CONTROL_HZ = [15, 30, 60, 120] as const;
 /** What the team says its robot is; reported, never a gate. */
 export const ROBOT_FORMS = ["fixed_base_arm", "bimanual_arm", "mobile_manipulator", "wheeled_humanoid", "humanoid",
@@ -60,19 +61,33 @@ const camera = z.object({
   horizontal_fov_deg: finite.min(10).max(170),
 }).strict();
 
+const finger = z.object({ name, open: finite, closed: finite }).strict()
+  .refine(joint => joint.open !== joint.closed, "Open and closed positions must differ.");
+const tool = z.object({
+  joints: z.array(finger).min(1).max(8),
+  max_width_m: finite.positive().max(1),
+  contact_links: z.array(name).min(1).max(8),
+}).strict();
+const pose = z.object({
+  position_m: z.tuple([finite, finite, finite]),
+  orientation_xyzw: z.tuple([finite, finite, finite, finite])
+    .refine(q => Math.abs(q.reduce((sum, v) => sum + v * v, 0) - 1) <= 1e-4,
+      "Use a normalized XYZW quaternion."),
+}).strict();
+
 export const robotEmbodimentSchema = z.object({
-  schema_version: z.literal(ROBOT_EMBODIMENT_SCHEMA),
+  schema_version: z.enum([ROBOT_EMBODIMENT_SCHEMA, ROBOT_EMBODIMENT_SCHEMA_V2]),
   embodiment_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/),
   form: z.enum(ROBOT_FORMS),
   model: z.object({ format: z.literal("usd"), url: httpsModel, sha256: z.string().regex(/^sha256:[a-f0-9]{64}$/) }).strict(),
   base,
   joints: z.array(joint).min(1).max(64),
-  gripper: z.object({
-    joints: z.array(z.object({ name, open: finite, closed: finite }).strict()
-      .refine(joint => joint.open !== joint.closed, "Open and closed positions must differ.")).min(1).max(8),
-    max_width_m: finite.positive().max(1),
-    contact_links: z.array(name).min(1).max(8),
-  }).strict().nullable().optional(),
+  gripper: tool.nullable().optional(),
+  grippers: z.array(tool.extend({ name, tool_link: name }).strict()).min(1).max(2).optional(),
+  arms: z.array(z.object({
+    name, joint_names: z.array(name).min(1).max(64), base_link: name,
+    tool_link: name, gripper_name: name, tool_from_tcp: pose,
+  }).strict()).min(1).max(2).optional(),
   tool_link: name,
   reset_joint_positions: z.record(name, finite),
   actuator: z.object({ stiffness: finite.positive(), damping: finite.positive() }).strict(),
@@ -82,7 +97,14 @@ export const robotEmbodimentSchema = z.object({
   // A fixed base reaches the task from the station; a free base goes to it.
   reach_m: finite.min(0.1).max(3).optional(),
 }).strict().superRefine((value, ctx) => {
-  const gripper = (value.gripper?.joints ?? []).map(joint => joint.name);
+  const v2 = value.schema_version === ROBOT_EMBODIMENT_SCHEMA_V2;
+  const issue = (path: string[], message: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, path, message });
+  if ((v2 && ("gripper" in value || !value.grippers))
+    || (!v2 && (!("gripper" in value) || "grippers" in value || "arms" in value))) {
+    issue(["schema_version"], "Version 1 uses gripper; version 2 uses independently named grippers and optional arms.");
+  }
+  const tools = v2 ? value.grippers ?? [] : value.gripper ? [value.gripper] : [];
+  const gripper = tools.flatMap(tool => tool.joints.map(joint => joint.name));
   const joints = [...value.joints.map(joint => joint.name), ...gripper];
   if (new Set(joints).size !== joints.length) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["joints"], message: "Joint names must be unique." });
@@ -108,11 +130,37 @@ export const robotEmbodimentSchema = z.object({
   if (new Set(cameras).size !== cameras.length) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cameras"], message: "Camera names must be unique." });
   }
+  if (v2 && value.grippers) {
+    const names = value.grippers.map(tool => tool.name);
+    const links = value.grippers.map(tool => tool.tool_link);
+    if (new Set(names).size !== names.length || new Set(links).size !== links.length
+      || !links.includes(value.tool_link)) {
+      issue(["grippers"], "Give each gripper a unique name and tool link; tool_link selects one declared tool.");
+    }
+    const arms = value.arms ?? [];
+    const armNames = arms.map(arm => arm.name);
+    const armJoints = arms.flatMap(arm => arm.joint_names);
+    const armTools = arms.map(arm => arm.gripper_name);
+    if (new Set(armNames).size !== armNames.length || new Set(armJoints).size !== armJoints.length
+      || new Set(armTools).size !== armTools.length
+      || (value.arms !== undefined && (value.base.mode !== "fixed"
+        || armJoints.length !== value.joints.length || armTools.length !== value.grippers.length))) {
+      issue(["arms"], "Arms must have independent names, joint groups and grippers.");
+    }
+    for (const arm of arms) {
+      if (arm.base_link === arm.tool_link
+        || !arm.joint_names.every(name => value.joints.some(joint => joint.name === name && joint.control === "position"))
+        || !value.grippers.some(tool => tool.name === arm.gripper_name && tool.tool_link === arm.tool_link)) {
+        issue(["arms"], "Bind every arm to declared position joints and its matching gripper/tool link.");
+      }
+    }
+  }
 });
 
 export type RobotEmbodiment = z.infer<typeof robotEmbodimentSchema>;
 
 /** One action row: a value per declared joint (a position, or a wheel's velocity), then the gripper's closure. */
 export function actionWidth(embodiment: RobotEmbodiment): number {
-  return embodiment.joints.length + (embodiment.gripper ? 1 : 0);
+  return embodiment.joints.length + (embodiment.schema_version === ROBOT_EMBODIMENT_SCHEMA_V2
+    ? embodiment.grippers?.length ?? 0 : embodiment.gripper ? 1 : 0);
 }

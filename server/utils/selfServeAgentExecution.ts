@@ -154,7 +154,7 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
     blockers.push("agent_execution_checkpoint_team_mismatch");
   }
   const policyPackage = policyPackageFor(checkpoint);
-  if (!policyPackage) blockers.push("agent_execution_checkpoint_runtime_not_admissible");
+  if (!policyPackage && checkpoint.policyConfig === undefined) blockers.push("agent_execution_checkpoint_runtime_not_admissible");
   if (checkpoint.policyCredential && Date.parse(checkpoint.policyCredential.expiresAtIso) <= Date.now()) {
     blockers.push("policy_credential_expired");
   }
@@ -183,6 +183,7 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
   const teamBlocker = teamOffered ? teamPolicyBlocker(checkpoint, teamOptions) : null;
   if (teamBlocker) return { prepared: false, blockers: [teamBlocker] };
   const teamPackage = teamOffered ? teamCandidatePolicyPackage(checkpoint, teamOptions) : null;
+  if (!teamPackage && !policyPackage) return { prepared: false, blockers: ["agent_execution_checkpoint_runtime_not_admissible"] };
   if (teamPackage && params.quotedEpisodes !== TEAM_EVALUATION_EPISODES) {
     return { prepared: false, blockers: ["pipeline_team_evaluation_episode_mismatch"] };
   }
@@ -207,6 +208,7 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
     runtime: checkpoint.runtime,
     reference: text(checkpoint.reference),
     ...(checkpoint.modelArtifact ? { modelArtifact: checkpoint.modelArtifact } : {}),
+    ...(checkpoint.policyConfig !== undefined ? { policyConfig: checkpoint.policyConfig } : {}),
     ...(checkpoint.policyCredential ? { policyCredential: checkpoint.policyCredential } : {}),
     sceneId: params.sceneId,
     siteId: facts.siteId,

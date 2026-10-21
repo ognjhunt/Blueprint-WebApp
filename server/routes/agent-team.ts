@@ -105,6 +105,7 @@ import { EARLY_ACCESS_REQUIRED, accessRecordId, bindAccessApprovalToTeam, getAcc
 import { getRunForTeam, listRunsForTeam } from "../utils/agentRunResults";
 import { receivePolicyModel, storePolicyModel } from "./policy-model-upload";
 import { checkpointRuntimes } from "../utils/policyIntegration";
+import { policyAdapterSchema } from "../../client/src/types/policyAdapter";
 import { policyCredentialSchema, storeCheckpointPolicyCredential, revokeCheckpointPolicyCredential } from "../utils/checkpointPolicyCredentials";
 import { getCheckpoint } from "../utils/robotCheckpoints";
 
@@ -122,6 +123,7 @@ const checkpointSchema = z
   .object({
     label: z.string().trim().min(1).max(120),
     runtime: z.enum(checkpointRuntimes),
+    policyConfig: policyAdapterSchema.optional(),
     reference: z.string().trim().min(1).max(32768),
   })
   .strict();

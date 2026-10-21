@@ -11,6 +11,7 @@
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { decryptFieldValue, decryptInboundRequestForAdmin } from "./field-encryption";
 import { listCheckpoints } from "./robotCheckpoints";
+import { samePolicyAdapter } from "../../client/src/types/policyAdapter";
 import { reservationTtlMs } from "./agentRunRecord";
 import { MAX_FREE_SPONSOR_CAP_USD } from "./freeBeta";
 import {
@@ -205,6 +206,7 @@ async function admissionCandidate(id: string, record: Record<string, any>, job: 
   let setup: AdmissionCandidate["setup"] = { setupId, name: text(selection.setupName) || null, reference: null, missing: true };
   let matchingCheckpoints: AdmissionCandidate["matchingCheckpoints"] = [];
   let robotEmbodiment: unknown = null;
+  let policyConfig: unknown;
   let robotDescription: unknown = null;
   let teamBlocker: ReturnType<typeof teamPolicyBlocker> = null;
   if (ownerUid && db) {
@@ -220,6 +222,7 @@ async function admissionCandidate(id: string, record: Record<string, any>, job: 
           const payload = JSON.parse(await decryptFieldValue(stored.data()!.payload));
           setup = { setupId, name: text(payload.name) || setup.name, reference: text(payload.reference) || null, missing: false };
           robotEmbodiment = payload.robotEmbodiment ?? null;
+          policyConfig = payload.policyConfig;
           robotDescription = payload.robotDescription ?? null;
           teamBlocker = robotSetupIntegrationBlocker(payload);
         } catch {
@@ -233,7 +236,8 @@ async function admissionCandidate(id: string, record: Record<string, any>, job: 
       const blockerOf = (checkpoint: Record<string, any>) =>
         offersTeamEvaluation(job) ? teamPolicyBlocker(checkpoint, { robotEmbodiment, robotDescription }) : null;
       const matching = (await listCheckpoints(team.teamId))
-        .filter((checkpoint) => checkpoint.reference === setup.reference && checkpoint.status !== "retired")
+        .filter((checkpoint) => checkpoint.reference === setup.reference
+          && samePolicyAdapter(checkpoint.policyConfig, policyConfig) && checkpoint.status !== "retired")
         .sort((a, b) => Number(Boolean(blockerOf(a))) - Number(Boolean(blockerOf(b))));
       teamBlocker = teamBlocker || (matching.length ? blockerOf(matching[0]) : null);
       matchingCheckpoints = matching.map((checkpoint) => ({ checkpointId: checkpoint.checkpointId, label: checkpoint.label,

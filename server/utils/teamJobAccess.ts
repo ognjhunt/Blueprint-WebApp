@@ -224,6 +224,8 @@ export function projectTeamJobOpening(id: string, record: RecordLike): TeamJobOp
 }
 
 const POLICY_INTERFACE_SUMMARIES: Record<string, { robot: "droid_franka" | "team_declared"; summary: string }> = {
+  "dreamlabs_dream1.v1": { robot: "team_declared",
+    summary: "Your configured dual-arm robot and Dream account model: overview and two wrist views at 5 Hz, measured arm poses and the instruction in; independent end-effector poses and gripper commands at 20 Hz, executed by the 60 Hz simulator controller." },
   "openpi_droid_https.v1": { robot: "droid_franka",
     summary: "Blueprint's simulated DROID Franka with a Robotiq 2F-85: two 224×224 views, joint and gripper state and the instruction in; joint-position action chunks out." },
   "blueprint_policy_https.v1": { robot: "team_declared",
