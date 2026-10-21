@@ -167,7 +167,7 @@ describe("JobWorkflowPanel", () => {
   it("requires another brief review instead of letting stale proposals become pilot agreements", async () => {
     await open({ reviewRequired: true, proposals: [{ ...proposal, status: "review_required" }],
       selection: { proposalId: proposal.id, proposalRevision: proposal.revision, selectedAtIso: "2026-10-21T11:00:00.000Z" } });
-    expect(screen.getByText(/The job brief or buying requirements changed/)).toBeInTheDocument();
+    expect(screen.getByText(/The job scope, buying requirements or referenced evidence changed/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Review and update proposal" })).toBeEnabled();
     expect(screen.queryByRole("form", { name: "Record pilot agreement" })).not.toBeInTheDocument();
     expect(screen.getByText(/The customer must choose an available proposal for the current job brief/)).toBeInTheDocument();

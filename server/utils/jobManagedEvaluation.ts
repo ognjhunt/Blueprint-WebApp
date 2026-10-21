@@ -131,13 +131,14 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
 }
 
 export async function assertManagedJobEvidenceReference(jobId: string, currentBriefDigest: string,
-  reference: { runId: string; resultDigest: string }) {
+  reference: { runId: string; resultDigest: string }, transaction?: FirebaseFirestore.Transaction) {
   if (!db) throw new Error("job_evaluation_store_unavailable");
   const store = db;
+  const read = (ref: FirebaseFirestore.DocumentReference) => transaction ? transaction.get(ref) : ref.get();
   const [snapshot, job, brief, inventory] = await Promise.all([
-    store.collection("taskEvaluationPolicyRuns").doc(reference.runId).get(),
-    store.collection("inboundRequests").doc(jobId).get(), store.collection("siteTaskBriefs").doc(jobId).get(),
-    store.collection("siteTaskItemInventories").doc(jobId).get(),
+    read(store.collection("taskEvaluationPolicyRuns").doc(reference.runId)),
+    read(store.collection("inboundRequests").doc(jobId)), read(store.collection("siteTaskBriefs").doc(jobId)),
+    read(store.collection("siteTaskItemInventories").doc(jobId)),
   ]);
   const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record: job.data(),
     brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null });
@@ -145,7 +146,7 @@ export async function assertManagedJobEvidenceReference(jobId: string, currentBr
   if (!run || run.job_evidence_binding?.job_id !== jobId || typeof run.result_record_id !== "string") {
     throw new Error("job_managed_evidence_reference_unavailable_or_stale");
   }
-  const result = await store.collection("captureTaskEvaluationRuns").doc(run.result_record_id).get();
+  const result = await read(store.collection("captureTaskEvaluationRuns").doc(run.result_record_id));
   const row = projectManagedJobEvidence(snapshot.id, run, result.exists ? result.data()! : null,
     jobId, currentBriefDigest, scope.taskContextDigest);
   if (!row || !row.current || row.resultDigest !== reference.resultDigest) throw new Error("job_managed_evidence_reference_unavailable_or_stale");

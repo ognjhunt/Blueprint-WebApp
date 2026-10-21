@@ -88,7 +88,7 @@ describe("the site's job workspace", () => {
       agreement: { proposalId: proposal.id, proposalRevision: proposal.revision, agreedAtIso: "2026-10-21T12:02:00Z", plannedStartIso: null, siteAgreementReference: "site-confirmed", providerAgreementReference: "provider-confirmed", outcomeRecordingAuthorized: true, outcomeRecordingPermissionReference: "both-parties-permission", recordedAtIso: "2026-10-21T12:02:00Z" },
     })));
     render(<JobWorkspace token="owner-token" />);
-    expect(await screen.findByText(/must review this proposal against the current brief/)).toBeVisible();
+    expect(await screen.findByText(/must review this proposal before you can choose it/)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Choose this proposal" })).toBeNull();
     expect(screen.getByText("Record your pilot outcome")).toBeVisible();
     expect(screen.getByText(/Report against the originally agreed proposal/)).toBeInTheDocument();

@@ -246,7 +246,7 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
         {loadState !== "idle" ? <div><Button type="button" variant="secondary" size="sm" disabled={busy || loadState === "loading"} onClick={() => void load()}>Refresh delivery records</Button></div> : null}
         {workflow ? (
           <>
-            {workflow.reviewRequired ? <p className="text-sm text-runway-signal">The job brief or buying requirements changed. Proposals marked for review must be updated before they can be selected or agreed.</p> : null}
+            {workflow.reviewRequired ? <p className="text-sm text-runway-signal">The job scope, buying requirements or referenced evidence changed. Proposals marked for review must be updated before they can be selected or agreed.</p> : null}
             <div className="grid gap-1 text-sm text-runway-body">
               <p><span className="font-semibold">Next step:</span> {workflow.nextAction}</p>
               <p className="text-xs text-runway-mute">Responsible: {workflow.actionOwner.replace(/_/g, " ")}.</p>

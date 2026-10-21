@@ -141,10 +141,40 @@ describe("job evidence producer and commercial boundary", () => {
     expect(saved.decision_evidence_request.request_digest).toBe(source.decision_evidence_request.request_digest);
     expect(saved.decision_request_canonical_json).toBe(source.decision_request_canonical_json);
     expect(state.docs.has("captureUploadSessions/walkthrough-job-1")).toBe(false);
-    const mismatched = { ...record, job_evidence_source: { ...binding, approved_task_digest: `sha256:${"f".repeat(64)}` } };
+    const publication = { ...structuredClone(examples.native_result), request_id: saved.request_id,
+      request_digest: saved.request_digest, brief_digest: binding.brief_digest };
+    publication.publication_digest = crossRuntimeArtifactDigest(publication, "publication_digest");
+    expect((await api("/api/internal/job-evidence-publications", "POST", publication, signed(publication))).status).toBe(200);
+    const quoted = { providerName: "Fixture Integrator", scope: "The agreed task only", equipment: "Declared fixed arm", software: "Declared controller",
+      deliveryCommitment: "A supplier-scoped physical pilot", installationCostUsd: null, monthlyCostUsd: null, currency: "USD",
+      exclusions: "Site electrical work", sitePreparation: "Provide agreed access", humanAssistance: "Replenish supply",
+      timing: "Dates remain to be agreed", support: "Supplier-supported pilot", acceptanceCriteria: "Agreed placement criteria",
+      recommendationReason: null, evidence: [{ level: "unverified", summary: "Fixture method abstained; physical performance remains unknown.",
+        reference: { requestId: saved.request_id, publicationDigest: publication.publication_digest } }] };
+    const adminPath = "/api/job-workflow/admin/job-1";
+    const ownerPath = `/api/job-workflow/owner/${token()}`;
+    const first = (await api(`${adminPath}/proposals`, "POST", quoted, { authorization: "Bearer ops", "Idempotency-Key": "reference-quote-a" })).body.proposals[0];
+    expect((await api(`${adminPath}/proposals`, "POST", quoted, { authorization: "Bearer ops", "Idempotency-Key": "reference-quote-b" })).status).toBe(201);
+    const choose = (proposal: any) => ({ proposalId: proposal.id, expectedRevision: proposal.revision, authorized: true });
+    expect((await api(`${ownerPath}/select`, "POST", choose(first))).status).toBe(200);
+    const agreement = (proposal: any) => ({ proposalId: proposal.id, expectedRevision: proposal.revision, agreedAtIso: "2026-10-20T12:00:00Z",
+      plannedStartIso: null, siteAgreementReference: "Fixture site agreement", providerAgreementReference: "Fixture supplier agreement" });
+    const latestRecord = state.docs.get("inboundRequests/job-1")!;
+    const mismatched = { ...latestRecord, job_evidence_source: { ...binding, approved_task_digest: `sha256:${"f".repeat(64)}` } };
     state.docs.set("inboundRequests/job-1", mismatched);
     const stale = (await api("/api/job-workflow/admin/job-1", "GET", undefined, { authorization: "Bearer ops" })).body;
     expect(stale.evidenceContext.question).toBeNull(); expect(stale.evidence[0].current).toBe(false);
+    expect(stale.proposals.map((proposal: any) => proposal.status)).toEqual(["review_required", "review_required"]);
+    expect(stale.stage).toBe("brief_agreed");
+    expect((await api(`${ownerPath}/select`, "POST", choose(first))).body.code).toBe("evidence_scope_changed");
+    expect((await api(`${adminPath}/agreement`, "POST", agreement(first), { authorization: "Bearer ops" })).body.code).toBe("evidence_scope_changed");
+    const reviewed = { ...quoted, evidence: [{ level: "unverified", summary: "No current performance evidence. The written offer retains explicit pilot acceptance criteria." }] };
+    const repaired = await api(`${adminPath}/proposals/${first.id}`, "PUT", { ...reviewed, expectedRevision: first.revision }, { authorization: "Bearer ops" });
+    expect(repaired.status).toBe(200); expect(repaired.body.selection).toBeNull();
+    expect(repaired.body.proposals[0].status).toBe("available"); expect(repaired.body.proposals[1].status).toBe("review_required");
+    expect((await api(`${ownerPath}/select`, "POST", choose(repaired.body.proposals[0]))).status).toBe(200);
+    const agreed = await api(`${adminPath}/agreement`, "POST", agreement(repaired.body.proposals[0]), { authorization: "Bearer ops" });
+    expect(agreed.status).toBe(200); expect(agreed.body.stage).toBe("pilot_agreed");
     const execution = await api(`/api/job-workflow/admin/job-1/evidence/${saved.request_id}/execute`, "POST", {}, { authorization: "Bearer ops" });
     expect(execution.status).toBe(409); expect(execution.body.code).toBe("evidence_scope_changed");
   });

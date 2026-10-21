@@ -67,9 +67,10 @@ export async function acceptJobEvidencePublication(value: unknown) {
     status: replayed ? "replayed" : "published" };
 }
 
-export async function readJobEvidencePublication(jobId: string, digest: string): Promise<JobEvidencePublication> {
+export async function readJobEvidencePublication(jobId: string, digest: string, transaction?: FirebaseFirestore.Transaction): Promise<JobEvidencePublication> {
   if (!db) throw new JobMarketplaceError("store_unavailable", "Job evidence storage is unavailable.", 503);
-  const snapshot = await db.collection("inboundRequests").doc(jobId).collection("jobEvidencePublications").doc(digest.replace(/^sha256:/, "")).get();
+  const ref = db.collection("inboundRequests").doc(jobId).collection("jobEvidencePublications").doc(digest.replace(/^sha256:/, ""));
+  const snapshot = await (transaction ? transaction.get(ref) : ref.get());
   if (!snapshot.exists) throw new JobMarketplaceError("evidence_not_found", "Evidence record not found.", 404);
   return verifyJobEvidencePublication(snapshot.data()!.publication);
 }

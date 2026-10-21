@@ -250,7 +250,7 @@ function ProposalCard({ proposal, selected, locked, hasSelection, pending, onSel
   return <article className="job-proposal-card" aria-label={`${proposal.providerName} delivery proposal`}>
     <div className="job-proposal-heading"><h4>{proposal.providerName}</h4>{selected && <span className="job-selection-label">Your choice</span>}</div>
     <p>{proposal.scope}</p>
-    {proposal.status === "review_required" && <p role="status">The job changed. Blueprint must review this proposal against the current brief before you can choose it.</p>}
+    {proposal.status === "review_required" && <p role="status">The job or its supporting evidence changed. Blueprint must review this proposal before you can choose it.</p>}
     <dl className="job-facts">
       <div><dt>Installation</dt><dd>{money(proposal.installationCostUsd)}</dd></div>
       <div><dt>Ongoing monthly cost</dt><dd>{money(proposal.monthlyCostUsd)}</dd></div>
