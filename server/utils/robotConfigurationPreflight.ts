@@ -44,6 +44,8 @@ export async function preflightRobotConfiguration(embodimentId: string, robot: R
   const payload = JSON.parse(text);
   if (!response.ok) {
     const detail = typeof payload?.detail === "string" ? payload.detail.slice(0, 1000).replace(/[\x00-\x1f]/g, " ") : "";
+    if (response.status === 422 && detail.startsWith("support_native_self_contained_usd_required"))
+      throw new Error("This URL inspection supports self-contained USD files. Models with separate dependency files need existing operator staging and are checked during run preparation. The setup is saved and can still be requested.");
     throw new Error(response.status === 422 && detail ? `Robot configuration: ${detail}. The setup is saved.`
       : "Pipeline configuration validation is unavailable. The setup is saved; no execution was requested.");
   }

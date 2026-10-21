@@ -46,4 +46,11 @@ describe("real Pipeline configuration producer to WebApp consumer",()=>{
     await expect(preflightRobotConfiguration(fixture.request.embodiment_id,robotEmbodimentSchema.parse(fixture.request.robot_embodiment))).rejects.toThrow("size limit");
     expect(cancelled).toHaveBeenCalledOnce();
   });
+  it("explains multi-file USD inspection limits without rejecting the saved setup",async()=>{
+    arrange({detail:"support_native_self_contained_usd_required"},422);
+    const result=preflightRobotConfiguration(fixture.request.embodiment_id,robotEmbodimentSchema.parse(fixture.request.robot_embodiment));
+    await expect(result).rejects.toThrow("Models with separate dependency files need existing operator staging");
+    await expect(result).rejects.toThrow("The setup is saved and can still be requested.");
+    await expect(result).rejects.not.toThrow("support_native_self_contained_usd_required");
+  });
 });
