@@ -22,7 +22,7 @@ Existing site recording, training, anonymized-card and account permissions remai
 
 ## Shared doctrine
 
-The owner instruction updates independent policy access and commercial selection; it preserves capture-first assessment and the existing simulation/evaluation pipeline. The earlier description-first/video-optional implementation was an incorrect interpretation and is corrected here. The locked shared blocks and digests are unchanged. Their originating fragments in `BlueprintCapturePipeline/doctrine/` require a subsequent coordinated synchronization across all three repositories; this checkout does not claim that synchronization.
+The owner instruction updates independent policy access and commercial selection; it preserves capture-first assessment and the existing simulation/evaluation pipeline. The earlier description-first/video-optional implementation was an incorrect interpretation and is corrected here. Canonical fragments in `BlueprintCapturePipeline/doctrine/` were corrected and synchronized through the existing generator into WebApp, Pipeline and Capture with matching locks. The correction preserves Arm Decision Proof and its physical-evidence protocol.
 
 ## Verification
 
@@ -30,7 +30,7 @@ Verification commands and observed results are recorded in the completion report
 
 ## Job evidence integration — October 21
 
-The existing admin job detail's delivery workflow now has an evidence section. An operator can record an options review without creating any run; when a technical question matters, the same panel saves it to Pipeline, shows its next action and limitations, refreshes it, runs a Pipeline-selected permitted local method, or cancels that request. This action grants no paid resources. Description-only jobs retain no fabricated capture, testbed or run. A missing scoped scientific request produces an information request; an unavailable service leaves the saved question retryable under the same identity.
+The existing admin job detail's delivery workflow now has an evidence section. An operator can record an options review without creating any run; when a technical question matters, the same panel saves it to Pipeline, shows its next action and limitations, refreshes it, runs a Pipeline-selected permitted local method, or cancels that request. This action grants no paid resources. Drafts awaiting video remain saved, but cannot submit or execute an assessment question. Browser storage receipts or source-bound, server-verified native video receipts are required; allocating a capture ID is insufficient. A missing scoped scientific request produces an information request; an unavailable service leaves the saved question retryable under the same identity.
 
 The managed policy setup in this panel uses the existing configured-scene offering and run preparation flow. It lists only an actual scene bound to this job's current task context and preserves existing admission and resource authority. Blueprint can operate the supported managed policy pair without inviting a technology team to run it. The existing approved team integration remains available. Controls-pending scenes remain diagnostics.
 
@@ -40,4 +40,18 @@ The owner workspace shows factual results, limitations, next actions and exact r
 
 `JOB_EVIDENCE_PIPELINE_URL` may specify the existing Pipeline service endpoint; otherwise its URL is derived from the existing request/plan forwarding URL. Existing server service credentials and configured client identity sign requests. Pipeline publishes back to the existing website origin using its sync secret. No new credential service, worker flag, outreach send or payment path is introduced. Deployment of these commits and configuration/readback on the existing release path are separate from local verification.
 
-Description-only brief confirmation no longer marks absent video for processing or leads the owner into the legacy filming status. Once a pilot agreement exists, a brief edit cannot silently change its agreed physical scope. The existing outcome-recording permission still has to be present in the agreement; later permission amendments remain outside this change.
+Brief confirmation cannot mark absent video for processing. A draft without retained video continues to the existing filming path. Once a pilot agreement exists, a brief edit cannot silently change its agreed physical scope. The existing outcome-recording permission still has to be present in the agreement; later permission amendments remain outside this change.
+
+## Durable service integration and prepared release
+
+Evidence submission, refresh, read-only execution and cancellation persist delivery intent in the existing job/request records before transport. The existing launch worker drains those records with leases, bounded backoff and identity reconciliation. Cancellation survives restart, remains pending until confirmed, rejects late results, and rechecks current staff authority before execution. Paid policy launch authority remains in its existing allocator path.
+
+Managed results bind the current immutable capture/task/testbed source fingerprint as well as the brief. Source replacement and revocation preserve history while ending current applicability; quote-only metadata does not change science. Proposal creation, selection and agreement revalidate evidence transactionally. Validated Python canonical bodies survive enriched and legacy publication retries.
+
+The same bounded worker resumes capture coverage and automatic brief merging without enabling the broader scheduler or adding email sends. Credential readiness and dispatch share the existing Gemini key aliases, including `GOOGLE_GENAI_API_KEY`. Runtime bindings and actual video-reader execution remain separately verifiable production facts.
+
+Technology/interface access, evaluation participation and delivery interest are independent recorded facts. Legacy combined supply guarantees remain intact. A scoped proposal, actual availability, cost and support are still obtained separately from a delivery partner.
+
+Local verification includes TypeScript, 132 focused integrated tests, 102 native capture/testbed/source join tests, 36 existing video-first journey tests, 40 isolated browser cases, exact producer/consumer artifact comparison and the required architecture refresh. These results do not establish fresh video analysis, paid policy execution or physical success.
+
+The application/index/producer release order remains: exact green WebApp CI and consumer release; the exact `taskEvaluationPolicyRuns` index independently read back as READY; then the compatible Pipeline producer. See `docs/runbooks/job-evidence-index-operator.md`. Missing index availability is shown as a retryable result-loading interruption while the saved job remains usable. The owner selected code and release preparation while Firebase/Gemini bindings and GitHub Actions billing are unavailable. No release, broad automation activation, paid dispatch resumption or external outreach is claimed by this preparation.
