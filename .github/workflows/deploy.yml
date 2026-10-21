@@ -6,8 +6,8 @@ run-name: ${{ github.event.inputs.release_token || 'CI-gated Render deploy' }}
 # only path to production for both exact-SHA identities.
 #
 # Guarantees:
-#   * Only an exact commit whose CI workflow concluded `success` on main can
-#     deploy (workflow_run trigger + conclusion check + exact head SHA pin).
+#   * Only an exact green-CI commit on main's history can deploy. Automatic
+#     releases use main's head; manual releases retain the same exact-SHA gate.
 #   * Missing deploy configuration fails CLOSED: no API key or service ID
 #     means the job errors loudly instead of silently skipping or falling back.
 #   * The deployed SHA is observable at GET /version.json (written by
@@ -247,9 +247,17 @@ jobs:
           set -euo pipefail
           node scripts/release/render-rollback.mjs snapshot
           previous_sha=$(node -e 'process.stdout.write(JSON.parse(require("node:fs").readFileSync("/tmp/deploy-evidence/rollback-target.json", "utf8")).sha)')
-          green_runs=$(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${previous_sha}&status=completed" --jq '[.workflow_runs[] | select(.conclusion=="success" and .head_branch=="main" and .event=="push")] | length')
+          # Manual releases may use a green PR commit after it has been merged
+          # into main. Admit its rollback identity by the same rules as the
+          # release ref above: exact successful CI and ancestry on main.
+          ancestry=$(gh api "repos/${REPO}/compare/${previous_sha}...main" --jq .status)
+          if [ "${ancestry}" != "identical" ] && [ "${ancestry}" != "ahead" ]; then
+            echo "::error::Healthy predecessor is not on main's history; refusing release."
+            exit 1
+          fi
+          green_runs=$(gh api "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${previous_sha}&status=completed" --jq '[.workflow_runs[] | select(.conclusion=="success")] | length')
           if [ "${green_runs}" -eq 0 ]; then
-            echo "::error::Healthy predecessor lacks exact main CI proof; refusing release."
+            echo "::error::Healthy predecessor lacks exact successful CI proof; refusing release."
             exit 1
           fi
 
