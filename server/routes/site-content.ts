@@ -10,14 +10,14 @@ const definitions = [
     definition: captureGroundedPublicCopy.productSummary,
   },
   {
-    term: "Evaluated pilot recommendation",
+    term: "Job assessment and pilot coordination",
     definition:
-      "Blueprint helps a business show one recurring job. Invited robot teams evaluate the job free, in a simplified simulation of the task, informed by the site's footage. Blueprint recommends one team whose evaluation on the job passed, and the site books the recommended pilot in one step; it does not compare teams. The beta is free for sites and robot teams. After booking, the site and the robot team agree the physical pilot's dates and terms directly; Blueprint takes no cut and charges nothing. A passed simulated evaluation is a bounded estimate, not proof of physical performance or safety. The robot team or its integrator installs and operates the robot, and the site and responsible delivery parties approve the safety plan.",
+      captureGroundedPublicCopy.productSummary,
   },
   {
     term: "Site sign-up",
     definition:
-      "Sign-up is open for sites: anyone can start a job, and Blueprint also onboards sites by hand. Robot teams join by invitation after their application is reviewed. Starting a job is not a signed order or a commitment to run a pilot; the site's one approval is booking the recommended pilot.",
+      "Sign-up is open for sites: anyone can start a job, and Blueprint also onboards sites by hand. Robot teams join by invitation after their application is reviewed. Starting a job is not a signed order or a commitment to run a pilot; the site approves the brief, chooses a proposal and agrees pilot terms before physical work.",
   },
   {
     term: "Exact-site world model",
@@ -111,13 +111,13 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "Show Blueprint one recurring task. Robot teams evaluate it in simulation, Blueprint recommends one team whose evaluation passed, and the site books the pilot in one step. Free during the beta.",
+      "Show Blueprint one recurring job. Assess suitable automation, test where needed, compare delivery proposals and agree a measured pilot. Free during the beta.",
   },
   {
     path: "/how-it-works",
     title: "How It Works",
     description:
-      "Capture the task, rebuild the work area, invited robot teams evaluate it in simulation, Blueprint recommends one team whose evaluation passed, and the site and team agree the physical pilot directly.",
+      "Describe the job, agree the brief, assess suitable options, compare delivery proposals, and measure an agreed pilot. Evaluation methods depend on the question.",
   },
   {
     path: "/beta",
@@ -127,7 +127,7 @@ const pages = [
   },
   {
     path: "/contact/site-operator",
-    title: "Show us a task",
+    title: "Submit a job",
     description: "Open sign-up for sites: describe or film one recurring job to start.",
   },
   {
@@ -139,8 +139,12 @@ const pages = [
     path: "/sites",
     title: "Job library",
     description:
-      "Site-approved recurring jobs that invited robot teams can evaluate in simulation.",
+      "Site-approved recurring jobs shared for compatible technology assessment and delivery planning.",
   },
+  { path: "/jobs-we-support", title: "Jobs we support", description: "Bounded recurring jobs, known objects and clear outcomes; compatibility and support are checked for each job." },
+  { path: "/partners", title: "For partners", description: "Separate paths for deployment partners and robot technology providers." },
+  { path: "/partners/deployment", title: "Deployment partners", description: "Apply to supply, install and support customer automation jobs." },
+  { path: "/partners/technology", title: "Robot technology providers", description: "Make hardware, policies or APIs available for reviewed compatible-system assessment." },
   {
     path: "/about",
     title: "About",

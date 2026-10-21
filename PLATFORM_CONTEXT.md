@@ -1,5 +1,18 @@
 # Platform Context
 
+## Current owner direction — October 21, 2026
+
+The owner explicitly requested: “please implement your recommendations into our website in FULL” after approving the job-first automation buying journey. This supersedes the older public-positioning requirements below that every job requires simulation, an invited team, or one-click booking without proposal review.
+
+The website now centers on: submit a job; agree the brief; assess suitable options using evidence and targeted testing where needed; compare delivery proposals; let the customer choose; agree a physical pilot; record its outcome. Deployment partners and technology providers have separate reviewed intake paths. The beta stays free, with no new fees, payment flows, provider spend, automatic contract award, or change to existing privacy permissions.
+
+Commercial proposal selection is not a signed pilot agreement. A customer-reported outcome is not a scientific Physical Outcome Join. Existing evaluation admission, compatibility, rights, provenance and scientific proof controls remain binding. Approved embodiment artwork and application breadth are preserved.
+
+The cross-repo shared blocks remain byte-locked historical snapshots; do not edit them or their lock locally. Their earlier public-journey descriptions are superseded for this owner-authorized website work. Canonical cross-repo synchronization remains a separately identified follow-up in `BlueprintCapturePipeline/doctrine/`; this change does not claim that synchronization occurred.
+
+Implementation scope and verification: `docs/design/job-first-automation-marketplace/IMPLEMENTATION.md`.
+
+
 > Repo-authoritative mirror of Blueprint platform doctrine. Reconcile material changes with Blueprint Knowledge.
 
 ## Read this before the shared block
@@ -11,7 +24,7 @@ The shared block below is **cross-repo doctrine owned by
 place. The lock exists because these blocks diverged silently across repos once
 before and no gate fired.
 
-**The shared block and this repo's public surface agree.** On 2026-10-14 the
+**Historical October 14 reconciliation.** The shared block and public surface agreed at that date; the current owner direction above supersedes the older public journey. On 2026-10-14 the
 founder made the free beta's evaluated, recommended pilot an active program
 alongside Arm Decision Proof v1, and the shared block says so. Before that date
 the public surface had deliberately moved ahead of the block.

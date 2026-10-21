@@ -116,7 +116,7 @@ describe("choosing a reply", () => {
       triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }),
     });
     expect(email?.variant).toBe("qualified");
-    expect(email?.body).toMatch(/recommend that one team/);
+    expect(email?.body).toMatch(/You choose the delivery partner/);
     expect(email?.body).not.toMatch(/\bmatch|\bteams? on our list|budget/i);
   });
 
@@ -234,9 +234,10 @@ describe("the qualified reply", () => {
     expect(email.body.startsWith("Hi Dana,\n")).toBe(true);
     expect(email.body).toContain("Thanks for confirming the job brief for Riverside DC");
     expect(email.body).toContain("upload it here: https://example.test/capture-upload/abc");
-    expect(email.body).toMatch(/Robot teams we have invited evaluate your job in that simulation/);
-    expect(email.body).toMatch(/recommend that one team, and you can book the pilot in one step/);
-    expect(email.body).toMatch(/If no team passes, we tell you that plainly/);
+    expect(email.body).toMatch(/existing evidence, simulation or physical checks where needed/);
+    expect(email.body).toMatch(/review proposals covering scope, total cost, timing and support/);
+    expect(email.body).toMatch(/You choose the delivery partner/);
+    expect(email.body).toMatch(/If no suitable option is supported, we explain what is missing/);
     expect(email.body).toMatch(/free during the beta/);
     expect(email.body).toMatch(/not proof of how a robot will perform/);
     expect(email.body).not.toContain(CALENDLY_URL);
@@ -281,14 +282,15 @@ describe("the qualified reply", () => {
       .not.toMatch(/site account/);
   });
 
-  it("promises no evaluation or recommendation for a job whose card is not published", () => {
+  it("keeps private assessment separate from permission to share a job with providers", () => {
     const step = { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" } as const;
     const body = buildQualificationEmail({ firstName: "Dana", stage: "brief_confirmed", nextStep: step, jobCardPublished: false,
       triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }) })!.body;
-    expect(body).toMatch(/We prepare a simplified simulation of your task, informed by your footage/);
-    expect(body).toMatch(/robot teams cannot see your job or evaluate it, and it cannot lead to a recommended pilot/);
+    expect(body).toMatch(/assess suitable options and the evidence still needed/);
+    expect(body).toMatch(/partners cannot discover it through the shared library/);
+    expect(body).toMatch(/We ask before sharing details with a provider/);
     expect(body).toMatch(/publish its card from your job page/);
-    expect(body).not.toMatch(/Robot teams we have invited evaluate your job|we recommend that one team/);
+    expect(body).not.toMatch(/We prepare a simplified simulation|book the pilot in one step/);
   });
 
   it("speaks for an intake-time screen as well as a confirmed brief", () => {

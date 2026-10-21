@@ -69,7 +69,7 @@ export default function TaskDetail() {
       active="tasks"
       title={task?.title || "Job"}
       contentClassName="ws-task-detail"
-      back={{ href: "/app/tasks", label: "Your tasks" }}
+      back={{ href: "/app/tasks", label: "Your jobs" }}
       action={
         task && !task.archived ? (
           <button className="ws-link" onClick={() => setEditing(true)}>
@@ -79,7 +79,7 @@ export default function TaskDetail() {
       }
     >
       {!task ? (
-        <Empty title="Task not found" href="/app/tasks" action="Your tasks">
+        <Empty title="Task not found" href="/app/tasks" action="Your jobs">
           This job is unavailable in your account.
         </Empty>
       ) : (
@@ -110,17 +110,17 @@ export default function TaskDetail() {
               </div>
             )}
             {!task.archived && (
-              <div className="ws-task-action" aria-label="Your task page">
+              <div className="ws-task-action" aria-label="Your job page">
                 <button
                   className="ws-primary"
                   type="button"
                   onClick={() => void openTaskPage()}
                   disabled={linkState === "working"}
                 >
-                  {linkState === "working" ? "Opening…" : "Open your task page"}
+                  {linkState === "working" ? "Opening…" : "Open your job page"}
                 </button>
                 <p className="ws-note">
-                  Review your answers, add footage{task.sceneReady ? ", open your scene," : ""} or review a pilot proposal.
+                  Review the brief, update planning details, compare delivery proposals{task.sceneReady ? ", open your scene," : ""} and follow the next action.
                 </p>
                 {linkError && <p role="alert">{linkError}</p>}
               </div>
@@ -322,8 +322,8 @@ export default function TaskDetail() {
                     </p>
                   </>
                 ) : (
-                  <Empty title="No team results yet">
-                    Results will appear here when robot teams submit them.
+                  <Empty title="No evaluation results yet">
+                    Results will appear here when evaluations report measured outcomes. Delivery proposals and the next action are on your job page.
                   </Empty>
                 )}
               </section>
@@ -340,7 +340,7 @@ export default function TaskDetail() {
                     {["pilot", "pilot_complete", "deployed"].includes(task.pilot.state)
                       ? statusLabel(task.pilot.state)
                       : task.pilotBooking
-                        ? "Pilot booked"
+                        ? "Team selected"
                         : task.pilot.selectedResultId
                           ? statusLabel(task.pilot.state)
                           : "Pilot"}
@@ -350,8 +350,8 @@ export default function TaskDetail() {
                   ) : (
                     <p className="ws-muted">
                       {task.pilot.notes || (task.pilotRecommended
-                        ? "Blueprint recommends one pilot for this job. Review it and book it from your task page."
-                        : "No pilot is recommended yet. When a robot team's evaluation on this job passes, we recommend that team and you book the pilot from your task page.")}
+                        ? "Review the proposed approach, cost, support and evidence on your job page. Choose a delivery team, then agree pilot terms directly."
+                        : "No pilot proposal is ready yet. Blueprint will assess suitable options and explain any checks still needed. Your job page holds planning details and delivery proposals as they become available.")}
                     </p>
                   )}
                   {task.pilot.siteVisitAnswer && (
@@ -371,7 +371,7 @@ export default function TaskDetail() {
                     onClick={() => void openTaskPage()}
                     disabled={linkState === "working"}
                   >
-                    Book it on your task page →
+                    Review the proposal on your job page →
                   </button>
                 )}
                 {!task.archived &&

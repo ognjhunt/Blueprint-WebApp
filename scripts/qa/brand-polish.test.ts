@@ -49,14 +49,14 @@ describe("brand polish QA harness contract", () => {
       acceptedStatuses: [404, 200], expectNoIndex: true, expectCanonical: false,
     });
     expect(harness.collectBannedCopyHits("Blueprint matches sites with robot teams on a marketplace for $2,500 or $99.")).toEqual([
-      "match wording", "marketplace", "$2,500 fee", "$99 entry",
+      "$2,500 fee", "$99 entry",
     ]);
     expect(harness.collectBannedCopyHits("We recommend one team whose evaluation passed. Free during the beta.")).toEqual([]);
     expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/for-robot-teams")).toMatchObject({
       canonicalPath: "/contact/robot-team", expectedHeading: "Test your robot on real site jobs.",
     });
     expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/faq")).toMatchObject({
-      canonicalPath: "/", expectedHeading: "Could a robot take over a repetitive task at your site?",
+      canonicalPath: "/", expectedHeading: "Find the right way to automate your work.",
     });
 
     const notionChecklist = harness.buildNotionLayoutChecklistMarkdown({

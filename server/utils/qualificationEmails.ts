@@ -115,8 +115,8 @@ export function buildNotYetEmail(params: {
 /**
  * A job we cannot score in simulation yet, whatever its gate verdict.
  *
- * Names the scope plainly, and says the job is not opened to robot teams, so
- * the site never waits on an evaluation that would test a different task. A
+ * Names this simulation route's scope plainly, so the site never waits on an
+ * evaluation that would test a different task. A
  * brief we could not read is asked for one sentence instead: it is not out of
  * scope, it is undescribed (audit N3).
  */
@@ -139,8 +139,8 @@ export function buildTaskNotYetSupportedEmail(params: {
     bulletList(SUPPORTED_TASK_LINES),
     "",
     unclear
-      ? "Robot teams can evaluate your job once we can tell it is that kind of job, so it is not open to them yet. Your job stays on file."
-      : "So we have not opened this job to robot teams, and no robot team will evaluate it. Your job stays on file.",
+      ? "We need to clarify the job before admitting it to this simulation route. Your job stays on file; we are not promising an evaluation yet."
+      : "This job is not admitted to that simulation route. Your job stays on file. This limit does not establish whether a different system or physical approach could perform the work.",
     "",
     unclear
       ? `${notYet.nextStep}${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`
@@ -286,12 +286,9 @@ function qualifiedNextStepLine(nextStep: QualifiedNextStep | undefined, calendly
 /**
  * The reply a site earns by clearing the screen.
  *
- * It says three things and nothing else: the screen passed, the one concrete
- * thing that happens next, and what follows once there is footage. What
- * follows is the product, stated the same way everywhere: invited robot teams
- * evaluate the job in a simplified simulation informed by the footage, Blueprint
- * recommends one team whose evaluation passed (or says plainly that none did),
- * and the site books that pilot in one step. Free during the beta.
+ * Names the recorded next action, then explains the job-first buying process.
+ * Evidence methods are selected for the uncertainty that remains; receiving a
+ * description does not promise a simulation, supplier availability or a pilot.
  *
  * ## Why no team counts
  *
@@ -317,9 +314,8 @@ export function buildQualifiedEmail(params: {
   accountNeeded?: boolean;
   /**
    * False when the job card is not published (kept private, hidden, or awaiting
-   * review). No robot team can see or evaluate such a job, so the email must
-   * not promise evaluations or a recommendation. Absent when the caller did
-   * not read it, which keeps the listed job's wording.
+   * review). No partner may discover it through the shared library. Private
+   * assessment may continue, but provider sharing needs separate authorization.
    */
   jobCardPublished?: boolean;
   calendlyUrl?: string;
@@ -345,22 +341,24 @@ export function buildQualifiedEmail(params: {
     qualifiedNextStepLine(params.nextStep, calendly),
     "",
     params.accountNeeded
-      ? "Before we build the scene, create and verify your site account from your job page."
+      ? "Before sending footage or preparing a site-specific evaluation, create and verify your site account from your job page."
       : "",
     "",
-    params.nextStep?.kind === "footage_received" ? "What happens next:" : "Once we have footage of the work area:",
+    "How we help you make the decision:",
     "",
     bulletList(params.jobCardPublished === false ? [
-      "We prepare a simplified simulation of your task, informed by your footage.",
-      "Your job card is not published, so robot teams cannot see your job or evaluate it, and it cannot lead to a recommended pilot.",
-      "To open it to the robot teams we have invited, publish its card from your job page. The card shows only the anonymized text you approve.",
+      "We review the job brief, required output and site constraints with you, then assess suitable options and the evidence still needed.",
+      "Your job card is not published, so partners cannot discover it through the shared library. We ask before sharing details with a provider.",
+      "You can publish its card from your job page when you want approved partners to see it. The card shows only the anonymized text you approve.",
+      "Any proposed physical pilot needs your choice of delivery partner and an agreed scope, price, timing and acceptance criteria.",
     ] : [
-      "We prepare a simplified simulation of your task, informed by your footage.",
-      "Robot teams we have invited evaluate your job in that simulation.",
-      "If a team's evaluation passes, we recommend that one team, and you can book the pilot in one step. If no team passes, we tell you that plainly.",
+      "We review the job brief, required output and site constraints with you.",
+      "We assess compatible solutions, using existing evidence, simulation or physical checks where needed to answer a specific question.",
+      "Where there is a suitable delivery option, we help you review proposals covering scope, total cost, timing and support.",
+      "You choose the delivery partner and agree the physical pilot's scope, price, timing and acceptance criteria directly with them. If no suitable option is supported, we explain what is missing.",
     ]),
     "",
-    "All of this is free during the beta. A simulation result is an estimate, not proof of how a robot will perform at your site or that it will be safe there.",
+    "Blueprint's assessment and coordination are free during the beta, and Blueprint takes no cut of a physical pilot. You agree any physical work and its cost directly with the delivery company. A simulation result is an estimate, not proof of how a robot will perform at your site or that it will be safe there.",
     "",
     EMAIL_SIGN_OFF,
   ]

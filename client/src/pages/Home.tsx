@@ -4,71 +4,59 @@ import { SEO } from "@/components/SEO";
 import { REPLY_TIMELINE } from "@/data/betaTimelines";
 import { organizationJsonLd, webPageJsonLd, websiteJsonLd } from "@/lib/seoStructuredData";
 
-const description = "Could a robot take over a repetitive task at your site? Show us the task. Robot teams evaluate it in simulation, and we recommend one team whose evaluation passed. Free during the beta.";
+const description = "Show us one recurring job. Blueprint helps you assess suitable automation, test where needed, compare delivery proposals and choose a team for a measured pilot. Free during the beta.";
+
+const supportedJobs = [
+  { title: "Transfer known items", text: "Move a defined range of rigid objects between a tote, tray or fixed workstation." },
+  { title: "Load or unload a station", text: "Place known parts into a fixture or remove them from one repeated operation." },
+  { title: "Open or close a fixture", text: "Operate a drawer, door or similar mechanism within a clearly defined work area." },
+];
+
+
 
 export default function Home() {
   return (
     <>
-      <SEO
-        title="Blueprint | Start with one real task"
-        description={description}
-        canonical="/"
-        jsonLd={[organizationJsonLd(), websiteJsonLd(), webPageJsonLd({ path: "/", name: "Blueprint", description })]}
-      />
+      <SEO title="Blueprint | Find the right way to automate your work" description={description} canonical="/" jsonLd={[organizationJsonLd(), websiteJsonLd(), webPageJsonLd({ path: "/", name: "Blueprint", description })]} />
       <section className="ms-task-hero ms-container" aria-labelledby="hero-title">
-          <div className="ms-task-hero-intro">
-            <h1 id="hero-title">Could a robot take over a repetitive task at your site?</h1>
-            <div className="ms-task-hero-actions">
-              <p>Show us the task. Robot teams evaluate it in simulation, and we recommend the one whose evaluation passed. You book the pilot in one step.</p>
-              <div className="ms-task-hero-links">
-                <a className="ms-button" href="/contact/site-operator">Show us a task <ArrowRight size={21} strokeWidth={1.5} aria-hidden="true" /></a>
-              </div>
-              <p className="ms-task-hero-start">Free during the beta, for sites and robot teams.</p>
+        <div className="ms-task-hero-intro">
+          <h1 id="hero-title">Find the right way to automate your work.</h1>
+          <div className="ms-task-hero-actions">
+            <p>Show us one recurring job. Blueprint helps you assess suitable solutions, test where needed, and choose a team to deliver a measured pilot.</p>
+            <div className="ms-task-hero-links">
+              <a className="ms-button" href="/contact/site-operator">Submit a job <ArrowRight size={21} strokeWidth={1.5} aria-hidden="true" /></a>
+              <a className="ms-text-link" href="/how-it-works">See how it works</a>
             </div>
-          </div>
-          <PilotPreview />
-      </section>
-
-      <section className="ms-method ms-container" id="how-it-works" aria-label="How it works">
-        <ol className="ms-steps">
-          <li><p className="ms-step-head"><span className="ms-step-number">01</span><span className="ms-step-rule" aria-hidden="true" /><span>Show us the task</span></p><p>Describe it or film it on your phone.</p></li>
-          <li><p className="ms-step-head"><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>Robot teams evaluate it</span></p><p>Invited teams test it in a simplified simulation of your task, informed by your footage.</p></li>
-          <li><p className="ms-step-head"><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Book the recommended pilot</span></p><p>One team whose evaluation passed. You agree dates and terms with them.</p></li>
-        </ol>
-        <p className="ms-method-note">A simulated evaluation is an estimate, not proof of how a robot performs on site or of its safety. The pilot measures that.</p>
-        <a className="ms-method-link" href="/how-it-works#warehouse-task">See the warehouse walkthrough <ArrowRight size={16} aria-hidden="true" /></a>
-      </section>
-
-      <section className="ms-faq ms-container" aria-labelledby="faq-title">
-        <h2 id="faq-title">Questions sites ask</h2>
-        <div className="ms-faq-items">
-          <div>
-            <h3>Why not call robot vendors myself?</h3>
-            <p>Each vendor pitches its own robot, and judging them against each other takes robotics expertise most sites don&rsquo;t have in-house. We do that part. Invited robot teams evaluate your task in the same simulation, built from your site, against the same success criteria, and we recommend one team whose evaluation passed. You start from results on your task, not a sales pitch, instead of committing to the first vendor you called.</p>
-          </div>
-          <div>
-            <h3>Is it really free?</h3>
-            <p>Yes. During the beta, Blueprint charges sites and robot teams nothing for submitting a job, screening, evaluations, our recommendation or booking the pilot, and takes no cut of the pilot. The robot team quotes the physical pilot; you agree its price and dates with them directly.</p>
-          </div>
-          <div>
-            <h3>What if no robot team passes?</h3>
-            <p>We tell you, and what would change that. Your job page shows what it is waiting on, and we email you when every evaluation so far has finished without a pass.</p>
-          </div>
-          <div>
-            <h3>Who is responsible for the on-site pilot?</h3>
-            <p>You and the robot team. Blueprint is not a party to the pilot: you agree its scope, dates and terms with the team, and the team or its integrator contracts for the physical work. A passed simulation is not a safety assessment.</p>
-          </div>
-          <div>
-            <h3>What happens to my footage?</h3>
-            <p>Robot teams never receive your recording. Blueprint and our listed processing providers use it to draft the job brief and rebuild the work area. A team&rsquo;s robot software is sent images rendered from the rebuilt scene, which can show layout and equipment, and those images are shared on the same terms as the scene. We do not use your footage to train AI models without your written agreement. <a href="/privacy">Privacy Policy</a></p>
+            <p className="ms-task-hero-start">Free during the beta. A description is enough to start; video is optional.</p>
           </div>
         </div>
+        <p className="mp-current-scope">Starting with bounded manipulation jobs: known objects, a fixed work area and a clear measure of success. <a href="#jobs-we-support">See jobs we support</a></p>
+        <PilotPreview />
+      </section>
+
+      <section className="ms-method ms-container" id="how-it-works" aria-labelledby="home-process-title">
+        <h2 className="mp-section-title" id="home-process-title">From a recurring job to a measured pilot.</h2>
+        <ol className="ms-steps">
+          <li><p className="ms-step-head"><span className="ms-step-number">01</span><span className="ms-step-rule" aria-hidden="true" /><span>Describe the work</span></p><p>Tell us what happens today and what a good result looks like. We help fill in the gaps and agree a job brief.</p></li>
+          <li><p className="ms-step-head"><span className="ms-step-number">02</span><span className="ms-step-rule" aria-hidden="true" /><span>Assess suitable options</span></p><p>Check what could work, what needs testing and which delivery partners can supply and support it.</p></li>
+          <li><p className="ms-step-head"><span className="ms-step-number">03</span><span className="ms-step-rule" aria-hidden="true" /><span>Choose and measure a pilot</span></p><p>Review comparable proposals, agree the pilot with your chosen partner and measure the result against your criteria.</p></li>
+        </ol>
+        <p className="mp-support-note">A simulation result is an estimate. The physical pilot measures performance at your site.</p>
+        <a className="ms-method-link" href="/how-it-works">The process, responsibilities and costs <ArrowRight size={16} aria-hidden="true" /></a>
+      </section>
+
+      <section className="mp-section ms-container" id="jobs-we-support" aria-labelledby="supported-jobs-title">
+        <div className="mp-section-intro"><h2 id="supported-jobs-title">Start with one well-defined job.</h2><p>One repeated operation, a known range of objects and room to test under supervision. We confirm the scope before any evaluation.</p></div>
+        <div className="mp-job-types">{supportedJobs.map(job => <article key={job.title}><h3>{job.title}</h3><p>{job.text}</p></article>)}</div>
+        <p className="mp-support-note">Have a different job? Describe it and we will assess the fit. On-site capture visits are available in the Austin metro; US sites can record their own work.</p>
       </section>
 
       <section className="ms-closing ms-container" aria-labelledby="closing-title">
-        <h2 id="closing-title">Start with one recurring task.</h2>
-        <p>A phone video or a short description is enough. {REPLY_TIMELINE}</p>
-        <a className="ms-button" href="/contact/site-operator">Show us a task <ArrowRight size={21} strokeWidth={1.5} aria-hidden="true" /></a>
+        <h2 id="closing-title">What work would you like automated?</h2>
+        <p>Start with one recurring job. {REPLY_TIMELINE}</p>
+        <p className="mp-support-note">You choose whether to proceed. You choose the delivery partner and agree its price and support directly. Blueprint is free during the beta. <a href="/beta">Costs and responsibilities</a></p>
+        <p className="mp-support-note">Your recording and contact details stay private. You control how your job is shared. <a href="/privacy">Privacy</a></p>
+        <a className="ms-button" href="/contact/site-operator">Submit a job <ArrowRight size={21} strokeWidth={1.5} aria-hidden="true" /></a>
       </section>
     </>
   );

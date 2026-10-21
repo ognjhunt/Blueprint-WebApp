@@ -33,7 +33,7 @@ export const buyerBetaGuide: BetaCohortGuide = {
   path: "/beta/buyer-guide",
   eyebrow: "Robot team beta",
   summary:
-    "How invited robot teams evaluate a site's job in simulation for free, what the result means, and how a passed evaluation becomes a recommended pilot.",
+    "How approved technology and delivery partners contribute to a site job, review evidence and agree a measured pilot.",
   heroImage: "/redesign/pov/machine-tending.jpg",
   heroAlt: "Industrial machine-tending job area",
   primaryAction: {
@@ -78,10 +78,10 @@ export const buyerBetaGuide: BetaCohortGuide = {
     {
       title: "Recommended pilot",
       body:
-        "Blueprint recommends one team whose evaluation passed and that wants the pilot. The site books it in one step.",
+        "Blueprint helps the site compare suitable delivery proposals with their evidence and limitations. The customer chooses a delivery partner; selection alone does not create an agreement.",
       items: [
         "Booking is free during the beta, and Blueprint takes no cut of the pilot.",
-        "After booking, you and the site agree the physical pilot's dates, scope and any price directly.",
+        "Before a pilot starts, you and the site agree dates, scope, price, support and acceptance criteria directly.",
         "You or your integrator install and operate the robot; the site approves the safety plan.",
       ],
     },

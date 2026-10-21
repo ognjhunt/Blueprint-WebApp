@@ -121,11 +121,23 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "apply",
     ],
     answer:
-      "There is nothing to buy: during the beta Blueprint charges nothing to sites or to invited robot teams. A site starts by describing one recurring job at /contact/site-operator; sign-up is open, and Blueprint also onboards sites by hand. A robot team applies at /contact/robot-team and joins by invitation after Blueprint reviews the application; an approved team asks to evaluate a shared job from its workspace, and each run still needs Blueprint's approval of the exact team, policy and job. Retired purchase endpoints return 410 and create no Stripe session, order, charge, or entitlement.",
-    citations: [`${CANONICAL_ORIGIN}/agent-access.openapi.json`, `${CANONICAL_ORIGIN}/beta`],
+      "There is nothing to buy: during the beta Blueprint charges nothing for job assessment, evaluation or coordination. A site starts by describing one recurring job at /contact/site-operator; video and a budget are optional to start. Blueprint helps agree the job brief, assess suitable options, use evidence or testing where needed, and review delivery proposals. The customer chooses a delivery partner and agrees any physical pilot's scope, price, dates and acceptance criteria directly with that company. Partners apply at /partners as delivery companies, robot technology providers, or both. A robot team joins by invitation after Blueprint reviews the application; each evaluation still needs approval of the exact team, policy, interface and job. Retired purchase endpoints return 410 and create no Stripe session, order, charge, or entitlement.",
+    citations: [`${CANONICAL_ORIGIN}/how-it-works`, `${CANONICAL_ORIGIN}/partners`, `${CANONICAL_ORIGIN}/beta`],
     actions: [
-      { description: "Open robot-team intake", method: "GET", endpoint: "/contact/robot-team?interest=task-evaluation-run" },
+      { description: "Choose a partner role", method: "GET", endpoint: "/partners?interest=task-evaluation-run" },
       { description: "Open site-operator intake", method: "GET", endpoint: "/contact/site-operator?interest=task-evaluation-run" },
+    ],
+  },
+  {
+    id: "choosing-delivery",
+    title: "Choosing and contracting a delivery partner",
+    aliases: ["compare delivery proposals", "choose deployment partner", "who installs", "who signs", "fixed price", "first come"],
+    answer:
+      "Blueprint helps establish the required result, site constraints and spending limits before requesting comparable delivery proposals. Each provider states the scope, equipment and software, installation and ongoing cost, timing, support, exclusions and pilot acceptance criteria. Blueprint assesses fit and evidence rather than awarding unfamiliar jobs to the first company that accepts. The customer chooses the delivery partner; choosing a proposal is not a signed contract or reserved date. The customer and delivery company agree the physical work directly. A simulation result is supporting evidence within its stated limits and does not establish physical performance or safety.",
+    citations: [`${CANONICAL_ORIGIN}/how-it-works`, `${CANONICAL_ORIGIN}/partners/deployment`],
+    actions: [
+      { description: "Describe a customer job", method: "GET", endpoint: "/contact/site-operator" },
+      { description: "Apply as a deployment partner", method: "GET", endpoint: "/partners/deployment" },
     ],
   },
   {
@@ -180,7 +192,7 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
       "intake",
     ],
     answer:
-      "When search returns matchSemantics.noExactScannedPackage, use the returned requestCandidate.requestUrl or the blueprint.request.locationDraft tool to build an intake draft with a contact URL and inbound-request payload. Submitting intake records interest only — it does not grant entitlement, payment, rights clearance, provider execution, or hosted availability. Blueprint reviews the request and scopes a capture for the exact site.",
+      "When search returns matchSemantics.noExactScannedPackage, use the returned requestCandidate.requestUrl or the blueprint.request.locationDraft tool to build an intake draft with a contact URL and inbound-request payload. Submitting intake records interest only — it does not grant entitlement, payment, rights clearance, provider execution, or hosted availability. Blueprint reviews the job brief and identifies which further details, capture or checks would help the decision.",
     citations: [`${CANONICAL_ORIGIN}/contact/robot-team`, `${CANONICAL_ORIGIN}/sites`],
     actions: [
       { description: "Build an intake-only location draft", method: "POST", endpoint: "cli: request location / mcp: blueprint.request.locationDraft", mcpTool: "blueprint.request.locationDraft" },
@@ -202,13 +214,13 @@ const AGENT_KNOWLEDGE_ENTRIES: AgentKnowledgeEntry[] = [
     // Stated from the one place a price, or its absence, lives.
     answer: [
       siteAssessment.allIn,
-      "Robot teams evaluate the jobs they are invited to free as well.",
-      "The physical pilot is agreed directly between the site and the robot team, and Blueprint takes no cut of it.",
+      "Partner applications and authorized evaluations are free as well.",
+      "A budget is optional to start. Before proposals, the customer and Blueprint clarify the spending limits and required outcome. The physical pilot's scope, price and terms are agreed directly between the customer and delivery company, and Blueprint takes no cut of it.",
     ].join(" "),
     citations: [`${CANONICAL_ORIGIN}/beta`],
     actions: [
       { description: "Start a job (sites)", method: "GET", endpoint: "/contact/site-operator" },
-      { description: "Apply for an invitation (robot teams)", method: "GET", endpoint: "/contact/robot-team" },
+      { description: "Apply as a deployment or technology partner", method: "GET", endpoint: "/partners" },
     ],
   },
   {

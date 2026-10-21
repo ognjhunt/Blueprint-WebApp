@@ -1,10 +1,15 @@
 # Blueprint
 
-> From one recurring task to a measured robot pilot. Blueprint runs a free beta: a site shows one recurring task, invited robot teams evaluate it in simulation, and Blueprint recommends one team whose evaluation on that job passed.
+> Find the right way to automate your work. Describe one recurring job, assess suitable options, test where needed and agree a measured pilot.
 
-Blueprint runs a free beta for real sites and recurring tasks. Sign-up is open for sites: anyone can start a job by describing it or sharing permitted video, and Blueprint also onboards sites by hand. Invited robot teams evaluate the site's job free, in a simplified simulation of the task, informed by the site's footage. Blueprint recommends one team whose evaluation on that job passed and that wants the pilot; the site books it in one step and never has to compare teams. During the beta nothing is charged to sites or robot teams: no site fee, no paid private evaluations, balances, top-ups or checkout. After booking, the site and the robot team agree the physical pilot's dates and terms directly, and Blueprint takes no cut. Simulation results are bounded estimates: simulation is not physical proof or a deployment guarantee, and it never certifies physical performance or safety.
+Blueprint helps sites define recurring work, assess compatible options using appropriate evidence, compare delivery proposals and coordinate a measured pilot. A description is enough to start; video is optional. Customers choose and contract with delivery partners, which install and support the system. Deployment partners and robot technology providers have separate reviewed application paths. The beta remains free for sites and partners, with no Blueprint cut of physical pilot costs. Simulation is a bounded estimate and never certifies physical performance or safety. Customer-reported pilot outcomes remain separate from authoritative scientific Physical Outcome Joins.
 
 ## Public pages
+
+- [Jobs we support](https://tryblueprint.io/jobs-we-support)
+- [For partners](https://tryblueprint.io/partners)
+- [Deployment partners](https://tryblueprint.io/partners/deployment)
+- [Technology providers](https://tryblueprint.io/partners/technology)
 
 - [Home](https://tryblueprint.io/)
 - [How it works](https://tryblueprint.io/how-it-works)

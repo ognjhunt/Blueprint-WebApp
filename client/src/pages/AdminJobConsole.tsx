@@ -7,6 +7,7 @@ import { AdmitFreeEvaluationForm } from "@/components/admin/AdmitFreeEvaluationF
 import { RobotFitConsole } from "@/components/admin/RobotFitConsole";
 import { SiteMeasurementsConsole } from "@/components/admin/SiteMeasurementsConsole";
 import { AccountDeletionQueue } from "@/components/admin/AccountDeletionQueue";
+import { JobWorkflowPanel } from "@/components/admin/JobWorkflowPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
@@ -173,6 +174,7 @@ function JobDetail({ requestId, onClose }: { requestId: string; onClose: () => v
           </div>
 
           <SiteMeasurementsConsole requestId={requestId} currentUser={api.currentUser} />
+          <JobWorkflowPanel key={requestId} requestId={requestId} currentUser={api.currentUser} onChanged={() => queryClient.invalidateQueries({ queryKey: ["admin-job-console"] })} />
           <RobotFitConsole key={requestId} requestId={requestId} currentUser={api.currentUser} />
 
           <div>

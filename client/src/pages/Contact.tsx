@@ -25,16 +25,17 @@ export default function Contact() {
       <>
         <SEO
           title="Early access for robot teams | Blueprint"
-          description="Robot teams join Blueprint's free beta by invitation. Approved teams evaluate real site jobs in simulation, and a passed evaluation can lead to a recommended pilot."
+          description="Make your robot technology available for real customer jobs, or apply to deliver and support deployments. Partner access follows review."
           canonical="/contact/robot-team"
         />
         <section className="ms-beta-hero ms-container" aria-labelledby="robot-team-title">
           <div className="ms-beta-copy">
             <p className="ms-eyebrow">Robot-team beta</p>
-            <h1 id="robot-team-title">Test your robot on real site jobs.</h1>
-            <p>Tell us what your robot can do. Invited teams evaluate real site jobs in simulation, free during the beta.</p>
+            <h1 id="robot-team-title">Bring your capabilities to real jobs.</h1>
+            <p>Make your robot or policy available for evaluation, or help sites install and support a suitable solution.</p>
             <a className="ms-button" href="#robot-team-access">Register interest <ArrowRight size={20} aria-hidden="true" /></a>
-            <p className="ms-beta-free">Task invitations follow manual review.</p>
+            <p className="ms-beta-free">Partner applications and evaluations are free during the beta.</p>
+            <p><a className="ms-text-link" href="/partners">Explore deployment and technology partner roles <ArrowRight size={16} aria-hidden="true" /></a></p>
           </div>
           <div className="ms-beta-example">
             <figure>
@@ -49,9 +50,9 @@ export default function Contact() {
           <details className="ms-task-interest ms-visitor-detail">
             <summary>What happens after applying?</summary>
             <p>We review your robot's capabilities against a real site task, then email the next step. Your application remains pending until manual approval. Applying or creating an account does not grant access. Approved teams see anonymized cards authorized when sites start a job; sites can edit or hide them afterward.</p>
-            <p>Each evaluation runs your policy in a simplified simulation of the task, informed by the site's footage. Blueprint recommends a team only when its evaluation on that job passed and it wants the pilot; you confirm the configuration, timing and site conditions before the site sees the recommendation.</p>
+            <p>Blueprint assesses compatible options against the site's requirements. An evaluation, where needed, is evidence for a bounded decision. Before any delivery recommendation, the provider confirms the configuration, timing, site conditions and support it can offer.</p>
             <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. You serve your policy at one HTTPS URL that accepts a bearer token, and register it as a policy endpoint with that token; containers and private checkpoints are not admitted. Each evaluation is 200 hidden episodes.</p>
-            <p>Evaluations are free during the beta. If a site books your recommended pilot, you and the site agree its dates and terms directly; Blueprint takes no cut. An invitation does not guarantee a run, a recommendation, or a deployment.</p>
+            <p>Evaluations are free during the beta. The customer chooses its delivery partner and agrees the physical pilot's scope, price, dates and terms with that company directly; Blueprint takes no cut. An invitation does not guarantee a run, a recommendation, or a deployment.</p>
             <p><a href="/agent-access.openapi.json">Technical API reference</a> · <a href="mailto:hello@tryblueprint.io">Ask about job fit or integration</a></p>
           </details>
           <p className="ms-field-hint" style={{ marginTop: "24px" }}>
@@ -67,8 +68,8 @@ export default function Contact() {
   return (
     <>
       <SEO
-        title="Show us a task | Blueprint"
-          description="Describe or film one recurring job. Robot teams evaluate it in simulation, and Blueprint recommends one team whose evaluation passed for you to book. Free during the beta."
+        title="Submit a job | Blueprint"
+          description="Describe one recurring job at your site. Blueprint helps assess suitable options, test where needed and prepare a measured pilot. Video and budget details are optional to start."
           canonical="/contact/site-operator"
       />
       <section className={`ms-inquiry ms-container${savedJob ? " ms-intake-saved" : ""}`}>
@@ -77,20 +78,20 @@ export default function Contact() {
             <ArrowLeft size={16} aria-hidden="true" /> Back to Blueprint
           </a>
           {!savedJob && <p className="ms-eyebrow">For site owners</p>}
-          <h1>{savedJob ? "Your saved job" : "Start with one task."}</h1>
+          <h1>{savedJob ? "Your saved job" : "What work would you like automated?"}</h1>
           {!savedJob && <p className="ms-inquiry-description">
-            Show us the work. Robot teams evaluate it in simulation, and we recommend one team whose evaluation passed for you to book. The beta is free; you agree the physical pilot’s dates and terms with the team directly.
+            Describe one recurring job. We help you assess suitable options, test where needed and choose a delivery team for a measured pilot. A description is enough to start; video and budget details are optional. Free during the beta.
           </p>}
         </div>
         <div className="ms-inquiry-forms">
           <SiteCaptureStart onSavedChange={setSavedJob} />
           <details className="ms-task-interest ms-visitor-detail">
             <summary>How this works</summary>
-            {savedJob ? <p className="ms-field-hint">Your private job link shows progress, follow-up questions and, once a team&rsquo;s evaluation passes, your recommended pilot. Keep it to return.</p> : <><p className="ms-field-hint">
-              Your job link shows progress and follow-ups. We draft a brief from the evidence for you to correct.
-              Before we build the job&rsquo;s scene, you save the job to an account with your work email.
-              Invited robot teams then evaluate the job in simulation, and we recommend one team whose evaluation passed.
-              A simulated pass is an estimate; the physical pilot, agreed with the team, tests performance on site.
+            {savedJob ? <p className="ms-field-hint">Your private job link shows the brief, progress, follow-up questions and the next decision. Keep it to return.</p> : <><p className="ms-field-hint">
+              We draft a brief for you to correct, then assess suitable options and what evidence is needed.
+              Existing evidence, simulation or physical testing may help answer different questions.
+              Before proposals, we clarify the required result, budget and responsibilities. You choose the delivery partner and agree the pilot contract directly with them.
+              Simulation is an estimate, not proof of physical performance or safety.
             </p>
             <p className="ms-field-hint">
               Geography, plainly: sending a person is an Austin-metro thing; anywhere in the US you
@@ -104,8 +105,8 @@ export default function Contact() {
             <p className="ms-field-hint">If filming needs approval, submit the job description while you arrange permission. Have someone who knows the job review the brief; we ask for more footage or a call only to resolve missing details. <a href="/privacy">How footage is used</a>.</p>
           </details>}
           <p className="ms-field-hint" style={{ marginTop: "20px" }}>
-            {!savedJob && <><a className="ms-text-link" href="/contact/robot-team">
-              Building robots? Apply for early access <ArrowUpRight size={16} aria-hidden="true" />
+            {!savedJob && <><a className="ms-text-link" href="/partners">
+              Deliver or build robot systems? Become a partner <ArrowUpRight size={16} aria-hidden="true" />
             </a>
             {" · "}</>}
             <a className="ms-text-link" href={`mailto:${CONTACT_EMAIL}`}>
@@ -115,7 +116,7 @@ export default function Contact() {
         </div>
         {!savedJob && <section className="ms-inquiry-fit" aria-labelledby="inquiry-fit-title">
           <h2 id="inquiry-fit-title">Is your job a fit?</h2>
-          <p>We screen every job against four questions. Not sure about one? Start anyway, and we tell you which it misses and what it would take to pass.</p>
+          <p>We start with bounded jobs, known objects and a work area that can be assessed. Not sure whether yours fits? Submit a description and we will identify what needs checking.</p>
           <JobFitQuestions />
           <a className="ms-text-link" href="/how-it-works#job-fit">Why each one matters <ArrowRight size={16} aria-hidden="true" /></a>
         </section>}

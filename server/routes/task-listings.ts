@@ -25,6 +25,7 @@ import { projectEvidenceForSite, isQualifiedRecommendationEvidence, verifyRecomm
   passMarkForJob, fundingRequestIdFor, criteriaChangedSinceRequest, type RunWithResult } from "../utils/pilotRecommendationEvidence";
 import { pilotConsentRefusal, projectPilotBooking, sitePilotContact, teamPilotContact } from "../utils/pilotContactExchange";
 import { SUPPORTED_TASK_SCOPE, scoredTaskDescription, taskScopeNotSupported } from "../utils/siteTaskScope";
+import { storedMarketplace } from "../utils/jobMarketplaceWorkflow";
 
 /**
  * The recommendation as the site sees it: the evaluation evidence without the
@@ -169,6 +170,8 @@ router.post("/owner/:token/book", async (req, res) => {
       const record = current.data();
       const recommendation = record?.pilot_recommendation;
       if (!current.exists || !recommendation) return "missing" as const;
+      const marketplace = storedMarketplace(record);
+      if (marketplace.selection || marketplace.agreement) return "pilot_conflict" as const;
       if (recommendation.id !== parsed.data.recommendationId) return "stale" as const;
       if (recommendation.reviewRequired) return "stale" as const;
       const booking = record?.pilot_booking;

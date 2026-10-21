@@ -34,6 +34,8 @@ export const ROBOT_TEAM_ACCESS_COLLECTION = "robotTeamAccess";
 export type RobotTeamAccessStatus = "applied" | "approved" | "declined";
 
 export interface RobotTeamAccessApplication {
+  partnerRole?: "deployment" | "technology" | null;
+  supportedSystems?: string | null;
   optionalUpdates?: boolean;
   name: string;
   email: string;
@@ -132,6 +134,8 @@ export async function recordAccessApplication(
     const prior = existing.exists ? (existing.data() as RobotTeamAccessRecord) : null;
     const record: RobotTeamAccessRecord = {
       ...application,
+      partnerRole: application.partnerRole ?? prior?.partnerRole ?? null,
+      supportedSystems: application.supportedSystems === undefined ? prior?.supportedSystems ?? null : application.supportedSystems,
       newJobAlertsOptIn: prior?.newJobAlertsOptIn ?? (!prior && application.optionalUpdates === true),
       ...(prior?.updatePreferences ? { updatePreferences: prior.updatePreferences } : !prior && application.optionalUpdates !== undefined
         ? { updatePreferences: buildUpdatePreferences({ newsletter: application.optionalUpdates, newJobAlerts: application.optionalUpdates, interests: {}, declaredCategories: {}, requirements: {} }, "application") } : {}),
@@ -233,6 +237,8 @@ export async function inviteRobotTeam(params: {
       region: prior?.region ?? null,
       testSite: prior?.testSite ?? null,
       pilotPackage: prior?.pilotPackage ?? null,
+      partnerRole: prior?.partnerRole ?? null,
+      supportedSystems: prior?.supportedSystems ?? null,
       source: prior?.source ?? "invite",
       fit: prior?.fit ?? null,
       status: "approved",

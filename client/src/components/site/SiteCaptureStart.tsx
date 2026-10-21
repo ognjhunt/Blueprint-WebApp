@@ -102,15 +102,15 @@ function ListingChoice({ task, privateHandling, onPrivateHandlingChange }: {
 }) {
   const card = anonymizedOpportunityDraft(task.trim());
   return <fieldset className="ms-choice" aria-describedby="start-listing-consent">
-    <legend>Job card for robot teams</legend>
+    <legend>Sharing your job</legend>
     {privateHandling ? (
       <p id="start-listing-consent" className="ms-field-hint">
         This job stays private. Starting does not publish a job card; Blueprint uses what you send only to assess your job.
-        Robot teams cannot see or evaluate a private job, so it cannot lead to a recommended pilot. You can publish its card from your job page later.
+        We ask before sharing details with a provider. You can choose to publish an anonymized card from your job page later.
       </p>
     ) : <>
       <p id="start-listing-consent" className="ms-field-hint">
-        Robot teams approved for the beta can see this anonymized card. By starting, you authorize Blueprint to publish
+        Partners approved for the beta can see this anonymized card. By starting, you authorize Blueprint to publish
         exactly this text. Footage, the rebuilt scene, your address, contacts and other details stay private.
       </p>
       <div className="ms-listing-preview" aria-label="Generated public summary" aria-live="polite">
@@ -367,6 +367,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     const field = (name: string) => String(data.get(name) ?? "");
     retain({ ...recovery.current, savedAt: Date.now(), draft: {
       task: field("startTask"), location: place ? place.label : field("startLocation"), email: field("startEmail"), company: field("startCompany"),
+      ...(field("startFrequency") ? { jobFrequency: field("startFrequency") } : {}),
+      ...(field("startReadiness") ? { purchaseReadiness: field("startReadiness") as SiteCaptureRecovery["draft"]["purchaseReadiness"] } : {}),
       method, region: place ? (place.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "") : region,
       regionManuallySet: false, ...(privateHandling ? { privateHandling: true } : {}),
     } });
@@ -472,10 +474,13 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           taskStatement: read("startTask"),
           taskDescription: read("startTask"),
           ...(!privateHandling ? { publicTaskListing: { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(read("startTask")) } } : {}),
-          // Deliberately empty. The screen used to live here; it now happens
-          // with the footage rather than in front of it.
+          // Screening happens after the first submission. Buying context is
+          // optional and cannot turn into a gate or a spending authorization.
           siteTaskGates: {},
-          siteTaskSpec: {},
+          siteTaskSpec: {
+            ...(String(data.get("startFrequency") ?? "").trim() ? { jobFrequency: String(data.get("startFrequency")).trim() } : {}),
+            ...(String(data.get("startReadiness") ?? "").trim() ? { purchaseReadiness: String(data.get("startReadiness")).trim() } : {}),
+          },
           // Someone who already has the video is not asking for a visit.
           captureMode: hasFootage || selfRecording ? "self_capture" : "site_visit",
           captureRegion: region,
@@ -692,7 +697,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                 first could not be resumed under the account (P1-8). */}
             <h2 style={{ marginTop: 0 }}>Save your job to your account, then send your video.</h2>
             <p className="ms-field-hint">
-              Robot teams can evaluate your job only if its video is sent after the job is saved to an account.
+              Save the job to your account before sending its video so the recording stays linked to the same owner.
               Create your account or sign in with {state.email}, then open your job and send the video you already have.
             </p>
             {state.claimUrl && <div className="ms-intake-account-links">
@@ -773,7 +778,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
               video is accepted only once the job is saved, so the recording's
               owner is the same from upload on, as the Pipeline requires. */}
           <p className="ms-field-hint">
-            We build the scene robot teams evaluate only for a job saved to an account with {state.email}.
+            Save the job to an account with {state.email} before sending video or preparing a site-specific evaluation.
             {" "}Save it now: we accept its video once it is saved. Your private job link keeps working either way.
           </p>
           <div className="ms-intake-account-links">
@@ -803,11 +808,18 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       {!storageAvailable && <p role="status" className="ms-field-hint">This browser cannot safely save or coordinate recovery details. Use a supported browser with local storage enabled, or email hello@tryblueprint.io for help starting your job. If your job is already saved, use its private link to return.</p>}
       <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} className={pending?.acknowledged && state.status !== "working" ? "contents ms-intake-return-fields" : "contents"}>
       <label htmlFor="start-task">
-        <span>What&rsquo;s the task? (optional)</span>
+        <span>What work needs doing?</span>
         <span className="ms-field-hint">
-          A video is enough: we draft the job brief from it for you to correct. Add anything the video won&rsquo;t show, like how often the task runs. We&rsquo;ll ask only when a missing answer changes the recommendation.
+          Describe one recurring job, including what a good result looks like. A short description is enough to start; video is optional. If you prefer, you can start with video and review the brief we draft from it.
         </span>
         <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} onChange={event => setTaskForPreview(event.target.value)} maxLength={2000} rows={4} />
+      </label>
+
+      <label htmlFor="start-frequency">
+        <span>How often does the job happen? <span className="ms-field-hint">(optional)</span></span>
+        <input id="start-frequency" name="startFrequency" type="text" maxLength={120}
+          defaultValue={recovery.current.draft.jobFrequency ?? ""}
+          placeholder="For example, 200 items per shift, five days a week" />
       </label>
 
       {claudeAuthoringRequested && (
@@ -839,6 +851,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         </label>
       )}
 
+      <details className="ms-task-interest ms-visitor-detail" open={method !== "phone" ? true : undefined}>
+      <summary>Add video or arrange recording (optional)</summary>
+      <p className="ms-field-hint">You can submit a description now and add footage later if it helps answer a missing question.</p>
       <fieldset className="ms-choice">
         <legend>How will we see the task?</legend>
         {([
@@ -870,8 +885,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           <>
           {!siteWorkspace && <div className="ms-intake-account-first" role="note" aria-label="Save this job to an account first">
             <p className="ms-field-hint">
-              <strong>Save this job to an account before you send the video.</strong> Robot teams can evaluate your job
-              only if its video is sent after the job is saved to an account.
+              <strong>Save this job to an account before you send the video.</strong> This keeps the recording linked to the same owner from upload onward.
             </p>
             <p className="ms-field-hint">
               New to Blueprint? Start the job here, then create your account and send the video from your job page.
@@ -913,10 +927,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </>
         )
       ) : null}
+      </details>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
         <label htmlFor="start-location">
-          <span>Where would the robot do this task?</span>
+          <span>Where does the work happen?</span>
           {!(selfRecording || hasFootage) && (
             <span className="ms-field-hint">We are sending someone to film it, so we need the street address.</span>
           )}
@@ -957,7 +972,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       <label htmlFor="start-email">
         <span>Work email</span>
         <span className="ms-field-hint">
-          Where we send your task link to add footage, follow progress and review the brief.
+          Where we send your private job link to review the brief, follow progress and add footage if needed.
         </span>
         <input id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required maxLength={320} />
       </label>
@@ -971,6 +986,20 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       {currentUser && workspaceType !== undefined && (siteWorkspace
         ? <p className="ms-field-hint">Saving to your workspace as {currentUser.email}.</p>
         : <p className="ms-field-hint">Signed in as {currentUser.email}, which is not a site workspace. This site will be saved to the link we email you, and you can claim it later.</p>)}
+
+      <details className="ms-task-interest ms-visitor-detail">
+        <summary>Add your buying plans (optional)</summary>
+        <label htmlFor="start-readiness">
+          <span>Where are you in the process?</span>
+          <select id="start-readiness" name="startReadiness" defaultValue={recovery.current.draft.purchaseReadiness ?? ""}>
+            <option value="">Not sure yet</option>
+            <option value="exploring">Exploring whether automation makes sense</option>
+            <option value="planning">Planning a pilot</option>
+            <option value="ready_for_proposals">Ready to review delivery proposals</option>
+          </select>
+        </label>
+        <p className="ms-field-hint">A budget is not required to start. We can clarify output targets, installation and ongoing costs before asking providers for proposals. Submitting does not authorize spending.</p>
+      </details>
 
       <ListingChoice task={taskForPreview} privateHandling={privateHandling} onPrivateHandlingChange={setPrivateHandling} />
 
@@ -993,7 +1022,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       </>}
 
       <p className="ms-form-note">
-        Free during the beta: robot teams evaluate your job and we recommend one pilot you can book. <a href="/beta#scope">The physical pilot is agreed with the team</a>. By selecting Start free assessment,
+        Free during the beta: we assess suitable options and help you plan a measured pilot. <a href="/beta#scope">You agree any physical pilot's scope, price and terms with the delivery team</a>. By selecting Start free assessment,
         you agree to our <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and{" "}
         <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and confirm: “{DESCRIPTION_AUTHORITY_STATEMENT}”
       </p>

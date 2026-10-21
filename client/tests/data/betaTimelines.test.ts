@@ -15,8 +15,9 @@ import {
 describe("the beta's expected timelines", () => {
   it("are the owner's three ranges, and none dates a recommendation", () => {
     expect(REPLY_TIMELINE).toBe("We reply within two business days.");
-    expect(SIMULATION_BUILD_TIMELINE).toBe("Building the simulation usually takes one to three weeks during the beta.");
-    expect(EVALUATION_START_TIMELINE).toBe("Evaluations start once an invited robot team takes up your job; we can't promise a date yet, and we email you when one starts.");
+    expect(SIMULATION_BUILD_TIMELINE).toMatch(/checks needed for your job/);
+    expect(SIMULATION_BUILD_TIMELINE).not.toMatch(/one to three weeks/);
+    expect(EVALUATION_START_TIMELINE).toMatch(/compatible options and delivery support/);
     for (const line of [REPLY_TIMELINE, SIMULATION_BUILD_TIMELINE, EVALUATION_START_TIMELINE]) {
       expect(line).not.toMatch(/recommend/i);
     }

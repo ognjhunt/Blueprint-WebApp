@@ -38,9 +38,10 @@ describe("platform context preamble", () => {
     expect(contents).toMatch(/qualifying-environment standard/i);
   });
 
-  it("records that the public surface and the shared block agree", () => {
+  it("records the current owner override without changing historical shared doctrine", () => {
     // Founder decision, 2026-10-14: the free beta became an active program.
-    expect(contents).toMatch(/The shared block and this repo's public surface agree/i);
+    expect(contents).toMatch(/Current owner direction.*October 21, 2026/i);
+    expect(contents).toMatch(/superseded for this owner-authorized website work/i);
     const block = extractBlock(contents, "SHARED_PLATFORM_CONTEXT");
     expect(block).toMatch(/### Active Programs/);
     expect(block).toMatch(/Free Beta: Evaluated, Recommended Pilot/);

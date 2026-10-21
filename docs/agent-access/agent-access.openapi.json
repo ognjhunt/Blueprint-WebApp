@@ -4,7 +4,7 @@
     "title": "Blueprint Robot-Team Agent API",
     "version": "2026-07-29",
     "summary": "Headless discovery of scoped site jobs and bounded evaluation tools for robot teams.",
-    "description": "Blueprint runs a free beta: a site shows one recurring job, invited robot teams evaluate it in a simplified simulation of the task, informed by the site's footage, and Blueprint recommends one team whose evaluation passed, which the site books in one step. This API exposes capture-backed job discovery, grounded questions, and Task Evaluation Run intake for robot teams; it does not grant an invitation or authorize a physical pilot. Simulation results are bounded estimates, not proof of physical performance or safety. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement, and hosted-session records retain their existing access controls; standalone purchasing is retired."
+    "description": "Blueprint helps sites assess suitable automation, test where needed, compare delivery proposals and agree a measured pilot. The customer chooses and contracts with a delivery partner. The beta is free for sites and partners; Blueprint takes no cut of pilot costs. This API exposes capture-backed job discovery, grounded questions and bounded Task Evaluation Run intake. It does not grant an invitation, authorize physical access or award a contract. Simulation results are bounded estimates, not proof of physical performance or safety. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement and hosted-session access controls remain unchanged; standalone purchasing is retired."
   },
   "servers": [
     {

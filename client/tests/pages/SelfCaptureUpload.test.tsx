@@ -765,8 +765,8 @@ describe("SelfCaptureUpload says how long a waiting stage takes", () => {
     }));
   }
   it.each([
-    ["assessing", "Building the simulation usually takes one to three weeks during the beta."],
-    ["awaiting_teams", "Evaluations start once an invited robot team takes up your job; we can't promise a date yet, and we email you when one starts."],
+    ["assessing", "We confirm the checks needed for your job and explain the next step. Timing depends on the evidence and compatible systems available."],
+    ["awaiting_teams", "We are checking compatible options and delivery support. Your job page shows who needs to act next; we email you when there is an update."],
     ["received", "We reply within two business days."],
   ])("shows the expected wait while %s", async (decision, line) => {
     setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36");

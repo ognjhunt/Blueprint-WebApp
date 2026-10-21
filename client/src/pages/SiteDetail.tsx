@@ -125,7 +125,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
     <>
       <SEO
         title={`${siteName} | Sites | Blueprint`}
-        description="A recurring job a site shared for invited robot teams to evaluate in simulation. Blueprint recommends one team whose evaluation passed; the site books the pilot."
+        description="A recurring job shared for compatible-system assessment and delivery planning. Access and pilot terms require site approval."
         canonical={`/sites/${params.slug}`}
         image={`https://tryblueprint.io${wamPolicyEvalAssets.hero}`}
         jsonLd={[
@@ -181,7 +181,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
 
             <section>
               <h2>Recorded job scope</h2>
-              <p>The jobs below come from the site. Results appear only after an invited robot team runs an evaluation.</p>
+              <p>The jobs below come from the site. Evidence appears only when an authorized assessment has produced a result.</p>
               {site.taskCatalog.length ? (
                 <ul>
                   {site.taskCatalog.map((task) => (
@@ -192,7 +192,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
                   ))}
                 </ul>
               ) : (
-                <p>Job details are agreed when an invited robot team asks to evaluate here.</p>
+                <p>Detailed scope and access are agreed with the site before evaluation or a delivery proposal.</p>
               )}
             </section>
 

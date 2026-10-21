@@ -11,11 +11,11 @@
 export const REPLY_TIMELINE = "We reply within two business days.";
 
 /** From a cleared, saved job and its footage to a scene robot teams can be evaluated in. */
-export const SIMULATION_BUILD_TIMELINE = "Building the simulation usually takes one to three weeks during the beta.";
+export const SIMULATION_BUILD_TIMELINE = "We confirm the checks needed for your job and explain the next step. Timing depends on the evidence and compatible systems available.";
 
 /** Evaluations wait on an invited robot team, so no date is promised. */
 export const EVALUATION_START_TIMELINE =
-  "Evaluations start once an invited robot team takes up your job; we can't promise a date yet, and we email you when one starts.";
+  "We are checking compatible options and delivery support. Your job page shows who needs to act next; we email you when there is an update.";
 
 /** All three, in the order a job meets them. */
 export const BETA_TIMELINES = [REPLY_TIMELINE, SIMULATION_BUILD_TIMELINE, EVALUATION_START_TIMELINE] as const;

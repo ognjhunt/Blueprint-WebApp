@@ -38,22 +38,22 @@ export const betaFeeUsd = 0;
  * is no Blueprint fee during the beta, so there is nothing to refund.
  */
 export const pilotReplacementPolicy =
-  "If the recommended team withdraws or materially changes its confirmed scope before the pilot starts, we recommend a replacement whose evaluation on the same job passed, if one fits. Blueprint charges no fee during the beta, so there is no fee to refund.";
+  "If a delivery partner withdraws or changes its proposed scope before agreement, Blueprint helps review suitable alternatives. A replacement needs its own evidence and your approval. Blueprint charges no fee during the beta, so there is no fee to refund.";
 
 /** What a site pays for screening, evaluation, a recommendation and booking: nothing. */
 export const siteAssessment = {
   amount: betaFeeUsd,
   unit: "during the beta",
-  summary: "An evaluated recommendation for one job at one site.",
+  summary: "A clear buying decision for one recurring job at one site.",
   covers: [
-    "The job defined: objects, cycle, exceptions, timing, and the pass mark for an evaluation.",
-    "Invited robot teams evaluate the job in a simplified simulation of your task, informed by your footage. Approved beta evaluations are free.",
-    "One recommended robot team whose evaluation on your job passed, or a plain answer that no team has passed yet.",
-    "For a recommended pilot: the team, what it tests, what you provide, and one button to book it.",
+    "An agreed job brief: objects, cycle, exceptions, timing and required outcomes.",
+    "Suitable options assessed using existing evidence, qualified simulation or physical checks where needed.",
+    "Comparable delivery proposals and a reasoned recommendation, or a plain answer when no suitable option is available.",
+    "A pilot scope with the delivery partner, price, support and acceptance criteria for you to approve.",
   ],
   allIn:
-    "Free during the beta. Submitting a job, screening, evaluation, our recommendation and booking the recommended pilot cost nothing.",
-  bounded: "One recommended pilot: a robot team whose evaluation on your job passed. You do not have to compare teams.",
+    "Free during the beta. Submitting a job, assessment, evaluation, proposal review and pilot coordination cost nothing.",
+  bounded: "A recommendation for your job, with evidence limits and comparable proposals. You choose and approve the delivery partner and pilot terms.",
   /**
    * Precise about what a robot team actually receives, because the loose
    * version — "they get your footage" — is both wrong and alarming. What they
@@ -64,9 +64,9 @@ export const siteAssessment = {
    * annex, so the two surfaces cannot promise different things.
    */
   whatWeGetFromIt:
-    "Invited robot teams evaluate a qualified job for free during the beta, and the site pays nothing to receive or book the recommended pilot. Robot teams never receive your recording — it informs a simplified scene for a controlled evaluation under the rights you grant at intake and nothing wider.",
+    "Sites and partners pay nothing for Blueprint assessment during the beta. Robot teams never receive your recording. Approved observations may support controlled evaluation under the rights you grant; evaluation permission does not grant training permission.",
   whatIsNotFree:
-    "Nothing Blueprint does costs the site during the beta. The physical pilot is agreed directly between the site and the robot team, and Blueprint takes no cut of it.",
+    "Blueprint assessment and coordination are free during the beta. Physical pilot costs are quoted by the delivery partner and agreed directly with the site. Blueprint takes no cut of the pilot.",
 } as const;
 
 /* -------------------------------------------------------------------------

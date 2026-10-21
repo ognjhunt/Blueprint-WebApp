@@ -4,6 +4,9 @@ export const SITE_CAPTURE_DRAFT_VERSION = 1;
 export const SITE_CAPTURE_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export type SiteCaptureDraft = {
   task: string; location: string; email: string; company: string;
+  /** Optional buying context. Empty answers never block a first assessment. */
+  jobFrequency?: string;
+  purchaseReadiness?: "" | "exploring" | "planning" | "ready_for_proposals" | "unsure";
   method: "phone" | "upload" | "visit"; region: "" | "us" | "non_us";
   regionManuallySet: boolean;
   privateHandling?: boolean;
@@ -40,6 +43,8 @@ function validSiteCaptureRecovery(input: unknown): SiteCaptureRecovery | null {
       || now - value.savedAt >= SITE_CAPTURE_DRAFT_TTL_MS
       || !/^capture-[a-f0-9-]{36}$/.test(value.requestId) || !/^[a-f0-9-]{36}$/.test(value.retryToken)
       || (draft.privateHandling !== undefined && typeof draft.privateHandling !== "boolean")
+      || (draft.jobFrequency !== undefined && (typeof draft.jobFrequency !== "string" || draft.jobFrequency.length > 120))
+      || (draft.purchaseReadiness !== undefined && !["", "exploring", "planning", "ready_for_proposals", "unsure"].includes(draft.purchaseReadiness))
       || !draft || !["phone", "upload", "visit"].includes(draft.method)
       || !["", "us", "non_us"].includes(draft.region) || typeof draft.regionManuallySet !== "boolean"
       || !([[draft.task, 2000], [draft.location, 300], [draft.email, 320], [draft.company, 200]] as const)
@@ -53,6 +58,8 @@ function validSiteCaptureRecovery(input: unknown): SiteCaptureRecovery | null {
       if (body.requestId !== value.requestId || body.retryToken !== value.retryToken
         || body.buyerType !== "site_operator" || body.taskStatement !== draft.task.trim()
         || body.siteLocation !== draft.location.trim() || body.captureRegion !== draft.region) return null;
+      if ((body.siteTaskSpec?.jobFrequency ?? "") !== (draft.jobFrequency?.trim() ?? "")
+        || (body.siteTaskSpec?.purchaseReadiness ?? "") !== (draft.purchaseReadiness ?? "")) return null;
     }
     return value;
   } catch { return null; }
@@ -79,10 +86,11 @@ export function writeSiteCaptureRecovery(key: string | null, value: SiteCaptureR
     }
     // Persist only the named recovery fields: no File objects or bearer URL
     // can ride along on a future caller's spread object.
-    const { task, location, email, company, method, region, regionManuallySet, privateHandling } = value.draft;
+    const { task, location, email, company, method, region, regionManuallySet, privateHandling, jobFrequency, purchaseReadiness } = value.draft;
     window.localStorage.setItem(key, JSON.stringify({
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
-      draft: { task, location, email, company, method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}) },
+      draft: { task, location, email, company, method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}),
+        ...(jobFrequency ? { jobFrequency } : {}), ...(purchaseReadiness ? { purchaseReadiness } : {}) },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     }));
     return true;

@@ -1141,6 +1141,10 @@ router.post(
       requestId: id,
       siteLocation: z.string().trim().min(1).max(300),
       taskStatement: z.string().trim().max(2000).default(""),
+      siteTaskSpec: z.object({
+        jobFrequency: z.string().trim().max(120).optional(),
+        purchaseReadiness: z.enum(["exploring", "planning", "ready_for_proposals", "unsure"]).optional(),
+      }).strict().optional(),
       publicTaskListing: z.object({ consent: z.literal(true), statementVersion: z.literal(listingConsentVersion), details: taskListingSchema }).strict().optional(),
       captureMode: z.enum(["self_capture", "site_visit"]),
       captureRegion: z.enum(["us", "non_us"]),
@@ -1168,7 +1172,7 @@ router.post(
       ...intakeIdentity(res), ...input,
       siteName: input.siteLocation,
       taskDescription: input.taskStatement,
-      siteTaskGates: {}, siteTaskSpec: {},
+      siteTaskGates: {}, siteTaskSpec: input.siteTaskSpec ?? {},
     };
     return submitInboundRequest(req, res);
   }),

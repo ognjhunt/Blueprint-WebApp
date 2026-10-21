@@ -2,7 +2,7 @@ import type { SiteAdvisory } from "@/types/siteAdvisory";
 import { SiteAdvisoryReport } from "@/components/site/SiteAdvisoryReport";
 import { isLikelyPhone } from "@/lib/device";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
-import { RecommendedPilot } from "@/components/site/RecommendedPilot";
+import { JobWorkspace } from "@/components/site/JobWorkspace";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
 import { waitingTimeline } from "@/data/betaTimelines";
 /**
@@ -640,15 +640,15 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </header>
       <div className="ms-container ms-capture-body" style={{ paddingBlock: "24px 48px", maxWidth: "680px" }}>
         <Helmet>
-        <title>Upload your walkthrough | Blueprint</title>
+        <title>Your job | Blueprint</title>
         <meta name="robots" content="noindex,nofollow" />
       </Helmet>
 
       <h1 style={{ fontSize: "34px", letterSpacing: "-1.2px", marginBottom: "12px" }}>
-        {link.status === "held" || descriptionFirst ? "Your job assessment" : saved ? "Your job assessment" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Your job assessment"}
+        {link.status === "held" || descriptionFirst ? "Your job" : saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Your job"}
       </h1>
 
-      {(link.status === "valid" || link.status === "held") && scope === "owner" && <RecommendedPilot token={token} />}
+      {(link.status === "valid" || link.status === "held") && scope === "owner" && <JobWorkspace token={token} />}
       {(link.status !== "valid" || descriptionFirst) && statusCard}
       {descriptionFirst && (link.status === "valid" || link.status === "held") && (
         <section aria-label="Your job summary" style={{ marginBottom: "28px" }}>
@@ -659,7 +659,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           {brief ? <><p>{brief.summary.trim() && brief.summary.trim() !== "Your site task" ? brief.summary
             : "No job description yet. Describe the job in one sentence when you confirm your brief."}</p><p className="ms-field-hint">{briefConfirmed
             ? "Your job brief is confirmed. Correct it here if something changes."
-            : "Robot teams can evaluate your job only after you confirm this brief. You can confirm it now or after you add footage."}</p>
+            : "Confirm the brief so Blueprint can assess suitable options against the same requirements. You can do this now or after adding footage."}</p>
             <details><summary>{briefConfirmed ? "Edit your job brief" : "Review and confirm your job brief"}</summary><TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount
               onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }} /></details>
           </> : <p className="ms-field-hint">Your job is saved. Blueprint will use the supplied information to prepare the next useful step and notify you of meaningful progress.</p>}
