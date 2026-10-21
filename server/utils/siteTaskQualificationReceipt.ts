@@ -24,7 +24,7 @@ const bindingSchema = z.object({
   scene_request_id: identity, site_id: identity, task_id: identity, capture_id: identity,
   source_capture_digest: digest, testbed_digest_sha256: digest, scene_revision_digest: digest,
   task_spec_digest: digest, success_contract_digest: digest, robot_model_digest: digest,
-  policy_interface_id: z.enum(["openpi_droid_https.v1", "blueprint_policy_https.v1"]),
+  policy_interface_id: z.enum(["openpi_droid_https.v1", "blueprint_policy_https.v1", "dreamlabs_dream1.v1"]),
 }).strict();
 
 const projectionSchema = z.object({

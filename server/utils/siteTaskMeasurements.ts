@@ -359,7 +359,7 @@ const BINDING_FIELDS = [
   "scene_revision_digest", "task_spec_digest", "success_contract_digest", "robot_model_digest", "policy_interface_id",
 ] as const;
 type Binding = Record<(typeof BINDING_FIELDS)[number], string>;
-const POLICY_INTERFACES = new Set(["openpi_droid_https.v1", "blueprint_policy_https.v1"]);
+const POLICY_INTERFACES = new Set(["openpi_droid_https.v1", "blueprint_policy_https.v1", "dreamlabs_dream1.v1"]);
 
 function exactBinding(value: unknown, requestId: string): Binding {
   const row = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;

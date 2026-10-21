@@ -12,6 +12,7 @@ import { TEAM_EVALUATION_PROVIDER_CAP_USD } from "./teamEvaluationSelection";
 import { teamJobAccess } from "./teamJobAccess";
 import { isTeamEvaluationProfile, offersTeamEvaluation, TEAM_EVALUATION_PURPOSE, teamPolicyBlocker, robotSetupIntegrationBlocker } from "./policyIntegration";
 import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
+import { samePolicyAdapter } from "../../client/src/types/policyAdapter";
 
 const id = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 /** An operator approves exact existing records; a workspace request alone is not permission. */
@@ -64,7 +65,8 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
     throw new Error("free_evaluation_policy_license_required:request_a_new_evaluation_for_this_setup");
   const checkpointRef = db.collection("robotCheckpoints").doc(approval.checkpointId);
   const checkpoint = (await checkpointRef.get()).data();
-  if (!checkpoint || checkpoint.teamId !== approval.teamId || checkpoint.reference !== setup.reference)
+  if (!checkpoint || checkpoint.teamId !== approval.teamId || checkpoint.reference !== setup.reference
+    || !samePolicyAdapter(checkpoint.policyConfig, setup.policyConfig))
     throw new Error("free_evaluation_policy_mismatch");
   // Preparation refuses an episode count other than 200 when the job offers team evaluations.
   const robotEmbodiment = setup.robotEmbodiment ? robotEmbodimentSchema.parse(setup.robotEmbodiment) : null;

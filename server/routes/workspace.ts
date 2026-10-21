@@ -59,6 +59,7 @@ import type {
 import { robotDescriptionSchema } from "../../client/src/types/robotDescription";
 import { canonicalDeploymentSelections, deploymentCatalogWithDigest } from "../../client/src/lib/deploymentEmbodimentSupport";
 import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
+import { policyAdapterSchema, samePolicyAdapter } from "../../client/src/types/policyAdapter";
 import { wilsonLowerBound, wilsonUpperBound } from "../utils/successRateConfidence";
 import { gateAnswersOnFile } from "../utils/gateAnswersOnFile";
 import { bookingUrl } from "../utils/bookingLink";
@@ -119,6 +120,7 @@ const setupSchema = z
     robotDescription: robotDescriptionSchema.optional(),
     /** The team's own robot and cameras; without it the policy drives the simulated DROID Franka. */
     robotEmbodiment: robotEmbodimentSchema.optional(),
+    policyConfig: policyAdapterSchema.optional(),
     executionBindingId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/).optional(),
     id,
     name: short,
@@ -1336,7 +1338,8 @@ async function setupTeamPolicyBlocker(uid: string, setup: RobotSetup): Promise<T
   if (integration) return integration;
   if (setup.delivery !== "endpoint") return "team_evaluation_policy_endpoint_required";
   const checkpoints = (await Promise.all((await teamsForAccount(uid)).map((team) => listCheckpoints(team.id)))).flat()
-    .filter((checkpoint) => checkpoint.reference === setup.reference && checkpoint.status !== "retired");
+    .filter((checkpoint) => checkpoint.reference === setup.reference
+      && samePolicyAdapter(checkpoint.policyConfig, setup.policyConfig) && checkpoint.status !== "retired");
   const blockers = checkpoints.map((checkpoint) => teamPolicyBlocker(checkpoint, { robotEmbodiment: setup.robotEmbodiment }));
   return blockers.includes(null) ? null : blockers[0] ?? "team_evaluation_policy_credential_required";
 }

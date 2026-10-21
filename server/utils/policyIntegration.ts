@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { robotEmbodimentSchema, type RobotEmbodiment } from "../../client/src/types/robotEmbodiment";
+import { policyAdapterSchema } from "../../client/src/types/policyAdapter";
 
 /** ADP-011/day 7: integration intent is distinct from execution evidence. */
 export const checkpointRuntimes = [
@@ -53,6 +54,8 @@ export function isTeamEvaluationProfile(profile: unknown): boolean {
 export const TEAM_CANDIDATE_HTTPS_INTERFACE = "openpi_droid_https.v1";
 /** A policy for the team's own declared robot and cameras (`robotEmbodiment.ts`), served over HTTPS. */
 export const TEAM_ROBOT_HTTPS_INTERFACE = "blueprint_policy_https.v1";
+export const TEAM_DREAM_HTTPS_INTERFACE = "dreamlabs_dream1.v1";
+export const TEAM_OWN_ROBOT_INTERFACES: readonly string[] = [TEAM_ROBOT_HTTPS_INTERFACE, TEAM_DREAM_HTTPS_INTERFACE];
 
 /** Whether a job's published execution offer lists the team evaluation. */
 export function offersTeamEvaluation(job: unknown): boolean {
@@ -79,9 +82,11 @@ export type TeamPolicyBlocker =
   | "team_evaluation_policy_credential_required"
   | "team_evaluation_policy_credential_expired"
   | "team_evaluation_robot_manifest_invalid"
+  | "team_evaluation_policy_adapter_invalid"
   | "team_evaluation_robot_integration_required";
 
 export const TEAM_POLICY_BLOCKER_MESSAGES: Record<TeamPolicyBlocker, string> = {
+  team_evaluation_policy_adapter_invalid: "Bind the exact Dream model, three cameras and two independently controlled arms at 60 Hz in this setup.",
   team_evaluation_policy_endpoint_required:
     "This job's evaluation calls a hosted policy endpoint. Choose a setup delivered as a hosted endpoint.",
   team_evaluation_policy_https_required:
@@ -115,13 +120,34 @@ export function teamPolicyBlocker(
   const integration = robotSetupIntegrationBlocker(options);
   if (integration) return integration;
   if (!["policy_endpoint", "customer_hosted"].includes(checkpoint.runtime)) return "team_evaluation_policy_endpoint_required";
+  if (checkpoint.reference === "https://api.dreamlabs.ai/v1/get_action" && checkpoint.policyConfig === undefined)
+    return "team_evaluation_policy_adapter_invalid";
   if (!validateIntegrationReference("customer_hosted", String(checkpoint.reference || "").trim()))
     return "team_evaluation_policy_https_required";
   const credential = checkpoint.policyCredential;
   if (credential?.kind !== "bearer" || !credential?.ref) return "team_evaluation_policy_credential_required";
-  if (Date.parse(credential.expiresAtIso) <= Date.now()) return "team_evaluation_policy_credential_expired";
+  const expires = Date.parse(credential.expiresAtIso);
+  if (!Number.isFinite(expires) || expires <= Date.now()) return "team_evaluation_policy_credential_expired";
   if (options.robotEmbodiment && !robotEmbodimentSchema.safeParse(options.robotEmbodiment).success)
     return "team_evaluation_robot_manifest_invalid";
+  if (checkpoint.policyConfig !== undefined) {
+    const config = policyAdapterSchema.safeParse(checkpoint.policyConfig);
+    const robot = robotEmbodimentSchema.safeParse(options.robotEmbodiment);
+    if (!config.success || checkpoint.reference !== "https://api.dreamlabs.ai/v1/get_action" || !robot.success)
+      return "team_evaluation_policy_adapter_invalid";
+    const manifest = robot.data;
+    if (manifest.schema_version !== "blueprint.robot_embodiment.v2" || manifest.form !== "bimanual_arm"
+      || manifest.base.mode !== "fixed" || manifest.control_hz !== 60 || manifest.action_chunk_rows > 48
+      || manifest.arms?.map(arm => arm.name).join(",") !== "left,right" || manifest.grippers?.length !== 2
+      || manifest.cameras.length !== 3
+      || Object.values(config.data.camera_roles).some(name => !manifest.cameras.some(camera => camera.name === name)))
+      return "team_evaluation_policy_adapter_invalid";
+    const cameras = new Map(manifest.cameras.map(camera => [camera.name, camera]));
+    if (cameras.get(config.data.camera_roles.overhead)?.mount_link !== null
+      || manifest.arms!.some((arm, index) => arm.joint_names.length > 12
+        || cameras.get(config.data.camera_roles[index === 0 ? "wrist_l" : "wrist_r"])?.mount_link !== arm.tool_link))
+      return "team_evaluation_policy_adapter_invalid";
+  }
   return null;
 }
 
@@ -142,13 +168,20 @@ export function teamCandidatePolicyPackage(
   if (embodiment && !embodiment.success) return null;
   return { policy_api_endpoint: {
     endpoint_url: reference, execution_profile: TEAM_EVALUATION_PROFILE,
-    policy_interface_id: embodiment ? TEAM_ROBOT_HTTPS_INTERFACE : TEAM_CANDIDATE_HTTPS_INTERFACE,
+    policy_interface_id: checkpoint.policyConfig?.policy_interface_id
+      ?? (embodiment ? TEAM_ROBOT_HTTPS_INTERFACE : TEAM_CANDIDATE_HTTPS_INTERFACE),
+    ...(checkpoint.policyConfig ? { policy_config: {
+      model_id: checkpoint.policyConfig.model_id, camera_roles: checkpoint.policyConfig.camera_roles,
+    } } : {}),
     ...(embodiment ? { robot_embodiment: embodiment.data } : {}),
     credential_ref: checkpoint.policyCredential.ref, credential_kind: "bearer",
   } };
 }
 
 export function checkpointPolicyPackage(checkpoint: Record<string, any>): Record<string, unknown> | null {
+  // Provider protocols require their complete team robot binding. They must
+  // never inherit the generic controlled-observation request serializer.
+  if (checkpoint.policyConfig !== undefined || checkpoint.reference === "https://api.dreamlabs.ai/v1/get_action") return null;
   const reference = String(checkpoint.reference || "").trim();
   if (!reference) return null;
   const access = checkpoint.policyCredential ? { credential_ref: checkpoint.policyCredential.ref,

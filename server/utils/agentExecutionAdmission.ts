@@ -3,13 +3,15 @@ import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { CheckpointRuntime } from "./robotCheckpoints";
 import type { PolicyModelArtifact } from "./policyModelArtifact";
+import type { PolicyAdapter } from "../../client/src/types/policyAdapter";
 import {
   validateDecisionEvidenceRequest,
   type DecisionEvidenceRequest,
 } from "./decisionEvidenceContract";
 
 import { loadTaskForTeam, developmentOfferSchema, developmentOfferForTeam } from "./controlledDevelopmentOffer";
-import { isTeamEvaluationProfile, TEAM_CANDIDATE_HTTPS_INTERFACE, TEAM_ROBOT_HTTPS_INTERFACE } from "./policyIntegration";
+import { isTeamEvaluationProfile, TEAM_CANDIDATE_HTTPS_INTERFACE, TEAM_ROBOT_HTTPS_INTERFACE,
+  TEAM_DREAM_HTTPS_INTERFACE, teamCandidatePolicyPackage } from "./policyIntegration";
 
 export const AGENT_EXECUTION_ADMISSION_SCHEMA_VERSION =
   "blueprint.agent_execution_admission.v1" as const;
@@ -23,6 +25,7 @@ export interface AgentExecutionAdmissionSelection {
     runtime: CheckpointRuntime;
     reference: string;
     modelArtifact?: PolicyModelArtifact;
+    policyConfig?: PolicyAdapter;
     policyCredential?: { ref: string; kind: "registry" | "bearer"; expiresAtIso: string };
   };
   scene: {
@@ -95,6 +98,11 @@ function canonicalCheckpointMatches(
   const payload = objectValue(policy.policy_api_endpoint || policy.docker_container || policy.sim_controller_plugin);
   if (payload.credential_ref !== selection.checkpoint.policyCredential?.ref
       || payload.credential_kind !== selection.checkpoint.policyCredential?.kind) return false;
+  if (selection.checkpoint.policyConfig !== undefined) {
+    const expected = teamCandidatePolicyPackage(selection.checkpoint, { robotEmbodiment: payload.robot_embodiment as never });
+    return expected !== null && canonicalJson(policy) === canonicalJson(expected);
+  }
+  if (payload.policy_interface_id === TEAM_DREAM_HTTPS_INTERFACE || payload.policy_config !== undefined) return false;
   if (selection.checkpoint.runtime === "model_artifact") {
     const container = objectValue(policy.docker_container);
     const artifact = selection.checkpoint.modelArtifact;
@@ -464,6 +472,7 @@ export async function discoverAgentExecutionAdmission(params: {
       runtime: checkpoint.runtime as AgentExecutionAdmissionSelection["checkpoint"]["runtime"],
       reference: String(checkpoint.reference || ""),
       ...(checkpoint.modelArtifact ? { modelArtifact: checkpoint.modelArtifact as PolicyModelArtifact } : {}),
+      ...(checkpoint.policyConfig !== undefined ? { policyConfig: checkpoint.policyConfig as PolicyAdapter } : {}),
       ...(checkpoint.policyCredential ? { policyCredential: checkpoint.policyCredential as AgentExecutionAdmissionSelection["checkpoint"]["policyCredential"] } : {}),
     },
     scene: {

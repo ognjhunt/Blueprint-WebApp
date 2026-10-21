@@ -16,6 +16,7 @@ import {
 } from "@/components/workspace/WorkspaceUI";
 import { RobotDescriptionFields, readRobotDescription } from "@/components/workspace/RobotDescriptionFields";
 import { robotEmbodimentSchema, type RobotEmbodiment } from "@/types/robotEmbodiment";
+import { policyAdapterSchema, type PolicyAdapter } from "@/types/policyAdapter";
 import PolicyInterfaceGuide from "@/components/workspace/PolicyInterfaceGuide";
 import { CheckpointRegistration } from "@/components/workspace/CheckpointRegistration";
 import type { RobotSetup } from "@/types/workspace";
@@ -275,6 +276,11 @@ function WorkspaceSettings() {
                     return;
                   }
                 }
+                let policyConfig: PolicyAdapter | undefined;
+                if (value("policyConfig").trim()) {
+                  try { policyConfig = policyAdapterSchema.parse(JSON.parse(value("policyConfig"))); }
+                  catch { setSetupError("Check the Dream model ID and its three named camera roles."); return; }
+                }
                 void action.perform(
                   "/setups",
                   {
@@ -292,6 +298,7 @@ function WorkspaceSettings() {
                     robotDescription,
                     ...(editing !== "new" && editing.executionBindingId ? {executionBindingId:editing.executionBindingId} : {}),
                     ...(robotEmbodiment ? { robotEmbodiment } : {}),
+                    ...(policyConfig ? { policyConfig } : {}),
                   },
                   () => setEditing(null),
                 );
@@ -373,6 +380,15 @@ function WorkspaceSettings() {
                 </Field>
               </details>
               <PolicyInterfaceGuide />
+              <details className="ws-section" open={editing !== "new" && Boolean(editing.policyConfig)}>
+                <summary>Dream API adapter</summary>
+                <Field label="Protocol settings (JSON)" wide>
+                  <textarea name="policyConfig" rows={5} maxLength={2000} spellCheck={false}
+                    defaultValue={editing !== "new" && editing.policyConfig ? JSON.stringify(editing.policyConfig, null, 2) : ""}
+                    placeholder={'{"policy_interface_id":"dreamlabs_dream1.v1","model_id":"dreamlabs/dream-1","camera_roles":{"overhead":"overview","wrist_l":"left_wrist","wrist_r":"right_wrist"}}'} />
+                </Field>
+                <p className="ws-note">Use the exact model ID available to your Dream account and camera names from your robot manifest. Save the token in Policy token.</p>
+              </details>
               <details className="ws-section">
                 <summary>Additional notes</summary>
                 <Field label="Notes">

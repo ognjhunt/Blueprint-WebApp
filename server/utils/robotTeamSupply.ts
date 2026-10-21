@@ -42,7 +42,8 @@
  */
 import { isDeepStrictEqual } from "node:util";
 import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
-import { isTeamEvaluationProfile, TEAM_CANDIDATE_HTTPS_INTERFACE, TEAM_ROBOT_HTTPS_INTERFACE } from "./policyIntegration";
+import { isTeamEvaluationProfile, TEAM_CANDIDATE_HTTPS_INTERFACE, TEAM_ROBOT_HTTPS_INTERFACE,
+  TEAM_DREAM_HTTPS_INTERFACE, TEAM_OWN_ROBOT_INTERFACES } from "./policyIntegration";
 import {
   SUPPLY_AGREEMENT_SCHEMA_VERSION,
   SUPPLY_AGREEMENT_TERMS,
@@ -62,6 +63,7 @@ import {
  */
 export const LEGACY_DROID_SUPPLY_INTERFACE_ID = "droid_franka_panda_robotiq_2f85_v1" as const;
 export const SUPPORTED_SUPPLY_INTERFACES = [
+  { interfaceId: TEAM_DREAM_HTTPS_INTERFACE, label: "Dream API on the team's configured dual arms", robotEmbodimentRequired: true },
   { interfaceId: TEAM_ROBOT_HTTPS_INTERFACE, label: "Team's own robot of any form", robotEmbodimentRequired: true },
   { interfaceId: TEAM_CANDIDATE_HTTPS_INTERFACE, label: "Blueprint's DROID Franka", robotEmbodimentRequired: false },
   { interfaceId: LEGACY_DROID_SUPPLY_INTERFACE_ID, label: "DROID Franka (legacy agreement identifier)", robotEmbodimentRequired: false },
@@ -115,7 +117,7 @@ export function entryProblem(term: SupplyAgreementTerm, entry: SupplyAgreementEn
     if (!SUPPORTED_SUPPLY_INTERFACE_IDS.includes(String(entry.interfaceId ?? ""))) {
       return `record the agreed interfaceId explicitly: ${SUPPORTED_SUPPLY_INTERFACE_IDS.join(", ")}`;
     }
-    if (entry.interfaceId === TEAM_ROBOT_HTTPS_INTERFACE) {
+    if (TEAM_OWN_ROBOT_INTERFACES.includes(String(entry.interfaceId))) {
       const parsed = robotEmbodimentSchema.safeParse(entry.robotEmbodiment);
       if (!parsed.success) {
         const issue = parsed.error.issues[0];
@@ -254,7 +256,8 @@ export function hasRecordedInterfaceForExecution(
     return [LEGACY_DROID_SUPPLY_INTERFACE_ID, TEAM_CANDIDATE_HTTPS_INTERFACE].includes(String(entry.interfaceId))
       && policy.robot_embodiment == null;
   }
-  if (policy.policy_interface_id !== TEAM_ROBOT_HTTPS_INTERFACE || entry.interfaceId !== TEAM_ROBOT_HTTPS_INTERFACE) return false;
+  if (!TEAM_OWN_ROBOT_INTERFACES.includes(String(policy.policy_interface_id))
+    || entry.interfaceId !== policy.policy_interface_id) return false;
   const executed = robotEmbodimentSchema.safeParse(policy.robot_embodiment);
   const agreed = robotEmbodimentSchema.safeParse(entry.robotEmbodiment);
   return executed.success && agreed.success && isDeepStrictEqual(executed.data, agreed.data);
@@ -332,7 +335,7 @@ export function applySupplyAgreementTerms(
     const problem = entryProblem(input.term, entry);
     if (problem) errors.push({ term: input.term, problem });
     else {
-      if (entry.interfaceId === TEAM_ROBOT_HTTPS_INTERFACE) entry.robotEmbodiment = robotEmbodimentSchema.parse(entry.robotEmbodiment);
+      if (TEAM_OWN_ROBOT_INTERFACES.includes(String(entry.interfaceId))) entry.robotEmbodiment = robotEmbodimentSchema.parse(entry.robotEmbodiment);
       entries.push([input.term, entry]);
     }
   }
