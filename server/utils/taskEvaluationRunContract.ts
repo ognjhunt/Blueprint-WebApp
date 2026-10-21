@@ -8,6 +8,7 @@ import {
 } from "./siteTaskTestbedContract";
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 import { confirmedTaskSuccessContractSchema } from "./articulatedTaskSuccessContract";
+import { verifyProducerArtifact } from "./producerCanonicalArtifact";
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
@@ -495,6 +496,9 @@ const policyVariationFamilies = [
   "bounded_physics",
   "pairwise",
   "held_out",
+  "admitted_object_material_cousin",
+  "pairwise_stress",
+  "held_out_composition",
 ] as const;
 const policyFamilyMetric = z.object({
   attempted: z.number().int().nonnegative(),
@@ -569,6 +573,12 @@ const taskEvaluationRunPublicationBaseSchema = z.object({
   state: z.enum(["decided", "partially_decided", "abstained"]),
   evidence_plan: nativeEvidencePlanSchema,
   decision_envelope: nativeDecisionEnvelopeSchema,
+  producer_canonical_json: z.object({
+    evidence_plan: z.string().min(1).max(750_000),
+    decision_envelope: z.string().min(1).max(750_000),
+    result_delivery: z.string().min(1).max(750_000).optional(),
+    policy_run_result: z.string().min(1).max(750_000).optional(),
+  }).strict().optional(),
   proof_boundary: z.object({
     simulation_is_physical_success: z.literal(false),
     deployment_or_safety_approved: z.literal(false),
@@ -654,7 +664,7 @@ export const taskEvaluationRunExecutionResultSchema = z.object({
   webapp_sync: z.record(z.string(), z.unknown()),
 }).passthrough();
 
-function sensitivePaths(value: unknown, prefix = ""): string[] {
+export function sensitivePaths(value: unknown, prefix = ""): string[] {
   if (Array.isArray(value)) {
     return value.flatMap((child, index) => sensitivePaths(child, `${prefix}[${index}]`));
   }
@@ -761,10 +771,16 @@ export function parseVerifiedTaskEvaluationRunPublication(value: unknown):
       ? { ok: false as const, blockers: [...new Set(blockers)].sort() }
       : { ok: true as const, publication };
   }
-  if (canonicalArtifactDigest(publication.evidence_plan, "plan_digest") !== publication.evidence_plan.plan_digest) {
+  const verifiedDigest = (field: "evidence_plan" | "decision_envelope" | "result_delivery" | "policy_run_result", digestField: string) => {
+    const artifact = (publication as Record<string, any>)[field];
+    return publication.producer_canonical_json
+      ? verifyProducerArtifact(artifact, digestField, publication.producer_canonical_json[field])
+      : canonicalArtifactDigest(artifact, digestField) === artifact[digestField];
+  };
+  if (!verifiedDigest("evidence_plan", "plan_digest")) {
     blockers.push("evidence_plan_digest_mismatch");
   }
-  if (canonicalArtifactDigest(publication.decision_envelope, "decision_envelope_digest") !== publication.decision_envelope.decision_envelope_digest) {
+  if (!verifiedDigest("decision_envelope", "decision_envelope_digest")) {
     blockers.push("decision_envelope_digest_mismatch");
   }
   if (
@@ -786,7 +802,7 @@ export function parseVerifiedTaskEvaluationRunPublication(value: unknown):
     || publication.schema_version === "task_evaluation_run_publication.v3"
   ) {
     const delivery = publication.result_delivery;
-    if (canonicalArtifactDigest(delivery, "delivery_digest") !== delivery.delivery_digest) {
+    if (!verifiedDigest("result_delivery", "delivery_digest")) {
       blockers.push("result_delivery_digest_mismatch");
     }
     if (
@@ -814,8 +830,7 @@ export function parseVerifiedTaskEvaluationRunPublication(value: unknown):
   if (publication.schema_version === "task_evaluation_run_publication.v3") {
     const policyResult = publication.policy_run_result;
     if (
-      canonicalArtifactDigest(policyResult, "projection_digest")
-        !== policyResult.projection_digest
+      !verifiedDigest("policy_run_result", "projection_digest")
     ) blockers.push("policy_run_projection_digest_mismatch");
     if (
       policyResult.run_id !== publication.run_id
@@ -832,8 +847,10 @@ export function parseVerifiedTaskEvaluationRunPublication(value: unknown):
     for (const result of policyResult.candidate_results) {
       const families = Object.keys(result.family_metrics);
       if (
-        families.length !== policyVariationFamilies.length
-        || policyVariationFamilies.some((family) => !families.includes(family))
+        ![
+          ["canonical_anchor", "placement_approach", "illumination", "camera_sensor", "bounded_physics", "pairwise", "held_out"],
+          ["canonical_anchor", "placement_approach", "illumination", "camera_sensor", "bounded_physics", "admitted_object_material_cousin", "pairwise_stress", "held_out_composition"],
+        ].some(expected => families.length === expected.length && expected.every(family => families.includes(family)))
       ) blockers.push("policy_run_result_family_coverage_invalid");
       const perCandidate = policyResult.matrix.candidate_episode_count / 2;
       const metrics = Object.values(result.family_metrics);

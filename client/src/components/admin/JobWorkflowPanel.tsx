@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 
+import { JobManagedEvaluation } from "./JobManagedEvaluation";
 import { Button, StatusChip } from "@/components/blueprint";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
@@ -96,6 +97,8 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
   const busyRef = useRef(false);
   const loadingRef = useRef(false);
   const proposalKey = useRef("");
+  const evidenceKey = useRef("");
+  const [question, setQuestion] = useState("");
   const generation = useRef(0);
   const [showProposal, setShowProposal] = useState(false);
   const [editing, setEditing] = useState<DeliveryProposal | null>(null);
@@ -112,7 +115,7 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
     loadingRef.current = false;
     busyRef.current = false;
     setWorkflow(null); setLoadState("idle"); setError(""); setNotice(""); setBusy(false); setMustRefresh(false);
-    setShowProposal(false); setEditing(null); setDraft(emptyDraft()); setWithdrawId(null);
+    setShowProposal(false); setEditing(null); setDraft(emptyDraft()); setWithdrawId(null); setQuestion(""); evidenceKey.current = "";
     setReview({ disposition: "options_identified", summary: "", nextAction: "" });
     setAgreement({ agreedAt: "", plannedStart: "", siteReference: "", providerReference: "", confirmed: false, outcomeAuthorized: false, outcomeReference: "" });
     return () => { generation.current += 1; };
@@ -127,6 +130,7 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
 
   function accept(value: JobMarketplaceWorkflow) {
     setWorkflow(value); setLoadState("ready"); setMustRefresh(false);
+    if (value.evidenceContext?.question) setQuestion(previous => previous || value.evidenceContext!.question!);
     if (value.review) setReview({ disposition: value.review.disposition, summary: value.review.summary, nextAction: value.review.nextAction });
   }
 
@@ -151,7 +155,7 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
     }
   }
 
-  async function mutate(path: string, body: unknown, message: string, method = "POST", extraHeaders: Record<string, string> = {}) {
+  async function mutate(path: string, body: unknown, message: string | ((value: JobMarketplaceWorkflow) => string), method = "POST", extraHeaders: Record<string, string> = {}) {
     if (busyRef.current || mustRefresh) return false;
     const epoch = generation.current;
     busyRef.current = true; setBusy(true); setError(""); setNotice("");
@@ -166,7 +170,7 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
         setError("The server response could not be confirmed. Refresh the workflow before making another change.");
         return false;
       }
-      accept(value as JobMarketplaceWorkflow); setNotice(message); onChanged?.(); return true;
+      accept(value as JobMarketplaceWorkflow); setNotice(typeof message === "function" ? message(value as JobMarketplaceWorkflow) : message); onChanged?.(); return true;
     } catch {
       if (epoch === generation.current) {
         setMustRefresh(true);
@@ -200,7 +204,7 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
       software: draft.software.trim(), deliveryCommitment: draft.deliveryCommitment.trim(), installationCostUsd,
       monthlyCostUsd, currency: "USD", exclusions: draft.exclusions.trim(), sitePreparation: draft.sitePreparation.trim(),
       humanAssistance: draft.humanAssistance.trim(), timing: draft.timing.trim(), support: draft.support.trim(),
-      evidence: draft.evidence.map((item) => ({ level: item.level, summary: item.summary.trim() })),
+      evidence: draft.evidence.map((item) => ({ level: item.level, summary: item.summary.trim(), ...(item.reference ? { reference: item.reference } : {}) })),
       acceptanceCriteria: draft.acceptanceCriteria.trim(), recommendationReason: draft.recommendationReason.trim() || null,
     };
     const saved = await mutate(editing ? `/proposals/${encodeURIComponent(editing.id)}` : "/proposals",
@@ -247,6 +251,41 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
               <p><span className="font-semibold">Next step:</span> {workflow.nextAction}</p>
               <p className="text-xs text-runway-mute">Responsible: {workflow.actionOwner.replace(/_/g, " ")}.</p>
             </div>
+            <section className="grid gap-3" aria-label="Job evidence">
+              <h3 className="text-lg font-semibold text-runway-text">Evidence for this job</h3>
+              <p className="text-sm text-runway-mute">Record the options assessment directly when existing evidence is sufficient. Ask Pipeline a specific technical question when an uncertainty affects the decision. Saving a question does not allocate paid resources or invite a team.</p>
+              {(workflow.evidence ?? []).map(item => <article className="grid gap-2 border-t border-runway-line pt-3 text-sm" key={item.requestId}>
+                <p className="font-semibold">{item.question}</p>
+                <p>{item.current ? item.state.replace(/_/g, " ") : "Historical — scope changed"}: {item.summary}</p>
+                {item.claims.map(claim => <p key={claim.claimId}>{claim.claimId}: {claim.verdict.replace(/_/g, " ")} — {claim.rationale}</p>)}
+                <p>Next: {item.nextAction}</p>
+                {item.limitations.map((limit, index) => <p className="text-runway-mute" key={index}>{limit}</p>)}
+                {item.serviceMessage ? <p role="status">{item.serviceMessage}</p> : null}
+                <p className="break-all text-xs text-runway-mute">Request {item.requestId}{item.decisionDigest ? ` · Decision ${item.decisionDigest}` : ""}{item.publicationDigest ? ` · Publication ${item.publicationDigest}` : ""}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant="secondary" disabled={mutationDisabled} onClick={() => void mutate(`/evidence/${encodeURIComponent(item.requestId)}/refresh`, {}, value => { const saved = value.evidence?.find(row => row.requestId === item.requestId); return saved?.serviceMessage ?? `Evidence status: ${saved?.state.replace(/_/g, " ") ?? "unconfirmed"}.`; })}>Refresh evidence</Button>
+                  {item.current && item.state === "planned" ? <Button type="button" size="sm" disabled={mutationDisabled} onClick={() => void mutate(`/evidence/${encodeURIComponent(item.requestId)}/execute`, {}, value => { const saved = value.evidence?.find(row => row.requestId === item.requestId); return saved?.serviceMessage ?? `Pipeline returned ${saved?.state.replace(/_/g, " ") ?? "an unconfirmed state"}. ${saved?.nextAction ?? "Refresh this question before retrying."}`; })}>Run permitted local evidence</Button> : null}
+                  {["planned", "information_required", "blocked", "unavailable"].includes(item.state) ? <Button type="button" size="sm" variant="secondary" disabled={mutationDisabled} onClick={() => void mutate(`/evidence/${encodeURIComponent(item.requestId)}/cancel`, {}, value => { const saved = value.evidence?.find(row => row.requestId === item.requestId); return saved?.state === "cancelled" ? "Evidence request cancelled." : `Cancellation was not confirmed. ${saved?.serviceMessage ?? saved?.nextAction ?? "Refresh the evidence status before retrying."}`; })}>Cancel evidence request</Button> : null}
+                </div>
+              </article>)}
+              {currentUser && workflow.evidenceContext ? <JobManagedEvaluation key={`${requestId}:${workflow.evidenceContext.briefDigest}`} currentUser={currentUser} jobId={requestId} briefDigest={workflow.evidenceContext.briefDigest} /> : null}
+              {(workflow.managedEvidence ?? []).map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="grid gap-2 border-t border-runway-line pt-3 text-sm">
+                <p className="font-semibold">Managed policy run · {item.current ? item.state.replace(/_/g, " ") : "Historical — scope changed"}</p>
+                <p>{item.summary}</p><p>Next: {item.nextAction}</p>
+                {item.limitations.map((limit, index) => <p className="text-runway-mute" key={index}>{limit}</p>)}
+                <p className="break-all text-xs">Run {item.runId}{item.resultDigest ? ` · Result ${item.resultDigest}` : ""}</p>
+                <a className="text-sm underline" href={`/app/evaluation-runs/${encodeURIComponent(item.runId)}`}>Inspect exact run and evidence</a>
+              </article>)}
+              <form aria-label="Ask an evidence question" className="grid gap-3" onSubmit={async event => {
+                event.preventDefault(); evidenceKey.current ||= crypto.randomUUID();
+                if (await mutate("/evidence", { question: question.trim() }, "Evidence question saved.", "POST", { "Idempotency-Key": evidenceKey.current })) evidenceKey.current = "";
+              }}>
+                <label className="runway-label" htmlFor={`${prefix}-question`}>Question that changes the decision</label>
+                <textarea id={`${prefix}-question`} className="runway-input" required maxLength={2000} value={question} onChange={event => setQuestion(event.target.value)} placeholder="Which uncertainty needs evidence before comparing delivery options?" />
+                <div><Button type="submit" size="sm" disabled={mutationDisabled || !workflow.briefAgreed}>Ask Pipeline</Button></div>
+                {!workflow.briefAgreed ? <p className="text-sm text-runway-mute">Agree the job brief before requesting task-specific evidence.</p> : null}
+              </form>
+            </section>
             <details>
               <summary className="cursor-pointer text-sm font-semibold text-runway-text">Record the options assessment</summary>
               <form className="mt-4 grid gap-4" aria-label="Options assessment" onSubmit={(event) => {
@@ -298,7 +337,15 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
                   <div><label className="runway-label" htmlFor={`${prefix}-monthly`}>Monthly cost (USD, optional)</label><input id={`${prefix}-monthly`} className="runway-input" type="number" min="0" step="0.01" inputMode="decimal" value={draft.monthlyCostUsd} onChange={(event) => setDraft({ ...draft, monthlyCostUsd: event.target.value })} /></div>
                 </div>
                 <p className="text-xs text-runway-mute">Leave a cost blank when it has not been quoted. Enter zero only if the provider explicitly quoted no charge.</p>
-                {draft.evidence.map((item, index) => <fieldset key={index} className="grid gap-3 border-t border-runway-line pt-3"><legend className="runway-label">Evidence {index + 1}</legend><div><label className="runway-label" htmlFor={`${prefix}-evidence-level-${index}`}>Evidence type {index + 1}</label><select id={`${prefix}-evidence-level-${index}`} className="runway-input" value={item.level} onChange={(event) => setDraft({ ...draft, evidence: draft.evidence.map((entry, at) => at === index ? { ...entry, level: event.target.value as DeliveryEvidenceLevel } : entry) })}>{Object.entries(EVIDENCE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><div><label className="runway-label" htmlFor={`${prefix}-evidence-summary-${index}`}>Evidence summary {index + 1}</label><textarea id={`${prefix}-evidence-summary-${index}`} className="runway-input min-h-[4rem]" required maxLength={1000} value={item.summary} onChange={(event) => setDraft({ ...draft, evidence: draft.evidence.map((entry, at) => at === index ? { ...entry, summary: event.target.value } : entry) })} /></div>{draft.evidence.length > 1 ? <div><Button type="button" size="sm" variant="secondary" onClick={() => setDraft({ ...draft, evidence: draft.evidence.filter((_, at) => at !== index) })}>Remove evidence {index + 1}</Button></div> : null}</fieldset>)}
+                {draft.evidence.map((item, index) => <fieldset key={index} className="grid gap-3 border-t border-runway-line pt-3"><legend className="runway-label">Evidence {index + 1}</legend><div><label className="runway-label" htmlFor={`${prefix}-evidence-reference-${index}`}>Pipeline evidence reference (optional)</label><select id={`${prefix}-evidence-reference-${index}`} className="runway-input" value={item.reference?.kind === "managed_run" ? `managed:${item.reference.runId}` : item.reference?.publicationDigest ?? ""} onChange={event => {
+                  const managed = workflow.managedEvidence?.find(row => `managed:${row.runId}` === event.target.value);
+                  if (managed?.resultDigest) {
+                    setDraft({ ...draft, evidence: draft.evidence.map((entry, at) => at === index ? { ...entry, reference: { kind: "managed_run", runId: managed.runId, resultDigest: managed.resultDigest! } } : entry) });
+                    return;
+                  }
+                  const evidence = workflow.evidence?.find(row => row.publicationDigest === event.target.value);
+                  setDraft({ ...draft, evidence: draft.evidence.map((entry, at) => at === index ? { ...entry, reference: evidence?.publicationDigest ? { requestId: evidence.requestId, publicationDigest: evidence.publicationDigest } : undefined } : entry) });
+                }}><option value="">Summary only</option>{(workflow.evidence ?? []).filter(row => row.current && row.publicationDigest).map(row => <option key={row.publicationDigest} value={row.publicationDigest!}>{row.question} — {row.state.replace(/_/g, " ")}</option>)}{(workflow.managedEvidence ?? []).filter(row => row.current && row.resultDigest).map(row => <option key={row.runId} value={`managed:${row.runId}`}>Managed run {row.runId} — {row.state.replace(/_/g, " ")}</option>)}</select><p className="text-xs text-runway-mute">The reference preserves the exact result. Keep its limitations in the summary and choose the evidence type accurately.</p></div><div><label className="runway-label" htmlFor={`${prefix}-evidence-level-${index}`}>Evidence type {index + 1}</label><select id={`${prefix}-evidence-level-${index}`} className="runway-input" value={item.level} onChange={(event) => setDraft({ ...draft, evidence: draft.evidence.map((entry, at) => at === index ? { ...entry, level: event.target.value as DeliveryEvidenceLevel } : entry) })}>{Object.entries(EVIDENCE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div><div><label className="runway-label" htmlFor={`${prefix}-evidence-summary-${index}`}>Evidence summary {index + 1}</label><textarea id={`${prefix}-evidence-summary-${index}`} className="runway-input min-h-[4rem]" required maxLength={1000} value={item.summary} onChange={(event) => setDraft({ ...draft, evidence: draft.evidence.map((entry, at) => at === index ? { ...entry, summary: event.target.value } : entry) })} /></div>{draft.evidence.length > 1 ? <div><Button type="button" size="sm" variant="secondary" onClick={() => setDraft({ ...draft, evidence: draft.evidence.filter((_, at) => at !== index) })}>Remove evidence {index + 1}</Button></div> : null}</fieldset>)}
                 {draft.evidence.length < 8 ? <div><Button type="button" size="sm" variant="secondary" onClick={() => setDraft({ ...draft, evidence: [...draft.evidence, { level: "unverified", summary: "" }] })}>Add evidence</Button></div> : null}
                 <div><label className="runway-label" htmlFor={`${prefix}-reason`}>Why recommend this option? (optional)</label><textarea id={`${prefix}-reason`} className="runway-input min-h-[4rem]" maxLength={2000} value={draft.recommendationReason} onChange={(event) => setDraft({ ...draft, recommendationReason: event.target.value })} /></div>
                 <div className="flex flex-wrap gap-2"><Button type="submit" size="sm">{busy ? "Saving…" : "Save proposal"}</Button><Button type="button" size="sm" variant="secondary" onClick={() => { setShowProposal(false); setEditing(null); }}>Cancel</Button></div>

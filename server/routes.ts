@@ -37,6 +37,7 @@ import agentTeamRouter from "./routes/agent-team";
 import adminFreeEvaluationsRouter from "./routes/admin-free-evaluations";
 import adminJobConsoleRouter from "./routes/admin-job-console";
 import jobWorkflowRouter from "./routes/job-workflow";
+import internalJobEvidenceRouter from "./routes/internal-job-evidence";
 import workspaceCheckpointsRouter from "./routes/workspace-checkpoints";
 import emailPreferencesRouter from "./routes/email-preferences";
 import inboundRequestRouter from "./routes/inbound-request";
@@ -139,6 +140,7 @@ export function registerRoutes(app: Express) {
   // admin/ops role enforced inside the router.
   app.use("/api/admin/jobs", csrfProtection, verifyFirebaseToken, requireAdminRole, adminJobConsoleRouter);
   app.use("/api/job-workflow", csrfProtection, jobWorkflowRouter);
+  app.use("/api/internal", internalJobEvidenceRouter);
   app.use("/api/account-deletion", csrfProtection, verifyFirebaseToken, accountDeletionRouter);
   app.use("/api/experiments", experimentsRouter);
   app.use("/api/public/launch", publicLaunchRouter);

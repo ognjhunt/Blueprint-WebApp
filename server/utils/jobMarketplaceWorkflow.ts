@@ -26,7 +26,7 @@ export const deliveryProposalSchema = z.object({
   exclusions: requiredText(), sitePreparation: requiredText(), humanAssistance: requiredText(),
   timing: requiredText(), support: requiredText(),
   evidence: z.array(z.object({ level: z.enum(["prior_deployment", "simulation", "physical_trial", "unverified"]),
-    summary: requiredText(1000) }).strict()).min(1).max(8),
+    summary: requiredText(1000), reference: z.union([z.object({ kind: z.literal("decision_evidence").optional(), requestId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/), publicationDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/) }).strict(), z.object({ kind: z.literal("managed_run"), runId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/), resultDigest: z.string().regex(/^sha256:[a-f0-9]{64}$/) }).strict()]).optional() }).strict()).min(1).max(8),
   acceptanceCriteria: requiredText(), recommendationReason: optionalText(),
 }).strict();
 const storedProposalSchema = deliveryProposalSchema.extend({ id: proposalIdSchema, revision: revisionSchema,

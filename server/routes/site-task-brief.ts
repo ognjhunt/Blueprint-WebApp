@@ -30,6 +30,7 @@ import { logger } from "../logger";
 import { captureUploadUrlFor, requestIdFromExpiredCaptureUploadToken, verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import {
   BriefSummaryRequiredError,
+  BriefPilotScopeLockedError,
   confirmBrief,
   getBrief,
   type SiteTaskBriefRecord,
@@ -828,7 +829,13 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
     try {
       const request = await readRequestForStatus(payload.requestId);
       coverageMeasured = typeof request?.capture_coverage?.covers_scene === "boolean";
-      if (request?.contactEmail && !scoreable) {
+      if (request?.contactEmail && !walkthrough?.received) {
+        await enqueueOutbox({ idempotencyKey: `${payload.requestId}:brief-screening:${result.disposition}`,
+          requestId: payload.requestId, to: request.contactEmail, kind: "brief_confirmed",
+          subject: "Your job brief is confirmed",
+          body: `${emailGreeting(request.contactFirstName || "there")}\n\nYour job brief is confirmed. Blueprint will assess suitable options against it and explain the next useful step. Video and a buying budget are optional; we will ask for specific information when it changes a real decision.\n\n${jobUrl}\n\n${EMAIL_SIGN_OFF}` });
+        void deliverOutbox({ limit: 5 }).catch(error => logger.warn({ error, requestId: payload.requestId }, "Brief confirmation delivery deferred to outbox"));
+      } else if (request?.contactEmail && !scoreable) {
         const email = buildTaskNotYetSupportedEmail({
           firstName: request.contactFirstName || "there",
           siteName: request.siteName,
@@ -910,13 +917,16 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       stage: result.readiness.stage,
       // The ladder reads unmeasured coverage as "film it"; a saved walkthrough
       // is being checked, and nothing more is asked of the site for it.
-      nextAction: walkthrough?.received && !coverageMeasured
-        ? "We have your recording and are checking whether it covers the work area. You do not need to film anything else."
-        : result.readiness.nextAction,
+      nextAction: !walkthrough?.received
+        ? "Your brief is agreed. Blueprint will assess suitable options and ask for specific information only when it changes the decision. Video is optional."
+        : !coverageMeasured
+          ? "We have your recording and are checking whether it covers the work area. You do not need to film anything else."
+          : result.readiness.nextAction,
       stillNeeded: result.readiness.blockingEvaluation,
       beforeRecording: result.readiness.blockingCapture,
     });
   } catch (error) {
+    if (error instanceof BriefPilotScopeLockedError) return res.status(409).json({ code: "pilot_scope_locked", error: error.message });
     logger.error(
       { error, requestId: payload.requestId },
       "Could not confirm a task brief",

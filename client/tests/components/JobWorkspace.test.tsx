@@ -178,3 +178,19 @@ describe("the site's job workspace", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Your job, step by step" })).toBeVisible());
   });
 });
+
+it("shows exact abstention limits without advancing a job or selecting a proposal", async () => {
+  fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, stage: "brief_agreed", evidence: [{
+    requestId: "question-1", publicationDigest: `sha256:${"a".repeat(64)}`, briefDigest: `sha256:${"b".repeat(64)}`,
+    current: true, state: "abstention", question: "Can this arm reach the target?", summary: "The available geometry cannot answer clearance.",
+    nextAction: "Measure the target clearance.", limitations: ["Physical success has not been established."], runId: null,
+    decisionDigest: null, planDigest: null, testbedDigest: null, approvedTaskDigest: null,
+    claims: [{ claimId: "reach", verdict: "abstention", rationale: "Missing metric observation." }],
+  }] })));
+  render(<JobWorkspace token="owner-token" />);
+  expect(await screen.findByText(/available geometry cannot answer clearance/)).toBeVisible();
+  expect(screen.getByText("Physical success has not been established.")).toBeVisible();
+  expect(screen.getByText(/Missing metric observation/)).toBeVisible();
+  expect(screen.queryByRole("button", { name: /Choose this proposal/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("list", { name: "Job milestones" }).querySelector('[aria-current="step"]')).toHaveTextContent("Brief agreed");
+});
