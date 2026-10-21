@@ -1,0 +1,958 @@
+MASTER GOAL: BUILD AND PROVE BLUEPRINT'S VIDEO-TO-DEPLOYMENT SERVICE
+Owner handoff prepared 2026-10-21. Implementation command for the next session.
+
+Take ownership of implementing, integrating, testing and releasing Blueprint's
+existing capture-backed robot-job service. Execute the work; do not stop at a
+plan, a mock UI, a successful build, or a list of recommended future changes.
+Keep the customer experience bare bones. Extend the working product and its
+existing pipeline instead of creating a parallel product or rebuilding it.
+
+The immediate goal is a genuine end-to-end demonstration of the six stages
+below, using a real authorized video and actually executable configurations.
+The architectural goal is a durable workflow that accepts jobs from different
+sites and task families, can resume after failures, and grows through explicit
+task, embodiment and policy capabilities. Do not make the whole system depend
+on one demo site, one robot, one policy pair, or a hard-coded pick/place journey.
+Do not claim universal robot competence. Honest unsupported and needs-input
+outcomes are part of a workflow that can handle arbitrary submissions.
+
+1. THE OWNER'S REQUEST AND THE SERVICE TO BUILD
+
+The owner explicitly wants to test all of this:
+
+1) Receive the video. Save the original footage, permissions and job identity.
+   The customer records or uploads. No written description is required.
+2) Understand the job. Existing analysis drafts the operation, objects,
+   starting positions, destination, variations and likely constraints. The
+   customer corrects that reading and supplies important facts the video
+   cannot establish.
+3) Prepare the site simulation. Reconstruct the workspace, prepare the objects
+   and connect the task to a measurable outcome.
+4) Shortlist complete configurations. Find plausible combinations of robot,
+   gripper, cameras, controller and policy that Blueprint can actually run
+   and someone can deliver.
+5) Run matched evaluations. Give shortlisted configurations the same relevant
+   job conditions. Measure successful work, speed, failures and human help.
+   Keep the evidence behind every result.
+6) Prepare a recommendation and delivery proposals. Combine technical results
+   with equipment availability, installation cost, operating cost and support.
+
+The owner then said: "i want to make this durable and work for all sites/tasks."
+They know Atlas is not available yet. Do not make Atlas a prerequisite or list
+it as runnable because a robot model or policy announcement exists.
+
+The broader goal is to become the default place to submit a robot job and get
+the best deliverable option. Real jobs, independent comparison, usable supplier
+access, reliable delivery partners and observed outcomes build that position.
+This request does not ask for a social network, public bidding marketplace,
+payments system, a universal robot foundation model, or a new website redesign.
+
+After stage 6, preserve the existing next steps: the customer chooses a real
+proposal; customer and deployment partner agree a bounded physical pilot;
+Blueprint records the actual outcome and, where appropriate, joins genuine
+physical evidence to the earlier prediction. Selection is not contract award.
+
+2. OWNER CORRECTIONS YOU MUST PRESERVE
+
+An earlier implementation mistakenly made video optional and replaced the
+original example page. The owner corrected both. Current WebApp main fixes
+those mistakes. Some Pipeline/Capture guidance still reflects the old mistake.
+
+- Assessment requires actual retained job video. A draft/inquiry can wait for
+  video; it cannot advance through assessment using a description alone.
+- Reuse the video analysis already built. Do not ask a customer to transcribe
+  visible work or make a mandatory pre-video description form.
+- Keep the capture-to-simulation foundation. Do not replace it with generic
+  LLM advice or a text-only supplier matching service.
+- Preserve the original updated /how-it-works page, WarehousePilotSequence,
+  its seven illustrations and eight contents sections.
+- Preserve all six approved example animations: Warehouse, Cafe, Laundromat,
+  Factory, Hotel and Lab, including their current rotation/pause behavior.
+- Do not reintroduce the removed Home section "Start with one well-defined
+  job", its Transfer/Load/Open cards, or its niche/location paragraph.
+- Keep UI simple: video, review the reading, understandable progress/result,
+  comparable delivery options. Do not expose scientific schemas or provider
+  setup to customers. Reuse the existing private job workspace and admin tools.
+- The owner said "stop with adding any extra stuff like checks" and "bare
+  bones". Do meaningful engineering verification, but add no review program,
+  certification, readiness dashboard, customer checklist, new approval stage,
+  or paperwork as a substitute for making the existing service work.
+- Existing rights/privacy, access, execution/spending authority, independent
+  scoring and scientific truth remain intact. Reuse existing controls.
+
+Commercial decisions already made:
+
+- The beta is free for sites and technology/deployment teams. No Blueprint
+  assessment fee, percentage cut, paid provider evaluation, Stripe change,
+  balance, top-up, checkout or escrow is authorized by this project.
+- Early budget is an optional planning constraint. Current labor/process cost
+  and desired automation budget are different facts. Neither authorizes spend.
+- Delivery prices follow a sufficiently understood scope. Partners may clarify
+  assumptions and revise their proposals. Avoid first-come awards and a lowest
+  bid auction. Request two or three comparable proposals where suitable real
+  partners exist; do not invent competition when only one is credible.
+- Separate technology access from delivery responsibility. A policy provider
+  can supply an API/model without agreeing to install or support a deployment.
+  One company may fill both roles, but that must be explicit.
+- Blueprint should run compatible accessible policies itself. Inviting every
+  robot team to operate every evaluation is no longer a prerequisite.
+
+3. REPOSITORIES, ACCESS AND SNAPSHOT: REFRESH BEFORE EDITING
+
+Company GitHub repositories:
+
+  https://github.com/ognjhunt/Blueprint-WebApp
+  https://github.com/ognjhunt/BlueprintCapturePipeline
+  https://github.com/ognjhunt/BlueprintCapture
+
+Existing optional pinned dependency: ognjhunt/BlueprintContracts. Preserve its
+existing contract pins unless the actual integration requires a version change.
+
+Locations in the current managed cloud environment:
+
+  WebApp checkout: /workspace/Blueprint-WebApp
+  Pipeline checkout: /workspace/work/BlueprintCapturePipeline
+  This prompt's isolated documentation worktree:
+    /workspace/work/master-prompt-handoff
+  Capture: not cloned locally at the time of this handoff.
+  Intermediate files: /workspace/work/
+  Pipeline read-only live receipt:
+    /workspace/work/pipeline-status-read.json
+
+These paths are environment-specific. In a fresh session find or clone the
+company repositories using its existing GitHub authorization. Start with git
+status --short. Preserve unrelated files and work. Use isolated worktrees where
+another session owns an existing branch. Never reset the repos to this snapshot.
+
+Observed source/release state on 2026-10-21:
+
+- WebApp origin/main was refreshed to
+  36659ae77575bab86a0ee6bf492f43eb8db835a7, merge PR #1082, which adds the
+  homepage examples rotation fix. Preserve it as well as #1081's corrections.
+- WebApp /version.json still reported live
+  75195cc05fe975de5f8e59c20123fd94a01b37ac, built 15:57:01.652 UTC. That is
+  merge PR #1081, containing the video-required and walkthrough restoration.
+  Its source 97293b80095b1b235fe2ed3c09259b17a90a9ed1 has the same code tree.
+- Pipeline origin/main:
+  6263aa80857fc65eb1bcc03139ecf3872a42dde4, merged PR #2737.
+- Pipeline live at 16:29:53 UTC:
+  b86b78ab83f217fe4fca2bf135e290b7b8aebe56. The new job-evidence producer
+  in main is not established as deployed by that receipt.
+- WebApp PR #1079 is OPEN:
+  https://github.com/ognjhunt/Blueprint-WebApp/pull/1079
+  branch codex/job-evidence-webapp-20261021
+  last observed head cd3f3da6aa1d265c07c08ddff0f11b158ffd6941.
+  It was conflicting against main; latest API briefly returned mergeability
+  UNKNOWN. Refresh before deciding. Salvage its real implementation rather
+  than build another bridge. Rebase/adapt it to latest main's owner corrections.
+- Pipeline producer PR #2737 is MERGED:
+  https://github.com/ognjhunt/BlueprintCapturePipeline/pull/2737
+- Capture doctrine PR #90 is MERGED:
+  https://github.com/ognjhunt/BlueprintCapture/pull/90
+  It may contain the superseded optional-video direction; inspect and fix via
+  the existing canonical cross-repo synchronization process.
+
+An isolated rebase starting point, after checking current refs and worktrees:
+
+  git fetch origin main
+  git fetch origin pull/1079/head:refs/remotes/origin/pr-1079
+  git worktree add -b codex/job-evidence-takeover \
+    /workspace/worktrees/job-evidence-takeover origin/pr-1079
+  cd /workspace/worktrees/job-evidence-takeover
+  git rebase origin/main
+
+Adapt branch/path if occupied. Keep the existing PR where practical; inspect
+the whole diff after conflict resolution. Do not restore old optional-video
+copy, remove original examples, or overwrite another session's newer changes.
+
+4. READ THE ACTUAL INSTRUCTIONS AND RECONCILE DOCTRINE
+
+Read root and nearest nested AGENTS.md before editing. Important WebApp docs:
+
+  README.md; PLATFORM_CONTEXT.md; WORLD_MODEL_STRATEGY_CONTEXT.md
+  AUTONOMOUS_ORG.md; DEPLOYMENT.md; package.json
+  docs/architecture/source-of-truth-map.md
+  docs/architecture/command-safety-matrix.md
+  docs/design/job-first-automation-marketplace/IMPLEMENTATION.md
+  docs/design/job-first-automation-marketplace/PIPELINE_IMPLEMENTATION_PROMPT.md
+
+Read October 21 owner-correction preambles before historical shared blocks.
+The older implementation prompt is supporting context. This master command
+adds current release facts, durability, broad task routing and end-to-end proof.
+
+Important Pipeline docs:
+
+  AGENTS.md; README.md; pyproject.toml
+  docs/DOCTRINE_PRECEDENCE.md; doctrine/README.md
+  PLATFORM_CONTEXT.md; WORLD_MODEL_STRATEGY_CONTEXT.md
+  docs/architecture/ai-onboarding-map.md
+  docs/OPERATOR_DOOR.md; docs/CONTROL_PLANE_STORAGE.md
+  docs/runbooks/first-site-team-beta.md
+  docs/webapp_handoff/job-evidence.v1/README.md
+  docs/architecture/job-managed-evidence.md
+  docs/arm_decision_proof_v1/README.md
+  docs/arm_decision_proof_v1/north_star_contract.json
+  docs/arm_decision_proof_v1/IMPLEMENTATION_BACKLOG.md
+  docs/arm_decision_proof_v1/PUBLIC_EVIDENCE_LADDER.md
+  docs/arm_decision_proof_v1/PRODUCTION_WEBSITE_LAUNCH.md
+
+Pipeline main currently says a description and optional video can support a
+zero-run commercial assessment. That is the superseded interpretation, not a
+reason to undo the owner's later video-required instruction. Correct canonical
+doctrine in BlueprintCapturePipeline/doctrine/ and use its existing sync/lock
+mechanism for WebApp and Capture. Do not hand-edit locked shared blocks in one
+repo or erase existing scientific proof requirements. Scope the correction to
+this actual product direction; avoid rewriting all historical documentation.
+
+5. SIX-STAGE IMPLEMENTATION CONTRACT
+
+Stage 1: capture and job identity
+
+Use existing recorder/upload, consent and storage mechanisms. Retain original
+bytes in authorized company storage, media digest, provenance, permission scope,
+job/site/capture identity and receipt. Successful storage/receipt is the source
+of truth, not a checkbox saying footage exists or an ID allocated before upload.
+Draft creation may precede upload. Assessment may not.
+
+Preserve upload recovery, anonymous/private links and account handoff. A retry
+or reload must find the existing job/upload rather than silently create another.
+Record permission is not consent for training, public case studies or sending
+unbounded footage to arbitrary vendors. Use existing permission scopes.
+
+Stage 2: understand and confirm the job
+
+Reconnect the existing video reader and brief-merging path. Derive the summary
+and structured facts from the same analysis output; do not pay for a second
+extraction to populate the description. Preserve customer-authored/confirmed
+text and source-bound revision handling. Ask only for material unknowns, such as
+weights or dimensions that the current footage cannot establish.
+
+Represent observed, measured, customer-declared and inferred values distinctly.
+Do not turn an estimated dimension into an authoritative hardware exclusion.
+Identify operation/task family, relevant objects and properties, start/goal,
+variants, frequency, required quality/throughput and human interaction where
+available. Missing facts remain unknown; do not fabricate a complete task.
+
+Stage 3: capture-backed simulation and measurable task
+
+Reuse capture -> reconstruction -> site package -> task testbed. Bind retained
+video/observed frames, metric geometry, object assets, collision/dynamics, sensor
+setup and task success definition through the existing contracts. Retain exact
+source and revision identities. Reuse valid artifacts instead of reconstructing
+on every refresh. A stale artifact must not be relabeled current.
+
+"Accurate" is task-specific. A visually attractive reconstruction alone cannot
+establish scale, mass, friction, articulation, contact or sensor equivalence.
+Use the existing measurement/fidelity routing for quantities that could change
+the decision. Request the missing observation or physical measurement in the
+existing flow; do not build a universal questionnaire or call a splat physics.
+
+Task-specific object preparation, dynamics, graders and reset logic belong in
+the relevant adapters. Multi-step or articulated work must declare its required
+capabilities; it must not be silently coerced into a pick/place fixture.
+Preserve metric units, coordinate frames and calibration across these artifacts;
+an asset transform that renders correctly can still be wrong for robot control.
+
+Stage 4: complete configurations and supportable shortlist
+
+Reuse the actual capability/policy/embodiment registries. A reproducible candidate
+includes robot/configuration, gripper/tool, camera/sensor placement, observation
+and action schemas, units/normalization, controller/rate, policy identity/version,
+adapter/runtime and deployment assumptions. For hosted APIs also retain the
+available provider deployment identity, latency and availability assumptions.
+
+Screen physical plausibility, actual executable and licensed access, task
+compatibility, supportable delivery and economics before expensive evaluation.
+Do not run every policy on every robot. A researched vendor is not an integrated
+endpoint, a robot adapter is not universal policy compatibility, and a supplier
+name is not a delivery commitment.
+
+Maintain distinct executable-technology access, deployment capability, and a
+specific partner's scoped proposal. Reuse supplier onboarding across jobs.
+Research-assisted ranking may suggest whom to investigate; it cannot invent
+tested compatibility, inventory, quotes or willingness to support a site.
+
+Stage 5: actual matched policy execution
+
+Use existing managed evaluation launch/allocator/runtime/result paths, with
+source-bound immutable configuration and execution IDs. Step the environment
+with the actual policy responses and score independently. A plan, provider
+"success" response, job queued message, rendered clip or read-only evidence
+adapter is not a policy evaluation.
+
+Use matched task distributions, applicable seeds, resets and held-out conditions.
+Preserve intended hardware differences in full-system comparisons. The same-body
+policy experiment and comparing different complete systems answer different
+questions; report their scope rather than inventing a universal leaderboard.
+
+Measure success/quality, failures, interventions, throughput/cycle time where
+supported, and uncertainties. Distinguish simulated time from real end-to-end
+cycle time including inference, network, resets and assistance. Retain policy
+inputs/outputs, episode lifecycle, artifacts, failures and scorer provenance.
+Unmeasured assistance, costs or cycle time remain unmeasured, never zero.
+Do not expose evaluator ground truth or private assets to a policy endpoint.
+
+Run only with existing execution authority and bounded cost/resource controls.
+Reuse cancellation, teardown and spend accounting. New broad autonomy or clearing
+a founder stop is not implied by wiring the flow together.
+
+Stage 6: evidence, recommendation and delivery
+
+Publish actual technical results to the correct current job/task/scene with
+signed receipts. Project plain-language findings in the existing workspace:
+which options ran, what happened, which limits remain and the recommended next
+action. Distinguish not tested, failed, cancelled and unsupported.
+
+Recommend only within technical evidence and delivery support. Permit no suitable
+option, missing-input and abstention results without a fabricated winner. The
+scientific result is separate from the commercial choice. A lower quote cannot
+change a policy's measured outcome.
+
+Create comparable proposal drafts using the same job scope and acceptance terms.
+Obtain real availability/cost/support commitments from actual partners before
+presenting a proposal as theirs. Unknown costs stay unknown. Model-inference
+cost is one part of operation, not the full robot economics. Do not invent a
+provider pricing formula or hardware utilization assumption.
+
+Contact timing: site for video/permissions and material unknowns; deployers during
+shortlisting for support/availability and after scope/evidence for quotes; policy
+vendors only where access, terms or interface integration is missing. Existing
+API access should remove repeated per-job invitations where possible. Prepare
+messages/scopes now; do not send external outreach without applicable explicit
+authorization. No automatic awards, negotiation bot or bidding war is needed.
+
+6. WHAT "DURABLE FOR ALL SITES/TASKS" MEANS IN CODE
+
+Implement this through the existing stores, queues, contracts and workers. Do
+not introduce a generic workflow platform, new cloud service or parallel state
+database merely to satisfy the word durable.
+
+- Site/job/task/capture IDs are data, not hard-coded demo constants. Multiple
+  concurrent jobs and tenants must stay isolated. Owner links and staff authority
+  remain distinct; unauthenticated users cannot read another site's evidence.
+- Derive stage completion from actual retained receipts/artifacts. Persist
+  progress before/after external effects using the existing intent/outbox/lease
+  patterns. Process memory alone cannot own a customer's job.
+- Assume queues/webhooks are at least once. Duplicate upload notifications,
+  signed result retries and worker restarts must not duplicate reconstruction,
+  paid evaluation, proposals or external sends. Use existing idempotency keys,
+  immutable identities, durable claims and reconciliation receipts.
+- Resume from the last valid artifact after a crash. Distinguish retryable
+  transient failures from a permanent incompatibility or a specific missing
+  input. Bounded retries/backoff/timeouts, dead-letter/retry surfaces and leases
+  should reuse existing mechanisms. Do not retry forever or lose the reason.
+- An ambiguous provider timeout is not permission to purchase another run. First
+  reconcile whether the original request exists and incurred spend.
+- Bind results to technical scope. Quote/budget edits should not invalidate
+  unchanged scientific observations. Changed video/task/configuration/testbed
+  must affect technical applicability; late old results stay historical and
+  cannot overwrite the new job revision's recommendation.
+- Cancellation, deletion/withdrawal and permission changes must stop applicable
+  future work and preserve the minimum existing audit/provenance obligations.
+  Do not keep calling a provider using revoked permission.
+- Artifact links, schemas and identity must be company-controlled and portable.
+  Use existing authorized object storage and database, not this chat/session or
+  one model vendor's ephemeral file IDs as canonical storage. Keep bounded
+  summaries/references in Firestore, large immutable artifacts in object storage.
+- Explain an interruption using the existing progress/error surface and expose
+  the existing retry/correction action where appropriate. No operations dashboard
+  redesign is needed.
+
+For task/robot extensibility, inspect current abstractions before adding types:
+
+- Separate task requirements (work and scoring) from site geometry/objects,
+  embodiment/tool/sensors, policy interface and delivery availability.
+- Turn current rigid-object, fixed-arm and two-policy assumptions into explicit
+  first supported profiles/adapters where they currently act as global rules.
+  Preserve the current proof protocol as its own bounded experiment.
+- Route by declared capabilities and validated compatibility, with measured
+  parameters and explicit unavailable reasons. Avoid growing provider-name or
+  site-name conditionals throughout the core workflow.
+- Existing task catalogs include rigid_pick_place and articulated_open_close
+  fidelity templates. Templates are not proof of an executable articulated-task
+  adapter or reviewed request-specific thresholds. Reuse real support and state
+  missing runtime/scorer assets precisely.
+- New sites using a supported profile should require data/capture/parameters,
+  not source-code edits. A new task family or embodiment may require assets,
+  adapters, reset/scoring and evidence work. Make the extension seam clear and
+  verify it; do not pretend all future integrations require no engineering.
+- Arbitrary task submissions must be accepted into truthful routing. Unsupported
+  work should retain the video/job and explain the capability gap. It must not
+  crash, fabricate a run, disappear, or be declared technically impossible solely
+  because the current catalog lacks an adapter.
+- Atlas and other unavailable robots/providers remain unavailable entries or
+  future capabilities, without blocking real supported configurations. Do not
+  add mock success to a production path as a substitute for access.
+
+7. IMPORTANT IMPLEMENTATION LOCATIONS
+
+All WebApp paths below are relative to Blueprint-WebApp. Some new files exist
+only in PR #1079 until it is integrated; inspect that branch as well as main.
+
+Existing video-first customer journey:
+
+  client/src/pages/Home.tsx
+  client/src/pages/HowItWorks.tsx
+  client/src/components/site/WarehousePilotSequence.tsx
+  client/src/components/site/PilotPreview.tsx
+  client/src/components/site/SiteCaptureStart.tsx
+  client/src/pages/SelfCaptureUpload.tsx
+  client/src/components/site/TaskBriefReview.tsx
+  client/src/components/site/TaskClarification.tsx
+  client/src/components/site/JobWorkspace.tsx
+  client/src/components/site/RecommendedPilot.tsx
+  client/src/types/jobMarketplace.ts
+
+Capture/brief/worker seams:
+
+  server/routes/inbound-request.ts
+  server/routes/workspace.ts
+  server/routes/self-capture-uploads.ts
+  server/utils/siteWalkthrough.ts
+  server/utils/capturePrivacyScreen.ts
+  server/utils/captureCoverageQueue.ts
+  server/utils/captureCoverageReview.ts
+  server/utils/captureFootageReview.ts
+  server/utils/siteVideoEvidence.ts
+  server/utils/siteTaskBrief.ts
+  server/utils/siteTaskBriefReading.ts
+  server/utils/siteAssessmentQueue.ts
+  server/utils/siteAssessmentPreparation.ts
+  server/utils/siteAssessmentContext.ts
+  server/agents/adapters/site-assessment.ts
+  server/agents/site-assessment.ts
+  server/agents/tasks/site-assessment.ts
+  server/agents/provider-config.ts
+  server/utils/websiteSceneSponsorship.ts
+  server/utils/websiteSceneProgression.ts
+  server/utils/taskEvaluationSceneIntake.ts
+  server/utils/taskEvaluationLaunchForwardWorker.ts
+  server/utils/opsAutomationScheduler.ts
+  server/config/env.ts
+  server/worker.ts
+
+Actual upload receipt lookup is savedWalkthrough(siteWalkthroughIdentity(id)).
+descriptionOnly is an internal legacy flag concerning recording rights; its
+name is not permission to allow description-only assessment. Preserve confirmed
+brief text in mergeBriefProposals; mergeFootageIntoBrief should reuse the video
+reader's summary. self-capture-uploads projects recordingConsentAvailable when
+a visit draft becomes a self-recording flow. Keep those corrected behaviors.
+
+Supplier and commercial seams:
+
+  server/utils/siteRobotFit.ts
+  server/utils/robotTeamRegistry.ts
+  server/utils/robotTeamSupply.ts
+  server/routes/admin-job-console.ts
+  server/routes/company-policy-candidates.ts
+  server/utils/companyPolicyCandidateForwarding.ts
+  server/utils/companyPolicyCandidateOutboxWorker.ts
+  server/utils/companyPolicyRegistryCredentialLease.ts
+  server/routes/job-workflow.ts
+  server/utils/jobMarketplaceWorkflow.ts
+  client/src/components/admin/JobWorkflowPanel.tsx
+  client/src/pages/DeploymentPartners.tsx
+  client/src/components/site/PartnerDetail.tsx
+  client/src/components/site/PartnerApplication.tsx
+  client/src/pages/Contact.tsx
+
+Current robot-fit is broad form screening for rigid pick/place, not a verified
+specification comparison of every actual robot. Admin LLM ranking quotes registry
+research and is a prospect list, not execution/delivery admission. Legacy
+robotTeamSupply conflates interface agreement, free evaluation and willingness
+to take a physical pilot. Separate those facts with minimal compatible changes.
+PartnerDetail already distinguishes deployment and technology; reuse it.
+
+Existing data includes:
+
+  inboundRequests/{id}.job_marketplace
+  siteTaskBriefs/{id}
+  inboundRequests/{id}/jobWorkflowEvents
+
+Commercial stages: job_submitted, brief_agreed, options_assessed,
+proposals_ready, pilot_agreed, results_recorded. Preserve versioned proposals,
+scope/selection, agreement references, withdrawal and outcomes. Pending footage
+blocks new assessment/proposals, but must not erase historical real agreements.
+
+PR #1079's bridge and managed execution files:
+
+  server/utils/jobEvidenceContract.ts
+  server/utils/jobEvidenceStore.ts
+  server/routes/internal-job-evidence.ts
+  server/utils/jobManagedEvaluation.ts
+  server/routes/configured-scene-offerings.ts
+  client/src/components/admin/JobManagedEvaluation.tsx
+  server/routes/capture-uploads.ts
+  server/routes/site-task-brief.ts
+  server/routes/internal-capture-testbeds.ts
+  server/routes/internal-capture-task-control-plane.ts
+  server/utils/producerCanonicalArtifact.ts
+  server/utils/taskCandidateContract.ts
+  server/utils/siteTaskTestbedContract.ts
+  server/utils/taskEvaluationRunContract.ts
+  contracts/pipeline/
+
+Existing execution controls:
+
+  server/routes/admin-task-evaluation-launches.ts
+  server/routes/internal-task-evaluation-launch-submissions.ts
+  server/utils/taskEvaluationLaunchContract.ts
+  server/utils/taskEvaluationLaunchPreparationContract.ts
+  server/utils/taskEvaluationLaunchActivationContract.ts
+  server/utils/evaluationReadyRunContract.ts
+  server/utils/taskEvaluationRunForwarding.ts
+  server/utils/taskEvaluationLaunchStore.ts
+  server/utils/operatorPolicyCanaryRegistration.ts
+  server/utils/access-control.ts
+  server/middleware/requireAdminRole.ts
+  client/src/pages/AdminTaskEvaluationLaunches.tsx
+  client/src/components/blueprint/app/EvaluationRunConfiguration.tsx
+  client/src/lib/evaluationReadyRuns.ts
+
+EvaluationRunConfiguration currently exposes a fixed Franka Panda + Robotiq
+2F-85 and canonical policy pair, plus scenario depth. Confirm the exact admitted
+pair/runtime interface. Do not infer that arbitrary robot selection already works.
+
+Pipeline paths below are relative to BlueprintCapturePipeline:
+
+Capture and scene/task preparation:
+
+  src/blueprint_pipeline/website_scene_handoff.py
+  src/blueprint_pipeline/website_scene_runtime_inputs.py
+  src/blueprint_pipeline/website_task_grounding.py
+  src/blueprint_pipeline/site_package_orchestrator.py
+  src/blueprint_pipeline/site_task_testbed_compiler.py
+  src/blueprint_pipeline/site_task_testbed_compilation_contract.py
+  src/blueprint_pipeline/site_task_testbed_compiler_cli.py
+  src/blueprint_pipeline/site_task_testbed_webapp_sync.py
+  src/blueprint_pipeline/task_site_measurement_routing.py
+  src/blueprint_pipeline/site_task_fidelity_profile_templates.py
+  docs/schemas/site_task_testbed_compilation_submission.v2.schema.json
+  docs/schemas/site_task_testbed_compilation_submission.v3.schema.json
+  docs/architecture/task-site-measurement-routing.md
+
+Evidence, execution and publication:
+
+  src/blueprint_pipeline/job_evidence.py
+  src/blueprint_pipeline/job_evidence_routes.py
+  src/blueprint_pipeline/job_evidence_webapp_sync.py
+  src/blueprint_pipeline/live_pipeline_intake_service.py
+  src/blueprint_pipeline/decision_evidence_contracts.py
+  src/blueprint_pipeline/decision_evidence_router.py
+  src/blueprint_pipeline/decision_evidence_execution.py
+  src/blueprint_pipeline/local_evidence_adapters.py
+  src/blueprint_pipeline/evaluation_run_contract.py
+  src/blueprint_pipeline/evaluation_run_execution.py
+  src/blueprint_pipeline/task_evaluation_method_catalog.py
+  src/blueprint_pipeline/task_evaluation_run_control_plane.py
+  src/blueprint_pipeline/task_evaluation_run_state.py
+  src/blueprint_pipeline/task_evaluation_run_webapp_sync.py
+  src/blueprint_pipeline/physical_outcome_learning.py
+  docs/webapp_handoff/job-evidence.v1/README.md
+  docs/webapp_handoff/decision-evidence-router.v1/
+
+Policy and first-proof sources:
+
+  src/blueprint_pipeline/task_evaluation_policy_candidate_registry.py
+  src/blueprint_pipeline/task_evaluation_g1_catalog.py
+  src/blueprint_pipeline/native_task_arena_policy_canary_session.py
+  docs/arm_decision_proof_v1/POLICY_CANDIDATE_REGISTRY.md
+  docs/arm_decision_proof_v1/PERSISTENT_POLICY_PAIR.md
+  docs/arm_decision_proof_v1/EXACT_WORKCELL_VARIATION_MATRIX.md
+  docs/arm_decision_proof_v1/policy_integration_runners_20260928.md
+
+website_scene_handoff requires real retained source video; runtime_inputs
+requires retained observed frames and matching hash. Preserve those dependencies.
+The orchestrator is the capture-to-package spine, not an optional readiness add-on.
+
+8. KNOWN CROSS-REPO CONTRACT DETAILS: DO NOT CREATE A THIRD BRIDGE
+
+Pipeline #2737 adds job_evidence_request.v1 around the existing scientific
+decision_evidence_request.v1. Publications reference real EvidencePlan and
+DecisionEnvelope artifacts. Existing authenticated routes:
+
+  POST /api/live-pipeline/job-evidence-requests
+  GET  /api/live-pipeline/job-evidence-requests/{request_id}
+  POST /api/live-pipeline/job-evidence-requests/{request_id}/execute
+  POST /api/live-pipeline/job-evidence-requests/{request_id}/cancel
+
+The /execute route requires the bound request digest and existing authenticated
+operator authority. Its local evidence adapters are read-only. This bridge is
+not a general paid-policy launcher. Bind real managed policy evaluation through
+the existing configured-scene/evaluation-run/allocator path. Do not label bridge
+execution as a paid simulator episode or quietly give it new spend authority.
+
+Signed producer publication returns to:
+
+  POST /api/internal/job-evidence-publications
+
+Pipeline destination: PIPELINE_JOB_EVIDENCE_WEBAPP_URL, or its existing configured
+testbed/run sync origin. Reuse current HMAC auth and service identity. WebApp
+#1079 uses JOB_EVIDENCE_PIPELINE_URL or derives the request endpoint from existing
+forwarding configuration, and the existing TASK_EVALUATION_RUN_FORWARD_* or
+ROBOT_EVAL_JOB_REQUEST_FORWARD_* client/token bindings. Inspect actual precedence.
+
+Join job identity, technical brief digest, capture/task identity, testbed revision,
+candidate/configuration, request/plan/result digests and execution receipts.
+No scientific request/testbed binding means information_required, not fabricated
+IDs. A commercial price edit cannot change a scientific artifact's identity.
+
+Preserve canonical producer bytes. RFC 8785 wrapper hashing does not authorize
+re-serializing historical Python scientific JSON in JavaScript and changing
+its digest. Keep producer canonical-body strings/artifacts and versioned
+translators. Use the real handoff schemas and compatibility verifier, not an
+old proposed contract file or a third independently invented schema.
+
+Existing bodies are bounded to 2 MiB; keep summaries/references bounded for
+Firestore limits. Do not put raw videos/large scientific bundles in documents.
+Release the compatible consumer, contract artifacts and required Firestore
+index before enabling the new Pipeline publication producer.
+
+Pipeline persists under:
+
+  <BLUEPRINT_LIVE_PIPELINE_INTAKE_WORK_DIR>/job_evidence
+  <BLUEPRINT_LIVE_PIPELINE_INTAKE_WORK_DIR>/task_evaluation_runs
+
+Default intake workdir: <manifest.parent>/incoming_webapp_job_requests.
+Inspect actual configured roots; do not invent production storage paths.
+
+9. LIVE CONFIGURATION GAPS AND RESOURCE LIMITS
+
+Last inspected Render worker startup, 16:00 UTC on October 21:
+
+  launchForwardWorkerEnabled=true
+  siteVideoEvidenceEnabled=false
+  openAiCredentialConfigured=true
+  geminiCredentialConfigured=false
+
+This means the WebApp's fresh video-analysis lane was disabled, not that the
+entire Pipeline was down. Existing launch/scene forwarding still ran. Existing
+brief merge wiring cannot receive fresh footage readings while that lane is off.
+Fix actual runtime configuration through approved secret/configuration mechanisms,
+then prove a real video is read and its description reaches the current brief.
+
+Relevant controls: BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED,
+BLUEPRINT_SITE_VIDEO_EVIDENCE_APPLY, BLUEPRINT_SITE_TASK_BRIEF_READING_ENABLED.
+The current video reader accepts GEMINI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY
+or GOOGLE_AI_STUDIO_API_KEY. OpenAI presence is not an automatic video-reader
+fallback. Text brief reading is not video analysis. Inspect the implementation
+and startup booleans without printing secrets or dumping environments.
+
+The managed coding environment currently reports Gemini/OpenAI/Firebase runtime
+bindings and operator-door access ready. That is not proof Render has those
+bindings or that a proxy placeholder can be copied into another service. Use
+approved company secret sources and supported runtime bindings. Do not paste
+keys into chat, commit them, print them, or introduce interactive login when
+existing injected identity is the intended route. Pipeline's task-grounding
+provider configuration is separate and requires its own actual preflight.
+
+At the last Pipeline read:
+
+- Intake service, PubSub handoff listener and scene-progression timer active.
+- Configured-controls timer and launch-dispatcher path inactive.
+- A scoped policy-canary dispatcher active; this does not mean every customer
+  job automatically receives policy evaluations.
+- Paid agent-run dispatcher explicitly founder-stopped. Its hold requires
+  explicit release even after a timestamp expires. Do not clear it implicitly.
+- No live paid instances/current paid burn in that snapshot.
+- Work disk approximately 91.44% used; provider_credit_insufficient and orphan
+  scratch warnings. Capacity was critical, not ready for unlimited evaluation.
+
+Read docs/OPERATOR_DOOR.md, docs/website-controls-pause-2026-09-21.md and current
+hold records. Existing paid dispatcher is blueprint-agent-run-dispatcher.timer,
+hold owner paired-checkpoint-rollout-20260930. Use pin-aware storage usage and
+retirement plans from docs/CONTROL_PLANE_STORAGE.md and control_plane_storage_gc.py.
+Do not delete capture/evidence/receipts or arbitrary scratch, buy provider credit,
+create GPU instances, or resume held dispatch merely to make a demo pass.
+
+The user approved a Render monthly build spend cap of $10 after earlier $7/$8
+build failures. That is not an inference/GPU budget. Discover existing authority
+and cost bounds. If a specific live run still needs a budget/hold release, prepare
+the concrete run/configuration/cost ceiling and ask only for that missing action.
+Continue all independent implementation and safe verification while awaiting it.
+
+10. OPERATOR ACCESS AND NORMAL RELEASE MECHANISMS
+
+Pipeline operator client: scripts/operator_door.py.
+Default door: https://paperclip.tryblueprint.io/api/live-pipeline/operator/v1
+Override: BLUEPRINT_OPERATOR_DOOR_URL. Existing cloud proxy injects auth.
+Other supported locations: BLUEPRINT_OPERATOR_DOOR_TOKEN,
+BLUEPRINT_OPERATOR_DOOR_TOKEN_FILE or ~/.blueprint-secrets/operator_door_token.
+Use normal supported access without printing tokens or reading secret contents.
+
+Read-only orientation:
+
+  python3 scripts/operator_door.py whoami
+  python3 scripts/operator_door.py status
+  python3 scripts/operator_door.py usage
+  python3 scripts/operator_door.py ls \
+    /var/lib/blueprint/pipeline-control-plane/deploy-receipts --sort mtime
+  python3 scripts/operator_door.py cat \
+    /var/lib/blueprint/pipeline-control-plane/storage-gc/summary.json
+  python3 scripts/operator_door.py cat \
+    /var/lib/blueprint/pipeline-control-plane/gpu_spend_guard/latest.json
+  python3 scripts/operator_door.py journal \
+    blueprint-task-evaluation-scene-progression.service -n 200 --since -1h
+
+Pipeline version: GET /api/live-pipeline/version. Active release:
+/opt/blueprint/task-evaluation-control-plane, with immutable releases under
+/opt/blueprint/task-evaluation-control-plane-releases/<sha>.
+Read scripts/deploy_control_plane_commit.py and the Promotion proof section of
+docs/arm_decision_proof_v1/PRODUCTION_WEBSITE_LAUNCH.md. For an authorized release
+the established mutation is operator_door.py deploy <sha-on-main> --wait.
+Deploy/start/release-hold/retire --apply are mutations, not orientation commands.
+
+Website: https://tryblueprint.io
+Render workspace: tea-d4vnh4be5dus73aim4o0
+Web service: srv-d4vnmk3e5dus73aiohk0
+Worker: srv-d9t8gg1t0dsc73am9q70
+
+WebApp deploy owner is .github/workflows/deploy.yml. Native Render auto-deploy
+is off. Preserve one deploy owner; do not bypass it with ad hoc Render triggers.
+Use successful exact-commit CI and main-history requirements. Normal main
+releases and the existing manual exact-green-SHA route are supported:
+
+  gh workflow run deploy.yml --repo ognjhunt/Blueprint-WebApp --ref main \
+    -f ref=<exact-green-sha-on-main> \
+    -f clear_cache=false -f release_hold=false -f repair_bootstrap=false \
+    -f release_token=<unique-correlation-token>
+
+Inspect current workflow/runbook before invoking; reconcile uncertain submissions
+by their token instead of creating duplicate deployments. Preserve unrelated
+outreach/ops flags and existing holds. PR #1081 includes the owner's explicitly
+approved rollback correction: a healthy rollback target may be a successful
+exact PR CI commit merged into main; main-push CI is not the only provenance.
+It still requires exact successful CI, main ancestry and verified web/worker
+identity. Do not weaken it or ask for that already approved correction again.
+
+Verify actual web and worker releases, /version.json, /health and /health/ready,
+plus the affected real journey. Healthy pages are not evidence of policy execution.
+The last source972 release passed CI run39625250142 attempt2 and deploy run
+39628641747. A later automatic main751 release has the same tree. Refresh state.
+
+11. TEST THE ENTIRE FLOW, INCLUDING RECOVERY AND EXTENSION
+
+Use existing tests/harnesses and add focused tests only for real missing behavior.
+Do not build another testing platform. A durable multi-system workflow warrants
+meaningful recovery/contract tests; trivial markup changes do not need new tests.
+
+Prove the six-stage chain in layers and clearly separate their meaning:
+
+A. Deterministic integration coverage, without live provider spend/sends:
+
+- Video upload or recording with no manual description -> actual receipt ->
+  analysis-derived draft -> correction -> bound reconstruction/testbed -> real
+  compatibility shortlist logic -> recorded evaluation-result publication ->
+  evidence-backed recommendation/proposal projection in the right job.
+- Exercise different site IDs, multiple objects/variations and supported task
+  profiles. Use distinct tenants/jobs; prevent data crossing.
+- Simulate worker restart between effects, duplicate events/publications,
+  ambiguous timeouts, retryable provider failure and final unavailable results.
+  Verify no duplicate expensive work and correct resumption from retained state.
+- Change a brief/source while an old run is in flight; retain its history but
+  reject it as the new scope's current evidence. A quote-only edit must not rerun
+  unchanged science. Test cancel/revoke and late callback handling.
+- Unsupported task, unavailable embodiment/policy including Atlas, missing metric
+  inputs, expired access, no deployer, failed simulation and no-suitable-option
+  must produce honest usable outcomes rather than crash or fabricate success.
+- Invalid signatures, source/configuration mismatch and cross-tenant reads fail
+  at existing boundaries. Use the actual Python producer artifacts and JS
+  consumer, not two mocks that agree on an invented schema.
+
+B. Real authorized video and reconstruction:
+
+Use a real permitted source capture from existing approved assets or a newly
+provided site video. Inspect rights/applicability first. Record its actual
+canonical URI, digest, job/capture/task identity and reconstruction/testbed
+artifacts. Existing development/public-reference footage can prove the pipeline
+mechanism, but cannot be relabeled as a fresh commercial deployment proof.
+
+Actually invoke the existing video reader, show the derived brief, reconstruct
+the site through the current pipeline and demonstrate the retained output. A
+fixture-only test or a rendered stock scene cannot satisfy this layer.
+
+C. Real matched policy execution on a supported configuration:
+
+The registry currently marks pi05_droid and groot_n17_droid runnable, with pinned
+checkpoint inventories, explicit license/access facts and DROID interfaces/adapters.
+Use the existing fixed-arm/DROID-compatible route for the first real comparison.
+Confirm exact robot/gripper/sensor/controller admission instead of assuming the
+DROID policy can control every arm. Other listed policies have integration or
+license blockers; G1 production remains unavailable pending exact verified
+episode and reviewed terms. Hosted Dream Labs/PI/Generalist integration is not
+established by the inspected repositories. Do not depend on unavailable APIs.
+
+Run the actual policies through the existing simulator/runtime and independent
+grader, using the real capture-derived task and retained run artifacts. A
+ten-cell canary is integration diagnostics, not deployment recommendation proof.
+The exact-workcell matrix normally has 100 site-grounded cells covering anchor,
+bounded variations, pairwise and held-out compositions. Both policies plus
+zero-action and scripted controls share the matrix: normally 400 episodes.
+Required count/power is defined by the existing experiment contract, not by
+this prompt. Do not silently shrink or widen that protocol. Broad task routing
+above it can evolve without rewriting the bounded scientific proof experiment.
+
+D. Generalization and physical adjudication:
+
+Prove the workflow can process another site through the same supported profile
+without code edits. Exercise additional task profiles genuinely supported today,
+and test missing-adapter routing for others. Do not claim that running many
+fixture task labels validates every physical task family. Expand real physics,
+scorers, adapters and evidence family by family.
+
+For a fresh-site scientific proof, freeze the candidate comparison, predicted
+ranking/elimination and failure boundary before seeing held-out physical
+outcomes. Physically test both candidates in matched held-out conditions using
+the existing protocol; testing only the simulated winner cannot validate the
+ranking. Retain genuine outcome artifacts and ingest via the existing join.
+
+At this handoff, repo-recorded fresh prospective physical proof count is 0;
+verify north_star_contract.json and current real receipts. Historical public
+reference ADP artifacts are not a fresh customer deployment. This task does
+not grant physical access, move hardware, create customer consent, or magically
+produce physical outcomes. Complete all accessible work and state the exact
+physical resource/action still missing if that is the only remaining gap.
+
+Existing physical ingestion, only after genuine artifacts exist:
+
+  PYTHONPATH=src python -m blueprint_pipeline.decision_evidence_cli ingest-outcome \
+    --testbed <testbed.json> --decision <decision.json> \
+    --outcome <physical-outcome.json> --method-profile <method-profile.json> \
+    --output-dir <authorized-retained-output-directory>
+
+Writes physical_outcome_join.json, maintained_site_task_testbed.json,
+evidence_method_qualification.json and physical_outcome_learning_update.json.
+That command joins provided evidence; it does not perform the physical trials.
+
+12. EXISTING CHECKS AND KNOWN FAILURE: AVOID ANOTHER LONG CI LOOP
+
+WebApp package/configuration locations:
+
+  vitest.config.ts; playwright.config.ts
+  playwright.invited-beta.config.ts
+  playwright.site-reliability.config.ts
+  playwright.reliability-intake.config.ts
+  playwright.workspace.config.ts; playwright.privacy.config.ts
+  playwright.result-consumer.config.ts
+  playwright.description-intake.config.ts (historical name; inspect existence)
+  vite.result-consumer.config.ts
+  scripts/qa/start-result-consumer-vite.mjs
+  scripts/release/checks.mjs
+  .github/workflows/ci.yml; .github/workflows/deploy.yml
+  scripts/release/render-rollback.mjs
+
+After integration, relevant focused commands include:
+
+  npm run check
+  npx vitest run server/tests/job-evidence.test.ts \
+    server/tests/job-managed-evaluation.test.ts \
+    server/tests/managed-job-producer-compatibility.test.ts
+  npx vitest run client/tests/components/JobWorkspace.test.tsx \
+    client/tests/components/admin/JobWorkflowPanel.test.tsx \
+    client/tests/lib/evaluationReadyRuns.test.ts
+  RESULT_CONSUMER_QA_OUTPUT=/tmp/blueprint-job-evidence-qa \
+    npx playwright test --config playwright.invited-beta.config.ts
+  npm run pipeline:decision-evidence-contract:verify
+  npm run pipeline:testbed-compilation-contract:verify
+
+Verify command/test existence on the integrated branch and run relevant actual
+scripts. Use Python's existing focused tests for changed Pipeline modules and
+real handoff compatibility. Keep test providers, emails and databases isolated;
+this managed environment contains live credentials. Read the command safety
+matrix before assuming a script is offline. Do not launch paid runs via tests.
+
+PR #1079 CI run39626410810 failed invited-beta at
+e2e/invited-site-beta.spec.ts:156, 390px and 1440px: expanded proposal lacked
+"Physical cycle time remains unmeasured". Diagnose fixture/projection/rendering
+after rebase. Preserve meaningful limitation coverage instead of deleting the
+assertion or hiding limitations to get green.
+
+Main's corrected video-required flows passed the existing public, invited,
+private/capture, durability, workspace and privacy browser lanes. They run
+sequentially in CI; test affected variants locally before the final coherent
+push to avoid discovering old journey assumptions late. Some filenames still
+say description-first even though their current behavior is video-required.
+
+Use system Chromium /usr/bin/chromium where required:
+PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/chromium.
+Dependencies/cache may already exist under /workspace/Blueprint-WebApp and
+/workspace/work/npm-cache. Use the actual lockfile. An optional local build with
+BLUEPRINT_ALLOW_UNCONFIGURED_CLIENT_BUILD=1 proves compilation only, not a
+configured Firebase production build or a deployed live journey.
+
+After code changes, the repo requires its existing architecture refresh:
+  bash scripts/graphify/run-webapp-architecture-pilot.sh --no-viz
+Do it once for the final batch using the pinned local setup, not after every edit.
+
+Run relevant required CI and address real failures. Do not change release-scope
+selection to evade checks, fabricate green statuses, delete valuable tests or
+repeatedly run broad suites when focused evidence already resolves the issue.
+GitHub PR/run aggregation can lag pushed refs and individual job completion.
+Compare actual refs, job logs and release receipts before cancelling/rerunning.
+Avoid dummy commits, duplicate PRs and repeated close/reopen churn.
+
+13. ORDER OF WORK AND COMPLETION EXPECTATIONS
+
+Start with a short working map of the existing joins and exact blockers, then
+implement. Parallelize independent bounded changes/reviews if useful, with one
+accountable owner and one coherent integration/release. Do not let work become
+another long research exercise or stop after assigning it to another agent.
+
+Recommended sequence, adapting to refreshed live facts:
+
+1) Read applicable instructions, inspect dirty work and refresh source/PR/live
+   identities. Preserve main's video/walkthrough/rotation/release corrections.
+2) Trace one actual video/job through current persisted records, worker state,
+   Pipeline capture package/testbed and result publication. Identify the broken
+   seam and use existing contracts rather than inventing parallel state.
+3) Correct canonical owner doctrine across the three repos. Rebase/adapt #1079,
+   resolve its UI/contract issue and reconcile the signed consumer/producer.
+4) Restore the actual video-reader configuration via approved bindings and
+   existing flags, with the narrowest required runtime activation. Make its
+   output populate the brief automatically. Do not enable unrelated schedulers.
+5) Implement missing durable transitions, recovery and truthful task/capability
+   routing in existing mechanisms. Separate technology and deployment roles.
+6) Bind job-scoped supported candidates to actual managed evaluation and results.
+   Keep operator-controlled expensive execution within current authority. Do
+   not mistake read-only evidence routing for executing robot policies.
+7) Validate affected flows and real producer/consumer compatibility. Merge and
+   release through established mechanisms when current authority allows, with
+   consumer/index/contract support in place before producer activation.
+8) Use a real authorized video through analysis and reconstruction. Run the
+   real supported comparison when required resources/budget/holds allow. Reuse
+   existing pin-aware capacity recovery; do not erase evidence to free space.
+9) Demonstrate recommendation/proposal projection from actual results. Draft
+   partner requests if necessary; obtain explicit send authority before sending.
+10) Exercise another site/profile and recovery cases. Continue to genuine
+    physical adjudication when site/hardware/operator access and authorization
+    exist. State precisely what was proven and what requires an external action.
+
+Deliver working code in the relevant company repos, necessary migrations/indexes
+and canonical contract/docs updates, applicable test evidence, exact commit/PR/
+release identities, and an inspectable real job trail. Retain actual source,
+brief, package/testbed, configuration, request/run/result, recommendation and
+proposal references in the existing company-controlled records/storage. Do not
+write private captures or credentials into public docs or PR logs.
+
+Your final report should be concise but distinguish:
+  - implemented and verified in isolated tests;
+  - deployed and observed live;
+  - real capture processed;
+  - real policies executed and scored;
+  - real delivery proposals obtained versus drafts;
+  - physical outcomes observed versus still awaiting a trial.
+
+Do not say "fully automated", "works for every task", "physically validated"
+or "deployment ready" from fixture tests, source registry labels or service
+health. Do not supply an invented automation percentage. Be specific about the
+actual supported configurations and remaining external requirements.
+
+If a resource is truly unavailable, finish the independent work, retain resumable
+state and prepare the exact next action needed. A single precise missing video,
+metric measurement, credential binding, spend ceiling, founder hold release,
+partner authorization or physical test is actionable; a vague list of caveats
+is not. Never fabricate consent, access, a provider quote or a completed run.
+
+Keep moving until the implemented six-stage service is demonstrable to the
+extent authorized resources permit. Make it straightforward for the next real
+site to use the same system without another bespoke implementation.
