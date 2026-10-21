@@ -1,26 +1,38 @@
 # Deployment embodiment planning support
 
-Owner direction, October 21, 2026: support the recommended deployment-company
-robots in the existing robot setup and policy comparison UI, with an inspectable
-handoff to BlueprintCapturePipeline.
+Owner direction, October 21, 2026: keep deployment-company embodiment research,
+asset preparation, policy adapters and planning handoffs in Pipeline and internal
+operator tooling. Customer setup shows the team's actual robot/policy, validation
+status and results.
 
-The policy-test and team-evaluation pages offer the 16 fixed-base embodiment
-options in `client/src/data/deploymentEmbodimentSupport.v1.json`. This file is an
-exact mirror of Pipeline's
-`src/blueprint_pipeline/_catalog_data/deployment_embodiment_support.v1.json`.
+The existing staff-only `/admin/jobs` console has a collapsed **Robot integration
+planning** disclosure with the visual 16-robot gallery, compatible policy-route
+choices, source evidence, setup requirements and portable handoff export. The
+page is protected by the existing admin/ops route requirement. The global
+planning export has `source_launch_id: null`; a job request ID is never treated
+as a Pipeline launch ID. Customer policy-test, team-evaluation and Settings
+pages do not offer the full planning catalog.
+
+`client/src/data/deploymentEmbodimentSupport.v1.json` is an exact mirror of
+Pipeline's `src/blueprint_pipeline/_catalog_data/deployment_embodiment_support.v1.json`.
 Update both together and verify their canonical catalog digests match. Asset
-availability, publisher demonstrations, interface candidates and
-customer-supplied contracts remain distinct in the catalog and UI.
+availability, publisher demonstrations, interface candidates and customer-supplied
+contracts remain distinct. Image provenance is separately documented in
+`docs/deployment-embodiment-imagery.md`; images do not alter the catalog digest.
 
-The common robot-description fields also allow saving an option and its selected
-policy routes. It is stored privately in the existing `users/{uid}/robotSetups`
-record as `robotDescription.source = "support_option"`, with `embodimentId`,
-`catalogDigest` and `policyRouteIds`. The authenticated
-`GET /api/workspace/deployment-embodiments` endpoint exposes the same catalog and
-its digest. Saving validates catalog identity and route compatibility, removes
-any `executionBindingId`, and preserves the description for older-client saves.
-The evaluation request builder refuses these planning descriptions until an
-independent, validated execution configuration exists.
+The authenticated `GET /api/workspace/deployment-embodiments` endpoint requires
+admin/ops authority and returns the catalog and digest with `Cache-Control:
+no-store`. New or changed `robotDescription.source = "support_option"` planning
+selections likewise require staff authority; they validate catalog identity and
+route compatibility and remove any `executionBindingId`. Existing private
+`users/{uid}/robotSetups` descriptions preserve their `embodimentId`,
+`catalogDigest` and `policyRouteIds` losslessly when unchanged, including a stale
+catalog digest. Customer forms display that saved robot identity and a concise
+validation status, with hidden fields preserving its descriptor; customers can
+switch to their own model or an admitted native configuration. The forms expose
+no planning route picker, asset browser or shortlist export. An unchanged saved
+planning choice never acquires execution authority. Evaluation and checkpoint
+onboarding refuse it until an explicit validated execution configuration is used.
 
 The downloaded portable JSON uses
 `deployment_embodiment_shortlist.v1`, has `claim_ceiling: "planning_only"`, and
@@ -44,11 +56,13 @@ Focused local verification:
 npx vitest run client/src/lib/deploymentEmbodimentSupport.test.ts \
   client/tests/components/DeploymentEmbodimentShortlist.test.tsx \
   client/tests/components/PolicyCanarySetup.test.tsx \
+  client/tests/pages/AdminJobConsole.test.tsx client/tests/pages/WorkspaceSettings.test.tsx \
   server/tests/workspace-route.test.ts server/tests/team-evaluation-selection.test.ts
 npm run check -- --incremental false
 ```
 
 The tests protect digest/contract portability, explicit planning selections,
-private saved setup readback, stale/incompatible choice rejection, the existing
+internal-only catalog/write authority, preserved private saved setup readback,
+stale/incompatible choice rejection, customer/internal audience separation, the existing
 policy-test flow, and refusal to route planning choices through an executable
 Franka binding. They do not establish simulator or policy execution.

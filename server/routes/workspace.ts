@@ -268,8 +268,10 @@ router.get(
     return res.json({ ...accountProjection(user, auth), siteIntakeRequired: !owned?.docs.length });
   }),
 );
-// This is a planning catalog, never the runnable configuration registry.
+// Internal integration planning, never the customer runnable configuration registry.
 router.get("/deployment-embodiments", handle(async (_req, res) => {
+  if (!(await resolveAccessContext(res)).isOps) refuse(403, "Robot integration planning is managed by Blueprint.");
+  res.set("Cache-Control", "no-store");
   return res.json(await deploymentCatalogWithDigest());
 }));
 router.post(
@@ -1234,22 +1236,31 @@ router.post(
       caller = identity(res);
     const document=db!.collection("users").doc(caller.uid).collection("robotSetups").doc(input.id);
     const existing=await document.get();
-    if (!input.robotDescription && existing.exists) {
-      const previous=JSON.parse(await decryptFieldValue(existing.data()!.payload));
-      if (previous.robotDescription) input.robotDescription=robotDescriptionSchema.parse(previous.robotDescription);
-    }
+    const previous=existing.exists ? JSON.parse(await decryptFieldValue(existing.data()!.payload)) : null;
+    const previousDescription=previous?.robotDescription ? robotDescriptionSchema.parse(previous.robotDescription) : undefined;
+    if (!input.robotDescription && previousDescription) input.robotDescription=previousDescription;
     // A description cannot inherit an executable configuration for a different robot.
     if (input.robotDescription?.source === "catalog") {
       input.executionBindingId = input.robotDescription.configurationId;
     } else if (input.robotDescription?.source === "support_option") {
       const description = input.robotDescription;
-      const catalog = await deploymentCatalogWithDigest();
-      if (description.catalogDigest !== catalog.catalog_digest)
-        refuse(400, "The robot catalog changed. Choose the robot and policy routes again.");
-      try {
-        const [selection] = canonicalDeploymentSelections([{ embodiment_id: description.embodimentId, policy_route_ids: description.policyRouteIds }]);
-        description.policyRouteIds = selection.policy_route_ids;
-      } catch (error) { refuse(400, error instanceof Error ? error.message : "Choose compatible robot and policy routes."); }
+      const unchanged=previousDescription?.source === "support_option"
+        && description.embodimentId === previousDescription.embodimentId
+        && description.catalogDigest === previousDescription.catalogDigest
+        && JSON.stringify(description.policyRouteIds) === JSON.stringify(previousDescription.policyRouteIds);
+      // Preserve an existing pending description for ordinary customer edits,
+      // even after a catalog refresh. Only staff choose or change integrations.
+      if (!unchanged) {
+        if (!(await resolveAccessContext(res)).isOps)
+          refuse(403, "Robot integration planning is managed by Blueprint. Describe your actual robot model.");
+        const catalog = await deploymentCatalogWithDigest();
+        if (description.catalogDigest !== catalog.catalog_digest)
+          refuse(400, "The robot catalog changed. Choose the robot and policy routes again.");
+        try {
+          const [selection] = canonicalDeploymentSelections([{ embodiment_id: description.embodimentId, policy_route_ids: description.policyRouteIds }]);
+          description.policyRouteIds = selection.policy_route_ids;
+        } catch (error) { refuse(400, error instanceof Error ? error.message : "Choose compatible robot and policy routes."); }
+      }
       delete input.executionBindingId;
     } else if (input.robotDescription?.source === "model") {
       delete input.executionBindingId;

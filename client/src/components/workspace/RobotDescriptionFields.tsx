@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { RobotConfigurationChoice, RobotDescription } from "@/types/robotDescription";
-import { deploymentEmbodimentCatalog, deploymentCatalogWithDigest } from "@/lib/deploymentEmbodimentSupport";
-import { DeploymentEmbodimentDetails, DeploymentPolicyRouteChoices } from "./DeploymentEmbodimentShortlist";
+import { deploymentEmbodimentCatalog } from "@/lib/deploymentEmbodimentSupport";
 
 export function readRobotDescription(form: FormData, configurations: RobotConfigurationChoice[]): RobotDescription | undefined {
   const source=String(form.get("robotDescriptionSource") || "");
@@ -28,34 +27,28 @@ export function RobotDescriptionFields({value,configurations=[]}: {
   value?:RobotDescription;configurations?:RobotConfigurationChoice[];
 }) {
   const [source,setSource]=useState(value?.source==="catalog"?value.configurationId:value?.source==="support_option"?`support:${value.embodimentId}`:value?.source || "");
-  const [catalogDigest,setCatalogDigest]=useState(value?.source==="support_option"?value.catalogDigest:"");
-  const [currentCatalogDigest,setCurrentCatalogDigest]=useState("");
-  const [routeIds,setRouteIds]=useState(value?.source==="support_option"?value.policyRouteIds:[]);
-  useEffect(()=>{ let cancelled=false; void deploymentCatalogWithDigest().then(catalog=>{
-    if(!cancelled) {setCurrentCatalogDigest(catalog.catalog_digest);setCatalogDigest(previous=>value?.source!=="support_option" || !previous?catalog.catalog_digest:previous);}
-  }); return ()=>{cancelled=true;}; },[]);
   const choices=value?.source==="catalog" && !configurations.some(row=>row.id===value.configurationId)
     ? [...configurations,{id:value.configurationId,label:"Saved robot model",binding_digest:value.configurationDigest}]
     : configurations;
   const model=value?.source==="model"?value:undefined;
+  const savedSupport=value?.source==="support_option"?value:undefined;
+  const savedSupportRobot=savedSupport?deploymentEmbodimentCatalog.embodiments.find(row=>row.embodiment_id===savedSupport.embodimentId):undefined;
   const input="mt-1 block w-full rounded border border-line bg-white p-2";
   return <fieldset className="space-y-3 border-t border-line pt-4">
     <legend className="px-1 font-medium">Physical robot</legend>
     <label className="block text-sm">Robot model
-      <select name="robotDescriptionSource" value={source} onChange={event=>{setSource(event.target.value);setRouteIds([]);setCatalogDigest(currentCatalogDigest);}} className={input} required>
+      <select name="robotDescriptionSource" value={source} onChange={event=>setSource(event.target.value)} className={input} required>
         <option value="">Choose a robot model</option>
         {choices.map(row=><option key={row.id} value={row.id}>{row.label}</option>)}
-        <optgroup label="Deployment embodiments · planning options">
-          {deploymentEmbodimentCatalog.embodiments.map(row=><option key={row.embodiment_id} value={`support:${row.embodiment_id}`}>{row.display_name}</option>)}
-        </optgroup>
+        {savedSupport && <option value={`support:${savedSupport.embodimentId}`}>{savedSupportRobot?.display_name || "Saved robot model"}</option>}
         <option value="model">Use my robot model</option>
       </select>
     </label>
-    {source.startsWith("support:") && <div className="space-y-4">
-      <input type="hidden" name="robotSupportCatalogDigest" value={catalogDigest} />
-      <DeploymentEmbodimentDetails embodimentId={source.slice(8)} />
-      <DeploymentPolicyRouteChoices embodimentId={source.slice(8)} value={routeIds} onChange={routes=>{setRouteIds(routes);setCatalogDigest(currentCatalogDigest);}} name="robotSupportPolicyRouteIds" />
-      <p className="text-sm text-ink-500">Select at least one policy route. This saves a planning option; the exact robot assets, policy access and simulation configuration must be validated before this setup can run.</p>
+    {source.startsWith("support:") && savedSupport && <div className="rounded border border-line p-3">
+      <input type="hidden" name="robotSupportCatalogDigest" value={savedSupport.catalogDigest} />
+      {savedSupport.policyRouteIds.map(route=><input key={route} type="hidden" name="robotSupportPolicyRouteIds" value={route} />)}
+      <p className="text-sm font-medium">{savedSupportRobot?.display_name || "Saved robot model"}</p>
+      <p className="mt-1 text-sm text-ink-500">Your setup needs simulation validation before an evaluation can start.</p>
     </div>}
     {source==="model" && <>
       <label className="block text-sm">Robot model URL
@@ -74,6 +67,6 @@ export function RobotDescriptionFields({value,configurations=[]}: {
       </details>
       <p className="text-sm text-ink-500">Include the robot, gripper and sensors. Model compatibility must be verified before an evaluation can start.</p>
     </>}
-    <p className="text-sm text-ink-500">Your physical model is separate from your policy. A hosted endpoint can keep policy weights on your infrastructure.</p>
+    {!source.startsWith("support:") && <p className="text-sm text-ink-500">Your physical model is separate from your policy. A hosted endpoint can keep policy weights on your infrastructure.</p>}
   </fieldset>;
 }

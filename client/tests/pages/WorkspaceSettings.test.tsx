@@ -17,7 +17,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 }));
 afterEach(() => vi.unstubAllGlobals());
 describe("unconfigured account settings", () => {
-  it("shows an actionable form error when a planning robot has no selected policy route", async () => {
+  it("keeps internal planning options out of customer robot settings", async () => {
     window.history.replaceState({}, "", "/settings?tab=robots");
     const fetch = vi.fn(async (path: RequestInfo | URL) => new Response(JSON.stringify(
       String(path).includes("/checkpoints") ? {teams:[],checkpoints:[],runtimes:[]}
@@ -28,9 +28,9 @@ describe("unconfigured account settings", () => {
     const view = render(<QueryClientProvider client={client}><Settings /></QueryClientProvider>);
     fireEvent.click(await screen.findByRole("button",{name:"+ Add setup"}));
     const source = screen.getByRole("combobox",{name:"Robot model"});
-    fireEvent.change(source,{target:{value:`support:${deploymentEmbodimentCatalog.embodiments[0].embodiment_id}`}});
-    fireEvent.submit(source.closest("form")!);
-    expect(await screen.findByText("Choose at least one policy route for this robot.")).toHaveAttribute("role","alert");
+    for (const robot of deploymentEmbodimentCatalog.embodiments) expect(screen.queryByRole("option",{name:robot.display_name})).toBeNull();
+    expect(screen.getByRole("option",{name:"Use my robot model"})).toBeInTheDocument();
+    expect(screen.queryByRole("heading",{name:"Robot and policy shortlist"})).toBeNull();
     expect(fetch.mock.calls.some(([path])=>String(path).endsWith("/setups"))).toBe(false);
     view.unmount(); client.clear(); window.history.replaceState({},"","/");
   });

@@ -684,13 +684,18 @@ describe("workspace requests and lifecycle", () => {
       expect((await api("/setups","robot-1",{...setup,robotDescription:{...robotDescription,...change}})).status).toBe(400);
     }
   });
-  it("serves the planning catalog only to signed-in accounts", async () => {
+  it("keeps the integration planning catalog internal to admin and ops", async () => {
     expect((await api("/deployment-embodiments", "")).status).toBe(401);
+    expect((await api("/deployment-embodiments", "robot-1")).status).toBe(403);
+    expect((await api("/deployment-embodiments", "site-1")).status).toBe(403);
+    state.records.get("users/robot-1").role = "ops";
     const response = await api("/deployment-embodiments", "robot-1");
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual(await deploymentCatalogWithDigest());
   });
-  it("saves private planning choices without inheriting an executable setup", async () => {
+  it("lets staff save private planning choices without inheriting an executable setup", async () => {
+    state.records.get("users/robot-1").role = "ops";
     const catalog = await deploymentCatalogWithDigest();
     const robot = catalog.embodiments[0];
     const robotDescription = { source: "support_option", embodimentId: robot.embodiment_id,
@@ -706,7 +711,23 @@ describe("workspace requests and lifecycle", () => {
     const readback = await (await api("/", "robot-1")).json();
     expect(readback.setups[0].robotDescription).toEqual(robotDescription);
   });
+  it("refuses new customer planning selections while preserving existing pending setup edits", async () => {
+    const catalog = await deploymentCatalogWithDigest(), robot = catalog.embodiments[0];
+    const robotDescription = { source: "support_option", embodimentId: robot.embodiment_id,
+      catalogDigest: catalog.catalog_digest, policyRouteIds: [robot.policy_routes[0].route_id] };
+    expect((await api("/setups", "robot-1", { ...setup, robotDescription })).status).toBe(403);
+    const pendingDescription = { ...robotDescription, catalogDigest: `sha256:${"0".repeat(64)}` };
+    state.records.set("users/robot-1/robotSetups/setup-1", { payload: `encrypted:${JSON.stringify({ ...setup, robotDescription: pendingDescription })}` });
+    for (const description of [pendingDescription, undefined]) {
+      const response = await api("/setups", "robot-1", { ...setup, robotDescription: description, executionBindingId: "franka" });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ robotDescription: pendingDescription });
+      expect((await (await api("/", "robot-1")).json()).setups[0].executionBindingId).toBeUndefined();
+    }
+    expect((await api("/setups", "robot-1", { ...setup, robotDescription })).status).toBe(403);
+  });
   it("rejects stale, unknown, incompatible and duplicate planning choices", async () => {
+    state.records.get("users/robot-1").role = "ops";
     const catalog = await deploymentCatalogWithDigest(), robot = catalog.embodiments[0];
     const robotDescription = { source: "support_option", embodimentId: robot.embodiment_id,
       catalogDigest: catalog.catalog_digest, policyRouteIds: [robot.policy_routes[0].route_id] };
