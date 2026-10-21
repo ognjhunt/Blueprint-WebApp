@@ -10,7 +10,7 @@ import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { logger } from "../logger";
-import { loadManagedJobEvidence, assertManagedJobEvidenceReference } from "../utils/jobManagedEvaluation";
+import { loadManagedJobEvidenceForWorkspace, assertManagedJobEvidenceReference } from "../utils/jobManagedEvaluation";
 import { buildJobEvidenceRequest, jobEvidenceId, jobEvidenceQuestionSchema, jobEvidenceDigest, scientificBriefDigest, scientificContext, jobEvidenceSummary, jobEvidenceCaptureSessionId } from "../utils/jobEvidenceContract";
 import { readJobEvidence, readJobEvidencePublication } from "../utils/jobEvidenceStore";
 import { assertJobEvidenceVideo, deliverJobEvidenceRequest, jobEvidenceDeliveryIntent, jobEvidenceQueueMarker, queueJobEvidenceAction } from "../utils/jobEvidenceForwardWorker";
@@ -64,7 +64,7 @@ async function readWorkflow(requestId: string, admin = false) {
     catch { return proposal.id; } // Preserve unavailable evidence as history, affecting only its own quote.
   }))).filter((id): id is string => id !== null));
   return { ...projectJobMarketplace(record, briefValue, walkthrough?.received ?? null, evidenceReviewProposalIds), jobId: requestId, ...await readJobEvidence(requestId, briefValue, admin),
-    managedEvidence: briefValue?.confirmedAtIso ? await loadManagedJobEvidence(requestId, scientificBriefDigest(briefValue)) : [] };
+    ...(briefValue?.confirmedAtIso ? await loadManagedJobEvidenceForWorkspace(requestId, scientificBriefDigest(briefValue)) : { managedEvidence: [] }) };
 }
 async function mutateWorkflow(requestId: string, actor: string, event: string,
   mutate: (state: StoredJobMarketplace, brief: Record<string, any> | null, now: string, record: Record<string, any>, transaction: FirebaseFirestore.Transaction) => StoredJobMarketplace | Promise<StoredJobMarketplace>) {
@@ -287,7 +287,8 @@ router.post("/admin/:requestId/proposals", handle(async (req, res) => {
   const evidenceBriefDigest = await assertProposalEvidence(res.locals.jobWorkflowRequestId, input);
   const suppliedKey = req.header("Idempotency-Key");
   const proposalId = suppliedKey ? parse(proposalIdSchema, suppliedKey) : randomUUID();
-  return res.status(201).json(await mutateWorkflow(res.locals.jobWorkflowRequestId, res.locals.firebaseUser!.uid, "proposal_published", (state, brief, now) => {
+  return res.status(201).json(await mutateWorkflow(res.locals.jobWorkflowRequestId, res.locals.firebaseUser!.uid, "proposal_published", async (state, brief, now, _record, transaction) => {
+    await assertProposalEvidence(res.locals.jobWorkflowRequestId, input, transaction);
     if (evidenceBriefDigest && (!brief || scientificBriefDigest(brief) !== evidenceBriefDigest)) throw new JobMarketplaceError("evidence_scope_changed", "The job brief changed while evidence was attached. Refresh the current scope.");
     const existing = state.proposals.find(proposal => proposal.id === proposalId);
     if (existing) {

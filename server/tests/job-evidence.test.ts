@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
+import { sharedFakeFirestoreState as state, sharedFakeFirestore } from "./helpers/fake-firestore";
 import { sharedUploadBucket } from "./helpers/fake-upload-bucket";
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
@@ -170,6 +170,19 @@ describe("job evidence producer and commercial boundary", () => {
         reference: { requestId: saved.request_id, publicationDigest: publication.publication_digest } }] };
     const adminPath = "/api/job-workflow/admin/job-1";
     const ownerPath = `/api/job-workflow/owner/${token()}`;
+    // A source can change after preliminary validation without changing the brief.
+    // Revalidate the reference in the same transaction that publishes the quote.
+    const originalTransaction = sharedFakeFirestore.runTransaction.bind(sharedFakeFirestore);
+    const transactionRace = vi.spyOn(sharedFakeFirestore, "runTransaction").mockImplementationOnce(async callback => {
+      state.docs.set("inboundRequests/job-1", { ...record, job_evidence_source: { ...binding, source_capture_digest: `sha256:${"c".repeat(64)}` } });
+      return originalTransaction(callback);
+    });
+    const raced = await api(`${adminPath}/proposals`, "POST", quoted, { authorization: "Bearer ops", "Idempotency-Key": "source-race-quote" });
+    transactionRace.mockRestore();
+    expect(raced.status).toBe(409);
+    expect(raced.body.code).toBe("evidence_scope_changed");
+    expect((state.docs.get("inboundRequests/job-1") as any).job_marketplace?.proposals ?? []).toHaveLength(0);
+    state.docs.set("inboundRequests/job-1", record);
     const first = (await api(`${adminPath}/proposals`, "POST", quoted, { authorization: "Bearer ops", "Idempotency-Key": "reference-quote-a" })).body.proposals[0];
     expect((await api(`${adminPath}/proposals`, "POST", quoted, { authorization: "Bearer ops", "Idempotency-Key": "reference-quote-b" })).status).toBe(201);
     const choose = (proposal: any) => ({ proposalId: proposal.id, expectedRevision: proposal.revision, authorized: true });
