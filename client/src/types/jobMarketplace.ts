@@ -87,6 +87,7 @@ export interface JobMarketplaceWorkflow {
   review: JobOptionsReview | null;
   evidence?: JobEvidenceSummary[];
   managedEvidence?: JobManagedEvidenceSummary[];
+  managedEvidenceUnavailable?: boolean;
   evidenceContext?: { briefDigest: string; question: string | null; testbedDigest: string | null } | null;
   proposals: DeliveryProposal[];
   selection: JobProposalSelection | null;

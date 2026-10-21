@@ -106,6 +106,14 @@ describe("the site's job workspace", () => {
     expect(within(screen.getByRole("article", { name: "Previous alternative delivery proposal" })).queryByRole("button", { name: "Choose this proposal" })).toBeNull();
   });
 
+  it("keeps saved job planning visible when policy results need a retry", async () => {
+    fetchMock.mockResolvedValue(response(workflow({ managedEvidenceUnavailable: true })));
+    render(<JobWorkspace token="owner-token" />);
+    expect(await screen.findByText("Policy results are temporarily unavailable. Reload this page to retry.")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Your job, step by step" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Managed policy evidence for your job" })).toBeNull();
+  });
+
   it("saves optional planning details without requiring a budget", async () => {
     const current = workflow();
     fetchMock.mockResolvedValueOnce(response(current)).mockResolvedValueOnce(response(workflow({ requirements: { ...current.requirements, requiredOutput: "Cases sit flat in their assigned pockets", purchaseReadiness: "exploring" } })));

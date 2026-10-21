@@ -2,7 +2,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const authority = vi.hoisted(()=>({enabled:true, advisoryTick: vi.fn(), coverageTick: vi.fn(), db: null as any,
-  sceneIntakeTick: vi.fn(async () => {})}));
+  jobEvidenceTick: vi.fn(async () => {}), sceneIntakeTick: vi.fn(async () => {})}));
+vi.mock("../utils/jobEvidenceForwardWorker", () => ({processJobEvidenceForwardQueue: authority.jobEvidenceTick}));
 vi.mock("../utils/captureCoverageQueue", () => ({tickCoverageReviews: authority.coverageTick}));
 vi.mock("../utils/siteAssessmentQueue", () => ({tickSiteAssessments: authority.advisoryTick}));
 vi.mock("../utils/taskEvaluationSceneIntake", () => ({processSceneIntakeQueue: authority.sceneIntakeTick}));
@@ -77,6 +78,7 @@ afterEach(() => {
   authority.enabled=true;
   authority.db=null;
   authority.sceneIntakeTick.mockReset().mockResolvedValue(undefined);
+  authority.jobEvidenceTick.mockReset().mockResolvedValue(undefined);
   authority.advisoryTick.mockReset();
   authority.coverageTick.mockReset();
   delete process.env.TASK_EVALUATION_LAUNCH_FORWARD_MAX_ATTEMPTS;
@@ -104,6 +106,7 @@ it("does not overlap slow scene or forwarding batches while terminal lanes keep 
     await vi.advanceTimersByTimeAsync(30000);
     expect(authority.sceneIntakeTick).toHaveBeenCalledTimes(1);
     expect(forwardReads).toHaveBeenCalledTimes(1);
+    expect(authority.jobEvidenceTick).toHaveBeenCalledTimes(4);
     expect(terminalReads).toHaveBeenCalledTimes(8); // Two other lanes over four ticks.
     finishScene(); finishForward({docs: []});
     await vi.advanceTimersByTimeAsync(10000);

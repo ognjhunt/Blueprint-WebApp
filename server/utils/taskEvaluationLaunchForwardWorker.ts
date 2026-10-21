@@ -3,6 +3,7 @@ import { logger } from "../logger";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { isGeminiVideoConfigured } from "../agents/provider-config";
 import { processSceneIntakeQueue } from "./taskEvaluationSceneIntake";
+import { processJobEvidenceForwardQueue } from "./jobEvidenceForwardWorker";
 import { resolveExecutionAccessContext } from "./access-control";
 import type { Response } from "express";
 import {
@@ -366,6 +367,7 @@ export function startTaskEvaluationLaunchForwardWorker() {
         if (!stopped) await tickCoverageReviews(2, { notifyOwner: false });
       }, "Capture coverage worker tick unavailable");
     }
+    startLane("job-evidence", processJobEvidenceForwardQueue, "Job evidence delivery reconciliation failed");
     startLane("scene-intake", processSceneIntakeQueue, "Task Evaluation scene intake reconciliation failed");
     startLane("launch-forward", processTaskEvaluationLaunchForwardQueue, "Task Evaluation launch forward reconciliation failed");
     startLane("terminal-closure", closeExpiredTaskEvaluationLaunches, "Task Evaluation launch terminal closure reconciliation failed");
