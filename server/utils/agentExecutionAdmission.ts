@@ -10,6 +10,8 @@ import {
 
 import { loadTaskForTeam, developmentOfferSchema, developmentOfferForTeam } from "./controlledDevelopmentOffer";
 import { isTeamEvaluationProfile, TEAM_CANDIDATE_HTTPS_INTERFACE, TEAM_ROBOT_HTTPS_INTERFACE } from "./policyIntegration";
+import { managedJobEvaluationAccess } from "./teamJobAccess";
+import { teamAccountUid } from "./robotTeamAccounts";
 
 export const AGENT_EXECUTION_ADMISSION_SCHEMA_VERSION =
   "blueprint.agent_execution_admission.v1" as const;
@@ -35,6 +37,8 @@ export interface AgentExecutionAdmissionSelection {
   };
   taskId: string;
   taskFamily: string;
+  /** Internal free-admission caller only; never read from an agent request body. */
+  blueprintManagedApproval?: { approvedBy: string; workspaceRequestId: string };
 }
 
 export type AgentExecutionAdmissionResult =
@@ -179,6 +183,36 @@ export async function prepareAgentExecutionAdmission(
   }
   const request = parsed.request;
   const canonical = objectValue(record.canonical_execution_request);
+  const managedSource = objectValue(canonical.source);
+  if (managedSource.execution_origin === "blueprint_managed" || selection.blueprintManagedApproval) {
+    const approval = selection.blueprintManagedApproval;
+    if (!approval?.approvedBy || !approval.workspaceRequestId
+      || managedSource.execution_origin !== "blueprint_managed"
+      || managedSource.workspace_request_id !== approval.workspaceRequestId
+      || managedSource.approved_by !== approval.approvedBy
+      || managedSource.scene_request_id !== selection.scene.requestId
+      || request.provenance.source_route !== "/api/admin/free-evaluations") {
+      return { admitted: false, blockers: ["blueprint_managed_operator_approval_required"] };
+    }
+    const [applicationSnapshot, scene, accountUid] = await Promise.all([
+      db.collection("inboundRequests").doc(approval.workspaceRequestId).get(),
+      loadTaskForTeam(selection.scene.requestId, selection.teamId),
+      teamAccountUid(selection.teamId),
+    ]);
+    const application = objectValue(applicationSnapshot.data());
+    const selected = objectValue(application.workspace_evaluation);
+    if (!accountUid || record.buyer_user_id !== accountUid || application.account_owner_uid !== accountUid
+      || selected.executionOrigin !== "blueprint_managed" || selected.opportunityId !== selection.scene.requestId
+      || selected.checkpointId !== selection.checkpoint.checkpointId) {
+      return { admitted: false, blockers: ["blueprint_managed_application_mismatch"] };
+    }
+    const access = managedJobEvaluationAccess(scene);
+    if (!access.evaluationAvailable)
+      return { admitted: false, blockers: [`blueprint_managed_job_unavailable:${access.reason}`] };
+    const profile = objectValue(objectValue(canonical.policy_package).policy_api_endpoint).execution_profile;
+    if (!isTeamEvaluationProfile(profile))
+      return { admitted: false, blockers: ["pipeline_team_evaluation_profile_required"] };
+  }
   if (canonical.schema_version !== "robot_eval_job_request.v1") {
     blockers.push("agent_execution_canonical_request_missing");
   }
@@ -421,11 +455,15 @@ export async function discoverAgentExecutionAdmission(params: {
   quotedEpisodes: number;
   quotedUsd: number;
   executionRequestId?: string;
+  /** Supplied only by the authenticated administrator's saved free handoff. */
+  blueprintManagedApproval?: { approvedBy: string; workspaceRequestId: string };
 }): Promise<
   | { admitted: true; envelope: Record<string, unknown>; canonicalJson: string; digestSha256: string }
   | { admitted: false; blockers: string[] }
 > {
   if (!db) return { admitted: false, blockers: ["agent_execution_store_unavailable"] };
+  if (params.blueprintManagedApproval && !params.executionRequestId)
+    return { admitted: false, blockers: ["blueprint_managed_exact_request_required"] };
   const [checkpointSnapshot, scene] = await Promise.all([
     db.collection("robotCheckpoints").doc(params.checkpointId).get(),
     loadTaskForTeam(params.sceneId, params.teamId),
@@ -476,6 +514,7 @@ export async function discoverAgentExecutionAdmission(params: {
     },
     taskId,
     taskFamily,
+    ...(params.blueprintManagedApproval ? { blueprintManagedApproval: params.blueprintManagedApproval } : {}),
   };
   const admissions = params.executionRequestId
     ? await (async () => {

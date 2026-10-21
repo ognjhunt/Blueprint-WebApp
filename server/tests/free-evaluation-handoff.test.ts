@@ -25,6 +25,7 @@ import { admitFreeWorkspaceEvaluation } from "../utils/freeEvaluationHandoff";
 import { canDispatchFreeBetaRun } from "../utils/freeBeta";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { listedTaskCard } from "./helpers/listedTaskCard";
+import configurationFixture from "./fixtures/deployment-embodiment/configuration-preflight.v1.json";
 
 const command = () => ({ teamId: "team", checkpointId: "checkpoint", executionRequestId: "prepared",
   episodes: 1, sponsorCapUsd: 10, maxAttempts: 1, evidenceScope: "development_only",
@@ -60,6 +61,28 @@ beforeEach(() => {
       canonical_execution_request: { execution_authorization: { max_cost_usd: 10, episodes: 1 } } } });
 });
 describe("operator-approved workspace handoff", () => {
+  it("admits the saved private Blueprint-managed origin while rechecking its site rights and exact configuration",async()=>{
+    const scene={...openJob(),public_task_listing:{enabled:false}};
+    state.docs.set("inboundRequests/scene",scene);
+    const application=state.docs.get("inboundRequests/application")!;
+    application.workspace_evaluation.executionOrigin="blueprint_managed";
+    application.workspace_evaluation.checkpointId="checkpoint";
+    const manifest=configurationFixture.request.robot_embodiment;
+    const setup={reference:"https://policy.test/action",version:"v1",robotEmbodiment:manifest};
+    state.docs.set("users/owner/robotSetups/setup",{payload:JSON.stringify(setup)});
+    application.workspace_evaluation.policyRunLicense=buildPolicyRunLicense({ownerUid:"owner",requestId:"application",opportunityId:"scene",setupId:"setup",
+      setup:{...setup,nativePreflight:configurationFixture.response}});
+    state.docs.set("robotCheckpoints/checkpoint",{teamId:"team",reference:setup.reference,runtime:"policy_endpoint",
+      policyCredential:{ref:"credential",kind:"bearer",expiresAtIso:"2100-01-01T00:00:00Z"}});
+    admission.mockResolvedValue({admitted:true,digestSha256:`sha256:${"a".repeat(64)}`,envelope:{binding:{capture_id:"capture",task_family:"pick_place"},
+      canonical_execution_request:{execution_authorization:{max_cost_usd:10,episodes:1},policy_package:{policy_api_endpoint:{
+        execution_profile:"team_evaluation_scored_v1",policy_interface_id:"blueprint_policy_https.v1",robot_embodiment:manifest}}}}});
+    expect((await admitFreeWorkspaceEvaluation("application",command(),"operator")).created).toBe(true);
+    expect(state.docs.get("inboundRequests/scene")!.public_task_listing).toEqual({enabled:false});
+    state.docs.set("inboundRequests/scene",{...scene,consent_revoked:true});
+    await expect(admitFreeWorkspaceEvaluation("application",command(),"operator")).rejects.toThrow("scene_authority_unavailable");
+    expect(admission).toHaveBeenCalledOnce();
+  });
   it.each(["support_option", "model"])("refuses a legacy queued %s setup before preparation despite a valid endpoint and token", async source => {
     const setup = { reference: "https://policy.test/action", version: "v1", delivery: "endpoint", robotDescription: source === "support_option"
       ? {source,embodimentId:"almond_axol",catalogDigest:`sha256:${"a".repeat(64)}`,policyRouteIds:["pi_api"]}
@@ -178,6 +201,11 @@ describe("operator-approved workspace handoff", () => {
     });
     await expect(admitFreeWorkspaceEvaluation("application", command(), "operator")).rejects.toThrow("source_changed");
     expect([...state.docs.keys()].some(key => key.startsWith("evaluationRuns/"))).toBe(false);
+  });
+  it("retains a request's explicitly selected checkpoint and refuses switching it at admission",async()=>{
+    state.docs.get("inboundRequests/application")!.workspace_evaluation.checkpointId="selected-checkpoint";
+    await expect(admitFreeWorkspaceEvaluation("application",command(),"operator")).rejects.toThrow("selected_checkpoint_changed");
+    expect(prepare).not.toHaveBeenCalled();expect(admission).not.toHaveBeenCalled();
   });
   it("refuses a team evaluation of a policy it cannot call, and any prepared request that is not one", async () => {
     state.docs.set("inboundRequests/scene", { ...openJob(),

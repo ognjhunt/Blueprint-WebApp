@@ -2,7 +2,8 @@
  * The founder's job console: one row per site job, with its loop stage and
  * the next action. Read-only. Every write it links to goes through an
  * existing endpoint with its own checks (free-evaluation admission, the
- * recommendation form, the lead page). Three writes live here. The
+ * recommendation form, the lead page). Robot asset preflight also retains
+ * the caller's own configuration receipt without granting execution. The
  * site-measurement export keeps an immutable copy of exactly what it exported,
  * so the evidence handed to the Pipeline stays recoverable. Robot fit keeps a
  * team ranking (a model call staff ask for) and whether the site may see its
@@ -27,6 +28,12 @@ import {
 import { RobotFitError, getAdminRobotFit, rankTeamsForJob, setRobotFitSharing } from "../utils/siteRobotFit";
 import { getReadinessPreview } from "../utils/siteReadiness";
 import { loadWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
+import { decryptFieldValue } from "../utils/field-encryption";
+import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
+import { robotSetupIntegrationBlocker, TEAM_POLICY_BLOCKER_MESSAGES } from "../utils/policyIntegration";
+import { preflightRobotConfiguration } from "../utils/robotConfigurationPreflight";
+import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 
 const router = Router();
 router.use(requireAdminRole);
@@ -66,6 +73,39 @@ router.get("/:requestId", async (req: Request, res: Response) => {
   } catch (error) {
     logger.error({ err: error, requestId: parsed.data }, "Job console detail failed");
     return res.status(503).json({ error: "The job detail is unavailable. Try again." });
+  }
+});
+
+/** Validate the caller's actual saved robot assets; no site observations or policy tokens are sent. */
+router.post("/:requestId/robot-configuration/preflight", async (req, res) => {
+  const parsed = requestId.safeParse(req.params.requestId);
+  const body = z.object({ setupId: z.string().regex(/^[A-Za-z0-9_-]{1,120}$/) }).strict().safeParse(req.body);
+  if (!parsed.success || !body.success) return res.status(400).json({ error: "Choose a saved robot configuration." });
+  const caller = res.locals.firebaseUser;
+  if (caller?.email_verified !== true) return res.status(403).json({ error: "Verify your email before validating a robot configuration." });
+  if (!db) return res.status(503).json({ error: "Robot configuration storage is unavailable." });
+  try {
+    if (!await getJobConsoleDetail(parsed.data)) return res.status(404).json({ error: "Site job not found." });
+    const ref = db.collection("users").doc(caller.uid).collection("robotSetups").doc(body.data.setupId);
+    const saved = await ref.get();
+    if (!saved.exists || !saved.data()?.payload) return res.status(404).json({ error: "Save a robot configuration on your account first." });
+    const savedPayload = saved.data()!.payload;
+    const setup = JSON.parse(await decryptFieldValue(savedPayload));
+    const manifest = robotEmbodimentSchema.safeParse(setup.robotEmbodiment);
+    const blocker = robotSetupIntegrationBlocker(setup);
+    if (!manifest.success || blocker) return res.status(409).json({ error: blocker ? TEAM_POLICY_BLOCKER_MESSAGES[blocker] : "Attach the complete robot manifest first." });
+    const embodimentId = setup.robotDescription?.source === "support_option" ? setup.robotDescription.embodimentId : manifest.data.embodiment_id;
+    const preflight = await preflightRobotConfiguration(embodimentId, manifest.data);
+    await db.runTransaction(async transaction => {
+      const current = await transaction.get(ref);
+      if (current.data()?.payload !== savedPayload) throw new Error("The saved robot changed during validation. Validate its current configuration again.");
+      transaction.update(ref, { native_preflight: preflight, native_preflight_manifest_digest: crossRuntimeDigest(manifest.data) });
+    });
+    res.set("Cache-Control", "private, no-store");
+    return res.json({ setupId: body.data.setupId, preflight });
+  } catch (error) {
+    logger.warn({ errorName: error instanceof Error ? error.name : "UnknownError", requestId: parsed.data }, "Robot configuration preflight unavailable");
+    return res.status(409).json({ error: error instanceof Error && error.name === "Error" ? error.message : "Robot configuration validation could not be confirmed. The setup remains saved." });
   }
 });
 

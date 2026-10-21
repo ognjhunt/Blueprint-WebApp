@@ -320,6 +320,66 @@ describe("asking for a team evaluation (beta L5)", () => {
     expect(canonical.execution_authorization).toMatchObject({ episodes: 200 });
   });
 
+  function seedManaged() {
+    seed({ scene: { ...offered(200), public_task_listing: null }, checkpoint: { policyCredential: credential } });
+    sharedFakeFirestoreState.docs.set("inboundRequests/managed-request", {
+      account_owner_uid: "owner-uid",
+      workspace_evaluation: { executionOrigin: "blueprint_managed", opportunityId: "req-1", checkpointId: "ckpt-1" },
+    });
+    return { ...quote, quotedEpisodes: 200, quotedUsd: 10, submissionKey: "free:managed-request",
+      teamEvaluation: { robotEmbodiment: arm as any, executionOrigin: "blueprint_managed" as const } };
+  }
+
+  it("prepares a private job only through its saved managed request and exact operator approval", async () => {
+    const free = seedManaged();
+    const approved = { ...approval(), workspaceRequestId: "managed-request" };
+    const prepared = await prepareFreeAgentExecution(free, approved);
+    expect(prepared, JSON.stringify(prepared)).toMatchObject({ prepared: true });
+    if (!prepared.prepared) return;
+    const selection = { ...free, executionRequestId: prepared.requestId };
+    expect(await discoverAgentExecutionAdmission(selection)).toEqual({ admitted: false,
+      blockers: ["agent_execution_exact_authorization_missing"] });
+    const admitted = await discoverAgentExecutionAdmission({ ...selection,
+      blueprintManagedApproval: { approvedBy: approved.approvedBy, workspaceRequestId: "managed-request" } });
+    expect(admitted, JSON.stringify(admitted)).toMatchObject({ admitted: true });
+    if (!admitted.admitted) return;
+    expect((admitted.envelope.canonical_execution_request as any).source).toMatchObject({
+      execution_origin: "blueprint_managed", workspace_request_id: "managed-request", approved_by: "operator",
+      scene_request_id: "req-1",
+    });
+    expect([...sharedFakeFirestoreState.docs.keys()].filter(key => /evaluationRuns|robotTeamLedger/.test(key))).toEqual([]);
+    expect((await prepareFreeAgentExecution(free, approved))).toMatchObject({ prepared: true, created: false, requestId: prepared.requestId });
+  });
+
+  it("does not let an ordinary self-serve call or mismatched source application select private managed access", async () => {
+    const free = seedManaged();
+    expect(await ensureSelfServeAgentExecution(free)).toMatchObject({ prepared: false,
+      blockers: ["blueprint_managed_operator_approval_required"] });
+    expect(await prepareFreeAgentExecution(free, approval())).toMatchObject({ prepared: false,
+      blockers: ["blueprint_managed_operator_approval_required"] });
+    sharedFakeFirestoreState.docs.get("inboundRequests/managed-request")!.account_owner_uid = "someone-else";
+    expect(await prepareFreeAgentExecution(free, { ...approval(), workspaceRequestId: "managed-request" }))
+      .toMatchObject({ prepared: false, blockers: ["blueprint_managed_application_mismatch"] });
+    expect([...sharedFakeFirestoreState.docs.keys()].some(key => key.startsWith("robotEvalJobRequests/"))).toBe(false);
+  });
+
+  it.each(["rights", "paused", "runtime", "checkpoint", "origin"])("rechecks current private-job %s before admission", async state => {
+    const free = seedManaged();
+    const prepared = await prepareFreeAgentExecution(free, { ...approval(), workspaceRequestId: "managed-request" });
+    if (!prepared.prepared) throw new Error(JSON.stringify(prepared));
+    const scene = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+    const application = sharedFakeFirestoreState.docs.get("inboundRequests/managed-request")!;
+    if (state === "rights") scene.pipeline.rights_review_status = "blocked";
+    if (state === "paused") scene.workspace_task = { paused: true };
+    if (state === "runtime") scene.evaluation_readiness = null;
+    if (state === "checkpoint") application.workspace_evaluation.checkpointId = "other-checkpoint";
+    if (state === "origin") application.workspace_evaluation.executionOrigin = "technology_team";
+    const admitted = await discoverAgentExecutionAdmission({ ...free, executionRequestId: prepared.requestId,
+      blueprintManagedApproval: { approvedBy: "operator", workspaceRequestId: "managed-request" } });
+    expect(admitted.admitted, JSON.stringify(admitted)).toBe(false);
+    expect([...sharedFakeFirestoreState.docs.keys()].some(key => key.startsWith("evaluationRuns/"))).toBe(false);
+  });
+
   it("carries any form the team declares, and refuses a manifest that contradicts itself", async () => {
     const { robotEmbodimentSchema, actionWidth } = await import("../../client/src/types/robotEmbodiment");
     const parsed = robotEmbodimentSchema.parse(wheeled);

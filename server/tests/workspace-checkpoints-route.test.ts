@@ -78,6 +78,8 @@ const people: Record<string, Record<string, unknown>> = {
   unverified: { uid: "team-user", email: "lead@atlas.example", email_verified: false },
   pending: { uid: "pending-user", email: "pending@nova.example", email_verified: true },
   site: { uid: "site-user", email: "ops@site.example", email_verified: true },
+  ops: {uid:"ops-user",email:"operator@blueprint.example",email_verified:true,ops:true},
+  opsUnverified:{uid:"ops-user",email:"operator@blueprint.example",email_verified:false,ops:true},
 };
 
 let server: Server;
@@ -216,6 +218,17 @@ describe("workspace checkpoint registration", () => {
 describe("a hosted endpoint's policy token", () => {
   const token = (who: string, body: unknown) => fetch(`${baseUrl}/policy-token`, { method: "POST",
     headers: { Authorization: `Bearer ${who}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  it("lets verified Ops bind only their own saved policy without changing the account profile",async()=>{
+    state.users.set("ops-user",{role:"ops"});
+    state.setups.set("ops-user/setup-ops",{name:"Ops exact robot",delivery:"endpoint",reference:"https://policy.ops.example/actions"});
+    expect((await token("opsUnverified",{setupId:"setup-ops",token:"synthetic"})).status).toBe(403);
+    expect((await token("ops",{setupId:"setup-1",token:"synthetic"})).status).toBe(404);
+    const response=await token("ops",{setupId:"setup-ops",token:"synthetic"});expect(response.status).toBe(201);
+    expect(state.users.get("ops-user")).toEqual({role:"ops"});
+    expect(state.teams.find(row=>row.accountUid==="ops-user")).toBeTruthy();
+    expect(state.registered.at(-1)?.reference).toBe("https://policy.ops.example/actions");
+    expect(await response.text()).not.toMatch(/synthetic|credential-ref/);
+  });
 
   it("is stored on the setup's policy_endpoint checkpoint, registered once, and only its expiry comes back", async () => {
     const first = await token("team", { setupId: "setup-1", token: "secret-policy-token" });

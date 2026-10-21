@@ -65,12 +65,13 @@ async function requireRobotTeamAccount(res: Response): Promise<Caller | null> {
   if (!uid) { res.status(401).json({ error: "Sign in to continue." }); return null; }
   if (!db) { res.status(503).json({ error: "Workspace storage is unavailable. Please try again." }); return null; }
   const user = (await db.collection("users").doc(uid).get()).data() ?? {};
-  if (user.buyerType !== "robot_team") {
+  const ops = (await resolveAccessContext(res)).isOps;
+  if (user.buyerType !== "robot_team" && !ops) {
     res.status(403).json({ error: "This action requires a robot-team account.", code: "robot_team_required" });
     return null;
   }
   const email = typeof auth?.email === "string" ? auth.email.trim().toLowerCase() : "";
-  if (!(await resolveAccessContext(res)).isOps && !(await accountHasAdmission(email, "robot_team"))) {
+  if (!ops && !(await accountHasAdmission(email, "robot_team"))) {
     res.status(403).json({ error: "Robot-team access requires Blueprint approval.", code: "account_invitation_required" });
     return null;
   }

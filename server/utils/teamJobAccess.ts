@@ -164,6 +164,24 @@ function rightsHold(raw: Record<string, any>): TeamJobClosedReason | null {
   return null;
 }
 
+/** Blueprint's private execution grant is separate from publishing a card to third-party teams. */
+export function managedJobEvaluationAccess(record: RecordLike): { evaluationAvailable: boolean; reason: TeamJobClosedReason | null } {
+  const raw = (record ?? {}) as Record<string, any>;
+  const closed = (reason: TeamJobClosedReason) => ({ evaluationAvailable: false, reason });
+  if (raw.request?.buyerType !== "site_operator") return closed("not_a_site_job");
+  if (raw.debug?.autoCreatedByPipeline === true) return closed("pipeline_placeholder");
+  if (taskScopeNotSupported(raw)) return closed("task_not_yet_supported");
+  if (operatorListingPaused(raw)) return closed("operator_paused");
+  const rights = projectWebsiteCaptureRights(raw);
+  if (rights.consent_revoked) return closed("consent_withdrawn");
+  if (raw.evidence_tier === "development_only" || raw.pipeline?.evidence_tier === "development_only") return closed("development_only");
+  const hold = rightsHold(raw);
+  if (hold) return closed(hold);
+  if (!rights.derived_scene_generation_allowed) return closed("recording_consent_missing");
+  if (!isRunnableTask(raw as InboundRequest)) return closed("scene_not_runnable");
+  return { evaluationAvailable: true, reason: null };
+}
+
 /**
  * The one predicate: may approved robot teams see this job, and may they
  * request an evaluation on it?

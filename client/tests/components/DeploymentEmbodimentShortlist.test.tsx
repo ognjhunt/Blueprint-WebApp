@@ -67,7 +67,7 @@ describe("deployment embodiment selection", () => {
     expect(screen.queryByRole("option", { name: catalog.embodiments[1].display_name })).toBeNull();
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
     expect(screen.queryByText("Setup details")).toBeNull();
-    expect(screen.getByText(/needs simulation validation/)).toBeVisible();
+    expect(screen.getByText(/Runtime support comes from execution receipts/)).toBeVisible();
     expect(readRobotDescription(new FormData(view.container.querySelector("form")!), [])).toEqual(saved);
   });
   it("still rejects a planning descriptor without an explicit policy route", () => {

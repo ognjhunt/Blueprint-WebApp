@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { robotEmbodimentSchema, type RobotEmbodiment } from "../../client/src/types/robotEmbodiment";
+import { deploymentEmbodimentCatalog } from "../../client/src/lib/deploymentEmbodimentSupport";
 
 /** ADP-011/day 7: integration intent is distinct from execution evidence. */
 export const checkpointRuntimes = [
@@ -79,6 +80,7 @@ export type TeamPolicyBlocker =
   | "team_evaluation_policy_credential_required"
   | "team_evaluation_policy_credential_expired"
   | "team_evaluation_robot_manifest_invalid"
+  | "team_evaluation_robot_binding_mismatch"
   | "team_evaluation_robot_integration_required";
 
 export const TEAM_POLICY_BLOCKER_MESSAGES: Record<TeamPolicyBlocker, string> = {
@@ -91,15 +93,26 @@ export const TEAM_POLICY_BLOCKER_MESSAGES: Record<TeamPolicyBlocker, string> = {
   team_evaluation_policy_credential_expired:
     "The policy token on file for this endpoint has expired. Enter a new one under Settings → Robots & policies.",
   team_evaluation_robot_manifest_invalid: "The setup's robot manifest is not valid. Fix it under Settings → Robots & policies.",
+  team_evaluation_robot_binding_mismatch: "The robot manifest must match the selected robot, its arm count and joints, with independent grippers for two arms.",
   team_evaluation_robot_integration_required: "This robot is a planning option. Bind its exact model, tools, cameras and policy interface to a validated robot manifest before requesting an evaluation.",
 };
 
 /** A named planning robot must never silently use the legacy DROID default. */
 export function robotSetupIntegrationBlocker(setup: { robotDescription?: unknown; robotEmbodiment?: unknown }): TeamPolicyBlocker | null {
   const description = setup.robotDescription as { source?: unknown } | null | undefined;
-  if (description?.source === "support_option"
-    || (description?.source === "model" && !robotEmbodimentSchema.safeParse(setup.robotEmbodiment).success))
+  const parsed = robotEmbodimentSchema.safeParse(setup.robotEmbodiment);
+  if ((description?.source === "support_option" || description?.source === "model") && !parsed.success)
     return "team_evaluation_robot_integration_required";
+  if (description?.source === "support_option" && parsed.success) {
+    const selected = setup.robotDescription as { embodimentId?: unknown };
+    const robot = deploymentEmbodimentCatalog.embodiments.find(row => row.embodiment_id === selected.embodimentId);
+    const manifest = parsed.data;
+    if (!robot || manifest.embodiment_id !== robot.embodiment_id || manifest.base.mode !== "fixed"
+      || manifest.form !== (robot.arm_count === 2 ? "bimanual_arm" : "fixed_base_arm")
+      || (robot.arm_dof && manifest.joints.length !== robot.arm_dof.reduce((sum, count) => sum + count, 0))
+      || (robot.arm_count === 2 && (manifest.schema_version !== "blueprint.robot_embodiment.v2" || manifest.grippers.length !== 2)))
+      return "team_evaluation_robot_binding_mismatch";
+  }
   return null;
 }
 

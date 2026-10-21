@@ -3,6 +3,9 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
+import configurationFixture from "./fixtures/deployment-embodiment/configuration-preflight.v1.json";
+const robotPreflight=vi.hoisted(()=>vi.fn());
+vi.mock("../utils/robotConfigurationPreflight",()=>({preflightRobotConfiguration:robotPreflight}));
 
 type Row = Record<string, any>;
 const state = vi.hoisted(() => ({
@@ -23,6 +26,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
   const docRef = (collection: string, id: string): any => ({
     id,
     get: async () => ({ id, exists: table(collection).has(id), data: () => table(collection).get(id) }),
+    update: async (patch: Row) => { table(collection).set(id,{...table(collection).get(id),...patch}); },
     collection: (sub: string) => ({ doc: (subId: string) => docRef(`${collection}/${id}/${sub}`, subId) }),
   });
   const query = (collection: string, filters: Array<(row: Row) => boolean>, order: string | null, after: string | null, limit: number): any => ({
@@ -43,6 +47,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
     dbAdmin: {
       collection: (name: string) => ({ doc: (id: string) => docRef(name, id), ...query(name, [], null, null, 10_000) }),
       getAll: async (...refs: any[]) => Promise.all(refs.map((ref) => ref.get())),
+      runTransaction: async (fn: any) => fn({ get: (ref: any) => ref.get(), update: (ref: any, patch: Row) => ref.update(patch) }),
     },
   };
 });
@@ -80,7 +85,7 @@ async function start() {
   app.use(express.json());
   app.use((req, res, next) => {
     const auth = req.headers.authorization;
-    res.locals.firebaseUser = auth === "Bearer admin" ? { uid: "admin", admin: true }
+    res.locals.firebaseUser = auth === "Bearer admin" ? { uid: "admin", admin: true, email_verified: true }
       : auth === "Bearer user" ? { uid: "user" } : null;
     next();
   });
@@ -97,6 +102,7 @@ let baseUrl: string;
 beforeEach(async () => {
   state.collections.clear();
   state.checkpoints.length = 0;
+  robotPreflight.mockReset().mockResolvedValue(configurationFixture.response);
   ({ server, baseUrl } = await start());
 });
 afterEach(async () => {
@@ -105,6 +111,32 @@ afterEach(async () => {
 });
 
 const admin = { headers: { Authorization: "Bearer admin" } };
+
+describe("saved robot configuration preflight",()=>{
+  const post=(body:unknown)=>fetch(`${baseUrl}/job-a/robot-configuration/preflight`,{method:"POST",
+    headers:{Authorization:"Bearer admin","Content-Type":"application/json"},body:JSON.stringify(body)});
+  it("reads only the authenticated operator's saved manifest and retains the exact response",async()=>{
+    siteJob("job-a","2026-10-21T00:00:00Z");
+    const setup={robotEmbodiment:configurationFixture.request.robot_embodiment};
+    table("users/admin/robotSetups").set("robot",{payload:JSON.stringify(setup)});
+    table("users/other/robotSetups").set("private",{payload:JSON.stringify(setup)});
+    expect((await post({setupId:"private"})).status).toBe(404);
+    const response=await post({setupId:"robot"});expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({setupId:"robot",preflight:configurationFixture.response});
+    expect(robotPreflight).toHaveBeenCalledExactlyOnceWith(configurationFixture.request.embodiment_id,configurationFixture.request.robot_embodiment);
+    expect(table("users/admin/robotSetups").get("robot")).toHaveProperty("native_preflight",configurationFixture.response);
+  });
+  it("refuses to retain an inspection after the saved configuration changed during the call",async()=>{
+    siteJob("job-a","2026-10-21T00:00:00Z");
+    table("users/admin/robotSetups").set("robot",{payload:JSON.stringify({robotEmbodiment:configurationFixture.request.robot_embodiment})});
+    robotPreflight.mockImplementation(async()=>{
+      table("users/admin/robotSetups").set("robot",{payload:"changed"});return configurationFixture.response;
+    });
+    const response=await post({setupId:"robot"});expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({error:expect.stringContaining("changed during validation")});
+    expect(table("users/admin/robotSetups").get("robot")).not.toHaveProperty("native_preflight");
+  });
+});
 
 describe("GET /api/admin/jobs", () => {
   it("requires authentication", async () => {
