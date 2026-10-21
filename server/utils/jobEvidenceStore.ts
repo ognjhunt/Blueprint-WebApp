@@ -20,10 +20,12 @@ export async function readJobEvidence(jobId: string, brief: Record<string, any> 
     const request = value.request;
     return { requestId: request.request_id, publicationDigest: null, briefDigest: request.brief_digest,
       current: request.brief_digest === digest && (!request.testbed?.testbed_digest || request.testbed.testbed_digest === context?.testbed.testbed_digest), state: "unavailable", question: request.question,
-      summary: value.forwardingReason || "The question is saved. Pipeline has not confirmed its evidence plan.",
-      nextAction: "Blueprint can retry this question or continue the options assessment using sufficient existing evidence.", limitations: request.context_limitations ?? [],
+      summary: value.cancellationRequested ? "Cancellation is recorded. Blueprint is confirming that this question has stopped."
+        : "Your question is saved. Blueprint will resume it when evidence processing is available.",
+      nextAction: value.cancellationRequested ? "No further evidence work will be requested for this question."
+        : "Return to this job for progress. Blueprint will ask for a specific missing input if needed.", limitations: request.context_limitations ?? [],
       runId: null, decisionDigest: null, planDigest: null, testbedDigest: request.testbed?.testbed_digest ?? null,
-      approvedTaskDigest: request.approved_task_digest, claims: [] };
+      approvedTaskDigest: request.approved_task_digest, claims: [], ...(admin && value.forwardingReason ? { serviceMessage: value.forwardingReason } : {}) };
   });
   return { evidence, ...(admin ? { evidenceContext: { briefDigest: digest, question: context?.decisionRequest.decision_question ?? null,
     testbedDigest: context?.testbed.testbed_digest ?? null } } : {}) };
@@ -41,7 +43,7 @@ export async function acceptJobEvidencePublication(value: unknown) {
     const [job, requestSnap, existing, brief] = await Promise.all([tx.get(jobRef), tx.get(requestRef), tx.get(publicationRef), tx.get(briefRef)]);
     const record = job.data();
     if (!record || record.request?.buyerType !== "site_operator") throw new JobMarketplaceError("job_not_found", "Site job not found.", 404);
-    if (projectWebsiteCaptureRights(record).consent_revoked) throw new JobMarketplaceError("capture_processing_not_authorized", "Recording permission was withdrawn.");
+    if (projectWebsiteCaptureRights(record).consent_revoked && publication.state !== "cancelled") throw new JobMarketplaceError("capture_processing_not_authorized", "Recording permission was withdrawn.");
     if (!requestSnap.exists) throw new JobMarketplaceError("evidence_request_not_found", "The exact job evidence request was not found.", 404);
     const stored = requestSnap.data()!;
     const request = jobEvidenceRequestSchema.parse(stored.request);
@@ -56,7 +58,7 @@ export async function acceptJobEvidencePublication(value: unknown) {
       return true;
     }
     if ((stored.sequence ?? -1) >= publication.sequence) throw new JobMarketplaceError("evidence_sequence_conflict", "A newer evidence publication is already recorded.");
-    if (stored.summary?.state === "cancelled" && publication.state !== "cancelled") throw new JobMarketplaceError("evidence_cancelled", "This evidence request was cancelled.");
+    if ((stored.cancellationRequested || stored.summary?.state === "cancelled") && publication.state !== "cancelled") throw new JobMarketplaceError("evidence_cancelled", "This evidence request was cancelled.");
     tx.create(publicationRef, { publication, receivedAtIso: new Date().toISOString() });
     tx.update(requestRef, { sequence: publication.sequence, latestPublicationDigest: publication.publication_digest,
       summary: jobEvidenceSummary(publication, brief.exists ? scientificBriefDigest(brief.data()!) : ""), forwardingReason: null });

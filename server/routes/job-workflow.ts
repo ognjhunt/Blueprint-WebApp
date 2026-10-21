@@ -11,8 +11,9 @@ import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { logger } from "../logger";
 import { loadManagedJobEvidence, assertManagedJobEvidenceReference } from "../utils/jobManagedEvaluation";
-import { buildJobEvidenceRequest, forwardJobEvidence, jobEvidenceId, jobEvidenceQuestionSchema, jobEvidenceDigest, scientificBriefDigest, scientificContext, jobEvidenceSummary, jobEvidenceCaptureSessionId } from "../utils/jobEvidenceContract";
-import { acceptJobEvidencePublication, readJobEvidence, readJobEvidencePublication } from "../utils/jobEvidenceStore";
+import { buildJobEvidenceRequest, jobEvidenceId, jobEvidenceQuestionSchema, jobEvidenceDigest, scientificBriefDigest, scientificContext, jobEvidenceSummary, jobEvidenceCaptureSessionId } from "../utils/jobEvidenceContract";
+import { readJobEvidence, readJobEvidencePublication } from "../utils/jobEvidenceStore";
+import { assertJobEvidenceVideo, deliverJobEvidenceRequest, jobEvidenceDeliveryIntent, jobEvidenceQueueMarker, queueJobEvidenceAction } from "../utils/jobEvidenceForwardWorker";
 import {
   deliveryProposalSchema, JobMarketplaceError, makeProposal, optionsReviewSchema, outcomeSchema, pilotAgreementSchema,
   projectJobMarketplace, proposalIdSchema, requirementsSchema, revisionSchema, selectedProposal, selectProposalSchema,
@@ -179,7 +180,7 @@ router.use("/admin/:requestId", verifyFirebaseToken, requireAdminRole, (req, res
 });
 router.get("/admin/:requestId", handle(async (_req, res) => res.json(await readWorkflow(res.locals.jobWorkflowRequestId, true))));
 
-// No capture, run or team is fabricated when the ordinary options review is sufficient.
+// A retained recording precedes assessment; missing scientific inputs remain explicit.
 router.post("/admin/:requestId/evidence", handle(async (req, res) => {
   const question = parse(jobEvidenceQuestionSchema, req.body).question;
   const key = parse(jobEvidenceId, req.header("Idempotency-Key"));
@@ -192,19 +193,24 @@ router.post("/admin/:requestId/evidence", handle(async (req, res) => {
     const [job, brief, inventory] = await Promise.all([tx.get(jobRef), tx.get(briefRef), tx.get(inventoryRef)]);
     assertJob(job.data()); assertBrief(brief.exists ? brief.data()! : null);
     const session = await tx.get(db!.collection("captureUploadSessions").doc(jobEvidenceCaptureSessionId(jobId, job.data()!)));
+    await assertJobEvidenceVideo(jobId, job.data()!, brief.data()!, session.exists ? session.data()! : null, inventory.exists ? inventory.data() as any : null);
     const value = buildJobEvidenceRequest({ jobId, idempotencyKey: key, uid: res.locals.firebaseUser!.uid,
       question, brief: brief.data()!, record: job.data()!, inventory: inventory.exists ? inventory.data() as any : null, session: session.exists ? session.data()! : null });
+    if (Buffer.byteLength(JSON.stringify(value), "utf8") > 750_000) throw new JobMarketplaceError("evidence_too_large", "Retain large scientific artifacts in the existing object store before requesting evidence.", 413);
     const ref = jobRef.collection("jobEvidenceRequests").doc(value.request_id);
     const previous = await tx.get(ref);
     if (previous.exists && previous.data()!.request.request_digest !== value.request_digest) {
       throw new JobMarketplaceError("idempotency_conflict", "This question request was already used with different scope. Refresh before creating a new question.");
     }
-    if (!previous.exists) tx.create(ref, { request: value, createdAtIso: new Date().toISOString(), sequence: -1 });
+    if (!previous.exists || !previous.data()!.deliveryState) {
+      const intent = jobEvidenceDeliveryIntent("submit", res.locals.firebaseUser!.uid);
+      if (!previous.exists) tx.create(ref, { request: value, createdAtIso: new Date().toISOString(), sequence: -1, ...intent });
+      else tx.update(ref, intent);
+      tx.update(jobRef, jobEvidenceQueueMarker(intent.deliveryId, intent.deliveryCreatedAtMs));
+    }
     return value;
   });
-  const forwarded = await forwardJobEvidence(request);
-  if (forwarded.ok) await acceptJobEvidencePublication(forwarded.publication);
-  else await jobRef.collection("jobEvidenceRequests").doc(request.request_id).update({ forwardingReason: forwarded.reason });
+  await deliverJobEvidenceRequest(jobId, request.request_id);
   return res.json(await readWorkflow(jobId, true));
 }));
 
@@ -216,10 +222,18 @@ router.post("/admin/:requestId/evidence/:evidenceId/:action", handle(async (req,
   const jobId = res.locals.jobWorkflowRequestId;
   const jobRef = db.collection("inboundRequests").doc(jobId);
   const ref = jobRef.collection("jobEvidenceRequests").doc(id);
-  const [job, saved, brief] = await Promise.all([jobRef.get(), ref.get(), db.collection("siteTaskBriefs").doc(jobId).get()]);
-  assertJob(job.data());
+  const [job, saved, brief, inventory] = await Promise.all([jobRef.get(), ref.get(), db.collection("siteTaskBriefs").doc(jobId).get(),
+    db.collection("siteTaskItemInventories").doc(jobId).get()]);
+  if (action === "cancel") {
+    if (!job.exists || job.data()!.request?.buyerType !== "site_operator") throw new JobMarketplaceError("job_not_found", "Site job not found.", 404);
+  } else assertJob(job.data());
   if (!saved.exists) throw new JobMarketplaceError("evidence_request_not_found", "Evidence request not found.", 404);
   const request = saved.data()!.request;
+  if (action !== "cancel") {
+    assertBrief(brief.exists ? brief.data()! : null);
+    const session = await db.collection("captureUploadSessions").doc(jobEvidenceCaptureSessionId(jobId, job.data()!)).get();
+    await assertJobEvidenceVideo(jobId, job.data()!, brief.data()!, session.exists ? session.data()! : null, inventory.exists ? inventory.data() as any : null);
+  }
   if (action === "execute" && (!brief.exists || request.brief_digest !== scientificBriefDigest(brief.data()!))) {
     throw new JobMarketplaceError("evidence_scope_changed", "The job brief changed. Prepare the question against the current task before running evidence.");
   }
@@ -229,12 +243,9 @@ router.post("/admin/:requestId/evidence/:evidenceId/:action", handle(async (req,
       throw new JobMarketplaceError("evidence_scope_changed", "The task, source configuration or source permission changed. Refresh the current evidence before executing.");
     }
   }
-  const body = action === "refresh" ? request : action === "execute"
-    ? { request_digest: request.request_digest, authorized_by: { role: "human", identity: res.locals.firebaseUser!.uid } }
-    : { request_digest: request.request_digest, cancelled_by: res.locals.firebaseUser!.uid };
-  const forwarded = await forwardJobEvidence(body, action === "refresh" ? "" : `/${encodeURIComponent(id)}/${action}`);
-  if (forwarded.ok) await acceptJobEvidencePublication(forwarded.publication);
-  else await ref.update({ forwardingReason: forwarded.reason });
+  await queueJobEvidenceAction(jobId, id, action, res.locals.firebaseUser!.uid);
+  await deliverJobEvidenceRequest(jobId, id);
+  if (action === "cancel" && projectWebsiteCaptureRights(job.data()!).consent_revoked) return res.json({ requestId: id, status: "cancellation_requested" });
   return res.json(await readWorkflow(jobId, true));
 }));
 

@@ -4,9 +4,11 @@ import { createServer, type Server } from "node:http";
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
+import { sharedUploadBucket } from "./helpers/fake-upload-bucket";
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
-  return { dbAdmin: sharedFakeFirestore, storageAdmin: null, authAdmin: { verifyIdToken: async () => ({ uid: "ops-user", role: "ops" }) }, default: {} };
+  const { sharedUploadBucket } = await import("./helpers/fake-upload-bucket");
+  return { dbAdmin: sharedFakeFirestore, storageAdmin: { bucket: () => sharedUploadBucket.bucket }, authAdmin: { verifyIdToken: async () => ({ uid: "ops-user", role: "ops" }) }, default: {} };
 });
 vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 vi.mock("express-rate-limit", () => ({ default: () => (_req: unknown, _res: unknown, next: () => void) => next() }));
@@ -29,12 +31,15 @@ beforeAll(async () => {
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 });
 afterAll(async () => { vi.unstubAllEnvs(); await new Promise<void>(resolve => server.close(() => resolve())); });
-beforeEach(() => {
+beforeEach(async () => {
   state.docs.clear();
+  sharedUploadBucket.clear();
   vi.stubEnv("PIPELINE_SYNC_TOKEN", "local-sync-key"); vi.stubEnv("JOB_EVIDENCE_PIPELINE_URL", "");
   vi.stubEnv("ROBOT_EVAL_JOB_REQUEST_FORWARD_URL", ""); vi.stubEnv("TASK_EVALUATION_RUN_PLAN_URL", "");
-  state.docs.set("inboundRequests/job-1", { request: { buyerType: "site_operator" }, PRIVATE_CONTACT: "must-stay-private" });
+  state.docs.set("inboundRequests/job-1", { request: { buyerType: "site_operator", consent_attestation: { granted: true,
+    statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-20T11:00:00Z" } }, PRIVATE_CONTACT: "must-stay-private" });
   state.docs.set("siteTaskBriefs/job-1", brief);
+  await sharedUploadBucket.bucket.file("scenes/site-job-1/captures/walkthrough-job-1/raw/walkthrough.mov").save(Buffer.from("retained-fixture-video-bytes"));
 });
 const token = () => createCaptureUploadToken({ requestId: "job-1", captureId: "walkthrough-job-1", sceneId: "site-job-1", scope: "owner" });
 async function api(path: string, method = "GET", body?: unknown, headers: Record<string, string> = {}) {
@@ -74,17 +79,29 @@ describe("job evidence producer and commercial boundary", () => {
     tampered.publication_digest = crossRuntimeArtifactDigest(tampered, "publication_digest");
     expect(() => verifyJobEvidencePublication(tampered)).toThrow("decision_envelope_binding_mismatch");
   });
-  it("saves a description-only question without fabricated capture or run and safely reuses its identity", async () => {
+  it("retains a recorded job's question without fabricating scientific context and safely reuses its identity", async () => {
     const path = "/api/job-workflow/admin/job-1/evidence";
     const headers = { authorization: "Bearer ops", "Idempotency-Key": "question-key" };
     const first = await api(path, "POST", { question: "Which observation would change the choice?" }, headers);
     const retry = await api(path, "POST", { question: "Which observation would change the choice?" }, headers);
     expect(first.status).toBe(200); expect(retry.status).toBe(200);
     expect(first.body.evidence[0].state).toBe("unavailable"); expect(first.body.evidence[0].runId).toBeNull();
+    expect(first.body.evidence[0].serviceMessage).toMatch(/not configured/);
+    const owner = await api(`/api/job-workflow/owner/${token()}`);
+    expect(owner.body.evidence[0].summary).toBe("Your question is saved. Blueprint will resume it when evidence processing is available.");
+    expect(owner.body.evidence[0].serviceMessage).toBeUndefined();
+    expect(JSON.stringify(owner.body.evidence[0])).not.toMatch(/not configured|forwardingReason|deliveryActor/);
     expect([...state.docs.keys()].filter(key => key.includes("/jobEvidenceRequests/"))).toHaveLength(1);
     expect([...state.docs.keys()].some(key => /captureUploadSessions|taskEvaluationPolicyRuns|taskEvaluationLaunches/.test(key))).toBe(false);
     const conflict = await api(path, "POST", { question: "Different question" }, headers);
     expect(conflict.status).toBe(409);
+  });
+  it("cannot start an evidence assessment from a written brief without retained video", async () => {
+    sharedUploadBucket.clear();
+    const result = await api("/api/job-workflow/admin/job-1/evidence", "POST", { question: "Assess this job" },
+      { authorization: "Bearer ops", "Idempotency-Key": "missing-video" });
+    expect(result.status).toBe(409); expect(result.body.code).toBe("video_required");
+    expect([...state.docs.keys()].some(key => key.includes("/jobEvidenceRequests/"))).toBe(false);
   });
   it("retains signed publications immutably and returns owner-safe historical applicability independently of budgets", async () => {
     const publication = boundPublication(); const endpoint = "/api/internal/job-evidence-publications";
