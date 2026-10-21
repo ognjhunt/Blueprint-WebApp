@@ -135,7 +135,10 @@ describe("job evidence producer and commercial boundary", () => {
     expect(state.docs.has("captureUploadSessions/walkthrough-job-1")).toBe(false);
     const mismatched = { ...record, job_evidence_source: { ...binding, approved_task_digest: `sha256:${"f".repeat(64)}` } };
     state.docs.set("inboundRequests/job-1", mismatched);
-    expect((await api("/api/job-workflow/admin/job-1", "GET", undefined, { authorization: "Bearer ops" })).body.evidenceContext.question).toBeNull();
+    const stale = (await api("/api/job-workflow/admin/job-1", "GET", undefined, { authorization: "Bearer ops" })).body;
+    expect(stale.evidenceContext.question).toBeNull(); expect(stale.evidence[0].current).toBe(false);
+    const execution = await api(`/api/job-workflow/admin/job-1/evidence/${saved.request_id}/execute`, "POST", {}, { authorization: "Bearer ops" });
+    expect(execution.status).toBe(409); expect(execution.body.code).toBe("evidence_scope_changed");
   });
   it("does not relabel a prior unbound scientific context as a current brief", () => {
     const source = examples.native_request;

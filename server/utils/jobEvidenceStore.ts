@@ -19,7 +19,7 @@ export async function readJobEvidence(jobId: string, brief: Record<string, any> 
     if (value.summary) return { ...value.summary, current: value.summary.briefDigest === digest && (!value.summary.testbedDigest || value.summary.testbedDigest === context?.testbed.testbed_digest), ...(admin && value.forwardingReason ? { serviceMessage: value.forwardingReason } : {}) };
     const request = value.request;
     return { requestId: request.request_id, publicationDigest: null, briefDigest: request.brief_digest,
-      current: request.brief_digest === digest, state: "unavailable", question: request.question,
+      current: request.brief_digest === digest && (!request.testbed?.testbed_digest || request.testbed.testbed_digest === context?.testbed.testbed_digest), state: "unavailable", question: request.question,
       summary: value.forwardingReason || "The question is saved. Pipeline has not confirmed its evidence plan.",
       nextAction: "Blueprint can retry this question or continue the options assessment using sufficient existing evidence.", limitations: request.context_limitations ?? [],
       runId: null, decisionDigest: null, planDigest: null, testbedDigest: request.testbed?.testbed_digest ?? null,
