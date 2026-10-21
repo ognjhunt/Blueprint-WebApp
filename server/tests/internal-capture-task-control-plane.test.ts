@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+import producerFixture from "./fixtures/pipeline-task-candidate-transport.json";
 
 const state = vi.hoisted(() => ({
   collections: new Map<string, Map<string, Record<string, unknown>>>(),
@@ -236,6 +237,27 @@ afterEach(() => {
 });
 
 describe("internal Pipeline task discovery publication", () => {
+  it("persists original Python discovery and candidate bytes through the signed receiver and replay", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
+    const body = producerFixture.publication;
+    state.collections.set("captureUploadSessions", new Map([[body.capture_session_id, {
+      session_id: body.capture_session_id, request: { intake_id: body.intake_id },
+      content_addressing: { status: "verified", sha256: body.pipeline_task_discovery.source_capture.capture_digest },
+    }]]));
+    const { server, socketPath } = await startServer();
+    try {
+      const first = await postSigned(socketPath, "/internal/capture-task-discoveries", signedBody(body));
+      expect(first.status).toBe(201);
+      expect(state.collections.get("captureUploadSessions")?.get(body.capture_session_id)).toMatchObject({
+        pipeline_task_discovery_canonical_json: body.pipeline_task_discovery_canonical_json,
+        pipeline_task_candidate_canonical_json: body.pipeline_task_candidate_canonical_json,
+      });
+      const replay = await postSigned(socketPath, "/internal/capture-task-discoveries", signedBody(body));
+      expect(replay.status).toBe(200);
+      expect(state.collections.get("captureTaskDiscoveries")?.size).toBe(1);
+    } finally { await stopServer(server, socketPath); }
+  });
+
   it("publishes an immutable digest-verified discovery and replays exactly", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
     state.collections.set("captureUploadSessions", new Map([

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { z } from "zod";
+import { verifyProducerArtifact } from "./producerCanonicalArtifact";
 
 export const TASK_CANDIDATE_DISCOVERY_SCHEMA_VERSION =
   "task_candidate_discovery.v1" as const;
@@ -152,6 +153,8 @@ export const pipelineTaskDiscoveryPublicationSchema = z
     intake_id: identifier,
     discovery_digest: sha256,
     pipeline_task_discovery: taskCandidateDiscoverySchema,
+    pipeline_task_discovery_canonical_json: z.string().min(1).max(750_000).optional(),
+    pipeline_task_candidate_canonical_json: z.record(sha256, z.string().min(1).max(750_000)).optional(),
     proof_boundary: z
       .object({
         candidate_is_customer_intent: z.literal(false),
@@ -226,7 +229,9 @@ export const pipelineTaskDecisionProcessingResultSchema = z
     submission_fingerprint_sha256: sha256,
     pipeline_approval_status: z.enum(["approved", "rejected", "recapture_requested"]),
     pipeline_task_decision: taskCandidateDecisionSchema,
+    pipeline_task_decision_canonical_json: z.string().min(1).max(750_000).optional(),
     approved_task_definition: approvedTaskDefinitionSchema.nullable(),
+    approved_task_definition_canonical_json: z.string().min(1).max(750_000).nullable().optional(),
     decision_evidence_request: z.null(),
     processed_at_iso: nonEmpty,
     proof_boundary: z
@@ -275,28 +280,27 @@ export function canonicalArtifactDigest(
   return `sha256:${createHash("sha256").update(stableJson(normalized)).digest("hex")}`;
 }
 
-export function parseVerifiedTaskDiscovery(value: unknown) {
+function nativeArtifactMatches(value: Record<string, unknown>, digestField: string, canonicalJson: unknown) {
+  return canonicalJson == null ? canonicalArtifactDigest(value, digestField) === value[digestField]
+    : verifyProducerArtifact(value, digestField, canonicalJson);
+}
+
+export function parseVerifiedTaskDiscovery(value: unknown, canonicalJson?: unknown, candidateCanonicalJson?: unknown) {
   const parsed = taskCandidateDiscoverySchema.safeParse(value);
   if (!parsed.success) {
     return { ok: false as const, blockers: ["task_discovery_schema_invalid"] };
   }
   const blockers: string[] = [];
   const discovery = parsed.data;
-  if (
-    canonicalArtifactDigest(
-      discovery as unknown as Record<string, unknown>,
-      "discovery_digest",
-    ) !== discovery.discovery_digest
-  ) {
+  if (!nativeArtifactMatches(discovery, "discovery_digest", canonicalJson)) {
     blockers.push("task_discovery_digest_mismatch");
   }
+  const bodies = candidateCanonicalJson && typeof candidateCanonicalJson === "object" && !Array.isArray(candidateCanonicalJson)
+      ? candidateCanonicalJson as Record<string, unknown> : null;
+  if (candidateCanonicalJson != null && !bodies) blockers.push("task_candidate_canonical_json_invalid");
   for (const candidate of discovery.task_candidates) {
-    if (
-      canonicalArtifactDigest(
-        candidate as unknown as Record<string, unknown>,
-        "candidate_digest",
-      ) !== candidate.candidate_digest
-    ) {
+    if (!(bodies ? verifyProducerArtifact(candidate, "candidate_digest", bodies[candidate.candidate_digest])
+      : nativeArtifactMatches(candidate, "candidate_digest", null))) {
       blockers.push(`task_candidate_digest_mismatch:${candidate.task_candidate_id}`);
     }
   }
@@ -313,20 +317,12 @@ export function parseVerifiedPipelineTaskDecisionResult(value: unknown) {
   }
   const result = parsed.data;
   const blockers: string[] = [];
-  if (
-    canonicalArtifactDigest(
-      result.pipeline_task_decision as unknown as Record<string, unknown>,
-      "decision_digest",
-    ) !== result.pipeline_task_decision.decision_digest
-  ) {
+  if (!nativeArtifactMatches(result.pipeline_task_decision, "decision_digest", result.pipeline_task_decision_canonical_json)) {
     blockers.push("pipeline_task_decision_digest_mismatch");
   }
   if (
     result.approved_task_definition &&
-    canonicalArtifactDigest(
-      result.approved_task_definition as unknown as Record<string, unknown>,
-      "approved_task_digest",
-    ) !== result.approved_task_definition.approved_task_digest
+    !nativeArtifactMatches(result.approved_task_definition, "approved_task_digest", result.approved_task_definition_canonical_json)
   ) {
     blockers.push("approved_task_definition_digest_mismatch");
   }

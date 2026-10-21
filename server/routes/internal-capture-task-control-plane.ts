@@ -47,7 +47,8 @@ router.post(
       });
     }
     const publication = parsed.data;
-    const verified = parseVerifiedTaskDiscovery(publication.pipeline_task_discovery);
+    const verified = parseVerifiedTaskDiscovery(publication.pipeline_task_discovery,
+      publication.pipeline_task_discovery_canonical_json, publication.pipeline_task_candidate_canonical_json);
     if (!verified.ok) {
       return res.status(400).json({
         error: "Pipeline task-discovery publication failed integrity validation",
@@ -110,11 +111,19 @@ router.post(
           intake_id: publication.intake_id,
           discovery_digest: publication.discovery_digest,
           pipeline_task_discovery: verified.discovery,
+          ...(publication.pipeline_task_discovery_canonical_json ? {
+            pipeline_task_discovery_canonical_json: publication.pipeline_task_discovery_canonical_json,
+          } : {}),
+          ...(publication.pipeline_task_candidate_canonical_json ? {
+            pipeline_task_candidate_canonical_json: publication.pipeline_task_candidate_canonical_json,
+          } : {}),
           proof_boundary: publication.proof_boundary,
         };
         if (discoverySnapshot.exists) {
           const existing = discoverySnapshot.data() as Record<string, unknown>;
-          if (stableJson(existing) !== stableJson(record)) {
+          const scientificRecord = (value: Record<string, unknown>) => Object.fromEntries(Object.entries(value)
+            .filter(([key]) => !["pipeline_task_discovery_canonical_json", "pipeline_task_candidate_canonical_json"].includes(key)));
+          if (stableJson(scientificRecord(existing)) !== stableJson(scientificRecord(record))) {
             return { kind: "immutable_conflict" };
           }
         } else {
@@ -124,6 +133,8 @@ router.post(
           sessionRef,
           {
             pipeline_task_discovery: verified.discovery,
+            pipeline_task_discovery_canonical_json: publication.pipeline_task_discovery_canonical_json ?? null,
+            pipeline_task_candidate_canonical_json: publication.pipeline_task_candidate_canonical_json ?? null,
             pipeline_task_discovery_digest: publication.discovery_digest,
             task_discovery_projection_updated_at_iso: new Date().toISOString(),
           },
