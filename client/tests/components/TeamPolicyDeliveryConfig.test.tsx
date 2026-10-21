@@ -66,6 +66,6 @@ it("chooses a registered policy and requires site/spend consent before submissio
     objectiveId: "g1_navigation_goal",
     maximumCostUsd: 12,
   });
-  expect(screen.getByText(/accepted for operator runtime approval/)).toBeTruthy();
+  expect(await screen.findByText(/accepted for operator runtime approval/)).toBeTruthy();
   expect(screen.getByText(/No GPU has launched/)).toBeTruthy();
 });
