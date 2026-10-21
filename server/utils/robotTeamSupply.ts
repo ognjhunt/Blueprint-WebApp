@@ -1,5 +1,7 @@
 /**
- * When a robot team counts as supply.
+ * Independent technology, evaluation and delivery relationships, plus legacy
+ * combined supply. Recording one relationship never requires the other two.
+ * A scoped delivery proposal and actual execution admission remain separate.
  *
  * ## The rule
  *
@@ -14,9 +16,9 @@
  * 3. `pilotIfPassed`: it will take the physical pilot if that evaluation passes.
  *
  * Until all three are recorded the team stays where it was — `prospect`,
- * `applied` or `self_registered` — and nothing a site reads may treat it as a
- * team that will evaluate or pilot their job (2026-10-14 beta launch audit,
- * L4 and P0-7).
+ * `applied` or `self_registered`. That legacy combined supply promise is not a
+ * gate on technology access: `readRobotTeamRoles` reads the three records
+ * independently. None establishes a partner's scoped delivery proposal.
  *
  * ## Why the status is derived, not trusted
  *
@@ -47,6 +49,8 @@ import {
   type RobotTeamRecord,
   type RobotTeamStatus,
   type RobotTeamSupplyAgreement,
+  type RobotTeamRole,
+  type RobotTeamRoleReading,
   type SupplyAgreementEntry,
   type SupplyAgreementTerm,
   type SupplyAgreementWithdrawal,
@@ -154,6 +158,32 @@ export function readSupplyAgreement(record: Pick<RobotTeamRecord, "supplyAgreeme
   };
 }
 
+/**
+ * Read each relationship from its own current evidence. Interface willingness
+ * is not actual licensed/executable policy access; that remains with the
+ * checkpoint/container and runtime admission contracts. A decline wins over
+ * any historical agreement. No pilot promise is needed for interface access.
+ */
+export function readRobotTeamRoles(
+  record: Pick<RobotTeamRecord, "status" | "supplyAgreement">,
+): RobotTeamRoleReading {
+  const reading = readSupplyAgreement(record);
+  const recorded = (term: SupplyAgreementTerm) => record.status !== "declined" && !reading.missing.includes(term);
+  const technologyInterfaceRecorded = recorded("supportedInterface");
+  return {
+    technologyInterfaceRecorded,
+    evaluationParticipationRecorded: recorded("freeEvaluation"),
+    deliveryInterestRecorded: recorded("pilotIfPassed"),
+    interfaceId: technologyInterfaceRecorded ? record.supplyAgreement!.terms.supportedInterface!.interfaceId! : null,
+  };
+}
+
+export function hasRobotTeamRole(record: RobotTeamRecord, role: RobotTeamRole): boolean {
+  const reading = readRobotTeamRoles(record);
+  return role === "technology" ? reading.technologyInterfaceRecorded
+    : role === "evaluation" ? reading.evaluationParticipationRecorded : reading.deliveryInterestRecorded;
+}
+
 const NON_ENGAGED_STATUSES: readonly RobotTeamStatus[] = ["self_registered", "applied", "prospect", "declined"];
 
 /** Where a team goes when it is not, or is no longer, engaged. */
@@ -205,7 +235,15 @@ export function isWillingSupplyForExecution(
   record: RobotTeamRecord | null | undefined,
   executionAdmission: unknown,
 ): boolean {
-  if (!record || !isWillingSupply(record)) return false;
+  return Boolean(record && isWillingSupply(record) && hasRecordedInterfaceForExecution(record, executionAdmission));
+}
+
+/** Setup-scoped interface agreement, independent of evaluation participation or delivery interest. */
+export function hasRecordedInterfaceForExecution(
+  record: RobotTeamRecord | null | undefined,
+  executionAdmission: unknown,
+): boolean {
+  if (!record || !readRobotTeamRoles(record).technologyInterfaceRecorded) return false;
   const admission = executionAdmission as { envelope?: { canonical_execution_request?: {
     policy_package?: { policy_api_endpoint?: { policy_interface_id?: unknown; execution_profile?: unknown; robot_embodiment?: unknown } };
   } } } | null | undefined;
@@ -323,14 +361,14 @@ export type WithdrawSupplyAgreementResult =
   | { ok: false; problem: string };
 
 /**
- * A team withdrew. The current agreements move to history with the
- * withdrawal that ended them, and the team returns to the status it had
- * before it was engaged. Becoming supply again needs all three agreements,
- * recorded afresh.
+ * Withdraw the named relationships, retaining the other current agreements.
+ * Omitted terms preserves legacy full withdrawal. Ended agreements move to
+ * history; losing any term removes combined supply without erasing independent
+ * policy/interface access or evaluation participation that was not withdrawn.
  */
 export function withdrawSupplyAgreement(
   record: RobotTeamRecord,
-  input: { withdrawnOn: string; evidenceRef: string },
+  input: { withdrawnOn: string; evidenceRef: string; terms?: readonly SupplyAgreementTerm[] },
   actor: string,
   nowIso: string,
 ): WithdrawSupplyAgreementResult {
@@ -344,9 +382,18 @@ export function withdrawSupplyAgreement(
   if (refProblem) return { ok: false, problem: refProblem };
 
   const agreement = currentAgreement(record);
-  if (!SUPPLY_AGREEMENT_TERMS.some(term => agreement.terms[term])) {
-    return { ok: false, problem: "this team has no recorded agreement to withdraw" };
+  const selected = input.terms ?? SUPPLY_AGREEMENT_TERMS;
+  if (!selected.length || new Set(selected).size !== selected.length
+    || selected.some(term => !SUPPLY_AGREEMENT_TERMS.includes(term))) {
+    return { ok: false, problem: "name one or more distinct current agreement terms to withdraw" };
   }
+  const withdrawnTerms: RobotTeamSupplyAgreement["terms"] = {};
+  const remainingTerms = { ...agreement.terms };
+  for (const term of selected) {
+    if (agreement.terms[term]) withdrawnTerms[term] = agreement.terms[term];
+    delete remainingTerms[term];
+  }
+  if (!Object.keys(withdrawnTerms).length) return { ok: false, problem: "this team has no selected recorded agreement to withdraw" };
   const withdrawal: SupplyAgreementWithdrawal = {
     withdrawnOn, evidenceRef: input.evidenceRef.trim(), recordedBy, recordedAt: nowIso,
   };
@@ -355,8 +402,8 @@ export function withdrawSupplyAgreement(
     ...record,
     supplyAgreement: {
       schemaVersion: SUPPLY_AGREEMENT_SCHEMA_VERSION,
-      terms: {},
-      history: [...(agreement.history ?? []), { terms: agreement.terms, withdrawal }],
+      terms: remainingTerms,
+      history: [...(agreement.history ?? []), { terms: withdrawnTerms, withdrawal }],
     },
     status: record.status === "engaged" ? statusWithoutAgreement(record) : record.status,
     statusBeforeEngaged: null,
@@ -370,7 +417,9 @@ export function supplySummary(record: RobotTeamRecord): {
   willingSupply: boolean;
   missingAgreements: SupplyAgreementTerm[];
   withdrawnOn: string | null;
+  roles: RobotTeamRoleReading;
 } {
   const reading = readSupplyAgreement(record);
-  return { willingSupply: isWillingSupply(record), missingAgreements: reading.missing, withdrawnOn: reading.withdrawnOn };
+  return { willingSupply: isWillingSupply(record), missingAgreements: reading.missing, withdrawnOn: reading.withdrawnOn,
+    roles: readRobotTeamRoles(record) };
 }

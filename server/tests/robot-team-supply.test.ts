@@ -34,6 +34,8 @@ const {
   effectiveTeamStatus,
   isWillingSupply,
   isWillingSupplyForExecution,
+  hasRecordedInterfaceForExecution,
+  readRobotTeamRoles,
   readSupplyAgreement,
   withdrawSupplyAgreement,
   LEGACY_DROID_SUPPLY_INTERFACE_ID,
@@ -62,6 +64,30 @@ const ALL_TERMS = [
 /* --------------------------------------------------------------- the rule */
 
 describe("the supply agreement", () => {
+  it("records technology/interface access without requiring evaluation participation or a physical pilot promise", () => {
+    const result = applySupplyAgreementTerms(team(), ALL_TERMS.slice(0, 1), "ops@example.test", NOW);
+    if (!result.ok) throw new Error("interface agreement refused");
+    expect(readRobotTeamRoles(result.record)).toEqual({ technologyInterfaceRecorded: true,
+      evaluationParticipationRecorded: false, deliveryInterestRecorded: false, interfaceId: LEGACY_DROID_SUPPLY_INTERFACE_ID });
+    expect(hasRecordedInterfaceForExecution(result.record, syntheticSupplyExecutionAdmission())).toBe(true);
+    expect(hasRecordedInterfaceForExecution(result.record,
+      syntheticSupplyExecutionAdmission(TEAM_ROBOT_HTTPS_INTERFACE, syntheticRobotEmbodiment()))).toBe(false);
+    expect(isWillingSupplyForExecution(result.record, syntheticSupplyExecutionAdmission())).toBe(false);
+    expect(isWillingSupply(result.record)).toBe(false);
+    expect(readRobotTeamRoles({ ...result.record, status: "declined" })).toEqual({ technologyInterfaceRecorded: false,
+      evaluationParticipationRecorded: false, deliveryInterestRecorded: false, interfaceId: null });
+  });
+
+  it("does not turn evaluation participation or delivery interest into policy access", () => {
+    for (const term of ALL_TERMS.slice(1)) {
+      const result = applySupplyAgreementTerms(team(), [term], "ops@example.test", NOW);
+      if (!result.ok) throw new Error("relationship refused");
+      expect(readRobotTeamRoles(result.record)).toMatchObject({ technologyInterfaceRecorded: false,
+        evaluationParticipationRecorded: term.term === "freeEvaluation", deliveryInterestRecorded: term.term === "pilotIfPassed" });
+      expect(hasRecordedInterfaceForExecution(result.record, syntheticSupplyExecutionAdmission())).toBe(false);
+    }
+  });
+
   it.each(["supportedInterface", "freeEvaluation", "pilotIfPassed"] as SupplyAgreementTerm[])(
     "is incomplete without %s, so the team is not engaged",
     (missing) => {
@@ -317,6 +343,46 @@ describe("recording an agreement through the admin route", () => {
       missingAgreements: ["supportedInterface", "pilotIfPassed"], supportedInterfaceId: null,
       supportedInterfaces: expect.arrayContaining([expect.objectContaining({ interfaceId: TEAM_ROBOT_HTTPS_INTERFACE, robotEmbodimentRequired: true })]) });
     expect(view.terms.find((row: { term: string }) => row.term === "freeEvaluation").recorded).toMatchObject({ evidenceRef: ALL_TERMS[1].evidenceRef });
+  });
+
+  it("finds independently recorded technology access and withdraws only delivery interest", async () => {
+    await post("/team-a/supply-agreement", { terms: ALL_TERMS, evidenceHeld: true });
+    const withdrawal = await post("/team-a/supply-agreement/withdraw", { terms: ["pilotIfPassed"],
+      withdrawnOn: "2026-10-14", evidenceRef: "signed-note:delivery-unavailable", evidenceHeld: true });
+    expect(withdrawal.status).toBe(200);
+    expect(await withdrawal.json()).toMatchObject({ status: "applied", willingSupply: false,
+      missingAgreements: ["pilotIfPassed"], roles: { technologyInterfaceRecorded: true,
+        evaluationParticipationRecorded: true, deliveryInterestRecorded: false } });
+    expect(stored().supplyAgreement?.history?.at(-1)?.terms).toEqual({ pilotIfPassed: expect.any(Object) });
+    expect(stored().supplyAgreement?.terms.supportedInterface?.evidenceRef).toBe(ALL_TERMS[0].evidenceRef);
+    expect(hasRecordedInterfaceForExecution(stored(), syntheticSupplyExecutionAdmission())).toBe(true);
+    expect(isWillingSupplyForExecution(stored(), syntheticSupplyExecutionAdmission())).toBe(false);
+
+    const technology = await (await fetch(`${base}/?role=technology`, { headers: { "x-fixture-identity": "founder" } })).json();
+    expect(technology.supplyCount).toBe(0);
+    expect(technology.teams.map((row: { id: string }) => row.id)).toEqual(["team-a"]);
+    const delivery = await (await fetch(`${base}/?role=delivery`, { headers: { "x-fixture-identity": "founder" } })).json();
+    expect(delivery.teams).toEqual([]);
+
+    const accessWithdrawal = await post("/team-a/supply-agreement/withdraw", { terms: ["supportedInterface"],
+      withdrawnOn: "2026-10-14", evidenceRef: "signed-note:interface-revoked", evidenceHeld: true });
+    expect(accessWithdrawal.status).toBe(200);
+    expect(hasRecordedInterfaceForExecution(stored(), syntheticSupplyExecutionAdmission())).toBe(false);
+    expect(readRobotTeamRoles(stored()).evaluationParticipationRecorded).toBe(true);
+  });
+
+  it("does not infer access from open registration, status words or malformed relationship evidence", async () => {
+    const interfaceRecord = applySupplyAgreementTerms(team({ id: "technology-only", status: "self_registered" }),
+      ALL_TERMS.slice(0, 1), "ops@example.test", NOW);
+    if (!interfaceRecord.ok) throw new Error("interface refused");
+    state.docs.set("robotTeams/technology-only", interfaceRecord.record as never);
+    state.docs.set("robotTeams/typed", team({ id: "typed", status: "engaged" }) as never);
+    state.docs.set("robotTeams/declined", { ...interfaceRecord.record, id: "declined", status: "declined" } as never);
+    expect((await listMatchableRobotTeams({ role: "technology" })).map(row => row.id)).toEqual(["technology-only"]);
+    expect((await listMatchableRobotTeams({ role: "delivery" }))).toEqual([]);
+    expect((await fetch(`${base}/?role=unknown`, { headers: { "x-fixture-identity": "founder" } })).status).toBe(400);
+    expect((await post("/team-a/supply-agreement/withdraw", { terms: [], withdrawnOn: "2026-10-14",
+      evidenceRef: "signed-note:bad-withdrawal", evidenceHeld: true })).status).toBe(400);
   });
 
   it("shows incomplete historical agreements with missing terms without failing the operator view", async () => {

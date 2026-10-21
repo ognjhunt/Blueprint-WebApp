@@ -39,10 +39,13 @@ import {
   type RobotCapabilityField,
   type RobotTeamRecord,
   type RobotTeamStatus,
+  type RobotTeamRole,
+  type SupplyAgreementTerm,
 } from "../types/robot-team-registry";
 import type { RobotCandidate } from "../../client/src/lib/robotMatch";
 import {
   applySupplyAgreementTerms,
+  hasRobotTeamRole,
   isWillingSupply,
   withEffectiveStatus,
   withdrawSupplyAgreement,
@@ -178,12 +181,14 @@ function readTeamRecord(record: RobotTeamRecord): RobotTeamRecord {
  * forgot a predicate.
  */
 export async function listMatchableRobotTeams(
-  options: { statuses?: RobotTeamStatus[]; limit?: number } = {},
+  options: { statuses?: RobotTeamStatus[]; limit?: number; role?: RobotTeamRole } = {},
 ): Promise<RobotTeamRecord[]> {
   if (!db) return [];
-  // `self_registered` is absent on purpose: see the status union. Anyone can
-  // create one of those, so it is not supply until a run has measured it.
-  const statuses = options.statuses ?? ["applied", "engaged", "prospect"];
+  // Open registration alone is never supply. An explicit role query can find
+  // a self-registered team's separately recorded relationship; the role filter
+  // still requires its operator-held evidence, and grants no runtime admission.
+  const statuses = options.statuses ?? (options.role
+    ? ["applied", "engaged", "prospect", "self_registered"] : ["applied", "engaged", "prospect"]);
   const snapshot = await db
     .collection(ROBOT_TEAMS_COLLECTION)
     .where("status", "in", statuses)
@@ -194,7 +199,7 @@ export async function listMatchableRobotTeams(
   // have asked for.
   return snapshot.docs
     .map((doc) => readTeamRecord(doc.data() as RobotTeamRecord))
-    .filter((team) => statuses.includes(team.status));
+    .filter((team) => statuses.includes(team.status) && (!options.role || hasRobotTeamRole(team, options.role)));
 }
 
 async function writeRecord(record: RobotTeamRecord) {
@@ -692,6 +697,7 @@ export async function withdrawTeamSupplyAgreement(params: {
   withdrawnOn: string;
   evidenceRef: string;
   recordedBy: string;
+  terms?: readonly SupplyAgreementTerm[];
   now?: () => string;
 }): Promise<SupplyAgreementWriteOutcome> {
   if (!db) return { status: "unavailable" };
@@ -704,7 +710,7 @@ export async function withdrawTeamSupplyAgreement(params: {
     const stored = { ...(snapshot.data() as RobotTeamRecord), id: params.teamId };
     const withdrawn = withdrawSupplyAgreement(
       stored,
-      { withdrawnOn: params.withdrawnOn, evidenceRef: params.evidenceRef },
+      { withdrawnOn: params.withdrawnOn, evidenceRef: params.evidenceRef, terms: params.terms },
       params.recordedBy,
       at,
     );
@@ -714,6 +720,7 @@ export async function withdrawTeamSupplyAgreement(params: {
       action: "withdrawn",
       teamId: params.teamId,
       withdrawal: withdrawn.record.supplyAgreement!.history!.at(-1)!.withdrawal,
+      terms: Object.keys(withdrawn.record.supplyAgreement!.history!.at(-1)!.terms),
       statusBefore: stored.status,
       statusAfter: withdrawn.record.status,
       recordedBy: params.recordedBy,

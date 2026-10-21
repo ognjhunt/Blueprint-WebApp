@@ -33,7 +33,7 @@ import {
   SUPPORTED_SUPPLY_INTERFACES,
 } from "../utils/robotTeamSupply";
 import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
-import { SUPPLY_AGREEMENT_TERMS } from "../types/robot-team-registry";
+import { ROBOT_TEAM_ROLES, SUPPLY_AGREEMENT_TERMS, type RobotTeamRole } from "../types/robot-team-registry";
 import { hasAnyRole } from "../utils/access-control";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { buildOutboxEntry, CAPTURE_OUTBOX_COLLECTION, type OutboxEntry } from "../utils/captureOutbox";
@@ -597,12 +597,18 @@ const REGISTRY_LIST_STATUSES: RobotTeamRecord["status"][] = ["applied", "engaged
  */
 router.get("/", async (req: Request, res: Response) => {
   const requested = typeof req.query.status === "string" ? req.query.status : null;
+  const role = typeof req.query.role === "string" ? req.query.role : null;
   if (requested && !REGISTRY_LIST_STATUSES.includes(requested as RobotTeamRecord["status"])) {
     return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: `status must be one of ${REGISTRY_LIST_STATUSES.join(", ")}` });
   }
+  if (role && !ROBOT_TEAM_ROLES.includes(role as RobotTeamRole)) {
+    return res.status(HTTP_STATUS.BAD_REQUEST).json({ ok: false, error: `role must be one of ${ROBOT_TEAM_ROLES.join(", ")}` });
+  }
   try {
     const teams = await listMatchableRobotTeams({
-      statuses: requested ? [requested as RobotTeamRecord["status"]] : ["applied", "engaged", "prospect", "declined"],
+      ...(requested ? { statuses: [requested as RobotTeamRecord["status"]] }
+        : !role ? { statuses: ["applied", "engaged", "prospect", "declined"] as RobotTeamRecord["status"][] } : {}),
+      ...(role ? { role: role as RobotTeamRole } : {}),
     });
     // Status is already the effective one; `supply` says why a team is or is
     // not counted, so a reviewer never has to infer it from the status word.
@@ -647,6 +653,8 @@ const supplyWithdrawalSchema = z.object({
   withdrawnOn: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   evidenceRef: z.string().trim().min(3).max(300),
   evidenceHeld: z.literal(true),
+  /** Omitted keeps legacy full withdrawal. A delivery withdrawal need not revoke policy access. */
+  terms: z.array(z.enum(SUPPLY_AGREEMENT_TERMS)).min(1).max(SUPPLY_AGREEMENT_TERMS.length).optional(),
 }).strict();
 
 function namedOperator(res: Response): string | null {
