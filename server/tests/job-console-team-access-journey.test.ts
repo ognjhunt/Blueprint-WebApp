@@ -204,7 +204,7 @@ describe("the job console invites robot teams only when they can evaluate the jo
 
     await confirm(jobId);
     row = await consoleRow(jobId);
-    // This legacy team-evaluation seam still has no footage to review or runnable scene.
+    // A confirmed written draft still waits for the actual footage before review.
     expect(row).toMatchObject({ stage: "capture", nextAction: "Waiting on site to film the work area", actionOwner: "site" });
     expect(row.teamAccess).toMatchObject({ evaluationAvailable: false, reason: "scene_not_runnable", sceneHold: "unclaimed" });
     await accessAgrees(jobId, row);
