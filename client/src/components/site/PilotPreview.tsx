@@ -443,8 +443,8 @@ export function PilotPreview() {
       onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false); }}>
       <div className="ms-pilot-preview-intro">
         <p className="ms-eyebrow">What you get</p>
-        <h2 id="pilot-preview-title">One recommended pilot, on one page.</h2>
-        <p>The robot team whose evaluation on your task passed, what the pilot tests and when. You book it with one click.</p>
+        <h2 id="pilot-preview-title">One job. A clear pilot plan.</h2>
+        <p>The work, a suitable approach, the remaining questions and what a delivery partner would need to provide. You choose whether to proceed.</p>
         <svg ref={artRef} className="ms-pilot-art" viewBox="0 0 320 196" role="img" aria-label={`Illustration of the ${example.site.toLowerCase()} example: ${example.embodiment.toLowerCase()}`}>
           <g key={example.site} className="ms-pilot-art-scene">
             <path d="M8 180 H312" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" />
@@ -454,9 +454,17 @@ export function PilotPreview() {
       </div>
       <div className="ms-pilot-card">
         <div className="ms-pilot-tabs">
-          <div role="tablist" aria-label="Example sites">
+          <div role="tablist" aria-label="Example sites" onKeyDown={event => {
+            const direction = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+            const next = event.key === "Home" ? 0 : event.key === "End" ? examples.length - 1 : direction ? (active + direction + examples.length) % examples.length : null;
+            if (next === null) return;
+            event.preventDefault();
+            setActive(next);
+            setPinned(true);
+            event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+          }}>
             {examples.map((item, i) => (
-              <button key={item.site} type="button" role="tab" id={`pilot-tab-${i}`} aria-selected={i === active} aria-controls="pilot-example"
+              <button key={item.site} type="button" role="tab" id={`pilot-tab-${i}`} aria-selected={i === active} aria-controls="pilot-example" tabIndex={i === active ? 0 : -1}
                 onClick={() => { setActive(i); setPinned(true); }}>{item.site}</button>
             ))}
           </div>
@@ -466,23 +474,23 @@ export function PilotPreview() {
         </div>
         <div id="pilot-example" role="tabpanel" aria-labelledby={`pilot-tab-${active}`} key={example.site} className="ms-pilot-panel">
           <div className="ms-pilot-card-head">
-            <span>Your recommended pilot</span>
+            <span>Illustrative job plan</span>
             <span className="ms-pilot-card-tag">Example</span>
           </div>
           <dl>
-            <div><dt>Robot team</dt><dd>Example Robotics</dd></div>
-            <div><dt>Evaluation scope</dt><dd>Illustrative workflow; simulation scope is assessed per task</dd></div>
-            <div><dt>What the pilot tests</dt><dd>{example.tests}</dd></div>
+            <div><dt>Job</dt><dd>{example.tests}</dd></div>
+            <div><dt>Possible approach</dt><dd>{example.embodiment}</dd></div>
+            <div><dt>Evidence needed</dt><dd>Existing evidence, targeted simulation or physical tests, as needed</dd></div>
             <div><dt>What you provide</dt><dd>{example.provide}</dd></div>
-            <div><dt>What the team provides</dt><dd>{example.teamProvides}</dd></div>
-            <div><dt>Blueprint fee</dt><dd>Free during the beta</dd></div>
-            <div><dt>Pilot cost</dt><dd>Quoted by the robot team, paid to them</dd></div>
-            <div><dt>When</dt><dd>{example.when}</dd></div>
+            <div><dt>Delivery scope</dt><dd>{example.teamProvides}</dd></div>
+            <div><dt>Budget</dt><dd>Agreed with you before delivery proposals</dd></div>
+            <div><dt>Pilot price</dt><dd>Quoted by a delivery partner and agreed before the pilot</dd></div>
+            <div><dt>Support</dt><dd>Provider and support terms confirmed in the proposal</dd></div>
             <div><dt>Still uncertain</dt><dd>{example.uncertain}</dd></div>
           </dl>
         </div>
         <div className="ms-pilot-card-foot">
-          <span>Dates and pilot terms are agreed with the team. A simulated pass is an estimate, not proof of on-site performance.</span>
+          <span>Examples show possible jobs and robot forms, not available offers or measured results. Physical performance and safety require on-site validation.</span>
         </div>
       </div>
     </section>

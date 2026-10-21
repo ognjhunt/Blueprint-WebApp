@@ -88,6 +88,7 @@ for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stor
             await page.locator("#start-location").fill("Austin TX");
             await page.locator("#start-email").fill(`owned-upload-${index + 1}-${Date.now()}@example.invalid`);
             await page.locator("#start-company").fill("Owned isolated reliability fixture");
+            await page.getByText("Add video or arrange recording (optional)", { exact: true }).click();
             await page.locator("#start-method-upload").check();
             await page.locator("#start-upload-without-account").check();
             await page.locator("#start-footage").setInputFiles(fixture);

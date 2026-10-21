@@ -50,7 +50,7 @@ describe("owned task page links", () => {
     await act(async () => reject(new Error("The request took too long. Please try again.")));
     expect(screen.getByRole("alert")).toHaveTextContent("The request took too long");
     expect(screen.getByRole("button", { name: "Add or review footage" })).toBeEnabled();
-    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Open your task page" })));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Open your job page" })));
     expect(navigate).toHaveBeenCalledWith("/capture-upload/fresh-link");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Opening…" })).not.toBeInTheDocument();
@@ -60,10 +60,10 @@ describe("owned task page links", () => {
     request.mockResolvedValue({});
     const navigate = vi.spyOn(window.location, "assign").mockImplementation(() => {});
     render(<TaskDetail />);
-    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Open your task page" })));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Open your job page" })));
     expect(screen.getByRole("alert")).toHaveTextContent("link was missing");
     expect(navigate).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Open your task page" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Open your job page" })).toBeEnabled();
   });
 });
 
@@ -85,7 +85,7 @@ describe("booked pilot follow-through", () => {
     fixture.task = { status: "Pilot booked", pilot: { state: "selected", selectedResultId: "qualified-run" },
       pilotBooking: { recommendationId: "rec_book", contact: { email: "team@example.test" } } };
     const view = render(<TaskDetail />);
-    expect(screen.getByRole("heading", { name: "Pilot booked" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Team selected" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "team@example.test" })).toHaveAttribute("href", "mailto:team@example.test");
     expect(screen.queryByText("Outcome recorded by your site.")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Record pilot outcome/ })).not.toBeInTheDocument();
@@ -121,14 +121,14 @@ describe("booking a pilot", () => {
   it("offers no booking until Blueprint recommends a pilot, and says what comes first", () => {
     render(<TaskDetail />);
     expect(screen.queryByRole("button", { name: /Book it/ })).not.toBeInTheDocument();
-    expect(screen.getByText(/No pilot is recommended yet\. When a robot team's evaluation on this job passes/)).toBeInTheDocument();
+    expect(screen.getByText(/No pilot proposal is ready yet\. Blueprint will assess suitable options/)).toBeInTheDocument();
   });
 
   it("offers to book the pilot Blueprint recommended", () => {
     fixture.task = { pilotRecommended: true };
     render(<TaskDetail />);
-    expect(screen.getByRole("button", { name: "Book it on your task page →" })).toBeInTheDocument();
-    expect(screen.getByText(/Blueprint recommends one pilot for this job/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Review the proposal on your job page →" })).toBeInTheDocument();
+    expect(screen.getByText(/Review the proposed approach, cost, support and evidence on your job page/)).toBeInTheDocument();
   });
 });
 
@@ -136,7 +136,7 @@ describe("job progress timelines", () => {
   it("says how long the stage the job is waiting in usually takes", () => {
     fixture.task = { readiness: { decision: "assessing", headline: "We are preparing your job.", operatorAction: null, missingViews: [], nextUpdateIso: null } };
     render(<TaskDetail />);
-    expect(screen.getByText("Building the simulation usually takes one to three weeks during the beta.")).toBeInTheDocument();
+    expect(screen.getByText("We confirm the checks needed for your job and explain the next step. Timing depends on the evidence and compatible systems available.")).toBeInTheDocument();
   });
   it("adds nothing for a step that is the site's own", () => {
     fixture.task = { readiness: { decision: "confirm_brief", headline: "Confirm your job brief.", operatorAction: "Confirm it.", missingViews: [], nextUpdateIso: null } };

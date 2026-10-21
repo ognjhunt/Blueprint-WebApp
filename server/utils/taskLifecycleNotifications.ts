@@ -98,7 +98,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   task_received: {
     subject: "We have your Blueprint job — here is your link",
-    body: (url) => `Thanks for sending us your job. This private link shows the same job and lets you correct details when needed. You can also reply to a job conversation without completing another form. You can add footage later, once you have recording permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\nBlueprint will follow through with meaningful findings and questions that need your input.`,
+    body: (url) => `Thanks for sending us your job. This private link shows the same job and lets you correct details when needed. We start with the job brief, then assess suitable options and what evidence is needed. You can also reply to a job conversation without completing another form. You can add footage later if it resolves a missing fact and you have recording permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\nBlueprint will follow through with meaningful findings and questions that need your input.`,
   },
   video_received: {
     subject: "We received your Blueprint walkthrough",
@@ -142,7 +142,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   no_team_passed: {
     subject: "No robot team's evaluation has passed yet",
     // `detail` is what would change that (`qualifiedGap`), as /beta promises.
-    body: (url, detail, _counterpart, workspaceUrl) => `Every evaluation of your job so far has finished, and none passed, so there is no pilot to recommend yet. ${detail || "A recommendation needs one team's evaluation on your job to pass."} While your job card stays published, robot teams approved for the beta can still evaluate it, and we will email you when one starts. Nothing is needed from you.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+    body: (url, detail, _counterpart, workspaceUrl) => `Every simulation evaluation of your job so far has finished, and none passed. These runs do not support a pilot recommendation. ${detail || "We need stronger evidence for this tested configuration before recommending it."} While your job card stays published, robot teams approved for the beta can still request evaluations. Blueprint will assess what further evidence or another approach would help the decision. Nothing is needed from you for these completed runs.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   no_qualified_evaluation: {
     subject: "Your job's evaluations finished, with no result that counts yet",
@@ -157,20 +157,20 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   pilot_request: {
     subject: "A robot team asked to evaluate your site for a pilot",
-    body: (url) => `A robot team asked to evaluate your site for a pilot. Your details stay private, and there is nothing for you to do. We review every team that shows interest and send you one recommended pilot when the evidence supports it.\n\nOpen your job:\n${url}`,
+    body: (url) => `A robot team asked to evaluate your site for a pilot. Your details stay private, and there is nothing for you to do for this request. We review the team's fit, evidence and delivery capabilities before presenting a suitable option. You choose the delivery partner and agree any physical pilot directly with them.\n\nOpen your job:\n${url}`,
   },
   pilot_recommended: {
     subject: "Your recommended pilot is ready",
-    body: (url, detail) => `We have one recommended pilot for your job${detail ? `: ${detail}` : ""}. Your job page shows the robot team, what the pilot tests, what you provide, the pilot's cost (paid to the robot team, not to Blueprint), proposed timing and what is still uncertain. If it looks right, book it there in one step; booking costs nothing during the beta. When you book, you and the robot team receive each other's contact details and agree the pilot's dates and terms directly. If it does not look right, reply and tell us why.\n\nOpen your job:\n${url}`,
+    body: (url, detail) => `A recommended delivery option is ready for your review${detail ? `: ${detail}` : ""}. Your job page shows the provider, supporting evidence, what the pilot tests, what you provide, the pilot's cost (paid to the delivery company, not to Blueprint), proposed timing and what is still uncertain. Review the scope, total cost and support before choosing. Blueprint's coordination is free during the beta. If you choose this option, contact details are shared under the recorded permissions so you and the provider can agree the pilot's scope, price, dates and acceptance criteria directly. Selection does not itself sign a contract or reserve a date. If it does not look right, reply and tell us why.\n\nOpen your job:\n${url}`,
   },
   pilot_booked: {
-    subject: "Your pilot is booked",
+    subject: "Your pilot selection is recorded",
     // A booking made before the free beta keeps whatever terms were accepted
     // then; this email does not restate or waive them. The free-beta sentence
     // is the one the job page shows beside the booking button. The site and the
     // team agree the pilot directly (owner decision 2026-10-15), so the email
     // carries the team's contact; dispatch re-checks both consents.
-    body: (url, detail, counterpart) => `Your booking is recorded. You and the robot team agree the pilot's dates and terms directly. No date is reserved yet.${counterpart ? `\n\nRobot team contact:\n${counterpart}` : ""}\n\n${detail === "invited_beta_free" ? "Blueprint charges nothing during the beta; the pilot's cost is agreed with the robot team." : "Your previously accepted commercial terms remain on file."}\n\nOpen your job:\n${url}`,
+    body: (url, detail, counterpart) => `Your selection is recorded. You and the delivery company agree the physical pilot's scope, price, dates and acceptance criteria directly. No contract is signed or date reserved by this selection.${counterpart ? `\n\nDelivery partner contact:\n${counterpart}` : ""}\n\n${detail === "invited_beta_free" ? "Blueprint charges nothing during the beta and takes no cut; the pilot's cost is agreed with the delivery company." : "Your previously accepted commercial terms remain on file."}\n\nOpen your job:\n${url}`,
   },
   pilot_scheduled: {
     subject: "Your pilot is scheduled",
@@ -186,7 +186,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
  */
 const VIDEO_RECEIVED_CONFIRM_BRIEF = {
   subject: "We received your walkthrough. Next, confirm your job brief",
-  body: (url: string) => `Your walkthrough arrived safely. One step is yours: confirm your job brief. Robot teams can evaluate your job only after you confirm it. Open your job, check the summary and the answers we drafted from what you sent, correct anything that is wrong, and confirm it.\n\nOpen your job:\n${url}`,
+  body: (url: string) => `Your walkthrough arrived safely. Next, confirm your job brief so the options are assessed against the work you actually need done. A site-specific evaluation still needs your confirmed brief. Open your job, check the summary and the answers we drafted from what you sent, correct anything that is wrong, and confirm it.\n\nOpen your job:\n${url}`,
 };
 
 /** A drafted brief the site has not confirmed. Read only for `video_received`. */
@@ -334,7 +334,7 @@ export async function notifyIfNoTeamPassed(requestId: string, concludedRunId: st
     const { qualifiedGap } = await import("./taskStatusProjection");
     const gap = qualifiedGap(settled.screening.closestQualified);
     return enqueueTaskLifecycleNotification({ requestId, milestone: "no_team_passed", eventId: concludedRunId,
-      detail: gap.shortfall ? `${gap.shortfall} A recommendation needs one team's evaluation to ${gap.requirement}.` : undefined });
+      detail: gap.shortfall ? `${gap.shortfall} For a recommendation supported by this simulation route, an evaluation must ${gap.requirement}.` : undefined });
   }
   if (settled?.state === "no_qualified_evaluation") {
     return enqueueTaskLifecycleNotification({ requestId, milestone: "no_qualified_evaluation" });

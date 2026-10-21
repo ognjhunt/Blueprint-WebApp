@@ -3,14 +3,14 @@ import { COMPANY } from "@/data/company";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  "Blueprint has robot teams evaluate one recurring task from a real site in simulation, and recommends one team whose evaluation passed. Free during the beta.";
+  "Blueprint helps businesses assess suitable automation for recurring jobs, compare delivery proposals and plan measured pilots. Start with the work you need done.";
 
 const principles = [
   "Start from the real job at a real site, not a demo.",
   "Keep a site's footage and details private unless the site chooses to share them.",
   "Say what a result does not show: a simulation result is not a physical test.",
   "Report failures and unknowns instead of manufacturing a green light.",
-  "Recommend only a team whose evaluation on the job passed, and never ask a site to compare teams.",
+  "Make the evidence, total costs and responsibilities clear before a customer chooses a delivery partner.",
 ] as const;
 
 export default function About() {
@@ -32,17 +32,18 @@ export default function About() {
         <p className="ms-eyebrow">About</p>
         <h1>We start with one real job.</h1>
         <p className="ms-about-lead">
-          Blueprint helps a business show one recurring job. Invited robot teams evaluate it in a
-          simplified simulation of the task, informed by site footage, and we recommend one team whose evaluation passed. The
-          beta is free for sites and robot teams.
+          Blueprint helps businesses find a suitable way to automate recurring work. Start with the job:
+          we help define the requirements, assess options, test where needed and choose a delivery
+          partner for a measured pilot. The beta is free for sites and partners.
         </p>
 
         <section>
           <h2>How it works</h2>
           <ol>
-            <li>A site shows us a real job: anyone can start one, and we also onboard sites by hand.</li>
-            <li>Robot teams we have invited evaluate it free, in a simplified simulation of the task, informed by the site&rsquo;s footage.</li>
-            <li>We recommend one team whose evaluation passed. The site books it in one step and agrees the physical pilot&rsquo;s dates and terms with the team directly.</li>
+            <li>A site describes recurring work and reviews a job brief with us. Video is optional at the start.</li>
+            <li>We assess suitable approaches, delivery feasibility and the evidence needed for the decision.</li>
+            <li>The customer reviews delivery proposals, chooses a partner and agrees a measured pilot directly with that company.</li>
+            <li>We record the outcome so the next decision can build on what was learned.</li>
           </ol>
           <p><a href="/how-it-works">More on how it works</a> · <a href="/beta">Beta program</a></p>
         </section>

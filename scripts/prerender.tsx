@@ -18,6 +18,10 @@ import HowItWorks from "../client/src/pages/HowItWorks";
 import Beta from "../client/src/pages/Beta";
 import About from "../client/src/pages/About";
 import Home from "../client/src/pages/Home";
+import JobsWeSupport from "../client/src/pages/JobsWeSupport";
+import Partners from "../client/src/pages/Partners";
+import DeploymentPartners from "../client/src/pages/DeploymentPartners";
+import TechnologyProviders from "../client/src/pages/TechnologyProviders";
 import Contact from "../client/src/pages/Contact";
 import Sites from "../client/src/pages/Sites";
 import Privacy from "../client/src/pages/Privacy";
@@ -89,6 +93,10 @@ const PrerenderFallbackSummary = () => (
 const staticRoutes: StaticRoute[] = [
   { path: "/", component: Home },
   { path: "/how-it-works", component: HowItWorks },
+  { path: "/jobs-we-support", component: JobsWeSupport },
+  { path: "/partners", component: Partners },
+  { path: "/partners/deployment", component: DeploymentPartners },
+  { path: "/partners/technology", component: TechnologyProviders },
   { path: "/beta", component: Beta },
   { path: "/about", component: About },
   { path: "/sites", component: Sites },

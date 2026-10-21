@@ -57,9 +57,9 @@ describe("the site page", () => {
 
   it("points at the other persona and at a person", () => {
     render(<Contact />);
-    expect(screen.getByRole("link", { name: /building robots\? apply for early access/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /deliver or build robot systems\? become a partner/i })).toHaveAttribute(
       "href",
-      "/contact/robot-team",
+      "/partners",
     );
     expect(screen.getByRole("link", { name: /talk to a person/i })).toHaveAttribute(
       "href",

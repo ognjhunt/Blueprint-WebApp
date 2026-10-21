@@ -163,7 +163,7 @@ describe("when every evaluation of a job has finished without a pass", () => {
     const notice = outbox(`${jobId}:no_team_passed:run-short`);
     expect(notice?.kind).toBe("no_team_passed");
     expect(notice?.body).toMatch(/The closest qualified evaluation succeeded in 172 of 200 episodes \(86%\), against your pass mark of 90%\./);
-    expect(notice?.body).toMatch(/A recommendation needs one team's evaluation to reach 90%/);
+    expect(notice?.body).toMatch(/For a recommendation supported by this simulation route, an evaluation must reach 90%/);
     expect(queuedKinds(jobId)).not.toContain("no_qualified_evaluation");
 
     const status = await jobStatus(token);

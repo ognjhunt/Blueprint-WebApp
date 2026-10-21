@@ -121,7 +121,7 @@ test("brand polish QA sweeps key public routes", async ({ page, request }) => {
     for (const route of publicQaRoutes) {
       for (const viewport of qaViewports) {
         const currentRoute = ["/contact/robot-team", "/for-robot-teams", "/robot-team/eval", "/robot-intake"].includes(route.path)
-          ? { ...route, expectedHeading: "Test your robot on real site jobs.", requiredCtas: [{ label: "Agent API (OpenAPI spec, JSON)", hrefStartsWith: "/agent-access.openapi.json" }] }
+          ? { ...route, expectedHeading: "Bring your capabilities to real jobs.", requiredCtas: [{ label: "Register interest", hrefStartsWith: "#robot-team-access" }] }
           : route;
         activeDocument = currentRoute.acceptedStatuses
           ? { path: currentRoute.path, acceptedStatuses: currentRoute.acceptedStatuses }

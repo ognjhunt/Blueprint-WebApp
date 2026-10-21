@@ -140,20 +140,22 @@ describe("pilot and listing notices describe the free beta", () => {
     expect(notice.body).not.toMatch(/Blueprint account|\/app\/tasks/);
   });
 
-  it("asks the site to book the recommended pilot, not to accept a proposal", async () => {
+  it("asks the customer to review a delivery option without treating selection as a contract", async () => {
     const notice = await build("pilot_recommended");
-    expect(notice.body).toMatch(/book it there in one step; booking costs nothing during the beta/);
-    expect(notice.body).toMatch(/paid to the robot team, not to Blueprint/);
-    expect(notice.body).not.toMatch(/accept the proposal/i);
+    expect(notice.body).toMatch(/Review the scope, total cost and support before choosing/);
+    expect(notice.body).toMatch(/paid to the delivery company, not to Blueprint/);
+    expect(notice.body).toMatch(/Selection does not itself sign a contract or reserve a date/);
+    expect(notice.body).not.toMatch(/book it there in one step/i);
   });
 
   it("confirms a booking, leaves the agreement to the site and team, and states no Blueprint fee", async () => {
     const free = await build("pilot_booked", "invited_beta_free");
-    expect(free.subject).toBe("Your pilot is booked");
-    expect(free.body).toMatch(/^Your booking is recorded\./);
-    expect(free.body).toContain("You and the robot team agree the pilot's dates and terms directly.");
+    expect(free.subject).toBe("Your pilot selection is recorded");
+    expect(free.body).toMatch(/^Your selection is recorded\./);
+    expect(free.body).toContain("You and the delivery company agree the physical pilot's scope, price, dates and acceptance criteria directly.");
+    expect(free.body).toContain("No contract is signed or date reserved by this selection.");
     expect(free.body).not.toMatch(/Blueprint owns/);
-    expect(free.body).toContain("Blueprint charges nothing during the beta; the pilot's cost is agreed with the robot team.");
+    expect(free.body).toContain("Blueprint charges nothing during the beta and takes no cut; the pilot's cost is agreed with the delivery company.");
     // A pre-beta booking keeps its accepted terms; the email neither restates a fee nor waives one.
     const historical = await build("pilot_booked");
     expect(historical.body).toContain("Your previously accepted commercial terms remain on file.");
@@ -210,7 +212,7 @@ describe("a waiting job hears what it is waiting on", () => {
     expect((await notifyIfNoTeamPassed("req-1", "run_b")).enqueued).toBe(true);
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:no_team_passed:run_b") as Record<string, string>;
     expect(row.subject).toBe("No robot team's evaluation has passed yet");
-    expect(row.body).toMatch(/none passed, so there is no pilot to recommend yet/);
+    expect(row.body).toMatch(/none passed\. These runs do not support a pilot recommendation/);
 
     run("run_c", "requested", null);
     expect((await notifyIfNoTeamPassed("req-1", "run_a")).enqueued).toBe(false);

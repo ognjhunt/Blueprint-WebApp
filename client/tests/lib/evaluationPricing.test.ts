@@ -18,7 +18,7 @@ describe("free beta pricing", () => {
     expect(siteAssessment.amount).toBe(0);
     expect(formatPrice(siteAssessment.amount)).toBe("$0");
     expect(siteAssessment.allIn).toMatch(/^Free during the beta\./);
-    expect(siteAssessment.allIn).toMatch(/booking the recommended pilot cost nothing/i);
+    expect(siteAssessment.allIn).toMatch(/pilot coordination cost nothing/i);
   });
 
   it("no longer exports a live site fee, booking authorization or paid-entry quote", () => {
@@ -41,12 +41,12 @@ describe("free beta pricing", () => {
   });
 
   it("keeps the physical pilot between the site and the robot team, with no Blueprint cut", () => {
-    expect(siteAssessment.whatIsNotFree).toMatch(/agreed directly between the site and the robot team/i);
+    expect(siteAssessment.whatIsNotFree).toMatch(/agreed directly with the site/i);
     expect(siteAssessment.whatIsNotFree).toMatch(/no cut/i);
   });
 
   it("replaces a withdrawn team without promising a refund of a fee that does not exist", () => {
-    expect(pilotReplacementPolicy).toMatch(/recommend a replacement whose evaluation on the same job passed/i);
+    expect(pilotReplacementPolicy).toMatch(/replacement needs its own evidence and your approval/i);
     expect(pilotReplacementPolicy).not.toMatch(/refund your fee/i);
   });
 
@@ -64,10 +64,10 @@ describe("free beta pricing", () => {
     expect(siteCopy).not.toMatch(/\bmatch(?:ed|es|ing)?\b/i);
   });
 
-  it("recommends one team and never asks the site to compare", () => {
-    expect(siteAssessment.bounded).toMatch(/one recommended pilot/i);
-    expect(siteAssessment.bounded).toMatch(/evaluation on your job passed/i);
-    expect(siteAssessment.bounded).toMatch(/do not have to compare/i);
+  it("keeps proposal selection with the customer and preserves evidence limits", () => {
+    expect(siteAssessment.bounded).toMatch(/evidence limits/i);
+    expect(siteAssessment.bounded).toMatch(/comparable proposals/i);
+    expect(siteAssessment.bounded).toMatch(/You choose and approve/i);
   });
 });
 

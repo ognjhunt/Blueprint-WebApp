@@ -63,6 +63,28 @@ const application = {
   acceptedTerms: true,
 };
 
+describe("partner application roles", () => {
+  it("records delivery role and supported systems without erasing them on a legacy reapplication", async () => {
+    const response = await fetch(`${base}/api/robot-team-access/apply`, {
+      method: "POST", headers: { ...CSRF, "content-type": "application/json" },
+      body: JSON.stringify({ ...application, partnerRole: "deployment", supportedSystems: "Franka and YAM", region: "Austin and surrounding central Texas sites" }),
+    });
+    expect(response.status).toBe(202);
+    const id = early.accessRecordId(application.email);
+    expect(state.docs.get(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${id}`)).toMatchObject({ partnerRole: "deployment", supportedSystems: "Franka and YAM", status: "applied" });
+    const repeated = await fetch(`${base}/api/robot-team-access/apply`, { method: "POST", headers: { ...CSRF, "content-type": "application/json" }, body: JSON.stringify(application) });
+    expect(repeated.status).toBe(202);
+    expect(state.docs.get(`${early.ROBOT_TEAM_ACCESS_COLLECTION}/${id}`)).toMatchObject({ partnerRole: "deployment", supportedSystems: "Franka and YAM", status: "applied" });
+  });
+
+  it("rejects unsafe website schemes rather than storing clickable script links", async () => {
+    const response = await fetch(`${base}/api/robot-team-access/apply`, { method: "POST", headers: { ...CSRF, "content-type": "application/json" },
+      body: JSON.stringify({ ...application, website: "javascript:alert(1)", partnerRole: "technology" }) });
+    expect(response.status).toBe(400);
+    expect(state.docs.size).toBe(0);
+  });
+});
+
 let server: Server;
 let base: string;
 

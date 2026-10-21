@@ -78,6 +78,7 @@ for (const receipt of ["not-received", "received-pending"] as const) test.fixme(
     await page.locator("#start-location").fill("Austin TX");
     await page.locator("#start-email").fill("qa@example.invalid");
     await page.locator("#start-company").fill("Owned synthetic QA");
+    await page.getByText("Add video or arrange recording (optional)", { exact: true }).click();
     await page.locator("#start-method-upload").check();
     await page.locator("#start-upload-without-account").check();
     await page.locator("#start-footage").setInputFiles(fixture);

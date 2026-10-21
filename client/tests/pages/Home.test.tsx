@@ -4,20 +4,21 @@ import { describe, expect, it, vi } from "vitest";
 import Home from "@/pages/Home";
 
 describe("Site-led homepage", () => {
-  it("speaks to sites only, with one call to action and the price", () => {
+  it("starts with the job and a low-friction customer action", () => {
     render(<Home />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Could a robot take over a repetitive task at your site?");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Find the right way to automate your work.");
     // One action, offered in the hero and again after the questions.
-    const starts = screen.getAllByRole("link", { name: "Show us a task" });
+    const starts = screen.getAllByRole("link", { name: "Submit a job" });
     expect(starts).toHaveLength(2);
     starts.forEach(link => expect(link).toHaveAttribute("href", "/contact/site-operator"));
-    expect(screen.getByText("Free during the beta, for sites and robot teams.")).toBeInTheDocument();
+    expect(screen.getByText(/Free during the beta.*video is optional/)).toBeInTheDocument();
     // Robot teams reach their own page from the nav, not from the homepage.
     expect(screen.queryByRole("link", { name: /robot-team beta|early access/i })).not.toBeInTheDocument();
     // One example of the deliverable, clearly marked, instead of staged imagery.
     expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Warehouse", "Café", "Laundromat", "Factory", "Hotel", "Lab"]);
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveTextContent(/Example.*Robot team.*Evaluation scope.*Illustrative workflow.*per task.*full totes.*Blueprint fee.*Free during the beta.*Pilot cost.*Quoted by the robot team/);
+    expect(panel).toHaveTextContent(/Job.*full totes.*Possible approach.*Humanoid robot.*Evidence needed.*as needed.*Budget.*before delivery proposals.*Pilot price.*delivery partner.*Support/);
+    expect(screen.getByText(/not available offers or measured results/)).toBeInTheDocument();
     expect(panel).not.toHaveTextContent(/Passed on your task/);
     expect(screen.queryByText("Book this pilot")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Café" }));
@@ -132,33 +133,35 @@ describe("Site-led homepage", () => {
     }
   });
 
-  it("shows the three steps without a click, ending in the recommended pilot", () => {
-    const { container } = render(<Home />);
-    expect(container.querySelectorAll("details")).toHaveLength(0);
+  it("shows three customer steps without requiring simulation for every job", () => {
+    render(<Home />);
     const steps = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(steps).toHaveLength(3);
-    expect(steps[0]).toHaveTextContent(/Show us the task.*Describe it or film it on your phone\./);
-    expect(steps[1]).toHaveTextContent(/Robot teams evaluate it.*Invited teams test it in a simplified simulation of your task, informed by your footage\./);
-    expect(steps[2]).toHaveTextContent(/Book the recommended pilot.*One team whose evaluation passed\. You agree dates and terms with them\./);
-    expect(screen.getByText(/A simulated evaluation is an estimate, not proof/)).toBeInTheDocument();
+    expect(steps[0]).toHaveTextContent(/Describe the work.*agree a job brief/);
+    expect(steps[1]).toHaveTextContent(/Assess suitable options.*delivery partners can supply and support/);
+    expect(steps[2]).toHaveTextContent(/Choose and measure a pilot.*Review comparable proposals/);
+    expect(screen.getByText(/A simulation result is an estimate/)).toBeInTheDocument();
   });
 
-  it("answers the questions a site asks before starting, from the published terms", () => {
+  it("keeps the closing action short and links to pricing and privacy details", () => {
     render(<Home />);
-    const faq = screen.getByRole("region", { name: "Questions sites ask" });
-    expect(within(faq).getAllByRole("heading", { level: 3 }).map(heading => heading.textContent)).toEqual([
-      "Why not call robot vendors myself?",
-      "Is it really free?",
-      "What if no robot team passes?",
-      "Who is responsible for the on-site pilot?",
-      "What happens to my footage?",
-    ]);
-    expect(faq).toHaveTextContent(/same simulation, built from your site, against the same success criteria, and we recommend one team whose evaluation passed/);
-    expect(faq).toHaveTextContent(/takes no cut of the pilot/);
-    expect(faq).toHaveTextContent(/Blueprint is not a party to the pilot/);
-    expect(faq).toHaveTextContent(/Robot teams never receive your recording/);
-    expect(faq).not.toHaveTextContent(/match|guarantee|certif|best/i);
-    expect(screen.getByRole("region", { name: "Start with one recurring task." })).toHaveTextContent("We reply within two business days.");
+    const closing = screen.getByRole("region", { name: "What work would you like automated?" });
+    expect(closing).toHaveTextContent("We reply within two business days.");
+    expect(closing).toHaveTextContent("You choose whether to proceed");
+    expect(within(closing).getByRole("link", { name: "Costs and responsibilities" })).toHaveAttribute("href", "/beta");
+    expect(within(closing).getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
+  });
+
+  it("supports keyboard navigation across the illustrative examples", () => {
+    render(<Home />);
+    const first = screen.getByRole("tab", { name: "Warehouse" });
+    fireEvent.keyDown(first, { key: "ArrowRight" });
+    const next = screen.getByRole("tab", { name: "Café" });
+    expect(next).toHaveFocus();
+    expect(next).toHaveAttribute("aria-selected", "true");
+    expect(first).toHaveAttribute("tabindex", "-1");
+    fireEvent.keyDown(next, { key: "End" });
+    expect(screen.getByRole("tab", { name: "Lab" })).toHaveFocus();
   });
 
   it("keeps the example still while a keyboard user is inside it, even after the pointer leaves", () => {

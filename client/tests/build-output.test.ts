@@ -49,6 +49,10 @@ describe("build output", () => {
       "index.html",
       "how-it-works/index.html",
       "beta/index.html",
+      "jobs-we-support/index.html",
+      "partners/index.html",
+      "partners/deployment/index.html",
+      "partners/technology/index.html",
       "sites/index.html",
       "about/index.html",
       "contact/robot-team/index.html",
@@ -78,16 +82,17 @@ describe("build output", () => {
     expect(home).not.toMatch(/og:image" content="[^"]+\.webp"/);
   });
 
-  it("ships the warehouse walkthrough assets and retained job-fit content", () => {
+  it("ships retained warehouse assets and the current job-fit process", () => {
     const html = fs.readFileSync(distPath("how-it-works/index.html"), "utf8");
     const manifest = JSON.parse(fs.readFileSync("docs/design/warehouse-pilot-sequence-2026-10-06.json", "utf8"));
-    expect(html).toContain("Any robot that fits the task can take part.");
-    expect(html).toContain("Fixed arms, humanoids, wheeled humanoids and mobile manipulators are welcome.");
+    expect(html).toContain("Choose the approach that fits the job.");
+    expect(html).toContain("Fixed arms, humanoids, wheeled humanoids and mobile manipulators can be considered where the specific setup is compatible.");
+    expect(html).toContain("A job does not automatically need a new simulation.");
+    expect(html).toContain("Compare delivery proposals");
     expect(html).not.toContain('id="evaluation-example"');
     expect(html).not.toContain('id="match-package"');
     for (const image of manifest.images) {
       const assetPath = image.asset.replace(/^client\/public\//, "");
-      expect(html).toContain(`/${assetPath}`);
       expect(fs.existsSync(distPath(assetPath))).toBe(true);
     }
   });
@@ -181,10 +186,10 @@ describe("build output", () => {
   it("includes core public routes without fixture site detail pages in the sitemap", () => {
     const sitemap = fs.readFileSync(distPath("sitemap.xml"), "utf8");
 
-    ["/", "/how-it-works", "/beta", "/contact/site-operator", "/contact/robot-team", "/sites", "/about", "/privacy", "/terms", "/refunds"].forEach((route) => {
+    ["/", "/how-it-works", "/beta", "/jobs-we-support", "/partners", "/partners/deployment", "/partners/technology", "/contact/site-operator", "/contact/robot-team", "/sites", "/about", "/privacy", "/terms", "/refunds"].forEach((route) => {
       expect(sitemap).toContain(`<loc>https://tryblueprint.io${route}</loc>`);
     });
-    expect((sitemap.match(/<loc>/g) || []).length).toBe(10);
+    expect((sitemap.match(/<loc>/g) || []).length).toBe(14);
 
     [
       "https://tryblueprint.io/product",
@@ -225,12 +230,12 @@ describe("build output", () => {
     expect(llms).toContain("https://tryblueprint.io/contact/robot-team");
     expect(llms).toContain("Applications remain pending until manual approval for a real site task");
     expect(llms).toContain("paid_evaluations_disabled");
-    expect(llmsFull).toMatch(/simulation is not physical proof or a deployment guarantee/i);
+    expect(llmsFull).toContain("Simulation is a bounded estimate and never certifies physical performance or safety.");
     expect(llmsFull).toContain("Robot teams register interest through the existing application");
     expect(llmsFull).toContain("early_access_required");
     expect(llms).toContain("https://tryblueprint.io/beta");
     expect(llms).toContain("free beta");
-    expect(llms).toContain("recommends one team whose evaluation on that job passed");
+    expect(llms).toContain("compare delivery proposals and coordinate a measured pilot");
     expect(llms).not.toMatch(/\$99\b|top-ups remain|\bmatch(?:ed|es|ing)?\b/);
     expect(llms).not.toContain("$2,500");
     expect(llms).not.toMatch(/5% fee|capped at \$5,000|authorized buyer/);
@@ -241,14 +246,14 @@ describe("build output", () => {
     const homeHtml = fs.readFileSync(distPath("index.html"), "utf8");
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
-    expect(homeHtml).toContain("Could a robot take over a repetitive task at your site?");
-    expect(homeHtml).toContain("Free during the beta, for sites and robot teams.");
-    expect(homeHtml).toContain("One recommended pilot, on one page.");
-    expect(homeHtml).toContain("Quoted by the robot team, paid to them");
+    expect(homeHtml).toContain("Find the right way to automate your work.");
+    expect(homeHtml).toContain("A description is enough to start; video is optional.");
+    expect(homeHtml).toContain("One job. A clear pilot plan.");
+    expect(homeHtml).toContain("Quoted by a delivery partner and agreed before the pilot");
     expect(homeHtml).not.toContain("The same task, in simulation.");
-    expect(homeHtml).toContain("Book the recommended pilot");
+    expect(homeHtml).toContain("Review comparable proposals");
     expect(homeHtml).toContain("Free during the beta");
-    expect(homeHtml).toContain("a simplified simulation of your task, informed by your footage");
+    expect(homeHtml).toContain("Existing evidence, targeted simulation or physical tests, as needed");
     expect(homeHtml).not.toContain('aria-hidden="true">Book this pilot</span>');
     // Organization and WebSite structured data ride on the homepage.
     expect(homeHtml).toContain('"@type":"Organization"');
@@ -262,14 +267,15 @@ describe("build output", () => {
     for (const file of ["index.html", "how-it-works/index.html", "contact/robot-team/index.html", "contact/site-operator/index.html"]) {
       expect(fs.readFileSync(distPath(file), "utf8")).not.toMatch(/two (?:compatible|frozen|candidates|policies)/i);
     }
-    expect(siteHtml).toContain("Start with one task.");
+    expect(siteHtml).toContain("What work would you like automated?");
     // Device recovery must hydrate before an editable site form exists. The
     // dedicated browser intake lane checks its task/consent/required fields.
     // Static HTML must expose loading and cannot submit a fresh identity.
     expect(siteHtml).toContain("Loading your account and saved draft");
     expect(siteHtml).not.toContain('aria-label="Start a site capture"');
     expect(siteHtml).not.toContain('id="start-task"');
-    expect(siteHtml).toContain("Show us the work. Robot teams evaluate it in simulation, and we recommend one team whose evaluation passed for you to book. The beta is free; you agree the physical pilot’s dates and terms with the team directly.");
+    expect(siteHtml).toContain("Describe one recurring job. We help you assess suitable options, test where needed and choose a delivery team for a measured pilot.");
+    expect(siteHtml).toContain("A description is enough to start; video and budget details are optional.");
     expect(siteHtml).toContain("How this works");
     // The country comes from the address; its select opens only to correct it.
     expect(siteHtml).not.toContain('id="start-region"');
@@ -277,8 +283,8 @@ describe("build output", () => {
     expect(siteHtml).not.toContain('id="start-description-authority"');
     expect(siteHtml).not.toContain('id="gate-sceneStability"');
     expect(siteHtml).not.toContain('id="gate-serviceArea"');
-    expect(robotHtml).toContain("Test your robot on real site jobs.");
-    expect(robotHtml).toContain("Task invitations follow manual review.");
+    expect(robotHtml).toContain("Bring your capabilities to real jobs.");
+    expect(robotHtml).toContain("Your application remains pending until manual approval.");
     expect(robotHtml).toContain("Illustrative scene · Robot configuration shown as an example.");
     expect(robotHtml).toContain('class="robot-scene"');
     // The application is public; tasks and executable plans still wait for
@@ -320,8 +326,8 @@ describe("build output", () => {
     // above is reading the real public bundle, so removing one because the copy
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
-    expect(browserJavaScript).toContain("Could a robot take over a repetitive task at your site?");
-    expect(browserJavaScript).toContain("We draft a brief from the evidence for you to correct.");
+    expect(browserJavaScript).toContain("Find the right way to automate your work.");
+    expect(browserJavaScript).toContain("We draft a brief for you to correct, then assess suitable options and what evidence is needed.");
   });
 
   it("keeps charting, Firebase and Sentry out of what a marketing page preloads", () => {

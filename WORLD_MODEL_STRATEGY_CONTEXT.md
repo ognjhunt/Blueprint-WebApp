@@ -1,5 +1,18 @@
 # World Model Strategy Context
 
+## Current owner direction — October 21, 2026
+
+The owner explicitly requested: “please implement your recommendations into our website in FULL” after approving the job-first automation buying journey. This supersedes the older public-positioning requirements below that every job requires simulation, an invited team, or one-click booking without proposal review.
+
+The website now centers on: submit a job; agree the brief; assess suitable options using evidence and targeted testing where needed; compare delivery proposals; let the customer choose; agree a physical pilot; record its outcome. Deployment partners and technology providers have separate reviewed intake paths. The beta stays free, with no new fees, payment flows, provider spend, automatic contract award, or change to existing privacy permissions.
+
+Commercial proposal selection is not a signed pilot agreement. A customer-reported outcome is not a scientific Physical Outcome Join. Existing evaluation admission, compatibility, rights, provenance and scientific proof controls remain binding. Approved embodiment artwork and application breadth are preserved.
+
+The cross-repo shared blocks remain byte-locked historical snapshots; do not edit them or their lock locally. Their earlier public-journey descriptions are superseded for this owner-authorized website work. Canonical cross-repo synchronization remains a separately identified follow-up in `BlueprintCapturePipeline/doctrine/`; this change does not claim that synchronization occurred.
+
+Implementation scope and verification: `docs/design/job-first-automation-marketplace/IMPLEMENTATION.md`.
+
+
 > Repo-authoritative mirror of Blueprint world-model strategy. Reconcile material changes with Blueprint Knowledge.
 
 <!-- SHARED_WORLD_MODEL_STRATEGY_START -->

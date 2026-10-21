@@ -41,6 +41,10 @@ function lazyRoute<P = any>(
 }
 
 const HowItWorks = lazyRoute(() => import("../pages/HowItWorks"));
+const JobsWeSupport = lazyRoute(() => import("../pages/JobsWeSupport"));
+const Partners = lazyRoute(() => import("../pages/Partners"));
+const DeploymentPartners = lazyRoute(() => import("../pages/DeploymentPartners"));
+const TechnologyProviders = lazyRoute(() => import("../pages/TechnologyProviders"));
 // Keep the historical Pricing component for a later commercial release.
 const Beta = lazyRoute(() => import("../pages/Beta"));
 const About = lazyRoute(() => import("../pages/About"));
@@ -187,7 +191,7 @@ const LegacyQualifiedOpportunitiesRedirect = () => (
 );
 
 const LegacyForRobotIntegratorsRedirect = () => (
-  <MarketingRedirect to="/" />
+  <MarketingRedirect to="/partners/deployment" />
 );
 
 const LegacyForSiteOperatorsRedirect = () => (
@@ -247,6 +251,10 @@ export const appRoutes: AppRoute[] = [
   })),
   { path: "/", layout: "public", component: Home },
   { path: "/how-it-works", layout: "public", component: HowItWorks },
+  { path: "/jobs-we-support", layout: "public", component: JobsWeSupport },
+  { path: "/partners", layout: "public", component: Partners },
+  { path: "/partners/deployment", layout: "public", component: DeploymentPartners },
+  { path: "/partners/technology", layout: "public", component: TechnologyProviders },
   { path: "/beta", layout: "public", component: Beta },
   { path: "/about", layout: "public", component: About },
   // The capturer network and its app are retired for now: sites film their own
@@ -334,7 +342,6 @@ export const appRoutes: AppRoute[] = [
   // Legacy redirects
   { path: "/pilot-exchange", layout: "public", component: LegacyPilotExchangeRedirect },
   { path: "/pilot-exchange-guide", layout: "public", component: LegacyPilotExchangeGuideRedirect },
-  { path: "/partners", layout: "public", component: LegacyPartnersRedirect },
   { path: "/environments", layout: "public", component: LegacyEnvironmentsRedirect },
   { path: "/marketplace", layout: "public", component: SitesRedirect },
 

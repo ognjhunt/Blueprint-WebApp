@@ -1,4 +1,7 @@
+import { mockExternalFonts } from "./helpers/static-assets";
 import { expect, test } from "@playwright/test";
+
+test.beforeEach(mockExternalFonts);
 
 // The library reads from the real API; in this suite it is answered locally so
 // the page's structure is what is under test, not tonight's inventory. The
@@ -13,7 +16,7 @@ test.beforeEach(async ({ page }) => {
 test("legacy robot-team evaluation URL reaches the job library for an approved team", async ({ page }) => {
   await page.goto("/robot-team/eval");
   await expect(page).toHaveURL(/\/contact\/robot-team/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Test your robot on real site jobs.");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Bring your capabilities to real jobs.");
   await expect(page.getByRole("region", { name: "Job library" })).toBeVisible();
   await expect(page.getByText("The first site jobs are being prepared.")).toBeVisible();
   await expect(page.getByRole("button", { name: "See what we would run" })).toHaveCount(0);
@@ -25,7 +28,8 @@ test("persona aliases separate site buyers from participating robot teams", asyn
   const gated = { items: [], access: { gated: true, status: "none", signedIn: false, emailVerified: false, allowed: false, staff: false } };
   await page.route("**/api/site-worlds/tasks", route => route.fulfill({ json: gated }));
   await page.goto("/for-robot-teams");
-  await expect(page.getByText(/Task invitations follow manual review\./, { exact: false }).first()).toBeVisible();
+  await page.getByText("What happens after applying?", { exact: true }).click();
+  await expect(page.getByText(/Your application remains pending until manual approval/)).toBeVisible();
   // Outside early access, the page is the application, not the library.
   await expect(page.getByRole("form", { name: "Early access application" })).toBeVisible();
   await expect(page.getByText("Already have a robot policy to evaluate? Register it and see a plan", { exact: true })).toHaveCount(0);
@@ -43,7 +47,7 @@ test("persona aliases separate site buyers from participating robot teams", asyn
   // and a site is never asked the robot's questions.
   await expect(page.getByRole("form", { name: "Start a site capture" })).toBeVisible();
   await expect(page.locator("#capture-mode")).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Building robots? Apply for early access" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Deliver or build robot systems? Become a partner" })).toBeVisible();
 });
 
 test("both persona destinations are usable on mobile", async ({ page }) => {

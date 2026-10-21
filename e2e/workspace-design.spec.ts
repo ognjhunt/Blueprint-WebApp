@@ -404,8 +404,8 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1024 });
     await page.goto("/app/tasks/task-1");
     await expect(page.getByText("6801 Burnet Road, Austin, TX", { exact: true })).toHaveCount(1);
-    await expect(page.getByRole("button", { name: "Open your task page", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "No team results yet" })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Open your job page", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "No evaluation results yet" })).toHaveCount(1);
     await expect(page.getByRole("heading", { name: "Team results", exact: true })).toHaveCount(0);
     await expect(page.getByText("fixture-support-reference", { exact: true })).not.toBeVisible();
     await expect(page.getByRole("link", { name: "Contact Blueprint about this job" })).toHaveCSS("color", "rgb(32, 61, 46)");
@@ -434,19 +434,19 @@ test("site can coordinate a visit without a false completion", async ({
     "remains scheduled until confirmed",
   );
 });
-test("site reviews results without picking a team; Blueprint recommends one pilot", async ({
+test("site reviews results and continues to delivery proposals on the job page", async ({
   page,
 }) => {
   await seed(page, "site_operator");
   await page.goto("/app/tasks/task-1");
   await expect(page.getByRole("button", { name: /Invite to pilot/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Pilot", exact: true })).toBeVisible();
-  await expect(page.getByText(/Blueprint recommends one pilot for this job\. Review it and book it from your task page\./)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Book it on your task page →" })).toBeVisible();
-  // Nothing to book before Blueprint recommends a pilot (audit N14).
+  await expect(page.getByText(/Review the proposed approach, cost, support and evidence on your job page\. Choose a delivery team, then agree pilot terms directly\./)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review the proposal on your job page →" })).toBeVisible();
+  // No proposal action appears before Blueprint has a pilot proposal.
   await page.goto("/app/tasks/task-2");
-  await expect(page.getByText(/No pilot is recommended yet\./)).toBeVisible();
-  await expect(page.getByRole("button", { name: /Book it/ })).toHaveCount(0);
+  await expect(page.getByText(/No pilot proposal is ready yet\./)).toBeVisible();
+  await expect(page.getByRole("button", { name: /Review the proposal on your job page/ })).toHaveCount(0);
 });
 test("robot team saves a setup and requests an evaluation from an opening", async ({
   page,
@@ -540,14 +540,14 @@ test("existing connection page uses the shared workspace design", async ({
 });
 
 
-test("a booked recommendation progresses only through explicit site-reported outcomes", async ({ page }, info) => {
+test("a selected team progresses only through explicit site-reported outcomes", async ({ page }, info) => {
   const snapshot = await seed(page, "site_operator");
   snapshot.tasks[0].pilot = { state: "selected", selectedResultId: "application-1", notes: null };
   snapshot.tasks[0].pilotBooking = { recommendationId: "synthetic-booking", bookedAtIso: "2026-10-18T00:00:00Z",
     contact: { name: "Synthetic team", organization: "Fixture Robotics", email: "team@example.test", phone: null },
     consentWithdrawn: false };
   await page.goto("/app/tasks/task-1?tab=results");
-  await expect(page.getByRole("heading", { name: "Pilot booked", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Team selected", exact: true })).toBeVisible();
   await expect(page.getByText("Outcome recorded by your site.")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "team@example.test" })).toBeVisible();
   for (const label of ["Record pilot start", "Record pilot outcome", "Record deployment"]) {

@@ -33,10 +33,14 @@ export const applicationSchema = z
     name: text(120),
     email: z.string().trim().email().max(320),
     company: text(160),
-    website: optionalText(300),
+    website: optionalText(300).refine(value => !value || /^https?:\/\//i.test(value) && URL.canParse(value), {
+      message: "Use a full http:// or https:// website address.",
+    }),
     robot: text(1200),
     workWanted: text(1200),
-    region: optionalText(120),
+    region: optionalText(300),
+    partnerRole: z.enum(["deployment", "technology"]).optional(),
+    supportedSystems: optionalText(1200),
     pilotPackage: optionalText(1200),
     testSite: optionalText(300),
     acceptedTerms: z.literal(true),
@@ -52,7 +56,9 @@ router.post("/apply", applyLimiter, async (req: Request, res: Response) => {
       code: "application_invalid",
     });
   }
-  const { acceptedTerms: _accepted, ...application } = parsed.data;
+  const { acceptedTerms: _accepted, ...fields } = parsed.data;
+  const application = { ...fields, supportedSystems: Object.prototype.hasOwnProperty.call(req.body, "supportedSystems")
+    ? fields.supportedSystems : undefined };
   try {
     // An unavailable library remains unknown to the fit checklist. Admission is manual.
     const listed = await listTaskBrowseCards().catch(() => []);

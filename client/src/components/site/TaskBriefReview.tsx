@@ -375,8 +375,8 @@ export function TaskBriefReview(props: {
         )}
         {!state.verdict.screening && state.verdict.stillNeeded.length > 0 && (
           <p className="ms-field-hint">
-            Still needed before a robot team can evaluate this: {state.verdict.stillNeeded.join(", ")}.
-            None of it stops you filming.
+            Still needed to assess the suitable options: {state.verdict.stillNeeded.join(", ")}.
+            We will explain which missing facts need a measurement, footage or a conversation.
           </p>
         )}
         {accountOutcome.status === "saved" && (
@@ -421,8 +421,8 @@ export function TaskBriefReview(props: {
       </h2>
       <p className="ms-field-hint" style={{ marginBottom: "20px" }}>
         {drafted
-          ? "We used what you sent to prefill this summary. Correct anything we got wrong, then confirm it: robot teams can evaluate your job only after you confirm it."
-          : "These tell us whether a robot evaluation will hold up at your site. Answer what you know; anything you are not sure about can stay open, and you can clarify it in writing or on a call. Robot teams can evaluate your job only after you confirm it."}
+          ? "We used what you sent to prefill this summary. Correct anything we got wrong, then confirm what the work requires before we assess options or prepare a proposal."
+          : "These help us assess suitable options for your site. Answer what you know; anything you are not sure about can stay open and be clarified in writing or on a call. Confirm the job brief before a site-specific evaluation or proposal."}
       </p>
 
       <label htmlFor="brief-summary">

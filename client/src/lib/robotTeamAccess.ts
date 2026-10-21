@@ -11,6 +11,8 @@ export interface LibraryAccess {
 }
 
 export interface EarlyAccessApplication {
+  /** A partner's delivery role, not an approval or a claim of compatibility. */
+  partnerRole?: "deployment" | "technology";
   name: string;
   email: string;
   company: string;
@@ -18,6 +20,7 @@ export interface EarlyAccessApplication {
   robot: string;
   workWanted: string;
   region?: string;
+  supportedSystems?: string;
   pilotPackage?: string;
   testSite?: string;
   acceptedTerms: true;

@@ -743,8 +743,8 @@ describe("recording Blueprint's recommended pilot", () => {
     const bookedRows = () => [...state.docs.entries()].filter(([key, row]) => key.startsWith("captureOutbox/")
       && key.split("/").length === 2 && row.kind === "pilot_booked").map(([, row]) => row);
     const siteRow = bookedRows()[0];
-    expect(String(siteRow.body)).toContain("Robot team contact:\nAcme Robotics\nteam@example.test");
-    expect(String(siteRow.body)).toMatch(/agree the pilot's dates and terms directly/);
+    expect(String(siteRow.body)).toContain("Delivery partner contact:\nAcme Robotics\nteam@example.test");
+    expect(String(siteRow.body)).toMatch(/agree the physical pilot's scope, price, dates and acceptance criteria directly/);
     expect(String(siteRow.body)).not.toMatch(/owns that next step/);
     expect(String(teamRows("team_pilot_booked")[0][1].body)).toContain("Site contact:\nDana Reyes, Fixture Foods\nowner@example.test");
     const { projectPilotBooking } = await import("../utils/pilotContactExchange");
@@ -757,6 +757,7 @@ describe("recording Blueprint's recommended pilot", () => {
     await deliverOutbox();
     const subjects = sendEmail.mock.calls.map(([message]) => (message as { subject: string }).subject);
     expect(subjects).not.toContain("Your pilot is booked");
+    expect(subjects).not.toContain("Your pilot selection is recorded");
     expect(subjects).not.toContain("A site booked your recommended pilot");
     expect(bookedRows().map(row => row.status)).toEqual(["cancelled"]);
     expect(teamRows("team_pilot_booked")[0][1].status).toBe("cancelled");

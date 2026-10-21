@@ -44,10 +44,10 @@ vi.mock("@/lib/siteCaptureDurability", () => ({
     const current = durability.rows.get(key);
     if (!replaceIdentity && current && (current.retired || current.value?.requestId !== value.requestId
       || current.value?.retryToken !== value.retryToken)) throw new Error("Fixture durability transaction aborted");
-    const { task, location, email, company, method, region, regionManuallySet, privateHandling } = value.draft;
+    const { task, location, email, company, method, region, regionManuallySet, privateHandling, jobFrequency, purchaseReadiness } = value.draft;
     durability.rows.set(key, { retired: false, value: {
       version: value.version, savedAt: value.savedAt, requestId: value.requestId, retryToken: value.retryToken,
-      draft: { task, location, email, company, method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}) },
+      draft: { task, location, email, company, method, region, regionManuallySet, ...(privateHandling === true ? { privateHandling } : {}), ...(jobFrequency ? { jobFrequency } : {}), ...(purchaseReadiness ? { purchaseReadiness } : {}) },
       pending: value.pending ? { body: value.pending.body, endpoint: value.pending.endpoint, acknowledged: value.pending.acknowledged } : null,
     } });
   },
@@ -305,16 +305,16 @@ vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ currentUser: accoun
 it("asks where the robot would do the task, not where the video was filmed", async () => {
   await renderReady(<SiteCaptureStart />);
   const label = document.querySelector('label[for="start-location"]')!;
-  expect(label).toHaveTextContent(/^Where would the robot do this task\?/);
+  expect(label).toHaveTextContent(/^Where does the work happen\?/);
   expect(label).not.toHaveTextContent(/filmed/i);
 });
 
 it("keeps location controls out of the address field's spoken label", async () => {
   await renderReady(<SiteCaptureStart />);
-  const input = screen.getByRole("combobox", { name: "Where would the robot do this task?", exact: true });
+  const input = screen.getByRole("combobox", { name: "Where does the work happen?", exact: true });
   fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
   expect(screen.getByRole("status", { name: "Location preference" })).toHaveTextContent("Couldn’t find your location");
-  expect(input).toHaveAccessibleName("Where would the robot do this task?");
+  expect(input).toHaveAccessibleName("Where does the work happen?");
   expect(input.closest("label")).toBeNull();
 });
 
@@ -868,6 +868,33 @@ it("restores all anonymous required fields before the first create attempt", asy
   }
 });
 
+it("preserves optional job frequency and buying stage across reload and submits them without requiring a budget", async () => {
+  fetchMock.mockImplementation(async (_url: string, init?: { method?: string }) => ({ ok: true,
+    json: async () => init?.method === "POST" ? { captureUrl: "/capture-upload/buying-context.signed" } : { features: [] } }));
+  const first = await renderReady(<SiteCaptureStart />);
+  for (const [id, value] of [["start-task", "Move sealed cartons"], ["start-location", "Austin TX"],
+    ["start-email", "qa@example.invalid"], ["start-company", "Owned QA"],
+    ["start-frequency", "200 cartons each weekday"], ["start-readiness", "ready_for_proposals"]]) {
+    fireEvent.change(document.querySelector(`#${id}`)!, { target: { value } });
+  }
+  const key = siteCaptureDraftKey(null, "default");
+  await waitFor(() => expect(durability.rows.get(key)?.value.draft).toMatchObject({
+    jobFrequency: "200 cartons each weekday", purchaseReadiness: "ready_for_proposals",
+  }));
+  first.unmount();
+  await renderReady(<SiteCaptureStart />);
+  expect(document.querySelector("#start-frequency")).toHaveValue("200 cartons each weekday");
+  expect(document.querySelector("#start-readiness")).toHaveValue("ready_for_proposals");
+  expect(document.querySelector('[name*="Budget"]')).toBeNull();
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByRole("link", { name: "Open your job and assessment" });
+  expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body)).toMatchObject({
+    siteTaskSpec: { jobFrequency: "200 cartons each weekday", purchaseReadiness: "ready_for_proposals" },
+    descriptionOnly: true,
+  });
+  expect(upload.send).not.toHaveBeenCalled();
+});
+
 it("A-R-033 v2 a pre-mounted tab replays the same uncertain request despite edited answers", async () => {
   fetchMock.mockImplementation(async (url: string) => {
     if (url.startsWith("/api/self-capture")) return { ok: true, json: async () => ({ captureReceived: false }) };
@@ -937,7 +964,7 @@ it.each([true, false])("shows the exact card text before starting and honors the
     expect(keepPrivate).toBeChecked();
     expect(screen.queryByLabelText("Generated public summary")).not.toBeInTheDocument();
     expect(document.querySelector("#start-listing-consent")).toHaveTextContent("This job stays private. Starting does not publish a job card");
-    expect(document.querySelector("#start-listing-consent")).toHaveTextContent("Robot teams cannot see or evaluate a private job, so it cannot lead to a recommended pilot.");
+    expect(document.querySelector("#start-listing-consent")).toHaveTextContent("We ask before sharing details with a provider.");
     expect(document.querySelector("#start-listing-consent")).not.toHaveTextContent(/authorize/);
   }
   fireEvent.submit(screen.getByRole("form"));
@@ -996,7 +1023,7 @@ it("offers account setup only after the site and job have been saved", async () 
   expect(screen.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", "/claim/job.signed?mode=signin");
   // Not optional: the scene robot teams evaluate is built only for a saved job.
   const account = screen.getByRole("region", { name: "Save this job to your account" });
-  expect(account).toHaveTextContent("We build the scene robot teams evaluate only for a job saved to an account with owner@example.com.");
+  expect(account).toHaveTextContent("Save the job to an account with owner@example.com before sending video or preparing a site-specific evaluation.");
   expect(account).not.toHaveTextContent(/optional/i);
   expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
   expect(postsTo("/api/inbound-request")).toHaveLength(1);
@@ -1033,7 +1060,7 @@ describe("SiteCaptureStart offers an account before a guest sends its video", ()
     await renderReady(<SiteCaptureStart />);
     fireEvent.click(document.querySelector("#start-method-upload")!);
     const note = screen.getByRole("note", { name: "Save this job to an account first" });
-    expect(note).toHaveTextContent(/Robot teams can evaluate your job only if its video is sent after the job is saved to an account/);
+    expect(note).toHaveTextContent(/This keeps the recording linked to the same owner from upload onward/);
     expect(screen.getByRole("link", { name: "Sign in first" })).toHaveAttribute("href", "/sign-in");
     expect(document.querySelector("#start-footage")).toBeNull();
     // Owner decision 2026-10-18: there is no way to send it without an account.

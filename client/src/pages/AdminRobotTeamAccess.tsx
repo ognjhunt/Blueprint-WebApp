@@ -14,6 +14,8 @@ type Application = {
   name: string;
   email: string;
   company: string;
+  partnerRole?: "deployment" | "technology" | null;
+  supportedSystems?: string | null;
   website: string | null;
   robot: string;
   workWanted: string;
@@ -37,6 +39,18 @@ function statusTone(status: Application["status"]) {
   if (status === "approved") return "proof" as const;
   if (status === "declined") return "block" as const;
   return "warn" as const;
+}
+
+/** Historical application rows are untrusted even after new intake validation. */
+function ApplicationWebsite({ value }: { value: string | null }) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:" || url.protocol === "http:") {
+      return <a href={url.href} rel="noreferrer noopener" target="_blank">{value}</a>;
+    }
+  } catch { /* Keep an invalid historical value readable without making it a link. */ }
+  return <span>{value}</span>;
 }
 
 type Library = {
@@ -193,11 +207,11 @@ export default function AdminRobotTeamAccess() {
       <div className="mx-auto max-w-[88rem]">
         <header className="flex flex-col gap-4 border-b border-line pb-8 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <Eyebrow tone="brass" rule>Robot teams</Eyebrow>
-            <h1 className="mt-5 font-display text-4xl font-semibold tracking-[0.005em] text-runway-text">Early-access applications</h1>
+            <Eyebrow tone="brass" rule>Partners</Eyebrow>
+            <h1 className="mt-5 font-display text-4xl font-semibold tracking-[0.005em] text-runway-text">Partner applications</h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-runway-mute">
-              Approved teams see the site tasks sites have shared, once they sign in with the approved,
-              verified email. Calls are optional: teams reply with the site they would test at, and book one only if it helps.
+              Review deployment capabilities, supported systems and task fit before approving access.
+              Approved partners see only the site jobs shared with their team after signing in with a verified email.
             </p>
             {libraryLine(query.data?.library) ? <p className="mt-2 max-w-2xl text-sm text-runway-text">{libraryLine(query.data?.library)}</p> : null}
             {openLibraryLine(query.data?.library) ? <p role="status" className="mt-2 max-w-2xl text-sm text-runway-text">{openLibraryLine(query.data?.library)}</p> : null}
@@ -224,22 +238,24 @@ export default function AdminRobotTeamAccess() {
                   <h2 className="text-xl font-semibold text-runway-text">{application.name} · {application.company}</h2>
                   <p className="mt-1 text-sm text-runway-mute">
                     {application.email}
-                    {application.website ? <> · <a href={application.website} rel="noreferrer noopener" target="_blank">{application.website}</a></> : null}
+                    {application.website ? <> · <ApplicationWebsite value={application.website} /></> : null}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {application.partnerRole ? <StatusChip tone="info" square>{application.partnerRole === "deployment" ? "deployment partner" : "technology provider"}</StatusChip> : null}
                   {application.source === "invite" ? <StatusChip tone="info" square>invited</StatusChip> : null}
                   {application.decidedBy?.startsWith("auto:") ? <StatusChip tone="info" square>auto-approved</StatusChip> : null}
                   <StatusChip tone={statusTone(application.status)} square>{application.status}</StatusChip>
                 </div>
               </div>
               <dl className="grid gap-3 text-sm sm:grid-cols-3">
-                <div><dt className="runway-meta">Robot</dt><dd className="mt-1 text-runway-text">{application.robot}</dd></div>
-                <div><dt className="runway-meta">Wants to test on</dt><dd className="mt-1 text-runway-text">{application.workWanted}</dd></div>
+                <div><dt className="runway-meta">{application.partnerRole === "deployment" ? "Delivery capabilities" : "System"}</dt><dd className="mt-1 text-runway-text">{application.robot}</dd></div>
+                <div><dt className="runway-meta">{application.partnerRole === "deployment" ? "Jobs they can deliver" : "Work to assess"}</dt><dd className="mt-1 text-runway-text">{application.workWanted}</dd></div>
                 <div><dt className="runway-meta">Region · applied</dt><dd className="mt-1 text-runway-text">{application.region || "Not given"} · {new Date(application.appliedAtIso).toLocaleDateString()}</dd></div>
               </dl>
+              {application.supportedSystems ? <p className="text-sm text-runway-mute"><span className="runway-meta">Supported systems: </span>{application.supportedSystems}</p> : null}
               {application.pilotPackage ? (
-                <p className="text-sm text-runway-text"><span className="runway-meta">Typical pilot · private, indicative</span> {application.pilotPackage}</p>
+                <p className="text-sm text-runway-text"><span className="runway-meta">{application.partnerRole === "deployment" ? "Delivery and support notes" : application.partnerRole === "technology" ? "Access and evaluation notes" : "Typical pilot · private, indicative"}</span> {application.pilotPackage}</p>
               ) : null}
               {application.testSite ? (
                 <p className="text-sm text-runway-text"><span className="runway-meta">Site lead · would test at</span> {application.testSite}</p>

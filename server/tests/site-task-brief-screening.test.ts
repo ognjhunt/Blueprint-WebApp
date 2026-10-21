@@ -151,8 +151,8 @@ describe("the confirmation says what our screen decided", () => {
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { body: string };
     expect(sent.body).toMatch(/^Hi Dana,/);
     expect(sent.body).toMatch(/upload it here: http\S+\/capture-upload\//);
-    expect(sent.body).toMatch(/recommend that one team/);
-    expect(sent.body).toMatch(/If no team passes, we tell you that plainly/);
+    expect(sent.body).toMatch(/review proposals covering scope, total cost, timing and support/);
+    expect(sent.body).toMatch(/If no suitable option is supported, we explain what is missing/);
     expect(sent.body).toMatch(/free during the beta/);
     expect(sent.body).not.toMatch(/\bmatch|\bteams? on our list|budget|Austin/i);
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({
@@ -169,12 +169,12 @@ describe("the confirmation says what our screen decided", () => {
     expect(sent.body).not.toMatch(/film the work area|upload it here/i);
   });
 
-  it("promises a private job no evaluation or recommendation", async () => {
+  it("keeps a private job out of the shared library and asks before sharing", async () => {
     delete (sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>).public_task_listing;
     expect((await (await confirm(clearAnswers())).json()).disposition).toBe("qualified");
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { body: string };
-    expect(sent.body).toMatch(/Your job card is not published, so robot teams cannot see your job or evaluate it/);
-    expect(sent.body).not.toMatch(/recommend that one team/);
+    expect(sent.body).toMatch(/Your job card is not published, so partners cannot discover it through the shared library/);
+    expect(sent.body).toMatch(/We ask before sharing details with a provider/);
   });
 
   it("answers a visit request without assuming where the site is", async () => {
@@ -228,7 +228,7 @@ describe("the confirmation says what our screen decided", () => {
     // Only the job kind a robot team's evaluation can run (audit N4).
     expect(sent.body).toMatch(/one kind of job:\n- Picking up one rigid object and placing it at another spot on the same table, shelf or counter\n\n/);
     expect(sent.body).not.toMatch(/door or drawer/);
-    expect(sent.body).toMatch(/not opened this job to robot teams/);
+    expect(sent.body).toMatch(/not admitted to that simulation route/);
     expect(`${sent.subject}\n${sent.body}`).not.toMatch(/\bmatch|\$|price/i);
     expect(notifySlackScreeningCallNeeded).not.toHaveBeenCalled();
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({

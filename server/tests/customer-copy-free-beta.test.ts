@@ -2,11 +2,11 @@
 /**
  * The messages a site or a robot team actually receives say what the free beta is.
  *
- * Founder decision 2026-10-13: the beta is free for sites and robot teams. A
- * site shows one recurring job, invited robot teams evaluate it in a simplified
- * simulation informed by the site's footage, Blueprint recommends one team whose evaluation
- * passed, and the site books that pilot in one step. No fees, balances,
- * top-ups, checkout, quotes or announced pricing, and no "match" wording.
+ * The beta remains free. The 2026-10-21 owner-authorized job-first journey
+ * assesses suitable options, uses evidence/testing when needed and helps the
+ * customer compare delivery proposals before selecting a partner. It does not
+ * promise a simulation for every submission, a supplier or a signed pilot.
+ * No fees, balances, top-ups, checkout or announced future platform pricing.
  *
  * This is not a grep over source files. Each surface is BUILT here the way the
  * server builds it — every qualification email variant from the real gate
@@ -77,21 +77,14 @@ const fromBrandPolish = (label: string): Banned => {
 const PRICING: readonly Banned[] = [
   fromBrandPolish("$2,500 fee"),
   fromBrandPolish("$99 entry"),
-  fromBrandPolish("marketplace"),
   { label: "balance", pattern: /\bbalance\b/i },
   { label: "top-up", pattern: /\btop-?ups?\b/i },
   { label: "checkout", pattern: /\bcheckout\b/i },
   { label: "buy runs", pattern: /\bbuy runs?\b/i },
-  { label: "scoped and quoted", pattern: /scoped and quoted/i },
-  { label: "quote", pattern: /\bquote\b/i },
-  { label: "budget band", pattern: /budget band/i },
 ];
 
-/** Blueprint recommends one evaluated team; it does not match sites and teams. */
-const PAIRING: readonly Banned[] = [
-  fromBrandPolish("match wording"),
-  { label: "no match", pattern: /\bno match\b/i },
-];
+/** Matching and physical-provider proposals are part of the job-first journey. */
+const PAIRING: readonly Banned[] = [];
 
 /** A site anywhere must not be told about one city's visits. */
 const CITY: readonly Banned[] = [{ label: "Austin", pattern: /\bAustin\b/i }];
@@ -161,7 +154,7 @@ describe("site screening emails", () => {
     expect([...dispositions].sort()).toEqual(["needs_conversation", "not_now", "qualified"]);
   });
 
-  it("never prices, matches, counts teams or assumes a city, in any variant", () => {
+  it("never introduces platform charges or assumes a city, in any variant", () => {
     for (const { label, triage } of everyScreenedSubmission()) {
       for (const stage of ["brief_confirmed", "screened"] as const) {
         for (const nextStep of NEXT_STEPS) {
@@ -186,13 +179,15 @@ describe("site screening emails", () => {
     }
   });
 
-  it("states the free evaluated recommendation and its bound in the qualified reply", () => {
+  it("states optional evidence methods, customer selection and the free-beta boundary", () => {
     for (const nextStep of NEXT_STEPS) {
       const { body } = buildQualifiedEmail({ firstName: "Dana", nextStep });
-      expect(body).toMatch(/a simplified simulation of your task, informed by your footage/);
-      expect(body).toMatch(/invited evaluate your job in that simulation/);
-      expect(body).toMatch(/recommend that one team/);
-      expect(body).toMatch(/If no team passes, we tell you that plainly/);
+      expect(body).toMatch(/review the job brief, required output and site constraints/);
+      expect(body).toMatch(/existing evidence, simulation or physical checks where needed/);
+      expect(body).toMatch(/review proposals covering scope, total cost, timing and support/);
+      expect(body).toMatch(/You choose the delivery partner/);
+      expect(body).toMatch(/If no suitable option is supported, we explain what is missing/);
+      expect(body).not.toMatch(/book the pilot in one step|We prepare a simplified simulation/);
       expect(body).toMatch(/free during the beta/);
       expect(body).toMatch(/not proof of how a robot will perform/);
     }
@@ -208,7 +203,7 @@ describe("site lifecycle notices", () => {
     "pilot_request", "pilot_recommended", "pilot_booked", "pilot_scheduled",
   ] as const;
 
-  it("never prices, matches or assumes a city in any notice", () => {
+  it("never introduces platform charges or assumes a city in any notice", () => {
     for (const milestone of milestones) {
       for (const detail of [undefined, "invited_beta_free", "12 of 50 simulated episodes succeeded"]) {
         const notice = buildTaskLifecycleNotification({
@@ -247,10 +242,10 @@ describe("robot-team run emails", () => {
 /* ------------------------------------------------------- public agent copy */
 
 describe("public agent answers and the retired-commerce body", () => {
-  it("keeps every grounded answer free of pricing and match wording", () => {
+  it("keeps every grounded answer free of platform charges and assumed city coverage", () => {
     for (const entry of listAgentKnowledgeEntries()) {
       const prose = [entry.title, entry.answer, ...entry.actions.map((action) => action.description)].join("\n");
-      expectClean(entry.id, prose, [...CUSTOMER_PROSE, ...CITY, { label: "budget", pattern: /\bbudget\b/i }]);
+      expectClean(entry.id, prose, [...CUSTOMER_PROSE, ...CITY]);
     }
   });
 

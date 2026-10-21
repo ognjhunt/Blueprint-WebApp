@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+const legacyJobWorkflow = () => ({
+  schemaVersion: "job_marketplace.v1", revision: "fixture-revision", stage: "job_submitted",
+  requirements: { purchaseReadiness: "unsure", jobFrequency: null, requiredOutput: null,
+    installationBudget: null, ongoingBudget: null, currentProcessCost: null, targetStartDate: null },
+  briefAgreed: false, optionsAssessed: false, reviewRequired: false,
+  nextAction: "Review the job brief with Blueprint.", actionOwner: "site",
+  review: null, proposals: [], selection: null, agreement: null, outcome: null,
+});
+
 const summary = (name: string, email = "operator@example.test") => ({
   ok: true, requestId: `fixture-${name}`, alreadyClaimed: false,
   claimEmail: email, siteTermsAcceptedCurrent: false,
@@ -17,6 +26,7 @@ test("owner can request an authorized assessment retry while keeping the saved r
   const asks: string[] = [];
   await page.route("**/api/**", async route => {
     const url = new URL(route.request().url());
+    if (url.pathname.startsWith("/api/job-workflow/owner/") && route.request().method() === "GET") return route.fulfill({ json: legacyJobWorkflow() });
     if (route.request().method() !== "GET" && url.pathname !== "/api/analytics/ingest") writes.push(url.pathname);
     if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
     if (url.pathname === `/api/self-capture/uploads/${token}/advisory-retry`) {
@@ -77,6 +87,7 @@ test("returning owner keeps the received recording and gets fresh-job recovery g
   await page.route("**/api/**", route => {
     const request = route.request();
     const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/job-workflow/owner/") && request.method() === "GET") return route.fulfill({ json: legacyJobWorkflow() });
     if (request.method() !== "GET") writes.push(url.pathname);
     if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
       ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"],
@@ -119,6 +130,7 @@ test.beforeEach(async ({ context }) => {
   // Fresh, anonymous browser context. No inherited auth or real API traffic.
   await context.route("**/*", route => {
     const url = new URL(route.request().url());
+    if (url.pathname.startsWith("/api/job-workflow/owner/") && route.request().method() === "GET") return route.fulfill({ json: legacyJobWorkflow() });
     if (url.origin !== "http://127.0.0.1:42874") return route.abort();
     if (url.pathname.startsWith("/api/")) return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
     return route.continue();
@@ -178,6 +190,7 @@ test("desktop handoff recognizes retained footage without claiming processing co
   let received = false;
   await page.route("**/api/**", route => {
     const url = new URL(route.request().url());
+    if (url.pathname.startsWith("/api/job-workflow/owner/") && route.request().method() === "GET") return route.fulfill({ json: legacyJobWorkflow() });
     if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
     if (url.pathname === "/api/inbound-request") return route.fulfill({ json: { captureUrl: "/capture-upload/held-fixture" } });
     if (url.pathname === "/api/site-task-brief/held-fixture/status") return route.fulfill({ json: {
@@ -212,6 +225,7 @@ test("the person filming is asked for the video and nothing else", async ({ page
   const asks: string[] = [];
   await page.route("**/api/**", route => {
     const url = new URL(route.request().url());
+    if (url.pathname.startsWith("/api/job-workflow/owner/") && route.request().method() === "GET") return route.fulfill({ json: legacyJobWorkflow() });
     if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
     if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
       ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" } });
@@ -280,6 +294,7 @@ test("the owner sees only the shared robot report, folded, with nothing to fill 
   const asks: string[] = [];
   await page.route("**/api/**", route => {
     const url = new URL(route.request().url());
+    if (url.pathname.startsWith("/api/job-workflow/owner/") && route.request().method() === "GET") return route.fulfill({ json: legacyJobWorkflow() });
     if (url.pathname === "/api/csrf") return route.fulfill({ json: { csrfToken: "fixture" } });
     if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
       ok: true, state: "open", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" } });
@@ -317,6 +332,7 @@ test("the robot readiness brief opens by its own read-only link and lays out the
   const briefToken = "brief-token.signature";
   await page.route("**/api/**", route => {
     const url = new URL(route.request().url());
+    if (url.pathname.startsWith("/api/job-workflow/owner/") && route.request().method() === "GET") return route.fulfill({ json: legacyJobWorkflow() });
     if (url.pathname === `/api/site-task-brief/readiness-brief/${briefToken}`) return route.fulfill({ json: readinessFixture({ briefPath: null }) });
     return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
   });

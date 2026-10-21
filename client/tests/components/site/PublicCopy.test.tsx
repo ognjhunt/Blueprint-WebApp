@@ -31,19 +31,19 @@ describe("public managed-pilot copy", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Could a robot take over a repetitive task at your site\?/i,
+        name: /Find the right way to automate your work\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Show us a task/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: /Submit a job/i }).length).toBeGreaterThan(0);
 
-    expect(container).toHaveTextContent(/Show us the task/i);
-    expect(container).toHaveTextContent(/Robot teams evaluate it/i);
-    expect(container).toHaveTextContent(/Free during the beta, for sites and robot teams/i);
-    expect(container).toHaveTextContent(/Book the recommended pilot/i);
-    expect(container).toHaveTextContent(/One team whose evaluation passed/i);
+    expect(container).toHaveTextContent(/Describe the work/i);
+    expect(container).toHaveTextContent(/Assess suitable options/i);
+    expect(container).toHaveTextContent(/Free during the beta/i);
+    expect(container).toHaveTextContent(/Choose and measure a pilot/i);
+    expect(container).toHaveTextContent(/You choose whether to proceed/i);
     expect(container).not.toHaveTextContent(/\$99\b/);
-    expect(container).not.toHaveTextContent(/\bmatch(?:ed|es|ing)?\b/i);
-    for (const link of screen.getAllByRole("link", { name: "For robot teams" })) expect(link).toHaveAttribute("href", "/contact/robot-team");
+    expect(container).not.toHaveTextContent(/book it with one click|one team whose evaluation passed/i);
+    for (const link of screen.getAllByRole("link", { name: "For partners" })) expect(link).toHaveAttribute("href", "/partners");
 
     // Withdrawn products, legacy package prices, and outcome guarantees stay absent.
     expect(container).not.toHaveTextContent(/Policy Shortlist/i);

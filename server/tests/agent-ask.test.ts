@@ -29,6 +29,14 @@ describe("agent grounded ask", () => {
     expect(response.bestAnswer?.id).toBe("how-to-request-run");
   });
 
+  it("explains delivery selection and preserves customer contract authority", async () => {
+    const response = await answerAgentQuestion({ question: "How do I compare delivery proposals and choose deployment partner?" });
+    expect(response.bestAnswer?.id).toBe("choosing-delivery");
+    expect(response.bestAnswer?.answer).toMatch(/customer chooses the delivery partner/i);
+    expect(response.bestAnswer?.answer).toMatch(/not a signed contract or reserved date/i);
+    expect(response.bestAnswer?.answer).toMatch(/does not establish physical performance or safety/i);
+  });
+
   it("routes search and pricing questions to their entries", async () => {
     const search = await answerAgentQuestion({
       question: "How do I filter sites by type and location with semantic search?",

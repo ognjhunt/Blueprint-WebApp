@@ -60,7 +60,9 @@ describe("site-content route", () => {
       expect(JSON.stringify(payload)).toContain("no private paid evaluations");
       // The free beta: no site fee, one evaluated recommendation, open site sign-up.
       expect(JSON.stringify(payload)).toContain("Free for sites and robot teams");
-      expect(JSON.stringify(payload)).toContain("recommends one team whose evaluation on the job passed");
+      expect(JSON.stringify(payload)).toContain("compare delivery proposals");
+      expect(JSON.stringify(payload)).toContain("customer chooses and contracts with the delivery partner");
+      expect(JSON.stringify(payload)).not.toContain("books it in one step");
       expect(JSON.stringify(payload)).toContain("anyone can start a job");
       expect(JSON.stringify(payload)).not.toMatch(/\$2,500|No pilot, no fee/);
       // Page and offer copy never speaks of matching sites to teams.
