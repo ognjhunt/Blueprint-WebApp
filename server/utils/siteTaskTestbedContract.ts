@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { canonicalArtifactDigest, stableJson } from "./taskCandidateContract";
+import { verifyProducerArtifact } from "./producerCanonicalArtifact";
 
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
@@ -158,7 +159,7 @@ export const maintainedSiteTaskTestbedSchema = z
   })
   .passthrough();
 
-export const siteTaskTestbedPublicationSchema = z
+const siteTaskTestbedPublicationV1Schema = z
   .object({
     schema_version: z.literal("site_task_testbed_publication.v1"),
     capture_session_id: identifier,
@@ -174,6 +175,19 @@ export const siteTaskTestbedPublicationSchema = z
     proof_boundary: maintainedSiteTaskTestbedSchema.shape.proof_boundary,
   })
   .strict();
+
+export const siteTaskTestbedPublicationSchema = z.discriminatedUnion("schema_version", [
+  siteTaskTestbedPublicationV1Schema,
+  siteTaskTestbedPublicationV1Schema.extend({
+    schema_version: z.literal("site_task_testbed_publication.v2"),
+    testbed_canonical_json: z.string().min(1).max(750_000),
+    decision_request_canonical_json: z.string().min(1).max(750_000).nullable(),
+    compiled_card_canonical_json: z.record(digest, z.string().min(1).max(750_000)),
+    job_id: identifier.optional(),
+    brief_digest: digest.optional(),
+    website_task_context_digest: digest.optional(),
+  }).strict(),
+]);
 
 function secretPaths(value: unknown, prefix = ""): string[] {
   const paths: string[] = [];
@@ -198,14 +212,19 @@ function secretPaths(value: unknown, prefix = ""): string[] {
   return paths;
 }
 
-export function parseVerifiedMaintainedSiteTaskTestbed(value: unknown) {
+export function parseVerifiedMaintainedSiteTaskTestbed(
+  value: unknown, canonicalJson?: unknown, compiledCardCanonicalJson?: Record<string, string>,
+) {
   const parsed = maintainedSiteTaskTestbedSchema.safeParse(value);
   if (!parsed.success) {
     return { ok: false as const, blockers: ["maintained_testbed_schema_invalid"] };
   }
   const testbed = parsed.data;
   const blockers: string[] = [];
-  if (canonicalArtifactDigest(testbed, "testbed_digest") !== testbed.testbed_digest) {
+  const producerBytes = canonicalJson !== undefined;
+  if (producerBytes
+    ? !verifyProducerArtifact(testbed, "testbed_digest", canonicalJson)
+    : canonicalArtifactDigest(testbed, "testbed_digest") !== testbed.testbed_digest) {
     blockers.push("maintained_testbed_digest_mismatch");
   }
   const cardGroups = [
@@ -220,9 +239,15 @@ export function parseVerifiedMaintainedSiteTaskTestbed(value: unknown) {
     testbed.artifact_references.scenario_cards,
     testbed.artifact_references.eval_cards,
   ];
+  if (producerBytes && JSON.stringify(Object.keys(compiledCardCanonicalJson || {}).sort())
+    !== JSON.stringify([...new Set(cardGroups.flat().map(card => card.card_digest))].sort())) {
+    blockers.push("maintained_testbed_card_canonical_set_mismatch");
+  }
   cardGroups.forEach((cards, groupIndex) => {
     cards.forEach((card, index) => {
-      if (canonicalArtifactDigest(card, "card_digest") !== card.card_digest) {
+      if (producerBytes
+        ? !verifyProducerArtifact(card, "card_digest", compiledCardCanonicalJson?.[card.card_digest])
+        : canonicalArtifactDigest(card, "card_digest") !== card.card_digest) {
         blockers.push("maintained_testbed_card_digest_mismatch");
       }
       if (referenceGroups[groupIndex]?.[index]?.digest !== card.card_digest) {

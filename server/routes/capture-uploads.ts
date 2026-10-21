@@ -18,6 +18,7 @@ import {
   nativeDecisionEvidenceRequestSchema,
   parseVerifiedMaintainedSiteTaskTestbed,
 } from "../utils/siteTaskTestbedContract";
+import { verifyProducerArtifact } from "../utils/producerCanonicalArtifact";
 import {
   parseVerifiedTaskEvaluationRunAuthorization,
   parseVerifiedTaskEvaluationRunPreparation,
@@ -784,7 +785,8 @@ function siteTaskTestbedProjection(record: SessionRecord) {
       blockers: [] as string[],
     };
   }
-  const parsed = parseVerifiedMaintainedSiteTaskTestbed(stored.testbed);
+  const parsed = parseVerifiedMaintainedSiteTaskTestbed(stored.testbed,
+    stored.testbed_canonical_json, stored.compiled_card_canonical_json as Record<string, string> | undefined);
   if (!parsed.ok) {
     return {
       summary: { state: "pipeline_artifact_invalid" as const },
@@ -810,7 +812,9 @@ function siteTaskTestbedProjection(record: SessionRecord) {
     blockers.push("testbed_approved_task_mismatch");
   }
   if (decisionRequest && (
-    canonicalArtifactDigest(decisionRequest, "request_digest") !== decisionRequest.request_digest ||
+    (stored.decision_request_canonical_json !== undefined
+      ? !verifyProducerArtifact(decisionRequest, "request_digest", stored.decision_request_canonical_json)
+      : canonicalArtifactDigest(decisionRequest, "request_digest") !== decisionRequest.request_digest) ||
     decisionRequest.testbed_id !== testbed.testbed_id ||
     decisionRequest.testbed_version !== testbed.version ||
     decisionRequest.testbed_digest !== testbed.testbed_digest
