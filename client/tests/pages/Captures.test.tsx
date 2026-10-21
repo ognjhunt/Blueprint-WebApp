@@ -400,3 +400,15 @@ describe("app/Captures", () => {
     ));
   });
 });
+
+it("opens an existing job's native capture form with its visible site scene ID", async () => {
+  state.create.mockClear();
+  state.list.mockResolvedValue({ sessions: [] });
+  const previous = window.location.href;
+  window.history.replaceState({}, "", "/app/captures?jobId=job-1");
+  try {
+    render(<Captures />);
+    expect(await screen.findByLabelText("Scene ID")).toHaveValue("site-job-1");
+    expect(state.create).not.toHaveBeenCalled();
+  } finally { window.history.replaceState({}, "", previous); }
+});

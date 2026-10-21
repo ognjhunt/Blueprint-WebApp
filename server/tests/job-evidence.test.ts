@@ -109,6 +109,34 @@ describe("job evidence producer and commercial boundary", () => {
     stale.publication_digest = crossRuntimeArtifactDigest(stale, "publication_digest");
     expect((await api(endpoint, "POST", stale, signed(stale))).body.code).toBe("evidence_sequence_conflict");
   });
+  it("follows the real source session pointer and preserves its exact compiled request", async () => {
+    const source = examples.native_request;
+    const binding = { schema_version: "job_evidence_source_binding.v1", job_id: "job-1", capture_session_id: "native-random-session-42",
+      intake_id: source.intake_id, source_capture_digest: source.testbed.source_capture_bundles[0].digest,
+      brief_digest: scientificBriefDigest(brief), command_request_id: "real-task-command-1", approved_task_digest: source.approved_task_digest };
+    const record = { request: { buyerType: "site_operator", consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-20T11:00:00Z" } }, job_evidence_source: binding };
+    state.docs.set("inboundRequests/job-1", record);
+    state.docs.set(`captureUploadSessions/${binding.capture_session_id}`, { session_id: binding.capture_session_id,
+      request: { intake_id: source.intake_id }, job_evidence_source_binding: binding,
+      approved_task_definition: { approved_task_digest: source.approved_task_digest }, pipeline_site_task_testbed: {
+        job_id: "job-1", brief_digest: binding.brief_digest, approved_task_digest: source.approved_task_digest,
+        testbed: source.testbed, decision_evidence_request: source.decision_evidence_request,
+        testbed_canonical_json: source.testbed_canonical_json, decision_request_canonical_json: source.decision_request_canonical_json,
+        compiled_card_canonical_json: source.compiled_card_canonical_json,
+      } });
+    const current = await api("/api/job-workflow/admin/job-1", "GET", undefined, { authorization: "Bearer ops" });
+    expect(current.body.evidenceContext.question).toBe(source.question);
+    const created = await api("/api/job-workflow/admin/job-1/evidence", "POST", { question: source.question }, { authorization: "Bearer ops", "Idempotency-Key": "real-source-question" });
+    expect(created.status).toBe(200);
+    const saved = [...state.docs.entries()].find(([key]) => key.includes("/jobEvidenceRequests/"))![1].request as any;
+    expect(saved.capture_session_id).toBe(binding.capture_session_id); expect(saved.intake_id).toBe(source.intake_id);
+    expect(saved.decision_evidence_request.request_digest).toBe(source.decision_evidence_request.request_digest);
+    expect(saved.decision_request_canonical_json).toBe(source.decision_request_canonical_json);
+    expect(state.docs.has("captureUploadSessions/walkthrough-job-1")).toBe(false);
+    const mismatched = { ...record, job_evidence_source: { ...binding, approved_task_digest: `sha256:${"f".repeat(64)}` } };
+    state.docs.set("inboundRequests/job-1", mismatched);
+    expect((await api("/api/job-workflow/admin/job-1", "GET", undefined, { authorization: "Bearer ops" })).body.evidenceContext.question).toBeNull();
+  });
   it("does not relabel a prior unbound scientific context as a current brief", () => {
     const source = examples.native_request;
     const request = buildJobEvidenceRequest({ jobId: "job-1", uid: "ops", idempotencyKey: "current-key", question: source.question,

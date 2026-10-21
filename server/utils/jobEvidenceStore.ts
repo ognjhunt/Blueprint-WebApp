@@ -2,17 +2,17 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { JobMarketplaceError } from "./jobMarketplaceWorkflow";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
-import { jobEvidenceRequestSchema, jobEvidenceSummary, scientificBriefDigest, scientificContext, verifyJobEvidencePublication, type JobEvidencePublication } from "./jobEvidenceContract";
+import { jobEvidenceRequestSchema, jobEvidenceSummary, scientificBriefDigest, scientificContext, jobEvidenceCaptureSessionId, verifyJobEvidencePublication, type JobEvidencePublication } from "./jobEvidenceContract";
 
 export async function readJobEvidence(jobId: string, brief: Record<string, any> | null, admin = false) {
   if (!db || !brief?.confirmedAtIso) return { evidence: [], evidenceContext: null };
   const digest = scientificBriefDigest(brief);
-  const [session, requests, job, inventory] = await Promise.all([
-    db.collection("captureUploadSessions").doc(`walkthrough-${jobId}`).get(),
+  const [requests, job, inventory] = await Promise.all([
     db.collection("inboundRequests").doc(jobId).collection("jobEvidenceRequests").orderBy("createdAtIso", "desc").limit(20).get(),
     db.collection("inboundRequests").doc(jobId).get(),
     db.collection("siteTaskItemInventories").doc(jobId).get(),
   ]);
+  const session = await db.collection("captureUploadSessions").doc(jobEvidenceCaptureSessionId(jobId, job.data()!)).get();
   const context = scientificContext(session.exists ? session.data()! : null, { brief, record: job.data()!, inventory: inventory.exists ? inventory.data() as any : null });
   const evidence = requests.docs.map(row => {
     const value = row.data();

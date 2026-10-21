@@ -145,7 +145,11 @@ export default function Captures() {
   const [assetMetersPerUnit, setAssetMetersPerUnit] = useState("");
   const [assetUpAxis, setAssetUpAxis] = useState("");
   const providedAsset = profile.startsWith("provided_scene_");
-  const [sceneId, setSceneId] = useState("");
+  const [sceneId, setSceneId] = useState(() => {
+    const query = new URLSearchParams(window.location.search);
+    const jobId = query.get("jobId") || query.get("job");
+    return jobId && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/.test(jobId) ? `site-${jobId}` : "";
+  });
   const [deviceManufacturer, setDeviceManufacturer] = useState("");
   const [deviceModel, setDeviceModel] = useState("");
   const [knownTask, setKnownTask] = useState("");

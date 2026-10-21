@@ -53,11 +53,37 @@ export const scientificBriefDigest = (brief: Record<string, any>) => crossRuntim
   unresolved: [...(brief.unresolved ?? [])].sort(),
 });
 
+export const jobEvidenceSourceBindingSchema = z.object({
+  schema_version: z.literal("job_evidence_source_binding.v1"), job_id: jobEvidenceId,
+  capture_session_id: jobEvidenceId, intake_id: jobEvidenceId, source_capture_digest: jobEvidenceDigest,
+  brief_digest: jobEvidenceDigest, command_request_id: jobEvidenceId, approved_task_digest: jobEvidenceDigest,
+}).passthrough();
+
+/** A real retained native session is selected by the accepted task action, never invented from a job ID. */
+export function jobEvidenceCaptureSessionId(jobId: string, record: Record<string, any>) {
+  const source = jobEvidenceSourceBindingSchema.safeParse(record.job_evidence_source);
+  if (source.success && source.data.job_id === jobId) return source.data.capture_session_id;
+  // Read the legacy document only if one exists. It still needs its explicit,
+  // current signed task binding before scientificContext will admit it.
+  return `walkthrough-${jobId}`;
+}
+
 export function scientificContext(session: Record<string, any> | null, binding?: {
   brief: Record<string, any>; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
 }) {
   const source = session?.pipeline_site_task_testbed;
-  if (!binding || !source) return null;
+  if (!binding || !source || !projectWebsiteCaptureRights(binding.record).derived_scene_generation_allowed
+    || session?.capture_access?.future_processing_allowed === false || session?.completed_capture_lifecycle) return null;
+  if (binding.record.job_evidence_source) {
+    const pointer = jobEvidenceSourceBindingSchema.safeParse(binding.record.job_evidence_source);
+    const retained = jobEvidenceSourceBindingSchema.safeParse(session?.job_evidence_source_binding);
+    if (!pointer.success || !retained.success || pointer.data.job_id !== binding.brief.requestId
+      || pointer.data.brief_digest !== scientificBriefDigest(binding.brief)
+      || pointer.data.capture_session_id !== session?.session_id || pointer.data.intake_id !== session?.request?.intake_id
+      || pointer.data.approved_task_digest !== session?.approved_task_definition?.approved_task_digest
+      || ["job_id", "capture_session_id", "intake_id", "source_capture_digest", "brief_digest", "command_request_id", "approved_task_digest"]
+        .some(key => pointer.data[key] !== retained.data[key])) return null;
+  }
   const explicitBrief = source.job_id === binding.brief.requestId && source.brief_digest === scientificBriefDigest(binding.brief);
   let contextMatches = false;
   if (source.website_task_context_digest) {

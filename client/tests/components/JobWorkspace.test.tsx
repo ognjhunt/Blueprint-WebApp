@@ -194,3 +194,14 @@ it("shows exact abstention limits without advancing a job or selecting a proposa
   expect(screen.queryByRole("button", { name: /Choose this proposal/ })).not.toBeInTheDocument();
   expect(screen.getByRole("list", { name: "Job milestones" }).querySelector('[aria-current="step"]')).toHaveTextContent("Brief agreed");
 });
+
+it("links missing task-specific evidence to the existing capture surface without creating a run", async () => {
+  fetchMock.mockResolvedValue(response(workflow({ jobId: "job-1", briefAgreed: true, evidence: [{
+    requestId: "question-1", publicationDigest: null, briefDigest: "brief", current: true, state: "information_required",
+    question: "Which metric observation is missing?", summary: "Target clearance is unknown.", nextAction: "Measure target clearance.",
+    limitations: [], runId: null, decisionDigest: null, planDigest: null, testbedDigest: null, approvedTaskDigest: null, claims: [],
+  }] })));
+  render(<JobWorkspace token="owner-token" />);
+  expect(await screen.findByRole("link", { name: "Add task-specific capture evidence" })).toHaveAttribute("href", "/app/captures?jobId=job-1");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});

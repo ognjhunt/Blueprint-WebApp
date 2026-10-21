@@ -11,7 +11,7 @@ import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { logger } from "../logger";
 import { loadManagedJobEvidence, assertManagedJobEvidenceReference } from "../utils/jobManagedEvaluation";
-import { buildJobEvidenceRequest, forwardJobEvidence, jobEvidenceId, jobEvidenceQuestionSchema, jobEvidenceDigest, scientificBriefDigest, scientificContext, jobEvidenceSummary } from "../utils/jobEvidenceContract";
+import { buildJobEvidenceRequest, forwardJobEvidence, jobEvidenceId, jobEvidenceQuestionSchema, jobEvidenceDigest, scientificBriefDigest, scientificContext, jobEvidenceSummary, jobEvidenceCaptureSessionId } from "../utils/jobEvidenceContract";
 import { acceptJobEvidencePublication, readJobEvidence, readJobEvidencePublication } from "../utils/jobEvidenceStore";
 import {
   deliveryProposalSchema, JobMarketplaceError, makeProposal, optionsReviewSchema, outcomeSchema, pilotAgreementSchema,
@@ -57,7 +57,7 @@ async function readWorkflow(requestId: string, admin = false) {
     db.collection("siteTaskBriefs").doc(requestId).get(), savedWalkthrough(siteWalkthroughIdentity(requestId))]);
   const record = snapshot.data(); assertJob(record);
   const briefValue = brief.exists ? brief.data()! : null;
-  return { ...projectJobMarketplace(record, briefValue, walkthrough?.received ?? null), ...await readJobEvidence(requestId, briefValue, admin),
+  return { ...projectJobMarketplace(record, briefValue, walkthrough?.received ?? null), jobId: requestId, ...await readJobEvidence(requestId, briefValue, admin),
     managedEvidence: briefValue?.confirmedAtIso ? await loadManagedJobEvidence(requestId, scientificBriefDigest(briefValue)) : [] };
 }
 async function mutateWorkflow(requestId: string, actor: string, event: string,
@@ -181,11 +181,11 @@ router.post("/admin/:requestId/evidence", handle(async (req, res) => {
   const jobId = res.locals.jobWorkflowRequestId;
   const jobRef = db.collection("inboundRequests").doc(jobId);
   const briefRef = db.collection("siteTaskBriefs").doc(jobId);
-  const sessionRef = db.collection("captureUploadSessions").doc(`walkthrough-${jobId}`);
   const inventoryRef = db.collection("siteTaskItemInventories").doc(jobId);
   const request = await db.runTransaction(async tx => {
-    const [job, brief, session, inventory] = await Promise.all([tx.get(jobRef), tx.get(briefRef), tx.get(sessionRef), tx.get(inventoryRef)]);
+    const [job, brief, inventory] = await Promise.all([tx.get(jobRef), tx.get(briefRef), tx.get(inventoryRef)]);
     assertJob(job.data()); assertBrief(brief.exists ? brief.data()! : null);
+    const session = await tx.get(db!.collection("captureUploadSessions").doc(jobEvidenceCaptureSessionId(jobId, job.data()!)));
     const value = buildJobEvidenceRequest({ jobId, idempotencyKey: key, uid: res.locals.firebaseUser!.uid,
       question, brief: brief.data()!, record: job.data()!, inventory: inventory.exists ? inventory.data() as any : null, session: session.exists ? session.data()! : null });
     const ref = jobRef.collection("jobEvidenceRequests").doc(value.request_id);
@@ -217,6 +217,12 @@ router.post("/admin/:requestId/evidence/:evidenceId/:action", handle(async (req,
   if (action === "execute" && (!brief.exists || request.brief_digest !== scientificBriefDigest(brief.data()!))) {
     throw new JobMarketplaceError("evidence_scope_changed", "The job brief changed. Prepare the question against the current task before running evidence.");
   }
+  if (action === "execute" && request.testbed) {
+    const current = await readJobEvidence(jobId, brief.exists ? brief.data()! : null, true);
+    if (!current.evidence.some(item => item.requestId === id && item.current && item.testbedDigest === request.testbed.testbed_digest)) {
+      throw new JobMarketplaceError("evidence_scope_changed", "The task, source configuration or source permission changed. Refresh the current evidence before executing.");
+    }
+  }
   const body = action === "refresh" ? request : action === "execute"
     ? { request_digest: request.request_digest, authorized_by: { role: "human", identity: res.locals.firebaseUser!.uid } }
     : { request_digest: request.request_digest, cancelled_by: res.locals.firebaseUser!.uid };
@@ -239,8 +245,8 @@ async function assertProposalEvidence(requestId: string, input: z.infer<typeof d
     }
     const publication = await readJobEvidencePublication(requestId, row.reference.publicationDigest);
     if (publication.testbed_digest) {
-      const [session, job, inventory] = await Promise.all([db!.collection("captureUploadSessions").doc(`walkthrough-${requestId}`).get(),
-        db!.collection("inboundRequests").doc(requestId).get(), db!.collection("siteTaskItemInventories").doc(requestId).get()]);
+      const [job, inventory] = await Promise.all([db!.collection("inboundRequests").doc(requestId).get(), db!.collection("siteTaskItemInventories").doc(requestId).get()]);
+      const session = await db!.collection("captureUploadSessions").doc(jobEvidenceCaptureSessionId(requestId, job.data()!)).get();
       const context = brief.exists ? scientificContext(session.exists ? session.data()! : null, { brief: brief.data()!, record: job.data()!, inventory: inventory.exists ? inventory.data() as any : null }) : null;
       if (context?.testbed.testbed_digest !== publication.testbed_digest) throw new JobMarketplaceError("evidence_scope_changed", "This evidence refers to an earlier task or testbed configuration. Review its applicability before attaching it.");
     }

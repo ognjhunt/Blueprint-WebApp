@@ -155,6 +155,7 @@ function JobWorkspaceForToken({ token }: { token: string }) {
         <p className="ms-field-hint break-all">Run: {item.runId}{item.resultDigest ? ` · Result: ${item.resultDigest}` : ""}</p>
       </article>)}
     </section>}
+    {workflow.jobId && (workflow.evidence ?? []).some(item => item.current && ["information_required", "blocked", "unavailable"].includes(item.state)) ? <p className="ms-field-hint"><a className="ms-text-link" href={`/app/captures?jobId=${encodeURIComponent(workflow.jobId!)}`}>Add task-specific capture evidence</a> when Blueprint needs it. Use the account that owns this job; the existing recording permissions still apply.</p> : null}
     <BuyingRequirements key="requirements" locked={Boolean(workflow.agreement)} requirements={workflow.requirements} pending={pending} onSave={value => save("requirements", "PATCH", value)} />
 
     <section className="job-proposals" aria-labelledby="delivery-proposals-title">

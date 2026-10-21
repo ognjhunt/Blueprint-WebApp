@@ -75,6 +75,7 @@ export interface JobOptionsReview {
 export type MarketplaceJobStage = "job_submitted" | "brief_agreed" | "options_assessed" | "proposals_ready" | "pilot_agreed" | "results_recorded";
 export interface JobMarketplaceWorkflow {
   schemaVersion: "job_marketplace.v1";
+  jobId?: string;
   revision: string;
   requirements: JobBuyingRequirements;
   briefAgreed: boolean;

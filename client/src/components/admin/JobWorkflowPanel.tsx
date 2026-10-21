@@ -276,6 +276,7 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
                 <p className="break-all text-xs">Run {item.runId}{item.resultDigest ? ` · Result ${item.resultDigest}` : ""}</p>
                 <a className="text-sm underline" href={`/app/evaluation-runs/${encodeURIComponent(item.runId)}`}>Inspect exact run and evidence</a>
               </article>)}
+              {!workflow.evidenceContext?.question ? <p className="text-sm text-runway-mute"><a className="underline" href={`/app/captures?jobId=${encodeURIComponent(requestId)}`}>Prepare task-specific capture evidence</a> when the question needs new site observations. Use the existing capture task approval and compilation actions; recording permissions and source access still apply.</p> : null}
               <form aria-label="Ask an evidence question" className="grid gap-3" onSubmit={async event => {
                 event.preventDefault(); evidenceKey.current ||= crypto.randomUUID();
                 if (await mutate("/evidence", { question: question.trim() }, "Evidence question saved.", "POST", { "Idempotency-Key": evidenceKey.current })) evidenceKey.current = "";
