@@ -42,6 +42,7 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
   record();
   try {
     await page.goto("http://127.0.0.1:4181/contact/site-operator");
+    await page.getByText("Add job details and buying plans (optional)", { exact: true }).click();
     await page.locator("#start-task").fill("Move sealed cartons from the conveyor onto a pallet.");
     await page.locator("#start-location").fill(parameters.location);
     await page.locator("#start-email").fill(`reliability-${index + 1}@example.invalid`);
@@ -75,10 +76,16 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       await page.reload();
       await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
     }
-    const privateLink = page.getByRole("link", { name: "Open your job and assessment", exact: true });
-    await expect(privateLink).toBeVisible();
-    const target = await privateLink.getAttribute("href");
-    expect(target).toMatch(/\/capture-upload\//);
+    const canRecord = parameters.location.startsWith("Austin") && parameters.method === "phone";
+    const expectSaved = async () => {
+      await expect(page.getByRole("heading", { name: !parameters.location.startsWith("Austin") ? "We have your site."
+        : parameters.method === "visit" ? "We have it." : "Film the work area.", exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveCount(0);
+    };
+    await expectSaved();
+    const privateLink = page.getByRole("link", { name: "Open your job page", exact: true });
+    const target = canRecord ? await privateLink.getAttribute("href") : null;
+    if (canRecord) expect(target).toMatch(/\/capture-upload\//);
     if (parameters.boundary === "lost-response") {
       expect(submittedBodies).toHaveLength(2);
       expect(submittedBodies[1]).toBe(submittedBodies[0]);
@@ -94,17 +101,24 @@ for (const [index, parameters] of cases.entries()) test(`A-J-${String(index + 1)
       page = await start();
       await page.goto("http://127.0.0.1:4181/contact/site-operator");
     }
-    await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveAttribute("href", target!);
-    await page.getByRole("link", { name: "Open your job and assessment", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toBeVisible();
-    // A real read of the persisted projection must still authorize this same route.
-    const token = new URL(page.url()).pathname.split("/").pop()!;
-    const response = await context!.request.get(`http://127.0.0.1:4181/api/site-task-brief/${encodeURIComponent(token)}`);
-    expect(response.ok()).toBe(true);
-    expect(await response.json()).toMatchObject({ ready: true, scope: "owner" });
+    await expectSaved();
+    if (canRecord) {
+      await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveAttribute("href", target!);
+      await page.getByRole("link", { name: "Open your job page", exact: true }).click();
+      await expect(page.getByText("Upload or record the job to continue.", { exact: false })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
+      // The retained owner link authorizes the capture route; a draft is not an assessment before video arrives.
+      const token = new URL(page.url()).pathname.split("/").pop()!;
+      const response = await context!.request.get(`http://127.0.0.1:4181/api/site-task-brief/${encodeURIComponent(token)}`);
+      expect(response.ok()).toBe(true);
+      expect(await response.json()).toMatchObject({ scope: "owner" });
+    } else {
+      // Visit requests and regions awaiting transfer terms must not expose an active recording path.
+      await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveCount(0);
+    }
     await writeFile(path.join(output, `A-J-${String(index + 1).padStart(3, "0")}.json`), JSON.stringify({
       caseId: `A-J-${String(index + 1).padStart(3, "0")}`, parameters, layer: "real-backend/firebase-emulators/no-provider",
-      persistedProjectionAuthorized: true, submittedRequests: submittedBodies.length,
+      persistedProjectionAuthorized: canRecord ? true : null, submittedRequests: submittedBodies.length,
       uniqueIntakeIdentities: new Set(submittedBodies.map(body => JSON.parse(body).requestId)).size,
       privateIdentifiersRedacted: true, providerDispatch: false, notifications: "durable-outbox-only/no-delivery",
     }, null, 2));

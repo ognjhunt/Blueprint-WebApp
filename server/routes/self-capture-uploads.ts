@@ -1174,6 +1174,7 @@ router.post("/:token/self-capture", async (req: Request, res: Response) => {
     blockers: authorization.blockers,
     openQuestions: authorization.openQuestions,
     selfCaptureSwitchAvailable: authorization.captureMode === "site_visit",
+    recordingConsentAvailable: authorization.recordingConsentAvailable === true,
   });
 });
 

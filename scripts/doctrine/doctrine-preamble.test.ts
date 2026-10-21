@@ -41,7 +41,7 @@ describe("platform context preamble", () => {
   it("records the current owner override without changing historical shared doctrine", () => {
     // Founder decision, 2026-10-14: the free beta became an active program.
     expect(contents).toMatch(/Current owner direction.*October 21, 2026/i);
-    expect(contents).toMatch(/superseded for this owner-authorized website work/i);
+    expect(contents).toMatch(/preserves the capture-first foundation/i);
     const block = extractBlock(contents, "SHARED_PLATFORM_CONTEXT");
     expect(block).toMatch(/### Active Programs/);
     expect(block).toMatch(/Free Beta: Evaluated, Recommended Pilot/);
@@ -80,7 +80,8 @@ describe("repo-local agent guides agree with the preamble", () => {
 
   it("updates the AGENTS.md mission to describe the surface that ships", () => {
     const agents = read("AGENTS.md");
-    expect(agents).toMatch(/positioned as a recommended pilot/i);
+    expect(agents).toMatch(/show one recurring job on video/i);
+    expect(agents).toMatch(/Existing video analysis drafts the description and brief/i);
     expect(agents).toMatch(/read its preamble first; never edit inside a shared block/i);
   });
 });
