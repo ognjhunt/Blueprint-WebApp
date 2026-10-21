@@ -24,7 +24,7 @@ for (const width of [390, 1440]) {
     let withdrawn = false;
     let pilotIntent = { pilotConsideration: "subject_to_review", deploymentPath: "multiple_sites" };
     const proposal = {
-      id: "synthetic-proposal-1", revision: `sha256:${"a".repeat(64)}`, briefRevision: `sha256:${"b".repeat(64)}`,
+      id: "synthetic-proposal-1", revision: "a".repeat(64), briefRevision: "b".repeat(64),
       status: "available", providerName: "Synthetic delivery partner", scope: "Proposed carton transfer against site targets",
       equipment: "Fixture robot and gripper", software: "Fixture controller", deliveryCommitment: "Scope remains subject to the parties' agreement",
       installationCostUsd: null, monthlyCostUsd: null, currency: "USD", exclusions: "Fixture proposal only",
