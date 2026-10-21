@@ -480,7 +480,7 @@ export function PilotPreview() {
           <dl>
             <div><dt>Job</dt><dd>{example.tests}</dd></div>
             <div><dt>Possible approach</dt><dd>{example.embodiment}</dd></div>
-            <div><dt>Evidence needed</dt><dd>Existing evidence, targeted simulation or physical tests, as needed</dd></div>
+            <div><dt>Evidence needed</dt><dd>Site video, simulation comparisons and a measured physical pilot</dd></div>
             <div><dt>What you provide</dt><dd>{example.provide}</dd></div>
             <div><dt>Delivery scope</dt><dd>{example.teamProvides}</dd></div>
             <div><dt>Budget</dt><dd>Agreed with you before delivery proposals</dd></div>

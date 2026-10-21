@@ -234,7 +234,7 @@ describe("the qualified reply", () => {
     expect(email.body.startsWith("Hi Dana,\n")).toBe(true);
     expect(email.body).toContain("Thanks for confirming the job brief for Riverside DC");
     expect(email.body).toContain("upload it here: https://example.test/capture-upload/abc");
-    expect(email.body).toMatch(/existing evidence, simulation or physical checks where needed/);
+    expect(email.body).toMatch(/reconstruct the work area and evaluate compatible robots and policies in simulation/);
     expect(email.body).toMatch(/review proposals covering scope, total cost, timing and support/);
     expect(email.body).toMatch(/You choose the delivery partner/);
     expect(email.body).toMatch(/If no suitable option is supported, we explain what is missing/);
@@ -286,7 +286,7 @@ describe("the qualified reply", () => {
     const step = { kind: "self_capture", uploadUrl: "https://example.test/capture-upload/abc" } as const;
     const body = buildQualificationEmail({ firstName: "Dana", stage: "brief_confirmed", nextStep: step, jobCardPublished: false,
       triage: triage({ disposition: "qualified", blockers: [], blocking_field_ids: [] }) })!.body;
-    expect(body).toMatch(/assess suitable options and the evidence still needed/);
+    expect(body).toMatch(/Video is required before the site assessment/);
     expect(body).toMatch(/partners cannot discover it through the shared library/);
     expect(body).toMatch(/We ask before sharing details with a provider/);
     expect(body).toMatch(/publish its card from your job page/);

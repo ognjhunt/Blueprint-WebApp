@@ -2,15 +2,18 @@
 
 ## Current owner direction — October 21, 2026
 
-The owner explicitly requested: “please implement your recommendations into our website in FULL” after approving the job-first automation buying journey. This supersedes the older public-positioning requirements below that every job requires simulation, an invited team, or one-click booking without proposal review.
+The owner approved the job-first automation buying journey and then clarified: “we cant continue on without a video” and “a description could even come from the video analysis - we've already built this.” The existing capture-to-simulation product remains the foundation. Do not interpret the job-first direction as permission to replace video with a mandatory written description or to skip the site simulation and evaluation.
 
-The website now centers on: submit a job; agree the brief; assess suitable options using evidence and targeted testing where needed; compare delivery proposals; let the customer choose; agree a physical pilot; record its outcome. Deployment partners and technology providers have separate reviewed intake paths. The beta stays free, with no new fees, payment flows, provider spend, automatic contract award, or change to existing privacy permissions.
+The journey is: submit or record video of one recurring job; use the existing video analysis to draft the description and brief; prepare the capture-backed site simulation; compare supported robot/policy configurations; obtain comparable delivery proposals; let the customer choose; agree a physical pilot; record its outcome. A capture setup or saved draft may exist before upload, but assessment cannot continue without actual video. Blueprint should run accessible policies itself; a technology team supplies access or an integration when needed. Inviting every team to run its own test is not required.
 
-Commercial proposal selection is not a signed pilot agreement. A customer-reported outcome is not a scientific Physical Outcome Join. Existing evaluation admission, compatibility, rights, provenance and scientific proof controls remain binding. Approved embodiment artwork and application breadth are preserved.
+Keep the existing example and how-it-works experience and modify it to explain this journey. Preserve the approved illustrations, working capture/analysis/simulation paths, and simple UI. Deployment partners and technology providers have separate reviewed intake paths. The beta stays free, with no new fees, payments, provider spend, automatic contract award, or change to existing privacy permissions.
 
-The cross-repo shared blocks remain byte-locked historical snapshots; do not edit them or their lock locally. Their earlier public-journey descriptions are superseded for this owner-authorized website work. Canonical cross-repo synchronization remains a separately identified follow-up in `BlueprintCapturePipeline/doctrine/`; this change does not claim that synchronization occurred.
+Commercial proposal selection is not a signed pilot agreement. A customer-reported outcome is not a scientific Physical Outcome Join. Existing evaluation admission, compatibility, rights, provenance and scientific proof controls remain binding.
+
+The cross-repo shared blocks remain byte-locked historical snapshots; do not edit them or their lock locally. The independent-execution and proposal changes require canonical synchronization in `BlueprintCapturePipeline/doctrine/`; this checkout does not claim it occurred. The owner's clarification preserves the capture-first foundation rather than superseding it.
 
 Implementation scope and verification: `docs/design/job-first-automation-marketplace/IMPLEMENTATION.md`.
+
 
 
 > Repo-authoritative mirror of Blueprint world-model strategy. Reconcile material changes with Blueprint Knowledge.

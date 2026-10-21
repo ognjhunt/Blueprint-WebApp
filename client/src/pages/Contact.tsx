@@ -50,7 +50,7 @@ export default function Contact() {
           <details className="ms-task-interest ms-visitor-detail">
             <summary>What happens after applying?</summary>
             <p>We review your robot's capabilities against a real site task, then email the next step. Your application remains pending until manual approval. Applying or creating an account does not grant access. Approved teams see anonymized cards authorized when sites start a job; sites can edit or hide them afterward.</p>
-            <p>Blueprint assesses compatible options against the site's requirements. An evaluation, where needed, is evidence for a bounded decision. Before any delivery recommendation, the provider confirms the configuration, timing, site conditions and support it can offer.</p>
+            <p>Blueprint compares compatible robots and policies in a site simulation reconstructed from the site's video. Each evaluation is evidence for a bounded decision. Before any delivery recommendation, the provider confirms the configuration, timing, site conditions and support it can offer.</p>
             <p>Before an evaluation, confirm the task, robot and gripper, observation and action interfaces, and any adapter work. You serve your policy at one HTTPS URL that accepts a bearer token, and register it as a policy endpoint with that token; containers and private checkpoints are not admitted. Each evaluation is 200 hidden episodes.</p>
             <p>Evaluations are free during the beta. The customer chooses its delivery partner and agrees the physical pilot's scope, price, dates and terms with that company directly; Blueprint takes no cut. An invitation does not guarantee a run, a recommendation, or a deployment.</p>
             <p><a href="/agent-access.openapi.json">Technical API reference</a> · <a href="mailto:hello@tryblueprint.io">Ask about job fit or integration</a></p>
@@ -69,7 +69,7 @@ export default function Contact() {
     <>
       <SEO
         title="Submit a job | Blueprint"
-          description="Describe one recurring job at your site. Blueprint helps assess suitable options, test where needed and prepare a measured pilot. Video and budget details are optional to start."
+          description="Send video of one recurring job at your site. Blueprint drafts the brief from it, builds a site simulation and compares compatible robots and policies. No budget is required to start."
           canonical="/contact/site-operator"
       />
       <section className={`ms-inquiry ms-container${savedJob ? " ms-intake-saved" : ""}`}>
@@ -80,7 +80,7 @@ export default function Contact() {
           {!savedJob && <p className="ms-eyebrow">For site owners</p>}
           <h1>{savedJob ? "Your saved job" : "What work would you like automated?"}</h1>
           {!savedJob && <p className="ms-inquiry-description">
-            Describe one recurring job. We help you assess suitable options, test where needed and choose a delivery team for a measured pilot. A description is enough to start; video and budget details are optional. Free during the beta.
+            Send video of one recurring job. We draft the description from it, build a site simulation and compare compatible robots and policies. You choose the delivery team for a measured pilot. Free during the beta; no budget is required to start.
           </p>}
         </div>
         <div className="ms-inquiry-forms">
@@ -88,8 +88,8 @@ export default function Contact() {
           <details className="ms-task-interest ms-visitor-detail">
             <summary>How this works</summary>
             {savedJob ? <p className="ms-field-hint">Your private job link shows the brief, progress, follow-up questions and the next decision. Keep it to return.</p> : <><p className="ms-field-hint">
-              We draft a brief for you to correct, then assess suitable options and what evidence is needed.
-              Existing evidence, simulation or physical testing may help answer different questions.
+              We analyze your video and draft a brief for you to correct.
+              We then reconstruct your work area in simulation and test compatible robots and policies.
               Before proposals, we clarify the required result, budget and responsibilities. You choose the delivery partner and agree the pilot contract directly with them.
               Simulation is an estimate, not proof of physical performance or safety.
             </p>
@@ -102,7 +102,7 @@ export default function Contact() {
           {!savedJob && <details className="ms-task-interest ms-visitor-detail">
             <summary>What should I record?</summary>
             <p className="ms-field-hint">Show one complete task cycle, the objects and where they start and finish, then the surrounding work area. Existing footage is welcome. Avoid screens, paperwork and restricted areas, and get permission to record.</p>
-            <p className="ms-field-hint">If filming needs approval, submit the job description while you arrange permission. Have someone who knows the job review the brief; we ask for more footage or a call only to resolve missing details. <a href="/privacy">How footage is used</a>.</p>
+            <p className="ms-field-hint">If filming needs approval, arrange permission first or contact us for help. We need video before the site assessment can continue. Have someone who knows the job review the brief we draft from it. <a href="/privacy">How footage is used</a>.</p>
           </details>}
           <p className="ms-field-hint" style={{ marginTop: "20px" }}>
             {!savedJob && <><a className="ms-text-link" href="/partners">
@@ -116,7 +116,7 @@ export default function Contact() {
         </div>
         {!savedJob && <section className="ms-inquiry-fit" aria-labelledby="inquiry-fit-title">
           <h2 id="inquiry-fit-title">Is your job a fit?</h2>
-          <p>We start with bounded jobs, known objects and a work area that can be assessed. Not sure whether yours fits? Submit a description and we will identify what needs checking.</p>
+          <p>We start with bounded jobs, known objects and a work area that can be assessed. Not sure whether yours fits? Show us the work on video and we will assess the fit.</p>
           <JobFitQuestions />
           <a className="ms-text-link" href="/how-it-works#job-fit">Why each one matters <ArrowRight size={16} aria-hidden="true" /></a>
         </section>}

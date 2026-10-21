@@ -82,18 +82,21 @@ describe("build output", () => {
     expect(home).not.toMatch(/og:image" content="[^"]+\.webp"/);
   });
 
-  it("ships retained warehouse assets and the current job-fit process", () => {
+  it("prerenders the visual warehouse walkthrough with its original assets and updated process", () => {
     const html = fs.readFileSync(distPath("how-it-works/index.html"), "utf8");
     const manifest = JSON.parse(fs.readFileSync("docs/design/warehouse-pilot-sequence-2026-10-06.json", "utf8"));
     expect(html).toContain("Choose the approach that fits the job.");
     expect(html).toContain("Fixed arms, humanoids, wheeled humanoids and mobile manipulators can be considered where the specific setup is compatible.");
-    expect(html).toContain("A job does not automatically need a new simulation.");
+    expect(html).toContain("Warehouse walkthrough contents");
+    expect(html).toContain("The video is required to reconstruct and evaluate your site.");
+    expect(html).toContain("Compare suitable robots and policies in simulation.");
     expect(html).toContain("Compare delivery proposals");
     expect(html).not.toContain('id="evaluation-example"');
     expect(html).not.toContain('id="match-package"');
     for (const image of manifest.images) {
       const assetPath = image.asset.replace(/^client\/public\//, "");
       expect(fs.existsSync(distPath(assetPath))).toBe(true);
+      expect(html).toContain(`src="/${assetPath}"`);
     }
   });
 
@@ -247,13 +250,13 @@ describe("build output", () => {
     const siteHtml = fs.readFileSync(distPath("contact/site-operator/index.html"), "utf8");
     const robotHtml = fs.readFileSync(distPath("contact/robot-team/index.html"), "utf8");
     expect(homeHtml).toContain("Find the right way to automate your work.");
-    expect(homeHtml).toContain("A description is enough to start; video is optional.");
+    expect(homeHtml).toContain("Start with a video; we draft the job description from it.");
     expect(homeHtml).toContain("One job. A clear pilot plan.");
     expect(homeHtml).toContain("Quoted by a delivery partner and agreed before the pilot");
     expect(homeHtml).not.toContain("The same task, in simulation.");
     expect(homeHtml).toContain("Review comparable proposals");
     expect(homeHtml).toContain("Free during the beta");
-    expect(homeHtml).toContain("Existing evidence, targeted simulation or physical tests, as needed");
+    expect(homeHtml).toContain("Site video, simulation comparisons and a measured physical pilot");
     expect(homeHtml).not.toContain('aria-hidden="true">Book this pilot</span>');
     // Organization and WebSite structured data ride on the homepage.
     expect(homeHtml).toContain('"@type":"Organization"');
@@ -274,8 +277,8 @@ describe("build output", () => {
     expect(siteHtml).toContain("Loading your account and saved draft");
     expect(siteHtml).not.toContain('aria-label="Start a site capture"');
     expect(siteHtml).not.toContain('id="start-task"');
-    expect(siteHtml).toContain("Describe one recurring job. We help you assess suitable options, test where needed and choose a delivery team for a measured pilot.");
-    expect(siteHtml).toContain("A description is enough to start; video and budget details are optional.");
+    expect(siteHtml).toContain("Send video of one recurring job. We draft the description from it, build a site simulation and compare compatible robots and policies.");
+    expect(siteHtml).toContain("Free during the beta; no budget is required to start.");
     expect(siteHtml).toContain("How this works");
     // The country comes from the address; its select opens only to correct it.
     expect(siteHtml).not.toContain('id="start-region"');
@@ -327,7 +330,7 @@ describe("build output", () => {
     // moved would quietly make the whole check vacuous. "Site-funded Task
     // Evaluation Run" left the site page when it stopped leading with a screen.
     expect(browserJavaScript).toContain("Find the right way to automate your work.");
-    expect(browserJavaScript).toContain("We draft a brief for you to correct, then assess suitable options and what evidence is needed.");
+    expect(browserJavaScript).toContain("We analyze your video and draft a brief for you to correct.");
   });
 
   it("keeps charting, Firebase and Sentry out of what a marketing page preloads", () => {

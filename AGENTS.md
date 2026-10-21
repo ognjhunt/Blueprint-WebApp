@@ -2,15 +2,18 @@
 
 ## Current owner direction — October 21, 2026
 
-The owner explicitly requested: “please implement your recommendations into our website in FULL” after approving the job-first automation buying journey. This supersedes the older public-positioning requirements below that every job requires simulation, an invited team, or one-click booking without proposal review.
+The owner approved the job-first automation buying journey and then clarified: “we cant continue on without a video” and “a description could even come from the video analysis - we've already built this.” The existing capture-to-simulation product remains the foundation. Do not interpret the job-first direction as permission to replace video with a mandatory written description or to skip the site simulation and evaluation.
 
-The website now centers on: submit a job; agree the brief; assess suitable options using evidence and targeted testing where needed; compare delivery proposals; let the customer choose; agree a physical pilot; record its outcome. Deployment partners and technology providers have separate reviewed intake paths. The beta stays free, with no new fees, payment flows, provider spend, automatic contract award, or change to existing privacy permissions.
+The journey is: submit or record video of one recurring job; use the existing video analysis to draft the description and brief; prepare the capture-backed site simulation; compare supported robot/policy configurations; obtain comparable delivery proposals; let the customer choose; agree a physical pilot; record its outcome. A capture setup or saved draft may exist before upload, but assessment cannot continue without actual video. Blueprint should run accessible policies itself; a technology team supplies access or an integration when needed. Inviting every team to run its own test is not required.
 
-Commercial proposal selection is not a signed pilot agreement. A customer-reported outcome is not a scientific Physical Outcome Join. Existing evaluation admission, compatibility, rights, provenance and scientific proof controls remain binding. Approved embodiment artwork and application breadth are preserved.
+Keep the existing example and how-it-works experience and modify it to explain this journey. Preserve the approved illustrations, working capture/analysis/simulation paths, and simple UI. Deployment partners and technology providers have separate reviewed intake paths. The beta stays free, with no new fees, payments, provider spend, automatic contract award, or change to existing privacy permissions.
 
-The cross-repo shared blocks remain byte-locked historical snapshots; do not edit them or their lock locally. Their earlier public-journey descriptions are superseded for this owner-authorized website work. Canonical cross-repo synchronization remains a separately identified follow-up in `BlueprintCapturePipeline/doctrine/`; this change does not claim that synchronization occurred.
+Commercial proposal selection is not a signed pilot agreement. A customer-reported outcome is not a scientific Physical Outcome Join. Existing evaluation admission, compatibility, rights, provenance and scientific proof controls remain binding.
+
+The cross-repo shared blocks remain byte-locked historical snapshots; do not edit them or their lock locally. The independent-execution and proposal changes require canonical synchronization in `BlueprintCapturePipeline/doctrine/`; this checkout does not claim it occurred. The owner's clarification preserves the capture-first foundation rather than superseding it.
 
 Implementation scope and verification: `docs/design/job-first-automation-marketplace/IMPLEMENTATION.md`.
+
 
 
 ## Mission
@@ -21,17 +24,16 @@ review, and bounded case-study surface for Arm Decision Proof v1. Both are
 active programs (founder decision 2026-10-14). The product remains one Task
 Evaluation Run.
 
-Its **public surface** is positioned as a recommended pilot: a site shows one
-recurring task, invited robot teams evaluate it in simulation for free, and
-Blueprint recommends one team whose evaluation on that job passed; the site
-books it in one step. Per the founder decision of 2026-10-13 the beta is
-completely free for sites and robot teams (no site fee, no paid private
-evaluations, balances, top-ups or checkout), sign-up is open for sites (and
-Blueprint also onboards sites by hand), and robot teams join by invitation. The
-physical pilot is agreed directly between the site and the team, with no
-Blueprint cut. That positioning is owner-directed, deployed, covered by tests, and since
-2026-10-14 part of the shared doctrine blocks, which are cross-repo and
-byte-locked. Read the preamble at the top of `PLATFORM_CONTEXT.md` first.
+Its **public surface** helps a site show one recurring job on video, receive a
+capture-backed robot/policy comparison, and choose a deliverable pilot from
+comparable proposals. Existing video analysis drafts the description and brief;
+the site corrects what is wrong instead of writing a mandatory description.
+Blueprint runs supported accessible policies independently, and technology
+teams supply access or integrations where needed. The beta remains completely
+free for sites and robot teams, with no site fee, paid private evaluations,
+balances, top-ups or checkout. The customer and deployment partner agree the
+physical pilot directly, with no Blueprint cut. Read the current owner direction
+above and the preamble in `PLATFORM_CONTEXT.md` before historical shared blocks.
 
 This repo must reinforce the platform doctrine in:
 

@@ -32,7 +32,7 @@ vi.mock("../logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-const { draftBrief, saveBrief, getBrief, mergeBriefProposals, mergeProposals, confirmBrief } =
+const { draftBrief, saveBrief, getBrief, mergeBriefProposals, mergeProposals, confirmBrief, PLACEHOLDER_TASK_SUMMARY } =
   await import("../utils/siteTaskBrief");
 
 const REQUEST = "req-1";
@@ -120,8 +120,15 @@ describe("mergeBriefProposals", () => {
 
   it("preserves the operator-authored summary while merging later evidence", async () => {
     await saveBrief(draftBrief({ requestId: REQUEST, summary: "Move cartons", captureMode: "self_capture", proposed: [] }));
-    await mergeBriefProposals({ requestId: REQUEST, proposals: [intakeStability] });
+    await mergeBriefProposals({ requestId: REQUEST, proposals: [intakeStability], observedSummary: "A different reading of the work" });
     expect((await getBrief(REQUEST))!.summary).toBe("Move cartons");
+  });
+
+  it("drafts an unnamed task from the existing footage reading without requiring typed prose", async () => {
+    await saveBrief(draftBrief({ requestId: REQUEST, summary: PLACEHOLDER_TASK_SUMMARY, captureMode: "self_capture", proposed: [] }));
+    await mergeBriefProposals({ requestId: REQUEST, proposals: [], observedSummary: "Move cartons from the tote into trays." });
+    expect((await getBrief(REQUEST))!.summary).toBe("Move cartons from the tote into trays.");
+    expect((await getBrief(REQUEST))!.confirmedAtIso).toBeNull();
   });
 
   it("never touches a brief the operator has confirmed", async () => {

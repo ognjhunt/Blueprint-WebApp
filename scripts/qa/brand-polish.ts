@@ -198,7 +198,7 @@ export function collectBannedCopyHits(text: string): string[] {
 // content — the route stays in this sweep to keep verifying the redirect
 // itself (HTTP status, console health, no broken links) still works.
 const canonicalPublicQaRoutes: PublicQaRoute[] = [
-  { label: "How it works", path: "/how-it-works", canonicalPath: "/how-it-works", expectedHeading: "Start with the work. Get a clear next step.", requiredCtas: [{ label: "Submit a job", hrefStartsWith: "/contact/site-operator" }, { label: "Become a partner", hrefStartsWith: "/partners" }] },
+  { label: "How it works", path: "/how-it-works", canonicalPath: "/how-it-works", expectedHeading: "Start with your task.", requiredCtas: [{ label: "Submit a job", hrefStartsWith: "/contact/site-operator" }, { label: "Become a partner", hrefStartsWith: "/partners" }] },
   { label: "Beta program", path: "/beta", canonicalPath: "/beta", expectedHeading: "Start with one real job.", requiredCtas: [{ label: "Submit a job", hrefStartsWith: "/contact/site-operator" }, { label: "For partners", hrefStartsWith: "/partners" }] },
   { label: "Home", path: "/", canonicalPath: "/", minVisibleTextLength: 300, expectedHeading: "Find the right way to automate your work.", requiredCtas: [{ label: "Submit a job", hrefStartsWith: "/contact/site-operator" }, { label: "For partners", hrefStartsWith: "/partners" }] },
   { label: "Site inquiry", path: "/contact/site-operator", canonicalPath: "/contact/site-operator", expectedHeading: "What work would you like automated?", requiredCtas: [{ label: "Deliver or build robot systems? Become a partner", hrefStartsWith: "/partners" }] },

@@ -8,6 +8,7 @@ import verifyFirebaseToken from "../middleware/verifyFirebaseToken";
 import { requireAdminRole } from "../middleware/requireAdminRole";
 import { verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthrough";
 import { logger } from "../logger";
 import {
   deliveryProposalSchema, JobMarketplaceError, makeProposal, optionsReviewSchema, outcomeSchema, pilotAgreementSchema,
@@ -49,9 +50,10 @@ function assertCurrentBrief(proposal: { briefRevision: string }, brief: Record<s
 }
 async function readWorkflow(requestId: string) {
   if (!db) throw new JobMarketplaceError("store_unavailable", "Job details are temporarily unavailable.", 503);
-  const [snapshot, brief] = await Promise.all([db.collection("inboundRequests").doc(requestId).get(), db.collection("siteTaskBriefs").doc(requestId).get()]);
+  const [snapshot, brief, walkthrough] = await Promise.all([db.collection("inboundRequests").doc(requestId).get(),
+    db.collection("siteTaskBriefs").doc(requestId).get(), savedWalkthrough(siteWalkthroughIdentity(requestId))]);
   const record = snapshot.data(); assertJob(record);
-  return projectJobMarketplace(record, brief.exists ? brief.data()! : null);
+  return projectJobMarketplace(record, brief.exists ? brief.data()! : null, walkthrough?.received ?? null);
 }
 async function mutateWorkflow(requestId: string, actor: string, event: string,
   mutate: (state: StoredJobMarketplace, brief: Record<string, any> | null, now: string, record: Record<string, any>) => StoredJobMarketplace) {
@@ -60,6 +62,8 @@ async function mutateWorkflow(requestId: string, actor: string, event: string,
   const ref = store.collection("inboundRequests").doc(requestId);
   const briefRef = store.collection("siteTaskBriefs").doc(requestId);
   const eventRef = ref.collection("jobWorkflowEvents").doc(randomUUID());
+  const walkthrough = await savedWalkthrough(siteWalkthroughIdentity(requestId));
+  const captureReceived = walkthrough?.received ?? null;
   return store.runTransaction(async transaction => {
     const snapshot = await transaction.get(ref);
     const briefSnap = await transaction.get(briefRef);
@@ -69,7 +73,13 @@ async function mutateWorkflow(requestId: string, actor: string, event: string,
     // Monotone event timestamps also make successive identical quote edits different revisions.
     const now = new Date(Math.max(Date.now(), (Date.parse(before.updatedAtIso) || 0) + 1)).toISOString();
     const changed = mutate(before, brief, now, record);
-    if (workflowDigest(changed) === workflowDigest(before)) return projectJobMarketplace(record, brief);
+    if (workflowDigest(changed) === workflowDigest(before)) return projectJobMarketplace(record, brief, captureReceived);
+    if (["options_reviewed", "proposal_published", "proposal_revised", "proposal_selected", "pilot_agreement_recorded"].includes(event)
+      && captureReceived !== true) {
+      throw new JobMarketplaceError(captureReceived === null ? "capture_status_unavailable" : "video_required",
+        captureReceived === null ? "We could not read the saved recording. Try again before continuing this assessment."
+          : "Upload or record the work before assessing options or arranging a deployment.", captureReceived === null ? 503 : 409);
+    }
     const next = { ...changed, updatedAtIso: now, updatedBy: actor };
     if (Buffer.byteLength(JSON.stringify({ ...record, job_marketplace: next }), "utf8") > 800_000) {
       throw new JobMarketplaceError("proposal_record_limit", "This job's descriptions are too large to save safely. Shorten the proposal descriptions or contact Blueprint to archive its history.");
@@ -82,7 +92,7 @@ async function mutateWorkflow(requestId: string, actor: string, event: string,
     transaction.set(eventRef, { schemaVersion: "job_marketplace_event.v1", requestId, kind: event, actor,
       atIso: now, previousRevision: workflowDigest(before), nextRevision: workflowDigest(next),
       previousState, nextState, changedProposals });
-    return projectJobMarketplace({ ...record, job_marketplace: next }, brief);
+    return projectJobMarketplace({ ...record, job_marketplace: next }, brief, captureReceived);
   });
 }
 

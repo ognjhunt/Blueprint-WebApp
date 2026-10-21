@@ -1317,12 +1317,15 @@ describe("capture-first workspace intake", () => {
     captureMode: "self_capture", captureRegion: "us", hasExistingFootage: false,
     consentAttestation: { granted: true, statementVersion: "2026-09-18.v1" },
   };
-  it("accepts authorized capture without a required description or goal while refusing empty prose", async () => {
+  it("accepts authorized capture or recording setup without a required description or goal", async () => {
     expect((await api("/capture-start", "site-1", { ...capture, taskStatement: "", hasExistingFootage: true })).status).toBe(201);
     expect(state.intakes.at(-1).body).toMatchObject({ taskStatement: "", taskDescription: "", hasExistingFootage: true,
       consentAttestation: capture.consentAttestation, siteTaskGates: {}, siteTaskSpec: {} });
     expect((await api("/capture-start", "site-1", { ...capture, taskStatement: "", descriptionOnly: true,
-      consentAttestation: null, acceptedTerms: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" } })).status).toBe(400);
+      consentAttestation: null, acceptedTerms: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" } })).status).toBe(201);
+    expect(state.intakes.at(-1).body).toMatchObject({ taskStatement: "", descriptionOnly: true, consentAttestation: null });
+    expect((await api("/capture-start", "site-1", { ...capture, captureMode: "site_visit", taskStatement: "", descriptionOnly: true,
+      consentAttestation: null, acceptedTerms: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" } })).status).toBe(201);
     expect((await api("/capture-start", "site-1", { ...capture, taskStatement: "", consentAttestation: null })).status).toBe(400);
   });
   it("preserves explicit Terms and description authority for a signed-in prose submission", async () => {

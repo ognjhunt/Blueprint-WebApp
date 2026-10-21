@@ -252,7 +252,7 @@ describe("SiteCaptureStart and the country", () => {
       expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
       fireEvent.change(location, { target: { value: "Austin, TX" } });
       fireEvent.submit(screen.getByRole("form"));
-      await screen.findByText("Your job description is saved.", { selector: "h2" });
+      await screen.findByText("Film the work area.", { selector: "h2" });
       expect(postsTo("/api/inbound-request")).toHaveLength(1);
       expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body)).toMatchObject({
         siteLocation: "Austin, TX", captureRegion: "us", descriptionOnly: true, consentAttestation: null,
@@ -359,7 +359,7 @@ function chooseUploadNow() {
   fireEvent.click(document.querySelector("#start-method-upload")!);
 }
 
-it("saves a description with explicit site authority and no recording or fee grant", async () => {
+it("prepares the phone capture with explicit description authority and no recording or fee grant", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: "/capture-upload/tok.signed" } }]);
   await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace/);
@@ -368,28 +368,38 @@ it("saves a description with explicit site authority and no recording or fee gra
   expect(document.querySelector("#start-description-authority")).toBeNull();
   expect(screen.getByText(/I am authorized to share this job description/)).toBeInTheDocument();
   fireEvent.submit(screen.getByRole("form"));
-  await screen.findByRole("link", { name: "Open your job and assessment" });
+  await screen.findByRole("heading", { name: "Film the work area." });
   const payload = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
   expect(payload).toMatchObject({ descriptionOnly: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" }, consentAttestation: null });
   expect(payload.matchFee).toBeUndefined();
   expect(upload.send).not.toHaveBeenCalled();
-  expect(screen.queryByRole("link", { name: /camera|uploader/i })).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Open your job page" })).toHaveAttribute("href", "/capture-upload/tok.signed");
+  expect(screen.queryByRole("link", { name: "Open your job and assessment" })).not.toBeInTheDocument();
 });
 
-it("does not require a description or goal, but asks for usable work before a prose-only submission", async () => {
-  signedIn({ workspaceType: "site_operator" }, []);
+it("prepares the phone capture without a written description and waits for the video", async () => {
+  signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl: "/capture-upload/tok.signed" } }]);
   await renderReady(<SiteCaptureStart />);
   await screen.findByText(/Saving to your workspace/);
   expect(document.querySelector("#start-task")).not.toBeRequired();
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
   fireEvent.submit(screen.getByRole("form"));
-  expect(await screen.findByRole("alert")).toHaveTextContent("Add a short explanation of the work to start.");
-  expect(postsTo("/api/workspace/capture-start")).toHaveLength(0);
+  await screen.findByRole("heading", { name: "Film the work area." });
+  expect(JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body)).toMatchObject({
+    taskStatement: "", taskDescription: "", captureMode: "self_capture", hasExistingFootage: false,
+    descriptionOnly: true, consentAttestation: null,
+  });
+  expect(screen.getByText(/Assessment starts once we receive the video/)).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Open your job and assessment" })).not.toBeInTheDocument();
+  expect(upload.send).not.toHaveBeenCalled();
 });
 
 it("asks one question about the video and offers no separate rights step", async () => {
   await renderReady(<SiteCaptureStart />);
-  expect(screen.getByRole("group", { name: "How will we see the task?" })).toBeInTheDocument();
+  const videoChoices = screen.getByRole("group", { name: "How will we see the task?" });
+  expect(videoChoices.closest("details")).toBeNull();
+  expect(document.querySelector("#start-task")!.closest("details")).not.toHaveAttribute("open");
+  expect(screen.getByText(/We use it to draft the description/)).toBeInTheDocument();
   expect(screen.getByRole("radio", { name: "Film it later on a phone" })).toBeChecked();
   expect(document.querySelector("#start-filmer")).toBeNull();
   expect(document.querySelector("#start-name")).toBeNull();
@@ -487,9 +497,10 @@ it("moves the laptop from the QR code to the brief once the phone's recording la
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } });
   fireEvent.submit(screen.getByRole("form"));
-  await screen.findByText("Your job description is saved.", { selector: "h2" });
-  expect(screen.getByRole("link", { name: "Open your job and assessment" })).toHaveAttribute("href", captureUrl);
-  expect(screen.getByText(/add footage only when it resolves a missing fact/i)).toBeInTheDocument();
+  await screen.findByText("Film the work area.", { selector: "h2" });
+  expect(screen.getByRole("link", { name: "Open your job page" })).toHaveAttribute("href", captureUrl);
+  expect(screen.queryByRole("link", { name: "Open your job and assessment" })).toBeNull();
+  expect(screen.getByText(/Assessment starts once we receive the video/)).toBeInTheDocument();
   expect(screen.queryByText(/No app and nothing to install/)).toBeNull();
 
   received = true;
@@ -751,7 +762,7 @@ it("recovers the same intake identity and draft after a lost response and reload
   await screen.findByText(/Saving to your workspace/);
   expect(document.querySelector<HTMLTextAreaElement>("#start-task")!.value).toBe("Pack cartons");
   fireEvent.submit(screen.getByRole("form"));
-  await screen.findByRole("link", { name: "Open your job and assessment" });
+  await screen.findByRole("heading", { name: "Film the work area." });
   expect(postsTo("/api/workspace/capture-start")[1][1].body).toBe(original);
 });
 
@@ -812,7 +823,7 @@ it("replays uncertain original answers, ignoring later edits", async () => {
   // A guest's video waits for the account, so there is no newly selected file to attach.
   expect(document.querySelector("#start-footage")).toBeNull();
   fireEvent.submit(screen.getByRole("form"));
-  await screen.findByRole("link", { name: "Open your job and assessment" });
+  await screen.findByRole("heading", { name: "Film the work area." });
   expect(upload.send).not.toHaveBeenCalled();
   expect(screen.getByText(/email it to original@example.invalid/)).toBeInTheDocument();
   const posts = postsTo("/api/inbound-request");
@@ -887,7 +898,7 @@ it("preserves optional job frequency and buying stage across reload and submits 
   expect(document.querySelector("#start-readiness")).toHaveValue("ready_for_proposals");
   expect(document.querySelector('[name*="Budget"]')).toBeNull();
   fireEvent.submit(screen.getByRole("form"));
-  await screen.findByRole("link", { name: "Open your job and assessment" });
+  await screen.findByRole("heading", { name: "Film the work area." });
   expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body)).toMatchObject({
     siteTaskSpec: { jobFrequency: "200 cartons each weekday", purchaseReadiness: "ready_for_proposals" },
     descriptionOnly: true,
@@ -912,7 +923,7 @@ it("A-R-033 v2 a pre-mounted tab replays the same uncertain request despite edit
   await screen.findByText("Uncertain save");
   fireEvent.change(second.container.querySelector("#start-company")!, { target: { value: "Another edit after dispatch" } });
   fireEvent.submit(second.container.querySelector("form")!);
-  await screen.findByRole("link", { name: "Open your job and assessment" });
+  await screen.findByRole("heading", { name: "Film the work area." });
   const posts = postsTo("/api/inbound-request");
   expect(posts).toHaveLength(2);
   expect(posts[1][1].body).toBe(posts[0][1].body);
@@ -935,7 +946,7 @@ it("RETURN-PERSISTED-RELOAD-001 keeps restored fields in both stores before subm
   expect(restored.draft).toEqual(previous.draft);
   expect(durability.rows.get(key)?.value?.draft).toEqual(previous.draft);
   fireEvent.submit(screen.getByRole("form"));
-  await screen.findByRole("heading", {name: "Your job description is saved."});
+  await screen.findByRole("heading", {name: "Film the work area."});
   expect(postsTo("/api/inbound-request")).toHaveLength(1);
   expect(JSON.parse(postsTo("/api/inbound-request")[0][1].body)).toMatchObject({requestId: previous.requestId,
     retryToken: previous.retryToken, taskStatement: "Restored task"});
@@ -968,7 +979,7 @@ it.each([true, false])("shows the exact card text before starting and honors the
     expect(document.querySelector("#start-listing-consent")).not.toHaveTextContent(/authorize/);
   }
   fireEvent.submit(screen.getByRole("form"));
-  await screen.findByRole("link", { name: "Open your job and assessment" });
+  await screen.findByRole("heading", { name: "Film the work area." });
   const body = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
   expect("publicTaskListing" in body).toBe(!privateHandling);
   if (!privateHandling) expect(body.publicTaskListing).toEqual({ consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(task) });

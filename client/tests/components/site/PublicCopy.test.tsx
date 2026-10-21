@@ -36,8 +36,8 @@ describe("public managed-pilot copy", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: /Submit a job/i }).length).toBeGreaterThan(0);
 
-    expect(container).toHaveTextContent(/Describe the work/i);
-    expect(container).toHaveTextContent(/Assess suitable options/i);
+    expect(container).toHaveTextContent(/Show us the work/i);
+    expect(container).toHaveTextContent(/Compare robots in simulation/i);
     expect(container).toHaveTextContent(/Free during the beta/i);
     expect(container).toHaveTextContent(/Choose and measure a pilot/i);
     expect(container).toHaveTextContent(/You choose whether to proceed/i);

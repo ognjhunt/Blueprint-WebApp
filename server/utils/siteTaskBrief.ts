@@ -134,7 +134,8 @@ function nowIso() {
 /**
  * The summary a brief starts with when the site sent footage and no
  * description (`inbound-request.ts`). It says nothing about the job, so it is
- * never screened or confirmed as the job: the site is asked for one sentence.
+ * never screened or confirmed as the job. The existing footage reading drafts
+ * the description when it arrives; the site can correct that reading.
  */
 export const PLACEHOLDER_TASK_SUMMARY = "Your site task";
 
@@ -283,6 +284,8 @@ export function mergeProposals(
 export async function mergeBriefProposals(params: {
   requestId: string;
   proposals: readonly ProposedGateAnswer[];
+  /** Reuse the footage reader's description only while the task is unnamed. */
+  observedSummary?: string;
   source?: { capture_id: string; evidence_digest: string; brief_digest: string };
 }): Promise<SiteTaskBriefRecord | null> {
   if (!db) return null;
@@ -296,6 +299,7 @@ export async function mergeBriefProposals(params: {
     if (params.source) {
       const sourceRef = ref.collection("footageProposals").doc(humanDecisionDigest(params.source));
       transaction.set(sourceRef, { source: params.source, proposals: params.proposals,
+        ...(params.observedSummary ? { observedSummary: params.observedSummary } : {}),
         state: brief.confirmedAtIso ? "owner_review_required" : humanDecisionDigest(brief) !== params.source.brief_digest ? "stale_revision" : "proposed" });
       if (humanDecisionDigest(brief) !== params.source.brief_digest) return null;
     }
@@ -308,13 +312,15 @@ export async function mergeBriefProposals(params: {
     const proposed = mergeProposals(brief.proposed, incoming);
     const next: SiteTaskBriefRecord = {
       ...brief,
+      ...(isPlaceholderSummary(brief.summary) && params.observedSummary?.trim()
+        ? { summary: params.observedSummary.trim().slice(0, 2000) } : {}),
       proposed,
       unresolved: unresolvedGates(brief.captureMode, proposed),
       draftedFrom: [...new Set([...brief.draftedFrom, ...proposed.map((answer) => answer.basis)])],
     };
     transaction.set(ref, next);
     const factDigest = (rows: readonly ProposedGateAnswer[]) => humanDecisionDigest(rows.map(({ fieldId, value, basis }) => ({ fieldId, value, basis })).sort((a, b) => a.fieldId.localeCompare(b.fieldId)));
-    const changedFacts = factDigest(brief.proposed) !== factDigest(proposed);
+    const changedFacts = brief.summary !== next.summary || factDigest(brief.proposed) !== factDigest(proposed);
     transaction.set(requestRef, { capture_coverage_pending: true,
       ...(changedFacts && requestSnapshot.data()?.pilot_recommendation ? {
         pilot_recommendation: { ...requestSnapshot.data()!.pilot_recommendation, reviewRequired: true },

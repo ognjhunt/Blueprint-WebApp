@@ -1,8 +1,8 @@
 # Blueprint
 
-> Find the right way to automate your work. Describe one recurring job, assess suitable options, test where needed and agree a measured pilot.
+> Find the right way to automate your work. Send video of one recurring job, compare robots and policies in a site simulation, and agree a measured pilot.
 
-Blueprint helps sites define recurring work, assess compatible options using appropriate evidence, compare delivery proposals and coordinate a measured pilot. A description is enough to start; video is optional. Customers choose and contract with delivery partners, which install and support the system. Deployment partners and robot technology providers have separate reviewed application paths. The beta remains free for sites and partners, with no Blueprint cut of physical pilot costs. Simulation is a bounded estimate and never certifies physical performance or safety. Customer-reported pilot outcomes remain separate from authoritative scientific Physical Outcome Joins.
+Blueprint starts with video of recurring work, analyzes it to draft the job description, reconstructs the site in simulation and evaluates compatible robots and policies. Video is required before the site assessment can continue; a description alone does not replace it. Blueprint helps sites compare delivery proposals and coordinate a measured pilot. Customers choose and contract with delivery partners, which install and support the system. Deployment partners and robot technology providers have separate reviewed application paths. The beta remains free for sites and partners, with no Blueprint cut of physical pilot costs. Simulation is a bounded estimate and never certifies physical performance or safety. Customer-reported pilot outcomes remain separate from authoritative scientific Physical Outcome Joins.
 
 ## Public pages
 

@@ -98,7 +98,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   task_received: {
     subject: "We have your Blueprint job — here is your link",
-    body: (url) => `Thanks for sending us your job. This private link shows the same job and lets you correct details when needed. We start with the job brief, then assess suitable options and what evidence is needed. You can also reply to a job conversation without completing another form. You can add footage later if it resolves a missing fact and you have recording permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\nBlueprint will follow through with meaningful findings and questions that need your input.`,
+    body: (url) => `Thanks for sending us your job. This private link shows the same job and lets you correct details when needed. We need video of the work before the site assessment can continue. We analyze the recording, draft a job brief for you to correct, then reconstruct the site and compare compatible robots and policies in simulation. You can also reply to a job conversation without completing another form. If your video is not uploaded yet, use your job page to record or upload it after arranging filming permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\nBlueprint will follow through with meaningful findings and questions that need your input.`,
   },
   video_received: {
     subject: "We received your Blueprint walkthrough",

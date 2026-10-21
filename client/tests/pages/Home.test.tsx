@@ -11,13 +11,13 @@ describe("Site-led homepage", () => {
     const starts = screen.getAllByRole("link", { name: "Submit a job" });
     expect(starts).toHaveLength(2);
     starts.forEach(link => expect(link).toHaveAttribute("href", "/contact/site-operator"));
-    expect(screen.getByText(/Free during the beta.*video is optional/)).toBeInTheDocument();
+    expect(screen.getByText(/Free during the beta.*Start with a video/)).toBeInTheDocument();
     // Robot teams reach their own page from the nav, not from the homepage.
     expect(screen.queryByRole("link", { name: /robot-team beta|early access/i })).not.toBeInTheDocument();
     // One example of the deliverable, clearly marked, instead of staged imagery.
     expect(screen.getAllByRole("tab").map(tab => tab.textContent)).toEqual(["Warehouse", "Café", "Laundromat", "Factory", "Hotel", "Lab"]);
     const panel = screen.getByRole("tabpanel");
-    expect(panel).toHaveTextContent(/Job.*full totes.*Possible approach.*Humanoid robot.*Evidence needed.*as needed.*Budget.*before delivery proposals.*Pilot price.*delivery partner.*Support/);
+    expect(panel).toHaveTextContent(/Job.*full totes.*Possible approach.*Humanoid robot.*Evidence needed.*Site video.*simulation comparisons.*Budget.*before delivery proposals.*Pilot price.*delivery partner.*Support/);
     expect(screen.getByText(/not available offers or measured results/)).toBeInTheDocument();
     expect(panel).not.toHaveTextContent(/Passed on your task/);
     expect(screen.queryByText("Book this pilot")).not.toBeInTheDocument();
@@ -133,12 +133,12 @@ describe("Site-led homepage", () => {
     }
   });
 
-  it("shows three customer steps without requiring simulation for every job", () => {
+  it("shows three customer steps from video through simulation to a pilot", () => {
     render(<Home />);
     const steps = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(steps).toHaveLength(3);
-    expect(steps[0]).toHaveTextContent(/Describe the work.*agree a job brief/);
-    expect(steps[1]).toHaveTextContent(/Assess suitable options.*delivery partners can supply and support/);
+    expect(steps[0]).toHaveTextContent(/Show us the work.*analyze the video.*draft a job brief/);
+    expect(steps[1]).toHaveTextContent(/Compare robots in simulation.*delivery partners can supply and support/);
     expect(steps[2]).toHaveTextContent(/Choose and measure a pilot.*Review comparable proposals/);
     expect(screen.getByText(/A simulation result is an estimate/)).toBeInTheDocument();
   });

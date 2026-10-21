@@ -7,6 +7,14 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+
+async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
+  const field = page.locator("#start-task");
+  if (!(await field.isVisible())) {
+    await page.getByText("Add job details and buying plans (optional)", { exact: true }).click();
+  }
+  await field.fill(value);
+}
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputRoot = path.resolve(process.env.RELIABILITY_DURABILITY_OUTPUT || "output/reliability-program/intake-durability");
 const sourcePaths = ["client/src/components/site/SiteCaptureStart.tsx", "client/src/lib/siteCaptureDraft.ts", "client/src/lib/siteCaptureDurability.ts", "client/src/contexts/AuthContext.tsx", "scripts/qa/reliability-local-app.ts"];
@@ -84,11 +92,11 @@ for (const [index, boundary] of ["acknowledged-upload", "browser-kill-after-stor
                 });
             }
             await page.goto("http://127.0.0.1:4181/contact/site-operator", { waitUntil: "networkidle" });
-            await page.locator("#start-task").fill("Owned synthetic test pattern: no observed robot task");
+            await fillJobDescription(page, "Owned synthetic test pattern: no observed robot task");
             await page.locator("#start-location").fill("Austin TX");
             await page.locator("#start-email").fill(`owned-upload-${index + 1}-${Date.now()}@example.invalid`);
             await page.locator("#start-company").fill("Owned isolated reliability fixture");
-            await page.getByText("Add video or arrange recording (optional)", { exact: true }).click();
+
             await page.locator("#start-method-upload").check();
             await page.locator("#start-upload-without-account").check();
             await page.locator("#start-footage").setInputFiles(fixture);
@@ -178,7 +186,7 @@ test.describe("native strict recovery controls", () => {
         await context.route(/^https?:\/\/(?!127\.0\.0\.1(?::|\/)|localhost(?::|\/))/, r => r.abort("blockedbyclient"));
         await context.tracing.start({screenshots:true,snapshots:true});
         await page.goto("/contact/site-operator", { waitUntil: "networkidle" });
-        await expect(page.locator("#start-task")).toBeVisible();
+        await expect(page.getByRole("group", { name: "How will we see the task?" })).toBeVisible();
     });
     test.afterEach(async ({context}, info) => {
         const out = path.join(outputRoot, "native-controls");
@@ -198,7 +206,7 @@ test.describe("native strict recovery controls", () => {
         }
     } const noLocal = keys.every(k => localStorage.getItem(k) === null); await h.hydrateSiteCaptureRecovery(keys[0]); const fresh = h.readSiteCaptureRecovery(keys[0]); const oldWrite = await h.withSiteCaptureRecoveryLock(keys[0], () => h.writeSiteCaptureRecoveryDurably(keys[0], before[0])); return { cleared, retired: retired.every(r => r.retired && r.value === null), stale: stale.every(Boolean), noLocal, freshIdentity: fresh.requestId !== before[0].requestId, oldWrite, otherPreserved: !!h.readSiteCaptureRecovery(other) }; }); expect(result).toEqual({ cleared: true, retired: true, stale: true, noLocal: true, freshIdentity: true, oldWrite: false, otherPreserved: true }); });
     test('A-IDB-03 strictcommitfailure preventsactualPOST', async ({ page }) => { let posts = 0; page.on('request', r => { if (r.method() === 'POST' && new URL(r.url()).pathname === '/api/inbound-request')
-        posts++; }); await page.locator('#start-task').fill('Owned failed strict commit'); await page.locator('#start-location').fill('Austin TX'); await page.locator('#start-email').fill('durability-failure@example.invalid'); await page.locator('#start-company').fill('Owned fixture'); await page.evaluate(() => { const original = IDBDatabase.prototype.transaction; IDBDatabase.prototype.transaction = function (store, mode, ...options) { if (mode === 'readwrite')
+        posts++; }); await fillJobDescription(page, 'Owned failed strict commit'); await page.locator('#start-location').fill('Austin TX'); await page.locator('#start-email').fill('durability-failure@example.invalid'); await page.locator('#start-company').fill('Owned fixture'); await page.evaluate(() => { const original = IDBDatabase.prototype.transaction; IDBDatabase.prototype.transaction = function (store, mode, ...options) { if (mode === 'readwrite')
         throw new Error('Owned isolated strictcommit failure'); return original.call(this, store, mode, ...options); }; }); await page.getByRole('button', { name: 'Start free assessment', exact: true }).click(); await expect(page.getByRole('alert')).toBeVisible(); expect(posts).toBe(0); });
     test('A-IDB-04 conflictingmirrors failclosed', async ({ page }) => { const result = await page.evaluate(async () => { const h = await import('/src/lib/siteCaptureDraft.ts'), m = await import('/src/lib/siteCaptureDurability.ts'); const key = h.siteCaptureDraftKey(null, 'owned-conflict'); await h.hydrateSiteCaptureRecovery(key); const original = h.readSiteCaptureRecovery(key); const changed = { ...original, requestId: 'capture-' + crypto.randomUUID() }; localStorage.setItem(key, JSON.stringify(changed)); let refused = false; try {
         await h.hydrateSiteCaptureRecovery(key);
@@ -219,7 +227,7 @@ test.describe("native strict recovery controls", () => {
         injected = true;
         await page.evaluate(() => { (window as any).__originalIDBTransaction = IDBDatabase.prototype.transaction; IDBDatabase.prototype.transaction = function (store, mode, ...options) { if (mode === 'readwrite')
             throw new Error('Owned acceptance-commit failure'); return (window as any).__originalIDBTransaction.call(this, store, mode, ...options); }; });
-    } await cdp.send('Fetch.continueResponse', { requestId: e.requestId }); }); await page.locator('#start-task').fill('Owned accepted description'); await page.locator('#start-location').fill('Austin TX'); await page.locator('#start-email').fill(`owned-accepted-${Date.now()}@example.invalid`); await page.locator('#start-company').fill('Owned fixture'); await page.getByRole('button', { name: 'Start free assessment', exact: true }).click(); await expect(page.getByRole('alert')).toContainText('Your job may already be saved'); expect(uploads).toBe(0); expect(bodies).toHaveLength(1); await page.evaluate(() => { IDBDatabase.prototype.transaction = (window as any).__originalIDBTransaction; }); await page.getByRole('button', { name: 'Recover saved job', exact: true }).click(); await expect(page.getByRole('link', { name: 'Open your job and assessment', exact: true })).toBeVisible(); expect(bodies).toHaveLength(2); expect(bodies[1]).toBe(bodies[0]); expect(uploads).toBe(0); await cdp.detach(); });
+    } await cdp.send('Fetch.continueResponse', { requestId: e.requestId }); }); await fillJobDescription(page, 'Owned accepted description'); await page.locator('#start-location').fill('Austin TX'); await page.locator('#start-email').fill(`owned-accepted-${Date.now()}@example.invalid`); await page.locator('#start-company').fill('Owned fixture'); await page.getByRole('button', { name: 'Start free assessment', exact: true }).click(); await expect(page.getByRole('alert')).toContainText('Your job may already be saved'); expect(uploads).toBe(0); expect(bodies).toHaveLength(1); await page.evaluate(() => { IDBDatabase.prototype.transaction = (window as any).__originalIDBTransaction; }); await page.getByRole('button', { name: 'Recover saved job', exact: true }).click(); await expect(page.getByRole('link', { name: 'Open your job page', exact: true })).toBeVisible(); expect(bodies).toHaveLength(2); expect(bodies[1]).toBe(bodies[0]); expect(uploads).toBe(0); await cdp.detach(); });
     for (const cancel of [true, false])
         test(`A-IDB-${cancel ? '08' : '09'} unknownscope hydration ${cancel ? 'cancelled' : 'activecontrol'}`, async ({ page }) => { const result = await page.evaluate(async (cancel) => { const h = await import('/src/lib/siteCaptureDraft.ts'), m = await import('/src/lib/siteCaptureDurability.ts'); const uid = 'owned-late-scope', key = h.siteCaptureDraftKey(uid, 'new-authoring'); const descriptor = Object.getOwnPropertyDescriptor(IDBTransaction.prototype, 'oncomplete'); let hold = true, release, readyResolve; const ready = new Promise(r => readyResolve = r); Object.defineProperty(IDBTransaction.prototype, 'oncomplete', { configurable: true, enumerable: descriptor.enumerable, get: descriptor.get, set(fn) { descriptor.set.call(this, function (event) { if (hold && this.mode === 'readonly') {
                 hold = false;

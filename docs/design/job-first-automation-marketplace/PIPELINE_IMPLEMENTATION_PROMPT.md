@@ -6,22 +6,28 @@ Copy everything below into the next coding session. Give that session access to 
 
 You are implementing the pipeline support for Blueprint's updated product. Inspect the actual repositories, make the necessary code and contract changes, connect them to the website, and complete a useful working implementation. Do not stop after research, a plan, documentation, or an API that nobody can operate.
 
+The owner's latest clarification is essential: **video is required to continue the assessment**. They said: “we cant continue on without a video” and “a description could even come from the video analysis - we've already built this.” BlueprintCapturePipeline already converts capture into the site simulation and supports evaluation. Preserve and connect that working product; do not implement a new description-first assessment service. An earlier version of this prompt mistakenly treated capture and simulation as optional. This version corrects that interpretation.
+
+The owner also asked where the existing example/how-it-works page went and said it should have been kept and modified. Preserve the original walkthrough, examples and approved visuals while updating their explanation. Do not use this pipeline task to replace working product flows or redesign the website again.
+
 The owner wants the product **bare bones**. They explicitly said: “stop with adding any extra stuff like checks” and “bare bones.” Keep existing requirements that protect access, rights, scientific truth, physical operations, and authorized spending. Do not introduce extra review stages, certifications, checklists, dashboards, scoring frameworks, or approval loops. Use the simplest existing operating surface. Ask for missing human information only when it actually blocks the next action; complete independent work meanwhile.
 
 ## 1. Starting point and source authority
 
-The website implementation is in `ognjhunt/Blueprint-WebApp`, PR [#1077](https://github.com/ognjhunt/Blueprint-WebApp/pull/1077), originally implemented at commit `fb3763306c34c1e31401e205684a5a13a2029b63`. Read the current merged code, because the final release can include follow-up fixes.
+The website implementation is in `ognjhunt/Blueprint-WebApp`. The original job-first implementation was merged through PR [#1078](https://github.com/ognjhunt/Blueprint-WebApp/pull/1078), replacing draft PR #1077. Commit `983ac5b98cca07024999758d34650c85740df1a9` was deployed for the website and worker. That release contained the mistaken optional-video framing; the owner then requested the correction described above. Read current merged code and subsequent correction PRs rather than treating that release's text-only behavior as an approved requirement.
 
-The owner asked the website session to merge and deploy this work. Read PR #1077, the current main branch, the existing release workflow, and the live `/version.json` to establish the actual release state. Do not assume the original implementation commit is the final deployed SHA.
+The owner asked the website session to merge and deploy this work. Read PR #1078 and subsequent correction PRs, the current main branch, the existing release workflow, and the live `/version.json` to establish the actual release state. Do not assume the original implementation commit is the final deployed SHA.
 
 The pipeline's `main` was inspected at `599264bda025ffb274996037d2ac997ec53f8a1b` on October 21, 2026. That is a research snapshot, not an instruction to reset the repo. It includes the October 19 fidelity-profile templates and site-measurement catalog. Inspect current `main`, current deployment identities, pending work, and any newer owner directions before editing. Preserve unrelated changes and work in a suitable branch/worktree.
 
 Read the nearest `AGENTS.md` and these focused sources first:
 
 - WebApp: `docs/design/job-first-automation-marketplace/IMPLEMENTATION.md`, the October 21 preambles in `AGENTS.md`, `PLATFORM_CONTEXT.md`, and `WORLD_MODEL_STRATEGY_CONTEXT.md`.
+- WebApp: the existing `SiteCaptureStart` and owner capture pages, `server/routes/workspace.ts`, `inbound-request.ts`, `server/utils/siteVideoEvidence.ts`, `siteTaskBriefReading.ts`, the capture privacy/analysis receipt path, and `siteTaskBrief.ts`. Locate how actual uploaded footage drafts or updates the summary and brief today.
 - WebApp: `client/src/types/jobMarketplace.ts`, `server/routes/job-workflow.ts`, `server/utils/jobMarketplaceWorkflow.ts`, `client/src/components/admin/JobWorkflowPanel.tsx`, and the owner `JobWorkspace` component.
 - Pipeline: `AGENTS.md`, `docs/DOCTRINE_PRECEDENCE.md`, `doctrine/README.md`, the three canonical doctrine fragments, and the existing architecture/onboarding map.
 - Pipeline: `decision_evidence_contracts.py`, `decision_evidence_router.py`, `decision_evidence_execution.py`, `evaluation_run_contract.py`, `evaluation_run_execution.py`, `site_task_testbed_compiler.py`, and their existing consumers. These live under `src/blueprint_pipeline/`.
+- Pipeline: `website_scene_handoff.py`, `website_scene_runtime_inputs.py`, `site_package_orchestrator.py`, and the existing video-analysis/reconstruction path. Follow the real source video into the package; do not rebuild it.
 - Pipeline: `task_evaluation_run_control_plane.py`, `task_evaluation_run_state.py`, `task_evaluation_run_webapp_sync.py`, `site_task_testbed_webapp_sync.py`, `physical_outcome_learning.py`, and the existing launch/admission path.
 - Pipeline: `docs/webapp_handoff/decision-evidence-router.v1/`, `docs/architecture/task-site-measurement-routing.md`, `task_site_measurement_routing.py`, `site_task_fidelity_profile_templates.py`, and the existing simulation qualifier.
 - Pipeline: `docs/arm_decision_proof_v1/README.md`, `POLICY_CANDIDATE_REGISTRY.md`, `PERSISTENT_POLICY_PAIR.md`, `EXACT_WORKCELL_VARIATION_MATRIX.md`, and `policy_integration_runners_20260928.md`.
@@ -32,21 +38,21 @@ Do targeted discovery from those seams. Do not turn this into an unrelated archi
 
 Blueprint should become the place a business submits work it wants automated and gets a suitable, deliverable solution. Independent assessment earns trust today; accumulated delivery evidence makes future matching faster.
 
-The customer buys dependable work at an acceptable total cost. Simulation, policy endpoints, robot hardware, and evaluation infrastructure are means to answer that buying decision. Every job does not need the same evidence process.
+The customer buys dependable work at an acceptable total cost. Blueprint turns real site video into a site-specific simulation, tests supported configurations and connects the result to someone who can deliver the work. The product change expands who can run a policy and how deployment is purchased. It does not remove the capture, analysis, simulation or evaluation that already make this service useful.
 
 The intended journey is:
 
 1. Find a site with one recurring, valuable job, or let the site submit it.
-2. Start with a plain description and optional video. Understand volume, current cost, required output, acceptable quality, timing, and who makes the decision. Ask for missing measurements only when they affect a real option or decision.
-3. Agree a job brief. Establish what successful work means and the important site constraints.
-4. Identify a small number of plausible, supportable complete solutions. Speak to deployment partners early enough to know what they can actually supply, install, and support. Ordinary automation is eligible where appropriate.
-5. Reuse relevant prior evidence. Run targeted simulation or other tests only when they resolve an uncertainty that matters. Use physical trials when the remaining question needs physical truth. An unsuitable or insufficiently understood job can end with a clear explanation and next action.
+2. Require video of the real job through the existing upload/recording flow. Reuse the existing video analysis to draft the description and brief. The customer can add context or correct the reading, but must not write a mandatory description before sending video. A draft, account, filming arrangement or upload session may be created first; it remains waiting for video, not ready for assessment.
+3. Draft the brief from the observed work and available capture information, then use the existing correction/confirmation path. Establish what successful work means and the important site constraints. Only ask for facts the video and existing records cannot establish, such as unobserved variation or a missing measurement that changes the decision. Budget and buying details remain optional for the free assessment.
+4. Use the existing reconstruction/package path to build the capture-backed site simulation. Keep its real source frames, geometry, task and provenance bindings. Identify a small number of plausible, supportable complete solutions. Speak to deployment partners early enough to know what they can actually supply, install, and support. Ordinary automation is eligible where appropriate.
+5. Evaluate the supported shortlisted embodiments/policies against the job in that site simulation. Reuse applicable existing assets and evidence to make the work faster, with the correct site/task/configuration bindings. Additional measurements or physical trials address uncertainties the simulation cannot settle. A missing video, unusable capture, unsupported setup or insufficient evidence results in the existing clear next action; it must not silently become an assessed or recommended job.
 6. Blueprint runs accessible policies itself through licensed APIs, approved hosted endpoints, or supported self-hosted models. A technology team can supply its endpoint or integration when Blueprint lacks access. Inviting every robot team to operate its own evaluation must no longer be mandatory.
 7. Obtain comparable written delivery proposals from suitable deployment companies against the same scope and acceptance criteria. The proposal includes hardware, software, integration, preparation, price, timing, support, assumptions, and human assistance.
 8. Recommend a complete approach and delivery partner. The customer chooses a proposal. The customer and partner then agree their physical pilot directly. A website selection is not a contract or reservation.
 9. Measure the agreed pilot. Keep reported commercial outcomes distinct from authoritative physical evidence. Reuse valid, permitted evidence for the next relevant customer.
 
-This is not an instruction to test every policy against every embodiment, build a universal simulator, or promise an accurate digital twin from any phone video. Build only what resolves the decision. Geometry, appearance, collision, dynamics, and sensor matching have different evidential requirements. Missing observations remain missing.
+Use the accurate site-simulation capability already built. This is not an instruction to promise that every arbitrary phone clip alone establishes every physical property, test every policy against every embodiment, or rebuild a universal simulator. Follow the existing capture coverage, reconstruction and supported-runtime requirements. Geometry, appearance, collision, dynamics, and sensor matching have different evidential requirements. Missing observations remain missing; request the specific missing input through the existing flow when needed.
 
 The longer-term direction is a default destination for robot jobs: concentrated real demand, supportable solutions, available delivery partners, and delivery history. Start with the current supported niche and region. Do not build a social network, public auction, universal search marketplace, or cross-embodiment leaderboard now.
 
@@ -64,7 +70,7 @@ Pipeline owns evidence planning, method qualification, execution integrity, norm
 
 ## 4. Website behavior already implemented
 
-Preserve the simple public language: “Find the right way to automate your work.” The main action is “Submit a job.” Video is optional at entry. The public website has simple partner paths for deployment companies and technology providers. Do not redesign it again as part of this pipeline task.
+Preserve the simple public language and the corrected video-first intake. The customer uploads or records the work; existing analysis supplies a draft description and brief. Keep the original example/how-it-works experience, updated to explain independent policy testing and deployment proposals. Public partner paths distinguish deployment companies from technology providers. Do not redesign the website again as part of this pipeline task. Inspect current code for exact labels and routes, because the optional-video mistake is being corrected after the initial job-first release.
 
 The commercial types are in `client/src/types/jobMarketplace.ts`. They already define:
 
@@ -76,6 +82,8 @@ The commercial types are in `client/src/types/jobMarketplace.ts`. They already d
 - A customer's proposal selection tied to an exact proposal revision.
 - A pilot agreement tied to that same selection, with both parties' agreement references and dates.
 - A separately authorized customer-reported outcome containing summary, whether criteria were met or unknown, optional units/hour and interventions/hour, and notes. Its source is explicitly `customer_reported`.
+
+A saved capture setup can exist without footage so the durable upload and account flow works. It is not permission to advance assessment. Use the actual retained/uploaded capture state, not a client checkbox, nonempty description, declared URL or mere capture-session ID, to establish that the required video exists. Reuse the existing video/scene/run readiness state; do not invent a second gate system.
 
 The six commercial stages are `job_submitted`, `brief_agreed`, `options_assessed`, `proposals_ready`, `pilot_agreed`, and `results_recorded`, with a next action and responsible actor. Do not expose internal pipeline states as extra customer stages.
 
@@ -97,19 +105,25 @@ Produce a short implementation map while inspecting: what already works, what bl
 
 Answer these questions from code and persisted contracts:
 
-- What currently triggers capture processing, brief confirmation, scene compilation, policy invitation, launch, and publication? Which are incorrectly mandatory for every commercial job?
-- Can a description-only job be assessed without inventing a capture session, testbed, run, or passed evaluation?
+- What currently triggers capture processing, video analysis, brief drafting/confirmation, scene compilation, policy access/invitation, launch, and publication? Which existing links are working, and where is the website failing to use them? Preserve required video, capture provenance and supported evaluation; remove a requirement for the technology team to operate the run only where Blueprint already has valid policy access.
+- Does upload or recording work without a manual description? Does the actual video analysis populate the task summary and brief, rather than leave a placeholder or force the customer to rewrite what is visible? Can a saved draft truthfully remain waiting for video without advancing to assessment?
 - Where do job IDs, intake IDs, capture sessions, approved task digests, testbed versions, run IDs, request/plan/result digests, and proposal revisions join today?
-- What already supports evidence reuse, analytical rejection, an information request, physical-only evidence, or a no-suitable-option result?
+- What already supports capture coverage feedback, analysis-derived descriptions, scene preparation, evidence reuse, analytical rejection, an information request, or a no-suitable-option result? How does each real result reach the current owner/admin surface?
 - Which endpoints are genuinely executable and licensed now, rather than merely listed, admitted for a different embodiment, or historical compatibility code?
 - Which existing signed publication and receipt mechanisms can carry the relevant result back into the job?
 - Where is the existing operator action that starts the appropriate bounded evaluation? What does the buyer see if it is blocked, abstained, stale, cancelled, or unavailable?
 
-Prefer extensions over replacements. Retain scientific schemas and historical readers where their consumers still exist. Remove obsolete mandatory dependencies from the *normal commercial path* rather than deleting valid evidence-program machinery.
+Prefer extensions over replacements. Retain scientific schemas and historical readers where their consumers still exist. Preserve the capture-to-simulation spine, existing video analysis and working walkthrough. Remove only the obsolete dependency on inviting a technology team to operate an otherwise accessible compatible policy, and the old automatic/one-click pilot selection. Do not remove capture, scene or run bindings to let a written description bypass them.
 
-## 6. Evidence planning must serve the decision
+## 6. Reuse the existing capture, analysis and simulation path
 
-A job assessment can have zero evaluation runs. Lack of a simulation is not a failed job when sufficient evidence exists for the next commercial step. Equally, “we have a relevant previous deployment” is not enough to assert performance at a materially different site.
+The normal service requires real job video, then the existing analysis and capture-backed site simulation, followed by supported robot/policy evaluation. Do not replace this with a text-only assessment or a “sufficient evidence, skip capture” branch. An inquiry or capture draft can wait for footage; early commercial screening may identify unsupported geography or an unavailable supplier without launching a run. Neither is a completed site assessment or successful evaluation.
+
+Trace the existing flow end to end before changing it: upload/recording receipt → permitted video analysis → drafted task description and brief → current correction/confirmation → reconstruction/site package → runnable testbed → compatible policy execution → independent scoring → signed result publication. Reuse the same video-analysis output rather than calling another model to extract the same description. If the summary fails to populate, fix that existing seam. Do not make the customer transcribe the video to compensate.
+
+At the inspected Pipeline snapshot, `website_scene_handoff.py` requires the actual retained source video and passes it to `run_website_scene_geometry`. `website_scene_runtime_inputs.py` requires retained observed source frames with their matching digest. `site_task_testbed_compiler.py` consumes the capture intake envelope and accepted capture/reconstruction inputs; evaluation submissions bind the capture session, intake, approved task, reconstruction result and robot configuration. Verify current names and versions, then preserve these real dependencies. A session ID or task description cannot substitute for those artifacts.
+
+Reuse a valid existing package, capture-derived evidence or prior run only within its actual applicability and permissions. That can avoid duplicate reconstruction or execution when the evidence genuinely belongs to the same job and configuration; it is not a general exemption from video or site-specific assessment. “We have a relevant previous deployment” cannot establish performance at a materially different site.
 
 Use the existing Decision/Evidence Router for technical claims. Separate easy commercial screening from scientific evaluation: an unsupported region or unavailable delivery partner can eliminate an offer without generating a fake scientific failure. Analytical reach/payload/fit screening, prior deployment evidence, recorded observations, simulation, and a physical test can answer different questions.
 
@@ -119,7 +133,7 @@ Return enough structured context to explain: which exact question was answered; 
 
 Reuse the recently added measurement catalog and existing qualifier for targeted measurements. The inspected pipeline has `rigid_pick_place` and `articulated_open_close` fidelity-profile templates. Templates contain proposed thresholds and explicitly require review before a request-specific profile exists. Do not auto-approve those thresholds, generalize that two-family catalog into universal robotics support, or force every initial applicant through all measurements.
 
-An initial phone video may identify the job. Metric capture and task-specific measurements may still be required later for a valid simulation. Identify the missing quantity and why it changes a decision. Preserve measured versus inferred versus authored values. A generated model, splat, render, or world-model rollout cannot become collision, force, safety, or physical-success authority by relabeling it.
+The required video identifies the real work and feeds the existing simulation path. Metric capture and task-specific measurements may still be required by that path for a valid simulation. Identify the missing quantity and why it changes a decision. Preserve measured versus inferred versus authored values. A generated model, splat, render, or world-model rollout cannot become collision, force, safety, or physical-success authority by relabeling it.
 
 ## 7. Complete configurations and provider access
 
@@ -163,7 +177,7 @@ Existing signed publication modules include `site_task_testbed_webapp_sync.py` a
 
 Preserve exact binding from commercial job and approved task to its relevant evidence. Keep evidence identity independent from a later quote price revision. A new buying budget can stale a quote without invalidating an unchanged physical observation; a changed task or configuration can invalidate technical applicability. Implement that distinction at the existing scope/version seam rather than rerunning everything on every edit.
 
-A description-only job must not need fake `capture_session_id`, source bundle, testbed or run values to proceed commercially. A real capture-derived scientific publication still must meet its actual source/task/testbed bindings. If an aggregate job-assessment projection is missing, add the smallest separate projection referencing real evidence and the current brief; do not weaken capture publication schemas to accept invented values.
+A capture setup waiting for video must not acquire fake `capture_session_id`, source bundle, testbed or run values to appear ready. Preserve the actual source/task/testbed bindings for every capture-derived scientific publication. Connect the commercial job to the existing capture and assessment state by real IDs and references. If a small job projection is missing, reference those authoritative records and the current brief; do not weaken publication schemas or maintain a competing readiness model.
 
 Use existing service authentication and signed sync. Never pass owner-link tokens, provider secrets or raw policy weights through public job projections. Persist accepted scientific results immutably with provenance. WebApp may display and link them, not infer a winner from abstention or raise claim ceilings. Stale results remain historical, with applicability clearly separated from the current recommendation.
 
@@ -185,7 +199,7 @@ Reuse later evidence only within its actual task/configuration/site envelope, pr
 
 ## 11. Update doctrine at its source
 
-The website's October 21 owner direction supersedes the old public requirements that every job needs simulation, an invited team, and one-click booking. The new owner instruction authorizes the corresponding pipeline product changes. Record it clearly; do not let historical public-positioning text force the new service back into the old funnel.
+Record the full October 21 owner direction, including its correction: video remains required, existing video analysis can supply the description, and the original example/how-it-works experience should be preserved and modified. The change is independent Blueprint-operated policy access plus comparable proposals and customer choice. It supersedes mandatory team-operated testing and one-click pilot booking; it preserves capture-first site simulation and evaluation. Do not propagate the earlier mistaken optional-video/optional-simulation interpretation into canonical doctrine.
 
 The WebApp implementation intentionally left locked shared blocks and their digests unchanged. Their canonical editable source is `BlueprintCapturePipeline/doctrine/`: `platform-context.md`, `vision.md`, and `world-model-strategy.md`. Read the actual propagation script. Make the focused product-language change there and use `scripts/sync_shared_doctrine.py --write` with the three real sibling checkouts. Commit the generated blocks and lock updates together in the relevant repositories according to the existing coordinated procedure.
 
@@ -198,7 +212,7 @@ Keep Arm Decision Proof active as the bounded scientific proof track. Preserve i
 Work end to end in the smallest coherent increments:
 
 1. Inspect current sources and identify the specific real gaps. Confirm the commercial/evidence boundary and current deployment state without changing runtime flags.
-2. Reuse or extend the job-to-decision/evidence mapping so a description-only job can progress without a fabricated evaluation, and a job requiring evidence can create the correctly scoped existing request.
+2. Reconnect the existing video-first intake, analysis-derived description/brief, capture-backed reconstruction and correctly scoped evaluation request. Keep incomplete uploads as drafts waiting for video. Repair only real missing links, not the working pipeline around them.
 3. Connect real supported independent policy execution and the existing team-supplied route, with accurate availability. Preserve current scientific protocol boundaries.
 4. Publish actual scoped results through the reconciled signed handoff. Surface the necessary evidence and next action in the existing operator/owner flow.
 5. Connect proposals and permitted outcomes by reference while retaining commercial authorship and physical proof authority. Update canonical doctrine and the affected repo docs.
@@ -210,9 +224,10 @@ Do not change outreach/send flags or automatic operations to make the demo appea
 
 The implementation is useful when these behaviors work through existing interfaces:
 
-- A site can submit a description without video or budget and receive a truthful next action.
-- An operator can assess a job using sufficient existing evidence without being forced to create a simulation or invite a team.
-- A supported job that needs new evidence reaches the correct bounded pipeline run and returns its exact result to the right job.
+- A site can upload or record video without writing a mandatory description or supplying a budget. Existing analysis drafts the description/brief for correction.
+- A draft can preserve identity and resumable upload state before video arrives; it clearly awaits video and cannot advance to assessment, simulation/evaluation readiness or a recommendation on text alone.
+- A supported captured job reaches the existing site simulation and correctly bounded evaluation, then returns its exact result to the right job. Reusable evidence preserves its real source and applicability.
+- The original example/how-it-works experience remains available with wording updated for this service, rather than being replaced by a generic buying-flow page.
 - A Blueprint-accessible supported policy can be evaluated without the technology team operating the run, while the approved team-hosted route still works.
 - Unsupported hardware, unavailable API access, insufficient evidence, negative results and abstention produce clear limitations; none silently become a recommendation or pass.
 - Current, comparable real proposals can reference the relevant evidence; scope changes invalidate only the affected applicability/quotes.
