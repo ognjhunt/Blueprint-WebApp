@@ -3,11 +3,11 @@ import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { sharedUploadBucket } from "./helpers/fake-upload-bucket";
-const staff = vi.hoisted(() => ({ active: true, disabled: false }));
+const staff = vi.hoisted(() => ({ active: true, disabled: false, onRead: null as null | (() => Promise<void>) }));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
   dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore,
   storageAdmin: { bucket: () => (awaitBucket()) },
-  authAdmin: { getUser: async () => ({ disabled: staff.disabled, customClaims: { ops: staff.active } }) },
+  authAdmin: { getUser: async () => { await staff.onRead?.(); return { disabled: staff.disabled, customClaims: { ops: staff.active } }; } },
 }));
 // The mock is evaluated after module imports; bucket bytes stay in this test's store.
 function awaitBucket() { return sharedUploadBucket.bucket; }
@@ -17,7 +17,7 @@ const { scientificBriefDigest, jobEvidenceTaskInventoryDigest } = await import("
 const { crossRuntimeArtifactDigest } = await import("../utils/crossRuntimeCanonical");
 const { jobEvidenceDeliveryIntent, jobEvidenceQueueMarker, deliverJobEvidenceRequest,
   processJobEvidenceForwardQueue, queueJobEvidenceAction, assertJobEvidenceVideo } = await import("../utils/jobEvidenceForwardWorker");
-const { acceptJobEvidencePublication } = await import("../utils/jobEvidenceStore");
+const { acceptJobEvidencePublication, readJobEvidence, assertJobEvidenceRequestActive } = await import("../utils/jobEvidenceStore");
 const examples = JSON.parse(readFileSync(new URL("./fixtures/job-evidence-producer-examples.v1.json", import.meta.url), "utf8"));
 const now = Date.parse("2026-10-21T16:00:00Z");
 const brief = { requestId: "job-1", summary: "Move the specified part", confirmedAtIso: "2026-10-20T10:00:00Z" };
@@ -31,7 +31,7 @@ const publication = { ...examples.description_publication, request_id: request.r
 publication.publication_digest = crossRuntimeArtifactDigest(publication, "publication_digest");
 const forward = () => vi.fn(async () => ({ ok: true as const, publication }));
 beforeEach(async () => {
-  staff.active = true; staff.disabled = false;
+  staff.active = true; staff.disabled = false; staff.onRead = null;
   state.docs.clear(); sharedUploadBucket.clear();
   const intent = jobEvidenceDeliveryIntent("submit", "ops-user", now);
   state.docs.set("inboundRequests/job-1", { ...structuredClone(record), ...jobEvidenceQueueMarker(intent.deliveryId, now) });
@@ -110,6 +110,92 @@ describe("durable existing job-evidence delivery", () => {
     resolve({ ok: true, publication }); await pending;
     expect(state.docs.get(path)).toMatchObject({ deliveryAction: "cancel", deliveryState: "pending", cancellationRequested: true });
     expect(state.docs.get(path)?.latestPublicationDigest).toBeUndefined();
+  });
+  it("confirms exact Pipeline absence without submitting a request or fabricating a scientific publication", async () => {
+    await queueJobEvidenceAction("job-1", request.request_id, "cancel", "ops-user");
+    state.docs.set("inboundRequests/job-1", { ...state.docs.get("inboundRequests/job-1"), consent_revoked: true });
+    const transport = vi.fn(async () => ({ ok: false as const, status: 404, code: "job_evidence_not_found", reason: "Not received" }));
+    await deliverJobEvidenceRequest("job-1", request.request_id, { forwarder: transport });
+    expect(transport).toHaveBeenCalledExactlyOnceWith({}, `/${request.request_id}`, "GET");
+    expect(state.docs.get(path)).toMatchObject({ cancellationRequested: true, cancellationResolution: "not_submitted", deliveryState: "delivered" });
+    expect((await readJobEvidence("job-1", brief)).evidence[0]).toMatchObject({ state: "cancelled", current: false, publicationDigest: null });
+    expect([...state.docs.keys()].filter(key => key.includes("/jobEvidencePublications/"))).toHaveLength(0);
+    await expect(queueJobEvidenceAction("job-1", request.request_id, "submit", "ops-user")).rejects.toThrow("cancelled");
+  });
+  it("does not treat an unrelated HTTP404 as verified Pipeline absence", async () => {
+    await queueJobEvidenceAction("job-1", request.request_id, "cancel", "ops-user");
+    const transport = vi.fn(async () => ({ ok: false as const, status: 404, reason: "Proxy route unavailable" }));
+    await deliverJobEvidenceRequest("job-1", request.request_id, { forwarder: transport });
+    expect(transport).toHaveBeenCalledExactlyOnceWith({}, `/${request.request_id}`, "GET");
+    expect(state.docs.get(path)?.cancellationConfirmedAtIso).toBeUndefined();
+    expect((await readJobEvidence("job-1", brief)).evidence[0].state).toBe("unavailable");
+  });
+  it.each(["inspect", "cancel_race"])("retains the exact completed result and acknowledges cancellation after %s", async mode => {
+    const native = examples.native_request;
+    const nativePath = `inboundRequests/job-1/jobEvidenceRequests/${native.request_id}`;
+    const terminal = examples.native_result;
+    state.docs.delete(path);
+    state.docs.set(nativePath, { request: structuredClone(native), sequence: -1, createdAtIso: new Date(now).toISOString(),
+      ...jobEvidenceDeliveryIntent("submit", "ops-user") });
+    await queueJobEvidenceAction("job-1", native.request_id, "cancel", "ops-user");
+    const transport = mode === "inspect" ? vi.fn().mockResolvedValue({ ok: true, publication: terminal })
+      : vi.fn().mockResolvedValueOnce({ ok: true, publication: examples.native_planned }).mockResolvedValueOnce({ ok: true, publication: terminal });
+    await deliverJobEvidenceRequest("job-1", native.request_id, { forwarder: transport });
+    expect(transport).toHaveBeenCalledTimes(mode === "inspect" ? 1 : 2);
+    if (mode === "cancel_race") expect(transport).toHaveBeenLastCalledWith({ request_digest: native.request_digest, cancelled_by: "ops-user" }, `/${native.request_id}/cancel`);
+    expect(state.docs.get(nativePath)).toMatchObject({ cancellationRequested: true, cancellationResolution: "already_terminal", deliveryState: "delivered", summary: { state: "abstention" } });
+    const retained = state.docs.get(`inboundRequests/job-1/jobEvidencePublications/${terminal.publication_digest.slice(7)}`);
+    expect(retained?.publication).toEqual(terminal);
+    expect((await readJobEvidence("job-1", brief)).evidence[0]).toMatchObject({ state: "cancelled", current: false, publicationDigest: terminal.publication_digest });
+    await expect(assertJobEvidenceRequestActive("job-1", native.request_id, native.request_digest)).rejects.toThrow("cancelled");
+  });
+  it("refuses a terminal cancellation result bound to another request", async () => {
+    await queueJobEvidenceAction("job-1", request.request_id, "cancel", "ops-user");
+    const wrong = { ...examples.native_result, request_id: request.request_id };
+    wrong.publication_digest = crossRuntimeArtifactDigest(wrong, "publication_digest");
+    const transport = vi.fn(async () => ({ ok: true as const, publication: wrong }));
+    await deliverJobEvidenceRequest("job-1", request.request_id, { forwarder: transport });
+    expect(state.docs.get(path)?.cancellationConfirmedAtIso).toBeUndefined();
+    expect(state.docs.get(path)).toMatchObject({ deliveryState: "terminal_blocked" });
+    expect([...state.docs.keys()].filter(key => key.includes("/jobEvidencePublications/"))).toHaveLength(0);
+  });
+  it("acknowledges a verified terminal result after permission withdrawal without retaining new scientific content", async () => {
+    const native = examples.native_request;
+    const nativePath = `inboundRequests/job-1/jobEvidenceRequests/${native.request_id}`;
+    state.docs.delete(path);
+    state.docs.set(nativePath, { request: structuredClone(native), sequence: -1, createdAtIso: new Date(now).toISOString(),
+      ...jobEvidenceDeliveryIntent("submit", "ops-user") });
+    await queueJobEvidenceAction("job-1", native.request_id, "cancel", "ops-user");
+    state.docs.set("inboundRequests/job-1", { ...state.docs.get("inboundRequests/job-1"), consent_revoked: true });
+    const transport = vi.fn(async () => ({ ok: true as const, publication: examples.native_result }));
+    await deliverJobEvidenceRequest("job-1", native.request_id, { forwarder: transport });
+    expect(transport).toHaveBeenCalledExactlyOnceWith({}, `/${native.request_id}`, "GET");
+    expect(state.docs.get(nativePath)).toMatchObject({ cancellationRequested: true, cancellationResolution: "already_terminal", deliveryState: "delivered" });
+    expect(state.docs.get(nativePath)?.summary).toBeUndefined();
+    expect(state.docs.get(nativePath)?.latestPublicationDigest).toBeUndefined();
+    expect([...state.docs.keys()].filter(key => key.includes("/jobEvidencePublications/"))).toHaveLength(0);
+    expect((await readJobEvidence("job-1", brief)).evidence[0]).toMatchObject({ state: "cancelled", current: false, publicationDigest: null });
+    await expect(acceptJobEvidencePublication(examples.native_result)).rejects.toThrow("permission was withdrawn");
+  });
+  it("waits for a superseded action's lease before confirming absence and never replays it", async () => {
+    const queuedAt = Date.now();
+    state.docs.set(path, { ...state.docs.get(path), deliveryState: "delivering", deliveryLeaseId: "old-worker", deliveryLeaseUntilMs: queuedAt + 90_000 });
+    await queueJobEvidenceAction("job-1", request.request_id, "cancel", "ops-user");
+    const transport = vi.fn(async () => ({ ok: false as const, status: 404, code: "job_evidence_not_found", reason: "Not received" }));
+    await deliverJobEvidenceRequest("job-1", request.request_id, { forwarder: transport, nowMs: queuedAt + 1 });
+    expect(transport).not.toHaveBeenCalled();
+    await deliverJobEvidenceRequest("job-1", request.request_id, { forwarder: transport, nowMs: queuedAt + 90_001 });
+    expect(transport).toHaveBeenCalledExactlyOnceWith({}, `/${request.request_id}`, "GET");
+    expect(state.docs.get(path)).toMatchObject({ cancellationResolution: "not_submitted", deliveryState: "delivered" });
+  });
+  it("does not forward execution when cancellation supersedes the lease during the final authority read", async () => {
+    await queueJobEvidenceAction("job-1", request.request_id, "execute", "ops-user");
+    let reads = 0;
+    staff.onRead = async () => { if (++reads === 2) await queueJobEvidenceAction("job-1", request.request_id, "cancel", "ops-user"); };
+    const transport = forward();
+    await deliverJobEvidenceRequest("job-1", request.request_id, { forwarder: transport });
+    expect(transport).toHaveBeenCalledExactlyOnceWith({}, `/${request.request_id}`, "GET");
+    expect(state.docs.get(path)).toMatchObject({ deliveryAction: "cancel", deliveryState: "pending", cancellationRequested: true });
   });
   it("keeps retries bounded and never invents a completion", async () => {
     state.docs.set(path, { ...state.docs.get(path), deliveryAttempts: 7 });

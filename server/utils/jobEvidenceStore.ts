@@ -16,11 +16,18 @@ export async function readJobEvidence(jobId: string, brief: Record<string, any> 
   const context = scientificContext(session.exists ? session.data()! : null, { brief, record: job.data()!, inventory: inventory.exists ? inventory.data() as any : null });
   const evidence = requests.docs.map(row => {
     const value = row.data();
-    const cancellationPending = value.cancellationRequested && value.summary?.state !== "cancelled";
+    const cancellationConfirmed = value.cancellationRequested && value.cancellationConfirmedAtIso;
+    const cancellationPending = value.cancellationRequested && !cancellationConfirmed && value.summary?.state !== "cancelled";
+    const cancellationProjection = cancellationConfirmed && value.summary?.state !== "cancelled" ? { state: "cancelled",
+      summary: value.cancellationResolution === "already_terminal"
+        ? "Further evidence work was cancelled. Pipeline had already completed this question."
+        : "This evidence request was cancelled before Pipeline accepted it. No evaluation was created.",
+      nextAction: "Use a new question if evidence is still needed. This cancelled request cannot support a new proposal." } : {};
     const inactive = value.cancellationRequested || value.summary?.state === "cancelled";
     if (value.summary) return { ...value.summary, current: !inactive && value.summary.briefDigest === digest && (!value.summary.testbedDigest || value.summary.testbedDigest === context?.testbed.testbed_digest),
       ...(cancellationPending ? { state: "unavailable", summary: "Cancellation was requested. Blueprint is awaiting confirmation that this question has stopped.",
         nextAction: "No further evidence work will be requested for this question. Its earlier result remains available as history." } : {}),
+      ...cancellationProjection,
       ...(admin && value.forwardingReason ? { serviceMessage: value.forwardingReason } : {}) };
     const request = value.request;
     return { requestId: request.request_id, publicationDigest: null, briefDigest: request.brief_digest,
@@ -30,7 +37,8 @@ export async function readJobEvidence(jobId: string, brief: Record<string, any> 
       nextAction: value.cancellationRequested ? "No further evidence work will be requested for this question."
         : "Return to this job for progress. Blueprint will ask for a specific missing input if needed.", limitations: request.context_limitations ?? [],
       runId: null, decisionDigest: null, planDigest: null, testbedDigest: request.testbed?.testbed_digest ?? null,
-      approvedTaskDigest: request.approved_task_digest, claims: [], ...(admin && value.forwardingReason ? { serviceMessage: value.forwardingReason } : {}) };
+      approvedTaskDigest: request.approved_task_digest, claims: [], ...cancellationProjection,
+      ...(admin && value.forwardingReason ? { serviceMessage: value.forwardingReason } : {}) };
   });
   return { evidence, ...(admin ? { evidenceContext: { briefDigest: digest, question: context?.decisionRequest.decision_question ?? null,
     testbedDigest: context?.testbed.testbed_digest ?? null } } : {}) };
@@ -50,7 +58,7 @@ export async function assertJobEvidenceRequestActive(jobId: string, requestId: s
   }
 }
 
-export async function acceptJobEvidencePublication(value: unknown) {
+export async function acceptJobEvidencePublication(value: unknown, options: { cancellationTerminalHistory?: true } = {}) {
   if (!db) throw new JobMarketplaceError("store_unavailable", "Job evidence storage is unavailable.", 503);
   const publication = verifyJobEvidencePublication(value);
   if (Buffer.byteLength(JSON.stringify(publication)) > 750_000) throw new JobMarketplaceError("evidence_too_large", "Retain large evidence in the existing artifact store.", 413);
@@ -62,9 +70,13 @@ export async function acceptJobEvidencePublication(value: unknown) {
     const [job, requestSnap, existing, brief] = await Promise.all([tx.get(jobRef), tx.get(requestRef), tx.get(publicationRef), tx.get(briefRef)]);
     const record = job.data();
     if (!record || record.request?.buyerType !== "site_operator") throw new JobMarketplaceError("job_not_found", "Site job not found.", 404);
-    if (projectWebsiteCaptureRights(record).consent_revoked && publication.state !== "cancelled") throw new JobMarketplaceError("capture_processing_not_authorized", "Recording permission was withdrawn.");
     if (!requestSnap.exists) throw new JobMarketplaceError("evidence_request_not_found", "The exact job evidence request was not found.", 404);
     const stored = requestSnap.data()!;
+    // A cancellation may discover an already completed result. Verify its exact
+    // binding without reviving work or changing its scientific verdict.
+    const cancellationHistory = options.cancellationTerminalHistory === true && stored.cancellationRequested === true
+      && ["decision", "partial_decision", "abstention"].includes(publication.state);
+    if (projectWebsiteCaptureRights(record).consent_revoked && publication.state !== "cancelled" && !cancellationHistory) throw new JobMarketplaceError("capture_processing_not_authorized", "Recording permission was withdrawn.");
     const request = jobEvidenceRequestSchema.parse(stored.request);
     if (publication.request_digest !== request.request_digest || publication.brief_digest !== request.brief_digest
       || publication.question !== request.question || publication.approved_task_digest !== request.approved_task_digest
@@ -76,8 +88,12 @@ export async function acceptJobEvidencePublication(value: unknown) {
       if (crossRuntimeDigest(existing.data()!.publication) !== crossRuntimeDigest(publication)) throw new JobMarketplaceError("immutable_evidence_conflict", "This immutable evidence identity has different content.");
       return true;
     }
+    // Withdrawal still forbids retaining a newly arrived full publication.
+    // The cancellation worker may acknowledge the stop using local metadata;
+    // Pipeline keeps the authoritative terminal record under its own rights.
+    if (cancellationHistory && projectWebsiteCaptureRights(record).consent_revoked) return "not_retained" as const;
     if ((stored.sequence ?? -1) >= publication.sequence) throw new JobMarketplaceError("evidence_sequence_conflict", "A newer evidence publication is already recorded.");
-    if ((stored.cancellationRequested || stored.summary?.state === "cancelled") && publication.state !== "cancelled") throw new JobMarketplaceError("evidence_cancelled", "This evidence request was cancelled.");
+    if ((stored.cancellationRequested || stored.summary?.state === "cancelled") && publication.state !== "cancelled" && !cancellationHistory) throw new JobMarketplaceError("evidence_cancelled", "This evidence request was cancelled.");
     tx.create(publicationRef, { publication, receivedAtIso: new Date().toISOString() });
     tx.update(requestRef, { sequence: publication.sequence, latestPublicationDigest: publication.publication_digest,
       summary: jobEvidenceSummary(publication, brief.exists ? scientificBriefDigest(brief.data()!) : ""), forwardingReason: null });
@@ -85,7 +101,7 @@ export async function acceptJobEvidencePublication(value: unknown) {
   });
   return { schema_version: "job_evidence_publication_receipt.v1", request_id: publication.request_id,
     job_id: publication.job_id, request_digest: publication.request_digest, publication_digest: publication.publication_digest,
-    status: replayed ? "replayed" : "published" };
+    status: replayed === "not_retained" ? "not_retained" : replayed ? "replayed" : "published" };
 }
 
 export async function readJobEvidencePublication(jobId: string, digest: string, transaction?: FirebaseFirestore.Transaction): Promise<JobEvidencePublication> {
