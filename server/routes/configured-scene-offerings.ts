@@ -45,6 +45,9 @@ import { buildTeamEvaluationRequest, fetchTeamEvaluationContext, loadRobotSetups
   teamEvaluationCommand, teamEvaluationTaskDetails, TEAM_EVALUATION_PRICE_CENTS, TEAM_EVALUATION_PROVIDER_CAP_USD } from "../utils/teamEvaluationSelection";
 import { sceneDigest, sceneOwner, sceneProviderTerms, validateSceneProviderTerms,
   SCENE_INTAKE_COLLECTION } from "../utils/taskEvaluationSceneIntake";
+import { assertManagedOfferingForJob, jobManagedEvidenceBindingSchema, managedJobTask, loadManagedJobEvidence,
+  type JobManagedEvidenceBinding } from "../utils/jobManagedEvaluation";
+import type { TaskItemInventoryRecord } from "../utils/taskItemInventory";
 
 const router = Router();
 const COLLECTION = "taskEvaluationLaunches";
@@ -55,6 +58,94 @@ const STORED_OFFERING_STATES = [
   "configured_controls_pending",
   "evaluation_ready",
 ] as const;
+
+async function managedJobScope(binding: JobManagedEvidenceBinding, transaction?: FirebaseFirestore.Transaction) {
+  if (!db) throw new Error("job_evaluation_store_unavailable");
+  const refs = [db.collection("inboundRequests").doc(binding.job_id),
+    db.collection("siteTaskBriefs").doc(binding.job_id),
+    db.collection("siteTaskItemInventories").doc(binding.job_id)];
+  const [record, brief, inventory] = await Promise.all(refs.map(ref => transaction ? transaction.get(ref) : ref.get()));
+  const scope = managedJobTask({ binding, record: record.data(), brief: brief.data(),
+    inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null });
+  // A supplementary capture's task id includes its exact capture binding.
+  // Reuse the real retained producer join rather than guessing that id from
+  // the original walkthrough or changing the scientific scene contract.
+  const query = db.collection(SCENE_INTAKE_COLLECTION).where("website_request_id", "==", binding.job_id);
+  const prepared = await (transaction ? transaction.get(query) : query.get());
+  for (const document of prepared.docs) {
+    const source = document.data();
+    if (source.root_sponsorship_digest === record.data()?.website_scene_sponsorship?.authority_digest
+      && source.request?.owner?.organization_id === scope.teamNamespace
+      && source.request_digest === sceneDigest(source.request)
+      && /^website-[a-f0-9]{20}(?:-development)?$/.test(source.request?.task?.task_id || "")) {
+      scope.taskIds.push(source.request.task.task_id);
+    }
+  }
+  scope.taskIds = [...new Set(scope.taskIds)];
+  return scope;
+}
+
+function managedJobMessage(code: string) {
+  const messages: Record<string, string> = {
+    job_brief_not_agreed: "Agree this job's brief before preparing a policy comparison.",
+    job_brief_changed: "The agreed brief changed. Refresh the job before preparing a run.",
+    job_capture_processing_not_authorized: "This job needs permitted source observations before a simulator run can be prepared.",
+    job_scene_not_prepared: "No source-bound simulator scene is prepared for this job. Continue the options assessment, or identify the observations the decision needs.",
+    job_scene_task_changed: "The prepared scene answers an earlier task. Prepare the changed task before using it for new evidence.",
+    job_evaluation_source_mismatch: "This scene belongs to a different job or task revision.",
+  };
+  return messages[code] || "The job's managed policy setup is unavailable. Continue the options assessment using the evidence already available.";
+}
+
+// The existing operator flow chooses a real scene-specific setup. A job need
+// not have one, and absence never creates a failed commercial assessment.
+router.get("/job/:jobId/managed-evaluations", async (req, res) => {
+  const access = await resolveAccessContext(res);
+  if (!access.isOps) return res.status(403).json({ error: "Blueprint operator access required." });
+  const parsed = jobManagedEvidenceBindingSchema.safeParse({ job_id: req.params.jobId, brief_digest: req.query.brief_digest });
+  if (!parsed.success) return res.status(400).json({ error: "Refresh the agreed job brief before choosing evidence." });
+  res.set("Cache-Control", "private, no-store");
+  let runs: Array<Record<string, unknown>> = [];
+  try {
+    runs = (await loadManagedJobEvidence(parsed.data.job_id, parsed.data.brief_digest)).map(value => ({
+      run_id: value.runId, state: value.state, brief_current: value.current,
+      href: `/app/evaluation-runs/${encodeURIComponent(value.runId)}`,
+    }));
+    const scope = await managedJobScope(parsed.data);
+    const snapshots = await Promise.all(scope.taskIds.map(taskId => db!.collection(COLLECTION)
+      .where("configured_scene_offering.task.identity.id", "==", taskId).get()));
+    const offerings: Array<Record<string, unknown>> = [];
+    for (const document of snapshots.flatMap(snapshot => snapshot.docs)) {
+      const offering = configuredSceneOfferingSchema.safeParse(document.data().configured_scene_offering);
+      if (!offering.success) continue;
+      try { assertManagedOfferingForJob(scope, offering.data); } catch { continue; }
+      const admitted = offering.data.status === "evaluation_ready"
+        && offering.data.evaluation_admission?.learned_policy_evaluation_admitted === true;
+      const setup = admitted ? await policyRunSetupFor(document.id, offering.data) : null;
+      offerings.push({ source_launch_id: document.id, task_id: offering.data.task.identity.id,
+        offering_digest: offering.data.offering_digest, status: offering.data.status,
+        execution_mode: "blueprint_managed_self_hosted", technology_team_operation_required: false,
+        availability: setup?.ok ? "available" : "unavailable",
+        reason: setup?.ok ? null : setup && !setup.ok ? setup.code : "scene_not_admitted_for_policy_evaluation",
+        next_action: setup?.ok ? "Use the published fixed-arm setup below. Existing resource authority remains required before it runs."
+          : "Resolve the scene's remaining evidence limitations before treating a policy run as an evaluation.",
+        diagnostic_only: offering.data.status === "configured_controls_pending",
+        diagnostic_href: offering.data.status === "configured_controls_pending"
+          ? `/app/packs/${encodeURIComponent(document.id)}/policy-canary` : null,
+      });
+    }
+    return res.json({ schema_version: "job_managed_evaluations.v1", binding: parsed.data, offerings, runs,
+      next_action: offerings.length ? "Choose a current published setup when new simulator evidence resolves the job's question."
+        : "No compatible prepared scene is available for this job. Continue the options assessment or request only the missing observations needed for the decision.",
+      provider_mutation_performed: false, paid_execution_authorized: false });
+  } catch (error) {
+    const candidateCode = error instanceof Error ? error.message : "";
+    const code = /^job_[a-z_]+$/.test(candidateCode) ? candidateCode : "job_evaluation_unavailable";
+    return res.json({ schema_version: "job_managed_evaluations.v1", binding: parsed.data,
+      offerings: [], runs, reason: code, next_action: managedJobMessage(code),
+      provider_mutation_performed: false, paid_execution_authorized: false });
+  }
+});
 
 function isStoredOfferingState(
   value: unknown,
@@ -609,6 +700,19 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
       paid_execution_requested: false,
     });
   }
+  const { job_evidence_binding: jobBinding, ...scientificSelection } = input.data;
+  let jobTaskContextDigest: string | null = null;
+  if (jobBinding) {
+    try {
+      const scope = await managedJobScope(jobBinding);
+      assertManagedOfferingForJob(scope, resolved.offering);
+      jobTaskContextDigest = scope.taskContextDigest;
+    }
+    catch (error) {
+      const code = error instanceof Error ? error.message : "job_evaluation_source_mismatch";
+      return res.status(409).json({ error: managedJobMessage(code), code, paid_execution_requested: false });
+    }
+  }
   const setup = await policyRunSetupFor(req.params.launchId, resolved.offering);
   if (!setup.ok) return res.status(setup.status).json({
     error: "Policy-run setup is unavailable for this configured scene",
@@ -644,7 +748,7 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
     teamNamespace: resolved.offering.team_namespace,
     runId: input.data.run_id,
     policyRunSetup: setup.setup,
-    policyRunSelection: input.data,
+    policyRunSelection: scientificSelection,
     policyRunConfiguration: configuration,
   });
   if (!preparation.success) return res.status(503).json({
@@ -678,6 +782,7 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
     result_record_id: null,
     created_at_iso: now,
     updated_at_iso: now,
+    ...(jobBinding ? { job_evidence_binding: jobBinding, job_task_context_digest: jobTaskContextDigest } : {}),
   };
   const preparationRecord = {
     schema_version: "task_evaluation_launch_preparation_web_record.v1",
@@ -713,6 +818,7 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
     existing = await withTaskEvaluationLaunchStoreTimeout(db.runTransaction(async (transaction) => {
       const runSnapshot = await transaction.get(runRef);
       const preparationSnapshot = await transaction.get(preparationRef);
+      if (jobBinding) assertManagedOfferingForJob(await managedJobScope(jobBinding, transaction), resolved.offering);
       if (runSnapshot.exists) {
         const prior = runSnapshot.data() as EvaluationReadyRunRecord;
         if (
@@ -720,6 +826,8 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
           || prior.owner_user_id !== record.owner_user_id
           || prior.source_launch_id !== record.source_launch_id
           || prior.configuration_digest !== record.configuration_digest
+          || sceneDigest(prior.job_evidence_binding ?? null) !== sceneDigest(jobBinding ?? null)
+          || (prior.job_task_context_digest ?? null) !== jobTaskContextDigest
         ) throw new Error("task_evaluation_policy_run_immutable_conflict");
         return prior;
       }
@@ -749,7 +857,27 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
       paid_execution_requested: false,
     });
   }
+  let forwardRequest = preparation.data;
+  let forwardAttemptCount = 0;
+  let retryNoSpendForward = false;
   if (existing) {
+    const retained = (await withTaskEvaluationLaunchStoreTimeout(preparationRef.get())).data();
+    retryNoSpendForward = ["forward_pending", "forward_blocked"].includes(String(retained?.state))
+      && ["queued_for_preparation", "blocked"].includes(existing.state)
+      && (existing.preparation_forward as Record<string, unknown> | undefined)?.status !== "forwarded";
+    if (retryNoSpendForward) {
+      if (!retained?.request || retained.request_digest !== existing.preparation_request_digest
+        || taskEvaluationLaunchPreparationRequestDigest(retained.request) !== retained.request_digest) {
+        return res.status(409).json({ error: "The original preparation could not be verified. Inspect the existing run before retrying.",
+          code: "task_evaluation_policy_run_retained_preparation_mismatch", paid_execution_requested: false });
+      }
+      // Retry the no-spend delivery of the original immutable request only.
+      // Keep its source commit, spending limits and expiry byte-for-byte.
+      forwardRequest = retained.request as typeof preparation.data;
+      forwardAttemptCount = Number(retained.forward_attempt_count || 0);
+    }
+  }
+  if (existing && !retryNoSpendForward) {
     res.set("Cache-Control", "private, no-store");
     return res.status(200).json({
       schema_version: "task_evaluation_policy_run_web_receipt.v1",
@@ -771,7 +899,7 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
     });
   }
   const forwarded = await forwardTaskEvaluationLaunchPreparation({
-    request: preparation.data,
+    request: forwardRequest,
   });
   const forwardedState = forwarded.status === "forwarded"
     ? "queued_for_no_spend_preparation"
@@ -779,7 +907,7 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
   const update = {
     state: forwarded.status === "forwarded" ? "queued_for_preparation" : "blocked",
     preparation_forward: forwarded,
-    ...(forwarded.status === "forwarded" ? {} : {
+    ...(forwarded.status === "forwarded" ? { error: null } : {
       error: {
         code: forwarded.blocker || "task_evaluation_policy_run_preparation_forward_failed",
         message: "Policy-run preparation could not be queued.",
@@ -787,17 +915,27 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
     }),
     updated_at_iso: new Date().toISOString(),
   } as const;
+  let current: EvaluationReadyRunRecord;
   try {
-    await withTaskEvaluationLaunchStoreTimeout(Promise.all([
-      runRef.set(update, { merge: true }),
-      preparationRef.set({
+    current = await withTaskEvaluationLaunchStoreTimeout(db.runTransaction(async transaction => {
+      const [runSnapshot, preparationSnapshot] = await Promise.all([transaction.get(runRef), transaction.get(preparationRef)]);
+      const retainedRun = runSnapshot.data() as EvaluationReadyRunRecord;
+      const retainedPreparation = preparationSnapshot.data();
+      const stillAwaitingForward = ["forward_pending", "forward_blocked"].includes(String(retainedPreparation?.state))
+        && ["queued_for_preparation", "blocked"].includes(retainedRun.state);
+      // A concurrent queue receipt or worker progress wins over this delivery
+      // attempt. Replaying a request cannot move an executing run backwards.
+      if (!stillAwaitingForward) return retainedRun;
+      transaction.set(runRef, update, { merge: true });
+      transaction.set(preparationRef, {
         state: forwardedState,
         pipeline: forwarded,
-        forward_attempt_count: 1,
+        forward_attempt_count: forwardAttemptCount + 1,
         forwarded_at_iso: forwarded.status === "forwarded" ? new Date().toISOString() : null,
         updated_at_iso: new Date().toISOString(),
-      }, { merge: true }),
-    ]));
+      }, { merge: true });
+      return { ...retainedRun, ...update } as EvaluationReadyRunRecord;
+    }));
   } catch {
     return res.status(503).json({
       error: "Policy-run forward receipt store is unavailable",
@@ -807,12 +945,11 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
       paid_execution_requested: false,
     });
   }
-  const current = { ...record, ...update } as EvaluationReadyRunRecord;
   res.set("Cache-Control", "private, no-store");
   return res.status(forwarded.status === "forwarded" ? 202 : 503).json({
     schema_version: "task_evaluation_policy_run_web_receipt.v1",
     status: current.state,
-    already_exists: false,
+    already_exists: existing !== null,
     run: projectEvaluationReadyRun(current),
     configuration: projectPolicyRunConfiguration(configuration),
     preparation: {

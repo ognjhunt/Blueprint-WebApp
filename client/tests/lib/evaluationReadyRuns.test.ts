@@ -22,6 +22,14 @@ describe("evaluation-ready run client contract", () => {
     });
   });
 
+  it("preserves the job brief association without accepting buying budgets as authority", () => {
+    const jobEvidenceBinding = { job_id: "job-one", brief_digest: digest("b") };
+    expect(buildEvaluationReadyRunInput({ runId: "job-one-run-one", offeringDigest: digest("a"),
+      presetId: "quick_10", jobEvidenceBinding }).job_evidence_binding).toEqual(jobEvidenceBinding);
+    expect(() => buildEvaluationReadyRunInput({ runId: "job-one-run-one", offeringDigest: digest("a"),
+      presetId: "quick_10", jobEvidenceBinding: { job_id: "../escape", brief_digest: digest("b") } })).toThrow("Job brief binding is invalid");
+  });
+
   it("rejects invalid presets and unsafe run projections", () => {
     expect(() => buildEvaluationReadyRunInput({
       runId: "scene-839873-policy-run-001",

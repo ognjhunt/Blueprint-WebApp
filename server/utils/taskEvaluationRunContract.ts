@@ -777,6 +777,9 @@ export function parseVerifiedTaskEvaluationRunPublication(value: unknown):
       ? verifyProducerArtifact(artifact, digestField, publication.producer_canonical_json[field])
       : canonicalArtifactDigest(artifact, digestField) === artifact[digestField];
   };
+  if (publication.producer_canonical_json && Object.keys(publication.producer_canonical_json).some(field => !(field in publication))) {
+    blockers.push("run_producer_canonical_shape_mismatch");
+  }
   if (!verifiedDigest("evidence_plan", "plan_digest")) {
     blockers.push("evidence_plan_digest_mismatch");
   }

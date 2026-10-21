@@ -21,6 +21,9 @@ export const POLICY_RUN_VARIATION_FAMILIES = [
   "bounded_physics",
   "pairwise",
   "held_out",
+  "admitted_object_material_cousin",
+  "pairwise_stress",
+  "held_out_composition",
 ] as const;
 
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
@@ -190,15 +193,18 @@ const estimateSchema = z.discriminatedUnion("status", [
   }).strict(),
 ]);
 
-const familyCountsSchema = z.object({
+const sharedFamilyCounts = {
   canonical_anchor: z.number().int().nonnegative(),
   placement_approach: z.number().int().nonnegative(),
   illumination: z.number().int().nonnegative(),
   camera_sensor: z.number().int().nonnegative(),
   bounded_physics: z.number().int().nonnegative(),
-  pairwise: z.number().int().nonnegative(),
-  held_out: z.number().int().nonnegative(),
-}).strict();
+};
+const familyCountsSchema = z.union([
+  z.object({ ...sharedFamilyCounts, pairwise: z.number().int().nonnegative(), held_out: z.number().int().nonnegative() }).strict(),
+  z.object({ ...sharedFamilyCounts, admitted_object_material_cousin: z.number().int().nonnegative(),
+    pairwise_stress: z.number().int().nonnegative(), held_out_composition: z.number().int().nonnegative() }).strict(),
+]);
 
 function presetSchema<PresetId extends typeof POLICY_RUN_PRESET_IDS[number], ScenarioCount extends 10 | 100 | 500>(
   presetId: PresetId,
@@ -334,21 +340,26 @@ export type EvaluationReadyRunInput = {
   run_id: string;
   offering_digest: string;
   preset_id: typeof POLICY_RUN_PRESET_IDS[number];
+  job_evidence_binding?: { job_id: string; brief_digest: string };
 };
 
 export function buildEvaluationReadyRunInput(params: {
   runId: string;
   offeringDigest: string;
   presetId: typeof POLICY_RUN_PRESET_IDS[number];
+  jobEvidenceBinding?: { job_id: string; brief_digest: string };
 }): EvaluationReadyRunInput {
   if (!identifier.safeParse(params.runId).success) throw new Error("Run ID is invalid");
   if (!digest.safeParse(params.offeringDigest).success) throw new Error("Offering digest is invalid");
   if (!POLICY_RUN_PRESET_IDS.includes(params.presetId)) throw new Error("Evaluation preset is invalid");
+  if (params.jobEvidenceBinding && (!identifier.safeParse(params.jobEvidenceBinding.job_id).success
+    || !digest.safeParse(params.jobEvidenceBinding.brief_digest).success)) throw new Error("Job brief binding is invalid");
   return {
     schema_version: "task_evaluation_policy_run_selection.v1",
     run_id: params.runId,
     offering_digest: params.offeringDigest,
     preset_id: params.presetId,
+    ...(params.jobEvidenceBinding ? { job_evidence_binding: params.jobEvidenceBinding } : {}),
   };
 }
 
@@ -411,9 +422,9 @@ export async function fetchEvaluationReadySetup(
       scenarioCountPerPolicy: preset.scenario_count_per_policy,
       availability: preset.availability === "enabled" ? "available" as const : "coming_later" as const,
       recommended: preset.default,
-      familyCoverage: POLICY_RUN_VARIATION_FAMILIES.map((family) => ({
-        family,
-        scenarioCount: preset.family_counts[family],
+      familyCoverage: Object.entries(preset.family_counts).map(([family, count]) => ({
+        family: family as typeof POLICY_RUN_VARIATION_FAMILIES[number],
+        scenarioCount: count,
       })),
       episodeCounts: {
         learnedEpisodeCount: preset.episode_counts.learned_episode_count,
