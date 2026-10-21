@@ -63,6 +63,13 @@ Pipeline must deploy the additive native-preflight/v2 runtime consumer before
 this WebApp consumer. No fresh provider execution or physical compatibility is
 established by the software fixtures.
 
+The existing Dream protocol settings also survive setup edits and checkpoint
+selection. Its v2 manifest can bind independent left/right joint groups and
+base/tool/TCP frames; the adapter separately requires its exact account model
+and three camera roles. A checkpoint for another model at the same endpoint is
+not interchangeable. These declarations still need the matching Pipeline
+adapter, licensed account access and actual runtime qualification.
+
 The downloaded portable JSON uses
 `deployment_embodiment_shortlist.v1`, has `claim_ceiling: "planning_only"`, and
 binds the source catalog and selected robot/policy routes with SHA-256 digests.

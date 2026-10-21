@@ -121,6 +121,21 @@ function post(who: string, body: unknown) {
 }
 
 describe("workspace checkpoint registration", () => {
+  it("persists exact model settings and never reuses another Dream model at the same URL", async () => {
+    const setup = state.setups.get("team-user/setup-1")!;
+    setup.reference = "https://api.dreamlabs.ai/v1/get_action";
+    setup.policyConfig = { policy_interface_id: "dreamlabs_dream1.v1", model_id: "dreamlabs/dream-1",
+      camera_roles: { overhead: "overview", wrist_l: "left_wrist", wrist_r: "right_wrist" } };
+    const first = await post("team", { setupId: "setup-1", label: "Dream", runtime: "policy_endpoint" });
+    expect(first.status).toBe(201);
+    expect((await first.json()).checkpoint.policyConfig).toEqual(setup.policyConfig);
+    setup.policyConfig = { ...setup.policyConfig, model_id: "dreamlabs/dream-1-beta" };
+    const second = await post("team", { setupId: "setup-1", label: "Dream beta", runtime: "policy_endpoint" });
+    expect(second.status).toBe(201);
+    expect(state.registered).toHaveLength(2);
+    expect(state.registered[1].policyConfig.model_id).toBe("dreamlabs/dream-1-beta");
+    expect(state.checkpoints[0].policyConfig.model_id).toBe("dreamlabs/dream-1");
+  });
   it.each(["support_option", "model"])("keeps %s setups out of executable checkpoint and token onboarding", async source => {
     state.setups.get("team-user/setup-1")!.robotDescription = source === "support_option"
       ? {source,embodimentId:"almond_axol",catalogDigest:`sha256:${"a".repeat(64)}`,policyRouteIds:["pi_api"]}

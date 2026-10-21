@@ -26,6 +26,7 @@ const httpsModel = z.string().trim().url().max(1000).refine(value => {
 
 export const ROBOT_EMBODIMENT_SCHEMA = "blueprint.robot_embodiment.v1";
 export const ROBOT_EMBODIMENT_V2_SCHEMA = "blueprint.robot_embodiment.v2";
+export const ROBOT_EMBODIMENT_SCHEMA_V2 = ROBOT_EMBODIMENT_V2_SCHEMA;
 export const ROBOT_CONTROL_HZ = [15, 30, 60, 120] as const;
 /** What the team says its robot is; reported, never a gate. */
 export const ROBOT_FORMS = ["fixed_base_arm", "bimanual_arm", "mobile_manipulator", "wheeled_humanoid", "humanoid",
@@ -67,6 +68,12 @@ const gripper = z.object({
   max_width_m: finite.positive().max(1),
   contact_links: z.array(name).min(1).max(8),
 }).strict();
+const pose = z.object({
+  position_m: z.tuple([finite, finite, finite]),
+  orientation_xyzw: z.tuple([finite, finite, finite, finite])
+    .refine(q => Math.abs(q.reduce((sum, v) => sum + v * v, 0) - 1) <= 1e-4,
+      "Use a normalized XYZW quaternion."),
+}).strict();
 const common = {
   embodiment_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/),
   form: z.enum(ROBOT_FORMS),
@@ -85,7 +92,12 @@ const common = {
 const legacy = z.object({ schema_version: z.literal(ROBOT_EMBODIMENT_SCHEMA), ...common,
   gripper: gripper.nullable().optional() }).strict();
 const independent = z.object({ schema_version: z.literal(ROBOT_EMBODIMENT_V2_SCHEMA), ...common,
-  grippers: z.array(gripper.extend({ name, tool_link: name }).strict()).max(2) }).strict();
+  grippers: z.array(gripper.extend({ name, tool_link: name }).strict()).max(2),
+  arms: z.array(z.object({
+    name, joint_names: z.array(name).min(1).max(64), base_link: name,
+    tool_link: name, gripper_name: name, tool_from_tcp: pose,
+  }).strict()).min(1).max(2).optional(),
+}).strict();
 
 export const robotEmbodimentSchema = z.discriminatedUnion("schema_version", [legacy, independent]).superRefine((value, ctx) => {
   const channels = value.schema_version === ROBOT_EMBODIMENT_V2_SCHEMA ? value.grippers
@@ -129,6 +141,23 @@ export const robotEmbodimentSchema = z.discriminatedUnion("schema_version", [leg
     if (value.grippers.length && !value.grippers.some(channel => channel.tool_link === value.tool_link)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["tool_link"],
         message: "The primary tool link must identify one of the declared grippers." });
+    }
+    const arms = value.arms ?? [];
+    const armNames = arms.map(arm => arm.name);
+    const armJoints = arms.flatMap(arm => arm.joint_names);
+    const armTools = arms.map(arm => arm.gripper_name);
+    if (new Set(armNames).size !== armNames.length || new Set(armJoints).size !== armJoints.length
+      || new Set(armTools).size !== armTools.length
+      || (value.arms !== undefined && (value.base.mode !== "fixed"
+        || armJoints.length !== value.joints.length || armTools.length !== value.grippers.length))) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["arms"], message: "Arms must have independent names, joint groups and grippers." });
+    }
+    for (const arm of arms) {
+      if (arm.base_link === arm.tool_link
+        || !arm.joint_names.every(name => value.joints.some(joint => joint.name === name && joint.control === "position"))
+        || !value.grippers.some(tool => tool.name === arm.gripper_name && tool.tool_link === arm.tool_link)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["arms"], message: "Bind every arm to declared position joints and its matching gripper/tool link." });
+      }
     }
   }
 });

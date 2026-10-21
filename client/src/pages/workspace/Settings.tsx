@@ -16,6 +16,8 @@ import {
 } from "@/components/workspace/WorkspaceUI";
 import { RobotDescriptionFields, RobotEmbodimentFields, readRobotDescription, readRobotEmbodiment } from "@/components/workspace/RobotDescriptionFields";
 import type { RobotEmbodiment } from "@/types/robotEmbodiment";
+import { PolicyAdapterFields, readPolicyAdapter } from "@/components/workspace/PolicyAdapterFields";
+import type { PolicyAdapter } from "@/types/policyAdapter";
 import PolicyInterfaceGuide from "@/components/workspace/PolicyInterfaceGuide";
 import { CheckpointRegistration } from "@/components/workspace/CheckpointRegistration";
 import type { RobotSetup } from "@/types/workspace";
@@ -264,6 +266,9 @@ function WorkspaceSettings() {
                   setSetupError(error instanceof Error ? error.message : "Enter the robot configuration.");
                   return;
                 }
+                let policyConfig: PolicyAdapter | undefined;
+                try { policyConfig = readPolicyAdapter(values); }
+                catch (error) { setSetupError((error as Error).message); return; }
                 void action.perform(
                   "/setups",
                   {
@@ -281,6 +286,7 @@ function WorkspaceSettings() {
                     robotDescription,
                     ...(editing !== "new" && editing.executionBindingId ? {executionBindingId:editing.executionBindingId} : {}),
                     ...(robotEmbodiment ? { robotEmbodiment } : {}),
+                    ...(policyConfig ? { policyConfig } : {}),
                   },
                   () => setEditing(null),
                 );
@@ -338,6 +344,7 @@ function WorkspaceSettings() {
               </div>
               <RobotEmbodimentFields value={editing === "new" ? undefined : editing.robotEmbodiment} />
               <PolicyInterfaceGuide />
+              <PolicyAdapterFields value={editing === "new" ? undefined : editing.policyConfig} />
               <details className="ws-section">
                 <summary>Additional notes</summary>
                 <Field label="Notes">

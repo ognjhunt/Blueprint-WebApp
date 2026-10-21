@@ -9,6 +9,8 @@ import { CheckpointRegistration, type WorkspaceCheckpoint } from "@/components/w
 import PolicyInterfaceGuide from "@/components/workspace/PolicyInterfaceGuide";
 import type { RobotSetup } from "@/types/workspace";
 import type { RobotConfigurationPreflight } from "@/types/robotConfiguration";
+import { PolicyAdapterFields, readPolicyAdapter } from "@/components/workspace/PolicyAdapterFields";
+import { samePolicyAdapter } from "@/types/policyAdapter";
 
 /** The existing job console operates the same saved setup/checkpoint/admission path as a robot team. */
 export function JobRobotConfiguration({ jobId, onRequested }: { jobId: string; onRequested: () => void }) {
@@ -40,6 +42,7 @@ export function JobRobotConfiguration({ jobId, onRequested }: { jobId: string; o
   const receipt = selected?.robotDescription?.source === "support_option"
     ? preflight === undefined ? selected.nativePreflight : preflight : null;
   const matching = (checkpoints.data?.checkpoints || []).filter(row => row.reference === selected?.reference
+    && samePolicyAdapter(row.policyConfig, selected?.policyConfig)
     && ["policy_endpoint", "customer_hosted"].includes(row.runtime) && row.status !== "retired");
   const checkpoint = matching.find(row => row.checkpointId === checkpointId);
 
@@ -63,12 +66,13 @@ export function JobRobotConfiguration({ jobId, onRequested }: { jobId: string; o
     try {
       const robotDescription = readRobotDescription(form, []);
       const robotEmbodiment = readRobotEmbodiment(form);
+      const policyConfig = readPolicyAdapter(form);
       if (!robotDescription) throw new Error("Choose the actual robot.");
       const text = (name: string) => String(form.get(name) || "").trim();
       const id = selected?.id || newSetupId;
       await workspaceRequest(currentUser, "/setups", "POST", { id, name: text("name"), embodiment: text("embodiment"),
         policyName: text("policyName"), version: text("version"), delivery: "endpoint", reference: text("reference"),
-        notes: text("notes"), robotDescription, ...(robotEmbodiment ? { robotEmbodiment } : {}) });
+        notes: text("notes"), robotDescription, ...(robotEmbodiment ? { robotEmbodiment } : {}), ...(policyConfig ? { policyConfig } : {}) });
       setSetupId(id); setCheckpointId(""); setRequestId(`robot-eval-${crypto.randomUUID()}`);
       setNewSetupId(`setup-${crypto.randomUUID()}`);
       await client.invalidateQueries({ queryKey: setupKey });
@@ -116,6 +120,7 @@ export function JobRobotConfiguration({ jobId, onRequested }: { jobId: string; o
       <p className="text-xs">Use a URL without credentials or query parameters. Enter the bearer token separately in Policy token below.</p>
       <RobotDescriptionFields value={selected?.robotDescription} allowSupportOptions />
       <RobotEmbodimentFields value={selected?.robotEmbodiment} />
+      <PolicyAdapterFields value={selected?.policyConfig} />
       <label className="block text-sm">Configuration notes<textarea name="notes" maxLength={3000} defaultValue={selected?.notes} className="mt-1 block w-full rounded border border-line p-2" /></label>
       <button className="ws-secondary" disabled={busy}>Save configuration</button>
     </form>

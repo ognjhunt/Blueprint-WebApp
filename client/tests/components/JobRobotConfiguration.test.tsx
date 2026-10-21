@@ -5,6 +5,7 @@ import { JobRobotConfiguration } from "@/components/admin/JobRobotConfiguration"
 import { workspaceRequest } from "@/lib/workspace";
 import { deploymentEmbodimentCatalog, deploymentCatalogWithDigest } from "@/lib/deploymentEmbodimentSupport";
 import fixture from "../../../server/tests/fixtures/deployment-embodiment/configuration-preflight.v1.json";
+import { dreamRobotFixture } from "../../../server/tests/helpers/dream-robot";
 const user={uid:"operator"};
 vi.mock("@/contexts/AuthContext",()=>({useAuth:()=>({currentUser:user})}));
 vi.mock("@/lib/workspace",()=>({workspaceRequest:vi.fn()}));
@@ -95,4 +96,38 @@ it("saves and requests a generic custom model through existing staging without a
     opportunityId:"actual-job",setupId:setup.id,checkpointId:"checkpoint-exact",licenseToRun:true,
   }));
   expect(fetch).not.toHaveBeenCalled();expect(changed).toHaveBeenCalledOnce();
+});
+
+it("retains a Dream model/camera configuration and offers only checkpoints for that exact model",async()=>{
+  const robotEmbodiment=dreamRobotFixture();
+  const policyConfig={policy_interface_id:"dreamlabs_dream1.v1",model_id:"account/exact-model-v2",
+    camera_roles:{overhead:"overview",wrist_l:"left_wrist",wrist_r:"right_wrist"}};
+  const selected={...setup,reference:"https://api.dreamlabs.ai/v1/get_action",robotEmbodiment,policyConfig,
+    robotDescription:{source:"model",format:"usd",reference:robotEmbodiment.model.url,mobility:"fixed",details:"Declared dual arms"}};
+  vi.mocked(workspaceRequest).mockImplementation(async(_user,path,method,body)=>{
+    if(path==="/setups" && method!=="POST") return {setups:[selected]};
+    if(path==="/checkpoints") return {checkpoints:[
+      {checkpointId:"old-model",label:"Old model",reference:selected.reference,runtime:"policy_endpoint",status:"registered",
+        policyConfig:{...policyConfig,model_id:"account/old-model"},tokenExpiresAtIso:"2100-01-01T00:00:00Z"},
+      {checkpointId:"current-model",label:"Current model",reference:selected.reference,runtime:"policy_endpoint",status:"registered",
+        policyConfig,tokenExpiresAtIso:"2100-01-01T00:00:00Z"},
+    ]};
+    return body || {};
+  });
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}>
+    <JobRobotConfiguration jobId="actual-job" onRequested={()=>{}}/></QueryClientProvider>);
+  fireEvent.click(screen.getByText("Robot configuration and policy",{selector:"summary"}));
+  await screen.findByRole("option",{name:/Fixture configuration/});
+  fireEvent.change(screen.getByLabelText("Saved configuration"),{target:{value:setup.id}});
+  expect(screen.getByLabelText("Protocol settings (JSON)")).toHaveValue(JSON.stringify(policyConfig,null,2));
+  fireEvent.submit(screen.getByRole("button",{name:"Save configuration"}).closest("form")!);
+  await screen.findByText(/existing model-and-scene staging checks this custom robot/);
+  expect(workspaceRequest).toHaveBeenCalledWith(user,"/setups","POST",expect.objectContaining({policyConfig,robotEmbodiment}));
+  expect(screen.queryByRole("option",{name:"Old model · registered"})).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Policy checkpoint for this evaluation"),{target:{value:"current-model"}});
+  fireEvent.click(screen.getByLabelText(/I have the right to license/));
+  fireEvent.submit(screen.getByRole("button",{name:"Request this job's evaluation"}).closest("form")!);
+  await screen.findByText(/Evaluation requested. Use this job's existing evaluation admission/);
+  expect(workspaceRequest).toHaveBeenCalledWith(user,"/evaluations","POST",expect.objectContaining({checkpointId:"current-model"}));
+  expect(fetch).not.toHaveBeenCalled();
 });

@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sharedFakeFirestoreState, fakeArrayUnion } from "./helpers/fake-firestore";
 import { listedTaskCard } from "./helpers/listedTaskCard";
+import { dreamRobotFixture } from "./helpers/dream-robot";
 
 // Early access is covered in robot-team-early-access.test.ts. These tests are
 // about planning, spending and settling, so every team here is admitted.
@@ -270,6 +271,25 @@ describe("asking for a team evaluation (beta L5)", () => {
       policy_execution_profiles: profiles,
     } });
   const approval = () => ({ approvedBy: "operator", expiresAtIso: new Date(Date.now() + 600000).toISOString() });
+  it("seals the real Dream protocol and refuses a substituted model at admission", async () => {
+    const policyConfig = { policy_interface_id: "dreamlabs_dream1.v1", model_id: "dreamlabs/dream-1",
+      camera_roles: { overhead: "overview", wrist_l: "left_wrist", wrist_r: "right_wrist" } };
+    seed({ scene: offered(200), checkpoint: { reference: "https://api.dreamlabs.ai/v1/get_action", policyConfig,
+      policyCredential: credential } });
+    const free = { ...quote, quotedEpisodes: 200, quotedUsd: 10, submissionKey: "free:dream",
+      teamEvaluation: { robotEmbodiment: dreamRobotFixture() } };
+    const prepared = await prepareFreeAgentExecution(free, approval());
+    if (!prepared.prepared) throw new Error(JSON.stringify(prepared));
+    const admitted = await discoverAgentExecutionAdmission({ ...free, executionRequestId: prepared.requestId });
+    if (!admitted.admitted) throw new Error(JSON.stringify(admitted));
+    const canonical = admitted.envelope.canonical_execution_request as Record<string, any>;
+    expect(canonical.policy_package.policy_api_endpoint).toMatchObject({ policy_interface_id: "dreamlabs_dream1.v1",
+      policy_config: { model_id: policyConfig.model_id, camera_roles: policyConfig.camera_roles } });
+    const checkpoint = sharedFakeFirestoreState.docs.get("robotCheckpoints/ckpt-1")!;
+    checkpoint.policyConfig = { ...policyConfig, model_id: "dreamlabs/dream-1-beta" };
+    const changed = await discoverAgentExecutionAdmission({ ...free, executionRequestId: prepared.requestId });
+    expect(changed.admitted).toBe(false);
+  });
   const arm = { schema_version: "blueprint.robot_embodiment.v1", embodiment_id: "acme-arm-v2", form: "fixed_base_arm",
     model: { format: "usd", url: "https://models.acme.example/arm.usd", sha256: sha("9") },
     base: { mode: "fixed" },

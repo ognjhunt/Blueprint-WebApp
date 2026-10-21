@@ -43,6 +43,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
 import type { PolicyModelArtifact } from "./policyModelArtifact";
 import { checkpointRuntimes, validateIntegrationReference } from "./policyIntegration";
+import { policyAdapterSchema, type PolicyAdapter } from "../../client/src/types/policyAdapter";
 import { mergeCapability } from "./robotTeamRegistry";
 import {
   ROBOT_TEAMS_COLLECTION,
@@ -73,6 +74,7 @@ export interface RobotCheckpoint {
   /** Endpoint URL, image reference, or artifact URI, by runtime. */
   reference: string;
   modelArtifact?: PolicyModelArtifact;
+  policyConfig?: PolicyAdapter;
   policyCredential?: { ref: string; kind: "registry" | "bearer"; expiresAtIso: string };
   status: CheckpointStatus;
   /** Why it could not be run, when that is the status. */
@@ -108,6 +110,7 @@ export async function registerCheckpoint(params: {
   runtime: string;
   reference: string;
   modelArtifact?: PolicyModelArtifact;
+  policyConfig?: PolicyAdapter;
 }): Promise<RegisterCheckpointResult> {
   if (!db) {
     return {
@@ -127,6 +130,11 @@ export async function registerCheckpoint(params: {
   }
 
   const reference = params.reference.trim();
+  if (params.policyConfig !== undefined && (!policyAdapterSchema.safeParse(params.policyConfig).success
+    || !["policy_endpoint", "customer_hosted"].includes(runtime)
+    || reference !== "https://api.dreamlabs.ai/v1/get_action")) {
+    return { registered: false, refusal: "reference_invalid", detail: "Use the exact supported Dream endpoint and protocol settings." };
+  }
   if (!reference) {
     return {
       registered: false,
@@ -147,6 +155,7 @@ export async function registerCheckpoint(params: {
     runtime,
     reference,
     ...(params.modelArtifact ? { modelArtifact: params.modelArtifact } : {}),
+    ...(params.policyConfig ? { policyConfig: policyAdapterSchema.parse(params.policyConfig) } : {}),
     status: "registered",
     unrunnableReason: null,
     createdAtIso: nowIso(),

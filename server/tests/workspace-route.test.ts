@@ -10,6 +10,7 @@ import { buildLegalAcceptanceRecord } from "../../client/src/lib/legalAcceptance
 import { syntheticQualifiedRun } from "./helpers/recommendation-evidence";
 import { deploymentCatalogWithDigest } from "../../client/src/lib/deploymentEmbodimentSupport";
 import configurationFixture from "./fixtures/deployment-embodiment/configuration-preflight.v1.json";
+import { dreamRobotFixture } from "./helpers/dream-robot";
 const state = vi.hoisted(() => ({
   records: new Map<string, any>(),
   messages: vi.fn(),
@@ -702,13 +703,22 @@ describe("workspace requests and lifecycle", () => {
     expect(state.notices).not.toHaveBeenCalledWith(expect.objectContaining({milestone:"pilot_request"}));
     expect((await api("/evaluations","robot-1",{...request,id:"team-private"})).status).toBeGreaterThanOrEqual(400);
     expect((await api("/evaluations","robot-1",{...request,id:"forged",executionOrigin:"blueprint_managed"})).status).toBe(400);
+    const policyConfig={policy_interface_id:"dreamlabs_dream1.v1",model_id:"account/model-v2",camera_roles:{overhead:"overview",wrist_l:"left_wrist",wrist_r:"right_wrist"}};
+    const dreamSetup={...ownSetup,reference:"https://api.dreamlabs.ai/v1/get_action",robotEmbodiment:dreamRobotFixture(),policyConfig};
+    expect((await api("/setups","operator",dreamSetup)).status).toBe(200);
+    const credentials={kind:"bearer",ref:"credential",expiresAtIso:"2100-01-01T00:00:00Z"};
+    state.records.set("robotCheckpoints/selected",{checkpointId:"selected",teamId:"ops-team",runtime:"policy_endpoint",reference:dreamSetup.reference,
+      policyConfig:{...policyConfig,model_id:"account/old-model"},policyCredential:credentials});
+    state.records.set("robotCheckpoints/current",{checkpointId:"current",teamId:"ops-team",runtime:"policy_endpoint",reference:dreamSetup.reference,policyConfig,policyCredential:credentials});
+    expect((await api("/evaluations","operator",{...request,id:"wrong-model"})).status).toBe(409);
+    expect((await api("/evaluations","operator",{...request,id:"correct-model",checkpointId:"current"})).status).toBe(201);
     for(const change of [{consent_revoked:true},{workspace_task:{paused:true}},
       {evaluation_readiness:{...privateJob.evaluation_readiness,rights_review_status:"needs_review"}},
       {evaluation_readiness:{runtime_launchable:false}}]) {
       state.records.set("inboundRequests/task-1",{...privateJob,...change});
       expect((await api("/evaluations","operator",{...request,id:"changed-eval"})).status).toBe(409);
     }
-    expect(state.intakes).toHaveLength(1);
+    expect(state.intakes).toHaveLength(2);
   });
   it("keeps model descriptions private and prevents arbitrary runtime binding", async () => {
     const robotDescription={source:"model",format:"urdf",reference:"https://example.test/robot.urdf",mobility:"mobile",details:"Wrist camera"};

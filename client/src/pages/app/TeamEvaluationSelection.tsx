@@ -11,6 +11,8 @@ import { RobotDescriptionFields, RobotEmbodimentFields, readRobotDescription, re
 import { TeamEvaluationResults } from "@/components/blueprint/app/TeamEvaluationResults";
 import { CheckpointRegistration, type WorkspaceCheckpoint } from "@/components/workspace/CheckpointRegistration";
 import { robotEmbodimentSchema } from "@/types/robotEmbodiment";
+import { PolicyAdapterFields, readPolicyAdapter } from "@/components/workspace/PolicyAdapterFields";
+import { samePolicyAdapter } from "@/types/policyAdapter";
 
 type Configuration={id:string;label:string;binding_digest:string;policy_candidates:Array<{id:string;artifact_digest:string}>};
 type Context={opportunityId?:string|null;sourceLaunchId:string;sourceProfileDigest:string;sceneRevisionDigest:string;
@@ -81,6 +83,7 @@ export default function TeamEvaluationSelection() {
     return()=>{active=false;clearInterval(timer);};
   },[currentUser,ownRobot,setupId]);
   const matchingCheckpoints=checkpoints.filter(row=>row.reference===setup?.reference && row.status!=="retired"
+    && samePolicyAdapter(row.policyConfig,setup?.policyConfig)
     && ["policy_endpoint","customer_hosted"].includes(row.runtime));
   const checkpoint=matchingCheckpoints.find(row=>row.checkpointId===checkpointId);
   const configuration=setup?.robotDescription && setup.robotDescription.source!=="catalog" ? undefined : context?.configurations.find(c=>c.id===(setup?.executionBindingId || configurationId));
@@ -132,8 +135,9 @@ export default function TeamEvaluationSelection() {
     try {
       const robotDescription=readRobotDescription(values,context?.configurations || []);
       const robotEmbodiment=readRobotEmbodiment(values);
+      const policyConfig=readPolicyAdapter(values);
       if (!robotDescription) throw new Error("Choose a robot model.");
-      const payload={...saved,robotDescription,...(robotEmbodiment?{robotEmbodiment}:{}),...(robotDescription.source==="catalog"?{executionBindingId:robotDescription.configurationId}:{})};
+      const payload={...saved,robotDescription,...(robotEmbodiment?{robotEmbodiment}:{}),...(policyConfig?{policyConfig}:{}),...(robotDescription.source==="catalog"?{executionBindingId:robotDescription.configurationId}:{})};
       await workspaceRequest(currentUser,"/setups","POST",payload);
       setContext(previous=>previous?{...previous,setups:[...previous.setups,{...payload,updatedAt:new Date().toISOString()}]}:previous);
       setSetupId(saved.id);setConfigurationId("");setAddingSetup(false);
@@ -215,6 +219,7 @@ export default function TeamEvaluationSelection() {
           </div>
           <RobotDescriptionFields configurations={context.configurations} />
           <RobotEmbodimentFields />
+          <PolicyAdapterFields />
           <button disabled={busy} className="ws-primary">Save setup</button>
           <button type="button" onClick={()=>setAddingSetup(false)} className="ml-4 text-sm underline">Cancel</button>
         </form>}

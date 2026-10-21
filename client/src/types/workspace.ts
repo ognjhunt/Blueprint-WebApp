@@ -2,6 +2,7 @@ import type { UpdatePreferences } from "./updatePreferences";
 import type { SiteAdvisory } from "./siteAdvisory";
 import type { RobotDescription } from "./robotDescription";
 import type { RobotEmbodiment } from "./robotEmbodiment";
+import type { PolicyAdapter } from "./policyAdapter";
 import type { SitePilotIntent, SiteVisitAnswer } from "@/data/sitePilotIntent";
 export type WorkspaceRole = "site_operator" | "robot_team";
 export type TaskTargets = {
@@ -19,6 +20,7 @@ export type RobotSetup = {
   /** The team's own robot and cameras for evaluation; absent means the DROID Franka. */
   robotEmbodiment?: RobotEmbodiment;
   nativePreflight?: import("./robotConfiguration").RobotConfigurationPreflight;
+  policyConfig?: PolicyAdapter;
   executionBindingId?: string;
   id: string;
   name: string;

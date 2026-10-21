@@ -31,6 +31,7 @@ import { bindTeamToAccount, teamsForAccount } from "../utils/robotTeamAccounts";
 import { registerSelfServeTeam } from "../utils/robotTeamRegistry";
 import { ensureApprovedTeamForAccount } from "../utils/robotTeamEarlyAccess";
 import { robotSetupIntegrationBlocker, TEAM_POLICY_BLOCKER_MESSAGES, type TeamPolicyBlocker } from "../utils/policyIntegration";
+import { policyAdapterSchema, samePolicyAdapter, type PolicyAdapter } from "../../client/src/types/policyAdapter";
 
 const router = Router();
 
@@ -85,6 +86,7 @@ function project(checkpoint: RobotCheckpoint) {
     label: checkpoint.label,
     runtime: checkpoint.runtime,
     reference: checkpoint.reference,
+    ...(checkpoint.policyConfig ? { policyConfig: checkpoint.policyConfig } : {}),
     status: checkpoint.status,
     unrunnableReason: checkpoint.unrunnableReason,
     createdAtIso: checkpoint.createdAtIso,
@@ -93,12 +95,13 @@ function project(checkpoint: RobotCheckpoint) {
   };
 }
 
-async function readSetupReference(uid: string, setupId: string): Promise<{ reference: string; name: string; delivery: string; integrationBlocker: TeamPolicyBlocker | null } | null> {
+async function readSetupReference(uid: string, setupId: string): Promise<{ reference: string; name: string; delivery: string; policyConfig?: PolicyAdapter; integrationBlocker: TeamPolicyBlocker | null } | null> {
   const stored = await db!.collection("users").doc(uid).collection("robotSetups").doc(setupId).get();
   if (!stored.exists || !stored.data()?.payload) return null;
   const payload = JSON.parse(await decryptFieldValue(stored.data()!.payload));
   const reference = typeof payload.reference === "string" ? payload.reference.trim() : "";
   return reference ? { reference, name: typeof payload.name === "string" ? payload.name : setupId,
+    ...(payload.policyConfig !== undefined ? { policyConfig: policyAdapterSchema.parse(payload.policyConfig) } : {}),
     delivery: typeof payload.delivery === "string" ? payload.delivery : "", integrationBlocker: robotSetupIntegrationBlocker(payload) } : null;
 }
 
@@ -179,12 +182,14 @@ router.post("/", async (req: Request, res: Response) => {
       if (!("teamId" in team)) return res.status(team.status).json({ error: team.error, code: team.code });
       const { teamId } = team;
       const existing = (await listCheckpoints(teamId)).find((checkpoint) =>
-        checkpoint.reference === setup.reference && checkpoint.runtime === input.runtime && checkpoint.status !== "retired");
+        checkpoint.reference === setup.reference && samePolicyAdapter(checkpoint.policyConfig, setup.policyConfig)
+        && checkpoint.runtime === input.runtime && checkpoint.status !== "retired");
       if (existing) {
         return res.status(200).json({ ok: true, created: false, checkpoint: project(existing),
           message: "This setup already has a checkpoint registered for that runtime." });
       }
-      const result = await registerCheckpoint({ teamId, label: input.label, runtime: input.runtime, reference: setup.reference });
+      const result = await registerCheckpoint({ teamId, label: input.label, runtime: input.runtime,
+        reference: setup.reference, policyConfig: setup.policyConfig });
       if (!result.registered) {
         return res.status(result.refusal === "store_unavailable" ? 503 : 409).json({ error: result.detail, code: result.refusal });
       }
@@ -224,10 +229,11 @@ router.post("/policy-token", async (req: Request, res: Response) => {
       const team = await accountTeam(caller, input.teamId);
       if (!("teamId" in team)) return res.status(team.status).json({ error: team.error, code: team.code });
       let checkpoint = (await listCheckpoints(team.teamId)).find((candidate) => candidate.reference === setup.reference
+        && samePolicyAdapter(candidate.policyConfig, setup.policyConfig)
         && candidate.runtime === "policy_endpoint" && candidate.status !== "retired");
       if (!checkpoint) {
         const result = await registerCheckpoint({ teamId: team.teamId, label: setup.name, runtime: "policy_endpoint",
-          reference: setup.reference });
+          reference: setup.reference, policyConfig: setup.policyConfig });
         if (!result.registered) {
           return res.status(result.refusal === "store_unavailable" ? 503 : 409).json({ error: result.detail, code: result.refusal });
         }
