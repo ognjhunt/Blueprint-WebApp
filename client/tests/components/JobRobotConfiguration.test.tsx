@@ -28,7 +28,7 @@ beforeEach(()=>{
 });
 afterEach(()=>vi.unstubAllGlobals());
 
-it("saves a complete configuration, validates real assets, then requests the exact registered checkpoint through existing actions",async()=>{
+it("saves a catalog configuration, requests asset validation, then requests the exact registered checkpoint through existing actions",async()=>{
   const changed=vi.fn();
   render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}>
     <JobRobotConfiguration jobId="actual-job" onRequested={changed}/></QueryClientProvider>);
@@ -37,7 +37,7 @@ it("saves a complete configuration, validates real assets, then requests the exa
   fireEvent.change(screen.getByLabelText("Saved configuration"),{target:{value:setup.id}});
   for(const robot of deploymentEmbodimentCatalog.embodiments) expect(screen.getByRole("option",{name:robot.display_name})).toBeInTheDocument();
   await waitFor(async()=>expect((await deploymentCatalogWithDigest()).catalog_digest).toBe(fixture.response.catalog_digest));
-  fireEvent.submit(screen.getByRole("button",{name:"Save and validate configuration"}).closest("form")!);
+  fireEvent.submit(screen.getByRole("button",{name:"Save configuration"}).closest("form")!);
   await screen.findByText(/Configured; not executed/);
   expect(workspaceRequest).toHaveBeenCalledWith(user,"/setups","POST",expect.objectContaining({
     id:setup.id,robotDescription:setup.robotDescription,robotEmbodiment:setup.robotEmbodiment,reference:setup.reference,
@@ -54,4 +54,45 @@ it("saves a complete configuration, validates real assets, then requests the exa
   }));
   expect(changed).toHaveBeenCalledOnce();
   expect(JSON.stringify(vi.mocked(fetch).mock.calls)).not.toMatch(/provider|allocate|policy.fixture/);
+});
+
+it("saves and requests a generic custom model through existing staging without a catalog preflight or stale receipt",async()=>{
+  let custom:any={...setup,nativePreflight:fixture.response};
+  const ordinary=vi.mocked(workspaceRequest).getMockImplementation()!;
+  vi.mocked(workspaceRequest).mockImplementation(async(...args)=>{
+    const [,path,method,body]=args;
+    if(path==="/setups") {
+      if(method==="POST") custom={...(body as object),updatedAt:"now"};
+      return {setups:[custom]};
+    }
+    return ordinary(...args);
+  });
+  const changed=vi.fn();
+  render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}>
+    <JobRobotConfiguration jobId="actual-job" onRequested={changed}/></QueryClientProvider>);
+  fireEvent.click(screen.getByText("Robot configuration and policy",{selector:"summary"}));
+  await screen.findByRole("option",{name:/Fixture configuration/});
+  fireEvent.change(screen.getByLabelText("Saved configuration"),{target:{value:setup.id}});
+  expect(screen.getByText(/Configured; not executed/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Robot model",{exact:true}),{target:{value:"model"}});
+  fireEvent.change(screen.getByLabelText("Robot model URL"),{target:{value:setup.robotEmbodiment.model.url}});
+  fireEvent.change(screen.getByLabelText("Model format"),{target:{value:"usd"}});
+  fireEvent.change(screen.getByLabelText("Robot manifest (JSON)"),{target:{value:JSON.stringify({...setup.robotEmbodiment,embodiment_id:"acme-custom-arm"})}});
+  fireEvent.submit(screen.getByRole("button",{name:"Save configuration"}).closest("form")!);
+  await screen.findByText(/existing model-and-scene staging checks this custom robot before allocation/);
+  expect(fetch).not.toHaveBeenCalled();
+  expect(workspaceRequest).toHaveBeenCalledWith(user,"/setups","POST",expect.objectContaining({
+    robotDescription:expect.objectContaining({source:"model"}),robotEmbodiment:expect.objectContaining({embodiment_id:"acme-custom-arm"}),
+  }));
+  expect(custom).not.toHaveProperty("nativePreflight");
+  expect(screen.queryByText(/Configured; not executed/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button",{name:"Validate saved assets again"})).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Policy checkpoint for this evaluation"),{target:{value:"checkpoint-exact"}});
+  fireEvent.click(screen.getByLabelText(/I have the right to license/));
+  fireEvent.submit(screen.getByRole("button",{name:"Request this job's evaluation"}).closest("form")!);
+  await screen.findByText(/Evaluation requested. Use this job's existing evaluation admission/);
+  expect(workspaceRequest).toHaveBeenCalledWith(user,"/evaluations","POST",expect.objectContaining({
+    opportunityId:"actual-job",setupId:setup.id,checkpointId:"checkpoint-exact",licenseToRun:true,
+  }));
+  expect(fetch).not.toHaveBeenCalled();expect(changed).toHaveBeenCalledOnce();
 });

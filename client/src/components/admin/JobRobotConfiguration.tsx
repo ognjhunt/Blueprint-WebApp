@@ -31,13 +31,14 @@ export function JobRobotConfiguration({ jobId, onRequested }: { jobId: string; o
   const [newSetupId, setNewSetupId] = useState(() => `setup-${crypto.randomUUID()}`);
   const [requestId, setRequestId] = useState(() => `robot-eval-${crypto.randomUUID()}`);
   const [checkpointId, setCheckpointId] = useState("");
-  const [preflight, setPreflight] = useState<RobotConfigurationPreflight | null>(null);
+  const [preflight, setPreflight] = useState<RobotConfigurationPreflight | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [requested, setRequested] = useState(false);
   const selected = setups.data?.setups.find(row => row.id === setupId);
-  const receipt = preflight ?? selected?.nativePreflight;
+  const receipt = selected?.robotDescription?.source === "support_option"
+    ? preflight === undefined ? selected.nativePreflight : preflight : null;
   const matching = (checkpoints.data?.checkpoints || []).filter(row => row.reference === selected?.reference
     && ["policy_endpoint", "customer_hosted"].includes(row.runtime) && row.status !== "retired");
   const checkpoint = matching.find(row => row.checkpointId === checkpointId);
@@ -71,8 +72,10 @@ export function JobRobotConfiguration({ jobId, onRequested }: { jobId: string; o
       setSetupId(id); setCheckpointId(""); setRequestId(`robot-eval-${crypto.randomUUID()}`);
       setNewSetupId(`setup-${crypto.randomUUID()}`);
       await client.invalidateQueries({ queryKey: setupKey });
-      setNotice("Configuration saved. No evaluation has run.");
-      if (robotEmbodiment) await validate(id);
+      setNotice(robotDescription.source === "model"
+        ? "Configuration saved. The existing model-and-scene staging checks this custom robot before allocation. No evaluation has run."
+        : "Configuration saved. No evaluation has run.");
+      if (robotEmbodiment && robotDescription.source === "support_option") await validate(id);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "The configuration could not be saved."); }
     finally { setBusy(false); }
   }
@@ -97,7 +100,7 @@ export function JobRobotConfiguration({ jobId, onRequested }: { jobId: string; o
     {setups.error ? <p role="alert">{(setups.error as Error).message}</p> : null}
     {checkpoints.error ? <p role="alert">{(checkpoints.error as Error).message}</p> : null}
     <label className="mt-4 block text-sm">Saved configuration<select value={setupId} disabled={busy} onChange={event => {
-      setSetupId(event.target.value); setCheckpointId(""); setPreflight(null); setRequested(false); setError(""); setNotice("");
+      setSetupId(event.target.value); setCheckpointId(""); setPreflight(undefined); setRequested(false); setError(""); setNotice("");
       setRequestId(`robot-eval-${crypto.randomUUID()}`);
     }} className="mt-1 block w-full rounded border border-line p-2">
       <option value="">New configuration</option>{setups.data?.setups.map(row => <option key={row.id} value={row.id}>{row.name} · {row.policyName} {row.version}</option>)}
@@ -114,14 +117,14 @@ export function JobRobotConfiguration({ jobId, onRequested }: { jobId: string; o
       <RobotDescriptionFields value={selected?.robotDescription} allowSupportOptions />
       <RobotEmbodimentFields value={selected?.robotEmbodiment} />
       <label className="block text-sm">Configuration notes<textarea name="notes" maxLength={3000} defaultValue={selected?.notes} className="mt-1 block w-full rounded border border-line p-2" /></label>
-      <button className="ws-secondary" disabled={busy}>Save and validate configuration</button>
+      <button className="ws-secondary" disabled={busy}>Save configuration</button>
     </form>
     {receipt ? <div className="mt-4 text-sm" role="status">
       <p>{receipt.status === "configured_not_executed" ? "Configured; not executed" : "Configuration needs changes"} · {receipt.claim_ceiling}</p>
       <p>Model SHA verified: {receipt.model_file_digest_verified ? "yes" : "no"}. {receipt.structure.joint_count} joints, {receipt.structure.rigid_body_count} rigid bodies.</p>
       {[...receipt.blockers, ...receipt.limitations].map((line, index) => <p key={index}>{line}</p>)}
     </div> : null}
-    {selected?.robotEmbodiment ? <button type="button" disabled={busy} className="mt-3 text-sm underline" onClick={() => {
+    {selected?.robotEmbodiment && selected.robotDescription?.source === "support_option" ? <button type="button" disabled={busy} className="mt-3 text-sm underline" onClick={() => {
       setBusy(true); setError(""); void validate(selected.id).catch(caught => setError(caught.message)).finally(() => setBusy(false));
     }}>Validate saved assets again</button> : null}
     {selected ? <>
