@@ -16,11 +16,16 @@ export async function readJobEvidence(jobId: string, brief: Record<string, any> 
   const context = scientificContext(session.exists ? session.data()! : null, { brief, record: job.data()!, inventory: inventory.exists ? inventory.data() as any : null });
   const evidence = requests.docs.map(row => {
     const value = row.data();
-    if (value.summary) return { ...value.summary, current: value.summary.briefDigest === digest && (!value.summary.testbedDigest || value.summary.testbedDigest === context?.testbed.testbed_digest), ...(admin && value.forwardingReason ? { serviceMessage: value.forwardingReason } : {}) };
+    const cancellationPending = value.cancellationRequested && value.summary?.state !== "cancelled";
+    const inactive = value.cancellationRequested || value.summary?.state === "cancelled";
+    if (value.summary) return { ...value.summary, current: !inactive && value.summary.briefDigest === digest && (!value.summary.testbedDigest || value.summary.testbedDigest === context?.testbed.testbed_digest),
+      ...(cancellationPending ? { state: "unavailable", summary: "Cancellation was requested. Blueprint is awaiting confirmation that this question has stopped.",
+        nextAction: "No further evidence work will be requested for this question. Its earlier result remains available as history." } : {}),
+      ...(admin && value.forwardingReason ? { serviceMessage: value.forwardingReason } : {}) };
     const request = value.request;
     return { requestId: request.request_id, publicationDigest: null, briefDigest: request.brief_digest,
-      current: request.brief_digest === digest && (!request.testbed?.testbed_digest || request.testbed.testbed_digest === context?.testbed.testbed_digest), state: "unavailable", question: request.question,
-      summary: value.cancellationRequested ? "Cancellation is recorded. Blueprint is confirming that this question has stopped."
+      current: !inactive && request.brief_digest === digest && (!request.testbed?.testbed_digest || request.testbed.testbed_digest === context?.testbed.testbed_digest), state: "unavailable", question: request.question,
+      summary: value.cancellationRequested ? "Cancellation was requested. Blueprint is awaiting confirmation that this question has stopped."
         : "Your question is saved. Blueprint will resume it when evidence processing is available.",
       nextAction: value.cancellationRequested ? "No further evidence work will be requested for this question."
         : "Return to this job for progress. Blueprint will ask for a specific missing input if needed.", limitations: request.context_limitations ?? [],
@@ -29,6 +34,20 @@ export async function readJobEvidence(jobId: string, brief: Record<string, any> 
   });
   return { evidence, ...(admin ? { evidenceContext: { briefDigest: digest, question: context?.decisionRequest.decision_question ?? null,
     testbedDigest: context?.testbed.testbed_digest ?? null } } : {}) };
+}
+
+/** Retained publications remain readable history; cancelled requests cannot back a new commercial commitment. */
+export async function assertJobEvidenceRequestActive(jobId: string, requestId: string, requestDigest: string,
+  transaction?: FirebaseFirestore.Transaction) {
+  if (!db) throw new JobMarketplaceError("store_unavailable", "Job evidence storage is unavailable.", 503);
+  const ref = db.collection("inboundRequests").doc(jobId).collection("jobEvidenceRequests").doc(requestId);
+  const saved = await (transaction ? transaction.get(ref) : ref.get());
+  const value = saved.data();
+  if (!value || value.request?.job_id !== jobId || value.request?.request_id !== requestId
+    || value.request?.request_digest !== requestDigest) throw new JobMarketplaceError("evidence_scope_changed", "The saved evidence request is unavailable. Review its applicability before using this result.");
+  if (value.cancellationRequested || value.summary?.state === "cancelled") {
+    throw new JobMarketplaceError("evidence_cancelled", "This evidence request was cancelled. Review this proposal against current evidence before proceeding.");
+  }
 }
 
 export async function acceptJobEvidencePublication(value: unknown) {

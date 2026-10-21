@@ -13,6 +13,8 @@ import { acceptJobEvidencePublication } from "./jobEvidenceStore";
 import { JobMarketplaceError } from "./jobMarketplaceWorkflow";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
+import type { Response } from "express";
+import { resolveExecutionAccessContext } from "./access-control";
 
 type Action = "submit" | "refresh" | "execute" | "cancel";
 type Forwarder = typeof forwardJobEvidence;
@@ -20,8 +22,9 @@ const ACTIVE = ["pending", "retry_pending", "delivering"];
 const ATTEMPTS = 8;
 const LEASE_MS = 90_000;
 
-export function jobEvidenceDeliveryIntent(action: Action, actor: string, now = Date.now()) {
+export function jobEvidenceDeliveryIntent(action: Action, actor: string, now = Date.now(), tenantId?: string) {
   return { deliveryId: randomUUID(), deliveryAction: action, deliveryActor: actor, deliveryState: "pending",
+    deliveryActorTenantId: tenantId || null,
     deliveryAttempts: 0, deliveryCreatedAtMs: now, deliveryNextAtMs: now, deliveryLeaseId: null,
     deliveryLeaseUntilMs: 0, forwardingReason: null, ...(action === "cancel" ? { cancellationRequested: true } : {}) };
 }
@@ -53,7 +56,7 @@ export async function assertJobEvidenceVideo(jobId: string, record: Record<strin
       : "Upload or record the work before assessing this job.", walkthrough === null ? 503 : 409);
 }
 
-export async function queueJobEvidenceAction(jobId: string, requestId: string, action: Action, actor: string) {
+export async function queueJobEvidenceAction(jobId: string, requestId: string, action: Action, actor: string, tenantId?: string) {
   if (!db) throw new JobMarketplaceError("store_unavailable", "Job evidence storage is unavailable.", 503);
   const jobRef = db.collection("inboundRequests").doc(jobId);
   const ref = jobRef.collection("jobEvidenceRequests").doc(requestId);
@@ -66,7 +69,7 @@ export async function queueJobEvidenceAction(jobId: string, requestId: string, a
     }
     // Retrying the same pending action does not replace its lease or reset its cap.
     if (ACTIVE.includes(current.deliveryState) && current.deliveryAction === action) return;
-    const intent = jobEvidenceDeliveryIntent(action, actor);
+    const intent = jobEvidenceDeliveryIntent(action, actor, Date.now(), tenantId);
     tx.update(ref, intent);
     tx.update(jobRef, jobEvidenceQueueMarker(intent.deliveryId, intent.deliveryCreatedAtMs));
   }));
@@ -100,6 +103,13 @@ async function currentScope(request: JobEvidenceRequest) {
   }
 }
 
+async function currentExecutionActor(claimed: Record<string, any>) {
+  const access = await resolveExecutionAccessContext({ locals: { firebaseUser: { uid: claimed.deliveryActor,
+    ...(claimed.deliveryActorTenantId ? { tenantId: claimed.deliveryActorTenantId } : {}) } } } as Response);
+  if (!access.isOps || access.uid !== claimed.deliveryActor) throw new JobMarketplaceError("evidence_actor_authority_ended",
+    "The operator's execution authority is no longer active. An authorized operator can review the saved question.", 403);
+}
+
 export async function deliverJobEvidenceRequest(jobId: string, requestId: string,
   options: { forwarder?: Forwarder; nowMs?: number } = {}) {
   if (!db) return false;
@@ -131,6 +141,7 @@ export async function deliverJobEvidenceRequest(jobId: string, requestId: string
     if (!["submit", "refresh", "execute", "cancel"].includes(action) || !claimed.deliveryActor) throw new Error("evidence_delivery_action_invalid");
     if (claimed.cancellationRequested && action !== "cancel") throw new JobMarketplaceError("evidence_cancelled", "The evidence request was cancelled.");
     if (action !== "cancel") await currentScope(request);
+    if (action === "execute") await currentExecutionActor(claimed);
     if (now - claimed.deliveryCreatedAtMs > (action === "execute" ? 600_000 : 86_400_000)) {
       throw new JobMarketplaceError("evidence_action_expired", "This saved evidence action expired. Blueprint can review the current scope before retrying.");
     }
@@ -152,6 +163,7 @@ export async function deliverJobEvidenceRequest(jobId: string, requestId: string
       const latest = (await storeTimeout(ref.get())).data();
       if (!latest || latest.deliveryId !== claimed.deliveryId || latest.deliveryLeaseId !== lease) return false;
       if (action !== "cancel") await currentScope(request);
+      if (action === "execute") await currentExecutionActor(claimed);
       const payload = action === "execute" ? { request_digest: request.request_digest, authorized_by: { role: "human", identity: claimed.deliveryActor } }
         : action === "cancel" ? { request_digest: request.request_digest, cancelled_by: claimed.deliveryActor } : request;
       // A cancellation for a request never accepted by Pipeline needs no new submit.

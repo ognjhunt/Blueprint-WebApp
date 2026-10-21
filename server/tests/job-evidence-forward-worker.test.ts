@@ -3,9 +3,11 @@ import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { sharedUploadBucket } from "./helpers/fake-upload-bucket";
+const staff = vi.hoisted(() => ({ active: true, disabled: false }));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => ({
   dbAdmin: (await import("./helpers/fake-firestore")).sharedFakeFirestore,
   storageAdmin: { bucket: () => (awaitBucket()) },
+  authAdmin: { getUser: async () => ({ disabled: staff.disabled, customClaims: { ops: staff.active } }) },
 }));
 // The mock is evaluated after module imports; bucket bytes stay in this test's store.
 function awaitBucket() { return sharedUploadBucket.bucket; }
@@ -29,6 +31,7 @@ const publication = { ...examples.description_publication, request_id: request.r
 publication.publication_digest = crossRuntimeArtifactDigest(publication, "publication_digest");
 const forward = () => vi.fn(async () => ({ ok: true as const, publication }));
 beforeEach(async () => {
+  staff.active = true; staff.disabled = false;
   state.docs.clear(); sharedUploadBucket.clear();
   const intent = jobEvidenceDeliveryIntent("submit", "ops-user", now);
   state.docs.set("inboundRequests/job-1", { ...structuredClone(record), ...jobEvidenceQueueMarker(intent.deliveryId, now) });
@@ -91,6 +94,8 @@ describe("durable existing job-evidence delivery", () => {
     await expect(queueJobEvidenceAction("job-1", request.request_id, "execute", "ops-user")).rejects.toThrow("cancelled");
     const cancelled = { ...publication, state: "cancelled", sequence: 1 };
     cancelled.publication_digest = crossRuntimeArtifactDigest(cancelled, "publication_digest");
+    // Withdrawing future work remains possible after the operator loses access.
+    staff.active = false; staff.disabled = true;
     const transport = vi.fn().mockResolvedValueOnce({ ok: true, publication }).mockResolvedValueOnce({ ok: true, publication: cancelled });
     await deliverJobEvidenceRequest("job-1", request.request_id, { forwarder: transport, nowMs: Date.now() });
     expect(transport).toHaveBeenNthCalledWith(2, { request_digest: request.request_digest, cancelled_by: "ops-user" }, `/${request.request_id}/cancel`);
@@ -113,6 +118,24 @@ describe("durable existing job-evidence delivery", () => {
     expect(state.docs.get(path)).toMatchObject({ deliveryState: "terminal_blocked", deliveryAttempts: 8 });
     await deliverJobEvidenceRequest("job-1", request.request_id, { forwarder: transport, nowMs: now + 900_000 });
     expect(transport).toHaveBeenCalledTimes(1); expect(state.docs.get(path)?.summary).toBeUndefined();
+  });
+  it("rechecks the original operator's current execution role before forwarding read-only execution", async () => {
+    await queueJobEvidenceAction("job-1", request.request_id, "execute", "ops-user");
+    const failure = { ...publication, sequence: publication.sequence + 1, state: "failed", summary: "The fixture evidence execution failed." };
+    failure.publication_digest = crossRuntimeArtifactDigest(failure, "publication_digest");
+    const transport = vi.fn().mockResolvedValueOnce({ ok: true, publication }).mockResolvedValueOnce({ ok: true, publication: failure });
+    await deliverJobEvidenceRequest("job-1", request.request_id, { forwarder: transport });
+    expect(transport).toHaveBeenNthCalledWith(2, { request_digest: request.request_digest,
+      authorized_by: { role: "human", identity: "ops-user" } }, `/${request.request_id}/execute`);
+    expect(state.docs.get(path)).toMatchObject({ deliveryState: "delivered", summary: { state: "failed" } });
+  });
+  it.each(["revoked", "disabled"])("does not execute when the queued operator is %s", async reason => {
+    await queueJobEvidenceAction("job-1", request.request_id, "execute", "ops-user");
+    staff.active = reason !== "revoked"; staff.disabled = reason === "disabled";
+    const transport = forward();
+    await deliverJobEvidenceRequest("job-1", request.request_id, { forwarder: transport });
+    expect(transport).not.toHaveBeenCalled();
+    expect(state.docs.get(path)).toMatchObject({ deliveryState: "terminal_blocked", forwardingReason: expect.stringMatching(/authority is no longer active/) });
   });
   it("keeps a different ready request discoverable while an older question is in backoff", async () => {
     state.docs.set(path, { ...state.docs.get(path), deliveryState: "retry_pending", deliveryNextAtMs: now + 60_000 });

@@ -12,7 +12,7 @@ import { savedWalkthrough, siteWalkthroughIdentity } from "../utils/siteWalkthro
 import { logger } from "../logger";
 import { loadManagedJobEvidenceForWorkspace, assertManagedJobEvidenceReference } from "../utils/jobManagedEvaluation";
 import { buildJobEvidenceRequest, jobEvidenceId, jobEvidenceQuestionSchema, jobEvidenceDigest, scientificBriefDigest, scientificContext, jobEvidenceSummary, jobEvidenceCaptureSessionId } from "../utils/jobEvidenceContract";
-import { readJobEvidence, readJobEvidencePublication } from "../utils/jobEvidenceStore";
+import { assertJobEvidenceRequestActive, readJobEvidence, readJobEvidencePublication } from "../utils/jobEvidenceStore";
 import { assertJobEvidenceVideo, deliverJobEvidenceRequest, jobEvidenceDeliveryIntent, jobEvidenceQueueMarker, queueJobEvidenceAction } from "../utils/jobEvidenceForwardWorker";
 import {
   deliveryProposalSchema, JobMarketplaceError, makeProposal, optionsReviewSchema, outcomeSchema, pilotAgreementSchema,
@@ -243,7 +243,8 @@ router.post("/admin/:requestId/evidence/:evidenceId/:action", handle(async (req,
       throw new JobMarketplaceError("evidence_scope_changed", "The task, source configuration or source permission changed. Refresh the current evidence before executing.");
     }
   }
-  await queueJobEvidenceAction(jobId, id, action, res.locals.firebaseUser!.uid);
+  const principal = res.locals.firebaseUser!;
+  await queueJobEvidenceAction(jobId, id, action, principal.uid, principal.tenantId || principal.tenant_id || principal.firebase?.tenant);
   await deliverJobEvidenceRequest(jobId, id);
   if (action === "cancel" && projectWebsiteCaptureRights(job.data()!).consent_revoked) return res.json({ requestId: id, status: "cancellation_requested" });
   return res.json(await readWorkflow(jobId, true));
@@ -262,6 +263,7 @@ async function assertProposalEvidence(requestId: string, input: z.infer<typeof d
       continue;
     }
     const publication = await readJobEvidencePublication(requestId, row.reference.publicationDigest, transaction);
+    await assertJobEvidenceRequestActive(requestId, publication.request_id, publication.request_digest, transaction);
     if (publication.testbed_digest) {
       const [job, inventory] = await Promise.all([read(db!.collection("inboundRequests").doc(requestId)), read(db!.collection("siteTaskItemInventories").doc(requestId))]);
       const session = await read(db!.collection("captureUploadSessions").doc(jobEvidenceCaptureSessionId(requestId, job.data()!)));

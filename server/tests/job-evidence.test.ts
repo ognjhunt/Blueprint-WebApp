@@ -134,6 +134,39 @@ describe("job evidence producer and commercial boundary", () => {
     stale.publication_digest = crossRuntimeArtifactDigest(stale, "publication_digest");
     expect((await api(endpoint, "POST", stale, signed(stale))).body.code).toBe("evidence_sequence_conflict");
   });
+  it("shows cancellation pending before its receipt, preserves history and blocks new proposal selection", async () => {
+    const publication = boundPublication(); const endpoint = "/api/internal/job-evidence-publications";
+    expect((await api(endpoint, "POST", publication, signed(publication))).status).toBe(200);
+    const adminPath = "/api/job-workflow/admin/job-1";
+    const ownerPath = `/api/job-workflow/owner/${token()}`;
+    const quoted = { providerName: "Fixture Integrator", scope: "The agreed task only", equipment: "Declared fixed arm", software: "Declared controller",
+      deliveryCommitment: "A supplier-scoped physical pilot", installationCostUsd: null, monthlyCostUsd: null, currency: "USD",
+      exclusions: "Site electrical work", sitePreparation: "Provide agreed access", humanAssistance: "Replenish supply",
+      timing: "Dates remain to be agreed", support: "Supplier-supported pilot", acceptanceCriteria: "Agreed placement criteria",
+      recommendationReason: null, evidence: [{ level: "unverified", summary: "Physical performance remains unknown.",
+        reference: { requestId: publication.request_id, publicationDigest: publication.publication_digest } }] };
+    const created = await api(`${adminPath}/proposals`, "POST", quoted, { authorization: "Bearer ops", "Idempotency-Key": "cancelled-quote" });
+    expect(created.status).toBe(201); const proposal = created.body.proposals[0];
+    expect((await api(`${adminPath}/evidence/${publication.request_id}/cancel`, "POST", {}, { authorization: "Bearer ops" })).status).toBe(200);
+    const pending = (await api(ownerPath)).body;
+    expect(pending.evidence[0]).toMatchObject({ state: "unavailable", current: false,
+      summary: "Cancellation was requested. Blueprint is awaiting confirmation that this question has stopped." });
+    expect(pending.proposals[0].status).toBe("review_required");
+    expect((await api(`${ownerPath}/select`, "POST", { proposalId: proposal.id, expectedRevision: proposal.revision, authorized: true })).body.code).toBe("evidence_cancelled");
+    const stored = state.docs.get(`inboundRequests/job-1/jobEvidenceRequests/${publication.request_id}`)!;
+    expect((stored.summary as any).state).toBe(publication.state);
+    expect((await api(endpoint, "POST", publication, signed(publication))).body.status).toBe("replayed");
+    const late = { ...publication, sequence: publication.sequence + 1, summary: "Late processing result" };
+    late.publication_digest = crossRuntimeArtifactDigest(late, "publication_digest");
+    expect((await api(endpoint, "POST", late, signed(late))).body.code).toBe("evidence_cancelled");
+    const historical = await fetch(`${base}${ownerPath}/evidence/${encodeURIComponent(publication.publication_digest)}`);
+    expect(historical.status).toBe(200); expect(await historical.text()).toContain("Historical evidence:");
+    const cancelled = { ...publication, sequence: publication.sequence + 1, state: "cancelled", summary: "Cancellation confirmed." };
+    cancelled.publication_digest = crossRuntimeArtifactDigest(cancelled, "publication_digest");
+    expect((await api(endpoint, "POST", cancelled, signed(cancelled))).status).toBe(200);
+    expect((await api(ownerPath)).body.evidence[0]).toMatchObject({ state: "cancelled", current: false, summary: "Cancellation confirmed." });
+    expect([...state.docs.keys()].filter(key => key.includes("/jobEvidencePublications/"))).toHaveLength(2);
+  });
   it("follows the real source session pointer and preserves its exact compiled request", async () => {
     const source = examples.native_request;
     const binding = { schema_version: "job_evidence_source_binding.v1", job_id: "job-1", capture_session_id: "native-random-session-42",
