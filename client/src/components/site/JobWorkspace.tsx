@@ -189,7 +189,7 @@ function JobWorkspaceForToken({ token }: { token: string }) {
       <p className="ms-field-hint">This is your site's report. It does not change evaluation scores or establish independent physical validation.</p>
     </section> : selected && selected.status !== "withdrawn" && workflow.agreement?.outcomeRecordingAuthorized === true && Boolean(workflow.agreement.outcomeRecordingPermissionReference) ? <OutcomeForm historical={selected.status === "review_required"} proposal={selected} pending={pending} onSave={value => save("outcome", "POST", value)} /> : null}
   </section>
-    <RecommendedPilot token={token} bookedOnly={Boolean(workflow.proposals.length || workflow.selection)} />
+    <RecommendedPilot token={token} bookedOnly />
   </>;
 }
 

@@ -3,10 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
 import type { DeliveryProposal, JobMarketplaceWorkflow } from "@/types/jobMarketplace";
 
-vi.mock("@/components/site/RecommendedPilot", () => ({ RecommendedPilot: () => null }));
+const compatibilityPilot = vi.hoisted(() => ({ render: vi.fn() }));
+vi.mock("@/components/site/RecommendedPilot", () => ({ RecommendedPilot: (props: unknown) => { compatibilityPilot.render(props); return null; } }));
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 const fetchMock = vi.fn();
-beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
+beforeEach(() => { compatibilityPilot.render.mockClear(); fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 const proposal: DeliveryProposal = {
   id: "proposal-1", revision: "revision-1", briefRevision: "brief-1", status: "available", providerName: "Example Delivery",
   scope: "Move sealed cases from a tote into trays", equipment: "Fixed arm and parallel gripper", software: "Pinned policy and local controller",
@@ -204,4 +205,14 @@ it("links missing task-specific evidence to the existing capture surface without
   render(<JobWorkspace token="owner-token" />);
   expect(await screen.findByRole("link", { name: "Add task-specific capture evidence" })).toHaveAttribute("href", "/app/captures?jobId=job-1");
   expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it("keeps legacy pilot details read-only when new job evidence has no commercial proposal", async () => {
+  fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, managedEvidence: [{ runId: "managed-run-1", state: "decided", current: true,
+    resultDigest: "sha256:result", summary: "Scoped simulator result retained.", nextAction: "Compare supplier delivery proposals.",
+    limitations: ["Physical pilot agreement remains separate."], href: "#managed-evidence-managed-run-1" }] })));
+  render(<JobWorkspace token="owner-token" />);
+  await screen.findByText("Scoped simulator result retained.");
+  expect(compatibilityPilot.render).toHaveBeenLastCalledWith({ token: "owner-token", bookedOnly: true });
+  expect(screen.queryByRole("button", { name: /Choose this pilot proposal/ })).not.toBeInTheDocument();
 });
