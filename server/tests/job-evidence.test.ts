@@ -13,7 +13,7 @@ vi.mock("express-rate-limit", () => ({ default: () => (_req: unknown, _res: unkn
 vi.mock("../utils/pipelineSyncSecurity", async importOriginal => ({ ...await importOriginal<typeof import("../utils/pipelineSyncSecurity")>(),
   createPipelineSyncRateLimiter: () => (_req: unknown, _res: unknown, next: () => void) => next() }));
 const { crossRuntimeArtifactDigest } = await import("../utils/crossRuntimeCanonical");
-const { scientificBriefDigest, verifyJobEvidencePublication, buildJobEvidenceRequest } = await import("../utils/jobEvidenceContract");
+const { scientificBriefDigest, jobEvidenceTaskInventoryDigest, verifyJobEvidencePublication, buildJobEvidenceRequest } = await import("../utils/jobEvidenceContract");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
 const { buildPipelineSyncSignature } = await import("../utils/pipelineSyncSecurity");
 const { csrfProtection } = await import("../middleware/csrf");
@@ -58,6 +58,14 @@ describe("job evidence producer and commercial boundary", () => {
     expect(scientificBriefDigest(brief)).toBe(scientificBriefDigest({ ...brief, confirmedAtIso: "2026-10-22T10:00:00Z", confirmedBy: "Another operator", draftedAtIso: "later", pilotIntent: { start: "later" }, installationBudget: "different" }));
     expect(scientificBriefDigest(brief)).not.toBe(scientificBriefDigest({ ...brief, successCriteria: { cycleTimeSeconds: 8 } }));
     expect(scientificBriefDigest(brief)).not.toBe(scientificBriefDigest({ ...brief, summary: "Different physical task" }));
+  });
+  it("binds admitted task items without turning proposed items or commercial metadata into task truth", () => {
+    const inventory = { requestId: "job-1", updatedAtIso: "2026-10-20T11:00:00Z", items: [{ itemId: "part-1", label: "Rigid part", locationNote: null, quantityHint: null, basis: "operator_added", images: [], coverageStatus: "needs_images", assetStatus: "pending" }] } as any;
+    const digest = jobEvidenceTaskInventoryDigest(brief, inventory);
+    expect(digest).not.toBe(jobEvidenceTaskInventoryDigest(brief, null));
+    expect(digest).toBe(jobEvidenceTaskInventoryDigest({ ...brief, confirmedAtIso: "later", pilotIntent: { start: "later" } }, { ...inventory, updatedAtIso: "later", items: [{ ...inventory.items[0], assetStatus: "ready" }] }));
+    expect(digest).not.toBe(jobEvidenceTaskInventoryDigest(brief, { ...inventory, items: [{ ...inventory.items[0], label: "Different handled object" }] }));
+    expect(jobEvidenceTaskInventoryDigest(brief, { ...inventory, items: [{ ...inventory.items[0], basis: "suggested" }] })).toBe(jobEvidenceTaskInventoryDigest(brief, null));
   });
   it("accepts actual Python-produced plan/result bytes after JavaScript JSON transport without rewriting native digests", () => {
     const roundTrip = JSON.parse(JSON.stringify(examples.native_result));
@@ -113,7 +121,7 @@ describe("job evidence producer and commercial boundary", () => {
     const source = examples.native_request;
     const binding = { schema_version: "job_evidence_source_binding.v1", job_id: "job-1", capture_session_id: "native-random-session-42",
       intake_id: source.intake_id, source_capture_digest: source.testbed.source_capture_bundles[0].digest,
-      brief_digest: scientificBriefDigest(brief), command_request_id: "real-task-command-1", approved_task_digest: source.approved_task_digest };
+      brief_digest: scientificBriefDigest(brief), task_inventory_digest: jobEvidenceTaskInventoryDigest(brief, null), command_request_id: "real-task-command-1", approved_task_digest: source.approved_task_digest };
     const record = { request: { buyerType: "site_operator", consent_attestation: { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-20T11:00:00Z" } }, job_evidence_source: binding };
     state.docs.set("inboundRequests/job-1", record);
     state.docs.set(`captureUploadSessions/${binding.capture_session_id}`, { session_id: binding.capture_session_id,

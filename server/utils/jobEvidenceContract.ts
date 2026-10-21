@@ -53,10 +53,14 @@ export const scientificBriefDigest = (brief: Record<string, any>) => crossRuntim
   unresolved: [...(brief.unresolved ?? [])].sort(),
 });
 
+/** Only admitted task-item context affects this source binding; quote and confirmation metadata do not. */
+export const jobEvidenceTaskInventoryDigest = (brief: Record<string, any>, inventory?: TaskItemInventoryRecord | null) =>
+  crossRuntimeDigest(projectWebsiteTaskContext(brief as SiteTaskBriefRecord, undefined, { inventory }).task_items ?? []);
+
 export const jobEvidenceSourceBindingSchema = z.object({
   schema_version: z.literal("job_evidence_source_binding.v1"), job_id: jobEvidenceId,
   capture_session_id: jobEvidenceId, intake_id: jobEvidenceId, source_capture_digest: jobEvidenceDigest,
-  brief_digest: jobEvidenceDigest, command_request_id: jobEvidenceId, approved_task_digest: jobEvidenceDigest,
+  brief_digest: jobEvidenceDigest, task_inventory_digest: jobEvidenceDigest, command_request_id: jobEvidenceId, approved_task_digest: jobEvidenceDigest,
 }).passthrough();
 
 /** A real retained native session is selected by the accepted task action, never invented from a job ID. */
@@ -79,9 +83,10 @@ export function scientificContext(session: Record<string, any> | null, binding?:
     const retained = jobEvidenceSourceBindingSchema.safeParse(session?.job_evidence_source_binding);
     if (!pointer.success || !retained.success || pointer.data.job_id !== binding.brief.requestId
       || pointer.data.brief_digest !== scientificBriefDigest(binding.brief)
+      || pointer.data.task_inventory_digest !== jobEvidenceTaskInventoryDigest(binding.brief, binding.inventory)
       || pointer.data.capture_session_id !== session?.session_id || pointer.data.intake_id !== session?.request?.intake_id
       || pointer.data.approved_task_digest !== session?.approved_task_definition?.approved_task_digest
-      || ["job_id", "capture_session_id", "intake_id", "source_capture_digest", "brief_digest", "command_request_id", "approved_task_digest"]
+      || ["job_id", "capture_session_id", "intake_id", "source_capture_digest", "brief_digest", "task_inventory_digest", "command_request_id", "approved_task_digest"]
         .some(key => pointer.data[key] !== retained.data[key])) return null;
   }
   const explicitBrief = source.job_id === binding.brief.requestId && source.brief_digest === scientificBriefDigest(binding.brief);
