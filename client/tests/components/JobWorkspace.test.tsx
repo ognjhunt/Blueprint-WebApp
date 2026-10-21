@@ -3,10 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
 import type { DeliveryProposal, JobMarketplaceWorkflow } from "@/types/jobMarketplace";
 
-vi.mock("@/components/site/RecommendedPilot", () => ({ RecommendedPilot: () => null }));
+const compatibilityPilot = vi.hoisted(() => ({ render: vi.fn() }));
+vi.mock("@/components/site/RecommendedPilot", () => ({ RecommendedPilot: (props: unknown) => { compatibilityPilot.render(props); return null; } }));
 vi.mock("@/lib/csrf", () => ({ withCsrfHeader: async (headers: Record<string, string>) => ({ ...headers, "X-CSRF-Token": "local-test" }) }));
 const fetchMock = vi.fn();
-beforeEach(() => { fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
+beforeEach(() => { compatibilityPilot.render.mockClear(); fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock); });
 const proposal: DeliveryProposal = {
   id: "proposal-1", revision: "revision-1", briefRevision: "brief-1", status: "available", providerName: "Example Delivery",
   scope: "Move sealed cases from a tote into trays", equipment: "Fixed arm and parallel gripper", software: "Pinned policy and local controller",
@@ -87,7 +88,7 @@ describe("the site's job workspace", () => {
       agreement: { proposalId: proposal.id, proposalRevision: proposal.revision, agreedAtIso: "2026-10-21T12:02:00Z", plannedStartIso: null, siteAgreementReference: "site-confirmed", providerAgreementReference: "provider-confirmed", outcomeRecordingAuthorized: true, outcomeRecordingPermissionReference: "both-parties-permission", recordedAtIso: "2026-10-21T12:02:00Z" },
     })));
     render(<JobWorkspace token="owner-token" />);
-    expect(await screen.findByText(/must review this proposal against the current brief/)).toBeVisible();
+    expect(await screen.findByText(/must review this proposal before you can choose it/)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Choose this proposal" })).toBeNull();
     expect(screen.getByText("Record your pilot outcome")).toBeVisible();
     expect(screen.getByText(/Report against the originally agreed proposal/)).toBeInTheDocument();
@@ -103,6 +104,14 @@ describe("the site's job workspace", () => {
     fireEvent.click(within(current).getByRole("checkbox"));
     expect(within(current).getByRole("button", { name: "Choose this proposal" })).not.toBeDisabled();
     expect(within(screen.getByRole("article", { name: "Previous alternative delivery proposal" })).queryByRole("button", { name: "Choose this proposal" })).toBeNull();
+  });
+
+  it("keeps saved job planning visible when policy results need a retry", async () => {
+    fetchMock.mockResolvedValue(response(workflow({ managedEvidenceUnavailable: true })));
+    render(<JobWorkspace token="owner-token" />);
+    expect(await screen.findByText("Policy results are temporarily unavailable. Reload this page to retry.")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Your job, step by step" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Managed policy evidence for your job" })).toBeNull();
   });
 
   it("saves optional planning details without requiring a budget", async () => {
@@ -177,4 +186,41 @@ describe("the site's job workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try loading job planning again" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Your job, step by step" })).toBeVisible());
   });
+});
+
+it("shows exact abstention limits without advancing a job or selecting a proposal", async () => {
+  fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, stage: "brief_agreed", evidence: [{
+    requestId: "question-1", publicationDigest: `sha256:${"a".repeat(64)}`, briefDigest: `sha256:${"b".repeat(64)}`,
+    current: true, state: "abstention", question: "Can this arm reach the target?", summary: "The available geometry cannot answer clearance.",
+    nextAction: "Measure the target clearance.", limitations: ["Physical success has not been established."], runId: null,
+    decisionDigest: null, planDigest: null, testbedDigest: null, approvedTaskDigest: null,
+    claims: [{ claimId: "reach", verdict: "abstention", rationale: "Missing metric observation." }],
+  }] })));
+  render(<JobWorkspace token="owner-token" />);
+  expect(await screen.findByText(/available geometry cannot answer clearance/)).toBeVisible();
+  expect(screen.getByText("Physical success has not been established.")).toBeVisible();
+  expect(screen.getByText(/Missing metric observation/)).toBeVisible();
+  expect(screen.queryByRole("button", { name: /Choose this proposal/ })).not.toBeInTheDocument();
+  expect(screen.getByRole("list", { name: "Job milestones" }).querySelector('[aria-current="step"]')).toHaveTextContent("Brief agreed");
+});
+
+it("links missing task-specific evidence to the existing capture surface without creating a run", async () => {
+  fetchMock.mockResolvedValue(response(workflow({ jobId: "job-1", briefAgreed: true, evidence: [{
+    requestId: "question-1", publicationDigest: null, briefDigest: "brief", current: true, state: "information_required",
+    question: "Which metric observation is missing?", summary: "Target clearance is unknown.", nextAction: "Measure target clearance.",
+    limitations: [], runId: null, decisionDigest: null, planDigest: null, testbedDigest: null, approvedTaskDigest: null, claims: [],
+  }] })));
+  render(<JobWorkspace token="owner-token" />);
+  expect(await screen.findByRole("link", { name: "Add task-specific capture evidence" })).toHaveAttribute("href", "/app/captures?jobId=job-1");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it("keeps legacy pilot details read-only when new job evidence has no commercial proposal", async () => {
+  fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, managedEvidence: [{ runId: "managed-run-1", state: "decided", current: true,
+    resultDigest: "sha256:result", summary: "Scoped simulator result retained.", nextAction: "Compare supplier delivery proposals.",
+    limitations: ["Physical pilot agreement remains separate."], href: "#managed-evidence-managed-run-1" }] })));
+  render(<JobWorkspace token="owner-token" />);
+  await screen.findByText("Scoped simulator result retained.");
+  expect(compatibilityPilot.render).toHaveBeenLastCalledWith({ token: "owner-token", bookedOnly: true });
+  expect(screen.queryByRole("button", { name: /Choose this pilot proposal/ })).not.toBeInTheDocument();
 });

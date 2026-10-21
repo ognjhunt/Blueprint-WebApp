@@ -8,7 +8,7 @@ import type { CaptureDownloadGrant } from "./storage-provider";
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 
-const receiptSchema = z.object({
+export const captureUploadIntakeReceiptSchema = z.object({
   schema_version: z.literal("capture_upload_intake_receipt.v1"),
   capture_session_id: z.string().min(1),
   intake_id: z.string().min(1),
@@ -42,11 +42,11 @@ const receiptSchema = z.object({
 
 const processingResultSchema = z.object({
   schema_version: z.literal("capture_upload_processing_result.v1"),
-  receipt: receiptSchema,
+  receipt: captureUploadIntakeReceiptSchema,
   capture_qa_publication: z.unknown(),
 }).strict();
 
-export type CaptureUploadIntakeReceipt = z.infer<typeof receiptSchema>;
+export type CaptureUploadIntakeReceipt = z.infer<typeof captureUploadIntakeReceiptSchema>;
 
 export type CaptureUploadForwardResult = {
   status: "forwarded" | "not_configured" | "blocked" | "failed";

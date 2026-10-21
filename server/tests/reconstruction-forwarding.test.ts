@@ -291,6 +291,40 @@ describe("reconstruction forwarding", () => {
     expect(fetch).toHaveBeenCalledTimes(5);
   });
 
+  it.each([false, true])("preserves the server-bound job scope through signed v3 compilation (changed=%s)", async (changed) => {
+    process.env.RECONSTRUCTION_PIPELINE_BASE_URL = "https://pipeline.example/api/live-pipeline";
+    process.env.RECONSTRUCTION_FORWARD_TOKEN = "reconstruction-secret";
+    const value = artifacts();
+    const input = compilationInputs();
+    const jobContext = {
+      schema_version: "job_evidence_source_binding.v1" as const,
+      job_id: "job-source-1", brief_digest: contextDigest,
+      task_inventory_digest: `sha256:${"7".repeat(64)}`,
+      capture_session_id: "capture-session-1", intake_id: "intake-1",
+      source_capture_digest: captureDigest, command_request_id: "task-command-1",
+      approved_task_digest: `sha256:${"9".repeat(64)}`,
+    };
+    const fetch = vi.fn(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      expect(body.schema_version).toBe("site_task_testbed_compilation_submission.v3");
+      expect(body.job_context).toEqual(jobContext);
+      expect(body).not.toHaveProperty("approved_task_definition");
+      expect(init.headers).toHaveProperty("x-blueprint-pipeline-signature");
+      return Response.json({ ...value.compilation, job_context: changed
+        ? { ...jobContext, brief_digest: `sha256:${"6".repeat(64)}` } : jobContext });
+    });
+    vi.stubGlobal("fetch", fetch);
+    const result = await forwardTestbedCompilationToPipeline({
+      captureSessionId: "capture-session-1", intakeId: "intake-1", testbedId: "testbed-1", version: "1",
+      approvedTaskDigest: jobContext.approved_task_digest, reconstructionPlanId: "reconstruction-1",
+      reconstructionExecutionResultDigest: value.execution.execution_result_digest,
+      robotBinding: input.robotBinding, decisionRequestConstraints: input.decisionRequestConstraints, jobContext,
+    });
+    expect(result.status).toBe(changed ? "failed" : "forwarded");
+    if (changed) expect(result.blocker).toBe("pipeline_testbed_compilation_binding_mismatch");
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("fails closed before network forwarding when compilation inputs violate v2", async () => {
     process.env.RECONSTRUCTION_PIPELINE_BASE_URL = "https://pipeline.example/api/live-pipeline";
     process.env.RECONSTRUCTION_FORWARD_TOKEN = "reconstruction-secret";

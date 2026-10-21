@@ -24,7 +24,7 @@ export interface DeliveryProposalInput {
   humanAssistance: string;
   timing: string;
   support: string;
-  evidence: Array<{ level: DeliveryEvidenceLevel; summary: string }>;
+  evidence: Array<{ level: DeliveryEvidenceLevel; summary: string; reference?: { kind?: "decision_evidence"; requestId: string; publicationDigest: string } | { kind: "managed_run"; runId: string; resultDigest: string } }>;
   acceptanceCriteria: string;
   recommendationReason: string | null;
 }
@@ -75,6 +75,7 @@ export interface JobOptionsReview {
 export type MarketplaceJobStage = "job_submitted" | "brief_agreed" | "options_assessed" | "proposals_ready" | "pilot_agreed" | "results_recorded";
 export interface JobMarketplaceWorkflow {
   schemaVersion: "job_marketplace.v1";
+  jobId?: string;
   revision: string;
   requirements: JobBuyingRequirements;
   briefAgreed: boolean;
@@ -84,8 +85,43 @@ export interface JobMarketplaceWorkflow {
   nextAction: string;
   actionOwner: "site" | "blueprint" | "deployment_partner" | "none";
   review: JobOptionsReview | null;
+  evidence?: JobEvidenceSummary[];
+  managedEvidence?: JobManagedEvidenceSummary[];
+  managedEvidenceUnavailable?: boolean;
+  evidenceContext?: { briefDigest: string; question: string | null; testbedDigest: string | null } | null;
   proposals: DeliveryProposal[];
   selection: JobProposalSelection | null;
   agreement: JobPilotAgreement | null;
   outcome: JobReportedOutcome | null;
+}
+
+/** Factual Pipeline projection. Commercial recommendations remain operator-authored. */
+export interface JobEvidenceSummary {
+  requestId: string;
+  publicationDigest: string | null;
+  briefDigest: string;
+  current: boolean;
+  state: string;
+  question: string;
+  summary: string;
+  nextAction: string;
+  limitations: string[];
+  runId: string | null;
+  decisionDigest: string | null;
+  planDigest: string | null;
+  testbedDigest: string | null;
+  approvedTaskDigest: string | null;
+  serviceMessage?: string;
+  claims: Array<{ claimId: string; verdict: string; rationale: string }>;
+}
+
+export interface JobManagedEvidenceSummary {
+  runId: string;
+  state: string;
+  current: boolean;
+  resultDigest: string | null;
+  summary: string;
+  nextAction: string;
+  limitations: string[];
+  href: string;
 }

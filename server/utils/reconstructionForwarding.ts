@@ -1,6 +1,7 @@
 import { createHmac, randomUUID } from "node:crypto";
 
 import { z } from "zod";
+import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -138,6 +139,7 @@ const testbedCompilationSchema = z.object({
   testbed: z.record(z.string(), z.unknown()),
   decision_evidence_request: z.record(z.string(), z.unknown()).nullable(),
   decision_evidence_request_artifact: z.record(z.string(), z.unknown()).nullable(),
+  job_context: z.record(z.string(), z.unknown()).optional(),
   webapp_sync: z.record(z.string(), z.unknown()),
   proof_boundary: z.object({
     appearance_is_collision_truth: z.literal(false),
@@ -185,7 +187,20 @@ const compilationEvidenceMethodSchema = z.enum([
   "learned_world_model", "external_provider_tool", "physical_evidence",
   "owner_attested_operational_input",
 ]);
-const testbedCompilationSubmissionSchema = z.object({
+export const jobEvidenceSourceBindingSchema = z.object({
+  schema_version: z.literal("job_evidence_source_binding.v1"),
+  job_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
+  brief_digest: z.string().regex(DIGEST),
+  task_inventory_digest: z.string().regex(DIGEST),
+  capture_session_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/),
+  intake_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/),
+  source_capture_digest: z.string().regex(DIGEST),
+  command_request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/),
+  approved_task_digest: z.string().regex(DIGEST),
+}).strict();
+export type JobEvidenceSourceBinding = z.infer<typeof jobEvidenceSourceBindingSchema>;
+
+const testbedCompilationSubmissionV2Schema = z.object({
   schema_version: z.literal("site_task_testbed_compilation_submission.v2"),
   capture_session_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/),
   intake_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$/),
@@ -265,6 +280,13 @@ const testbedCompilationSubmissionSchema = z.object({
     idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/),
   }).strict(),
 }).strict();
+const testbedCompilationSubmissionSchema = z.discriminatedUnion("schema_version", [
+  testbedCompilationSubmissionV2Schema,
+  testbedCompilationSubmissionV2Schema.extend({
+    schema_version: z.literal("site_task_testbed_compilation_submission.v3"),
+    job_context: jobEvidenceSourceBindingSchema,
+  }).strict(),
+]);
 
 export type ReconstructionPlanResult = z.infer<typeof planResultSchema>;
 export type ReconstructionExecutionAuthorization = z.infer<typeof authorizationSchema>;
@@ -487,9 +509,10 @@ export async function forwardTestbedCompilationToPipeline(params: {
   reconstructionExecutionResultDigest: string;
   robotBinding: Record<string, unknown>;
   decisionRequestConstraints: Record<string, unknown>;
+  jobContext?: JobEvidenceSourceBinding;
 }) {
   const submission = testbedCompilationSubmissionSchema.safeParse({
-    schema_version: "site_task_testbed_compilation_submission.v2",
+    schema_version: params.jobContext ? "site_task_testbed_compilation_submission.v3" : "site_task_testbed_compilation_submission.v2",
     capture_session_id: params.captureSessionId,
     intake_id: params.intakeId,
     testbed_id: params.testbedId,
@@ -499,6 +522,7 @@ export async function forwardTestbedCompilationToPipeline(params: {
     reconstruction_execution_result_digest: params.reconstructionExecutionResultDigest,
     robot_binding: params.robotBinding,
     decision_request_constraints: params.decisionRequestConstraints,
+    ...(params.jobContext ? { job_context: params.jobContext } : {}),
   });
   if (!submission.success) return {
     status: "failed" as const,
@@ -524,6 +548,8 @@ export async function forwardTestbedCompilationToPipeline(params: {
     || compilation.version !== params.version
     || compilation.testbed_digest !== compilation.artifact_reference.digest
     || approved?.digest !== params.approvedTaskDigest
+    || (params.jobContext && (!compilation.job_context
+      || crossRuntimeDigest(compilation.job_context) !== crossRuntimeDigest(params.jobContext)))
   )) return {
     ...result,
     status: "failed" as const,

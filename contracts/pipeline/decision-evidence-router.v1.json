@@ -2,8 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tryblueprint.io/contracts/pipeline/decision-evidence-router.v1.json",
   "title": "Blueprint Decision/Evidence Router WebApp handoff",
-  "description": "Proposed WebApp mirror of the Pipeline-owned Decision/Evidence Router handoff. BlueprintCapturePipeline remains authoritative for routing, method qualification, evidence normalization, and scientific verdicts.",
-  "contract_status": "proposed_dependency_unmerged",
+  "description": "Legacy WebApp public-reader contract retained for existing consumers. Native Pipeline job evidence uses the exact imported docs/webapp_handoff bundle at contracts/pipeline/decision-evidence-router.v1/ and the explicit job wrapper; these schema names are not silently equated.",
+  "contract_status": "legacy_reader_retained",
   "authority": "BlueprintCapturePipeline",
   "consumer": "Blueprint-WebApp",
   "provenance": {
@@ -11,7 +11,8 @@
     "expected_source_path": "contracts/decision_evidence_router/decision-evidence-router.v1.json",
     "source_ref_at_import": null,
     "imported_from_merged_pipeline": false,
-    "webapp_must_not_claim_live_cross_repo_compatibility": true
+    "webapp_must_not_claim_live_cross_repo_compatibility": true,
+    "canonical_native_handoff": "contracts/pipeline/decision-evidence-router.v1/artifact-manifest.json"
   },
   "schema_versions": {
     "site_task_testbed_manifest": "blueprint.site_task_testbed_manifest.v1",

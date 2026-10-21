@@ -209,6 +209,19 @@ export interface RobotTeamRecord {
 export const SUPPLY_AGREEMENT_TERMS = ["supportedInterface", "freeEvaluation", "pilotIfPassed"] as const;
 export type SupplyAgreementTerm = (typeof SUPPLY_AGREEMENT_TERMS)[number];
 
+/** Independent relationships; none by itself establishes runnable admission or a scoped proposal. */
+export const ROBOT_TEAM_ROLES = ["technology", "evaluation", "delivery"] as const;
+export type RobotTeamRole = (typeof ROBOT_TEAM_ROLES)[number];
+
+export interface RobotTeamRoleReading {
+  /** Recorded access to the agreed interface/setup, not a license or tested compatibility claim. */
+  technologyInterfaceRecorded: boolean;
+  evaluationParticipationRecorded: boolean;
+  /** General recorded interest; actual availability, cost and support need a scoped proposal. */
+  deliveryInterestRecorded: boolean;
+  interfaceId: string | null;
+}
+
 export const SUPPLY_AGREEMENT_SCHEMA_VERSION = "robot_team_supply_agreement.v1" as const;
 
 /** One agreement, as evidence about it, never as its content. */

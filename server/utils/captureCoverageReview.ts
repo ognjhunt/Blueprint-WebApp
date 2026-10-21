@@ -121,6 +121,8 @@ export interface CoverageFinding {
  * does".
  */
 export async function reviewCaptureCoverage(params: {
+  /** The bounded launch worker records findings without enabling external sends. */
+  notifyOwner?: boolean;
   binding?: { source: unknown; brief_digest: string; capture_id: string };
   reviewId?: string;
   claimToken?: string;
@@ -230,7 +232,7 @@ export async function reviewCaptureCoverage(params: {
   // specific, cheap thing the operator can do. "Covers the scene" needs no
   // message -- the assessment simply proceeds -- and an unnamed shortfall is
   // nothing they could act on. Queued through the outbox so it survives a crash.
-  if (!finding.coversScene && finding.missingCoverage.length) {
+  if (params.notifyOwner !== false && !finding.coversScene && finding.missingCoverage.length) {
     try {
       const snap = await db?.collection("inboundRequests").doc(params.requestId).get();
       const storedContact = snap?.data()?.contact as Partial<ContactInfoStored> | undefined;

@@ -288,3 +288,15 @@ describe("confirming a brief is the attestation", () => {
     expect(await confirmBrief({ requestId: "req-nobody", confirmedBy: "Dana" })).toBeNull();
   });
 });
+
+it("preserves an agreed pilot's brief and does not queue video work for a description-only confirmation", async () => {
+  sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, { request: { buyerType: "site_operator", capture_mode: "self_capture" } });
+  await saveBrief(draftBrief({ requestId: REQUEST, summary: "Move one sealed part into its tray", captureMode: "self_capture", proposed: [] }));
+  await confirmBrief({ requestId: REQUEST, confirmedBy: "Dana" });
+  const prior = sharedFakeFirestoreState.docs.get(`siteTaskBriefs/${REQUEST}`);
+  const request = sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST}`)!;
+  expect(request.capture_coverage_pending).toBeUndefined();
+  sharedFakeFirestoreState.docs.set(`inboundRequests/${REQUEST}`, { ...request, job_marketplace: { agreement: { proposalId: "selected-proposal" } } });
+  await expect(confirmBrief({ requestId: REQUEST, confirmedBy: "Dana", summary: "A different physical task" })).rejects.toThrow("A pilot agreement is recorded");
+  expect(sharedFakeFirestoreState.docs.get(`siteTaskBriefs/${REQUEST}`)).toEqual(prior);
+});

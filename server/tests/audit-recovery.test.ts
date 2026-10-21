@@ -129,6 +129,17 @@ describe("coverage continuation", () => {
     expect(read("inboundRequests/req").capture_coverage_pending).toBe(false);
     expect(read("inboundRequests/req").inference_program_id).toBe(programme);
   });
+  it("resumes a persisted coverage intent in the narrow worker without notification authority", async () => {
+    put("inboundRequests/req", { request, capture_privacy_source_bound_decision: privacy() });
+    put("siteTaskBriefs/req", { summary: "Task" });
+    review.mockResolvedValue({ coversScene: false, missingCoverage: ["Destination"] });
+    await enqueueCoverageReview(params);
+    // Restart recovery reads the retained intent, with the caller's narrow scope.
+    await reconcileCoverageReviews(2, { notifyOwner: false });
+    await reconcileCoverageReviews(2, { notifyOwner: false });
+    expect(review).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ ...params, notifyOwner: false }));
+    expect(read("inboundRequests/req").capture_coverage_pending).toBe(false);
+  });
   it("waits for a late brief, then completes only once", async () => {
     put("inboundRequests/req", { request, capture_privacy_source_bound_decision: privacy() });
     await enqueueCoverageReview(params); await reconcileCoverageReviews(); expect(review).not.toHaveBeenCalled();

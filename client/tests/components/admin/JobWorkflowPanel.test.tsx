@@ -167,7 +167,7 @@ describe("JobWorkflowPanel", () => {
   it("requires another brief review instead of letting stale proposals become pilot agreements", async () => {
     await open({ reviewRequired: true, proposals: [{ ...proposal, status: "review_required" }],
       selection: { proposalId: proposal.id, proposalRevision: proposal.revision, selectedAtIso: "2026-10-21T11:00:00.000Z" } });
-    expect(screen.getByText(/The job brief or buying requirements changed/)).toBeInTheDocument();
+    expect(screen.getByText(/The job scope, buying requirements or referenced evidence changed/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Review and update proposal" })).toBeEnabled();
     expect(screen.queryByRole("form", { name: "Record pilot agreement" })).not.toBeInTheDocument();
     expect(screen.getByText(/The customer must choose an available proposal for the current job brief/)).toBeInTheDocument();
@@ -209,4 +209,41 @@ describe("JobWorkflowPanel", () => {
     expect(fetchMock.mock.calls[1][0]).toBe("/api/job-workflow/admin/job-1/proposals/proposal-1/withdraw");
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ expectedRevision: "revision-1" });
   });
+});
+
+it("operates the scoped evidence question and local execution through existing admin actions", async () => {
+  const evidence = { requestId: "question-1", publicationDigest: `sha256:${"e".repeat(64)}`, briefDigest: `sha256:${"b".repeat(64)}`,
+    current: true, state: "planned", question: "Can the configured arm reach the target?", summary: "A qualified local method can answer reach only.",
+    nextAction: "Run the selected local method.", limitations: ["This does not establish physical success."], runId: null,
+    decisionDigest: null, planDigest: `sha256:${"a".repeat(64)}`, testbedDigest: `sha256:${"c".repeat(64)}`, approvedTaskDigest: null, claims: [] };
+  await open();
+  fireEvent.change(screen.getByLabelText("Question that changes the decision"), { target: { value: evidence.question } });
+  fetchMock.mockResolvedValueOnce(json(workflow({ evidence: [evidence] })));
+  fireEvent.click(screen.getByRole("button", { name: "Ask Pipeline" }));
+  await screen.findByText(/qualified local method can answer/);
+  const submitted = fetchMock.mock.calls.find(([path]) => String(path).endsWith("/evidence"))!;
+  expect(JSON.parse(submitted[1].body)).toEqual({ question: evidence.question });
+  expect(submitted[1].headers["Idempotency-Key"]).toBeTruthy();
+  expect(submitted[1].headers.Authorization).toBe("Bearer token");
+  expect(submitted[1].headers["X-CSRF-Token"]).toBe("csrf");
+  fetchMock.mockResolvedValueOnce(json(workflow({ evidence: [evidence] })));
+  fireEvent.click(screen.getByRole("button", { name: "Run permitted local evidence" }));
+  await waitFor(() => expect(fetchMock.mock.calls.some(([path]) => String(path).endsWith("/evidence/question-1/execute"))).toBe(true));
+  await screen.findByText(/Pipeline returned planned/);
+  fetchMock.mockResolvedValueOnce(json(workflow({ evidence: [{ ...evidence, state: "abstention", summary: "The method abstained.", nextAction: "Measure target clearance." }] })));
+  fireEvent.click(screen.getByRole("button", { name: "Refresh evidence" }));
+  await screen.findByText(/The method abstained/);
+  expect(screen.queryByRole("button", { name: "Run permitted local evidence" })).not.toBeInTheDocument();
+  expect(screen.getByText("This does not establish physical success.")).toBeVisible();
+});
+
+it("does not claim cancellation when Pipeline has not acknowledged it", async () => {
+  const evidence = { requestId: "question-1", publicationDigest: null, briefDigest: `sha256:${"b".repeat(64)}`,
+    current: true, state: "planned", question: "Can the arm reach?", summary: "Plan recorded.", nextAction: "Run the local method.",
+    limitations: [], runId: null, decisionDigest: null, planDigest: null, testbedDigest: null, approvedTaskDigest: null, claims: [] };
+  await open({ evidence: [evidence] });
+  fetchMock.mockResolvedValueOnce(json(workflow({ evidence: [{ ...evidence, serviceMessage: "Pipeline could not accept this action." }] })));
+  fireEvent.click(screen.getByRole("button", { name: "Cancel evidence request" }));
+  expect(await screen.findByText(/Cancellation was not confirmed/)).toBeVisible();
+  expect(screen.queryByText("Evidence request cancelled.")).not.toBeInTheDocument();
 });

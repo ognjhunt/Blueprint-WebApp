@@ -58,6 +58,13 @@ function sameScientificIdentity(left: Record<string, any>, right: Record<string,
       === right.decision_envelope?.decision_envelope_digest;
 }
 
+// Original canonical bodies are verified transport metadata; adding them on a
+// retry does not revise the scientific artifact or its existing digest.
+function scientificPublication(publication: Record<string, any>) {
+  const { producer_canonical_json: _transport, ...scientific } = publication;
+  return scientific;
+}
+
 function requirePipelineSignature(req: Request, res: Response, next: () => void) {
   const result = verifyPipelineSyncRequest(req);
   if (!result.ok) return res.status(result.status).json({ error: result.message, code: result.code });
@@ -1095,10 +1102,17 @@ router.post("/capture-task-evaluation-runs", rateLimiter, requirePipelineSignatu
       let recordOutcome: "created" | "updated" | "replayed" = "created";
       if (runSnapshot.exists) {
         const existing = runSnapshot.data() as Record<string, any>;
-        const exactReplay = stableJson(existing.publication) === stableJson(publication);
-        if (exactReplay) {
-          record.updated_at_iso = String(existing.updated_at_iso || record.created_at_iso);
-          recordOutcome = "replayed";
+        const scientificReplay = stableJson(scientificPublication(existing.publication || {}))
+          === stableJson(scientificPublication(publication));
+        if (scientificReplay) {
+          const canonical = publication.producer_canonical_json || existing.publication?.producer_canonical_json;
+          record.publication = canonical ? { ...publication, producer_canonical_json: canonical } : publication;
+          if (stableJson(existing.publication) === stableJson(record.publication)) {
+            record.updated_at_iso = String(existing.updated_at_iso || record.created_at_iso);
+            recordOutcome = "replayed";
+          } else {
+            recordOutcome = "updated";
+          }
         } else {
           const existingDelivery = existing.publication?.result_delivery;
           const nextDelivery = (publication as Record<string, any>).result_delivery;

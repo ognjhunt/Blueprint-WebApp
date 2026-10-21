@@ -30,6 +30,7 @@ import { logger } from "../logger";
 import { captureUploadUrlFor, requestIdFromExpiredCaptureUploadToken, verifyCaptureUploadToken } from "../utils/captureUploadToken";
 import {
   BriefSummaryRequiredError,
+  BriefPilotScopeLockedError,
   confirmBrief,
   getBrief,
   type SiteTaskBriefRecord,
@@ -917,6 +918,7 @@ router.post("/:token/confirm", async (req: Request, res: Response) => {
       beforeRecording: result.readiness.blockingCapture,
     });
   } catch (error) {
+    if (error instanceof BriefPilotScopeLockedError) return res.status(409).json({ code: "pilot_scope_locked", error: error.message });
     logger.error(
       { error, requestId: payload.requestId },
       "Could not confirm a task brief",

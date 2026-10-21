@@ -375,6 +375,8 @@ export interface ConfirmationResult {
  * always used. The verdict is unchanged; what changed is that a site can now
  * reach it.
  */
+export class BriefPilotScopeLockedError extends Error {}
+
 export async function confirmBrief(params: {
   requestId: string;
   /** A person. An attestation with no one behind it is not one. */
@@ -463,6 +465,15 @@ export async function confirmBrief(params: {
       const current = await tx.get(briefRef);
       const requestRef = db!.collection("inboundRequests").doc(params.requestId);
       const requestSnapshot = await tx.get(requestRef);
+      const requestedScope = { summary, answers, unknown: [...unknown].sort(), success: confirmed.successCriteria ?? null, pilotIntent: confirmed.pilotIntent ?? null };
+      const priorScope = { summary: brief.summary, answers: brief.operatorAnswers ?? {}, unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null, pilotIntent: brief.pilotIntent ?? null };
+      if (requestSnapshot.data()?.job_marketplace?.agreement && humanDecisionDigest(requestedScope) !== humanDecisionDigest(priorScope)) {
+        throw new BriefPilotScopeLockedError("A pilot agreement is recorded. Agree scope changes with Blueprint and the delivery partner before changing this brief.");
+      }
+      if (requestSnapshot.data()?.job_marketplace?.agreement) {
+        confirmed.confirmedAtIso = brief.confirmedAtIso;
+        confirmed.confirmedBy = brief.confirmedBy;
+      }
       const coverage = requestSnapshot.data()?.capture_coverage;
       evidence.hasVisual = Boolean(coverage);
       evidence.coversScene = coverage?.covers_scene ?? false;
@@ -476,7 +487,7 @@ export async function confirmBrief(params: {
       tx.set(briefRef, confirmed, { merge: true });
       tx.set(requestRef,
         {
-          capture_coverage_pending: true,
+          ...(requestSnapshot.data()?.capture_coverage_request ? { capture_coverage_pending: true } : {}),
           siteTaskGates: answers,
           site_task_gate_sources: sources,
           site_task_triage: {

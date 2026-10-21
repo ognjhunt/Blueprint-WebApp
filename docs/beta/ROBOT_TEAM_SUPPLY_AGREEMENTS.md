@@ -1,5 +1,23 @@
 # Recording a robot team's supply agreement
 
+Current owner correction (2026-10-21): technology/interface access, evaluation
+participation and delivery interest are separate relationships. Record each
+through the existing terms with its own evidence; policy access does not require
+a physical-pilot promise. The admin registry exposes these facts independently
+and accepts `?role=technology`, `?role=evaluation` or `?role=delivery`. These are
+recorded relationships, not tested compatibility, a license grant or scoped
+availability/cost/support commitments. Company-policy onboarding uses its own
+rights, interface, credential and runtime contracts without a supply agreement.
+
+The all-three `engaged`/`willingSupply` rule below remains the legacy combined
+evaluate-and-deliver promise used by existing recommendation controls. An actual
+delivery proposal still needs its own current scope and partner commitments.
+The existing withdrawal endpoint accepts an optional `terms` array to withdraw
+only named relationships; omitting it withdraws all, as before. Withdrawing
+delivery interest removes combined supply while retaining unrevoked interface
+access and evaluation participation. No external outreach is sent by recording
+these facts.
+
 Owner: the founder, or an operator with the admin or ops role. Launch blocker:
 P0-7 in the [2026-10-14 beta launch audit](../launch-readiness/2026-10-14-beta-launch-audit.md)
 (link L4).

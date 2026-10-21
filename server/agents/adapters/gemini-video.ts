@@ -45,6 +45,7 @@ import { createHash } from "node:crypto";
 import type { ZodType } from "zod";
 
 import type { AgentResult, NormalizedAgentTask } from "../types";
+import { getGeminiVideoApiKey } from "../provider-config";
 import { getCompanyHistoryAccess, openAiResponsesHistoryTools, runOperatorTool } from "../operator-tools";
 import { digest } from "../../research-learning/contract";
 import { outputCorrectionEvidence, outputCorrectionPrompt, usageCount } from "./output-correction";
@@ -283,14 +284,7 @@ export class GeminiVideoError extends Error {
   }
 }
 
-function resolveApiKey() {
-  return (
-    process.env.GEMINI_API_KEY?.trim() ||
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
-    process.env.GOOGLE_AI_STUDIO_API_KEY?.trim() ||
-    null
-  );
-}
+const resolveApiKey = getGeminiVideoApiKey;
 
 /**
  * Reject anything that is not a plain public https link before fetching it.

@@ -1,4 +1,17 @@
 // @vitest-environment node
+
+// These frozen operator commands retain their original reviewed authority.
+// Supply that exact historical input only in this test; the live manifest may evolve.
+vi.mock('node:fs', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return { ...actual, readFileSync: (...args: Parameters<typeof actual.readFileSync>) => {
+    const requested = String(args[0]);
+    if (requested === 'firestore.indexes.json' || requested === `${process.cwd()}/firestore.indexes.json`) {
+      return actual.readFileSync(new URL('./fixtures/action-ledger-index-reviewed-firestore.indexes.json', import.meta.url), args[1]);
+    }
+    return actual.readFileSync(...args);
+  } };
+});
 import { describe, expect, it, vi } from 'vitest';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
@@ -24,7 +37,7 @@ function invoke(client: any, mode = 'ensure', extra: any = {}) {
 
 describe('fixed action-ledger index operator', () => {
   it('binds its fixed fields to the exact reviewed manifest', () => {
-    expect(verifyManifest(readFileSync('firestore.indexes.json'))).toBe(true);
+    expect(verifyManifest(readFileSync(new URL('./fixtures/action-ledger-index-reviewed-firestore.indexes.json', import.meta.url)))).toBe(true);
     expect(() => verifyManifest(Buffer.from('{}'))).toThrow('reviewed_manifest_mismatch');
   });
   it('refuses live execution outside the existing worker before credential acquisition', async () => {

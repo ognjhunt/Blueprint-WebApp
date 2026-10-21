@@ -16,8 +16,8 @@ let activePass: Promise<void> | null = null;
 /** Admission defers another same-capture traversal while this worker is busy. */
 export function isCoverageReviewActive() { return activePass !== null; }
 /** Existing scheduler/pump owns the tick; durable intent owns restart recovery. */
-export function tickCoverageReviews(limit = 10) {
-  if (!activePass) activePass = reconcileCoverageReviews(limit)
+export function tickCoverageReviews(limit = 10, options: { notifyOwner?: boolean } = {}) {
+  if (!activePass) activePass = reconcileCoverageReviews(limit, options)
     .catch(error => logger.warn({ error }, "Coverage reconciliation will resume on the next tick"))
     .finally(() => { activePass = null; });
 }
@@ -36,7 +36,7 @@ export async function enqueueCoverageReview(params: { requestId: string; sceneId
 }
 
 /** Reuses the existing coverage agent; delayed briefs stay pending without model calls. */
-export async function reconcileCoverageReviews(limit = 10) {
+export async function reconcileCoverageReviews(limit = 10, options: { notifyOwner?: boolean } = {}) {
   if (!db || !isSiteVideoEvidenceEnabled()) return;
   // Adopt an older pending flag without starting a second coverage executor.
   // Retain attempts and lease so an interrupted rollout never resets spend.
@@ -125,7 +125,7 @@ export async function reconcileCoverageReviews(limit = 10) {
     });
     try {
       if (claim !== "completed" && claim !== "exhausted") {
-        const finding = await reviewCaptureCoverage({ ...params, binding, reviewId: id, claimToken });
+        const finding = await reviewCaptureCoverage({ ...params, binding, reviewId: id, claimToken, notifyOwner: options.notifyOwner });
         if (!finding) { await finish({ state: "waiting_prerequisite" }); continue; }
         if (!(await finish({ state: "completed", finding }))) continue;
       }

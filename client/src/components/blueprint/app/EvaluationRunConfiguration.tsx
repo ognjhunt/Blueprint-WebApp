@@ -11,6 +11,9 @@ const familyLabels: Record<string, string> = {
   bounded_physics: "Physics",
   pairwise: "Combined",
   held_out: "Held out",
+  admitted_object_material_cousin: "Object material cousin (separate variation)",
+  pairwise_stress: "Combined stress",
+  held_out_composition: "Held-out composition",
 };
 
 /** One page: the fixed robot and policies, a depth choice, the estimate, and start. */

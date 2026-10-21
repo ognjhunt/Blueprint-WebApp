@@ -23,8 +23,10 @@ vi.mock("../utils/websiteBrowserPending", async importOriginal => ({
 }));
 vi.mock("../agents/runtime", () => ({ runAgentTask: source.agent }));
 vi.mock("../utils/taskUpdateCommitment", () => ({ commitTaskUpdate: vi.fn() }));
+vi.mock("../utils/field-encryption", () => ({ decryptFieldValue: async (value: string) => value }));
 
 import { reviewCaptureCoverage } from "../utils/captureCoverageReview";
+import { commitTaskUpdate } from "../utils/taskUpdateCommitment";
 import { sharedFakeFirestoreState } from "./helpers/fake-firestore";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
 import { browserPendingDecisionKey } from "../utils/websiteBrowserPending";
@@ -41,6 +43,7 @@ beforeEach(() => {
   source.file.mockReset().mockReturnValue({ getSignedUrl: source.signedUrl });
   source.signedUrl.mockReset().mockResolvedValue(["https://synthetic.invalid/generation-bound-video"]);
   source.agent.mockReset().mockResolvedValue(null);
+  vi.mocked(commitTaskUpdate).mockReset();
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -116,6 +119,18 @@ describe("the walkthrough's job estimates ride on its coverage review", () => {
     await reviewCaptureCoverage(params());
     expect((sharedFakeFirestoreState.docs.get("inboundRequests/r1") as Record<string, any>).walkthrough_job_estimates.job_estimates
       .other_items_likely).toEqual([]);
+  });
+
+  it.each([false, true])("records a useful shortfall with notifyOwner=%s without broadening send authority", async notifyOwner => {
+    const record = sharedFakeFirestoreState.docs.get("inboundRequests/r1")!;
+    sharedFakeFirestoreState.docs.set("inboundRequests/r1", { ...record, contact: { email: "site@synthetic.invalid" } });
+    source.agent.mockResolvedValueOnce({ status: "completed", output: output({ covers_scene: false,
+      missing_views: ["The destination"], views: [] }) });
+    expect(await reviewCaptureCoverage({ ...params(), notifyOwner })).toMatchObject({ coversScene: false,
+      missingCoverage: ["The destination"] });
+    expect(sharedFakeFirestoreState.docs.get("inboundRequests/r1")?.capture_coverage).toMatchObject({
+      covers_scene: false, missing_coverage: ["The destination"] });
+    expect(commitTaskUpdate).toHaveBeenCalledTimes(notifyOwner ? 1 : 0);
   });
 
   it("keeps none from a clip it could not read, while the finding still lands", async () => {

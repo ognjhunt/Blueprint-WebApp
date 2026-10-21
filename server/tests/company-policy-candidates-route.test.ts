@@ -276,7 +276,8 @@ describe("company policy candidate routes", () => {
     } finally { await stopServer(server); }
   });
 
-  it("stores an owner-scoped immutable contract, then a separate secret-clean lease", async () => {
+  it("records an owner-scoped technology contract without team supply or a pilot promise, then a separate secret-clean lease", async () => {
+    expect(state.collections.get("robotTeams")).toBeUndefined();
     const {server, baseUrl} = await startServer();
     try {
       const candidateResponse = await fetch(
@@ -293,6 +294,8 @@ describe("company policy candidate routes", () => {
       expect(candidatePayload.candidate.status).toBe(
         "contract_admitted_awaiting_registry_credential",
       );
+      expect(state.collections.get("robotTeams")).toBeUndefined();
+      expect(candidatePayload.candidate.launch_authority_granted).toBe(false);
       expect(state.handoffs).toHaveLength(0);
 
       const secret = "short-lived-registry-secret";

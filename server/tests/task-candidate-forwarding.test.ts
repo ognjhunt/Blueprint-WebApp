@@ -6,7 +6,9 @@ import { forwardTaskCandidateDecisionToPipeline } from "../utils/taskCandidateFo
 import {
   canonicalArtifactDigest,
   parseVerifiedPipelineTaskDecisionResult,
+  parseVerifiedTaskDiscovery,
 } from "../utils/taskCandidateContract";
+import producerFixture from "./fixtures/pipeline-task-candidate-transport.json";
 
 const token = "test-only-task-forward-token";
 
@@ -78,6 +80,38 @@ afterEach(() => {
 });
 
 describe("task candidate decision forwarding", () => {
+  it("accepts actual Python discovery and edited approval bytes without rewriting native digests", async () => {
+    const publication = producerFixture.publication;
+    const discovery = publication.pipeline_task_discovery;
+    expect(canonicalArtifactDigest(discovery, "discovery_digest")).not.toBe(discovery.discovery_digest);
+    expect(parseVerifiedTaskDiscovery(discovery, publication.pipeline_task_discovery_canonical_json,
+      publication.pipeline_task_candidate_canonical_json)).toMatchObject({ ok: true });
+    expect(parseVerifiedPipelineTaskDecisionResult(producerFixture.decision)).toMatchObject({ ok: true });
+    expect(parseVerifiedPipelineTaskDecisionResult(producerFixture.replay)).toMatchObject({ ok: true });
+    const changed = structuredClone(producerFixture.decision);
+    changed.approved_task_definition.task.description = "A different task";
+    expect(parseVerifiedPipelineTaskDecisionResult(changed)).toMatchObject({ ok: false,
+      blockers: ["approved_task_definition_digest_mismatch"] });
+    const tampered = structuredClone(discovery);
+    tampered.task_candidates[0].description = "A changed proposal";
+    const invalid = parseVerifiedTaskDiscovery(tampered, publication.pipeline_task_discovery_canonical_json,
+      publication.pipeline_task_candidate_canonical_json);
+    expect(invalid.ok).toBe(false);
+    if (!invalid.ok) expect(invalid.blockers).toContain(`task_candidate_digest_mismatch:${discovery.task_candidates[0].task_candidate_id}`);
+
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(producerFixture.decision), {
+      status: 200, headers: { "content-type": "application/json" },
+    })));
+    const forwarded = await forwardTaskCandidateDecisionToPipeline({ captureSessionId: producerFixture.submission.capture_session_id,
+      intakeId: producerFixture.submission.intake_id, discoveryId: discovery.discovery_id,
+      sourceCaptureDigest: discovery.source_capture.capture_digest, command: producerFixture.submission.command,
+      endpointUrl: "https://pipeline.invalid/api/live-pipeline/task-decisions", token, clientId: "webapp-test" });
+    expect(forwarded).toMatchObject({ status: "forwarded", performed: true,
+      pipeline_result: { pipeline_task_decision_canonical_json: producerFixture.decision.pipeline_task_decision_canonical_json,
+        approved_task_definition_canonical_json: producerFixture.decision.approved_task_definition_canonical_json } });
+    expect(producerFixture.provenance).toMatchObject({ scope: "development_only", provider_execution: false, physical_evidence: false });
+  });
+
   it("signs the exact body and accepts only a digest-verified bound result", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify(result()), {
       status: 200,

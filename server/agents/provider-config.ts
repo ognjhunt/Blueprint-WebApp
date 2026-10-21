@@ -65,12 +65,17 @@ export function getGeminiVideoModel(): string {
   );
 }
 
+/** Keep readiness and actual video dispatch on the same approved runtime binding. */
+export function getGeminiVideoApiKey(): string | null {
+  return process.env.GEMINI_API_KEY?.trim()
+    || process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim()
+    || process.env.GOOGLE_AI_STUDIO_API_KEY?.trim()
+    || process.env.GOOGLE_GENAI_API_KEY?.trim()
+    || null;
+}
+
 export function isGeminiVideoConfigured(): boolean {
-  return Boolean(
-    process.env.GEMINI_API_KEY?.trim() ||
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
-      process.env.GOOGLE_AI_STUDIO_API_KEY?.trim(),
-  );
+  return getGeminiVideoApiKey() !== null;
 }
 
 /**

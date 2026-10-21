@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { taskEvaluationPolicyRunResultProjectionSchema } from "./taskEvaluationRunContract";
+import { jobManagedEvidenceBindingSchema } from "./jobManagedEvaluation";
 
 export const FRANKA_DROID_EMBODIMENT_ID = "franka_panda_robotiq_2f85_v1" as const;
 export const CANONICAL_POLICY_CANDIDATE_IDS = [
@@ -36,6 +37,9 @@ export const POLICY_RUN_VARIATION_FAMILIES = [
   "bounded_physics",
   "pairwise",
   "held_out",
+  "admitted_object_material_cousin",
+  "pairwise_stress",
+  "held_out_composition",
 ] as const;
 
 const variationFamily = z.enum(POLICY_RUN_VARIATION_FAMILIES);
@@ -45,17 +49,25 @@ const setupCellSchema = z.object({
   partition: z.enum(["qualification", "held_out"]),
   scored: z.literal(true),
   cell_spec_digest: digest,
+  seed: z.number().int().min(0).max(2_147_483_647).optional(),
+  resolved_scenario: z.record(z.string(), z.unknown()).optional(),
+  coverage_status: z.enum(["available", "typed_gap_fallback"]).optional(),
+  coverage_gap: z.string().min(1).max(512).optional(),
+  fallback_source_family: z.string().min(1).max(128).optional(),
 }).strict();
 
-const familyCountsSchema = z.object({
+const sharedFamilyCounts = {
   canonical_anchor: z.number().int().positive(),
   placement_approach: z.number().int().positive(),
   illumination: z.number().int().positive(),
   camera_sensor: z.number().int().positive(),
   bounded_physics: z.number().int().positive(),
-  pairwise: z.number().int().positive(),
-  held_out: z.number().int().positive(),
-}).strict();
+};
+const familyCountsSchema = z.union([
+  z.object({ ...sharedFamilyCounts, pairwise: z.number().int().positive(), held_out: z.number().int().positive() }).strict(),
+  z.object({ ...sharedFamilyCounts, admitted_object_material_cousin: z.number().int().positive(),
+    pairwise_stress: z.number().int().positive(), held_out_composition: z.number().int().positive() }).strict(),
+]);
 
 const estimateSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("unavailable") }).strict(),
@@ -203,19 +215,23 @@ export const evaluationReadyPolicyRunSetupSchema = z.object({
     path: ["presets", 0, "cells"],
     message: "policy-run setup cell IDs must be unique",
   });
-  for (const family of POLICY_RUN_VARIATION_FAMILIES) {
+  for (const family of Object.keys(quick.family_counts)) {
     const count = cells.filter((cell) => cell.family === family).length;
-    if (count !== quick.family_counts[family]) context.addIssue({
+    if (count !== (quick.family_counts as Record<string, number>)[family]) context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["presets", 0, "family_counts", family],
       message: "Quick preset family counts must match its compiled cells",
     });
   }
-  const expectedQuickCounts = [1, 2, 1, 1, 1, 2, 2];
+  const expectedQuickCounts = "admitted_object_material_cousin" in quick.family_counts
+    ? { canonical_anchor: 2, placement_approach: 2, illumination: 1, camera_sensor: 1,
+      bounded_physics: 1, admitted_object_material_cousin: 1, pairwise_stress: 1, held_out_composition: 1 }
+    : { canonical_anchor: 1, placement_approach: 2, illumination: 1, camera_sensor: 1,
+      bounded_physics: 1, pairwise: 2, held_out: 2 };
   if (
     cells.length !== 10
-    || POLICY_RUN_VARIATION_FAMILIES.some(
-      (family, index) => quick.family_counts[family] !== expectedQuickCounts[index],
+    || Object.entries(expectedQuickCounts).some(
+      ([family, count]) => (quick.family_counts as Record<string, number>)[family] !== count,
     )
   ) context.addIssue({
     code: z.ZodIssueCode.custom,
@@ -231,7 +247,7 @@ export const evaluationReadyPolicyRunSetupSchema = z.object({
     message: "Quick scenario-set digest must bind the exact ordered cells",
   });
   for (const [index, cell] of cells.entries()) {
-    const expected = cell.family === "held_out" ? "held_out" : "qualification";
+    const expected = ["held_out", "held_out_composition"].includes(cell.family) ? "held_out" : "qualification";
     if (cell.partition !== expected) context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["presets", 0, "cells", index, "partition"],
@@ -259,9 +275,10 @@ export const evaluationReadyRunInputSchema = z.object({
   run_id: identifier,
   offering_digest: digest,
   preset_id: z.enum(POLICY_RUN_PRESET_IDS),
+  job_evidence_binding: jobManagedEvidenceBindingSchema.optional(),
 }).strict();
 
-export const resolvedPolicyRunSelectionSchema = evaluationReadyRunInputSchema.extend({
+export const resolvedPolicyRunSelectionSchema = evaluationReadyRunInputSchema.omit({ job_evidence_binding: true }).extend({
   source_launch_id: identifier,
   setup_digest: digest,
 }).strict();

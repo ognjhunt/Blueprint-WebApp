@@ -23,6 +23,7 @@ const state = vi.hoisted(() => ({
   blobs: new Map<string, Buffer>(),
   launchProfiles: null as Record<string, any>[] | null,
   launchForwardFailuresRemaining: 0,
+  preparationForwardFailuresRemaining: 0,
   hangTransaction: false,
   isOps: true,
 }));
@@ -1047,6 +1048,7 @@ beforeEach(() => {
   state.blobs.clear();
   state.launchProfiles = null;
   state.launchForwardFailuresRemaining = 0;
+  state.preparationForwardFailuresRemaining = 0;
   state.hangTransaction = false;
   state.isOps = true;
   process.env.TASK_EVALUATION_LAUNCH_PROFILES_JSON = JSON.stringify([profile()]);
@@ -1070,6 +1072,10 @@ beforeEach(() => {
       });
     }
     if (url === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-preparations") {
+      if (state.preparationForwardFailuresRemaining > 0) {
+        state.preparationForwardFailuresRemaining -= 1;
+        return new Response(JSON.stringify({ error: "fixture-forward-unavailable" }), { status: 503 });
+      }
       const request = JSON.parse(String(init?.body || "{}"));
       const receipt: Record<string, unknown> = {
         schema_version: "task_evaluation_launch_preparation_intake_receipt.v1",
@@ -1888,6 +1894,36 @@ describe("admin Task Evaluation launch route", () => {
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+  });
+
+  it("retries the original no-spend preparation delivery without changing authority or creating another run", async () => {
+    state.isOps = true;
+    const offering = evaluationReadyConfiguredSceneOffering();
+    state.records.set("evaluation-launch-001", { configured_scene_offering_state: offering.status,
+      configured_scene_offering_team_namespace: offering.team_namespace,
+      configured_scene_offering_digest: offering.offering_digest, configured_scene_offering: offering });
+    state.preparationForwardFailuresRemaining = 1;
+    const { server, url } = await startTeamOfferingServer();
+    const body = { schema_version: "task_evaluation_policy_run_selection.v1", run_id: "retry-preparation-one",
+      offering_digest: offering.offering_digest, preset_id: "quick_10" };
+    const post = () => fetch(`${url}/evaluation-launch-001/evaluation-runs`, { method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": body.run_id }, body: JSON.stringify(body) });
+    try {
+      expect((await post()).status).toBe(503);
+      const original = structuredClone(state.records.get(body.run_id));
+      const prepared = structuredClone(state.records.get(original!.preparation_id));
+      const retry = await post();
+      expect(retry.status).toBe(202);
+      expect(await retry.json()).toMatchObject({ already_exists: true, status: "queued_for_preparation" });
+      expect(state.records.get(body.run_id)?.preparation_id).toBe(original!.preparation_id);
+      expect(state.records.get(original!.preparation_id)?.request).toEqual(prepared!.request);
+      expect(state.records.get(original!.preparation_id)?.forward_attempt_count).toBe(2);
+      expect((await post()).status).toBe(200);
+      const deliveries = vi.mocked(fetch).mock.calls.filter(([target]) => String(target)
+        === "https://pipeline.example/api/live-pipeline/task-evaluation-launch-preparations");
+      expect(deliveries).toHaveLength(2);
+      expect(deliveries[0][1]?.body).toBe(deliveries[1][1]?.body);
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
   });
 
   it("projects a locked team setup and idempotently queues its exact policy matrix", async () => {

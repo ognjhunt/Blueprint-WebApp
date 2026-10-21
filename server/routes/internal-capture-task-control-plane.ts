@@ -47,7 +47,8 @@ router.post(
       });
     }
     const publication = parsed.data;
-    const verified = parseVerifiedTaskDiscovery(publication.pipeline_task_discovery);
+    const verified = parseVerifiedTaskDiscovery(publication.pipeline_task_discovery,
+      publication.pipeline_task_discovery_canonical_json, publication.pipeline_task_candidate_canonical_json);
     if (!verified.ok) {
       return res.status(400).json({
         error: "Pipeline task-discovery publication failed integrity validation",
@@ -104,18 +105,34 @@ router.post(
         ) {
           return { kind: "pending_command_conflict" };
         }
+        const existing = discoverySnapshot.exists ? discoverySnapshot.data() as Record<string, unknown> : null;
+        const currentBytes = currentDiscovery?.discovery_digest === publication.discovery_digest ? session : null;
+        const discoveryCanonical = publication.pipeline_task_discovery_canonical_json
+          ?? existing?.pipeline_task_discovery_canonical_json ?? currentBytes?.pipeline_task_discovery_canonical_json;
+        const candidateCanonical = publication.pipeline_task_candidate_canonical_json
+          ?? existing?.pipeline_task_candidate_canonical_json ?? currentBytes?.pipeline_task_candidate_canonical_json;
         const record = {
           schema_version: "capture_task_discovery_record.v1",
           capture_session_id: publication.capture_session_id,
           intake_id: publication.intake_id,
           discovery_digest: publication.discovery_digest,
           pipeline_task_discovery: verified.discovery,
+          ...(discoveryCanonical ? {
+            pipeline_task_discovery_canonical_json: discoveryCanonical,
+          } : {}),
+          ...(candidateCanonical ? {
+            pipeline_task_candidate_canonical_json: candidateCanonical,
+          } : {}),
           proof_boundary: publication.proof_boundary,
         };
         if (discoverySnapshot.exists) {
-          const existing = discoverySnapshot.data() as Record<string, unknown>;
-          if (stableJson(existing) !== stableJson(record)) {
+          const scientificRecord = (value: Record<string, unknown>) => Object.fromEntries(Object.entries(value)
+            .filter(([key]) => !["pipeline_task_discovery_canonical_json", "pipeline_task_candidate_canonical_json"].includes(key)));
+          if (stableJson(scientificRecord(existing!)) !== stableJson(scientificRecord(record))) {
             return { kind: "immutable_conflict" };
+          }
+          if (stableJson(existing) !== stableJson(record)) {
+            transaction.set(discoveryRef, record);
           }
         } else {
           transaction.create(discoveryRef, record);
@@ -124,6 +141,8 @@ router.post(
           sessionRef,
           {
             pipeline_task_discovery: verified.discovery,
+            pipeline_task_discovery_canonical_json: discoveryCanonical ?? null,
+            pipeline_task_candidate_canonical_json: candidateCanonical ?? null,
             pipeline_task_discovery_digest: publication.discovery_digest,
             task_discovery_projection_updated_at_iso: new Date().toISOString(),
           },

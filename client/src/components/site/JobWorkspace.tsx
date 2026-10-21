@@ -135,6 +135,28 @@ function JobWorkspaceForToken({ token }: { token: string }) {
       <p>{workflow.review.summary}</p>
       {workflow.review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{workflow.review.nextAction}</p>}
     </div>}
+    {(workflow.evidence ?? []).length > 0 && <section className="job-review" aria-label="Evidence for your job">
+      <h3>Evidence for your job</h3>
+      {workflow.evidence!.map(item => <article key={item.requestId} className="mt-3">
+        <h4>{item.question}</h4>
+        <p>{item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}: {item.summary}</p>
+        {item.claims.map(claim => <p key={claim.claimId}>{claim.claimId}: {claim.verdict.replace(/_/g, " ")} — {claim.rationale}</p>)}
+        <p>Next: {item.nextAction}</p>
+        {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
+        <p className="ms-field-hint break-all">Reference: {item.publicationDigest ?? item.requestId}{item.decisionDigest ? ` · Decision: ${item.decisionDigest}` : ""}</p>
+      </article>)}
+    </section>}
+    {workflow.managedEvidenceUnavailable && <p role="status" className="ms-field-hint">Policy results are temporarily unavailable. Reload this page to retry.</p>}
+    {(workflow.managedEvidence ?? []).length > 0 && <section className="job-review" aria-label="Managed policy evidence for your job">
+      <h3>Policy evidence for your job</h3>
+      {workflow.managedEvidence!.map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="mt-3">
+        <h4>{item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}</h4>
+        <p>{item.summary}</p><p>Next: {item.nextAction}</p>
+        {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
+        <p className="ms-field-hint break-all">Run: {item.runId}{item.resultDigest ? ` · Result: ${item.resultDigest}` : ""}</p>
+      </article>)}
+    </section>}
+    {workflow.jobId && (workflow.evidence ?? []).some(item => item.current && ["information_required", "blocked", "unavailable"].includes(item.state)) ? <p className="ms-field-hint"><a className="ms-text-link" href={`/app/captures?jobId=${encodeURIComponent(workflow.jobId!)}`}>Add task-specific capture evidence</a> when Blueprint needs it. Use the account that owns this job; the existing recording permissions still apply.</p> : null}
     <BuyingRequirements key="requirements" locked={Boolean(workflow.agreement)} requirements={workflow.requirements} pending={pending} onSave={value => save("requirements", "PATCH", value)} />
 
     <section className="job-proposals" aria-labelledby="delivery-proposals-title">
@@ -143,6 +165,7 @@ function JobWorkspaceForToken({ token }: { token: string }) {
         : <p className="ms-field-hint">Compare the complete cost, commitments and support. Choosing a proposal starts the agreement process; it does not sign a contract or reserve a date.</p>}
       {visibleProposals.map(proposal => <ProposalCard key={`${proposal.id}:${proposal.revision}`} proposal={proposal}
         selected={selected?.id === proposal.id} locked={Boolean(workflow.agreement) || proposal.status !== "available"} hasSelection={Boolean(workflow.selection)} pending={pending}
+        evidenceHref={digest => `${endpoint}/evidence/${encodeURIComponent(digest)}`}
         onSelect={() => save("select", "POST", { proposalId: proposal.id, expectedRevision: proposal.revision, authorized: true })} />)}
       {workflow.selection && (!selected || selected.status !== "available") && <p role="status">Your selected proposal changed or is no longer available. Ask Blueprint to review the updated scope before making another commitment.</p>}
     </section>
@@ -167,7 +190,7 @@ function JobWorkspaceForToken({ token }: { token: string }) {
       <p className="ms-field-hint">This is your site's report. It does not change evaluation scores or establish independent physical validation.</p>
     </section> : selected && selected.status !== "withdrawn" && workflow.agreement?.outcomeRecordingAuthorized === true && Boolean(workflow.agreement.outcomeRecordingPermissionReference) ? <OutcomeForm historical={selected.status === "review_required"} proposal={selected} pending={pending} onSave={value => save("outcome", "POST", value)} /> : null}
   </section>
-    <RecommendedPilot token={token} bookedOnly={Boolean(workflow.proposals.length || workflow.selection)} />
+    <RecommendedPilot token={token} bookedOnly />
   </>;
 }
 
@@ -213,8 +236,8 @@ function BuyingRequirements({ requirements, pending, locked = false, onSave }: {
   </details>;
 }
 
-function ProposalCard({ proposal, selected, locked, hasSelection, pending, onSelect }: {
-  proposal: DeliveryProposal; selected: boolean; locked: boolean; hasSelection: boolean; pending: boolean; onSelect: () => Promise<void>;
+function ProposalCard({ proposal, selected, locked, hasSelection, pending, onSelect, evidenceHref }: {
+  proposal: DeliveryProposal; selected: boolean; locked: boolean; hasSelection: boolean; pending: boolean; onSelect: () => Promise<void>; evidenceHref: (digest: string) => string;
 }) {
   const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState("");
@@ -228,7 +251,7 @@ function ProposalCard({ proposal, selected, locked, hasSelection, pending, onSel
   return <article className="job-proposal-card" aria-label={`${proposal.providerName} delivery proposal`}>
     <div className="job-proposal-heading"><h4>{proposal.providerName}</h4>{selected && <span className="job-selection-label">Your choice</span>}</div>
     <p>{proposal.scope}</p>
-    {proposal.status === "review_required" && <p role="status">The job changed. Blueprint must review this proposal against the current brief before you can choose it.</p>}
+    {proposal.status === "review_required" && <p role="status">The job or its supporting evidence changed. Blueprint must review this proposal before you can choose it.</p>}
     <dl className="job-facts">
       <div><dt>Installation</dt><dd>{money(proposal.installationCostUsd)}</dd></div>
       <div><dt>Ongoing monthly cost</dt><dd>{money(proposal.monthlyCostUsd)}</dd></div>
@@ -247,7 +270,7 @@ function ProposalCard({ proposal, selected, locked, hasSelection, pending, onSel
         <div><dt>Pilot acceptance criteria</dt><dd>{proposal.acceptanceCriteria}</dd></div>
       </dl>
       <h5>Evidence for this proposal</h5>
-      {!proposal.evidence.length ? <p>No capability evidence is attached.</p> : <ul className="job-evidence-list">{proposal.evidence.map((evidence, index) => <li key={index}><strong>{evidenceLabels[evidence.level]}:</strong> {evidence.summary}</li>)}</ul>}
+      {!proposal.evidence.length ? <p>No capability evidence is attached.</p> : <ul className="job-evidence-list">{proposal.evidence.map((evidence, index) => <li key={index}><strong>{evidenceLabels[evidence.level]}:</strong> <span>{evidence.summary}</span>{evidence.reference ? <p className="ms-field-hint break-all"><a className="ms-text-link" href={evidence.reference.kind === "managed_run" ? `#managed-evidence-${encodeURIComponent(evidence.reference.runId)}` : evidenceHref(evidence.reference.publicationDigest)} target={evidence.reference.kind === "managed_run" ? undefined : "_blank"} rel="noreferrer">Read this evidence</a> · Pipeline reference: {evidence.reference.kind === "managed_run" ? `${evidence.reference.runId} · ${evidence.reference.resultDigest}` : `${evidence.reference.requestId} · ${evidence.reference.publicationDigest}`}</p> : null}</li>)}</ul>}
       <p className="ms-field-hint">A prior deployment or simulation does not establish performance at your site. Agree what the physical pilot must demonstrate.</p>
     </details>
     {!selected && !locked && <form className="ms-form job-proposal-choice" onSubmit={submit} aria-label={`Choose ${proposal.providerName}`}>

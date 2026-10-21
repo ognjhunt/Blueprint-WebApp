@@ -10,7 +10,7 @@ Keep the existing example and how-it-works experience and modify it to explain t
 
 Commercial proposal selection is not a signed pilot agreement. A customer-reported outcome is not a scientific Physical Outcome Join. Existing evaluation admission, compatibility, rights, provenance and scientific proof controls remain binding.
 
-The cross-repo shared blocks remain byte-locked historical snapshots; do not edit them or their lock locally. The independent-execution and proposal changes require canonical synchronization in `BlueprintCapturePipeline/doctrine/`; this checkout does not claim it occurred. The owner's clarification preserves the capture-first foundation rather than superseding it.
+The cross-repo shared blocks and lock are generated from `BlueprintCapturePipeline/doctrine/` using its canonical synchronization process. They incorporate the later video-required correction and durable six-stage direction across all three repos. Do not hand-edit a generated block or its lock locally; change canonical fragments and synchronize the repos together. The owner's clarification preserves the capture-first foundation.
 
 Implementation scope and verification: `docs/design/job-first-automation-marketplace/IMPLEMENTATION.md`.
 

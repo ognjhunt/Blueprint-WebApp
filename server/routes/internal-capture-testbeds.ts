@@ -5,6 +5,8 @@ import { Router, type Request, type Response } from "express";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+import { verifyProducerArtifact } from "../utils/producerCanonicalArtifact";
+import { jobEvidenceSourceBindingSchema } from "../utils/reconstructionForwarding";
 import {
   exactTestbedPublicationFingerprint,
   parseVerifiedMaintainedSiteTaskTestbed,
@@ -46,7 +48,14 @@ router.post(
       });
     }
     const publication = parsed.data;
-    const verified = parseVerifiedMaintainedSiteTaskTestbed(publication.testbed);
+    if (publication.schema_version === "site_task_testbed_publication.v2"
+      && Buffer.byteLength(JSON.stringify(publication)) > 750_000) {
+      return res.status(413).json({ error: "Retain large testbed evidence in the existing artifact store" });
+    }
+    const canonical = publication.schema_version === "site_task_testbed_publication.v2"
+      ? publication : null;
+    const verified = parseVerifiedMaintainedSiteTaskTestbed(publication.testbed,
+      canonical?.testbed_canonical_json, canonical?.compiled_card_canonical_json);
     if (!verified.ok) {
       return res.status(400).json({
         error: "Pipeline testbed failed integrity validation",
@@ -68,13 +77,18 @@ router.post(
     }
     if (
       decisionRequest && (
-        canonicalArtifactDigest(decisionRequest, "request_digest") !== decisionRequest.request_digest ||
+        (canonical
+          ? !verifyProducerArtifact(decisionRequest, "request_digest", canonical.decision_request_canonical_json)
+          : canonicalArtifactDigest(decisionRequest, "request_digest") !== decisionRequest.request_digest) ||
         decisionRequest.testbed_id !== testbed.testbed_id ||
         decisionRequest.testbed_version !== testbed.version ||
         decisionRequest.testbed_digest !== testbed.testbed_digest
       )
     ) {
       return res.status(409).json({ error: "Decision/Evidence Request binding mismatch" });
+    }
+    if (canonical && !decisionRequest && canonical.decision_request_canonical_json !== null) {
+      return res.status(409).json({ error: "Decision/Evidence Request canonical bytes require the request" });
     }
     const sourceBundles = testbed.source_capture_bundles.filter(
       (bundle) => bundle.bundle_id === publication.intake_id,
@@ -95,6 +109,7 @@ router.post(
       | { kind: "not_found" }
       | { kind: "intake_mismatch" }
       | { kind: "approved_task_mismatch" }
+      | { kind: "job_source_mismatch" }
       | { kind: "version_conflict" }
       | { kind: "predecessor_mismatch" }
       | { kind: "immutable_conflict" };
@@ -114,8 +129,19 @@ router.post(
         ) {
           return { kind: "approved_task_mismatch" };
         }
+        if (canonical && (canonical.job_id || canonical.brief_digest)) {
+          const source = jobEvidenceSourceBindingSchema.safeParse(session.job_evidence_source_binding);
+          if (!source.success || source.data.job_id !== canonical.job_id || source.data.brief_digest !== canonical.brief_digest
+            || source.data.capture_session_id !== publication.capture_session_id || source.data.intake_id !== publication.intake_id
+            || source.data.approved_task_digest !== publication.approved_task_digest
+            || source.data.source_capture_digest !== sourceBundles[0].digest
+            || session.latest_task_decision_command?.command_request_id !== source.data.command_request_id
+            || session.latest_task_decision_command?.pipeline_approval_status !== "approved") {
+            return { kind: "job_source_mismatch" };
+          }
+        }
         const current = session.pipeline_site_task_testbed as
-          | { testbed_id?: string; version?: string; testbed_digest?: string }
+          | Record<string, any>
           | undefined;
         if (
           current?.testbed_id === publication.testbed_id &&
@@ -134,7 +160,7 @@ router.post(
         if (!current?.testbed_digest && testbed.predecessor_testbed_digest !== null) {
           return { kind: "predecessor_mismatch" };
         }
-        const record = {
+        let record = {
           schema_version: "capture_site_task_testbed_record.v1",
           capture_session_id: publication.capture_session_id,
           intake_id: publication.intake_id,
@@ -145,15 +171,40 @@ router.post(
           artifact_reference: publication.artifact_reference,
           testbed,
           decision_evidence_request: decisionRequest || null,
+          ...(canonical ? {
+            testbed_canonical_json: canonical.testbed_canonical_json,
+            decision_request_canonical_json: canonical.decision_request_canonical_json,
+            compiled_card_canonical_json: canonical.compiled_card_canonical_json,
+            ...(canonical.job_id ? { job_id: canonical.job_id } : {}),
+            ...(canonical.brief_digest ? { brief_digest: canonical.brief_digest } : {}),
+            ...(canonical.website_task_context_digest ? { website_task_context_digest: canonical.website_task_context_digest } : {}),
+          } : {}),
           status: "testbed_ready",
           proof_boundary: publication.proof_boundary,
         };
         if (testbedSnapshot.exists) {
+          // A transport upgrade can enrich the current projection while the
+          // previously accepted immutable scientific record remains untouched.
+          const existing = testbedSnapshot.data()!;
+          const scientificRecord = (value: Record<string, unknown>) => Object.fromEntries(
+            Object.entries(value).filter(([key]) => ![
+              "testbed_canonical_json", "decision_request_canonical_json", "compiled_card_canonical_json",
+            ].includes(key)),
+          );
           if (
-            exactTestbedPublicationFingerprint(testbedSnapshot.data()) !==
-            exactTestbedPublicationFingerprint(record)
+            exactTestbedPublicationFingerprint(scientificRecord(existing)) !==
+            exactTestbedPublicationFingerprint(scientificRecord(record))
           ) {
             return { kind: "immutable_conflict" };
+          }
+          if (!canonical) {
+            const retainedBytes = existing.testbed_canonical_json ? existing
+              : current?.testbed_digest === publication.testbed_digest ? current : null;
+            if (retainedBytes?.testbed_canonical_json) record = { ...record,
+              testbed_canonical_json: retainedBytes.testbed_canonical_json,
+              decision_request_canonical_json: retainedBytes.decision_request_canonical_json,
+              compiled_card_canonical_json: retainedBytes.compiled_card_canonical_json,
+            };
           }
         } else {
           transaction.create(testbedRef, record);
@@ -175,6 +226,7 @@ router.post(
     if (outcome.kind === "not_found") return res.status(404).json({ error: "Capture upload not found" });
     if (outcome.kind === "intake_mismatch") return res.status(409).json({ error: "Capture intake binding does not match" });
     if (outcome.kind === "approved_task_mismatch") return res.status(409).json({ error: "Approved task binding does not match" });
+    if (outcome.kind === "job_source_mismatch") return res.status(409).json({ error: "Approved job source binding does not match" });
     if (outcome.kind === "version_conflict") return res.status(409).json({ error: "Testbed version already has a different digest" });
     if (outcome.kind === "predecessor_mismatch") return res.status(409).json({ error: "Testbed predecessor does not match the current version" });
     if (outcome.kind === "immutable_conflict") return res.status(409).json({ error: "Immutable testbed record conflicts" });
