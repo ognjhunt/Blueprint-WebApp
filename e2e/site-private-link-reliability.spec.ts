@@ -204,12 +204,12 @@ test("desktop handoff recognizes retained footage without claiming processing co
   });
   await page.clock.install();
   await page.goto("/contact/site-operator");
-  await page.locator("#start-task").fill("Move cartons to the pallet");
   await page.locator("#start-location").fill("Austin, TX");
   await page.locator("#start-email").fill("operator@example.test");
   await page.locator("#start-company").fill("Fixture site");
   await page.getByRole("button", { name: "Start free assessment" }).click();
-  await expect(page.getByRole("heading", { name: "Your job description is saved." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Film the work area." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveAttribute("href", "/capture-upload/held-fixture");
   received = true;
   await page.clock.fastForward(6000);
   await expect(page.getByRole("heading", { name: "Your recording is in." })).toBeVisible();

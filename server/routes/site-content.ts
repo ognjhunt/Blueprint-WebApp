@@ -111,13 +111,13 @@ const pages = [
     path: "/",
     title: "Home",
     description:
-      "Show Blueprint one recurring job. Assess suitable automation, test where needed, compare delivery proposals and agree a measured pilot. Free during the beta.",
+      "Show Blueprint one recurring job on video. Compare compatible robots and policies in a site simulation, review delivery proposals and agree a measured pilot. Free during the beta.",
   },
   {
     path: "/how-it-works",
     title: "How It Works",
     description:
-      "Describe the job, agree the brief, assess suitable options, compare delivery proposals, and measure an agreed pilot. Evaluation methods depend on the question.",
+      "Send video of the job, review the brief drafted from its analysis, compare compatible robots and policies in a site simulation, review delivery proposals, and measure an agreed pilot.",
   },
   {
     path: "/beta",
@@ -128,7 +128,7 @@ const pages = [
   {
     path: "/contact/site-operator",
     title: "Submit a job",
-    description: "Open sign-up for sites: describe or film one recurring job to start.",
+    description: "Open sign-up for sites: send video of one recurring job. We analyze it to draft the description; video is required for the site assessment.",
   },
   {
     path: "/contact/robot-team",

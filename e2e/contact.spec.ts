@@ -29,10 +29,10 @@ test("prerendered intake stays inactive while its scripts are unavailable", asyn
   await expect(page).toHaveURL(/\/contact\/site-operator$/);
 });
 
-test("phone: the first task field is on the first screen and the explanation stays closed", async ({ page }) => {
+test("phone: video capture choices are on the first screen and optional details stay closed", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
-  const field = page.locator("#start-task");
+  const field = page.getByRole("radio", { name: "Upload a video now", exact: true });
   await expect(field).toBeVisible();
   await expect(field).toBeEnabled();
   await expect.poll(async () => {
@@ -40,6 +40,7 @@ test("phone: the first task field is on the first screen and the explanation sta
     return box ? box.y + box.height : Infinity;
   }).toBeLessThan(844);
   await expect(page.locator("details").filter({ hasText: "How this works" })).not.toHaveAttribute("open");
+  await expect(page.locator("details").filter({ hasText: "Add job details and buying plans (optional)" })).not.toHaveAttribute("open");
   await expect(page.locator("#gate-sceneStability")).toHaveCount(0);
   await page.screenshot({ path: "/tmp/onboarding-p2-site-phone.png", fullPage: true });
 });
@@ -51,7 +52,6 @@ test("capture takes the country from the address and asks only when it cannot", 
     return route.fulfill({ status: 202, json: { ok: true, requestId: "captured", captureUrl: null } });
   });
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
-  await page.locator("#start-task").fill("Move cartons onto a pallet");
   await page.locator("#start-location").fill("Berlin");
   await page.locator("#start-email").fill("owner@example.test");
   await page.locator("#start-company").fill("Acme Foods");
@@ -80,5 +80,5 @@ test("robot teams can apply before approval without seeing private jobs", async 
 test("the retired duplicate intake joins the capture flow and preserves context", async ({ page }) => {
   await page.goto("/app/tasks/new?source=workspace");
   await expect(page).toHaveURL(/\/contact\/site-operator\?source=workspace/);
-  await expect(page.locator("#start-task")).toBeVisible();
+  await expect(page.getByRole("group", { name: "How will we see the task?", exact: true })).toBeVisible();
 });

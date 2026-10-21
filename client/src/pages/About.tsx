@@ -33,15 +33,15 @@ export default function About() {
         <h1>We start with one real job.</h1>
         <p className="ms-about-lead">
           Blueprint helps businesses find a suitable way to automate recurring work. Start with the job:
-          we help define the requirements, assess options, test where needed and choose a delivery
+          we analyze your video, reconstruct the site, compare compatible robots and policies, and help you choose a delivery
           partner for a measured pilot. The beta is free for sites and partners.
         </p>
 
         <section>
           <h2>How it works</h2>
           <ol>
-            <li>A site describes recurring work and reviews a job brief with us. Video is optional at the start.</li>
-            <li>We assess suitable approaches, delivery feasibility and the evidence needed for the decision.</li>
+            <li>A site sends video of recurring work. We analyze it and draft a job brief for the site to review.</li>
+            <li>We reconstruct the site in simulation, evaluate compatible robots and policies, and check delivery feasibility.</li>
             <li>The customer reviews delivery proposals, chooses a partner and agrees a measured pilot directly with that company.</li>
             <li>We record the outcome so the next decision can build on what was learned.</li>
           </ol>

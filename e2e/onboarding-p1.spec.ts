@@ -170,16 +170,15 @@ test("a robot team outside early access applies instead of browsing", async ({ p
   await screenshot(page, "early-access-applied");
 });
 
-test("desktop owner reviews the brief before optional recording, with one status and explicit public card approval", async ({ page }) => {
+test("desktop owner opens video capture with one status and explicit public card approval", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 }); const mutations = await fixtures(page);
   await page.goto("/capture-upload/owner-fixture");
-  await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Point your phone at this." })).toHaveCount(0);
-  await page.getByRole("button", { name: "Add footage when you are ready (optional)" }).click();
+  await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Add footage when you are ready (optional)" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toBeVisible();
   await expect(page.getByText("We have your task and are checking your footage.")).toHaveCount(1);
-  // Updates follow events by email; the page promises that, not a deadline.
-  await expect(page.getByText("Blueprint prepares the next useful step from your job and existing evidence. We send meaningful progress and ask for action only when a missing fact or concrete commitment needs your input.")).toHaveCount(1);
+  // One status keeps progress visible without promising a deadline.
+  await expect(page.getByText("Updates appear on this job page. Return here to check progress.", { exact: true })).toHaveCount(1);
   await expect(page.getByRole("link", { name: "Blueprint home" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open the camera" })).toHaveCount(0);
   const upload = await page.getByRole("button", { name: "Upload a video file" }).boundingBox();
@@ -205,37 +204,42 @@ test("desktop owner reviews the brief before optional recording, with one status
   await expect.poll(() => mutations.at(-1)?.body.thumbnailPng).toBe(null);
 });
 
-test("phone owner reviews the brief before optional recording and keeps event emails", async ({ browser }) => {
+test("phone owner opens the recorder and keeps progress visible", async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", isMobile: true, hasTouch: true });
   const page = await context.newPage(); await fixtures(page);
   await page.route("**/api/site-task-brief/*/status", route => route.fulfill({ json: { status: { decision: "assessing", headline: "Preparing your scene", nextUpdateIso: "2020-01-01T12:00:00Z" } } }));
   await page.goto("/capture-upload/phone-fixture");
   // A stale deadline left on the record is ignored: timed check-ins are retired.
-  await expect(page.getByText(/We send meaningful progress/)).toBeVisible();
+  await expect(page.getByText("Updates appear on this job page. Return here to check progress.", { exact: true })).toHaveCount(1);
   await expect(page.getByText(/Update overdue|Next status update by/)).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Point your phone at this." })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Open the camera|Choose or record a video/ })).toHaveCount(0);
-  await page.getByRole("button", { name: "Add footage when you are ready (optional)" }).click();
+  await expect(page.getByRole("heading", { name: "Your job summary", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Add footage when you are ready (optional)" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Open the camera|Choose or record a video/ }).first()).toBeVisible();
   await screenshot(page, "phone-capture"); await context.close();
 });
 
-for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: description intake leads to brief review`, async ({ browser }) => {
+for (const mobile of [false, true]) test(`${mobile ? "phone" : "desktop"}: video intake continues to recording without a written description`, async ({ browser }) => {
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 }, ...(mobile ? { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", isMobile: true, hasTouch: true } : {}) });
-  const page = await context.newPage(); await fixtures(page);
+  const page = await context.newPage(); const mutations = await fixtures(page);
   await page.goto("/contact/site-operator");
   const form = page.getByRole("form", { name: "Start a site capture" });
-  await form.locator("#start-task").fill("Move sealed cartons from conveyor to pallet");
+  await expect(form.getByRole("group", { name: "How will we see the task?" })).toBeVisible();
+  await expect(form.locator("#start-task")).toHaveValue("");
+  await expect(form.locator("#start-task")).not.toBeVisible();
   await form.locator("#start-location").fill("Chicago, Illinois");
   await form.locator("#start-email").fill("owner@example.test");
   await form.locator("#start-company").fill("Acme Foods");
   await expect(form.locator("#start-rights")).toHaveCount(0);
   await expect(form.locator("#start-region")).toHaveCount(0);
   await form.getByRole("button", { name: "Start free assessment", exact: true }).click();
-  await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open the camera" })).toHaveCount(0);
-  await expect(page.getByRole("img", { name: "Point your phone at this to film" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Film the work area.", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: mobile ? "Open the camera" : "Open your job page", exact: true })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Point your phone at this to film" })).toHaveCount(mobile ? 0 : 1);
+  expect(mutations.find(mutation => mutation.path === "/api/inbound-request")?.body).toMatchObject({
+    taskStatement: "", taskDescription: "", captureMode: "self_capture", hasExistingFootage: false,
+  });
   await screenshot(page, `${mobile ? "phone" : "desktop"}-intake-handoff`); await context.close();
 });
 

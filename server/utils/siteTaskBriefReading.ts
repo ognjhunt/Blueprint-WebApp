@@ -217,9 +217,12 @@ export async function mergeFootageIntoBrief(params: {
 }): Promise<void> {
   const brief = await getBrief(params.requestId);
   if (!brief) return;
+  if (params.evidence.footage_status === "unusable") return;
   const proposals = proposalsFromFootage(params.evidence, brief.captureMode);
-  if (!proposals.length) return;
+  const observedSummary = params.evidence.summary?.trim();
+  if (!proposals.length && !observedSummary) return;
   await mergeBriefProposals({ requestId: params.requestId, proposals,
+    ...(observedSummary ? { observedSummary } : {}),
     ...(params.captureId && params.briefDigest ? { source: { capture_id: params.captureId,
       evidence_digest: humanDecisionDigest(params.evidence), brief_digest: params.briefDigest } } : {}),
   });

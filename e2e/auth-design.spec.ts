@@ -53,5 +53,5 @@ test("sign-in validates and links to account creation and recovery", async ({ pa
   await page.getByRole("link", { name: "Back to sign in" }).click();
   await page.getByRole("link", { name: "Show us a task" }).click();
   await expect(page).toHaveURL(/\/contact\/site-operator/);
-  await expect(page.locator("#start-task")).toBeVisible();
+  await expect(page.getByRole("group", { name: "How will we see the task?", exact: true })).toBeVisible();
 });

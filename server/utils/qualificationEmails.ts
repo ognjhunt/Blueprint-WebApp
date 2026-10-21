@@ -347,13 +347,13 @@ export function buildQualifiedEmail(params: {
     "How we help you make the decision:",
     "",
     bulletList(params.jobCardPublished === false ? [
-      "We review the job brief, required output and site constraints with you, then assess suitable options and the evidence still needed.",
+      "We review the job brief, required output and site constraints with you. Video is required before the site assessment: we analyze it, draft the brief, then reconstruct the work area and evaluate compatible robots and policies in simulation.",
       "Your job card is not published, so partners cannot discover it through the shared library. We ask before sharing details with a provider.",
       "You can publish its card from your job page when you want approved partners to see it. The card shows only the anonymized text you approve.",
       "Any proposed physical pilot needs your choice of delivery partner and an agreed scope, price, timing and acceptance criteria.",
     ] : [
       "We review the job brief, required output and site constraints with you.",
-      "We assess compatible solutions, using existing evidence, simulation or physical checks where needed to answer a specific question.",
+      "Video is required for the site assessment. We analyze it, draft the brief, then reconstruct the work area and evaluate compatible robots and policies in simulation.",
       "Where there is a suitable delivery option, we help you review proposals covering scope, total cost, timing and support.",
       "You choose the delivery partner and agree the physical pilot's scope, price, timing and acceptance criteria directly with them. If no suitable option is supported, we explain what is missing.",
     ]),

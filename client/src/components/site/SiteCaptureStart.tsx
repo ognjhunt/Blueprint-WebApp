@@ -443,11 +443,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     const read = (key: string) => String(savedAnswers ? savedAnswers[savedFields[key]] ?? "" : data.get(key) ?? "").trim();
     let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
-    if (!retained && !read("startTask") && !footageWanted) {
-      setState({ status: "failed", message: "Add a short explanation of the work to start." });
-      return;
-    }
-
     operationInFlight.current = true;
     setState({ status: "working" });
 
@@ -485,8 +480,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           captureMode: hasFootage || selfRecording ? "self_capture" : "site_visit",
           captureRegion: region,
           hasExistingFootage: footageWanted,
-          // Starting with footage is the recording grant: the Terms state it and
-          // it is recorded server-side with the sentence version.
+          // This flag records that filming permission has not been granted
+          // yet. Preparing a capture link does not start an assessment.
           descriptionOnly: !footageWanted,
           // Granted by starting: the statement is quoted verbatim next to the
           // button, like the Terms, and recorded with its version.
@@ -656,16 +651,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   if (state.status === "done") {
     return (
       <div className="ms-form ms-intake-confirmation" aria-live="polite">
-        {!state.hasFootage && state.captureUrl && !captureReceived ? (
-          <>
-            <h2 style={{ marginTop: 0 }}>Your job description is saved.</h2>
-            <p className="ms-field-hint">Open your job to review the assessment or correct details. Add footage only when it resolves a missing fact and you have permission.</p>
-            <p><a className="ms-button ms-button-large ms-intake-job-link" href={state.captureUrl}>Open your job and assessment</a></p>
-            {!state.regionApproved && <p className="ms-field-hint">{captureRegionHeldNotice}</p>}
-            <p className="ms-field-hint">Keep this private link to return to your job. We will also email it to {state.email}.</p>
-            <CaptureLiveStatus compact captureUrl={state.captureUrl} onCaptureReceived={() => void refreshReceivedVideo(state.captureUrl!)} />
-          </>
-        ) : !state.regionApproved ? (
+        {!state.regionApproved ? (
           <>
             <h2 style={{ marginTop: 0 }}>We have your site.</h2>
             <p className="ms-field-hint">{captureRegionHeldNotice}</p>
@@ -731,7 +717,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                   + "views would finish the job — you will not be asked to film it all again."
                 : "One video of one work area, on any phone. Thirty seconds of the actual cycle is "
                   + "enough. On an iPhone the link opens a small Blueprint camera when that is "
-                  + "available; everywhere else the recorder opens in the browser. No account needed."}
+                  + "available; everywhere else the recorder opens in the browser. Assessment starts once we receive the video."}
             </p>
             {!onAPhone && !state.hasFootage && <CaptureHandoffQr url={state.captureUrl} label="Point your phone at this to film" />}
             {state.uploaded === "failed" && footage && <p>
@@ -745,8 +731,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
               </a>
             </p>
             <p className="ms-field-hint" style={{ marginTop: "20px" }}>
-              Keep this link — it is how you come back to this submission, and it is where the job
-              brief we draft from your job description will appear for you to correct.
+              Keep this private link; we also email it to {state.email}. It is where the job
+              brief we draft from your video will appear for you to correct.
               {!state.hasFootage && ` Film the work, not the worker: hands and objects are what a robot team needs to see. ${FILMING_NOTICE}`}
             </p>
             {!onAPhone && state.hasFootage && <details>
@@ -807,21 +793,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       {recoveryUnavailable && <p role="status" className="ms-field-hint">Saved recovery details expired or could not be read. Use your emailed private job link to return, or clear this browser's draft to start again.</p>}
       {!storageAvailable && <p role="status" className="ms-field-hint">This browser cannot safely save or coordinate recovery details. Use a supported browser with local storage enabled, or email hello@tryblueprint.io for help starting your job. If your job is already saved, use its private link to return.</p>}
       <fieldset disabled={!interactive || clearStatus === "working" || recoveryUnavailable || Boolean(pending)} className={pending?.acknowledged && state.status !== "working" ? "contents ms-intake-return-fields" : "contents"}>
-      <label htmlFor="start-task">
-        <span>What work needs doing?</span>
-        <span className="ms-field-hint">
-          Describe the job and what a good result looks like. Video is optional.
-        </span>
-        <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} onChange={event => setTaskForPreview(event.target.value)} maxLength={2000} rows={4} />
-      </label>
-
-      <label htmlFor="start-frequency">
-        <span>How often does the job happen? <span className="ms-field-hint">(optional)</span></span>
-        <input id="start-frequency" name="startFrequency" type="text" maxLength={120}
-          defaultValue={recovery.current.draft.jobFrequency ?? ""}
-          placeholder="For example, 200 items per shift, five days a week" />
-      </label>
-
       {claudeAuthoringRequested && (
         <label htmlFor="start-claude-authoring" style={{ flexDirection: "row", alignItems: "flex-start", gap: "10px" }}>
           <input id="start-claude-authoring" name="startClaudeAuthoring" type="checkbox"
@@ -851,9 +822,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         </label>
       )}
 
-      <details className="ms-task-interest ms-visitor-detail" open={method !== "phone" ? true : undefined}>
-      <summary>Add video or arrange recording (optional)</summary>
-      <p className="ms-field-hint">You can submit a description now and add footage later if it helps answer a missing question.</p>
+      <p className="ms-field-hint">Start with a video of the job. We use it to draft the description, build the site simulation and compare robot options. The assessment starts once we receive the video.</p>
       <fieldset className="ms-choice">
         <legend>How will we see the task?</legend>
         {([
@@ -927,7 +896,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </>
         )
       ) : null}
-      </details>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
         <label htmlFor="start-location">
@@ -972,7 +940,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       <label htmlFor="start-email">
         <span>Work email</span>
         <span className="ms-field-hint">
-          Where we send your private job link to review the brief, follow progress and add footage if needed.
+          Where we send your private link to record or upload the video, review the brief and follow progress.
         </span>
         <input id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required maxLength={320} />
       </label>
@@ -988,7 +956,18 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         : <p className="ms-field-hint">Signed in as {currentUser.email}, which is not a site workspace. This site will be saved to the link we email you, and you can claim it later.</p>)}
 
       <details className="ms-task-interest ms-visitor-detail">
-        <summary>Add your buying plans (optional)</summary>
+        <summary>Add job details and buying plans (optional)</summary>
+        <label htmlFor="start-task">
+          <span>Anything we should know?</span>
+          <span className="ms-field-hint">We draft the job description from your video. Add details here only if they help.</span>
+          <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} onChange={event => setTaskForPreview(event.target.value)} maxLength={2000} rows={3} />
+        </label>
+        <label htmlFor="start-frequency">
+          <span>How often does the job happen?</span>
+          <input id="start-frequency" name="startFrequency" type="text" maxLength={120}
+            defaultValue={recovery.current.draft.jobFrequency ?? ""}
+            placeholder="For example, 200 items per shift, five days a week" />
+        </label>
         <label htmlFor="start-readiness">
           <span>Where are you in the process?</span>
           <select id="start-readiness" name="startReadiness" defaultValue={recovery.current.draft.purchaseReadiness ?? ""}>

@@ -98,7 +98,7 @@ async function saveWithoutFirstEmail(baseUrl: string, requestId: string) {
 }
 
 describe("atomic inbound request ownership", () => {
-  it("accepts an authorized video-first job without text and rejects an empty prose-only job", async () => {
+  it("accepts video-first intake and authorized recording setup without requiring text", async () => {
     const { server, baseUrl } = await start();
     try {
       const body = { ...payload("video-no-text", "video@example.test"), taskStatement: "", taskDescription: "",
@@ -111,10 +111,15 @@ describe("atomic inbound request ownership", () => {
       const saved = sharedFakeFirestoreState.docs.get("inboundRequests/video-no-text")!;
       expect(saved.request).toMatchObject({ taskStatement: "", taskDescription: null, siteTaskGates: null, siteTaskSpec: {} });
       expect(saved.public_task_listing.details.title).toBe("Work assessment opportunity");
-      const emptyProse = await post({ ...body, requestId: "empty-prose", hasExistingFootage: false, descriptionOnly: true,
+      const captureSetup = await post({ ...body, requestId: "capture-setup", hasExistingFootage: false, descriptionOnly: true,
         consentAttestation: null, acceptedTerms: true, descriptionAuthority: { granted: true, statementVersion: "2026-10-06.v1" } });
-      expect(emptyProse.status).toBe(400);
-      expect(sharedFakeFirestoreState.docs.has("inboundRequests/empty-prose")).toBe(false);
+      expect(captureSetup.status).toBe(201);
+      const setup = sharedFakeFirestoreState.docs.get("inboundRequests/capture-setup")!;
+      expect(setup.request.taskStatement).toBe("");
+      expect(setup.request.consent_attestation).toBeNull();
+      expect((await post({ ...body, requestId: "unauthorized-setup", hasExistingFootage: false, descriptionOnly: true,
+        consentAttestation: null, acceptedTerms: true, descriptionAuthority: null })).status).toBe(400);
+      expect(sharedFakeFirestoreState.docs.has("inboundRequests/unauthorized-setup")).toBe(false);
       expect((await post({ ...body, requestId: "no-rights", consentAttestation: null })).status).toBe(400);
       expect(sharedFakeFirestoreState.docs.has("inboundRequests/no-rights")).toBe(false);
     } finally { await new Promise<void>(resolve => server.close(() => resolve())); }

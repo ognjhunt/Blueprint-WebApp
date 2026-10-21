@@ -3,7 +3,7 @@ import { SEO } from "@/components/SEO";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 import { REPLY_TIMELINE } from "@/data/betaTimelines";
 
-const description = "Start with one recurring job. Blueprint's free beta helps sites assess automation options, review evidence and delivery proposals, and plan a measured pilot.";
+const description = "Start with video of one recurring job. Blueprint's free beta builds a site simulation, compares compatible robots and policies, and helps sites review delivery proposals for a measured pilot.";
 
 export default function Beta() {
   return (
@@ -15,21 +15,21 @@ export default function Beta() {
       <article className="ms-legal ms-container">
         <p className="ms-eyebrow">Beta program</p>
         <h1>Start with one real job.</h1>
-        <p>Describe a recurring job at your site. We help define the scope, assess suitable approaches and identify what a measured pilot should prove. Site sign-up is open; partners are reviewed before access to specific jobs.</p>
+        <p>Show us a recurring job at your site on video. We draft the brief from it, build a site simulation and compare compatible robots and policies before planning a measured pilot. Site sign-up is open; partners are reviewed before access to specific jobs.</p>
         <section>
           <h2>What do I provide?</h2>
-          <p>A description of the work, where it happens and what a successful result looks like. Video and photos are optional at the start. We draft a brief for you to correct and ask for measurements, footage or a call when important details are missing.</p>
+          <p>Video of one complete task cycle and the surrounding work area. Upload existing footage or record it with our guidance. Video is required for the site assessment; we analyze it and draft the job description for you to correct. We ask for missing measurements or details only when they affect the evaluation.</p>
           <p style={{ marginTop: "1em" }}>You do not need to choose a robot or have an approved budget to start. Before delivery proposals, we discuss the output you need, installation and ongoing spending limits, and who can approve a pilot.</p>
         </section>
         <section>
           <h2>What do I receive?</h2>
           <p>A job brief, an assessment of suitable options, clear evidence and remaining questions, and help reviewing delivery proposals where there is a suitable approach. You choose whether to proceed and agree the physical pilot with your selected delivery partner.</p>
-          <p style={{ marginTop: "1em" }}>We use existing deployment evidence, simulation or physical testing where it helps answer your job&apos;s specific questions. We can compare accessible policies directly or work with technology teams where their involvement is needed.</p>
+          <p style={{ marginTop: "1em" }}>We reconstruct your site from the video and evaluate compatible robots and policies in simulation. We can test accessible policies directly or work with technology teams where their involvement is needed. Existing deployment evidence and physical testing help resolve questions the simulation cannot answer.</p>
           <p style={{ marginTop: "1em" }}>If there is no suitable option, we explain the gap and what would need to change. Your job page shows the current stage and the next action.</p>
         </section>
         <section>
           <h2>How long does it take?</h2>
-          <p>{REPLY_TIMELINE} The next steps depend on the information available, the checks needed and partner availability. We agree the next action with you; submission does not reserve equipment or guarantee a pilot date.</p>
+          <p>{REPLY_TIMELINE} The next steps depend on the recording, evaluation scope and partner availability. We agree the next action with you; submission does not reserve equipment or guarantee a pilot date.</p>
         </section>
         <section id="scope">
           <h2>What does it cost?</h2>

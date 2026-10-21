@@ -46,8 +46,8 @@ export const siteAssessment = {
   unit: "during the beta",
   summary: "A clear buying decision for one recurring job at one site.",
   covers: [
-    "An agreed job brief: objects, cycle, exceptions, timing and required outcomes.",
-    "Suitable options assessed using existing evidence, qualified simulation or physical checks where needed.",
+    "A job brief drafted from your video and reviewed with you: objects, cycle, exceptions, timing and required outcomes.",
+    "A site simulation reconstructed from your video, with compatible robots and policies evaluated against the job criteria.",
     "Comparable delivery proposals and a reasoned recommendation, or a plain answer when no suitable option is available.",
     "A pilot scope with the delivery partner, price, support and acceptance criteria for you to approve.",
   ],

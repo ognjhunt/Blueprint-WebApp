@@ -1,5 +1,13 @@
 import { test, expect } from "@playwright/test";
 
+async function fillJobDescription(page: import("@playwright/test").Page, value: string) {
+  const field = page.locator("#start-task");
+  if (!(await field.isVisible())) {
+    await page.getByText("Add job details and buying plans (optional)", { exact: true }).click();
+  }
+  await field.fill(value);
+}
+
 /** Real browser UI, intercepted API. Never counted as isolated-backend proof. */
 test("lost create response survives reload with the same private retry identity", async ({ page, context }, testInfo) => {
   const posts: string[] = [];
@@ -16,7 +24,7 @@ test("lost create response survives reload with the same private retry identity"
   });
   await context.tracing.start({ screenshots: true, snapshots: true });
   await page.goto("/contact/site-operator");
-  await page.locator("#start-task").fill("Move sealed cartons onto a pallet");
+  await fillJobDescription(page, "Move sealed cartons onto a pallet");
   await page.locator("#start-location").fill("Austin, TX");
   await page.locator("#start-email").fill("qa@example.invalid");
   await page.locator("#start-company").fill("Synthetic QA");
@@ -24,13 +32,15 @@ test("lost create response survives reload with the same private retry identity"
   await expect(page.getByRole("alert")).toContainText("could not reach Blueprint");
   await page.reload();
   await expect(page.locator("#start-task")).toHaveValue("Move sealed cartons onto a pallet");
-  await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
-  await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-recovery");
+  await page.getByRole("button", { name: "Recover saved job", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-recovery");
   expect(posts).toHaveLength(2);
   expect(posts[1]).toBe(posts[0]);
   await page.reload();
-  await expect(page.getByRole("link", { name: "Open your job and assessment", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-recovery");
-  expect(posts).toHaveLength(2);
+  await page.getByRole("button", { name: "Return to saved job", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveAttribute("href", "/capture-upload/synthetic-recovery");
+  expect(posts).toHaveLength(3);
+  expect(posts[2]).toBe(posts[0]);
   await context.tracing.stop({ path: testInfo.outputPath("recovery-trace.zip") });
 });
 
@@ -74,11 +84,11 @@ for (const receipt of ["not-received", "received-pending"] as const) test.fixme(
   try {
     let page = await context.newPage();
     await page.goto("http://127.0.0.1:4181/contact/site-operator");
-    await page.locator("#start-task").fill("Move sealed cartons onto a pallet");
+    await fillJobDescription(page, "Move sealed cartons onto a pallet");
     await page.locator("#start-location").fill("Austin TX");
     await page.locator("#start-email").fill("qa@example.invalid");
     await page.locator("#start-company").fill("Owned synthetic QA");
-    await page.getByText("Add video or arrange recording (optional)", { exact: true }).click();
+
     await page.locator("#start-method-upload").check();
     await page.locator("#start-upload-without-account").check();
     await page.locator("#start-footage").setInputFiles(fixture);

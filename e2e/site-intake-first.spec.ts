@@ -22,7 +22,6 @@ for (const width of [1440, 390]) {
     });
     await page.goto("/signup/business?buyerType=site_operator");
     await expect(page).toHaveURL(/\/contact\/site-operator$/);
-    await page.locator("#start-task").fill("Pack cartons");
     await page.locator("#start-location").fill("Austin, TX");
     await page.locator("#start-email").fill("qa@example.invalid");
     await page.locator("#start-company").fill("Synthetic QA site");

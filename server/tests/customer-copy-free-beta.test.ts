@@ -179,11 +179,11 @@ describe("site screening emails", () => {
     }
   });
 
-  it("states optional evidence methods, customer selection and the free-beta boundary", () => {
+  it("states the video-backed simulation, customer selection and the free-beta boundary", () => {
     for (const nextStep of NEXT_STEPS) {
       const { body } = buildQualifiedEmail({ firstName: "Dana", nextStep });
       expect(body).toMatch(/review the job brief, required output and site constraints/);
-      expect(body).toMatch(/existing evidence, simulation or physical checks where needed/);
+      expect(body).toMatch(/reconstruct the work area and evaluate compatible robots and policies in simulation/);
       expect(body).toMatch(/review proposals covering scope, total cost, timing and support/);
       expect(body).toMatch(/You choose the delivery partner/);
       expect(body).toMatch(/If no suitable option is supported, we explain what is missing/);

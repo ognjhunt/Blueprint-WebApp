@@ -1,6 +1,6 @@
 # Blueprint-WebApp
 
-The current owner-authorized website journey helps sites submit recurring work, assess suitable automation, compare delivery proposals and agree a measured pilot. See [implementation and verification](docs/design/job-first-automation-marketplace/IMPLEMENTATION.md). Existing scientific evaluation contracts, privacy controls and the free beta remain unchanged.
+The current owner-authorized website journey starts with required video of recurring work. Existing video analysis drafts the job description; capture-backed simulation and robot/policy evaluation support comparable delivery proposals and an agreed, measured pilot. See [implementation and verification](docs/design/job-first-automation-marketplace/IMPLEMENTATION.md). Existing scientific evaluation contracts, privacy controls and the free beta remain unchanged.
 
 `Blueprint-WebApp` is Blueprint's buyer, licensing, ops, and hosted-access surface for real-site Task Evaluation Runs. It is not the capture client and it is not the Pipeline that qualifies evidence or creates scientific verdicts; it securely collects decision requests, gates and queues work, and projects Pipeline-owned results.
 

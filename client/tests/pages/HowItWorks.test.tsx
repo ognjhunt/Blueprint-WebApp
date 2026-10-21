@@ -3,18 +3,22 @@ import { describe, expect, it } from "vitest";
 import HowItWorks from "@/pages/HowItWorks";
 
 describe("How it works", () => {
-  it("explains the job-to-pilot process, buyer choice and delivery responsibility", () => {
+  it("retains the visual warehouse walkthrough with video, simulation, buyer choice and delivery responsibility", () => {
     render(<HowItWorks />);
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Start with the work. Get a clear next step.");
-    const process = screen.getByRole("heading", { name: "Describe the job" }).closest("ol")!;
-    expect(within(process).getAllByRole("listitem")).toHaveLength(6);
-    expect(process).toHaveTextContent(/no approved budget is needed to start/);
-    expect(process).toHaveTextContent(/you choose the partner and agree the pilot price and terms directly/);
-    const evaluation = screen.getByRole("region", { name: "The right amount of evaluation." });
-    expect(evaluation).toHaveTextContent(/does not automatically need a new simulation/);
-    expect(evaluation).toHaveTextContent(/do not establish physical performance or safety/);
-    const responsibilities = screen.getByRole("region", { name: "Know who is responsible." });
-    expect(responsibilities).toHaveTextContent(/Your deployment partner.*Supply and integrate the system/);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Start with your task.");
+    const contents = screen.getByRole("navigation", { name: "Warehouse walkthrough contents" });
+    expect(within(contents).getAllByRole("listitem")).toHaveLength(8);
+    expect(screen.getAllByRole("img")).toHaveLength(7);
+    const capture = screen.getByRole("region", { name: "Show us the task as it happens." });
+    expect(capture).toHaveTextContent(/analyzes the video and drafts the job description/);
+    expect(capture).toHaveTextContent(/video is required/);
+    const evaluation = screen.getByRole("region", { name: "Compare suitable robots and policies in simulation." });
+    expect(evaluation).toHaveTextContent(/using APIs or other supported access/);
+    expect(evaluation).toHaveTextContent(/estimate, not proof of real performance or safety/);
+    const recommendation = screen.getByRole("region", { name: "Compare delivery proposals and choose your partner." });
+    expect(recommendation).toHaveTextContent(/No approved budget is needed to start/);
+    expect(recommendation).toHaveTextContent(/You choose the partner and agree the pilot price and terms directly/);
+    expect(screen.getByRole("region", { name: "Test the approach at the real bench." })).toHaveTextContent(/partner supplies and integrates the system/);
     expect(screen.getByRole("link", { name: "Submit a job" })).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.getByRole("link", { name: "Become a partner" })).toHaveAttribute("href", "/partners");
   });
@@ -29,6 +33,6 @@ describe("How it works", () => {
     const robotFit = screen.getByRole("heading", { name: "Choose the approach that fits the job." }).closest("aside")!;
     expect(robotFit).toHaveTextContent(/Fixed arms, humanoids, wheeled humanoids and mobile manipulators/);
     expect(robotFit).toHaveTextContent(/specific setup is compatible/);
-    expect(screen.getByRole("region", { name: "Place cases from a tote into a tray." })).toHaveTextContent(/not a measured customer result/);
+    expect(screen.getByRole("region", { name: "One task, from phone video to a pilot." })).toHaveTextContent(/examples, not measured customer results/);
   });
 });

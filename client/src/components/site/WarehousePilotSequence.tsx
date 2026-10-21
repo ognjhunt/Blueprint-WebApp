@@ -20,8 +20,8 @@ const contents = [
   ["task-capture", "Capture the task"],
   ["workspace-reconstruction", "Reconstruct the workspace"],
   ["task-objects", "Prepare the objects"],
-  ["robot-comparison", "Robot teams evaluate"],
-  ["recommendation", "One recommended pilot"],
+  ["robot-comparison", "Compare robots and policies"],
+  ["recommendation", "Choose a deployment partner"],
   ["on-site-testing", "Test on site"],
   ["pilot-decision", "Decide what comes next"],
 ] as const;
@@ -50,28 +50,29 @@ export function WarehousePilotSequence() {
         <section className="ms-pilot-step" id="task-capture" aria-labelledby="task-capture-title">
           <p className="ms-eyebrow">01 · Capture</p>
           <h3 id="task-capture-title">Show us the task as it happens.</h3>
-          <p>Film a worker doing the job. Keep the hands, objects and work area in view. Agree what a completed task looks like and which exceptions matter.</p>
+          <p>Upload a video or record a worker doing the job. Keep the hands, objects and work area in view. Blueprint analyzes the video and drafts the job description for you to review. The video is required to reconstruct and evaluate your site.</p>
           <PilotImage src="/illustrations/warehouse-pilot/01-task-capture.webp" width={1448} height={1086} alt="A close view of a warehouse worker in a lime reflective vest filming horizontally on a phone while another worker holds a blue case above the empty tray pocket." caption="A phone recording captures the worker’s hands, the cases and the placement task." />
         </section>
 
         <section className="ms-pilot-step" id="workspace-reconstruction" aria-labelledby="workspace-reconstruction-title">
           <p className="ms-eyebrow">02 · Reconstruction</p>
           <h3 id="workspace-reconstruction-title">Recreate the same work area.</h3>
-          <p>Blueprint turns the visual references into a digital workspace. The bench, shelving and surrounding equipment give robot teams the layout they need to test reach and clearance.</p>
+          <p>Blueprint reconstructs your work area from the video. The bench, shelving and surrounding equipment become a site-specific simulation for testing robot reach, clearance and task performance.</p>
           <PilotImage src="/illustrations/warehouse-pilot/02-workspace-reconstruction.webp" alt="A point-cloud-style reconstruction of the same warehouse, with the bench, supply tote, blue cases, tray and shelving preserved." caption="The warehouse becomes a digital workspace for preparing the task." />
         </section>
 
         <section className="ms-pilot-step" id="task-objects" aria-labelledby="task-objects-title">
           <p className="ms-eyebrow">03 · Objects</p>
           <h3 id="task-objects-title">Prepare the objects the robot will handle.</h3>
-          <p>The case, tote and tray become separate task objects. Teams can set up pickup and placement, adjust their positions and check the contacts needed for the job.</p>
+          <p>The case, tote and tray become separate task objects. We prepare pickup and placement, object variations and the contacts needed for the job, with a clear definition of success.</p>
           <PilotImage src="/illustrations/warehouse-pilot/03-task-objects.webp" alt="The supply tote, a blue case with an orange latch, and the three-pocket tray shown separately against a dark background." caption="The same case, supply tote and tray, prepared as individual task objects." />
         </section>
 
         <section className="ms-pilot-step" id="robot-comparison" aria-labelledby="robot-comparison-title">
           <p className="ms-eyebrow">04 · Evaluation</p>
-          <h3 id="robot-comparison-title">Robot teams evaluate the task in simulation.</h3>
-          <p>Invited robot teams run their configuration and policy—the software that controls the robot—in the simulated work area, against the same placement criteria. Each evaluation passes or fails on those criteria, with the attempts, missed placements and conditions it covered.</p>
+          <h3 id="robot-comparison-title">Compare suitable robots and policies in simulation.</h3>
+          <p>Blueprint runs compatible robots and policies—the software that controls a robot—in the reconstructed work area, using APIs or other supported access. When a system needs its team to take part, we work with them. We shortlist configurations that can be supplied and supported at your site, then compare them against the same placement criteria.</p>
+          <p>You see the tested conditions, completed placements and failures for each option, so the recommendation is grounded in your job.</p>
           <p className="ms-pilot-disclosure">The three evaluations below use illustrative policy labels and outcomes. A simulated pass is an estimate, not proof of real performance or safety.</p>
           <div className="ms-pilot-comparison">
             <h4>A · Fixed arm</h4>
@@ -89,20 +90,21 @@ export function WarehousePilotSequence() {
 
         <section className="ms-pilot-step" id="recommendation" aria-labelledby="recommendation-title">
           <p className="ms-eyebrow">05 · Recommendation</p>
-          <h3 id="recommendation-title">Get one recommended pilot, and book it in one step.</h3>
-          <p>Blueprint recommends one team whose evaluation passed: in this example, setup B. You see the team, what the pilot tests, what you provide and when, then book it with one click. You do not compare teams, and booking is free during the beta.</p>
+          <h3 id="recommendation-title">Compare delivery proposals and choose your partner.</h3>
+          <p>Blueprint explains which tested setup best fits the job: in this example, setup B. Suitable deployment partners quote against the same brief, covering equipment, installation, ongoing cost, timing and support. You choose the partner and agree the pilot price and terms directly.</p>
+          <p>No approved budget is needed to start. Blueprint assessment, evaluations, recommendations and coordination are free during the beta, with no cut of the pilot.</p>
         </section>
 
         <section className="ms-pilot-step" id="on-site-testing" aria-labelledby="on-site-testing-title">
           <p className="ms-eyebrow">06 · On-site trial</p>
           <h3 id="on-site-testing-title">Test the approach at the real bench.</h3>
-          <p>After you book, you and the robot team agree the pilot's dates and terms directly. The team brings the robot to the site and tests the task under supervision. Measure completed placements, cycle time and interventions against the agreed criteria.</p>
+          <p>Once you and the deployment partner agree the pilot, the partner supplies and integrates the system, trains operators and provides the support you agree. Test the task at your site and measure completed placements, cycle time and human interventions against the agreed criteria.</p>
           <PilotImage src="/illustrations/warehouse-pilot/07-on-site-testing.webp" width={1448} height={1086} alt="A close view of an illustrative on-site test: a wheeled robot supports a blue case in its grippers above an empty tray pocket while a technician supervises from a laptop beside the bench." caption="Illustrative on-site trial: the grippers support the case above the empty pocket before placement." />
         </section>
 
         <section className="ms-pilot-step" id="pilot-decision" aria-labelledby="pilot-decision-title">
           <h3 id="pilot-decision-title">Decide what comes next.</h3>
-          <p>Use the physical trial results to decide whether to expand, change the setup or pause. Simulation helps choose what to test; the on-site trial measures how it works in your warehouse.</p>
+          <p>Record the physical trial results and decide whether to expand, change the setup or pause. Simulation helps choose what to test; the on-site trial measures how it works in your warehouse. A simulated pass does not establish physical performance or safety.</p>
         </section>
       </div>
     </div>

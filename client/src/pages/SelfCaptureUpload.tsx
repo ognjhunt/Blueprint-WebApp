@@ -8,7 +8,7 @@ import { waitingTimeline } from "@/data/betaTimelines";
 /**
  * The page an operator or filmer opens from a private job link.
  *
- * The owner reviews the job description before optional recording. A film-only
+ * Video comes first; Blueprint drafts the job description from it. A film-only
  * colleague link opens the recorder without carrying brief-confirmation rights.
  *
  * It says nothing about the site, the buyer, or the request. The API behind it
@@ -30,9 +30,7 @@ import { SiteReadinessPanel } from "@/components/site/SiteReadinessPanel";
 import { FilmLinkHandoff } from "@/components/site/FilmLinkHandoff";
 import { OwnerRecordingWithdrawal } from "@/components/site/OwnerRecordingWithdrawal";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
-import { captureBlockingGates } from "@/lib/siteTaskReadiness";
 import { withCsrfHeader } from "@/lib/csrf";
-import { isCaptureMode, defaultCaptureMode } from "@/data/siteTaskQualification";
 import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo, type VideoUploadResult } from "@/lib/selfCaptureVideo";
 
 /** Mirrors the server's `projectTaskStatus`; the shared truth about where a task stands. */
@@ -133,7 +131,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const [assessmentRetryMessage, setAssessmentRetryMessage] = useState<string | null>(null);
   const assessmentRetryIntent = useRef<{ key: string; identity: string } | null>(null);
   const [statusRefresh, setStatusRefresh] = useState(0);
-  const [addingFootage, setAddingFootage] = useState(false);
   const [recordingConsent, setRecordingConsent] = useState(false);
   const [savingConsent, setSavingConsent] = useState(false);
   const [consentError, setConsentError] = useState<string | null>(null);
@@ -150,12 +147,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   /**
    * The drafted brief, when there is one to confirm.
    *
-   * The brief comes before the camera on purpose: confirming what we
-   * understood is the attestation that lets a submission reach `qualified`, and
-   * a walkthrough filmed against a brief nobody corrected is a video we cannot
-   * turn into supply. So an unconfirmed brief is shown first, and the recorder
-   * appears once it is confirmed — or immediately when there is no brief yet,
-   * because a blank capture is still better than a blocked one.
+   * Blueprint drafts this from the recording. After the video is received,
+   * the owner reviews it before the job proceeds to evaluation.
    */
   const [brief, setBrief] = useState<DraftedBrief | null>(null);
   const [briefConfirmed, setBriefConfirmed] = useState(false);
@@ -197,6 +190,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
             openQuestions: Array.isArray(data.openQuestions) ? data.openQuestions.map(String) : [],
             holdReason: typeof data.holdReason === "string" ? data.holdReason : null,
             selfCaptureSwitch: data.selfCaptureSwitchAvailable === true,
+            recordingConsentAvailable: data.recordingConsentAvailable === true,
           }
         : {
             status: "valid",
@@ -254,25 +248,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     }
   }
 
-  // Whether the operator can clear the loose items before filming. A cleared
-  // space films as a clean plate -- nothing to remove later -- but it is a real
-  // ask, so it is offered, not required. Either way the objects themselves come
-  // from the item photos, not this walkthrough. Purely a client hint that steers
-  // the filming guidance; it changes nothing about how the video is stored.
-
-  // Whether the brief still gates the *camera*, as opposed to the *sale*. Only
-  // the capture-blocking gates change what to film; if one of those is still
-  // unresolved we genuinely do not know what to record, so the brief comes
-  // first. If only evaluation-blocking gates remain, the camera opens and the
-  // rest of the brief settles afterwards -- the readiness ladder's own
-  // distinction, applied to the UI instead of a blanket "confirm everything
-  // first".
-  const briefBlocksCapture = (() => {
-    if (!brief) return false;
-    const mode = isCaptureMode(brief.captureMode) ? brief.captureMode : defaultCaptureMode;
-    const captureIds = new Set(captureBlockingGates(mode).map((field) => field.id));
-    return brief.unresolved.some((id) => captureIds.has(id));
-  })();
   /** Where the task stands, for the operator who has no account to check. */
   const [status, setStatus] = useState<TaskStatus | null>(null);
   const currentStatus = useRef(status);
@@ -310,7 +285,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
     setRetryingAssessment(false);
     setAssessmentRetryMessage(null);
     assessmentRetryIntent.current = null;
-    setAddingFootage(false);
     setRecordingConsent(false);
     setSavingConsent(false);
     setConsentError(null);
@@ -549,7 +523,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // A coverage gap never grants a second recording under the saved identity.
   const saved = upload.status === "processing_pending" || upload.status === "held"
     || upload.status === "done" || status?.captureReceived === true;
-  const descriptionFirst = scope === "owner" && !saved && !existingVideoOnly;
 
   // The link waits on the account: before a video, or after one that arrived before it.
   const accountHold = link.status === "held"
@@ -645,29 +618,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </Helmet>
 
       <h1 style={{ fontSize: "34px", letterSpacing: "-1.2px", marginBottom: "12px" }}>
-        {link.status === "held" || descriptionFirst ? "Your job" : saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Your job"}
+        {link.status === "held" || saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Upload or record your job"}
       </h1>
 
-      {(link.status === "valid" || link.status === "held") && scope === "owner" && <JobWorkspace token={token} />}
-      {(link.status !== "valid" || descriptionFirst) && statusCard}
-      {descriptionFirst && (link.status === "valid" || link.status === "held") && (
-        <section aria-label="Your job summary" style={{ marginBottom: "28px" }}>
-          <h2>Your job summary</h2>
-          {/* Robot teams evaluate only a confirmed job (`teamJobAccess`), so the
-              brief is never presented as an optional correction. Before
-              footage it can wait; once footage lands it becomes the page. */}
-          {brief ? <><p>{brief.summary.trim() && brief.summary.trim() !== "Your site task" ? brief.summary
-            : "No job description yet. Describe the job in one sentence when you confirm your brief."}</p><p className="ms-field-hint">{briefConfirmed
-            ? "Your job brief is confirmed. Correct it here if something changes."
-            : "Confirm the brief so Blueprint can assess suitable options against the same requirements. You can do this now or after adding footage."}</p>
-            <details><summary>{briefConfirmed ? "Edit your job brief" : "Review and confirm your job brief"}</summary><TaskBriefReview key={token} token={token} brief={brief} account={siteAccount} optionalAccount
-              onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }} /></details>
-          </> : <p className="ms-field-hint">Your job is saved. Blueprint will use the supplied information to prepare the next useful step and notify you of meaningful progress.</p>}
-        </section>
-      )}
+      {saved && (link.status === "valid" || link.status === "held") && scope === "owner" && <JobWorkspace token={token} />}
+      {link.status !== "valid" && statusCard}
 
-      {/* A description keeps the brief first. A filming link keeps measured
-          status beside the recorder; a held link explains its hold. */}
+      {/* A filming link opens the recorder; a held link explains its hold. */}
       {link.status === "checking" && (
         <p style={{ color: "var(--ms-muted)" }}>Checking your link…</p>
       )}
@@ -675,9 +632,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       {link.status === "held" && (
         <>
           {scope === "owner" && link.recordingConsentAvailable && (
-            <details style={{ marginBottom: "24px" }}>
-              <summary>Add footage when you have permission (optional)</summary>
-              <p className="ms-field-hint">Confirm recording permission before adding footage. Your description and job brief are already available.</p>
+            <section aria-label="Confirm recording permission" style={{ marginBottom: "24px" }}>
+              <h2>Record your job</h2>
+              <p className="ms-field-hint">Your video is needed to build the site simulation and compare robot options. Confirm recording permission to continue; Blueprint drafts the job description from your video.</p>
               <p className="ms-field-hint">{FILMING_NOTICE}</p>
               <label style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
                 <input type="checkbox" checked={recordingConsent} onChange={event => setRecordingConsent(event.target.checked)}
@@ -688,7 +645,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 {savingConsent ? "Saving permission…" : "Confirm recording permission"}
               </button>
               {consentError && <p role="alert">{consentError}</p>}
-            </details>
+            </section>
           )}
           {link.selfCaptureSwitch && (
             <section aria-label="Film it yourself" style={{ marginBottom: "24px" }}>
@@ -787,9 +744,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
       {link.status === "valid" && (
         <>
-          {descriptionFirst && <button type="button" className="ms-text-link" aria-expanded={addingFootage}
-            onClick={() => setAddingFootage(current => !current)}>Add footage when you are ready (optional)</button>}
-          {(!descriptionFirst || addingFootage) && <div>
+          <div>
           {!saved && (
             <input
               ref={inputRef}
@@ -1008,45 +963,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               {/* A re-film request or "where this stands" lands right under the
                   camera, so someone who came back to add an angle sees what we
                   need before the optional sections. */}
-              {!descriptionFirst && statusCard}
-
-              {/* Optional, and never in front of the camera. Permission to
-                  capture, the answers that refine what to film, and task
-                  qualification are three different things, and only the first is
-                  needed to record -- so the brief is a collapsed disclosure here,
-                  not a gate. Confirming it is the attestation that turns the site
-                  into supply, before or after filming. A film-only link never
-                  sees it: attestation is not theirs to make. */}
-              {!descriptionFirst && scope === "owner" && brief && briefConfirmed && !editingBrief && (
-                <p id="job-brief" className="ms-field-hint" style={{ marginTop: "28px", marginBottom: "8px" }}>
-                  Your job brief is confirmed.{" "}
-                  <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>
-                    Edit your answers
-                  </button>
-                </p>
-              )}
-              {!descriptionFirst && scope === "owner" && brief && (!briefConfirmed || editingBrief) && (
-                <details id="job-brief" open={editingBrief || undefined} style={{ marginTop: "28px", marginBottom: "8px" }}>
-                  <summary>
-                    {briefBlocksCapture
-                      ? "A couple of answers refine what to film"
-                      : editingBrief ? "Edit your job brief" : "Review and confirm your job brief"}
-                  </summary>
-                  <p className="ms-field-hint">
-                    {brief.proposed.some((answer) => answer.basis !== "assumption")
-                      ? "We drafted this from what you sent."
-                      : "A few questions about the job."}{" "}
-                    Robot teams can evaluate your job only after you confirm this brief. You can confirm it before or after you film.
-                  </p>
-                  <TaskBriefReview
-                    key={token}
-                    token={token}
-                    brief={brief}
-                    account={siteAccount} optionalAccount
-                    onConfirmed={confirmed => { setBrief(confirmed); setBriefConfirmed(true); setEditingBrief(false); }}
-                  />
-                </details>
-              )}
+              {statusCard}
 
               {/* Least privilege for the person who actually films. An owner who
                   is handing this to a colleague sends a link that can record and
@@ -1061,8 +978,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               2026-10-20): no measurements, item photos or follow-up questions.
               Blueprint infers the rest from the video. The owner sees the robot
               readiness report here once Blueprint shares it, folded. */}
-          {scope === "owner" && <SiteReadinessPanel token={token} />}
-          </div>}
+          {saved && scope === "owner" && <SiteReadinessPanel token={token} />}
+          </div>
         </>
       )}
       {link.status === "valid" && scope === "owner" && <PublicTaskListing token={token} jobRevision={JSON.stringify(brief)} />}
@@ -1072,7 +989,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           blockers: [], openQuestions: [], holdReason: "recording_consent_withdrawn" })} />
       )}
       {!saved && (
-        <p className="ms-field-hint" style={{ marginTop: "28px" }}>Blueprint prepares the next useful step from your job and existing evidence. We send meaningful progress and ask for action only when a missing fact or concrete commitment needs your input.</p>
+        <p className="ms-field-hint" style={{ marginTop: "28px" }}>Upload or record the job to continue. Blueprint analyzes the video, drafts the job description and reconstructs your work area for simulation.</p>
       )}
       </div>
     </div>

@@ -5,6 +5,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import type { DeliveryProposalInput, JobMarketplaceWorkflow } from "../../client/src/types/jobMarketplace";
 
+const captures = vi.hoisted(() => ({ received: true as boolean | null }));
+vi.mock("../utils/siteWalkthrough", () => ({
+  siteWalkthroughIdentity: (requestId: string) => ({ requestId, sceneId: `site-${requestId}`, captureId: `walkthrough-${requestId}` }),
+  savedWalkthrough: async () => captures.received === null ? null : { received: captures.received },
+}));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
   return { dbAdmin: sharedFakeFirestore, storageAdmin: null,
@@ -43,6 +48,7 @@ beforeAll(async () => {
 });
 afterAll(async () => { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); });
 beforeEach(() => {
+  captures.received = true;
   state.docs.clear();
   for (const id of ["job-1", "job-2"]) {
     state.docs.set(`inboundRequests/${id}`, { request: { buyerType: "site_operator", siteTaskSpec: { jobFrequency: "Every shift", purchaseReadiness: "planning" } },
@@ -107,6 +113,8 @@ describe("job workflow authority and durable decisions", () => {
       plannedStartIso: "2026-11-01T12:00:00.000Z", siteAgreementReference: "Site signed quote reference", providerAgreementReference: "Provider signed quote reference",
       outcomeRecordingAuthorized: true, outcomeRecordingPermissionReference: "Both parties' signed outcome-recording permission" });
     expect(agreed.status).toBe(200); expect(agreed.body.stage).toBe("pilot_agreed");
+    // Historical commitments stay visible even if their video cannot be read.
+    captures.received = null;
     state.docs.set("siteTaskBriefs/job-1", { ...state.docs.get("siteTaskBriefs/job-1"),
       confirmedAtIso: "2026-10-21T10:00:00.000Z", confirmedBy: "Another authorized site owner", draftedAtIso: "2026-10-21T09:00:00.000Z" });
     const reconfirmed = await owner();
@@ -185,5 +193,26 @@ describe("job workflow authority and durable decisions", () => {
     const projected = projectJobMarketplace(record, null);
     expect(projected.stage).toBe("job_submitted"); expect(projected.selection).toBeNull();
     expect(projected.agreement).toBeNull(); expect(projected.outcome).toBeNull();
+  });
+
+  it("requires a retained video before advancing a written brief to assessment or a deployment proposal", async () => {
+    captures.received = false;
+    const record = state.docs.get("inboundRequests/job-1")!;
+    state.docs.set("inboundRequests/job-1", { ...record, request: { ...record.request, hasExistingFootage: true } });
+    const draft = await owner();
+    expect(draft.body.stage).toBe("job_submitted");
+    expect(draft.body.briefAgreed).toBe(false);
+    expect(draft.body.nextAction).toMatch(/Record or upload a video/);
+    expect((await admin("/review", "POST", { disposition: "options_identified", summary: "Written scope", nextAction: "Compare options" })).body.code).toBe("video_required");
+    expect((await admin("/proposals", "POST", proposal)).body.code).toBe("video_required");
+    expect(state.docs.get("inboundRequests/job-1")?.job_marketplace).toBeUndefined();
+    captures.received = true;
+    const row = await publish();
+    captures.received = false;
+    expect((await owner("/select", "POST", selectBody(row))).body.code).toBe("video_required");
+    expect((await owner()).body.proposals).toEqual([]);
+    captures.received = null;
+    expect((await admin("/review", "POST", { disposition: "more_information", summary: "Video status unknown", nextAction: "Retry" })).status).toBe(503);
+    expect((await owner()).body.nextAction).toMatch(/could not read your recording status/);
   });
 });

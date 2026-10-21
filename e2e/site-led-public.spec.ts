@@ -20,7 +20,7 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
     });
     for (const [name, path, heading] of [
       ["home", "/", "Find the right way to automate your work."],
-      ["how", "/how-it-works", "Start with the work. Get a clear next step."],
+      ["how", "/how-it-works", "Start with your task."],
       ["beta", "/beta", "Start with one real job."],
       ["site", "/contact/site-operator", "What work would you like automated?"],
       ["robot", "/contact/robot-team", "Bring your capabilities to real jobs."],
@@ -71,7 +71,7 @@ test("mobile navigation works and the method steps are visible without a click",
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "How it works" }).click();
   await expect(page).toHaveURL(/\/how-it-works$/);
-  await expect(page.locator("h1")).toContainText("Start with the work. Get a clear next step.");
+  await expect(page.locator("h1")).toContainText("Start with your task.");
   await page.goto("/");
   await expect(page.getByText("Review comparable proposals, agree the pilot with your chosen partner and measure the result against your criteria.")).toBeVisible();
 });

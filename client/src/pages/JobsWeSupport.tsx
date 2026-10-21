@@ -13,14 +13,14 @@ export default function JobsWeSupport() {
     <section className="ms-container ms-supported-page" aria-labelledby="supported-title">
       <p className="ms-eyebrow">Jobs we support</p>
       <h1 id="supported-title">Start with one repeatable job.</h1>
-      <p className="ms-supported-intro">A stable workstation, known objects and a clear result make a useful starting point. Describe the work as it happens today; you do not need to choose a robot.</p>
+      <p className="ms-supported-intro">A stable workstation, known objects and a clear result make a useful starting point. Show the work as it happens today on video; you do not need to choose a robot.</p>
       <div className="ms-supported-examples">{examples.map(example => <article key={example.title}><h2>{example.title}</h2><p>{example.body}</p></article>)}</div>
       <section className="ms-supported-detail" aria-labelledby="fit-title">
         <h2 id="fit-title">We check the job before choosing the equipment.</h2>
         <ul><li>What a good result looks like, and how often the work happens.</li><li>Object variation, weight, reach, space and site restrictions.</li><li>Required quality, speed, human assistance and total operating cost.</li><li>Who can supply, install and support a suitable setup.</li></ul>
         <p>Task fit and compatibility are checked for each job. Robot form alone does not establish that a setup can perform the work. Examples are starting points, not claims of completed deployments.</p>
       </section>
-      <section className="ms-supported-detail" aria-labelledby="different-title"><h2 id="different-title">Your job is different?</h2><p>Start with a description anyway. We will explain what information is missing, whether a useful assessment is possible, or why there is no suitable option yet. You do not need a confirmed budget to start.</p></section>
+      <section className="ms-supported-detail" aria-labelledby="different-title"><h2 id="different-title">Your job is different?</h2><p>Show us the work on video. We will explain whether we can evaluate it, what information is missing, or why there is no suitable option yet. You do not need a confirmed budget to start.</p></section>
       <a className="ms-button" href="/contact/site-operator">Submit a job <ArrowRight size={18} aria-hidden="true" /></a>
     </section>
   </>;

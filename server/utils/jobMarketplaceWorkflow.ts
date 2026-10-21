@@ -129,19 +129,26 @@ export function storedMarketplace(record: Record<string, any>): StoredJobMarketp
 }
 
 /** A commercial projection; an assessment, selected quote or owner report never manufactures a simulator result. */
-export function projectJobMarketplace(record: Record<string, any>, brief: Record<string, any> | null): JobMarketplaceWorkflow {
+export function projectJobMarketplace(record: Record<string, any>, brief: Record<string, any> | null,
+  captureReceived: boolean | null = false): JobMarketplaceWorkflow {
   const value = storedMarketplace(record);
-  const briefAgreed = Boolean(brief?.confirmedAtIso && Number.isFinite(Date.parse(brief.confirmedAtIso)));
+  // Keep recorded commitments visible if a historical capture is unavailable.
+  // A written draft alone never advances a new video-backed assessment.
+  const assessmentStarted = captureReceived === true || Boolean(value.agreement);
+  const briefAgreed = assessmentStarted && Boolean(brief?.confirmedAtIso && Number.isFinite(Date.parse(brief.confirmedAtIso)));
   const currentBriefRevision = proposalScopeRevision(brief, value.requirements);
   const proposals = value.proposals.map(proposal => proposal.status === "available" && proposal.briefRevision !== currentBriefRevision
     ? { ...proposal, status: "review_required" as const } : proposal);
   const review = value.review?.scopeRevision === currentBriefRevision ? value.review : null;
   const reviewRequired = proposals.some(proposal => proposal.status === "review_required") || Boolean(value.review && !review);
-  const optionsAssessed = Boolean(review || proposals.some(proposal => proposal.status === "available"));
+  const optionsAssessed = briefAgreed && Boolean(review || proposals.some(proposal => proposal.status === "available"));
   let stage: JobMarketplaceWorkflow["stage"] = "job_submitted";
-  let nextAction = "Review the job brief and fill in any missing details.";
+  let nextAction = captureReceived === null
+    ? "We could not read your recording status. Refresh the job to try again."
+    : captureReceived ? "Review the brief drafted from your video and correct any missing details."
+      : "Record or upload a video of the work so Blueprint can draft the brief and assess your job.";
   let actionOwner: JobMarketplaceWorkflow["actionOwner"] = "site";
-  if (briefAgreed) { stage = "brief_agreed"; nextAction = "Assess suitable solutions and identify any checks needed."; actionOwner = "blueprint"; }
+  if (briefAgreed) { stage = "brief_agreed"; nextAction = "Build the site simulation from your video and compare suitable robot configurations."; actionOwner = "blueprint"; }
   if (briefAgreed && optionsAssessed) { stage = "options_assessed"; nextAction = review?.nextAction ?? "Prepare comparable delivery proposals."; actionOwner = "blueprint"; }
   if (briefAgreed && proposals.some(p => p.status === "available")) {
     stage = "proposals_ready"; nextAction = "Review the scope, cost, support and acceptance criteria, then choose a proposal."; actionOwner = "site";

@@ -22,7 +22,7 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/signup/business?buyerType=site_operator');
     await expect(page).toHaveURL(/\/contact\/site-operator$/);
-    await expect(page.locator('#start-task')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'How will we see the task?', exact: true })).toBeVisible();
     await expect(page.getByLabel('Password', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Start free assessment', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

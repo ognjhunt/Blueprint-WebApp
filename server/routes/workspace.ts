@@ -1161,8 +1161,10 @@ router.post(
       honeypot: z.string().optional(),
     }).refine(input => Boolean(input.taskStatement)
       || (input.captureMode === "self_capture" && input.descriptionOnly !== true
-        && input.consentAttestation?.granted === true), {
-      path: ["taskStatement"], message: "Add a video or describe the work before requesting a description-only assessment.",
+        && input.consentAttestation?.granted === true)
+      || (input.descriptionOnly === true && input.acceptedTerms === true
+        && input.descriptionAuthority?.granted === true), {
+      path: ["taskStatement"], message: "Confirm permission to prepare your recording, then upload or film the work.",
     }).parse(req.body);
     res.locals.workspaceIntake = {
       account_owner_uid: identity(res).uid,

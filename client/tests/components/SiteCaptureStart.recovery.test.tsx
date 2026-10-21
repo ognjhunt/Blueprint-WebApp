@@ -166,7 +166,7 @@ it("CROSS-TAB-012 adopting another tab's freeze does not upload this tab's selec
   winner.pending={endpoint:"/api/workspace/capture-start",acknowledged:false,body:JSON.stringify({requestId:winner.requestId,retryToken:winner.retryToken,buyerType:"site_operator",taskStatement:winner.draft.task,siteLocation:winner.draft.location,captureRegion:"us",descriptionOnly:true})};
   await helper.freezeSiteCaptureRecovery(key,winner);
   submit();
-  await screen.findByRole("link",{name:"Open your job and assessment"});
+  await screen.findByRole("heading",{name:"Film the work area."});
   expect(sent).toHaveLength(1);expect(sent[0].body).toEqual(JSON.parse(winner.pending.body));expect(sender).not.toHaveBeenCalled();sender.mockRestore();
 });
 it("CROSS-TAB-013 unsupported coordination blocks dispatch with a recovery next step",async()=>{

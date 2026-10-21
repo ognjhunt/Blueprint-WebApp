@@ -70,8 +70,8 @@ afterEach(() => {
   window.history.replaceState(null, "", "/");
 });
 
-describe("description first owner return", () => {
-  function ownerFetch(held: boolean) {
+describe("video first owner return", () => {
+  function ownerFetch(held: boolean, saved = false) {
     let granted = false;
     return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -82,23 +82,21 @@ describe("description first owner return", () => {
       }
       if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/status`)) return Promise.resolve({ ok: true,
         json: async () => ({ ok: true, state: held && !granted ? "held" : "ready", recordingConsentAvailable: held && !granted,
-          accepts: ["mov", "mp4"], holdReason: "recording_consent_required", detail: "Confirm recording permission before adding footage.", blockers: [], openQuestions: [] }) });
+          accepts: ["mov", "mp4"], ...(saved ? { captureReceived: true, uploadState: "processing_ready" } : {}), holdReason: "recording_consent_required", detail: "Confirm recording permission before adding footage.", blockers: [], openQuestions: [] }) });
       if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({
         ready: true, scope: "owner", brief: { summary: "Pack cartons", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: "2026-10-01T00:00:00Z" },
       }) });
       return mockFetch()(input);
     });
   }
-  it("keeps account saving optional inside the brief confirmation without gating the summary", async () => {
-    const fetcher = ownerFetch(false);
+  it("keeps optional account saving inside the post-video brief confirmation", async () => {
+    const fetcher = ownerFetch(false, true);
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => String(input) === `/api/site-task-brief/${TOKEN}`
       ? Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner", account: { claimed: false, email: "owner@example.test", claimToken: "synthetic-claim-token" },
         brief: { summary: "Pack cartons", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null } }) })
       : fetcher(input)));
     render(<SelfCaptureUpload />);
-    await screen.findByRole("heading", { name: "Your job summary" });
-    expect(screen.getByText("Review and confirm your job brief").closest("details")).not.toHaveAttribute("open");
-    fireEvent.click(screen.getByText("Review and confirm your job brief"));
+    await screen.findByRole("region", { name: "Confirm your job brief" });
     expect(screen.queryByLabelText("Choose a password")).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Also save this job to my account (optional)"));
     expect(screen.getByLabelText("Choose a password")).toBeInTheDocument();
@@ -108,7 +106,7 @@ describe("description first owner return", () => {
   it("preserves saved pilot plans on return, through an interrupted correction and retry", async () => {
     let attempts = 0;
     let savedPilotIntent = { pilotConsideration: "subject_to_review", deploymentPath: "multiple_sites" };
-    const fetcher = ownerFetch(true);
+    const fetcher = ownerFetch(false, true);
     const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({
@@ -126,7 +124,7 @@ describe("description first owner return", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     const first = render(<SelfCaptureUpload />);
-    fireEvent.click(await screen.findByText("Edit your job brief"));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit your answers" }));
     fireEvent.click(screen.getByText("Your recorded pilot preferences (optional corrections)"));
     expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("subject_to_review");
     expect(screen.getByRole("combobox", { name: /what could happen next/ })).toHaveValue("multiple_sites");
@@ -136,13 +134,13 @@ describe("description first owner return", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/could not reach Blueprint/);
     expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("evaluation_only");
     fireEvent.click(screen.getByRole("button", { name: "This is right — confirm it" }));
-    await screen.findByRole("heading", { name: "Your job summary" });
+    await screen.findByRole("button", { name: "Edit your answers" });
     const posts = fetchMock.mock.calls.filter(call => String(call[0]).endsWith("/confirm"));
     expect(posts).toHaveLength(2);
     expect(JSON.parse(posts[1][1]!.body as string).pilotIntent).toEqual({ pilotConsideration: "evaluation_only", deploymentPath: "multiple_sites" });
     first.unmount();
     render(<SelfCaptureUpload />);
-    fireEvent.click(await screen.findByText("Edit your job brief"));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit your answers" }));
     fireEvent.click(screen.getByText("Your recorded pilot preferences (optional corrections)"));
     expect(screen.getByRole("combobox", { name: /would you consider a physical pilot/ })).toHaveValue("evaluation_only");
     expect(screen.getByRole("combobox", { name: /what could happen next/ })).toHaveValue("multiple_sites");
@@ -160,7 +158,7 @@ describe("description first owner return", () => {
       return fetcher(input, init);
     }));
     const { rerender } = render(<SelfCaptureUpload />);
-    await screen.findByRole("heading", { name: "Your job summary" });
+    await screen.findByRole("button", { name: "Upload a video file" });
     await screen.findByText("Previous private assessment");
     route.token = "second-token";
     rerender(<SelfCaptureUpload />);
@@ -171,28 +169,27 @@ describe("description first owner return", () => {
     expect(screen.queryByRole("button", { name: /Choose or record|Upload a video|Confirm recording permission/ })).toBeNull();
     route.token = TOKEN;
     rerender(<SelfCaptureUpload />);
-    await screen.findByRole("heading", { name: "Your job summary" });
+    await screen.findByRole("button", { name: "Upload a video file" });
     expect(screen.queryByText("This link was withdrawn.")).toBeNull();
   });
-  it.each(["", PHONE_UA])("shows the brief before optional recording even if footage is allowed (%s)", async ua => {
+  it.each(["", PHONE_UA])("opens video capture immediately when recording is allowed (%s)", async ua => {
     setUserAgent(ua);
     vi.stubGlobal("fetch", ownerFetch(false));
     render(<SelfCaptureUpload />);
-    await screen.findByRole("heading", { name: "Your job summary" });
-    expect(screen.getByRole("heading", { name: "Your job summary" })).toBeVisible();
-    expect(screen.queryByRole("img", { name: /phone|recorder/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Choose or record|Upload a video|Open the camera/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Add footage when you are ready (optional)" }));
     expect(await screen.findByRole("button", { name: ua ? "Choose or record a video" : "Upload a video file" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Your job summary" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add footage when you are ready (optional)" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Confirm your job brief" })).not.toBeInTheDocument();
     expect(videoUpload.send).not.toHaveBeenCalled();
   });
-  it("keeps the brief available through a recording hold and requires a separate explicit grant", async () => {
+  it("foregrounds required recording permission and keeps its grant explicit", async () => {
     const fetcher = ownerFetch(true);
     vi.stubGlobal("fetch", fetcher);
     render(<SelfCaptureUpload />);
-    await screen.findByRole("heading", { name: "Your job summary" });
-    expect(screen.getByRole("heading", { name: "Your job summary" })).toBeVisible();
-    fireEvent.click(screen.getByText("Add footage when you have permission (optional)"));
+    const permission = await screen.findByRole("region", { name: "Confirm recording permission" });
+    expect(permission.closest("details")).toBeNull();
+    expect(permission).toHaveTextContent(/video is needed to build the site simulation/);
+    expect(screen.queryByRole("heading", { name: "Your job summary" })).not.toBeInTheDocument();
     // Said before the grant: people in the work area are told, and sound is not analysed.
     expect(screen.getByText(/Tell people in the work area that you are filming for Blueprint, and avoid filming conversations\. We remove sound before any automated review\./)).toBeInTheDocument();
     const button = screen.getByRole("button", { name: "Confirm recording permission" });
@@ -200,7 +197,7 @@ describe("description first owner return", () => {
     expect(fetcher.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
     fireEvent.click(screen.getByRole("checkbox", { name: /I am authorized to record this site/ }));
     fireEvent.click(button);
-    await screen.findByRole("button", { name: "Add footage when you are ready (optional)" });
+    await screen.findByRole("button", { name: "Upload a video file" });
     const posts = fetcher.mock.calls.filter(call => call[1]?.method === "POST");
     expect(posts).toHaveLength(1);
     expect(posts[0][0]).toContain("/recording-consent");
@@ -382,7 +379,7 @@ describe("explicit assessment retry", () => {
   ])("does not offer an unauthorized or inapplicable retry %j", async options => {
     const read = retryFetch(options); vi.stubGlobal("fetch", read);
     render(<SelfCaptureUpload />);
-    await screen.findByRole("heading", { name: "Your job assessment" });
+    await screen.findByRole("heading", { name: "Your job", exact: true });
     expect(screen.queryByRole("button", { name: "Try assessment again" })).not.toBeInTheDocument();
     expect(read.mock.calls.some(call => String(call[0]).endsWith("/advisory-retry"))).toBe(false);
   });
@@ -609,17 +606,20 @@ describe("SelfCaptureUpload once robot teams have run", () => {
 });
 
 describe("SelfCaptureUpload for a site that asked for a visit", () => {
-  it("offers to film it themselves and opens the recorder when they do", async () => {
+  it.each([false, true])("offers self-recording while preserving any required recording permission (%s)", async (needsConsent) => {
     setUserAgent(
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36",
     );
     const calls: Array<{ url: string; method: string }> = [];
     let switched = false;
-    const ready = { ok: true, state: "ready", accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" };
+    const ready = { ok: true, state: needsConsent ? "held" : "ready", recordingConsentAvailable: needsConsent,
+      holdReason: needsConsent ? "recording_consent_required" : null, detail: "Confirm recording permission.",
+      accepts: ["mov", "mp4"], expiresAt: "2099-01-01T00:00:00Z" };
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method ?? "GET";
       calls.push({ url, method });
+      if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({ ready: false, scope: "owner" }) });
       if (url.endsWith(`/api/self-capture/uploads/${TOKEN}/self-capture`)) {
         switched = true;
         return Promise.resolve({ ok: true, json: async () => ({ ...ready, switched: true }) });
@@ -642,7 +642,13 @@ describe("SelfCaptureUpload for a site that asked for a visit", () => {
     expect(screen.queryByText(/set up for a capturer visit/)).not.toBeInTheDocument();
     fireEvent.click(button);
 
-    expect(await screen.findByRole("heading", { name: "Point your phone at this." })).toBeInTheDocument();
+    if (needsConsent) {
+      expect(await screen.findByRole("region", { name: "Confirm recording permission" })).toBeVisible();
+      expect(screen.getByRole("button", { name: "Confirm recording permission" })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: "Upload a video file" })).not.toBeInTheDocument();
+    } else {
+      expect(await screen.findByRole("heading", { name: "Point your phone at this." })).toBeInTheDocument();
+    }
     expect(calls).toContainEqual({ url: `/api/self-capture/uploads/${TOKEN}/self-capture`, method: "POST" });
   });
 
@@ -724,24 +730,20 @@ describe("SelfCaptureUpload asks for the brief confirmation teams need", () => {
     expect(screen.getByRole("button", { name: "Edit your answers" })).toBeInTheDocument();
   });
 
-  it("says the brief must be confirmed before any footage, without calling it optional", async () => {
+  it("keeps video ahead of brief confirmation before footage is received", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", ownerFetch({ captureReceived: false, confirmedAtIso: null }));
     render(<SelfCaptureUpload />);
 
-    await screen.findByRole("heading", { name: "Your job summary" });
-    const disclosure = screen.getByText("Review and confirm your job brief", { selector: "summary" });
-    expect(disclosure).toBeVisible();
-    // Said beside the summary, before anything is opened.
-    expect(screen.getAllByText(/robot teams can evaluate your job only after you confirm/i)[0]).toBeVisible();
-    // The brief, never the job card's own optional extras, is what must not read as optional.
-    expect(screen.queryByText("Correct job details (optional)")).not.toBeInTheDocument();
-    expect(screen.queryByText(/confirmation is needed only/i)).not.toBeInTheDocument();
+    await screen.findByRole("button", { name: "Upload a video file" });
+    expect(screen.queryByRole("heading", { name: "Your job summary" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Confirm your job brief" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Review and confirm your job brief")).not.toBeInTheDocument();
   });
 });
 
 describe("SelfCaptureUpload for footage sent with no description", () => {
-  it("asks for one sentence instead of showing the placeholder as the job", async () => {
+  it("collects the video without asking for a manual description or showing the placeholder", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith(`/api/site-task-brief/${TOKEN}`)) return Promise.resolve({ ok: true, json: async () => ({ ready: true, scope: "owner",
@@ -749,8 +751,8 @@ describe("SelfCaptureUpload for footage sent with no description", () => {
       return mockFetch()(input);
     }));
     render(<SelfCaptureUpload />);
-    await screen.findByRole("heading", { name: "Your job summary" });
-    expect(screen.getByText(/No job description yet\. Describe the job in one sentence/)).toBeVisible();
+    await screen.findByRole("button", { name: "Upload a video file" });
+    expect(screen.queryByText(/Describe the job in one sentence/)).not.toBeInTheDocument();
     expect(screen.queryByText("Your site task")).not.toBeInTheDocument();
   });
 });
