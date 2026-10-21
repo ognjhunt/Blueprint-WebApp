@@ -116,7 +116,7 @@ test("old pricing reaches the free beta page with one CTA", async ({ page }) => 
   await expect(page.getByText(/The beta is free for sites and partners/)).toBeVisible();
   await expect(page.getByText(/you approve those costs and agree the contract directly/)).toBeVisible();
   await expect(page.locator("article .ms-button")).toHaveCount(1);
-  await expect(page.getByRole("link", { name: "Submit a job" })).toHaveAttribute("href", "/contact/site-operator?source=beta");
+  await expect(page.locator("article").getByRole("link", { name: "Submit a job" })).toHaveAttribute("href", "/contact/site-operator?source=beta");
   await expect(page.locator("article")).not.toContainText("$2,500");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://tryblueprint.io/beta");
 });
