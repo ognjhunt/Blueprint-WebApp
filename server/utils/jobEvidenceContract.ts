@@ -47,7 +47,7 @@ export type JobEvidencePublication = z.infer<typeof jobEvidencePublicationSchema
 
 /** Scientific applicability deliberately excludes buying requirements and quote prices. */
 export const scientificBriefDigest = (brief: Record<string, any>) => crossRuntimeDigest({
-  requestId: brief.requestId, summary: brief.summary ?? "", captureMode: brief.captureMode ?? null,
+  requestId: brief.requestId ?? null, summary: brief.summary ?? "", captureMode: brief.captureMode ?? null,
   operatorAnswers: brief.operatorAnswers ?? {}, operatorUnknown: [...(brief.operatorUnknown ?? [])].sort(),
   operatorTaskDetails: brief.operatorTaskDetails ?? null, successCriteria: brief.successCriteria ?? null,
   unresolved: [...(brief.unresolved ?? [])].sort(),
