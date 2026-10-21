@@ -1,6 +1,7 @@
 /** Bind managed simulator runs to the agreed job without changing scientific results. */
 import { z } from "zod";
-import { scientificBriefDigest } from "./jobEvidenceContract";
+import { jobEvidenceSourceBindingSchema, jobEvidenceTaskInventoryDigest, scientificBriefDigest, scientificContext } from "./jobEvidenceContract";
+import { crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
@@ -16,11 +17,24 @@ export const jobManagedEvidenceBindingSchema = z.object({
 }).strict();
 export type JobManagedEvidenceBinding = z.infer<typeof jobManagedEvidenceBindingSchema>;
 
+/** Resolve the existing canonical source pointer, never a guessed capture ID. */
+export async function readManagedJobSourceSession(record: Record<string, any> | undefined,
+  read: (reference: FirebaseFirestore.DocumentReference) => Promise<FirebaseFirestore.DocumentSnapshot>) {
+  if (record?.job_evidence_source == null) return null;
+  const source = jobEvidenceSourceBindingSchema.safeParse(record.job_evidence_source);
+  if (!source.success) throw new Error("job_evaluation_source_binding_invalid");
+  if (!db) throw new Error("job_evaluation_store_unavailable");
+  const session = await read(db.collection("captureUploadSessions").doc(source.data.capture_session_id));
+  if (!session.exists) throw new Error("job_evaluation_source_unavailable");
+  return session.data()!;
+}
+
 export function managedJobTask(args: {
   binding: JobManagedEvidenceBinding;
   record: Record<string, any> | undefined;
   brief: Record<string, any> | undefined;
   inventory?: TaskItemInventoryRecord | null;
+  sourceSession?: Record<string, any> | null;
 }) {
   const { binding, record, brief } = args;
   if (!record || record.request?.buyerType !== "site_operator") throw new Error("job_not_found");
@@ -37,13 +51,46 @@ export function managedJobTask(args: {
     ...(sponsorship.purpose ? { purpose: sponsorship.purpose } : {}),
   });
   if (context.context_digest !== sponsorship.task_context_digest) throw new Error("job_scene_task_changed");
+  let sourceFingerprint: string;
+  let sourceCaptureSessionId: string | null = null;
+  let sourceCaptureDigest: string | null = null;
+  if (record.job_evidence_source != null) {
+    const source = jobEvidenceSourceBindingSchema.safeParse(record.job_evidence_source);
+    if (!source.success || source.data.job_id !== binding.job_id) throw new Error("job_evaluation_source_binding_invalid");
+    if (!args.sourceSession) throw new Error("job_evaluation_source_unavailable");
+    if (args.sourceSession.capture_access?.future_processing_allowed === false || args.sourceSession.completed_capture_lifecycle
+      || ["revoked", "revocation_in_progress", "cancelled"].includes(args.sourceSession.status)) {
+      throw new Error("job_capture_processing_not_authorized");
+    }
+    const native = scientificContext(args.sourceSession, { brief, record, inventory: args.inventory });
+    if (!native || !native.testbed.source_capture_bundles.some(bundle =>
+      bundle.bundle_id === source.data.intake_id && bundle.digest === source.data.source_capture_digest)) {
+      throw new Error("job_evaluation_source_changed");
+    }
+    sourceFingerprint = crossRuntimeDigest({ schema_version: "job_managed_source_binding.v1", job_id: source.data.job_id,
+      capture_session_id: source.data.capture_session_id, intake_id: source.data.intake_id,
+      source_capture_digest: source.data.source_capture_digest, approved_task_digest: source.data.approved_task_digest,
+      brief_digest: source.data.brief_digest, task_inventory_digest: source.data.task_inventory_digest,
+      testbed_digest: native.testbed.testbed_digest });
+    sourceCaptureSessionId = source.data.capture_session_id;
+    sourceCaptureDigest = source.data.source_capture_digest;
+  } else {
+    // Browser walkthrough storage is immutable. Keep its exact task/capture
+    // identity separate from sponsorship expiry, spending limits and quotes.
+    sourceFingerprint = crossRuntimeDigest({ schema_version: "job_managed_source_binding.v1", job_id: binding.job_id,
+      capture_id: sponsorship.capture_id ?? `walkthrough-${binding.job_id}`, brief_digest: scientificBriefDigest(brief),
+      task_inventory_digest: jobEvidenceTaskInventoryDigest(brief, args.inventory) });
+  }
   return {
-    taskIds: [
+    taskIds: sourceCaptureSessionId ? [] : [
       `website-${context.context_digest.slice(7, 27)}`,
       `website-${context.context_digest.slice(7, 27)}-development`,
     ],
     teamNamespace: sponsorship.owner.organization_id as string,
     taskContextDigest: context.context_digest,
+    sourceFingerprint,
+    sourceCaptureSessionId,
+    sourceCaptureDigest,
   };
 }
 
@@ -64,12 +111,14 @@ export type ManagedJobEvidenceSummary = {
 export function projectManagedJobEvidence(
   runId: string, run: Record<string, any>, result: Record<string, any> | null,
   jobId: string, currentBriefDigest: string, currentTaskContextDigest: string | null,
+  currentSourceFingerprint: string | null = null,
 ): ManagedJobEvidenceSummary | null {
   const binding = jobManagedEvidenceBindingSchema.safeParse(run.job_evidence_binding);
   if (!binding.success || binding.data.job_id !== jobId || run.run_id !== runId) return null;
   const base: ManagedJobEvidenceSummary = {
     runId, state: String(run.state || "unavailable"), current: binding.data.brief_digest === currentBriefDigest
-      && currentTaskContextDigest !== null && run.job_task_context_digest === currentTaskContextDigest,
+      && currentTaskContextDigest !== null && run.job_task_context_digest === currentTaskContextDigest
+      && currentSourceFingerprint !== null && run.job_source_fingerprint === currentSourceFingerprint,
     resultDigest: null, summary: `Policy run status: ${String(run.state || "unavailable")}. No accepted scientific result is attached.`,
     nextAction: ["blocked", "failed", "cancelled"].includes(run.state)
       ? "Blueprint can inspect the recorded runtime limitation and choose the next useful action. No retry is automatic."
@@ -116,18 +165,40 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
     store.collection("siteTaskItemInventories").doc(jobId).get(),
   ]);
   let taskContextDigest: string | null = null;
-  try { taskContextDigest = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest },
-    record: job.data(), brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null }).taskContextDigest; }
-  catch { /* Historical results remain readable when their current applicability ends. */ }
+  let sourceFingerprint: string | null = null;
+  try {
+    const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest },
+      record: job.data(), brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+      sourceSession: await readManagedJobSourceSession(job.data(), reference => reference.get()) });
+    taskContextDigest = scope.taskContextDigest; sourceFingerprint = scope.sourceFingerprint;
+  }
+  catch (error) {
+    // A known source/scope refusal ends current applicability while preserving
+    // history. An unrelated storage failure must not be hidden as empty proof.
+    if (!(error instanceof Error) || !/^job_[a-z_]+$/.test(error.message)) throw error;
+  }
   const snapshot = await store.collection("taskEvaluationPolicyRuns").where("job_evidence_binding.job_id", "==", jobId)
     .orderBy("created_at_iso", "desc").limit(20).get();
   const rows = await Promise.all(snapshot.docs.map(async document => {
     const run = document.data();
     const result = typeof run.result_record_id === "string"
       ? await store.collection("captureTaskEvaluationRuns").doc(run.result_record_id).get() : null;
-    return projectManagedJobEvidence(document.id, run, result?.exists ? result.data()! : null, jobId, currentBriefDigest, taskContextDigest);
+    return projectManagedJobEvidence(document.id, run, result?.exists ? result.data()! : null, jobId, currentBriefDigest, taskContextDigest, sourceFingerprint);
   }));
   return rows.filter((row): row is ManagedJobEvidenceSummary => row !== null);
+}
+
+/** A missing composite index is an unavailable projection, never proof that no runs exist. */
+export async function loadManagedJobEvidenceForWorkspace(jobId: string, currentBriefDigest: string) {
+  try { return { managedEvidence: await loadManagedJobEvidence(jobId, currentBriefDigest) }; }
+  catch (error) {
+    const value = error as { code?: unknown; message?: unknown; details?: unknown };
+    const code = String(value?.code ?? "").toLowerCase().replace(/_/g, "-");
+    if (["9", "failed-precondition"].includes(code) && /index/i.test(`${value?.message ?? ""} ${value?.details ?? ""}`)) {
+      return { managedEvidence: [], managedEvidenceUnavailable: true as const };
+    }
+    throw error;
+  }
 }
 
 export async function assertManagedJobEvidenceReference(jobId: string, currentBriefDigest: string,
@@ -141,14 +212,15 @@ export async function assertManagedJobEvidenceReference(jobId: string, currentBr
     read(store.collection("siteTaskItemInventories").doc(jobId)),
   ]);
   const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record: job.data(),
-    brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null });
+    brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+    sourceSession: await readManagedJobSourceSession(job.data(), read) });
   const run = snapshot.data();
   if (!run || run.job_evidence_binding?.job_id !== jobId || typeof run.result_record_id !== "string") {
     throw new Error("job_managed_evidence_reference_unavailable_or_stale");
   }
   const result = await read(store.collection("captureTaskEvaluationRuns").doc(run.result_record_id));
   const row = projectManagedJobEvidence(snapshot.id, run, result.exists ? result.data()! : null,
-    jobId, currentBriefDigest, scope.taskContextDigest);
+    jobId, currentBriefDigest, scope.taskContextDigest, scope.sourceFingerprint);
   if (!row || !row.current || row.resultDigest !== reference.resultDigest) throw new Error("job_managed_evidence_reference_unavailable_or_stale");
   return row;
 }

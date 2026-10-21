@@ -45,7 +45,7 @@ import { buildTeamEvaluationRequest, fetchTeamEvaluationContext, loadRobotSetups
   teamEvaluationCommand, teamEvaluationTaskDetails, TEAM_EVALUATION_PRICE_CENTS, TEAM_EVALUATION_PROVIDER_CAP_USD } from "../utils/teamEvaluationSelection";
 import { sceneDigest, sceneOwner, sceneProviderTerms, validateSceneProviderTerms,
   SCENE_INTAKE_COLLECTION } from "../utils/taskEvaluationSceneIntake";
-import { assertManagedOfferingForJob, jobManagedEvidenceBindingSchema, managedJobTask, loadManagedJobEvidence,
+import { assertManagedOfferingForJob, jobManagedEvidenceBindingSchema, managedJobTask, loadManagedJobEvidence, readManagedJobSourceSession,
   type JobManagedEvidenceBinding } from "../utils/jobManagedEvaluation";
 import type { TaskItemInventoryRecord } from "../utils/taskItemInventory";
 
@@ -66,7 +66,8 @@ async function managedJobScope(binding: JobManagedEvidenceBinding, transaction?:
     db.collection("siteTaskItemInventories").doc(binding.job_id)];
   const [record, brief, inventory] = await Promise.all(refs.map(ref => transaction ? transaction.get(ref) : ref.get()));
   const scope = managedJobTask({ binding, record: record.data(), brief: brief.data(),
-    inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null });
+    inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+    sourceSession: await readManagedJobSourceSession(record.data(), reference => transaction ? transaction.get(reference) : reference.get()) });
   // A supplementary capture's task id includes its exact capture binding.
   // Reuse the real retained producer join rather than guessing that id from
   // the original walkthrough or changing the scientific scene contract.
@@ -76,6 +77,9 @@ async function managedJobScope(binding: JobManagedEvidenceBinding, transaction?:
     const source = document.data();
     if (source.root_sponsorship_digest === record.data()?.website_scene_sponsorship?.authority_digest
       && source.request?.owner?.organization_id === scope.teamNamespace
+      && (!scope.sourceCaptureSessionId || (source.source_session_id === scope.sourceCaptureSessionId
+        && source.request?.source?.binding_id === scope.sourceCaptureSessionId
+        && source.request?.source?.content_digest === scope.sourceCaptureDigest))
       && source.request_digest === sceneDigest(source.request)
       && /^website-[a-f0-9]{20}(?:-development)?$/.test(source.request?.task?.task_id || "")) {
       scope.taskIds.push(source.request.task.task_id);
@@ -93,6 +97,9 @@ function managedJobMessage(code: string) {
     job_scene_not_prepared: "No source-bound simulator scene is prepared for this job. Continue the options assessment, or identify the observations the decision needs.",
     job_scene_task_changed: "The prepared scene answers an earlier task. Prepare the changed task before using it for new evidence.",
     job_evaluation_source_mismatch: "This scene belongs to a different job or task revision.",
+    job_evaluation_source_binding_invalid: "The current capture's job binding could not be verified. Refresh its technical task before preparing a run.",
+    job_evaluation_source_unavailable: "The current capture session is unavailable. Restore its retained source before preparing a run.",
+    job_evaluation_source_changed: "The current capture, approved task or testbed changed. Prepare a matching scene before requesting new evidence.",
   };
   return messages[code] || "The job's managed policy setup is unavailable. Continue the options assessment using the evidence already available.";
 }
@@ -702,11 +709,13 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
   }
   const { job_evidence_binding: jobBinding, ...scientificSelection } = input.data;
   let jobTaskContextDigest: string | null = null;
+  let jobSourceFingerprint: string | null = null;
   if (jobBinding) {
     try {
       const scope = await managedJobScope(jobBinding);
       assertManagedOfferingForJob(scope, resolved.offering);
       jobTaskContextDigest = scope.taskContextDigest;
+      jobSourceFingerprint = scope.sourceFingerprint;
     }
     catch (error) {
       const code = error instanceof Error ? error.message : "job_evaluation_source_mismatch";
@@ -782,7 +791,8 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
     result_record_id: null,
     created_at_iso: now,
     updated_at_iso: now,
-    ...(jobBinding ? { job_evidence_binding: jobBinding, job_task_context_digest: jobTaskContextDigest } : {}),
+    ...(jobBinding ? { job_evidence_binding: jobBinding, job_task_context_digest: jobTaskContextDigest,
+      job_source_fingerprint: jobSourceFingerprint } : {}),
   };
   const preparationRecord = {
     schema_version: "task_evaluation_launch_preparation_web_record.v1",
@@ -818,7 +828,11 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
     existing = await withTaskEvaluationLaunchStoreTimeout(db.runTransaction(async (transaction) => {
       const runSnapshot = await transaction.get(runRef);
       const preparationSnapshot = await transaction.get(preparationRef);
-      if (jobBinding) assertManagedOfferingForJob(await managedJobScope(jobBinding, transaction), resolved.offering);
+      if (jobBinding) {
+        const scope = await managedJobScope(jobBinding, transaction);
+        assertManagedOfferingForJob(scope, resolved.offering);
+        if (scope.sourceFingerprint !== jobSourceFingerprint) throw new Error("job_evaluation_source_changed");
+      }
       if (runSnapshot.exists) {
         const prior = runSnapshot.data() as EvaluationReadyRunRecord;
         if (
@@ -828,6 +842,7 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
           || prior.configuration_digest !== record.configuration_digest
           || sceneDigest(prior.job_evidence_binding ?? null) !== sceneDigest(jobBinding ?? null)
           || (prior.job_task_context_digest ?? null) !== jobTaskContextDigest
+          || (prior.job_source_fingerprint ?? null) !== jobSourceFingerprint
         ) throw new Error("task_evaluation_policy_run_immutable_conflict");
         return prior;
       }
@@ -848,6 +863,9 @@ router.post("/:launchId/evaluation-runs", async (req, res) => {
         code: "task_evaluation_policy_run_immutable_conflict",
         paid_execution_requested: false,
       });
+    }
+    if (error instanceof Error && /^job_[a-z_]+$/.test(error.message)) {
+      return res.status(409).json({ error: managedJobMessage(error.message), code: error.message, paid_execution_requested: false });
     }
     return res.status(503).json({
       error: "Task Evaluation Run store is unavailable",
