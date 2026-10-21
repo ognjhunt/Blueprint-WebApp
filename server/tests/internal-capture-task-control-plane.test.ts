@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+import { canonicalArtifactDigest, stableJson } from "../utils/taskCandidateContract";
 import producerFixture from "./fixtures/pipeline-task-candidate-transport.json";
 
 const state = vi.hoisted(() => ({
@@ -237,6 +237,40 @@ afterEach(() => {
 });
 
 describe("internal Pipeline task discovery publication", () => {
+  it("enriches a legacy discovery and retains its canonical bytes on delayed legacy replay", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
+    const legacy = publication();
+    const value = legacy.pipeline_task_discovery;
+    const body = { ...legacy,
+      pipeline_task_discovery_canonical_json: stableJson(Object.fromEntries(Object.entries(value).filter(([key]) => key !== "discovery_digest"))),
+      pipeline_task_candidate_canonical_json: Object.fromEntries(value.task_candidates.map((candidate: Record<string, any>) => [candidate.candidate_digest,
+        stableJson(Object.fromEntries(Object.entries(candidate).filter(([key]) => key !== "candidate_digest")))])),
+    };
+    state.collections.set("captureUploadSessions", new Map([[legacy.capture_session_id, {
+      session_id: legacy.capture_session_id, request: { intake_id: legacy.intake_id },
+    }]]));
+    const { server, socketPath } = await startServer();
+    try {
+      expect((await postSigned(socketPath, "/internal/capture-task-discoveries", signedBody(legacy))).status).toBe(201);
+      expect((await postSigned(socketPath, "/internal/capture-task-discoveries", signedBody(body))).status).toBe(200);
+      const enrichedRecord = structuredClone([...(state.collections.get("captureTaskDiscoveries")?.values() || [])][0]);
+      expect(enrichedRecord).toMatchObject({
+        pipeline_task_discovery: value,
+        pipeline_task_discovery_canonical_json: body.pipeline_task_discovery_canonical_json,
+        pipeline_task_candidate_canonical_json: body.pipeline_task_candidate_canonical_json,
+      });
+      expect((await postSigned(socketPath, "/internal/capture-task-discoveries", signedBody(legacy))).status).toBe(200);
+      expect(state.collections.get("captureTaskDiscoveries")?.size).toBe(1);
+      expect([...(state.collections.get("captureTaskDiscoveries")?.values() || [])][0]).toEqual(enrichedRecord);
+      expect(state.collections.get("captureUploadSessions")?.get(legacy.capture_session_id)).toMatchObject({
+        pipeline_task_discovery_canonical_json: body.pipeline_task_discovery_canonical_json,
+        pipeline_task_candidate_canonical_json: body.pipeline_task_candidate_canonical_json,
+      });
+      expect((await postSigned(socketPath, "/internal/capture-task-discoveries", signedBody({ ...body,
+        pipeline_task_discovery_canonical_json: "{}" }))).status).toBe(400);
+    } finally { await stopServer(server, socketPath); }
+  });
+
   it("persists original Python discovery and candidate bytes through the signed receiver and replay", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
     const body = producerFixture.publication;

@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+import { canonicalArtifactDigest, stableJson } from "../utils/taskCandidateContract";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import canaryPublicationFixture from "./fixtures/pipeline-policy-canary-publication.v4.json";
 import mixedCaseCanaryPublicationFixture from "./fixtures/pipeline-policy-canary-mixed-case-publication.v4.json";
@@ -763,6 +763,50 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
     } finally {
       await stopServer(server, socketPath);
     }
+  });
+
+  it.each(["v1", "v2", "v3"])("retains %s scientific identity through canonical transport upgrades and legacy retries", async version => {
+    process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
+    process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED = "0";
+    state.collections.set("captureUploadSessions", new Map([["capture-run-1", {
+      owner_user_id: "buyer-1", organization_id: "team-1",
+      request: { intake_id: "intake-1" }, pipeline_site_task_testbed: { testbed_digest: sha("b") },
+    }]]));
+    if (version === "v3") state.collections.set("taskEvaluationPolicyRuns", new Map([["run-1", {
+      run_id: "run-1", source_launch_id: "evaluation-launch-001", offering_digest: sha("8"),
+      configuration_digest: sha("9"), team_namespace: "team-1", notification_recipient_user_id: "buyer-1",
+    }]]));
+    const legacy = version === "v1" ? publication() : version === "v2" ? publicationV2("ready") : publicationV3();
+    const withCanonical = (value: Record<string, any>) => ({ ...value,
+      producer_canonical_json: Object.fromEntries([
+        ["evidence_plan", "plan_digest"], ["decision_envelope", "decision_envelope_digest"],
+        ["result_delivery", "delivery_digest"], ["policy_run_result", "projection_digest"],
+      ].filter(([field]) => value[field]).map(([field, digest]) => [field,
+        stableJson(Object.fromEntries(Object.entries(value[field]).filter(([key]) => key !== digest)))])),
+    });
+    const upgraded = withCanonical(legacy);
+    const { server, socketPath } = await startServer();
+    try {
+      expect((await postSigned(socketPath, legacy)).status).toBe(201);
+      expect((await postSigned(socketPath, upgraded)).status).toBe(200);
+      const enriched = structuredClone([...(state.collections.get("captureTaskEvaluationRuns")?.values() || [])][0]);
+      expect(enriched.publication).toEqual(upgraded);
+      const replay = await postSigned(socketPath, legacy);
+      expect(replay.status).toBe(200);
+      expect(replay.body.already_exists).toBe(true);
+      expect(state.collections.get("captureTaskEvaluationRuns")?.size).toBe(1);
+      expect([...(state.collections.get("captureTaskEvaluationRuns")?.values() || [])][0]).toEqual(enriched);
+      expect(state.collections.get("captureUploadSessions")?.get("capture-run-1")?.pipeline_task_evaluation_run.publication).toEqual(upgraded);
+      expect((await postSigned(socketPath, { ...upgraded, producer_canonical_json: {
+        ...upgraded.producer_canonical_json, evidence_plan: "{}",
+      } })).status).toBe(400);
+      if (version === "v1") {
+        const changed = structuredClone(legacy);
+        changed.decision_envelope.decision_question = "A genuinely different scientific question?";
+        changed.decision_envelope.decision_envelope_digest = canonicalArtifactDigest(changed.decision_envelope, "decision_envelope_digest");
+        expect((await postSigned(socketPath, withCanonical(changed))).status).toBe(409);
+      }
+    } finally { await stopServer(server, socketPath); }
   });
 
   it("rejects a stale testbed binding and a digest-tampered envelope", async () => {
