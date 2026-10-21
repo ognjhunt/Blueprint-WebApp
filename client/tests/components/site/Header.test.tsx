@@ -28,16 +28,13 @@ describe("Header", () => {
   it("keeps the buyer-facing nav focused", () => {
     render(<Header />);
 
-    expect(screen.getByRole("link", { name: /^For sites$/i })).toHaveAttribute("href", "/for-site-operators");
-    expect(screen.getByRole("link", { name: /^For robot teams$/i })).toHaveAttribute("href", "/for-robot-teams");
+    expect(screen.getByRole("link", { name: /^Jobs we support$/i })).toHaveAttribute("href", "/jobs-we-support");
+    expect(screen.getByRole("link", { name: /^For partners$/i })).toHaveAttribute("href", "/partners");
     expect(screen.getByRole("link", { name: /^How it works$/i })).toHaveAttribute(
       "href",
       "/how-it-works",
     );
-    expect(screen.getByRole("link", { name: /^Beta program$/i })).toHaveAttribute(
-      "href",
-      "/beta",
-    );
+    expect(screen.queryByRole("link", { name: /^Beta program$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Proof$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Evaluate$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Sites$/i })).not.toBeInTheDocument();
@@ -54,7 +51,7 @@ describe("Header", () => {
   it("uses a single site-first action in the header", () => {
     render(<Header />);
 
-    const requestLink = screen.getAllByRole("link", { name: /^Show us a task$/i })[0];
+    const requestLink = screen.getAllByRole("link", { name: /^Submit a job$/i })[0];
     expect(requestLink).toHaveAttribute("href", "/contact/site-operator");
     expect(screen.queryByRole("link", { name: /Capture network/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /See policy evaluation/i })).not.toBeInTheDocument();

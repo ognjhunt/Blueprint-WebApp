@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+const legacyJobWorkflow = () => ({
+  schemaVersion: "job_marketplace.v1", revision: "fixture-revision", stage: "job_submitted",
+  requirements: { purchaseReadiness: "unsure", jobFrequency: null, requiredOutput: null,
+    installationBudget: null, ongoingBudget: null, currentProcessCost: null, targetStartDate: null },
+  briefAgreed: false, optionsAssessed: false, reviewRequired: false,
+  nextAction: "Review the job brief with Blueprint.", actionOwner: "site",
+  review: null, proposals: [], selection: null, agreement: null, outcome: null,
+});
+
 test.skip(process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH !== "1", "Requires isolated fixture identity");
 
 for (const width of [390, 1440]) {
@@ -30,6 +39,7 @@ for (const width of [390, 1440]) {
       const post = route.request().method() === "POST";
       const body = post ? route.request().postDataJSON() : null;
       if (post) posts.push({ path, body });
+      if (path === "/api/job-workflow/owner/synthetic-owner" && !post) return route.fulfill({ json: { ...legacyJobWorkflow(), briefAgreed: confirmed } });
       if (path === "/api/csrf") return route.fulfill({ json: { csrfToken: "synthetic" } });
       if (path === "/api/analytics/ingest") return route.fulfill({ status: 204, body: "" });
       if (path === "/api/workspace/setup") return route.fulfill({ json: { workspaceType: "robot_team" } });
@@ -125,13 +135,13 @@ for (const width of [390, 1440]) {
 
     recommended = true;
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Your recommended pilot" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Evaluation-backed pilot proposal" })).toBeVisible();
     await expect(page.getByText("Physical cycle time remains unmeasured", { exact: true })).toBeVisible();
-    await page.getByRole("checkbox", { name: /authorized to book this pilot/ }).check();
-    await page.getByRole("button", { name: /Book this pilot/ }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Pilot booked · awaiting coordination." })).toBeVisible();
+    await page.getByRole("checkbox", { name: /authorized to choose this team for pilot discussions/ }).check();
+    await page.getByRole("button", { name: /Choose this pilot proposal/ }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Team selected · pilot terms still need agreement." })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("status").filter({ hasText: "Pilot booked · awaiting coordination." })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Team selected · pilot terms still need agreement." })).toBeVisible();
     expect(posts.filter(entry => entry.path.endsWith("/book"))).toHaveLength(1);
 
     withdrawn = true;

@@ -19,11 +19,11 @@ for (const viewport of [{ width: 1536, height: 1024 }, { width: 390, height: 844
       errors.push(error.message);
     });
     for (const [name, path, heading] of [
-      ["home", "/", "Could a robot take over a repetitive task at your site?"],
-      ["how", "/how-it-works", "Start with your task."],
-      ["beta", "/beta", "Start with one real task."],
-      ["site", "/contact/site-operator", "Start with one task."],
-      ["robot", "/contact/robot-team", "Test your robot on real site jobs."],
+      ["home", "/", "Find the right way to automate your work."],
+      ["how", "/how-it-works", "Start with the work. Get a clear next step."],
+      ["beta", "/beta", "Start with one real job."],
+      ["site", "/contact/site-operator", "What work would you like automated?"],
+      ["robot", "/contact/robot-team", "Bring your capabilities to real jobs."],
       ["privacy", "/privacy", "Privacy Policy"],
       ["terms", "/terms", "Terms of Service"],
       ["not-found", "/this-page-does-not-exist", "That page isn’t here."],
@@ -63,7 +63,7 @@ test("mobile navigation works and the method steps are visible without a click",
   await page.getByRole("button", { name: "Open menu" }).click();
   const nav = page.getByRole("navigation", { name: "Mobile navigation" });
   await expect(nav).toBeVisible();
-  await expect(nav.getByRole("link", { name: "Beta program" })).toHaveAttribute("href", "/beta");
+  await expect(nav.getByRole("link", { name: "For partners" })).toHaveAttribute("href", "/partners");
   await nav.getByRole("link", { name: "How it works" }).focus();
   await page.keyboard.press("Escape");
   await expect(nav).toHaveCount(0);
@@ -71,9 +71,9 @@ test("mobile navigation works and the method steps are visible without a click",
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "How it works" }).click();
   await expect(page).toHaveURL(/\/how-it-works$/);
-  await expect(page.locator("h1")).toContainText("Start with your task.");
+  await expect(page.locator("h1")).toContainText("Start with the work. Get a clear next step.");
   await page.goto("/");
-  await expect(page.getByText("One team whose evaluation passed. You agree dates and terms with them.")).toBeVisible();
+  await expect(page.getByText("Review comparable proposals, agree the pilot with your chosen partner and measure the result against your criteria.")).toBeVisible();
 });
 
 test("old marketing links resolve to the minimal website without losing source context", async ({ page }) => {
@@ -112,11 +112,11 @@ test("the site page puts the capture form before the explanation, on a phone too
 test("old pricing reaches the free beta page with one CTA", async ({ page }) => {
   await page.goto("/pricing?source=legacy-review#scope");
   await expect(page).toHaveURL(/\/beta\?source=legacy-review#scope$/);
-  await expect(page.locator("h1")).toHaveText("Start with one real task.");
-  await expect(page.getByText(/The beta is free for sites and robot teams/)).toBeVisible();
-  await expect(page.getByText(/agree the physical pilot’s dates and terms directly/)).toBeVisible();
+  await expect(page.locator("h1")).toHaveText("Start with one real job.");
+  await expect(page.getByText(/The beta is free for sites and partners/)).toBeVisible();
+  await expect(page.getByText(/you approve those costs and agree the contract directly/)).toBeVisible();
   await expect(page.locator("article .ms-button")).toHaveCount(1);
-  await expect(page.getByRole("link", { name: "Show us a task" })).toHaveAttribute("href", "/contact/site-operator?source=beta");
+  await expect(page.getByRole("link", { name: "Submit a job" })).toHaveAttribute("href", "/contact/site-operator?source=beta");
   await expect(page.locator("article")).not.toContainText("$2,500");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://tryblueprint.io/beta");
 });

@@ -227,7 +227,7 @@ describe("a site that sends its footage before confirming its brief", () => {
     expect(notice?.kind).toBe("video_received");
     expect(notice?.subject).toMatch(/confirm your job brief/i);
     expect(notice?.body).toMatch(/confirm your job brief/i);
-    expect(notice?.body).toMatch(/robot teams can evaluate your job only after you confirm it/i);
+    expect(notice?.body).toMatch(/A site-specific evaluation still needs your confirmed brief/i);
     expect(notice?.body).toContain(`/capture-upload/`);
     // One email for the event: the intake receipt, then the footage notice.
     expect(queuedKinds(jobId)).toEqual(["task_received", "video_received"]);

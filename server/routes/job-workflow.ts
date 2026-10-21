@@ -16,6 +16,7 @@ import {
 } from "../utils/jobMarketplaceWorkflow";
 
 const router = Router();
+const ownerRouter = Router();
 router.use(rateLimit({ windowMs: 60_000, limit: 90, standardHeaders: true, legacyHeaders: false }));
 router.use((_req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
 const requestIdSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
@@ -85,14 +86,15 @@ async function mutateWorkflow(requestId: string, actor: string, event: string,
   });
 }
 
-router.use("/owner/:token", (req, res, next) => {
+// Buyer links and admin accounts use separate authorization namespaces.
+ownerRouter.use("/owner/:token", (req, res, next) => {
   const token = verifyCaptureUploadToken(String(req.params.token));
   if (!token || token.scope !== "owner") return res.status(403).json({ error: "Open the site owner's job link to review these details.", code: "owner_link_required" });
   res.locals.jobWorkflowRequestId = token.requestId;
   next();
 });
-router.get("/owner/:token", handle(async (_req, res) => res.json(await readWorkflow(res.locals.jobWorkflowRequestId))));
-router.patch("/owner/:token/requirements", handle(async (req, res) => {
+ownerRouter.get("/owner/:token", handle(async (_req, res) => res.json(await readWorkflow(res.locals.jobWorkflowRequestId))));
+ownerRouter.patch("/owner/:token/requirements", handle(async (req, res) => {
   const input = parse(requirementsSchema, req.body);
   return res.json(await mutateWorkflow(res.locals.jobWorkflowRequestId, "signed_owner_link", "requirements_updated", state => {
     const requirements = { ...state.requirements, ...input };
@@ -102,7 +104,7 @@ router.patch("/owner/:token/requirements", handle(async (req, res) => {
     return { ...state, requirements };
   }));
 }));
-router.post("/owner/:token/select", handle(async (req, res) => {
+ownerRouter.post("/owner/:token/select", handle(async (req, res) => {
   const input = parse(selectProposalSchema, req.body);
   return res.json(await mutateWorkflow(res.locals.jobWorkflowRequestId, "signed_owner_link", "proposal_selected", (state, brief, now, record) => {
     const legacyPilot = record.workspace_task?.pilot;
@@ -118,7 +120,7 @@ router.post("/owner/:token/select", handle(async (req, res) => {
     return { ...state, selection: { proposalId: proposal.id, proposalRevision: proposal.revision, selectedAtIso: now } };
   }));
 }));
-router.post("/owner/:token/outcome", handle(async (req, res) => {
+ownerRouter.post("/owner/:token/outcome", handle(async (req, res) => {
   const input = parse(outcomeSchema, req.body);
   return res.json(await mutateWorkflow(res.locals.jobWorkflowRequestId, "signed_owner_link", "customer_outcome_reported", (state, _brief, now) => {
     const proposal = selectedProposal(state, input.proposalId, input.expectedRevision);
@@ -133,6 +135,7 @@ router.post("/owner/:token/outcome", handle(async (req, res) => {
   }));
 }));
 
+router.use(ownerRouter);
 router.use("/admin/:requestId", verifyFirebaseToken, requireAdminRole, (req, res, next) => {
   const requestId = requestIdSchema.safeParse(req.params.requestId);
   if (!requestId.success) return res.status(400).json({ error: "Invalid job id." });

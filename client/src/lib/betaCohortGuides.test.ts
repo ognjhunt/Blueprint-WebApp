@@ -12,11 +12,12 @@ describe("beta cohort guides", () => {
     expect(betaCohortGuides.map((guide) => guide.path)).toEqual(["/beta/buyer-guide"]);
   });
 
-  it("describes the free, invited, evaluated-recommendation beta", () => {
+  it("describes the free, invited, proposal-comparison beta", () => {
     const text = JSON.stringify(betaCohortGuides);
     expect(text).toMatch(/join by invitation/);
     expect(text).toMatch(/no entry fee, balance, top-up or checkout/);
-    expect(text).toMatch(/recommends one team whose evaluation passed/);
+    expect(text).toMatch(/compare suitable delivery proposals with their evidence and limitations/);
+    expect(text).toMatch(/selection alone does not create an agreement/);
     expect(text).toMatch(/not proof of physical performance or safety/);
     expect(text).not.toMatch(/\bmatch(?:ed|es|ing)?\b|marketplace|\$\d|payout|entitlement/i);
   });

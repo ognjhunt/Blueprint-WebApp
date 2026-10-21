@@ -53,7 +53,7 @@ describe("brand polish QA harness contract", () => {
     ]);
     expect(harness.collectBannedCopyHits("We recommend one team whose evaluation passed. Free during the beta.")).toEqual([]);
     expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/for-robot-teams")).toMatchObject({
-      canonicalPath: "/contact/robot-team", expectedHeading: "Test your robot on real site jobs.",
+      canonicalPath: "/contact/robot-team", expectedHeading: "Bring your capabilities to real jobs.",
     });
     expect(harness.publicQaRoutes.find((route: { path: string }) => route.path === "/faq")).toMatchObject({
       canonicalPath: "/", expectedHeading: "Find the right way to automate your work.",

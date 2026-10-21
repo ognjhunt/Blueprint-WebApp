@@ -1,4 +1,7 @@
+import { mockExternalFonts } from "./helpers/static-assets";
 import { test, expect } from "@playwright/test";
+
+test.beforeEach(mockExternalFonts);
 
 test("exact-site hosted review route redirects to home", async ({ page }) => {
   await page.goto("/exact-site-hosted-review", { waitUntil: "networkidle" });
@@ -8,7 +11,7 @@ test("exact-site hosted review route redirects to home", async ({ page }) => {
   await expect(page).toHaveURL(/\/$/);
   await expect(
     page.getByRole("heading", {
-      name: /Could a robot take over a repetitive task at your site/i,
+      name: /Find the right way to automate your work/i,
     }),
   ).toBeVisible();
 });

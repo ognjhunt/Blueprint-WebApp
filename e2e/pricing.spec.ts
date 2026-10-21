@@ -1,11 +1,14 @@
+import { mockExternalFonts } from "./helpers/static-assets";
 import { test, expect } from "@playwright/test";
+
+test.beforeEach(mockExternalFonts);
 
 test("historical pricing leads to the free beta page with one action", async ({ page }) => {
   await page.goto("/pricing");
   await expect(page).toHaveURL(/\/beta$/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Start with one real task.");
-  await expect(page.getByText(/The beta is free for sites and robot teams/)).toBeVisible();
-  await expect(page.getByText(/we recommend one team whose evaluation passed/i)).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Start with one real job.");
+  await expect(page.getByText(/The beta is free for sites and partners/)).toBeVisible();
+  await expect(page.getByText(/You choose whether to proceed and agree the physical pilot with your selected delivery partner/i)).toBeVisible();
   await expect(page.locator("article .ms-button")).toHaveCount(1);
   await expect(page.locator("article")).not.toContainText("$2,500");
   await expect(page.locator("article")).not.toContainText("$99");
@@ -29,7 +32,8 @@ test("the beta page reaches the header on mobile without a horizontal scrollbar"
   await page.goto("/");
   await page.getByRole("button", { name: "Reject all", exact: true }).click();
   await page.getByRole("button", { name: "Open menu" }).click();
-  await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "Beta program" }).click();
+  await page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "How it works" }).click();
+  await page.getByRole("navigation", { name: "Footer navigation" }).getByRole("link", { name: "Beta & pricing" }).click();
 
   await expect(page).toHaveURL(/\/beta$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -43,5 +47,5 @@ test("legacy offer URLs land on the beta page in one hop", async ({ page, reques
 
   await page.goto("/data-packages");
   await expect(page).toHaveURL(/\/beta/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Start with one real task.");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Start with one real job.");
 });

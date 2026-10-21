@@ -1,18 +1,21 @@
+import { mockExternalFonts } from "./helpers/static-assets";
 import { test, expect } from "@playwright/test";
 
-test("homepage speaks to sites, with robot teams one nav link away", async ({ page }) => {
+test.beforeEach(mockExternalFonts);
+
+test("homepage speaks to sites, with partners one nav link away", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Could a robot take over a repetitive task at your site?");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Find the right way to automate your work.");
   const nav = page.getByRole("navigation", { name: "Main navigation" });
   await expect(nav.getByRole("link", { name: "How it works" })).toHaveAttribute("href", "/how-it-works");
-  await expect(nav.getByRole("link", { name: "Beta program" })).toHaveAttribute("href", "/beta");
-  await expect(nav.getByRole("link", { name: "For robot teams" })).toHaveAttribute("href", "/contact/robot-team");
+  await expect(nav.getByRole("link", { name: "Submit a job" })).toHaveAttribute("href", "/contact/site-operator");
+  await expect(nav.getByRole("link", { name: "For partners" })).toHaveAttribute("href", "/partners");
   await expect(nav.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/sign-in");
   const main = page.locator("main");
-  const starts = main.getByRole("link", { name: "Show us a task" });
+  const starts = main.getByRole("link", { name: "Submit a job" });
   await expect(starts).toHaveCount(2);
   for (const start of await starts.all()) await expect(start).toHaveAttribute("href", "/contact/site-operator");
-  await expect(main.getByText("Free during the beta, for sites and robot teams.")).toBeVisible();
+  await expect(main.getByText("Free during the beta. A description is enough to start; video is optional.")).toBeVisible();
   await expect(main.getByRole("link", { name: /robot-team beta|early access/i })).toHaveCount(0);
-  await expect(main.getByText("One team whose evaluation passed. You agree dates and terms with them.")).toBeVisible();
+  await expect(main.getByText("Review comparable proposals, agree the pilot with your chosen partner and measure the result against your criteria.")).toBeVisible();
 });

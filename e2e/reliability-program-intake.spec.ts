@@ -140,9 +140,10 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({width, height: 1000});
     await page.goto(`${siteOrigin}/contact/site-operator`);
     await page.getByRole("button", {name: "Reject all", exact: true}).click();
-    await expect(page.getByRole("heading", {name: "Start with one task.", exact: true})).toBeVisible();
+    await expect(page.getByRole("heading", {name: "What work would you like automated?", exact: true})).toBeVisible();
     await page.screenshot({path: info.outputPath(`intake-before-upload-${width}.png`), fullPage: true});
     await fillSite(page);
+    await page.getByText("Add video or arrange recording (optional)", { exact: true }).click();
     await page.locator("#start-method-upload").check();
     await page.locator("#start-footage").setInputFiles(path.resolve("e2e/fixtures/synthetic-transport.mp4"));
     await page.getByRole("button", {name: "Start free assessment", exact: true}).click();
@@ -305,6 +306,7 @@ test("UI-RETURN-005 real browser termination during video transport returns to t
   });
   try {
     const page=await first.newPage();await page.goto(`${siteOrigin}/contact/site-operator`);await fillSite(page);
+    await page.getByText("Add video or arrange recording (optional)", { exact: true }).click();
     await page.locator("#start-method-upload").check();await page.locator("#start-footage").setInputFiles(video);
     await page.getByRole("button",{name:"Start free assessment",exact:true}).click();
     await uploading; const saved=await first.storageState();

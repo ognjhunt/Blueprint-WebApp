@@ -1,4 +1,7 @@
+import { mockExternalFonts } from "./helpers/static-assets";
 import { test, expect } from "@playwright/test";
+
+test.beforeEach(mockExternalFonts);
 
 test("legacy marketplace route redirects to the Sites library", async ({
   page,
@@ -18,7 +21,7 @@ test("legacy environments route redirects to proof instead of the removed catalo
 
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
-    page.getByRole("heading", { name: /Could a robot take over a repetitive task at your site/i }),
+    page.getByRole("heading", { name: /Find the right way to automate your work/i }),
   ).toBeVisible();
 });
 
@@ -87,7 +90,7 @@ test("public routes work with trailing slashes", async ({ page }) => {
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
     page.getByRole("heading", {
-      name: /Could a robot take over a repetitive task at your site/i,
+      name: /Find the right way to automate your work/i,
     }),
   ).toBeVisible();
 });
@@ -98,7 +101,7 @@ test("FAQ redirects to the compact method section", async ({ page }) => {
   await expect(page).toHaveURL(/\/#how-it-works$/);
   await expect(
     page.getByRole("heading", {
-      name: /Could a robot take over a repetitive task at your site/i,
+      name: /Find the right way to automate your work/i,
     }),
   ).toBeVisible();
 });
