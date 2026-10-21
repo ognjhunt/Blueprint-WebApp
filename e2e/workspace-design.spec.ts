@@ -406,7 +406,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByText("6801 Burnet Road, Austin, TX", { exact: true })).toHaveCount(1);
     await expect(page.getByRole("button", { name: "Open your job page", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "No evaluation results yet" })).toHaveCount(1);
-    await expect(page.getByRole("heading", { name: "Evaluation results", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Team results", exact: true })).toHaveCount(0);
     await expect(page.getByText("fixture-support-reference", { exact: true })).not.toBeVisible();
     await expect(page.getByRole("link", { name: "Contact Blueprint about this job" })).toHaveCSS("color", "rgb(32, 61, 46)");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
