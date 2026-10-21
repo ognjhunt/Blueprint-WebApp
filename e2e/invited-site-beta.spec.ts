@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const legacyJobWorkflow = () => ({
+const initialJobWorkflow = () => ({
   schemaVersion: "job_marketplace.v1", revision: "fixture-revision", stage: "job_submitted",
   requirements: { purchaseReadiness: "unsure", jobFrequency: null, requiredOutput: null,
     installationBudget: null, ongoingBudget: null, currentProcessCost: null, targetStartDate: null },
@@ -12,20 +12,36 @@ const legacyJobWorkflow = () => ({
 test.skip(process.env.VITE_BLUEPRINT_OPERATOR_QA_FAKE_AUTH !== "1", "Requires isolated fixture identity");
 
 for (const width of [390, 1440]) {
-  test(`invited site return, correction, retry and proposal acceptance at ${width}px`, async ({ page }) => {
+  test(`invited site return, correction, retry and proposal choice without agreement at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const unexpected: string[] = [];
     const posts: { path: string; body: Record<string, unknown> }[] = [];
     let confirmed = false;
     let received = false;
     let retried = false;
-    let recommended = false;
-    let booked = false;
+    let proposalsReady = false;
+    let selected = false;
     let withdrawn = false;
     let pilotIntent = { pilotConsideration: "subject_to_review", deploymentPath: "multiple_sites" };
-    const recommendation = { id: "synthetic-rec-1", teamName: "Synthetic willing team", purpose: "Measure carton transfer against site targets",
-      siteProvides: "Named task owner and agreed trial window", teamProvides: "Robot, operator and reset protocol",
-      pilotCost: "Fixture proposal only", window: "Subject to both owners confirming", uncertainties: "Physical cycle time remains unmeasured" };
+    const proposal = {
+      id: "synthetic-proposal-1", revision: `sha256:${"a".repeat(64)}`, briefRevision: `sha256:${"b".repeat(64)}`,
+      status: "available", providerName: "Synthetic delivery partner", scope: "Proposed carton transfer against site targets",
+      equipment: "Fixture robot and gripper", software: "Fixture controller", deliveryCommitment: "Scope remains subject to the parties' agreement",
+      installationCostUsd: null, monthlyCostUsd: null, currency: "USD", exclusions: "Fixture proposal only",
+      sitePreparation: "Named task owner and agreed trial window", humanAssistance: "Operator and reset assistance",
+      timing: "Subject to both parties agreeing dates", support: "To be agreed directly",
+      evidence: [{ level: "unverified", summary: "Physical cycle time remains unmeasured" }],
+      acceptanceCriteria: "Measure carton transfer against agreed site targets", recommendationReason: null,
+      createdAtIso: "2026-10-21T00:00:00Z", updatedAtIso: "2026-10-21T00:00:00Z",
+    };
+    const jobWorkflow = () => ({
+      ...initialJobWorkflow(), briefAgreed: confirmed, optionsAssessed: proposalsReady,
+      stage: proposalsReady ? "proposals_ready" : confirmed ? "brief_agreed" : "job_submitted",
+      nextAction: selected ? "Agree pilot scope, price, dates and support directly with the delivery partner." : "Review the current job brief and proposal.",
+      actionOwner: selected ? "deployment_partner" : "site", proposals: proposalsReady ? [proposal] : [],
+      selection: selected ? { proposalId: proposal.id, proposalRevision: proposal.revision, selectedAtIso: "2026-10-21T01:00:00Z" } : null,
+      agreement: null, outcome: null,
+    });
 
     // Every non-loopback request is blocked. Every API request must be named below.
     await page.route("**/*", route => new URL(route.request().url()).hostname === "127.0.0.1"
@@ -39,7 +55,12 @@ for (const width of [390, 1440]) {
       const post = route.request().method() === "POST";
       const body = post ? route.request().postDataJSON() : null;
       if (post) posts.push({ path, body });
-      if (path === "/api/job-workflow/owner/synthetic-owner" && !post) return route.fulfill({ json: { ...legacyJobWorkflow(), briefAgreed: confirmed } });
+      if (path === "/api/job-workflow/owner/synthetic-owner" && !post) return route.fulfill({ json: jobWorkflow() });
+      if (path === "/api/job-workflow/owner/synthetic-owner/select" && post) {
+        expect(body).toEqual({ proposalId: proposal.id, expectedRevision: proposal.revision, authorized: true });
+        selected = true;
+        return route.fulfill({ json: jobWorkflow() });
+      }
       if (path === "/api/csrf") return route.fulfill({ json: { csrfToken: "synthetic" } });
       if (path === "/api/analytics/ingest") return route.fulfill({ status: 204, body: "" });
       if (path === "/api/workspace/setup") return route.fulfill({ json: { workspaceType: "robot_team" } });
@@ -81,14 +102,8 @@ for (const width of [390, 1440]) {
         return route.fulfill({ json: { ok: true, captureReceived: true, uploadState: "processing_ready", processingRetryAvailable: false } });
       }
       if (path === "/api/task-listings/owner/synthetic-owner") return route.fulfill({ json: {
-        listing: null, thumbnailPng: null, recommendation: recommended ? recommendation : null,
-        booking: booked ? { recommendationId: recommendation.id } : null,
+        listing: null, thumbnailPng: null, recommendation: null, booking: null,
       } });
-      if (path === "/api/task-listings/owner/synthetic-owner/book" && post) {
-        expect(body).toEqual({ recommendationId: recommendation.id, authorized: true });
-        booked = true;
-        return route.fulfill({ json: { ok: true } });
-      }
       // The readiness report answers for itself; this journey's job is not shared. The site sends its video and
       // nothing else, so no item photos, measurements or follow-up questions are ever read.
       if (path === "/api/site-task-brief/synthetic-owner/readiness" && !post) return route.fulfill({ json: { ok: true, summary: null,
@@ -142,16 +157,27 @@ for (const width of [390, 1440]) {
     expect(posts.filter(entry => entry.path.endsWith("/processing-retry"))).toHaveLength(1);
     await expect(page.getByText("Video received; physical performance remains uncertain", { exact: true })).toBeVisible();
 
-    recommended = true;
+    proposalsReady = true;
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Evaluation-backed pilot proposal" })).toBeVisible();
-    await expect(page.getByText("Physical cycle time remains unmeasured", { exact: true })).toBeVisible();
-    await page.getByRole("checkbox", { name: /authorized to choose this team for pilot discussions/ }).check();
-    await page.getByRole("button", { name: /Choose this pilot proposal/ }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Team selected · pilot terms still need agreement." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Delivery proposals", exact: true })).toBeVisible();
+    const offered = page.getByRole("article", { name: `${proposal.providerName} delivery proposal` });
+    await offered.getByText("Review scope, evidence and support", { exact: true }).click();
+    await expect(offered.getByText("Physical cycle time remains unmeasured", { exact: true })).toBeVisible();
+    await offered.getByRole("checkbox", { name: /authorized to choose this proposal for my site/ }).check();
+    await offered.getByRole("button", { name: "Choose this proposal", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Your choice is recorded", exact: true })).toBeVisible();
+    await expect(page.getByText("Blueprint will record the agreed pilot after both parties confirm it. A proposal selection alone is not an agreement.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Pilot agreement recorded", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("form", { name: "Pilot outcome" })).toHaveCount(0);
     await page.reload();
-    await expect(page.getByRole("status").filter({ hasText: "Team selected · pilot terms still need agreement." })).toBeVisible();
-    expect(posts.filter(entry => entry.path.endsWith("/book"))).toHaveLength(1);
+    await expect(page.getByRole("heading", { name: "Your choice is recorded", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Pilot agreement recorded", exact: true })).toHaveCount(0);
+    expect(posts.filter(entry => entry.path.endsWith("/select"))).toEqual([
+      { path: "/api/job-workflow/owner/synthetic-owner/select", body: { proposalId: proposal.id, expectedRevision: proposal.revision, authorized: true } },
+    ]);
+    expect(posts.filter(entry => /\/(book|agreement|outcome)$/.test(entry.path))).toHaveLength(0);
+    expect(jobWorkflow().selection?.proposalRevision).toBe(proposal.revision);
+    expect(jobWorkflow().agreement).toBeNull();
 
     withdrawn = true;
     received = false;
