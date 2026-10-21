@@ -307,6 +307,37 @@ describe("internal Pipeline maintained testbed publication", () => {
     } finally { await stopServer(server, socketPath); }
   });
 
+  it("requires the approved real source binding for a job-scoped native publication", async () => {
+    const body = JSON.parse(readFileSync(new URL("./fixtures/pipeline-testbed-publication-v2.json", import.meta.url), "utf8"));
+    body.job_id = "job-source-1";
+    body.brief_digest = `sha256:${"d".repeat(64)}`;
+    const binding = {
+      schema_version: "job_evidence_source_binding.v1", job_id: body.job_id,
+      brief_digest: body.brief_digest, task_inventory_digest: `sha256:${"e".repeat(64)}`,
+      capture_session_id: body.capture_session_id, intake_id: body.intake_id,
+      source_capture_digest: body.testbed.source_capture_bundles[0].digest,
+      command_request_id: "task-command-1", approved_task_digest: body.approved_task_digest,
+    };
+    process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
+    const session: Record<string, any> = {
+      session_id: body.capture_session_id, request: { intake_id: body.intake_id },
+      approved_task_definition: { approved_task_digest: body.approved_task_digest },
+      latest_task_decision_command: { command_request_id: "task-command-1", pipeline_approval_status: "approved" },
+    };
+    state.collections.set("captureUploadSessions", new Map([[body.capture_session_id, session]]));
+    const { server, socketPath } = await startServer();
+    try {
+      expect((await postSigned(socketPath, body)).status).toBe(409);
+      expect(state.collections.get("captureSiteTaskTestbeds")?.size ?? 0).toBe(0);
+      session.job_evidence_source_binding = { ...binding, source_capture_digest: `sha256:${"f".repeat(64)}` };
+      expect((await postSigned(socketPath, body)).status).toBe(409);
+      session.job_evidence_source_binding = binding;
+      expect((await postSigned(socketPath, body)).status).toBe(201);
+      const retained = state.collections.get("captureUploadSessions")?.get(body.capture_session_id) as Record<string, any>;
+      expect(retained.pipeline_site_task_testbed).toMatchObject({ job_id: body.job_id, brief_digest: body.brief_digest });
+    } finally { await stopServer(server, socketPath); }
+  });
+
   it("enriches a legacy projection while preserving its immutable record", async () => {
     process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
     state.collections.set("captureUploadSessions", new Map([["capture-testbed-1", {

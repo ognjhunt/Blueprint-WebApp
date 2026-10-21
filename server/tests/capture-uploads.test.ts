@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+import { scientificBriefDigest, jobEvidenceTaskInventoryDigest } from "../utils/jobEvidenceContract";
 
 const state = vi.hoisted(() => ({
   records: new Map<string, Record<string, unknown>>(),
@@ -69,7 +70,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
         },
       });
     },
-    collection: () => ({
+    collection: (name: string) => ({
       where: (_field: string, _operator: string, value: string) => ({
         limit: () => ({
           get: async () => ({
@@ -79,7 +80,9 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
           }),
         }),
       }),
-      doc: (id: string) => ({
+      doc: (rawId: string) => {
+        const id = ["inboundRequests", "siteTaskBriefs", "siteTaskItemInventories", "users"].includes(name) ? `${name}/${rawId}` : rawId;
+        return ({
         get: async () => ({
           exists: state.records.has(id),
           data: () => state.records.get(id),
@@ -94,7 +97,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => ({
             : structuredClone(payload);
           state.records.set(id, next);
         },
-      }),
+      }); },
     }),
   },
 }));
@@ -140,7 +143,8 @@ vi.mock("../utils/captureLifecycleForwarding", () => ({
   inspectCompletedCaptureLifecycleInPipeline: state.lifecycleInspect,
 }));
 
-vi.mock("../utils/reconstructionForwarding", () => ({
+vi.mock("../utils/reconstructionForwarding", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../utils/reconstructionForwarding")>(),
   forwardReconstructionPlanToPipeline: state.reconstructionPlan,
   forwardReconstructionAuthorizationToPipeline: state.reconstructionAuthorization,
   forwardReconstructionExecutionToPipeline: state.reconstructionExecution,
@@ -2583,6 +2587,81 @@ describe("resumable capture uploads", () => {
     } finally {
       await stopServer(server, socketPath);
     }
+  });
+
+  it("does not let a capture scene name associate another account's job", async () => {
+    const session = seededReviewSession();
+    (session.request as Record<string, any>).scene_id = "site-other-job";
+    state.records.set("capture-review-1", session);
+    state.records.set("inboundRequests/other-job", { account_owner_uid: "another-account", request: { buyerType: "site_operator" } });
+    const discovery = session.pipeline_task_discovery as Record<string, any>;
+    const candidate = discovery.task_candidates[0];
+    const { server, socketPath } = await startServer();
+    try {
+      const response = await postJson(socketPath, "/capture-uploads/capture-review-1/task-decisions", {
+        schema_version: "task_candidate_decision_command.v1", discovery_digest: discovery.discovery_digest,
+        task_candidate_id: candidate.task_candidate_id, candidate_digest: candidate.candidate_digest,
+        action: "approve", idempotency_key: "unauthorized-job-source", rationale: "Approve source", edited_task: null,
+      });
+      expect(response.status).toBe(403);
+      expect(state.forward).not.toHaveBeenCalled();
+      expect(state.records.get("inboundRequests/other-job")).not.toHaveProperty("job_evidence_source");
+    } finally { await stopServer(server, socketPath); }
+  });
+
+  it.each([false, true])("binds the real approved source to a current job without promoting a raced brief (race=%s)", async changedDuringForward => {
+    const session = seededReviewSession();
+    (session.request as Record<string, any>).scene_id = "site-job-source-1";
+    const discovery = session.pipeline_task_discovery as Record<string, any>;
+    const brief = { requestId: "job-source-1", summary: "Move the tote to the approved target", confirmedAtIso: "2026-10-20T12:00:00Z", operatorAnswers: {}, unresolved: [] };
+    state.records.set("capture-review-1", session);
+    state.records.set("siteTaskBriefs/job-source-1", brief);
+    state.records.set("inboundRequests/job-source-1", { account_owner_uid: "buyer-123", request: { buyerType: "site_operator", consent_attestation: {
+      granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-20T11:00:00Z",
+    } } });
+    state.forward.mockImplementation(async (params: Record<string, any>) => {
+      expect(params.command).not.toHaveProperty("job_evidence_scope");
+      const result = pipelineDecisionResult(discovery);
+      result.command_request_id = params.command.command_request_id;
+      if (changedDuringForward) state.records.set("siteTaskBriefs/job-source-1", { ...brief, summary: "Changed task during approval" });
+      return { status: "forwarded", performed: true, required: true, endpoint_configured: true, http_status: 200, pipeline_result: result };
+    });
+    const candidate = discovery.task_candidates[0];
+    const { server, socketPath } = await startServer();
+    try {
+      const approved = await postJson(socketPath, "/capture-uploads/capture-review-1/task-decisions", {
+        schema_version: "task_candidate_decision_command.v1", discovery_digest: discovery.discovery_digest,
+        task_candidate_id: candidate.task_candidate_id, candidate_digest: candidate.candidate_digest, action: "approve",
+        idempotency_key: "approve-job-source-1", rationale: "This is the current agreed job task.", edited_task: null,
+      });
+      expect(approved.status).toBe(changedDuringForward ? 409 : 200);
+      const stored = state.records.get("capture-review-1") as Record<string, any>;
+      expect(stored.approved_task_definition.approval_status).toBe("approved");
+      const pointer = state.records.get("inboundRequests/job-source-1")?.job_evidence_source;
+      if (changedDuringForward) { expect(pointer).toBeUndefined(); expect(stored.job_evidence_source_binding).toBeNull(); return; }
+      expect(pointer).toEqual(stored.job_evidence_source_binding);
+      expect(pointer).toMatchObject({ capture_session_id: "capture-review-1", job_id: "job-source-1",
+        brief_digest: scientificBriefDigest(brief), task_inventory_digest: jobEvidenceTaskInventoryDigest(brief, null),
+        source_capture_digest: discovery.source_capture.capture_digest, approved_task_digest: stored.approved_task_definition.approved_task_digest });
+      stored.pipeline_reconstruction = { pipeline_plan: { plan_id: "reconstruction-job-source", reconstruction_plan: { requested_claim_types: ["reachability"] } },
+        pipeline_execution: { state: "completed", execution_result_digest: `sha256:${"e".repeat(64)}` } };
+      state.testbedCompile.mockImplementation(async (params: Record<string, any>) => {
+        expect(params.jobContext).toEqual(pointer);
+        return { status: "forwarded", value: { webapp_sync: { status: "succeeded" }, already_exists: false,
+          testbed_id: "job-source-testbed", version: "1", testbed_digest: `sha256:${"f".repeat(64)}`,
+          artifact_reference: { uri: "testbed://job-source-testbed/1/testbed.json", digest: `sha256:${"f".repeat(64)}` },
+          decision_evidence_request: { request_digest: `sha256:${"d".repeat(64)}` }, proof_boundary: { simulation_is_physical_success: false } } };
+      });
+      const command = { schema_version: "capture_testbed_compilation_command.v1", testbed_id: "job-source-testbed", version: "1",
+        robot_binding: { robot_id: "fixture-arm", embodiment_version: "1", base_footprint: { shape: "circle", radius_m: 0.4 },
+          sensors: { primary: "rgb-v1" }, controller_id: "joint-position-v1", end_effector_id: "parallel-gripper-v1", reach_envelope: { minimum_m: 0.1, maximum_m: 1 } },
+        false_safe_consequence: "moderate", acceptable_false_safe_risk: 0.05, minimum_coverage: 0.9, minimum_independent_methods: 1,
+        max_cost_usd: 0, max_latency_seconds: 60, deadline: "2026-11-06T00:00:00Z", requested_result_audience: "design_partner", idempotency_key: "compile-job-source-1" };
+      expect((await postJson(socketPath, "/capture-uploads/capture-review-1/testbed/compile", command)).status).toBe(201);
+      state.records.set("siteTaskBriefs/job-source-1", { ...brief, summary: "Changed task before compile" });
+      expect((await postJson(socketPath, "/capture-uploads/capture-review-1/testbed/compile", command)).status).toBe(409);
+      expect(state.testbedCompile).toHaveBeenCalledTimes(1);
+    } finally { await stopServer(server, socketPath); }
   });
 
   it("stores a verified authoritative Pipeline approval without inventing a request", async () => {

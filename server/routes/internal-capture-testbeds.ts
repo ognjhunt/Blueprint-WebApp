@@ -6,6 +6,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { createPipelineSyncRateLimiter, verifyPipelineSyncRequest } from "../utils/pipelineSyncSecurity";
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import { verifyProducerArtifact } from "../utils/producerCanonicalArtifact";
+import { jobEvidenceSourceBindingSchema } from "../utils/reconstructionForwarding";
 import {
   exactTestbedPublicationFingerprint,
   parseVerifiedMaintainedSiteTaskTestbed,
@@ -108,6 +109,7 @@ router.post(
       | { kind: "not_found" }
       | { kind: "intake_mismatch" }
       | { kind: "approved_task_mismatch" }
+      | { kind: "job_source_mismatch" }
       | { kind: "version_conflict" }
       | { kind: "predecessor_mismatch" }
       | { kind: "immutable_conflict" };
@@ -126,6 +128,17 @@ router.post(
           publication.approved_task_digest
         ) {
           return { kind: "approved_task_mismatch" };
+        }
+        if (canonical && (canonical.job_id || canonical.brief_digest)) {
+          const source = jobEvidenceSourceBindingSchema.safeParse(session.job_evidence_source_binding);
+          if (!source.success || source.data.job_id !== canonical.job_id || source.data.brief_digest !== canonical.brief_digest
+            || source.data.capture_session_id !== publication.capture_session_id || source.data.intake_id !== publication.intake_id
+            || source.data.approved_task_digest !== publication.approved_task_digest
+            || source.data.source_capture_digest !== sourceBundles[0].digest
+            || session.latest_task_decision_command?.command_request_id !== source.data.command_request_id
+            || session.latest_task_decision_command?.pipeline_approval_status !== "approved") {
+            return { kind: "job_source_mismatch" };
+          }
         }
         const current = session.pipeline_site_task_testbed as
           | Record<string, any>
@@ -213,6 +226,7 @@ router.post(
     if (outcome.kind === "not_found") return res.status(404).json({ error: "Capture upload not found" });
     if (outcome.kind === "intake_mismatch") return res.status(409).json({ error: "Capture intake binding does not match" });
     if (outcome.kind === "approved_task_mismatch") return res.status(409).json({ error: "Approved task binding does not match" });
+    if (outcome.kind === "job_source_mismatch") return res.status(409).json({ error: "Approved job source binding does not match" });
     if (outcome.kind === "version_conflict") return res.status(409).json({ error: "Testbed version already has a different digest" });
     if (outcome.kind === "predecessor_mismatch") return res.status(409).json({ error: "Testbed predecessor does not match the current version" });
     if (outcome.kind === "immutable_conflict") return res.status(409).json({ error: "Immutable testbed record conflicts" });

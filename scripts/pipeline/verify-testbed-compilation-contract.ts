@@ -27,39 +27,29 @@ function digest(filePath: string) {
 }
 
 const blockers: string[] = [];
-const localSha256 = digest(localPath);
-const pipelinePath = explicitPipelinePath
-  ? path.resolve(explicitPipelinePath)
-  : defaultPipelinePaths.find((candidate) => fs.existsSync(candidate)) || null;
-const pipelineSha256 = pipelinePath && fs.existsSync(pipelinePath)
-  ? digest(pipelinePath)
-  : null;
-
-if (pipelineSha256 && pipelineSha256 !== localSha256) {
-  blockers.push("WebApp testbed-compilation contract mirror does not exactly match Pipeline");
-} else if (!pipelineSha256 && requirePipeline) {
-  blockers.push("Pipeline testbed-compilation schema is not checked in");
-}
-
-const report = {
+const versions = [2, 3].map(version => {
+  const currentLocalPath = localPath.replace(".v2.", `.v${version}.`);
+  const candidates = defaultPipelinePaths.map(candidate => candidate.replace(".v2.", `.v${version}.`));
+  const pipelinePath = explicitPipelinePath
+    ? path.resolve(explicitPipelinePath.replace(/\.v[23]\./, `.v${version}.`))
+    : candidates.find(candidate => fs.existsSync(candidate)) || null;
+  const localSha256 = digest(currentLocalPath);
+  const pipelineSha256 = pipelinePath && fs.existsSync(pipelinePath) ? digest(pipelinePath) : null;
+  if (pipelineSha256 && pipelineSha256 !== localSha256) blockers.push(`WebApp v${version} compilation schema differs from Pipeline`);
+  else if (!pipelineSha256 && requirePipeline) blockers.push(`Pipeline v${version} compilation schema is absent`);
+  return { version, local_contract_source: currentLocalPath, local_sha256: localSha256,
+    pipeline_contract_source: pipelinePath, pipeline_sha256: pipelineSha256,
+    exact_bytes_match: pipelineSha256 ? pipelineSha256 === localSha256 : null };
+});
+const matched = versions.every(row => row.exact_bytes_match === true);
+console.log(JSON.stringify({
   schema_version: "blueprint.webapp.testbed_compilation_contract_parity.v1",
-  status: blockers.length
-    ? "blocked"
-    : pipelineSha256
-      ? "passed_against_pipeline"
-      : "proposed_dependency_unmerged",
-  local_contract_source: localPath,
-  local_sha256: localSha256,
-  pipeline_contract_source: pipelinePath,
-  pipeline_sha256: pipelineSha256,
-  exact_bytes_match: pipelineSha256 ? pipelineSha256 === localSha256 : null,
-  live_cross_repo_compatibility_proven: Boolean(
-    pipelineSha256 && pipelineSha256 === localSha256,
-  ),
+  status: blockers.length ? "blocked" : matched ? "passed_against_pipeline" : "proposed_dependency_unmerged",
+  ...versions[0], versions,
+  // Schema parity is software verification, not a live service execution.
+  live_cross_repo_compatibility_proven: false,
   pipeline_owns_scientific_compilation_inputs: true,
   webapp_provider_selection_allowed: false,
   blockers,
-};
-
-console.log(JSON.stringify(report, null, 2));
+}, null, 2));
 if (blockers.length) process.exitCode = 1;

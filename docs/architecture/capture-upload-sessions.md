@@ -108,6 +108,26 @@ an exact byte mirror of Pipeline and is verified with
 `npm run pipeline:testbed-compilation-contract:verify -- --require-pipeline`.
 Unknown or caller-owned scientific fields do not cross the service boundary.
 
+For a commercial job needing new source evidence, the existing owner and operator
+job workspace links to `/app/captures?jobId=<requestId>`. The visible Scene ID is
+initialized as `site-<requestId>`. That name only nominates the job: the existing
+task approval action verifies the persisted job account owner or Blueprint ops
+role, current confirmed technical brief, task-item inventory and source rights.
+It snapshots those identities outside the native scientific task and promotes a
+source pointer only if they remain current when Pipeline returns the approval.
+The native capture still belongs to its authenticated uploader; operators do not
+gain access to another uploader's session through a job link.
+
+The same compile button rechecks the approved task and saved source pointer and
+uses the closed `site_task_testbed_compilation_submission.v3` to forward that
+binding. Pipeline loads its own authoritative approval and reconstruction,
+verifies source/command identities, and includes job/brief references in the
+signed testbed publication. WebApp retains the exact producer canonical bytes;
+current job readers also compare the brief and task inventory before reuse.
+A changed brief or inventory needs the existing task approval again; legacy
+unbound captures remain historical sources until a real current binding exists.
+The existing contract verifier checks both v2 and v3 exact schema mirrors.
+
 ## Deployment Requirements
 
 - Existing Backblaze credentials and a private bucket configured through the

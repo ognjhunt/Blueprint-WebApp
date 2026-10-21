@@ -19,6 +19,9 @@ import {
   parseVerifiedMaintainedSiteTaskTestbed,
 } from "../utils/siteTaskTestbedContract";
 import { verifyProducerArtifact } from "../utils/producerCanonicalArtifact";
+import { resolveAccessContext } from "../utils/access-control";
+import { scientificBriefDigest, jobEvidenceTaskInventoryDigest } from "../utils/jobEvidenceContract";
+import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import {
   parseVerifiedTaskEvaluationRunAuthorization,
   parseVerifiedTaskEvaluationRunPreparation,
@@ -45,6 +48,8 @@ import {
   forwardReconstructionPlanToPipeline,
   forwardTestbedCompilationToPipeline,
   inspectReconstructionInPipeline,
+  jobEvidenceSourceBindingSchema,
+  type JobEvidenceSourceBinding,
 } from "../utils/reconstructionForwarding";
 import {
   authorizeBackblazeCapturePart,
@@ -872,7 +877,8 @@ function taskReviewProjection(record: SessionRecord) {
       blockers: [] as string[],
     };
   }
-  const parsed = parseVerifiedTaskDiscovery(record.pipeline_task_discovery);
+  const parsed = parseVerifiedTaskDiscovery(record.pipeline_task_discovery,
+    record.pipeline_task_discovery_canonical_json, record.pipeline_task_candidate_canonical_json);
   if (!parsed.ok) {
     return {
       status: "pipeline_artifact_invalid" as const,
@@ -939,6 +945,8 @@ function publicTaskDecisionCommand(record: Record<string, unknown>) {
     approved_task_definition: record.approved_task_definition || null,
     decision_evidence_request: record.decision_evidence_request || null,
     pipeline_result_proof_boundary: record.pipeline_result_proof_boundary || null,
+    ...(record.pipeline_task_decision_canonical_json ? { pipeline_task_decision_canonical_json: record.pipeline_task_decision_canonical_json } : {}),
+    ...(record.approved_task_definition_canonical_json ? { approved_task_definition_canonical_json: record.approved_task_definition_canonical_json } : {}),
     created_at_iso: record.created_at_iso,
   };
 }
@@ -950,6 +958,55 @@ async function readOwnedSession(sessionId: string, uid: string) {
   const record = snapshot.data() as SessionRecord;
   if (record.owner_user_id !== uid) return { status: 404 as const, record: null };
   return { status: 200 as const, record };
+}
+
+class JobSourceBindingError extends Error {
+  constructor(message: string, readonly status = 409) { super(message); }
+}
+
+/** A visible scene name nominates a job; stored account/ops authority establishes the link. */
+function sourceJobId(record: SessionRecord): string | null {
+  const bundle = record.site_capture_bundle as Record<string, unknown> | undefined;
+  if (bundle?.schema_version === "site_capture_bundle_session.v1"
+    && bundle.capture_id === record.session_id
+    && bundle.scene_id === `site-${bundle.request_id}`) return String(bundle.request_id);
+  const match = /^site-([A-Za-z0-9][A-Za-z0-9._-]{0,119})$/.exec(record.request.scene_id);
+  return match?.[1] ?? null;
+}
+
+async function currentJobSourceScope(params: {
+  record: SessionRecord; uid: string; isOps: boolean; captureDigest: string; commandId: string;
+  read: (reference: any) => Promise<any>;
+}) {
+  const jobId = sourceJobId(params.record);
+  if (!jobId || !db) return null;
+  const jobRef = db.collection("inboundRequests").doc(jobId);
+  const [jobSnapshot, briefSnapshot, inventorySnapshot] = await Promise.all([
+    params.read(jobRef), params.read(db.collection("siteTaskBriefs").doc(jobId)),
+    params.read(db.collection("siteTaskItemInventories").doc(jobId)),
+  ]);
+  const job = jobSnapshot.data();
+  // Generic captures whose scene name happens to start with site- stay generic.
+  if (!jobSnapshot.exists || job?.request?.buyerType !== "site_operator") return null;
+  if (job.account_owner_uid !== params.uid && !params.isOps) {
+    throw new JobSourceBindingError("Only this job's verified owner or a Blueprint operator can associate the capture.", 403);
+  }
+  const brief = briefSnapshot.data();
+  if (!briefSnapshot.exists || brief?.requestId !== jobId || !brief.confirmedAtIso
+    || !Number.isFinite(Date.parse(brief.confirmedAtIso))) {
+    throw new JobSourceBindingError("Agree the current job brief before approving its technical task.");
+  }
+  if (!projectWebsiteCaptureRights(job).derived_scene_generation_allowed
+    || params.record.capture_access?.future_processing_allowed === false || params.record.completed_capture_lifecycle) {
+    throw new JobSourceBindingError("Current source-processing permission is required for this job's technical evidence.", 410);
+  }
+  return { jobRef, sourcePointer: job.job_evidence_source,
+    actorRole: job.account_owner_uid === params.uid ? "customer" as const : "operator" as const,
+    scope: { schema_version: "job_evidence_source_binding.v1" as const, job_id: jobId,
+      brief_digest: scientificBriefDigest(brief), capture_session_id: params.record.session_id,
+      task_inventory_digest: jobEvidenceTaskInventoryDigest(brief, inventorySnapshot.exists ? inventorySnapshot.data() : null),
+      intake_id: params.record.request.intake_id, source_capture_digest: params.captureDigest,
+      command_request_id: params.commandId } };
 }
 
 router.post("/", async (req, res) => {
@@ -1167,6 +1224,37 @@ router.post("/:sessionId/testbed/compile", async (req, res) => {
   ) {
     return res.status(409).json({ error: "Pipeline-approved task intent is required" });
   }
+  let jobContext: JobEvidenceSourceBinding | undefined;
+  if (record.job_evidence_source_binding) {
+    const access = await resolveAccessContext(res);
+    try {
+      jobContext = await db.runTransaction(async transaction => {
+        const source = (await transaction.get(db!.collection("captureUploadSessions").doc(record.session_id))).data() as SessionRecord | undefined;
+        if (!source || source.owner_user_id !== user.uid) throw new JobSourceBindingError("Capture source ownership changed.", 403);
+        const binding = jobEvidenceSourceBindingSchema.parse(source.job_evidence_source_binding);
+        const approval = source.approved_task_definition as Record<string, any> | undefined;
+        const current = await currentJobSourceScope({ record: source, uid: user.uid, isOps: access.isOps,
+          captureDigest: String(approval?.source_capture?.capture_digest || ""),
+          commandId: binding.command_request_id, read: reference => transaction.get(reference) });
+        const commandSnapshot = await transaction.get(db!.collection("captureTaskDecisionCommands").doc(binding.command_request_id));
+        const commandRecord = commandSnapshot.data();
+        const expected = current ? { ...current.scope, approved_task_digest: approval?.approved_task_digest } : null;
+        if (!expected || stableJson(expected) !== stableJson(binding)
+          || stableJson(current!.sourcePointer) !== stableJson(binding)
+          || binding.approved_task_digest !== approved.approved_task_digest
+          || commandRecord?.pipeline_approval_status !== "approved"
+          || commandRecord?.approved_task_definition?.approved_task_digest !== binding.approved_task_digest) {
+          throw new JobSourceBindingError("The job brief, approved task or source changed. Refresh the current job before compiling its evidence.");
+        }
+        return binding;
+      });
+    } catch (error) {
+      return res.status(error instanceof JobSourceBindingError ? error.status : 409).json({
+        error: error instanceof JobSourceBindingError ? error.message : "The saved job source binding is invalid.",
+        code: "job_source_scope_changed",
+      });
+    }
+  }
   if (
     !planResult?.plan_id
     || !plan
@@ -1270,6 +1358,7 @@ router.post("/:sessionId/testbed/compile", async (req, res) => {
     reconstructionExecutionResultDigest: execution.execution_result_digest,
     robotBinding: robot,
     decisionRequestConstraints,
+    ...(jobContext ? { jobContext } : {}),
   });
   const syncStatus = String(forwarded.value?.webapp_sync?.status || "");
   if (forwarded.status !== "forwarded" || !forwarded.value || syncStatus !== "succeeded") {
@@ -1708,6 +1797,7 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
     });
   }
   const command = parsed.data;
+  const scopeAccess = sourceJobId(result.record) ? await resolveAccessContext(res) : { isOps: false };
   if (command.discovery_digest !== review.discovery.discovery_digest) {
     return res.status(409).json({ error: "Task discovery digest is stale" });
   }
@@ -1822,16 +1912,25 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
       ) {
         return { kind: "pending_conflict" };
       }
-      const receipt = publicTaskDecisionCommand(pending);
-      transaction.create(commandRef, pending);
+      const jobScope = ["approve", "edit_and_approve"].includes(command.action)
+        ? await currentJobSourceScope({ record: liveSession, uid: user.uid, isOps: scopeAccess.isOps,
+          captureDigest: liveReview.discovery.source_capture.capture_digest, commandId: commandRequestId,
+          read: reference => transaction.get(reference) }) : null;
+      const savedPending = { ...pending,
+        ...(jobScope ? { actor: { role: jobScope.actorRole, identity: `firebase:${user.uid}` },
+          job_evidence_scope: jobScope.scope } : {}),
+      };
+      const receipt = publicTaskDecisionCommand(savedPending);
+      transaction.create(commandRef, savedPending);
       transaction.set(
         sessionRef,
         { latest_task_decision_command: receipt, updated_at_iso: now },
         { merge: true },
       );
-      return { kind: "created", receipt, record: pending };
+      return { kind: "created", receipt, record: savedPending };
     });
   } catch (error) {
+    if (error instanceof JobSourceBindingError) return res.status(error.status).json({ error: error.message, code: "job_source_scope_invalid" });
     const failure = error instanceof Error
       ? { name: error.name, message: error.message }
       : { name: "UnknownError", message: "non-Error transaction failure" };
@@ -1857,20 +1956,22 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
   }
   let receipt = outcome.receipt;
   let pipelineResolutionPersistenceFailed = false;
+  let jobSourceScopeChanged = false;
+  const { job_evidence_scope: _jobScope, ...pipelineCommand } = outcome.record;
   const pipelineForward = receipt.pipeline_approval_status === "pending_pipeline_validation"
     ? await forwardTaskCandidateDecisionToPipeline({
         captureSessionId: result.record.session_id,
         intakeId: result.record.request.intake_id,
         discoveryId: review.discovery.discovery_id,
         sourceCaptureDigest: review.discovery.source_capture.capture_digest,
-        command: outcome.record,
+        command: pipelineCommand,
       })
     : null;
   if (pipelineForward?.pipeline_result) {
     const pipelineResult = pipelineForward.pipeline_result;
     const { pipeline_result: _pipelineResult, ...forwardAudit } = pipelineForward;
     type ResolutionOutcome =
-      | { kind: "resolved"; receipt: ReturnType<typeof publicTaskDecisionCommand> }
+      | { kind: "resolved"; receipt: ReturnType<typeof publicTaskDecisionCommand>; sourceScopeChanged: boolean }
       | { kind: "stale" };
     try {
       const resolution = await db!.runTransaction<ResolutionOutcome>(async (transaction) => {
@@ -1895,9 +1996,30 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
           pipeline_result_proof_boundary: pipelineResult.proof_boundary,
           pipeline_processed_at_iso: pipelineResult.processed_at_iso,
           pipeline_forward: forwardAudit,
+          pipeline_task_decision_canonical_json: pipelineResult.pipeline_task_decision_canonical_json ?? null,
+          approved_task_definition_canonical_json: pipelineResult.approved_task_definition_canonical_json ?? null,
         };
+        const originalScope = liveCommand.job_evidence_scope;
+        let jobSource: { binding: JobEvidenceSourceBinding; jobRef: FirebaseFirestore.DocumentReference } | null = null;
+        let sourceScopeChanged = false;
+        if (originalScope && pipelineResult.pipeline_approval_status === "approved" && pipelineResult.approved_task_definition) {
+          try {
+            const liveReview = taskReviewProjection(liveSession);
+            const current = liveReview.discovery ? await currentJobSourceScope({ record: liveSession, uid: user.uid,
+              isOps: scopeAccess.isOps, captureDigest: liveReview.discovery.source_capture.capture_digest,
+              commandId: commandRequestId, read: reference => transaction.get(reference) }) : null;
+            if (current && stableJson(current.scope) === stableJson(originalScope)) {
+              jobSource = { jobRef: current.jobRef, binding: jobEvidenceSourceBindingSchema.parse({ ...current.scope,
+                approved_task_digest: pipelineResult.approved_task_definition.approved_task_digest }) };
+            } else sourceScopeChanged = true;
+          } catch (error) {
+            if (!(error instanceof JobSourceBindingError)) throw error;
+            sourceScopeChanged = true;
+          }
+        }
         const resolvedReceipt = publicTaskDecisionCommand(resolvedRecord);
         transaction.set(commandRef, resolvedRecord, { merge: false });
+        if (jobSource) transaction.set(jobSource.jobRef, { job_evidence_source: jobSource.binding }, { merge: true });
         transaction.set(
           sessionRef,
           {
@@ -1905,14 +2027,17 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
             pipeline_task_decision: pipelineResult.pipeline_task_decision,
             approved_task_definition: pipelineResult.approved_task_definition,
             decision_evidence_request: pipelineResult.decision_evidence_request,
+            pipeline_task_decision_canonical_json: pipelineResult.pipeline_task_decision_canonical_json ?? null,
+            approved_task_definition_canonical_json: pipelineResult.approved_task_definition_canonical_json ?? null,
             task_decision_proof_boundary: pipelineResult.proof_boundary,
+            job_evidence_source_binding: jobSource?.binding ?? null,
             updated_at_iso: new Date().toISOString(),
           },
           { merge: true },
         );
-        return { kind: "resolved", receipt: resolvedReceipt };
+        return { kind: "resolved", receipt: resolvedReceipt, sourceScopeChanged };
       });
-      if (resolution.kind === "resolved") receipt = resolution.receipt;
+      if (resolution.kind === "resolved") { receipt = resolution.receipt; jobSourceScopeChanged = resolution.sourceScopeChanged; }
     } catch (error) {
       pipelineResolutionPersistenceFailed = true;
       const failure = error instanceof Error
@@ -1925,6 +2050,10 @@ router.post("/:sessionId/task-decisions", async (req, res) => {
     }
   }
   res.set("Cache-Control", "no-store");
+  if (jobSourceScopeChanged) return res.status(409).json({
+    error: "The job scope or source permission changed while the task was approved. The native approval is retained; refresh the current job before preparing its evidence.",
+    code: "job_source_scope_changed", pipeline_approval_status: receipt.pipeline_approval_status,
+  });
   const pipelineResolved = receipt.pipeline_approval_status !== "pending_pipeline_validation";
   return res.status(pipelineResolved || outcome.kind === "replayed" ? 200 : 202).json({
     ...receipt,
