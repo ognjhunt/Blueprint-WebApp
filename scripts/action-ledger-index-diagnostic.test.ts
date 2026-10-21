@@ -1,4 +1,17 @@
 // @vitest-environment node
+
+// These frozen operator commands retain their original reviewed authority.
+// Supply that exact historical input only in this test; the live manifest may evolve.
+vi.mock('node:fs', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return { ...actual, readFileSync: (...args: Parameters<typeof actual.readFileSync>) => {
+    const requested = String(args[0]);
+    if (requested === 'firestore.indexes.json' || requested === `${process.cwd()}/firestore.indexes.json`) {
+      return actual.readFileSync(new URL('./fixtures/action-ledger-index-reviewed-firestore.indexes.json', import.meta.url), args[1]);
+    }
+    return actual.readFileSync(...args);
+  } };
+});
 import { describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';

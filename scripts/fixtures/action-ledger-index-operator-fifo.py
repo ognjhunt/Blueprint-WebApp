@@ -16,6 +16,10 @@ try:
     operator = root / "operator.mjs"
     operator.write_bytes((repo / "scripts/action-ledger-index-operator.mjs").read_bytes())
     operator.chmod(0o600)
+    # The frozen command must see its historical reviewed manifest, not today's evolving indexes.
+    (root / "firestore.indexes.json").write_bytes(
+        (repo / "scripts/fixtures/action-ledger-index-reviewed-firestore.indexes.json").read_bytes()
+    )
     fifo = root / "receipts.jsonl"
     os.mkfifo(fifo, 0o600)
     started = time.monotonic()
@@ -24,7 +28,7 @@ try:
            "RENDER_GIT_COMMIT": "efd2e685819328c4c3060cec7d105142612adf63",
            "FIREBASE_SERVICE_ACCOUNT_JSON": "{}"}
     result = subprocess.run(["node", str(source), str(operator), "archive-operator", str(fifo), "0" * 64],
-                            cwd=repo, env=env, capture_output=True, text=True, timeout=1.5)
+                            cwd=root, env=env, capture_output=True, text=True, timeout=1.5)
     rows = [json.loads(line) for line in (result.stdout + result.stderr).splitlines()]
     assert result.returncode == 2, result.returncode
     assert rows == [{"ok": False, "code": "archive_source_file_invalid"}], rows
