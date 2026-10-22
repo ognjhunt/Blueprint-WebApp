@@ -61,7 +61,7 @@ proposal and its budgets are unchanged and not required.
   "approval_reference": "...", "approved_by": "..." }
 ```
 
-`maximum_cost_usd` is above 0 and at most 5, `maximum_requests` 1 to 32 and
+`maximum_cost_usd` is above 0 and at most 100, `maximum_requests` 1 to 32 and
 `validity_seconds` 3600 to 1209600. Unset or invalid, no automatic grant is
 created or honoured, every existing behaviour is unchanged, and nothing else
 reads it. Unsetting it is the kill switch for every automatic grant.
@@ -82,6 +82,16 @@ It names `accepted_by` = `account_owner_uid` and carries no task context
 digest, so a task edit does not change it. Terms changes, expiry
 (`website_atlas_consent_expired`) and withdrawn consent (`source_revoked`)
 refuse exactly as for env rows. Reservations never create a grant.
+
+The preview's own auxiliary calls, Meta SAM segmentation and Google independent
+review (`atlas_auxiliary: true`), are covered by the same upload consent (owner
+direction 2026-10-22). When the grant is made, `auxiliary.meta` and
+`auxiliary.google` pin each provider's terms digest if it is configured then.
+Those reservations need no native sponsorship. They share the grant's cap and
+expiry, and refuse `provider_terms_not_configured_or_changed` once the
+configured terms differ from the pinned ones. A grant made without them, and
+every explicit env row, keeps the native sponsorship's disclosure check for
+those providers, as before. Meta work outside an Atlas preview is unchanged.
 
 The Pipeline pushes each capture's preview status to the signed route
 `POST /api/internal/pipeline/creator-captures/:captureId/atlas-preview`

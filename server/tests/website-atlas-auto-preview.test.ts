@@ -135,6 +135,9 @@ describe("automatic consented Atlas grant", () => {
       policy_digest: crossRuntimeDigest(policy), provider_terms_reference: sha("a"),
       planner: { provider: "openai", provider_terms_reference: sha("d"), private_processing_authorized: true,
         provider_training_authorized: false, approval_reference: policy.approval_reference },
+      // Only providers whose terms are configured now; Google's are not in this fixture.
+      auxiliary: { meta: { provider_terms_reference: sha("e"), private_processing_authorized: true,
+        provider_training_authorized: false, approval_reference: policy.approval_reference } },
       accepted_by: "site-owner-uid", approval_reference: policy.approval_reference,
       grant_basis: "automatic_consented_preview", private_processing_authorized: true, provider_training_authorized: false,
       provider_retention: "account_does_not_retain", maximum_cost_usd: 2, maximum_requests: 4,
@@ -430,14 +433,18 @@ it("charges source-bound SAM/review auxiliaries to Atlas while retaining their o
     upstream_max_spend_usd: 50, native_max_spend_usd: 50, max_total_spend_usd: 100,
     max_paid_attempts: 32, ttl_seconds: 3600, provider_terms_reference: sha("e") };
   vi.stubEnv("BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON", JSON.stringify(nativePolicy));
-  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify({ ...terms,
-    google: { digest: sha("e"), label: "Accepted auxiliary terms", url: "https://example.com/terms" } }));
   upload();
   store.rows.get("siteTaskBriefs/req1").confirmedAtIso = new Date().toISOString();
   store.rows.get(REQUEST).site_task_triage = { disposition: "qualified" };
   store.rows.get(REQUEST).website_scene_sponsorship = websiteSceneSponsorship({ requestId: "req1",
     record: store.rows.get(REQUEST), brief: store.rows.get("siteTaskBriefs/req1"), now: Date.now() / 1000 });
-  await configure();
+  // A grant made before the auxiliary terms were configured carries no consent of its
+  // own for them, so the native sponsorship's disclosure check still decides.
+  const { meta: _meta, ...withoutAuxiliary } = terms;
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify(withoutAuxiliary));
+  expect((await configure()).authority).not.toHaveProperty("auxiliary");
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify({ ...terms,
+    google: { digest: sha("e"), label: "Accepted auxiliary terms", url: "https://example.com/terms" } }));
   await reserveWebsitePreparationSpend("req1", atlasSpend());
   const auxiliary = await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2"),
     provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: .4, atlas_auxiliary: true }));
@@ -454,4 +461,43 @@ it("charges source-bound SAM/review auxiliaries to Atlas while retaining their o
   authority.authority_digest = crossRuntimeDigest(payload);
   await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("4"),
     provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: .01, atlas_auxiliary: true }))).rejects.toThrow("consent_expired");
+});
+
+it("gives an automatic preview its own SAM and review consent, pinned to their terms", async () => {
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+  const google = { digest: sha("f"), label: "Google terms", url: "https://example.com/google-terms" };
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify({ ...terms, google }));
+  upload();
+  const { authority } = await configure();
+  const consent = (reference: string) => ({ provider_terms_reference: reference, private_processing_authorized: true,
+    provider_training_authorized: false, approval_reference: policy.approval_reference });
+  expect(authority.auxiliary).toEqual({ meta: consent(sha("e")), google: consent(sha("f")) });
+  // No native sponsorship and no preparation assessment: the upload's own grant admits
+  // both, charged to the Atlas cap and expiring with it.
+  const sam = await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2"),
+    provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: .4, atlas_auxiliary: true }));
+  expect(sam).toMatchObject({ status: "admitted", provider: "meta", provider_terms_reference: sha("e"),
+    provider_retention: "accepted_auxiliary_provider_terms", provider_training_authorized: false,
+    atlas_authorization_digest: authority.authorization_digest, auxiliary_consent_digest: authority.authorization_digest,
+    expires_at_epoch: authority.expires_at_epoch });
+  const review = await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("3"),
+    provider: "google", resource_class: "evaluator_api", maximum_cost_usd: .2, atlas_auxiliary: true }));
+  expect(review).toMatchObject({ status: "admitted", provider: "google", provider_terms_reference: sha("f") });
+  expect(await configure()).toMatchObject({ remaining_cost_usd: expect.closeTo(1.4), remaining_requests: 2 });
+  expect(store.rows.get(REQUEST).website_scene_sponsorship).toBeUndefined();
+  // Changed terms refuse: the grant pinned the ones in force when it was made.
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify({ ...terms, google: { ...google, digest: sha("7") } }));
+  await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("4"),
+    provider: "google", resource_class: "evaluator_api", maximum_cost_usd: .1, atlas_auxiliary: true })))
+    .rejects.toThrow("provider_terms_not_configured_or_changed");
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify({ ...terms, google }));
+  // Only Atlas preview work reaches this consent; ordinary Meta work keeps its own path.
+  await expect(reserveWebsitePreparationSpend("req1", { task_context_digest: contextDigest(),
+    allocation_binding_digest: sha("4"), resource_class: "evaluator_api", provider: "meta",
+    maximum_cost_usd: .05, request_count: 1 })).rejects.toThrow("website_assessment_preparation_pending");
+  // Withdrawn consent stops them like every other preview call.
+  store.rows.get(REQUEST).consent_revoked = true;
+  await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("4"),
+    provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: .1, atlas_auxiliary: true })))
+    .rejects.toThrow("source_revoked");
 });
