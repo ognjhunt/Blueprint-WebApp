@@ -433,12 +433,15 @@ export const preparationSpendRequest = z.object({
   resource_class: z.enum(["evaluator_api", "openai_api_candidate", "provider_reconstruction_api", "gpu_render"]),
   provider: z.enum(["meta", "google", "openai", "world_labs", "world_labs_atlas", "vast"]),
   source_video_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/).optional(),
+  atlas_auxiliary: z.literal(true).optional(),
   maximum_cost_usd: money, request_count: z.number().int().min(1).max(32),
 }).strict().refine(value => (["meta", "google"].includes(value.provider) && value.resource_class === "evaluator_api")
   || (value.provider === "openai" && value.resource_class === "openai_api_candidate")
   || (["world_labs", "world_labs_atlas"].includes(value.provider) && value.resource_class === "provider_reconstruction_api")
   || (value.provider === "vast" && value.resource_class === "gpu_render"),
-  "website_preparation_provider_resource_mismatch");
+  "website_preparation_provider_resource_mismatch").refine(value => !value.atlas_auxiliary ||
+    (["meta", "google"].includes(value.provider) && Boolean(value.source_video_digest)),
+    "website_atlas_auxiliary_binding_invalid");
 
 const completedPreparationSettlement = z.object({
   task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
@@ -683,7 +686,8 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
   if (!db) throw new Error("website_capture_rights_store_unavailable");
   const store = db;
   const captureBinding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
-  const atlasRequested = command.provider === "world_labs_atlas" || ["openai", "meta", "google"].includes(command.provider) && Boolean(command.source_video_digest);
+  const atlasRequested = command.provider === "world_labs_atlas" || command.provider === "openai" && Boolean(command.source_video_digest)
+    || command.atlas_auxiliary === true;
   // An automatic Atlas grant is a side lane: it needs neither the native/Marble
   // sponsorship nor that lane's assessment proposal. Without the grant policy, or
   // when an explicit env row applies, this is exactly the existing path.

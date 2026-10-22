@@ -440,12 +440,12 @@ it("charges source-bound SAM/review auxiliaries to Atlas while retaining their o
   await configure();
   await reserveWebsitePreparationSpend("req1", atlasSpend());
   const auxiliary = await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2"),
-    provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: .4 }));
+    provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: .4, atlas_auxiliary: true }));
   expect(auxiliary).toMatchObject({ status: "admitted", provider: "meta", provider_terms_reference: sha("e"),
     provider_training_authorized: false, atlas_authorization_digest: expect.stringMatching(/^sha256:/) });
   expect((await configure()).remaining_cost_usd).toBeCloseTo(.1);
   await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("3"),
-    provider: "google", resource_class: "evaluator_api", maximum_cost_usd: .2 })))
+    provider: "google", resource_class: "evaluator_api", maximum_cost_usd: .2, atlas_auxiliary: true })))
     .rejects.toThrow("website_scene_preparation_budget_exhausted");
   // Atlas's still-valid grant cannot renew the auxiliary provider's expired consent.
   store.rows.get(REQUEST).website_scene_sponsorship.expires_at_epoch = 1;
@@ -453,5 +453,5 @@ it("charges source-bound SAM/review auxiliaries to Atlas while retaining their o
   const { authority_digest: _old, ...payload } = authority;
   authority.authority_digest = crossRuntimeDigest(payload);
   await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("4"),
-    provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: .01 }))).rejects.toThrow("consent_expired");
+    provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: .01, atlas_auxiliary: true }))).rejects.toThrow("consent_expired");
 });
