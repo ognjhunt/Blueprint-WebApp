@@ -189,6 +189,42 @@ describe("a waiting job hears what it is waiting on", () => {
     expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
   });
 
+  it("tells the site once its scene is ready and its first test started, only while true", async () => {
+    const { notifyIfSceneTestsStarted, reconcileSceneTestsStartedNotices, notifySceneTestsStartedForLaunch } =
+      await import("../utils/taskLifecycleNotifications");
+    const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
+    const taskId = `website-${"0".repeat(20)}`;
+    sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-1", { website_request_id: "req-1",
+      source_session_id: "walkthrough-req-1", created_at_iso: "2026-10-22T00:00:00Z", state: "completed",
+      pipeline_status: { status: "completed", phase: "scene_prepared" },
+      request: { task: { task_id: taskId }, owner: { organization_id: "team-a" } } });
+    sharedFakeFirestoreState.docs.set("taskEvaluationLaunches/launch-a", { configured_scene_offering: {
+      task: { identity: { id: taskId } }, team_namespace: "team-a" } });
+    // The room is built, but no test has started: nothing is said yet.
+    expect((await notifyIfSceneTestsStarted("req-1")).enqueued).toBe(false);
+    await reconcileSceneTestsStartedNotices();
+    expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:scene_tests_started")).toBe(false);
+    const ready = { kind: "scene_tests_started" as const, requestId: "req-1" };
+    expect(await taskLifecycleNotificationIsCurrent(ready)).toBe(false);
+    sharedFakeFirestoreState.docs.set("taskEvaluationPolicyRuns/run-a", { source_launch_id: "launch-a",
+      state: "queued_in_pipeline", launch_forward: { status: "forwarded" } });
+    expect(await taskLifecycleNotificationIsCurrent(ready)).toBe(true);
+    await notifySceneTestsStartedForLaunch("launch-a");
+    const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:scene_tests_started") as Record<string, string>;
+    expect(row.subject).toBe("Your Blueprint scene is ready");
+    expect(row.body).toMatch(/with your task's objects in place\. We are running our first tests on it now\. Nothing is needed from you for these tests/);
+    expect(row.body).not.toMatch(/pass|recommend|robot team/i);
+    expect((await notifyIfSceneTestsStarted("req-1")).enqueued).toBe(false);
+    // The reconciler repairs a lost enqueue, once.
+    sharedFakeFirestoreState.docs.delete("captureOutbox/req-1:scene_tests_started");
+    await reconcileSceneTestsStartedNotices();
+    expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:scene_tests_started")).toBe(true);
+    // A test that ended unrun is no longer a started test at dispatch.
+    sharedFakeFirestoreState.docs.set("taskEvaluationPolicyRuns/run-a", { source_launch_id: "launch-a", state: "failed",
+      launch_forward: { status: "forwarded" } });
+    expect(await taskLifecycleNotificationIsCurrent(ready)).toBe(false);
+  });
+
   it("is not sent once it has become false between enqueue and dispatch", async () => {
     const { taskLifecycleNotificationIsCurrent } = await import("../utils/taskLifecycleNotificationAuthority");
     jobAccess.evaluationAvailable = true;

@@ -5,6 +5,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import type { Response } from "express";
 import { resolveExecutionAccessContext } from "./access-control";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
+import { logger } from "../logger";
 import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
   validateWebsiteSponsoredProviderTerms, currentWebsiteSceneContext } from "./websiteSceneSponsorship";
 import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent } from "./siteAssessmentPreparation";
@@ -930,6 +931,16 @@ export async function processSceneIntakeQueue(limit = 10) {
             });
         }),
       );
+      // A status poll can be when the site's first test on its scene started.
+      // The outbox tick repairs a missed enqueue; this only makes it prompt.
+      if (record.website_request_id && patch.pipeline_status) {
+        try {
+          const { notifyIfSceneTestsStarted } = await import("./taskLifecycleNotifications");
+          await notifyIfSceneTestsStarted(record.website_request_id);
+        } catch (error) {
+          logger.warn({ error, requestId: record.website_request_id }, "Could not queue the scene-tests notice");
+        }
+      }
     }
   }
 }

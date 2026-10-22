@@ -172,10 +172,13 @@ export interface TaskPreparationStatus {
 /**
  * Where the job's simulation scene stands after the capture was handed off.
  * `ended` is a block the scene cannot leave on its own; `waiting` is a block
- * on our side that may clear. Coarse by design: no Pipeline detail reaches a site.
+ * on our side that may clear; `completed` is a built scene not yet tested;
+ * `testing` is a finished scene, task objects in, whose first internal test
+ * has started: the point the site is told it is ready (owner decision
+ * 2026-10-22). Coarse by design: no Pipeline detail reaches a site.
  */
 export interface TaskSceneProgression {
-  state: "in_progress" | "waiting" | "ended" | "completed";
+  state: "in_progress" | "waiting" | "ended" | "completed" | "testing";
 }
 
 /** One sentence per reason the Pipeline can give; an unknown reason adds nothing. */
@@ -524,11 +527,12 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       operatorAction: null,
     };
   }
-  if (input.scenePreviewReady && input.listed === false) {
+  const sceneTesting = input.sceneProgression?.state === "testing";
+  if ((input.scenePreviewReady || sceneTesting) && input.listed === false) {
     return {
       ...base,
       decision: "not_listed",
-      headline: "Your scene preview is ready. Your job card is not published, so robot teams cannot see or evaluate this job, and it cannot lead to a recommended pilot.",
+      headline: `${sceneTesting ? "Your scene is ready, and we are running our first tests on it." : "Your scene preview is ready."} Your job card is not published, so robot teams cannot see or evaluate this job, and it cannot lead to a recommended pilot.`,
       operatorAction: "To open it to robot teams approved for the beta, publish its job card from your job page.",
     };
   }
@@ -543,11 +547,31 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
+  // Ready only once the task objects are in and our first test has started.
+  if (sceneTesting) {
+    return {
+      ...base,
+      decision: "assessing",
+      headline: "Your scene is ready, and we are running our first tests on it. Nothing is needed from you.",
+      operatorAction: null,
+    };
+  }
+
   if (input.scenePreviewReady) {
     return {
       ...base,
       decision: "assessing",
       headline: "Your scene preview is ready. We are preparing the job for simulation.",
+      operatorAction: null,
+    };
+  }
+
+  // Built but not yet tested: still ours to finish, and not yet "ready".
+  if (input.sceneProgression?.state === "completed") {
+    return {
+      ...base,
+      decision: "assessing",
+      headline: "We are preparing your job for simulation. Nothing is needed from you.",
       operatorAction: null,
     };
   }
