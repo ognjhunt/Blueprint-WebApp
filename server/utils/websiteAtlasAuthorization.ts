@@ -16,11 +16,17 @@ const authorization = z.object({
   maximum_requests: z.number().int().min(1).max(32),
   expires_at_epoch: z.number().finite().positive(),
   claim_scope: z.literal("development_only"),
+  planner: z.object({
+    provider: z.literal("openai"), provider_terms_reference: sha,
+    private_processing_authorized: z.literal(true), provider_training_authorized: z.literal(false),
+    approval_reference: z.string().min(1),
+  }).strict().optional(),
 }).strict();
 
 export function websiteAtlasAuthorization(input: {
   requestId: string; captureId: string; taskContextDigest: string;
   sourceVideoDigest?: string; termsDigest?: string; now: number;
+  plannerTermsDigest?: string; planning?: boolean;
 }) {
   let values: z.infer<typeof authorization>[];
   try {
@@ -33,5 +39,30 @@ export function websiteAtlasAuthorization(input: {
   if (value.expires_at_epoch <= input.now) throw new Error("website_atlas_consent_expired");
   if (!input.termsDigest || input.termsDigest !== value.provider_terms_reference)
     throw new Error("provider_terms_not_configured_or_changed");
+  if (input.planning && (!value.planner || !input.plannerTermsDigest
+    || value.planner.provider_terms_reference !== input.plannerTermsDigest))
+    throw new Error("website_atlas_planner_consent_required");
   return { ...value, authorization_digest: digest(value) };
+}
+
+const runtimePolicy = z.object({
+  schema_version: z.literal("website_atlas_runtime_policy.v1"),
+  model: z.string().min(1), maximum_review_cost_usd: z.number().finite().positive().max(5),
+  pose_input_cost_usd: z.number().finite().positive(), rgbd_view_cost_usd: z.number().finite().positive(),
+  rate_card_reference: z.string().url().startsWith("https://"), reviewed_by: z.string().min(1),
+  reviewed_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+}).strict();
+
+export function websiteAtlasRuntimePolicy() {
+  try { return runtimePolicy.parse(JSON.parse(process.env.BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON || "null")); }
+  catch { throw new Error("website_atlas_runtime_policy_required"); }
+}
+
+export function atlasAllowanceUsage(reservations: Record<string, any>) {
+  // Old Atlas rows remain held after adding planner consent to the same grant.
+  const rows = Object.values(reservations).filter(row => row.admission.provider === "world_labs_atlas"
+    || Boolean(row.admission.atlas_authorization_digest));
+  return { cost: rows.reduce((sum, row) => sum + Math.ceil((row.settlement?.actual_cost_usd
+    ?? row.admission.maximum_cost_usd) * 1_000_000), 0) / 1_000_000,
+    requests: rows.reduce((sum, row) => sum + row.admission.request_count, 0) };
 }

@@ -3,7 +3,7 @@ import express from "express";
 import { createServer, type Server } from "node:http";
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, amendWebsitePreparationSpendLimit, settleWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
+import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, amendWebsitePreparationSpendLimit, settleWebsitePreparationSpend, loadWebsiteAtlasConfiguration } from "../utils/websiteSceneSponsorship";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
@@ -1425,6 +1425,20 @@ it("requires source-bound Atlas consent and preserves separate budgets across re
     // The successful Atlas-only route did not extend the old grant.
     expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(expired);
     expect(await reserveWebsitePreparationSpend("req1", spend)).toMatchObject({ status: "already_reserved" });
+    const authorizations = JSON.parse(process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON!);
+    authorizations[0].planner = { provider: "openai", provider_terms_reference: sha("e"), private_processing_authorized: true,
+      provider_training_authorized: false, approval_reference: "owner requests automatic production planning" };
+    process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON = JSON.stringify(authorizations);
+    process.env.BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON = JSON.stringify({ schema_version: "website_atlas_runtime_policy.v1",
+      model: "gpt-6.1-sol", maximum_review_cost_usd: .5, pose_input_cost_usd: .01, rgbd_view_cost_usd: .05,
+      rate_card_reference: "https://atlas-beta.worldlabs.ai/docs/billing", reviewed_by: "operator", reviewed_on: "2026-10-21" });
+    const configuration = await loadWebsiteAtlasConfiguration("req1", "walkthrough-req1", {
+      task_context_digest: grant.task_context_digest, source_video_digest: sha("a") });
+    expect(configuration).toMatchObject({ remaining_cost_usd: 2, remaining_requests: 1, dispatch_authorized: false });
+    await reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("7"),
+      provider: "openai", resource_class: "openai_api_candidate", maximum_cost_usd: .5 });
+    expect((await loadWebsiteAtlasConfiguration("req1", "walkthrough-req1", {
+      task_context_digest: grant.task_context_digest, source_video_digest: sha("a") })).remaining_cost_usd).toBe(1.5);
     await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("2") }))
       .rejects.toThrow("budget_exhausted");
     store.rows.get("inboundRequests/req1").website_scene_sponsorship = original;
@@ -1432,7 +1446,8 @@ it("requires source-bound Atlas consent and preserves separate budgets across re
       provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: 5 });
     await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("4"),
       source_video_digest: sha("c"), maximum_cost_usd: 1 })).rejects.toThrow("source_consent_required");
-  } finally { delete process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON; }
+  } finally { delete process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON;
+    delete process.env.BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON; }
 });
 
 it("reserves hosted SAM from the Blueprint cap once and rejects overspend, changed requests and revoked consent", async () => {
