@@ -146,7 +146,7 @@ describe("Site-led homepage", () => {
   it("keeps the closing action short and links to pricing and privacy details", () => {
     render(<Home />);
     const closing = screen.getByRole("region", { name: "What work would you like automated?" });
-    expect(closing).toHaveTextContent("We reply within two business days.");
+    expect(closing).toHaveTextContent("We usually reply within an hour.");
     expect(closing).toHaveTextContent("You choose whether to proceed");
     expect(within(closing).getByRole("link", { name: "Costs and responsibilities" })).toHaveAttribute("href", "/beta");
     expect(within(closing).getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
