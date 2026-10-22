@@ -884,7 +884,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
               <p className="ms-field-hint" style={{ marginTop: "12px" }}>
                 Move slowly and overlap your passes. Cover every surface near where the work
-                happens, from a few heights. Keep the scene still, with nobody in frame. {FILMING_NOTICE}
+                happens, from a few heights. Ideally the scene is still, with nobody in frame; if work is going on, film anyway. {FILMING_NOTICE}
               </p>
             </>
           )}
