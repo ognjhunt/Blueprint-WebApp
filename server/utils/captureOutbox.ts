@@ -37,6 +37,8 @@ export type OutboxKind =
   | "task_received"
   | "video_received"
   | "scene_ready"
+  /** The job's scene is ready, task objects in, and its first internal test started (owner decision 2026-10-22). */
+  | "scene_tests_started"
   | "preparation_needs_attention"
   /** Website scene preparation ended for good (website_preparation_status.v2 failed_terminal). */
   | "preparation_ended"
@@ -246,6 +248,10 @@ export async function deliverOutbox(params?: { limit?: number }): Promise<Outbox
     const { reconcileFootageBeforeAccountNotices } = await import("./taskLifecycleNotifications");
     await reconcileFootageBeforeAccountNotices(Math.min(limit, 5));
   } catch (error) { logger.warn({ error }, "Could not reconcile footage-before-account notices"); }
+  try {
+    const { reconcileSceneTestsStartedNotices } = await import("./taskLifecycleNotifications");
+    await reconcileSceneTestsStartedNotices(Math.min(limit, 5));
+  } catch (error) { logger.warn({ error }, "Could not reconcile scene-tests notices"); }
   try {
     const { reconcileAgentRunResultNotifications } = await import("./agentRunResultNotifications");
     await reconcileAgentRunResultNotifications(limit);

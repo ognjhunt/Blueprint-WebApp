@@ -144,6 +144,23 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
       preparationStatus: { state: "handed_off", correlationId: reference }, sceneProgression: { state: "waiting" } } as never);
     expect(open.headline).toContain("waiting on our team; nothing is needed from you");
   });
+  it("the scene is ready only once its first test started; built alone is still preparing", () => {
+    const handedOff = { ...base, preparationStatus: { state: "handed_off", correlationId: reference } };
+    const testing = projectTaskStatus({ ...handedOff, sceneProgression: { state: "testing" } } as never);
+    expect(testing.decision).toBe("assessing");
+    expect(testing.headline).toBe("Your scene is ready, and we are running our first tests on it. Nothing is needed from you.");
+    expect(testing.operatorAction).toBeNull();
+    const built = projectTaskStatus({ ...handedOff, sceneProgression: { state: "completed" } } as never);
+    expect(built.decision).toBe("assessing");
+    expect(built.headline).toBe("We are preparing your job for simulation. Nothing is needed from you.");
+    expect(built.headline).not.toMatch(/ready/i);
+    // An unpublished card is still the site's own step, and says the scene is ready.
+    const unlisted = projectTaskStatus({ ...handedOff, listed: false, sceneProgression: { state: "testing" } } as never);
+    expect(unlisted.decision).toBe("not_listed");
+    expect(unlisted.headline).toContain("Your scene is ready, and we are running our first tests on it. Your job card is not published");
+    expect(projectTaskStatus({ ...handedOff, listed: false, sceneProgression: { state: "completed" } } as never).decision)
+      .not.toBe("not_listed");
+  });
   it("consent withdrawal and earlier gates still win over an ending", () => {
     expect(projectTaskStatus({ ...base, consentRevoked: true,
       preparationStatus: { state: "failed_terminal", correlationId: reference, terminalReason: "retry_exhausted" } } as never).headline)

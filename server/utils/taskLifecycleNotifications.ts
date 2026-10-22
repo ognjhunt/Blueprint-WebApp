@@ -29,6 +29,7 @@ export type TaskLifecycleMilestone = Extract<
   | "task_received"
   | "video_received"
   | "scene_ready"
+  | "scene_tests_started"
   | "preparation_needs_attention"
   | "preparation_ended"
   | "listing_live"
@@ -107,6 +108,12 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   scene_ready: {
     subject: "Your Blueprint scene is ready to view",
     body: (url) => `Your scene is ready: a 3D reconstruction of the work area you filmed. You can look around it on your job page.\n\nOpen your job:\n${url}`,
+  },
+  // Owner decision 2026-10-22: "ready" only once the task objects are in and
+  // our first internal test has started, never when the room alone is built.
+  scene_tests_started: {
+    subject: "Your Blueprint scene is ready",
+    body: (url) => `Your scene is ready: a simulation of the work area you filmed, with your task's objects in place. We are running our first tests on it now. Nothing is needed from you for these tests, and we will email you at the next step.\n\nOpen your job:\n${url}`,
   },
   listing_live: {
     subject: "Your job card is in the robot-team library",
@@ -459,6 +466,66 @@ export async function reconcileFootageBeforeAccountNotices(limit = 5): Promise<v
       logger.warn({ error, requestId }, "Could not queue the footage-before-account notice");
     }
   }
+}
+
+/**
+ * Tell the site, once, that its scene is ready and our first test on it has
+ * started. Read from the same progression the job page shows, so it is sent
+ * only when the page says so; dispatch reads it again, and the outbox key keeps
+ * it to one email per job. Callers that may have just started a test (a scene
+ * status poll, an accepted policy run) call this; it is a no-op otherwise.
+ */
+export async function notifyIfSceneTestsStarted(requestId: string): Promise<{ enqueued: boolean }> {
+  if (!(await sceneTestsStarted(requestId))) return { enqueued: false };
+  return enqueueTaskLifecycleNotification({ requestId, milestone: "scene_tests_started" });
+}
+
+/** True while the job page shows its scene ready and under its first tests. Read again at dispatch. */
+export async function sceneTestsStarted(requestId: string): Promise<boolean> {
+  const [{ readWebsiteSceneProgression }, { siteWalkthroughIdentity }] = await Promise.all([
+    import("./websiteSceneProgression"), import("./siteWalkthrough")]);
+  return (await readWebsiteSceneProgression(requestId, siteWalkthroughIdentity(requestId).captureId))?.state === "testing";
+}
+
+/**
+ * Repair a lost `scene_tests_started` enqueue: turn through finished website
+ * scene intakes a few at a time and queue only what the job page shows.
+ */
+export async function reconcileSceneTestsStartedNotices(limit = 5): Promise<void> {
+  if (!db) return;
+  const store = db;
+  const { SCENE_INTAKE_COLLECTION } = await import("./taskEvaluationSceneIntake");
+  const query = store.collection(SCENE_INTAKE_COLLECTION).where("state", "==", "completed");
+  let rows = await automationBatch(store, query, "scene_tests_started_notices", limit);
+  if (!rows.docs.length) rows = await automationBatch(store, query, "scene_tests_started_notices", limit);
+  for (const row of rows.docs) {
+    const requestId = String(row.data()?.website_request_id ?? "").trim();
+    if (!requestId) continue;
+    try {
+      if ((await store.collection(CAPTURE_OUTBOX_COLLECTION).doc(`${requestId}:scene_tests_started`).get()).exists) continue;
+      await notifyIfSceneTestsStarted(requestId);
+    } catch (error) {
+      logger.warn({ error, requestId }, "Could not queue the scene-tests notice");
+    }
+  }
+}
+
+/**
+ * The website job whose configured scene a policy run used, if any: the
+ * launch's task is a website scene intake's task, in the same team.
+ */
+export async function notifySceneTestsStartedForLaunch(launchId: string): Promise<void> {
+  if (!db) return;
+  const launch = (await db.collection("taskEvaluationLaunches").doc(launchId).get()).data();
+  const offering = launch?.configured_scene_offering;
+  const taskId = offering?.task?.identity?.id;
+  if (typeof taskId !== "string" || !/^website-[a-f0-9]{20}(?:-development)?$/.test(taskId)) return;
+  const { SCENE_INTAKE_COLLECTION } = await import("./taskEvaluationSceneIntake");
+  const intakes = await db.collection(SCENE_INTAKE_COLLECTION).where("request.task.task_id", "==", taskId).limit(10).get();
+  const requestIds = new Set(intakes.docs.map(row => row.data()).filter(row =>
+    row?.request?.owner?.organization_id === offering.team_namespace && typeof row.website_request_id === "string")
+    .map(row => row.website_request_id as string));
+  for (const requestId of requestIds) await notifyIfSceneTestsStarted(requestId);
 }
 
 /** Recover scene notices even when the controller stops polling a ready world. */

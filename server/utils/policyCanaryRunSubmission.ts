@@ -396,6 +396,14 @@ export async function submitPolicyCanaryRun(params: {
       { persistence_state: "forward_receipt_unknown", retryable: true },
     ));
   }
+  // An accepted test on a website job's scene is when the site hears it is
+  // ready. Best-effort: the outbox tick repairs a missed enqueue.
+  if (forwarded?.status === "forwarded") {
+    try {
+      const { notifySceneTestsStartedForLaunch } = await import("./taskLifecycleNotifications");
+      await notifySceneTestsStartedForLaunch(launchId);
+    } catch { /* recovered by reconcileSceneTestsStartedNotices */ }
+  }
   return res.status(forwarded?.status === "forwarded" ? 202 : 503).json({
     schema_version: "task_evaluation_policy_canary_web_receipt.v1",
     status: update.state,

@@ -14,7 +14,7 @@ vi.mock("../logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.
 
 const watch = await import("../utils/websitePreparationWatch");
 const { backfillWebsitePreparationWatches, scanWebsitePreparationWatch, scanEndedWebsiteSceneIntakes } = await import("../utils/websitePreparationOpsAlerts");
-const { projectWebsiteSceneProgression, loadWebsiteSceneProgression } = await import("../utils/websiteSceneProgression");
+const { projectWebsiteSceneProgression, loadWebsiteSceneProgression, policyTestAccepted } = await import("../utils/websiteSceneProgression");
 const { recordSiteCaptureUploadIdentity } = await import("../utils/siteCaptureUploadIdentity");
 type Stored = import("../utils/websitePreparationStatus").StoredWebsitePreparation;
 
@@ -337,6 +337,9 @@ describe("scene progression after hand-off", () => {
     [{ state: "accepted", pipeline_status: { status: "needs_input", phase: "source", blockers: [] } }, "waiting"],
     [{ state: "forward_blocked", blocker: "pipeline_transport_failed" }, "waiting"],
     [{ state: "accepted", pipeline_status: { status: "running", phase: "configuration" } }, "in_progress"],
+    [{ state: "accepted", pipeline_status: { status: "running", phase: "terminal_reconciliation" } }, "testing"],
+    [{ state: "completed", pipeline_status: { status: "completed", phase: "policy_canary_complete" } }, "testing"],
+    [{ state: "completed", pipeline_status: { status: "completed", phase: "scene_prepared" } }, "completed"],
     [{ state: "unknown_future_state" }, null],
   ])("PROG-001 %j projects to %s", (record, expected) => {
     expect(projectWebsiteSceneProgression(record)?.state ?? null).toBe(expected);
@@ -350,6 +353,36 @@ describe("scene progression after hand-off", () => {
       created_at_iso: "2026-10-03T00:00:00Z", state: "blocked" });
     expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "in_progress" });
     expect(await loadWebsiteSceneProgression("r2", "walkthrough-r2")).toBeNull();
+  });
+  it("PROG-005 a built scene is ready only once a test on its configured scene was accepted", async () => {
+    const taskId = `website-${"0".repeat(20)}`;
+    state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", source_session_id: "walkthrough-r1",
+      created_at_iso: "2026-10-02T00:00:00Z", state: "completed", pipeline_status: { status: "completed", phase: "scene_prepared" },
+      request: { task: { task_id: taskId }, owner: { organization_id: "team-a" } } });
+    const progression = () => loadWebsiteSceneProgression("r1", "walkthrough-r1");
+    expect(await progression()).toEqual({ state: "completed" });
+    // Another team's configured scene of the same task id is not this job's test.
+    state.docs.set("taskEvaluationLaunches/launch-other", { configured_scene_offering: { task: { identity: { id: taskId } }, team_namespace: "team-b" } });
+    state.docs.set("taskEvaluationPolicyRuns/run-other", { source_launch_id: "launch-other", state: "queued_in_pipeline" });
+    expect(await progression()).toEqual({ state: "completed" });
+    state.docs.set("taskEvaluationLaunches/launch-a", { configured_scene_offering: { task: { identity: { id: taskId } }, team_namespace: "team-a" } });
+    // Stored but not accepted by the Pipeline, or ended unrun: not started.
+    state.docs.set("taskEvaluationPolicyRuns/run-a", { source_launch_id: "launch-a", state: "forward_blocked" });
+    expect(await progression()).toEqual({ state: "completed" });
+    state.docs.set("taskEvaluationPolicyRuns/run-a", { source_launch_id: "launch-a", state: "forward_terminal_blocked",
+      launch_forward: { status: "forwarded" } });
+    expect(await progression()).toEqual({ state: "completed" });
+    state.docs.set("taskEvaluationPolicyRuns/run-a", { source_launch_id: "launch-a", state: "queued_in_pipeline",
+      launch_forward: { status: "forwarded" } });
+    expect(await progression()).toEqual({ state: "testing" });
+  });
+  it("PROG-006 a policy run counts as started only once the Pipeline accepted it", () => {
+    expect(policyTestAccepted({ state: "queued_for_preparation" })).toBe(false);
+    expect(policyTestAccepted({ state: "forward_pending" })).toBe(false);
+    expect(policyTestAccepted({ state: "running" })).toBe(true);
+    expect(policyTestAccepted({ state: "queued_dispatch_blocked", launch_forward: { status: "forwarded" } })).toBe(true);
+    expect(policyTestAccepted({ state: "failed", launch_forward: { status: "forwarded" } })).toBe(false);
+    expect(policyTestAccepted(null)).toBe(false);
   });
   it("PROG-003 alerts once per website scene that stopped after hand-off", async () => {
     state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", source_session_id: "walkthrough-r1", state: "blocked" });
