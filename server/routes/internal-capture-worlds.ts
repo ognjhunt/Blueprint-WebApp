@@ -34,7 +34,8 @@ import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding 
 import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
   validateWebsiteSponsoredProviderTerms,
   preparationSpendRequest, reserveWebsitePreparationSpend,
-  preparationSettlementRequest, settleWebsitePreparationSpend, retainedWebsiteScenePurpose, currentWebsiteSceneContext } from "../utils/websiteSceneSponsorship";
+  preparationSettlementRequest, settleWebsitePreparationSpend, retainedWebsiteScenePurpose, currentWebsiteSceneContext,
+  loadWebsiteAtlasConfiguration } from "../utils/websiteSceneSponsorship";
 import { SCENE_INTAKE_COLLECTION, sceneDigest, sceneIntakeCommand } from "../utils/taskEvaluationSceneIntake";
 import {
   enqueueTaskLifecycleNotification,
@@ -238,7 +239,7 @@ const sponsoredSceneRequest = z.object({
 
 // The Pipeline credential, current site consent and configured Blueprint cap
 // authorize preparation. No robot-team payment or site account is required.
-for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spend", "preparation-settlement"] as const) router.post(
+for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spend", "preparation-settlement", "atlas-configuration"] as const) router.post(
   `/creator-captures/:captureId/${operation}`, createPipelineSyncRateLimiter(), guard,
   async (req: Request, res: Response) => {
     const parsed = z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
@@ -247,7 +248,10 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
         expected_task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/).optional(), create: z.literal(false).optional() } : {}),
       ...(operation === "prepared-scene" ? { request: sponsoredSceneRequest } : {}),
       ...(operation === "preparation-spend" ? { spend: preparationSpendRequest } : {}),
-      ...(operation === "preparation-settlement" ? { settlement: preparationSettlementRequest } : {}) })
+      ...(operation === "preparation-settlement" ? { settlement: preparationSettlementRequest } : {}),
+      ...(operation === "atlas-configuration" ? {
+        task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+        source_video_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/) } : {}) })
       .strict().safeParse(req.body);
     if (!parsed.success || operation === "scene-sponsorship" && req.body.create === false
       && (req.body.purpose !== "scene_preparation" || !req.body.expected_task_context_digest))
@@ -256,6 +260,8 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
     if (sceneId !== `site-${requestId}`) return res.status(409).json({ code: "task_context_capture_mismatch" });
     try {
       res.setHeader("Cache-Control", "no-store");
+      if (operation === "atlas-configuration") return res.json(await loadWebsiteAtlasConfiguration(requestId,
+        req.params.captureId, { task_context_digest: req.body.task_context_digest, source_video_digest: req.body.source_video_digest }));
       // Accounting for an already admitted call must remain possible when
       // assessment/source authority ends. The settlement checks the original
       // allocation, provider, task digest, quote and exact idempotent receipt;
@@ -313,7 +319,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       return res.status(202).json({ id, request_digest: sceneDigest(request), state: "forward_pending" });
     } catch (error) {
       const code = error instanceof Error ? error.message : "website_scene_sponsorship_unavailable";
-      const known = /^(website_scene_|website_assessment_preparation_|website_task_context_|website_capture_binding_|task_context_capture_mismatch$|source_revoked$|consent_expired$|task_brief_missing$|idempotency_conflict$|provider_terms_not_configured_or_changed$)/.test(code);
+      const known = /^(website_atlas_|website_scene_|website_assessment_preparation_|website_task_context_|website_capture_binding_|task_context_capture_mismatch$|source_revoked$|consent_expired$|task_brief_missing$|idempotency_conflict$|provider_terms_not_configured_or_changed$)/.test(code);
       return res.status(known ? 409 : 503).json({ code: known ? code : "website_scene_sponsorship_unavailable" });
     }
   },

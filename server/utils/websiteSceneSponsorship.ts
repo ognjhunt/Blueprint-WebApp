@@ -8,7 +8,7 @@ import { projectWebsiteCaptureRights, projectWebsiteTaskContext, legacySuggested
 import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
-import { websiteAtlasAuthorization } from "./websiteAtlasAuthorization";
+import { websiteAtlasAuthorization, websiteAtlasRuntimePolicy, atlasAllowanceUsage } from "./websiteAtlasAuthorization";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
@@ -694,10 +694,11 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     const record = request.data()!;
     await assertAssessmentPreparationCurrent(transaction, assessment, record, {requestId, captureId});
     if (!record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
-    const atlas = command.provider === "world_labs_atlas" ? websiteAtlasAuthorization({
+    const atlas = (command.provider === "world_labs_atlas" || command.provider === "openai" && command.source_video_digest) ? websiteAtlasAuthorization({
       requestId, captureId, taskContextDigest: command.task_context_digest,
       sourceVideoDigest: command.source_video_digest, termsDigest: sceneProviderTerms().world_labs_atlas?.digest,
       now: Date.now() / 1000,
+      planning: command.provider === "openai", plannerTermsDigest: sceneProviderTerms().openai?.digest,
     }) : null;
     const rights = projectWebsiteCaptureRights(record);
     if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
@@ -728,11 +729,12 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     }
     // Atlas beta authorization is a separate explicit owner allowance. Its rows
     // never replenish the pre-existing preparation budget, or vice versa.
-    const previous = Object.values(reservations).filter(row =>
-      (row.admission.provider === "world_labs_atlas") === Boolean(atlas));
+    const previous = Object.values(reservations).filter(row => !atlas && !row.admission.atlas_authorization_digest
+      && row.admission.provider !== "world_labs_atlas");
     const micros = (amount: number) => Math.ceil(amount * 1_000_000);
-    const reserved = previous.reduce((sum, row) => sum + micros(row.settlement?.actual_cost_usd ?? row.admission.maximum_cost_usd), 0);
-    const attempts = previous.reduce((sum, row) => sum + row.admission.request_count, 0);
+    const usage = atlas ? atlasAllowanceUsage(reservations) : null;
+    const reserved = usage ? micros(usage.cost) : previous.reduce((sum, row) => sum + micros(row.settlement?.actual_cost_usd ?? row.admission.maximum_cost_usd), 0);
+    const attempts = usage?.requests ?? previous.reduce((sum, row) => sum + row.admission.request_count, 0);
     // Amendments and reservations belong to the original retained allowance.
     const rootAuthority = record.website_scene_sponsorship;
     if (reserved + micros(command.maximum_cost_usd) > Math.floor((atlas?.maximum_cost_usd
@@ -742,12 +744,48 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     const admission = { ...command, schema_version: "paid_lane_admission.v1", status: "admitted",
       blockers: [], external_disclosure_allowed: true, sponsorship_digest: authority.authority_digest,
       ...(atlas ? { atlas_authorization_digest: atlas.authorization_digest,
-        provider_terms_reference: atlas.provider_terms_reference, provider_retention: atlas.provider_retention,
-        provider_training_authorized: atlas.provider_training_authorized } : {}),
+        provider_terms_reference: command.provider === "openai" ? atlas.planner!.provider_terms_reference : atlas.provider_terms_reference,
+        provider_retention: atlas.provider_retention,
+        provider_training_authorized: command.provider === "openai" ? false : atlas.provider_training_authorized } : {}),
       expires_at_epoch: Math.min(authority.expires_at_epoch, atlas?.expires_at_epoch ?? authority.expires_at_epoch) };
     transaction.update(ref, { website_preparation_reservations: { ...reservations,
       [key]: { command_digest: digest(command), admission } } });
     return admission;
+  }));
+}
+
+/** Read-only production planning configuration; never dispatch authority. */
+export async function loadWebsiteAtlasConfiguration(requestId: string, captureId: string,
+  input: { task_context_digest: string; source_video_digest: string }) {
+  if (!db) throw new Error("website_capture_rights_store_unavailable");
+  const binding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
+  const store = db;
+  return storeTimeout(store.runTransaction(async transaction => {
+    const [request, brief, inventory] = await Promise.all([
+      transaction.get(store.collection("inboundRequests").doc(requestId)),
+      transaction.get(store.collection(TASK_BRIEFS_COLLECTION).doc(requestId)),
+      transaction.get(store.collection("siteTaskItemInventories").doc(requestId)),
+    ]);
+    await assertWebsiteCaptureBindingInTransaction(transaction, requestId, binding);
+    const record = request.data();
+    if (!record || !brief.exists || !record.website_scene_sponsorship) throw new Error("task_brief_missing");
+    const rights = projectWebsiteCaptureRights(record);
+    if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
+    const context = projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, rights, {
+      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+      purpose: retainedWebsiteScenePurpose(record), captureId, captureBinding: binding });
+    if (context.context_digest !== input.task_context_digest) throw new Error("website_scene_sponsorship_binding_invalid");
+    const authority = websiteAtlasAuthorization({ requestId, captureId,
+      taskContextDigest: context.context_digest, sourceVideoDigest: input.source_video_digest,
+      termsDigest: sceneProviderTerms().world_labs_atlas?.digest,
+      plannerTermsDigest: sceneProviderTerms().openai?.digest, planning: true, now: Date.now() / 1000 });
+    if (authority.accepted_by !== record.website_scene_sponsorship.owner.user_id)
+      throw new Error("website_atlas_source_owner_mismatch");
+    const usage = atlasAllowanceUsage(record.website_preparation_reservations || {});
+    return { schema_version: "website_atlas_configuration.v1", authority, policy: websiteAtlasRuntimePolicy(),
+      reserved_or_settled_cost_usd: usage.cost, remaining_cost_usd: Math.max(0, authority.maximum_cost_usd - usage.cost),
+      remaining_requests: Math.max(0, authority.maximum_requests - usage.requests), task_context_digest: context.context_digest,
+      source_video_digest: input.source_video_digest, dispatch_authorized: false };
   }));
 }
 
