@@ -520,11 +520,15 @@ export async function notifySceneTestsStartedForLaunch(launchId: string): Promis
   const offering = launch?.configured_scene_offering;
   const taskId = offering?.task?.identity?.id;
   if (typeof taskId !== "string" || !/^website-[a-f0-9]{20}(?:-development)?$/.test(taskId)) return;
-  const { SCENE_INTAKE_COLLECTION } = await import("./taskEvaluationSceneIntake");
-  const intakes = await db.collection(SCENE_INTAKE_COLLECTION).where("request.task.task_id", "==", taskId).limit(10).get();
-  const requestIds = new Set(intakes.docs.map(row => row.data()).filter(row =>
-    row?.request?.owner?.organization_id === offering.team_namespace && typeof row.website_request_id === "string")
-    .map(row => row.website_request_id as string));
+  const [{ SCENE_INTAKE_COLLECTION }, { queryPages }] = await Promise.all([
+    import("./taskEvaluationSceneIntake"), import("./websiteSceneProgression")]);
+  const requestIds = new Set<string>();
+  for await (const rows of queryPages(db.collection(SCENE_INTAKE_COLLECTION).where("request.task.task_id", "==", taskId))) {
+    for (const row of rows.map(value => value.data())) {
+      if (row?.request?.owner?.organization_id === offering.team_namespace && typeof row.website_request_id === "string")
+        requestIds.add(row.website_request_id);
+    }
+  }
   for (const requestId of requestIds) await notifyIfSceneTestsStarted(requestId);
 }
 

@@ -58,6 +58,19 @@ export function projectWebsiteSceneProgression(record: Record<string, any> | nul
   return { state: TESTED_PHASES.has(phase) ? "testing" : "in_progress" };
 }
 
+/** Every page of a query, in document order: history is never cut at a result count. */
+export async function* queryPages(query: FirebaseFirestore.Query, size = 100) {
+  let cursor: string | null = null;
+  for (;;) {
+    let page = query.orderBy("__name__").limit(size);
+    if (cursor) page = page.startAfter(cursor);
+    const snapshot = await page.get();
+    if (snapshot.docs.length) yield snapshot.docs;
+    if (snapshot.docs.length < size) return;
+    cursor = snapshot.docs[snapshot.docs.length - 1].id;
+  }
+}
+
 /**
  * Whether the Pipeline accepted a policy test on a configured scene of this
  * intake's task, in the intake's own team. A configured scene carries the
@@ -67,13 +80,19 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
   const taskId = intake.request?.task?.task_id;
   const team = intake.request?.owner?.organization_id;
   if (typeof taskId !== "string" || !taskId || typeof team !== "string" || !team) return false;
-  const launches = await store.collection("taskEvaluationLaunches")
-    .where("configured_scene_offering.task.identity.id", "==", taskId).limit(30).get();
-  const launchIds = launches.docs
-    .filter(row => row.data()?.configured_scene_offering?.team_namespace === team).map(row => row.id);
-  if (!launchIds.length) return false;
-  const runs = await store.collection(POLICY_RUN_COLLECTION).where("source_launch_id", "in", launchIds).limit(50).get();
-  return runs.docs.some(row => policyTestAccepted(row.data()));
+  const launchIds: string[] = [];
+  for await (const rows of queryPages(store.collection("taskEvaluationLaunches")
+    .where("configured_scene_offering.task.identity.id", "==", taskId))) {
+    launchIds.push(...rows.filter(row => row.data()?.configured_scene_offering?.team_namespace === team).map(row => row.id));
+  }
+  // Firestore takes at most 30 values in one `in` filter.
+  for (let start = 0; start < launchIds.length; start += 30) {
+    for await (const rows of queryPages(store.collection(POLICY_RUN_COLLECTION)
+      .where("source_launch_id", "in", launchIds.slice(start, start + 30)))) {
+      if (rows.some(row => policyTestAccepted(row.data()))) return true;
+    }
+  }
+  return false;
 }
 
 /** The site's latest scene intake for this capture, projected. Throws when it cannot be read. */

@@ -376,6 +376,20 @@ describe("scene progression after hand-off", () => {
       launch_forward: { status: "forwarded" } });
     expect(await progression()).toEqual({ state: "testing" });
   });
+  it("PROG-007 finds an accepted test past the first page of runs and the first 30 launches", async () => {
+    const taskId = `website-${"1".repeat(20)}`;
+    state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", source_session_id: "walkthrough-r1",
+      created_at_iso: "2026-10-02T00:00:00Z", state: "completed", pipeline_status: { status: "completed", phase: "scene_prepared" },
+      request: { task: { task_id: taskId }, owner: { organization_id: "team-a" } } });
+    for (let index = 0; index < 35; index += 1) state.docs.set(`taskEvaluationLaunches/launch-${String(index).padStart(3, "0")}`,
+      { configured_scene_offering: { task: { identity: { id: taskId } }, team_namespace: "team-a" } });
+    for (let index = 0; index < 150; index += 1) state.docs.set(`taskEvaluationPolicyRuns/run-${String(index).padStart(3, "0")}`,
+      { source_launch_id: `launch-${String(index % 35).padStart(3, "0")}`, state: "failed" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed" });
+    // The only accepted test is the last run, on the last launch.
+    state.docs.set("taskEvaluationPolicyRuns/run-zzz", { source_launch_id: "launch-034", state: "running" });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
+  });
   it("PROG-006 a policy run counts as started only once the Pipeline accepted it", () => {
     expect(policyTestAccepted({ state: "queued_for_preparation" })).toBe(false);
     expect(policyTestAccepted({ state: "forward_pending" })).toBe(false);
