@@ -105,7 +105,7 @@ afterEach(async () => {
 });
 
 describe("automatic consented Atlas grant", () => {
-  it.each([["unset", ""], ["malformed", "{"], ["over the cap", JSON.stringify({ ...policy, maximum_cost_usd: 6 })],
+  it.each([["unset", ""], ["malformed", "{"], ["over the cap", JSON.stringify({ ...policy, maximum_cost_usd: 101 })],
     ["retaining", JSON.stringify({ ...policy, provider_retention: "project_library_retention_approved" })],
     ["unknown field", JSON.stringify({ ...policy, customer_charge: true })]])(
     "changes nothing while the policy is %s", async (_label, value) => {

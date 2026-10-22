@@ -47,13 +47,15 @@ articulation, or physical evidence.
 
 The repo owner approved automatic Atlas 3D previews of website uploads as
 Blueprint-paid spend within a Blueprint-internal per-capture allowance (see
-`AGENTS.md`). It is a side lane: the native/Marble sponsorship, its assessment
+`AGENTS.md`). The owner chose accuracy over cost: the allowance is a high safety
+ceiling against runaway spend (planned $25, schema maximum $100), never a limit
+on how many frames or views a preview uses. It is a side lane: the native/Marble sponsorship, its assessment
 proposal and its budgets are unchanged and not required.
 
 `BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON` (web service) enables it:
 
 ```json
-{ "schema_version": "website_atlas_grant_policy.v1", "maximum_cost_usd": 2,
+{ "schema_version": "website_atlas_grant_policy.v1", "maximum_cost_usd": 25,
   "maximum_requests": 16, "validity_seconds": 604800,
   "provider_retention": "account_does_not_retain",
   "approval_reference": "...", "approved_by": "..." }
