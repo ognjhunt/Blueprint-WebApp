@@ -231,7 +231,31 @@ export async function streamTaskEvaluationResultArtifact(params: {
     res.status(503).json({ error: "Result artifact delivery is not configured", code });
     return;
   }
-  if (parseResultArtifactRange(req.headers.range) === "invalid") {
+  await streamVerifiedPipelineArtifact({ endpoint, headers, req, res, expected: params.expected, forwardRange: true });
+}
+
+/**
+ * Relay one signed Pipeline artifact, verifying its digest and length as bytes
+ * pass. The caller resolves and signs the origin. A caller that does not forward
+ * Range always receives, and verifies, the whole object. `forcedHeaders` replace
+ * the origin's after its headers are copied; `label` names the artifact in errors.
+ */
+export async function streamVerifiedPipelineArtifact(params: {
+  endpoint: string | URL;
+  headers: Record<string, string>;
+  req: Request;
+  res: Response;
+  expected?: ResultArtifactMetadata;
+  forwardRange: boolean;
+  forcedHeaders?: Record<string, string>;
+  label?: string;
+}) {
+  const { req, res, endpoint, headers } = params;
+  const label = params.label ?? "Result artifact";
+  const range = params.forwardRange ? req.headers.range : undefined;
+  res.set("Cache-Control", "private, no-store");
+  res.set("X-Content-Type-Options", "nosniff");
+  if (parseResultArtifactRange(range) === "invalid") {
     res.status(416).json({ error: "Requested artifact range is not available" });
     return;
   }
@@ -255,8 +279,9 @@ export async function streamTaskEvaluationResultArtifact(params: {
     cleanup();
     if (res.destroyed) return;
     if (res.headersSent) { res.destroy(); return; }
-    for (const header of ["content-length", "content-range", "content-disposition", "x-blueprint-artifact-sha256", "x-blueprint-artifact-verification"]) res.removeHeader(header);
-    res.status(502).json({ error: "Result artifact stream was interrupted or failed integrity verification; retry the download" });
+    for (const header of ["content-length", "content-range", "content-disposition", "x-blueprint-artifact-sha256", "x-blueprint-artifact-verification",
+      ...Object.keys(params.forcedHeaders ?? {})]) res.removeHeader(header);
+    res.status(502).json({ error: `${label} stream was interrupted or failed integrity verification; retry the download` });
   };
   const armTimeout = (duration: number) => { clearTimeout(timer); timer = setTimeout(fail, duration); };
   res.once("close", disconnect);
@@ -265,7 +290,7 @@ export async function streamTaskEvaluationResultArtifact(params: {
   let upstream: globalThis.Response;
   try {
     upstream = await fetch(endpoint, { method: "GET", redirect: "error", signal: controller.signal,
-      headers: { ...headers, "accept-encoding": "identity", ...(req.headers.range ? { range: req.headers.range } : {}) } });
+      headers: { ...headers, "accept-encoding": "identity", ...(range ? { range } : {}) } });
   } catch {
     fail(); return;
   }
@@ -277,19 +302,20 @@ export async function streamTaskEvaluationResultArtifact(params: {
       const value = upstream.headers.get(header);
       if (value) res.set(header, value);
     }
-    res.status(status).json({ error: status === 404 ? "Result artifact not found"
+    res.status(status).json({ error: status === 404 ? `${label} not found`
       : status === 416 ? "Requested artifact range is not available"
-      : status === 429 ? "Result artifact delivery is busy; retry later"
-      : "Result artifact origin rejected the request" });
+      : status === 429 ? `${label} delivery is busy; retry later`
+      : `${label} origin rejected the request` });
     return;
   }
-  const integrity = artifactResponseIntegrity(upstream, req.headers.range, params.expected);
+  const integrity = artifactResponseIntegrity(upstream, range, params.expected);
   if (!integrity) { await cancelBody(upstream); fail(); return; }
   res.status(upstream.status);
   for (const header of ["content-type", "content-length", "content-range", "accept-ranges", "content-disposition", "x-blueprint-artifact-sha256"]) {
     const value = upstream.headers.get(header);
     if (value) res.set(header, value);
   }
+  for (const [header, value] of Object.entries(params.forcedHeaders ?? {})) res.set(header, value);
   if (integrity.contentLength !== null) res.set("Content-Length", String(integrity.contentLength));
   res.set("X-Blueprint-Artifact-Verification", integrity.mode);
   source = Readable.fromWeb(upstream.body as never);
