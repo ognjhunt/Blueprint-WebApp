@@ -1425,6 +1425,30 @@ describe("capture-first workspace intake", () => {
     expect(response.status).toBe(201);
     expect(state.intakes.at(-1).metadata.account_owner_uid).toBe("site-1");
   });
+  // Owner decision 2026-10-22: the start form creates the account with the job,
+  // so the job is owned from the start and its video can go with the form.
+  it("sets up a brand-new account as a site workspace with its first job, accepting the shown Terms", async () => {
+    const response = await fetch(`${base}/capture-start`, { method: "POST",
+      headers: { "Content-Type": "application/json", "x-user": "new-site", "x-unverified": "1" },
+      body: JSON.stringify({ ...capture, hasExistingFootage: true, acceptedTerms: true, company: "Acme Foods" }) });
+    expect(response.status).toBe(201);
+    expect(state.intakes.at(-1)).toMatchObject({ body: { email: "new-site@example.com", buyerType: "site_operator", company: "Acme Foods" },
+      metadata: { account_owner_uid: "new-site" } });
+    expect(state.records.get("users/new-site")).toMatchObject({ uid: "new-site", email: "new-site@example.com",
+      buyerType: "site_operator", company: "Acme Foods", acceptedTerms: true, termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION,
+      termsAcceptance: { accepted_terms: true, terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION } });
+    expect((await api("/tasks/capture-owned", "new-site")).status).toBe(200);
+  });
+  it("sets up no account without the Terms, and never changes an existing profile", async () => {
+    expect((await api("/capture-start", "new-site", capture)).status).toBe(403);
+    expect(state.records.has("users/new-site")).toBe(false);
+    state.records.set("users/capturer-1", { role: "capturer", name: "Field Capturer" });
+    expect((await api("/capture-start", "capturer-1", { ...capture, acceptedTerms: true })).status).toBe(403);
+    expect(state.records.get("users/capturer-1")).toEqual({ role: "capturer", name: "Field Capturer" });
+    expect((await api("/capture-start", "robot-1", { ...capture, acceptedTerms: true })).status).toBe(403);
+    expect(state.records.get("users/robot-1")).toMatchObject({ buyerType: "robot_team" });
+    expect(state.intakes).toHaveLength(0);
+  });
   it("requires explicit country and recording consent and refuses robot accounts", async () => {
     expect((await api("/capture-start", "robot-1", capture)).status).toBe(403);
     expect((await api("/capture-start", "site-1", { ...capture, captureRegion: "" })).status).toBe(400);

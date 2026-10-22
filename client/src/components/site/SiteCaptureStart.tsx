@@ -1,4 +1,4 @@
-import { anonymizedOpportunityDraft, opportunityLabels } from "@/types/taskBrowse";
+import { anonymizedOpportunityDraft } from "@/types/taskBrowse";
 import { isLikelyPhone } from "@/lib/device";
 /** Show the work; explanatory text is optional when capture is authorized. */
 import { useEffect, useRef, useState } from "react";
@@ -12,7 +12,7 @@ import {
   isApprovedCaptureRegion,
   type CaptureRegion,
 } from "@/data/captureResidency";
-import { BETA_TIMELINES } from "@/data/betaTimelines";
+import { REPLY_TIMELINE } from "@/data/betaTimelines";
 import { analyticsEvents } from "@/lib/analytics";
 import { withCsrfHeader } from "@/lib/csrf";
 import { withAppCheckHeader } from "@/lib/appCheck";
@@ -21,6 +21,9 @@ import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION } from "@/lib/siteSubmissionAuthority";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import { createDetachedPasswordAccount, detachedAccountUser, sendAccountVerification } from "@/lib/accountAuth";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
+import { friendlyAuthError } from "@/lib/siteClaim";
 import {
   CAPTURE_VIDEO_ACCEPT,
   captureTokenFromUrl,
@@ -88,45 +91,6 @@ function ClearDraftControl({status,onClear,disabled=false}:{status:ClearStatus;o
     {status === "done" && <p role="status" className="ms-field-hint">This browser's draft has been cleared.</p>}
     {status === "failed" && <p role="alert" className="ms-field-hint">We could not confirm that this browser's draft was cleared. Stay on this page and try again before leaving a shared device.</p>}
   </>;
-}
-
-/**
- * What robot teams will see, shown before the site starts.
- *
- * The card comes from `anonymizedOpportunityDraft`, the same function the
- * server checks the listing grant against, so this preview is the exact text
- * that is published. Keeping the job private sends no listing grant at all.
- */
-function ListingChoice({ task, privateHandling, onPrivateHandlingChange }: {
-  task: string; privateHandling: boolean; onPrivateHandlingChange: (value: boolean) => void;
-}) {
-  const card = anonymizedOpportunityDraft(task.trim());
-  return <fieldset className="ms-choice" aria-describedby="start-listing-consent">
-    <legend>Sharing your job</legend>
-    {privateHandling ? (
-      <p id="start-listing-consent" className="ms-field-hint">
-        This job stays private. Starting does not publish a job card; Blueprint uses what you send only to assess your job.
-        We ask before sharing details with a provider. You can choose to publish an anonymized card from your job page later.
-      </p>
-    ) : <>
-      <p id="start-listing-consent" className="ms-field-hint">
-        Partners approved for the beta can see this anonymized card. By starting, you authorize Blueprint to publish
-        exactly this text. Footage, the rebuilt scene, your address, contacts and other details stay private.
-      </p>
-      <div className="ms-listing-preview" aria-label="Generated public summary" aria-live="polite">
-        {!task.trim() && <p className="ms-field-hint">No job description yet, so the card shows only a general title.</p>}
-        <p><strong>{card.title}</strong></p>
-        <p className="ms-field-hint">
-          Job type: {card.taskFamily}{card.objects ? ` · Objects: ${card.objects}` : ""} · {opportunityLabels[card.opportunity]}
-        </p>
-      </div>
-    </>}
-    <label className="ms-check-row" htmlFor="start-private-handling">
-      <input id="start-private-handling" name="startPrivateHandling" type="checkbox" checked={privateHandling}
-        onChange={event => onPrivateHandlingChange(event.target.checked)} />
-      <span>Keep this job private instead</span>
-    </label>
-  </fieldset>;
 }
 
 export function SiteCaptureStart({ onSavedChange }: { onSavedChange?: (saved: boolean) => void } = {}) {
@@ -296,7 +260,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     } catch { /* A status hint cannot substitute for verified receipt. */ }
   }
   // One question decides how we will see the task: an upload now, the site's
-  // own phone later, or a Blueprint visit.
+  // own phone right after the form, or a Blueprint visit.
   const [method, setMethod] = useState<"upload" | "phone" | "visit">(initial.draft.method);
   const selfRecording = method === "phone";
   const [region, setRegion] = useState<CaptureRegion | "">(initial.draft.region);
@@ -312,9 +276,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // Footage waits for a saved job (owner decision 2026-10-18). A video sent
   // before its job has an account is born with no owner, and saving the job
   // afterwards is an owner change the Pipeline refuses for that capture. A
-  // signed-in site workspace owns the job from the start, so only its video
-  // goes with the form; the upload routes refuse any other.
-  const videoWithForm = siteWorkspace;
+  // signed-in site workspace owns the job from the start, and so does a guest
+  // who creates its account with this form (owner decision 2026-10-22); only
+  // their video goes with the form, and the upload routes refuse any other.
+  const newAccount = !currentUser && hasFootage && region !== "non_us";
+  const videoWithForm = siteWorkspace || newAccount;
   const [footage, setFootage] = useState<File | null>(null);
   const [footageError, setFootageError] = useState<string | null>(null);
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
@@ -341,10 +307,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   }
   // The video is only taken from a site we are cleared to receive it from.
   const footageWanted = hasFootage && region !== "non_us";
-  // Listing is the default the Terms describe, but it is a choice: the site
-  // sees the exact card text before starting and can keep the job private.
-  const [privateHandling, setPrivateHandling] = useState(initial.draft.privateHandling ?? false);
-  const [taskForPreview, setTaskForPreview] = useState(initial.draft.task);
   const [claudeConsent, setClaudeConsent] = useState(false);
   const [solAgentsConsent, setSolAgentsConsent] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -353,7 +315,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       || recovery.current.pending?.body !== other.pending?.body;
     recovery.current = other;
     requestId.current = other.requestId; retryToken.current = other.retryToken;
-    setPrivateHandling(other.draft.privateHandling ?? false); setTaskForPreview(other.draft.task);
     setMethod(other.draft.method); setRegion(other.draft.region);
     setPending(other.pending);
     if (changed && resetChanged) {
@@ -370,10 +331,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       ...(field("startFrequency") ? { jobFrequency: field("startFrequency") } : {}),
       ...(field("startReadiness") ? { purchaseReadiness: field("startReadiness") as SiteCaptureRecovery["draft"]["purchaseReadiness"] } : {}),
       method, region: place ? (place.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "") : region,
-      regionManuallySet: false, ...(privateHandling ? { privateHandling: true } : {}),
+      regionManuallySet: false,
     } });
   }
-  useEffect(() => { retainDraft(); }, [interactive, method, region, privateHandling]);
+  useEffect(() => { retainDraft(); }, [interactive, method, region]);
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
       if (event.key !== storageKey || operationInFlight.current) return;
@@ -397,7 +358,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       requestId.current = fresh.requestId; retryToken.current = fresh.retryToken;
       setRecoveryUnavailable(false); setPending(null); setState({ status: "idle" }); setClaudeConsent(false); setSolAgentsConsent(false);
       setMethod("phone"); setRegion(""); setCountryMissing(false);
-      setPrivateHandling(false); setTaskForPreview("");
       setFootage(null); setFootageError(null); setCaptureReceived(false);
       setResetVersion(value => value + 1);
       // A completion is visible only after both stores commit the fresh authority.
@@ -443,11 +403,36 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     const read = (key: string) => String(savedAnswers ? savedAnswers[savedFields[key]] ?? "" : data.get(key) ?? "").trim();
     let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
+    const password = String(data.get("startPassword") ?? "");
+    if (!retained && newAccount && password.length < MIN_PASSWORD_LENGTH) {
+      setState({ status: "failed", message: `Choose a password of ${MIN_PASSWORD_LENGTH} characters or more.` });
+      document.querySelector<HTMLInputElement>("#start-password")?.focus();
+      return;
+    }
     operationInFlight.current = true;
     setState({ status: "working" });
 
     try {
-      const headers = await withAppCheckHeader(await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" })));
+      // The account comes first, so the job is born owned and its video can go
+      // with it. Only the job and the upload see it; this page stays signed out.
+      // A retried save of that job goes under the same account.
+      let owner = currentUser ?? (retained?.endpoint === "/api/workspace/capture-start" ? await detachedAccountUser() : null);
+      // A filled honeypot is a bot: it gets the guest path's fake success, not an account.
+      const createsAccount = !retained && newAccount && !read("honeypot");
+      if (createsAccount) {
+        try {
+          owner = await createDetachedPasswordAccount(email.toLowerCase(), password);
+        } catch (error) {
+          if (!active.current) return;
+          setState({ status: "failed", message: (error as { code?: string } | null)?.code === "auth/email-already-in-use"
+            ? "An account already uses this email. Sign in first to upload the video here."
+            : friendlyAuthError(error, "We could not create your account. Please try again.") });
+          return;
+        }
+        void sendAccountVerification(owner, `${window.location.origin}/app`).catch(() => {});
+        if (!active.current) return;
+      }
+      const headers = await withAppCheckHeader(await withFirebaseAuthHeaders(owner, await withCsrfHeader({ "Content-Type": "application/json" })));
       let body = retained?.body ?? JSON.stringify({
           requestId: operationRecovery.requestId,
           retryToken: operationRecovery.retryToken,
@@ -468,7 +453,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           siteLocation: location,
           taskStatement: read("startTask"),
           taskDescription: read("startTask"),
-          ...(!privateHandling ? { publicTaskListing: { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(read("startTask")) } } : {}),
+          // Every job is shown to approved robot teams as an anonymized card;
+          // the site can hide it from its job page.
+          publicTaskListing: { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft(read("startTask")) },
           // Screening happens after the first submission. Buying context is
           // optional and cannot turn into a gate or a spending authorization.
           siteTaskGates: {},
@@ -512,7 +499,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       // Unknown type (the lookup is still in flight or failed) still tries the
       // workspace first; a refusal falls back with the same answers intact.
       let savedToWorkspace = retained ? retained.endpoint === "/api/workspace/capture-start"
-        : Boolean(currentUser) && workspaceType !== null && workspaceType !== "robot_team";
+        : createsAccount || (Boolean(currentUser) && workspaceType !== null && workspaceType !== "robot_team");
       let endpoint: "/api/workspace/capture-start" | "/api/inbound-request" = savedToWorkspace ? "/api/workspace/capture-start" : "/api/inbound-request";
       let frozen;
       try {
@@ -827,7 +814,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         <legend>How will we see the task?</legend>
         {([
           ["upload", "Upload a video now"],
-          ["phone", "Film it later on a phone"],
+          ["phone", "Film it on a phone"],
           ["visit", "Have Blueprint film it"],
         ] as const).map(([value, label]) => (
           <label key={value} htmlFor={`start-method-${value}`} className="ms-check-row">
@@ -837,7 +824,13 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                 setMethod(value);
                 if (value !== "upload") { setFootage(null); setFootageError(null); }
               }} />
-            <span>{label}{value === "visit" && <span className="ms-field-hint"> · Austin metro only</span>}</span>
+            <span>
+              {label}
+              {/* The filming screen follows the form directly (a QR code on a
+                  laptop, the camera on a phone), so this is not a later errand. */}
+              {value === "phone" && <span className="ms-field-hint"> · Right after this form</span>}
+              {value === "visit" && <span className="ms-field-hint"> · Austin metro only</span>}
+            </span>
           </label>
         ))}
       </fieldset>
@@ -852,25 +845,14 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </p>
         ) : (
           <>
-          {!siteWorkspace && <div className="ms-intake-account-first" role="note" aria-label="Save this job to an account first">
-            <p className="ms-field-hint">
-              <strong>Save this job to an account before you send the video.</strong> This keeps the recording linked to the same owner from upload onward.
-            </p>
-            <p className="ms-field-hint">
-              New to Blueprint? Start the job here, then create your account and send the video from your job page.
-              Already have a site account? <a className="ms-text-link" href="/sign-in" onClick={rememberThisForm}>Sign in first</a> and
-              send it with this form.
-            </p>
-            {/* Starting with footage is the recording grant, video now or later, so the notice is read here too. */}
-            {!videoWithForm && <p className="ms-field-hint">{FOOTAGE_UPLOAD_NOTICE}</p>}
-          </div>}
+          {/* Signed in to an account that cannot hold a site: its video waits
+              for the job's site account, and the uploader carries the notice. */}
+          {!videoWithForm && <p className="ms-field-hint" role="note" aria-label="Save this job to an account first">
+            Send the video from your job page once the job is saved to a site account.
+          </p>}
           {videoWithForm && <label htmlFor="start-footage">
             <span>Upload the video</span>
-            <span className="ms-field-hint">
-              A .mov or .mp4 file, straight from the phone or camera that recorded it. One complete
-              cycle of the job is enough. We check whether it covers the work area and ask only for
-              the views that are missing.
-            </span>
+            <span className="ms-field-hint">A .mov or .mp4 of one full cycle of the job.</span>
             <span className="ms-field-hint">{FOOTAGE_UPLOAD_NOTICE}</span>
             <input
               id="start-footage"
@@ -950,6 +932,16 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         <input id="start-company" name="startCompany" type="text" defaultValue={recovery.current.draft.company} required autoComplete="organization" maxLength={200} />
       </label>
 
+      {/* Never retained in a draft or a recovery body. */}
+      {newAccount && <label htmlFor="start-password">
+        <span>Create a password</span>
+        <span className="ms-field-hint">
+          {MIN_PASSWORD_LENGTH} characters or more. Have an account?{" "}
+          <a className="ms-text-link" href="/sign-in" onClick={rememberThisForm}>Sign in first</a>
+        </span>
+        <input id="start-password" name="startPassword" type="password" required minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password" maxLength={128} />
+      </label>}
+
       </>}
       {currentUser && workspaceType !== undefined && (siteWorkspace
         ? <p className="ms-field-hint">Saving to your workspace as {currentUser.email}.</p>
@@ -960,7 +952,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         <label htmlFor="start-task">
           <span>Anything we should know?</span>
           <span className="ms-field-hint">We draft the job description from your video. Add details here only if they help.</span>
-          <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} onChange={event => setTaskForPreview(event.target.value)} maxLength={2000} rows={3} />
+          <textarea id="start-task" name="startTask" defaultValue={recovery.current.draft.task} maxLength={2000} rows={3} />
         </label>
         <label htmlFor="start-frequency">
           <span>How often does the job happen?</span>
@@ -980,8 +972,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         <p className="ms-field-hint">A budget is not required to start. We can clarify output targets, installation and ongoing costs before asking providers for proposals. Submitting does not authorize spending.</p>
       </details>
 
-      <ListingChoice task={taskForPreview} privateHandling={privateHandling} onPrivateHandlingChange={setPrivateHandling} />
-
       {/* Bot bait: hidden from people, honoured by the server. */}
       <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
         <label htmlFor="start-website-hp">Leave this field empty</label>
@@ -1000,15 +990,15 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         <p className="ms-field-hint">Job reference: {requestId.current}</p>
       </>}
 
+      {/* The irreducible minimum: what robot teams see (the listing grant sent
+          above) and the statements the server records as accepted here. */}
       <p className="ms-form-note">
-        Free during the beta: we assess suitable options and help you plan a measured pilot. <a href="/beta#scope">You agree any physical pilot's scope, price and terms with the delivery team</a>. By selecting Start free assessment,
-        you agree to our <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and{" "}
+        Approved robot teams see an anonymized summary of the job; your video, address and contacts stay private.
+        By selecting Start free assessment, you agree to our <a href={TERMS_URL} target="_blank" rel="noreferrer">Terms</a> and{" "}
         <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Policy</a> and confirm: “{DESCRIPTION_AUTHORITY_STATEMENT}”
       </p>
 
-      <p className="ms-form-note" role="note" aria-label="How long it takes">
-        <strong>How long it takes:</strong> {BETA_TIMELINES.join(" ")}
-      </p>
+      <p className="ms-form-note" role="note" aria-label="How long it takes">{REPLY_TIMELINE}</p>
 
       <button className="ms-button ms-button-large" type="submit" disabled={!interactive || state.status === "working" || clearStatus === "working" || loading}>
         {state.status !== "working" ? "Start free assessment"

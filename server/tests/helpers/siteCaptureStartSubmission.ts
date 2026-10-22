@@ -1,7 +1,7 @@
 /**
  * The exact body `client/src/components/site/SiteCaptureStart.tsx` posts to
- * `/api/inbound-request` when an anonymous site starts a job by uploading the
- * footage it already has.
+ * `/api/workspace/capture-start` when a new site starts a job by uploading the
+ * footage it already has, under the account it creates with the form.
  *
  * `client/tests/components/SiteCaptureStart.test.tsx` checks the component's
  * real request against this function, and the server journey in
@@ -28,7 +28,7 @@ export function siteCaptureStartSubmission(params: {
   requestId: string;
   retryToken: string;
   sourcePageUrl: string;
-  /** The "Keep this job private instead" choice: no card grant is sent. */
+  /** No card grant: a job kept private before the start form dropped that choice (2026-10-22). */
   keepPrivate?: boolean;
   task?: string;
   email?: string;

@@ -14,7 +14,7 @@ import {
 
 describe("the beta's expected timelines", () => {
   it("are the owner's three ranges, and none dates a recommendation", () => {
-    expect(REPLY_TIMELINE).toBe("We reply within two business days.");
+    expect(REPLY_TIMELINE).toBe("We usually reply within an hour.");
     expect(SIMULATION_BUILD_TIMELINE).toMatch(/checks needed for your job/);
     expect(SIMULATION_BUILD_TIMELINE).not.toMatch(/one to three weeks/);
     expect(EVALUATION_START_TIMELINE).toMatch(/compatible options and delivery support/);

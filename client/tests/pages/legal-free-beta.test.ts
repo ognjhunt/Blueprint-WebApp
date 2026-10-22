@@ -30,8 +30,8 @@ const privacy = JSON.stringify({ privacyPolicySections, californiaPrivacyRows, i
 describe("terms for the free beta", () => {
   it("is reissued with a future effective date and keeps the previous version in force", () => {
     // Owner decision 2026-10-15: published 2026-10-15, in force 30+ days later.
-    expect(TERMS_VERSION).toBe("2026-11-15.1");
-    expect(PRIVACY_VERSION).toBe("2026-11-15.3");
+    expect(TERMS_VERSION).toBe("2026-11-15.2");
+    expect(PRIVACY_VERSION).toBe("2026-11-15.4");
     expect([PREVIOUS_TERMS_VERSION, PREVIOUS_PRIVACY_VERSION]).toEqual(["2026-10-14.1", "2026-10-13.1"]);
     expect(legalEffectiveDate(TERMS_VERSION)).toBe("November 15, 2026");
     expect(legalUpdatePending(Date.parse("2026-11-14T23:59:00-08:00"))).toBe(true);
@@ -142,9 +142,11 @@ describe("recording notice, sound and the listing choice", () => {
     expect(abuse.providers[0][1]).toMatch(/job submission or footage upload/);
   });
 
-  it("describes the keep-private choice the start form offers", () => {
-    expect(terms).toMatch(/the form shows the anonymized job card .* and lets you keep the job private instead/);
-    expect(terms).toMatch(/Unless the site keeps a job private when starting it/);
+  // Owner decision 2026-10-22: the start form offers no keep-private choice.
+  it("describes the job card every started job authorizes, and no keep-private choice", () => {
+    expect(terms).toMatch(/Starting a job authorizes Blueprint to publish an anonymized job card/);
+    expect(terms).toMatch(/You can hide it at any time/);
+    expect(`${terms}${privacy}`).not.toMatch(/keep the job private instead|keeps a job private when starting|chose to keep/);
     expect(`${terms}${annex}`).not.toMatch(/previously chose private handling|previously marked private/);
   });
 });
