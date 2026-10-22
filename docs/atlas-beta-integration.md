@@ -42,3 +42,41 @@ receipt. Preserve these in company storage for cloud continuity; provider read
 URLs expire and are not canonical artifacts. Estimated provider geometry and
 generated hidden regions never establish measured scale, collision, dynamics,
 articulation, or physical evidence.
+
+## Automatic consented previews (owner exception 2026-10-22)
+
+The repo owner approved automatic Atlas 3D previews of website uploads as
+Blueprint-paid spend within a Blueprint-internal per-capture allowance (see
+`AGENTS.md`). It is a side lane: the native/Marble sponsorship, its assessment
+proposal and its budgets are unchanged and not required.
+
+`BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON` (web service) enables it:
+
+```json
+{ "schema_version": "website_atlas_grant_policy.v1", "maximum_cost_usd": 2,
+  "maximum_requests": 16, "validity_seconds": 604800,
+  "provider_retention": "account_does_not_retain",
+  "approval_reference": "...", "approved_by": "..." }
+```
+
+`maximum_cost_usd` is above 0 and at most 5, `maximum_requests` 1 to 32 and
+`validity_seconds` 3600 to 1209600. Unset or invalid, no automatic grant is
+created or honoured, every existing behaviour is unchanged, and nothing else
+reads it. Unsetting it is the kill switch for every automatic grant.
+
+Resolution for `atlas-configuration` and Atlas `preparation-spend` is: an exact
+env row (unchanged; its signer is still the retained sponsor); else the stored
+grant at `inboundRequests/{requestId}.website_atlas_grants[captureId]`; else,
+in the configuration transaction only, a new grant. A grant is created once
+(first writer wins) when the upload's recording consent allows derived scene
+generation, `account_owner_uid` is set, a finalized source video exists, and
+both `world_labs_atlas` and `openai` terms digests are configured.
+
+The stored `website_atlas_authorization.v2` grant pins the first call's
+`source_video_digest` and the uploaded object's immutable identity (browser
+video name, generation, size and CRC32C; or the app bundle's digests). A
+different digest or object refuses `website_atlas_source_consent_required`.
+It names `accepted_by` = `account_owner_uid` and carries no task context
+digest, so a task edit does not change it. Terms changes, expiry
+(`website_atlas_consent_expired`) and withdrawn consent (`source_revoked`)
+refuse exactly as for env rows. Reservations never create a grant.
