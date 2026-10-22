@@ -94,3 +94,21 @@ it("pins only one finalized upload's immutable identity", () => {
     { browser_pending_delivery: { state: "published", video: { ...video, generation: "0" } } }])
     expect(websiteAtlasSourceVideoIdentity(session)).toBeNull();
 });
+
+
+it("allows an explicit cumulative multi-run request quota without resetting dollars or prior calls", () => {
+  const renewed = { ...consent, maximum_cost_usd: 29.939948, maximum_requests: 1000 };
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", JSON.stringify([renewed]));
+  const grant = websiteAtlasAuthorization(input);
+  const usage = atlasAllowanceUsage({
+    historical: { admission: { provider: "world_labs_atlas", maximum_cost_usd: 4.939948, request_count: 16 } },
+    current: { admission: { provider: "openai", atlas_authorization_digest: "earlier-grant", maximum_cost_usd: 1.752431, request_count: 7 } },
+  });
+  expect(grant.maximum_cost_usd - usage.cost).toBeCloseTo(23.247569, 6);
+  expect(usage.requests).toBe(23);
+  expect(grant.maximum_requests - usage.requests).toBeGreaterThanOrEqual(14);
+  for (const maximum_requests of [0, 1.5, 1001]) {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", JSON.stringify([{ ...renewed, maximum_requests }]));
+    expect(() => websiteAtlasAuthorization(input)).toThrow("authorization_invalid");
+  }
+});
