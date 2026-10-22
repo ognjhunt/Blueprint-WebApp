@@ -99,3 +99,5 @@ and readiness, fetches the whole bundle from the Pipeline's signed
 `/api/live-pipeline/website-atlas-previews/{captureId}/bundle` read and
 verifies its stored digest and size. Withdrawal removes the section and
 refuses tickets and downloads at once.
+
+Explicit operator authorizations (`website_atlas_authorization.v1`) accept a cumulative `maximum_requests` of 1–1000, independently of the unchanged cumulative dollar cap. A request is a provider call, not an input-frame limit. Increasing this count preserves every prior reservation and charge; the source allowance never resets between runs. Automatic preview policies retain their configured limits and 32-request schema ceiling.

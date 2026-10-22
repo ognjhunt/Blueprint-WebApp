@@ -18,7 +18,7 @@ const authorization = z.object({
   provider_training_authorized: z.boolean(),
   provider_retention: z.enum(["account_does_not_retain", "project_library_retention_approved"]),
   maximum_cost_usd: z.number().finite().positive().max(1000),
-  maximum_requests: z.number().int().min(1).max(32),
+  maximum_requests: z.number().int().min(1).max(1000),
   expires_at_epoch: z.number().finite().positive(),
   claim_scope: z.literal("development_only"),
   planner: planner.optional(),
