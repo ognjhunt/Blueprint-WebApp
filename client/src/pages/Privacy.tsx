@@ -47,7 +47,7 @@ export const capturePrivacyAnnex = [
   ["Sound", "Phone videos can record sound, including conversations; Blueprint's browser recorder films without it. We keep an uploaded original as received, remove the sound before any automated review or before sending footage to an AI or 3D-processing provider, and do not analyze speech. Avoid filming conversations, and turn sound off where your camera allows."],
   ["Screens and paperwork", "Avoided when filming where practical, and blurred or removed when practical before a robot team sees anything derived from the site."],
   ["Location", "Used to tie a result to the right site, and to keep restricted areas you mark out of the scene."],
-  ["Robot team sharing", "Robot teams approved for beta can see the anonymized job card authorized when you start the job; jobs the site chose to keep private stay private. Robot teams also see their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
+  ["Robot team sharing", "Robot teams approved for beta can see the anonymized job card authorized when you start the job, until you hide it; a job started without a card stays unlisted. Robot teams also see their own results. The scene, what their policy is sent and the results are shared only as your listing or a written agreement allows. The raw walkthrough is outside the scope of all of them."],
   ["Physical pilot records", "If the site and the robot team agree to share pilot outcomes with Blueprint, those permissions set what operating records we receive, who may see them, and the permitted uses. A simulation result does not become a physical result without actual trial evidence."],
 ];
 
@@ -263,8 +263,8 @@ export default function Privacy() {
         <p>
           We share personal information with the providers below, only for the function listed and under contract. A
           site sees an alias for each robot team and its results, and the name of the team Blueprint recommends; robot
-          teams approved for beta see the anonymized job card authorized when the site starts a job, unless the site
-          chose to keep that job private.
+          teams approved for beta see the anonymized job card authorized when the site starts a job, until the site
+          hides it.
           We may also disclose information when the law requires it, to protect people&rsquo;s safety or our rights, or
           as part of a merger or sale of the business, in which case this policy continues to apply to it.
         </p>

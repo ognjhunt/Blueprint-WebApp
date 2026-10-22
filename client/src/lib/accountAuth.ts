@@ -42,3 +42,32 @@ export async function sendAccountVerification(user: User, continueUrl: string): 
   const { sendEmailVerification } = await import("firebase/auth");
   await sendEmailVerification(user, { url: continueUrl });
 }
+
+let detachedAuth: Promise<import("firebase/auth").Auth> | null = null;
+/**
+ * Creates a password account without signing this page in.
+ *
+ * The start form keys its draft and in-flight upload to the signed-in account,
+ * so a sign-in mid-submit would remount it and drop the selected video. A
+ * second, in-memory auth instance holds the new account for the submission
+ * that creates it; the site signs in normally afterwards.
+ */
+export async function createDetachedPasswordAccount(email: string, password: string): Promise<User> {
+  detachedAuth ??= (async () => {
+    const [{ auth }, { getApps, initializeApp }, { initializeAuth, inMemoryPersistence }] = await Promise.all([
+      import("@/lib/firebase"),
+      import("firebase/app"),
+      import("firebase/auth"),
+    ]);
+    const app = getApps().find(existing => existing.name === "site-intake-account")
+      ?? initializeApp(auth.app.options, "site-intake-account");
+    return initializeAuth(app, { persistence: inMemoryPersistence });
+  })().catch((error) => { detachedAuth = null; throw error; });
+  const { createUserWithEmailAndPassword } = await import("firebase/auth");
+  return (await createUserWithEmailAndPassword(await detachedAuth, email, password)).user;
+}
+
+/** The account created above, for retrying its own job while this page stays open. */
+export async function detachedAccountUser(): Promise<User | null> {
+  return detachedAuth ? (await detachedAuth.catch(() => null))?.currentUser ?? null : null;
+}

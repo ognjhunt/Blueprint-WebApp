@@ -356,6 +356,42 @@ router.post(
     return res.json({ ok: true, workspaceType: input.workspaceType, ...(teamId ? { teamId } : {}) });
   }),
 );
+// The start form creates a site's account with its first job, so the job is
+// owned from the start and its video goes with the form (owner decision
+// 2026-10-22). That job is the "site and job first" `/setup` asks for, so a
+// brand-new account with no profile at all becomes a site workspace here,
+// accepting the Terms the form shows. Any existing profile is left untouched.
+router.post(
+  "/capture-start",
+  handle(async (req, res, next) => {
+    const { user, auth } = res.locals.workspaceAccount;
+    if (Object.keys(user).length || req.body?.acceptedTerms !== true) return next();
+    const organization = text(req.body?.company).trim().slice(0, 160) || "My site";
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    const profile = {
+      uid: auth.uid,
+      email: text(auth.email),
+      createdDate: now,
+      name: text(auth.email).split("@")[0] || "Site operator",
+      organizationName: organization,
+      company: organization,
+      buyerType: "site_operator",
+      workspaceSetupCompletedAt: now,
+      acceptedTerms: true,
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+      termsAcceptance: buildLegalAcceptanceRecord({ acceptedAt: now }),
+    };
+    const profileRef = db!.collection("users").doc(auth.uid);
+    await db!.runTransaction(async (transaction) => {
+      // A profile written since the read above is someone else's setup; keep it.
+      if ((await transaction.get(profileRef)).exists) return;
+      transaction.set(profileRef, profile);
+    });
+    res.locals.workspaceAccount = { auth, user: object((await profileRef.get()).data()) };
+    next();
+  }),
+);
 router.use(
   handle(async (_req, res, next) => {
     const { user, auth } = res.locals.workspaceAccount;

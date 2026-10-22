@@ -21,6 +21,9 @@ import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION } from "@/lib/siteSubmissionAuthority";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
+import { createDetachedPasswordAccount, detachedAccountUser, sendAccountVerification } from "@/lib/accountAuth";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
+import { friendlyAuthError } from "@/lib/siteClaim";
 import {
   CAPTURE_VIDEO_ACCEPT,
   captureTokenFromUrl,
@@ -273,9 +276,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // Footage waits for a saved job (owner decision 2026-10-18). A video sent
   // before its job has an account is born with no owner, and saving the job
   // afterwards is an owner change the Pipeline refuses for that capture. A
-  // signed-in site workspace owns the job from the start, so only its video
-  // goes with the form; the upload routes refuse any other.
-  const videoWithForm = siteWorkspace;
+  // signed-in site workspace owns the job from the start, and so does a guest
+  // who creates its account with this form (owner decision 2026-10-22); only
+  // their video goes with the form, and the upload routes refuse any other.
+  const newAccount = !currentUser && hasFootage && region !== "non_us";
+  const videoWithForm = siteWorkspace || newAccount;
   const [footage, setFootage] = useState<File | null>(null);
   const [footageError, setFootageError] = useState<string | null>(null);
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
@@ -398,11 +403,36 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     const read = (key: string) => String(savedAnswers ? savedAnswers[savedFields[key]] ?? "" : data.get(key) ?? "").trim();
     let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
+    const password = String(data.get("startPassword") ?? "");
+    if (!retained && newAccount && password.length < MIN_PASSWORD_LENGTH) {
+      setState({ status: "failed", message: `Choose a password of ${MIN_PASSWORD_LENGTH} characters or more.` });
+      document.querySelector<HTMLInputElement>("#start-password")?.focus();
+      return;
+    }
     operationInFlight.current = true;
     setState({ status: "working" });
 
     try {
-      const headers = await withAppCheckHeader(await withFirebaseAuthHeaders(currentUser, await withCsrfHeader({ "Content-Type": "application/json" })));
+      // The account comes first, so the job is born owned and its video can go
+      // with it. Only the job and the upload see it; this page stays signed out.
+      // A retried save of that job goes under the same account.
+      let owner = currentUser ?? (retained?.endpoint === "/api/workspace/capture-start" ? await detachedAccountUser() : null);
+      // A filled honeypot is a bot: it gets the guest path's fake success, not an account.
+      const createsAccount = !retained && newAccount && !read("honeypot");
+      if (createsAccount) {
+        try {
+          owner = await createDetachedPasswordAccount(email.toLowerCase(), password);
+        } catch (error) {
+          if (!active.current) return;
+          setState({ status: "failed", message: (error as { code?: string } | null)?.code === "auth/email-already-in-use"
+            ? "An account already uses this email. Sign in first to upload the video here."
+            : friendlyAuthError(error, "We could not create your account. Please try again.") });
+          return;
+        }
+        void sendAccountVerification(owner, `${window.location.origin}/app`).catch(() => {});
+        if (!active.current) return;
+      }
+      const headers = await withAppCheckHeader(await withFirebaseAuthHeaders(owner, await withCsrfHeader({ "Content-Type": "application/json" })));
       let body = retained?.body ?? JSON.stringify({
           requestId: operationRecovery.requestId,
           retryToken: operationRecovery.retryToken,
@@ -469,7 +499,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       // Unknown type (the lookup is still in flight or failed) still tries the
       // workspace first; a refusal falls back with the same answers intact.
       let savedToWorkspace = retained ? retained.endpoint === "/api/workspace/capture-start"
-        : Boolean(currentUser) && workspaceType !== null && workspaceType !== "robot_team";
+        : createsAccount || (Boolean(currentUser) && workspaceType !== null && workspaceType !== "robot_team");
       let endpoint: "/api/workspace/capture-start" | "/api/inbound-request" = savedToWorkspace ? "/api/workspace/capture-start" : "/api/inbound-request";
       let frozen;
       try {
@@ -815,11 +845,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </p>
         ) : (
           <>
-          {/* A guest's video waits for the job's account; the uploader it
-              lands on carries the footage notice, so nothing more is said here. */}
-          {!siteWorkspace && <p className="ms-field-hint" role="note" aria-label="Save this job to an account first">
-            Create your account on the next screen, then upload it. Have one?{" "}
-            <a className="ms-text-link" href="/sign-in" onClick={rememberThisForm}>Sign in first</a> to upload it here.
+          {/* Signed in to an account that cannot hold a site: its video waits
+              for the job's site account, and the uploader carries the notice. */}
+          {!videoWithForm && <p className="ms-field-hint" role="note" aria-label="Save this job to an account first">
+            Send the video from your job page once the job is saved to a site account.
           </p>}
           {videoWithForm && <label htmlFor="start-footage">
             <span>Upload the video</span>
@@ -902,6 +931,16 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         <span>Company</span>
         <input id="start-company" name="startCompany" type="text" defaultValue={recovery.current.draft.company} required autoComplete="organization" maxLength={200} />
       </label>
+
+      {/* Never retained in a draft or a recovery body. */}
+      {newAccount && <label htmlFor="start-password">
+        <span>Create a password</span>
+        <span className="ms-field-hint">
+          {MIN_PASSWORD_LENGTH} characters or more. Have an account?{" "}
+          <a className="ms-text-link" href="/sign-in" onClick={rememberThisForm}>Sign in first</a>
+        </span>
+        <input id="start-password" name="startPassword" type="password" required minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password" maxLength={128} />
+      </label>}
 
       </>}
       {currentUser && workspaceType !== undefined && (siteWorkspace

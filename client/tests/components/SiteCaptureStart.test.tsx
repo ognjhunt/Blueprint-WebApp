@@ -32,6 +32,10 @@ vi.mock("@/lib/selfCaptureVideo", async (importOriginal) => ({
 }));
 
 const account = vi.hoisted(() => ({ user: null as any, loading: false }));
+// The account a guest creates with the form, held off the page's own sign-in.
+const created = vi.hoisted(() => ({ create: vi.fn(), verify: vi.fn(), current: vi.fn() }));
+vi.mock("@/lib/accountAuth", () => ({ createDetachedPasswordAccount: created.create, sendAccountVerification: created.verify,
+  detachedAccountUser: created.current }));
 // Explicit unit durability contract fake; native storage is exercised separately.
 // Native strict IndexedDB execution is a separate layer.
 const durability = vi.hoisted(() => ({ rows: new Map<string, { value: any; retired: boolean }>() }));
@@ -77,6 +81,9 @@ beforeEach(() => {
   fetchMock.mockReset();
   upload.send.mockReset();
   upload.retry.mockReset();
+  created.create.mockReset().mockResolvedValue({ uid: "new-site", email: "owner@example.com", getIdToken: async () => "new-site-token" });
+  created.verify.mockReset().mockResolvedValue(undefined);
+  created.current.mockReset().mockResolvedValue(null);
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("FormData", window.FormData);
 });
@@ -352,8 +359,8 @@ function postsTo(url: string) {
 }
 
 /**
- * Choose "Upload a video now". Only a signed-in site account then sends the
- * video with the form; a guest's video waits for the job's account.
+ * Choose "Upload a video now". The video goes with the form for a signed-in
+ * site account, and for a guest, who creates its account with the form.
  */
 function chooseUploadNow() {
   fireEvent.click(document.querySelector("#start-method-upload")!);
@@ -407,8 +414,9 @@ it("asks one question about the video and offers no separate rights step", async
 
   fireEvent.click(screen.getByRole("radio", { name: "Upload a video now" }));
   expect(document.querySelector("#start-rights")).toBeNull();
-  // A guest's video waits for the job's account, so no file is asked for here.
-  expect(document.querySelector("#start-footage")).toBeNull();
+  // A guest creates its account with the form, so the video is asked for here.
+  expect(document.querySelector("#start-footage")).toBeRequired();
+  expect(document.querySelector("#start-password")).toBeRequired();
   fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
   fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "fixture@example.invalid" } });
@@ -622,20 +630,23 @@ describe("SiteCaptureStart and a video that already exists", () => {
 
   // The server journey that proves an approved robot team can request an
   // evaluation on this job starts from this exact body, never a hand-built record.
-  // It is a guest's body: the job is saved, and its video waits for the account.
+  // It is a new site's body: the account is created with the form, and the job
+  // and its video are sent under it.
   it("sends the exact body the request-step journey starts from", async () => {
     account.user = null;
     answerPosts({ captureUrl });
+    upload.send.mockResolvedValue({ status: "done" });
     await renderReady(<SiteCaptureStart />);
     fireEvent.change(document.querySelector("#start-task")!, { target: { value: SITE_CAPTURE_START_FORM.task } });
     fireEvent.click(document.querySelector("#start-method-upload")!);
+    fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: SITE_CAPTURE_START_FORM.location } });
     fireEvent.change(document.querySelector("#start-email")!, { target: { value: SITE_CAPTURE_START_FORM.email } });
     fireEvent.change(document.querySelector("#start-company")!, { target: { value: SITE_CAPTURE_START_FORM.company } });
+    fireEvent.change(document.querySelector("#start-password")!, { target: { value: "correct horse" } });
     fireEvent.submit(screen.getByRole("form"));
-    await screen.findByRole("heading", { name: "Save your job to your account, then send your video." });
-    expect(upload.send).not.toHaveBeenCalled();
-    const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
+    await screen.findByRole("heading", { name: "Your recording is in." });
+    const sent = JSON.parse(postsTo("/api/workspace/capture-start")[0][1].body);
     expect(sent).toEqual(siteCaptureStartSubmission({ requestId: sent.requestId, retryToken: sent.retryToken,
       sourcePageUrl: window.location.href }));
   });
@@ -819,10 +830,10 @@ it("replays uncertain original answers, ignoring later edits", async () => {
   await screen.findByText("Uncertain save");
   chooseUploadNow();
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "other@example.invalid" } });
-  // A guest's video waits for the account, so there is no newly selected file to attach.
-  expect(document.querySelector("#start-footage")).toBeNull();
   fireEvent.submit(screen.getByRole("form"));
   await screen.findByRole("heading", { name: "Film the work area." });
+  // The original answers replay as sent: no account is created and no file goes.
+  expect(created.create).not.toHaveBeenCalled();
   expect(upload.send).not.toHaveBeenCalled();
   expect(screen.getByText(/email it to original@example.invalid/)).toBeInTheDocument();
   const posts = postsTo("/api/inbound-request");
@@ -997,44 +1008,46 @@ it("offers account setup only after the site and job have been saved", async () 
 });
 
 /**
- * Audit P1-8 (interim): the Pipeline refuses to prepare footage whose owner
- * changed after upload (`website_preparation_status.py`), and the scene robot
- * teams evaluate is built only for a claimed site. A guest's video sent with
- * the form, then saved to an account, can never reach a team evaluation. Until
- * the verified-claim resume ships (WebApp #1035, Pipeline #2696), a guest is
- * offered the account first, and is never told to save the job after sending.
+ * Audit P1-8: the Pipeline refuses to prepare footage whose owner changed after
+ * upload (`website_preparation_status.py`), and the scene robot teams evaluate
+ * is built only for a claimed site. So a guest sending video creates its
+ * account with the form (owner decision 2026-10-22): the job is born owned and
+ * the video goes with it, in one step, without signing this page in.
  */
-describe("SiteCaptureStart offers an account before a guest sends its video", () => {
+describe("SiteCaptureStart creates a guest's account with the form so its video goes now", () => {
   const captureUrl = "https://tryblueprint.io/capture-upload/tok.signed";
-  const claimUrl = "/claim/job.signed";
   const video = () => new File(["frames"], "cycle.mov", { type: "video/quicktime" });
-  function answer(body: Record<string, unknown>) {
+  function answer(body: Record<string, unknown>, status = 200) {
     fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
       if (String(url).startsWith("/api/site-task-brief/") && String(url).endsWith("/status")) return { ok: true, json: async () => ({ status: { headline: "", stage: null }, captureReceived: false }) };
       if (String(url).endsWith("/api/self-capture/uploads/tok.signed/status")) return { ok: true, json: async () => ({ state: "ready", captureReceived: false, uploadState: "not_received" }) };
-      if (init?.method === "POST") return { ok: true, status: 200, json: async () => body };
+      if (init?.method === "POST") return { ok: status < 400, status, json: async () => body };
       return photon([]);
     });
   }
-  function fillGuest() {
-    fireEvent.change(document.querySelector("#start-task")!, { target: { value: SITE_CAPTURE_START_FORM.task } });
+  function fillGuest(password = "correct horse") {
+    fireEvent.click(document.querySelector("#start-method-upload")!);
+    fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [video()] } });
     fireEvent.change(document.querySelector("#start-location")!, { target: { value: SITE_CAPTURE_START_FORM.location } });
-    fireEvent.change(document.querySelector("#start-email")!, { target: { value: SITE_CAPTURE_START_FORM.email } });
+    fireEvent.change(document.querySelector("#start-email")!, { target: { value: "Owner@Example.com" } });
     fireEvent.change(document.querySelector("#start-company")!, { target: { value: SITE_CAPTURE_START_FORM.company } });
+    fireEvent.change(document.querySelector("#start-password")!, { target: { value: password } });
   }
 
-  it("asks a guest for no file at all: the video waits for the job's account", async () => {
+  it("asks a guest for the video and a password, with nothing else to read", async () => {
     await renderReady(<SiteCaptureStart />);
+    expect(document.querySelector("#start-password")).toBeNull();
     fireEvent.click(document.querySelector("#start-method-upload")!);
-    const note = screen.getByRole("note", { name: "Save this job to an account first" });
-    expect(note).toHaveTextContent("Create your account on the next screen, then upload it. Have one? Sign in first to upload it here.");
-    // The uploader the guest lands on carries the footage notice.
-    expect(screen.queryByText(/People seen or heard in it must know/)).not.toBeInTheDocument();
+    expect(document.querySelector("#start-footage")).toBeRequired();
+    const password = document.querySelector("#start-password") as HTMLInputElement;
+    expect(password).toBeRequired();
+    expect(password).toHaveAttribute("type", "password");
+    expect(password).toHaveAttribute("autocomplete", "new-password");
     expect(screen.getByRole("link", { name: "Sign in first" })).toHaveAttribute("href", "/sign-in");
-    expect(document.querySelector("#start-footage")).toBeNull();
-    // Owner decision 2026-10-18: there is no way to send it without an account.
-    expect(document.querySelector("#start-upload-without-account")).toBeNull();
-    expect(screen.queryByText(/without an account/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("note", { name: "Save this job to an account first" })).not.toBeInTheDocument();
+    // Filming later on a phone or by Blueprint asks for no account here.
+    fireEvent.click(document.querySelector("#start-method-phone")!);
+    expect(document.querySelector("#start-password")).toBeNull();
   });
 
   it("remembers the form when the guest signs in first", async () => {
@@ -1044,25 +1057,78 @@ describe("SiteCaptureStart offers an account before a guest sends its video", ()
     expect(window.sessionStorage.getItem("redirectAfterAuth")).toBe(`${window.location.pathname}${window.location.search}`);
   });
 
-  it("saves the job, sends nothing, and offers the account before the video", async () => {
-    answer({ captureUrl, claimUrl });
+  it("creates the account, saves the job under it and sends the video in one step", async () => {
+    answer({ captureUrl });
+    upload.send.mockResolvedValue({ status: "done" });
     await renderReady(<SiteCaptureStart />);
-    fireEvent.click(document.querySelector("#start-method-upload")!);
     fillGuest();
     fireEvent.submit(screen.getByRole("form"));
 
-    await screen.findByRole("heading", { name: "Save your job to your account, then send your video." });
-    // The same submission the request-step journey starts from; only the upload waits.
-    const sent = JSON.parse(postsTo("/api/inbound-request")[0][1].body);
-    expect(sent).toEqual(siteCaptureStartSubmission({ requestId: sent.requestId, retryToken: sent.retryToken,
-      sourcePageUrl: window.location.href }));
-    expect(upload.send).not.toHaveBeenCalled();
-    expect(screen.getAllByRole("link", { name: "Create an account for this job" })).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "Create an account for this job" })).toHaveAttribute("href", claimUrl);
-    expect(screen.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", `${claimUrl}?mode=signin`);
-    expect(screen.getByRole("link", { name: "Open the uploader" })).toHaveAttribute("href", `${captureUrl}?video=existing`);
+    await screen.findByRole("heading", { name: "Your recording is in." });
+    expect(created.create).toHaveBeenCalledWith("owner@example.com", "correct horse");
+    expect(created.verify).toHaveBeenCalledWith(expect.objectContaining({ uid: "new-site" }), `${window.location.origin}/app`);
+    const [[, request]] = postsTo("/api/workspace/capture-start");
+    expect(request.headers).toMatchObject({ Authorization: "Bearer new-site-token" });
+    expect(postsTo("/api/inbound-request")).toHaveLength(0);
+    expect(upload.send).toHaveBeenCalledWith("tok.signed", expect.any(File), expect.any(Function));
+    // The password never reaches a draft or a recovery body.
+    expect(request.body).not.toContain("correct horse");
+    expect(JSON.stringify([...durability.rows.values()])).not.toContain("correct horse");
+    expect(Object.values({ ...localStorage }).join("")).not.toContain("correct horse");
   });
 
+  it("retries an uncertain save under the account it just created, without creating another", async () => {
+    let saves = 0;
+    fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
+      if (init?.method !== "POST") return photon([]);
+      saves += 1;
+      return saves === 1 ? { ok: false, status: 503, json: async () => ({ message: "Uncertain save" }) }
+        : { ok: true, status: 201, json: async () => ({ captureUrl }) };
+    });
+    await renderReady(<SiteCaptureStart />);
+    fillGuest();
+    fireEvent.submit(screen.getByRole("form"));
+    await screen.findByText("Uncertain save");
+    created.current.mockResolvedValue({ uid: "new-site", email: "owner@example.com", getIdToken: async () => "new-site-token" });
+    fireEvent.click(screen.getByRole("button", { name: "Recover saved job" }));
+    await screen.findByRole("link", { name: "Saved in your workspace" });
+    const saved = postsTo("/api/workspace/capture-start");
+    expect(saved).toHaveLength(2);
+    expect(saved[1][1].headers).toMatchObject({ Authorization: "Bearer new-site-token" });
+    expect(saved[1][1].body).toBe(saved[0][1].body);
+    expect(created.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks an existing account holder to sign in, and saves nothing", async () => {
+    answer({ captureUrl });
+    created.create.mockRejectedValue(Object.assign(new Error("Firebase: Error (auth/email-already-in-use)."), { code: "auth/email-already-in-use" }));
+    await renderReady(<SiteCaptureStart />);
+    fillGuest();
+    fireEvent.submit(screen.getByRole("form"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("An account already uses this email. Sign in first to upload the video here.");
+    expect(fetchMock.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
+    expect(upload.send).not.toHaveBeenCalled();
+  });
+
+  it("asks for a longer password before creating anything", async () => {
+    answer({ captureUrl });
+    await renderReady(<SiteCaptureStart />);
+    fillGuest("short");
+    fireEvent.submit(screen.getByRole("form"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Choose a password of 8 characters or more.");
+    expect(created.create).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(0);
+  });
+
+  it("gives a filled honeypot no account", async () => {
+    answer({ captureUrl: null });
+    await renderReady(<SiteCaptureStart />);
+    fillGuest();
+    fireEvent.change(document.querySelector("#start-website-hp")!, { target: { value: "https://spam.example" } });
+    fireEvent.submit(screen.getByRole("form"));
+    await waitFor(() => expect(postsTo("/api/inbound-request")).toHaveLength(1));
+    expect(created.create).not.toHaveBeenCalled();
+  });
 
   it("sends the video with the form for a signed-in site account, which owns the job from the start", async () => {
     signedIn({ workspaceType: "site_operator" }, [{ ok: true, body: { captureUrl } }]);

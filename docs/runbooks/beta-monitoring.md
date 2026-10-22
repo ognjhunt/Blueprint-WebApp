@@ -118,6 +118,11 @@ Redis outages fail open: rate limiting lets requests through within ~750 ms
    video upload (its `scene_semantics.py` now uploads through
    `audio_free_upload_copy`; check that build is the one running), and have
    counsel review the recording-notice and sound wording.
+   The October 22 revision (Terms `2026-11-15.2`, Privacy `2026-11-15.4`) keeps
+   the November 15 effective date and drops the start form's keep-private
+   choice: starting a job authorizes the anonymized job card, which the site can
+   hide at any time, and a job started without a card stays unlisted. Have
+   counsel review that wording with the rest of the reissue.
 9. **Uptime cron (every 10 minutes)**: Render → New → Cron Job, from this
    repo's `main`: name `blueprint-uptime-probe`, region Virginia, schedule
    `*/10 * * * *`, build command `node --version`, start command
