@@ -69,7 +69,10 @@ it("reads the automatic grant policy strictly and never throws", () => {
   expect(websiteAtlasGrantPolicy()).toBeNull();
   vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
   expect(websiteAtlasGrantPolicy()).toEqual(policy);
-  for (const changed of [{ maximum_cost_usd: 0 }, { maximum_cost_usd: 5.01 }, { maximum_requests: 33 }, { validity_seconds: 3599 },
+  // A high safety ceiling (accuracy over cost) is accepted; only a typo-sized one is refused.
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_cost_usd: 25 }));
+  expect(websiteAtlasGrantPolicy()?.maximum_cost_usd).toBe(25);
+  for (const changed of [{ maximum_cost_usd: 0 }, { maximum_cost_usd: 100.01 }, { maximum_requests: 33 }, { validity_seconds: 3599 },
     { validity_seconds: 1209601 }, { provider_retention: "project_library_retention_approved" }, { approved_by: " " }, { charge: 1 }]) {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, ...changed }));
     expect(websiteAtlasGrantPolicy()).toBeNull();

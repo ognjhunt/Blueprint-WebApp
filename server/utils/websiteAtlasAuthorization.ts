@@ -55,10 +55,12 @@ export function websiteAtlasAuthorization(input: EnvRowMatch & GrantChecks) {
 
 /** Owner exception 2026-10-22 (AGENTS.md): automatic, consented previews within a
  * Blueprint-internal allowance. Unset or invalid configures no automatic grant,
- * and neither creates nor honours a stored one; nothing else reads it. */
+ * and neither creates nor honours a stored one; nothing else reads it. The owner
+ * chose accuracy over cost: the cap is a high safety ceiling against runaway spend,
+ * never a limit on preview quality, so the schema admits up to $100 per capture. */
 const grantPolicy = z.object({
   schema_version: z.literal("website_atlas_grant_policy.v1"),
-  maximum_cost_usd: z.number().finite().positive().max(5),
+  maximum_cost_usd: z.number().finite().positive().max(100),
   maximum_requests: z.number().int().min(1).max(32),
   validity_seconds: z.number().int().min(3600).max(1_209_600),
   provider_retention: z.literal("account_does_not_retain"),
@@ -106,7 +108,7 @@ const storedGrant = z.object({
   grant_basis: z.literal("automatic_consented_preview"),
   private_processing_authorized: z.literal(true), provider_training_authorized: z.literal(false),
   provider_retention: z.literal("account_does_not_retain"),
-  maximum_cost_usd: z.number().finite().positive().max(5),
+  maximum_cost_usd: z.number().finite().positive().max(100),
   maximum_requests: z.number().int().min(1).max(32),
   created_at_epoch: z.number().int().positive(), expires_at_epoch: z.number().int().positive(),
   claim_scope: z.literal("development_only"),
