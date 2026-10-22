@@ -683,7 +683,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
   if (!db) throw new Error("website_capture_rights_store_unavailable");
   const store = db;
   const captureBinding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
-  const atlasRequested = command.provider === "world_labs_atlas" || command.provider === "openai" && Boolean(command.source_video_digest);
+  const atlasRequested = command.provider === "world_labs_atlas" || ["openai", "meta", "google"].includes(command.provider) && Boolean(command.source_video_digest);
   // An automatic Atlas grant is a side lane: it needs neither the native/Marble
   // sponsorship nor that lane's assessment proposal. Without the grant policy, or
   // when an explicit env row applies, this is exactly the existing path.
@@ -729,6 +729,26 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       throw new Error("website_scene_sponsorship_binding_invalid");
     if (!atlas && sceneProviderTerms()[command.provider]?.digest !== (authority as Record<string, any>).consent.provider_terms_reference)
       throw new Error("provider_terms_not_configured_or_changed");
+    // Atlas auxiliary work shares the Atlas source cap, but never inherits its
+    // provider disclosure. Preserve the existing native sponsorship/terms check
+    // for Meta segmentation and Google independent review.
+    let auxiliaryTerms: string | undefined;
+    let auxiliaryConsentDigest: string | undefined;
+    let auxiliaryExpiresAt = Infinity;
+    if (atlas && ["meta", "google"].includes(command.provider)) {
+      if (!record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
+      const auxiliary = websiteSceneSponsorship({ requestId, record, purpose: retainedWebsiteScenePurpose(record),
+        brief: brief.data() as SiteTaskBriefRecord, inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+        ...(assessment ? { assessmentPreparationProposal: assessment.proposal } : {}),
+        captureId, captureBinding, now: Date.now() / 1000 });
+      auxiliaryConsentDigest = auxiliary.authority_digest;
+      auxiliaryExpiresAt = auxiliary.expires_at_epoch;
+      if (auxiliary.task_context_digest !== authority.task_context_digest)
+        throw new Error("website_scene_sponsorship_binding_invalid");
+      auxiliaryTerms = sceneProviderTerms()[command.provider]?.digest;
+      if (!auxiliaryTerms || auxiliaryTerms !== auxiliary.consent.provider_terms_reference)
+        throw new Error("provider_terms_not_configured_or_changed");
+    }
     const reservations: Record<string, any> = record.website_preparation_reservations || {};
     const key = command.allocation_binding_digest.slice(7);
     if (reservations[key]) {
@@ -754,10 +774,11 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     const admission = { ...command, schema_version: "paid_lane_admission.v1", status: "admitted",
       blockers: [], external_disclosure_allowed: true, sponsorship_digest: authority.authority_digest,
       ...(atlas ? { atlas_authorization_digest: atlas.authorization_digest,
-        provider_terms_reference: command.provider === "openai" ? atlas.planner!.provider_terms_reference : atlas.provider_terms_reference,
-        provider_retention: atlas.provider_retention,
-        provider_training_authorized: command.provider === "openai" ? false : atlas.provider_training_authorized } : {}),
-      expires_at_epoch: Math.min(authority.expires_at_epoch, atlas?.expires_at_epoch ?? authority.expires_at_epoch) };
+        provider_terms_reference: auxiliaryTerms ?? (command.provider === "openai" ? atlas.planner!.provider_terms_reference : atlas.provider_terms_reference),
+        provider_retention: auxiliaryTerms ? "accepted_auxiliary_provider_terms" : atlas.provider_retention,
+        ...(auxiliaryConsentDigest ? { auxiliary_consent_digest: auxiliaryConsentDigest } : {}),
+        provider_training_authorized: command.provider === "openai" || Boolean(auxiliaryTerms) ? false : atlas.provider_training_authorized } : {}),
+      expires_at_epoch: Math.min(authority.expires_at_epoch, atlas?.expires_at_epoch ?? authority.expires_at_epoch, auxiliaryExpiresAt) };
     transaction.update(ref, { website_preparation_reservations: { ...reservations,
       [key]: { command_digest: digest(command), admission } } });
     return admission;
