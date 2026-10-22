@@ -273,7 +273,7 @@ const sealedDigest = (value: Record<string, unknown>, field: string) =>
   );
 export function sceneProviderTerms() {
   const schema = z.record(
-    z.enum(["vast", "runpod", "openai", "anthropic", "meta", "world_labs", "google"]),
+    z.enum(["vast", "runpod", "openai", "anthropic", "meta", "world_labs", "world_labs_atlas", "google"]),
     z
       .object({
         digest,
