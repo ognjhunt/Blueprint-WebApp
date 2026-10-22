@@ -49,6 +49,7 @@ const runtimePolicy = z.object({
   schema_version: z.literal("website_atlas_runtime_policy.v1"),
   model: z.string().min(1), maximum_review_cost_usd: z.number().finite().positive().max(5),
   pose_input_cost_usd: z.number().finite().positive(), rgbd_view_cost_usd: z.number().finite().positive(),
+  mesh_export_cost_usd: z.number().finite().positive().optional(),
   rate_card_reference: z.string().url().startsWith("https://"), reviewed_by: z.string().min(1),
   reviewed_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 }).strict();

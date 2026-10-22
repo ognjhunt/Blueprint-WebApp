@@ -46,3 +46,17 @@ it("never treats missing, duplicated or malformed authority as consent", () => {
   vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON", JSON.stringify([{ ...consent, private_processing_authorized: false }]));
   expect(() => websiteAtlasAuthorization(input)).toThrow("authorization_invalid");
 });
+
+it("accepts an optional reviewed mesh export price and still refuses unknown or non-positive policy fields", () => {
+  const policy = { schema_version: "website_atlas_runtime_policy.v1", model: "gpt-6.1-sol", maximum_review_cost_usd: .5,
+    pose_input_cost_usd: .01, rgbd_view_cost_usd: .05, rate_card_reference: "https://atlas-beta.worldlabs.ai/docs/billing",
+    reviewed_by: "operator", reviewed_on: "2026-10-21" };
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON", JSON.stringify(policy));
+  expect(websiteAtlasRuntimePolicy()).not.toHaveProperty("mesh_export_cost_usd");
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON", JSON.stringify({ ...policy, mesh_export_cost_usd: .5 }));
+  expect(websiteAtlasRuntimePolicy()).toMatchObject({ mesh_export_cost_usd: .5 });
+  for (const changed of [{ mesh_export_cost_usd: 0 }, { splat_cost_usd: 1 }]) {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON", JSON.stringify({ ...policy, ...changed }));
+    expect(() => websiteAtlasRuntimePolicy()).toThrow("runtime_policy_required");
+  }
+});
