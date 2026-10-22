@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from "vitest";
-import { websiteAtlasAuthorization, atlasAllowanceUsage, websiteAtlasRuntimePolicy } from "../utils/websiteAtlasAuthorization";
+import { websiteAtlasAuthorization, atlasAllowanceUsage, websiteAtlasRuntimePolicy, websiteAtlasGrantPolicy,
+  websiteAtlasSourceVideoIdentity } from "../utils/websiteAtlasAuthorization";
 
 const sha = (s: string) => `sha256:${s.repeat(64)}`;
 const input = { requestId: "r", captureId: "c", taskContextDigest: sha("1"), sourceVideoDigest: sha("2"),
@@ -59,4 +60,34 @@ it("accepts an optional reviewed mesh export price and still refuses unknown or 
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON", JSON.stringify({ ...policy, ...changed }));
     expect(() => websiteAtlasRuntimePolicy()).toThrow("runtime_policy_required");
   }
+});
+
+it("reads the automatic grant policy strictly and never throws", () => {
+  const policy = { schema_version: "website_atlas_grant_policy.v1", maximum_cost_usd: 2, maximum_requests: 16,
+    validity_seconds: 604800, provider_retention: "account_does_not_retain", approval_reference: "owner 2026-10-22",
+    approved_by: "repo-owner" };
+  expect(websiteAtlasGrantPolicy()).toBeNull();
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+  expect(websiteAtlasGrantPolicy()).toEqual(policy);
+  for (const changed of [{ maximum_cost_usd: 0 }, { maximum_cost_usd: 5.01 }, { maximum_requests: 33 }, { validity_seconds: 3599 },
+    { validity_seconds: 1209601 }, { provider_retention: "project_library_retention_approved" }, { approved_by: " " }, { charge: 1 }]) {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, ...changed }));
+    expect(websiteAtlasGrantPolicy()).toBeNull();
+  }
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", "{not json");
+  expect(websiteAtlasGrantPolicy()).toBeNull();
+});
+
+it("pins only one finalized upload's immutable identity", () => {
+  const video = { object_name: "scenes/site-r/captures/walkthrough-r/raw/walkthrough.mov", generation: "17", size_bytes: 9, crc32c: "AAAAAA==" };
+  const bundle = { raw_bundle_digest: sha("1"), raw_manifest_uri: "gs://bucket/scenes/site-r/captures/c/raw/manifest.json",
+    upload_completion_digest: sha("2") };
+  expect(websiteAtlasSourceVideoIdentity({ browser_pending_delivery: { state: "published", video } }))
+    .toEqual({ kind: "website_browser_video", ...video });
+  expect(websiteAtlasSourceVideoIdentity({ immutable_upload_identity: { ...bundle, verification_status: "pipeline_storage_bytes_verified",
+    verified_capture_digest: sha("1") } })).toEqual({ kind: "site_capture_bundle", ...bundle });
+  for (const session of [undefined, {}, { browser_pending_delivery: { state: "held", video } },
+    { browser_pending_delivery: { state: "published", video }, immutable_upload_identity: bundle },
+    { browser_pending_delivery: { state: "published", video: { ...video, generation: "0" } } }])
+    expect(websiteAtlasSourceVideoIdentity(session)).toBeNull();
 });

@@ -1,6 +1,6 @@
 /** Current-source preparation status; never a native assessment or preview verdict. */
-import { createHmac, randomUUID } from "node:crypto";
 import { z } from "zod";
+import { signedWebsitePipelineRequest } from "./websitePipelineSignedRequest";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { automationBatch } from "./automationBatch";
@@ -146,21 +146,11 @@ export function mergeWebsitePreparationStatus(prior: StoredWebsitePreparation | 
 }
 /** Existing signed client admission, bounded response, no redirect or arbitrary caller destination. */
 async function readCanonicalLedger(selector: WebsitePreparationSelector, signal?: AbortSignal): Promise<unknown> {
-  const configured = process.env.CAPTURE_LIFECYCLE_PIPELINE_BASE_URL
-    || process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_URL?.replace(/\/capture-upload-intakes\/?$/, "");
-  const token = process.env.CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN;
-  if (!configured || !token) throw unavailable();
-  const url = new URL(configured);
-  if (url.username || url.password || (url.protocol !== "https:" && !(process.env.NODE_ENV === "test"
-    && url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)))) throw unavailable();
-  url.pathname = "/api/live-pipeline/website-preparation-status"; url.search = ""; url.hash = "";
-  const body = JSON.stringify(selector), timestamp = new Date().toISOString(), nonce = randomUUID();
-  const client = "blueprint-webapp";
-  const signature = createHmac("sha256", token).update(`${timestamp}.${client}.${nonce}.${body}`).digest("hex");
-  const response = await fetch(url, {method: "POST", redirect: "error", signal: signal ?? AbortSignal.timeout(5_000),
-    body, headers: {"content-type": "application/json", "x-blueprint-pipeline-timestamp": timestamp,
-      "x-blueprint-pipeline-client-id": client, "x-blueprint-pipeline-nonce": nonce,
-      "x-blueprint-pipeline-signature": `sha256=${signature}`, [WEBSITE_PREPARATION_STATUS_VERSION_HEADER]: "2"}});
+  const body = JSON.stringify(selector);
+  const signed = signedWebsitePipelineRequest("/api/live-pipeline/website-preparation-status", body);
+  if (!signed) throw unavailable();
+  const response = await fetch(signed.url, {method: "POST", redirect: "error", signal: signal ?? AbortSignal.timeout(5_000),
+    body, headers: {"content-type": "application/json", ...signed.headers, [WEBSITE_PREPARATION_STATUS_VERSION_HEADER]: "2"}});
   if (!response.ok || !response.body || Number(response.headers.get("content-length")) > 8192) throw unavailable();
   const reader = response.body.getReader(); let length = 0; const chunks: Buffer[] = [];
   try {

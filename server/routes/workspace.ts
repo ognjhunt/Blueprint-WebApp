@@ -76,6 +76,8 @@ import { accountHasAdmission } from "../utils/accountInvitations";
 import { resolveAccessContext } from "../utils/access-control";
 import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
+import { downloadableWebsiteAtlasPreview, projectWebsiteAtlasPreview, WEBSITE_ATLAS_CAPTURE_ID,
+  websiteAtlasPreviewDownloadUrl } from "../utils/websiteAtlasPreview";
 import { projectPilotBooking } from "../utils/pilotContactExchange";
 import { listCheckpoints } from "../utils/robotCheckpoints";
 import { offersTeamEvaluation, TEAM_POLICY_BLOCKER_MESSAGES, teamPolicyBlocker, robotSetupIntegrationBlocker, type TeamPolicyBlocker } from "../utils/policyIntegration";
@@ -671,6 +673,8 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
       .catch(() => logger.warn("Site advisory workspace return wake unavailable"));
   }
   if (consentRevoked) task.status = "Recording consent withdrawn";
+  // Development-only, unscaled; gone the moment recording consent is withdrawn.
+  task.atlasPreview = consentRevoked ? null : projectWebsiteAtlasPreview(record);
   // The booked pilot with the robot team's contact, while both consents stand.
   task.pilotBooking = await projectPilotBooking(record, "site").catch(() => null);
   return task;
@@ -1527,6 +1531,18 @@ router.post("/tasks/:taskId/recording-consent/withdraw", handle(async (req, res)
       if (!record || record.account_owner_uid !== caller.uid) refuse(403, "Only the verified site owner can withdraw recording permission.");
     } });
   return res.status(202).json({ ok: true, receipt: withdrawal, withdrawal: projectWebsiteCaptureWithdrawal(withdrawal) });
+}));
+/** Owner-only ticket for the development-only 3D preview. The download route
+ * re-reads consent and readiness before any byte is served. */
+router.post("/tasks/:taskId/atlas-preview/download-ticket", handle(async (req, res) => {
+  const item = await ownedTask(req.params.taskId, res);
+  const input = z.object({ captureId: z.string().regex(WEBSITE_ATLAS_CAPTURE_ID).optional() }).strict().parse(req.body ?? {});
+  res.set("Cache-Control", "private, no-store");
+  const preview = downloadableWebsiteAtlasPreview(item.record, input.captureId);
+  if (!preview) refuse(404, "This 3D preview is not available to download.", "website_atlas_preview_unavailable");
+  const downloadUrl = websiteAtlasPreviewDownloadUrl(req.params.taskId, preview.capture_id);
+  if (!downloadUrl) refuse(503, "3D preview downloads are not configured.", "website_atlas_preview_download_not_configured");
+  return res.status(201).json({ download_url: downloadUrl });
 }));
 router.post(
   "/tasks/:taskId/pilot",

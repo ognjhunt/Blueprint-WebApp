@@ -8,7 +8,8 @@ import { projectWebsiteCaptureRights, projectWebsiteTaskContext, legacySuggested
 import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
-import { websiteAtlasAuthorization, websiteAtlasRuntimePolicy, atlasAllowanceUsage } from "./websiteAtlasAuthorization";
+import { websiteAtlasRuntimePolicy, atlasAllowanceUsage, resolveWebsiteAtlasGrant, websiteAtlasAutomaticLane,
+  websiteAtlasGrantOwner, websiteAtlasGrantPolicy } from "./websiteAtlasAuthorization";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
@@ -682,7 +683,13 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
   if (!db) throw new Error("website_capture_rights_store_unavailable");
   const store = db;
   const captureBinding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
-  const assessment = await loadAssessmentPreparationProposal(requestId, captureId);
+  const atlasRequested = command.provider === "world_labs_atlas" || command.provider === "openai" && Boolean(command.source_video_digest);
+  // An automatic Atlas grant is a side lane: it needs neither the native/Marble
+  // sponsorship nor that lane's assessment proposal. Without the grant policy, or
+  // when an explicit env row applies, this is exactly the existing path.
+  const automaticAtlas = atlasRequested && websiteAtlasAutomaticLane({ requestId, captureId,
+    taskContextDigest: command.task_context_digest, sourceVideoDigest: command.source_video_digest });
+  const assessment = automaticAtlas ? null : await loadAssessmentPreparationProposal(requestId, captureId);
   return storeTimeout(store.runTransaction(async transaction => {
     const ref = store.collection("inboundRequests").doc(requestId);
     const [request, brief, inventory] = await Promise.all([
@@ -692,17 +699,20 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     if (!request.exists || !brief.exists) throw new Error("task_brief_missing");
     await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
     const record = request.data()!;
-    await assertAssessmentPreparationCurrent(transaction, assessment, record, {requestId, captureId});
-    if (!record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
-    const atlas = (command.provider === "world_labs_atlas" || command.provider === "openai" && command.source_video_digest) ? websiteAtlasAuthorization({
+    if (!automaticAtlas) await assertAssessmentPreparationCurrent(transaction, assessment, record, {requestId, captureId});
+    if (!record.website_scene_sponsorship && !automaticAtlas) throw new Error("website_scene_sponsorship_missing");
+    // Reservations never create a grant; only atlas-configuration does.
+    const atlas = atlasRequested ? (await resolveWebsiteAtlasGrant({
       requestId, captureId, taskContextDigest: command.task_context_digest,
       sourceVideoDigest: command.source_video_digest, termsDigest: sceneProviderTerms().world_labs_atlas?.digest,
       now: Date.now() / 1000,
       planning: command.provider === "openai", plannerTermsDigest: sceneProviderTerms().openai?.digest,
-    }) : null;
+      record, captureRights: projectWebsiteCaptureRights(record), create: false,
+      readSession: async () => (await transaction.get(store.collection("captureUploadSessions").doc(captureId))).data(),
+    })).grant : null;
     const rights = projectWebsiteCaptureRights(record);
     if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
-    if (atlas && atlas.accepted_by !== record.website_scene_sponsorship.owner.user_id)
+    if (atlas && atlas.accepted_by !== websiteAtlasGrantOwner(record, atlas))
       throw new Error("website_atlas_source_owner_mismatch");
     const atlasContext = atlas ? projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, rights, {
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
@@ -754,35 +764,44 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
   }));
 }
 
-/** Read-only production planning configuration; never dispatch authority. */
+/** Read-only production planning configuration; never dispatch authority. The only
+ * write is the first automatic Atlas grant for this capture, made from the upload's
+ * own consent and the Blueprint grant policy; it never touches the sponsorship. */
 export async function loadWebsiteAtlasConfiguration(requestId: string, captureId: string,
   input: { task_context_digest: string; source_video_digest: string }) {
   if (!db) throw new Error("website_capture_rights_store_unavailable");
   const binding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
   const store = db;
   return storeTimeout(store.runTransaction(async transaction => {
+    const ref = store.collection("inboundRequests").doc(requestId);
     const [request, brief, inventory] = await Promise.all([
-      transaction.get(store.collection("inboundRequests").doc(requestId)),
+      transaction.get(ref),
       transaction.get(store.collection(TASK_BRIEFS_COLLECTION).doc(requestId)),
       transaction.get(store.collection("siteTaskItemInventories").doc(requestId)),
     ]);
     await assertWebsiteCaptureBindingInTransaction(transaction, requestId, binding);
     const record = request.data();
-    if (!record || !brief.exists || !record.website_scene_sponsorship) throw new Error("task_brief_missing");
+    if (!record || !brief.exists || !record.website_scene_sponsorship && !websiteAtlasGrantPolicy())
+      throw new Error("task_brief_missing");
     const rights = projectWebsiteCaptureRights(record);
     if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
     const context = projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, rights, {
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       purpose: retainedWebsiteScenePurpose(record), captureId, captureBinding: binding });
     if (context.context_digest !== input.task_context_digest) throw new Error("website_scene_sponsorship_binding_invalid");
-    const authority = websiteAtlasAuthorization({ requestId, captureId,
+    const { grant: authority, created } = await resolveWebsiteAtlasGrant({ requestId, captureId,
       taskContextDigest: context.context_digest, sourceVideoDigest: input.source_video_digest,
       termsDigest: sceneProviderTerms().world_labs_atlas?.digest,
-      plannerTermsDigest: sceneProviderTerms().openai?.digest, planning: true, now: Date.now() / 1000 });
-    if (authority.accepted_by !== record.website_scene_sponsorship.owner.user_id)
+      plannerTermsDigest: sceneProviderTerms().openai?.digest, planning: true, now: Date.now() / 1000,
+      record, captureRights: rights, create: true,
+      readSession: async () => (await transaction.get(store.collection("captureUploadSessions").doc(captureId))).data() });
+    if (authority.accepted_by !== websiteAtlasGrantOwner(record, authority))
       throw new Error("website_atlas_source_owner_mismatch");
     const usage = atlasAllowanceUsage(record.website_preparation_reservations || {});
-    return { schema_version: "website_atlas_configuration.v1", authority, policy: websiteAtlasRuntimePolicy(),
+    const policy = websiteAtlasRuntimePolicy();
+    // First writer wins: a concurrent creation retries this transaction and then reads it.
+    if (created) transaction.update(ref, { website_atlas_grants: { ...(record.website_atlas_grants ?? {}), [captureId]: created } });
+    return { schema_version: "website_atlas_configuration.v1", authority, policy,
       reserved_or_settled_cost_usd: usage.cost, remaining_cost_usd: Math.max(0, authority.maximum_cost_usd - usage.cost),
       remaining_requests: Math.max(0, authority.maximum_requests - usage.requests), task_context_digest: context.context_digest,
       source_video_digest: input.source_video_digest, dispatch_authorized: false };

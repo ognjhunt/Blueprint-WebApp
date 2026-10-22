@@ -61,6 +61,23 @@ export type PilotBookingView = {
   contact: PilotContact | null;
   consentWithdrawn: boolean;
 };
+/**
+ * A development-only 3D preview made from the site's own recording (beta,
+ * unscaled). Absent once recording consent is withdrawn. `statusText` is plain
+ * copy; `downloadAvailable` only while the preview is ready and consent stands.
+ */
+export type AtlasPreviewView = {
+  captureId: string;
+  label: string;
+  state: "processing" | "ready" | "needs_input" | "failed";
+  statusText: string;
+  developmentOnly: true;
+  splatAvailable: boolean;
+  meshAvailable: boolean;
+  sizeBytes: number | null;
+  updatedAtIso: string | null;
+  downloadAvailable: boolean;
+};
 export type CaptureVisit = {
   id: string;
   status: string;
@@ -96,6 +113,8 @@ export type WorkspaceTask = {
   sceneReady?: boolean;
   /** A real image of the task (scene preview or approved card); null falls back to an illustration. */
   thumbnailUrl?: string | null;
+  /** The owner's development-only 3D preview of the recording, when one exists. */
+  atlasPreview?: AtlasPreviewView | null;
   potentialMatches: number | null;
   capture: CaptureVisit | null;
   results: WorkspaceResult[];

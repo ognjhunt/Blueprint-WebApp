@@ -48,6 +48,7 @@ import { isTeamEvaluationProfile, TEAM_EVALUATION_EPISODES, TEAM_EVALUATION_PROF
 import { observeWebsiteCaptureOwner } from "../utils/websiteCaptureOwnerObservation";
 import { withWebsiteOwnerDeps } from "../utils/websiteCaptureOwnerTransport";
 import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent, type PreparedAssessmentProposal } from "../utils/siteAssessmentPreparation";
+import { recordWebsiteAtlasPreview, websiteAtlasPreviewDigestValid, websiteAtlasPreviewSchema } from "../utils/websiteAtlasPreview";
 
 const router = Router();
 
@@ -324,6 +325,30 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
     }
   },
 );
+
+// The Pipeline's development-only Atlas preview status for one capture. Storing it
+// grants no processing; the owner download re-checks consent and readiness.
+router.post("/creator-captures/:captureId/atlas-preview", createPipelineSyncRateLimiter(), guard,
+  async (req: Request, res: Response) => {
+    const parsed = z.object({ request_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/),
+      scene_id: z.string(), preview: websiteAtlasPreviewSchema }).strict().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ code: "website_atlas_preview_invalid" });
+    const { request_id: requestId, scene_id: sceneId, preview } = parsed.data;
+    const captureId = String(req.params.captureId);
+    if (sceneId !== `site-${requestId}` || preview.capture_id !== captureId)
+      return res.status(409).json({ code: "task_context_capture_mismatch" });
+    if (!websiteAtlasPreviewDigestValid(preview)) return res.status(400).json({ code: "website_atlas_preview_digest_mismatch" });
+    try {
+      res.setHeader("Cache-Control", "no-store");
+      return res.json(await recordWebsiteAtlasPreview(requestId, captureId, preview));
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      if (code === "website_atlas_preview_request_missing") return res.status(404).json({ code });
+      if (/^(source_revoked|idempotency_conflict|website_atlas_preview_stale|task_context_capture_mismatch)$|^website_capture_binding_/.test(code))
+        return res.status(409).json({ code });
+      return res.status(503).json({ code: "website_atlas_preview_unavailable" });
+    }
+  });
 
 /**
  * The Pipeline's execution offer for a website scene: where its capture lives
