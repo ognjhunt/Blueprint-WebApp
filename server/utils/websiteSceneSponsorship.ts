@@ -9,7 +9,7 @@ import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
 import { websiteAtlasRuntimePolicy, atlasAllowanceUsage, resolveWebsiteAtlasGrant, websiteAtlasAutomaticLane,
-  websiteAtlasGrantOwner, websiteAtlasGrantPolicy } from "./websiteAtlasAuthorization";
+  websiteAtlasGrantOwner, websiteAtlasGrantPolicy, type AtlasAuxiliaryProvider } from "./websiteAtlasAuthorization";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
@@ -733,13 +733,21 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       throw new Error("website_scene_sponsorship_binding_invalid");
     if (!atlas && sceneProviderTerms()[command.provider]?.digest !== (authority as Record<string, any>).consent.provider_terms_reference)
       throw new Error("provider_terms_not_configured_or_changed");
-    // Atlas auxiliary work shares the Atlas source cap, but never inherits its
-    // provider disclosure. Preserve the existing native sponsorship/terms check
-    // for Meta segmentation and Google independent review.
+    // Atlas auxiliary work shares the Atlas source cap, but never inherits Atlas's
+    // provider disclosure. An automatic preview grant carries its own consent for
+    // Meta segmentation and Google independent review, pinned to their terms when
+    // it was made; every other grant keeps the native sponsorship/terms check.
     let auxiliaryTerms: string | undefined;
     let auxiliaryConsentDigest: string | undefined;
     let auxiliaryExpiresAt = Infinity;
-    if (atlas && ["meta", "google"].includes(command.provider)) {
+    const automaticAuxiliary = atlas && "grant_basis" in atlas && atlas.grant_basis === "automatic_consented_preview"
+      ? atlas.auxiliary?.[command.provider as AtlasAuxiliaryProvider] : undefined;
+    if (automaticAuxiliary) {
+      auxiliaryTerms = sceneProviderTerms()[command.provider]?.digest;
+      if (!auxiliaryTerms || auxiliaryTerms !== automaticAuxiliary.provider_terms_reference)
+        throw new Error("provider_terms_not_configured_or_changed");
+      auxiliaryConsentDigest = atlas!.authorization_digest;
+    } else if (atlas && ["meta", "google"].includes(command.provider)) {
       if (!record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
       const auxiliary = websiteSceneSponsorship({ requestId, record, purpose: retainedWebsiteScenePurpose(record),
         brief: brief.data() as SiteTaskBriefRecord, inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
@@ -818,6 +826,7 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
       taskContextDigest: context.context_digest, sourceVideoDigest: input.source_video_digest,
       termsDigest: sceneProviderTerms().world_labs_atlas?.digest,
       plannerTermsDigest: sceneProviderTerms().openai?.digest, planning: true, now: Date.now() / 1000,
+      auxiliaryTermsDigests: { meta: sceneProviderTerms().meta?.digest, google: sceneProviderTerms().google?.digest },
       record, captureRights: rights, create: true,
       readSession: async () => (await transaction.get(store.collection("captureUploadSessions").doc(captureId))).data() });
     if (authority.accepted_by !== websiteAtlasGrantOwner(record, authority))

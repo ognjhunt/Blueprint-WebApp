@@ -8,6 +8,14 @@ const planner = z.object({
   private_processing_authorized: z.literal(true), provider_training_authorized: z.literal(false),
   approval_reference: z.string().min(1),
 }).strict();
+/** An automatic preview's own disclosure to an auxiliary provider (SAM masks, independent review). */
+const auxiliaryConsent = z.object({
+  provider_terms_reference: sha,
+  private_processing_authorized: z.literal(true), provider_training_authorized: z.literal(false),
+  approval_reference: z.string().min(1),
+}).strict();
+export const ATLAS_AUXILIARY_PROVIDERS = ["meta", "google"] as const;
+export type AtlasAuxiliaryProvider = typeof ATLAS_AUXILIARY_PROVIDERS[number];
 const authorization = z.object({
   schema_version: z.literal("website_atlas_authorization.v1"),
   request_id: z.string().min(1), capture_id: z.string().min(1),
@@ -104,6 +112,9 @@ const storedGrant = z.object({
   request_id: z.string().min(1), capture_id: z.string().min(1),
   source_video_digest: sha, source_video_identity: sourceVideoIdentity,
   capture_rights_digest: sha, policy_digest: sha, provider_terms_reference: sha, planner,
+  // Pinned when the grant is made, for each auxiliary provider whose terms were then configured.
+  // Grants made before this field existed keep the native sponsorship's check.
+  auxiliary: z.object({ meta: auxiliaryConsent.optional(), google: auxiliaryConsent.optional() }).strict().optional(),
   accepted_by: z.string().min(1), approval_reference: z.string().min(1),
   grant_basis: z.literal("automatic_consented_preview"),
   private_processing_authorized: z.literal(true), provider_training_authorized: z.literal(false),
@@ -140,6 +151,7 @@ export function websiteAtlasGrantOwner(record: Record<string, any>, grant: { acc
 export async function resolveWebsiteAtlasGrant(input: EnvRowMatch & GrantChecks & {
   record: Record<string, any>; readSession: () => Promise<Record<string, any> | undefined>;
   captureRights: { derived_scene_generation_allowed: boolean; consent_revoked: boolean };
+  auxiliaryTermsDigests?: Partial<Record<AtlasAuxiliaryProvider, string>>;
   create?: boolean;
 }) {
   const rows = matchingAuthorizations(input);
@@ -166,6 +178,13 @@ export async function resolveWebsiteAtlasGrant(input: EnvRowMatch & GrantChecks 
   if (!input.termsDigest) throw new Error("provider_terms_not_configured_or_changed");
   if (!input.plannerTermsDigest) throw new Error("website_atlas_planner_consent_required");
   const createdAt = Math.floor(input.now);
+  // The upload's own consent covers the preview's SAM masks and independent review exactly
+  // as it covers Atlas and the planner (owner direction 2026-10-22); each is pinned to its terms.
+  const auxiliary = Object.fromEntries(ATLAS_AUXILIARY_PROVIDERS.flatMap(provider => {
+    const terms = input.auxiliaryTermsDigests?.[provider];
+    return terms ? [[provider, { provider_terms_reference: terms, private_processing_authorized: true,
+      provider_training_authorized: false, approval_reference: policy.approval_reference }]] : [];
+  }));
   const grant = storedGrant.parse({
     schema_version: "website_atlas_authorization.v2", request_id: input.requestId, capture_id: input.captureId,
     source_video_digest: input.sourceVideoDigest, source_video_identity: identity,
@@ -174,6 +193,7 @@ export async function resolveWebsiteAtlasGrant(input: EnvRowMatch & GrantChecks 
     planner: { provider: "openai", provider_terms_reference: input.plannerTermsDigest,
       private_processing_authorized: true, provider_training_authorized: false,
       approval_reference: policy.approval_reference },
+    ...(Object.keys(auxiliary).length ? { auxiliary } : {}),
     accepted_by: owner, approval_reference: policy.approval_reference,
     grant_basis: "automatic_consented_preview",
     private_processing_authorized: true, provider_training_authorized: false,
