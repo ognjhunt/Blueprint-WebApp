@@ -119,19 +119,18 @@ ID, polls it, and keeps each output file bound to the input frame it came from.
 It refuses to run until a reviewed Atlas price is configured. Every result keeps
 `claim_ceiling: development_only` and `metric_measurement_proven: false`.
 
-Its spend is reserved as `world_labs_atlas`, not Marble's `world_labs`. Atlas
-receives unedited source frames, people included, under its own terms. A site's
-consent to the Marble terms covers neither, so `preparationSpendRequest` in
-`server/utils/websiteSceneSponsorship.ts` deliberately does not accept that
-provider yet. Every Atlas reservation is refused until a sponsorship records
-the site's consent to Atlas's terms. That change waits on the founder's decision
-on those terms.
+Its spend is reserved as `world_labs_atlas`, not Marble's `world_labs`, and
+`preparationSpendRequest` in `server/utils/websiteSceneSponsorship.ts` admits it
+only against a grant that records consent to Atlas's own terms
+(`docs/atlas-beta-integration.md`).
 
-Captures without a sponsorship still wait at `needs_input`
-(`website_source_camera_depth_registration_required`). They keep waiting until a
-side-by-side comparison against the pinned MapAnything registration shows
-whether Atlas can fill that gap. That plan is the Pipeline's
-`docs/atlas-vs-mapanything-registration-plan.md`.
+Since 2026-10-22 website scenes use Atlas only; MapAnything was removed from the
+Pipeline. The capture's Atlas job is its one paid reconstruction lane, and scene
+preparation reads its object-removed background and source pose without buying
+anything itself (the Pipeline's `docs/website-atlas-scene-source.md`). A capture
+without an Atlas job waits at `needs_input` (`website_atlas_job_required`). The
+WebApp keeps its `vast` settlement route only so reservations held for earlier
+MapAnything rentals can still settle.
 
 ## What comes back
 

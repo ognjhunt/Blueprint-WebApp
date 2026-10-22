@@ -344,10 +344,10 @@ function shotListFor(brief: SiteTaskBriefRecord): { id: string; label: string }[
  * instruction anybody can act on while filming.
  */
 // Every label is a still thing to point a camera at, never an action to film.
-// The reconstruction fuses many frames of a *static* scene; a person or a moving
-// object mid-pass becomes a ghost in the result, so the job's motion is settled
-// from the brief, not from filming it happening. What to film is where the job
-// lives, not the job being done.
+// The reconstruction fuses many frames of a *static* scene. The Pipeline erases
+// people and moving things from one video of work in progress, but every erased
+// pixel is generated, so the job's motion is settled from the brief, not from
+// filming it happening. What to film is where the job lives, not the job being done.
 const SHOT_LABELS: Record<string, string> = {
   sceneStability: "The equipment and layout, so we can see what is fixed in place",
   taskShape: "Where the job starts and where it ends — the spots, with nothing moving through them",
