@@ -262,12 +262,15 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       // it grants no new processing or dispatch authority.
       if (operation === "preparation-settlement") return res.json(await settleWebsitePreparationSpend(requestId,
         preparationSettlementRequest.parse(req.body.settlement)));
+      // The reservation transaction validates current source/task rights and
+      // the provider's own authority. Atlas has a fresh source-bound allowance
+      // that must not inherit an expired native/Marble sponsorship's expiry.
+      if (operation === "preparation-spend") return res.json(await reserveWebsitePreparationSpend(requestId,
+        preparationSpendRequest.parse(req.body.spend), req.params.captureId));
       const authority = await loadWebsiteSceneSponsorship(requestId, operation === "scene-sponsorship" && req.body.create !== false, req.params.captureId,
         operation === "scene-sponsorship" ? { purpose: req.body.purpose, expected_task_context_digest: req.body.expected_task_context_digest } : undefined);
       res.setHeader("Cache-Control", "no-store");
       if (operation === "scene-sponsorship") return res.json(authority);
-      if (operation === "preparation-spend") return res.json(await reserveWebsitePreparationSpend(requestId,
-        preparationSpendRequest.parse(req.body.spend), req.params.captureId));
       const request = sponsoredSceneRequest.parse(req.body.request);
       validateWebsiteSponsoredIntake(request, authority);
       const { accepted_by: _acceptedBy, accepted_at_epoch: _acceptedAt, ...consent } = request.consent;

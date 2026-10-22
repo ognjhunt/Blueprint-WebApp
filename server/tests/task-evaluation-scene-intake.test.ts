@@ -1411,11 +1411,23 @@ it("requires source-bound Atlas consent and preserves separate budgets across re
     maximum_cost_usd: 5, maximum_requests: 2, expires_at_epoch: Date.now() / 1000 + 3600, claim_scope: "development_only",
   }]);
   try {
-    const receipt = await reserveWebsitePreparationSpend("req1", spend);
+    const original = store.rows.get("inboundRequests/req1").website_scene_sponsorship;
+    const expired = { ...original, expires_at_epoch: Date.now() / 1000 - 60 };
+    const { authority_digest: _digest, ...rawExpired } = expired;
+    expired.authority_digest = sceneDigest(rawExpired);
+    store.rows.get("inboundRequests/req1").website_scene_sponsorship = expired;
+    const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1/preparation-spend");
+    const response = await realFetch(base, { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", spend }) });
+    expect(response.status).toBe(200);
+    const receipt = await response.json();
     expect(receipt).toMatchObject({ status: "admitted", provider: "world_labs_atlas", source_video_digest: sha("a") });
+    // The successful Atlas-only route did not extend the old grant.
+    expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(expired);
     expect(await reserveWebsitePreparationSpend("req1", spend)).toMatchObject({ status: "already_reserved" });
     await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("2") }))
       .rejects.toThrow("budget_exhausted");
+    store.rows.get("inboundRequests/req1").website_scene_sponsorship = original;
     await reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("3"),
       provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: 5 });
     await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("4"),
