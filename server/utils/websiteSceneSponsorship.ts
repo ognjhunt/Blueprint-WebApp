@@ -8,6 +8,7 @@ import { projectWebsiteCaptureRights, projectWebsiteTaskContext, legacySuggested
 import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
+import { websiteAtlasAuthorization } from "./websiteAtlasAuthorization";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
@@ -429,11 +430,12 @@ export const preparationSpendRequest = z.object({
   task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   resource_class: z.enum(["evaluator_api", "openai_api_candidate", "provider_reconstruction_api", "gpu_render"]),
-  provider: z.enum(["meta", "google", "openai", "world_labs", "vast"]),
+  provider: z.enum(["meta", "google", "openai", "world_labs", "world_labs_atlas", "vast"]),
+  source_video_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/).optional(),
   maximum_cost_usd: money, request_count: z.number().int().min(1).max(32),
 }).strict().refine(value => (["meta", "google"].includes(value.provider) && value.resource_class === "evaluator_api")
   || (value.provider === "openai" && value.resource_class === "openai_api_candidate")
-  || (value.provider === "world_labs" && value.resource_class === "provider_reconstruction_api")
+  || (["world_labs", "world_labs_atlas"].includes(value.provider) && value.resource_class === "provider_reconstruction_api")
   || (value.provider === "vast" && value.resource_class === "gpu_render"),
   "website_preparation_provider_resource_mismatch");
 
@@ -692,13 +694,29 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     const record = request.data()!;
     await assertAssessmentPreparationCurrent(transaction, assessment, record, {requestId, captureId});
     if (!record.website_scene_sponsorship) throw new Error("website_scene_sponsorship_missing");
-    const authority = websiteSceneSponsorship({ requestId, record, purpose: retainedWebsiteScenePurpose(record),
+    const atlas = command.provider === "world_labs_atlas" ? websiteAtlasAuthorization({
+      requestId, captureId, taskContextDigest: command.task_context_digest,
+      sourceVideoDigest: command.source_video_digest, termsDigest: sceneProviderTerms().world_labs_atlas?.digest,
+      now: Date.now() / 1000,
+    }) : null;
+    const rights = projectWebsiteCaptureRights(record);
+    if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
+    if (atlas && atlas.accepted_by !== record.website_scene_sponsorship.owner.user_id)
+      throw new Error("website_atlas_source_owner_mismatch");
+    const atlasContext = atlas ? projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, rights, {
+      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+      purpose: retainedWebsiteScenePurpose(record), captureId, captureBinding,
+    }) : null;
+    // This fresh Atlas-only grant does not renew the expired native/Marble
+    // sponsorship or reopen any other preparation work.
+    const authority = atlas ? { task_context_digest: atlasContext!.context_digest,
+      authority_digest: atlas.authorization_digest, expires_at_epoch: atlas.expires_at_epoch } : websiteSceneSponsorship({ requestId, record, purpose: retainedWebsiteScenePurpose(record),
       brief: brief.data() as SiteTaskBriefRecord, inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       ...(assessment ? { assessmentPreparationProposal: assessment.proposal } : {}),
       captureId, captureBinding, now: Date.now() / 1000 });
     if (command.task_context_digest !== authority.task_context_digest)
       throw new Error("website_scene_sponsorship_binding_invalid");
-    if (sceneProviderTerms()[command.provider]?.digest !== authority.consent.provider_terms_reference)
+    if (!atlas && sceneProviderTerms()[command.provider]?.digest !== (authority as Record<string, any>).consent.provider_terms_reference)
       throw new Error("provider_terms_not_configured_or_changed");
     const reservations: Record<string, any> = record.website_preparation_reservations || {};
     const key = command.allocation_binding_digest.slice(7);
@@ -708,18 +726,25 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
       // cannot spend again just because it lacks the first worker's files.
       return { ...reservations[key].admission, status: "already_reserved" };
     }
-    const previous = Object.values(reservations);
+    // Atlas beta authorization is a separate explicit owner allowance. Its rows
+    // never replenish the pre-existing preparation budget, or vice versa.
+    const previous = Object.values(reservations).filter(row =>
+      (row.admission.provider === "world_labs_atlas") === Boolean(atlas));
     const micros = (amount: number) => Math.ceil(amount * 1_000_000);
     const reserved = previous.reduce((sum, row) => sum + micros(row.settlement?.actual_cost_usd ?? row.admission.maximum_cost_usd), 0);
     const attempts = previous.reduce((sum, row) => sum + row.admission.request_count, 0);
     // Amendments and reservations belong to the original retained allowance.
     const rootAuthority = record.website_scene_sponsorship;
-    if (reserved + micros(command.maximum_cost_usd) > Math.floor(preparationSpendLimit(record, rootAuthority) * 1_000_000)
-        || attempts + command.request_count > preparationRequestLimit(record, rootAuthority))
+    if (reserved + micros(command.maximum_cost_usd) > Math.floor((atlas?.maximum_cost_usd
+          ?? preparationSpendLimit(record, rootAuthority)) * 1_000_000)
+        || attempts + command.request_count > (atlas?.maximum_requests ?? preparationRequestLimit(record, rootAuthority)))
       throw new Error("website_scene_preparation_budget_exhausted");
     const admission = { ...command, schema_version: "paid_lane_admission.v1", status: "admitted",
       blockers: [], external_disclosure_allowed: true, sponsorship_digest: authority.authority_digest,
-      expires_at_epoch: authority.expires_at_epoch };
+      ...(atlas ? { atlas_authorization_digest: atlas.authorization_digest,
+        provider_terms_reference: atlas.provider_terms_reference, provider_retention: atlas.provider_retention,
+        provider_training_authorized: atlas.provider_training_authorized } : {}),
+      expires_at_epoch: Math.min(authority.expires_at_epoch, atlas?.expires_at_epoch ?? authority.expires_at_epoch) };
     transaction.update(ref, { website_preparation_reservations: { ...reservations,
       [key]: { command_digest: digest(command), admission } } });
     return admission;

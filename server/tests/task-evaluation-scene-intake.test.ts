@@ -1392,6 +1392,37 @@ describe("registered public scene intake", () => {
 });
 
 
+it("requires source-bound Atlas consent and preserves separate budgets across retries", async () => {
+  sponsoredCapture();
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    resource_class: "provider_reconstruction_api" as const, provider: "world_labs_atlas" as const,
+    source_video_digest: sha("a"), maximum_cost_usd: 3, request_count: 1 };
+  await expect(reserveWebsitePreparationSpend("req1", spend)).rejects.toThrow("website_atlas_source_consent_required");
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({
+    ...JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!),
+    world_labs_atlas: { digest: sha("b"), label: "Atlas beta terms", url: "https://atlas-beta.worldlabs.ai/docs" },
+  });
+  process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON = JSON.stringify([{
+    schema_version: "website_atlas_authorization.v1", request_id: "req1", capture_id: "walkthrough-req1",
+    task_context_digest: grant.task_context_digest, source_video_digest: sha("a"), provider_terms_reference: sha("b"),
+    accepted_by: "blueprint-preparation", approval_reference: "owner test", private_processing_authorized: true,
+    provider_training_authorized: false, provider_retention: "project_library_retention_approved",
+    maximum_cost_usd: 5, maximum_requests: 2, expires_at_epoch: Date.now() / 1000 + 3600, claim_scope: "development_only",
+  }]);
+  try {
+    const receipt = await reserveWebsitePreparationSpend("req1", spend);
+    expect(receipt).toMatchObject({ status: "admitted", provider: "world_labs_atlas", source_video_digest: sha("a") });
+    expect(await reserveWebsitePreparationSpend("req1", spend)).toMatchObject({ status: "already_reserved" });
+    await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("2") }))
+      .rejects.toThrow("budget_exhausted");
+    await reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("3"),
+      provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: 5 });
+    await expect(reserveWebsitePreparationSpend("req1", { ...spend, allocation_binding_digest: sha("4"),
+      source_video_digest: sha("c"), maximum_cost_usd: 1 })).rejects.toThrow("source_consent_required");
+  } finally { delete process.env.BLUEPRINT_WEBSITE_ATLAS_AUTHORIZATIONS_JSON; }
+});
+
 it("reserves hosted SAM from the Blueprint cap once and rejects overspend, changed requests and revoked consent", async () => {
   sponsoredCapture();
   const grant = await loadWebsiteSceneSponsorship("req1", true);
