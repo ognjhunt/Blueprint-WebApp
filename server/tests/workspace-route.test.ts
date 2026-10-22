@@ -1461,3 +1461,66 @@ it.each(["completed", "abandoned"])("keeps a %s free attempt visible without dup
   expect(unlinked.evaluations[0].successRate).toBeNull();
   expect(unlinked.evaluations[0].runId).toBeNull();
 });
+
+describe("development-only Atlas 3D preview", () => {
+  const consent = { granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-18T00:00:00.000Z" };
+  async function preview(overrides: Record<string, unknown>) {
+    const { crossRuntimeDigest } = await import("../utils/crossRuntimeCanonical");
+    const value = { schema_version: "website_atlas_preview.v1", capture_id: "walkthrough-task-1", revision: 2,
+      state: "ready", reason: "pipeline_private_detail", updated_at_epoch: 1_761_138_000,
+      bundle: { digest: `sha256:${"a".repeat(64)}`, size_bytes: 4096, filename: "atlas-preview-walkthrough-task-1.zip" },
+      splat_available: true, mesh_available: false, claim_ceiling: "development_only",
+      scale_status: "unscaled_provider_world_units", ...overrides };
+    return { ...value, preview_digest: crossRuntimeDigest(value) };
+  }
+  function consentedTask(previews: Record<string, unknown>) {
+    const value = task();
+    state.records.set("inboundRequests/task-1", { ...value, request: { ...value.request, consent_attestation: consent },
+      website_atlas_previews: previews });
+  }
+  afterEach(() => { delete process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET; });
+
+  it("shows the owner plain copy and tickets only a ready preview while consent stands", async () => {
+    process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";
+    consentedTask({ "walkthrough-task-1": await preview({}) });
+    const viewed = await (await api("/tasks/task-1", "site-1")).json();
+    expect(viewed.atlasPreview).toEqual({ captureId: "walkthrough-task-1", label: "3D preview (beta, unscaled)",
+      state: "ready", statusText: "Your 3D preview is ready to download.", developmentOnly: true,
+      splatAvailable: true, meshAvailable: false, sizeBytes: 4096,
+      updatedAtIso: new Date(1_761_138_000_000).toISOString(), downloadAvailable: true });
+    expect(JSON.stringify(viewed)).not.toContain("pipeline_private_detail");
+    const path = "/tasks/task-1/atlas-preview/download-ticket";
+    expect((await api(path, "site-2", {})).status).toBe(404);
+    expect((await api(path, "site-1", { captureId: "walkthrough-task-1", extra: true })).status).toBe(400);
+    expect((await api(path, "site-1", { captureId: "supplement-other" })).status).toBe(404);
+    const ticket = await api(path, "site-1", { captureId: "walkthrough-task-1" });
+    expect(ticket.status).toBe(201);
+    expect(ticket.headers.get("cache-control")).toBe("private, no-store");
+    const { download_url: url } = await ticket.json();
+    expect(url).toMatch(/^\/api\/website-atlas-preview-downloads\/task-1\/walkthrough-task-1\?expires=\d+&signature=[0-9a-f]{64}$/);
+    const { verifyWebsiteAtlasPreviewDownloadTicket } = await import("../utils/websiteAtlasPreview");
+    const query = new URL(url, "https://webapp.invalid").searchParams;
+    expect(verifyWebsiteAtlasPreviewDownloadTicket("task-1", "walkthrough-task-1", query.get("expires"), query.get("signature"))).toBe(true);
+    // Still being made: a status line, no download.
+    consentedTask({ "walkthrough-task-1": await preview({ state: "processing", bundle: null, reason: null }) });
+    expect((await (await api("/tasks/task-1", "site-1")).json()).atlasPreview)
+      .toMatchObject({ state: "processing", downloadAvailable: false, sizeBytes: null });
+    expect((await api(path, "site-1", {})).status).toBe(404);
+  });
+
+  it("disappears and refuses tickets as soon as recording consent is withdrawn", async () => {
+    process.env.TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET = "fixture-ticket-secret";
+    consentedTask({ "walkthrough-task-1": await preview({}) });
+    expect((await api("/tasks/task-1/atlas-preview/download-ticket", "site-1", {})).status).toBe(201);
+    expect((await api("/tasks/task-1/recording-consent/withdraw", "site-1", {})).status).toBe(202);
+    expect((await (await api("/tasks/task-1", "site-1")).json()).atlasPreview).toBeNull();
+    const refused = await api("/tasks/task-1/atlas-preview/download-ticket", "site-1", {});
+    expect(refused.status).toBe(404);
+    expect(await refused.json()).toMatchObject({ code: "website_atlas_preview_unavailable" });
+  });
+
+  it("names a missing ticket secret instead of minting an unsigned link", async () => {
+    consentedTask({ "walkthrough-task-1": await preview({}) });
+    expect((await api("/tasks/task-1/atlas-preview/download-ticket", "site-1", {})).status).toBe(503);
+  });
+});

@@ -80,3 +80,20 @@ It names `accepted_by` = `account_owner_uid` and carries no task context
 digest, so a task edit does not change it. Terms changes, expiry
 (`website_atlas_consent_expired`) and withdrawn consent (`source_revoked`)
 refuse exactly as for env rows. Reservations never create a grant.
+
+The Pipeline pushes each capture's preview status to the signed route
+`POST /api/internal/pipeline/creator-captures/:captureId/atlas-preview`
+(`website_atlas_preview.v1`, verified `preview_digest`). The WebApp stores the
+latest revision at `inboundRequests/{requestId}.website_atlas_previews[captureId]`.
+A replayed revision with the same digest is accepted again; the same revision
+with another digest is `idempotency_conflict`; a lower revision is refused
+with 409 `website_atlas_preview_stale`. After withdrawal only `withdrawn` is
+accepted.
+
+The signed-in site owner sees "3D preview (beta, unscaled)" on the task page
+and downloads a ready bundle through a 15-minute ticket
+(`/api/website-atlas-preview-downloads/...`). The download re-reads consent
+and readiness, fetches the whole bundle from the Pipeline's signed
+`/api/live-pipeline/website-atlas-previews/{captureId}/bundle` read and
+verifies its stored digest and size. Withdrawal removes the section and
+refuses tickets and downloads at once.

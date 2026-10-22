@@ -44,8 +44,27 @@ export default function TaskDetail() {
     [details, setDetails] = useState<WorkspaceResult | null>(null),
     [editing, setEditing] = useState(false),
     [linkState, setLinkState] = useState<"idle" | "working">("idle"),
-    [linkError, setLinkError] = useState("");
+    [linkError, setLinkError] = useState(""),
+    [previewState, setPreviewState] = useState<"idle" | "working">("idle"),
+    [previewError, setPreviewError] = useState("");
   const endpoint = `/tasks/${encodeURIComponent(taskId || "")}`;
+  // A short-lived ticket per click; the download itself re-checks consent.
+  async function downloadPreview(captureId: string) {
+    if (previewState === "working") return;
+    setPreviewState("working");
+    setPreviewError("");
+    try {
+      const { download_url: url } = await query.request<{ download_url: string }>(
+        `${endpoint}/atlas-preview/download-ticket`, "POST", { captureId }, { timeoutMs: 15000 });
+      if (typeof url !== "string" || !url.startsWith("/api/website-atlas-preview-downloads/"))
+        throw new Error("The download link was missing. Please try again.");
+      window.location.assign(url);
+    } catch (error) {
+      setPreviewError(error instanceof Error ? error.message : "The 3D preview could not be downloaded. Please try again.");
+    } finally {
+      setPreviewState("idle");
+    }
+  }
   // The task page is where the brief is reviewed or edited, footage is added
   // and the scene is opened. The emailed link expires; the account mints a
   // fresh one on demand.
@@ -128,6 +147,28 @@ export default function TaskDetail() {
           </section>
 
           <SiteAdvisoryReport compact advisory={query.error ? null : task.siteAdvisory} />
+
+          {task.atlasPreview && !task.recordingPermissionWithdrawn && (
+            <section className="ws-section" aria-label={task.atlasPreview.label}>
+              <h2>{task.atlasPreview.label}</h2>
+              <p>{task.atlasPreview.statusText}</p>
+              {task.atlasPreview.downloadAvailable && (
+                <button
+                  className="ws-link"
+                  type="button"
+                  onClick={() => void downloadPreview(task.atlasPreview!.captureId)}
+                  disabled={previewState === "working"}
+                >
+                  {previewState === "working" ? "Preparing download…" : "Download 3D preview"}
+                </button>
+              )}
+              <p className="ws-note">
+                For viewing only. It is generated from your recording, is not to scale, and is not a measurement of
+                your site.
+              </p>
+              {previewError && <p role="alert">{previewError}</p>}
+            </section>
+          )}
 
           <Feedback error={action.error} notice={action.notice} />
           <div className="ws-tabs" role="tablist" aria-label="Task sections">

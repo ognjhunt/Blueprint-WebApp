@@ -1,6 +1,7 @@
 // @vitest-environment node
 import express from "express";
 import { createServer, type Server } from "node:http";
+import { createHash, createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
@@ -33,6 +34,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
 import { loadWebsiteAtlasConfiguration, reserveWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
+import { verifyTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
+import { projectWebsiteAtlasPreview, websiteAtlasPreviewDownloadUrl } from "../utils/websiteAtlasPreview";
 
 const sha = (char: string) => `sha256:${char.repeat(64)}`;
 const realFetch = globalThis.fetch;
@@ -77,6 +80,7 @@ async function app() {
   const application = express();
   application.use(express.json());
   application.use("/internal", (await import("../routes/internal-capture-worlds")).default);
+  application.use("/api/website-atlas-preview-downloads", (await import("../routes/website-atlas-preview-downloads")).default);
   server = createServer(application);
   await new Promise<void>(resolve => server!.listen(0, "127.0.0.1", resolve));
   return `http://127.0.0.1:${(server.address() as any).port}`;
@@ -280,5 +284,141 @@ describe("Atlas reservations under an automatic grant", () => {
     const changed = await post(base, `${path}/atlas-configuration`, { request_id: "req1", scene_id: "site-req1",
       task_context_digest: contextDigest(), source_video_digest: sha("6") });
     expect(changed).toEqual({ status: 409, body: { code: "website_atlas_source_consent_required" } });
+  });
+});
+
+function preview(overrides: Record<string, unknown> = {}) {
+  const value = { schema_version: "website_atlas_preview.v1", capture_id: "walkthrough-req1", revision: 1,
+    state: "processing", reason: null, updated_at_epoch: 1_761_134_400, bundle: null, splat_available: false,
+    mesh_available: false, claim_ceiling: "development_only", scale_status: "unscaled_provider_world_units", ...overrides };
+  return { ...value, preview_digest: crossRuntimeDigest(value) };
+}
+const bundleBytes = Buffer.from("PK\u0003\u0004 fixture atlas preview bundle");
+const bundleDigest = `sha256:${createHash("sha256").update(bundleBytes).digest("hex")}`;
+const ready = (revision = 2) => preview({ revision, state: "ready", updated_at_epoch: 1_761_138_000,
+  bundle: { digest: bundleDigest, size_bytes: bundleBytes.length, filename: "atlas-preview-walkthrough-req1.zip" },
+  splat_available: true, mesh_available: true });
+
+describe("Pipeline Atlas preview status", () => {
+  it("accepts only strict, digest-verified, monotonic previews and only withdrawal after consent ends", async () => {
+    upload();
+    const base = await app();
+    const path = "/internal/creator-captures/walkthrough-req1/atlas-preview";
+    const push = (value: unknown, extra: Record<string, unknown> = {}) =>
+      post(base, path, { request_id: "req1", scene_id: "site-req1", preview: value, ...extra });
+    for (const invalid of [{ ...preview(), extra: true }, preview({ bundle: ready().bundle }), preview({ state: "ready" }),
+      preview({ reason: "Upstream Detail" }), preview({ revision: 0 }), preview({ claim_ceiling: "measured" })])
+      expect(await push(invalid)).toEqual({ status: 400, body: { code: "website_atlas_preview_invalid" } });
+    expect(await push(preview(), { purpose: "x" })).toEqual({ status: 400, body: { code: "website_atlas_preview_invalid" } });
+    expect(await push({ ...preview(), preview_digest: sha("f") })).toEqual({ status: 400, body: { code: "website_atlas_preview_digest_mismatch" } });
+    expect(await post(base, path, { request_id: "req1", scene_id: "site-other", preview: preview() }))
+      .toEqual({ status: 409, body: { code: "task_context_capture_mismatch" } });
+    expect(await push(preview({ capture_id: "walkthrough-other" })))
+      .toEqual({ status: 409, body: { code: "task_context_capture_mismatch" } });
+    const first = preview();
+    const accepted = { schema_version: "website_atlas_preview_acceptance.v1", accepted: true };
+    expect(await push(first)).toEqual({ status: 200, body: { ...accepted, revision: 1, preview_digest: first.preview_digest } });
+    expect(await push(first)).toEqual({ status: 200, body: { ...accepted, revision: 1, preview_digest: first.preview_digest } });
+    expect(await push(preview({ reason: "different_bytes" }))).toEqual({ status: 409, body: { code: "idempotency_conflict" } });
+    expect(await push(ready())).toEqual({ status: 200, body: { ...accepted, revision: 2, preview_digest: ready().preview_digest } });
+    expect(await push(first)).toEqual({ status: 409, body: { code: "website_atlas_preview_stale" } });
+    expect(store.rows.get(REQUEST).website_atlas_previews).toEqual({ "walkthrough-req1": ready() });
+    store.rows.get(REQUEST).consent_revoked = true;
+    expect(await push(preview({ revision: 3, state: "failed", reason: "provider_failed" })))
+      .toEqual({ status: 409, body: { code: "source_revoked" } });
+    const withdrawn = preview({ revision: 3, state: "withdrawn" });
+    expect(await push(withdrawn)).toEqual({ status: 200, body: { ...accepted, revision: 3, preview_digest: withdrawn.preview_digest } });
+    expect(store.rows.get(REQUEST).website_atlas_previews["walkthrough-req1"]).toEqual(withdrawn);
+    expect(await post(base, "/internal/creator-captures/walkthrough-req2/atlas-preview", { request_id: "req2", scene_id: "site-req2",
+      preview: preview({ capture_id: "walkthrough-req2" }) })).toEqual({ status: 404, body: { code: "website_atlas_preview_request_missing" } });
+  });
+
+  it("projects plain owner copy, never a reason code, and nothing once consent ends", () => {
+    upload();
+    const record = store.rows.get(REQUEST);
+    expect(projectWebsiteAtlasPreview(record)).toBeNull();
+    record.website_atlas_previews = { "walkthrough-req1": preview({ state: "failed", reason: "atlas_input_rejected" }) };
+    const failed = projectWebsiteAtlasPreview(record);
+    expect(failed).toMatchObject({ state: "failed", statusText: "A 3D preview could not be made from this recording.",
+      downloadAvailable: false, developmentOnly: true, label: "3D preview (beta, unscaled)" });
+    expect(JSON.stringify(failed)).not.toContain("atlas_input_rejected");
+    record.website_atlas_previews["walkthrough-req1"] = ready();
+    expect(projectWebsiteAtlasPreview(record)).toEqual({ captureId: "walkthrough-req1", label: "3D preview (beta, unscaled)",
+      state: "ready", statusText: "Your 3D preview is ready to download.", developmentOnly: true, splatAvailable: true,
+      meshAvailable: true, sizeBytes: bundleBytes.length, updatedAtIso: new Date(1_761_138_000_000).toISOString(),
+      downloadAvailable: true });
+    // A tampered entry is never shown.
+    record.website_atlas_previews["walkthrough-req1"] = { ...ready(), mesh_available: false };
+    expect(projectWebsiteAtlasPreview(record)).toBeNull();
+    record.website_atlas_previews["walkthrough-req1"] = ready();
+    record.consent_revoked = true;
+    expect(projectWebsiteAtlasPreview(record)).toBeNull();
+  });
+});
+
+describe("owner Atlas preview download", () => {
+  beforeEach(() => {
+    vi.stubEnv("TASK_EVALUATION_RESULT_DOWNLOAD_SIGNING_SECRET", "fixture-ticket-secret");
+    vi.stubEnv("CAPTURE_LIFECYCLE_PIPELINE_BASE_URL", "https://pipeline.invalid");
+    vi.stubEnv("CAPTURE_UPLOAD_INTAKE_FORWARD_TOKEN", "fixture-read-token");
+  });
+  const pipeline = (headers: Record<string, string> = {}, bytes = bundleBytes) => vi.fn(async (_url: unknown, _init?: RequestInit) =>
+    new Response(bytes, { status: 200, headers: { "content-type": "application/zip", "content-length": String(bytes.length),
+      "content-disposition": 'attachment; filename="atlas-preview-walkthrough-req1.zip"',
+      "x-blueprint-artifact-sha256": bundleDigest, "cache-control": "private, no-store", ...headers } }));
+
+  it("streams the whole verified bundle through a signed Pipeline read, without forwarding Range", async () => {
+    upload();
+    store.rows.get(REQUEST).website_atlas_previews = { "walkthrough-req1": ready() };
+    const origin = pipeline();
+    vi.stubGlobal("fetch", origin);
+    const base = await app();
+    const url = websiteAtlasPreviewDownloadUrl("req1", "walkthrough-req1")!;
+    expect(url).toMatch(/^\/api\/website-atlas-preview-downloads\/req1\/walkthrough-req1\?expires=\d+&signature=[0-9a-f]{64}$/);
+    const response = await realFetch(`${base}${url}`, { headers: { range: "bytes=0-3" } });
+    expect(response.status).toBe(200);
+    expect(Buffer.from(await response.arrayBuffer())).toEqual(bundleBytes);
+    expect(response.headers.get("content-type")).toBe("application/zip");
+    expect(response.headers.get("content-disposition")).toBe('attachment; filename="atlas-preview-walkthrough-req1.zip"');
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("x-blueprint-artifact-verification")).toBe("sha256-on-completion");
+    const [target, init] = origin.mock.calls[0] as [URL, RequestInit & { headers: Record<string, string> }];
+    expect(String(target)).toBe("https://pipeline.invalid/api/live-pipeline/website-atlas-previews/walkthrough-req1/bundle"
+      + `?request_id=req1&digest=${encodeURIComponent(bundleDigest)}`);
+    expect(init.redirect).toBe("error");
+    expect(init.headers).not.toHaveProperty("range");
+    const signed = init.headers;
+    expect(signed["x-blueprint-pipeline-client-id"]).toBe("blueprint-webapp");
+    expect(signed["x-blueprint-pipeline-signature"]).toBe(`sha256=${createHmac("sha256", "fixture-read-token")
+      .update(`${signed["x-blueprint-pipeline-timestamp"]}.blueprint-webapp.${signed["x-blueprint-pipeline-nonce"]}.`).digest("hex")}`);
+    // Domain-separated: the same fields never sign a result-download URL.
+    const ticket = new URL(url, "https://webapp.invalid").searchParams;
+    expect(verifyTaskEvaluationResultDownloadTicket("website_atlas_preview", "req1", ticket.get("expires"), ticket.get("signature"))).toBe(false);
+  });
+
+  it("refuses bad tickets, withdrawn consent, unready previews and mismatched bytes", async () => {
+    upload();
+    store.rows.get(REQUEST).website_atlas_previews = { "walkthrough-req1": ready() };
+    const origin = pipeline({ "x-blueprint-artifact-sha256": sha("0") });
+    vi.stubGlobal("fetch", origin);
+    const base = await app();
+    const url = websiteAtlasPreviewDownloadUrl("req1", "walkthrough-req1")!;
+    const read = async (target: string) => {
+      const response = await realFetch(`${base}${target}`);
+      return { status: response.status, body: await response.json() };
+    };
+    expect((await read(url.replace(/signature=([0-9a-f])/, (_match, first: string) =>
+      `signature=${first === "0" ? "1" : "0"}`))).status).toBe(404);
+    expect((await read(url.replace("/req1/", "/req2/"))).status).toBe(404);
+    expect((await read(websiteAtlasPreviewDownloadUrl("req1", "walkthrough-other")!)).status).toBe(404);
+    expect(origin).not.toHaveBeenCalled();
+    expect(await read(url)).toEqual({ status: 502,
+      body: { error: "3D preview stream was interrupted or failed integrity verification; retry the download" } });
+    store.rows.get(REQUEST).website_atlas_previews["walkthrough-req1"] = preview({ revision: 3 });
+    expect((await read(url)).status).toBe(404);
+    store.rows.get(REQUEST).website_atlas_previews["walkthrough-req1"] = ready(4);
+    store.rows.get(REQUEST).consent_revoked = true;
+    expect((await read(url)).status).toBe(404);
+    expect(origin).toHaveBeenCalledTimes(1);
   });
 });
