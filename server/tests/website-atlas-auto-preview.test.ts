@@ -422,3 +422,36 @@ describe("owner Atlas preview download", () => {
     expect(origin).toHaveBeenCalledTimes(1);
   });
 });
+
+it("charges source-bound SAM/review auxiliaries to Atlas while retaining their own disclosure", async () => {
+  const { websiteSceneSponsorship } = await import("../utils/websiteSceneSponsorship");
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+  const nativePolicy = { owner: { user_id: "site-owner-uid", organization_id: "blueprint" },
+    upstream_max_spend_usd: 50, native_max_spend_usd: 50, max_total_spend_usd: 100,
+    max_paid_attempts: 32, ttl_seconds: 3600, provider_terms_reference: sha("e") };
+  vi.stubEnv("BLUEPRINT_WEBSITE_SCENE_SPONSORSHIP_JSON", JSON.stringify(nativePolicy));
+  vi.stubEnv("TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON", JSON.stringify({ ...terms,
+    google: { digest: sha("e"), label: "Accepted auxiliary terms", url: "https://example.com/terms" } }));
+  upload();
+  store.rows.get("siteTaskBriefs/req1").confirmedAtIso = new Date().toISOString();
+  store.rows.get(REQUEST).site_task_triage = { disposition: "qualified" };
+  store.rows.get(REQUEST).website_scene_sponsorship = websiteSceneSponsorship({ requestId: "req1",
+    record: store.rows.get(REQUEST), brief: store.rows.get("siteTaskBriefs/req1"), now: Date.now() / 1000 });
+  await configure();
+  await reserveWebsitePreparationSpend("req1", atlasSpend());
+  const auxiliary = await reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("2"),
+    provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: .4, atlas_auxiliary: true }));
+  expect(auxiliary).toMatchObject({ status: "admitted", provider: "meta", provider_terms_reference: sha("e"),
+    provider_training_authorized: false, atlas_authorization_digest: expect.stringMatching(/^sha256:/) });
+  expect((await configure()).remaining_cost_usd).toBeCloseTo(.1);
+  await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("3"),
+    provider: "google", resource_class: "evaluator_api", maximum_cost_usd: .2, atlas_auxiliary: true })))
+    .rejects.toThrow("website_scene_preparation_budget_exhausted");
+  // Atlas's still-valid grant cannot renew the auxiliary provider's expired consent.
+  store.rows.get(REQUEST).website_scene_sponsorship.expires_at_epoch = 1;
+  const authority = store.rows.get(REQUEST).website_scene_sponsorship;
+  const { authority_digest: _old, ...payload } = authority;
+  authority.authority_digest = crossRuntimeDigest(payload);
+  await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("4"),
+    provider: "meta", resource_class: "evaluator_api", maximum_cost_usd: .01, atlas_auxiliary: true }))).rejects.toThrow("consent_expired");
+});
