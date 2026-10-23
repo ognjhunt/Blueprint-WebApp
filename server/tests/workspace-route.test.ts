@@ -1439,6 +1439,17 @@ describe("capture-first workspace intake", () => {
       termsAcceptance: { accepted_terms: true, terms_version: TERMS_VERSION, privacy_version: PRIVACY_VERSION } });
     expect((await api("/tasks/capture-owned", "new-site")).status).toBe(200);
   });
+  // Ordinary sign-up writes a profile with no workspace type; it is set up the
+  // same way and keeps what sign-up wrote.
+  it("sets up a signed-up account that has not chosen a workspace type, keeping its profile", async () => {
+    state.records.set("users/new-site", { uid: "new-site", email: "new-site@example.com", name: "Dana", finishedOnboarding: false, acceptedTerms: false });
+    const response = await api("/capture-start", "new-site", { ...capture, hasExistingFootage: true, acceptedTerms: true, company: "Acme Foods" });
+    expect(response.status).toBe(201);
+    expect(state.intakes.at(-1)).toMatchObject({ body: { buyerType: "site_operator" }, metadata: { account_owner_uid: "new-site" } });
+    expect(state.records.get("users/new-site")).toMatchObject({ name: "Dana", finishedOnboarding: false,
+      buyerType: "site_operator", company: "Acme Foods", acceptedTerms: true, termsVersion: TERMS_VERSION });
+    expect((await api("/tasks/capture-owned", "new-site")).status).toBe(200);
+  });
   it("sets up no account without the Terms, and never changes an existing profile", async () => {
     expect((await api("/capture-start", "new-site", capture)).status).toBe(403);
     expect(state.records.has("users/new-site")).toBe(false);

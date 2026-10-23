@@ -358,14 +358,18 @@ router.post(
 );
 // The start form creates a site's account with its first job, so the job is
 // owned from the start and its video goes with the form (owner decision
-// 2026-10-22). That job is the "site and job first" `/setup` asks for, so a
-// brand-new account with no profile at all becomes a site workspace here,
-// accepting the Terms the form shows. Any existing profile is left untouched.
+// 2026-10-22). That job is the "site and job first" `/setup` asks for, so an
+// account that has not chosen a workspace type yet becomes a site workspace
+// here, accepting the Terms the form shows. A profile that already has a type
+// or a legacy role is left untouched, and one from ordinary sign-up keeps the
+// answers it has.
+const typedProfile = (user: Record<string, any> | undefined) =>
+  Boolean(user?.buyerType || user?.role || (Array.isArray(user?.roles) && user.roles.length));
 router.post(
   "/capture-start",
   handle(async (req, res, next) => {
     const { user, auth } = res.locals.workspaceAccount;
-    if (Object.keys(user).length || req.body?.acceptedTerms !== true) return next();
+    if (typedProfile(user) || req.body?.acceptedTerms !== true) return next();
     const organization = text(req.body?.company).trim().slice(0, 160) || "My site";
     const now = admin.firestore.FieldValue.serverTimestamp();
     const profile = {
@@ -383,10 +387,13 @@ router.post(
       termsAcceptance: buildLegalAcceptanceRecord({ acceptedAt: now }),
     };
     const profileRef = db!.collection("users").doc(auth.uid);
+    const siteSetup = new Set(["buyerType", "workspaceSetupCompletedAt", "acceptedTerms", "termsVersion", "privacyVersion", "termsAcceptance"]);
     await db!.runTransaction(async (transaction) => {
-      // A profile written since the read above is someone else's setup; keep it.
-      if ((await transaction.get(profileRef)).exists) return;
-      transaction.set(profileRef, profile);
+      const current = (await transaction.get(profileRef)).data();
+      // A type chosen since the read above is someone else's setup; keep it.
+      if (typedProfile(current)) return;
+      transaction.set(profileRef, Object.fromEntries(Object.entries(profile)
+        .filter(([key]) => siteSetup.has(key) || current?.[key] === undefined)), { merge: true });
     });
     res.locals.workspaceAccount = { auth, user: object((await profileRef.get()).data()) };
     next();

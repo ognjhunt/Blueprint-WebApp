@@ -475,6 +475,23 @@ it("tells a robot-team account up front that the site goes to the emailed link, 
   expect(postsTo("/api/inbound-request")).toHaveLength(1);
 });
 
+it("lets a signed-in account with no workspace type yet send the job and its video with the form", async () => {
+  signedIn({ workspaceType: null }, [{ ok: true, body: { captureUrl: "https://tryblueprint.io/capture-upload/tok.signed" } }]);
+  upload.send.mockResolvedValue({ status: "done" });
+  const file = new File(["frames"], "cycle.mov", { type: "video/quicktime" });
+  await renderReady(<SiteCaptureStart />);
+  await screen.findByText(/Saving to your workspace as owner@example.com/);
+  fireEvent.change(document.querySelector("#start-task")!, { target: { value: "Pack cartons" } });
+  chooseUploadNow();
+  fireEvent.change(document.querySelector("#start-footage")!, { target: { files: [file] } });
+  fireEvent.change(document.querySelector("#start-location")!, { target: { value: "Austin, TX" } });
+  fireEvent.submit(screen.getByRole("form"));
+  await screen.findByText("Your recording is in.", { selector: "h2" });
+  expect(postsTo("/api/workspace/capture-start")).toHaveLength(1);
+  expect(postsTo("/api/inbound-request")).toHaveLength(0);
+  expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
+});
+
 it("falls back to the emailed link with the same answers when the workspace refuses the account", async () => {
   signedIn({ workspaceType: "site_operator" }, [{ ok: false, status: 403, body: { error: "This action requires a site account." } }, { ok: true, body: { captureUrl: null } }]);
   await renderReady(<SiteCaptureStart />);
