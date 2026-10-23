@@ -220,6 +220,10 @@ function currentTermsAccepted(user: Record<string, any>) {
       acceptedVersionsAreCurrent(user.termsVersion, user.privacyVersion))
   );
 }
+// A profile with a workspace type or a legacy role is never set up as a site
+// by the start form; any other signed-in account is, when it submits.
+const typedProfile = (user: Record<string, any> | undefined) =>
+  Boolean(user?.buyerType || user?.role || (Array.isArray(user?.roles) && user.roles.length));
 function accountProjection(
   user: Record<string, any>,
   auth: Record<string, any>,
@@ -269,7 +273,7 @@ router.get(
     const owned = user.buyerType === "site_operator"
       ? await db!.collection("inboundRequests").where("account_owner_uid", "==", auth.uid).limit(1).get()
       : null;
-    return res.json({ ...accountProjection(user, auth), siteIntakeRequired: !owned?.docs.length });
+    return res.json({ ...accountProjection(user, auth), siteIntakeRequired: !owned?.docs.length, siteSetupAvailable: !typedProfile(user) });
   }),
 );
 // Internal integration planning, never the customer runnable configuration registry.
@@ -363,8 +367,6 @@ router.post(
 // here, accepting the Terms the form shows. A profile that already has a type
 // or a legacy role is left untouched, and one from ordinary sign-up keeps the
 // answers it has.
-const typedProfile = (user: Record<string, any> | undefined) =>
-  Boolean(user?.buyerType || user?.role || (Array.isArray(user?.roles) && user.roles.length));
 router.post(
   "/capture-start",
   handle(async (req, res, next) => {

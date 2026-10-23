@@ -338,11 +338,11 @@ it("clears an inferred country when the address is edited", async () => {
   expectInferredOutsideUnitedStates();
 });
 
-function signedIn(setup: { ok?: boolean; workspaceType?: string | null }, posts: Array<{ ok: boolean; status?: number; body?: unknown }>) {
+function signedIn(setup: { ok?: boolean; workspaceType?: string | null; siteSetupAvailable?: boolean }, posts: Array<{ ok: boolean; status?: number; body?: unknown }>) {
   account.user = { uid: "owner-1", email: "owner@example.com", getIdToken: async () => "owner-token" };
   const queue = [...posts];
   fetchMock.mockImplementation(async (url: string) => {
-    if (url === "/api/workspace/setup") return { ok: setup.ok !== false, json: async () => ({ workspaceType: setup.workspaceType ?? null }) };
+    if (url === "/api/workspace/setup") return { ok: setup.ok !== false, json: async () => ({ workspaceType: setup.workspaceType ?? null, siteSetupAvailable: setup.siteSetupAvailable === true }) };
     const next = queue.shift() ?? { ok: true };
     return { ok: next.ok, status: next.status ?? (next.ok ? 200 : 500), json: async () => next.body ?? {} };
   });
@@ -476,7 +476,7 @@ it("tells a robot-team account up front that the site goes to the emailed link, 
 });
 
 it("lets a signed-in account with no workspace type yet send the job and its video with the form", async () => {
-  signedIn({ workspaceType: null }, [{ ok: true, body: { captureUrl: "https://tryblueprint.io/capture-upload/tok.signed" } }]);
+  signedIn({ workspaceType: null, siteSetupAvailable: true }, [{ ok: true, body: { captureUrl: "https://tryblueprint.io/capture-upload/tok.signed" } }]);
   upload.send.mockResolvedValue({ status: "done" });
   const file = new File(["frames"], "cycle.mov", { type: "video/quicktime" });
   await renderReady(<SiteCaptureStart />);
@@ -490,6 +490,17 @@ it("lets a signed-in account with no workspace type yet send the job and its vid
   expect(postsTo("/api/workspace/capture-start")).toHaveLength(1);
   expect(postsTo("/api/inbound-request")).toHaveLength(0);
   expect(upload.send).toHaveBeenCalledWith("tok.signed", file, expect.any(Function));
+});
+
+// A legacy-role account (a capturer, say) has no workspace type but is never
+// set up as a site by the form, so it is not offered an upload that would wait.
+it("tells a legacy-role account up front that its video waits, rather than offering the upload", async () => {
+  signedIn({ workspaceType: null, siteSetupAvailable: false }, [{ ok: true, body: { captureUrl: "https://example.test/capture" } }]);
+  await renderReady(<SiteCaptureStart />);
+  await screen.findByText(/Signed in as owner@example.com, which is not a site workspace/);
+  chooseUploadNow();
+  expect(document.querySelector("#start-footage")).toBeNull();
+  expect(screen.getByRole("note", { name: "Save this job to an account first" })).toBeInTheDocument();
 });
 
 it("falls back to the emailed link with the same answers when the workspace refuses the account", async () => {

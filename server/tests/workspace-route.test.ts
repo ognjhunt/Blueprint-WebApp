@@ -1443,6 +1443,10 @@ describe("capture-first workspace intake", () => {
   // same way and keeps what sign-up wrote.
   it("sets up a signed-up account that has not chosen a workspace type, keeping its profile", async () => {
     state.records.set("users/new-site", { uid: "new-site", email: "new-site@example.com", name: "Dana", finishedOnboarding: false, acceptedTerms: false });
+    state.records.set("users/capturer-1", { role: "capturer", name: "Field Capturer" });
+    expect(await (await api("/setup", "new-site")).json()).toMatchObject({ workspaceType: null, siteSetupAvailable: true });
+    expect(await (await api("/setup", "capturer-1")).json()).toMatchObject({ workspaceType: null, siteSetupAvailable: false });
+    expect(await (await api("/setup", "robot-1")).json()).toMatchObject({ siteSetupAvailable: false });
     const response = await api("/capture-start", "new-site", { ...capture, hasExistingFootage: true, acceptedTerms: true, company: "Acme Foods" });
     expect(response.status).toBe(201);
     expect(state.intakes.at(-1)).toMatchObject({ body: { buyerType: "site_operator" }, metadata: { account_owner_uid: "new-site" } });
