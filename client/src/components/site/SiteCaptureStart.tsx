@@ -189,6 +189,9 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // Which workspace the signed-in account holds. A robot-team account can
   // still start a site: it is saved to the emailed link rather than blocked.
   const [workspaceType, setWorkspaceType] = useState<string | null | undefined>(undefined);
+  // An account with no workspace type yet becomes a site workspace by
+  // submitting this form, unless it carries a legacy role.
+  const [siteSetupAvailable, setSiteSetupAvailable] = useState(false);
   useEffect(() => {
     if (!currentUser) return;
     let cancelled = false;
@@ -198,15 +201,19 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           credentials: "include",
           headers: await withFirebaseAuthHeaders(currentUser),
         });
-        const data = (await response.json().catch(() => ({}))) as { workspaceType?: string | null };
-        if (!cancelled) setWorkspaceType(response.ok ? data.workspaceType ?? null : null);
+        const data = (await response.json().catch(() => ({}))) as { workspaceType?: string | null; siteSetupAvailable?: boolean };
+        if (!cancelled) {
+          setWorkspaceType(response.ok ? data.workspaceType ?? null : null);
+          setSiteSetupAvailable(response.ok && data.siteSetupAvailable === true);
+        }
       } catch {
         if (!cancelled) setWorkspaceType(null);
       }
     })();
     return () => { cancelled = true; };
   }, [currentUser]);
-  const siteWorkspace = Boolean(currentUser) && workspaceType === "site_operator";
+  const siteWorkspace = Boolean(currentUser)
+    && (workspaceType === "site_operator" || (workspaceType === null && siteSetupAvailable));
   // The phone's recording has landed on the server. The laptop then stops
   // being a handoff and becomes the place to do the next step.
   const [captureReceived, setCaptureReceived] = useState(false);
@@ -276,9 +283,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // Footage waits for a saved job (owner decision 2026-10-18). A video sent
   // before its job has an account is born with no owner, and saving the job
   // afterwards is an owner change the Pipeline refuses for that capture. A
-  // signed-in site workspace owns the job from the start, and so does a guest
-  // who creates its account with this form (owner decision 2026-10-22); only
-  // their video goes with the form, and the upload routes refuse any other.
+  // signed-in site workspace (or an account this form sets up as one) owns the
+  // job from the start, and so does a guest who creates its account with this
+  // form (owner decision 2026-10-22); only their video goes with the form, and
+  // the upload routes refuse any other.
   const newAccount = !currentUser && hasFootage && region !== "non_us";
   const videoWithForm = siteWorkspace || newAccount;
   const [footage, setFootage] = useState<File | null>(null);
@@ -499,7 +507,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       // Unknown type (the lookup is still in flight or failed) still tries the
       // workspace first; a refusal falls back with the same answers intact.
       let savedToWorkspace = retained ? retained.endpoint === "/api/workspace/capture-start"
-        : createsAccount || (Boolean(currentUser) && workspaceType !== null && workspaceType !== "robot_team");
+        : createsAccount || siteWorkspace || (Boolean(currentUser) && workspaceType !== null && workspaceType !== "robot_team");
       let endpoint: "/api/workspace/capture-start" | "/api/inbound-request" = savedToWorkspace ? "/api/workspace/capture-start" : "/api/inbound-request";
       let frozen;
       try {

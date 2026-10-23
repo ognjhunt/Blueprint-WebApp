@@ -22,6 +22,7 @@ import { siteAssessmentTaskInput } from "../tasks/site-assessment";
 import type { AgentResult, NormalizedAgentTask } from "../types";
 import type { InboundRequest } from "../../types/inbound-request";
 
+export const SITE_ASSESSMENT_OPENAI_TIMEOUT_MS = 300_000;
 const sha = (value: Buffer | string) => createHash("sha256").update(value).digest("hex");
 const digest = (value: unknown) => sha(JSON.stringify(value));
 const requestFacts = (record: Record<string, any>) => Object.fromEntries([
@@ -250,7 +251,11 @@ export async function runSiteAssessmentTask(task: NormalizedAgentTask, host: { r
       experiment_context_digest: inferenceProgrammeContextDigest(raw, brief), producer_source: privacy.producer_source,
       model_context: host.experiment.model_context ?? "production",
       operator_messages_sha256: videoAnalysisOperatorDigest(modelInput.operator_messages) }) : undefined;
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, baseURL: "https://api.openai.com/v1", maxRetries: 0, timeout: getOpenAiTimeoutMs() });
+    // The closing write-up reasons over the whole video reading and can run past
+    // the general two-minute limit (2026-10-23 dishwasher run); the 30-minute
+    // run lease still bounds the assessment as a whole.
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, baseURL: "https://api.openai.com/v1", maxRetries: 0,
+      timeout: Math.max(getOpenAiTimeoutMs(), SITE_ASSESSMENT_OPENAI_TIMEOUT_MS) });
     const provider = new OpenAIProvider({ useResponses: true,
       openAIClient: client as unknown as NonNullable<ConstructorParameters<typeof OpenAIProvider>[0]>["openAIClient"] });
     instance = await createSiteAssessmentAgent(modelInput, {

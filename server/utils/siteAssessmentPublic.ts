@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { hydrateAgentEvidence } from "../agents/private-evidence";
-import { renderSourceBoundAssessment, siteAssessmentSchema } from "../agents/site-assessment";
+import { renderSourceBoundAssessment, siteAssessmentSchema, SITE_ASSESSMENT_MAX_PACKET_BYTES, SITE_ASSESSMENT_MAX_PACKET_SOURCES } from "../agents/site-assessment";
 import { browserPendingDecisionKey, type BrowserPending } from "./websiteBrowserPending";
 import { verifiedPendingManifest, verifiedPendingMarker } from "./websiteBrowserUploadStatus";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
@@ -94,8 +94,8 @@ const decisionView = (advisory: SiteAdvisory | null): CurrentSiteAssessmentView 
 });
 /** Prepare the CURRENT schema and evidence qualifications once for both views. */
 function prepareSiteAssessment(packet: Record<string, any>, admittedDuration: number | null) {
-  if (packet.schema_version !== "site_assessment.v2" || !Array.isArray(packet.sources) || packet.sources.length > 100
-    || Buffer.byteLength(JSON.stringify(packet)) > 1_000_000) throw Error("site_advisory_packet_invalid");
+  if (packet.schema_version !== "site_assessment.v2" || !Array.isArray(packet.sources) || packet.sources.length > SITE_ASSESSMENT_MAX_PACKET_SOURCES
+    || Buffer.byteLength(JSON.stringify(packet)) > SITE_ASSESSMENT_MAX_PACKET_BYTES) throw Error("site_advisory_packet_invalid");
   const sources = new Map(packet.sources.map((source: any) => [source.source_id, source]));
   const duration = packet.sources.find((source: any) => source.kind === "video")?.content?.duration_seconds
     ?? packet.video_duration_seconds ?? null;

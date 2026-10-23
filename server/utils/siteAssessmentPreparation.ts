@@ -25,9 +25,10 @@ export type AssessmentPreparationProposal = {
 
 /** A plausible proposal allows construction work, never a feasibility verdict or physical launch. */
 export async function assessmentProposesPreparation(packet: Record<string, any>, duration: number): Promise<boolean> {
+  const { renderSourceBoundAssessment, siteAssessmentSchema, SITE_ASSESSMENT_MAX_PACKET_BYTES, SITE_ASSESSMENT_MAX_PACKET_SOURCES } = await import("../agents/site-assessment");
   if (packet.schema_version !== "site_assessment.v2" || !Array.isArray(packet.sources)
-    || packet.sources.length > 100 || Buffer.byteLength(JSON.stringify(packet)) > 1_000_000) throw unavailable();
-  const { renderSourceBoundAssessment, siteAssessmentSchema } = await import("../agents/site-assessment");
+    || packet.sources.length > SITE_ASSESSMENT_MAX_PACKET_SOURCES
+    || Buffer.byteLength(JSON.stringify(packet)) > SITE_ASSESSMENT_MAX_PACKET_BYTES) throw unavailable();
   const raw = siteAssessmentSchema.parse(packet.raw_model_assessment);
   const rendered = renderSourceBoundAssessment(raw, new Map(packet.sources.map((s: any) => [s.source_id, s])), duration);
   return rendered.verification.unverified_claims === 0

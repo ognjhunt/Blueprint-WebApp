@@ -243,9 +243,10 @@ jobs:
 
       - name: Install Playwright browsers
         # All configured browser checks use Chromium. Bound installation so a
-        # stalled runner fails with logs instead of holding the gate indefinitely.
-        timeout-minutes: 10
-        run: npx playwright install --with-deps chromium
+        # stalled runner fails with logs instead of holding the gate indefinitely;
+        # the script retries a slow Ubuntu mirror within that bound.
+        timeout-minutes: 20
+        run: bash scripts/ci/install-playwright-chromium.sh
 
       - name: Verify Playwright install
         run: npx playwright install --dry-run chromium
@@ -329,8 +330,8 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        timeout-minutes: 10
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 20
+        run: bash scripts/ci/install-playwright-chromium.sh
 
       - name: Build stable browser-test client
         env:
