@@ -71,6 +71,24 @@ it("allows existing scene preparation with owner questions, preserving advisory 
   const original=state.docs.get("inboundRequests/one")?.website_scene_sponsorship as any;
   expect((await loadWebsiteSceneSponsorship("one",true)).expires_at_epoch).toBe(original.expires_at_epoch);
 });
+// read_robot_registry returns up to 200 teams and each becomes a source; a
+// 100-source cap held the 2026-10-23 dishwasher scene (109 sources) at 409.
+const registrySources = (count: number) => Array.from({length: count}, (_, index) => {
+  const content = {id:`team-${index}`,name:`Synthetic team ${index}`,website:null,status:"prospect",willing_supply:false,
+    supply_agreements_missing:["supported_interface"],capability:{embodiments:["fixed_arm"],payload_kg:5,reach_m:0.9},
+    fieldProvenance:{capability:"self_reported"},capabilityDescription:"Synthetic fixed-arm pick and place ".repeat(20),evidenceBar:null,updatedAt:null};
+  return {source_id:`robotTeam:team-${index}`,kind:"robot_registry",canonical_ref:`robotTeams/team-${index}`,sha256:hash(content),checked_at:null,content};
+});
+it("admits a packet carrying every team the registry read returns",async()=>{
+  const p:any=packet();p.sources=[source,...registrySources(200)];seed(p);
+  expect((await loadAssessmentPreparationProposal("one","walkthrough-one"))?.proposal).toMatchObject({scope:"scene_preparation_only"});
+  expect((await loadWebsiteSceneSponsorship("one",true)).assessment_preparation_proposal).toMatchObject({capture_id:"walkthrough-one"});
+});
+it("still refuses a packet past the source bound",async()=>{
+  const {SITE_ASSESSMENT_MAX_PACKET_SOURCES}=await import("../agents/site-assessment");
+  const p:any=packet();p.sources=[source,...registrySources(SITE_ASSESSMENT_MAX_PACKET_SOURCES)];seed(p);
+  await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_assessment_preparation_pending");
+});
 it.each(["no_robot","process_change"])("does not start the robot-preparation branch for %s",async(kind)=>{
   const p=packet();p.raw_model_assessment.next_action.kind=kind;seed(p);
   await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_assessment_preparation_pending");

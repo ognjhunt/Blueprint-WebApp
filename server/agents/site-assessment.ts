@@ -85,6 +85,12 @@ type Source = {
   source_id: string; kind: "operator" | "video" | "knowledge" | "robot_registry";
   canonical_ref: string; sha256: string; checked_at: string | null; content: unknown;
 };
+// Every team read_robot_registry returns (200 by default) becomes a packet
+// source, so a packet's readers must admit at least that many plus the video,
+// operator and knowledge sources. A 100-source cap blocked scene preparation
+// once the registry passed 100 teams (2026-10-23).
+export const SITE_ASSESSMENT_MAX_PACKET_SOURCES = 300;
+export const SITE_ASSESSMENT_MAX_PACKET_BYTES = 4_000_000;
 export interface SiteAssessmentInput {
   request_id: string;
   /** Recorded site assertions; task instructions are never citation sources. */
