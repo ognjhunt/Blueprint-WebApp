@@ -142,6 +142,31 @@ export async function prepareCustomerReplySiteAssessment(store: FirebaseFirestor
   } };
 }
 
+// A provider hiccup is ours to absorb: a site never has to ask for its own
+// assessment again between uploading and agreeing to a pilot (owner direction
+// 2026-10-23). The retry goes through the same recovery the owner's button
+// uses, so its rights, source and budget checks all still apply.
+const TRANSIENT_ASSESSMENT_ERRORS = new Set(["APIConnectionTimeoutError", "APIConnectionError", "InternalServerError", "RateLimitError"]);
+export const AUTOMATIC_ASSESSMENT_RETRIES = 2;
+export function transientAssessmentFailure(diagnostic: unknown) {
+  const value = diagnostic as { exception_class?: unknown; http_status?: unknown } | null | undefined;
+  const status = value?.http_status;
+  return TRANSIENT_ASSESSMENT_ERRORS.has(String(value?.exception_class))
+    || typeof status === "number" && (status === 429 || status >= 500);
+}
+async function retryTransientAssessment(job: SiteAssessmentJob, jobId: string, diagnostic: unknown) {
+  if (!transientAssessmentFailure(diagnostic)) return;
+  const automatic = (job.retry_history ?? []).filter(row => row.retry_identity.startsWith("auto-")).length;
+  if (automatic >= AUTOMATIC_ASSESSMENT_RETRIES) return;
+  try {
+    await retrySiteAssessment({ requestId: job.request_id, expectedJobId: jobId, expectedRunId: job.run_id,
+      retryIdentity: `auto-${automatic + 1}-${job.run_id}`.slice(0, 120),
+      assertAccess: request => projectWebsiteCaptureRights(request).derived_scene_generation_allowed });
+  } catch {
+    logger.warn({ correlationId: job.correlation_id }, "Site advisory automatic retry unavailable; it needs operator review");
+  }
+}
+
 let activePass: Promise<void> | null = null;
 /** Reuse the existing worker tick; a lease never authorizes uncertain paid replay. */
 export function tickSiteAssessments(limit = 2) {
@@ -199,7 +224,9 @@ export async function reconcileSiteAssessments(limit = 2) {
         || bound?.advisory_job_id !== row.id || bound?.context_digest !== job.context_digest
         || bound?.capture_id !== job.capture_id || bound?.request_id !== job.request_id
         || run.artifacts.site_assessment_packet_sha256 !== packetSha) {
-        await finish("needs_review", job.claim_id); return;
+        await finish("needs_review", job.claim_id);
+        if (run.status === "failed") await retryTransientAssessment(job, row.id, run.artifacts?.site_assessment_error);
+        return;
       }
       const selected = await source();
       if (!selected) { await finish("authority_ended", job.claim_id); return; }
