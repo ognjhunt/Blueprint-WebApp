@@ -7,11 +7,15 @@ import { withCsrfHeader } from "@/lib/csrf";
 import { workspaceRequest } from "@/lib/workspace";
 import { OfferingThumbnail } from "@/components/blueprint/app/OfferingThumbnail";
 import type { RobotSetup } from "@/types/workspace";
-import { RobotDescriptionFields, readRobotDescription } from "@/components/workspace/RobotDescriptionFields";
+import { RobotDescriptionFields, RobotEmbodimentFields, readRobotDescription, readRobotEmbodiment } from "@/components/workspace/RobotDescriptionFields";
 import { TeamEvaluationResults } from "@/components/blueprint/app/TeamEvaluationResults";
+import { CheckpointRegistration, type WorkspaceCheckpoint } from "@/components/workspace/CheckpointRegistration";
+import { robotEmbodimentSchema } from "@/types/robotEmbodiment";
+import { PolicyAdapterFields, readPolicyAdapter } from "@/components/workspace/PolicyAdapterFields";
+import { samePolicyAdapter } from "@/types/policyAdapter";
 
 type Configuration={id:string;label:string;binding_digest:string;policy_candidates:Array<{id:string;artifact_digest:string}>};
-type Context={sourceLaunchId:string;sourceProfileDigest:string;sceneRevisionDigest:string;
+type Context={opportunityId?:string|null;sourceLaunchId:string;sourceProfileDigest:string;sceneRevisionDigest:string;
   configurations:Configuration[];setups:RobotSetup[];
   providerTerms:Record<string,{digest:string;label:string;url:string}>;
   testEnvironment:{label?:string}|null;
@@ -29,6 +33,9 @@ export default function TeamEvaluationSelection() {
   const [addingSetup,setAddingSetup]=useState(false);
   const [error,setError]=useState("");
   const [busy,setBusy]=useState(false);
+  const [checkpoints,setCheckpoints]=useState<WorkspaceCheckpoint[]>([]);
+  const [checkpointId,setCheckpointId]=useState("");
+  const [customRequestId,setCustomRequestId]=useState("");
   const [receipt,setReceipt]=useState<{id:string;state:string;pipeline_status?:{status:string;result_run_id?:string}}|null>(()=>{
     const id=new URLSearchParams(window.location.search).get("intake");
     return id && /^scene-[a-f0-9]{64}$/.test(id)?{id,state:"loading"}:null;
@@ -46,7 +53,8 @@ export default function TeamEvaluationSelection() {
   useEffect(()=>{
     if (!currentUser) return;
     let cancelled=false;
-    void request(`/api/configured-scene-offerings/${encodeURIComponent(sourceLaunchId)}/team-evaluation-context`)
+    const job=new URLSearchParams(window.location.search).get("job");
+    void request(`/api/configured-scene-offerings/${encodeURIComponent(sourceLaunchId)}/team-evaluation-context${job?`?job=${encodeURIComponent(job)}`:""}`)
       .then(value=>{if(!cancelled)setContext(value);})
       .catch(reason=>{if(!cancelled)setError(reason.message);});
     return ()=>{cancelled=true;};
@@ -64,14 +72,36 @@ export default function TeamEvaluationSelection() {
     return ()=>{cancelled=true;clearInterval(timer);};
   },[receipt?.id,currentUser]);
   const setup=context?.setups.find(s=>s.id===setupId);
+  const ownRobot=Boolean(setup?.robotDescription && setup.robotDescription.source!=="catalog"
+    && robotEmbodimentSchema.safeParse(setup.robotEmbodiment).success);
+  useEffect(()=>{
+    if(!ownRobot || !currentUser) return;
+    let active=true;
+    const refresh=()=>void workspaceRequest<{checkpoints:WorkspaceCheckpoint[]}>(currentUser,"/checkpoints")
+      .then(value=>{if(active)setCheckpoints(value.checkpoints);}).catch(reason=>{if(active)setError(reason.message);});
+    refresh();const timer=setInterval(refresh,10000);
+    return()=>{active=false;clearInterval(timer);};
+  },[currentUser,ownRobot,setupId]);
+  const matchingCheckpoints=checkpoints.filter(row=>row.reference===setup?.reference && row.status!=="retired"
+    && samePolicyAdapter(row.policyConfig,setup?.policyConfig)
+    && ["policy_endpoint","customer_hosted"].includes(row.runtime));
+  const checkpoint=matchingCheckpoints.find(row=>row.checkpointId===checkpointId);
   const configuration=setup?.robotDescription && setup.robotDescription.source!=="catalog" ? undefined : context?.configurations.find(c=>c.id===(setup?.executionBindingId || configurationId));
   const robotVersionChanged=setup?.robotDescription?.source==="catalog"
     && setup.robotDescription.configurationDigest!==configuration?.binding_digest;
   async function submit(event:React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!context || !setup || !configuration || robotVersionChanged) return;
+    if (!context || !setup || robotVersionChanged) return;
+    if (ownRobot ? !context.opportunityId || !checkpoint : !configuration) return;
     setBusy(true);setError("");
     try {
+      if (ownRobot && context.opportunityId && checkpoint) {
+        await workspaceRequest(currentUser,"/evaluations","POST",{id:runId,opportunityId:context.opportunityId,
+          setupId:setup.id,checkpointId:checkpoint.checkpointId,notes:"Evaluate this saved robot and registered policy on the job.",licenseToRun:true});
+        setCustomRequestId(runId);
+        return;
+      }
+      if (!configuration) return;
       const openai=context.providerTerms.openai, vast=context.providerTerms.vast;
       if (!openai || !vast || openai.digest!==vast.digest) throw new Error("Provider terms are unavailable. Please try again shortly.");
       if (!setup.executionBindingId) {
@@ -104,8 +134,10 @@ export default function TeamEvaluationSelection() {
     setBusy(true);setError("");
     try {
       const robotDescription=readRobotDescription(values,context?.configurations || []);
+      const robotEmbodiment=readRobotEmbodiment(values);
+      const policyConfig=readPolicyAdapter(values);
       if (!robotDescription) throw new Error("Choose a robot model.");
-      const payload={...saved,robotDescription,...(robotDescription.source==="catalog"?{executionBindingId:robotDescription.configurationId}:{})};
+      const payload={...saved,robotDescription,...(robotEmbodiment?{robotEmbodiment}:{}),...(policyConfig?{policyConfig}:{}),...(robotDescription.source==="catalog"?{executionBindingId:robotDescription.configurationId}:{})};
       await workspaceRequest(currentUser,"/setups","POST",payload);
       setContext(previous=>previous?{...previous,setups:[...previous.setups,{...payload,updatedAt:new Date().toISOString()}]}:previous);
       setSetupId(saved.id);setConfigurationId("");setAddingSetup(false);
@@ -161,7 +193,10 @@ export default function TeamEvaluationSelection() {
           </dl>
         </details>
       </>}
-      {receipt ? <div role="status" className="mt-6 border-t pt-5">
+      {customRequestId ? <div role="status" className="mt-6 border-t pt-5"><h2>Evaluation requested</h2>
+        <p className="mt-2 text-sm">Request {customRequestId} is saved for the selected checkpoint. Blueprint's existing admission and runtime qualification remain required before execution.</p>
+        <Link href={`/admin/jobs?job=${encodeURIComponent(context?.opportunityId || "")}`}>Open this job's evaluation admission</Link>
+      </div> : receipt ? <div role="status" className="mt-6 border-t pt-5">
         <h2 className="text-xl">{statusTitle}</h2>
         <p className="mt-2 text-sm">{statusDescription}</p>
         {receipt.pipeline_status?.result_run_id && <TeamEvaluationResults
@@ -183,12 +218,15 @@ export default function TeamEvaluationSelection() {
             <label className="block text-sm">Reference URL<input name="reference" required maxLength={1000} className="mt-1 block w-full rounded border border-line p-2" /></label>
           </div>
           <RobotDescriptionFields configurations={context.configurations} />
+          <RobotEmbodimentFields />
+          <PolicyAdapterFields />
           <button disabled={busy} className="ws-primary">Save setup</button>
           <button type="button" onClick={()=>setAddingSetup(false)} className="ml-4 text-sm underline">Cancel</button>
         </form>}
+        {ownRobot && setup && <CheckpointRegistration key={setup.id} setups={[setup]} />}
         <form onSubmit={submit} className="mt-5 space-y-5">
           <label className="block">Saved robot and policy
-            <select required value={setupId} onChange={e=>{setSetupId(e.target.value);setConfigurationId("");}}
+            <select required value={setupId} onChange={e=>{setSetupId(e.target.value);setConfigurationId("");setCheckpointId("");}}
               className="mt-2 block w-full rounded border border-line bg-white p-3">
               <option value="">Choose a saved setup</option>
               {context.setups.map(s=><option key={s.id} value={s.id}>{s.name} · {s.policyName}</option>)}
@@ -197,6 +235,13 @@ export default function TeamEvaluationSelection() {
           {!addingSetup && <button type="button" onClick={()=>setAddingSetup(true)} className="text-sm underline">Add a setup</button>}
           {setup?.robotDescription?.source==="model" && <p className="text-sm">This robot model needs simulation validation before this job can run. Your setup is saved.</p>}
           {setup?.robotDescription?.source==="support_option" && <p className="text-sm">Your robot setup is saved. Blueprint must validate it in simulation before this job can run.</p>}
+          {ownRobot && <>
+            {!context.opportunityId && <p className="text-sm">Open this scene from its source job to request the saved robot's evaluation. A scene launch ID does not identify the commercial job.</p>}
+            <label className="block">Registered policy checkpoint<select required value={checkpointId} onChange={event=>setCheckpointId(event.target.value)} className="mt-2 block w-full rounded border border-line p-3">
+              <option value="">Choose the checkpoint for this setup</option>{matchingCheckpoints.map(row=><option key={row.checkpointId} value={row.checkpointId}>{row.label} · {row.status}</option>)}
+            </select></label>
+            <p className="text-sm">This requests the existing free evaluation for your exact robot and policy. The job's existing access, rights and resource authority still apply; saving a setup does not qualify its runtime.</p>
+          </>}
           {robotVersionChanged && <p className="text-sm">This robot configuration has changed. Update your saved setup before starting.</p>}
           {setup && !setup.executionBindingId && !setup.robotDescription && <label className="block">Simulation configuration
             <select required value={configurationId} onChange={e=>setConfigurationId(e.target.value)}
@@ -212,8 +257,9 @@ export default function TeamEvaluationSelection() {
           <label className="flex items-start gap-2 text-sm"><input type="checkbox" required className="mt-1" />
             <span>I confirm the task and authorize evaluation with this setup.</span>
           </label>
-          <button disabled={busy || !configuration || robotVersionChanged || !canStart} className="ws-primary">
-            {busy?"Queueing…":"Start free evaluation"}
+          <button disabled={busy || robotVersionChanged || !canStart || (ownRobot ? !context.opportunityId || !checkpoint?.tokenExpiresAtIso
+            || Date.parse(checkpoint.tokenExpiresAtIso)<=Date.now() : !configuration)} className="ws-primary">
+            {busy?"Queueing…":ownRobot?"Request free evaluation":"Start free evaluation"}
           </button>
         </form>
       </section>}

@@ -35,7 +35,7 @@ import { submitTaskEvaluationRunRequest } from "../routes/robot-eval-job-request
 import { ROBOT_TEAMS_COLLECTION, type RobotTeamRecord } from "../types/robot-team-registry";
 import { sceneExecutionFacts } from "./agentExecutionAdmission";
 import { teamAccountUid } from "./robotTeamAccounts";
-import { teamJobAccess, type TeamJobClosedReason } from "./teamJobAccess";
+import { teamJobAccess, managedJobEvaluationAccess, type TeamJobClosedReason } from "./teamJobAccess";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import type { InboundRequest } from "../types/inbound-request";
 import { loadTaskForTeam, developmentOfferForTeam } from "./controlledDevelopmentOffer";
@@ -104,10 +104,11 @@ type PreparationParameters = {
   teamId: string; checkpointId: string; sceneId: string; quotedEpisodes: number;
   quotedUsd: number; submissionKey?: string;
   /** A team evaluation, on the DROID Franka or the team's own declared robot. */
-  teamEvaluation?: { robotEmbodiment?: RobotEmbodiment | null };
+  teamEvaluation?: { robotEmbodiment?: RobotEmbodiment | null; executionOrigin?: "blueprint_managed" };
 };
 export async function ensureSelfServeAgentExecution(params: PreparationParameters): Promise<SelfServePreparation> {
   if (FREE_BETA_ONLY) return { prepared: false, blockers: [FREE_BETA_PAID_DISABLED] };
+  if (params.teamEvaluation?.executionOrigin) return { prepared: false, blockers: ["blueprint_managed_operator_approval_required"] };
   return prepareAgentExecution(params);
 }
 /** Server-only preparation after the operator's exact workspace approval is validated.
@@ -121,19 +122,35 @@ const SELF_SERVE_ACCESS_BLOCKERS: Partial<Record<TeamJobClosedReason, string>> =
   consent_withdrawn: "site_rights_not_cleared",
   recording_consent_missing: "site_rights_not_cleared",
 };
-export async function prepareFreeAgentExecution(params: PreparationParameters, approval: { approvedBy: string; expiresAtIso: string }): Promise<SelfServePreparation> {
+export async function prepareFreeAgentExecution(params: PreparationParameters, approval: {
+  approvedBy: string; expiresAtIso: string; workspaceRequestId?: string;
+}): Promise<SelfServePreparation> {
   if (!approval.approvedBy || Date.parse(approval.expiresAtIso) <= Date.now()
     || !Number.isFinite(Date.parse(approval.expiresAtIso))
     || !Number.isFinite(params.quotedUsd) || params.quotedUsd <= 0 || params.quotedUsd > MAX_FREE_SPONSOR_CAP_USD
     || !Number.isInteger(params.quotedEpisodes) || params.quotedEpisodes <= 0 || !params.submissionKey)
     return { prepared: false, blockers: ["free_evaluation_approval_invalid"] };
-  return prepareAgentExecution(params, approval.approvedBy);
+  if (params.teamEvaluation?.executionOrigin === "blueprint_managed"
+    && (!approval.workspaceRequestId || params.submissionKey !== `free:${approval.workspaceRequestId}`))
+    return { prepared: false, blockers: ["blueprint_managed_operator_approval_required"] };
+  return prepareAgentExecution(params, approval.approvedBy, approval.workspaceRequestId);
 }
-async function prepareAgentExecution(params: PreparationParameters, sponsorApprover?: string): Promise<SelfServePreparation> {
+async function prepareAgentExecution(params: PreparationParameters, sponsorApprover?: string,
+  workspaceRequestId?: string): Promise<SelfServePreparation> {
   if (!db) return { prepared: false, blockers: ["agent_execution_store_unavailable"] };
 
   const accountUid = await teamAccountUid(params.teamId);
   if (!accountUid) return { prepared: false, blockers: ["team_account_required"] };
+  const managed = params.teamEvaluation?.executionOrigin === "blueprint_managed";
+  if (managed) {
+    if (!sponsorApprover || !workspaceRequestId)
+      return { prepared: false, blockers: ["blueprint_managed_operator_approval_required"] };
+    const application = (await db.collection("inboundRequests").doc(workspaceRequestId).get()).data();
+    const selected = application?.workspace_evaluation;
+    if (application?.account_owner_uid !== accountUid || selected?.executionOrigin !== "blueprint_managed"
+      || selected.opportunityId !== params.sceneId || selected.checkpointId !== params.checkpointId)
+      return { prepared: false, blockers: ["blueprint_managed_application_mismatch"] };
+  }
 
   const [teamSnapshot, checkpointSnapshot, taskRecord] = await Promise.all([
     db.collection(ROBOT_TEAMS_COLLECTION).doc(params.teamId).get(),
@@ -160,10 +177,13 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
   }
   if (!taskRecord) blockers.push("scene_not_runnable");
   else if (!development) {
-    // The same rule the job library, the opening page and free admission use,
-    // so this path can never admit a job a team could not open.
-    const access = teamJobAccess(scene as InboundRequest);
-    if (!access.evaluationAvailable) blockers.push(SELF_SERVE_ACCESS_BLOCKERS[access.reason] ?? `job_not_open:${access.reason}`);
+    // Team requests use their public-card boundary. Only the exact sponsored,
+    // server-stamped Blueprint origin can use the private evaluation grant.
+    const access = managed ? managedJobEvaluationAccess(scene as InboundRequest) : teamJobAccess(scene as InboundRequest);
+    if (!access.evaluationAvailable) {
+      const reason = access.reason ?? "scene_not_runnable";
+      blockers.push(SELF_SERVE_ACCESS_BLOCKERS[reason] ?? `job_not_open:${reason}`);
+    }
   }
   const rights = projectWebsiteCaptureRights(scene);
   if (!development && !rights.consent_scope.includes("robot_evaluation")) blockers.push("site_rights_not_cleared");
@@ -179,6 +199,7 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
   // A job that offers it runs nothing else, so a policy the evaluation cannot call is refused
   // here, before the team's one attempt is spent, rather than run on the unscored path.
   const teamOffered = !development && Boolean(offer.policy_execution_profiles?.some(isTeamEvaluationProfile));
+  if (managed && !teamOffered) return { prepared: false, blockers: ["pipeline_team_evaluation_profile_required"] };
   const teamOptions = { robotEmbodiment: params.teamEvaluation?.robotEmbodiment };
   const teamBlocker = teamOffered ? teamPolicyBlocker(checkpoint, teamOptions) : null;
   if (teamBlocker) return { prepared: false, blockers: [teamBlocker] };
@@ -220,6 +241,7 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
     captureRoot: offer.capture_root,
     episodes: params.quotedEpisodes,
     usd: params.quotedUsd,
+    ...(managed ? { executionOrigin: "blueprint_managed", workspaceRequestId, sponsorApprover } : {}),
     ...(teamPackage ? { teamEvaluationPurpose: TEAM_EVALUATION_PURPOSE } : {}),
   };
   const requestId = stableId("selfserve", bound);
@@ -304,7 +326,10 @@ async function prepareAgentExecution(params: PreparationParameters, sponsorAppro
         evidence_class: development ? "geometry" : "real_observation",
       }],
     },
-    source: { ...(development ? { evidence_scope: "development_only", authorization_reference: development.authorization_reference } : {}), selection_state: { policy_id: params.checkpointId, task_id: facts.taskId } },
+    source: { ...(development ? { evidence_scope: "development_only", authorization_reference: development.authorization_reference } : {}),
+      ...(managed ? { execution_origin: "blueprint_managed", workspace_request_id: workspaceRequestId,
+        approved_by: sponsorApprover, scene_request_id: params.sceneId } : {}),
+      selection_state: { policy_id: params.checkpointId, task_id: facts.taskId } },
   };
 
   const result = await submitTaskEvaluationRunRequest({

@@ -48,6 +48,7 @@ import { sceneDigest, sceneOwner, sceneProviderTerms, validateSceneProviderTerms
 import { assertManagedOfferingForJob, jobManagedEvidenceBindingSchema, managedJobTask, loadManagedJobEvidence, readManagedJobSourceSession,
   type JobManagedEvidenceBinding } from "../utils/jobManagedEvaluation";
 import type { TaskItemInventoryRecord } from "../utils/taskItemInventory";
+import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 
 const router = Router();
 const COLLECTION = "taskEvaluationLaunches";
@@ -408,11 +409,21 @@ router.get("/:launchId/team-evaluation-context", async (req, res) => {
   try {
     const resolved = await accessibleOffering(req.params.launchId, res);
     if (!resolved) return res.status(404).json({error:"This task is unavailable."});
+    let opportunityId: string | null = null;
+    if (req.query.job) {
+      if (!resolved.access.isOps || typeof req.query.job !== "string" || !/^[A-Za-z0-9_-]{1,120}$/.test(req.query.job) || !db)
+        return res.status(404).json({ error: "This job's evaluation setup is unavailable." });
+      const brief = (await db.collection("siteTaskBriefs").doc(req.query.job).get()).data();
+      if (!brief) throw new Error("job_brief_not_agreed");
+      const scope = await managedJobScope({ job_id: req.query.job, brief_digest: scientificBriefDigest(brief) });
+      assertManagedOfferingForJob(scope, resolved.offering);
+      opportunityId = req.query.job;
+    }
     const owner = sceneOwner(res.locals.firebaseUser || {});
     const context = await fetchTeamEvaluationContext(req.params.launchId, owner);
     if (context.configured_scene_revision_digest !== resolved.offering.evaluation_preparation_binding.configured_scene_revision_digest)
       throw new Error("evaluation_selection_changed");
-    return res.json({sourceLaunchId:context.source_launch_id, sourceProfileDigest:context.source_profile_digest,
+    return res.json({opportunityId, sourceLaunchId:context.source_launch_id, sourceProfileDigest:context.source_profile_digest,
       sceneRevisionDigest:context.configured_scene_revision_digest, configurations:context.configurations,
       setups:await loadRobotSetups(owner.user_id), providerTerms:sceneProviderTerms(),
       taskDetails:teamEvaluationTaskDetails(context),

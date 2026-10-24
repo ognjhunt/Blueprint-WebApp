@@ -118,6 +118,12 @@ export default function PolicyInterfaceGuide() {
         <summary>Example manifest (a two-joint fixed arm)</summary>
         <pre className="ws-code">{EXAMPLE_MANIFEST}</pre>
       </details>
+      <p className="ws-note">For independent tools use <code>blueprint.robot_embodiment.v2</code> and replace
+        <code>gripper</code> with the ordered <code>grippers</code> array. Each channel adds its own
+        <code>name</code> and <code>tool_link</code> to the same joint, width and contact fields. Two-arm robots
+        require two channels. Actions append one closure per channel after all driven joints; state returns
+        matching <code>gripper_position</code> and <code>gripper_names</code> arrays. The primary
+        <code>tool_link</code> remains the independent scorer's task reference.</p>
       <h3>Blueprint&rsquo;s DROID Franka (<code>openpi_droid_https.v1</code>)</h3>
       <p className="ws-note">
         This preset currently supports diagnostic runs only. Its default model has not been bound to

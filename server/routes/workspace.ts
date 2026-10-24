@@ -28,7 +28,7 @@ import {
 } from "../utils/field-encryption";
 import { submitInboundRequest } from "./inbound-request";
 import { verifySiteClaimToken } from "../utils/request-review-auth";
-import { projectTeamJobOpening, teamJobAccess } from "../utils/teamJobAccess";
+import { projectTeamJobOpening, teamJobAccess, managedJobEvaluationAccess } from "../utils/teamJobAccess";
 import { passMarkForJob } from "../utils/pilotRecommendationEvidence";
 import { sendCapturerCommunication } from "../utils/field-ops-automation";
 import {
@@ -402,21 +402,27 @@ router.post(
   }),
 );
 router.use(
-  handle(async (_req, res, next) => {
+  handle(async (req, res, next) => {
     const { user, auth } = res.locals.workspaceAccount;
-    if (!["site_operator", "robot_team"].includes(user.buyerType))
+    // Operations uses its own saved configuration and policy credentials. This
+    // does not change the account profile or grant access to a private site job.
+    const integrationAction = /^\/(?:setups(?:\/|$)|evaluations$|openings\/)/.test(req.path);
+    const opsIntegration = integrationAction && (await resolveAccessContext(res)).isOps;
+    if (opsIntegration && auth.email_verified !== true)
+      refuse(403, "Verify your email before configuring a robot or requesting an evaluation.");
+    if (!opsIntegration && !["site_operator", "robot_team"].includes(user.buyerType))
       refuse(
         403,
         "Choose a workspace type to get started.",
         "workspace_setup_required",
       );
-    if (user.buyerType === "robot_team" && !(await resolveAccessContext(res)).isOps && !await accountHasAdmission(text(auth.email).toLowerCase(), "robot_team"))
+    if (!opsIntegration && user.buyerType === "robot_team" && !(await resolveAccessContext(res)).isOps && !await accountHasAdmission(text(auth.email).toLowerCase(), "robot_team"))
       refuse(403, "Robot-team access requires Blueprint approval.", "account_invitation_required");
     res.locals.workspaceIdentity = {
       uid: auth.uid,
       email: text(auth.email).toLowerCase(),
       verified: auth.email_verified === true,
-      role: user.buyerType,
+      role: opsIntegration ? "robot_team" : user.buyerType,
       user,
     };
     next();
@@ -735,6 +741,7 @@ async function listSetups(uid: string): Promise<RobotSetup[]> {
     snapshot.docs.map(async (doc) => ({
       ...JSON.parse(await decryptFieldValue(doc.data().payload)),
       id: doc.id,
+      ...(doc.data().native_preflight ? { nativePreflight: doc.data().native_preflight } : {}),
     })),
   );
 }
@@ -1279,6 +1286,11 @@ router.post(
     return submitInboundRequest(req, res);
   }),
 );
+router.get("/setups", handle(async (_req, res) => {
+  requireRole(res, "robot_team");
+  res.set("Cache-Control", "private, no-store");
+  return res.json({ setups: await listSetups(identity(res).uid) });
+}));
 router.post(
   "/setups",
   handle(async (req, res) => {
@@ -1356,7 +1368,8 @@ async function openingForTeam(res: Response, jobId: string) {
   const caller = identity(res);
   if (!caller.verified)
     refuse(403, "Verify your email before requesting an evaluation.");
-  const access = await resolveViewerAccess({ uid: caller.uid, email: caller.email, emailVerified: true, isOps: false });
+  const access = await resolveViewerAccess({ uid: caller.uid, email: caller.email, emailVerified: true,
+    isOps: (await resolveAccessContext(res)).isOps });
   if (!access.allowed) refuse(403, "Robot-team early access is required before requesting an evaluation.");
   const notOpen = () => refuse(404, "This job is not open to evaluation requests.", "job_not_open");
   let source: Awaited<ReturnType<typeof readRequest>>;
@@ -1369,6 +1382,15 @@ async function openingForTeam(res: Response, jobId: string) {
   const opening = projectTeamJobOpening(jobId, source.record);
   if (!opening) notOpen();
   return { source, opening: opening! };
+}
+async function targetForWorkspaceEvaluation(res: Response, jobId: string) {
+  if (!(await resolveAccessContext(res)).isOps) return { ...await openingForTeam(res, jobId), executionOrigin: "technology_team" as const };
+  if (!identity(res).verified) refuse(403, "Verify your email before requesting an evaluation.");
+  const source = await readRequest(jobId);
+  const access = managedJobEvaluationAccess(source.record);
+  if (!access.evaluationAvailable) refuse(409, `This job cannot run a Blueprint-managed evaluation: ${access.reason}.`, access.reason || undefined);
+  return { source, executionOrigin: "blueprint_managed" as const,
+    opening: { title: text(source.record.request?.taskStatement) || "Site job", siteType: text(source.record.request?.targetSiteType) } };
 }
 router.get(
   "/openings/:jobId",
@@ -1397,21 +1419,30 @@ router.post(
   handle(async (req, res) => {
     requireRole(res, "robot_team");
     const input = z
-        .object({ id, opportunityId: id, setupId: id, notes: prose,
+        .object({ id, opportunityId: id, setupId: id, checkpointId: id.optional(), notes: prose,
           // The team licenses Blueprint to run its policy for this evaluation; the simulator scores it.
           licenseToRun: z.literal(true) })
         .strict()
         .parse(req.body),
       caller = identity(res);
-    const { source, opening } = await openingForTeam(res, input.opportunityId);
+    const { source, opening, executionOrigin } = await targetForWorkspaceEvaluation(res, input.opportunityId);
     const setup = (await listSetups(caller.uid)).find(
       (item) => item.id === input.setupId,
     );
     if (!setup) refuse(400, "Choose a saved robot and policy.");
     const integration = robotSetupIntegrationBlocker(setup);
     if (integration) refuse(409, TEAM_POLICY_BLOCKER_MESSAGES[integration], integration);
+    if (input.checkpointId) {
+      const teams = await teamsForAccount(caller.uid);
+      const checkpoints = (await Promise.all(teams.map(team => listCheckpoints(team.id)))).flat();
+      const checkpoint = checkpoints.find(item => item.checkpointId === input.checkpointId && item.status !== "retired");
+      if (!checkpoint || checkpoint.reference !== setup.reference || !samePolicyAdapter(checkpoint.policyConfig, setup.policyConfig))
+        refuse(409, "Choose a registered checkpoint for this saved setup.");
+      const blocker = teamPolicyBlocker(checkpoint, setup);
+      if (blocker) refuse(409, TEAM_POLICY_BLOCKER_MESSAGES[blocker], blocker);
+    }
     // A team evaluation is one attempt: refuse a policy it could not call before asking for it.
-    if (offersTeamEvaluation(source.record)) {
+    if (executionOrigin === "blueprint_managed" || offersTeamEvaluation(source.record)) {
       const blocker = await setupTeamPolicyBlocker(caller.uid, setup);
       if (blocker) refuse(409, TEAM_POLICY_BLOCKER_MESSAGES[blocker], blocker);
     }
@@ -1420,6 +1451,8 @@ router.post(
       workspace_evaluation: {
         opportunityId: input.opportunityId,
         setupId: input.setupId,
+        ...(input.checkpointId ? { checkpointId: input.checkpointId } : {}),
+        executionOrigin,
         licenseToRunGrantedAt: new Date().toISOString(),
         policyRunLicense: buildPolicyRunLicense({ ownerUid: caller.uid, requestId: input.id,
           opportunityId: input.opportunityId, setupId: input.setupId, setup }),
@@ -1448,7 +1481,7 @@ router.post(
     await submitInboundRequest(req, res);
     // The site hears that a team asked about its task, once per request.
     if (res.statusCode < 300) {
-      await enqueueTaskLifecycleNotification({
+      if (executionOrigin !== "blueprint_managed") await enqueueTaskLifecycleNotification({
         requestId: input.opportunityId,
         milestone: "pilot_request",
         eventId: input.id,

@@ -10,6 +10,7 @@ export type WorkspaceCheckpointRuntime =
   | "policy_endpoint" | "customer_hosted" | "container_image" | "controller_adapter";
 
 export type WorkspaceCheckpoint = {
+  policyConfig?: import("@/types/policyAdapter").PolicyAdapter;
   checkpointId: string;
   teamId: string;
   label: string;

@@ -9,7 +9,7 @@ import { discoverAgentExecutionAdmission, agentExecutionAdmissionDigest, canonic
 import { executionTtlMs, reservationTtlMs, runIdForReservation, type EvalRunRecord } from "./agentRunRecord";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { TEAM_EVALUATION_PROVIDER_CAP_USD } from "./teamEvaluationSelection";
-import { teamJobAccess } from "./teamJobAccess";
+import { teamJobAccess, managedJobEvaluationAccess } from "./teamJobAccess";
 import { isTeamEvaluationProfile, offersTeamEvaluation, TEAM_EVALUATION_PURPOSE, teamPolicyBlocker, robotSetupIntegrationBlocker } from "./policyIntegration";
 import { robotEmbodimentSchema } from "../../client/src/types/robotEmbodiment";
 import { samePolicyAdapter } from "../../client/src/types/policyAdapter";
@@ -46,10 +46,11 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   const scene = (await sceneRef.get()).data();
   if (!scene || !projectWebsiteCaptureRights(scene).derived_scene_generation_allowed)
     throw new Error("free_evaluation_scene_authority_unavailable");
-  // The job must still be open to robot teams by the same rule the team
-  // requested it under: a site that has since kept the job private, paused
-  // it, or whose rights review now holds it, is not evaluated.
-  const jobAccess = teamJobAccess(scene);
+  // Third-party requests retain card/listing consent. Blueprint's own saved
+  // origin uses the private evaluation grant; both retain current task,
+  // pause, capture rights and runnable-scene boundaries.
+  const managed = selection.executionOrigin === "blueprint_managed";
+  const jobAccess = managed ? managedJobEvaluationAccess(scene) : teamJobAccess(scene);
   if (!jobAccess.evaluationAvailable) throw new Error(`free_evaluation_job_not_open:${jobAccess.reason}`);
   const teamRef = db.collection("robotTeams").doc(approval.teamId);
   const team = (await teamRef.get()).data();
@@ -64,6 +65,8 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
     setupId: selection.setupId, setup }, selection.policyRunLicense))
     throw new Error("free_evaluation_policy_license_required:request_a_new_evaluation_for_this_setup");
   const checkpointRef = db.collection("robotCheckpoints").doc(approval.checkpointId);
+  if (selection.checkpointId && selection.checkpointId !== approval.checkpointId)
+    throw new Error("free_evaluation_selected_checkpoint_changed:request_a_new_evaluation_for_this_checkpoint");
   const checkpoint = (await checkpointRef.get()).data();
   if (!checkpoint || checkpoint.teamId !== approval.teamId || checkpoint.reference !== setup.reference
     || !samePolicyAdapter(checkpoint.policyConfig, setup.policyConfig))
@@ -72,15 +75,17 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   const robotEmbodiment = setup.robotEmbodiment ? robotEmbodimentSchema.parse(setup.robotEmbodiment) : null;
   // A team evaluation calls an authenticated HTTPS policy; anything else is refused before
   // any prepared request (even an operator-supplied one) is admitted.
-  const teamBlocker = offersTeamEvaluation(scene) ? teamPolicyBlocker(checkpoint, { robotEmbodiment }) : null;
+  const teamBlocker = managed || offersTeamEvaluation(scene) ? teamPolicyBlocker(checkpoint, { robotEmbodiment }) : null;
   if (teamBlocker) throw new Error(teamBlocker);
   let executionRequestId = approval.executionRequestId;
   if (!executionRequestId) {
     const prepared = await prepareFreeAgentExecution({ teamId: approval.teamId,
       checkpointId: approval.checkpointId, sceneId: selection.opportunityId,
       quotedEpisodes: approval.episodes, quotedUsd: approval.sponsorCapUsd,
-      submissionKey: `free:${requestId}`, teamEvaluation: { robotEmbodiment } },
-    { approvedBy, expiresAtIso: approval.expiresAtIso });
+      submissionKey: `free:${requestId}`, teamEvaluation: { robotEmbodiment,
+        ...(managed ? { executionOrigin: "blueprint_managed" as const } : {}) } },
+    { approvedBy, expiresAtIso: approval.expiresAtIso,
+      ...(managed ? { workspaceRequestId: requestId } : {}) });
     if (!prepared.prepared) throw new Error(prepared.blockers.join(","));
     executionRequestId = prepared.requestId;
   }
@@ -96,7 +101,8 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   const admitted = await discoverAgentExecutionAdmission({ teamId: approval.teamId,
     checkpointId: approval.checkpointId, sceneId: selection.opportunityId,
     executionRequestId, quotedEpisodes: approval.episodes,
-    quotedUsd: approval.sponsorCapUsd });
+    quotedUsd: approval.sponsorCapUsd,
+    ...(managed ? { blueprintManagedApproval: { approvedBy, workspaceRequestId: requestId } } : {}) });
   if (!admitted.admitted) throw new Error(admitted.blockers.join(","));
   const admittedRequest = admitted.envelope.canonical_execution_request as Record<string, any>;
   const admittedEndpoint = admittedRequest?.policy_package?.policy_api_endpoint;
@@ -152,7 +158,7 @@ export async function admitFreeWorkspaceEvaluation(requestId: string, input: unk
   // Only a team-evaluation policy package is a team evaluation; any other admitted run is not one.
   const request = envelope.canonical_execution_request as Record<string, any> | undefined;
   const profile = request?.policy_package?.policy_api_endpoint?.execution_profile;
-  if (offersTeamEvaluation(scene) && !isTeamEvaluationProfile(profile)) throw new Error("free_evaluation_team_evaluation_required");
+  if ((managed || offersTeamEvaluation(scene)) && !isTeamEvaluationProfile(profile)) throw new Error("free_evaluation_team_evaluation_required");
   const run: EvalRunRecord = { runId, reservationId, teamId: approval.teamId,
     checkpointId: approval.checkpointId, sceneId: selection.opportunityId,
     taskFamily: String(binding.task_family), evaluationPurpose: "pilot",

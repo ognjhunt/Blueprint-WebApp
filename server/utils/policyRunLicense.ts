@@ -5,13 +5,16 @@ export function buildPolicyRunLicense(input: {
   ownerUid: string; requestId: string; opportunityId: string; setupId: string;
   setup: Record<string, unknown>; grantedAtIso?: string;
 }) {
+  // An inspection receipt is displayed beside the saved configuration. It is
+  // not part of the policy/model the account licensed, and can be refreshed.
+  const { nativePreflight: _inspection, ...configuration } = input.setup;
   return {
     schemaVersion: "blueprint.policy_run_license.v1",
     grantedByUid: input.ownerUid,
     requestId: input.requestId,
     opportunityId: input.opportunityId,
     setupId: input.setupId,
-    setupDigest: crossRuntimeDigest({ ...input.setup, id: input.setupId }),
+    setupDigest: crossRuntimeDigest({ ...configuration, id: input.setupId }),
     grantedAtIso: input.grantedAtIso ?? new Date().toISOString(),
   };
 }
