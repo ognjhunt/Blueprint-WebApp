@@ -1,12 +1,13 @@
 // @vitest-environment node
-import { createHash } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { createHash, createHmac } from "node:crypto";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildBrowserDelivery } from "../utils/websiteCaptureDelivery";
 import { observeWebsiteCaptureOwner } from "../utils/websiteCaptureOwnerObservation";
 import { bundleDigest, planDigestOf } from "../utils/siteCaptureBundle";
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 
 const sha = (bytes: Buffer) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+afterEach(() => vi.unstubAllEnvs());
 const request = { account_owner_uid: "uid-owner", claimed_at_iso: null,
   request: { buyerType: "site_operator", capture_mode: "self_capture", consent_attestation: {
     granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-09-28T00:00:00.000Z",
@@ -53,6 +54,41 @@ function fixture() {
 }
 
 describe("authoritative original website capture owner read", () => {
+  it("attests a verified site claim with a source-bound HMAC for a guest birth", async () => {
+    vi.stubEnv("PIPELINE_SYNC_TOKEN", "fixture-claim-secret");
+    const { deps } = fixture();
+    const read = deps.readRequest;
+    deps.readRequest = async () => {
+      const row = await read();
+      return { ...row, data: { ...row.data, claimed_at_iso: new Date(deps.now() * 1000).toISOString() } };
+    };
+    const observed = await observeWebsiteCaptureOwner({ request_id: "r1", scene_id: "site-r1",
+      capture_id: "walkthrough-r1", completion_marker_generation: "100", purpose: "scene_preparation" }, deps);
+    const { signature, ...claim } = observed.claim_evidence;
+    expect(claim.claimant_user_id).toBe("uid-owner");
+    expect(claim.source_projection_digest).toBe(observed.source_projection_digest);
+    expect(signature).toBe(`sha256:${createHmac("sha256", "fixture-claim-secret")
+      .update(`website_capture_claim.v1:${crossRuntimeDigest(claim)}`).digest("hex")}`);
+    const { observation_digest, ...response } = observed;
+    expect(observation_digest).toBe(crossRuntimeDigest(response));
+    expect(observed.capture_owner.user_id).toBe("uid-owner");
+    expect(JSON.stringify(observed)).not.toContain("fixture-claim-secret");
+  });
+
+  it("a uid alone never supplies claim evidence and a claim cannot use an absent signing key", async () => {
+    const { deps } = fixture();
+    const input = { request_id: "r1", scene_id: "site-r1", capture_id: "walkthrough-r1",
+      completion_marker_generation: "100", purpose: "scene_preparation" as const };
+    expect(await observeWebsiteCaptureOwner(input, deps)).not.toHaveProperty("claim_evidence");
+    const read = deps.readRequest;
+    deps.readRequest = async () => {
+      const row = await read();
+      return { ...row, data: { ...row.data, claimed_at_iso: new Date(deps.now() * 1000).toISOString() } };
+    };
+    vi.stubEnv("PIPELINE_SYNC_TOKEN", "");
+    await expect(observeWebsiteCaptureOwner(input, deps)).rejects.toThrow("owner_claim_signing_unavailable");
+  });
+
   it("verifies historical reordered receipt maps and retains the actual pinned bytes and digest", async () => {
     const { deps, objects } = fixture();
     const reordered = { ...delivery.record,
