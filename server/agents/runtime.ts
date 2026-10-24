@@ -38,6 +38,7 @@ import {
   readPaperclipGoalCloseoutMetadata,
 } from "./goal-closeout-contract";
 import { getTaskDefinition } from "./tasks";
+import { migrateDirectLunaSelection } from "./provider-config";
 import type {
   AgentResult,
   AgentProvider,
@@ -708,12 +709,13 @@ function normalizeTask<TInput, TOutput>(
   task: AgentTask<TInput>,
 ): NormalizedAgentTask<TInput, TOutput> {
   const definition = getTaskDefinition<TInput, TOutput>(task.kind);
-  const provider = normalizeAgentProvider(task.provider || definition.default_provider);
-  const runtime = task.runtime || definition.default_runtime || provider;
-  const model =
+  const requestedProvider = normalizeAgentProvider(task.provider || definition.default_provider);
+  const requestedModel =
     task.model ||
-    definition.model_by_provider?.[provider] ||
-    defaultModelForProvider(provider);
+    definition.model_by_provider?.[requestedProvider] ||
+    defaultModelForProvider(requestedProvider);
+  const { provider, model } = migrateDirectLunaSelection(task.kind, requestedProvider, requestedModel);
+  const runtime = provider !== requestedProvider ? provider : task.runtime || definition.default_runtime || provider;
 
   return {
     ...task,
