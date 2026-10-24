@@ -79,6 +79,12 @@ describe("job evidence producer and commercial boundary", () => {
     tampered.publication_digest = crossRuntimeArtifactDigest(tampered, "publication_digest");
     expect(() => verifyJobEvidencePublication(tampered)).toThrow("decision_envelope_binding_mismatch");
   });
+  it("accepts the Python producer's capability-gap publication with its exact gap and no run", () => {
+    const gap = verifyJobEvidencePublication(JSON.parse(JSON.stringify(examples.capability_gap_publication)));
+    expect(gap.state).toBe("blocked"); expect(gap.run_id).toBeNull(); expect(gap.evidence_plan).toBeNull();
+    expect(gap.testbed_digest).toBe(examples.capability_gap_request.testbed.testbed_digest);
+    expect(gap.limitations.join(" ")).toMatch(/Capability gap for task family 'laundry_folding'.*independent_task_scorer/);
+  });
   it("retains a recorded job's question without fabricating scientific context and safely reuses its identity", async () => {
     const path = "/api/job-workflow/admin/job-1/evidence";
     const headers = { authorization: "Bearer ops", "Idempotency-Key": "question-key" };
