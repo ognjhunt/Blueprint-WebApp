@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from "vitest";
 import { websiteAtlasAuthorization, atlasAllowanceUsage, websiteAtlasRuntimePolicy, websiteAtlasGrantPolicy,
-  websiteAtlasSourceVideoIdentity } from "../utils/websiteAtlasAuthorization";
+  websiteAtlasRequestCeiling, websiteAtlasSourceVideoIdentity } from "../utils/websiteAtlasAuthorization";
 
 const sha = (s: string) => `sha256:${s.repeat(64)}`;
 const input = { requestId: "r", captureId: "c", taskContextDigest: sha("1"), sourceVideoDigest: sha("2"),
@@ -72,13 +72,31 @@ it("reads the automatic grant policy strictly and never throws", () => {
   // A high safety ceiling (accuracy over cost) is accepted; only a typo-sized one is refused.
   vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_cost_usd: 25 }));
   expect(websiteAtlasGrantPolicy()?.maximum_cost_usd).toBe(25);
-  for (const changed of [{ maximum_cost_usd: 0 }, { maximum_cost_usd: 100.01 }, { maximum_requests: 33 }, { validity_seconds: 3599 },
+  // Every SAM mask and image edit is a request: a preview with repairs needs dozens.
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_requests: 64 }));
+  expect(websiteAtlasGrantPolicy()?.maximum_requests).toBe(64);
+  for (const changed of [{ maximum_cost_usd: 0 }, { maximum_cost_usd: 100.01 }, { maximum_requests: 129 }, { validity_seconds: 3599 },
     { validity_seconds: 1209601 }, { provider_retention: "project_library_retention_approved" }, { approved_by: " " }, { charge: 1 }]) {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, ...changed }));
     expect(websiteAtlasGrantPolicy()).toBeNull();
   }
   vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", "{not json");
   expect(websiteAtlasGrantPolicy()).toBeNull();
+});
+
+it("lets a raised automatic policy, never a lowered one, set an automatic grant's request cap", () => {
+  const policy = { schema_version: "website_atlas_grant_policy.v1", maximum_cost_usd: 25, maximum_requests: 64,
+    validity_seconds: 604800, provider_retention: "account_does_not_retain", approval_reference: "owner 2026-10-24",
+    approved_by: "repo-owner" };
+  const grant = { grant_basis: "automatic_consented_preview", maximum_requests: 16 };
+  expect(websiteAtlasRequestCeiling(grant)).toBe(16);  // no valid policy: the grant's own cap
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+  expect(websiteAtlasRequestCeiling(grant)).toBe(64);
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_requests: 8 }));
+  expect(websiteAtlasRequestCeiling(grant)).toBe(16);
+  // An exact owner env row keeps exactly the cap it was given.
+  vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+  expect(websiteAtlasRequestCeiling(consent)).toBe(16);
 });
 
 it("pins only one finalized upload's immutable identity", () => {

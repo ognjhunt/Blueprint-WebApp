@@ -272,6 +272,25 @@ describe("Atlas reservations under an automatic grant", () => {
     await expect(reserveWebsitePreparationSpend("req1", meta)).rejects.toThrow("website_scene_sponsorship_missing");
   });
 
+  it("takes a raised owner request cap without changing the grant a running job holds", async () => {
+    // 2026-10-24: a preview's own 10-image SAM batch left 4 of its 16 requests before its edits.
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+    upload();
+    const { authority } = await configure();
+    await reserveWebsitePreparationSpend("req1", atlasSpend({ maximum_cost_usd: .1, request_count: 4 }));
+    const next = atlasSpend({ allocation_binding_digest: sha("2"), maximum_cost_usd: .1 });
+    await expect(reserveWebsitePreparationSpend("req1", next)).rejects.toThrow("website_scene_preparation_budget_exhausted");
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_requests: 64 }));
+    const raised = await configure();
+    expect(raised.authority).toEqual(authority);
+    expect(raised.remaining_requests).toBe(60);
+    expect(await reserveWebsitePreparationSpend("req1", next)).toMatchObject({ status: "admitted",
+      atlas_authorization_digest: authority.authorization_digest });
+    // The grant's own dollar cap still decides.
+    await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("3"), maximum_cost_usd: 1.9 })))
+      .rejects.toThrow("website_scene_preparation_budget_exhausted");
+  });
+
   it("serves configuration and reservations over the signed Pipeline routes", async () => {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
     upload();
