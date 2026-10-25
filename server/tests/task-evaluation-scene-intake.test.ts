@@ -1546,8 +1546,20 @@ it("amends only preparation request count while retaining money, native authorit
   expect(store.rows.get("inboundRequests/req1").website_preparation_limit_extension).toBeUndefined();
   const extended = await amendWebsitePreparationRequestLimit("req1", extension, true);
   expect(await amendWebsitePreparationRequestLimit("req1", extension, true)).toEqual(extended);
-  await expect(amendWebsitePreparationRequestLimit("req1", { ...extension, max_requests: 64 }, true))
-    .rejects.toThrow("amendment_conflict");
+  const nextExtension = { ...extension, max_requests: 64, approval_reference: "owner-reply:test-64" };
+  const before = structuredClone(store.rows.get("inboundRequests/req1"));
+  expect(await amendWebsitePreparationRequestLimit("req1", nextExtension)).toMatchObject({ max_requests: 64 });
+  expect(store.rows.get("inboundRequests/req1")).toEqual(before);
+  const newest = await amendWebsitePreparationRequestLimit("req1", nextExtension, true);
+  expect(await amendWebsitePreparationRequestLimit("req1", nextExtension, true)).toEqual(newest);
+  const after = store.rows.get("inboundRequests/req1");
+  expect(after.website_preparation_amendment_history).toEqual([receipt, extended]);
+  expect(after.website_preparation_limit_amendment.max_requests).toBe(48);
+  expect(after.website_preparation_limit_extension.prior_amendment_digest)
+    .toBe(after.website_preparation_limit_amendment.amendment_digest);
+  expect(after.website_preparation_reservations).toEqual(before.website_preparation_reservations);
+  expect(after.website_scene_sponsorship).toEqual(before.website_scene_sponsorship);
+  await expect(amendWebsitePreparationRequestLimit("req1", extension, true)).rejects.toThrow("amendment_conflict");
   expect(await loadWebsiteSceneSponsorship("req1")).toEqual(grant);
   expect(await reserveWebsitePreparationSpend("req1", spend)).toEqual({ ...first, status: "already_reserved" });
   expect(await reserveWebsitePreparationSpend("req1", next)).toMatchObject({ status: "admitted" });

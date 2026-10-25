@@ -664,11 +664,23 @@ export async function amendWebsitePreparationRequestLimit(
         return extension;
       if (!extension && previous.max_requests === command.max_requests && previous.approval_reference === command.approval_reference)
         return previous;
-      if (extension || command.max_requests <= current) throw new Error("website_preparation_amendment_conflict");
+      if (command.max_requests <= current) throw new Error("website_preparation_amendment_conflict");
+      // Further owner-approved increases preserve both prior signed records.
+      // Carry the last approved limit forward without replenishing usage or
+      // changing the sponsorship, dollar allowance, expiry, or reservations.
+      let base = previous;
+      let history: Record<string, any>[] | undefined;
+      if (extension) {
+        const { extension_digest: _extensionDigest, prior_amendment_digest: _priorDigest, ...payload } = extension;
+        base = { ...payload, amendment_digest: digest(payload) };
+        history = [...(record!.website_preparation_amendment_history ?? []), previous, extension];
+      }
       const value = { ...command, approved_at_epoch: Date.now() / 1000,
-        prior_amendment_digest: previous.amendment_digest };
+        prior_amendment_digest: base.amendment_digest };
       const receipt = { ...value, extension_digest: digest(value) };
-      if (apply) transaction.update(ref, { website_preparation_limit_extension: receipt });
+      if (apply) transaction.update(ref, { website_preparation_limit_extension: receipt,
+        ...(history ? { website_preparation_limit_amendment: base,
+          website_preparation_amendment_history: history } : {}) });
       return receipt;
     }
     if (command.max_requests <= current) throw new Error("website_preparation_limit_not_increased");
