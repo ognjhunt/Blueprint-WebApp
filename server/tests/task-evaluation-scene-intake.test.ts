@@ -1571,7 +1571,7 @@ it("amends only preparation request count while retaining money, native authorit
     maximum_cost_usd: 4 })).rejects.toThrow("budget_exhausted");
 });
 
-it("raises only the upstream preparation dollar cap, once, by the owner, within three times the grant", async () => {
+it("raises only the upstream preparation dollar cap by the owner, retaining prior approvals and usage", async () => {
   sponsoredCapture();
   const grant = await loadWebsiteSceneSponsorship("req1", true);
   const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
@@ -1591,16 +1591,29 @@ it("raises only the upstream preparation dollar cap, once, by the owner, within 
   expect(store.rows.get("inboundRequests/req1").website_preparation_spend_amendment).toBeUndefined();
   const receipt = await amendWebsitePreparationSpendLimit("req1", input, true);
   expect(await amendWebsitePreparationSpendLimit("req1", input, true)).toEqual(receipt);
-  await expect(amendWebsitePreparationSpendLimit("req1", { ...input, upstream_max_spend_usd: 12 }, true))
+  await expect(amendWebsitePreparationSpendLimit("req1", { ...input, upstream_max_spend_usd: 9 }, true))
     .rejects.toThrow("amendment_conflict");
+  const increase = { ...input, upstream_max_spend_usd: 12, approval_reference: "owner-reply:raise-upstream-12" };
+  const before = structuredClone(store.rows.get("inboundRequests/req1"));
+  await amendWebsitePreparationSpendLimit("req1", increase);
+  expect(store.rows.get("inboundRequests/req1")).toEqual(before);
+  const increased = await amendWebsitePreparationSpendLimit("req1", increase, true);
+  expect(await amendWebsitePreparationSpendLimit("req1", increase, true)).toEqual(increased);
+  const after = store.rows.get("inboundRequests/req1");
+  expect(after.website_preparation_amendment_history).toEqual([receipt]);
+  expect(after.website_preparation_reservations).toEqual(before.website_preparation_reservations);
+  await expect(amendWebsitePreparationSpendLimit("req1", { ...increase, upstream_max_spend_usd: 16 }, true))
+    .rejects.toThrow("out_of_bounds");
   // The grant itself, its native cap and existing reservations are unchanged.
   expect(await loadWebsiteSceneSponsorship("req1")).toEqual(grant);
   expect(await reserveWebsitePreparationSpend("req1", spend)).toEqual({ ...first, status: "already_reserved" });
   expect(await reserveWebsitePreparationSpend("req1", next)).toMatchObject({ status: "admitted" });
   await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("3"),
-    maximum_cost_usd: 4 })).rejects.toThrow("budget_exhausted");
+    maximum_cost_usd: 6 })).rejects.toThrow("budget_exhausted");
   // A tampered amendment fails closed rather than widening the cap.
   store.rows.get("inboundRequests/req1").website_preparation_spend_amendment.upstream_max_spend_usd = 15;
+  await expect(amendWebsitePreparationSpendLimit("req1", { ...increase, upstream_max_spend_usd: 15 }, true))
+    .rejects.toThrow("spend_amendment_invalid");
   await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("4"),
     maximum_cost_usd: 0.1 })).rejects.toThrow("spend_amendment_invalid");
 });

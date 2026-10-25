@@ -551,7 +551,7 @@ const preparationSpendAmendment = z.object({
   approval_reference: z.string().trim().min(1).max(1000),
 }).strict();
 
-/** The upstream preparation cap, raised at most once, by the owner, to at most three times the grant. */
+/** The owner-approved upstream preparation cap, bounded by three times the grant. */
 function preparationSpendLimit(record: Record<string, any>, authority: Record<string, any>) {
   const amendment = record.website_preparation_spend_amendment;
   if (!amendment) return authority.upstream_max_spend_usd;
@@ -602,7 +602,7 @@ function carriedPreparationAmendments(record: Record<string, any>, authorityDige
   return { updates, archived };
 }
 
-/** Operator-only, one-shot: raises only the upstream preparation cap. The native
+/** Operator-only: raises only the upstream preparation cap. The native
  * cap, expiry, request limit and existing reservations are unchanged. */
 export async function amendWebsitePreparationSpendLimit(
   requestId: string, input: z.infer<typeof preparationSpendAmendment>, apply = false,
@@ -622,17 +622,20 @@ export async function amendWebsitePreparationSpendLimit(
     if (authority.expires_at_epoch <= Date.now() / 1000) throw new Error("consent_expired");
     if (!projectWebsiteCaptureRights(record!).derived_scene_generation_allowed) throw new Error("source_revoked");
     const previous = record!.website_preparation_spend_amendment;
+    const current = preparationSpendLimit(record!, authority);
     if (previous) {
       if (previous.upstream_max_spend_usd === command.upstream_max_spend_usd
           && previous.approval_reference === command.approval_reference) return previous;
-      throw new Error("website_preparation_amendment_conflict");
+      if (command.upstream_max_spend_usd <= current) throw new Error("website_preparation_amendment_conflict");
     }
     if (command.upstream_max_spend_usd <= authority.upstream_max_spend_usd
         || command.upstream_max_spend_usd > authority.upstream_max_spend_usd * 3)
       throw new Error("website_preparation_spend_amendment_out_of_bounds");
     const value = { ...command, approved_at_epoch: Date.now() / 1000 };
     const receipt = { ...value, amendment_digest: digest(value) };
-    if (apply) transaction.update(ref, { website_preparation_spend_amendment: receipt });
+    if (apply) transaction.update(ref, { website_preparation_spend_amendment: receipt,
+      ...(previous ? { website_preparation_amendment_history:
+        [...(record!.website_preparation_amendment_history ?? []), previous] } : {}) });
     return receipt;
   }));
 }
