@@ -12,6 +12,8 @@ The progress page retries transient reads with bounded backoff, honors Retry-Aft
 
 An already executed operator diagnostic may register either an existing configured-scene offering or an original website capture (`capture_source`). Capture registration binds the current consented task-context digest and original request/scene/capture identities, then uses the same signed result publication and download readback. It creates no scene offering or execution intent. A capture context does not establish account ownership or confirm the website brief: these reports remain service-owned, private operations diagnostics, with their separately bound confirmed scoring contract. They cannot become qualified evaluations or customer-owned results through registration. Capture withdrawal or context changes prevent new registration/publication. `notification: { mode: "disabled" }` records zero email attempts and never invokes a messaging transport.
 
+Articulated contracts retain Pipeline's optional `criteria.release_and_retreat.mode` (`required` or `ignored`) without adding a default to older serialized contracts. Website validation preserves the original contract and digest; it does not reinterpret an open-and-hold task as requiring release or relax any collision rule.
+
 ## Artifact delivery
 
 1. The result record and caller's owner/team/unlisted-public access are checked. The standard `firebase.tenant` claim and compatible legacy aliases are read only from the verified principal; conflicting tenant claims cannot grant team access.

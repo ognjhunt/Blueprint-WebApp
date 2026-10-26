@@ -212,6 +212,7 @@ function bindWebsiteArticulatedOmission(body: Record<string, any>) {
       locked_joints: { mode: "required", joint_ids: [], motion_tolerance: 0.01 },
       reset: { tolerance: 0.005 }, motion: { movement_epsilon: 0.003 },
       assembly_root: { mode: "required" }, safety: { mode: "required" },
+      release_and_retreat: { mode: "ignored" },
       temporal_invariants: { schema_version: "articulated_task_event_ledger_expectation.v1",
         rebound_below_threshold_allowed: false, forbidden_collision_allowed: false,
         joint_limit_violation_allowed: false, assembly_root_excursion_allowed: false },
