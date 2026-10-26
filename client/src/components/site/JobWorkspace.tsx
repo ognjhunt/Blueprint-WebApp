@@ -1,3 +1,4 @@
+import { PolicyScreeningCandidates } from "@/components/shared/PolicyScreeningCandidates";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { RecommendedPilot } from "./RecommendedPilot";
@@ -152,6 +153,7 @@ function JobWorkspaceForToken({ token }: { token: string }) {
       {workflow.managedEvidence!.map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="mt-3">
         <h4>{item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}</h4>
         <p>{item.summary}</p><p>Next: {item.nextAction}</p>
+        {item.screening && <PolicyScreeningCandidates screening={item.screening} />}
         {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
         <p className="ms-field-hint break-all">Run: {item.runId}{item.resultDigest ? ` · Result: ${item.resultDigest}` : ""}</p>
       </article>)}

@@ -4,6 +4,7 @@ import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import type { DeliveryProposalInput, JobMarketplaceWorkflow } from "../../client/src/types/jobMarketplace";
+import { screeningFixture } from "./fixtures/beta-policy-screening";
 
 const captures = vi.hoisted(() => ({ received: true as boolean | null }));
 vi.mock("../utils/siteWalkthrough", () => ({
@@ -69,6 +70,22 @@ const reportBody = (row: { id: string; revision: string }) => ({ ...selectBody(r
   measuredUnitsPerHour: 60, interventionsPerHour: 1, notes: "Owner-reported operating observation." });
 
 describe("job workflow authority and durable decisions", () => {
+  it("shows diagnostic screening on a proposed preparation task while keeping commercial proposals blocked", async () => {
+    const { publication, job, brief, intake } = screeningFixture(true);
+    state.docs.set("inboundRequests/job-one", job);
+    state.docs.set("siteTaskBriefs/job-one", brief);
+    state.docs.set("taskEvaluationSceneIntakes/intake-one", intake);
+    const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");
+    await ingestBetaPolicyScreening(publication);
+    const view = await api(`/owner/${token("job-one")}`);
+    expect(view.status).toBe(200);
+    expect(view.body.briefAgreed).toBe(false);
+    expect(view.body.managedEvidence?.[0]).toMatchObject({ current: true, state: "queued", resultDigest: null });
+    expect(view.body.managedEvidence?.[0].screening?.candidates).toHaveLength(36);
+    const refused = await api("/admin/job-one/proposals", "POST", proposal, "ops-token");
+    expect(refused.status).toBe(409);
+    expect(refused.body.code).toBe("brief_not_agreed");
+  });
   it("rejects anonymous/nonstaff admin access, forged and film-only links, and missing CSRF", async () => {
     expect((await api("/admin/job-1")).status).toBe(401);
     expect((await api("/admin/job-1", "GET", undefined, "ordinary-token")).status).toBe(403);

@@ -20,6 +20,10 @@ import { bundleDigest } from "../utils/siteCaptureBundle";
 import { projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import continuationVector from "./fixtures/website-continuation-vector.json";
 import type { BundleStorage, BundleObjectInfo } from "../utils/siteCaptureBundleStorage";
+import { projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
+import { crossRuntimeDigest, crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
+import { scientificBriefDigest } from "../utils/jobEvidenceContract";
+import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
 
 const sha = (value: string) => createHash("sha256").update(value).digest("hex");
 const texts = new Map<string, string>(), infos = new Map<string, BundleObjectInfo>();
@@ -72,6 +76,43 @@ it("exports an authoritative supplementary context consumed by the shared Pipeli
   const captureBinding = await resolveWebsiteCaptureBinding("req1", "site-req1", captureId, storage);
   expect(projectWebsiteTaskContext(continuationVector.brief as any, continuationVector.rights as any,
     { captureId, captureBinding })).toEqual(continuationVector.context);
+});
+
+it("screens a verified supplementary scene and keeps changed or withdrawn capture evidence historical", async () => {
+  const captureId = child();
+  const captureBinding = await resolveWebsiteCaptureBinding("req1", "site-req1", captureId, storage);
+  const brief = continuationVector.brief as any;
+  const job: any = { request: { buyerType: "site_operator", consent_attestation: {
+    granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-06T00:00:00Z" } } };
+  const rights = projectWebsiteCaptureRights(job);
+  const rootContext = projectWebsiteTaskContext(brief, rights);
+  const context = projectWebsiteTaskContext(brief, rights, { captureId, captureBinding });
+  job.website_scene_sponsorship = { capture_id: rootContext.capture_id, task_context_digest: rootContext.context_digest,
+    owner: { user_id: "blueprint", organization_id: "blueprint-operations" } };
+  const fixture = screeningFixture();
+  const publication = sealScreening({ ...fixture.publication, site_id: "site-req1", source: { ...fixture.publication.source,
+    capture_id: captureId, task_context_digest: context.context_digest, task_id: `website-${context.context_digest.slice(7, 27)}` } });
+  const request = { submission_id: captureId, owner: job.website_scene_sponsorship.owner, task: { task_id: publication.source.task_id } };
+  const requestDigest = crossRuntimeDigest(request);
+  const receipt = { ...fixture.intake.receipt, request_digest: requestDigest };
+  receipt.receipt_digest = crossRuntimeArtifactDigest(receipt, "receipt_digest");
+  const status = { ...fixture.intake.pipeline_status, request_digest: requestDigest, owner: request.owner };
+  status.status_digest = crossRuntimeArtifactDigest(status, "status_digest");
+  sharedFakeFirestoreState.docs.set("inboundRequests/req1", job);
+  sharedFakeFirestoreState.docs.set("siteTaskBriefs/req1", brief);
+  sharedFakeFirestoreState.docs.set("taskEvaluationSceneIntakes/scene-one", { ...fixture.intake, website_request_id: "req1",
+    source_session_id: captureId, request, request_digest: requestDigest, receipt, pipeline_status: status });
+  const { ingestBetaPolicyScreening } = await import("../utils/betaPolicyScreeningIngest");
+  const { loadManagedJobEvidence } = await import("../utils/jobManagedEvaluation");
+  expect((await ingestBetaPolicyScreening(publication)).status).toBe("created");
+  expect((await loadManagedJobEvidence("req1", scientificBriefDigest(brief)))[0]).toMatchObject({ current: true, state: "queued" });
+  const media = infos.get(`scenes/site-req1/captures/${captureId}/raw/walkthrough.mov`)!;
+  media.generation = "999";
+  expect((await loadManagedJobEvidence("req1", scientificBriefDigest(brief)))[0].current).toBe(false);
+  media.generation = "123";
+  (sharedFakeFirestoreState.docs.get(`captureUploadSessions/${captureId}`) as any).capture_access = { future_processing_allowed: false };
+  expect((await loadManagedJobEvidence("req1", scientificBriefDigest(brief)))[0].current).toBe(false);
+  await expect(ingestBetaPolicyScreening(publication)).rejects.toThrow("job_capture_processing_not_authorized");
 });
 it("serves verified supplementary context through the controller and projects current late withdrawal", async () => {
   const captureId = child();

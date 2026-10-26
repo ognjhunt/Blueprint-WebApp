@@ -1,0 +1,16 @@
+import type { JobManagedEvidenceSummary } from "@/types/jobMarketplace";
+
+/** The same accepted diagnostic summary appears in the site and operations workspaces. */
+export function PolicyScreeningCandidates({ screening }: { screening: NonNullable<JobManagedEvidenceSummary["screening"]> }) {
+  return <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+    <caption className="sr-only">Early policy screening candidates</caption>
+    <thead><tr><th scope="col">Candidate</th><th scope="col">Progress</th><th scope="col">Scored outcomes</th></tr></thead>
+    <tbody>{screening.candidates.map(candidate => <tr key={candidate.candidateId}>
+      <th scope="row" className="py-2 pr-3 font-medium">{candidate.name}</th>
+      <td className="py-2 pr-3">{candidate.state.replace(/_/g, " ")} · {candidate.scored}/{candidate.planned} scored
+        {candidate.blockers.length > 0 && <details><summary>Recorded limitations</summary>
+          <ul>{candidate.blockers.map((blocker, index) => <li key={index}>{blocker.replace(/_/g, " ")}</li>)}</ul></details>}</td>
+      <td className="py-2">{candidate.succeeded} succeeded · {candidate.failed} failed · {candidate.void} unscorable</td>
+    </tr>)}</tbody>
+  </table></div>;
+}

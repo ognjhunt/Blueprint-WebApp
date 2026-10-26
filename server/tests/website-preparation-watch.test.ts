@@ -398,6 +398,21 @@ describe("scene progression after hand-off", () => {
     expect(policyTestAccepted({ state: "failed", launch_forward: { status: "forwarded" } })).toBe(false);
     expect(policyTestAccepted(null)).toBe(false);
   });
+
+  it("PROG-008 screening preparation is not execution, and only this intake's team can mark testing", async () => {
+    state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", source_session_id: "walkthrough-r1",
+      created_at_iso: "2026-10-02T00:00:00Z", state: "completed", receipt: { intent_id: "intent-one" },
+      pipeline_status: { status: "completed", phase: "scene_prepared" },
+      request: { task: { task_id: "task-one" }, owner: { organization_id: "team-a" } } });
+    const run = { run_kind: "beta_policy_screening", source_scene_intent_id: "intent-one", team_namespace: "team-a",
+      state: "running", screening_execution_observed: false };
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", run);
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed" });
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, team_namespace: "team-b", screening_execution_observed: true });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "completed" });
+    state.docs.set("taskEvaluationPolicyRuns/screening-one", { ...run, screening_execution_observed: true });
+    expect(await loadWebsiteSceneProgression("r1", "walkthrough-r1")).toEqual({ state: "testing" });
+  });
   it("PROG-003 alerts once per website scene that stopped after hand-off", async () => {
     state.docs.set("taskEvaluationSceneIntakes/scene-a", { website_request_id: "r1", source_session_id: "walkthrough-r1", state: "blocked" });
     state.docs.set("taskEvaluationSceneIntakes/scene-b", { website_request_id: "r1", source_session_id: "walkthrough-r1", state: "accepted",

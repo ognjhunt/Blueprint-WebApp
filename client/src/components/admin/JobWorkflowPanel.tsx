@@ -1,3 +1,4 @@
+import { PolicyScreeningCandidates } from "@/components/shared/PolicyScreeningCandidates";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { User as FirebaseUser } from "firebase/auth";
 
@@ -272,9 +273,12 @@ export function JobWorkflowPanel({ requestId, currentUser, onChanged }: {
               {(workflow.managedEvidence ?? []).map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="grid gap-2 border-t border-runway-line pt-3 text-sm">
                 <p className="font-semibold">Managed policy run · {item.current ? item.state.replace(/_/g, " ") : "Historical — scope changed"}</p>
                 <p>{item.summary}</p><p>Next: {item.nextAction}</p>
+                {item.screening && <PolicyScreeningCandidates screening={item.screening} />}
+                {item.screening?.budget && <p className="text-runway-mute">Shared site screening budget: up to ${item.screening.budget.committedUpperBoundUsd} committed
+                  of ${item.screening.budget.limitUsd}, including ${item.screening.budget.reservedUsd} reserved for unresolved runs. These are conservative bounds, not invoices.</p>}
                 {item.limitations.map((limit, index) => <p className="text-runway-mute" key={index}>{limit}</p>)}
                 <p className="break-all text-xs">Run {item.runId}{item.resultDigest ? ` · Result ${item.resultDigest}` : ""}</p>
-                <a className="text-sm underline" href={`/app/evaluation-runs/${encodeURIComponent(item.runId)}`}>Inspect exact run and evidence</a>
+                {!item.screening && <a className="text-sm underline" href={`/app/evaluation-runs/${encodeURIComponent(item.runId)}`}>Inspect exact run and evidence</a>}
               </article>)}
               {!workflow.evidenceContext?.question ? <p className="text-sm text-runway-mute"><a className="underline" href={`/app/captures?jobId=${encodeURIComponent(requestId)}`}>Prepare task-specific capture evidence</a> when the question needs new site observations. Use the existing capture task approval and compilation actions; recording permissions and source access still apply.</p> : null}
               <form aria-label="Ask an evidence question" className="grid gap-3" onSubmit={async event => {
