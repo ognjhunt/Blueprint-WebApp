@@ -468,6 +468,22 @@ const vastSettlementRequest = z.object({
   teardown_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   provider_zero_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
 }).strict().refine(value => value.provider_charge_source === `instance-${value.instance_id}`);
+// A signed allocator refusal can release a hold without inventing an instance
+// or billing receipt. The original admission and request count stay retained.
+const vastNoAllocationSettlementRequest = z.object({
+  task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  provider: z.literal("vast"), allocation_status: z.literal("not_created"),
+  provider_create_attempted: z.literal(false), provider_mutations_performed: z.literal(0),
+  provider_instance_ids: z.array(z.never()).max(0),
+  provider_charge_amount_usd: z.literal(0),
+  all_staged_objects_absent: z.literal(true), continuing_spend_from_this_run: z.literal(false),
+  execution_result_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  adapter_result_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  teardown_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  staged_object_absence_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  watchdog_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+}).strict();
 // Image edits are billed per request from the provider's usage. Release the
 // unused quote only once every request the reservation covered has a completed
 // receipt, so an uncertain in-flight request keeps its full hold.
@@ -479,7 +495,8 @@ const openaiImageSettlementRequest = z.object({
   usage_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
 }).strict();
 export const preparationSettlementRequest = z.union([
-  completedPreparationSettlement, rejectedPreparationSettlement, vastSettlementRequest, openaiImageSettlementRequest,
+  completedPreparationSettlement, rejectedPreparationSettlement, vastSettlementRequest, vastNoAllocationSettlementRequest,
+  openaiImageSettlementRequest,
 ]);
 
 /** Pipeline-signed final provider billing releases only the unused reservation. */

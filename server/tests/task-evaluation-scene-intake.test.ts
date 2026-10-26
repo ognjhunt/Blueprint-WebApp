@@ -1768,6 +1768,43 @@ it("releases only provider charged Vast capacity after a bound terminal rental",
 });
 
 
+it("settles a proved unallocated Vast refusal without replenishing requests or losing its admission", async () => {
+  sponsoredCapture();
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms, vast: terms.openai });
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const input = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    resource_class: "gpu_render" as const, provider: "vast" as const, maximum_cost_usd: .5, request_count: 1 };
+  await reserveWebsitePreparationSpend("req1", input);
+  const original = structuredClone(store.rows.get("inboundRequests/req1").website_preparation_reservations);
+  const settlement = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    provider: "vast" as const, allocation_status: "not_created" as const, provider_create_attempted: false as const,
+    provider_mutations_performed: 0 as const, provider_instance_ids: [] as never[], provider_charge_amount_usd: 0 as const,
+    all_staged_objects_absent: true as const, continuing_spend_from_this_run: false as const,
+    execution_result_digest: sha("2"), adapter_result_digest: sha("3"), teardown_receipt_digest: sha("4"),
+    staged_object_absence_digest: sha("5"), watchdog_receipt_digest: sha("6") };
+  for (const changed of [{ provider_create_attempted: true }, { provider_mutations_performed: 1 },
+    { provider_instance_ids: [123] }, { provider_charge_amount_usd: .01 }, { all_staged_objects_absent: false },
+    { continuing_spend_from_this_run: true }, { watchdog_receipt_digest: "missing" },
+    { instance_id: "123" }, { task_context_digest: sha("b") }, { allocation_binding_digest: sha("b") }]) {
+    await expect(settleWebsitePreparationSpend("req1", { ...settlement, ...changed } as any)).rejects.toThrow();
+    expect(store.rows.get("inboundRequests/req1").website_preparation_reservations).toEqual(original);
+  }
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1/preparation-settlement");
+  const response = await realFetch(base, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", settlement }) });
+  expect(response.status).toBe(200);
+  const receipt = await response.json();
+  expect(receipt).toMatchObject({ status: "settled", actual_cost_usd: 0, allocation_status: "not_created" });
+  expect(await settleWebsitePreparationSpend("req1", settlement)).toEqual(receipt);
+  const retained = store.rows.get("inboundRequests/req1").website_preparation_reservations;
+  expect(Object.keys(retained)).toEqual(Object.keys(original));
+  expect(retained["1".repeat(64)].admission).toEqual(original["1".repeat(64)].admission);
+  expect(retained["1".repeat(64)].admission.request_count).toBe(1);
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, adapter_result_digest: sha("b") }))
+    .rejects.toThrow("idempotency_conflict");
+});
+
 it("admits only explicitly authorized development surfaces without creating a second native budget", async () => {
   sponsoredCapture();
   const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
