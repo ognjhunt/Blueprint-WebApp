@@ -71,7 +71,7 @@ export function WarehousePilotSequence() {
         <section className="ms-pilot-step" id="robot-comparison" aria-labelledby="robot-comparison-title">
           <p className="ms-eyebrow">04 · Evaluation</p>
           <h3 id="robot-comparison-title">Compare suitable robots and policies in simulation.</h3>
-          <p>Blueprint runs compatible robots and policies—the software that controls a robot—in the reconstructed work area, using APIs or other supported access. When a system needs its team to take part, we work with them. We shortlist configurations that can be supplied and supported at your site, then compare them against the same placement criteria.</p>
+          <p>Blueprint runs many candidate robots and policies—the software that controls a robot—in the reconstructed work area, using APIs or other supported access. Where a system needs access or an integration, its technology provider supplies it; you do not need to find or invite anyone. Quick screening runs are diagnostic and decide which candidates go forward. The finalists are then scored in full against the same placement criteria.</p>
           <p>You see the tested conditions, completed placements and failures for each option, so the recommendation is grounded in your job.</p>
           <p className="ms-pilot-disclosure">The three evaluations below use illustrative policy labels and outcomes. A simulated pass is an estimate, not proof of real performance or safety.</p>
           <div className="ms-pilot-comparison">
@@ -91,7 +91,7 @@ export function WarehousePilotSequence() {
         <section className="ms-pilot-step" id="recommendation" aria-labelledby="recommendation-title">
           <p className="ms-eyebrow">05 · Recommendation</p>
           <h3 id="recommendation-title">Compare delivery proposals and choose your partner.</h3>
-          <p>Blueprint explains which tested setup best fits the job: in this example, setup B. Suitable deployment partners quote against the same brief, covering equipment, installation, ongoing cost, timing and support. You choose the partner and agree the pilot price and terms directly.</p>
+          <p>Blueprint recommends the approach that wins on your job (in this example, setup B) and the deployment companies that support it. After our review, we invite those companies to quote against the same brief, covering equipment, installation, ongoing cost, timing and support. You choose the partner and agree the pilot price and terms directly.</p>
           <p>No approved budget is needed to start. Blueprint assessment, evaluations, recommendations and coordination are free during the beta, with no cut of the pilot.</p>
         </section>
 

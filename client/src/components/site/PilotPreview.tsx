@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pause, Play } from "lucide-react";
 
 /**
- * What a site receives: one recommended pilot, from a team whose simulated
- * evaluation on the job passed, shown for a few kinds of site. Examples, not
+ * What a site receives: one recommended pilot, for the approach that won
+ * Blueprint's own evaluation of the job's candidates, delivered by a deployment
+ * company that supports it, shown for a few kinds of site. Examples, not
  * bookings or results. Four original illustrative scenes are restored verbatim;
  * simulation scope is assessed per task rather than implied by the artwork.
  * Warehouse, Laundromat, Factory and Hotel source: 288822160^.

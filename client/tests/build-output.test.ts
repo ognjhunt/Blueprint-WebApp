@@ -277,7 +277,7 @@ describe("build output", () => {
     expect(siteHtml).toContain("Loading your account and saved draft");
     expect(siteHtml).not.toContain('aria-label="Start a site capture"');
     expect(siteHtml).not.toContain('id="start-task"');
-    expect(siteHtml).toContain("Send video of one recurring job. We draft the description from it, build a site simulation and compare compatible robots and policies.");
+    expect(siteHtml).toContain("Send video of one recurring job. We draft the description from it, build a site simulation and run candidate robots and policies against the job.");
     expect(siteHtml).toContain("Free during the beta; no budget is required to start.");
     expect(siteHtml).toContain("How this works");
     // The country comes from the address; its select opens only to correct it.

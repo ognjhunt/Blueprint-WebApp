@@ -40,6 +40,10 @@ describe("public managed-pilot copy", () => {
     expect(container).toHaveTextContent(/Compare robots in simulation/i);
     expect(container).toHaveTextContent(/Free during the beta/i);
     expect(container).toHaveTextContent(/Choose and measure a pilot/i);
+    // The journey is Blueprint's: it runs the candidates and recommends deployment companies.
+    expect(container).toHaveTextContent(/run many candidate robots and policies against the job/i);
+    expect(container).toHaveTextContent(/deployment companies that support it/i);
+    expect(container).not.toHaveTextContent(/choose a team to deliver|delivery team|invited robot teams/i);
     expect(container).toHaveTextContent(/You choose whether to proceed/i);
     expect(container).not.toHaveTextContent(/\$99\b/);
     expect(container).not.toHaveTextContent(/book it with one click|one team whose evaluation passed/i);

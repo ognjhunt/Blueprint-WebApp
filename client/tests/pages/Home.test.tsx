@@ -138,8 +138,10 @@ describe("Site-led homepage", () => {
     const steps = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(steps).toHaveLength(3);
     expect(steps[0]).toHaveTextContent(/Show us the work.*analyze the video.*draft a job brief/);
-    expect(steps[1]).toHaveTextContent(/Compare robots in simulation.*delivery partners can supply and support/);
-    expect(steps[2]).toHaveTextContent(/Choose and measure a pilot.*Review comparable proposals/);
+    // Blueprint runs the candidates itself; no team has to be invited (owner, 2026-10-26).
+    expect(steps[1]).toHaveTextContent(/Compare robots in simulation.*run candidate policies, policy APIs and robots against the job ourselves.*screening runs are diagnostic/i);
+    expect(steps[2]).toHaveTextContent(/Choose and measure a pilot.*recommend the approach that wins.*deployment companies that support it.*Review comparable proposals/);
+    expect(screen.getByRole("region", { name: "From a recurring job to a measured pilot." })).not.toHaveTextContent(/robot teams?/i);
     expect(screen.getByText(/A simulation result is an estimate/)).toBeInTheDocument();
   });
 

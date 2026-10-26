@@ -7,7 +7,7 @@ export function PartnerDetail({ role }: { role: PartnerRole }) {
   const title = deployment ? "Deliver and support customer jobs." : "Make your system available for assessment.";
   const description = deployment
     ? "Apply to deliver Blueprint customer jobs. Share the work, regions and robot systems your team can install and support."
-    : "Make your robot hardware, policy or model API available for assessment on real site jobs. Compatibility and access are reviewed for each setup.";
+    : "Make your robot hardware, policy or model API available for assessment on real site jobs. Blueprint runs the assessment; you supply access or the integration. Compatibility and access are reviewed for each setup.";
   return <>
     <SEO title={deployment ? "Deployment partners | Blueprint" : "Robot technology providers | Blueprint"} description={description} canonical={`/partners/${role}`} />
     <section className="ms-partner-intro ms-container" aria-labelledby="partner-title">
@@ -15,8 +15,8 @@ export function PartnerDetail({ role }: { role: PartnerRole }) {
       <p className="ms-eyebrow">{deployment ? "Deployment partners" : "Robot technology providers"}</p>
       <h1 id="partner-title">{title}</h1>
       <p className="ms-partner-lead">{deployment
-        ? "Bring your integration and service expertise. We help define the job and assess suitable approaches; you propose what your team can deliver."
-        : "Bring hardware, a policy or a model API. We agree which jobs and robot configurations it can be assessed on before arranging access."}</p>
+        ? "Bring your integration and service expertise. Blueprint defines the job and runs candidate robots and policies against it. When an approach you support wins for a site, we may invite you to propose what your team can deliver."
+        : "Bring hardware, a policy or a model API. Blueprint runs the assessment itself; you supply access or the integration needed to run your system. We agree which jobs and robot configurations it can be assessed on before arranging access."}</p>
       <a className="ms-button" href="#partner-application">{deployment ? "Apply as a deployment partner" : "Make your system available"}<ArrowRight size={18} aria-hidden="true" /></a>
       <p className="ms-field-hint">Free during the beta. Applications are reviewed; access and job invitations are confirmed separately.</p>
     </section>
@@ -28,7 +28,7 @@ export function PartnerDetail({ role }: { role: PartnerRole }) {
           : "We review supported hardware, observations, actions and access arrangements. Existing deployment evidence, simulation and physical trials answer different questions; the evaluation scope states what each result supports."}</p>
         <h3>{deployment ? "Who does what" : "What we need to understand"}</h3>
         <ul>{(deployment ? [
-          "Blueprint: the job brief, assessment, evidence and pilot coordination.",
+          "Blueprint: the job brief, the candidate evaluations, the recommendation and pilot coordination.",
           "Your team: the equipment and implementation you quote, commissioning and agreed support.",
           "The customer: site access, the contract decision and acceptance against agreed criteria.",
         ] : [

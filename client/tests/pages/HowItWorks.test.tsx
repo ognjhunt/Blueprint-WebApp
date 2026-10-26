@@ -14,9 +14,13 @@ describe("How it works", () => {
     expect(capture).toHaveTextContent(/video is required/);
     const evaluation = screen.getByRole("region", { name: "Compare suitable robots and policies in simulation." });
     expect(evaluation).toHaveTextContent(/using APIs or other supported access/);
+    expect(evaluation).toHaveTextContent(/its technology provider supplies it; you do not need to find or invite anyone/);
+    expect(evaluation).toHaveTextContent(/Quick screening runs are diagnostic.*finalists are then scored in full/);
     expect(evaluation).toHaveTextContent(/estimate, not proof of real performance or safety/);
     const recommendation = screen.getByRole("region", { name: "Compare delivery proposals and choose your partner." });
     expect(recommendation).toHaveTextContent(/No approved budget is needed to start/);
+    expect(recommendation).toHaveTextContent(/recommends the approach that wins on your job.*deployment companies that support it/);
+    expect(recommendation).toHaveTextContent(/After our review, we invite those companies to quote/);
     expect(recommendation).toHaveTextContent(/You choose the partner and agree the pilot price and terms directly/);
     expect(screen.getByRole("region", { name: "Test the approach at the real bench." })).toHaveTextContent(/partner supplies and integrates the system/);
     expect(screen.getByRole("link", { name: "Submit a job" })).toHaveAttribute("href", "/contact/site-operator");
@@ -27,6 +31,8 @@ describe("How it works", () => {
     render(<HowItWorks />);
     const jobFit = screen.getByRole("region", { name: "Jobs we can assess first." });
     expect(jobFit).toHaveAttribute("id", "job-fit");
+    // No job is turned away for its type; one we cannot score yet is held (owner, 2026-10-26).
+    expect(jobFit).toHaveTextContent(/do not turn a job away because of its type.*hold it while we prepare its evaluation/);
     const questions = within(jobFit).getAllByRole("listitem");
     expect(questions.map(question => question.querySelector(".ms-fit-name")?.textContent)).toEqual(["Fixed scene", "Bounded job", "Known objects", "Clear window"]);
     questions.forEach(question => expect(question).toHaveTextContent(/If not:/));
