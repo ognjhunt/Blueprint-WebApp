@@ -60,6 +60,7 @@ export const articulatedTaskSuccessCriteriaSchema = z.object({
   motion: z.object({ movement_epsilon: z.number().finite().positive() }).strict(),
   assembly_root: z.object({ mode }).strict(),
   safety: z.object({ mode: z.literal("required") }).strict(),
+  release_and_retreat: z.object({ mode }).strict().optional(),
   temporal_invariants: z.object({
     schema_version: z.literal("articulated_task_event_ledger_expectation.v1"),
     rebound_below_threshold_allowed: z.literal(false),

@@ -39,7 +39,7 @@ export async function persistOperatorPolicyCanaryPreproviderBlocked(
         || run.offering_digest !== registration.source_offering_digest
         || run.pipeline_configuration_digest !== registration.configuration_digest
         || run.task_success_contract_digest !== registration.task_success_contract.contract_digest
-        || run.notification?.email !== registration.notification.email
+        || crossRuntimeCanonicalJson(run.notification ?? null) !== crossRuntimeCanonicalJson(registration.notification)
         || run.notification_recipient_user_id !== run.owner_user_id
         || run.notification_source_event_id !== registration.registration_digest
         || registration.registration_digest !== payload.operator_registration_digest

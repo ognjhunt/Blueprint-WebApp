@@ -109,6 +109,23 @@ describe("articulated task success contract", () => {
     expect(isArticulatedTaskSuccessContract(contract)).toBe(true);
   });
 
+  it.each(["required", "ignored"] as const)("preserves an explicit %s release-and-retreat contract without changing its digest", (mode) => {
+    const contract = seal({ criteria: { ...criteria(), release_and_retreat: { mode } } });
+    expect(confirmedTaskSuccessContractSchema.parse(contract)).toEqual(contract);
+    expect(contract.criteria.safety.mode).toBe("required");
+    expect(contract.criteria.temporal_invariants.forbidden_collision_allowed).toBe(false);
+  });
+
+  it("refuses an unknown release mode and an unsealed change to the release requirement", () => {
+    const contract = seal({ criteria: { ...criteria(), release_and_retreat: { mode: "ignored" } } });
+    const changed = structuredClone(contract);
+    changed.criteria.release_and_retreat = { mode: "required" };
+    expect(confirmedTaskSuccessContractSchema.safeParse(changed).success).toBe(false);
+    const unknown = structuredClone(contract) as Record<string, any>;
+    unknown.criteria.release_and_retreat.mode = "optional";
+    expect(confirmedTaskSuccessContractSchema.safeParse(reseal(unknown as ArticulatedTaskSuccessContract)).success).toBe(false);
+  });
+
   it("refuses an interval that contains the closed start or leaves the qualified limits", () => {
     const openAtRest = structuredClone(seal());
     openAtRest.criteria.opening.success_interval = [0, 0.3];

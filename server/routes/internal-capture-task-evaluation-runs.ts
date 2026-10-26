@@ -22,7 +22,8 @@ import {
   publicationFromResultRecord,
 } from "../utils/taskEvaluationRunPublicationStorage";
 import { policyCanaryRecoveredPublicationAllowed } from "../utils/policyCanaryPublicationRecovery";
-import { operatorPolicyCanaryPublicationScope } from "../utils/operatorPolicyCanaryRegistration";
+import { operatorPolicyCanaryCaptureSourceMatches, operatorPolicyCanaryPublicationScope,
+  operatorPolicyCanaryRegistrationSchema } from "../utils/operatorPolicyCanaryRegistration";
 import { persistOperatorPolicyCanaryPreproviderBlocked } from "../utils/operatorPolicyCanaryPreproviderBlocked";
 import { isControllerPolicyRun, policyCanaryEvaluationOwner } from "../utils/policyCanaryEvaluationOwner";
 import {
@@ -73,7 +74,7 @@ function requirePipelineSignature(req: Request, res: Response, next: () => void)
 
 type NotificationDelivery = {
   terminal_state: "completed" | "blocked" | "cancelled";
-  status: "accepted" | "delivered" | "failed";
+  status: "accepted" | "delivered" | "failed" | "not_requested";
   attempts: number;
   provider: string;
   message_id: string | null;
@@ -98,10 +99,10 @@ export function retainedNotification(
   const row = value as Record<string, any>;
   if (
     row.terminal_state !== expectedState
-    || !["accepted", "delivered", "failed"].includes(String(row.status))
+    || !["accepted", "delivered", "failed", "not_requested"].includes(String(row.status))
     || row.run_result_digest !== expectedDigest
     || !Number.isInteger(row.attempts)
-    || row.attempts < 1
+    || (row.status === "not_requested" ? row.attempts !== 0 : row.attempts < 1)
   ) return null;
   return row as NotificationDelivery;
 }
@@ -140,6 +141,14 @@ async function dispatchCanaryTerminalNotification(params: {
     params.runResultDigest,
   );
   if (retained) return retained;
+  if (params.policyRun.notification?.mode === "disabled") {
+    const notification: NotificationDelivery = { terminal_state: expectedState, status: "not_requested",
+      attempts: 0, provider: "none", message_id: null, accepted_at: null, delivered_at: null,
+      failure_reason: null, run_result_digest: params.runResultDigest };
+    await params.policyRunRef.set({ notification_delivery: notification,
+      updated_at_iso: new Date().toISOString() }, { merge: true });
+    return notification;
+  }
   const priorAttempts = Number(params.policyRun.notification_delivery?.attempts || 0);
   const emailCopy = buildPolicyCanaryTerminalEmail({
     record: {
@@ -245,6 +254,10 @@ async function handlePolicyCanaryPublication(
       if (policyRun.operator_registration !== undefined) {
         scope = operatorPolicyCanaryPublicationScope(policyRun, publication);
         if (!scope) return { outcome: "owner_team_mismatch" as const, policyRun: null };
+        const registration = operatorPolicyCanaryRegistrationSchema.parse(policyRun.operator_registration);
+        if (registration.capture_source && !await operatorPolicyCanaryCaptureSourceMatches(transaction, registration)) {
+          return { outcome: "binding_mismatch" as const, policyRun: null };
+        }
       } else {
         if (publication.operator_registration_digest || publication.plan_digest) {
           return { outcome: "owner_team_mismatch" as const, policyRun: null };

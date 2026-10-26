@@ -21,6 +21,8 @@ import {
 } from "../utils/operatorPolicyCanaryRegistration";
 import type { Response } from "express";
 import { evaluationOwnerFixture } from "./fixtures/policy-canary-evaluation-owner";
+import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import type { SiteTaskBriefRecord } from "../utils/siteTaskBrief";
 
 const state = vi.hoisted(() => ({
   collections: new Map<string, Map<string, Record<string, any>>>(),
@@ -140,9 +142,9 @@ function configuredOfferingRecord(params: {
   };
 }
 
-function operatorRegistration(body: Record<string, any>, parent: Record<string, any>) {
+function operatorRegistration(body: Record<string, any>, parent: Record<string, any>, siteId = "operator-scene") {
   const contract = sealRigidTaskSuccessContract({
-    siteId: "operator-scene", taskId: "operator-relocation", authorSource: "task_owner",
+    siteId, taskId: "operator-relocation", authorSource: "task_owner",
     authorId: "operator", confirmationStatus: "confirmed", confirmedByTeamId: "team-1",
     criteria: {
       destination_containment: { mode: "required", position_bounds_world_m: { minimum: [0, 0, 0], maximum: [1, 1, 1] } },
@@ -210,6 +212,7 @@ function bindWebsiteArticulatedOmission(body: Record<string, any>) {
       locked_joints: { mode: "required", joint_ids: [], motion_tolerance: 0.01 },
       reset: { tolerance: 0.005 }, motion: { movement_epsilon: 0.003 },
       assembly_root: { mode: "required" }, safety: { mode: "required" },
+      release_and_retreat: { mode: "ignored" },
       temporal_invariants: { schema_version: "articulated_task_event_ledger_expectation.v1",
         rebound_below_threshold_allowed: false, forbidden_collision_allowed: false,
         joint_limit_violation_allowed: false, assembly_root_excursion_allowed: false },
@@ -712,6 +715,88 @@ describe("internal Pipeline Task Evaluation Run publication", () => {
     duplicate.policy_candidates[1] = duplicate.policy_candidates[0];
     duplicate.registration_digest = canonicalArtifactDigest(duplicate, "registration_digest");
     expect(operatorPolicyCanaryRegistrationSchema.safeParse(duplicate).success).toBe(false);
+  });
+
+  function captureRegistration() {
+    const requestId = "capture-report-source";
+    const body = policyCanaryPublication();
+    body.capture_session_id = `walkthrough-${requestId}`;
+    const parent = configuredOfferingRecord({ configurationRunId: "unused-configuration" });
+    const value = { ...operatorRegistration(body, parent, `site-${requestId}`) } as Record<string, any>;
+    const request = { request: { consent_attestation: { granted: true,
+      statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-01T00:00:00.000Z" } } };
+    const brief: SiteTaskBriefRecord = { requestId, summary: "Open the moving task part", proposed: [],
+      unresolved: [], captureMode: "self_capture", draftedAtIso: "2026-10-01T00:00:00.000Z",
+      draftedFrom: ["description"], confirmedAtIso: null, confirmedBy: null,
+      operatorAnswers: null, operatorUnknown: null };
+    const context = projectWebsiteTaskContext(brief, projectWebsiteCaptureRights(request), { purpose: "scene_preparation" });
+    delete value.source_launch_id;
+    delete value.source_offering_digest;
+    value.capture_source = { request_id: requestId, scene_id: context.scene_id,
+      capture_id: context.capture_id, task_context_digest: context.context_digest };
+    value.notification = { mode: "disabled" };
+    value.registration_digest = canonicalArtifactDigest(value, "registration_digest");
+    body.operator_registration_digest = value.registration_digest;
+    state.collections.set("inboundRequests", new Map([[requestId, request]]));
+    state.collections.set("siteTaskBriefs", new Map([[requestId, brief]]));
+    return { value, body, request, brief, requestId };
+  }
+
+  it("delivers a capture-linked operator diagnostic privately without inventing an offering, owner attestation or email authority", async () => {
+    process.env.PIPELINE_SYNC_TOKEN = "pipeline-secret";
+    process.env.BLUEPRINT_TRANSACTIONAL_EMAIL_NOTIFICATIONS_ENABLED = "1";
+    const { value, body, request, brief, requestId } = captureRegistration();
+    const registration = operatorPolicyCanaryRegistrationSchema.parse(value);
+    expect((await registerOperator(registration)).status).toBe(201);
+    expect((await registerOperator(registration)).body).toMatchObject({ already_exists: true, execution_queued: false });
+    const run = state.collections.get("taskEvaluationPolicyRuns")!.get(value.run_id)!;
+    expect(run).toMatchObject({ owner_user_id: "blueprint-production-runner",
+      capture_source: value.capture_source, notification: { mode: "disabled" } });
+    expect(run).not.toHaveProperty("source_launch_id");
+    const { server, socketPath } = await startServer();
+    try {
+      expect((await postSigned(socketPath, body)).status).toBe(201);
+      expect((await postSigned(socketPath, body)).status).toBe(200);
+      expect(state.sendEmail).not.toHaveBeenCalled();
+      const result = [...state.collections.get("captureTaskEvaluationRuns")!.values()][0];
+      expect(result).toMatchObject({ owner_user_id: "blueprint-production-runner", access_visibility: "owner_only" });
+      expect(state.collections.has("taskEvaluationLaunches")).toBe(false);
+      expect(state.collections.get("inboundRequests")!.get(requestId)).toEqual(request);
+      expect(state.collections.get("siteTaskBriefs")!.get(requestId)).toEqual(brief);
+      const retained = state.collections.get("taskEvaluationPolicyRuns")!.get(value.run_id)!;
+      retained.capture_source = { ...value.capture_source, request_id: "different-capture" };
+      expect((await postSigned(socketPath, body)).status).toBe(409);
+      retained.capture_source = value.capture_source;
+      state.collections.get("inboundRequests")!.get(requestId)!.request.consent_attestation.revoked_at_iso = "2026-10-02T00:00:00.000Z";
+      expect((await postSigned(socketPath, body)).status).toBe(409);
+    } finally { await stopServer(server, socketPath); }
+  });
+
+  it("refuses absent, revoked, changed or ambiguously bound capture sources before registration", async () => {
+    const { value, requestId } = captureRegistration();
+    const parse = (v: Record<string, any>) => {
+      v.registration_digest = canonicalArtifactDigest(v, "registration_digest");
+      return operatorPolicyCanaryRegistrationSchema.safeParse(v);
+    };
+    for (const mutation of [
+      { source_launch_id: "invented-parent", source_offering_digest: sha("a") },
+      { capture_session_id: "different-capture" },
+      { capture_source: { ...value.capture_source, scene_id: "different-scene" } },
+      { capture_source: { ...value.capture_source, capture_id: "different-capture" } },
+    ]) expect(parse({ ...value, ...mutation }).success).toBe(false);
+    const registration = operatorPolicyCanaryRegistrationSchema.parse(value);
+    state.collections.get("inboundRequests")!.delete(requestId);
+    expect((await registerOperator(registration)).status).toBe(409);
+    state.collections.get("inboundRequests")!.set(requestId, { request: { consent_attestation: {
+      granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-01T00:00:00.000Z",
+      revoked_at_iso: "2026-10-02T00:00:00.000Z" } } });
+    expect((await registerOperator(registration)).status).toBe(409);
+    expect(state.collections.has("taskEvaluationPolicyRuns")).toBe(false);
+    state.collections.get("inboundRequests")!.set(requestId, { request: { consent_attestation: {
+      granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-01T00:00:00.000Z" } } });
+    state.collections.get("siteTaskBriefs")!.get(requestId)!.summary = "Changed task context";
+    expect((await registerOperator(registration)).status).toBe(409);
+    expect(state.collections.has("taskEvaluationPolicyRuns")).toBe(false);
   });
 
   it("retains a failed terminal email receipt on exact replay", async () => {
