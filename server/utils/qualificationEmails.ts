@@ -142,7 +142,7 @@ export function buildTaskNotYetSupportedEmail(params: {
     unclear
       ? "We need to clarify the job before admitting it to this simulation route. Your job stays on file; we are not promising an evaluation yet."
       : "We have accepted your job and are holding it while we prepare an evaluation for its kind. Jobs like yours "
-        + "decide what we build next, and we will email you when robot teams can be evaluated on it. This does not "
+        + "decide what we build next, and we will email you when we can evaluate it. This does not "
         + "establish whether a robot could do the work.",
     "",
     unclear

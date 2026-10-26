@@ -128,7 +128,7 @@ describe("a job we cannot score", () => {
     expect(unclear.headline).not.toMatch(/preparing an evaluation/i);
     expect(unclear.nextStep).toMatch(/describe the job in one sentence/i);
     expect(taskScopeNotYet("liquid").headline).toMatch(/preparing an evaluation/i);
-    expect(taskScopeNotYet("liquid").nextStep).toMatch(/stays on file.*email you when robot teams can be evaluated/i);
+    expect(taskScopeNotYet("liquid").nextStep).toMatch(/stays on file.*email you when we can evaluate it/i);
   });
 });
 

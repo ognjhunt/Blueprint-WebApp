@@ -66,7 +66,7 @@ export type UnsupportedTaskReason =
   | "unclear";
 
 /**
- * `scorable`: robot teams can be evaluated on it now. `held_for_preparation`:
+ * `scorable`: we can evaluate it now. `held_for_preparation`:
  * accepted and held while we prepare an evaluation for its kind, counted as
  * demand. `needs_description`: the brief names no job we can read yet.
  */
@@ -255,7 +255,7 @@ export function taskScopeNotYet(reason: unknown): { headline: string; detail: st
     headline: "We have your job and are preparing an evaluation for it.",
     detail: `${taskScopeReasonSentence(reason)} ${SUPPORTED_TASK_SCOPE} We are holding your job while we build an `
       + "evaluation for its kind, and jobs like yours decide what we build next.",
-    nextStep: "Your job stays on file, and we will email you when robot teams can be evaluated on it. "
+    nextStep: "Your job stays on file, and we will email you when we can evaluate it. "
       + "If we read your job wrong, reply to our email.",
   };
 }
