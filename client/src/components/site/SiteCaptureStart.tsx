@@ -673,8 +673,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </>
         ) : state.videoAwaitsAccount && state.captureUrl ? (
           <>
-            {/* The account comes before the video: the scene robot teams
-                evaluate is built only for a claimed site, and a video sent
+            {/* The account comes before the video: the scene Blueprint
+                evaluates candidates in is built only for a claimed site, and a video sent
                 first could not be resumed under the account (P1-8). */}
             <h2 style={{ marginTop: 0 }}>Save your job to your account, then send your video.</h2>
             <p className="ms-field-hint">
@@ -728,7 +728,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             <p className="ms-field-hint" style={{ marginTop: "20px" }}>
               Keep this private link; we also email it to {state.email}. It is where the job
               brief we draft from your video will appear for you to correct.
-              {!state.hasFootage && ` Film the work, not the worker: hands and objects are what a robot team needs to see. ${FILMING_NOTICE}`}
+              {!state.hasFootage && ` Film the work, not the worker: hands and objects are what we need to see to evaluate the job. ${FILMING_NOTICE}`}
             </p>
             {!onAPhone && state.hasFootage && <details>
               <summary>Open this job on another device (optional)</summary>
@@ -754,7 +754,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
         {!state.workspaceUrl && state.claimUrl && !state.videoAwaitsAccount && <section className="ms-intake-account" aria-label="Save this job to your account">
           <h2>Save this job to your account</h2>
-          {/* Not optional for evaluation: the scene robot teams run against is
+          {/* Not optional for evaluation: the scene candidates run against is
               built only for a claimed site (`websiteSceneSponsorship`), and its
               video is accepted only once the job is saved, so the recording's
               owner is the same from upload on, as the Pipeline requires. */}

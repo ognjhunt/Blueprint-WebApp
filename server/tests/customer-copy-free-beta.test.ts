@@ -179,14 +179,15 @@ describe("site screening emails", () => {
     }
   });
 
-  it("states the video-backed simulation, customer selection and the free-beta boundary", () => {
+  it("states the video-backed simulation, Blueprint's own candidate runs, customer selection and the free-beta boundary", () => {
     for (const nextStep of NEXT_STEPS) {
       const { body } = buildQualifiedEmail({ firstName: "Dana", nextStep });
       expect(body).toMatch(/review the job brief, required output and site constraints/);
-      expect(body).toMatch(/reconstruct the work area and evaluate compatible robots and policies in simulation/);
-      expect(body).toMatch(/review proposals covering scope, total cost, timing and support/);
+      expect(body).toMatch(/reconstruct the work area in simulation and run candidate robots, policies and policy APIs against your job ourselves/);
+      expect(body).toMatch(/a recommendation comes only from the finalists' full scoring/);
+      expect(body).toMatch(/review their proposals covering scope, total cost, timing and support/);
       expect(body).toMatch(/You choose the delivery partner/);
-      expect(body).toMatch(/If no suitable option is supported, we explain what is missing/);
+      expect(body).toMatch(/If no candidate is suitable, we explain what is missing/);
       expect(body).not.toMatch(/book the pilot in one step|We prepare a simplified simulation/);
       expect(body).toMatch(/free during the beta/);
       expect(body).toMatch(/not proof of how a robot will perform/);

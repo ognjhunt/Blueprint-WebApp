@@ -9,7 +9,7 @@
  * fit, getting the site ready, what decides success, safety, and where robots
  * already do this kind of job) reaches the owner once Blueprint shares it,
  * with the robot-fit sharing switch; the printable brief adds where the job
- * stands. Nothing here names, counts or compares a robot team, quotes a price,
+ * stands. Nothing here names, counts or compares a partner, quotes a price,
  * or promises an outcome. The simulation is credited only with what the
  * evaluation contract tests: the object's start position and turn, the light
  * and the grip, the fixtures in the rebuilt scene, cycle time against the
@@ -158,16 +158,16 @@ export function trackerOf(inputs: ReadinessInputs): Tracker {
     step("video", "Video received", video, "site"),
     step("brief", "Job brief confirmed", inputs.brief?.confirmedAtIso ? "done" : "pending", "site"),
     step("scene", "Your site rebuilt in 3D", sceneState, "blueprint"),
-    step("evaluation", "Robot teams evaluate your job in simulation", booked || proposed ? "done" : "pending", "blueprint"),
-    step("recommendation", "Blueprint recommends one team", booked || bookable ? "done" : proposed ? "in_progress" : "pending", "blueprint"),
+    step("evaluation", "Blueprint evaluates candidate robots and policies in simulation", booked || proposed ? "done" : "pending", "blueprint"),
+    step("recommendation", "Blueprint recommends the approach that wins", booked || bookable ? "done" : proposed ? "in_progress" : "pending", "blueprint"),
     step("booking", "You book the pilot", booked ? "done" : "pending", "site"),
   ];
-  const meanwhile = booked ? "Your pilot is booked. You and the robot team agree its details directly."
-    : bookable ? "Blueprint has recommended one team for your job. You can review and book it on your job page."
+  const meanwhile = booked ? "Your pilot is booked. You and the delivery partner agree its details directly."
+    : bookable ? "Blueprint has recommended a pilot for your job. You can review and book it on your job page."
       : proposed ? "Blueprint is reviewing its recommendation against your job brief."
         : scope?.supported === false ? taskScopeNotYet(scope.reason).headline
           : sceneState === "in_progress" ? "Blueprint is rebuilding your work area in 3D from your video."
-            : sceneState === "done" ? "Next, Blueprint invites robot teams whose robots look right for your job to evaluate it in a simulation of your site."
+            : sceneState === "done" ? "Next, Blueprint evaluates candidate robots and policies that look right for your job in a simulation of your site."
               : null;
   return { steps, meanwhile };
 }
@@ -203,30 +203,30 @@ export function checklistOf(inputs: RobotFitInputs, facts: JobFacts, job: RobotF
   const overheadTight = overhead && overhead.si < READINESS_SCREENING.overheadTightM
     ? ` Above the surface there is ${measuredDisplay(overhead)} of open height (you measured this), tight for an arm reaching in from above.` : "";
   const roomy = Boolean(front && front.metres >= READINESS_SCREENING.floorReadyM);
-  // Only a reading on file makes the floor "Looks ready"; an estimate is confirmed with the robot team.
+  // Only a reading on file makes the floor "Looks ready"; an estimate is confirmed with the deployment partner.
   const floor: ReadinessItem = { id: "floor_space", title: "Floor space at the station",
     state: roomy && front?.measured && !overheadTight ? "ready" : "confirm",
-    detail: (!front ? "The robot team confirms the floor space its robot needs beside the work."
+    detail: (!front ? "The deployment partner confirms the floor space its robot needs beside the work."
       : roomy ? `There is ${front.floor} in front of the starting surface, ${front.measured ? "" : "likely "}room for a robot's stand or base.`
         : front.metres === 0 ? `There is ${front.floor} in front of the starting surface, so a robot's stand or base needs another spot. `
-          + "Confirm the space with the robot team."
+          + "Confirm the space with the deployment partner."
           : `There is ${front.metres >= READINESS_SCREENING.floorTightM ? "" : "only "}${front.floor} in front of the starting surface, `
-            + "tight for a robot's stand or base. Confirm the space with the robot team.") + overheadTight };
+            + "tight for a robot's stand or base. Confirm the space with the deployment partner.") + overheadTight };
 
   const standing = [
     fixed ? "For a robot on a fixed stand: a level spot where the stand can be bolted down or weighted." : null,
     moving ? "For a robot that moves: a place to park and charge, and a clear, level path between the spots." : null,
-  ].filter(Boolean).join(" ") || "Where the robot stands depends on which kind of robot fits. The robot team confirms it with you.";
+  ].filter(Boolean).join(" ") || "Where the robot stands depends on which kind of robot fits. The deployment partner confirms it with you.";
 
   const people = facts.people;
   const said = people ? `${sentence(people.display)} (${REQUIREMENT_SOURCE_LABELS[people.source]})` : null;
   const zone: ReadinessItem = !people || !said
     ? { id: "safe_zone", title: "A safe working zone", state: "confirm",
-      detail: "The robot team's risk assessment settles how its robot works around people." }
+      detail: "The deployment partner's risk assessment settles how its robot works around people." }
     : { id: "safe_zone", title: "A safe working zone", state: people.value === "isolated" ? "ready" : "confirm",
       detail: people.value === "isolated" ? `${said}, so the robot can work in an area kept clear of people.`
-        : people.value === "nearby" ? `${said}. Plan a marked working area; the robot team's risk assessment decides whether it needs guarding or sensors.`
-          : `${said}. The robot has to work safely alongside them; the robot team's risk assessment sets how, such as speed limits, sensors or a marked area.` };
+        : people.value === "nearby" ? `${said}. Plan a marked working area; the deployment partner's risk assessment decides whether it needs guarding or sensors.`
+          : `${said}. The robot has to work safely alongside them; the deployment partner's risk assessment sets how, such as speed limits, sensors or a marked area.` };
 
   const answers: Array<[string, ReturnType<typeof gateAnswer>]> = [
     ["Work area", gateAnswer(inputs, "sceneStability")],
@@ -239,7 +239,7 @@ export function checklistOf(inputs: RobotFitInputs, facts: JobFacts, job: RobotF
     floor,
     { id: "standing_spot", title: "Where the robot stands", state: "confirm", detail: standing },
     { id: "power_network", title: "Power and network", state: "confirm",
-      detail: `A power outlet near the work area${moving ? ", and Wi-Fi along the route for a robot that drives between spots" : ""}. The robot team tells you exactly what its robot needs.` },
+      detail: `A power outlet near the work area${moving ? ", and Wi-Fi along the route for a robot that drives between spots" : ""}. The deployment partner tells you exactly what its robot needs.` },
     zone,
     // Left out when nothing is known: an empty item is only more to read.
     ...(answered.length ? [{ id: "object_arrival" as const, title: "How objects arrive",
@@ -320,7 +320,7 @@ export function successFactorsOf(inputs: RobotFitInputs, facts: JobFacts): Succe
       test: "The evaluation scores many runs against your pass mark, so a high target leaves little room for misses.", where: "simulation" },
     Boolean(people && people.value !== "isolated") && { id: "people", title: "People in the space",
       detail: `${sentence(people!.display)} (${REQUIREMENT_SOURCE_LABELS[people!.source]}).`,
-      test: "People are not in the simulation. How the robot works around them is settled by the robot team's risk assessment before the pilot.",
+      test: "People are not in the simulation. How the robot works around them is settled by the deployment partner's risk assessment before the pilot.",
       where: "pilot" },
   ];
   return factors.filter((entry): entry is SuccessFactor => Boolean(entry)).slice(0, 3);
@@ -330,10 +330,10 @@ export function successFactorsOf(inputs: RobotFitInputs, facts: JobFacts): Succe
 export function safetyOf(facts: JobFacts, job: RobotFitJob): string[] {
   const { moving, walking } = formsInPlay(job);
   const paragraphs = [
-    "Before a robot works at your site, ask the robot team for its risk assessment of the job. Robot safety follows the "
+    "Before a robot works at your site, ask the deployment partner for its risk assessment of the job. Robot safety follows the "
       + `standards ISO 10218, adopted in the US as ANSI/A3 R15.06${moving ? ", and ANSI/A3 R15.08 for robots that drive between spots" : ""}.`,
   ];
-  if (walking) paragraphs.push("Safety standards for walking robots are still being written, so ask the robot team how its robot is kept safe.");
+  if (walking) paragraphs.push("Safety standards for walking robots are still being written, so ask the deployment partner how its robot is kept safe.");
   paragraphs.push("A robot works near people in one of a few ways: it slows down or stops when someone comes close, it limits its "
     + "speed and force so that contact stays within safe limits, or it works in a guarded or marked area people stay out of. The "
     + "risk assessment decides which for your job.");

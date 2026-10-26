@@ -54,7 +54,7 @@ export const buyerBetaGuide: BetaCohortGuide = {
     {
       title: "First evaluation",
       body:
-        "Each evaluation runs your policy in a simplified simulation of the task, informed by the site's footage, against the job's pass criteria.",
+        "Blueprint runs each evaluation itself: your policy runs in a simplified simulation of the task, informed by the site's footage, against the job's pass criteria. You supply access to the policy, or the integration needed to run it.",
       items: [
         "Confirm the robot and gripper, observation and action interfaces, and any adapter work before the run.",
         "Use Blueprint's simulated DROID Franka (openpi_droid_https.v1), or declare your own robot with blueprint.robot_embodiment.v1 for the blueprint_policy_https.v1 interface.",
@@ -69,8 +69,8 @@ export const buyerBetaGuide: BetaCohortGuide = {
       body:
         "A result says whether the evaluation passed the job's criteria, where it failed, and where the evidence stops short of a call.",
       items: [
-        "Passed: your team can be recommended for that job's pilot, if you want it.",
-        "Not passed or inconclusive: Blueprint does not recommend your team for that job, and the result says why.",
+        "Passed: your system can be part of the approach Blueprint recommends for that job, together with deployment companies that support it.",
+        "Not passed or inconclusive: Blueprint does not recommend your system for that job, and the result says why.",
         "Review required or blocked: a rights, privacy or compatibility issue has to be resolved before the run counts.",
         "A simulated pass is a bounded estimate, not proof of physical performance or safety.",
       ],
@@ -81,8 +81,8 @@ export const buyerBetaGuide: BetaCohortGuide = {
         "Blueprint helps the site compare suitable delivery proposals with their evidence and limitations. The customer chooses a delivery partner; selection alone does not create an agreement.",
       items: [
         "Booking is free during the beta, and Blueprint takes no cut of the pilot.",
-        "Before a pilot starts, you and the site agree dates, scope, price, support and acceptance criteria directly.",
-        "You or your integrator install and operate the robot; the site approves the safety plan.",
+        "Before a pilot starts, the site and the delivery partner it chooses agree dates, scope, price, support and acceptance criteria directly.",
+        "The delivery partner, which may be you or your integrator, installs and operates the robot; the site approves the safety plan.",
       ],
     },
     {

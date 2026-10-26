@@ -36,7 +36,7 @@ export function Footer() {
               Blueprint
             </a>
             <p className="mt-7 text-sm leading-7 text-runway-mute">
-              Blueprint connects businesses that need work done with robot teams that can do it.
+              Blueprint runs candidate robots and policies against a business's real job and recommends the approach and deployment companies that fit.
             </p>
             {/*
               Service area sits in the footer so it is on every page rather than

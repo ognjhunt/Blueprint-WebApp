@@ -244,7 +244,7 @@ test("the person filming is asked for the video and nothing else", async ({ page
   await page.screenshot({ path: info.outputPath("video-only-film-link-local-fixture.png"), fullPage: true });
 });
 
-const READINESS_NOTE = "Blueprint invites robot teams whose robots look right for this job to evaluate it in a simulation of your site. If Blueprint recommends a team, it will be one whose evaluation of your job passed. This is a first read from your video, not a promise that any robot can do the job.";
+const READINESS_NOTE = "Blueprint evaluates candidate robots and policies that look right for this job in a simulation of your site. If Blueprint recommends an approach, it will be one that passed a full evaluation on your job. This is a first read from your video, not a promise that any robot can do the job.";
 
 function readinessFixture(overrides: Record<string, unknown> = {}) {
   const notNeeded = "between spots isn't needed: the object moves about 90 cm (estimated from your video).";
@@ -255,8 +255,8 @@ function readinessFixture(overrides: Record<string, unknown> = {}) {
       { id: "video", label: "Video received", state: "done", owner: "site" },
       { id: "brief", label: "Job brief confirmed", state: "done", owner: "site" },
       { id: "scene", label: "Your site rebuilt in 3D", state: "in_progress", owner: "blueprint" },
-      { id: "evaluation", label: "Robot teams evaluate your job in simulation", state: "pending", owner: "blueprint" },
-      { id: "recommendation", label: "Blueprint recommends one team", state: "pending", owner: "blueprint" },
+      { id: "evaluation", label: "Blueprint evaluates candidate robots and policies in simulation", state: "pending", owner: "blueprint" },
+      { id: "recommendation", label: "Blueprint recommends the approach that wins", state: "pending", owner: "blueprint" },
       { id: "booking", label: "You book the pilot", state: "pending", owner: "site" },
     ], meanwhile: "Blueprint is rebuilding your work area in 3D from your video." },
     briefPath: "/readiness-brief/brief-token.signature",
@@ -274,13 +274,13 @@ function readinessFixture(overrides: Record<string, unknown> = {}) {
         note: READINESS_NOTE,
       },
       checklist: [
-        { id: "floor_space", title: "Floor space at the station", state: "confirm", detail: "The robot team confirms the floor space its robot needs beside the work." },
-        { id: "power_network", title: "Power and network", state: "confirm", detail: "A power outlet near the work area, and Wi-Fi along the route for a robot that drives between spots. The robot team tells you exactly what its robot needs." },
+        { id: "floor_space", title: "Floor space at the station", state: "confirm", detail: "The deployment partner confirms the floor space its robot needs beside the work." },
+        { id: "power_network", title: "Power and network", state: "confirm", detail: "A power outlet near the work area, and Wi-Fi along the route for a robot that drives between spots. The deployment partner tells you exactly what its robot needs." },
       ],
       successFactors: [{ id: "variety", title: "How many different items",
         detail: "Probably also handled here, though not in your video: flat envelopes, padded mailers (estimated from your video).",
         test: "The evaluation tests the object in your rebuilt scene. Other items are checked in the pilot.", where: "pilot" }],
-      safety: ["Before a robot works at your site, ask the robot team for its risk assessment of the job. Robot safety follows the standards ISO 10218, adopted in the US as ANSI/A3 R15.06, and ANSI/A3 R15.08 for robots that drive between spots.",
+      safety: ["Before a robot works at your site, ask the deployment partner for its risk assessment of the job. Robot safety follows the standards ISO 10218, adopted in the US as ANSI/A3 R15.06, and ANSI/A3 R15.08 for robots that drive between spots.",
         "Blueprint's evaluation runs in a simulation of your site. It does not certify that any robot is safe, or that a robot will perform the same at your site."],
       examples: [{ id: "parcel-sorting", name: "Parcel sorting",
         sources: [{ label: "China Daily: humanoid robots move onto fast track", href: "https://global.chinadaily.com.cn/a/202606/11/WS6a2ac863a310d6866eb4dcd2.html" }] }],

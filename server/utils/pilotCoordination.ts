@@ -19,7 +19,7 @@ export function projectPilotCoordination(record: Record<string, any> | null | un
     nextAction: proposal.reviewRequired
       ? "The job changed after booking. Blueprint must review the change against the booked scope."
       : scheduled ? "Follow the agreed site-preparation responsibilities. Any change to the date, scope or cost needs the applicable approval."
-        : "You and the robot team agree the pilot's dates and terms directly. No date is reserved yet.",
+        : "You and the delivery partner agree the pilot's dates and terms directly. No date is reserved yet.",
     ...(scheduled ? { startsAt: agreement.startsAt, endsAt: agreement.endsAt, sitePreparation: agreement.sitePreparation } : {}),
     feeUsd: acceptance.amountUsd,
     commercialBasis: acceptance.commercialBasis,

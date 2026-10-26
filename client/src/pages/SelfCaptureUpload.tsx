@@ -788,7 +788,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 </button></p>
               )}
               {/* Saved is not finished. The brief confirmation is the site's
-                  attestation, the thing that lets a robot team evaluate the job.
+                  attestation, the thing that lets the job be evaluated.
                   Hiding it the moment a video lands used to end the visit with the
                   qualification undone, recoverable only by knowing to reload. The
                   site sends only its video otherwise: Blueprint infers the rest. */}
@@ -803,13 +803,13 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 </p>
               )}
               {/* The footage is in; the brief is the one step left that is the
-                  site's own. Robot teams evaluate only a confirmed job
+                  site's own. Only a confirmed job is evaluated
                   (`teamJobAccess`), so it is open on the page, not tucked in a
                   disclosure labelled optional. */}
               {scope === "owner" && brief && !briefConfirmed && !editingBrief && (
                 <section aria-label="Confirm your job brief" style={{ border: "1px solid var(--ms-rule)", padding: "16px", margin: "16px 0" }}>
                   <h2 style={{ marginTop: 0 }}>Confirm your job brief</h2>
-                  <p className="ms-field-hint">Robot teams can evaluate your job only after you confirm this brief. Check the summary and answers, correct anything that is wrong, then confirm it.</p>
+                  <p className="ms-field-hint">We can evaluate your job only after you confirm this brief. Check the summary and answers, correct anything that is wrong, then confirm it.</p>
                   <TaskBriefReview
                     key={token}
                     token={token}

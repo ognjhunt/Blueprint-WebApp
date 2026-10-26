@@ -16,12 +16,13 @@
  * ## What it draws on, and what it does not claim
  *
  * The Tier 2 brief (drafted, confirmed), our screen's verdict on it, the
- * readiness ladder, the coverage finding, and the robot-team runs queued or
+ * readiness ladder, the coverage finding, and the evaluation runs queued or
  * reported against the scene. Deliberately *not* a pilot recommendation: the
  * recommendation is its own card. What this does say is what a waiting job is
- * waiting on: robot teams that can evaluate it but have not, a job card that is
- * not published so no team can, or evaluations that all finished without a
- * pass.
+ * waiting on: an evaluation that has not started, a job card that is not
+ * published so no partner can ask to be evaluated on it, or evaluations that
+ * all finished without a pass. Blueprint runs the candidates itself (owner,
+ * 2026-10-26), so no headline asks the site to wait on a robot team.
  */
 
 import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
@@ -54,13 +55,13 @@ export type TaskDecision =
   | "save_account"
   /** Confirmed, filmed, covered. As far as we take it before the Pipeline. */
   | "assessing"
-  /** Robot teams have runs queued or running against the scene. */
+  /** Evaluation runs are queued or running against the scene. */
   | "screening"
   /** At least one screening run has concluded, with observations or no result. */
   | "results"
-  /** Robot teams can request an evaluation of the job, and none has yet. */
+  /** The job is open for evaluation, and no requested evaluation has started yet. */
   | "awaiting_teams"
-  /** The job card is not published, so no robot team can see or evaluate the job. */
+  /** The job card is not published, so no approved partner can see the job or ask to be evaluated on it. */
   | "not_listed"
   /** Every evaluation so far has finished, none passed, and none is in flight. */
   | "no_team_passed"
@@ -321,7 +322,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "no_team_passed",
-      headline: `No team's evaluation has passed yet. ${runs} on your job finished without passing, so there is no recommended pilot. ${gap.shortfall ? `${gap.shortfall} ` : ""}A recommendation needs one team's evaluation to ${gap.requirement}${input.openForEvaluations ? "; your job is still open to robot teams, and we email you when one starts an evaluation" : ""}.`,
+      headline: `No evaluation of your job has passed yet. ${runs} on your job finished without passing, so there is no recommended pilot. ${gap.shortfall ? `${gap.shortfall} ` : ""}A recommendation needs a candidate's full evaluation to ${gap.requirement}${input.openForEvaluations ? "; your job stays open for evaluation, and we email you when another one starts" : ""}.`,
       operatorAction: null,
     };
   }
@@ -374,13 +375,13 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  // Open to robot teams and nobody has asked yet. Open implies a cleared,
+  // Open for evaluation and no requested evaluation has started. Open implies a cleared,
   // confirmed, runnable scene, so no rung below can be truer than this one.
   if (input.openForEvaluations === true && screening && screening.teams === 0) {
     return {
       ...base,
       decision: "awaiting_teams",
-      headline: "Your job is open to robot teams approved for the beta. No team has started an evaluation yet; we email you when one does.",
+      headline: "Your job is open for evaluation. Next, Blueprint evaluates candidate robots and policies against it; approved partners can also ask for their systems to be evaluated.",
       operatorAction: null,
     };
   }
@@ -422,7 +423,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "confirm_brief",
-      headline: "We have your recording. Next, confirm your job brief: robot teams can evaluate your job only after you confirm it.",
+      headline: "We have your recording. Next, confirm your job brief: we can evaluate your job only after you confirm it.",
       operatorAction: confirmationAsk,
     };
   }
@@ -532,8 +533,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "not_listed",
-      headline: `${sceneTesting ? "Your scene is ready, and we are running our first tests on it." : "Your scene preview is ready."} Your job card is not published, so robot teams cannot see or evaluate this job, and it cannot lead to a recommended pilot.`,
-      operatorAction: "To open it to robot teams approved for the beta, publish its job card from your job page.",
+      headline: `${sceneTesting ? "Your scene is ready, and we are running our first tests on it." : "Your scene preview is ready."} Your job card is not published, so approved partners cannot see this job in the job library or ask to have their systems evaluated on it.`,
+      operatorAction: "To share it with partners approved for the beta, publish its job card from your job page.",
     };
   }
 
@@ -608,7 +609,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "confirm_brief",
-      headline: "Your job brief is ready. Confirm it so robot teams can evaluate your job; you can confirm it before or after you film.",
+      headline: "Your job brief is ready. Confirm it so we can evaluate your job; you can confirm it before or after you film.",
       operatorAction: CONFIRM_BRIEF_ACTION,
     };
   }

@@ -206,7 +206,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessVerdict {
       blockingCapture,
       blockingEvaluation,
       isSupply: true,
-      nextAction: "Ready for evaluation. Robot teams can run against this scene.",
+      nextAction: "Ready for evaluation. Blueprint can run candidate robots and policies against this scene.",
     };
   }
 
@@ -261,8 +261,8 @@ export function assessReadiness(input: ReadinessInput): ReadinessVerdict {
           + "the work area — we will tell you which.")
         + " Contact hello@tryblueprint.io with your job reference for help starting a new job with a complete walkthrough and fresh recording permission. Your original footage stays saved; this link cannot add to or replace it. The new job needs its own review before evaluation."
       : blockingEvaluation.length
-        ? "We have enough to guide the recording. Some answers are still needed before a robot "
-          + "team can evaluate this, and you can film the work area now."
+        ? "We have enough to guide the recording. Some answers are still needed before we can "
+          + "evaluate this, and you can film the work area now."
         : "We have enough to guide the recording. Film the work area and we will take it from "
           + "there.";
 
@@ -283,7 +283,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessVerdict {
     blockingEvaluation,
     isSupply: false,
     nextAction: input.reconstructed
-      ? `Scene built. Still needed before a robot team can evaluate it: ${blockingEvaluation.join(", ")}.`
+      ? `Scene built. Still needed before we can evaluate it: ${blockingEvaluation.join(", ")}.`
       : "Your footage meets our capture requirements. No additional recording is needed — we are "
         + "building the scene.",
   };

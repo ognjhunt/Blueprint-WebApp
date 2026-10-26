@@ -151,8 +151,9 @@ describe("the confirmation says what our screen decided", () => {
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { body: string };
     expect(sent.body).toMatch(/^Hi Dana,/);
     expect(sent.body).toMatch(/upload it here: http\S+\/capture-upload\//);
-    expect(sent.body).toMatch(/review proposals covering scope, total cost, timing and support/);
-    expect(sent.body).toMatch(/If no suitable option is supported, we explain what is missing/);
+    expect(sent.body).toMatch(/run candidate robots, policies and policy APIs against your job ourselves/);
+    expect(sent.body).toMatch(/review their proposals covering scope, total cost, timing and support/);
+    expect(sent.body).toMatch(/If no candidate is suitable, we explain what is missing/);
     expect(sent.body).toMatch(/free during the beta/);
     expect(sent.body).not.toMatch(/\bmatch|\bteams? on our list|budget|Austin/i);
     expect(sharedFakeFirestoreState.docs.get("inboundRequests/req-1")).toMatchObject({

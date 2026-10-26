@@ -458,7 +458,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     expect(body.claimUrl).toMatch(/\/claim\/.+/);
   });
 
-  it("asks a filmed site to confirm its brief, which teams need, while retaining claim controls", async () => {
+  it("asks a filmed site to confirm its brief, which an evaluation needs, while retaining claim controls", async () => {
     const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as Record<string, unknown>;
     const { site_task_brief_confirmed_at: _confirmed, ...unconfirmed } = record;
     sharedFakeFirestoreState.docs.set("inboundRequests/req-1", unconfirmed);
@@ -466,7 +466,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const { body } = await status();
 
     expect(body.status.decision).toBe("confirm_brief");
-    expect(body.status.headline).toMatch(/robot teams can evaluate your job only after you confirm it/i);
+    expect(body.status.headline).toMatch(/we can evaluate your job only after you confirm it/i);
     expect(body.status.operatorAction).toMatch(/confirm it/i);
     // Footage waits for a saved job, so an unclaimed owner link offers the claim from the start.
     expect(body.claimUrl).toMatch(/\/claim\/.+/);

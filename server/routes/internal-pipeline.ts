@@ -1603,8 +1603,8 @@ router.post(
           to: operatorEmail,
           subject: "Blueprint — your site's scene is ready. Claim it.",
           body: [
-            "The 3D scene built from your walkthrough is ready, and your site is entering the",
-            "catalog robot teams evaluate against.",
+            "The 3D scene built from your walkthrough is ready, so Blueprint can begin evaluating",
+            "candidate robots and policies against your job.",
             "",
             `Claim your site to see it, control whether it is listed, and pause it anytime:`,
             claimUrl,
@@ -1619,8 +1619,8 @@ router.post(
       logger.warn({ error: claimInviteError }, "Site claim invite could not be enqueued");
     }
 
-    // A sync is what usually proves a scene runnable, which opens the job to
-    // robot teams. The site hears that once; never fails the sync.
+    // A sync is what usually proves a scene runnable, which opens the job for
+    // evaluation. The site hears that once; never fails the sync.
     try { await notifyIfOpenForEvaluations(docRef.id); }
     catch (error) { logger.warn({ error, requestId: docRef.id }, "Open-for-evaluations notice could not be checked"); }
 

@@ -44,8 +44,8 @@
  *   is a multi-step job and holds it;
  * - a brief that names no action we recognize needs one more sentence.
  *
- * A false hold costs a site a wait; a false pass shows robot teams a job whose
- * evaluation would score a different task. Not a model call: the same brief
+ * A false hold costs a site a wait; a false pass lists a job whose evaluation
+ * would score a different task. Not a model call: the same brief
  * always screens the same way, and anyone can see why.
  */
 
@@ -90,7 +90,11 @@ export interface SiteTaskScope extends SiteTaskScopeVerdict {
   demandKind: Exclude<UnsupportedTaskReason, "unclear"> | null;
 }
 
-/** The scope, in the words every surface uses: what a robot team's evaluation can run. */
+/**
+ * The scope, in the words every surface uses: the kinds of job Blueprint's own
+ * evaluation can score today. Blueprint runs the candidates itself (owner,
+ * 2026-10-26), so this names what our simulation scores, not what any team runs.
+ */
 export const SUPPORTED_TASK_LINES = [
   "Picking up one rigid object and placing it at another spot on the same table, shelf or counter",
   "Opening one door, drawer or lid of a fixture",
@@ -202,9 +206,9 @@ export function taskScopeRecord(verdict: SiteTaskScopeVerdict, screenedAtIso: st
 }
 
 /**
- * True when the job's recorded screen says robot teams cannot be evaluated on
- * it yet: held for preparation, or waiting for a sentence. Such a job gets no
- * scene spend and no team listing; it is not refused. Unscreened jobs are
+ * True when the job's recorded screen says it cannot be evaluated yet: held
+ * for preparation, or waiting for a sentence. Such a job gets no scene spend
+ * and no job-library listing; it is not refused. Unscreened jobs are
  * unaffected.
  */
 export function taskScopeNotSupported(record: { site_task_scope?: unknown } | null | undefined): boolean {
@@ -227,7 +231,7 @@ const REASON_SENTENCES: Record<UnsupportedTaskReason, string> = {
   push: "Your job pushes or slides an object, and our simulation scores picking it up and placing it today.",
   container: "Your job places an object inside a container, such as a bin or tote, and our simulation scores placing it on a surface today.",
   // Read only from screens recorded before Pipeline #2943; the screen no longer returns it.
-  articulated: "Your job opens a door or drawer, which a robot team's evaluation could not score before.",
+  articulated: "Your job opens a door or drawer, which our evaluation could not score before.",
   other: "Your job involves an action our simulation cannot score yet.",
   multi_step: "Your job has more than one step, and our simulation scores one action at a time today.",
   unclear: "From your job brief, we could not tell which kind of job this is.",
@@ -246,7 +250,7 @@ export function taskScopeReasonSentence(reason: unknown): string {
 export function taskScopeNotYet(reason: unknown): { headline: string; detail: string; nextStep: string } {
   if (reason === "unclear") {
     return {
-      headline: "Your job brief needs one sentence about the job before robot teams can evaluate it.",
+      headline: "Your job brief needs one sentence about the job before we can evaluate it.",
       detail: `${taskScopeReasonSentence(reason)} ${SUPPORTED_TASK_SCOPE}`,
       nextStep: "Describe the job in one sentence at the top of your job brief and confirm it again.",
     };
@@ -261,9 +265,10 @@ export function taskScopeNotYet(reason: unknown): { headline: string; detail: st
 }
 
 /**
- * The task the simulation actually scored, from the Pipeline's task kind or
- * strategy, in the site's terms. Null when the kind is missing or unknown, so
- * a card never guesses what was tested.
+ * The task Blueprint's simulation actually scored, from the Pipeline's task
+ * kind or strategy, in the site's terms and the same words as
+ * `SUPPORTED_TASK_LINES`. Null when the kind is missing or unknown, so a card
+ * never guesses what was tested.
  */
 export function scoredTaskDescription(kind: unknown): string | null {
   switch (typeof kind === "string" ? kind.trim() : "") {
@@ -274,7 +279,7 @@ export function scoredTaskDescription(kind: unknown): string | null {
     case "planar_push":
       return "Push the object across the surface into the target area";
     case "articulated_open_close":
-      return "Open the door or drawer and hold it open";
+      return "Open the door, drawer or lid and hold it open";
     default:
       return null;
   }

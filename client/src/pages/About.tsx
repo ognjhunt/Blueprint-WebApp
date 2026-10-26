@@ -3,7 +3,7 @@ import { COMPANY } from "@/data/company";
 import { breadcrumbJsonLd, webPageJsonLd } from "@/lib/seoStructuredData";
 
 const description =
-  "Blueprint helps businesses assess suitable automation for recurring jobs, compare delivery proposals and plan measured pilots. Start with the work you need done.";
+  "Blueprint runs candidate robots and policies against a business's recurring job, recommends the approach that wins and the deployment companies that support it, and helps plan a measured pilot. Start with the work you need done.";
 
 const principles = [
   "Start from the real job at a real site, not a demo.",
@@ -33,15 +33,17 @@ export default function About() {
         <h1>We start with one real job.</h1>
         <p className="ms-about-lead">
           Blueprint helps businesses find a suitable way to automate recurring work. Start with the job:
-          we analyze your video, reconstruct the site, compare compatible robots and policies, and help you choose a delivery
-          partner for a measured pilot. The beta is free for sites and partners.
+          we analyze your video, reconstruct the site, run candidate robots, policies and policy APIs against the job, and
+          recommend the approach that wins and the deployment companies that support it. You choose the delivery partner for a
+          measured pilot. The beta is free for sites and partners.
         </p>
 
         <section>
           <h2>How it works</h2>
           <ol>
             <li>A site sends video of recurring work. We analyze it and draft a job brief for the site to review.</li>
-            <li>We reconstruct the site in simulation, evaluate compatible robots and policies, and check delivery feasibility.</li>
+            <li>We reconstruct the site in simulation and run many candidate policies, policy APIs and robots against the job ourselves.</li>
+            <li>We compare them and recommend the approach that wins for the site, plus deployment companies that support it.</li>
             <li>The customer reviews delivery proposals, chooses a partner and agrees a measured pilot directly with that company.</li>
             <li>We record the outcome so the next decision can build on what was learned.</li>
           </ol>

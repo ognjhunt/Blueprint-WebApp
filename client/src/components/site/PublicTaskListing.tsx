@@ -20,7 +20,7 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
   const [consent, setConsent] = useState(false);
   const [state, setState] = useState("loading");
   const [reviewRequired, setReviewRequired] = useState(false);
-  // What robot teams can see now, as saved, not the unsaved checkbox.
+  // What approved partners can see now, as saved, not the unsaved checkbox.
   const [published, setPublished] = useState<boolean | null>(null);
   const [sources, setSources] = useState<Record<string, { basis: string; field: string }>>({});
   useEffect(() => {
@@ -61,11 +61,11 @@ function PublicTaskListingForToken({ token, jobRevision }: { token: string; jobR
     <label key={key}>{label}<input value={details[key] ?? ""} maxLength={maxLength} minLength={key === "title" ? 8 : undefined} required={required}
       onChange={e => { dirty.current = true; setDetails({ ...details, [key]: e.target.value }); setConsent(false); setState("idle"); }} /></label>;
   return <>{published === false && <p className="ms-field-hint" role="status">
-    Your job card is not published, so robot teams cannot see or evaluate this job and it cannot lead to a recommended pilot.
-    To open it to robot teams approved for the beta, review and publish the card under &ldquo;Manage opportunity sharing&rdquo;.
+    Your job card is not published, so approved partners cannot see this job in the job library or ask to have their systems evaluated on it.
+    To share it with partners approved for the beta, review and publish the card under &ldquo;Manage opportunity sharing&rdquo;.
   </p>}
   <details className="ms-task-interest"><summary>Manage opportunity sharing (optional)</summary>
-    <p className="ms-field-hint">Unless you chose to keep this job private when you started it, its anonymized card is listed for robot teams approved for the beta. Edit or hide it here. Your contact details, full footage and scene stay private. Use a general region and leave out identifying details.</p>
+    <p className="ms-field-hint">Unless you chose to keep this job private when you started it, its anonymized card is listed in the job library for partners approved for the beta. Edit or hide it here. Your contact details, full footage and scene stay private. Use a general region and leave out identifying details.</p>
     <p className="ms-field-hint">This card belongs to the same job. {sources.title ? "The title comes from your job brief. " : ""}{sources.cycleTarget ? "The cycle target comes from your stated success criteria, not an observed video rate. " : ""}Review changes for public use; saving a private draft does not publish it.</p>
     {reviewRequired && <p role="alert">Your brief changed. The card is hidden for renewed review; your public edits are retained.</p>}
     {state === "loading" ? <p role="status">Loading your card…</p> : state === "load_error" ? <p role="alert">Your card could not be loaded. Reopen this page to try again.</p> :

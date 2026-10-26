@@ -41,12 +41,12 @@ export const STEP_STATE_LABELS: Record<StepState, string> = {
 
 /* ------------------------------------------------- robot readiness report */
 
-/** Ready from what Blueprint already holds, or one to settle with the robot team before a pilot. */
+/** Ready from what Blueprint already holds, or one to settle with the deployment partner before a pilot. */
 export type ReadinessState = "ready" | "confirm";
 
 export const READINESS_STATE_LABELS: Record<ReadinessState, string> = {
   ready: "Looks ready",
-  confirm: "Confirm with the robot team",
+  confirm: "Confirm with your deployment partner",
 };
 
 export interface ReadinessItem {
@@ -104,4 +104,4 @@ export interface SiteReadinessResponse {
 
 export const READINESS_BRIEF_FOOTER =
   "Prepared by Blueprint from your video and what you told us. It is a first read, not a promise that any robot can do "
-  + "the job. If Blueprint recommends a robot team, it will be one whose evaluation of your job passed.";
+  + "the job. If Blueprint recommends an approach, it will be one that passed a full evaluation on your job.";

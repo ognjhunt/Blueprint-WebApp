@@ -1,8 +1,8 @@
 # Blueprint
 
-> Find the right way to automate your work. Send video of one recurring job, compare robots and policies in a site simulation, and agree a measured pilot.
+> Find the right way to automate your work. Send video of one recurring job; Blueprint runs candidate robots and policies against it in a site simulation, recommends the approach that wins and deployment companies that support it, and you agree a measured pilot.
 
-Blueprint starts with video of recurring work, analyzes it to draft the job description, reconstructs the site in simulation and evaluates compatible robots and policies. Video is required before the site assessment can continue; a description alone does not replace it. Blueprint helps sites compare delivery proposals and coordinate a measured pilot. Customers choose and contract with delivery partners, which install and support the system. Deployment partners and robot technology providers have separate reviewed application paths. The beta remains free for sites and partners, with no Blueprint cut of physical pilot costs. Simulation is a bounded estimate and never certifies physical performance or safety. Customer-reported pilot outcomes remain separate from authoritative scientific Physical Outcome Joins.
+Blueprint starts with video of recurring work, analyzes it to draft the job description, reconstructs the site in simulation and runs candidate robots, policies and policy APIs against the job itself. Screening runs are diagnostic; a recommendation comes from the finalists' full scoring. Blueprint recommends the approach that wins for the site and deployment companies that support it. Video is required before the site assessment can continue; a description alone does not replace it. Blueprint helps sites compare delivery proposals and coordinate a measured pilot. Customers choose and contract with delivery partners, which install and support the system. Deployment partners and robot technology providers have separate reviewed application paths. The beta remains free for sites and partners, with no Blueprint cut of physical pilot costs. Simulation is a bounded estimate and never certifies physical performance or safety. Customer-reported pilot outcomes remain separate from authoritative scientific Physical Outcome Joins.
 
 ## Public pages
 
@@ -21,7 +21,7 @@ Blueprint starts with video of recurring work, analyzes it to draft the job desc
 - [Privacy](https://tryblueprint.io/privacy)
 - [Terms](https://tryblueprint.io/terms)
 
-Robot teams register interest through the existing application and join by invitation. Applications remain pending until manual approval for a real site task; applying or creating an account does not grant access. Approved teams see only job cards sites chose to share, and evaluate invited jobs free. A task invitation does not guarantee a run, a recommendation, or a deployment. Paid self-service evaluations and top-ups are disabled during the beta. Beta program: https://tryblueprint.io/beta. Contact: hello@tryblueprint.io.
+Robot teams register interest through the existing application and join by invitation. Applications remain pending until manual approval for a real site task; applying or creating an account does not grant access. Approved teams see only job cards sites chose to share. Blueprint runs each evaluation; a team supplies access to its policy or robot, or an integration, and invited evaluations are free. A task invitation does not guarantee a run, a recommendation, or a deployment. Paid self-service evaluations and top-ups are disabled during the beta. Beta program: https://tryblueprint.io/beta. Contact: hello@tryblueprint.io.
 
 ## Evidence boundary
 

@@ -6,7 +6,7 @@
  * the same withdrawal either way (recordWebsiteCaptureWithdrawal). This panel
  * says only what that does: Blueprint stops further processing and use of the
  * recording, uploads are refused, the job pauses, queued evaluations are asked
- * to cancel, and robot teams can no longer see the job. Withdrawal is not
+ * to cancel, and approved partners can no longer see the job. Withdrawal is not
  * deletion: the raw capture is retained under the Pipeline's retention policy,
  * as the Privacy Policy describes, so the panel never says it was deleted.
  */
@@ -50,7 +50,7 @@ export function WithdrawalStatusMessage({ status }: { status: OwnerWithdrawalSta
       <p><strong>Recording permission withdrawn.</strong></p>
       <p className="ms-field-hint">
         {requested ? `Withdrawn on ${requested}. ` : ""}Blueprint stops further processing and use of this recording: new uploads are refused,
-        this job is paused, queued evaluations were asked to cancel and robot teams can no longer see the job.{" "}
+        this job is paused, queued evaluations were asked to cancel and approved partners can no longer see the job.{" "}
         {status.pipelineAcknowledged
           ? "Our processing system has confirmed it will no longer process or serve the recording."
           : "Our processing system is being told to stop; this page updates when it confirms."}
@@ -115,7 +115,7 @@ export function OwnerRecordingWithdrawal({ token, onWithdrawn }: { token: string
           <summary>Withdraw recording permission</summary>
           <p>
             Withdrawing stops Blueprint's further processing and use of this recording: new uploads are refused, this job
-            is paused, queued evaluations are asked to cancel and robot teams can no longer see the job. {RETAINED}
+            is paused, queued evaluations are asked to cancel and approved partners can no longer see the job. {RETAINED}
           </p>
           {!confirming && (
             <button type="button" className="ms-button" onClick={() => { setError(null); setConfirming(true); }}>

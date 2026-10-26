@@ -244,7 +244,7 @@ async function seed(
       data = {
         ok: true,
         message:
-          "Pilot team selected. Blueprint passes on your invitation; you and the team agree the pilot's dates and terms directly.",
+          "Partner selected for a pilot. Blueprint passes on your invitation; you and the partner agree the pilot's dates and terms directly.",
       };
     } else if (url.pathname.endsWith("/capture")) {
       snapshot.tasks.find(
@@ -406,7 +406,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByText("6801 Burnet Road, Austin, TX", { exact: true })).toHaveCount(1);
     await expect(page.getByRole("button", { name: "Open your job page", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "No evaluation results yet" })).toHaveCount(1);
-    await expect(page.getByRole("heading", { name: "Team results", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Evaluation results", exact: true })).toHaveCount(0);
     await expect(page.getByText("fixture-support-reference", { exact: true })).not.toBeVisible();
     await expect(page.getByRole("link", { name: "Contact Blueprint about this job" })).toHaveCSS("color", "rgb(32, 61, 46)");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -441,7 +441,7 @@ test("site reviews results and continues to delivery proposals on the job page",
   await page.goto("/app/tasks/task-1");
   await expect(page.getByRole("button", { name: /Invite to pilot/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Pilot", exact: true })).toBeVisible();
-  await expect(page.getByText(/Review the proposed approach, cost, support and evidence on your job page\. Choose a delivery team, then agree pilot terms directly\./)).toBeVisible();
+  await expect(page.getByText(/Review the proposed approach, cost, support and evidence on your job page\. Choose a delivery partner, then agree pilot terms directly\./)).toBeVisible();
   await expect(page.getByRole("button", { name: "Review the proposal on your job page →" })).toBeVisible();
   // No proposal action appears before Blueprint has a pilot proposal.
   await page.goto("/app/tasks/task-2");
@@ -547,7 +547,7 @@ test("a selected team progresses only through explicit site-reported outcomes", 
     contact: { name: "Synthetic team", organization: "Fixture Robotics", email: "team@example.test", phone: null },
     consentWithdrawn: false };
   await page.goto("/app/tasks/task-1?tab=results");
-  await expect(page.getByRole("heading", { name: "Team selected", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Delivery partner selected", exact: true })).toBeVisible();
   await expect(page.getByText("Outcome recorded by your site.")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "team@example.test" })).toBeVisible();
   for (const label of ["Record pilot start", "Record pilot outcome", "Record deployment"]) {

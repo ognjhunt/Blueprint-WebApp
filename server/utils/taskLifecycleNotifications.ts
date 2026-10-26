@@ -4,9 +4,11 @@ import { noResultObservationText, type NoResultObservation } from "./runNoResult
  *
  * The site hears from us when something happens, not on a timer: its task
  * was received, its footage landed, its scene was built, its card went live,
- * a robot team picked it up, a result came in, a team asked about a pilot.
+ * an evaluation started, a result came in, a partner asked about a pilot.
+ * Blueprint runs the candidates itself (owner, 2026-10-26), so the notices
+ * speak of evaluations and candidates, not of robot teams picking a job up.
  * The scheduled check-in that used to fill the gaps between these is retired.
- * Waiting is an event too: the job opening to robot teams, and every
+ * Waiting is an event too: the job opening for evaluation, and every
  * evaluation so far finishing without a pass, each send their own notice.
  * Per-run and per-request events carry an `eventId`, so each one is its own
  * email and a retry of the same event is not.
@@ -99,7 +101,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   task_received: {
     subject: "We have your Blueprint job — here is your link",
-    body: (url) => `Thanks for sending us your job. This private link shows the same job and lets you correct details when needed. We need video of the work before the site assessment can continue. We analyze the recording, draft a job brief for you to correct, then reconstruct the site and compare compatible robots and policies in simulation. You can also reply to a job conversation without completing another form. If your video is not uploaded yet, use your job page to record or upload it after arranging filming permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\nBlueprint will follow through with meaningful findings and questions that need your input.`,
+    body: (url) => `Thanks for sending us your job. This private link shows the same job and lets you correct details when needed. We need video of the work before the site assessment can continue. We analyze the recording, draft a job brief for you to correct, then reconstruct the site in simulation and run candidate robots and policies against your job. You can also reply to a job conversation without completing another form. If your video is not uploaded yet, use your job page to record or upload it after arranging filming permission. It opens your site's job without a password, so please don't forward it.\n\nOpen your job:\n${url}\n\nBlueprint will follow through with meaningful findings and questions that need your input.`,
   },
   video_received: {
     subject: "We received your Blueprint walkthrough",
@@ -116,11 +118,11 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     body: (url) => `Your scene is ready: a simulation of the work area you filmed, with your task's objects in place. We are running our first tests on it now. Nothing is needed from you for these tests, and we will email you at the next step.\n\nOpen your job:\n${url}`,
   },
   listing_live: {
-    subject: "Your job card is in the robot-team library",
+    subject: "Your job card is in the partner job library",
     // The link below is the owner's job page, which carries the listing control.
     // A site that came in by link alone may have no account, so the account
     // workspace is not the way to hide it.
-    body: (url) => `Robot teams approved for the beta can now see the job card you approved. It shows only the text and image you reviewed; your contact details, footage and scene stay private. You can hide it at any time: open your job from the link below and untick "Show this card in the job library". If the link has expired, the page will send you a fresh one.\n\nOpen your job:\n${url}`,
+    body: (url) => `Partners approved for the beta can now see the job card you approved. It shows only the text and image you reviewed; your contact details, footage and scene stay private. You can hide it at any time: open your job from the link below and untick "Show this card in the job library". If the link has expired, the page will send you a fresh one.\n\nOpen your job:\n${url}`,
   },
   screening_cleared: {
     subject: "Your job cleared our screen",
@@ -131,30 +133,30 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     body: (url) => `The reviewed information leaves a consequential assessment blocker unresolved. Your job page shows the reason and what is needed. Blueprint owns the follow-through; reply in your job conversation with a correction or use the optional job page when that information changes.\n\nOpen your job:\n${url}`,
   },
   screening_started: {
-    subject: "A robot team picked up your job",
-    body: (url) => `A robot team has started an evaluation run against your scene. We will email you again when it reports a result.\n\nOpen your job:\n${url}`,
+    subject: "An evaluation of your job has started",
+    body: (url) => `Blueprint has started an evaluation run of one candidate against your scene. We will email you again when it reports a result.\n\nOpen your job:\n${url}`,
   },
   results_ready: {
-    subject: "Results are in from a robot team",
-    body: (url, detail, _counterpart, workspaceUrl) => `A robot team's evaluation run against your scene has finished${detail ? `: ${detail}` : ""}. This is a simulation result for one team's robot, not a physical test or a recommendation.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
+    subject: "Results are in from an evaluation of your job",
+    body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run of one candidate against your scene has finished${detail ? `: ${detail}` : ""}. This is a simulation result for one candidate, not a physical test or a recommendation; a recommendation comes only from the finalists' full scoring.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
   },
   run_no_result: {
-    subject: "A robot team's run ended without a result",
-    body: (url, detail, _counterpart, workspaceUrl) => `A robot team's run against your scene ended without a complete scored result. ${detail || noResultObservationText()} Reply if you need help understanding what happened.\n\n${whereRunsAre(url, workspaceUrl, "Review the run")}`,
+    subject: "An evaluation run ended without a result",
+    body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run against your scene ended without a complete scored result. ${detail || noResultObservationText()} Reply if you need help understanding what happened.\n\n${whereRunsAre(url, workspaceUrl, "Review the run")}`,
   },
   awaiting_evaluations: {
-    subject: "Robot teams can now evaluate your job",
-    body: (url) => `Your job is open to robot teams approved for the beta. They see only its anonymized card, and each can request a free evaluation in a simplified simulation of your task, informed by your footage. No team has started one yet. We will email you when a team starts and when it reports a result. Nothing is needed from you.\n\nOpen your job:\n${url}`,
+    subject: "Your job is ready for evaluation",
+    body: (url) => `Your job is ready for evaluation in a simplified simulation of your task, informed by your footage. Next, Blueprint evaluates candidate robots and policies against it, and approved partners, who see only its anonymized card, can ask for their systems to be evaluated too. Your job page shows where the evaluations stand. Nothing is needed from you.\n\nOpen your job:\n${url}`,
   },
   no_team_passed: {
-    subject: "No robot team's evaluation has passed yet",
+    subject: "No evaluation of your job has passed yet",
     // `detail` is what would change that (`qualifiedGap`), as /beta promises.
-    body: (url, detail, _counterpart, workspaceUrl) => `Every simulation evaluation of your job so far has finished, and none passed. These runs do not support a pilot recommendation. ${detail || "We need stronger evidence for this tested configuration before recommending it."} While your job card stays published, robot teams approved for the beta can still request evaluations. Blueprint will assess what further evidence or another approach would help the decision. Nothing is needed from you for these completed runs.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+    body: (url, detail, _counterpart, workspaceUrl) => `Every simulation evaluation of your job so far has finished, and none passed. These runs do not support a pilot recommendation. ${detail || "We need stronger evidence for this tested configuration before recommending it."} Blueprint will assess what further evidence or another candidate would help the decision, and while your job card stays published, approved partners can still ask for their systems to be evaluated. Nothing is needed from you for these completed runs.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   no_qualified_evaluation: {
     subject: "Your job's evaluations finished, with no result that counts yet",
     // Never a failure: diagnostic, unqualified or unscored runs count neither way.
-    body: (url, _detail, _counterpart, workspaceUrl) => `The robot-team evaluations of your job so far have finished, but none can support a recommendation yet: they were diagnostic runs, ran before your scene was qualified for scored evaluations, could not be scored against your job's pass mark, or ended without an observed episode. So none counts as a pass or a failure. Nothing is needed from you. We email you when a qualified evaluation finishes.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+    body: (url, _detail, _counterpart, workspaceUrl) => `The evaluations of your job so far have finished, but none can support a recommendation yet: they were diagnostic runs, ran before your scene was qualified for scored evaluations, could not be scored against your job's pass mark, or ended without an observed episode. So none counts as a pass or a failure. Nothing is needed from you. We email you when a qualified evaluation finishes.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   footage_before_account: {
     subject: "Your video arrived before your job was saved to an account",
@@ -163,8 +165,8 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     body: (url, _detail, _counterpart, workspaceUrl) => `Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. You don't need to send it again. ${workspaceUrl ? `Your job is saved to your account:\n${workspaceUrl}` : `Save the job to your account from your job page, so you can follow it there:\n${url}`}\n\nWe email you when that changes.`,
   },
   pilot_request: {
-    subject: "A robot team asked to evaluate your site for a pilot",
-    body: (url) => `A robot team asked to evaluate your site for a pilot. Your details stay private, and there is nothing for you to do for this request. We review the team's fit, evidence and delivery capabilities before presenting a suitable option. You choose the delivery partner and agree any physical pilot directly with them.\n\nOpen your job:\n${url}`,
+    subject: "A partner asked to have its system evaluated on your job",
+    body: (url) => `An approved partner asked to have its system evaluated on your job for a possible pilot. Your details stay private, and there is nothing for you to do for this request. We review the partner's fit, evidence and delivery capabilities before including its system or presenting it as an option. You choose the delivery partner and agree any physical pilot directly with them.\n\nOpen your job:\n${url}`,
   },
   pilot_recommended: {
     subject: "Your recommended pilot is ready",
@@ -188,8 +190,8 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
 /**
  * `video_received` for a site whose drafted brief is still unconfirmed. Same
  * event, same outbox key, so still one email when the footage lands; it names
- * the step that is the site's own, because robot teams can evaluate a job only
- * once its brief is confirmed (`teamJobAccess`).
+ * the step that is the site's own, because a job can be evaluated only once
+ * its brief is confirmed (`teamJobAccess`).
  */
 const VIDEO_RECEIVED_CONFIRM_BRIEF = {
   subject: "We received your walkthrough. Next, confirm your job brief",
@@ -264,7 +266,7 @@ export function buildTaskLifecycleNotification(params: {
   detail?: string;
   correlationId?: string;
   captureUrl?: string;
-  /** `pilot_booked` only: the robot team's contact, shared at booking. */
+  /** `pilot_booked` only: the delivery partner's contact, shared at booking. */
   counterpart?: PilotContact | null;
   runProgress?: NoResultObservation;
   /** `preparation_ended` only: rendered through a fixed sentence per known reason. */
@@ -303,8 +305,8 @@ export function buildTaskLifecycleNotification(params: {
 }
 
 /**
- * Tell the site, once, that robot teams can now request an evaluation of its
- * job and none has. Read from the stored record by the same predicate the job
+ * Tell the site, once, that its job is open for evaluation and no evaluation
+ * has been requested yet. Read from the stored record by the same predicate the job
  * library uses, so it is sent only when it is true. Callers that may have just
  * opened a job (a Pipeline sync, a published card) call this; it is a no-op
  * otherwise, and the outbox key keeps it to one email per job.

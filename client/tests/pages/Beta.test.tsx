@@ -12,6 +12,18 @@ describe("the beta page", () => {
     expect(screen.queryByText(/Evaluations start once an invited robot team/)).not.toBeInTheDocument();
   });
 
+  // Owner decision, 2026-10-26: Blueprint runs the candidates and recommends deployment companies.
+  it("says Blueprint runs the candidates, recommends from full scoring and holds jobs it cannot score yet", () => {
+    render(<Beta />);
+    const receive = screen.getByRole("heading", { name: "What do I receive?" }).closest("section")!;
+    expect(receive).toHaveTextContent(/run the candidates ourselves in simulation: accessible policies, policy APIs and robot configurations/);
+    expect(receive).toHaveTextContent(/its technology provider supplies it/);
+    expect(receive).toHaveTextContent(/Quick screening runs are diagnostic; a recommendation comes only from the finalists' full scoring/);
+    expect(receive).toHaveTextContent(/When an approach wins, you get our recommendation, the deployment companies that support it/);
+    expect(receive).toHaveTextContent(/We do not turn a job away because of its type/);
+    expect(receive).not.toHaveTextContent(/technology teams where their involvement is needed/);
+  });
+
   it("keeps the free beta distinct from customer-approved physical delivery costs", () => {
     render(<Beta />);
     const costs = screen.getByRole("heading", { name: "What does it cost?" }).closest("section")!;

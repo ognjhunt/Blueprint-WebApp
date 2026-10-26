@@ -112,7 +112,7 @@ describe("a job we cannot score", () => {
     expect(status.operatorAction).toMatch(/liquids.*two kinds of job: picking up one rigid object and placing it at another spot on the same table, shelf or counter, and opening one door, drawer or lid/);
   });
 
-  it("names only the job kinds a robot team can run, everywhere", () => {
+  it("names only the job kinds Blueprint's evaluation can score, everywhere", () => {
     expect(SUPPORTED_TASK_LINES).toEqual(["Picking up one rigid object and placing it at another spot on the same table, shelf or counter",
       "Opening one door, drawer or lid of a fixture"]);
     expect(SUPPORTED_TASK_SCOPE).toMatch(/opening one door, drawer or lid/);
@@ -125,6 +125,8 @@ describe("a job we cannot score", () => {
   it("asks for one sentence when it could not tell which job this is, instead of calling it out of scope", () => {
     const unclear = taskScopeNotYet("unclear");
     expect(unclear.headline).toMatch(/one sentence/i);
+    expect(unclear.headline).toMatch(/before we can evaluate it/);
+    expect(unclear.headline).not.toMatch(/robot teams?/i);
     expect(unclear.headline).not.toMatch(/preparing an evaluation/i);
     expect(unclear.nextStep).toMatch(/describe the job in one sentence/i);
     expect(taskScopeNotYet("liquid").headline).toMatch(/preparing an evaluation/i);
@@ -137,7 +139,8 @@ describe("scoredTaskDescription", () => {
     expect(scoredTaskDescription("rigid_pick_place")).toBe("Pick up the object and place it in the target area");
     expect(scoredTaskDescription("pick_and_place")).toBe("Pick up the object and place it in the target area");
     expect(scoredTaskDescription("planar_push")).toBe("Push the object across the surface into the target area");
-    expect(scoredTaskDescription("articulated_open_close")).toBe("Open the door or drawer and hold it open");
+    // The same words as SUPPORTED_TASK_LINES: one door, drawer or lid.
+    expect(scoredTaskDescription("articulated_open_close")).toBe("Open the door, drawer or lid and hold it open");
     expect(scoredTaskDescription("deformable_fold")).toBeNull();
     expect(scoredTaskDescription(undefined)).toBeNull();
   });

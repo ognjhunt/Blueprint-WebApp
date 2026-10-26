@@ -72,6 +72,8 @@ describe("task lifecycle notifications", () => {
     const first = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:results_ready:run_a") as Record<string, string>;
     expect(first.body).toContain("12 of 50 simulated episodes succeeded");
     expect(first.body).toMatch(/not a physical test/i);
+    // A screening result is diagnostic; only the finalists' full scoring recommends.
+    expect(first.body).toMatch(/simulation result for one candidate, not a physical test or a recommendation; a recommendation comes only from the finalists' full scoring/);
     expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:results_ready:run_b")).toBe(true);
   });
 
@@ -174,7 +176,7 @@ describe("a waiting job hears what it is waiting on", () => {
     ...(succeeded === null ? {} : { result: { scoring: scored(200), episodeOutcomes: syntheticEpisodeOutcomes(200, succeeded),
       observed: { episodesRun: 200, episodesSucceeded: succeeded, medianCycleSeconds: null } } }) });
 
-  it("tells the site once that robot teams can evaluate the job, only while true and before any run", async () => {
+  it("tells the site once that its job is ready for evaluation, only while true and before any run", async () => {
     const { notifyIfOpenForEvaluations } = await import("../utils/taskLifecycleNotifications");
     jobAccess.evaluationAvailable = false;
     expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
@@ -182,8 +184,11 @@ describe("a waiting job hears what it is waiting on", () => {
     expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(true);
     expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:awaiting_evaluations") as Record<string, string>;
-    expect(row.subject).toBe("Robot teams can now evaluate your job");
-    expect(row.body).toMatch(/No team has started one yet\. We will email you when a team starts/);
+    expect(row.subject).toBe("Your job is ready for evaluation");
+    // Blueprint runs the candidates; partners can ask to be evaluated too (owner, 2026-10-26).
+    expect(row.body).toMatch(/Next, Blueprint evaluates candidate robots and policies against it/);
+    expect(row.body).toMatch(/Your job page shows where the evaluations stand\. Nothing is needed from you\./);
+    expect(row.body).not.toMatch(/robot teams?/i);
     sharedFakeFirestoreState.docs.delete("captureOutbox/req-1:awaiting_evaluations");
     run("run_q", "requested", null);
     expect((await notifyIfOpenForEvaluations("req-1")).enqueued).toBe(false);
@@ -247,7 +252,8 @@ describe("a waiting job hears what it is waiting on", () => {
     sharedFakeFirestoreState.docs.delete("evaluationRuns/run_b");
     expect((await notifyIfNoTeamPassed("req-1", "run_b")).enqueued).toBe(true);
     const row = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:no_team_passed:run_b") as Record<string, string>;
-    expect(row.subject).toBe("No robot team's evaluation has passed yet");
+    expect(row.subject).toBe("No evaluation of your job has passed yet");
+    expect(row.body).not.toMatch(/robot teams?/i);
     expect(row.body).toMatch(/none passed\. These runs do not support a pilot recommendation/);
 
     run("run_c", "requested", null);

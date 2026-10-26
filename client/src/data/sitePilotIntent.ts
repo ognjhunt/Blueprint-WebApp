@@ -16,7 +16,7 @@ export const deploymentPathOptions = [
 export const siteVisitOptions = [
   { value: "yes", label: "Yes, for a scoped visit or pilot" },
   { value: "subject_to_approval", label: "Possibly, subject to site approval" },
-  { value: "no", label: "No on-site robot-team work" },
+  { value: "no", label: "No on-site partner work" },
   { value: "undecided", label: "We have not decided" },
 ] as const;
 

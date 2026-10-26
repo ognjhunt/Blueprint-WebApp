@@ -245,7 +245,7 @@ export default function Evaluation() {
                 ? `Site decision: ${statusLabel(item.outcome)}.`
                 : item.successRate !== null
                   ? counts
-                    ? "Blueprint reviews submitted results and recommends one team whose evaluation passed; the site can book that pilot."
+                    ? "Blueprint reviews the results. When an approach passes its full evaluation, Blueprint recommends it with deployment companies that support it, and the site chooses its delivery partner."
                     : "This run cannot back a recommendation."
                   : "You can return here to track the request. No compute starts before the run is authorized."}
             </p>

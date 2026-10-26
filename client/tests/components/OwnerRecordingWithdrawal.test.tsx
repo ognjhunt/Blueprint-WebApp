@@ -51,7 +51,7 @@ describe("owner-link withdrawal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Yes, withdraw permission" }));
     expect(await screen.findByText("Recording permission withdrawn.")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(/stops further processing and use of this recording/);
-    expect(screen.getByRole("status")).toHaveTextContent(/robot teams can no longer see the job/);
+    expect(screen.getByRole("status")).toHaveTextContent(/approved partners can no longer see the job/);
     expect(screen.queryByText(/deleted|deletion of/i)).not.toBeInTheDocument();
     const posts = fetcher.mock.calls.filter(call => call[1]?.method === "POST");
     expect(posts).toHaveLength(1);
