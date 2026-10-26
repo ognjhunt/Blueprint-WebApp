@@ -14,7 +14,7 @@ const configurationSchema = z.object({id, label:z.string(), binding_digest:diges
   policy_candidates:z.array(z.object({id, artifact_digest:digest}).strict()).length(2)}).strict();
 export const teamContextSchema = z.object({schema_version:z.literal("task_evaluation_team_context.v1"),
   owner:ownerSchema, source_launch_id:id, source_profile_digest:digest, configured_scene_revision_digest:digest,
-  source:z.record(z.unknown()), task:z.record(z.unknown()), rights_reference:z.string(),
+  source:z.record(z.string(), z.unknown()), task:z.record(z.string(), z.unknown()), rights_reference:z.string(),
   configurations:z.array(configurationSchema), claim_scope:z.literal("development_only"),
   provider_mutation_performed:z.literal(false), context_digest:digest}).strict();
 export const teamEvaluationCommand = z.object({id, setupId:id, sourceLaunchId:id,

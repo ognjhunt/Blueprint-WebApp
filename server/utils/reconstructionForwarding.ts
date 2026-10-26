@@ -224,7 +224,7 @@ const testbedCompilationSubmissionV2Schema = z.object({
       subject: z.string().min(1).max(512),
       measurable_threshold: z.object({
         operator: z.string().min(1).max(32),
-        value: z.unknown(),
+        value: z.unknown().optional(),
         units: z.string().min(1).max(64),
         metric: z.string().min(1).max(128),
       }).strict(),

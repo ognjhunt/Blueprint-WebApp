@@ -39,7 +39,7 @@ const codes = { preparing: "preparation_in_progress", awaiting_inputs: "preparat
   failed_retryable: "preparation_retryable_failure", authority_ended: "preparation_authority_ended",
   handed_off: "preparation_handed_off", capacity_delayed: "preparation_capacity_delayed",
   failed_terminal: "preparation_failed_terminal" } as const;
-const receiptBase = websitePreparationSelectorSchema.innerType().extend({
+const receiptBase = z.object(websitePreparationSelectorSchema.shape).extend({
   attempt_count: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   correlation_id: digest, status_digest: digest,
@@ -320,7 +320,7 @@ async function fresh(captureId: string, requestId: string, deps: WebsitePreparat
 export async function loadCurrentWebsitePreparationStatus(requestId: string, captureId: string,
   deps = defaultDeps): Promise<PublicWebsitePreparationStatus> {
   try {
-    id.parse(requestId); websitePreparationSelectorSchema.innerType().shape.capture_id.parse(captureId);
+    id.parse(requestId); websitePreparationSelectorSchema.shape.capture_id.parse(captureId);
     const {status} = await fresh(captureId, requestId, deps);
     // Customer correlation is company-derived; never trust caller supplied correlation text.
     return {state: status.state, correlationId: `bp-prep-${status.status_digest.slice(7, 23)}`,

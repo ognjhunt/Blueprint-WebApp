@@ -193,7 +193,7 @@ export type SiteVideoJobEstimatesOutput = z.infer<typeof jobEstimatesSchema>;
  * rather than failing the reading it rides on. Shared with the coverage review
  * (`capture-coverage.ts`), the reader that runs on every uploaded walkthrough.
  */
-export const jobEstimatesField = z.any().transform((value): SiteVideoJobEstimatesOutput | null | undefined =>
+export const jobEstimatesField = z.any().optional().transform((value): SiteVideoJobEstimatesOutput | null | undefined =>
   value === undefined ? undefined : jobEstimatesSchema.safeParse(value).data ?? null);
 
 /** How to estimate the job, for any reader that watches the site's footage. */

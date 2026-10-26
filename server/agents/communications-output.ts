@@ -17,7 +17,7 @@ export function outputTextDigest(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-const pointer = (path: (string | number)[]) => "/" + path.map(segment => String(segment).replace(/~/g, "~0").replace(/\//g, "~1")).join("/");
+const pointer = (path: readonly PropertyKey[]) => "/" + path.map(segment => String(segment).replace(/~/g, "~0").replace(/\//g, "~1")).join("/");
 export class CommunicationsOutputValidationError extends Error {
   constructor(public validationIssues: NonNullable<CommunicationsOutputSource["validationIssues"]>,
     public normalizedMetadataPaths: string[] = [], public formatNormalizations: string[] = []) {

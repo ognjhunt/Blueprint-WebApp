@@ -12,7 +12,7 @@ export class CommunicationsDraftRevisionError extends Error {
   constructor(message: string, public status = 409, public issues?: unknown) { super(message); }
 }
 const requestSchema = z.object({
-  expectedReviewDigest: z.string().regex(/^[a-f0-9]{64}$/), output: z.record(z.unknown()),
+  expectedReviewDigest: z.string().regex(/^[a-f0-9]{64}$/), output: z.record(z.string(), z.unknown()),
 }).strict();
 
 /** Authenticated editing of an unsent human-review draft. Research, original

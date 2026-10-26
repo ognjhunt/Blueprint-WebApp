@@ -106,7 +106,8 @@ describe("OpenAI operator tool feedback", () => {
     expect(JSON.stringify(mocks.create.mock.calls[1][0].input)).toContain('/done');
     expect(result.artifacts).toMatchObject({ output_repair_iterations: 1,
       output_repairs: [{ rawOutput: '{"done":"unknown"}', issues: [{ path: "/done", code: "invalid_type",
-        expectations: { expected: "boolean", received: "string" } }] }] });
+        expectations: { expected: "boolean" } }] }] });
+    expect((result.artifacts?.output_repairs as any[])?.[0].issues[0].expectations).not.toHaveProperty("received");
     expect(mocks.create.mock.calls[1][0].prompt_cache_options).toEqual({ mode: "explicit", ttl: "30m" });
     expect(mocks.tool).not.toHaveBeenCalled();
   });
@@ -166,7 +167,7 @@ describe("OpenAI operator tool feedback", () => {
     const issue = z.literal("private_literal").safeParse("private_received");
     if (issue.success) throw new Error("expected invalid literal fixture");
     mocks.tool.mockRejectedValueOnce(issue.error); await run();
-    expect(outputs()[0].result.issues).toEqual([{ path: "/", code: "invalid_literal" }]);
+    expect(outputs()[0].result.issues).toEqual([{ path: "/", code: "invalid_value" }]);
     expect(JSON.stringify(outputs())).not.toContain("private_");
   });
 

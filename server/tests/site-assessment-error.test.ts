@@ -73,7 +73,7 @@ async function failProvider(error: unknown, extraHost: Record<string, any> = {})
 }
 it("retains only safe API exception metadata after the actual SDK reservation, without retry or refund", async () => {
   const error = new OpenAI.RateLimitError(429, { code: "rate_limit_exceeded", message: "PRIVATE prompt https://secret.invalid sk-private" },
-    undefined, { "x-request-id": `req_${"a".repeat(32)}`, "x-private": "PRIVATE" });
+    undefined, new Headers({ "x-request-id": `req_${"a".repeat(32)}`, "x-private": "PRIVATE" }));
   const result = await failProvider(error);
   expect(result.error).toBe("site_assessment_failed");
   expect(result.artifacts?.site_assessment_error).toEqual({ schema_version: "site_assessment_error.v1", correlation_id: runId,

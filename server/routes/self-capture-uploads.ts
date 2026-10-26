@@ -1485,7 +1485,7 @@ const completeSchema = z
   .object({
     parts: z.number().int().min(1).max(100_000),
     extension: z.string().trim().min(1).max(8),
-    metadata: z.unknown(),
+    metadata: z.unknown().optional(),
     sizeBytes: z.number().int().min(1),
   })
   .strict();

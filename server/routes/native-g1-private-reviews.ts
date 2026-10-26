@@ -17,7 +17,7 @@ const ingestSchema = z.object({
   run_id: identifier,
   owner_user_id: identifier,
   organization_id: identifier,
-  review: z.unknown(),
+  review: z.unknown().optional(),
 }).strict();
 
 type StoredReview = {

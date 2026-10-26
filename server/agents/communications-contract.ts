@@ -350,7 +350,7 @@ const outreachContractField = z.unknown().transform((value, context): OutreachRe
     : version === OUTREACH_HYPOTHESIS_CONTRACT_VERSION ? outreachHypothesisContractSchema : outreachReviewContractSchema;
   const parsed = schema.safeParse(value);
   if (!parsed.success) {
-    for (const issue of parsed.error.issues) context.addIssue(issue);
+    for (const issue of parsed.error.issues) context.addIssue({ ...issue });
     return z.NEVER;
   }
   return parsed.data;

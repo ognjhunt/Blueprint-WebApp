@@ -158,7 +158,7 @@ describe("company policy container contract v2", () => {
   it("refuses tags, secrets, mounts, environment, and caller-selected networking", () => {
     const tagged = contract();
     tagged.container.image = "registry.acme.example/widget-grasp:latest";
-    expectInvalid(tagged, "container.image:invalid_string");
+    expectInvalid(tagged, "container.image:invalid_format");
 
     for (const [field, value] of [
       ["registry_token", "secret"],
@@ -186,7 +186,7 @@ describe("company policy container contract v2", () => {
       ...contract(),
       security_profile: {...COMPANY_POLICY_SECURITY_PROFILE, network_mode: "host"},
     };
-    expectInvalid(weakened, "security_profile.network_mode:invalid_literal");
+    expectInvalid(weakened, "security_profile.network_mode:invalid_value");
 
     const normalized = normalizeCompanyPolicyContainerContract(contract());
     expect(normalized.ok).toBe(true);

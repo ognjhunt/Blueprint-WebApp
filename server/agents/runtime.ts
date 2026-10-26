@@ -69,10 +69,16 @@ function stripUndefinedDeep<T>(value: T): T {
   }
 
   if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const definition = record.definition && typeof record.kind === "string"
+      ? getTaskDefinition(record.kind as AgentTaskKind) : undefined;
+    const hasRuntimeDefinition = definition && definition.kind === record.kind && record.definition === definition;
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
+      Object.entries(record)
         .filter(([, entry]) => entry !== undefined)
-        .map(([key, entry]) => [key, stripUndefinedDeep(entry)]),
+        // Parsers and prompt builders are runtime code. Keep their registry reference in saved task data.
+        .map(([key, entry]) => [key, hasRuntimeDefinition && key === "definition"
+          ? { kind: definition.kind } : stripUndefinedDeep(entry)]),
     ) as T;
   }
 
@@ -1335,7 +1341,7 @@ async function createRuntimeCheckpoint(params: {
     label: params.label,
     trigger: params.trigger,
     replayable: params.replayable,
-    snapshot: params.snapshot,
+    snapshot: stripUndefinedDeep(params.snapshot),
   });
   if (checkpoint) {
     await updateSessionRuntimePointers(params.session.id, {
