@@ -3,14 +3,19 @@
  * Which jobs we can score in simulation today, and what follows when we cannot.
  *
  * The Pipeline builds every non-articulated website job as pick-and-place, so
- * a job we cannot score must be refused here, never coerced into a narrower
- * task a team could pass. A team evaluation runs a rigid pick-and-place onto a
- * spot on the surface the object starts on, or opening one door or drawer
- * (Pipeline `team_scene_packet.py` since #2943, `website_task_preparation.py`),
- * so placing an object inside a container is refused (audit N4).
+ * a job we cannot score must be held here, never coerced into a narrower task
+ * a team could pass. A team evaluation runs a rigid pick-and-place onto a spot
+ * on the surface the object starts on, or opening one door or drawer (Pipeline
+ * `team_scene_packet.py` since #2943, `website_task_preparation.py`), so
+ * placing an object inside a container is held (audit N4). Under the owner's
+ * rule (2026-10-26) a held job is accepted, told we are preparing its
+ * evaluation and counted as demand; nothing is refused by keyword.
  */
 import { describe, expect, it } from "vitest";
-import { SUPPORTED_TASK_LINES, SUPPORTED_TASK_SCOPE, screenTaskScope, scoredTaskDescription, taskScopeNotYet } from "../utils/siteTaskScope";
+import {
+  SUPPORTED_TASK_LINES, SUPPORTED_TASK_SCOPE, screenTaskScope, scoredTaskDescription, taskScopeHeld, taskScopeNotYet,
+  taskScopeRecord,
+} from "../utils/siteTaskScope";
 import { teamJobAccess } from "../utils/teamJobAccess";
 import { projectTaskStatus, taskStatusInputFrom } from "../utils/taskStatusProjection";
 
@@ -30,7 +35,7 @@ describe("screenTaskScope", () => {
     ["Opening the sample drawer before each batch", "articulated_open_close"],
     ["Pull open the cabinet door for the morning check-in", "articulated_open_close"],
   ])("scores %j as %s", (summary, kind) => {
-    expect(screen(summary)).toMatchObject({ supported: true, kind, reason: null });
+    expect(screen(summary)).toMatchObject({ supported: true, kind, reason: null, disposition: "scorable" });
   });
 
   it.each([
@@ -55,8 +60,22 @@ describe("screenTaskScope", () => {
     ["Pack cartons into totes", "container"],
     ["Put the part in the bin", "container"],
     ["Place each cup inside the crate", "container"],
-  ])("refuses %j as %s", (summary, reason) => {
-    expect(screen(summary)).toMatchObject({ supported: false, kind: null, reason });
+  ])("holds %j as %s", (summary, reason) => {
+    expect(screen(summary)).toMatchObject({ supported: false, kind: null, reason,
+      disposition: reason === "unclear" ? "needs_description" : "held_for_preparation" });
+  });
+
+  it("records a held job as demand for what to build next, and an unreadable brief as not yet described", () => {
+    const held = taskScopeRecord(screen("Folding towels for wash-and-fold orders"), "2026-10-26T00:00:00Z");
+    expect(held).toMatchObject({ disposition: "held_for_preparation", demandKind: "deformable" });
+    expect(taskScopeHeld({ site_task_scope: held })).toBe(true);
+    const undescribed = taskScopeRecord(screen("Your site task"), "2026-10-26T00:00:00Z");
+    expect(undescribed).toMatchObject({ disposition: "needs_description", demandKind: null });
+    expect(taskScopeHeld({ site_task_scope: undescribed })).toBe(false);
+    const scorable = taskScopeRecord(screen("Opening the sample drawer before each batch"), "2026-10-26T00:00:00Z");
+    expect(scorable).toMatchObject({ disposition: "scorable", demandKind: null });
+    // Nothing is refused by keyword: no harness capability verdict exists yet.
+    expect(new Set(["scorable", "held_for_preparation", "needs_description"])).toContain(held.disposition);
   });
 
   it("reads the success definition: it can name the job, or rule it out", () => {
@@ -89,7 +108,7 @@ describe("a job we cannot score", () => {
       site_task_next_update_iso: null,
     }));
     expect(status.decision).toBe("not_yet_supported");
-    expect(status.headline).toMatch(/cannot score this job.*not open to robot teams/);
+    expect(status.headline).toMatch(/preparing an evaluation/);
     expect(status.operatorAction).toMatch(/liquids.*two kinds of job: picking up one rigid object and placing it at another spot on the same table, shelf or counter, and opening one door, drawer or lid/);
   });
 
@@ -106,9 +125,10 @@ describe("a job we cannot score", () => {
   it("asks for one sentence when it could not tell which job this is, instead of calling it out of scope", () => {
     const unclear = taskScopeNotYet("unclear");
     expect(unclear.headline).toMatch(/one sentence/i);
-    expect(unclear.headline).not.toMatch(/cannot score this job/i);
+    expect(unclear.headline).not.toMatch(/preparing an evaluation/i);
     expect(unclear.nextStep).toMatch(/describe the job in one sentence/i);
-    expect(taskScopeNotYet("liquid").headline).toMatch(/cannot score this job/i);
+    expect(taskScopeNotYet("liquid").headline).toMatch(/preparing an evaluation/i);
+    expect(taskScopeNotYet("liquid").nextStep).toMatch(/stays on file.*email you when robot teams can be evaluated/i);
   });
 });
 

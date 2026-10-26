@@ -195,7 +195,7 @@ describe("steps to a pilot", () => {
   it("says so when a job is out of scope, rather than promising robot teams", () => {
     const tracker = trackerOf(inputs({ reconstructionState: "ready",
       request: { requestId: "job-1", request: {}, site_task_scope: { supported: false, reason: "deformable" } } }));
-    expect(tracker.meanwhile).toBe("Not yet: we cannot score this job in simulation today, so it is not open to robot teams.");
+    expect(tracker.meanwhile).toBe("We have your job and are preparing an evaluation for it.");
   });
 
   it("says what comes next only from a real state", () => {

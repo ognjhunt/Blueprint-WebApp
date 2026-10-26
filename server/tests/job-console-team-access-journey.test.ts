@@ -266,7 +266,7 @@ const closedJobs: Closed[] = [
   // The real brief screen, at confirmation (`siteTaskScope.ts`).
   { label: "a job we cannot score yet", start: { task: "Fold towels into stacks", successDefinition: "Every towel folded and stacked" },
     reason: "task_not_yet_supported",
-    expected: { stage: "not_open", nextAction: "No action: our simulation cannot score this kind of job yet", actionOwner: "none" } },
+    expected: { stage: "not_open", nextAction: "Held while we prepare an evaluation for this kind of job; counted as demand for what to build next", actionOwner: "none" } },
   // A brief the screen could not read needs the site's one sentence, not "no action".
   { label: "a brief the screen could not read", start: { task: "Cartons on the line", successDefinition: "Cartons stay intact" },
     reason: "task_not_yet_supported",

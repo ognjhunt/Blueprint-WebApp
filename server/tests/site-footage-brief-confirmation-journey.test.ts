@@ -340,7 +340,7 @@ it("words the no-pass notice the same way, for unclaimed and claimed sites", asy
 /**
  * Audit N3: a site may start with footage and no description. Its brief's
  * summary is a placeholder, and the scope screen read only typed text, so the
- * job screened as "not something we can score yet" and was closed to teams.
+ * job screened as one we cannot score yet and was held, closed to teams.
  * A placeholder needs one sentence: the confirmation asks for it, and a brief
  * that still says nothing readable is asked for one, not refused.
  */

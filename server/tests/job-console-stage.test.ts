@@ -125,7 +125,7 @@ describe("deriveJobStage", () => {
       ["restricted_to_named_teams", "live", { stage: "not_open", actionOwner: "blueprint",
         nextAction: "Retired dossier names only certain teams: ask the site whether every approved team may see it" }],
       ["task_not_yet_supported", "live", { stage: "not_open", actionOwner: "none",
-        nextAction: "No action: our simulation cannot score this kind of job yet" }],
+        nextAction: "Held while we prepare an evaluation for this kind of job; counted as demand for what to build next" }],
       ["development_only", "live", { stage: "not_open", actionOwner: "none",
         nextAction: "No action: a development capture is never opened to teams" }],
       ["rights_needs_review", "live", { stage: "not_open", actionOwner: "blueprint",

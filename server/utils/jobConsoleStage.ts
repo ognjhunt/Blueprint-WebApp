@@ -52,7 +52,7 @@ function step(stage: JobStage, nextAction: string, actionOwner: ActionOwner): St
 const CLOSED_REASON_LABELS: Record<TeamAccessReason, string> = {
   not_a_site_job: "not a site's job",
   pipeline_placeholder: "a Pipeline placeholder, not a site's job",
-  task_not_yet_supported: "our simulation cannot score this kind of job yet",
+  task_not_yet_supported: "we are preparing an evaluation for this kind of job",
   not_listed: "no current public card",
   kept_private: "the retired dossier keeps it private",
   restricted_to_named_teams: "the retired dossier names only certain teams",
@@ -111,7 +111,7 @@ export function closedJobStep(facts: JobFacts): Step {
     // A brief the screen could not read is not out of scope: the site owes one sentence.
     case "task_not_yet_supported": return facts.teamAccess.scopeReason === "unclear"
       ? step("brief_review", "Waiting on site to describe the job in one sentence and confirm the brief again", "site")
-      : step("not_open", "No action: our simulation cannot score this kind of job yet", "none");
+      : step("not_open", "Held while we prepare an evaluation for this kind of job; counted as demand for what to build next", "none");
     case "development_only": return step("not_open", "No action: a development capture is never opened to teams", "none");
     case "rights_needs_review": return step("not_open", "Rights review pending: review the capture's rights and privacy", "blueprint");
     case "rights_blocked":
