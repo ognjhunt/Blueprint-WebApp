@@ -7,13 +7,15 @@
  * `website_task_preparation`): picking up one rigid object and placing it at a
  * target spot (scored on a lift and a placement), or opening a door or drawer.
  * The beta's evaluation is a robot team's run, and the team scene packet
- * (Pipeline `team_scene_packet.py`) accepts only the first: it refuses
- * articulated tasks and destination bodies by name. The preparation also
- * blocks placing an object inside a container (`task_destination_interior_
- * geometry_required`) and needs the target spot on the surface the object
- * starts on. So the one job a team can evaluate is a rigid pick-and-place onto
- * that surface, and opening jobs and container placements are refused here
- * rather than left to wait for an evaluation that cannot run (audit N4).
+ * (Pipeline `team_scene_packet.py`) accepts both since Pipeline #2943: an
+ * opening job compiles with its owner's contract and a robot station clear of
+ * the part's swing, for teams on Blueprint's Franka interface. It still
+ * refuses destination bodies by name, and the preparation blocks placing an
+ * object inside a container (`task_destination_interior_geometry_required`)
+ * and needs the target spot on the surface the object starts on. So a team
+ * can evaluate a rigid pick-and-place onto that surface or opening one door
+ * or drawer, and container placements are refused here rather than left to
+ * wait for an evaluation that cannot run (audit N4).
  * Pushing is not scored: no website success contract scores a push, so a push
  * job is refused like any other. A closing job would be scored as a different
  * task and is refused too. The Pipeline builds every non-articulated website
@@ -42,11 +44,7 @@
  * brief always screens the same way, and anyone can see why.
  */
 
-/**
- * `articulated_open_close` is read from screens recorded before team
- * evaluations were the beta's evaluation; this screen no longer returns it as
- * supported.
- */
+/** `articulated_open_close`: opening one door, drawer or lid of a fixture (Pipeline #2943). */
 export type SupportedTaskKind = "rigid_pick_and_place" | "articulated_open_close";
 
 export type UnsupportedTaskReason =
@@ -80,11 +78,12 @@ export interface SiteTaskScope extends SiteTaskScopeVerdict {
 /** The scope, in the words every surface uses: what a robot team's evaluation can run. */
 export const SUPPORTED_TASK_LINES = [
   "Picking up one rigid object and placing it at another spot on the same table, shelf or counter",
+  "Opening one door, drawer or lid of a fixture",
 ] as const;
 
 export const SUPPORTED_TASK_SCOPE =
-  "Today our simulation can score one kind of job: picking up one rigid object and placing it at another spot "
-  + "on the same table, shelf or counter.";
+  "Today our simulation can score two kinds of job: picking up one rigid object and placing it at another spot "
+  + "on the same table, shelf or counter, and opening one door, drawer or lid of a fixture.";
 
 const UNSUPPORTED: ReadonlyArray<[Exclude<UnsupportedTaskReason, "multi_step" | "unclear">, RegExp]> = [
   ["deformable", /\b(fold(s|ed|ing)?|unfold\w*|towels?|cloths?|clothes|clothing|laundry|linens?|garments?|shirts?|fabrics?|textiles?|napkins?|socks?|bed ?sheets?|blankets?|ropes?|cables?|wires?|hoses?|strings?|bags?|bagging|sacks?|pouch(es)?|wrap(s|ped|ping)?|tape|taping|dough|sew(s|ed|ing)?)\b/g],
@@ -153,8 +152,6 @@ function classifyAction(text: string): SiteTaskScopeVerdict | null {
   if (kinds.size > 1 || readings.some((reading) => !reading.kinds.size)) {
     return { supported: false, kind: null, reason: "multi_step", matched };
   }
-  // An opening job is prepared as a scene, but no robot team's evaluation can run it.
-  if (kinds.has("articulated_open_close")) return { supported: false, kind: null, reason: "articulated", matched };
   return { supported: true, kind: [...kinds][0], reason: null, matched };
 }
 
@@ -199,6 +196,7 @@ const REASON_SENTENCES: Record<UnsupportedTaskReason, string> = {
   closing: "Your job closes a door or drawer, and our simulation cannot score that yet.",
   push: "Your job pushes or slides an object, and our simulation scores picking it up and placing it today.",
   container: "Your job places an object inside a container, such as a bin or tote, and our simulation scores placing it on a surface today.",
+  // Read only from screens recorded before Pipeline #2943; the screen no longer returns it.
   articulated: "Your job opens a door or drawer, and a robot team's evaluation cannot score that yet.",
   other: "Your job involves an action our simulation cannot score yet.",
   multi_step: "Your job has more than one step, and our simulation scores one action at a time today.",

@@ -4,10 +4,10 @@
  *
  * The Pipeline builds every non-articulated website job as pick-and-place, so
  * a job we cannot score must be refused here, never coerced into a narrower
- * task a team could pass. A team evaluation runs only a rigid pick-and-place
- * onto a spot on the surface the object starts on (Pipeline
- * `team_scene_packet.py`, `website_task_preparation.py`), so opening jobs and
- * placing an object inside a container are refused too (audit N4).
+ * task a team could pass. A team evaluation runs a rigid pick-and-place onto a
+ * spot on the surface the object starts on, or opening one door or drawer
+ * (Pipeline `team_scene_packet.py` since #2943, `website_task_preparation.py`),
+ * so placing an object inside a container is refused (audit N4).
  */
 import { describe, expect, it } from "vitest";
 import { SUPPORTED_TASK_LINES, SUPPORTED_TASK_SCOPE, screenTaskScope, scoredTaskDescription, taskScopeNotYet } from "../utils/siteTaskScope";
@@ -26,6 +26,9 @@ describe("screenTaskScope", () => {
     // The home page's rigid examples are jobs we can score.
     ["Moving clean cups from the dish rack to the counter", "rigid_pick_and_place"],
     ["Moving small boxed parts from the scale to the outbound tray", "rigid_pick_and_place"],
+    // A team evaluation scores opening one door or drawer since Pipeline #2943.
+    ["Opening the sample drawer before each batch", "articulated_open_close"],
+    ["Pull open the cabinet door for the morning check-in", "articulated_open_close"],
   ])("scores %j as %s", (summary, kind) => {
     expect(screen(summary)).toMatchObject({ supported: true, kind, reason: null });
   });
@@ -48,10 +51,6 @@ describe("screenTaskScope", () => {
     ["Cartons", "unclear"],
     ["Close the cabinet doors at the end of the shift", "closing"],
     ["Packing orders", "unclear"],
-    // A team evaluation cannot score opening a door or drawer (the Lab
-    // example on the home page is an illustration, never a scoreable job).
-    ["Opening the sample drawer before each batch", "articulated"],
-    ["Pull open the cabinet door for the morning check-in", "articulated"],
     // Placing an object inside a container is blocked before a scene exists.
     ["Pack cartons into totes", "container"],
     ["Put the part in the bin", "container"],
@@ -91,12 +90,14 @@ describe("a job we cannot score", () => {
     }));
     expect(status.decision).toBe("not_yet_supported");
     expect(status.headline).toMatch(/cannot score this job.*not open to robot teams/);
-    expect(status.operatorAction).toMatch(/liquids.*one kind of job: picking up one rigid object and placing it at another spot on the same table, shelf or counter/);
+    expect(status.operatorAction).toMatch(/liquids.*two kinds of job: picking up one rigid object and placing it at another spot on the same table, shelf or counter, and opening one door, drawer or lid/);
   });
 
-  it("names only the job kind a robot team can run, everywhere", () => {
-    expect(SUPPORTED_TASK_LINES).toEqual(["Picking up one rigid object and placing it at another spot on the same table, shelf or counter"]);
-    expect(SUPPORTED_TASK_SCOPE).not.toMatch(/door|drawer|open/i);
+  it("names only the job kinds a robot team can run, everywhere", () => {
+    expect(SUPPORTED_TASK_LINES).toEqual(["Picking up one rigid object and placing it at another spot on the same table, shelf or counter",
+      "Opening one door, drawer or lid of a fixture"]);
+    expect(SUPPORTED_TASK_SCOPE).toMatch(/opening one door, drawer or lid/);
+    // Screens recorded before Pipeline #2943 still read with their own reason.
     expect(taskScopeNotYet("articulated").detail).toMatch(/opens a door or drawer/);
     expect(taskScopeNotYet("container").detail).toMatch(/inside a container/);
     expect(taskScopeNotYet("closing").detail).not.toMatch(/scores opening/);

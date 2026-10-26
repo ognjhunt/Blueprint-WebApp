@@ -226,7 +226,7 @@ describe("the confirmation says what our screen decided", () => {
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { kind: string; subject: string; body: string; idempotencyKey: string };
     expect(sent).toMatchObject({ kind: "screening_not_now", idempotencyKey: "req-1:brief-screening:task-not-yet-supported" });
     // Only the job kind a robot team's evaluation can run (audit N4).
-    expect(sent.body).toMatch(/one kind of job:\n- Picking up one rigid object and placing it at another spot on the same table, shelf or counter\n\n/);
+    expect(sent.body).toMatch(/these kinds of job:\n- Picking up one rigid object and placing it at another spot on the same table, shelf or counter\n- Opening one door, drawer or lid of a fixture\n\n/);
     expect(sent.body).not.toMatch(/door or drawer/);
     expect(sent.body).toMatch(/not admitted to that simulation route/);
     expect(`${sent.subject}\n${sent.body}`).not.toMatch(/\bmatch|\$|price/i);
