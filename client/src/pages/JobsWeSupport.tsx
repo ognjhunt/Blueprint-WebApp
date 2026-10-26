@@ -20,7 +20,7 @@ export default function JobsWeSupport() {
         <ul><li>What a good result looks like, and how often the work happens.</li><li>Object variation, weight, reach, space and site restrictions.</li><li>Required quality, speed, human assistance and total operating cost.</li><li>Which deployment companies can supply, install and support the approach that wins.</li></ul>
         <p>Task fit and compatibility are checked for each job. Robot form alone does not establish that a setup can perform the work. Examples are starting points, not claims of completed deployments.</p>
       </section>
-      <section className="ms-supported-detail" aria-labelledby="different-title"><h2 id="different-title">Your job is different?</h2><p>Show us the work on video. We do not turn a job away because of its type: if we cannot score yours in simulation yet, we accept it, hold it while we prepare its evaluation and tell you what information is missing. If no candidate suits your job, we explain why. You do not need a confirmed budget to start.</p></section>
+      <section className="ms-supported-detail" aria-labelledby="different-title"><h2 id="different-title">Your job is different?</h2><p>Show us the work on video. We do not turn a job away because of its type: if we cannot score yours in simulation yet, we accept it and hold it while we prepare its evaluation. If information is missing, we tell you what; if no candidate suits your job, we explain why. You do not need a confirmed budget to start.</p></section>
       <a className="ms-button" href="/contact/site-operator">Submit a job <ArrowRight size={18} aria-hidden="true" /></a>
     </section>
   </>;
