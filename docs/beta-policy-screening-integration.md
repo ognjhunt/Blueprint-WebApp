@@ -24,6 +24,10 @@ Diagnostic screening may use the exact proposed task retained by a
 `scene_preparation` grant before the owner confirms the brief. Confirming or
 changing that task changes its context and leaves the earlier screening historical.
 Other managed evaluations and commercial proposals still require an agreed brief.
+Requested supplementary footage uses the existing verified capture continuation
+and its immutable upload generations. Ingestion and workspace projection derive
+the same context from that capture's binding; changed lineage, media or permission
+makes the retained screening historical.
 
 Campaign source, plan, catalog, scenario plan, candidate configurations and episode
 counts remain fixed. Monotonic revisions make retries idempotent and obsolete

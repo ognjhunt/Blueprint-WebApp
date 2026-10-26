@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { scientificBriefDigest } from "./jobEvidenceContract";
-import { managedJobTask, readManagedJobSourceSession } from "./jobManagedEvaluation";
+import { assertManagedScreeningCaptureCurrent, managedJobTask, readManagedJobSourceSession, readManagedScreeningCapture } from "./jobManagedEvaluation";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { encodeTaskEvaluationRunPublication, publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { parseBetaPolicyScreeningPublication, screeningPublicationTransition, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
@@ -40,6 +40,12 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
     .where("receipt.intent_id", "==", publication.source.scene_intent_id).limit(2).get();
   if (matches.docs.length !== 1) throw new Error("screening_scene_intake_unavailable");
   const intakeRef = matches.docs[0].ref;
+  const selected = matches.docs[0].data();
+  if (typeof selected.website_request_id !== "string" || typeof selected.source_session_id !== "string")
+    throw new Error("screening_scene_intake_unavailable");
+  const selectedJob = (await store.collection("inboundRequests").doc(selected.website_request_id).get()).data();
+  const screeningCapture = selectedJob?.job_evidence_source ? { captureId: selected.source_session_id }
+    : await readManagedScreeningCapture(selected.website_request_id, selected.source_session_id);
   const runRef = store.collection("taskEvaluationPolicyRuns").doc(publication.campaign_id);
   const resultId = `screening-${createHash("sha256").update(publication.campaign_id).digest("hex").slice(0, 32)}`;
   const resultRef = store.collection("captureTaskEvaluationRuns").doc(resultId);
@@ -48,6 +54,8 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
     if (!intake?.website_request_id || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/.test(intake.website_request_id))
       throw new Error("screening_scene_intake_unavailable");
     const jobId = intake.website_request_id;
+    if (jobId !== selected.website_request_id || intake.source_session_id !== screeningCapture.captureId)
+      throw new Error("screening_scene_source_mismatch");
     const [job, brief, inventory, oldRun, oldResult] = await Promise.all([
       transaction.get(store.collection("inboundRequests").doc(jobId)),
       transaction.get(store.collection("siteTaskBriefs").doc(jobId)),
@@ -56,7 +64,8 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
     ]);
     if (!brief.exists) throw new Error("job_brief_not_agreed");
     const binding = { job_id: jobId, brief_digest: scientificBriefDigest(brief.data()!) };
-    const scope = managedJobTask({ binding, record: job.data(), brief: brief.data(), allowProposedScreening: true,
+    await assertManagedScreeningCaptureCurrent(jobId, screeningCapture, ref => transaction.get(ref));
+    const scope = managedJobTask({ binding, record: job.data(), brief: brief.data(), allowProposedScreening: true, screeningCapture,
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       sourceSession: await readManagedJobSourceSession(job.data(), ref => transaction.get(ref)) });
     assertScreeningSceneSource(publication, intake, scope);

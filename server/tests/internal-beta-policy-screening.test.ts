@@ -6,7 +6,8 @@ import { tmpdir } from "node:os";
 import express from "express";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
-import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
+import { screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
+import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 import { loadManagedJobEvidence } from "../utils/jobManagedEvaluation";
@@ -80,6 +81,12 @@ it("atomically stores diagnostic progress in existing managed evidence and accep
   expect(store.rows.get("taskEvaluationPolicyRuns/campaign-one").screening_execution_observed).toBe(true);
   expect((await (await send(url, signed(publication))).json()).status).toBe("superseded");
   expect(store.rows.get("taskEvaluationPolicyRuns/campaign-one").publication_revision).toBe(2);
+  const briefDigest = scientificBriefDigest(store.rows.get("siteTaskBriefs/job-one"));
+  expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(true);
+  const status = store.rows.get("taskEvaluationSceneIntakes/intake-one").pipeline_status;
+  status.result_reference.digest = screeningSha("9");
+  status.status_digest = crossRuntimeArtifactDigest(status, "status_digest");
+  expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
 });
 
 it("refuses cross-site and revoked source publications without partial records", async () => {

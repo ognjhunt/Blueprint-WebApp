@@ -1,7 +1,7 @@
 /** Bind managed simulator runs to the agreed job without changing scientific results. */
 import { z } from "zod";
 import { jobEvidenceSourceBindingSchema, jobEvidenceTaskInventoryDigest, scientificBriefDigest, scientificContext } from "./jobEvidenceContract";
-import { crossRuntimeDigest } from "./crossRuntimeCanonical";
+import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
@@ -11,6 +11,7 @@ import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStora
 import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunContract";
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 import { parseBetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
+import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 
 export const jobManagedEvidenceBindingSchema = z.object({
   job_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
@@ -38,6 +39,7 @@ export function managedJobTask(args: {
   sourceSession?: Record<string, any> | null;
   /** Only diagnostic screening may inspect the exact retained preparation task before owner confirmation. */
   allowProposedScreening?: boolean;
+  screeningCapture?: { captureId: string; captureBinding?: Record<string, any> };
 }) {
   const { binding, record, brief } = args;
   if (!record || record.request?.buyerType !== "site_operator") throw new Error("job_not_found");
@@ -86,18 +88,65 @@ export function managedJobTask(args: {
       capture_id: sponsorship.capture_id ?? `walkthrough-${binding.job_id}`, brief_digest: scientificBriefDigest(brief),
       task_inventory_digest: jobEvidenceTaskInventoryDigest(brief, args.inventory) });
   }
+  let selectedContext = context;
+  let websiteCaptureId = String(sponsorship.capture_id ?? `walkthrough-${binding.job_id}`);
+  if (args.screeningCapture) {
+    const { captureId, captureBinding } = args.screeningCapture;
+    if (!args.allowProposedScreening || (sourceCaptureSessionId && captureId !== sourceCaptureSessionId))
+      throw new Error("job_evaluation_source_changed");
+    if (!sourceCaptureSessionId && captureId !== websiteCaptureId) {
+      if (!captureBinding || captureBinding.capture_id !== captureId
+        || captureBinding.original_capture_id !== `walkthrough-${binding.job_id}`) throw new Error("job_evaluation_source_changed");
+      selectedContext = projectWebsiteTaskContext(brief as SiteTaskBriefRecord, rights, {
+        inventory: args.inventory, captureId, captureBinding, ...(sponsorship.purpose ? { purpose: sponsorship.purpose } : {}),
+      });
+      sourceFingerprint = crossRuntimeDigest({ schema_version: "job_managed_screening_continuation.v1", job_id: binding.job_id,
+        parent_source_fingerprint: sourceFingerprint, capture_id: captureId, capture_binding_digest: crossRuntimeDigest(captureBinding),
+        task_context_digest: selectedContext.context_digest });
+      websiteCaptureId = captureId;
+    }
+  }
   return {
     taskIds: sourceCaptureSessionId ? [] : [
-      `website-${context.context_digest.slice(7, 27)}`,
-      `website-${context.context_digest.slice(7, 27)}-development`,
+      `website-${selectedContext.context_digest.slice(7, 27)}`,
+      `website-${selectedContext.context_digest.slice(7, 27)}-development`,
     ],
     teamNamespace: sponsorship.owner.organization_id as string,
-    taskContextDigest: context.context_digest,
+    taskContextDigest: selectedContext.context_digest,
     sourceFingerprint,
     sourceCaptureSessionId,
     sourceCaptureDigest,
-    sourceWebsiteCaptureId: String(sponsorship.capture_id ?? `walkthrough-${binding.job_id}`),
+    sourceWebsiteCaptureId: websiteCaptureId,
   };
+}
+
+/** Reuse the existing supplementary-capture lineage and immutable upload authority. */
+export async function readManagedScreeningCapture(jobId: string, captureId: string): Promise<{ captureId: string; captureBinding?: Record<string, any> }> {
+  try { return { captureId, captureBinding: await resolveWebsiteCaptureBinding(jobId, `site-${jobId}`, captureId) }; }
+  catch (error) {
+    if (error instanceof Error && (/^task_context_capture_mismatch$/.test(error.message)
+      || /^website_capture_binding_(lineage_changed|source_changed|source_mismatch|not_finalized|generations_unknown|lineage_limit)$/.test(error.message)))
+      throw new Error("job_evaluation_source_changed");
+    throw error;
+  }
+}
+
+export async function assertManagedScreeningCaptureCurrent(jobId: string,
+  capture: Awaited<ReturnType<typeof readManagedScreeningCapture>>,
+  read: (reference: FirebaseFirestore.DocumentReference) => Promise<FirebaseFirestore.DocumentSnapshot>) {
+  try { await assertWebsiteCaptureBindingInTransaction({ get: read }, jobId, capture.captureBinding); }
+  catch (error) {
+    if (error instanceof Error && /^website_capture_binding_(lineage_changed|source_changed)$/.test(error.message))
+      throw new Error("job_evaluation_source_changed");
+    throw error;
+  }
+  if (!capture.captureBinding || !db) return;
+  const ids = new Set<string>(capture.captureBinding.lineage.flatMap((entry: any) => [entry.child.capture_id, entry.parent.capture_id]));
+  for (const id of ids) {
+    const source = (await read(db.collection("captureUploadSessions").doc(id))).data();
+    if (!source || source.capture_access?.future_processing_allowed === false || source.completed_capture_lifecycle
+      || ["revoked", "revocation_in_progress", "cancelled"].includes(source.status)) throw new Error("job_capture_processing_not_authorized");
+  }
 }
 
 export function assertManagedOfferingForJob(
@@ -197,7 +246,6 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
   ]);
   let taskContextDigest: string | null = null;
   let sourceFingerprint: string | null = null;
-  let screeningScope: ReturnType<typeof managedJobTask> | null = null;
   let sourceSession: Record<string, any> | null = null;
   try { sourceSession = await readManagedJobSourceSession(job.data(), reference => reference.get()); }
   catch (error) {
@@ -214,17 +262,34 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
     // history. An unrelated storage failure must not be hidden as empty proof.
     if (!(error instanceof Error) || !/^job_[a-z_]+$/.test(error.message)) throw error;
   }
-  try {
-    screeningScope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest },
-      record: job.data(), brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
-      sourceSession, allowProposedScreening: true });
-  } catch (error) {
-    if (!(error instanceof Error) || !/^job_[a-z_]+$/.test(error.message)) throw error;
-  }
+  const screeningScopes = new Map<string, Promise<ReturnType<typeof managedJobTask> | null>>();
   const snapshot = await store.collection("taskEvaluationPolicyRuns").where("job_evidence_binding.job_id", "==", jobId)
     .orderBy("created_at_iso", "desc").limit(20).get();
   const rows = await Promise.all(snapshot.docs.map(async document => {
     const run = document.data();
+    let screeningScope: ReturnType<typeof managedJobTask> | null = null;
+    if (run.run_kind === "beta_policy_screening" && typeof run.source_scene_intake_id === "string") {
+      const scopeKey = `${run.source_scene_intake_id}:${run.source_scene_intent_id}:${run.source_scene_revision_digest}`;
+      if (!screeningScopes.has(scopeKey)) screeningScopes.set(scopeKey, (async () => {
+        try {
+          const intake = (await store.collection("taskEvaluationSceneIntakes").doc(run.source_scene_intake_id).get()).data();
+          if (!intake || typeof intake.source_session_id !== "string" || intake.website_request_id !== jobId || intake.receipt?.intent_id !== run.source_scene_intent_id
+            || intake.revocation_requested || intake.state !== "completed" || intake.pipeline_status?.status !== "completed"
+            || intake.pipeline_status?.phase !== "scene_prepared" || intake.pipeline_status?.result_reference?.digest !== run.source_scene_revision_digest
+            || crossRuntimeArtifactDigest(intake.pipeline_status, "status_digest") !== intake.pipeline_status.status_digest) return null;
+          const capture = sourceSession ? { captureId: intake.source_session_id }
+            : await readManagedScreeningCapture(jobId, intake.source_session_id);
+          await assertManagedScreeningCaptureCurrent(jobId, capture, reference => reference.get());
+          return managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record: job.data(), brief: brief.data(),
+            inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+            sourceSession, allowProposedScreening: true, screeningCapture: capture });
+        } catch (error) {
+          if (!(error instanceof Error) || !/^job_[a-z_]+$/.test(error.message)) throw error;
+          return null;
+        }
+      })());
+      screeningScope = await screeningScopes.get(scopeKey)!;
+    }
     const result = typeof run.result_record_id === "string"
       ? await store.collection("captureTaskEvaluationRuns").doc(run.result_record_id).get() : null;
     return projectManagedJobEvidence(document.id, run, result?.exists ? result.data()! : null, jobId, currentBriefDigest,
