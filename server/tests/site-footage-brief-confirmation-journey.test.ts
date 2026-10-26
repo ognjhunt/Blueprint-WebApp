@@ -340,7 +340,7 @@ it("words the no-pass notice the same way, for unclaimed and claimed sites", asy
 /**
  * Audit N3: a site may start with footage and no description. Its brief's
  * summary is a placeholder, and the scope screen read only typed text, so the
- * job screened as "not something we can score yet" and was closed to teams.
+ * job screened as one we cannot score yet and was held, closed to teams.
  * A placeholder needs one sentence: the confirmation asks for it, and a brief
  * that still says nothing readable is asked for one, not refused.
  */
@@ -378,7 +378,7 @@ describe("a site that sends footage with no description", () => {
     expect(body.screening?.headline).toMatch(/one sentence/i);
     const notice = outbox(`${jobId}:brief-screening:task-not-yet-supported`);
     expect(notice?.subject).toMatch(/one sentence/i);
-    expect(notice?.subject).not.toMatch(/not something we can score/i);
+    expect(notice?.subject).not.toMatch(/preparing its evaluation/i);
     expect(notice?.body).toMatch(/Describe the job in one sentence/);
     expect((await jobStatus(token)).status.headline).toMatch(/one sentence/i);
   });

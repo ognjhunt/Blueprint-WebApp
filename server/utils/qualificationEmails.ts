@@ -115,10 +115,11 @@ export function buildNotYetEmail(params: {
 /**
  * A job we cannot score in simulation yet, whatever its gate verdict.
  *
- * Names this simulation route's scope plainly, so the site never waits on an
- * evaluation that would test a different task. A
- * brief we could not read is asked for one sentence instead: it is not out of
- * scope, it is undescribed (audit N3).
+ * Names what the simulation scores today, so the site never waits on an
+ * evaluation that would test a different task. Under the owner's rule the job
+ * is accepted and held while we prepare an evaluation for its kind, and it
+ * counts as demand for what to build next. A brief we could not read is asked
+ * for one sentence instead: it is undescribed, not held (audit N3).
  */
 export function buildTaskNotYetSupportedEmail(params: {
   firstName: string;
@@ -135,12 +136,14 @@ export function buildTaskNotYetSupportedEmail(params: {
     site ? `Thanks for confirming the job brief for ${site}.` : "Thanks for confirming your job brief.",
     taskScopeReasonSentence(params.reason),
     "",
-    "Today our simulation can score one kind of job:",
+    "Today our simulation can score these kinds of job:",
     bulletList(SUPPORTED_TASK_LINES),
     "",
     unclear
       ? "We need to clarify the job before admitting it to this simulation route. Your job stays on file; we are not promising an evaluation yet."
-      : "This job is not admitted to that simulation route. Your job stays on file. This limit does not establish whether a different system or physical approach could perform the work.",
+      : "We have accepted your job and are holding it while we prepare an evaluation for its kind. Jobs like yours "
+        + "decide what we build next, and we will email you when we can evaluate it. This does not "
+        + "establish whether a robot could do the work.",
     "",
     unclear
       ? `${notYet.nextStep}${params.jobUrl ? ` Your job page: ${params.jobUrl}` : ""}`
@@ -148,7 +151,7 @@ export function buildTaskNotYetSupportedEmail(params: {
     "",
     EMAIL_SIGN_OFF,
   ].join("\n");
-  return { subject: unclear ? "Your job brief needs one sentence about the job" : "Your job: not something we can score yet",
+  return { subject: unclear ? "Your job brief needs one sentence about the job" : "Your job: we are preparing its evaluation",
     body, variant: "not_yet" };
 }
 

@@ -136,7 +136,7 @@ router.route("/owner/:token")
       return res.json({ ok: true });
     } catch (error) {
       if (error instanceof Error && error.message === "task_not_yet_supported") return res.status(409).json({ code: "task_not_yet_supported",
-        error: `We cannot score this job in simulation today, so its card cannot be shown to robot teams. ${SUPPORTED_TASK_SCOPE}` });
+        error: `We are still preparing an evaluation for this kind of job, so its card cannot be shown to robot teams yet. ${SUPPORTED_TASK_SCOPE}` });
       if (error instanceof Error && error.message === "listing_review_changed") return res.status(409).json({ error: "Your job changed. Reopen its public card and review the changes before publishing." }); return res.status(503).json({ error: "The public card was not saved. Try again." }); }
   });
 
