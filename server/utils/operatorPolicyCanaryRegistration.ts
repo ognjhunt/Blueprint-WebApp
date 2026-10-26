@@ -2,12 +2,15 @@ import type { Response } from "express";
 import { z } from "zod";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
-import { canonicalArtifactDigest } from "./taskCandidateContract";
+import { canonicalArtifactDigest, stableJson } from "./taskCandidateContract";
 import { configuredSceneOfferingSchema } from "./configuredSceneOfferingContract";
 import { confirmedTaskSuccessContractSchema } from "./articulatedTaskSuccessContract";
 import { policyCanaryNotificationRecipientAllowed } from "./internalPolicyCanaryContract";
 import type { PipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 import { TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID } from "./taskEvaluationLaunchSubmissionAuth";
+import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import type { SiteTaskBriefRecord } from "./siteTaskBrief";
+import type { TaskItemInventoryRecord } from "./taskItemInventory";
 
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const digest = z.string().regex(/^sha256:[0-9a-f]{64}$/);
@@ -23,8 +26,11 @@ export const operatorPolicyCanaryRegistrationSchema = z.object({
   run_kind: z.literal("internal_policy_canary"),
   claim_ceiling: z.literal("diagnostic_policy_execution"),
   run_id: identifier,
-  source_launch_id: identifier,
-  source_offering_digest: digest,
+  source_launch_id: identifier.optional(),
+  source_offering_digest: digest.optional(),
+  capture_source: z.object({
+    request_id: identifier, scene_id: identifier, capture_id: identifier, task_context_digest: digest,
+  }).strict().optional(),
   capture_session_id: identifier,
   intake_id: identifier,
   team_namespace: identifier,
@@ -40,9 +46,22 @@ export const operatorPolicyCanaryRegistrationSchema = z.object({
   control_omission_authority_digest: digest,
   task_success_contract: confirmedTaskSuccessContractSchema,
   policy_candidates: z.tuple([candidate, candidate]),
-  notification: z.object({ email: z.string().email().max(254) }).strict(),
+  notification: z.union([
+    z.object({ email: z.string().email().max(254) }).strict(),
+    z.object({ mode: z.literal("disabled") }).strict(),
+  ]),
   registration_digest: digest,
 }).strict().superRefine((value, context) => {
+  if (value.capture_source
+    ? value.source_launch_id !== undefined || value.source_offering_digest !== undefined
+      || value.capture_source.scene_id !== `site-${value.capture_source.request_id}`
+      || value.capture_source.capture_id !== `walkthrough-${value.capture_source.request_id}`
+      || value.capture_session_id !== value.capture_source.capture_id
+      || ![value.capture_source.scene_id, `scene-${value.capture_source.scene_id}`]
+        .includes(value.task_success_contract.scope.site_id)
+    : !value.source_launch_id || !value.source_offering_digest) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "Exactly one bound offering or original website capture source is required" });
+  }
   if (value.registration_digest !== canonicalArtifactDigest(value, "registration_digest")) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "Registration digest mismatch" });
   }
@@ -57,6 +76,28 @@ export const operatorPolicyCanaryRegistrationSchema = z.object({
 
 export type OperatorPolicyCanaryRegistration = z.infer<typeof operatorPolicyCanaryRegistrationSchema>;
 
+/** A capture context is provenance, never an ownership or task-attestation grant. */
+export async function operatorPolicyCanaryCaptureSourceMatches(
+  transaction: FirebaseFirestore.Transaction, value: OperatorPolicyCanaryRegistration,
+) {
+  const source = value.capture_source;
+  if (!source || !db) return false;
+  const [request, brief, inventory] = await Promise.all([
+    transaction.get(db.collection("inboundRequests").doc(source.request_id)),
+    transaction.get(db.collection("siteTaskBriefs").doc(source.request_id)),
+    transaction.get(db.collection("siteTaskItemInventories").doc(source.request_id)),
+  ]);
+  if (!request.exists || !brief.exists) return false;
+  const rights = projectWebsiteCaptureRights(request.data());
+  if (!rights.derived_scene_generation_allowed) return false;
+  const task = brief.data() as SiteTaskBriefRecord;
+  const items = inventory.exists ? inventory.data() as TaskItemInventoryRecord : null;
+  if (task.requestId !== source.request_id
+    || items && (items.requestId !== source.request_id || !Array.isArray(items.items))) return false;
+  return projectWebsiteTaskContext(task, rights, { purpose: "scene_preparation", inventory: items })
+    .context_digest === source.task_context_digest;
+}
+
 export async function registerOperatorPolicyCanary(params: {
   registration: OperatorPolicyCanaryRegistration;
   actorId: string;
@@ -67,28 +108,36 @@ export async function registerOperatorPolicyCanary(params: {
     return res.status(403).json({ error: "Operator registration client is not admitted" });
   }
   if (!db) return res.status(503).json({ error: "Policy run store is unavailable" });
-  if (!policyCanaryNotificationRecipientAllowed({
+  if ("email" in value.notification && !policyCanaryNotificationRecipientAllowed({
     requestedEmail: value.notification.email,
     authenticatedEmail: null,
     isAdmin: false,
     isOps: true,
   })) return res.status(422).json({ error: "Policy run notification recipient is not admitted" });
   const runRef = db.collection("taskEvaluationPolicyRuns").doc(value.run_id);
-  const parentRef = db.collection("taskEvaluationLaunches").doc(value.source_launch_id);
+  const parentRef = value.source_launch_id
+    ? db.collection("taskEvaluationLaunches").doc(value.source_launch_id) : null;
   let outcome: string;
   try {
     outcome = await db.runTransaction(async (transaction) => {
       const [parentSnapshot, runSnapshot] = await Promise.all([
-        transaction.get(parentRef), transaction.get(runRef),
+        parentRef ? transaction.get(parentRef) : null, transaction.get(runRef),
       ]);
-      if (!parentSnapshot.exists) return "parent_not_found";
-      const parent = parentSnapshot.data() as Record<string, any>;
-      const parsed = configuredSceneOfferingSchema.safeParse(parent.configured_scene_offering);
-      if (!parsed.success || parent.configured_scene_offering_digest !== parsed.data.offering_digest
-        || parsed.data.offering_digest !== value.source_offering_digest
-        || parsed.data.team_namespace !== value.team_namespace
-        || parsed.data.evaluation_preparation_binding.configured_scene_revision_digest !== value.scene_revision_digest) {
-        return "parent_binding_mismatch";
+      let scene;
+      if (value.capture_source) {
+        if (!await operatorPolicyCanaryCaptureSourceMatches(transaction, value)) return "capture_binding_mismatch";
+        scene = { id: value.capture_source.scene_id, version: value.scene_revision_digest };
+      } else {
+        if (!parentSnapshot?.exists) return "parent_not_found";
+        const parent = parentSnapshot.data() as Record<string, any>;
+        const parsed = configuredSceneOfferingSchema.safeParse(parent.configured_scene_offering);
+        if (!parsed.success || parent.configured_scene_offering_digest !== parsed.data.offering_digest
+          || parsed.data.offering_digest !== value.source_offering_digest
+          || parsed.data.team_namespace !== value.team_namespace
+          || parsed.data.evaluation_preparation_binding.configured_scene_revision_digest !== value.scene_revision_digest) {
+          return "parent_binding_mismatch";
+        }
+        scene = parsed.data.scene_identity;
       }
       if (runSnapshot.exists) {
         const prior = runSnapshot.data() as Record<string, any>;
@@ -104,8 +153,9 @@ export async function registerOperatorPolicyCanary(params: {
         run_id: value.run_id,
         run_kind: value.run_kind,
         claim_ceiling: value.claim_ceiling,
-        source_launch_id: value.source_launch_id,
-        offering_digest: value.source_offering_digest,
+        ...(value.capture_source ? { capture_source: value.capture_source } : {
+          source_launch_id: value.source_launch_id, offering_digest: value.source_offering_digest,
+        }),
         setup_digest: value.setup_digest,
         operator_registration: value,
         submission_channel: "production_webapp_operator_registration",
@@ -121,7 +171,7 @@ export async function registerOperatorPolicyCanary(params: {
         scene_controls_status_at_submission: "controls_omitted_by_user",
         task_success_contract: value.task_success_contract,
         task_success_contract_digest: value.task_success_contract.contract_digest,
-        scene: { id: parsed.data.scene_identity.id, version: parsed.data.scene_identity.version },
+        scene: { id: scene.id, version: scene.version },
         task: { id: value.task_success_contract.scope.task_id, label: value.task_success_contract.scope.task_id.replaceAll("_", " ") },
         robot_preset_id: "droid_franka_panda_robotiq_2f85_v1",
         robot: { preset_id: "droid_franka_panda_robotiq_2f85_v1", display_name: "Franka with Robotiq 2F-85" },
@@ -170,6 +220,9 @@ export function operatorPolicyCanaryPublicationScope(
   if (!parsed.success) return null;
   const value = parsed.data;
   const ownerUserId = String(policyRun.owner_user_id || "").trim();
+  if (value.capture_source && (policyRun.source_launch_id !== undefined
+    || policyRun.offering_digest !== undefined
+    || stableJson(policyRun.capture_source ?? null) !== stableJson(value.capture_source))) return null;
   if (ownerUserId !== TASK_EVALUATION_LAUNCH_RUNNER_CLIENT_ID
     || policyRun.submission_channel !== "production_webapp_operator_registration"
     || policyRun.team_namespace !== value.team_namespace
@@ -189,7 +242,7 @@ export function operatorPolicyCanaryPublicationScope(
   return {
     ownerUserId,
     organizationId: value.team_namespace,
-    accessVisibility: value.team_namespace === `user:${ownerUserId}`
+    accessVisibility: value.capture_source || value.team_namespace === `user:${ownerUserId}`
       ? "owner_only" as const : "organization_members" as const,
   };
 }

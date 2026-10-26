@@ -73,10 +73,11 @@ const sha = (character: string) => `sha256:${character.repeat(64)}`;
 const payload = Buffer.from("0123456789");
 const artifactDigest = `sha256:${createHash("sha256").update(payload).digest("hex")}`;
 
-function seed() {
+function seed(captureSource = false) {
   const publication = structuredClone(fixture) as Record<string, any>;
+  if (captureSource) publication.capture_session_id = "walkthrough-capture-source";
   const contract = sealRigidTaskSuccessContract({
-    siteId: "operator-scene", taskId: "operator-relocation", authorSource: "task_owner",
+    siteId: captureSource ? "site-capture-source" : "operator-scene", taskId: "operator-relocation", authorSource: "task_owner",
     authorId: "operator", confirmationStatus: "confirmed", confirmedByTeamId: "team-1",
     criteria: {
       destination_containment: { mode: "required", position_bounds_world_m: { minimum: [0, 0, 0], maximum: [1, 1, 1] } },
@@ -105,6 +106,13 @@ function seed() {
       { candidate_id: "groot_n17_droid", display_name: "GR00T N1.7 DROID", checkpoint_digest: sha("9") },
     ], notification: { email: "owner@example.invalid" },
   };
+  if (captureSource) {
+    delete registration.source_launch_id;
+    delete registration.source_offering_digest;
+    registration.capture_source = { request_id: "capture-source", scene_id: "site-capture-source",
+      capture_id: publication.capture_session_id, task_context_digest: sha("c") };
+    registration.notification = { mode: "disabled" };
+  }
   registration.registration_digest = canonicalArtifactDigest(registration, "registration_digest");
   operatorPolicyCanaryRegistrationSchema.parse(registration);
   publication.plan_digest = registration.plan_digest;
@@ -129,10 +137,10 @@ function seed() {
   expect(parseVerifiedTaskEvaluationRunPublication(publication).ok).toBe(true);
   const recordId = `capture-run-${createHash("sha256").update(`${publication.capture_session_id}\0${publication.run_id}`).digest("hex").slice(0, 32)}`;
   const record = { record_id: recordId, owner_user_id: "blueprint-production-runner", organization_id: "team-1",
-    access_visibility: "organization_members", publication_storage: encodeTaskEvaluationRunPublication(publication) };
+    access_visibility: captureSource ? "owner_only" : "organization_members", publication_storage: encodeTaskEvaluationRunPublication(publication) };
   const policyRun = { run_id: publication.run_id, run_kind: "internal_policy_canary", owner_user_id: record.owner_user_id,
     operator_registration: registration, submission_channel: "production_webapp_operator_registration", team_namespace: "team-1",
-    source_launch_id: registration.source_launch_id, result_record_id: recordId,
+    ...(captureSource ? { capture_source: registration.capture_source } : { source_launch_id: registration.source_launch_id }), result_record_id: recordId,
     request_digest: publication.request_digest, pipeline_configuration_digest: publication.configuration_digest,
     task_success_contract_digest: contract.contract_digest, phase: "published", stage: "terminal", result_status: publication.result_status,
     delivery_digest: publication.result_delivery.delivery_digest, policy_run_result_projection: publication.policy_canary_result };
@@ -199,6 +207,23 @@ describe("authenticated Task Evaluation delivery readback", () => {
     const downloaded = await fetch(new URL(body.ephemeral_downloads[0].download_url, url));
     expect(downloaded.status).toBe(200); expect(Buffer.from(await downloaded.arrayBuffer())).toEqual(payload);
     expect(state.writes).not.toHaveBeenCalled(); expect(state.rateLimiter).toHaveBeenCalled();
+  });
+
+  it("reads capture-linked diagnostic downloads through the private operator inbox without a scene offering", async () => {
+    state.records.clear();
+    seeded = seed(true);
+    const response = await readback();
+    expect(response.status).toBe(200);
+    const value = await response.json();
+    expect(value.status).toBe("verified");
+    expect(value.ephemeral_downloads[0].artifact_id).toBe("full-report");
+    expect(state.records.has("taskEvaluationLaunches")).toBe(false);
+    state.uid = "other-reader"; state.tenant = "team-1";
+    const inbox = await (await fetch(`${url}/api/task-evaluation-results`)).json();
+    expect(inbox.results).toEqual([]);
+    state.records.get("captureTaskEvaluationRuns")!.get(seeded.recordId)!.access_visibility = "organization_members";
+    expect((await readback()).status).toBe(404);
+    expect(state.writes).not.toHaveBeenCalled();
   });
 
   it("gets registry-only artifact metadata through the existing signed-origin probe", async () => {

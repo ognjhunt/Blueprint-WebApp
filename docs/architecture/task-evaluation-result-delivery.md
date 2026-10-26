@@ -10,6 +10,8 @@ Pipeline owns execution, deterministic scoring, control qualification, and seale
 
 The progress page retries transient reads with bounded backoff, honors Retry-After, aborts on unmount or identity changes, and retains explicitly stale status. CSRF token reads reuse the browser session token; result POSTs retry at most once after an explicit pre-handler CSRF rejection, without bypassing permission checks. Permission refusal clears the private snapshot. Result reads partition caches by user, tenant, and record; notification observation is bounded and never invokes a send or evaluation submission.
 
+An already executed operator diagnostic may register either an existing configured-scene offering or an original website capture (`capture_source`). Capture registration binds the current consented task-context digest and original request/scene/capture identities, then uses the same signed result publication and download readback. It creates no scene offering or execution intent. A capture context does not establish account ownership or confirm the website brief: these reports remain service-owned, private operations diagnostics, with their separately bound confirmed scoring contract. They cannot become qualified evaluations or customer-owned results through registration. Capture withdrawal or context changes prevent new registration/publication. `notification: { mode: "disabled" }` records zero email attempts and never invokes a messaging transport.
+
 ## Artifact delivery
 
 1. The result record and caller's owner/team/unlisted-public access are checked. The standard `firebase.tenant` claim and compatible legacy aliases are read only from the verified principal; conflicting tenant claims cannot grant team access.
