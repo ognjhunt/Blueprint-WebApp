@@ -273,7 +273,7 @@ const sealedDigest = (value: Record<string, unknown>, field: string) =>
     Object.fromEntries(Object.entries(value).filter(([key]) => key !== field)),
   );
 export function sceneProviderTerms() {
-  const schema = z.record(
+  const schema = z.partialRecord(
     z.enum(["vast", "runpod", "openai", "anthropic", "meta", "world_labs", "world_labs_atlas", "google"]),
     z
       .object({

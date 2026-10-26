@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildResolvedPolicyRunConfiguration,
   evaluationReadyPolicyRunSetupSchema,
+  evaluationReadyResultSummarySchema,
   evaluationReadyRunInputSchema,
   projectEvaluationReadyRun,
 } from "../utils/evaluationReadyRunContract";
@@ -99,6 +100,28 @@ function setup() {
 }
 
 describe("evaluation-ready policy-run contract", () => {
+  it("retains a partial result without inventing metrics for an unfinished candidate", () => {
+    const metric = { attempts: 1, successes: 0, success_rate: 0 };
+    const summary = {
+      canonical: { pi05_droid: metric },
+      per_family: { canonical_anchor: { pi05_droid: metric } },
+      paired: { comparable_pairs: 0, discordant_pairs: 0, summary: "Second candidate unfinished." },
+      degradation: [], failures: [],
+      contacts: { event_count: 0, summary: "Incomplete run." },
+      evidence_completeness: {
+        complete_episode_count: 1, invalid_episode_count: 0,
+        all_policy_inputs_retained: false, all_frame_manifests_retained: false, all_review_videos_retained: false,
+      },
+    };
+    expect(evaluationReadyResultSummarySchema.parse(summary)).toEqual(summary);
+    expect(evaluationReadyResultSummarySchema.safeParse({
+      ...summary, canonical: { unadmitted_candidate: metric },
+    }).success).toBe(false);
+    expect(evaluationReadyResultSummarySchema.safeParse({
+      ...summary, per_family: { unadmitted_family: { pi05_droid: metric } },
+    }).success).toBe(false);
+  });
+
   it("accepts only server-owned preset selection and rejects client cells or providers", () => {
     const valid = {
       schema_version: "task_evaluation_policy_run_selection.v1",

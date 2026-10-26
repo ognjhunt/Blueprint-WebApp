@@ -43,7 +43,7 @@ export const captureUploadIntakeReceiptSchema = z.object({
 const processingResultSchema = z.object({
   schema_version: z.literal("capture_upload_processing_result.v1"),
   receipt: captureUploadIntakeReceiptSchema,
-  capture_qa_publication: z.unknown(),
+  capture_qa_publication: z.unknown().optional(),
 }).strict();
 
 export type CaptureUploadIntakeReceipt = z.infer<typeof captureUploadIntakeReceiptSchema>;

@@ -37,7 +37,7 @@ const successConditionSchema = z
   .object({
     metric: nonEmpty,
     operator: nonEmpty,
-    threshold: z.unknown(),
+    threshold: z.unknown().optional(),
     units: nonEmpty,
   })
   .passthrough();
@@ -61,7 +61,7 @@ const taskCandidateSchema = z
     missing_evidence: z.array(nonEmpty),
     prohibited_claims: z.array(nonEmpty),
     estimated_evaluation_cost_usd: z.number().nonnegative(),
-    expected_customer_value: z.unknown(),
+    expected_customer_value: z.unknown().optional(),
     proposal_method: proposalMethodSchema,
     approval_status: z.literal("approval_required"),
   })

@@ -36,10 +36,10 @@ const boundedMetric = z.object({
 }).strict();
 
 export const evaluationReadyResultSummarySchema = z.object({
-  canonical: z.record(z.enum(POLICY_RUN_CANDIDATE_IDS), boundedMetric),
-  per_family: z.record(
+  canonical: z.partialRecord(z.enum(POLICY_RUN_CANDIDATE_IDS), boundedMetric),
+  per_family: z.partialRecord(
     variationFamily,
-    z.record(z.enum(POLICY_RUN_CANDIDATE_IDS), boundedMetric),
+    z.partialRecord(z.enum(POLICY_RUN_CANDIDATE_IDS), boundedMetric),
   ),
   paired: z.object({
     comparable_pairs: z.number().int().nonnegative(),
@@ -79,7 +79,7 @@ const policyFamilyMetric = z.object({
 
 const policyCandidateResultBase = z.object({
   episodes_completed: z.number().int().min(0).max(500),
-  family_metrics: z.record(variationFamily, policyFamilyMetric),
+  family_metrics: z.partialRecord(variationFamily, policyFamilyMetric),
   failures: z.array(z.object({ code: identifier, count: z.number().int().positive() }).strict()).max(500),
   contacts: z.object({
     contact_count: z.number().int().nonnegative(),

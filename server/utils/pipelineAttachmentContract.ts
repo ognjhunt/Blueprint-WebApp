@@ -22,7 +22,7 @@ const providerRunSummarySchema = z.object({
   cost_usd: z.number().nullable().optional(),
   latency_ms: z.number().nullable().optional(),
   failure_reason: z.string().nullable().optional(),
-  provenance: z.record(z.unknown()).nullable().optional(),
+  provenance: z.record(z.string(), z.unknown()).nullable().optional(),
 }).passthrough();
 
 const robotEvalDatasetCardArtifactUrisSchema = z.object({
@@ -89,7 +89,7 @@ const robotEvalDatasetSummarySchema = z.object({
   prediction_record_count: z.number().nullable().optional(),
   manifest_uri: z.string().nullable().optional(),
   card_artifact_uris: robotEvalDatasetCardArtifactUrisSchema.nullable().optional(),
-  claim_boundary: z.record(z.unknown()).nullable().optional(),
+  claim_boundary: z.record(z.string(), z.unknown()).nullable().optional(),
 }).passthrough();
 
 const robotEvalJobSummarySchema = z.object({
@@ -161,12 +161,12 @@ const evaluationReadinessSchema = z.object({
   qualification_state: z.string().optional(),
   opportunity_state: z.string().optional(),
   buyer_trust_score: buyerTrustScoreSchema.optional(),
-  qualification_summary: z.record(z.unknown()).nullable().optional(),
-  capture_quality_summary: z.record(z.unknown()).nullable().optional(),
+  qualification_summary: z.record(z.string(), z.unknown()).nullable().optional(),
+  capture_quality_summary: z.record(z.string(), z.unknown()).nullable().optional(),
   // PIPE-02: rights/privacy verdict the WebApp gates buyer-facing progression on.
   rights_review_status: z.enum(["cleared", "needs_review", "blocked"]).nullable().optional(),
-  rights_and_compliance: z.record(z.unknown()).optional(),
-  privacy_processing: z.record(z.unknown()).optional(),
+  rights_and_compliance: z.record(z.string(), z.unknown()).optional(),
+  privacy_processing: z.record(z.string(), z.unknown()).optional(),
   missing_evidence: z.array(z.string()).optional(),
   robot_eval_dataset_summary: robotEvalDatasetSummarySchema.nullable().optional(),
   robot_eval_job_summary: robotEvalJobSummarySchema.nullable().optional(),
@@ -187,8 +187,8 @@ export const pipelineAttachmentSyncPayloadSchema = z.object({
   qualification_state: z.string().optional().default(""),
   opportunity_state: z.string().optional().default(""),
   authoritative_state_update: z.boolean().optional().default(false),
-  artifacts: z.record(z.unknown()).optional().default({}),
-  derived_assets: z.record(derivedAssetEntrySchema).optional().default({}),
+  artifacts: z.record(z.string(), z.unknown()).optional().default({}),
+  derived_assets: z.record(z.string(), derivedAssetEntrySchema).optional().default({}),
   evaluation_readiness: evaluationReadinessSchema.optional(),
 });
 

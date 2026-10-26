@@ -548,10 +548,10 @@ const boundedMetricSchema = z.object({
 }).strict();
 
 export const evaluationReadyResultSummarySchema = z.object({
-  canonical: z.record(z.enum(CANONICAL_POLICY_CANDIDATE_IDS), boundedMetricSchema),
-  per_family: z.record(
+  canonical: z.partialRecord(z.enum(CANONICAL_POLICY_CANDIDATE_IDS), boundedMetricSchema),
+  per_family: z.partialRecord(
     variationFamily,
-    z.record(z.enum(CANONICAL_POLICY_CANDIDATE_IDS), boundedMetricSchema),
+    z.partialRecord(z.enum(CANONICAL_POLICY_CANDIDATE_IDS), boundedMetricSchema),
   ),
   paired: z.object({
     comparable_pairs: z.number().int().nonnegative(),

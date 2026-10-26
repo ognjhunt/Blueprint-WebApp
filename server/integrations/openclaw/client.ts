@@ -39,8 +39,8 @@ export const openClawActionRequestSchema = z.object({
   session_key: z.string().min(1),
   task_type: z.string().min(1),
   mode: openClawModeSchema,
-  inputs: z.record(z.unknown()),
-  startup_context: z.record(z.unknown()).nullable().optional(),
+  inputs: z.record(z.string(), z.unknown()),
+  startup_context: z.record(z.string(), z.unknown()).nullable().optional(),
   policy: openClawPolicySchema,
   artifacts_config: z.object({
     artifact_targets: z.array(z.string()).default([]),
@@ -60,8 +60,8 @@ export const openClawActionResponseSchema = z.object({
   estimated_mode: openClawModeSchema.optional(),
   result: z.unknown().optional(),
   raw_output_text: z.string().optional(),
-  artifacts: z.record(z.unknown()).nullish(),
-  logs: z.array(z.record(z.unknown())).nullish(),
+  artifacts: z.record(z.string(), z.unknown()).nullish(),
+  logs: z.array(z.record(z.string(), z.unknown())).nullish(),
   error: z.string().nullish(),
 });
 

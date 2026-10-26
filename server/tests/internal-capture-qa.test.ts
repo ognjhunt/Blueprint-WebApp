@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
+import { parseVerifiedCaptureQaPublication } from "../utils/captureQaContract";
 
 const state = vi.hoisted(() => ({
   collections: new Map<string, Map<string, Record<string, unknown>>>(),
@@ -117,6 +118,22 @@ function qaPublication(status: "accepted" | "recapture_required" = "accepted") {
     },
   };
 }
+
+it.each(["absent", "null"])("retains %s measurements without inventing values or changing the report digest", (kind) => {
+  const publication = qaPublication();
+  const check = publication.report.checks[0];
+  check.status = "not_measured";
+  if (kind === "absent") {
+    delete check.measurement;
+    delete check.threshold;
+  } else {
+    check.measurement = null;
+    check.threshold = null;
+  }
+  publication.report.qa_report_digest = canonicalArtifactDigest(publication.report, "qa_report_digest");
+  publication.qa_report_digest = publication.report.qa_report_digest;
+  expect(parseVerifiedCaptureQaPublication(publication)).toEqual({ ok: true, publication });
+});
 
 function signedBody(body: Record<string, unknown>) {
   const rawBody = JSON.stringify(body);
