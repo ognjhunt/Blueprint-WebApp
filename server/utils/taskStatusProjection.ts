@@ -59,7 +59,7 @@ export type TaskDecision =
   | "screening"
   /** At least one screening run has concluded, with observations or no result. */
   | "results"
-  /** The job is open for evaluation, and no evaluation has started yet. */
+  /** The job is open for evaluation, and no requested evaluation has started yet. */
   | "awaiting_teams"
   /** The job card is not published, so no approved partner can see the job or ask to be evaluated on it. */
   | "not_listed"
@@ -375,7 +375,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  // Open for evaluation and nothing has started yet. Open implies a cleared,
+  // Open for evaluation and no requested evaluation has started. Open implies a cleared,
   // confirmed, runnable scene, so no rung below can be truer than this one.
   if (input.openForEvaluations === true && screening && screening.teams === 0) {
     return {

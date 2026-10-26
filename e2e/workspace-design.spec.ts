@@ -244,7 +244,7 @@ async function seed(
       data = {
         ok: true,
         message:
-          "Pilot team selected. Blueprint passes on your invitation; you and the team agree the pilot's dates and terms directly.",
+          "Partner selected for a pilot. Blueprint passes on your invitation; you and the partner agree the pilot's dates and terms directly.",
       };
     } else if (url.pathname.endsWith("/capture")) {
       snapshot.tasks.find(

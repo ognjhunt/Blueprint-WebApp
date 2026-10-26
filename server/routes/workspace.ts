@@ -1696,7 +1696,7 @@ router.post(
       ok: true,
       message:
         input.action === "invite"
-          ? "Pilot team selected. Blueprint passes on your invitation; you and the team agree the pilot's dates and terms directly."
+          ? "Partner selected for a pilot. Blueprint passes on your invitation; you and the partner agree the pilot's dates and terms directly."
           : "Outcome recorded.",
     });
   }),

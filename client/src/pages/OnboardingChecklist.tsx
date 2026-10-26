@@ -346,7 +346,7 @@ export default function OnboardingChecklist() {
             id: "commercialization",
             title: "Set commercialization preference",
             description:
-              "Choose whether the site is private, claim-only, or potentially listable for robot-team evaluation.",
+              "Choose whether the site is private, claim-only, or potentially listable in the partner job library.",
             completed: Boolean(progress.commercializationPreferenceSet),
             icon: FileSearch,
             action: {
