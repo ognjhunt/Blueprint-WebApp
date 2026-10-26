@@ -294,7 +294,7 @@ const confirmSchema = z
     /** Who is confirming. An attestation with nobody behind it is not one. */
     confirmedBy: z.string().trim().min(1).max(200),
     /** Corrections, keyed by gate id. */
-    answers: z.record(z.string().trim().max(200)).optional(),
+    answers: z.record(z.string(), z.string().trim().max(200)).optional(),
     /** Gates they do not know. Recorded as outstanding, never looped on. */
     unknown: z.array(z.string().trim().min(1).max(100)).max(40).optional(),
     successCriteria: z.object({

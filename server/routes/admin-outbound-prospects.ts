@@ -95,7 +95,7 @@ const createSchema = z
     teamObservations: z.array(observationSchema).max(8).optional(),
     verifiedCapabilities: z.array(outreachCapabilityEvidenceSchema).max(8).optional(),
     hypothesisedTask: z.string().trim().min(1).max(1200),
-    inferredGates: z.record(z.string().trim().max(60)).default({}),
+    inferredGates: z.record(z.string(), z.string().trim().max(60)).default({}),
     reasonForContact: z.string().trim().min(1).max(400),
   })
   .strict();
@@ -116,7 +116,7 @@ const closeSchema = z
 
 const convertSchema = z
   .object({
-    statedGates: z.record(z.string().trim().max(60)),
+    statedGates: z.record(z.string(), z.string().trim().max(60)),
     taskStatement: z.string().trim().min(1).max(4000),
     captureMode: z.enum(["self_capture", "site_visit"]).optional(),
   })

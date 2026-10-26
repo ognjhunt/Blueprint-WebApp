@@ -70,7 +70,7 @@ const handoffSchema = z.object({ version: z.literal("blueprint.research-learning
     subjects: z.array(z.object({ crmId: id, historyCount: n }).strict()).max(100) }).strict(),
   // This whole immutable projection must equal a directory rebuilt from the
   // verified host source below; it cannot carry arbitrary nested fields.
-  discovery: z.unknown(),
+  discovery: z.unknown().optional(),
   provenance: z.object({ outcomeEvidenceSourceRefs: z.array(pointer).max(10), totalOutcomeEvidenceSourceRefs: n,
     moreSourceRefsAvailableInHistory: z.boolean(), quarantine }).strict(), unknowns: texts(),
   classificationPolicy: z.object({ model: z.literal(CLASSIFICATION_POLICY.model), enabled: z.literal(false) }).strict(),

@@ -34,7 +34,7 @@ const nativeRefSchema = z.string().regex(/^blueprint(?:DailyResearch\/sites-firs
 const nativeInputSchema = z.object({ version: z.literal("blueprint.native-learning-input.v1"), configHash: hash,
   nativeRecordRef: nativeRefSchema, role: z.enum(["daily_research", "communications"]),
   prospectIds: z.array(id).max(100).refine(values => new Set(values).size === values.length),
-  sourceSnapshotId: hash, preparedAt: instant, handoff: z.unknown().nullable(),
+  sourceSnapshotId: hash, preparedAt: instant, handoff: z.unknown().nullable().optional(),
   relevantHistory: z.unknown().optional(),
   unknown: z.literal("native_learning_context_unavailable").nullable(), inputHash: hash,
 }).strict();

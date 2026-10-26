@@ -508,7 +508,7 @@ const policyFamilyMetric = z.object({
 }).strict();
 const policyCandidateResultBase = z.object({
   episodes_completed: z.number().int().min(0).max(500),
-  family_metrics: z.record(z.enum(policyVariationFamilies), policyFamilyMetric),
+  family_metrics: z.partialRecord(z.enum(policyVariationFamilies), policyFamilyMetric),
   failures: z.array(z.object({
     code: identifier,
     count: z.number().int().positive(),

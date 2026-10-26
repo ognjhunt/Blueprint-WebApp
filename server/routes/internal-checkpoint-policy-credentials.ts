@@ -28,8 +28,8 @@ const schema = z.object({
   pipeline_run_id: z.string().trim().min(1).max(200),
   canonical_request_digest: z.string().regex(/^sha256:[0-9a-f]{64}$/),
   tenant_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,191}$/).optional(),
-  contract: z.record(z.unknown()).optional(),
-  admission_receipt: z.record(z.unknown()).optional(),
+  contract: z.record(z.string(), z.unknown()).optional(),
+  admission_receipt: z.record(z.string(), z.unknown()).optional(),
   lease_id: z.string().regex(/^policy-access-[0-9a-f]{32}$/).optional(),
 }).strict();
 const object = (v: unknown): Record<string, any> => v && typeof v === "object" && !Array.isArray(v) ? v as Record<string, any> : {};

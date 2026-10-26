@@ -128,7 +128,10 @@ it.each(["provider", "schema"])("retains uncertain write quarantine and successf
  expect(result.logs).toEqual(expect.arrayContaining([expect.objectContaining({event_type:"tool.result",status:"success",tool_result:{rows:[{id:"canonical-fixture"}]}})]));
  expect(result.artifacts?.deepseek_conversation_input).toEqual(expect.arrayContaining([expect.objectContaining({role:"tool",tool_call_id:"unknown"})]));
  expect(JSON.stringify(result.artifacts?.recovery_feedback)).not.toMatch(/PRIVATE/);
- if(kind==="schema")expect(result.artifacts?.recovery_feedback).toMatchObject({code:"output_schema_invalid",issues:[{path:"/done",code:"invalid_type",expectations:{expected:"boolean",received:"string"}}]});
+ if(kind==="schema") {
+  expect(result.artifacts?.recovery_feedback).toMatchObject({code:"output_schema_invalid",issues:[{path:"/done",code:"invalid_type",expectations:{expected:"boolean"}}]});
+  expect((result.artifacts?.recovery_feedback as any).issues[0].expectations).not.toHaveProperty("received");
+ }
  expect(mocks.tool).toHaveBeenCalledTimes(2);
 });
 
