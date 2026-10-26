@@ -10,6 +10,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunContract";
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
+import { parseBetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 
 export const jobManagedEvidenceBindingSchema = z.object({
   job_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
@@ -91,6 +92,7 @@ export function managedJobTask(args: {
     sourceFingerprint,
     sourceCaptureSessionId,
     sourceCaptureDigest,
+    sourceWebsiteCaptureId: String(sponsorship.capture_id ?? `walkthrough-${binding.job_id}`),
   };
 }
 
@@ -105,6 +107,9 @@ export function assertManagedOfferingForJob(
 export type ManagedJobEvidenceSummary = {
   runId: string; state: string; current: boolean; resultDigest: string | null;
   summary: string; nextAction: string; limitations: string[]; href: string;
+  screening?: { budget?: { limitUsd: string; committedUpperBoundUsd: string; spentUpperBoundUsd: string; reservedUsd: string };
+    candidates: Array<{ candidateId: string; name: string; state: string; planned: number;
+    scored: number; succeeded: number; failed: number; void: number; blockers: string[] }> };
 };
 
 /** A projection of already accepted publications, never a second report store. */
@@ -128,7 +133,29 @@ export function projectManagedJobEvidence(
   };
   if (!result || result.record_id !== run.result_record_id) return base;
   const publication = publicationFromResultRecord(result);
-  if (!publication || publication.run_id !== runId) return base;
+  if (!publication) return base;
+  if (publication.schema_version === "beta_policy_screening_publication.v1") {
+    const value = parseBetaPolicyScreeningPublication(publication);
+    if (!value || value.campaign_id !== runId || run.run_kind !== "beta_policy_screening"
+      || value.publication_digest !== run.publication_digest || value.revision !== run.publication_revision
+      || value.plan_digest !== run.configuration_digest || value.source.scene_intent_id !== run.source_scene_intent_id
+      || value.source.scene_revision_digest !== run.source_scene_revision_digest
+      || value.source.task_context_digest !== run.job_task_context_digest || value.site_id !== `site-${jobId}`) return base;
+    const completed = value.candidates.filter(row => row.status === "completed").length;
+    const scored = value.candidates.reduce((total, row) => total + row.episodes_scored, 0);
+    return { ...base, state: value.status, resultDigest: ["completed", "blocked"].includes(value.status) ? value.publication_digest : null,
+      summary: `Early policy screening: ${completed} of ${value.candidates.length} candidates completed; ${scored} episodes scored against the job's success criteria.`,
+      nextAction: value.status === "completed" ? "Blueprint can use these early checks to choose which approaches need a full evaluation."
+        : value.status === "blocked" || value.status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
+          : "Candidate progress will update as each test finishes.",
+      limitations: ["Screening is diagnostic. It does not declare a winner, qualify a pilot, or prove physical deployment performance."],
+      screening: { budget: { limitUsd: value.budget.limit_usd, committedUpperBoundUsd: value.budget.committed_upper_bound_usd,
+        spentUpperBoundUsd: value.budget.spent_upper_bound_usd, reservedUsd: value.budget.reserved_usd },
+        candidates: value.candidates.map(row => ({ candidateId: row.candidate_id, name: row.display_name,
+        state: row.status, planned: row.episodes_planned, scored: row.episodes_scored, succeeded: row.episodes_succeeded,
+        failed: row.episodes_failed, void: row.episodes_void, blockers: row.blockers })) } };
+  }
+  if (publication.run_id !== runId) return base;
   if (publication.schema_version === "task_evaluation_run_publication.v4") {
     const verified = parsePipelinePolicyCanaryPublication(publication);
     if (!verified.ok || verified.publication.configuration_digest !== (run.pipeline_configuration_digest || run.configuration_digest)

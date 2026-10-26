@@ -224,3 +224,17 @@ it("keeps legacy pilot details read-only when new job evidence has no commercial
   expect(compatibilityPilot.render).toHaveBeenLastCalledWith({ token: "owner-token", bookedOnly: true });
   expect(screen.queryByRole("button", { name: /Choose this pilot proposal/ })).not.toBeInTheDocument();
 });
+
+it("shows every screened candidate without creating a pilot recommendation", async () => {
+  fetchMock.mockResolvedValue(response(workflow({ briefAgreed: true, managedEvidence: [{ runId: "screening-one", state: "running", current: true,
+    resultDigest: null, summary: "Early policy screening: 36 candidates.", nextAction: "Candidate progress will update.",
+    limitations: ["Screening does not qualify a pilot."], href: "#managed-evidence-screening-one", screening: {
+      candidates: Array.from({ length: 36 }, (_, index) => ({ candidateId: `candidate-${index}`, name: `Candidate ${index}`,
+        state: index ? "pending" : "running", planned: 3, scored: 0, succeeded: 0, failed: 0, void: 0, blockers: [] })) } }] })));
+  render(<JobWorkspace token="owner-token" />);
+  const table = await screen.findByRole("table", { name: "Early policy screening candidates" });
+  expect(within(table).getAllByRole("row")).toHaveLength(37);
+  expect(within(table).getByText("Candidate 35")).toBeVisible();
+  expect(screen.getByText("Screening does not qualify a pilot.")).toBeVisible();
+  expect(screen.queryByRole("button", { name: /Choose this pilot proposal/ })).not.toBeInTheDocument();
+});

@@ -80,6 +80,13 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
   const taskId = intake.request?.task?.task_id;
   const team = intake.request?.owner?.organization_id;
   if (typeof taskId !== "string" || !taskId || typeof team !== "string" || !team) return false;
+  if (typeof intake.receipt?.intent_id === "string") {
+    for await (const rows of queryPages(store.collection(POLICY_RUN_COLLECTION)
+      .where("source_scene_intent_id", "==", intake.receipt.intent_id))) {
+      if (rows.some(row => row.data()?.run_kind === "beta_policy_screening"
+        && row.data()?.team_namespace === team && row.data()?.screening_execution_observed === true)) return true;
+    }
+  }
   const launchIds: string[] = [];
   for await (const rows of queryPages(store.collection("taskEvaluationLaunches")
     .where("configured_scene_offering.task.identity.id", "==", taskId))) {
