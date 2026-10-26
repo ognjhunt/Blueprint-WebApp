@@ -84,7 +84,7 @@ const wholeObjectCoverage = z
     schema_version: z.literal("website_assembly_coverage.v1"),
     status: z.literal("complete"),
     digest,
-    reference_frame_count: z.number().int().min(1).max(16),
+    reference_frame_count: z.number().int().min(1),
   })
   .strict();
 const taskArticulation = z
@@ -100,6 +100,10 @@ const taskArticulation = z
     lock_status: z.enum(["unknown", "locked", "unlocked"]),
     part_observed_open_in_footage: z.boolean(),
     whole_object_coverage: wholeObjectCoverage.optional(),
+    gravity_response: z.object({
+      mode: z.enum(["counterbalanced", "gravity_loaded", "unknown"]),
+      reason: z.string().trim().min(1),
+    }).strict().optional(),
     observation_timestamps_seconds: z.array(z.number().finite().nonnegative()).max(2000).optional(),
     physical_measurement_proven: z.literal(false),
   })
@@ -111,6 +115,9 @@ const taskArticulation = z
     if (value.joint_type === "revolute" && !value.whole_object_coverage)
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["whole_object_coverage"],
         message: "a hinged assembly requires whole-object coverage evidence" });
+    if (value.gravity_response?.mode === "counterbalanced" && value.joint_type !== "revolute")
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["gravity_response"],
+        message: "counterbalance approximation requires a revolute joint" });
   });
 const articulatedTaskSuccess = z
   .object({

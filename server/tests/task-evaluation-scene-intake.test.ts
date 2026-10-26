@@ -1189,11 +1189,40 @@ describe("articulated open/close task intake", () => {
     // Surfaces from the depth-sampling frames alone are not the whole appliance.
     expect(withTask({ ...articulatedTask(), articulation: door })).toBe(false);
     expect(withTask({ ...articulatedTask(), articulation: { ...door, whole_object_coverage: { ...coverage, status: "incomplete" } } })).toBe(false);
-    expect(withTask({ ...articulatedTask(), articulation: { ...door, whole_object_coverage: { ...coverage, reference_frame_count: 17 } } })).toBe(false);
+    expect(withTask({ ...articulatedTask(), articulation: { ...door, whole_object_coverage: { ...coverage, reference_frame_count: 17 } } })).toBe(true);
+    expect(withTask({ ...articulatedTask(), articulation: { ...door, whole_object_coverage: { ...coverage, reference_frame_count: 0 } } })).toBe(false);
     expect(withTask({ ...articulatedTask(), articulation: { ...door, whole_object_coverage: coverage } })).toBe(true);
     // Drawers from Pipeline deploys that predate coverage still pass until every deploy produces it.
     expect(withTask(articulatedTask())).toBe(true);
     expect(withTask({ ...articulatedTask(), articulation: { ...articulatedTask().articulation, whole_object_coverage: coverage } })).toBe(true);
+  });
+  it.each(["gravity_loaded", "unknown"])("retains an explicit %s mechanism estimate", mode => {
+    const gravity_response = { mode, reason: "Estimate from the retained task review." };
+    const task = articulatedTask();
+    const parsed = sceneIntakeCommand.parse({ ...command(), task: {
+      ...task, articulation: { ...task.articulation, gravity_response },
+    } });
+    expect(parsed.task).toMatchObject({ articulation: { gravity_response } });
+  });
+  it("admits an explicit counterbalance estimate for a covered revolute task", () => {
+    const task = articulatedTask();
+    const gravity_response = { mode: "counterbalanced", reason: "Explicit mechanism estimate; not a physical measurement." };
+    const parsed = sceneIntakeCommand.parse({ ...command(), task: { ...task, articulation: {
+      ...task.articulation, joint_type: "revolute", estimated_usable_stroke_m: undefined,
+      estimated_usable_swing_rad: 1.4, gravity_response,
+      whole_object_coverage: { schema_version: "website_assembly_coverage.v1", status: "complete",
+        digest: `sha256:${"c".repeat(64)}`, reference_frame_count: 20 },
+    } } });
+    expect(parsed.task).toMatchObject({ articulation: { gravity_response, physical_measurement_proven: false } });
+  });
+  it("refuses malformed estimates and an unsupported counterbalance mode for a slide", () => {
+    const task = articulatedTask();
+    for (const gravity_response of [true, null, { mode: "weightless", reason: "unsupported" },
+      { mode: "unknown", reason: " " }, { mode: "counterbalanced", reason: "Unsupported on this prismatic joint." }]) {
+      expect(sceneIntakeCommand.safeParse({ ...command(), task: {
+        ...task, articulation: { ...task.articulation, gravity_response },
+      } }).success).toBe(false);
+    }
   });
 });
 
