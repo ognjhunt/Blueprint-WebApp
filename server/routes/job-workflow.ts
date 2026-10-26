@@ -64,7 +64,7 @@ async function readWorkflow(requestId: string, admin = false) {
     catch { return proposal.id; } // Preserve unavailable evidence as history, affecting only its own quote.
   }))).filter((id): id is string => id !== null));
   return { ...projectJobMarketplace(record, briefValue, walkthrough?.received ?? null, evidenceReviewProposalIds), jobId: requestId, ...await readJobEvidence(requestId, briefValue, admin),
-    ...(briefValue?.confirmedAtIso ? await loadManagedJobEvidenceForWorkspace(requestId, scientificBriefDigest(briefValue)) : { managedEvidence: [] }) };
+    ...(briefValue ? await loadManagedJobEvidenceForWorkspace(requestId, scientificBriefDigest(briefValue)) : { managedEvidence: [] }) };
 }
 async function mutateWorkflow(requestId: string, actor: string, event: string,
   mutate: (state: StoredJobMarketplace, brief: Record<string, any> | null, now: string, record: Record<string, any>, transaction: FirebaseFirestore.Transaction) => StoredJobMarketplace | Promise<StoredJobMarketplace>) {

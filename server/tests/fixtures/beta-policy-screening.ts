@@ -6,13 +6,14 @@ export const screeningSha = (character: string) => `sha256:${character.repeat(64
 export function sealScreening(value: any): BetaPolicyScreeningPublication {
   return { ...value, publication_digest: crossRuntimeArtifactDigest(value, "publication_digest") };
 }
-export function screeningFixture() {
-  const brief = { requestId: "job-one", summary: "Move the rigid part to its tray", confirmedAtIso: "2026-10-26T12:00:00Z",
+export function screeningFixture(proposed = false) {
+  const brief = { requestId: "job-one", summary: "Move the rigid part to its tray", confirmedAtIso: proposed ? null : "2026-10-26T12:00:00Z",
     operatorAnswers: {}, unresolved: [] } as unknown as SiteTaskBriefRecord;
   const job: Record<string, any> = { request: { buyerType: "site_operator", consent_attestation: {
     granted: true, statement_version: "2026-09-18.v1", recorded_at_iso: "2026-10-26T11:00:00Z" } } };
-  const context = projectWebsiteTaskContext(brief, projectWebsiteCaptureRights(job));
+  const context = projectWebsiteTaskContext(brief, projectWebsiteCaptureRights(job), proposed ? { purpose: "scene_preparation" } : undefined);
   job.website_scene_sponsorship = { task_context_digest: context.context_digest, capture_id: context.capture_id,
+    ...(proposed ? { purpose: "scene_preparation" } : {}),
     owner: { user_id: "blueprint", organization_id: "blueprint-operations" } };
   const request = { submission_id: context.capture_id, owner: job.website_scene_sponsorship.owner,
     task: { task_id: `website-${context.context_digest.slice(7, 27)}` } };

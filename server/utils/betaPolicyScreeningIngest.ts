@@ -56,7 +56,7 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
     ]);
     if (!brief.exists) throw new Error("job_brief_not_agreed");
     const binding = { job_id: jobId, brief_digest: scientificBriefDigest(brief.data()!) };
-    const scope = managedJobTask({ binding, record: job.data(), brief: brief.data(),
+    const scope = managedJobTask({ binding, record: job.data(), brief: brief.data(), allowProposedScreening: true,
       inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
       sourceSession: await readManagedJobSourceSession(job.data(), ref => transaction.get(ref)) });
     assertScreeningSceneSource(publication, intake, scope);

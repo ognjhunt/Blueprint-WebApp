@@ -8,6 +8,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
 import { screeningFixture, sealScreening } from "./fixtures/beta-policy-screening";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
+import { scientificBriefDigest } from "../utils/jobEvidenceContract";
+import { loadManagedJobEvidence } from "../utils/jobManagedEvaluation";
 
 const store = vi.hoisted(() => ({ rows: new Map<string, any>() }));
 vi.mock("../utils/pipelineSyncSecurity", async importOriginal => ({
@@ -15,12 +17,12 @@ vi.mock("../utils/pipelineSyncSecurity", async importOriginal => ({
   createPipelineSyncRateLimiter: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
-  const reference = (name: string, id: string) => ({ id, path: `${name}/${id}` });
+  const reference = (name: string, id: string): any => ({ id, path: `${name}/${id}`, get: async () => snapshot(reference(name, id)) });
   const snapshot = (ref: any) => ({ id: ref.id, ref, exists: store.rows.has(ref.path), data: () => structuredClone(store.rows.get(ref.path)) });
   return { dbAdmin: { collection: (name: string) => ({ doc: (id: string) => reference(name, id),
-    where: (key: string, _operator: string, value: unknown) => ({ limit: (limit: number) => ({ get: async () => ({ docs: [...store.rows.entries()]
+    where: (key: string, _operator: string, value: unknown) => { const query = { orderBy: () => query, limit: (limit: number) => ({ get: async () => ({ docs: [...store.rows.entries()]
       .filter(([path, data]) => path.startsWith(`${name}/`) && key.split(".").reduce((current, part) => current?.[part], data) === value)
-      .slice(0, limit).map(([path]) => snapshot(reference(name, path.slice(name.length + 1)))) }) }) }) }),
+      .slice(0, limit).map(([path]) => snapshot(reference(name, path.slice(name.length + 1)))) }) }) }; return query; } }),
     runTransaction: async (fn: any) => {
       const writes: Array<[string, any]> = [];
       const result = await fn({ get: async (ref: any) => snapshot(ref), set: (ref: any, value: any) => writes.push([ref.path, value]) });
@@ -94,6 +96,24 @@ it("rejects a campaign ID already owned by another execution mode", async () => 
   store.rows.set("taskEvaluationPolicyRuns/campaign-one", { run_kind: "internal_policy_canary" });
   expect((await send(url, signed(publication))).status).toBe(409);
   expect(store.rows.get("taskEvaluationPolicyRuns/campaign-one")).toEqual({ run_kind: "internal_policy_canary" });
+});
+
+it("accepts proposed preparation screening and shows it as current until the task is confirmed or changes", async () => {
+  const { publication, job, brief, intake } = screeningFixture(true);
+  store.rows.set("inboundRequests/job-one", job);
+  store.rows.set("siteTaskBriefs/job-one", brief);
+  store.rows.set("taskEvaluationSceneIntakes/intake-one", intake);
+  const url = await endpoint();
+  expect((await send(url, signed(publication))).status).toBe(201);
+  const digest = scientificBriefDigest(brief);
+  let evidence = await loadManagedJobEvidence("job-one", digest);
+  expect(evidence[0].current).toBe(true);
+  expect(evidence[0].screening?.candidates).toHaveLength(36);
+  store.rows.set("siteTaskBriefs/job-one", { ...brief, confirmedAtIso: "2026-10-26T13:00:00Z" });
+  evidence = await loadManagedJobEvidence("job-one", digest);
+  expect(evidence[0].current).toBe(false);
+  store.rows.set("siteTaskBriefs/job-one", { ...brief, summary: "Move another object" });
+  expect((await loadManagedJobEvidence("job-one", scientificBriefDigest(store.rows.get("siteTaskBriefs/job-one"))))[0].current).toBe(false);
 });
 
 async function send(socketPath: string, options: any) {

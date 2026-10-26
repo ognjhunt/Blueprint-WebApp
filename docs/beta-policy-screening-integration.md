@@ -16,9 +16,14 @@ The consumer resolves exactly one existing scene intake by its retained
 `receipt.intent_id`. It verifies the immutable request/receipt, the completed
 `scene_prepared` status digest, and the configured scene revision digest in
 `pipeline_status.result_reference`. The intake supplies the website job identity.
-Current capture permission, agreed brief, task context, source capture and
+Current capture permission, retained brief, task context, source capture and
 organization must still match. `site_id` is `site-<job id>`; `source.capture_id` is
 the capture's own identity. They are never interchangeable budget keys.
+
+Diagnostic screening may use the exact proposed task retained by a
+`scene_preparation` grant before the owner confirms the brief. Confirming or
+changing that task changes its context and leaves the earlier screening historical.
+Other managed evaluations and commercial proposals still require an agreed brief.
 
 Campaign source, plan, catalog, scenario plan, candidate configurations and episode
 counts remain fixed. Monotonic revisions make retries idempotent and obsolete

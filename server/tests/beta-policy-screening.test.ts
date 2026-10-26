@@ -9,6 +9,17 @@ import { screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-p
 import producerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v1.json";
 
 describe("many-candidate diagnostic screening", () => {
+  it("screens the retained proposed preparation task without weakening agreed-task evaluation", () => {
+    const { publication, intake, brief, job } = screeningFixture(true);
+    const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
+    expect(() => managedJobTask({ binding, record: job, brief })).toThrow("job_brief_not_agreed");
+    const scope = managedJobTask({ binding, record: job, brief, allowProposedScreening: true });
+    expect(() => assertScreeningSceneSource(publication, intake, scope)).not.toThrow();
+    expect(() => managedJobTask({ binding, record: { ...job, website_scene_sponsorship: { ...job.website_scene_sponsorship, purpose: undefined } },
+      brief, allowProposedScreening: true })).toThrow("job_brief_not_agreed");
+    expect(() => managedJobTask({ binding, record: job, brief: { ...brief, confirmedAtIso: "2026-10-26T13:00:00Z" },
+      allowProposedScreening: true })).toThrow("job_scene_task_changed");
+  });
   it("verifies the real Python coordinator's fractional scores and exact decimal budget", () => {
     const value = parseBetaPolicyScreeningPublication(producerPublication);
     expect(value).not.toBeNull();

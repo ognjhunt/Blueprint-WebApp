@@ -52,9 +52,9 @@ export const betaPolicyScreeningPublicationSchema = z.object({
     || committed > limit) ctx.addIssue({ code: "custom", path: ["budget"], message: "Screening must retain the shared $15 site ceiling" });
   if (new Set(value.candidates.map(row => row.candidate_id)).size !== value.candidates.length)
     ctx.addIssue({ code: "custom", path: ["candidates"], message: "Candidate identities must be unique" });
-  const states = new Set(value.candidates.map(row => row.status));
+  const states = new Set<string>(value.candidates.map(row => row.status));
   const expectedStatus = states.has("reconciliation_required") ? "reconciliation_required"
-    : ["preparing", "launching", "running"].some(state => states.has(state as any)) ? "running"
+    : ["preparing", "launching", "running"].some(state => states.has(state)) ? "running"
       : states.has("pending") ? "queued" : states.has("completed") ? "completed" : "blocked";
   if (value.status !== expectedStatus)
     ctx.addIssue({ code: "custom", path: ["status"], message: "Campaign status must match candidate progress" });

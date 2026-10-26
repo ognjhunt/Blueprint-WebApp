@@ -36,10 +36,14 @@ export function managedJobTask(args: {
   brief: Record<string, any> | undefined;
   inventory?: TaskItemInventoryRecord | null;
   sourceSession?: Record<string, any> | null;
+  /** Only diagnostic screening may inspect the exact retained preparation task before owner confirmation. */
+  allowProposedScreening?: boolean;
 }) {
   const { binding, record, brief } = args;
   if (!record || record.request?.buyerType !== "site_operator") throw new Error("job_not_found");
-  if (!brief?.confirmedAtIso || brief.requestId !== binding.job_id) throw new Error("job_brief_not_agreed");
+  if (!brief || brief.requestId !== binding.job_id || (!brief.confirmedAtIso
+    && !(args.allowProposedScreening === true && record.website_scene_sponsorship?.purpose === "scene_preparation")))
+    throw new Error("job_brief_not_agreed");
   if (scientificBriefDigest(brief) !== binding.brief_digest) throw new Error("job_brief_changed");
   const rights = projectWebsiteCaptureRights(record);
   if (!rights.derived_scene_generation_allowed) throw new Error("job_capture_processing_not_authorized");
@@ -193,15 +197,28 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
   ]);
   let taskContextDigest: string | null = null;
   let sourceFingerprint: string | null = null;
+  let screeningScope: ReturnType<typeof managedJobTask> | null = null;
+  let sourceSession: Record<string, any> | null = null;
+  try { sourceSession = await readManagedJobSourceSession(job.data(), reference => reference.get()); }
+  catch (error) {
+    if (!(error instanceof Error) || !/^job_[a-z_]+$/.test(error.message)) throw error;
+  }
   try {
     const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest },
       record: job.data(), brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
-      sourceSession: await readManagedJobSourceSession(job.data(), reference => reference.get()) });
+      sourceSession });
     taskContextDigest = scope.taskContextDigest; sourceFingerprint = scope.sourceFingerprint;
   }
   catch (error) {
     // A known source/scope refusal ends current applicability while preserving
     // history. An unrelated storage failure must not be hidden as empty proof.
+    if (!(error instanceof Error) || !/^job_[a-z_]+$/.test(error.message)) throw error;
+  }
+  try {
+    screeningScope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest },
+      record: job.data(), brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+      sourceSession, allowProposedScreening: true });
+  } catch (error) {
     if (!(error instanceof Error) || !/^job_[a-z_]+$/.test(error.message)) throw error;
   }
   const snapshot = await store.collection("taskEvaluationPolicyRuns").where("job_evidence_binding.job_id", "==", jobId)
@@ -210,7 +227,9 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
     const run = document.data();
     const result = typeof run.result_record_id === "string"
       ? await store.collection("captureTaskEvaluationRuns").doc(run.result_record_id).get() : null;
-    return projectManagedJobEvidence(document.id, run, result?.exists ? result.data()! : null, jobId, currentBriefDigest, taskContextDigest, sourceFingerprint);
+    return projectManagedJobEvidence(document.id, run, result?.exists ? result.data()! : null, jobId, currentBriefDigest,
+      run.run_kind === "beta_policy_screening" ? screeningScope?.taskContextDigest ?? null : taskContextDigest,
+      run.run_kind === "beta_policy_screening" ? screeningScope?.sourceFingerprint ?? null : sourceFingerprint);
   }));
   return rows.filter((row): row is ManagedJobEvidenceSummary => row !== null);
 }
