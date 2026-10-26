@@ -211,7 +211,7 @@ describe("the confirmation says what our screen decided", () => {
     expect(film.brief.pilotIntent).toBeUndefined();
   });
 
-  it("says not yet, names what we can score, and records it, for a job we cannot score", async () => {
+  it("says we are preparing an evaluation, names what we can score, and records it, for a job we cannot score yet", async () => {
     await saveBrief(draftBrief({
       requestId: "req-1", summary: "Folding towels for wash-and-fold orders", captureMode: "self_capture", proposed: [],
     }));
@@ -219,7 +219,7 @@ describe("the confirmation says what our screen decided", () => {
     const body = (await response.json()) as { disposition: string; screening: any };
     // The gates clear; the kind of job does not.
     expect(body.disposition).toBe("qualified");
-    expect(body.screening.headline).toMatch(/cannot score this job.*not open to robot teams/);
+    expect(body.screening.headline).toMatch(/preparing an evaluation/);
     expect(body.screening.detail).toMatch(/soft or flexible items/);
     expect(body.screening.bookingUrl).toBeNull();
     expect(enqueueOutbox).toHaveBeenCalledTimes(1);

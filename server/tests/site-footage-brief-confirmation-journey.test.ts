@@ -378,7 +378,7 @@ describe("a site that sends footage with no description", () => {
     expect(body.screening?.headline).toMatch(/one sentence/i);
     const notice = outbox(`${jobId}:brief-screening:task-not-yet-supported`);
     expect(notice?.subject).toMatch(/one sentence/i);
-    expect(notice?.subject).not.toMatch(/not something we can score/i);
+    expect(notice?.subject).not.toMatch(/preparing its evaluation/i);
     expect(notice?.body).toMatch(/Describe the job in one sentence/);
     expect((await jobStatus(token)).status.headline).toMatch(/one sentence/i);
   });
