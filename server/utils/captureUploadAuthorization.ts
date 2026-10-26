@@ -78,7 +78,7 @@ export interface CaptureUploadAuthorization {
 /** The hold for footage sent before its job is saved to an account. */
 export const SITE_ACCOUNT_REQUIRED = "site_account_required";
 export const SITE_ACCOUNT_REQUIRED_DETAIL = "Save this job to your account before you send its video. "
-  + "Robot teams can evaluate a job only if its video is sent after the job is saved to an account.";
+  + "We can evaluate a job only if its video is sent after the job is saved to an account.";
 /** The hold for a job whose video arrived before it was saved to an account. */
 export const FOOTAGE_BEFORE_ACCOUNT = "footage_before_account";
 export const FOOTAGE_BEFORE_ACCOUNT_DETAIL = "Your video arrived before this job was saved to an account, so we can't "

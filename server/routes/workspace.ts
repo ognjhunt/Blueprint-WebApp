@@ -1603,7 +1603,7 @@ router.post(
       .strict()
       .parse(req.body);
     if (input.action === "invite" && !input.siteVisitAnswer)
-      refuse(400, "Say whether the selected robot team could work on site before inviting a pilot.");
+      refuse(400, "Say whether the selected partner could work on site before inviting a pilot.");
     if (input.action === "invite" && projectWebsiteCaptureRights(item.record).consent_revoked)
       refuse(409, "Recording permission for this job was withdrawn, so a pilot can no longer be arranged.", "site_consent_withdrawn");
     const task = await hydrateTask(req.params.taskId, item.record);

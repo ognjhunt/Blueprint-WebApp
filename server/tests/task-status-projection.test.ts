@@ -74,8 +74,8 @@ describe("the decision ladder", () => {
   it("asks for a confirmation once a brief is drafted", () => {
     const status = projectTaskStatus(base({ briefDrafted: true }));
     expect(status.decision).toBe("confirm_brief");
-    // Robot teams evaluate only a confirmed job, so the step is never optional.
-    expect(status.headline).toMatch(/robot teams can evaluate your job/i);
+    // Only a confirmed job is evaluated, so the step is never optional.
+    expect(status.headline).toMatch(/Confirm it so we can evaluate your job/);
     expect(status.headline).not.toMatch(/without confirming|optional/i);
     expect(status.operatorAction).toMatch(/confirm it/i);
   });
@@ -344,10 +344,12 @@ describe("what a waiting job is waiting on", () => {
   const none = { teams: 0, queued: 0, running: 0, reported: 0, noResult: 0 };
   const open = { evaluationAvailable: true, reason: null };
 
-  it("says the job is open to robot teams while none has asked", () => {
+  it("says the job is open for evaluation while none has started", () => {
     const status = projectTaskStatus({ ...ready, ...taskStatusInputFrom({ briefDrafted: true, stage: null, jobAccess: open }), screening: none });
     expect(status.decision).toBe("awaiting_teams");
-    expect(status.headline).toMatch(/open to robot teams approved for the beta\. No team has started an evaluation yet/);
+    expect(status.headline).toBe("Your job is open for evaluation. Next, Blueprint evaluates candidate robots and policies against it; "
+      + "approved partners can also ask for their systems to be evaluated.");
+    expect(status.headline).not.toMatch(/robot teams?/i);
     expect(projectTaskStatus({ ...ready, openForEvaluations: true, screening: { ...none, teams: 1, queued: 1 } }).decision).toBe("screening");
     // Not told it is open when the caller did not look at the runs.
     expect(projectTaskStatus({ ...ready, openForEvaluations: true }).decision).toBe("assessing");
@@ -357,8 +359,8 @@ describe("what a waiting job is waiting on", () => {
     const settled = { ...none, teams: 2, reported: 2, noResult: 0, passed: 0, ineligible: 0 };
     const status = projectTaskStatus({ ...ready, openForEvaluations: true, recommended: false, screening: settled });
     expect(status.decision).toBe("no_team_passed");
-    expect(status.headline).toMatch(/^No team's evaluation has passed yet\. 2 evaluation runs/);
-    expect(status.headline).toMatch(/we email you when one starts an evaluation/);
+    expect(status.headline).toMatch(/^No evaluation of your job has passed yet\. 2 evaluation runs/);
+    expect(status.headline).toMatch(/your job stays open for evaluation, and we email you when another one starts/);
     // A pass, a run still in flight, an uncounted pass mark or a recommendation keeps the results rung.
     expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, passed: 1 } }).decision).toBe("results");
     expect(projectTaskStatus({ ...ready, recommended: false, screening: { ...settled, running: 1 } }).decision).toBe("results");
@@ -401,19 +403,20 @@ describe("what a waiting job is waiting on", () => {
     expect(status.decision).toBe("no_team_passed");
     expect(status.headline).toMatch(/The closest qualified evaluation succeeded in 172 of 200 episodes \(86%\), against your pass mark of 95%/);
     expect(status.headline).toMatch(/its median cycle time was 34 s against your target of 30 s/);
-    expect(status.headline).toMatch(/A recommendation needs one team's evaluation to reach 95% with a median cycle time of 30 s or less/);
+    expect(status.headline).toMatch(/A recommendation needs a candidate's full evaluation to reach 95% with a median cycle time of 30 s or less/);
     const rateOnly = projectTaskStatus({ ...ready, recommended: false, screening: { ...settled,
       closestQualified: { ...settled.closestQualified, medianCycleSeconds: null, cycleTimeSeconds: null, cycleTimeMissed: false } } });
-    expect(rateOnly.headline).toMatch(/A recommendation needs one team's evaluation to reach 95%\./);
+    expect(rateOnly.headline).toMatch(/A recommendation needs a candidate's full evaluation to reach 95%\./);
     expect(rateOnly.headline).not.toMatch(/cycle time/);
   });
 
-  it("tells a site whose card is not published that no team can evaluate the job", () => {
+  it("tells a site whose card is not published that partners cannot see the job or ask to be evaluated on it", () => {
     const input = taskStatusInputFrom({ briefDrafted: true, stage: null, jobAccess: { evaluationAvailable: false, reason: "not_listed" } });
     expect(input.listed).toBe(false);
     const status = projectTaskStatus({ ...ready, listed: input.listed });
     expect(status.decision).toBe("not_listed");
-    expect(status.headline).toMatch(/robot teams cannot see or evaluate this job/);
+    expect(status.headline).toMatch(/approved partners cannot see this job in the job library or ask to have their systems evaluated on it/);
+    expect(status.headline).not.toMatch(/cannot lead to a recommended pilot/);
     expect(status.operatorAction).toMatch(/publish its job card/);
     expect(projectTaskStatus({ ...ready, listed: true }).decision).toBe("assessing");
   });

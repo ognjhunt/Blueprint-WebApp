@@ -806,7 +806,7 @@ describe("SelfCaptureUpload once evaluations settle without a pass", () => {
  * saved to an account, its link is a status page whose next step is the account.
  */
 describe("SelfCaptureUpload before the job is saved to an account", () => {
-  const ACCOUNT_HOLD = "Save this job to your account before you send its video. Robot teams can evaluate a job only if its video is sent after the job is saved to an account.";
+  const ACCOUNT_HOLD = "Save this job to your account before you send its video. We can evaluate a job only if its video is sent after the job is saved to an account.";
   function heldForAccount(scope: "owner" | "film") {
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);

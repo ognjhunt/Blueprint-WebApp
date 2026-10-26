@@ -182,14 +182,14 @@ describe("steps to a pilot", () => {
       inputs({ request: { requestId: "job-1", request: {}, ...SCREENED, pilot_recommendation: recommendation, ...extra } });
     const bookable = request({ id: "r1", evidence: { qualified: true } });
     expect(states(bookable)).toMatchObject({ evaluation: "done", recommendation: "done", booking: "pending" });
-    expect(trackerOf(bookable).meanwhile).toBe("Blueprint has recommended one team for your job. You can review and book it on your job page.");
+    expect(trackerOf(bookable).meanwhile).toBe("Blueprint has recommended a pilot for your job. You can review and book it on your job page.");
     for (const held of [request({ id: "r1", evidence: { qualified: true }, reviewRequired: true }), request({ id: "r1", evidence: {} })]) {
       expect(states(held)).toMatchObject({ evaluation: "done", recommendation: "in_progress" });
       expect(trackerOf(held).meanwhile).toBe("Blueprint is reviewing its recommendation against your job brief.");
     }
     const booked = request({ id: "r1", evidence: { qualified: true }, reviewRequired: true }, { pilot_booking: { recommendationId: "r1" } });
     expect(states(booked)).toMatchObject({ recommendation: "done", booking: "done" });
-    expect(trackerOf(booked).meanwhile).toBe("Your pilot is booked. You and the robot team agree its details directly.");
+    expect(trackerOf(booked).meanwhile).toBe("Your pilot is booked. You and the delivery partner agree its details directly.");
   });
 
   it("says so when a job is out of scope, rather than promising robot teams", () => {
@@ -199,7 +199,12 @@ describe("steps to a pilot", () => {
   });
 
   it("says what comes next only from a real state", () => {
-    expect(trackerOf(inputs({ reconstructionState: "ready", sceneViewable: true })).meanwhile).toContain("Next, Blueprint invites robot teams");
+    // Blueprint runs the candidates itself (owner, 2026-10-26): no robot team is waited on.
+    expect(trackerOf(inputs({ reconstructionState: "ready", sceneViewable: true })).meanwhile)
+      .toBe("Next, Blueprint evaluates candidate robots and policies that look right for your job in a simulation of your site.");
+    expect(trackerOf(inputs({ reconstructionState: "ready", sceneViewable: true })).steps.map((entry) => entry.label)).toEqual([
+      "Video received", "Job brief confirmed", "Your site rebuilt in 3D", "Blueprint evaluates candidate robots and policies in simulation",
+      "Blueprint recommends the approach that wins", "You book the pilot"]);
     expect(trackerOf(inputs({ reconstructionState: "failed" })).meanwhile).toBeNull();
   });
 
@@ -225,20 +230,20 @@ describe("getting the site ready", () => {
   it("reads the floor space from the site's measurement, else the video's estimate", () => {
     expect(item(inputs({ readings: { pick_front_clearance: reading(120, "cm", 1.2) } }), "floor_space")).toMatchObject({ state: "ready",
       detail: "There is 120 cm (you measured this) of open floor in front of the starting surface, room for a robot's stand or base." });
-    // Only a reading on file makes the floor "Looks ready"; an estimate is confirmed with the robot team.
+    // Only a reading on file makes the floor "Looks ready"; an estimate is confirmed with the deployment partner.
     expect(item(withVideo({ estimates: { front_clearance_m: 1.3 } }), "floor_space")).toMatchObject({ state: "confirm",
       detail: "There is about 1.3 m (estimated from your video) of open floor in front of the starting surface, likely room for a robot's stand or base." });
     expect(item(withVideo({ estimates: { front_clearance_m: 0.8 } }), "floor_space")).toMatchObject({ state: "confirm",
       detail: "There is about 80 cm (estimated from your video) of open floor in front of the starting surface, tight for a robot's "
-        + "stand or base. Confirm the space with the robot team." });
+        + "stand or base. Confirm the space with the deployment partner." });
     expect(item(withVideo({ estimates: { front_clearance_m: 0.4 } }), "floor_space").detail).toMatch(/^There is only about 40 cm/);
     expect(item(withVideo({ estimates: { front_clearance_m: 0 } }), "floor_space")).toMatchObject({ state: "confirm",
       detail: "There is no open floor (estimated from your video) in front of the starting surface, so a robot's stand or base needs "
-        + "another spot. Confirm the space with the robot team." });
+        + "another spot. Confirm the space with the deployment partner." });
     const low = item(inputs({ readings: { pick_front_clearance: reading(120, "cm", 1.2), pick_overhead_clearance: reading(30, "cm", 0.3) } }), "floor_space");
     expect(low).toMatchObject({ state: "confirm", detail: expect.stringContaining("30 cm of open height (you measured this), tight for an arm") });
     expect(item(inputs(), "floor_space")).toEqual({ id: "floor_space", title: "Floor space at the station", state: "confirm",
-      detail: "The robot team confirms the floor space its robot needs beside the work." });
+      detail: "The deployment partner confirms the floor space its robot needs beside the work." });
   });
 
   it("matches where the robot stands, and the network, to the forms that fit", () => {
@@ -256,7 +261,7 @@ describe("getting the site ready", () => {
     expect(item(withVideo({ people: "working_in_the_space" }), "safe_zone"))
       .toMatchObject({ state: "confirm", detail: expect.stringContaining("People work in the same space (seen in your video).") });
     expect(item(inputs(), "safe_zone")).toMatchObject({ state: "confirm",
-      detail: "The robot team's risk assessment settles how its robot works around people." });
+      detail: "The deployment partner's risk assessment settles how its robot works around people." });
   });
 
   it("repeats the screening answers on file for how objects arrive, and leaves the item out when there are none", () => {
@@ -333,11 +338,11 @@ describe("what decides success here", () => {
 });
 
 describe("safety in plain English", () => {
-  it("asks the robot team for its risk assessment, names the standards for the forms in play, and what Blueprint does not certify", () => {
+  it("asks the deployment partner for its risk assessment, names the standards for the forms in play, and what Blueprint does not certify", () => {
     const near = inputs({ request: { requestId: "job-1", request: { siteTaskSpec: { humanProximity: "shared" } }, ...SCREENED },
       readings: { pick_to_place_distance: reading(90, "cm", 0.9) } });
     const lines = safetyOf(jobFactsOf(near), computeRobotFitJob(near));
-    expect(lines[0]).toBe("Before a robot works at your site, ask the robot team for its risk assessment of the job. Robot safety follows "
+    expect(lines[0]).toBe("Before a robot works at your site, ask the deployment partner for its risk assessment of the job. Robot safety follows "
       + "the standards ISO 10218, adopted in the US as ANSI/A3 R15.06, and ANSI/A3 R15.08 for robots that drive between spots.");
     expect(lines[1]).toContain("Safety standards for walking robots are still being written");
     expect(lines).toContain("People work in the same space (you told us), so this decides how the robot works alongside them.");

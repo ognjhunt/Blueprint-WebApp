@@ -105,7 +105,7 @@ router.route("/owner/:token")
         const revision = humanDecisionDigest(brief.exists ? brief.data() : null);
         if (parsed.data.enabled && ((parsed.data.expectedBriefRevision && parsed.data.expectedBriefRevision !== revision)
           || (current.data()?.public_task_listing?.reviewRequired && parsed.data.expectedBriefRevision !== revision))) throw new Error("listing_review_changed");
-        // A job we cannot score is not opened to robot teams, so its card cannot go live.
+        // A job we cannot score yet is held, not listed, so its card cannot go live.
         if (parsed.data.enabled && taskScopeNotSupported(current.data())) throw new Error("task_not_yet_supported");
         const previousDigest = current.data()?.public_task_listing?.thumbnailDigest ?? null;
         wentLive = parsed.data.enabled && current.data()?.public_task_listing?.enabled !== true ? new Date().toISOString() : null;
@@ -136,7 +136,7 @@ router.route("/owner/:token")
       return res.json({ ok: true });
     } catch (error) {
       if (error instanceof Error && error.message === "task_not_yet_supported") return res.status(409).json({ code: "task_not_yet_supported",
-        error: `We are still preparing an evaluation for this kind of job, so its card cannot be shown to robot teams yet. ${SUPPORTED_TASK_SCOPE}` });
+        error: `We have your job and are preparing an evaluation for its kind, so its card cannot go into the job library yet. ${SUPPORTED_TASK_SCOPE}` });
       if (error instanceof Error && error.message === "listing_review_changed") return res.status(409).json({ error: "Your job changed. Reopen its public card and review the changes before publishing." }); return res.status(503).json({ error: "The public card was not saved. Try again." }); }
   });
 
@@ -265,7 +265,7 @@ router.post("/owner/:token/book", async (req, res) => {
     if (outcome === "site_consent_withdrawn") return res.status(409).json({ code: outcome,
       error: "Recording permission for this job was withdrawn, so this pilot can no longer be booked." });
     if (outcome === "team_consent_withdrawn") return res.status(409).json({ code: outcome,
-      error: "The recommended robot team withdrew from this pilot, so it can no longer be booked." });
+      error: "The recommended delivery partner withdrew from this pilot, so it can no longer be booked." });
     // Ops hears once that a pilot was booked. Ids only.
     const newlyBooked = booked as { recommendationId: string; teamId: string } | null;
     if (newlyBooked) void alertOpsPilotBooked({ requestId: token.requestId, ...newlyBooked })

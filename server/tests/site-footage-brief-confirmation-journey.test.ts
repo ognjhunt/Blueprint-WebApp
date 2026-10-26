@@ -207,14 +207,14 @@ describe("a site that sends its footage before confirming its brief", () => {
     await claim(jobId);
     await sendFootage(token);
     const { teamJobAccess } = await import("../utils/teamJobAccess");
-    // The reason the step is not optional: no robot team can evaluate the job yet.
+    // The reason the step is not optional: the job cannot be evaluated yet.
     expect(teamJobAccess(doc(`inboundRequests/${jobId}`)).evaluationAvailable).toBe(false);
 
     const { status, captureReceived } = await jobStatus(token);
     expect(captureReceived).toBe(true);
     expect(status.decision).toBe("confirm_brief");
     expect(status.headline).toMatch(/confirm your job brief/i);
-    expect(status.headline).toMatch(/robot teams/i);
+    expect(status.headline).toMatch(/we can evaluate your job only after you confirm it/i);
     expect(status.headline).not.toMatch(/without confirming|optional|no confirmation/i);
     expect(status.operatorAction).toMatch(/confirm/i);
   });

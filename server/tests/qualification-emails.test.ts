@@ -234,10 +234,14 @@ describe("the qualified reply", () => {
     expect(email.body.startsWith("Hi Dana,\n")).toBe(true);
     expect(email.body).toContain("Thanks for confirming the job brief for Riverside DC");
     expect(email.body).toContain("upload it here: https://example.test/capture-upload/abc");
-    expect(email.body).toMatch(/reconstruct the work area and evaluate compatible robots and policies in simulation/);
-    expect(email.body).toMatch(/review proposals covering scope, total cost, timing and support/);
+    // Blueprint runs the candidates and recommends deployment companies (owner, 2026-10-26).
+    expect(email.body).toMatch(/reconstruct the work area in simulation and run candidate robots, policies and policy APIs against your job ourselves/);
+    expect(email.body).toMatch(/Screening runs are diagnostic; a recommendation comes only from the finalists' full scoring/);
+    expect(email.body).toMatch(/we recommend it and the deployment companies that support it/);
+    expect(email.body).toMatch(/review their proposals covering scope, total cost, timing and support/);
     expect(email.body).toMatch(/You choose the delivery partner/);
-    expect(email.body).toMatch(/If no suitable option is supported, we explain what is missing/);
+    expect(email.body).toMatch(/If no candidate is suitable, we explain what is missing/);
+    expect(email.body).not.toMatch(/robot teams?/i);
     expect(email.body).toMatch(/free during the beta/);
     expect(email.body).toMatch(/not proof of how a robot will perform/);
     expect(email.body).not.toContain(CALENDLY_URL);
