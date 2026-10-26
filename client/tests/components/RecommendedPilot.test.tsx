@@ -35,12 +35,12 @@ describe("the recommended pilot", () => {
     expect(screen.getByText("Acme Robotics")).toBeInTheDocument();
     expect(screen.getByText("Shrink-wrapped cartons")).toBeInTheDocument();
 
-    const authorize = screen.getByLabelText(/authorized to choose this team/i);
+    const authorize = screen.getByLabelText(/authorized to choose this delivery partner/i);
     expect(authorize).toBeRequired();
     fireEvent.click(authorize);
     fireEvent.click(screen.getByRole("button", { name: /Choose this pilot proposal/ }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent(/Team selected.*pilot terms still need agreement/);
+    expect(await screen.findByRole("status")).toHaveTextContent(/Delivery partner selected.*pilot terms still need agreement/);
     expect(String(fetchMock.mock.calls[1][0])).toBe("/api/task-listings/owner/tok/book");
     expect(JSON.parse((fetchMock.mock.calls[1][1] as { body: string }).body)).toEqual({ recommendationId: "rec_1", authorized: true });
   });
@@ -51,11 +51,13 @@ describe("the recommended pilot", () => {
       evidenceScope: "development_only", boundary: "Simulation estimate.", resultUrl: "/app/tasks/req1" };
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ recommendation: { ...recommendation, evidence }, booking: null }) });
     render(<RecommendedPilot token="tok" />);
-    expect(await screen.findByText(/Acme Robotics evaluated your job: 19 of 20 simulated episodes succeeded \(95%\), meeting your pass mark of 90%/)).toBeInTheDocument();
+    // Blueprint ran the evaluation; the delivery partner is named in its own row.
+    expect(await screen.findByText(/In Blueprint's evaluation of this approach on your job, 19 of 20 simulated episodes succeeded \(95%\), meeting your pass mark of 90%/)).toBeInTheDocument();
+    expect(screen.getByText("Delivery partner").nextElementSibling).toHaveTextContent("Acme Robotics");
     expect(screen.getByText(/Simulation estimate — the physical pilot measures the real result/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "See the evaluation results" })).toHaveAttribute("href", "/app/tasks/req1");
-    expect(screen.getByLabelText(/authorized to choose this team/i).closest("label")).toHaveTextContent(
-      "Blueprint charges nothing during the beta. Agree the pilot price and terms with the delivery team before work starts.");
+    expect(screen.getByLabelText(/authorized to choose this delivery partner/i).closest("label")).toHaveTextContent(
+      "Blueprint charges nothing during the beta. Agree the pilot price and terms with the delivery partner before work starts.");
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
@@ -100,7 +102,7 @@ describe("the recommended pilot", () => {
   it("shows a booked pilot without a button", async () => {
     fetchMock.mockResolvedValueOnce(loaded({ recommendationId: "rec_1" }));
     render(<RecommendedPilot token="tok" />);
-    expect(await screen.findByRole("status")).toHaveTextContent(/Team selected.*pilot terms still need agreement/);
+    expect(await screen.findByRole("status")).toHaveTextContent(/Delivery partner selected.*pilot terms still need agreement/);
     expect(screen.queryByRole("button")).toBeNull();
   });
 
@@ -158,7 +160,7 @@ describe("the recommended pilot", () => {
     unmount();
     fetchMock.mockResolvedValueOnce(loaded({ recommendationId: "rec_1" }));
     render(<RecommendedPilot token="tok" />);
-    expect(await screen.findByRole("status")).toHaveTextContent(/Team selected.*pilot terms still need agreement/);
+    expect(await screen.findByRole("status")).toHaveTextContent(/Delivery partner selected.*pilot terms still need agreement/);
     expect(fetchMock.mock.calls.filter(call => call[1]?.method === "POST")).toHaveLength(1);
   });
 
@@ -186,7 +188,7 @@ describe("the recommended pilot", () => {
     fetchMock.mockResolvedValueOnce(loaded({ recommendationId: "rec_1" }));
     rerender(<RecommendedPilot token="first" />);
     expect(screen.queryByText("Second team")).toBeNull();
-    expect(await screen.findByRole("status")).toHaveTextContent(/Team selected.*pilot terms still need agreement/);
+    expect(await screen.findByRole("status")).toHaveTextContent(/Delivery partner selected.*pilot terms still need agreement/);
   });
 
   it("ignores a late booking response from the previous private link", async () => {

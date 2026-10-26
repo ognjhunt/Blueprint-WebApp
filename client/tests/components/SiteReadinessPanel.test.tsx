@@ -64,7 +64,7 @@ describe("SiteReadinessPanel", () => {
     const report = summary.closest("details")!;
     expect(report.open).toBe(false);
     expect(container.querySelectorAll("details")).toHaveLength(1);
-    expect(within(report).getByText("Confirm with the robot team")).toBeInTheDocument();
+    expect(within(report).getByText("Confirm with your deployment partner")).toBeInTheDocument();
     expect(within(report).getByText("Tested in the simulation")).toBeInTheDocument();
     expect(within(report).getByText("Jobs like this on the public record")).toBeInTheDocument();
     expect(within(report).getByRole("link", { name: "China Daily" })).toHaveAttribute("href", "https://example.org/source");

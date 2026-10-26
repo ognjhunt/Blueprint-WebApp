@@ -46,7 +46,7 @@ export function TaskRows({ tasks }: { tasks: WorkspaceTask[] }) {
             </p>
             <p>
               {task.results.length
-                ? `${task.results.filter((result) => result.successRate !== null).length} results · ${new Set(task.results.map((result) => result.teamAlias)).size} teams${task.results.some((result) => result.targetsMet !== null) ? ` · ${task.results.filter((result) => result.targetsMet).length} ${task.results.filter((result) => result.targetsMet).length === 1 ? "meets" : "meet"} recorded targets` : ""}`
+                ? `${task.results.filter((result) => result.successRate !== null).length} results · ${new Set(task.results.map((result) => result.teamAlias)).size} submitters${task.results.some((result) => result.targetsMet !== null) ? ` · ${task.results.filter((result) => result.targetsMet).length} ${task.results.filter((result) => result.targetsMet).length === 1 ? "meets" : "meet"} recorded targets` : ""}`
                 : task.capture?.startsAt
                   ? `Capture ${dateLabel(task.capture.startsAt)}`
                   : "Capture and evaluation planning"}
@@ -137,9 +137,9 @@ export default function Overview() {
             <section className="ws-next">
               <div>
                 <p className="ws-kicker">Up next</p>
-                <h2>Review team results</h2>
+                <h2>Review evaluation results</h2>
                 <p className="ws-muted">
-                  Compare each team's evidence with your job targets.
+                  Compare each candidate's evidence with your job targets.
                 </p>
               </div>
               <ActionLink

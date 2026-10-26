@@ -244,7 +244,7 @@ test("the person filming is asked for the video and nothing else", async ({ page
   await page.screenshot({ path: info.outputPath("video-only-film-link-local-fixture.png"), fullPage: true });
 });
 
-const READINESS_NOTE = "Blueprint invites robot teams whose robots look right for this job to evaluate it in a simulation of your site. If Blueprint recommends a team, it will be one whose evaluation of your job passed. This is a first read from your video, not a promise that any robot can do the job.";
+const READINESS_NOTE = "Blueprint evaluates candidate robots and policies that look right for this job in a simulation of your site. If Blueprint recommends an approach, it will be one that passed a full evaluation on your job. This is a first read from your video, not a promise that any robot can do the job.";
 
 function readinessFixture(overrides: Record<string, unknown> = {}) {
   const notNeeded = "between spots isn't needed: the object moves about 90 cm (estimated from your video).";

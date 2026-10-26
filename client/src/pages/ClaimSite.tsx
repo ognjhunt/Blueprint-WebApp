@@ -319,7 +319,7 @@ function ClaimSiteForToken({ token }: { token: string }) {
         <h1>This site is yours.</h1>
         <p className="ms-field-hint">
           {stage.summary.site.siteName || "Your site"} is now in your workspace. You can pause its
-          listing at any time — pausing removes it from what robot teams can assess, and your
+          listing at any time — pausing takes it out of the job library approved partners see, and your
           footage and rights are unchanged.
         </p>
         <a className="ms-button ms-button-large" href={`/app/tasks/${encodeURIComponent(stage.summary.requestId)}`}>

@@ -222,7 +222,7 @@ export default function TaskDetail() {
                     [
                       "Opening visibility",
                       task.published
-                        ? "Open to approved robot teams"
+                        ? "Open to approved partners"
                         : task.visibility === "private"
                           ? "Private"
                           : "Anonymized after review",
@@ -242,8 +242,8 @@ export default function TaskDetail() {
                     "Blueprint will review the job and confirm the next step."}
                 </p>
               </section>
-              <section aria-label="Robot-team library">
-                <h2>Robot-team library</h2>
+              <section aria-label="Partner job library">
+                <h2>Partner job library</h2>
                 {task.archived ? (
                   <p className="ws-muted">Closed. The job is off the library and no new runs can start.</p>
                 ) : !task.listing?.approved ? (
@@ -252,7 +252,7 @@ export default function TaskDetail() {
                   </p>
                 ) : task.listing.live ? (
                   <>
-                    <p>Listed. Robot teams approved for beta can see the anonymized card authorized for this job and start evaluation runs. Your job page lets you review, edit or hide the card.</p>
+                    <p>Listed. Partners approved for the beta can see the anonymized card authorized for this job and ask to have their systems evaluated on it. Your job page lets you review, edit or hide the card.</p>
                     <div className="ws-form-actions">
                       <button
                         className="ws-link"
@@ -260,20 +260,20 @@ export default function TaskDetail() {
                         disabled={action.pending}
                         onClick={() => void action.perform(`${endpoint}/listing`, { paused: true })}
                       >
-                        Hide from robot teams
+                        Hide from partners
                       </button>
                     </div>
                   </>
                 ) : (
                   <>
-                    <p>Hidden. Robot teams cannot see the card or start new runs.</p>
+                    <p>Hidden. Partners cannot see the card or request new evaluations.</p>
                     <button
                       className="ws-link"
                       type="button"
                       disabled={action.pending}
                       onClick={() => void action.perform(`${endpoint}/listing`, { paused: false })}
                     >
-                      Show to robot teams again
+                      Show to partners again
                     </button>
                   </>
                 )}
@@ -299,12 +299,12 @@ export default function TaskDetail() {
               <section className="ws-section">
                 {task.results.length ? (
                   <>
-                    <h2>Team results</h2>
+                    <h2>Evaluation results</h2>
                     <div className="ws-table-wrap ws-section">
                       <table className="ws-table">
                         <thead>
                           <tr>
-                            <th>Team</th>
+                            <th>Submitted by</th>
                             <th>Success</th>
                             <th>Cycle time</th>
                             <th>Outcome</th>
@@ -358,7 +358,7 @@ export default function TaskDetail() {
                       </table>
                     </div>
                     <p className="ws-note">
-                      Teams are anonymized. These results come from evaluation;
+                      Submitters are anonymized. These results come from evaluation in simulation;
                       how a robot does on site is confirmed in the pilot.
                     </p>
                   </>
@@ -381,22 +381,22 @@ export default function TaskDetail() {
                     {["pilot", "pilot_complete", "deployed"].includes(task.pilot.state)
                       ? statusLabel(task.pilot.state)
                       : task.pilotBooking
-                        ? "Team selected"
+                        ? "Delivery partner selected"
                         : task.pilot.selectedResultId
                           ? statusLabel(task.pilot.state)
                           : "Pilot"}
                   </h2>
                   {task.pilotBooking ? (
-                    <PilotBookingDetails booking={task.pilotBooking} other="robot team" />
+                    <PilotBookingDetails booking={task.pilotBooking} other="delivery partner" />
                   ) : (
                     <p className="ws-muted">
                       {task.pilot.notes || (task.pilotRecommended
-                        ? "Review the proposed approach, cost, support and evidence on your job page. Choose a delivery team, then agree pilot terms directly."
+                        ? "Review the proposed approach, cost, support and evidence on your job page. Choose a delivery partner, then agree pilot terms directly."
                         : "No pilot proposal is ready yet. Blueprint will assess suitable options and explain any checks still needed. Your job page holds planning details and delivery proposals as they become available.")}
                     </p>
                   )}
                   {task.pilot.siteVisitAnswer && (
-                    <p className="ws-note">Robot-team site access: {optionLabel(siteVisitOptions, task.pilot.siteVisitAnswer)}. A visit still needs separate approval and agreed terms.</p>
+                    <p className="ws-note">Partner site access: {optionLabel(siteVisitOptions, task.pilot.siteVisitAnswer)}. A visit still needs separate approval and agreed terms.</p>
                   )}
                   {["pilot", "pilot_complete", "deployed"].includes(
                     task.pilot.state,
@@ -466,14 +466,14 @@ export default function TaskDetail() {
               )}
               {task.recordingPermissionWithdrawn ? <p role="status">
                 Recording permission withdrawn. Blueprint stops further processing and use of this recording: new uploads
-                are refused, the job is paused, queued evaluations were asked to cancel and robot teams can no longer see the job.
+                are refused, the job is paused, queued evaluations were asked to cancel and approved partners can no longer see the job.
                 Withdrawal is not deletion: a copy of the recording and any results already produced are retained, and handled
                 as our <a className="ws-link" href="/privacy">Privacy Policy</a> describes.
               </p> : <details className="mt-4">
                 <summary>Withdraw recording permission</summary>
                 <p>
                   This stops Blueprint's further processing and use of this recording: new uploads are refused, the job is
-                  paused, queued evaluations are asked to cancel and robot teams can no longer see the job. Withdrawal is not
+                  paused, queued evaluations are asked to cancel and approved partners can no longer see the job. Withdrawal is not
                   deletion: a copy of the recording and any results already produced are retained, and handled as
                   our <a className="ws-link" href="/privacy">Privacy Policy</a> describes.
                 </p>
@@ -667,7 +667,7 @@ export default function TaskDetail() {
             >
               <p>
                 {pilotAction === "invite"
-                  ? "Blueprint passes on your invitation. You and the robot team agree pilot scope, dates and terms directly before work starts."
+                  ? "Blueprint passes on your invitation to this partner. You and the partner agree pilot scope, dates and terms directly before work starts."
                   : "Record the site's decision and any notes. This doesn't change evaluation scores."}
               </p>
               <Feedback error={action.error} />
@@ -691,8 +691,8 @@ export default function TaskDetail() {
                 }}
               >
                 {pilotAction === "invite" && (
-                  <Field label="Could this robot team bring people and equipment on site for a scoped visit or pilot?">
-                    <select name="siteVisitAnswer" aria-label="Robot-team on-site access" required defaultValue="">
+                  <Field label="Could this partner bring people and equipment on site for a scoped visit or pilot?">
+                    <select name="siteVisitAnswer" aria-label="Partner on-site access" required defaultValue="">
                       <option value="" disabled>Choose…</option>
                       {siteVisitOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                     </select>

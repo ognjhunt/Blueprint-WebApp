@@ -674,7 +674,7 @@ describe("SelfCaptureUpload for a site that asked for a visit", () => {
  * once footage is in, confirming the brief is a visible, required step on the
  * owner page, never a collapsed "optional" correction.
  */
-describe("SelfCaptureUpload asks for the brief confirmation teams need", () => {
+describe("SelfCaptureUpload asks for the brief confirmation an evaluation needs", () => {
   const DESKTOP_UA =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36";
 
@@ -689,7 +689,7 @@ describe("SelfCaptureUpload asks for the brief confirmation teams need", () => {
         return Promise.resolve({ ok: true, json: async () => ({ ok: true, scope: "owner", captureReceived: options.captureReceived,
           status: options.confirmedAtIso
             ? { decision: "footage_received", headline: "We have your recording.", operatorAction: null, missingViews: [], nextUpdateIso: null }
-            : { decision: "confirm_brief", headline: "We have your recording. Next, confirm your job brief: robot teams can evaluate your job only after you confirm it.",
+            : { decision: "confirm_brief", headline: "We have your recording. Next, confirm your job brief: we can evaluate your job only after you confirm it.",
               operatorAction: "Open your job brief, check the summary and answers, correct anything that is wrong, and confirm it.", missingViews: [], nextUpdateIso: null } }) });
       }
       if (url.endsWith(`/api/site-task-brief/${TOKEN}`)) {
@@ -712,7 +712,7 @@ describe("SelfCaptureUpload asks for the brief confirmation teams need", () => {
 
     const step = await screen.findByRole("region", { name: "Confirm your job brief" });
     expect(step.closest("details")).toBeNull();
-    expect(step).toHaveTextContent(/robot teams can evaluate your job only after you confirm/i);
+    expect(step).toHaveTextContent(/We can evaluate your job only after you confirm this brief/);
     // The confirm control is on the page, with nothing to open first.
     expect(screen.getByRole("button", { name: "This is right — confirm it" })).toBeVisible();
     // The brief, never the job card's own optional extras, is what must not read as optional.

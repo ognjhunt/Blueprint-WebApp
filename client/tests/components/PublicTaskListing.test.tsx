@@ -22,7 +22,7 @@ describe("the task page's public card", () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ listing: null, draft: { details: { title: "Move cartons onto a pallet", taskFamily: "Palletizing", opportunity: "not_seeking" } }, thumbnailPng: null }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
     render(<PublicTaskListing token="tok" />);
-    expect(await screen.findByText(/Your job card is not published, so robot teams cannot see or evaluate this job/)).toBeInTheDocument();
+    expect(await screen.findByText(/Your job card is not published, so approved partners cannot see this job in the job library/)).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText(/show this card in the job library/i));
     fireEvent.click(screen.getByLabelText(/authorized to make them public/i));
     fireEvent.click(screen.getByRole("button", { name: /publish reviewed card/i }));
