@@ -75,12 +75,16 @@ it("atomically stores diagnostic progress in existing managed evidence and accep
   expect(run.screening_execution_observed).toBe(false);
   expect(publicationFromResultRecord(store.rows.get(`captureTaskEvaluationRuns/${run.result_record_id}`))).toEqual(publication);
   expect((await (await send(url, signed(publication))).json()).status).toBe("replayed");
-  const next = sealScreening({ ...publication, revision: 2, status: "running",
+  const waiting = sealScreening({ ...publication, revision: 2, status: "running",
+    candidates: publication.candidates.map((row, index) => index ? row : { ...row, status: "preparing", blockers: ["beta_screening_waiting_for_capacity"] }) });
+  expect((await send(url, signed(waiting))).status).toBe(200);
+  expect(store.rows.get("taskEvaluationPolicyRuns/campaign-one").screening_execution_observed).toBe(false);
+  const next = sealScreening({ ...publication, revision: 3, status: "running",
     candidates: publication.candidates.map((row, index) => index ? row : { ...row, status: "running" }) });
   expect((await send(url, signed(next))).status).toBe(200);
   expect(store.rows.get("taskEvaluationPolicyRuns/campaign-one").screening_execution_observed).toBe(true);
   expect((await (await send(url, signed(publication))).json()).status).toBe("superseded");
-  expect(store.rows.get("taskEvaluationPolicyRuns/campaign-one").publication_revision).toBe(2);
+  expect(store.rows.get("taskEvaluationPolicyRuns/campaign-one").publication_revision).toBe(3);
   const briefDigest = scientificBriefDigest(store.rows.get("siteTaskBriefs/job-one"));
   expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(true);
   const status = store.rows.get("taskEvaluationSceneIntakes/intake-one").pipeline_status;

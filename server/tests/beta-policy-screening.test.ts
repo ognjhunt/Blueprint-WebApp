@@ -70,6 +70,12 @@ describe("many-candidate diagnostic screening", () => {
     expect(screeningPublicationTransition(running, running)).toBe("replayed");
     expect(screeningPublicationTransition(running, publication)).toBe("superseded");
     expect(() => screeningPublicationTransition(running, sealScreening({ ...publication, revision: 3 }))).toThrow("screening_progress_regression");
+    const waiting = sealScreening({ ...running, revision: 3, candidates: running.candidates.map((row, index) => index ? row
+      : { ...row, status: "preparing", blockers: ["beta_screening_waiting_for_capacity"] }) });
+    expect(parseBetaPolicyScreeningPublication(waiting)).not.toBeNull();
+    expect(screeningPublicationTransition(running, waiting)).toBe("updated");
+    expect(() => screeningPublicationTransition(running, sealScreening({ ...waiting, candidates: waiting.candidates.map(row => ({ ...row, blockers: [] })) })))
+      .toThrow("screening_progress_regression");
     expect(() => screeningPublicationTransition(running, sealScreening({ ...running, status: "reconciliation_required" }))).toThrow("screening_revision_conflict");
     expect(() => screeningPublicationTransition(running, sealScreening({ ...running, revision: 3, plan_digest: screeningSha("9") }))).toThrow("screening_campaign_identity_conflict");
     const completed = sealScreening({ ...running, revision: 3, status: "completed", candidates: running.candidates.map(row => ({ ...row,

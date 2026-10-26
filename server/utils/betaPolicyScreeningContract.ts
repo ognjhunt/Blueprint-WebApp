@@ -92,8 +92,11 @@ export function screeningPublicationTransition(previous: BetaPolicyScreeningPubl
     if (screeningTerminalCandidateStates.has(row.status) && crossRuntimeDigest(row) !== crossRuntimeDigest(updated))
       throw new Error("screening_terminal_candidate_conflict");
     const rank: Record<string, number> = { pending: 0, preparing: 1, launching: 2, running: 3 };
+    // Pipeline retains a canonical no-allocation receipt before retrying a
+    // busy slot. Waiting for that capacity is preparation, never execution.
+    const waitingForCapacity = updated.status === "preparing" && updated.blockers.includes("beta_screening_waiting_for_capacity");
     if ((updated.status === "pending" && row.status !== "pending")
-      || (rank[updated.status] !== undefined && rank[row.status] !== undefined && rank[updated.status] < rank[row.status]))
+      || (!waitingForCapacity && rank[updated.status] !== undefined && rank[row.status] !== undefined && rank[updated.status] < rank[row.status]))
       throw new Error("screening_progress_regression");
     if (updated.episodes_scored < row.episodes_scored || updated.episodes_void < row.episodes_void)
       throw new Error("screening_progress_regression");
