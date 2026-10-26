@@ -44,7 +44,8 @@ describe("local real-assessment experiment contracts — OFFLINE / NO MODEL-QUAL
     expect(experimentFailure(error).cause).toBeUndefined();
   });
   it("omits a cause's accessor issues without invoking the getter and keeps real schema paths", () => {
-    const cause = new z.ZodError([]), getter = vi.fn(() => { throw Error("PRIVATE issues getter"); });
+    // Exercise a foreign error-shaped object without redefining Zod 4's immutable issues property.
+    const cause = Object.create(z.ZodError.prototype), getter = vi.fn(() => { throw Error("PRIVATE issues getter"); });
     Object.defineProperty(cause, "issues", { get: getter });
     const failure = experimentFailure(Object.assign(new Error("experiment_failed"), { cause }));
     expect(failure.cause).toMatchObject({ exception_class: "ZodError" });

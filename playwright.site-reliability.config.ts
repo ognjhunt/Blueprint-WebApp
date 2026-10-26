@@ -9,7 +9,8 @@ export default defineConfig({
   outputDir: "work/site-reliability/browser",
   reporter: [["list"], ["json", { outputFile: "work/site-reliability/results.json" }]],
   use: {
-    baseURL: "http://127.0.0.1:42874",
+    // Keep the listener below Linux's default ephemeral port range.
+    baseURL: "http://127.0.0.1:31874",
     serviceWorkers: "block",
     trace: "retain-on-failure",
     launchOptions: {
@@ -19,7 +20,7 @@ export default defineConfig({
   },
   webServer: {
     command: "node scripts/qa/start-site-reliability-vite.mjs",
-    url: "http://127.0.0.1:42874",
+    url: "http://127.0.0.1:31874",
     reuseExistingServer: false,
     timeout: 60_000,
   },

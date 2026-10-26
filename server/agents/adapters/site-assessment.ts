@@ -61,7 +61,7 @@ function assessmentExceptionDiagnostic(error: unknown, runId: string) {
   const apiClasses = ["APIConnectionTimeoutError", "APIConnectionError", "APIUserAbortError", "BadRequestError", "AuthenticationError",
     "PermissionDeniedError", "NotFoundError", "ConflictError", "UnprocessableEntityError", "RateLimitError", "InternalServerError", "APIError"] as const;
   const apiClass = apiClasses.find(name => error instanceof OpenAI[name]);
-  const name = errorField(error, "name"), status = errorField(error, "status"), code = errorField(error, "code"), requestId = errorField(error, "request_id");
+  const name = errorField(error, "name"), status = errorField(error, "status"), code = errorField(error, "code"), requestId = errorField(error, "request_id") ?? errorField(error, "requestID");
   const exceptionClass = apiClass ?? (error instanceof TypeError ? "TypeError" : error instanceof RangeError ? "RangeError"
     : error instanceof SyntaxError ? "SyntaxError" : error instanceof Error
       ? typeof name === "string" && sdkErrorClasses.has(name) ? name : "Error" : null);

@@ -281,6 +281,7 @@ afterEach(() => {
 describe("agent session runtime", () => {
   it("routes a default assessment session through the SDK host and retains its six-part output and evidence", async () => {
     const runtime = await import("../agents/runtime");
+    const sourceDefinition = { kind: "site_assessment", definition: { kind: "site_assessment", note: "Retained source context" } };
     const assessment = { status: "needs_operator_input", job: [], objects_motions_conditions_variations: [],
       operator_success: [], known: [], estimates: [], missing: [], approaches: [],
       next_action: { kind: "ask_operator", action: "Define acceptance", why: { text: "Acceptance is missing", basis: "unknown", evidence: [] } },
@@ -291,14 +292,21 @@ describe("agent session runtime", () => {
         usage: { calls: 0, prompt_tokens: 0, completion_tokens: 0, cost_usd: 0 } }, requires_human_review: true, requires_approval: false });
     const session = await runtime.createAgentSession({ title: "Assessment", task_kind: "site_assessment" });
     const result = await runtime.sendAgentSessionMessage({ sessionId: session.id,
-      task: { kind: "site_assessment", input: { message: "Operator needs repeatable rack movement", context: { request_id: "one" } } } });
+      task: { kind: "site_assessment", input: { message: "Operator needs repeatable rack movement", context: { request_id: "one" } },
+        metadata: { source_definition: sourceDefinition } } });
     expect(result.result?.output).toEqual(assessment);
     const [task, host] = runSiteAssessmentTask.mock.calls.at(-1)!;
     expect(task.provider).toBe("openai_responses"); expect(task.model).toBe("gpt-6.1-sol");
     expect(task.tool_policy.allowed_actions).toContain("analyze_site_video");
     expect(host.runId).toBe(result.runId); expect(host.assertCostAllowed).toBeTypeOf("function");
+    expect(task.definition.output_schema.parse).toBeTypeOf("function");
     const retained = await runtime.listAgentRunsForSession(session.id);
     expect(retained[0].artifacts?.site_assessment_packet).toEqual(packet);
+    expect((retained[0].input as any).definition).toEqual({ kind: "site_assessment" });
+    expect((retained[0].input as any).metadata.source_definition).toEqual(sourceDefinition);
+    const checkpoints = [...fake.store.agentCheckpoints.values()].filter(row => (row.snapshot as any)?.task?.definition);
+    expect(checkpoints.length).toBeGreaterThan(0);
+    for (const row of checkpoints) expect((row.snapshot as any).task.definition).toEqual({ kind: "site_assessment" });
   });
   it("honors assessment cancellation before another inference and keeps late paid receipts cancelled", async () => {
     const runtime = await import("../agents/runtime");

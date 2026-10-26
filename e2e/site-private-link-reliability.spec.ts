@@ -126,12 +126,13 @@ test("returning owner keeps the received recording and gets fresh-job recovery g
   expect(writes).toEqual([]);
 });
 
-test.beforeEach(async ({ context }) => {
+test.beforeEach(async ({ context, baseURL }) => {
   // Fresh, anonymous browser context. No inherited auth or real API traffic.
+  const localOrigin = new URL(baseURL!).origin;
   await context.route("**/*", route => {
     const url = new URL(route.request().url());
     if (url.pathname.startsWith("/api/job-workflow/owner/") && route.request().method() === "GET") return route.fulfill({ json: legacyJobWorkflow() });
-    if (url.origin !== "http://127.0.0.1:42874") return route.abort();
+    if (url.origin !== localOrigin) return route.abort();
     if (url.pathname.startsWith("/api/")) return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
     return route.continue();
   });
