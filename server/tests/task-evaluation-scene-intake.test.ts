@@ -1546,8 +1546,20 @@ it("amends only preparation request count while retaining money, native authorit
   expect(store.rows.get("inboundRequests/req1").website_preparation_limit_extension).toBeUndefined();
   const extended = await amendWebsitePreparationRequestLimit("req1", extension, true);
   expect(await amendWebsitePreparationRequestLimit("req1", extension, true)).toEqual(extended);
-  await expect(amendWebsitePreparationRequestLimit("req1", { ...extension, max_requests: 64 }, true))
-    .rejects.toThrow("amendment_conflict");
+  const nextExtension = { ...extension, max_requests: 64, approval_reference: "owner-reply:test-64" };
+  const before = structuredClone(store.rows.get("inboundRequests/req1"));
+  expect(await amendWebsitePreparationRequestLimit("req1", nextExtension)).toMatchObject({ max_requests: 64 });
+  expect(store.rows.get("inboundRequests/req1")).toEqual(before);
+  const newest = await amendWebsitePreparationRequestLimit("req1", nextExtension, true);
+  expect(await amendWebsitePreparationRequestLimit("req1", nextExtension, true)).toEqual(newest);
+  const after = store.rows.get("inboundRequests/req1");
+  expect(after.website_preparation_amendment_history).toEqual([receipt, extended]);
+  expect(after.website_preparation_limit_amendment.max_requests).toBe(48);
+  expect(after.website_preparation_limit_extension.prior_amendment_digest)
+    .toBe(after.website_preparation_limit_amendment.amendment_digest);
+  expect(after.website_preparation_reservations).toEqual(before.website_preparation_reservations);
+  expect(after.website_scene_sponsorship).toEqual(before.website_scene_sponsorship);
+  await expect(amendWebsitePreparationRequestLimit("req1", extension, true)).rejects.toThrow("amendment_conflict");
   expect(await loadWebsiteSceneSponsorship("req1")).toEqual(grant);
   expect(await reserveWebsitePreparationSpend("req1", spend)).toEqual({ ...first, status: "already_reserved" });
   expect(await reserveWebsitePreparationSpend("req1", next)).toMatchObject({ status: "admitted" });
@@ -1559,7 +1571,7 @@ it("amends only preparation request count while retaining money, native authorit
     maximum_cost_usd: 4 })).rejects.toThrow("budget_exhausted");
 });
 
-it("raises only the upstream preparation dollar cap, once, by the owner, within three times the grant", async () => {
+it("raises only the upstream preparation dollar cap by the owner, retaining prior approvals and usage", async () => {
   sponsoredCapture();
   const grant = await loadWebsiteSceneSponsorship("req1", true);
   const spend = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
@@ -1579,16 +1591,29 @@ it("raises only the upstream preparation dollar cap, once, by the owner, within 
   expect(store.rows.get("inboundRequests/req1").website_preparation_spend_amendment).toBeUndefined();
   const receipt = await amendWebsitePreparationSpendLimit("req1", input, true);
   expect(await amendWebsitePreparationSpendLimit("req1", input, true)).toEqual(receipt);
-  await expect(amendWebsitePreparationSpendLimit("req1", { ...input, upstream_max_spend_usd: 12 }, true))
+  await expect(amendWebsitePreparationSpendLimit("req1", { ...input, upstream_max_spend_usd: 9 }, true))
     .rejects.toThrow("amendment_conflict");
+  const increase = { ...input, upstream_max_spend_usd: 12, approval_reference: "owner-reply:raise-upstream-12" };
+  const before = structuredClone(store.rows.get("inboundRequests/req1"));
+  await amendWebsitePreparationSpendLimit("req1", increase);
+  expect(store.rows.get("inboundRequests/req1")).toEqual(before);
+  const increased = await amendWebsitePreparationSpendLimit("req1", increase, true);
+  expect(await amendWebsitePreparationSpendLimit("req1", increase, true)).toEqual(increased);
+  const after = store.rows.get("inboundRequests/req1");
+  expect(after.website_preparation_amendment_history).toEqual([receipt]);
+  expect(after.website_preparation_reservations).toEqual(before.website_preparation_reservations);
+  await expect(amendWebsitePreparationSpendLimit("req1", { ...increase, upstream_max_spend_usd: 16 }, true))
+    .rejects.toThrow("out_of_bounds");
   // The grant itself, its native cap and existing reservations are unchanged.
   expect(await loadWebsiteSceneSponsorship("req1")).toEqual(grant);
   expect(await reserveWebsitePreparationSpend("req1", spend)).toEqual({ ...first, status: "already_reserved" });
   expect(await reserveWebsitePreparationSpend("req1", next)).toMatchObject({ status: "admitted" });
   await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("3"),
-    maximum_cost_usd: 4 })).rejects.toThrow("budget_exhausted");
+    maximum_cost_usd: 6 })).rejects.toThrow("budget_exhausted");
   // A tampered amendment fails closed rather than widening the cap.
   store.rows.get("inboundRequests/req1").website_preparation_spend_amendment.upstream_max_spend_usd = 15;
+  await expect(amendWebsitePreparationSpendLimit("req1", { ...increase, upstream_max_spend_usd: 15 }, true))
+    .rejects.toThrow("spend_amendment_invalid");
   await expect(reserveWebsitePreparationSpend("req1", { ...next, allocation_binding_digest: sha("4"),
     maximum_cost_usd: 0.1 })).rejects.toThrow("spend_amendment_invalid");
 });
@@ -1742,6 +1767,43 @@ it("releases only provider charged Vast capacity after a bound terminal rental",
     provider_charge_amount_usd: .51 })).rejects.toThrow("settlement_invalid");
 });
 
+
+it("settles a proved unallocated Vast refusal without replenishing requests or losing its admission", async () => {
+  sponsoredCapture();
+  const terms = JSON.parse(process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON!);
+  process.env.TASK_EVALUATION_SCENE_PROVIDER_TERMS_JSON = JSON.stringify({ ...terms, vast: terms.openai });
+  const grant = await loadWebsiteSceneSponsorship("req1", true);
+  const input = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    resource_class: "gpu_render" as const, provider: "vast" as const, maximum_cost_usd: .5, request_count: 1 };
+  await reserveWebsitePreparationSpend("req1", input);
+  const original = structuredClone(store.rows.get("inboundRequests/req1").website_preparation_reservations);
+  const settlement = { task_context_digest: grant.task_context_digest, allocation_binding_digest: sha("1"),
+    provider: "vast" as const, allocation_status: "not_created" as const, provider_create_attempted: false as const,
+    provider_mutations_performed: 0 as const, provider_instance_ids: [] as never[], provider_charge_amount_usd: 0 as const,
+    all_staged_objects_absent: true as const, continuing_spend_from_this_run: false as const,
+    execution_result_digest: sha("2"), adapter_result_digest: sha("3"), teardown_receipt_digest: sha("4"),
+    staged_object_absence_digest: sha("5"), watchdog_receipt_digest: sha("6") };
+  for (const changed of [{ provider_create_attempted: true }, { provider_mutations_performed: 1 },
+    { provider_instance_ids: [123] }, { provider_charge_amount_usd: .01 }, { all_staged_objects_absent: false },
+    { continuing_spend_from_this_run: true }, { watchdog_receipt_digest: "missing" },
+    { instance_id: "123" }, { task_context_digest: sha("b") }, { allocation_binding_digest: sha("b") }]) {
+    await expect(settleWebsitePreparationSpend("req1", { ...settlement, ...changed } as any)).rejects.toThrow();
+    expect(store.rows.get("inboundRequests/req1").website_preparation_reservations).toEqual(original);
+  }
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1/preparation-settlement");
+  const response = await realFetch(base, { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", settlement }) });
+  expect(response.status).toBe(200);
+  const receipt = await response.json();
+  expect(receipt).toMatchObject({ status: "settled", actual_cost_usd: 0, allocation_status: "not_created" });
+  expect(await settleWebsitePreparationSpend("req1", settlement)).toEqual(receipt);
+  const retained = store.rows.get("inboundRequests/req1").website_preparation_reservations;
+  expect(Object.keys(retained)).toEqual(Object.keys(original));
+  expect(retained["1".repeat(64)].admission).toEqual(original["1".repeat(64)].admission);
+  expect(retained["1".repeat(64)].admission.request_count).toBe(1);
+  await expect(settleWebsitePreparationSpend("req1", { ...settlement, adapter_result_digest: sha("b") }))
+    .rejects.toThrow("idempotency_conflict");
+});
 
 it("admits only explicitly authorized development surfaces without creating a second native budget", async () => {
   sponsoredCapture();

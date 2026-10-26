@@ -468,6 +468,22 @@ const vastSettlementRequest = z.object({
   teardown_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   provider_zero_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
 }).strict().refine(value => value.provider_charge_source === `instance-${value.instance_id}`);
+// A signed allocator refusal can release a hold without inventing an instance
+// or billing receipt. The original admission and request count stay retained.
+const vastNoAllocationSettlementRequest = z.object({
+  task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  allocation_binding_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  provider: z.literal("vast"), allocation_status: z.literal("not_created"),
+  provider_create_attempted: z.literal(false), provider_mutations_performed: z.literal(0),
+  provider_instance_ids: z.array(z.never()).max(0),
+  provider_charge_amount_usd: z.literal(0),
+  all_staged_objects_absent: z.literal(true), continuing_spend_from_this_run: z.literal(false),
+  execution_result_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  adapter_result_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  teardown_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  staged_object_absence_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  watchdog_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+}).strict();
 // Image edits are billed per request from the provider's usage. Release the
 // unused quote only once every request the reservation covered has a completed
 // receipt, so an uncertain in-flight request keeps its full hold.
@@ -479,7 +495,8 @@ const openaiImageSettlementRequest = z.object({
   usage_receipt_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
 }).strict();
 export const preparationSettlementRequest = z.union([
-  completedPreparationSettlement, rejectedPreparationSettlement, vastSettlementRequest, openaiImageSettlementRequest,
+  completedPreparationSettlement, rejectedPreparationSettlement, vastSettlementRequest, vastNoAllocationSettlementRequest,
+  openaiImageSettlementRequest,
 ]);
 
 /** Pipeline-signed final provider billing releases only the unused reservation. */
@@ -551,7 +568,7 @@ const preparationSpendAmendment = z.object({
   approval_reference: z.string().trim().min(1).max(1000),
 }).strict();
 
-/** The upstream preparation cap, raised at most once, by the owner, to at most three times the grant. */
+/** The owner-approved upstream preparation cap, bounded by three times the grant. */
 function preparationSpendLimit(record: Record<string, any>, authority: Record<string, any>) {
   const amendment = record.website_preparation_spend_amendment;
   if (!amendment) return authority.upstream_max_spend_usd;
@@ -602,7 +619,7 @@ function carriedPreparationAmendments(record: Record<string, any>, authorityDige
   return { updates, archived };
 }
 
-/** Operator-only, one-shot: raises only the upstream preparation cap. The native
+/** Operator-only: raises only the upstream preparation cap. The native
  * cap, expiry, request limit and existing reservations are unchanged. */
 export async function amendWebsitePreparationSpendLimit(
   requestId: string, input: z.infer<typeof preparationSpendAmendment>, apply = false,
@@ -622,17 +639,20 @@ export async function amendWebsitePreparationSpendLimit(
     if (authority.expires_at_epoch <= Date.now() / 1000) throw new Error("consent_expired");
     if (!projectWebsiteCaptureRights(record!).derived_scene_generation_allowed) throw new Error("source_revoked");
     const previous = record!.website_preparation_spend_amendment;
+    const current = preparationSpendLimit(record!, authority);
     if (previous) {
       if (previous.upstream_max_spend_usd === command.upstream_max_spend_usd
           && previous.approval_reference === command.approval_reference) return previous;
-      throw new Error("website_preparation_amendment_conflict");
+      if (command.upstream_max_spend_usd <= current) throw new Error("website_preparation_amendment_conflict");
     }
     if (command.upstream_max_spend_usd <= authority.upstream_max_spend_usd
         || command.upstream_max_spend_usd > authority.upstream_max_spend_usd * 3)
       throw new Error("website_preparation_spend_amendment_out_of_bounds");
     const value = { ...command, approved_at_epoch: Date.now() / 1000 };
     const receipt = { ...value, amendment_digest: digest(value) };
-    if (apply) transaction.update(ref, { website_preparation_spend_amendment: receipt });
+    if (apply) transaction.update(ref, { website_preparation_spend_amendment: receipt,
+      ...(previous ? { website_preparation_amendment_history:
+        [...(record!.website_preparation_amendment_history ?? []), previous] } : {}) });
     return receipt;
   }));
 }
@@ -664,11 +684,23 @@ export async function amendWebsitePreparationRequestLimit(
         return extension;
       if (!extension && previous.max_requests === command.max_requests && previous.approval_reference === command.approval_reference)
         return previous;
-      if (extension || command.max_requests <= current) throw new Error("website_preparation_amendment_conflict");
+      if (command.max_requests <= current) throw new Error("website_preparation_amendment_conflict");
+      // Further owner-approved increases preserve both prior signed records.
+      // Carry the last approved limit forward without replenishing usage or
+      // changing the sponsorship, dollar allowance, expiry, or reservations.
+      let base = previous;
+      let history: Record<string, any>[] | undefined;
+      if (extension) {
+        const { extension_digest: _extensionDigest, prior_amendment_digest: _priorDigest, ...payload } = extension;
+        base = { ...payload, amendment_digest: digest(payload) };
+        history = [...(record!.website_preparation_amendment_history ?? []), previous, extension];
+      }
       const value = { ...command, approved_at_epoch: Date.now() / 1000,
-        prior_amendment_digest: previous.amendment_digest };
+        prior_amendment_digest: base.amendment_digest };
       const receipt = { ...value, extension_digest: digest(value) };
-      if (apply) transaction.update(ref, { website_preparation_limit_extension: receipt });
+      if (apply) transaction.update(ref, { website_preparation_limit_extension: receipt,
+        ...(history ? { website_preparation_limit_amendment: base,
+          website_preparation_amendment_history: history } : {}) });
       return receipt;
     }
     if (command.max_requests <= current) throw new Error("website_preparation_limit_not_increased");
