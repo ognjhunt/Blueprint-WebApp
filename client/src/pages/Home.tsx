@@ -4,7 +4,7 @@ import { SEO } from "@/components/SEO";
 import { REPLY_TIMELINE } from "@/data/betaTimelines";
 import { organizationJsonLd, webPageJsonLd, websiteJsonLd } from "@/lib/seoStructuredData";
 
-const description = "Send video of one recurring job. Blueprint builds a simulation of your site, runs candidate robots, policies and policy APIs against the job, and recommends the approach that wins plus deployment companies that support it. Free during the beta.";
+const description = "Send video of one recurring job. Blueprint simulates your site, runs candidate robots and policies against the job, and recommends the approach that wins plus deployment companies that support it. Free during the beta.";
 
 export default function Home() {
   return (

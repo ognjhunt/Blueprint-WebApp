@@ -4,7 +4,7 @@ import { WarehousePilotSequence } from "@/components/site/WarehousePilotSequence
 import { SEO } from "@/components/SEO";
 import { webPageJsonLd } from "@/lib/seoStructuredData";
 
-const description = "From a video of your job to a measured robot pilot: Blueprint reconstructs your workspace, runs candidate robots, policies and policy APIs against the job in simulation, and recommends the approach that wins plus deployment companies that support it.";
+const description = "From a video of your job to a measured robot pilot: Blueprint reconstructs your workspace, runs candidate robots and policies against the job in simulation, and recommends the approach that wins plus deployment companies that support it.";
 
 export default function HowItWorks() {
   return <>
