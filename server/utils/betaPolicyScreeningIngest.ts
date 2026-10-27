@@ -7,13 +7,25 @@ import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { encodeTaskEvaluationRunPublication, publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { parseBetaPolicyScreeningPublication, screeningPublicationTransition, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
+import { familyPreparationMatchesTask, isTaskFamilyStrategy } from "./taskFamilySceneIntake";
 
 export function assertScreeningSceneSource(publication: BetaPolicyScreeningPublication, intake: Record<string, any>,
   scope: ReturnType<typeof managedJobTask>) {
   const source = publication.source;
   const status = intake.pipeline_status;
+  const family = isTaskFamilyStrategy(intake.request?.task?.strategy);
+  const prepared = family
+    ? status?.phase === "family_native_prepared" && intake.request.execution?.purpose === "scene_preparation"
+      && intake.request.execution.policy_candidates?.length === 0
+      && familyPreparationMatchesTask(status.result_reference, intake.request.task)
+    : status?.phase === "scene_prepared" && status.result_reference?.schema_version !== "website_task_family_preparation_result.v1";
+  const selection = family ? intake.request.task.policy_selection : undefined;
+  const selectedPolicyMatches = selection === undefined || selection !== null && typeof selection === "object"
+    && publication.catalog_digest === selection.catalog_digest
+    && publication.candidates.length === 1 && publication.candidates[0].candidate_id === selection.candidate_id
+    && publication.candidates[0].configuration_digest === selection.configuration_digest;
   if (!intake.request || !intake.receipt || !intake.website_request_id
-    || intake.revocation_requested || intake.state !== "completed" || status?.status !== "completed" || status?.phase !== "scene_prepared"
+    || intake.revocation_requested || intake.state !== "completed" || status?.status !== "completed" || !prepared || !selectedPolicyMatches
     || crossRuntimeDigest(intake.request) !== intake.request_digest
     || intake.receipt.request_digest !== intake.request_digest
     || crossRuntimeArtifactDigest(intake.receipt, "receipt_digest") !== intake.receipt.receipt_digest

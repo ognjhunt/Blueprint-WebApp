@@ -12,6 +12,7 @@ import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent }
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
+import { familyNativePreparationReference, familyPreparationMatchesTask, isTaskFamilyStrategy, taskFamilyIntakeTask } from "./taskFamilySceneIntake";
 
 export { sceneCanonicalJson, sceneDigest };
 
@@ -186,14 +187,12 @@ const statusSchema = z
         })
         .strict(),
     ),
-    result_reference: z
-      .object({
+    result_reference: z.union([familyNativePreparationReference, z.object({
         uri: z.string(),
         digest,
         size_bytes: z.number().int().nonnegative(),
       })
-      .strict()
-      .nullable(),
+      .strict()]).nullable(),
     result_run_id: identifier.optional(),
     effective_execution_budget: z.object({
       max_total_spend_usd: z.number().finite().positive().max(1000),
@@ -239,6 +238,7 @@ export const sceneIntakeCommand = z
     collision_source_session_id: identifier.optional(),
     collision_same_frame_confirmed: z.literal(true).optional(),
     task: z.discriminatedUnion("strategy", [
+      taskFamilyIntakeTask,
       z
         .object({
           task_id: identifier,
@@ -588,6 +588,12 @@ export async function scenePipelineRequest(
       value.schema_version !== "task_evaluation_scene_intent_status.v1")
   )
     throw new Error("pipeline_status_owner_invalid");
+  if (intentId && (value.phase === "family_native_prepared" || familyNativePreparationReference.safeParse(value.result_reference).success
+      || isTaskFamilyStrategy(request.task?.strategy) && value.status === "completed")
+    && (value.status !== "completed" || value.phase !== "family_native_prepared"
+      || request.execution?.purpose !== "scene_preparation" || request.execution?.policy_candidates?.length !== 0
+      || !familyPreparationMatchesTask(value.result_reference, request.task)))
+    throw new Error("pipeline_family_preparation_binding_invalid");
   if (
     !intentId &&
     (value.schema_version !== "task_evaluation_scene_intake_receipt.v1" ||

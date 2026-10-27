@@ -15,6 +15,7 @@ import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent, type AssessmentPreparationProposal } from "./siteAssessmentPreparation";
 import { advisoryContextDigest } from "./siteAssessmentContext";
+import { isTaskFamilyStrategy, websiteFamilySourceBinding } from "./taskFamilySceneIntake";
 
 function continuationAuthority(authority: Record<string, any>, input: {
   brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
@@ -880,6 +881,12 @@ const WEBSITE_SUBJECT_ORIGINS = new Set(["removed_before_reconstruction", "synth
 
 export function validateWebsiteSponsoredIntake(request: Record<string, any>, authority: Record<string, any>) {
   const preparationOnly = request.execution?.purpose === "scene_preparation";
+  const family = isTaskFamilyStrategy(request.task?.strategy);
+  if (family) {
+    websiteFamilySourceBinding(request.task, authority as Parameters<typeof websiteFamilySourceBinding>[1]);
+    if (!preparationOnly || request.execution.policy_candidates?.length !== 0)
+      throw new Error("website_scene_sponsorship_family_binding_invalid");
+  }
   const proposal = authority.assessment_preparation_proposal;
   if (authority.purpose === "scene_preparation" && !preparationOnly
     || request.consent?.task_confirmed !== true && !(preparationOnly && authority.purpose === "scene_preparation"
@@ -911,7 +918,7 @@ export function validateWebsiteSponsoredIntake(request: Record<string, any>, aut
     || !/^sha256:[0-9a-f]{64}$/.test(request.source?.content_digest || "")
     || request.source.binding_id !== `${prefix}${request.source.content_digest.slice(7, 39)}`
     || request.task?.task_id !== `website-${authority.task_context_digest.slice(7, 27)}${development ? "-development" : ""}`
-    || !WEBSITE_SUBJECT_ORIGINS.has(request.task?.subject?.geometry_origin)
+    || !family && !WEBSITE_SUBJECT_ORIGINS.has(request.task?.subject?.geometry_origin)
     || request.execution?.max_total_spend_usd !== authority.max_total_spend_usd
     || request.execution?.max_paid_attempts !== authority.max_paid_attempts
     || request.execution?.expires_at_epoch !== authority.expires_at_epoch

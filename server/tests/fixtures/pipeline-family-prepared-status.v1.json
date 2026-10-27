@@ -1,0 +1,105 @@
+{
+  "receipt": {
+    "intent_digest": "sha256:13e64f1e39ed0c91634e0934f47c959d060c1cac49057abfbe1648aba51a97dd",
+    "intent_id": "scene-6c343b8d997738c2fc1369fcf295186d32a8a5a0b210fdecfea7183199323c4c",
+    "provider_mutation_performed_inside_http_request": false,
+    "receipt_digest": "sha256:25aab250ca22f5b32a5319d635c219e7079b7944e6aaf869392f26a647171c71",
+    "request_digest": "sha256:e10d13498cb491c0524a3051fa75216ca577f15953974e6b92ab39487f07aa5b",
+    "schema_version": "task_evaluation_scene_intake_receipt.v1",
+    "status": "accepted"
+  },
+  "request": {
+    "consent": {
+      "accepted_at_epoch": 1793137148.7626724,
+      "accepted_by": "owner-1",
+      "private_processing_authorized": true,
+      "provider_terms_reference": "accepted-provider-terms",
+      "provider_training_authorized": false,
+      "rights_reference": "recorded-owner-rights",
+      "spend_authorized": true,
+      "task_confirmed": true
+    },
+    "execution": {
+      "allowed_providers": [
+        "vast",
+        "openai"
+      ],
+      "claim_scope": "development_only",
+      "expires_at_epoch": 1793140749.7626724,
+      "max_paid_attempts": 2,
+      "max_retries": 0,
+      "max_total_spend_usd": 40,
+      "policy_candidates": [],
+      "purpose": "scene_preparation"
+    },
+    "owner": {
+      "organization_id": "org-1",
+      "user_id": "owner-1"
+    },
+    "schema_version": "task_evaluation_scene_intake_request.v1",
+    "source": {
+      "binding_id": "marble-splat-1",
+      "content_digest": "sha256:227d813a5d8ed4d01d462ec687f28894e3795b347cb029bfc4dcb7300714e4f1",
+      "kind": "gaussian_splat"
+    },
+    "submission_id": "walkthrough-req1",
+    "task": {
+      "native_runtime_contract_digest": "sha256:b631da6dfd39d44d1fe22d64921f9b7195359b954c0bc25a4bbbe62f9db96f5a",
+      "strategy": "button_press",
+      "task_family_runtime_selection": {
+        "runtime_catalog_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "runtime_id": "qualified_button_runtime"
+      },
+      "task_id": "website-1279d028479fe8d6d39a",
+      "task_success_contract_digest": "sha256:886d28354cf61c73ce41ffa03daaf69221d7ff1ac1c0e5df67d0f1c407a54186"
+    }
+  },
+  "site_id": "site-req1",
+  "source": {
+    "capture_id": "walkthrough-req1",
+    "scene_intent_digest": "sha256:13e64f1e39ed0c91634e0934f47c959d060c1cac49057abfbe1648aba51a97dd",
+    "scene_intent_id": "scene-6c343b8d997738c2fc1369fcf295186d32a8a5a0b210fdecfea7183199323c4c",
+    "scene_revision_digest": "sha256:1d52e75c02f1369ccaf1adbc8ea3731c3d154f8805095d2094b5530ae98a9852",
+    "task_context_digest": "sha256:1279d028479fe8d6d39afbc5f196a87d58203ca9df51ce7d67d2d245f14b7f05",
+    "task_id": "website-1279d028479fe8d6d39a"
+  },
+  "status": {
+    "attempts": [],
+    "blockers": [],
+    "effective_execution_budget": {
+      "extension_count": 0,
+      "extension_digest": null,
+      "max_paid_attempts": 2,
+      "max_total_spend_usd": 40
+    },
+    "intent_digest": "sha256:13e64f1e39ed0c91634e0934f47c959d060c1cac49057abfbe1648aba51a97dd",
+    "intent_id": "scene-6c343b8d997738c2fc1369fcf295186d32a8a5a0b210fdecfea7183199323c4c",
+    "owner": {
+      "organization_id": "org-1",
+      "user_id": "owner-1"
+    },
+    "phase": "family_native_prepared",
+    "provider_mutation_performed_by_status_read": false,
+    "request_digest": "sha256:e10d13498cb491c0524a3051fa75216ca577f15953974e6b92ab39487f07aa5b",
+    "result_reference": {
+      "digest": "sha256:1d52e75c02f1369ccaf1adbc8ea3731c3d154f8805095d2094b5530ae98a9852",
+      "native_application_claimed": false,
+      "native_runtime_contract_digest": "sha256:b631da6dfd39d44d1fe22d64921f9b7195359b954c0bc25a4bbbe62f9db96f5a",
+      "path": "/tmp/blueprint-family-status-fixture/test_registered_family_progres0/factories/scene-6c343b8d997738c2fc1369fcf295186d32a8a5a0b210fdecfea7183199323c4c/source-79714f6129f1cbe3c0a26213/family_native_preparation_result.v1.json",
+      "policy_episode_claimed": false,
+      "pre_policy_site_qualification_required": true,
+      "schema_version": "website_task_family_preparation_result.v1",
+      "sha256": "sha256:c7fdcf69ac02accc02c756e274f95a593f55d303b0ca4085cce84eaf704efb24",
+      "size_bytes": 3144,
+      "task_family": "button_press",
+      "task_family_runtime_selection": {
+        "runtime_catalog_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "runtime_id": "qualified_button_runtime"
+      },
+      "task_success_contract_digest": "sha256:886d28354cf61c73ce41ffa03daaf69221d7ff1ac1c0e5df67d0f1c407a54186"
+    },
+    "schema_version": "task_evaluation_scene_intent_status.v1",
+    "status": "completed",
+    "status_digest": "sha256:d3d6f11d5f054436eb50b448076a0db366cfe76f06f322af434b5fe386552a24"
+  }
+}

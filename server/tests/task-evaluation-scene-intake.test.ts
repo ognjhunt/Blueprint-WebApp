@@ -5,6 +5,8 @@ import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit, amendWebsitePreparationSpendLimit, settleWebsitePreparationSpend, loadWebsiteAtlasConfiguration } from "../utils/websiteSceneSponsorship";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
+import { familyScreeningFixture } from "./fixtures/beta-policy-screening";
+import producerFamilyStatus from "./fixtures/pipeline-family-prepared-status.v1.json";
 vi.mock("../utils/captureFootageReview", () => ({ buildCaptureFootageReviewer: vi.fn() }));
 vi.mock("../utils/taskLifecycleNotifications", () => ({ enqueueTaskLifecycleNotification: vi.fn(), reconstructionIsViewable: vi.fn() }));
 vi.mock("../utils/worldReconstruction", () => ({ startWorldReconstruction: vi.fn(), advanceWorldReconstruction: vi.fn() }));
@@ -445,7 +447,15 @@ it("builds after the call clears the site, and a later downgrade does not strand
   expect(await loadWebsiteSceneSponsorship("req1", false)).toEqual(grant);
 });
 
-it.each([false, true])("queues the signed prepared website scene once, forwards without team payment and revokes withdrawn consent (preparation only: %s)", async (preparationOnly) => {
+function preparedFamilyTask(taskContextDigest: string) {
+  return { task_id: `website-${taskContextDigest.slice(7, 27)}`, strategy: "button_press",
+    task_success_contract_digest: sha("b"), native_runtime_contract_digest: sha("c"),
+    task_family_runtime_selection: { runtime_id: "qualified-button-runtime", runtime_catalog_digest: sha("d") },
+    policy_selection: { candidate_id: "qualified-policy", catalog_digest: sha("e"), configuration_digest: sha("f") } };
+}
+
+it.each(["evaluation", "preparation", "family"])("queues the signed prepared website scene once, forwards without team payment and revokes withdrawn consent (%s)", async (mode) => {
+  const preparationOnly = mode !== "evaluation";
   sponsoredCapture();
   const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
   const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
@@ -459,8 +469,9 @@ it.each([false, true])("queues the signed prepared website scene once, forwards 
     schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
     owner: grant.owner, consent: grant.consent,
     source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
-    task: { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
-      subject: { description: "box", geometry_origin: "removed_before_reconstruction" } },
+    task: mode === "family" ? preparedFamilyTask(grant.task_context_digest)
+      : { ...command().task, task_id: `website-${grant.task_context_digest.slice(7, 27)}`,
+        subject: { description: "box", geometry_origin: "removed_before_reconstruction" } },
     execution: { ...command().execution, max_total_spend_usd: grant.max_total_spend_usd,
       max_paid_attempts: grant.max_paid_attempts, expires_at_epoch: grant.expires_at_epoch,
       allowed_providers: ["vast", "openai"],
@@ -480,6 +491,14 @@ it.each([false, true])("queues the signed prepared website scene once, forwards 
   expect(stored()[1].state).toBe("accepted");
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual(request);
+  if (mode === "family") {
+    expect(stored()[1].request.task).not.toHaveProperty("subject");
+    expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(grant);
+    expect(stored()[1].request_digest).toBe(sceneDigest(request));
+    const headers = fetcher.mock.calls[0][1].headers;
+    expect(headers["x-blueprint-pipeline-signature"]).toBe(`sha256=${createHmac("sha256", "test-key")
+      .update(`${headers["x-blueprint-pipeline-timestamp"]}.blueprint-webapp.${headers["x-blueprint-pipeline-nonce"]}.${fetcher.mock.calls[0][1].body}`).digest("hex")}`);
+  }
   store.rows.get("inboundRequests/req1").consent_revoked = true;
   stored()[1].next_forward_at_ms = 0;
   await processSceneIntakeQueue();
@@ -487,7 +506,68 @@ it.each([false, true])("queues the signed prepared website scene once, forwards 
   expect(stored()[1].revocation_receipt.scope).toBe("future_execution");
   expect(fetcher).toHaveBeenCalledTimes(2);
 });
+
+it.each(["scope", "success_digest", "native_digest", "runtime_digest", "context", "revoked", "expired"])("rejects changed family %s before forwarding without granting spend", async corruption => {
+  sponsoredCapture();
+  const base = (await app()).replace(/\/intakes$/, "/internal/creator-captures/walkthrough-req1");
+  const post = (operation: string, extra = {}) => realFetch(`${base}/${operation}`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ request_id: "req1", scene_id: "site-req1", ...extra }),
+  });
+  const grant = await (await post("scene-sponsorship")).json();
+  const request = {
+    schema_version: "task_evaluation_scene_intake_request.v1", submission_id: grant.capture_id,
+    owner: grant.owner, consent: grant.consent,
+    source: { kind: "gaussian_splat", binding_id: `website-splat-${"a".repeat(32)}`, content_digest: sha("a") },
+    task: preparedFamilyTask(grant.task_context_digest),
+    execution: { ...command().execution, purpose: "scene_preparation", policy_candidates: [],
+      max_total_spend_usd: grant.max_total_spend_usd, max_paid_attempts: grant.max_paid_attempts,
+      expires_at_epoch: grant.expires_at_epoch, allowed_providers: ["vast", "openai"] },
+  };
+  if (corruption === "scope") {
+    request.task.task_id = "website-another-task-context";
+    expect((await post("prepared-scene", { request })).status).toBe(409);
+    expect(stored()).toBeUndefined();
+    return;
+  }
+  expect((await post("prepared-scene", { request })).status).toBe(202);
+  if (corruption === "success_digest") stored()[1].request.task.task_success_contract_digest = sha("f");
+  if (corruption === "native_digest") stored()[1].request.task.native_runtime_contract_digest = sha("f");
+  if (corruption === "runtime_digest") stored()[1].request.task.task_family_runtime_selection.runtime_catalog_digest = sha("f");
+  if (corruption === "context") store.rows.get("siteTaskBriefs/req1").summary = "A different captured job";
+  if (corruption === "revoked") store.rows.get("inboundRequests/req1").consent_revoked = true;
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  const clock = corruption === "expired" ? vi.spyOn(Date, "now").mockReturnValue((grant.expires_at_epoch + 1) * 1000) : null;
+  try { await processSceneIntakeQueue(); }
+  finally { clock?.mockRestore(); }
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(stored()[1].state).not.toBe("accepted");
+  expect(store.rows.get("inboundRequests/req1").website_scene_sponsorship).toEqual(grant);
+});
 describe("persistent authenticated scene intake", () => {
+  it("retains the actual Python handoff-to-progression family's public status without changing numeric or source identities", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(producerFamilyStatus.status))));
+    const value = await scenePipelineRequest(producerFamilyStatus.request, producerFamilyStatus.receipt.intent_id);
+    expect(value).toEqual(producerFamilyStatus.status);
+    expect(sceneIntakeCommand.shape.task.parse(producerFamilyStatus.request.task)).toEqual(producerFamilyStatus.request.task);
+    expect(value.result_reference.digest).toBe(producerFamilyStatus.source.scene_revision_digest);
+  });
+  it.each(["valid", "phase", "legacy_task", "native", "catalog", "claim"])("preserves a digest-bound typed family CPU preparation status (%s)", async fault => {
+    const { intake } = familyScreeningFixture();
+    const request: Record<string, any> = structuredClone(intake.request);
+    const reference = structuredClone(intake.pipeline_status.result_reference);
+    if (fault === "legacy_task") request.task = command().task;
+    if (fault === "native") reference.native_runtime_contract_digest = sha("f");
+    if (fault === "catalog") reference.task_family_runtime_selection.runtime_catalog_digest = sha("f");
+    if (fault === "claim") reference.native_application_claimed = true;
+    const status = pipelineStatus(request, { status: "completed", phase: fault === "phase" ? "scene_prepared" : "family_native_prepared",
+      result_reference: reference });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(status))));
+    const observed = scenePipelineRequest(request, "scene-one");
+    if (fault === "valid") expect(await observed).toEqual(status);
+    else await expect(observed).rejects.toThrow(/pipeline_(family_preparation_binding|status_receipt)_invalid/);
+  });
   it("matches the Python RFC 8785 fixture for numeric and Unicode packet fields", () => {
     expect(
       sceneDigest({

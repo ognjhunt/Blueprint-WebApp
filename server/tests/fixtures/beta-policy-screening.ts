@@ -38,3 +38,24 @@ export function screeningFixture(proposed = false) {
     generated_at: "2026-10-26T12:10:00Z" });
   return { publication, job, brief, context, intake };
 }
+
+export function familyScreeningFixture() {
+  const fixture = screeningFixture();
+  const task = { ...fixture.intake.request.task, strategy: "button_press",
+    task_success_contract_digest: screeningSha("1"), native_runtime_contract_digest: screeningSha("2"),
+    task_family_runtime_selection: { runtime_id: "qualified-button-runtime", runtime_catalog_digest: screeningSha("3") } };
+  const reference = { schema_version: "website_task_family_preparation_result.v1", path: "/retained/family/preparation-result.json",
+    sha256: screeningSha("4"), size_bytes: 500, digest: fixture.publication.source.scene_revision_digest,
+    task_family: task.strategy, task_success_contract_digest: task.task_success_contract_digest,
+    native_runtime_contract_digest: task.native_runtime_contract_digest,
+    task_family_runtime_selection: task.task_family_runtime_selection,
+    native_application_claimed: false, policy_episode_claimed: false, pre_policy_site_qualification_required: true };
+  const request = { ...fixture.intake.request, task, execution: { purpose: "scene_preparation", policy_candidates: [] } };
+  const requestDigest = crossRuntimeDigest(request);
+  const receipt = { ...fixture.intake.receipt, request_digest: requestDigest };
+  const status = { ...fixture.intake.pipeline_status, phase: "family_native_prepared", request_digest: requestDigest,
+    result_reference: reference };
+  return { ...fixture, intake: { ...fixture.intake, request, request_digest: requestDigest,
+    receipt: { ...receipt, receipt_digest: crossRuntimeArtifactDigest(receipt, "receipt_digest") },
+    pipeline_status: { ...status, status_digest: crossRuntimeArtifactDigest(status, "status_digest") } } };
+}
