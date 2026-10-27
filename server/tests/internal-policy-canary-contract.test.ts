@@ -22,6 +22,7 @@ import {
   CANONICAL_TASK_EVALUATION_ALLOCATOR,
   loadPublishedLaunchProfiles,
 } from "../utils/taskEvaluationLaunchContract";
+import { surfaceTargetSchema } from "../utils/taskEvaluationLaunchPreparationContract";
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
 const ref = (character: string) => ({ uri: `gs://policy-canary/${character}`, digest: sha(character) });
@@ -334,6 +335,41 @@ describe("internal policy canary contract", () => {
     expect(confirmed.contract_digest).not.toBe(setupValue.task_success_contract.contract_digest);
     expect(confirmed.provenance.proposal_digest).toBe(setupValue.task_success_contract.contract_digest);
   });
+
+  it("preserves an explicit full-tilt proposal across preparation, server and client without confirming it", () => {
+    const published = structuredClone(websiteSurfaceSelection.task_success_contract);
+    const target = { ...published.criteria.surface_target, maximum_tilt_rad: Math.PI };
+    target.target_digest = canonicalArtifactDigest(target, "target_digest");
+    const proposal = sealRigidTaskSuccessContract({
+      siteId: published.scope.site_id, taskId: published.scope.task_id,
+      authorSource: "agent_proposal", authorId: "fixture:orientation-proposal",
+      confirmationStatus: "proposal_only", criteria: { ...published.criteria, surface_target: target },
+    });
+    expect(surfaceTargetSchema.parse(target).maximum_tilt_rad).toBe(Math.PI);
+    expect(rigidTaskSuccessContractSchema.parse(proposal).criteria.surface_target?.maximum_tilt_rad).toBe(Math.PI);
+    expect(clientSuccessSchema.parse(proposal).criteria.surface_target?.maximum_tilt_rad).toBe(Math.PI);
+    expect(proposal.provenance.confirmation_status).toBe("proposal_only");
+    expect(() => internalPolicyCanarySelectionSchema.parse({
+      ...websiteSurfaceSelection, task_success_contract: proposal,
+    })).toThrow(/task success contract is not confirmed/);
+    const confirmed = confirmRigidTaskSuccessContract(proposal, "blueprint");
+    expect(confirmed.provenance.proposal_digest).toBe(proposal.contract_digest);
+    expect(confirmed.contract_digest).not.toBe(proposal.contract_digest);
+    expect(proposal.provenance.confirmation_status).toBe("proposal_only");
+  });
+
+  it.each([Math.PI + .000001, Number.NaN, Number.POSITIVE_INFINITY, 0])(
+    "rejects a nonphysical surface tilt in all three contract readers: %s", (tilt) => {
+      const contract = structuredClone(websiteSurfaceSelection.task_success_contract);
+      contract.criteria.surface_target.maximum_tilt_rad = tilt;
+      for (const schema of [rigidTaskSuccessContractSchema, clientSuccessSchema]) {
+        const result = schema.safeParse(contract);
+        expect(result.success).toBe(false);
+        if (!result.success) expect(result.error.issues.some((issue) => issue.path.at(-1) === "maximum_tilt_rad")).toBe(true);
+      }
+      expect(surfaceTargetSchema.safeParse(contract.criteria.surface_target).success).toBe(false);
+    },
+  );
 
   it("runs any two runnable policies, in catalog order, and never one that is not offered yet", () => {
     const setupValue = setup();

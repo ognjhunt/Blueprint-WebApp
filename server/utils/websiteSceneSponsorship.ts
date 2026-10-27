@@ -16,6 +16,8 @@ import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding 
 import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent, type AssessmentPreparationProposal } from "./siteAssessmentPreparation";
 import { advisoryContextDigest } from "./siteAssessmentContext";
 import { isTaskFamilyStrategy, websiteFamilySourceBinding } from "./taskFamilySceneIntake";
+import { websitePreparationAccounting } from "./websitePreparationAccounting";
+import { websiteCaptureInferenceAccounting } from "./websiteCaptureInferenceAccounting";
 
 function continuationAuthority(authority: Record<string, any>, input: {
   brief: SiteTaskBriefRecord; record: Record<string, any>; inventory?: TaskItemInventoryRecord | null;
@@ -830,11 +832,10 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
   }));
 }
 
-/** Read-only production planning configuration; never dispatch authority. The only
- * write is the first automatic Atlas grant for this capture, made from the upload's
- * own consent and the Blueprint grant policy; it never touches the sponsorship. */
+/** Planning configuration, never dispatch authority. create:false is strictly
+ * non-authorizing; existing callers may still create the first automatic grant. */
 export async function loadWebsiteAtlasConfiguration(requestId: string, captureId: string,
-  input: { task_context_digest: string; source_video_digest: string }) {
+  input: { task_context_digest: string; source_video_digest: string; create?: false }) {
   if (!db) throw new Error("website_capture_rights_store_unavailable");
   const binding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
   const store = db;
@@ -860,18 +861,35 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
       termsDigest: sceneProviderTerms().world_labs_atlas?.digest,
       plannerTermsDigest: sceneProviderTerms().openai?.digest, planning: true, now: Date.now() / 1000,
       auxiliaryTermsDigests: { meta: sceneProviderTerms().meta?.digest, google: sceneProviderTerms().google?.digest },
-      record, captureRights: rights, create: true,
+      record, captureRights: rights, create: input.create !== false,
       readSession: async () => (await transaction.get(store.collection("captureUploadSessions").doc(captureId))).data() });
     if (authority.accepted_by !== websiteAtlasGrantOwner(record, authority))
       throw new Error("website_atlas_source_owner_mismatch");
+    const accounting = input.create === false
+      ? websitePreparationAccounting(record.website_preparation_reservations ?? {}) : null;
+    const inferenceAccounting = input.create === false ? await websiteCaptureInferenceAccounting({
+      requestId, captureId, sourceVideoDigest: input.source_video_digest, record,
+      reader: {
+        document: async (collection, id) => (await transaction.get(store.collection(collection).doc(id))).data() ?? null,
+        calls: async (budgetId, limit) => (await transaction.get(store.collection("captureCoverageReviews").doc(budgetId)
+          .collection("calls").orderBy("__name__").limit(limit))).docs.map(row => ({ id: row.id, value: row.data() })),
+      },
+    }) : null;
     const usage = atlasAllowanceUsage(record.website_preparation_reservations || {});
     const policy = websiteAtlasRuntimePolicy();
     // First writer wins: a concurrent creation retries this transaction and then reads it.
-    if (created) transaction.update(ref, { website_atlas_grants: { ...(record.website_atlas_grants ?? {}), [captureId]: created } });
-    return { schema_version: "website_atlas_configuration.v1", authority, policy,
+    if (created && input.create !== false)
+      transaction.update(ref, { website_atlas_grants: { ...(record.website_atlas_grants ?? {}), [captureId]: created } });
+    const configuration = { schema_version: "website_atlas_configuration.v1", authority, policy,
       reserved_or_settled_cost_usd: usage.cost, remaining_cost_usd: Math.max(0, authority.maximum_cost_usd - usage.cost),
       remaining_requests: Math.max(0, authority.maximum_requests - usage.requests), task_context_digest: context.context_digest,
-      source_video_digest: input.source_video_digest, dispatch_authorized: false };
+      source_video_digest: input.source_video_digest, dispatch_authorized: false,
+      ...(accounting ? { grant_creation_allowed: false, ...accounting, capture_inference_accounting: inferenceAccounting } : {}) };
+    // Authority/policy strings are configuration-owned and not all have schema
+    // maxima. Bound the entire read without omitting any reservation or hold.
+    if (input.create === false && Buffer.byteLength(JSON.stringify(configuration), "utf8") > 200_000)
+      throw new Error("website_atlas_accounting_response_too_large");
+    return configuration;
   }));
 }
 

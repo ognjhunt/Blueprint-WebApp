@@ -91,6 +91,16 @@ function fill() {
   fireEvent.click(screen.getByLabelText(/I confirm this task/));
 }
 describe("scene task intake UI", () => {
+  it("describes family preparation without exposing the technical phase or claiming runtime execution", async () => {
+    const fallback = state.api.getMockImplementation()!;
+    state.api.mockImplementation(async (currentUser, path, init) => path === "/api/task-evaluation-scene-intakes" && !init?.method
+      ? { intakes: [{ id: "family-intake", state: "completed", submission_id: "walkthrough-one",
+        pipeline_status: { status: "completed", phase: "family_native_prepared", blockers: [] } }] }
+      : fallback(currentUser, path, init));
+    render(<SceneIntakeForm currentUser={user} sessions={[]} />);
+    expect(await screen.findByText("Prepared for evaluation")).toBeInTheDocument();
+    expect(screen.queryByText("family_native_prepared")).not.toBeInTheDocument();
+  });
   it("submits app source and explicit bounded consent without client actor authority", async () => {
     render(<SceneIntakeForm currentUser={user} sessions={[]} />);
     await screen.findByRole("option", { name: /App workcell/ });

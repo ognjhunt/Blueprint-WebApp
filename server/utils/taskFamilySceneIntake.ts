@@ -43,6 +43,16 @@ export function isTaskFamilyStrategy(value: unknown): value is typeof taskFamily
   return taskFamilyNames.some(family => family === value);
 }
 
+/** Shared by publication admission and later evidence applicability reads. */
+export function preparationPhaseMatchesTask(request: Record<string, any> | undefined,
+  status: Record<string, any> | undefined): boolean {
+  return isTaskFamilyStrategy(request?.task?.strategy)
+    ? status?.phase === "family_native_prepared" && request?.execution?.purpose === "scene_preparation"
+      && request.execution.policy_candidates?.length === 0
+      && familyPreparationMatchesTask(status.result_reference, request.task)
+    : status?.phase === "scene_prepared" && status.result_reference?.schema_version !== "website_task_family_preparation_result.v1";
+}
+
 /** Bind the prepared source to the existing capture/task sponsorship.
  * Pipeline reopens these identities against the full native contract, exact
  * source assets, task context and operator-qualified runtime before execution.

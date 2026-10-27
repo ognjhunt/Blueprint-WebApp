@@ -252,7 +252,7 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
       ...(operation === "preparation-settlement" ? { settlement: preparationSettlementRequest } : {}),
       ...(operation === "atlas-configuration" ? {
         task_context_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/),
-        source_video_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/) } : {}) })
+        source_video_digest: z.string().regex(/^sha256:[a-f0-9]{64}$/), create: z.literal(false).optional() } : {}) })
       .strict().safeParse(req.body);
     if (!parsed.success || operation === "scene-sponsorship" && req.body.create === false
       && (req.body.purpose !== "scene_preparation" || !req.body.expected_task_context_digest))
@@ -262,7 +262,8 @@ for (const operation of ["scene-sponsorship", "prepared-scene", "preparation-spe
     try {
       res.setHeader("Cache-Control", "no-store");
       if (operation === "atlas-configuration") return res.json(await loadWebsiteAtlasConfiguration(requestId,
-        req.params.captureId, { task_context_digest: req.body.task_context_digest, source_video_digest: req.body.source_video_digest }));
+        req.params.captureId, { task_context_digest: req.body.task_context_digest, source_video_digest: req.body.source_video_digest,
+          ...(req.body.create === false ? { create: false as const } : {}) }));
       // Accounting for an already admitted call must remain possible when
       // assessment/source authority ends. The settlement checks the original
       // allocation, provider, task digest, quote and exact idempotent receipt;

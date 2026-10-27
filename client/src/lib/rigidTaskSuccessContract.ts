@@ -13,7 +13,7 @@ const surfaceTargetSchema = z.object({
   surface_position_world_m: z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]),
   support_prim_path: z.string().startsWith("/"),
   support_source_instance_id: nonEmpty,
-  maximum_tilt_rad: z.number().finite().positive().lt(Math.PI / 2),
+  maximum_tilt_rad: z.number().finite().positive().max(Math.PI),
   stable_seconds: z.number().finite().positive(),
   maximum_linear_speed_m_s: z.number().finite().positive(),
   maximum_angular_speed_rad_s: z.number().finite().positive(),
