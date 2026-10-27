@@ -874,6 +874,10 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
   }));
 }
 
+/** The subject was removed from the capture before reconstruction, or is a designed object the task adds
+ * to the preserved capture (the Pipeline's website_synthetic_subject). Either way the scene is the capture's own. */
+const WEBSITE_SUBJECT_ORIGINS = new Set(["removed_before_reconstruction", "synthetic_design"]);
+
 export function validateWebsiteSponsoredIntake(request: Record<string, any>, authority: Record<string, any>) {
   const preparationOnly = request.execution?.purpose === "scene_preparation";
   const proposal = authority.assessment_preparation_proposal;
@@ -907,7 +911,7 @@ export function validateWebsiteSponsoredIntake(request: Record<string, any>, aut
     || !/^sha256:[0-9a-f]{64}$/.test(request.source?.content_digest || "")
     || request.source.binding_id !== `${prefix}${request.source.content_digest.slice(7, 39)}`
     || request.task?.task_id !== `website-${authority.task_context_digest.slice(7, 27)}${development ? "-development" : ""}`
-    || request.task?.subject?.geometry_origin !== "removed_before_reconstruction"
+    || !WEBSITE_SUBJECT_ORIGINS.has(request.task?.subject?.geometry_origin)
     || request.execution?.max_total_spend_usd !== authority.max_total_spend_usd
     || request.execution?.max_paid_attempts !== authority.max_paid_attempts
     || request.execution?.expires_at_epoch !== authority.expires_at_epoch
