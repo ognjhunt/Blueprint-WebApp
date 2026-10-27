@@ -226,7 +226,7 @@ export function tickSiteAssessments(limit = 2) {
 export async function reconcileSiteAssessments(limit = 2) {
   if (!db || !isSiteVideoEvidenceEnabled()) return;
   const pending = await automationBatch(db, db.collection(SITE_ASSESSMENT_JOBS)
-    .where("state", "in", ["queued", "running"]), "site_assessments", limit);
+    .where("state", "in", ["queued", "running", "needs_review"]), "site_assessments", limit);
   for (const row of pending.docs) {
     const job = row.data() as SiteAssessmentJob;
     if (job.schema_version !== "site_assessment_job.v1" || row.id !== advisoryJobId(job.request_id, job.source_key, job.context_digest)) continue;
@@ -293,6 +293,41 @@ export async function reconcileSiteAssessments(limit = 2) {
       // A persisted result may predate the lost queue acknowledgement. Never
       // invoke the provider again merely to rebuild the publication pointer.
       const retained = await db.collection("agentRuns").doc(job.run_id).get();
+      if (job.state === "needs_review") {
+        // Only a fully retained completed response can take this free path.
+        // Failed/in-flight/unknown provider work never reaches runAgentTask.
+        if (!retained.exists) continue;
+        const original = retained.data()!;
+        const { hydrateAgentEvidence, projectAgentEvidence } = await import("../agents/private-evidence");
+        const { recoverSiteAssessmentPostprocessing } = await import("../agents/site-assessment-postprocessing");
+        const run = await hydrateAgentEvidence(original, { collection: "agentRuns", id: job.run_id });
+        const recovered = recoverSiteAssessmentPostprocessing(run, { request_id: job.request_id,
+          capture_id: job.capture_id, source_key: job.source_key, context_digest: job.context_digest, advisory_job_id: row.id });
+        if (!recovered) continue;
+        const packetSha = sha(recovered.packet);
+        const projection = await projectAgentEvidence({ ...run, status: "completed", error: null,
+          output: recovered.packet.assessment, artifacts: { ...run.artifacts,
+            site_assessment_packet: recovered.packet, site_assessment_packet_sha256: packetSha,
+            postprocessing_recovery: recovered.recovery },
+          postprocessing_recovered_at_iso: new Date().toISOString(),
+          postprocessing_code_commit: /^[a-f0-9]{40}$/.test(process.env.RENDER_GIT_COMMIT ?? "")
+            ? process.env.RENDER_GIT_COMMIT : null }, { collection: "agentRuns", id: job.run_id });
+        await db.runTransaction(async tx => {
+          const runRef = db!.collection("agentRuns").doc(job.run_id);
+          const [latestRun, latestJob, request, brief, session] = await Promise.all([
+            tx.get(runRef), tx.get(row.ref), tx.get(requestRef), tx.get(briefRef), tx.get(sessionRef),
+          ]);
+          const latest = latestJob.data() as SiteAssessmentJob | undefined;
+          if (!latest || humanDecisionDigest(latestRun.data()) !== humanDecisionDigest(original)
+            || humanDecisionDigest(latest) !== humanDecisionDigest(job)
+            || !currentAuthority(latest, request.data(), brief.exists ? brief.data()! : null, session.data())
+            || request.data()?.site_advisory?.job_id !== row.id) return;
+          tx.set(runRef, projection);
+          tx.set(row.ref, { state: "completed", packet_sha256: packetSha, updated_at_ms: Date.now() }, { merge: true });
+          tx.set(requestRef, { site_advisory: pointer(row.id, { ...latest, state: "completed" }) }, { merge: true });
+        });
+        continue;
+      }
       if (retained.exists) {
         if (retained.data()?.status === "completed") {
           await publishRetained(retained.data()!); continue;

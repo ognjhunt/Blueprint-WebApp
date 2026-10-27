@@ -459,9 +459,33 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
 
 /** Source binding establishes wording provenance, never video truth or deployment fit. */
 export function renderSourceBoundAssessment(raw: SiteAssessment, sources: ReadonlyMap<string, Source>, duration: number | null) {
-  validateAssessmentEvidence(raw, sources, duration);
+  // Registry descriptions are research context, not qualified capability fields.
+  // Keep their exact source and the raw model claim; never let an optional
+  // description masquerade as a measured/published specification or discard
+  // the other independently bound observations in an assessment.
+  const descriptions = (value: any): string[] | null => {
+    if (value?.basis !== "published" || !Array.isArray(value.evidence) || !value.evidence.length) return null;
+    const texts: string[] = [];
+    for (const ref of value.evidence) {
+      const source = sources.get(ref.source_id), selector = ref.selector;
+      const content = source?.content as { capabilityDescription?: unknown } | undefined;
+      if (source?.kind !== "robot_registry" || selector?.kind !== "qualified_field"
+        || selector.observation_index !== null || !Array.isArray(selector.field_path)
+        || selector.field_path.length !== 1 || selector.field_path[0] !== "capabilityDescription"
+        || typeof content?.capabilityDescription !== "string" || !content.capabilityDescription.trim()) return null;
+      texts.push(content.capabilityDescription);
+    }
+    return texts;
+  };
+  const validationProjection = (value: any): any => {
+    if (!value || typeof value !== "object") return value;
+    if (Array.isArray(value)) return value.map(validationProjection);
+    const next = Object.fromEntries(Object.entries(value).map(([key, item]) => [key, validationProjection(item)]));
+    return descriptions(value) ? { ...next, basis: "unknown" } : next;
+  };
+  validateAssessmentEvidence(validationProjection(raw), sources, duration);
   const verification = { format: "assessment_evidence_binding.v1", source_bound_claims: 0,
-    unverified_claims: 0, interpretation_claims: 0,
+    unverified_claims: 0, interpretation_claims: 0, unqualified_registry_context_claims: 0,
     decision_status: "advisory_review_required",
     interpretation_fields: ["approaches[].approach", "approaches[].remaining_checks[]", "questions[].question", "questions[].decision_it_changes"],
     limitation: "Source-derived reports are not independently verified perception, measurements or robot suitability." };
@@ -528,6 +552,14 @@ export function renderSourceBoundAssessment(raw: SiteAssessment, sources: Readon
     if (!value || typeof value !== "object") return value;
     if (Array.isArray(value)) return value.map(inspect);
     if (typeof value.basis === "string" && Array.isArray(value.evidence)) {
+      const context = descriptions(value);
+      if (context) {
+        verification.interpretation_claims++;
+        verification.unqualified_registry_context_claims++;
+        return { ...structuredClone(value), basis: "unknown", verification_status: "interpretation",
+          text: context.map(text => `Unqualified registry description: ${text}`).join("\n")
+            + " This is research context; it does not establish a capability specification or site suitability." };
+      }
       if (["estimate", "unknown"].includes(value.basis)) {
         verification.interpretation_claims++;
         return { ...structuredClone(value), verification_status: "interpretation" };
