@@ -1289,6 +1289,26 @@ describe("structured task destination and success contract", () => {
       ),
     ).toBe(false);
   });
+  it("accepts a destination on a distinct support surface and refuses a malformed one", () => {
+    const withDestination = (destination: unknown) =>
+      sceneIntakeCommand.safeParse({
+        ...command(),
+        task: { ...command().task, destination },
+      }).success;
+    const onDesk = {
+      relation: "on",
+      mode: "existing_support_surface",
+      visible_label: "desk",
+      position_world_m: [0.4, 0, 0.74],
+      orientation_xyzw: [0, 0, 0, 1],
+      support: { description: "desk top", aabb_min_xyz: [0, -0.4, 0.72], aabb_max_xyz: [1.2, 0.4, 0.74] },
+    };
+    expect(withDestination(onDesk)).toBe(true);
+    expect(withDestination({ ...onDesk, support: { ...onDesk.support, aabb_min_xyz: [0, -0.4, 0.74] } })).toBe(true);
+    expect(withDestination({ ...onDesk, support: { ...onDesk.support, aabb_max_xyz: [1.2, 0.4, 0.7] } })).toBe(false);
+    expect(withDestination({ ...onDesk, support: { ...onDesk.support, face_indices: [1, 2] } })).toBe(false);
+    expect(withDestination({ ...onDesk, support: { description: " " , aabb_min_xyz: [0, 0, 0], aabb_max_xyz: [1, 1, 1] } })).toBe(false);
+  });
   it("rejects an invalid destination pose", () => {
     const withDestination = (destination: unknown) =>
       sceneIntakeCommand.safeParse({
