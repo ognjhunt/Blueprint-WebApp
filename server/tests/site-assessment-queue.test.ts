@@ -23,6 +23,7 @@ vi.mock("../logger", () => ({ attachRequestMeta: (x:any)=>x, logger: { info:vi.f
 import { publishBrowserPending, browserPendingDecisionKey, type BrowserPending } from "../utils/websiteBrowserPending";
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
+import { failedDescriptionAssessment } from "./fixtures/site-assessment-postprocessing";
 let wakeSpy: ReturnType<typeof vi.spyOn>;
 afterEach(() => { wakeSpy?.mockRestore(); });
 const pending: BrowserPending = { schema_version: "website_browser_pending.v1", request_id: "advisory-fixture", scene_id: "site-advisory-fixture",
@@ -69,6 +70,51 @@ const storedPacket = (id: string, job: any) => {
     source_admission: { request_id: pending.request_id, capture_id: pending.capture_id, source_key: job.source_key, context_digest: job.context_digest,
       advisory_job_id: id } } };
 };
+
+async function retainedDescriptionFailure() {
+  await publishBrowserPending(pending);
+  const [key, initial] = selectedJob(), id = key.split("/")[1];
+  const job = { ...initial, state: "needs_review", claim_id: "completed-response-claim" };
+  state.docs.set(key, job);
+  const record = state.docs.get(`inboundRequests/${pending.request_id}`)!;
+  record.site_advisory.state = "needs_review";
+  const { run } = failedDescriptionAssessment({ request_id: job.request_id, capture_id: job.capture_id,
+    source_key: job.source_key, context_digest: job.context_digest, advisory_job_id: id });
+  run.id = job.run_id;
+  state.docs.set(`agentRuns/${job.run_id}`, run);
+  return { key, job: structuredClone(job), run };
+}
+
+it("reprocesses an already paid completed response atomically without redispatch or allowance changes", async () => {
+  const { key, job, run } = await retainedDescriptionFailure();
+  const usage = structuredClone(run.artifacts.usage), reservations = structuredClone(run.artifacts.capture_inference_reservations);
+  await (await import("../utils/siteAssessmentQueue")).reconcileSiteAssessments();
+  const saved = state.docs.get(`agentRuns/${job.run_id}`)!;
+  expect(saved).toMatchObject({ status: "completed", error: null,
+    artifacts: { postprocessing_recovery: { previous_status: "failed", provider_calls: 0, spending_reservations_created: 0 } } });
+  expect(saved.artifacts.usage).toEqual(usage);
+  expect(saved.artifacts.capture_inference_reservations).toEqual(reservations);
+  expect(state.docs.get(key)?.packet_sha256).toBe(saved.artifacts.site_assessment_packet_sha256);
+  expect(state.docs.get(`inboundRequests/${pending.request_id}`)?.site_advisory.state).toBe("completed");
+  expect(seams.run).not.toHaveBeenCalled();
+  expect([...state.docs.keys()].some(k => k.startsWith("captureInferenceBudgets/"))).toBe(false);
+});
+
+it.each(["cancel", "revoke", "new_job"])("preserves a concurrent %s during free postprocessing", async mode => {
+  const { key, job } = await retainedDescriptionFailure();
+  const evidence = await import("../agents/private-evidence"), project = evidence.projectAgentEvidence;
+  const spy = vi.spyOn(evidence, "projectAgentEvidence").mockImplementationOnce(async (...args) => {
+    if (mode === "cancel") state.docs.get(`agentRuns/${job.run_id}`)!.status = "cancelled";
+    if (mode === "revoke") state.docs.get(`inboundRequests/${pending.request_id}`)!.request.consent_attestation.granted = false;
+    if (mode === "new_job") state.docs.get(key)!.run_id = "newer-owner-run";
+    return project(...args);
+  });
+  try { await (await import("../utils/siteAssessmentQueue")).reconcileSiteAssessments(); }
+  finally { spy.mockRestore(); }
+  expect(state.docs.get(`agentRuns/${job.run_id}`)?.status).toBe(mode === "cancel" ? "cancelled" : "failed");
+  expect(state.docs.get(key)?.state).toBe("needs_review");
+  expect(seams.run).not.toHaveBeenCalled();
+});
 it("dispatches the committed claim once and reconciles canonical completion after a queue restart", async () => {
   const { reconcileSiteAssessments } = await import("../utils/siteAssessmentQueue");
   await publishBrowserPending(pending);
