@@ -26,6 +26,64 @@ for (const width of [1440, 390]) for (const outcome of outcomeCases) {
     await page.screenshot({path: info.outputPath(`outcome-${outcome.category}-${width}.png`), fullPage: true});
   });
 }
+for (const width of [1440, 390]) for (const outcome of outcomeCases) {
+  test(`full owner page outcome ${outcome.category} assigns the same next action at ${width}px`, async ({page}, info) => {
+    await seed(page, "site_operator");
+    const token = "outcome-owner";
+    const writes: string[] = [];
+    let statusAvailable = true;
+    let stopped = true;
+    await page.route("**/api/**", async route => {
+      const {pathname} = new URL(route.request().url());
+      if (route.request().method() !== "GET") writes.push(pathname);
+      if (pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({json: {
+        ok: true, state: "ready", accepts: ["mov", "mp4"], captureReceived: true, uploadState: "processing_ready",
+      }});
+      if (pathname === `/api/site-task-brief/${token}`) return route.fulfill({json: {
+        ready: true, scope: "owner", brief: {summary: "Move a ball from floor to tabletop", captureMode: "self_capture",
+          proposed: [], unresolved: [], confirmedAtIso: null},
+      }});
+      if (pathname === `/api/site-task-brief/${token}/status`) {
+        if (!statusAvailable) return route.fulfill({status: 503, json: {error: "Status unavailable"}});
+        return route.fulfill({json: {
+          scope: "owner", captureReceived: true, status: stopped
+            ? {decision: outcome.category, headline: outcome.title, operatorAction: null, missingViews: [], nextUpdateIso: null, outcome}
+            : {decision: "confirm_brief", headline: "Review your saved job brief.", operatorAction: null, missingViews: [], nextUpdateIso: null},
+        }});
+      }
+      if (pathname === `/api/job-workflow/owner/${token}`) return route.fulfill({json: {
+        schemaVersion: "job_marketplace.v1", revision: "workflow-1", stage: "job_submitted", briefAgreed: false,
+        optionsAssessed: false, reviewRequired: false, nextAction: "Review the saved brief.", actionOwner: "site",
+        requirements: {}, review: null, proposals: [], selection: null, agreement: null, outcome: null,
+      }});
+      return route.fallback();
+    });
+    await page.setViewportSize({width, height: 1024});
+    await page.goto(`/capture-upload/${token}`);
+    await expect(page.getByRole("region", {name: "Preparation outcome"})).toContainText(outcome.scope);
+    await expect(page.getByText("Next action · Blueprint", {exact: true})).toBeVisible();
+    await expect(page.getByText("Your recording is saved. The next step is with Blueprint.", {exact: true})).toBeVisible();
+    await expect(page.getByText("Saved job brief", {exact: true})).toBeVisible();
+    await expect(page.getByRole("region", {name: "Confirm your job brief"})).toHaveCount(0);
+    await expect(page.getByRole("button", {name: /confirm it|Retry processing/})).toHaveCount(0);
+    await expect(page.getByText(/Review the saved brief\.|checking whether it covers|If another recording is needed/)).toHaveCount(0);
+    expect(writes).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({path: info.outputPath(`owner-outcome-${outcome.category}-${width}.png`), fullPage: true});
+    if (width === 1440 && outcome.category === "processing_failure") {
+      statusAvailable = false;
+      await expect(page.getByText("Checking the current job status. Your saved job remains available.", {exact: true})).toBeVisible();
+      await expect(page.getByRole("region", {name: "Preparation outcome"})).toHaveCount(0);
+      await expect(page.getByText(outcome.title, {exact: true})).toHaveCount(0);
+      await expect(page.getByRole("region", {name: "Confirm your job brief"})).toHaveCount(0);
+      statusAvailable = true;
+      stopped = false;
+      await expect(page.getByRole("region", {name: "Confirm your job brief"})).toBeVisible();
+      await expect(page.getByText("Next action · You", {exact: true})).toBeVisible();
+      expect(writes).toEqual([]);
+    }
+  });
+}
 const terms = {
   successRate: 95,
   cycleTimeSeconds: 30,

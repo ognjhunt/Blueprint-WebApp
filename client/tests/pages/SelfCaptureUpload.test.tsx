@@ -10,6 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
+import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
 
 const route = vi.hoisted(() => ({ token: "tok-e2e" }));
 vi.mock("wouter", () => ({ useRoute: () => [true, { token: route.token }] }));
@@ -89,6 +90,41 @@ describe("video first owner return", () => {
       return mockFetch()(input);
     });
   }
+  it.each([null, "2026-10-01T00:00:00Z"])("keeps a Blueprint processing stop consistent with brief confirmation %s", async confirmedAtIso => {
+    const fallback = ownerFetch(false, true);
+    const outcome = processingFailure();
+    const fetcher = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({
+        ready: true, scope: "owner", brief: { summary: "Move a ball from floor to tabletop", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso },
+      }) });
+      if (url === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({
+        scope: "owner", captureReceived: true, status: { decision: outcome.category, headline: outcome.title,
+          operatorAction: null, missingViews: [], nextUpdateIso: null, outcome },
+      }) });
+      if (url === `/api/job-workflow/owner/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({
+        schemaVersion: "job_marketplace.v1", revision: "workflow-1", stage: "job_submitted", briefAgreed: false,
+        optionsAssessed: false, reviewRequired: false, nextAction: "Review the saved brief.", actionOwner: "site",
+        requirements: {}, review: null, proposals: [], selection: null, agreement: null, outcome: null,
+      }) });
+      return fallback(input, init);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    render(<SelfCaptureUpload />);
+    expect(await screen.findByRole("region", { name: "Preparation outcome" })).toHaveTextContent(outcome.scope);
+    expect(await screen.findByText("Next action · Blueprint")).toBeVisible();
+    expect(screen.getByText("Your recording is saved. The next step is with Blueprint.")).toBeVisible();
+    expect(screen.getByText("Saved job brief")).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Confirm your job brief" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /confirm it|Retry processing/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit your answers" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Review the saved brief.")).not.toBeInTheDocument();
+    expect(screen.queryByText(/checking whether it covers|If another recording is needed/)).not.toBeInTheDocument();
+    expect(fetcher.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
+    expect(videoUpload.send).not.toHaveBeenCalled();
+    expect(videoUpload.retry).not.toHaveBeenCalled();
+  });
+
   it("keeps optional account saving inside the post-video brief confirmation", async () => {
     const fetcher = ownerFetch(false, true);
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => String(input) === `/api/site-task-brief/${TOKEN}`

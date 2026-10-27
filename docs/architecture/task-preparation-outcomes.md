@@ -33,6 +33,15 @@ outcome; owner links and the account owner's workspace agree. Status polling is
 read-only for these outcomes and cannot allocate, retry, confirm acceptance,
 resume authority, select a robot or send a notification.
 
+On the signed owner page, the current preparation outcome also controls the
+shared job workspace's next action. A Blueprint-owned stop retains the draft
+brief for inspection and suppresses the default confirmation form, generic
+footage-review copy, and processing-retry prompt. It does not mark the brief
+accepted or change commercial milestones. An editing form the owner already
+opened keeps its draft. If a later poll is unreadable, current evidence claims
+are hidden and the page does not revert to asking the site to repair Blueprint's
+stop. A fresh successful response clears that hold when preparation recovers.
+
 Verification includes source/rights isolation and malformed-evidence negatives,
 v1/v2/v3 negotiation, both real route handlers, the saved production receipt,
 and desktop/mobile rendering through the existing workspace browser harness.

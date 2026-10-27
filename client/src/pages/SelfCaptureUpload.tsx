@@ -253,6 +253,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
   /** Where the task stands, for the operator who has no account to check. */
   const [status, setStatus] = useState<TaskStatus | null>(null);
+  const [currentStatusKnown, setCurrentStatusKnown] = useState(false);
+  // An unreadable poll must not turn a known Blueprint stop into a site action.
+  const [blueprintActionPending, setBlueprintActionPending] = useState(false);
   const currentStatus = useRef(status);
   currentStatus.current = status;
 
@@ -499,19 +502,28 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       try {
         const response = await fetch(`/api/site-task-brief/${encodeURIComponent(token)}/status`);
         const data = await response.json();
-        if (alive && response.ok && data?.status) setStatus({
-          ...data.status,
-          siteAdvisory: data.siteAdvisory ?? null,
-          assessment_retry_available: data.scope === "owner" && data.assessment_retry_available === true,
-          assessment_job_id: typeof data.assessment_job_id === "string" ? data.assessment_job_id : null,
-          assessment_run_id: typeof data.assessment_run_id === "string" ? data.assessment_run_id : null,
-          claimUrl: data.claimUrl ?? null,
-          sceneViewUrl: data.sceneViewUrl ?? null,
-          captureReceived: data.captureReceived === true,
-          footageReviewAutomated: data.footageReviewAutomated !== false,
-        });
-      else if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null, outcome: null } : null);
-      } catch { if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null, outcome: null } : null); }
+        if (alive && response.ok && data?.status) {
+          setCurrentStatusKnown(true);
+          setBlueprintActionPending(data.status.outcome?.actionOwner === "blueprint");
+          setStatus({
+            ...data.status,
+            siteAdvisory: data.siteAdvisory ?? null,
+            assessment_retry_available: data.scope === "owner" && data.assessment_retry_available === true,
+            assessment_job_id: typeof data.assessment_job_id === "string" ? data.assessment_job_id : null,
+            assessment_run_id: typeof data.assessment_run_id === "string" ? data.assessment_run_id : null,
+            claimUrl: data.claimUrl ?? null,
+            sceneViewUrl: data.sceneViewUrl ?? null,
+            captureReceived: data.captureReceived === true,
+            footageReviewAutomated: data.footageReviewAutomated !== false,
+          });
+        } else if (alive) {
+          setCurrentStatusKnown(false);
+          setStatus(previous => previous ? { ...previous, siteAdvisory: null, outcome: null } : null);
+        }
+      } catch { if (alive) {
+        setCurrentStatusKnown(false);
+        setStatus(previous => previous ? { ...previous, siteAdvisory: null, outcome: null } : null);
+      } }
       if (alive) timer = setTimeout(poll, 6000);
     }
     void poll();
@@ -535,7 +547,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   // re-film request when there is one, so it is never dropped -- but on a
   // recordable link the camera is the page, so it moves below the camera. When
   // there is no camera yet (a held or checking link) it stays at the top.
-  const statusCard = status ? (
+  const statusCard = status && currentStatusKnown ? (
     <div
       style={{
         border: "1px solid var(--ms-rule)",
@@ -549,7 +561,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         <h2>Your saved job</h2>
         <p>Job reference: {status.siteAdvisory.correlationId}</p>
       </>}
-      <strong>{upload.status === "processing_pending" || upload.status === "held"
+      <strong>{status.outcome ? status.headline : upload.status === "processing_pending" || upload.status === "held"
         ? "Your video is saved."
         : existingVideoOnly && !saved && status.decision !== "add_views"
           ? "Your job is saved."
@@ -559,7 +571,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           {status.operatorAction}
         </p>
       )}
-      <TaskOutcomeNotice outcome={status.outcome} />
+      <TaskOutcomeNotice showTitle={false} outcome={status.outcome} />
       {waitingTimeline(status.decision) && (
         <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>{waitingTimeline(status.decision)}</p>
       )}
@@ -625,7 +637,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         {link.status === "held" || saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Upload or record your job"}
       </h1>
 
-      {saved && (link.status === "valid" || link.status === "held") && scope === "owner" && <JobWorkspace token={token} />}
+      {saved && (link.status === "valid" || link.status === "held") && scope === "owner"
+        && <JobWorkspace token={token} preparationOutcome={status?.outcome} currentStatusKnown={currentStatusKnown} />}
       {link.status !== "valid" && statusCard}
 
       {/* A filming link opens the recorder; a held link explains its hold. */}
@@ -770,23 +783,26 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               >
                 <strong>Video received.</strong>
                 <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
-                  {upload.status === "processing_pending" || upload.status === "held" || (upload.status === "done" && upload.message)
+                  {blueprintActionPending
+                    ? currentStatusKnown ? "Your recording is saved. The next step is with Blueprint."
+                      : "Blueprint is checking the current status. Keep your original recording."
+                    : upload.status === "processing_pending" || upload.status === "held" || (upload.status === "done" && upload.message)
                     ? upload.message
                     : status?.footageReviewAutomated === false
                     ? "Our team is reviewing whether it covers the work area."
                     : "We are checking whether it covers the work area."}{" "}
-                  {upload.status === "processing_pending" || upload.status === "held"
+                  {!blueprintActionPending && (upload.status === "processing_pending" || upload.status === "held")
                     ? "You can check the job brief while processing is pending."
                     : null}
                 </p>
               </div>
-              <p className="ms-field-hint">
+              {!blueprintActionPending && <p className="ms-field-hint">
                 This link keeps your original recording. If another recording is needed, <a
                   className="ms-text-link" href="mailto:hello@tryblueprint.io?subject=Help%20with%20a%20new%20capture%20job">contact Blueprint</a>
                 {" "}for help starting a new job with a complete walkthrough and fresh recording permission.
                 Your existing job stays saved; the new job needs its own review before evaluation.
-              </p>
-              {upload.status === "processing_pending" && upload.processingRetryAvailable && (
+              </p>}
+              {!blueprintActionPending && upload.status === "processing_pending" && upload.processingRetryAvailable && (
                 <p><button type="button" className="ms-button" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
                   {retryingProcessing ? "Retrying processing…" : "Retry processing"}
                 </button></p>
@@ -798,7 +814,12 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   site sends only its video otherwise: Blueprint infers the rest. */}
               {statusCard}
 
-              {scope === "owner" && brief && briefConfirmed && !editingBrief && (
+              {scope === "owner" && brief && blueprintActionPending && !editingBrief && <details style={{margin: "16px 0"}}>
+                <summary>Saved job brief</summary>
+                <p>{brief.summary}</p>
+                <p className="ms-field-hint">This brief is retained for a future authorized attempt. Blueprint's next step is shown above.</p>
+              </details>}
+              {scope === "owner" && brief && briefConfirmed && !editingBrief && !blueprintActionPending && (
                 <p className="ms-field-hint" style={{ marginBottom: "8px" }}>
                   Your job brief is confirmed.{" "}
                   <button type="button" className="ms-text-link" onClick={() => setEditingBrief(true)}>
@@ -810,7 +831,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   site's own. Only a confirmed job is evaluated
                   (`teamJobAccess`), so it is open on the page, not tucked in a
                   disclosure labelled optional. */}
-              {scope === "owner" && brief && !briefConfirmed && !editingBrief && (
+              {scope === "owner" && brief && !briefConfirmed && !editingBrief && !blueprintActionPending && (
                 <section aria-label="Confirm your job brief" style={{ border: "1px solid var(--ms-rule)", padding: "16px", margin: "16px 0" }}>
                   <h2 style={{ marginTop: 0 }}>Confirm your job brief</h2>
                   <p className="ms-field-hint">We can evaluate your job only after you confirm this brief. Check the summary and answers, correct anything that is wrong, then confirm it.</p>
