@@ -36,6 +36,19 @@ const unitQuaternion = z
       1e-6,
     { message: "orientation_xyzw must be a unit quaternion" },
   );
+// A destination on another surface than the subject's (floor to desk) names
+// that surface, in the same frame and shape as task.support. The Pipeline binds
+// it to the reconstructed collider; the website only checks its form.
+const taskDestinationSupport = z
+  .object({
+    description: z.string().trim().min(1).max(200),
+    aabb_min_xyz: vector3,
+    aabb_max_xyz: vector3,
+  })
+  .strict()
+  .refine((s) => s.aabb_min_xyz.every((v, i) => v < s.aabb_max_xyz[i]), {
+    message: "aabb_min_xyz must be below aabb_max_xyz on every axis",
+  });
 const taskDestination = z
   .object({
     relation: z.enum(["on", "inside"]),
@@ -46,6 +59,7 @@ const taskDestination = z
     orientation_xyzw: unitQuaternion,
     kind: z.literal("green_region").optional(),
     radius_m: z.number().finite().positive().max(0.5).optional(),
+    support: taskDestinationSupport.optional(),
   })
   .strict();
 const positiveMeasure = z.number().finite().positive();
