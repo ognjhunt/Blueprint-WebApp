@@ -9,7 +9,7 @@ import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
 import { websiteAtlasRuntimePolicy, atlasAllowanceUsage, resolveWebsiteAtlasGrant, websiteAtlasAutomaticLane,
-  websiteAtlasGrantOwner, websiteAtlasGrantPolicy, type AtlasAuxiliaryProvider } from "./websiteAtlasAuthorization";
+  websiteAtlasGrantOwner, websiteAtlasGrantPolicy, websiteAtlasRequestCeiling, type AtlasAuxiliaryProvider } from "./websiteAtlasAuthorization";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
@@ -813,7 +813,7 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
     const rootAuthority = record.website_scene_sponsorship;
     if (reserved + micros(command.maximum_cost_usd) > Math.floor((atlas?.maximum_cost_usd
           ?? preparationSpendLimit(record, rootAuthority)) * 1_000_000)
-        || attempts + command.request_count > (atlas?.maximum_requests ?? preparationRequestLimit(record, rootAuthority)))
+        || attempts + command.request_count > (atlas ? websiteAtlasRequestCeiling(atlas) : preparationRequestLimit(record, rootAuthority)))
       throw new Error("website_scene_preparation_budget_exhausted");
     const admission = { ...command, schema_version: "paid_lane_admission.v1", status: "admitted",
       blockers: [], external_disclosure_allowed: true, sponsorship_digest: authority.authority_digest,
@@ -869,7 +869,7 @@ export async function loadWebsiteAtlasConfiguration(requestId: string, captureId
     if (created) transaction.update(ref, { website_atlas_grants: { ...(record.website_atlas_grants ?? {}), [captureId]: created } });
     return { schema_version: "website_atlas_configuration.v1", authority, policy,
       reserved_or_settled_cost_usd: usage.cost, remaining_cost_usd: Math.max(0, authority.maximum_cost_usd - usage.cost),
-      remaining_requests: Math.max(0, authority.maximum_requests - usage.requests), task_context_digest: context.context_digest,
+      remaining_requests: Math.max(0, websiteAtlasRequestCeiling(authority) - usage.requests), task_context_digest: context.context_digest,
       source_video_digest: input.source_video_digest, dispatch_authorized: false };
   }));
 }

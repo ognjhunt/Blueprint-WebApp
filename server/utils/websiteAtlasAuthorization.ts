@@ -69,7 +69,9 @@ export function websiteAtlasAuthorization(input: EnvRowMatch & GrantChecks) {
 const grantPolicy = z.object({
   schema_version: z.literal("website_atlas_grant_policy.v1"),
   maximum_cost_usd: z.number().finite().positive().max(100),
-  maximum_requests: z.number().int().min(1).max(32),
+  // Every SAM mask or image edit is its own request, so one preview with repairs
+  // can need dozens; the dollar cap remains the runaway-spend guard.
+  maximum_requests: z.number().int().min(1).max(128),
   validity_seconds: z.number().int().min(3600).max(1_209_600),
   provider_retention: z.literal("account_does_not_retain"),
   approval_reference: z.string().trim().min(1).max(1000),
@@ -120,7 +122,7 @@ const storedGrant = z.object({
   private_processing_authorized: z.literal(true), provider_training_authorized: z.literal(false),
   provider_retention: z.literal("account_does_not_retain"),
   maximum_cost_usd: z.number().finite().positive().max(100),
-  maximum_requests: z.number().int().min(1).max(32),
+  maximum_requests: z.number().int().min(1).max(128),
   created_at_epoch: z.number().int().positive(), expires_at_epoch: z.number().int().positive(),
   claim_scope: z.literal("development_only"),
 }).strict();
@@ -217,6 +219,16 @@ const runtimePolicy = z.object({
 export function websiteAtlasRuntimePolicy() {
   try { return runtimePolicy.parse(JSON.parse(process.env.BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON || "null")); }
   catch { throw new Error("website_atlas_runtime_policy_required"); }
+}
+
+/** The request cap an Atlas grant reserves against. Raising the owner's automatic
+ * policy also raises automatic grants already made (2026-10-24: one preview's own
+ * 10-image SAM batch left 4 of its 16 requests before its edits); it never lowers
+ * one. The grant itself, its dollar cap and its digest are unchanged, so a running
+ * Pipeline job sees the same authority. An exact env row keeps its own cap. */
+export function websiteAtlasRequestCeiling(grant: { maximum_requests: number; grant_basis?: string }) {
+  const policy = grant.grant_basis === "automatic_consented_preview" ? websiteAtlasGrantPolicy() : null;
+  return Math.max(grant.maximum_requests, policy?.maximum_requests ?? 0);
 }
 
 export function atlasAllowanceUsage(reservations: Record<string, any>) {
