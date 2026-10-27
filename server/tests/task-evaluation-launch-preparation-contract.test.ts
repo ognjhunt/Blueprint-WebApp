@@ -112,6 +112,18 @@ describe("existing support pick-and-place preparation", () => {
     // binds frames to every captured subject before it issues paid authority.
     fixture.scene.website_native_inputs.frames = [];
     expect(taskEvaluationLaunchPreparationInputSchema.safeParse(fixture).success).toBe(true);
+    // Source programs and CAD exports travel in the Pipeline's immutable evidence archive.
+    fixture.scene.website_native_inputs.cad_evidence = { ...reference, uri: "gs://capture-bucket/prepared/cad-evidence.zip" };
+    const designed = taskEvaluationLaunchPreparationInputSchema.safeParse(fixture);
+    expect(designed.success, JSON.stringify(designed.success ? null : designed.error.issues)).toBe(true);
+    if (designed.success && designed.data.scene.mode === "configure_source_scene") {
+      expect(designed.data.scene.website_native_inputs?.cad_evidence).toEqual(fixture.scene.website_native_inputs.cad_evidence);
+    }
+    fixture.scene.website_native_inputs.cad_evidence.uri = "file:///tmp/unchecked-cad.zip";
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(fixture).success).toBe(false);
+    fixture.scene.website_native_inputs.cad_evidence = reference;
+    fixture.scene.website_native_inputs.arbitrary_artifact = reference;
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(fixture).success).toBe(false);
   });
 
   it("does not reserve ArtiFixer spend for prepared website backgrounds", async () => {
