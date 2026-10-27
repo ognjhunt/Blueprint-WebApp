@@ -20,11 +20,12 @@ vi.mock("../utils/taskLifecycleNotifications", () => ({enqueueTaskLifecycleNotif
 vi.mock("../utils/pipelineSyncSecurity", () => ({createPipelineSyncRateLimiter:()=> (_r:unknown,_s:unknown,next:()=>void)=>next(),
   verifyPipelineSyncRequest:()=>({ok:true})}));
 import { assessmentProposesPreparation, loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent } from "../utils/siteAssessmentPreparation";
-import { loadWebsiteSceneSponsorship, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit,
+import { loadWebsiteSceneSponsorship, websiteSceneSponsorship, currentWebsitePreparationStatusContext, reserveWebsitePreparationSpend, amendWebsitePreparationRequestLimit,
   amendWebsitePreparationSpendLimit } from "../utils/websiteSceneSponsorship";
 import { advisoryContextDigest, advisoryJobId } from "../utils/siteAssessmentContext";
 import { browserPendingDecisionKey } from "../utils/websiteBrowserPending";
 import { RECORDING_CONSENT_VERSION } from "../utils/recordingConsent";
+import { projectWebsiteTaskContext, projectWebsiteCaptureRights, legacyRoutingTaskContextDigest } from "../utils/websiteTaskContext";
 const hash = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex");
 const source = {source_id: "video:one",kind:"video",canonical_ref:"gs://blueprint-8c1ca.appspot.com/scenes/site-one/captures/walkthrough-one/raw/walkthrough.mp4#generation=1",
   sha256:"a".repeat(64),checked_at:null,content:{duration_seconds:30,evidence:{summary:"A bin moves",observations:[
@@ -631,4 +632,123 @@ it("binds current legacy confirmed novel proposals as general task semantics",as
   const context=projectWebsiteTaskContext(state.docs.get("siteTaskBriefs/one") as any,projectWebsiteCaptureRights(record),{purpose:"scene_preparation"});
   expect(proposal?.proposal.scope).toBe("scene_preparation_only");
   expect(context).toMatchObject({confirmed:true,task_family:"general_task"});
+});
+
+function currentPreparationRequest() {
+  const context = projectWebsiteTaskContext(state.docs.get("siteTaskBriefs/one") as any,
+    projectWebsiteCaptureRights(state.docs.get("inboundRequests/one")), {purpose:"scene_preparation"});
+  return {purpose:"scene_preparation" as const,expected_task_context_digest:context.context_digest};
+}
+it("refreshes a stale context once through the existing assessment queue, without recreating its grant",async()=>{
+  vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED","true");
+  const {job}=seed(packet(),false,false);
+  await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",currentPreparationRequest());
+  const original=structuredClone(state.docs.get("inboundRequests/one")!.website_scene_sponsorship);
+  (state.docs.get("siteTaskBriefs/one") as any).taskFamily="general_task";
+  const options=currentPreparationRequest();
+  await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",options)).rejects.toThrow("website_assessment_preparation_pending");
+  const pointer=(state.docs.get("inboundRequests/one") as any).site_advisory;
+  expect(pointer).toMatchObject({state:"queued"});expect(pointer.job_id).not.toBe(job);
+  expect(state.docs.get(`siteAssessmentJobs/${pointer.job_id}`)).toMatchObject({state:"queued",claim_id:null,packet_sha256:null});
+  expect(state.docs.get(`siteAssessmentJobs/${job}`)).toMatchObject({state:"completed"});
+  expect(state.docs.get("agentRuns/assessment-one")).toMatchObject({status:"completed"});
+  expect(state.docs.get("inboundRequests/one")!.website_scene_sponsorship).toEqual(original);
+  const after=[...state.docs];
+  await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",options)).rejects.toThrow("website_assessment_preparation_pending");
+  expect([...state.docs]).toEqual(after);
+});
+it("keeps stale assessment status reads observational",async()=>{
+  vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED","true");seed(packet(),false,false);
+  (state.docs.get("siteTaskBriefs/one") as any).taskFamily="general_task";
+  const before=structuredClone([...state.docs]);
+  await expect(loadWebsiteSceneSponsorship("one",false,"walkthrough-one",currentPreparationRequest())).rejects.toThrow("pending");
+  expect([...state.docs]).toEqual(before);
+});
+it("rejects a stale caller snapshot before queuing a new assessment",async()=>{
+  vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED","true");seed(packet(),false,false);
+  const options=currentPreparationRequest();
+  (state.docs.get("siteTaskBriefs/one") as any).operatorAnswers={workload:"20"};
+  const before=structuredClone([...state.docs]);
+  await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",options)).rejects.toThrow("website_task_context_changed");
+  expect([...state.docs]).toEqual(before);
+});
+it("preserves revoked source and disabled assessment admission",async()=>{
+  for(const disabled of [false,true]) {
+    state.docs.clear();seed(packet(),false,false);vi.stubEnv("BLUEPRINT_SITE_VIDEO_EVIDENCE_ENABLED",disabled?"false":"true");
+    (state.docs.get("siteTaskBriefs/one") as any).taskFamily="general_task";
+    if(!disabled)(state.docs.get("inboundRequests/one") as any).request.consent_attestation.revoked_at_iso="2026-10-27T00:00:00Z";
+    const options=currentPreparationRequest(),before=structuredClone([...state.docs]);
+    await expect(loadWebsiteSceneSponsorship("one",true,"walkthrough-one",options)).rejects.toThrow(disabled?"pending":"source_revoked");
+    expect([...state.docs]).toEqual(before);
+  }
+});
+
+async function legacyRoutingGrant(requestExtras: Record<string, unknown> = {}) {
+  const {record,job}=seed(packet(),false,false,requestExtras);
+  const current=projectWebsiteTaskContext(state.docs.get("siteTaskBriefs/one") as any,
+    projectWebsiteCaptureRights(record),{purpose:"scene_preparation"});
+  const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",currentPreparationRequest());
+  const {authority_digest:_digest,...payload}=grant;
+  const old={...payload,task_context_digest:legacyRoutingTaskContextDigest(current)};
+  const retained={...old,authority_digest:(await import("../utils/crossRuntimeCanonical")).crossRuntimeDigest(old)};
+  state.docs.get("inboundRequests/one")!.website_scene_sponsorship=retained;
+  return {current,retained,job};
+}
+it("continues only the exact old routing projection under its retained allowance and a current assessment",async()=>{
+  const {current,retained}=await legacyRoutingGrant();
+  const before=structuredClone([...state.docs]);
+  const grant=await loadWebsiteSceneSponsorship("one",false,"walkthrough-one",currentPreparationRequest());
+  expect(grant.task_context_digest).toBe(current.context_digest);
+  expect(grant.assessment_parent_authority_digest).toBe(retained.authority_digest);
+  for(const field of ["max_total_spend_usd","preparation_max_total_spend_usd","upstream_max_spend_usd","max_paid_attempts","expires_at_epoch","consent"])
+    expect(grant[field]).toEqual(retained[field as keyof typeof retained]);
+  const record=state.docs.get("inboundRequests/one")!;
+  expect(currentWebsitePreparationStatusContext({requestId:"one",captureId:"walkthrough-one",brief:state.docs.get("siteTaskBriefs/one") as any,
+    record,assessmentPreparationProposal:grant.assessment_preparation_proposal}).context_digest).toBe(current.context_digest);
+  expect([...state.docs]).toEqual(before);
+});
+it.each(["source","owner_facts","invalid_parent","different_projection"])("refuses a legacy routing continuation with changed %s",async(change)=>{
+  const {retained}=await legacyRoutingGrant();
+  const record=state.docs.get("inboundRequests/one")!;
+  const proposal=(await loadAssessmentPreparationProposal("one","walkthrough-one"))!.proposal;
+  const brief=state.docs.get("siteTaskBriefs/one") as any;
+  const {crossRuntimeDigest}=await import("../utils/crossRuntimeCanonical");
+  if(change==="source") {
+    retained.assessment_preparation_proposal={...retained.assessment_preparation_proposal,source_key:`sha256:${"f".repeat(64)}`};
+    const {authority_digest:_digest,...payload}=retained;retained.authority_digest=crossRuntimeDigest(payload);
+  } else if(change==="owner_facts")brief.operatorAnswers={workload:"20"};
+  else if(change==="invalid_parent")retained.max_total_spend_usd=999;
+  else {retained.task_context_digest=`sha256:${"f".repeat(64)}`;const {authority_digest:_digest,...payload}=retained;retained.authority_digest=crossRuntimeDigest(payload);}
+  expect(()=>websiteSceneSponsorship({requestId:"one",record,brief,purpose:"scene_preparation",
+    assessmentPreparationProposal:proposal,now:Date.now()/1000})).toThrow();
+  expect(()=>currentWebsitePreparationStatusContext({requestId:"one",captureId:"walkthrough-one",record,brief,
+    assessmentPreparationProposal:proposal})).toThrow();
+});
+it("keeps expired legacy routing authority closed to dispatch while allowing exact status evidence",async()=>{
+  const {retained,current}=await legacyRoutingGrant();
+  retained.expires_at_epoch=Date.now()/1000-1;
+  const {authority_digest:_digest,...payload}=retained;
+  retained.authority_digest=(await import("../utils/crossRuntimeCanonical")).crossRuntimeDigest(payload);
+  const proposal=(await loadAssessmentPreparationProposal("one","walkthrough-one"))!.proposal;
+  await expect(loadWebsiteSceneSponsorship("one",false,"walkthrough-one",currentPreparationRequest())).rejects.toThrow("consent_expired");
+  expect(currentWebsitePreparationStatusContext({requestId:"one",captureId:"walkthrough-one",record:state.docs.get("inboundRequests/one")!,
+    brief:state.docs.get("siteTaskBriefs/one") as any,assessmentPreparationProposal:proposal}).context_digest).toBe(current.context_digest);
+});
+
+it("preserves the exact managed-agent task allowlist across the routing projection",async()=>{
+  vi.stubEnv("BLUEPRINT_WEBSITE_AGENTS_API_POLICY_JSON",JSON.stringify({schema_version:"scene_configuration_agents_api_policy.v1",
+    disclosure_scope:"task_asset_source_frames_and_metric_envelope",session_retention:"until_deleted",trace_retention:"provider_default",
+    region:"us",budget_policy:"project_guard_accepted_uncertainty",project_guard_receipt_digest:`sha256:${"d".repeat(64)}`,
+    ttl_seconds:60,maximum_review_cycles:1}));
+  const extras={capture_region:"us",sol_agents_api_consent:{granted:true,statement_version:"2026-09-24.v1"}};
+  seed(packet(),false,false,extras);
+  vi.stubEnv("BLUEPRINT_WEBSITE_AGENTS_API_TASK_DIGESTS",JSON.stringify([currentPreparationRequest().expected_task_context_digest]));
+  const {retained,current}=await legacyRoutingGrant(extras);
+  vi.stubEnv("BLUEPRINT_WEBSITE_AGENTS_API_TASK_DIGESTS",JSON.stringify([retained.task_context_digest]));
+  const grant=await loadWebsiteSceneSponsorship("one",false,"walkthrough-one",currentPreparationRequest());
+  expect(grant).toMatchObject({task_context_digest:current.context_digest,authoring_agent_runtime:"openai_agents_api",
+    assessment_parent_authority_digest:retained.authority_digest,max_total_spend_usd:retained.max_total_spend_usd,
+    expires_at_epoch:retained.expires_at_epoch});
+  vi.stubEnv("BLUEPRINT_WEBSITE_AGENTS_API_TASK_DIGESTS","[]");
+  await expect(loadWebsiteSceneSponsorship("one",false,"walkthrough-one",currentPreparationRequest())).rejects.toThrow("website_agents_api_task_not_authorized");
 });

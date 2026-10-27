@@ -4,7 +4,7 @@ import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
 import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { TASK_BRIEFS_COLLECTION, type SiteTaskBriefRecord } from "./siteTaskBrief";
-import { projectWebsiteCaptureRights, projectWebsiteTaskContext, legacySuggestedTaskContextDigest } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights, projectWebsiteTaskContext, legacySuggestedTaskContextDigest, legacyRoutingTaskContextDigest } from "./websiteTaskContext";
 import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
@@ -23,15 +23,25 @@ function continuationAuthority(authority: Record<string, any>, input: {
   captureId?: string; captureBinding?: Record<string, any>;
   assessmentPreparationProposal?: AssessmentPreparationProposal;
 }) {
-  if (!input.captureBinding && (!input.assessmentPreparationProposal
-    || digest(authority.assessment_preparation_proposal ?? null) === digest(input.assessmentPreparationProposal))) return authority;
   const context = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record), {
     inventory: input.inventory, captureId: input.captureId, captureBinding: input.captureBinding, purpose: authority.purpose });
+  if (!input.captureBinding && authority.task_context_digest === context.context_digest
+    && (!input.assessmentPreparationProposal
+      || digest(authority.assessment_preparation_proposal ?? null) === digest(input.assessmentPreparationProposal))) return authority;
   const { authority_digest: parentDigest, ...retained } = authority;
   const value = { ...retained, capture_id: context.capture_id, task_context_digest: context.context_digest,
     ...(input.captureBinding ? { continuation_parent_authority_digest: parentDigest } : { assessment_parent_authority_digest: parentDigest }),
     ...(input.assessmentPreparationProposal ? { assessment_preparation_proposal: input.assessmentPreparationProposal } : {}) };
   return { ...value, authority_digest: digest(value) };
+}
+
+function routingProjectionMatches(context: ReturnType<typeof projectWebsiteTaskContext>,
+  authority: Record<string, any> | undefined, proposal: AssessmentPreparationProposal | undefined) {
+  return authority?.purpose === "scene_preparation" && proposal !== undefined
+    && authority.task_context_digest !== context.context_digest
+    && authority.task_context_digest === legacyRoutingTaskContextDigest(context)
+    && authority.assessment_preparation_proposal?.capture_id === proposal.capture_id
+    && authority.assessment_preparation_proposal?.source_key === proposal.source_key;
 }
 
 const money = z.number().finite().positive().max(1000);
@@ -140,6 +150,12 @@ export function websiteSceneSponsorship(input: {
     || input.record.site_advisory?.state !== "completed" || input.record.site_advisory.job_id !== proposal.job_id
     || input.record.site_advisory.source_key !== proposal.source_key || input.record.site_advisory.context_digest !== proposal.context_digest))
     throw new Error("website_assessment_preparation_binding_invalid");
+  const previous = input.record.website_scene_sponsorship;
+  // A fresh admitted assessment must cover the new routing identity. Only the
+  // exact earlier projection of these same owner/rights/source facts may retain
+  // its parent allowance; budgets, expiry, terms and reservations stay intact.
+  const grantContextDigest = preparationOnly && routingProjectionMatches(context, previous, proposal)
+    ? previous.task_context_digest : context.context_digest;
   const managedConsent = input.record.request?.sol_agents_api_consent;
   const managedAgents = managedConsent !== undefined && managedConsent !== null;
   if (managedAgents && (managedConsent.granted !== true
@@ -148,12 +164,12 @@ export function websiteSceneSponsorship(input: {
     || input.record.request?.capture_mode !== "self_capture"
     || input.record.request?.claude_authoring_consent))
     throw new Error("website_agents_api_disclosure_authority_invalid");
-  if (managedAgents && !agentsApiTaskAuthorized(context.context_digest))
+  if (managedAgents && !agentsApiTaskAuthorized(grantContextDigest))
     throw new Error("website_agents_api_task_not_authorized");
   const managedPolicy = managedAgents ? agentsApiPolicy() : null;
-  const developmentSiteTest = developmentTestSiteAuthorized(input.record, context.context_digest);
+  const developmentSiteTest = developmentTestSiteAuthorized(input.record, grantContextDigest);
   const policyDigest = developmentSiteTest
-    ? digest({ policy: configured, development_test_site_context_digest: context.context_digest,
+    ? digest({ policy: configured, development_test_site_context_digest: grantContextDigest,
       ...(managedPolicy ? { agents_api_policy: managedPolicy } : {}),
       development_test_site_gates: input.record.siteTaskGates,
       development_test_site_triage: {
@@ -162,11 +178,10 @@ export function websiteSceneSponsorship(input: {
         unanswered_field_ids: input.record.site_task_triage.unanswered_field_ids,
       } })
     : digest(managedPolicy ? { policy: configured, agents_api_policy: managedPolicy } : configured);
-  const previous = input.record.website_scene_sponsorship;
   if (previous) {
     const { authority_digest: retainedDigest, ...payload } = previous;
     if (digest(payload) !== retainedDigest || previous.policy_digest !== policyDigest
-      || previous.request_id !== input.requestId || previous.task_context_digest !== context.context_digest
+      || previous.request_id !== input.requestId || previous.task_context_digest !== grantContextDigest
       || previous.purpose !== input.purpose)
       throw new Error("website_scene_sponsorship_changed");
     if (previous.expires_at_epoch <= input.now) throw new Error("consent_expired");
@@ -265,8 +280,12 @@ export function currentWebsitePreparationStatusContext(input: {
     if (!context.confirmed) throw new Error("website_task_context_not_confirmed");
     return context;
   }
-  const authority = input.record.website_scene_sponsorship, proposal = input.assessmentPreparationProposal;
+  const retained = input.record.website_scene_sponsorship, proposal = input.assessmentPreparationProposal;
   const baseContext = projectWebsiteTaskContext(input.brief, projectWebsiteCaptureRights(input.record), {inventory: input.inventory, purpose});
+  const {authority_digest: retainedDigest, ...retainedPayload} = retained ?? {};
+  if (retainedDigest !== digest(retainedPayload)) throw new Error("website_assessment_preparation_pending");
+  const authority = routingProjectionMatches(baseContext, retained, proposal)
+    ? continuationAuthority(retained, input) : retained;
   const {authority_digest, ...payload} = authority;
   if (!proposal || authority_digest !== digest(payload) || authority.schema_version !== "website_scene_sponsorship.v1"
     || authority.sponsor !== "blueprint" || authority.request_id !== input.requestId || authority.capture_id !== baseContext.capture_id
@@ -299,7 +318,18 @@ export async function loadWebsiteSceneSponsorship(requestId: string, create = fa
   if (!db) throw new Error("website_capture_rights_store_unavailable");
   const store = db;
   const captureBinding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
-  const assessment = await loadAssessmentPreparationProposal(requestId, captureId);
+  let assessment: Awaited<ReturnType<typeof loadAssessmentPreparationProposal>>;
+  try { assessment = await loadAssessmentPreparationProposal(requestId, captureId); }
+  catch (error) {
+    if (!(error instanceof Error && error.message === "website_assessment_preparation_pending"
+      && create && options?.purpose === "scene_preparation" && options.expected_task_context_digest)) throw error;
+    // A routing/schema release can make a retained assessment stale without an
+    // owner editing the brief again. Reuse the existing context-change producer;
+    // the ordinary worker still owns all model/source/budget admission.
+    await (await import("./siteAssessmentPreparation")).refreshCurrentPreparationAssessment({
+      requestId, captureId, captureBinding, expectedTaskContextDigest: options.expected_task_context_digest });
+    throw error;
+  }
   return storeTimeout(store.runTransaction(async transaction => {
     const ref = store.collection("inboundRequests").doc(requestId);
     const [request, brief, inventory] = await Promise.all([

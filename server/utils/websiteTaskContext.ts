@@ -90,6 +90,15 @@ export function projectWebsiteTaskContext(brief: SiteTaskBriefRecord, captureRig
   return { ...value, context_digest: canonicalArtifactDigest(value, "context_digest") };
 }
 
+/** Reconstruct only the earlier v1 routing projection; no owner fact is removed.
+ * Callers must independently admit the current assessment and retained grant.
+ */
+export function legacyRoutingTaskContextDigest(context: ReturnType<typeof projectWebsiteTaskContext>) {
+  if (!context.task_family) return undefined;
+  const { context_digest: _digest, task_family: _family, ...value } = context;
+  return canonicalArtifactDigest(value, "context_digest");
+}
+
 /** Operator renewal compatibility only: prove the old projection against today's
  * complete records. Never restores an unphotographed suggestion as task evidence. */
 export function legacySuggestedTaskContextDigest(context: ReturnType<typeof projectWebsiteTaskContext>,
