@@ -16,8 +16,14 @@ vi.mock("../utils/siteAssessmentPublic", () => ({ loadCurrentSiteAdvisory: vi.fn
 
 const store = vi.hoisted(() => ({ rows: new Map<string, any>(), writes: [] as string[] }));
 vi.mock("../../client/src/lib/firebaseAdmin", () => {
-  const reference = (key: string): any => ({ key, get: async () => snapshot(key) });
-  const snapshot = (key: string): any => ({ id: key.split("/")[1], exists: store.rows.has(key),
+  const query = (prefix: string, limit = Infinity): any => ({
+    orderBy: () => query(prefix, limit), limit: (count: number) => query(prefix, count),
+    get: async () => ({ docs: [...store.rows.keys()].filter(key => key.startsWith(`${prefix}/`)
+      && !key.slice(prefix.length + 1).includes("/")).sort().slice(0, limit).map(snapshot) }),
+  });
+  const reference = (key: string): any => ({ key, get: async () => snapshot(key),
+    collection: (child: string) => query(`${key}/${child}`) });
+  const snapshot = (key: string): any => ({ id: key.split("/").at(-1), exists: store.rows.has(key),
     data: () => structuredClone(store.rows.get(key)), ref: reference(key) });
   return { dbAdmin: {
     collection: (collection: string) => ({ doc: (id: string) => reference(`${collection}/${id}`) }),
@@ -33,6 +39,7 @@ vi.mock("../../client/src/lib/firebaseAdmin", () => {
 
 import { loadWebsiteAtlasConfiguration, reserveWebsitePreparationSpend } from "../utils/websiteSceneSponsorship";
 import { websitePreparationAccounting } from "../utils/websitePreparationAccounting";
+import { humanDecisionDigest } from "../utils/human-reply-admission";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { verifyTaskEvaluationResultDownloadTicket } from "../utils/taskEvaluationResultDownloadTicket";
@@ -258,7 +265,10 @@ describe("non-authorizing Atlas configuration read", () => {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify({ ...policy, maximum_cost_usd: 50 }));
     const read = await configure({ create: false });
     expect(read).toMatchObject({ grant_creation_allowed: false, dispatch_authorized: false,
-      authority: created.authority, reserved_or_settled_cost_usd: 0, remaining_cost_usd: 2 });
+      authority: created.authority, reserved_or_settled_cost_usd: 0, remaining_cost_usd: 2,
+      capture_inference_accounting: { schema_version: "website_capture_inference_accounting.v1", request_id: "req1",
+        capture_id: "walkthrough-req1", source_video_digest: sha("5"), ledger_status: "missing",
+        known_usage_cost_usd: 0, unbounded_unknown_call_count: 1 } });
     expect(store.writes).toEqual([]);
   });
 
@@ -341,6 +351,53 @@ describe("non-authorizing Atlas configuration read", () => {
       atlas_authorization_digest: sha("7") }, settlement: { actual_cost_usd: 0 } } });
     expect(zero.allowance_accounting).toMatchObject({ settled_cost_usd: 0, held_cost_usd: 0,
       reserved_or_settled_cost_usd: 0, reservations: [{ status: "settled", settled_cost_usd: 0 }] });
+  });
+
+  it("retains all 128 preparation and 64 inference rows within the bounded read transport", async () => {
+    const fixturePolicy = { ...policy, approval_reference: "a".repeat(1000), approved_by: "b".repeat(200) };
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(fixturePolicy));
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON", JSON.stringify({ ...runtime, model: "m".repeat(100),
+      reviewed_by: "r".repeat(200), rate_card_reference: `https://example.com/${"x".repeat(1000)}` }));
+    store.rows.get(REQUEST).account_owner_uid = "o".repeat(200);
+    store.rows.get(SESSION).browser_pending_delivery.video = { ...video, object_name: "v".repeat(1024) };
+    const { authority } = await configure();
+    const ledger = Object.fromEntries(Array.from({ length: 128 }, (_, i) => {
+      const key = i.toString(16).padStart(64, "0");
+      return [key, { admission: { allocation_binding_digest: `sha256:${key}`, task_context_digest: sha("8"),
+        provider: "openai", source_video_digest: sha("5"), maximum_cost_usd: 1000, request_count: 32,
+        ...(i < 64 ? { atlas_authorization_digest: authority.authorization_digest } : {}) },
+        settlement: { actual_cost_usd: 999.999999999, usage_receipt_digest: sha("e") } }];
+    }));
+    store.rows.get(REQUEST).website_preparation_reservations = ledger;
+    const budgetId = `budget-${humanDecisionDigest({ capture_id: "walkthrough-req1" })}`;
+    store.rows.set(`captureCoverageReviews/${budgetId}`, { capture_id: "walkthrough-req1", calls: 64 });
+    for (let i = 0; i < 64; i++) {
+      const id = `${i.toString(16).padStart(8, "0")}-1111-4111-8111-111111111111`;
+      store.rows.set(`captureCoverageReviews/${budgetId}/calls/${id}`, { schema_version: "capture_inference_call.v1",
+        admission_token: id, request_id: "req1", capture_id: "walkthrough-req1", run_id: `site-assessment-${"a".repeat(64)}`,
+        provider: "openai", model: "gpt-6.1-sol", source_digest: sha("8"), context_digest: sha("9"), state: "recorded",
+        raw_usage: { input_tokens: 1000, output_tokens: 100, total_tokens: 1100 }, cost_estimate_usd: .0035,
+        recorded_at_ms: Date.parse("2026-10-27T13:00:00Z") });
+    }
+    store.writes.length = 0;
+    const read = await configure({ create: false });
+    expect(read.allowance_accounting!.reservations).toHaveLength(64);
+    expect(read.native_preparation_accounting!.reservations).toHaveLength(64);
+    expect(read.capture_inference_accounting!.calls).toHaveLength(64);
+    expect(read.capture_inference_accounting!.ledger_status).toBe("complete");
+    const bytes = Buffer.byteLength(JSON.stringify(read), "utf8");
+    expect(bytes).toBeGreaterThan(100_000);
+    expect(bytes).toBeLessThanOrEqual(200_000);
+    expect(store.writes).toEqual([]);
+  });
+
+  it("refuses an oversized full read without truncation or writes while preserving default configuration", async () => {
+    await configure();
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_RUNTIME_POLICY_JSON", JSON.stringify({ ...runtime, reviewed_by: "x".repeat(200_001) }));
+    store.writes.length = 0;
+    await expect(configure({ create: false })).rejects.toThrow("website_atlas_accounting_response_too_large");
+    expect((await configure()).policy.reviewed_by).toHaveLength(200_001);
+    expect(store.writes).toEqual([]);
   });
 });
 
