@@ -817,7 +817,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               {scope === "owner" && brief && blueprintActionPending && !editingBrief && <details style={{margin: "16px 0"}}>
                 <summary>Saved job brief</summary>
                 <p>{brief.summary}</p>
-                <p className="ms-field-hint">This draft is retained for a future authorized attempt. Blueprint's next step is shown above.</p>
+                <p className="ms-field-hint">This brief is retained for a future authorized attempt. Blueprint's next step is shown above.</p>
               </details>}
               {scope === "owner" && brief && briefConfirmed && !editingBrief && !blueprintActionPending && (
                 <p className="ms-field-hint" style={{ marginBottom: "8px" }}>

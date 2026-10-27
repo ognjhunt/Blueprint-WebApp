@@ -90,13 +90,13 @@ describe("video first owner return", () => {
       return mockFetch()(input);
     });
   }
-  it("keeps a Blueprint processing stop consistent across the full saved owner page", async () => {
+  it.each([null, "2026-10-01T00:00:00Z"])("keeps a Blueprint processing stop consistent with brief confirmation %s", async confirmedAtIso => {
     const fallback = ownerFetch(false, true);
     const outcome = processingFailure();
     const fetcher = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({
-        ready: true, scope: "owner", brief: { summary: "Move a ball from floor to tabletop", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null },
+        ready: true, scope: "owner", brief: { summary: "Move a ball from floor to tabletop", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso },
       }) });
       if (url === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: true, json: async () => ({
         scope: "owner", captureReceived: true, status: { decision: outcome.category, headline: outcome.title,
@@ -117,6 +117,7 @@ describe("video first owner return", () => {
     expect(screen.getByText("Saved job brief")).toBeVisible();
     expect(screen.queryByRole("region", { name: "Confirm your job brief" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /confirm it|Retry processing/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit your answers" })).not.toBeInTheDocument();
     expect(screen.queryByText("Review the saved brief.")).not.toBeInTheDocument();
     expect(screen.queryByText(/checking whether it covers|If another recording is needed/)).not.toBeInTheDocument();
     expect(fetcher.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
