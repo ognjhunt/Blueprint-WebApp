@@ -495,10 +495,10 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
         .reduce((total, amount) => total + amount, 0);
       if (
         value.spend.hard_ttl_seconds !== SCENE_CONFIGURATION_PARENT_TTL_SECONDS
-        || (value.replacement_authoring_backend !== "astra_cad_blender_v1"
-          && value.spend.hard_cap_usd !== budgetProfile.attempt_maximum)
         || value.spend.hard_cap_usd > budgetProfile.attempt_maximum
-        || providerComputeCap !== SCENE_CONFIGURATION_PROVIDER_COMPUTE_SPEND_USD
+        // The issued quote may be smaller than the profile ceiling. Preserve
+        // it while checking the same parent/stage coverage as Pipeline.
+        || providerComputeCap > SCENE_CONFIGURATION_PROVIDER_COMPUTE_SPEND_USD
         || providerComputeCap + openai.maximum_cost_usd > value.spend.hard_cap_usd + 1e-9
         || providerComputeCap + 1e-9 < value.spend.maximum_hourly_rate_usd
           * SCENE_CONFIGURATION_PARENT_TTL_SECONDS / 3_600
