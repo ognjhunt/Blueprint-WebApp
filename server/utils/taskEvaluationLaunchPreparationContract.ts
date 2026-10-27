@@ -96,7 +96,9 @@ const sceneSchema = z.discriminatedUnion("mode", [
       appearance: immutableReference,
       observations: immutableReference,
       candidate: immutableReference,
-      frames: z.array(immutableReference).min(1).max(256),
+      // A designed subject the task adds was never captured, so it has no frames;
+      // the Pipeline still requires frames for every captured subject.
+      frames: z.array(immutableReference).max(256),
     }).strict().optional(),
     appearance: z.object({
       kind: z.enum(["interiorgs", "gaussian_splat", "textured_usd", "other_observed"]),

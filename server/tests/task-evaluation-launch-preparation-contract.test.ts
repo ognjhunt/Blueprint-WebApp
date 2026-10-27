@@ -108,8 +108,10 @@ describe("existing support pick-and-place preparation", () => {
     }
     fixture.scene.website_native_inputs.frames = [{ ...reference, uri: "file:///tmp/object.png" }];
     expect(taskEvaluationLaunchPreparationInputSchema.safeParse(fixture).success).toBe(false);
+    // A designed subject the task adds has no captured frames. The Pipeline
+    // binds frames to every captured subject before it issues paid authority.
     fixture.scene.website_native_inputs.frames = [];
-    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(fixture).success).toBe(false);
+    expect(taskEvaluationLaunchPreparationInputSchema.safeParse(fixture).success).toBe(true);
   });
 
   it("does not reserve ArtiFixer spend for prepared website backgrounds", async () => {
