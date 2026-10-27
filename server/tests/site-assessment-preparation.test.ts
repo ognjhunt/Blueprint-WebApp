@@ -500,6 +500,14 @@ it("v2 false task consent stays rejected publicly and may only bind current sign
     {...request,consent:{...request.consent,task_confirmed:true}},
   ]) expect(()=>validateWebsiteSponsoredIntake(invalid,grant)).toThrow("website_scene_sponsorship_binding_invalid");
 });
+it("a designed subject the task adds binds like a removed one, and any other origin is refused",async()=>{
+  seed(packet(),false,false);const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
+  const request=syntheticPreparedIntake(grant);
+  const origin=(geometry_origin:unknown)=>({...request,task:{...request.task,subject:{...request.task.subject,geometry_origin}}});
+  expect(()=>validateWebsiteSponsoredIntake(origin("synthetic_design"),grant)).not.toThrow();
+  for(const invalid of ["captured_in_scene",undefined])
+    expect(()=>validateWebsiteSponsoredIntake(origin(invalid),grant)).toThrow("website_scene_sponsorship_binding_invalid");
+});
 it("v2 actual signed item/visual/intake handlers retain purpose through transactions and outbox replay",async()=>{
   seed(packet(),false,false);state.docs.set("siteTaskItemInventories/one",{requestId:"one",items:[]});
   const grant=await loadWebsiteSceneSponsorship("one",true,"walkthrough-one",prepOptions());
