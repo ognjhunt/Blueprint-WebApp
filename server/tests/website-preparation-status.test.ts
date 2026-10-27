@@ -98,6 +98,24 @@ function harness(expectedSelector = selector) {
     enqueue:vi.fn(async (intent:{eventId:string})=> {notices.set(intent.eventId,intent);return "enqueued" as const;})};
 }
 let server: Server|null=null;
+it("v3 keeps the exact source binding and exposes a bounded conservative verdict", async () => {
+  const h = harness();
+  const value = {...receipt("awaiting_inputs"), schema_version: "website_preparation_status.v3", terminal_reason: null,
+    outcome: {category: "robot_incompatibility", reason: "robot_carry_path_rejected",
+      basis: "conservative_configuration_check", robot_id: "franka_panda", evidence_digest: `sha256:${"d".repeat(64)}`}};
+  const current = {...value, status_digest: crossRuntimeArtifactDigest(value, "status_digest")};
+  h.ledger(current);
+  await syncWebsitePreparationStatus(selector, h.deps);
+  const projected = await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps);
+  expect(projected.outcome).toMatchObject({category: "robot_incompatibility", basis: "conservative_configuration_check"});
+  expect(projected.outcome!.scope).toMatch(/not proof.*impossible/);
+  expect(await loadCurrentWebsitePreparationStatus("other", "walkthrough-r1", h.deps))
+    .toEqual({state: "unavailable", correlationId: null});
+  const tampered = {...current, outcome: {...current.outcome, basis: "verified"}};
+  h.ledger({...tampered, status_digest: crossRuntimeArtifactDigest(tampered, "status_digest")});
+  expect(await loadCurrentWebsitePreparationStatus("r1", "walkthrough-r1", h.deps))
+    .toEqual({state: "unavailable", correlationId: null});
+});
 afterEach(async()=>{if(server){await new Promise<void>(resolve=>server!.close(()=>resolve()));server=null;}vi.unstubAllEnvs();vi.unstubAllGlobals();runtime.beforeTransaction=null;});
 beforeEach(()=>{vi.stubEnv("PIPELINE_SYNC_TOKEN","isolated-test-secret");vi.stubEnv("PIPELINE_SYNC_ALLOW_LEGACY_BEARER","true");});
 async function route(h:ReturnType<typeof harness>, body:string|Buffer=JSON.stringify(selector), headers:Record<string,string>={}, mount=true, capture="walkthrough-r1") {

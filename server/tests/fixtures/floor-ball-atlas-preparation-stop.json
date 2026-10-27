@@ -1,0 +1,14 @@
+{
+  "splat_available": false,
+  "bundle": null,
+  "schema_version": "website_atlas_preview.v1",
+  "state": "failed",
+  "preview_digest": "sha256:b5dd634e35a7fbd792d5cea5ce0e8134f856bfd4d352aacebb729a9d6789fadc",
+  "capture_id": "walkthrough-capture-05d7f712-f93c-46c0-ae6c-ee7910069f7d",
+  "revision": 2,
+  "updated_at_epoch": 1793109891,
+  "reason": "atlas_scene_planner_requires_reconciliation",
+  "scale_status": "unscaled_provider_world_units",
+  "claim_ceiling": "development_only",
+  "mesh_available": false
+}

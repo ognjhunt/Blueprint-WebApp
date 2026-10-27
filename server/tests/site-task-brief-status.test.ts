@@ -129,9 +129,9 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const { code, body } = await status();
     expect(code).toBe(200);
     expect(preparation.read).toHaveBeenCalledWith("req-1", "cap-1");
-    expect(body.status).toMatchObject({ decision: "footage_received", stage: null, operatorAction: null });
-    expect(body.status.headline).toContain("Job preparation encountered a problem.");
-    expect(body.status.headline).toContain("bp-prep-1234567890abcdef");
+    expect(body.status).toMatchObject({ decision: "processing_failure", stage: null, operatorAction: null });
+    expect(body.status.outcome.actionOwner).toBe("blueprint");
+    expect(body.status.outcome.reference).toBe("bp-prep-1234567890abcdef");
     expect(body.status.headline).not.toMatch(/are preparing|results are in/i);
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(enqueueOutbox).not.toHaveBeenCalled();
@@ -143,10 +143,10 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const before = structuredClone([...sharedFakeFirestoreState.docs]);
     const { code, body } = await status();
     expect(code).toBe(200);
-    expect(body.status).toMatchObject({ decision: "footage_received", stage: null, operatorAction: null });
-    expect(body.status.headline).toContain("Scene preview preparation could not finish, and we have stopped trying.");
+    expect(body.status).toMatchObject({ decision: "processing_failure", stage: null, operatorAction: null });
+    expect(body.status.headline).toContain("Blueprint could not finish processing this attempt");
     expect(body.status.headline).not.toContain("our team has been told");
-    expect(body.status.headline).toContain("capacity stayed full");
+    expect(body.status.outcome.reason).toContain("capacity stayed full");
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(enqueueOutbox).not.toHaveBeenCalled();
   });
@@ -171,7 +171,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
       pipeline_status: { status: "blocked", phase: "scene_configuration_failed", blockers: ["PRIVATE_detail"] } });
     preparation.read.mockResolvedValueOnce({ state: "handed_off", correlationId: "bp-prep-1234567890abcdef" } as never);
     const { body } = await status();
-    expect(body.status.headline).toContain("could not finish preparing your job for robot evaluations");
+    expect(body.status.decision).toBe("processing_failure");
+    expect(body.status.outcome.actionOwner).toBe("blueprint");
     expect(JSON.stringify(body)).not.toContain("PRIVATE_detail");
   });
   it("PREP-UI-002 keeps preparation readback outside film-link scope", async () => {
@@ -207,6 +208,31 @@ describe("GET /api/site-task-brief/:token/status", () => {
     });
     return { token: createCaptureUploadToken({ ...identity, scope }), objectName };
   }
+
+  it("shows a signed Atlas processing stop before brief confirmation, without writes or a film-link disclosure", async () => {
+    const saved = savedRecording("published");
+    const record = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+    delete record.site_task_brief_confirmed_at;
+    const { crossRuntimeArtifactDigest } = await import("../utils/crossRuntimeCanonical");
+    const preview = { schema_version: "website_atlas_preview.v1", capture_id: "walkthrough-req-1", revision: 2,
+      state: "failed", reason: "atlas_scene_planner_requires_reconciliation", updated_at_epoch: 1793109960,
+      bundle: null, splat_available: false, mesh_available: false, claim_ceiling: "development_only",
+      scale_status: "unscaled_provider_world_units" };
+    record.website_atlas_previews = { "walkthrough-req-1": { ...preview,
+      preview_digest: crossRuntimeArtifactDigest(preview, "preview_digest") } };
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const body = await (await fetch(`${baseUrl}/api/site-task-brief/${saved.token}/status`)).json();
+    expect(body.status).toMatchObject({decision: "processing_failure", operatorAction: null,
+      outcome: {category: "processing_failure", actionOwner: "blueprint"}});
+    expect(body.status.outcome.nextStep).toMatch(/do not need to record or upload it again/);
+    const film = createCaptureUploadToken({requestId: "req-1", sceneId: "site-req-1", captureId: "walkthrough-req-1", scope: "film"});
+    const filmed = await (await fetch(`${baseUrl}/api/site-task-brief/${film}/status`)).json();
+    expect(filmed.status.outcome).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain("requires_reconciliation");
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect(storage.write).not.toHaveBeenCalled();
+    expect(enqueueOutbox).not.toHaveBeenCalled();
+  });
 
   it("publishes only the current source-bound advisory through the owner status handler and suppresses it after withdrawal", async () => {
     const saved = savedRecording("published");
@@ -604,8 +630,8 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const before = structuredClone([...sharedFakeFirestoreState.docs]);
     const { code, body } = await status();
     expect(code).toBe(200);
-    expect(body.status.decision).toBe("footage_received");
-    expect(body.status.headline).toMatch(/scene preview preparation could not finish/i);
+    expect(body.status.decision).toBe("processing_failure");
+    expect(body.status.headline).toMatch(/Blueprint could not finish processing/i);
     expect(body.status.headline).not.toMatch(/we are preparing|private upstream|private\.example/);
     expect(body.status.operatorAction).toBeNull();
     expect(body.sceneViewUrl).toBeNull();
@@ -617,7 +643,7 @@ describe("GET /api/site-task-brief/:token/status", () => {
   it("uses a newer ready record even if old failure details remain", async () => {
     const failed = { state: "failed", blocker: "provider_failed", failure_reason: "private upstream detail" };
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { world_reconstruction: failed });
-    expect((await status()).body.status.headline).toMatch(/scene preview preparation could not finish/i);
+    expect((await status()).body.status.headline).toMatch(/Blueprint could not finish processing/i);
     sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", { world_reconstruction: {
       ...failed, state: "ready", assets: { launchUrl: "https://viewer.example/current" },
     } });

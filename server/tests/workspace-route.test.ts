@@ -321,8 +321,8 @@ describe("workspace access and projections", () => {
     state.records.set("captureUploadSessions/walkthrough-task-1", { website_preparation: { selector: {} } });
     const before = structuredClone([...state.records]);
     const viewed = await (await api("/tasks/task-1", "site-1")).json();
-    expect(viewed.readiness).toMatchObject({ decision: "footage_received", stage: null, operatorAction: null });
-    expect(viewed.readiness.headline).toContain("Job preparation encountered a problem.");
+    expect(viewed.readiness).toMatchObject({ decision: "processing_failure", stage: null, operatorAction: null });
+    expect(viewed.readiness.outcome.actionOwner).toBe("blueprint");
     expect(preparation.read).toHaveBeenCalledWith("task-1", "walkthrough-task-1");
     preparation.read.mockClear();
     expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
@@ -343,14 +343,35 @@ describe("workspace access and projections", () => {
     const response = await api("/tasks/task-1", "site-1");
     expect(response.status).toBe(200);
     const viewed = await response.json();
-    expect(viewed.readiness.decision).toBe("footage_received");
-    expect(viewed.readiness.headline).toMatch(/scene preview preparation could not finish/i);
+    expect(viewed.readiness.decision).toBe("processing_failure");
+    expect(viewed.readiness.headline).toMatch(/Blueprint could not finish processing/i);
     expect(viewed.readiness.headline).not.toMatch(/we are preparing|private upstream/);
     expect(viewed.readiness.operatorAction).toBeNull();
     expect(viewed.sceneReady).toBe(false);
     expect(viewed.thumbnailUrl).toBeNull();
     expect([...state.records]).toEqual(before);
     expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
+    expect(state.messages).not.toHaveBeenCalled();
+  });
+  it("shows the same Atlas closeout in the owner's job and status card before confirmation", async () => {
+    const { crossRuntimeArtifactDigest } = await import("../utils/crossRuntimeCanonical");
+    const preview = {schema_version: "website_atlas_preview.v1", capture_id: "walkthrough-task-1", revision: 2,
+      state: "failed", reason: "atlas_scene_planner_requires_reconciliation", updated_at_epoch: 1793109960,
+      bundle: null, splat_available: false, mesh_available: false, claim_ceiling: "development_only",
+      scale_status: "unscaled_provider_world_units"};
+    state.records.set("inboundRequests/task-1", {...task(), website_atlas_previews: {
+      "walkthrough-task-1": {...preview, preview_digest: crossRuntimeArtifactDigest(preview, "preview_digest")}}});
+    state.records.set("siteTaskBriefs/task-1", {requestId: "task-1", summary: "Task reading", proposed: [],
+      unresolved: [], captureMode: "self_capture", draftedFrom: ["observation"],
+      draftedAtIso: "2026-09-17T00:00:00Z", confirmedAtIso: null});
+    const before = structuredClone([...state.records]);
+    const viewed = await (await api("/tasks/task-1", "site-1")).json();
+    expect(viewed.readiness).toMatchObject({decision: "processing_failure", operatorAction: null,
+      outcome: {category: "processing_failure", actionOwner: "blueprint"}});
+    expect(viewed.status).toBe(viewed.readiness.outcome.title);
+    expect(viewed.nextStep).toBe(viewed.readiness.outcome.nextStep);
+    expect((await api("/tasks/task-1", "site-2")).status).toBe(404);
+    expect([...state.records]).toEqual(before);
     expect(state.messages).not.toHaveBeenCalled();
   });
   it("uses the current ready preview after a failed record is replaced", async () => {
@@ -362,7 +383,7 @@ describe("workspace access and projections", () => {
     const failed = { state: "failed", blocker: "provider_failed", failure_reason: "private upstream detail" };
     state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: failed });
     expect((await (await api("/tasks/task-1", "site-1")).json()).readiness.headline)
-      .toMatch(/scene preview preparation could not finish/i);
+      .toMatch(/Blueprint could not finish processing/i);
     state.records.set("captureUploadSessions/walkthrough-task-1", { world_reconstruction: {
       ...failed, state: "ready", assets: { launchUrl: "https://viewer.example/current",
         thumbnailUrl: "https://viewer.example/current.png" },

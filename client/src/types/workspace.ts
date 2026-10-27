@@ -1,5 +1,6 @@
 import type { UpdatePreferences } from "./updatePreferences";
 import type { SiteAdvisory } from "./siteAdvisory";
+import type { TaskOutcome } from "./taskOutcome";
 import type { RobotDescription } from "./robotDescription";
 import type { RobotEmbodiment } from "./robotEmbodiment";
 import type { PolicyAdapter } from "./policyAdapter";
@@ -141,6 +142,7 @@ export type WorkspaceTask = {
    * disagree about one task.
    */
   readiness?: {
+    outcome?: TaskOutcome | null;
     decision: string;
     headline: string;
     operatorAction: string | null;
