@@ -3,7 +3,10 @@ import { createHash } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { advisoryContextDigest, advisoryJobId } from "./siteAssessmentContext";
 import { browserPendingDecisionKey } from "./websiteBrowserPending";
-import { projectWebsiteCaptureRights } from "./websiteTaskContext";
+import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "./websiteTaskContext";
+import type { SiteTaskBriefRecord } from "./siteTaskBrief";
+import type { TaskItemInventoryRecord } from "./taskItemInventory";
+import { assertWebsiteCaptureBindingInTransaction } from "./websiteCaptureBinding";
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const unavailable = () => new Error("website_assessment_preparation_pending");
@@ -101,4 +104,36 @@ export async function assertAssessmentPreparationCurrent(transaction: FirebaseFi
     const current = (await transaction.get(store.collection(read.collection).doc(read.id))).data() ?? null;
     if (hash(current) !== hash(read.value)) throw unavailable();
   }
+}
+
+/** Explicit preparation creation may refresh stale analysis; status reads never do.
+ * Preserve the completed assessment and every spending/lease record. A current
+ * queued/failed/ambiguous assessment is never reset or given a fresh retry here.
+ */
+export async function refreshCurrentPreparationAssessment(input: {
+  requestId: string; captureId: string; captureBinding?: Record<string, any>;
+  expectedTaskContextDigest: string;
+}) {
+  if (!db || input.captureId !== `walkthrough-${input.requestId}`) return;
+  const store = db;
+  await store.runTransaction(async tx => {
+    const [request, brief, inventory] = await Promise.all([
+      tx.get(store.collection("inboundRequests").doc(input.requestId)),
+      tx.get(store.collection("siteTaskBriefs").doc(input.requestId)),
+      tx.get(store.collection("siteTaskItemInventories").doc(input.requestId)),
+    ]);
+    const record = request.data();
+    if (!record || !brief.exists) throw new Error("task_brief_missing");
+    const rights = projectWebsiteCaptureRights(record);
+    if (!rights.derived_scene_generation_allowed) throw new Error("source_revoked");
+    await assertWebsiteCaptureBindingInTransaction(tx, input.requestId, input.captureBinding);
+    const current = projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, rights, {
+      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+      captureId: input.captureId, captureBinding: input.captureBinding, purpose: "scene_preparation",
+    });
+    if (current.context_digest !== input.expectedTaskContextDigest) throw new Error("website_task_context_changed");
+    const refresh = await (await import("./siteAssessmentQueue")).prepareBriefContextSiteAssessment(
+      tx, input.requestId, record, brief.data()!);
+    refresh?.();
+  });
 }
