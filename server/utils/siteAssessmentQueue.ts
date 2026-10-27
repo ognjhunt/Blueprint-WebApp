@@ -70,6 +70,53 @@ export async function enqueueNewPublishedSiteAssessment(tx: FirebaseFirestore.Tr
   tx.set(requestRef, { site_advisory: pointer(id, job) }, { merge: true });
 }
 
+/** A saved brief correction is new input, not a retry of the old assessment.
+ * Prepare all reads before the caller saves the brief, then commit its new
+ * queue pointer atomically with that correction. Existing runs and the
+ * capture-wide inference ledger are retained; only the ordinary worker can
+ * dispatch, after its source, rights and spending checks. */
+export async function prepareBriefContextSiteAssessment(tx: FirebaseFirestore.Transaction, requestId: string,
+  record: Record<string, any>, brief: Record<string, any>): Promise<(() => void) | null> {
+  if (!db || !isSiteVideoEvidenceEnabled()) return null;
+  const previousId = record.site_advisory?.job_id;
+  if (typeof previousId !== "string" || !/^advisory-[a-f0-9]{64}$/.test(previousId)) return null;
+  const captureId = `walkthrough-${requestId}`;
+  const [previousSnap, sessionSnap] = await Promise.all([
+    tx.get(db.collection(SITE_ASSESSMENT_JOBS).doc(previousId)),
+    tx.get(db.collection("captureUploadSessions").doc(captureId)),
+  ]);
+  const previous = previousSnap.data() as SiteAssessmentJob | undefined;
+  if (!previous || previous.schema_version !== "site_assessment_job.v1" || previous.request_id !== requestId
+    || previous.capture_id !== captureId || previousId !== advisoryJobId(requestId, previous.source_key, previous.context_digest)
+    || record.site_advisory.source_key !== previous.source_key || record.site_advisory.context_digest !== previous.context_digest
+    || record.site_advisory.state !== previous.state) return null;
+  const contextDigest = advisoryContextDigest(record, brief);
+  if (contextDigest === previous.context_digest) return null;
+  const pending = currentAuthority({ ...previous, context_digest: contextDigest }, record, brief, sessionSnap.data());
+  if (!pending) return null;
+  const id = advisoryJobId(requestId, previous.source_key, contextDigest);
+  const ref = db.collection(SITE_ASSESSMENT_JOBS).doc(id), retained = await tx.get(ref);
+  let job = retained.exists ? retained.data() as SiteAssessmentJob : queuedJob(pending, contextDigest);
+  if (job.schema_version !== "site_assessment_job.v1" || job.request_id !== requestId || job.capture_id !== captureId
+    || job.source_key !== previous.source_key || job.context_digest !== contextDigest
+    || !["queued", "running", "completed", "needs_review", "authority_ended"].includes(job.state))
+    throw new Error("site_assessment_context_job_binding_invalid");
+  if (job.state === "authority_ended") {
+    const run = await tx.get(db.collection("agentRuns").doc(job.run_id));
+    const neverStarted = !run.exists && job.claim_id === null && job.started_at_ms === undefined;
+    // Returning to an old input must not strand it, or silently replay a
+    // possibly paid call. The worker can publish a retained completed run;
+    // anything else that started keeps the existing explicit recovery path.
+    job = { ...job, state: neverStarted || run.data()?.status === "completed" ? "queued" : "needs_review" };
+  }
+  const requestRef = db.collection("inboundRequests").doc(requestId);
+  return () => {
+    if (!retained.exists) tx.set(ref, { ...job, created_at_ms: Date.now() });
+    else if (retained.data()!.state !== job.state) tx.set(ref, { state: job.state, updated_at_ms: Date.now() }, { merge: true });
+    tx.set(requestRef, { site_advisory: pointer(id, job) }, { merge: true });
+  };
+}
+
 /** Stage a distinct assessment after an actual verified email answer. All
  * transaction reads finish before the caller writes the canonical statement.
  * An active or failed assessment is not silently retried or superseded. */

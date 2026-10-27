@@ -109,3 +109,15 @@ proposal/brief/source-binding tests and 171 queue/publication/intake/execution
 request regressions passed. TypeScript and the required local Graphify refresh
 passed. Providers, GPU runs, live database mutation, sends and deployment were
 not used to establish these results.
+
+A correction to a registered, published capture's brief now stages its distinct
+assessment context in the existing queue in the same transaction as the saved
+brief. Confirmation and later source-bound footage proposals both use this path.
+Repeated inputs reuse the deterministic source/context job, including completed
+results. Returning to a superseded context can reuse a completed run or resume a
+provably unstarted job; uncertain started work stays in the existing review and
+recovery path. No claim, retained run, source-wide inference exposure or pending
+call is reset. Current recording rights, privacy and exact source binding are
+checked before staging, and the ordinary worker repeats its source, evidence and
+budget checks before any provider dispatch. A saved correction cannot silently
+reuse the old assessment or depend on revisiting the original upload page.

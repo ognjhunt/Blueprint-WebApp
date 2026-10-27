@@ -318,3 +318,135 @@ it.each(["ordinary", "programme-bound"])("ADVISORY-PRODUCER-001 joined actual SD
     if(server)await new Promise<void>(resolve=>server.close(()=>resolve()));
   }
 },30000);
+
+async function completedBriefAssessment(summary = "Move a rigid carton to the shelf", confirmed = true) {
+  const { draftBrief } = await import("../utils/siteTaskBrief");
+  const brief = { ...draftBrief({ requestId: pending.request_id, summary, proposed: [], captureMode: "self_capture" }),
+    confirmedAtIso: confirmed ? "2026-10-08T00:00:00Z" : null, confirmedBy: confirmed ? "fixture-owner" : null,
+    operatorAnswers: confirmed ? {} : null };
+  state.docs.set(`siteTaskBriefs/${pending.request_id}`, brief);
+  await publishBrowserPending(pending);
+  const [path, initial] = selectedJob(), job = { ...initial, state: "completed" };
+  state.docs.set(path, job);
+  state.docs.get(`inboundRequests/${pending.request_id}`)!.site_advisory.state = "completed";
+  state.docs.set(`agentRuns/${job.run_id}`, storedPacket(path.split("/")[1], job));
+  return { brief, path, job };
+}
+
+it("an owner correction atomically queues its current context without reusing a stale result or resetting spend", async () => {
+  const { confirmBrief } = await import("../utils/siteTaskBrief");
+  const { humanDecisionDigest } = await import("../utils/human-reply-admission");
+  const previous = await completedBriefAssessment();
+  const retained = structuredClone(state.docs.get(`agentRuns/${previous.job.run_id}`));
+  const budgetPath = `captureCoverageReviews/budget-${humanDecisionDigest({ capture_id: pending.capture_id })}`;
+  const budget = { capture_id: pending.capture_id, exposure_usd: 3, calls: 1, pending_token: "unknown-retained-call" };
+  state.docs.set(budgetPath, budget);
+  await confirmBrief({ requestId: pending.request_id, confirmedBy: "fixture-owner", summary: "Fold towels into stacks" });
+  const raw = state.docs.get(`inboundRequests/${pending.request_id}`)!;
+  const brief = state.docs.get(`siteTaskBriefs/${pending.request_id}`)!;
+  const id = advisoryJobId(pending.request_id, previous.job.source_key, advisoryContextDigest(raw, brief));
+  expect(id).not.toBe(previous.path.split("/")[1]);
+  expect(raw.site_advisory).toMatchObject({ job_id: id, state: "queued", context_digest: advisoryContextDigest(raw, brief) });
+  expect(state.docs.get(`siteAssessmentJobs/${id}`)).toMatchObject({ state: "queued", source_key: previous.job.source_key });
+  expect(state.docs.get(previous.path)).toEqual(previous.job);
+  expect(state.docs.get(`agentRuns/${previous.job.run_id}`)).toEqual(retained);
+  expect(state.docs.get(budgetPath)).toEqual(budget);
+  await confirmBrief({ requestId: pending.request_id, confirmedBy: "fixture-owner", summary: "Fold towels into stacks" });
+  expect([...state.docs.keys()].filter(path => path.startsWith("siteAssessmentJobs/"))).toHaveLength(2);
+  expect(state.docs.get(`inboundRequests/${pending.request_id}`)!.site_advisory.job_id).toBe(id);
+  expect(seams.run).not.toHaveBeenCalled();
+  // The existing worker, not confirmation, runs the distinct input once.
+  const { reconcileSiteAssessments } = await import("../utils/siteAssessmentQueue");
+  seams.run.mockImplementationOnce(async (_task, options) => {
+    state.docs.set(`agentRuns/${options.runId}`, storedPacket(id, state.docs.get(`siteAssessmentJobs/${id}`)));
+    return { status: "completed" };
+  });
+  await reconcileSiteAssessments(); await reconcileSiteAssessments();
+  expect(state.docs.get(`siteAssessmentJobs/${id}`)?.state).toBe("completed");
+  expect(seams.run).toHaveBeenCalledTimes(1);
+  expect(state.docs.get(budgetPath)).toEqual(budget);
+});
+
+it("a source-bound footage correction queues the newly described task and obeys Firestore read-before-write", async () => {
+  const { mergeBriefProposals, PLACEHOLDER_TASK_SUMMARY } = await import("../utils/siteTaskBrief");
+  const { humanDecisionDigest } = await import("../utils/human-reply-admission");
+  const { sharedFakeFirestore } = await import("./helpers/fake-firestore");
+  const previous = await completedBriefAssessment(PLACEHOLDER_TASK_SUMMARY, false);
+  const runTransaction = sharedFakeFirestore.runTransaction.bind(sharedFakeFirestore);
+  const strict = vi.spyOn(sharedFakeFirestore, "runTransaction").mockImplementation(async callback => runTransaction(async tx => {
+    let wrote = false;
+    const guarded = new Proxy(tx, { get(target, name) {
+      if (name === "get") return (...args: any[]) => { if (wrote) throw Error("read_after_write"); return (target.get as any)(...args); };
+      if (name === "set" || name === "update" || name === "delete") return (...args: any[]) => {
+        wrote = true; return (target[name] as any)(...args);
+      };
+      return (target as any)[name];
+    } });
+    return callback(guarded);
+  }));
+  try {
+    const input = { requestId: pending.request_id, proposals: [], observedSummary: "Pick up the carton and place it on the shelf",
+      source: { capture_id: pending.capture_id, evidence_digest: "fixture-reading", brief_digest: humanDecisionDigest(previous.brief) } };
+    const next = await mergeBriefProposals(input);
+    const pointer = state.docs.get(`inboundRequests/${pending.request_id}`)!.site_advisory;
+    expect(next).toMatchObject({ summary: input.observedSummary, taskFamily: "rigid_pick_and_place" });
+    expect(pointer).toMatchObject({ state: "queued", context_digest: advisoryContextDigest(request(), next) });
+    expect(pointer.job_id).not.toBe(previous.path.split("/")[1]);
+    await mergeBriefProposals(input);
+    expect([...state.docs.keys()].filter(path => path.startsWith("siteAssessmentJobs/"))).toHaveLength(2);
+    expect(seams.run).not.toHaveBeenCalled();
+  } finally { strict.mockRestore(); }
+});
+
+it.each(["withdrawn", "source_changed", "privacy_blocked", "disabled", "not_registered"])(
+  "a brief correction does not create new assessment authority when %s", async reason => {
+    const { confirmBrief } = await import("../utils/siteTaskBrief");
+    const previous = await completedBriefAssessment();
+    const raw = state.docs.get(`inboundRequests/${pending.request_id}`)!;
+    if (reason === "withdrawn") raw.consent_revoked = true;
+    if (reason === "privacy_blocked") raw.capture_privacy_source_bound_decision.proceeded = false;
+    if (reason === "source_changed") state.docs.get(`captureUploadSessions/${pending.capture_id}`)!.browser_pending_delivery.video.generation = "different";
+    if (reason === "disabled") seams.enabled = false;
+    if (reason === "not_registered") delete raw.site_advisory;
+    await confirmBrief({ requestId: pending.request_id, confirmedBy: "fixture-owner", summary: "Fold towels" });
+    expect([...state.docs.keys()].filter(path => path.startsWith("siteAssessmentJobs/"))).toHaveLength(1);
+    expect(state.docs.get(previous.path)).toEqual(previous.job);
+    expect(seams.run).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["never_started", "completed", "uncertain"])(
+  "returning to a superseded context safely resumes %s evidence without replaying uncertain paid work", async retained => {
+    const { confirmBrief } = await import("../utils/siteTaskBrief");
+    const { reconcileSiteAssessments } = await import("../utils/siteAssessmentQueue");
+    const previous = await completedBriefAssessment();
+    const raw = state.docs.get(`inboundRequests/${pending.request_id}`)!;
+    const oldRunPath = `agentRuns/${previous.job.run_id}`;
+    const stateBefore = retained === "never_started" ? "queued" : "running";
+    const previousJob = { ...previous.job, state: stateBefore,
+      ...(retained !== "never_started" ? { claim_id: "retained-claim", started_at_ms: Date.now() } : {}) };
+    state.docs.set(previous.path, previousJob); raw.site_advisory.state = stateBefore;
+    if (retained === "never_started") state.docs.delete(oldRunPath);
+    if (retained === "uncertain") state.docs.set(oldRunPath, { ...state.docs.get(oldRunPath), status: "running" });
+    const budgetPath = "captureCoverageReviews/retained-unknown-budget";
+    const budget = { exposure_usd: 4, pending_token: "unknown-call", calls: 1 };
+    state.docs.set(budgetPath, budget);
+    await confirmBrief({ requestId: pending.request_id, confirmedBy: "fixture-owner", summary: "Fold towels" });
+    seams.coverageActive = true; await reconcileSiteAssessments(); seams.coverageActive = false;
+    expect(state.docs.get(previous.path)?.state).toBe("authority_ended");
+    await confirmBrief({ requestId: pending.request_id, confirmedBy: "fixture-owner", summary: previous.brief.summary });
+    expect(state.docs.get(`inboundRequests/${pending.request_id}`)!.site_advisory.job_id).toBe(previous.path.split("/")[1]);
+    expect(state.docs.get(previous.path)).toMatchObject({ run_id: previousJob.run_id, claim_id: previousJob.claim_id,
+      state: retained === "uncertain" ? "needs_review" : "queued" });
+    expect(state.docs.get(budgetPath)).toEqual(budget);
+    expect(seams.run).not.toHaveBeenCalled();
+    if (retained === "completed") {
+      // The existing rotating queue scan may wrap its retained cursor first.
+      await vi.waitFor(async () => {
+        await reconcileSiteAssessments();
+        expect(state.docs.get(previous.path)?.state).toBe("completed");
+      });
+      expect(seams.run).not.toHaveBeenCalled();
+    }
+  },
+);

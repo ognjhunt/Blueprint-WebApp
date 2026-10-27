@@ -299,12 +299,15 @@ export async function mergeBriefProposals(params: {
     const [snapshot, requestSnapshot] = await Promise.all([transaction.get(ref), transaction.get(requestRef)]);
     if (!snapshot.exists) return null;
     const brief = snapshot.data() as SiteTaskBriefRecord;
-    if (params.source) {
-      const sourceRef = ref.collection("footageProposals").doc(humanDecisionDigest(params.source));
-      transaction.set(sourceRef, { source: params.source, proposals: params.proposals,
+    const sourceNote = params.source ? {
+      ref: ref.collection("footageProposals").doc(humanDecisionDigest(params.source)),
+      value: { source: params.source, proposals: params.proposals,
         ...(params.observedSummary ? { observedSummary: params.observedSummary } : {}),
-        state: brief.confirmedAtIso ? "owner_review_required" : humanDecisionDigest(brief) !== params.source.brief_digest ? "stale_revision" : "proposed" });
-      if (humanDecisionDigest(brief) !== params.source.brief_digest) return null;
+        state: brief.confirmedAtIso ? "owner_review_required" : humanDecisionDigest(brief) !== params.source.brief_digest ? "stale_revision" : "proposed" },
+    } : null;
+    if (sourceNote && (brief.confirmedAtIso || humanDecisionDigest(brief) !== params.source!.brief_digest)) {
+      transaction.set(sourceNote.ref, sourceNote.value);
+      return null;
     }
     if (brief.confirmedAtIso) return null;
 
@@ -322,6 +325,10 @@ export async function mergeBriefProposals(params: {
       draftedFrom: [...new Set([...brief.draftedFrom, ...proposed.map((answer) => answer.basis)])],
     };
     next.taskFamily = screenTaskScope({ summary: next.summary, successDefinition: next.successCriteria?.successDefinition }).kind ?? "general_task";
+    const refresh = requestSnapshot.data()?.site_advisory
+      ? await (await import("./siteAssessmentQueue")).prepareBriefContextSiteAssessment(
+        transaction, params.requestId, requestSnapshot.data()!, next) : null;
+    if (sourceNote) transaction.set(sourceNote.ref, sourceNote.value);
     transaction.set(ref, next);
     const factDigest = (rows: readonly ProposedGateAnswer[]) => humanDecisionDigest(rows.map(({ fieldId, value, basis }) => ({ fieldId, value, basis })).sort((a, b) => a.fieldId.localeCompare(b.fieldId)));
     const changedFacts = brief.summary !== next.summary || factDigest(brief.proposed) !== factDigest(proposed);
@@ -330,6 +337,7 @@ export async function mergeBriefProposals(params: {
         pilot_recommendation: { ...requestSnapshot.data()!.pilot_recommendation, reviewRequired: true },
       } : {}),
     }, { merge: true });
+    refresh?.();
     return next;
   });
   if (!merged) return null;
@@ -490,6 +498,10 @@ export async function confirmBrief(params: {
       const materialChange = humanDecisionDigest({ summary: brief.summary, taskFamily: brief.taskFamily ?? null, answers: gateAnswersOnFile(previousRequest ?? {}),
         unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null }) !== humanDecisionDigest({ summary: confirmed.summary, taskFamily: confirmed.taskFamily ?? null, answers,
         unknown: [...unknown].sort(), success: confirmed.successCriteria ?? null });
+      const nextRecord = { ...requestSnapshot.data(), siteTaskGates: answers };
+      const refresh = requestSnapshot.data()?.site_advisory
+        ? await (await import("./siteAssessmentQueue")).prepareBriefContextSiteAssessment(
+          tx, params.requestId, nextRecord, confirmed) : null;
       tx.set(briefRef, confirmed, { merge: true });
       tx.set(requestRef,
         {
@@ -532,6 +544,7 @@ export async function confirmBrief(params: {
         },
         { merge: true },
       );
+      refresh?.();
     });
   }
 
