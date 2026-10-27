@@ -8,4 +8,5 @@ export type TaskOutcome = {
   nextStep: string;
   actionOwner: "blueprint" | "site";
   evidence: { label: string; digest: string }[];
+  reference?: string;
 };

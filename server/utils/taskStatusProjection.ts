@@ -295,13 +295,17 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   const nativeProgress = input.preparationStatus?.state === "handed_off" || Boolean(input.sceneProgression);
   const stopped = input.preparationStatus?.outcome
     ?? (!nativeProgress && !input.scenePreviewReady ? input.preparationOutcome : null)
-    ?? (input.preparationStatus?.state === "failed_terminal" || input.scenePreparationFailed && !nativeProgress
+    ?? (input.preparationStatus?.state === "failed_terminal" || input.preparationStatus?.state === "failed_retryable"
+      || input.scenePreparationFailed && !nativeProgress
       || input.sceneProgression?.state === "ended" ? processingFailure() : null);
   if (stopped && !hasRuns) {
     const ended = input.preparationStatus?.state === "failed_terminal"
       ? preparationEndedSentence(input.preparationStatus.terminalReason) : "";
     const outcome = {...stopped,
-      reason: ended ? `${stopped.reason} ${ended}` : stopped.reason,
+      reason: input.preparationStatus?.state === "failed_terminal"
+        ? `${stopped.reason} Automatic preparation retries have stopped.${ended ? ` ${ended}` : ""}` : stopped.reason,
+      ...(/^bp-prep-[a-f0-9]{16}$/.test(input.preparationStatus?.correlationId ?? "")
+        ? {reference: input.preparationStatus!.correlationId!} : {}),
       nextStep: input.hasStoredCapture ? stopped.nextStep : stopped.nextStep
         .replace("Your recording is saved;", "Keep your original recording;")
         .replace("Your recording and findings remain saved.", "The retained findings remain available. Keep your original recording."),

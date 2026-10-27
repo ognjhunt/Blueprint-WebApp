@@ -129,9 +129,9 @@ describe("GET /api/site-task-brief/:token/status", () => {
     const { code, body } = await status();
     expect(code).toBe(200);
     expect(preparation.read).toHaveBeenCalledWith("req-1", "cap-1");
-    expect(body.status).toMatchObject({ decision: "footage_received", stage: null, operatorAction: null });
-    expect(body.status.headline).toContain("Job preparation encountered a problem.");
-    expect(body.status.headline).toContain("bp-prep-1234567890abcdef");
+    expect(body.status).toMatchObject({ decision: "processing_failure", stage: null, operatorAction: null });
+    expect(body.status.outcome.actionOwner).toBe("blueprint");
+    expect(body.status.outcome.reference).toBe("bp-prep-1234567890abcdef");
     expect(body.status.headline).not.toMatch(/are preparing|results are in/i);
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(enqueueOutbox).not.toHaveBeenCalled();

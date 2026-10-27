@@ -7,8 +7,14 @@ const base = { briefDrafted: true, briefConfirmed: true, stage: null,
   hasStoredCapture: true, disposition: "qualified" as const, claimed: true };
 
 describe("current source-bound preparation projection", () => {
+  it("a retryable processing failure remains Blueprint's issue before confirmation", () => {
+    const status = projectTaskStatus({...base, briefConfirmed: false,
+      preparationStatus: {state: "failed_retryable", correlationId: reference}} as never);
+    expect(status).toMatchObject({decision: "processing_failure", operatorAction: null,
+      outcome: {category: "processing_failure", actionOwner: "blueprint", reference}});
+    expect(status.outcome?.reason).not.toContain("retries have stopped");
+  });
   it.each([
-    ["failed_retryable", "encountered a problem"],
     ["awaiting_inputs", "needs more information"],
     ["authority_ended", "on hold"],
     ["unavailable", "could not verify"],
@@ -30,10 +36,11 @@ describe("current source-bound preparation projection", () => {
   it("includes only a host-validated correlation reference", () => {
     const status = projectTaskStatus({ ...base,
       preparationStatus: { state: "failed_retryable", correlationId: reference } } as never);
-    expect(status.headline).toContain(reference);
+    expect(status.outcome?.reference).toBe(reference);
     const unsafe = projectTaskStatus({ ...base,
       preparationStatus: { state: "failed_retryable", correlationId: "https://private.invalid/bearer" } } as never);
     expect(unsafe.headline).not.toContain("private.invalid");
+    expect(JSON.stringify(unsafe.outcome)).not.toContain("private.invalid");
   });
   it("a current running preparation is distinct from robot execution", () => {
     const status = projectTaskStatus({ ...base,
@@ -56,7 +63,7 @@ describe("current source-bound preparation projection", () => {
     [{ claimed: false }, "Save it"],
   ])("preserves earlier consent, evidence and admission gates %j", (override, phrase) => {
     const status = projectTaskStatus({ ...base, ...override,
-      preparationStatus: { state: "failed_retryable", correlationId: reference } } as never);
+      preparationStatus: { state: "awaiting_inputs", correlationId: reference } } as never);
     expect(status.headline).toContain(phrase);
     expect(status.headline).not.toContain("encountered a problem");
   });
@@ -73,15 +80,15 @@ describe("current source-bound preparation projection", () => {
   it("does not let an earlier ready preview hide a current required preparation failure", () => {
     const status = projectTaskStatus({ ...base, scenePreviewReady: true,
       preparationStatus: { state: "failed_retryable", correlationId: reference } } as never);
-    expect(status.decision).toBe("footage_received");
-    expect(status.headline).toContain("encountered a problem");
+    expect(status.decision).toBe("processing_failure");
+    expect(status.outcome?.actionOwner).toBe("blueprint");
   });
   it("the shared route adapter preserves the verified preparation observation", () => {
     const input = taskStatusInputFrom({ briefDrafted: true, stage: null,
       site_task_brief_confirmed_at: "2026-10-08T12:00:00Z", account_owner_uid: "test-owner",
       capture_coverage: { covers_scene: true },
       preparationStatus: { state: "failed_retryable", correlationId: reference } } as never);
-    expect(projectTaskStatus(input).headline).toContain("encountered a problem");
+    expect(projectTaskStatus(input).decision).toBe("processing_failure");
   });
 });
 
@@ -103,14 +110,14 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
     ["out_of_scope", "outside what the beta can build"],
   ])("failed_terminal %s says preparation could not finish, and why", (terminalReason, phrase) => {
     const status = preparing("failed_terminal", { terminalReason });
-    expect(status.decision).toBe("footage_received");
+    expect(status.decision).toBe("processing_failure");
     expect(status.stage).toBeNull();
-    expect(status.headline).toContain("Scene preview preparation could not finish, and we have stopped trying.");
-    expect(status.headline).toContain("This needs our team's review");
+    expect(status.outcome?.reason).toContain("Automatic preparation retries have stopped");
+    expect(status.outcome?.actionOwner).toBe("blueprint");
     expect(status.headline).not.toContain("our team has been told");
-    expect(status.headline).toContain(phrase);
-    expect(status.headline).toContain("Keep your original recording");
-    expect(status.headline).toContain(reference);
+    expect(status.outcome?.reason).toContain(phrase);
+    expect(status.outcome?.nextStep).toContain("do not need to record or upload it again");
+    expect(status.outcome?.reference).toBe(reference);
     expect(status.headline).not.toMatch(/budget|we are preparing|needs more information/i);
     expect(status.operatorAction).toBeNull();
   });
@@ -134,8 +141,8 @@ describe("preparation that waits on capacity or ends for good (beta L3/L6)", () 
   it("a scene that stopped after hand-off says so, ahead of an unpublished card", () => {
     const ended = projectTaskStatus({ ...base, scenePreviewReady: true, listed: false,
       preparationStatus: { state: "handed_off", correlationId: reference }, sceneProgression: { state: "ended" } } as never);
-    expect(ended.headline).toContain("Your scene preview is ready, but we could not finish preparing your job for robot evaluations");
-    expect(ended.headline).toContain("This needs our team's review");
+    expect(ended.decision).toBe("processing_failure");
+    expect(ended.outcome?.actionOwner).toBe("blueprint");
     expect(ended.headline).not.toContain("our team has been told");
     const waiting = projectTaskStatus({ ...base, scenePreviewReady: true, listed: false,
       preparationStatus: { state: "handed_off", correlationId: reference }, sceneProgression: { state: "waiting" } } as never);
@@ -181,10 +188,10 @@ describe("the site's brief confirmation alongside v2 preparation states", () => 
       preparationStatus: { state: "capacity_delayed", correlationId: reference } } as never);
     expect(status.decision).toBe("confirm_brief");
   });
-  it("an ending keeps its own headline and still carries the confirmation ask", () => {
+  it("an ending keeps its own outcome and does not delegate repair to brief confirmation", () => {
     const status = projectTaskStatus({ ...unconfirmed,
       preparationStatus: { state: "failed_terminal", correlationId: reference, terminalReason: "retry_exhausted" } } as never);
-    expect(status.headline).toContain("Scene preview preparation could not finish");
-    expect(status.operatorAction).toContain("confirm it");
+    expect(status.decision).toBe("processing_failure");
+    expect(status.operatorAction).toBeNull();
   });
 });

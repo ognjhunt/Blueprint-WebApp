@@ -321,8 +321,8 @@ describe("workspace access and projections", () => {
     state.records.set("captureUploadSessions/walkthrough-task-1", { website_preparation: { selector: {} } });
     const before = structuredClone([...state.records]);
     const viewed = await (await api("/tasks/task-1", "site-1")).json();
-    expect(viewed.readiness).toMatchObject({ decision: "footage_received", stage: null, operatorAction: null });
-    expect(viewed.readiness.headline).toContain("Job preparation encountered a problem.");
+    expect(viewed.readiness).toMatchObject({ decision: "processing_failure", stage: null, operatorAction: null });
+    expect(viewed.readiness.outcome.actionOwner).toBe("blueprint");
     expect(preparation.read).toHaveBeenCalledWith("task-1", "walkthrough-task-1");
     preparation.read.mockClear();
     expect((await api("/tasks/task-1", "site-2")).status).toBe(404);

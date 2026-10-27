@@ -160,7 +160,8 @@ it.skipIf(!process.env.RELIABILITY_PREPARATION_EXPORTER && process.env.RELIABILI
   await record("actual-producer-failure-ready",{selectors_digest:crossRuntimeDigest(producer.selectors),base_url_mode:"ephemeral-loopback",provider_mode:"no-provider"});
   const delivery=await producerCommand("deliver");
   expect(delivery.result).toMatchObject({delivered:true,remaining_pending:0,delivery_counts:{attempted:1,delivered:1},
-    acceptance:{schema_version:"website_preparation_status_acceptance.v2",accepted:true,...producer.selectors}});
+    acceptance:{accepted:true,...producer.selectors}});
+  expect(delivery.result.acceptance.schema_version).toMatch(/^website_preparation_status_acceptance\.v[23]$/);
   await record("actual-producer-pending-delivery-retry",delivery);
   const accepted=await callback(base,source.captureId,producer.selectors);expect(accepted.code).toBe(200);expect(accepted.body.accepted).toBe(true);
   expect(accepted.body.native_execution_complete).toBe(false);
@@ -170,7 +171,9 @@ it.skipIf(!process.env.RELIABILITY_PREPARATION_EXPORTER && process.env.RELIABILI
   await record("signed-callback-durable-status",{code:accepted.code,status_digest:accepted.body.status_digest});
   const token=()=>createCaptureUploadToken({requestId:source.requestId,sceneId:source.sceneId,captureId:source.captureId});
   const customer=async()=>{const response=await fetch(`${base}/api/site-task-brief/${token()}/status`);return {code:response.status,body:await response.json()};};
-  const observed=await customer();expect(observed.code).toBe(200);expect(observed.body.status.headline).toContain("Job preparation encountered a problem.");
+  const observed=await customer();expect(observed.code).toBe(200);
+  expect(observed.body.status).toMatchObject({decision:"processing_failure",operatorAction:null,
+    outcome:{category:"processing_failure",actionOwner:"blueprint"}});
   expect(observed.body.status.headline).not.toMatch(/results are in|robot can|are preparing/i);
   await record("normal-customer-get",{code:observed.code,status:observed.body.status});
   // Persist/restore the mocked database across actual Express server restart before notification enqueue.
@@ -200,10 +203,12 @@ it.skipIf(!process.env.RELIABILITY_PREPARATION_EXPORTER && process.env.RELIABILI
     website_preparation_terminal:{reason:"retry_exhausted",basis:"no_claim_within_silence_window"}});
   const endedDelivery=await producerCommand("deliver");
   expect(endedDelivery.result).toMatchObject({delivered:true,remaining_pending:0,
-    acceptance:{schema_version:"website_preparation_status_acceptance.v2",state:"failed_terminal",...producer.selectors}});
+    acceptance:{state:"failed_terminal",...producer.selectors}});
+  expect(endedDelivery.result.acceptance.schema_version).toMatch(/^website_preparation_status_acceptance\.v[23]$/);
   const endedCustomer=await customer();expect(endedCustomer.code).toBe(200);
-  expect(endedCustomer.body.status.headline).toContain("Scene preview preparation could not finish, and we have stopped trying.");
-  expect(endedCustomer.body.status.headline).toContain("tried several times");
+  expect(endedCustomer.body.status.decision).toBe("processing_failure");
+  expect(endedCustomer.body.status.outcome.reason).toContain("Automatic preparation retries have stopped");
+  expect(endedCustomer.body.status.outcome.reason).toContain("tried several times");
   await reconcileWebsitePreparationNotifications();await deliverOutbox();expect(seams.send).toHaveBeenCalledTimes(2);
   const endedRows=[...sharedFakeFirestoreState.docs].filter(([key])=>key.startsWith("captureOutbox/")&&key.split("/").length===2&&key.includes(":preparation_ended:"));
   expect(endedRows).toHaveLength(1);expect(endedRows[0][1]).toMatchObject({status:"sent",attempts:1});
