@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
 import type { DeliveryProposal, JobMarketplaceWorkflow } from "@/types/jobMarketplace";
+import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
 
 const compatibilityPilot = vi.hoisted(() => ({ render: vi.fn() }));
 vi.mock("@/components/site/RecommendedPilot", () => ({ RecommendedPilot: (props: unknown) => { compatibilityPilot.render(props); return null; } }));
@@ -28,6 +29,34 @@ function workflow(overrides: Partial<JobMarketplaceWorkflow> = {}): JobMarketpla
 const response = (value: unknown, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => value });
 
 describe("the site's job workspace", () => {
+  it("gives a current preparation stop priority without accepting the brief or changing the workflow", async () => {
+    const current = workflow({ actionOwner: "site", nextAction: "Review the saved brief.",
+      review: { disposition: "more_information", summary: "The brief is still a draft.", nextAction: "Confirm the saved brief.",
+        reviewedAtIso: "2026-10-27T15:00:00Z", scopeRevision: "brief-1" } });
+    fetchMock.mockResolvedValue(response(current));
+    const outcome = processingFailure();
+    const { rerender } = render(<JobWorkspace token="owner-token" preparationOutcome={outcome} />);
+    expect(await screen.findByText("Next action · Blueprint")).toBeVisible();
+    expect(screen.getByText(outcome.nextStep)).toBeVisible();
+    expect(screen.queryByText("Review the saved brief.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Confirm the saved brief.")).not.toBeInTheDocument();
+    expect(screen.getByText("Brief agreed").closest("li")).not.toHaveAttribute("data-complete", "true");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    rerender(<JobWorkspace token="owner-token" preparationOutcome={null} />);
+    expect(screen.getByText("Next action · You")).toBeVisible();
+    expect(screen.getByText("Review the saved brief.")).toBeVisible();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not assign a stale site action while the current preparation status is unavailable", async () => {
+    fetchMock.mockResolvedValue(response(workflow({ actionOwner: "site", nextAction: "Review the saved brief." })));
+    render(<JobWorkspace token="owner-token" currentStatusKnown={false} />);
+    expect(await screen.findByText("Next action · Blueprint")).toBeVisible();
+    expect(screen.getByText("Checking the current job status. Your saved job remains available.")).toBeVisible();
+    expect(screen.queryByText("Review the saved brief.")).not.toBeInTheDocument();
+  });
+
   it("shows recorded milestones and an honest empty proposal state", async () => {
     fetchMock.mockResolvedValue(response(workflow()));
     render(<JobWorkspace token="owner-token" />);

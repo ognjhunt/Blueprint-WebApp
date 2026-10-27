@@ -2,6 +2,7 @@ import { PolicyScreeningCandidates } from "@/components/shared/PolicyScreeningCa
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { withCsrfHeader } from "@/lib/csrf";
 import { RecommendedPilot } from "./RecommendedPilot";
+import type { TaskOutcome } from "@/types/taskOutcome";
 import type {
   DeliveryProposal,
   JobBuyingRequirements,
@@ -42,11 +43,12 @@ function isWorkflow(value: unknown): value is JobMarketplaceWorkflow {
 }
 
 /** The signed owner link is the credential; remounting keeps every record scoped to that link. */
-export function JobWorkspace({ token }: { token: string }) {
-  return <JobWorkspaceForToken key={token} token={token} />;
+type JobWorkspaceProps = { token: string; preparationOutcome?: TaskOutcome | null; currentStatusKnown?: boolean };
+export function JobWorkspace(props: JobWorkspaceProps) {
+  return <JobWorkspaceForToken key={props.token} {...props} />;
 }
 
-function JobWorkspaceForToken({ token }: { token: string }) {
+function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = true }: JobWorkspaceProps) {
   const [workflow, setWorkflow] = useState<JobMarketplaceWorkflow | null>(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -127,14 +129,17 @@ function JobWorkspaceForToken({ token }: { token: string }) {
     <h2 id="job-progress-title">Your job, step by step</h2>
     <JobProgress stage={workflow.stage} completed={completed} />
     <div className="job-next-action">
-      <p className="job-eyebrow">Next action · {owners[workflow.actionOwner]}</p>
-      <p>{workflow.nextAction}</p>
+      <p className="job-eyebrow">Next action · {currentStatusKnown
+        ? preparationOutcome ? owners[preparationOutcome.actionOwner] : owners[workflow.actionOwner]
+        : owners.blueprint}</p>
+      <p>{!currentStatusKnown ? "Checking the current job status. Your saved job remains available."
+        : preparationOutcome?.nextStep ?? workflow.nextAction}</p>
     </div>
     {error && <p role="status" className="ms-field-hint">Updates could not be refreshed. Last loaded details are shown. <button type="button" className="ms-text-link" onClick={() => setRefresh(value => value + 1)}>Try again</button></p>}
     {workflow.review && <div className="job-review">
       <h3>{workflow.review.disposition === "no_suitable_option" ? "No suitable option yet" : workflow.review.disposition === "more_information" ? "A little more information is needed" : "What we know so far"}</h3>
       <p>{workflow.review.summary}</p>
-      {workflow.review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{workflow.review.nextAction}</p>}
+      {currentStatusKnown && !preparationOutcome && workflow.review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{workflow.review.nextAction}</p>}
     </div>}
     {(workflow.evidence ?? []).length > 0 && <section className="job-review" aria-label="Evidence for your job">
       <h3>Evidence for your job</h3>
