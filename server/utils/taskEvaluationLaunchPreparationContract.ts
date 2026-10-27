@@ -96,6 +96,7 @@ const sceneSchema = z.discriminatedUnion("mode", [
       appearance: immutableReference,
       observations: immutableReference,
       candidate: immutableReference,
+      cad_evidence: immutableReference.optional(),
       // A designed subject the task adds was never captured, so it has no frames;
       // the Pipeline still requires frames for every captured subject.
       frames: z.array(immutableReference).max(256),
@@ -236,7 +237,7 @@ export const surfaceTargetSchema = z.object({
   stable_seconds: z.number().finite().positive(),
   maximum_linear_speed_m_s: z.number().finite().positive(),
   maximum_angular_speed_rad_s: z.number().finite().positive(),
-  maximum_tilt_rad: z.number().finite().positive().lt(Math.PI / 2),
+  maximum_tilt_rad: z.number().finite().positive().max(Math.PI),
   target_digest: digest,
 }).strict().superRefine((value, context) => {
   if (canonicalArtifactDigest(value, "target_digest") !== value.target_digest) context.addIssue({
@@ -494,10 +495,10 @@ export const taskEvaluationLaunchPreparationInputSchema = z.object({
         .reduce((total, amount) => total + amount, 0);
       if (
         value.spend.hard_ttl_seconds !== SCENE_CONFIGURATION_PARENT_TTL_SECONDS
-        || (value.replacement_authoring_backend !== "astra_cad_blender_v1"
-          && value.spend.hard_cap_usd !== budgetProfile.attempt_maximum)
         || value.spend.hard_cap_usd > budgetProfile.attempt_maximum
-        || providerComputeCap !== SCENE_CONFIGURATION_PROVIDER_COMPUTE_SPEND_USD
+        // The issued quote may be smaller than the profile ceiling. Preserve
+        // it while checking the same parent/stage coverage as Pipeline.
+        || providerComputeCap > SCENE_CONFIGURATION_PROVIDER_COMPUTE_SPEND_USD
         || providerComputeCap + openai.maximum_cost_usd > value.spend.hard_cap_usd + 1e-9
         || providerComputeCap + 1e-9 < value.spend.maximum_hourly_rate_usd
           * SCENE_CONFIGURATION_PARENT_TTL_SECONDS / 3_600
