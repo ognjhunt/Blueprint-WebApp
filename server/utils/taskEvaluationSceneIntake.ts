@@ -46,8 +46,9 @@ const taskDestinationSupport = z
     aabb_max_xyz: vector3,
   })
   .strict()
-  .refine((s) => s.aabb_min_xyz.every((v, i) => v < s.aabb_max_xyz[i]), {
-    message: "aabb_min_xyz must be below aabb_max_xyz on every axis",
+  // A reconstructed surface can be exactly flat; the Pipeline checks the rest.
+  .refine((s) => s.aabb_min_xyz.every((v, i) => v <= s.aabb_max_xyz[i]), {
+    message: "aabb_min_xyz must not exceed aabb_max_xyz on any axis",
   });
 const taskDestination = z
   .object({

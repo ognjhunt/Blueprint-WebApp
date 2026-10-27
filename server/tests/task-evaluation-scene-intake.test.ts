@@ -1304,6 +1304,7 @@ describe("structured task destination and success contract", () => {
       support: { description: "desk top", aabb_min_xyz: [0, -0.4, 0.72], aabb_max_xyz: [1.2, 0.4, 0.74] },
     };
     expect(withDestination(onDesk)).toBe(true);
+    expect(withDestination({ ...onDesk, support: { ...onDesk.support, aabb_min_xyz: [0, -0.4, 0.74] } })).toBe(true);
     expect(withDestination({ ...onDesk, support: { ...onDesk.support, aabb_max_xyz: [1.2, 0.4, 0.7] } })).toBe(false);
     expect(withDestination({ ...onDesk, support: { ...onDesk.support, face_indices: [1, 2] } })).toBe(false);
     expect(withDestination({ ...onDesk, support: { description: " " , aabb_min_xyz: [0, 0, 0], aabb_max_xyz: [1, 1, 1] } })).toBe(false);
