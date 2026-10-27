@@ -37,7 +37,7 @@ function packet() {return {schema_version:"site_assessment.v2",request_id:"one",
   approaches:[{approach:"Explore handling a bin",disposition:"plausible",reasons:[fact()],remaining_checks:["Workload"]}],
   questions:[{question:"How many bins per hour?",decision_it_changes:"Required throughput"}],
   next_action:{kind:"ask_operator",action:"Clarify workload",why:{text:"Workload remains unknown",basis:"unknown",evidence:[]}}}};}
-function seed(p = packet(), confirmed = true, claimed = true, requestExtras: Record<string, unknown> = {}) {
+function seed(p = packet(), confirmed = true, claimed = true, requestExtras: Record<string, unknown> = {}, briefExtras: Record<string, unknown> = {}) {
   const pending = {schema_version:"website_browser_pending.v1",request_id:"one",scene_id:"site-one",capture_id:"walkthrough-one",
     state:"published",completed_at_iso:"2026-10-08T00:00:00Z",video:{object_name:"scenes/site-one/captures/walkthrough-one/raw/walkthrough.mp4",generation:"1",size_bytes:7,crc32c:"AAAAAA=="},
     manifest:{object_name:"scenes/site-one/captures/walkthrough-one/raw/manifest.json",generation:"2",size_bytes:500,crc32c:"AAAAAA==",sha256:`sha256:${"b".repeat(64)}`}};
@@ -45,7 +45,7 @@ function seed(p = packet(), confirmed = true, claimed = true, requestExtras: Rec
     consent_attestation:{granted:true,statement_version:RECORDING_CONSENT_VERSION,recorded_at_iso:"2026-10-08T00:00:00Z"},...requestExtras},
     site_task_triage:{disposition:"needs_conversation"},capture_privacy_source_bound_decision:{proceeded:true,eligibility:"unscreened",capture_id:"walkthrough-one",
       producer_source:{kind:"browser_pending",key:browserPendingDecisionKey(pending)}}};
-  const brief = {requestId:"one",summary:"Move bins",confirmedAtIso:confirmed ? "2026-10-08T00:00:00Z" : null,operatorUnknown:["workload"]};
+  const brief = {requestId:"one",summary:"Move bins",confirmedAtIso:confirmed ? "2026-10-08T00:00:00Z" : null,operatorUnknown:["workload"],...briefExtras};
   const key=browserPendingDecisionKey(pending),context=advisoryContextDigest(record,brief),job=advisoryJobId("one",key,context);
   record.site_advisory={job_id:job,source_key:key,context_digest:context,state:"completed"};
   state.docs.set("inboundRequests/one",record);state.docs.set("siteTaskBriefs/one",brief);
@@ -89,10 +89,10 @@ it("still refuses a packet past the source bound",async()=>{
   const p:any=packet();p.sources=[source,...registrySources(SITE_ASSESSMENT_MAX_PACKET_SOURCES)];seed(p);
   await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_assessment_preparation_pending");
 });
-it.each(["no_robot","process_change"])("does not start the robot-preparation branch for %s",async(kind)=>{
+it.each(["no_robot","process_change"])("keeps scene-only preparation available alongside the advisory next action %s",async(kind)=>{
   const p=packet();p.raw_model_assessment.next_action.kind=kind;seed(p);
-  await expect(loadWebsiteSceneSponsorship("one",true)).rejects.toThrow("website_assessment_preparation_pending");
-  expect(state.docs.get("inboundRequests/one")?.website_scene_sponsorship).toBeUndefined();
+  expect((await loadAssessmentPreparationProposal("one","walkthrough-one"))?.proposal)
+    .toMatchObject({scope:"scene_preparation_only",robot_suitability_verified:false});
 });
 it("rejects unsupported factual bindings and leaves ambiguous approaches pending",async()=>{
   const p=packet();p.raw_model_assessment.job[0].evidence[0].selector.observation_index=9;
@@ -602,4 +602,33 @@ it("v2 status validates an actual loader-persisted expired base grant and reject
     expect(()=>currentWebsitePreparationStatusContext({...input,record:forged,assessmentPreparationProposal:proposal})).toThrow("website_assessment_preparation_pending");
     expect(record.website_scene_sponsorship).toEqual(before);
   } finally {vi.restoreAllMocks();}
+});
+
+it("prepares an arbitrary accepted task from the admitted assessment without granting native scoring",async()=>{
+  const {record}=seed();record.site_task_scope={supported:false,kind:null,reason:"deformable",disposition:"accepted_for_analysis"};
+  const prepared=await loadAssessmentPreparationProposal("one","walkthrough-one");
+  const {websiteSceneSponsorship}=await import("../utils/websiteSceneSponsorship");
+  const brief=state.docs.get("siteTaskBriefs/one") as any;
+  const {projectWebsiteTaskContext,projectWebsiteCaptureRights}=await import("../utils/websiteTaskContext");
+  const expected=projectWebsiteTaskContext(brief,projectWebsiteCaptureRights(record),{purpose:"scene_preparation"}).context_digest;
+  const authority=websiteSceneSponsorship({requestId:"one",record,brief,purpose:"scene_preparation",expected_task_context_digest:expected,
+    assessmentPreparationProposal:prepared!.proposal,now:Date.now()/1000});
+  expect(authority).toMatchObject({purpose:"scene_preparation",assessment_preparation_proposal:{robot_suitability_verified:false,physical_trial_authorized:false}});
+  expect(()=>websiteSceneSponsorship({requestId:"one",record,brief,assessmentPreparationProposal:prepared!.proposal,now:Date.now()/1000}))
+    .toThrow("website_scene_site_not_qualified");
+});
+
+it("does not borrow an assessment when current typed task semantics change",async()=>{
+  seed(packet(),true,true,{}, {taskFamily:"rigid_pick_and_place"});
+  (state.docs.get("siteTaskBriefs/one") as any).summary="Fold towels";
+  await expect(loadAssessmentPreparationProposal("one","walkthrough-one")).rejects.toThrow("pending");
+});
+it("binds current legacy confirmed novel proposals as general task semantics",async()=>{
+  const {record}=seed(packet(),true,true,{}, {summary:"Fold towels"});
+  record.site_task_scope={supported:false,reason:"deformable"};
+  const proposal=await loadAssessmentPreparationProposal("one","walkthrough-one");
+  const {projectWebsiteTaskContext,projectWebsiteCaptureRights}=await import("../utils/websiteTaskContext");
+  const context=projectWebsiteTaskContext(state.docs.get("siteTaskBriefs/one") as any,projectWebsiteCaptureRights(record),{purpose:"scene_preparation"});
+  expect(proposal?.proposal.scope).toBe("scene_preparation_only");
+  expect(context).toMatchObject({confirmed:true,task_family:"general_task"});
 });

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { assessmentCustomerStatementRefs } from './siteCustomerStatements';
+import { screenTaskScope } from './siteTaskScope';
 const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 /** Relevant request and optional owner context. Timestamps and inferred triage are not new facts. */
 export function advisoryContextDigest(record: Record<string, any>, brief: Record<string, any> | null): string {
@@ -11,8 +12,14 @@ export function advisoryContextDigest(record: Record<string, any>, brief: Record
     'operatorTaskDetails', 'successCriteria', 'operatorAnswers',
   ].map(key => [key, brief[key] ?? null]));
   const customerStatements = assessmentCustomerStatementRefs(record);
+  const inferred = brief ? screenTaskScope({ summary: brief.summary, successDefinition: brief.successCriteria?.successDefinition }) : null;
+  // New typed briefs and newly admitted general tasks must not borrow an
+  // assessment of another job. Existing recognized legacy context stays stable.
+  const taskSemantics = brief && (brief.taskFamily !== undefined || !inferred?.supported)
+    ? { summary: brief.summary ?? null, taskFamily: inferred?.kind ?? "general_task" } : null;
   // Preserve identities of existing jobs without newly admitted email evidence.
   return digest({ schema: 'site_assessment_context.v1', request, owner,
+    ...(taskSemantics ? { taskSemantics } : {}),
     ...(customerStatements.length ? { customerStatements } : {}) });
 }
 export function advisoryJobId(requestId: string, sourceKey: string, contextDigest: string): string {

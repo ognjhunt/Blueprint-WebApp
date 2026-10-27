@@ -54,7 +54,7 @@ vi.mock("../utils/slack", () => ({ notifySlackScreeningCallNeeded }));
 const briefRouter = (await import("../routes/site-task-brief")).default;
 const { gateFields } = await import("../../client/src/data/siteTaskQualification");
 const { createCaptureUploadToken } = await import("../utils/captureUploadToken");
-const { draftBrief, saveBrief } = await import("../utils/siteTaskBrief");
+const { draftBrief, saveBrief, confirmBrief } = await import("../utils/siteTaskBrief");
 const { enqueueOutbox } = await import("../utils/captureOutbox");
 
 let server: Server;
@@ -227,7 +227,7 @@ describe("the confirmation says what our screen decided", () => {
     const sent = vi.mocked(enqueueOutbox).mock.calls[0][0] as { kind: string; subject: string; body: string; idempotencyKey: string };
     expect(sent).toMatchObject({ kind: "screening_not_now", idempotencyKey: "req-1:brief-screening:task-not-yet-supported" });
     // Only the job kind a robot team's evaluation can run (audit N4).
-    expect(sent.body).toMatch(/these kinds of job:\n- Picking up one rigid object and placing it at another spot on the same table, shelf or counter\n- Opening one door, drawer or lid of a fixture\n\n/);
+    expect(sent.body).toMatch(/these kinds of job:\n- Picking up one rigid object and placing it on a supported destination surface\n- Opening one door, drawer or lid of a fixture\n\n/);
     expect(sent.body).not.toMatch(/door or drawer/);
     expect(sent.body).toMatch(/holding it while we prepare an evaluation for its kind/);
     expect(sent.subject).toBe("Your job: we are preparing its evaluation");
@@ -290,4 +290,16 @@ describe("an expired task link asks for a fresh one", () => {
     expect(await forged.json()).toEqual(await (await post("garbage")).json());
     expect(enqueue).toHaveBeenCalledTimes(1);
   });
+});
+
+it("a changed task invalidates prior listing and recommendation review even with unchanged answers",async()=>{
+  await confirm(clearAnswers());
+  const record=sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as any;
+  record.public_task_listing.details.cycleTarget="30 seconds";
+  record.pilot_recommendation={id:"prior-recommendation"};
+  await confirmBrief({requestId:"req-1",confirmedBy:"Dana",summary:"Fold towels",operatorAnswers:clearAnswers()});
+  const current=sharedFakeFirestoreState.docs.get("inboundRequests/req-1") as any;
+  expect(current.public_task_listing).toMatchObject({enabled:false,reviewRequired:true});
+  expect(current.pilot_recommendation.reviewRequired).toBe(true);
+  expect(sharedFakeFirestoreState.docs.get("siteTaskBriefs/req-1")).toMatchObject({taskFamily:"general_task"});
 });

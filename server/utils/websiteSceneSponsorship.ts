@@ -182,10 +182,10 @@ export function websiteSceneSponsorship(input: {
     && !developmentSiteTest && !input.assessmentPreparationProposal) {
     throw new Error("website_scene_site_not_qualified");
   }
-  // A job whose confirmed brief screened as one the simulation cannot score
-  // gets no scene: the Pipeline would build it as a different task. Same typed
-  // refusal, so the capture is held while the site can still re-confirm.
-  if (taskScopeNotSupported(input.record) && !developmentSiteTest) throw new Error("website_scene_site_not_qualified");
+  // A text-based native-coverage hint cannot veto a source-bound proposal to
+  // prepare the captured scene. Full native evaluation remains held until a
+  // compatible task adapter/scorer exists; scene preparation grants no pass.
+  if (taskScopeNotSupported(input.record) && !developmentSiteTest && !(preparationOnly && proposal)) throw new Error("website_scene_site_not_qualified");
   // Legacy/evaluation grants retain the account claim gate. Explicit source-
   // bound preparation is funded by the configured Blueprint owner and never
   // invents a site account or a customer charge.

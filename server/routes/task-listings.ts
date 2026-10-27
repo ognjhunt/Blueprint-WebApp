@@ -24,7 +24,7 @@ import { logger } from "../logger";
 import { projectEvidenceForSite, isQualifiedRecommendationEvidence, verifyRecommendationEvidence,
   passMarkForJob, fundingRequestIdFor, criteriaChangedSinceRequest, type RunWithResult } from "../utils/pilotRecommendationEvidence";
 import { pilotConsentRefusal, projectPilotBooking, sitePilotContact, teamPilotContact } from "../utils/pilotContactExchange";
-import { SUPPORTED_TASK_SCOPE, scoredTaskDescription, taskScopeNotSupported } from "../utils/siteTaskScope";
+import { SUPPORTED_TASK_SCOPE, scoredTaskDescription } from "../utils/siteTaskScope";
 import { storedMarketplace } from "../utils/jobMarketplaceWorkflow";
 
 /**
@@ -105,8 +105,8 @@ router.route("/owner/:token")
         const revision = humanDecisionDigest(brief.exists ? brief.data() : null);
         if (parsed.data.enabled && ((parsed.data.expectedBriefRevision && parsed.data.expectedBriefRevision !== revision)
           || (current.data()?.public_task_listing?.reviewRequired && parsed.data.expectedBriefRevision !== revision))) throw new Error("listing_review_changed");
-        // A job we cannot score yet is held, not listed, so its card cannot go live.
-        if (parsed.data.enabled && taskScopeNotSupported(current.data())) throw new Error("task_not_yet_supported");
+        // Card consent is independent of native evaluator coverage. Execution
+        // remains held by teamJobAccess until the job can actually be scored.
         const previousDigest = current.data()?.public_task_listing?.thumbnailDigest ?? null;
         wentLive = parsed.data.enabled && current.data()?.public_task_listing?.enabled !== true ? new Date().toISOString() : null;
         transaction.update(ref, {

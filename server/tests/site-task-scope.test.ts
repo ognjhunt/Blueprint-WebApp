@@ -5,7 +5,7 @@
  * The Pipeline builds every non-articulated website job as pick-and-place, so
  * a job we cannot score must be held here, never coerced into a narrower task
  * a team could pass. A team evaluation runs a rigid pick-and-place onto a spot
- * on the surface the object starts on, or opening one door or drawer (Pipeline
+ * on its destination surface, or opening one door or drawer (Pipeline
  * `team_scene_packet.py` since #2943, `website_task_preparation.py`), so
  * placing an object inside a container is held (audit N4). Under the owner's
  * rule (2026-10-26) a held job is accepted, told we are preparing its
@@ -53,21 +53,21 @@ describe("screenTaskScope", () => {
     ["Walk each tote over to the packing station", "mobile"],
     ["Pick up the box, then wait for approval", "multi_step"],
     ["Your site task", "unclear"],
-    ["Cartons", "unclear"],
+    ["Cartons", "other"],
     ["Close the cabinet doors at the end of the shift", "closing"],
-    ["Packing orders", "unclear"],
+    ["Packing orders", "other"],
     // Placing an object inside a container is blocked before a scene exists.
     ["Pack cartons into totes", "container"],
     ["Put the part in the bin", "container"],
     ["Place each cup inside the crate", "container"],
   ])("holds %j as %s", (summary, reason) => {
     expect(screen(summary)).toMatchObject({ supported: false, kind: null, reason,
-      disposition: reason === "unclear" ? "needs_description" : "held_for_preparation" });
+      disposition: reason === "unclear" ? "needs_description" : "accepted_for_analysis" });
   });
 
   it("records a held job as demand for what to build next, and an unreadable brief as not yet described", () => {
     const held = taskScopeRecord(screen("Folding towels for wash-and-fold orders"), "2026-10-26T00:00:00Z");
-    expect(held).toMatchObject({ disposition: "held_for_preparation", demandKind: "deformable" });
+    expect(held).toMatchObject({ disposition: "accepted_for_analysis", demandKind: "deformable" });
     expect(taskScopeHeld({ site_task_scope: held })).toBe(true);
     const undescribed = taskScopeRecord(screen("Your site task"), "2026-10-26T00:00:00Z");
     expect(undescribed).toMatchObject({ disposition: "needs_description", demandKind: null });
@@ -75,7 +75,7 @@ describe("screenTaskScope", () => {
     const scorable = taskScopeRecord(screen("Opening the sample drawer before each batch"), "2026-10-26T00:00:00Z");
     expect(scorable).toMatchObject({ disposition: "scorable", demandKind: null });
     // Nothing is refused by keyword: no harness capability verdict exists yet.
-    expect(new Set(["scorable", "held_for_preparation", "needs_description"])).toContain(held.disposition);
+    expect(new Set(["scorable", "accepted_for_analysis", "held_for_preparation", "needs_description"])).toContain(held.disposition);
   });
 
   it("reads the success definition: it can name the job, or rule it out", () => {
@@ -88,13 +88,13 @@ describe("screenTaskScope", () => {
 describe("a job we cannot score", () => {
   const listed = {
     request: { buyerType: "site_operator", consent_attestation: undefined },
-    public_task_listing: { enabled: true, consentVersion: "v", approvedAtIso: "2026-10-01T00:00:00Z",
-      details: { title: "Folding towels", taskFamily: "Recurring work", siteType: "", region: "", objects: "", opportunity: "open" } },
+    public_task_listing: { enabled: true, consentVersion: "public-task-card-v1", approvedAtIso: "2026-10-01T00:00:00Z",
+      details: { title: "Folding towels", taskFamily: "Recurring work", siteType: "", region: "", objects: "", cycleTarget:"",pilotTiming:"",pilotBudget:"", opportunity: "open" } },
   };
 
-  it("is closed to robot teams once its screen is recorded, and unscreened jobs are unaffected", () => {
+  it("keeps an approved job card visible while native execution remains held", () => {
     expect(teamJobAccess({ ...listed, site_task_scope: { supported: false, reason: "deformable" } }))
-      .toMatchObject({ listed: false, evaluationAvailable: false, reason: "task_not_yet_supported" });
+      .toMatchObject({ listed: true, evaluationAvailable: false, reason: "task_not_yet_supported" });
     expect(teamJobAccess(listed).reason).not.toBe("task_not_yet_supported");
     expect(teamJobAccess({ ...listed, site_task_scope: { supported: true, kind: "rigid_pick_and_place" } }).reason)
       .not.toBe("task_not_yet_supported");
@@ -109,11 +109,11 @@ describe("a job we cannot score", () => {
     }));
     expect(status.decision).toBe("not_yet_supported");
     expect(status.headline).toMatch(/preparing an evaluation/);
-    expect(status.operatorAction).toMatch(/liquids.*two kinds of job: picking up one rigid object and placing it at another spot on the same table, shelf or counter, and opening one door, drawer or lid/);
+    expect(status.operatorAction).toMatch(/liquids.*cover: picking up one rigid object and placing it at another spot on a supported destination surface, and opening one door, drawer or lid/);
   });
 
   it("names only the job kinds Blueprint's evaluation can score, everywhere", () => {
-    expect(SUPPORTED_TASK_LINES).toEqual(["Picking up one rigid object and placing it at another spot on the same table, shelf or counter",
+    expect(SUPPORTED_TASK_LINES).toEqual(["Picking up one rigid object and placing it on a supported destination surface",
       "Opening one door, drawer or lid of a fixture"]);
     expect(SUPPORTED_TASK_SCOPE).toMatch(/opening one door, drawer or lid/);
     // Screens recorded before Pipeline #2943 still read with their own reason.
