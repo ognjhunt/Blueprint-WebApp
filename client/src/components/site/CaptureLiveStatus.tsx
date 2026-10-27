@@ -1,5 +1,7 @@
 import type { SiteAdvisory } from "@/types/siteAdvisory";
 import { SiteAdvisoryReport } from "./SiteAdvisoryReport";
+import { TaskOutcomeNotice } from "./TaskOutcomeNotice";
+import type { TaskOutcome } from "@/types/taskOutcome";
 import { NextTaskUpdate } from "./NextTaskUpdate";
 /**
  * The desktop reflecting what the phone is doing — from the server, not a guess.
@@ -26,6 +28,7 @@ interface LiveStatus {
   scope?: "owner" | "film";
   siteAdvisory?: SiteAdvisory | null;
   headline: string;
+  outcome?: TaskOutcome | null;
   stage: string | null;
   nextUpdateIso?: string | null;
 }
@@ -74,7 +77,9 @@ export function CaptureLiveStatus({
           if (alive && data?.captureReceived === true) onCaptureReceived?.();
           if (alive && data?.status?.headline) {
             setLoadError(false);
-            setStatus({ scope: data.scope, siteAdvisory: data.siteAdvisory ?? null, headline: data.status.headline, stage: data.status.stage ?? null, nextUpdateIso: data.status.nextUpdateIso });
+            setStatus({ scope: data.scope, siteAdvisory: data.siteAdvisory ?? null, headline: data.status.headline,
+              outcome: data.scope === "film" ? null : data.status.outcome ?? null,
+              stage: data.status.stage ?? null, nextUpdateIso: data.status.nextUpdateIso });
           } else if (alive) setLoadError(true);
         } else if (alive) { setLoadError(true); setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null); }
       } catch {
@@ -104,6 +109,7 @@ export function CaptureLiveStatus({
     const sections = advisory?.state === "ready" ? advisory.sections.filter(section => section.claims.length > 0) : [];
     return <div className="ms-intake-progress">
       <p role="status">{status.headline}</p>
+      <TaskOutcomeNotice showTitle={false} outcome={loadError ? null : status.outcome} />
       {/* What the video shows, never a question or a step for the site: the
           site sends its video and nothing else (founder direction, 2026-10-20). */}
       {sections.length > 0 && <details className="ms-intake-assessment">
@@ -139,6 +145,7 @@ export function CaptureLiveStatus({
         {status.headline}
       </p>
       <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />
+      <TaskOutcomeNotice showTitle={false} outcome={loadError ? null : status.outcome} />
       <SiteAdvisoryReport advisory={status.siteAdvisory} />
       <p className="ms-field-hint" style={{ marginTop: "4px", opacity: 0.8 }}>
         This updates on its own — you can leave it open, or close it and come back to the link.

@@ -1,4 +1,5 @@
 import { SiteAdvisoryReport } from "@/components/site/SiteAdvisoryReport";
+import { TaskOutcomeNotice } from "@/components/site/TaskOutcomeNotice";
 import { PilotBookingDetails } from "@/components/site/PilotBookingDetails";
 import { useState } from "react";
 import { Link, useParams } from "wouter";
@@ -120,6 +121,7 @@ export default function TaskDetail() {
                 <h2>Progress</h2>
                 {/* Preserve the shared, source-bound status projection. */}
                 <p>{task.readiness.headline}</p>
+                <TaskOutcomeNotice showTitle={false} outcome={query.error ? null : task.readiness.outcome} />
                 {task.readiness.operatorAction && <p>{task.readiness.operatorAction}</p>}
                 {task.readiness.missingViews.length > 0 && task.readiness.decision !== "add_views" && (
                   <p>Still needed: {task.readiness.missingViews.join(", ")}.</p>

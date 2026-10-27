@@ -27,6 +27,8 @@
 
 import type { ReadinessStage } from "../../client/src/lib/siteTaskReadiness";
 import { taskScopeNotYet } from "./siteTaskScope";
+import type { TaskOutcome } from "../../client/src/types/taskOutcome";
+import { processingFailure } from "./taskPreparationOutcome";
 
 /**
  * The decision, in the operator's terms.
@@ -35,6 +37,9 @@ import { taskScopeNotYet } from "./siteTaskScope";
  * today, and the two that would need Pipeline outcomes are absent by design.
  */
 export type TaskDecision =
+  | "robot_incompatibility"
+  | "insufficient_evidence"
+  | "processing_failure"
   /** We have it and are reading it. Nothing asked of them. */
   | "received"
   /** We drafted a brief and need them to confirm or correct it. */
@@ -79,6 +84,7 @@ export type TaskDecision =
   | "footage_before_account";
 
 export interface TaskStatus {
+  outcome?: TaskOutcome | null;
   decision: TaskDecision;
   /** The readiness stage this came from, for anyone who wants the finer grain. */
   stage: ReadinessStage | null;
@@ -163,6 +169,7 @@ export function qualifiedGap(closest: ClosestQualifiedRun | null | undefined): {
 
 /** A fresh, source-bound Pipeline ledger observation; no final robot verdict. */
 export interface TaskPreparationStatus {
+  outcome?: TaskOutcome | null;
   state: "preparing" | "awaiting_inputs" | "capacity_delayed" | "failed_retryable" | "failed_terminal"
     | "authority_ended" | "handed_off" | "unavailable";
   correlationId: string | null;
@@ -213,6 +220,7 @@ interface TaskStatusInput {
   scenePreviewReady?: boolean;
   /** Current persisted preview reconstruction failed; not a robot-run verdict. */
   scenePreparationFailed?: boolean;
+  preparationOutcome?: TaskOutcome | null;
   preparationStatus?: TaskPreparationStatus | null;
   /**
    * The WebApp's own watch says preparation has gone quiet past its bound: no
@@ -277,6 +285,30 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       missingViews: [],
       nextUpdateIso: null,
     };
+  }
+
+  // A preparation stop must not be hidden by an unconfirmed brief or a generic
+  // intake gate. Actual evaluation activity/results outrank an older stop.
+  // A native handoff supersedes an optional reconstruction preview's failure.
+  const hasRuns = input.screening && input.screening.queued + input.screening.running
+    + input.screening.reported + input.screening.noResult > 0;
+  const nativeProgress = input.preparationStatus?.state === "handed_off" || Boolean(input.sceneProgression);
+  const stopped = input.preparationStatus?.outcome
+    ?? (!nativeProgress && !input.scenePreviewReady ? input.preparationOutcome : null)
+    ?? (input.preparationStatus?.state === "failed_terminal" || input.scenePreparationFailed && !nativeProgress
+      || input.sceneProgression?.state === "ended" ? processingFailure() : null);
+  if (stopped && !hasRuns) {
+    const ended = input.preparationStatus?.state === "failed_terminal"
+      ? preparationEndedSentence(input.preparationStatus.terminalReason) : "";
+    const outcome = {...stopped,
+      reason: ended ? `${stopped.reason} ${ended}` : stopped.reason,
+      nextStep: input.hasStoredCapture ? stopped.nextStep : stopped.nextStep
+        .replace("Your recording is saved;", "Keep your original recording;")
+        .replace("Your recording and findings remain saved.", "The retained findings remain available. Keep your original recording."),
+    };
+    return { decision: outcome.category, stage: null, headline: outcome.title,
+      operatorAction: outcome.actionOwner === "site" ? outcome.nextStep : null,
+      missingViews: [], nextUpdateIso: null, outcome };
   }
 
   if (input.taskScope) {
@@ -495,7 +527,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
 
   // A recorded preview failure is distinct from coverage and from robot-run
   // results above. Do not claim ongoing preparation or expose provider errors.
-  if (input.scenePreparationFailed) {
+  if (input.scenePreparationFailed && !nativeProgress) {
     return {
       ...base,
       decision: "footage_received",
@@ -643,6 +675,7 @@ export function taskStatusInputFrom(record: {
   footageReviewAutomated?: boolean;
   scenePreviewReady?: boolean;
   scenePreparationFailed?: boolean;
+  preparationOutcome?: TaskOutcome | null;
   preparationStatus?: TaskPreparationStatus | null;
   preparationOverdue?: boolean;
   sceneProgression?: TaskSceneProgression | null;
@@ -667,6 +700,7 @@ export function taskStatusInputFrom(record: {
     ...(record.footageReviewAutomated === false ? { footageReviewAutomated: false } : {}),
     scenePreviewReady: Boolean(record.scenePreviewReady),
     scenePreparationFailed: record.scenePreparationFailed === true,
+    preparationOutcome: record.preparationOutcome ?? null,
     preparationStatus: record.preparationStatus ?? null,
     ...(record.preparationOverdue === true ? { preparationOverdue: true } : {}),
     sceneProgression: record.sceneProgression ?? null,

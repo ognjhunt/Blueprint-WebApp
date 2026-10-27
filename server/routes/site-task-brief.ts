@@ -1,4 +1,7 @@
 import { loadCurrentSiteAdvisory } from "../utils/siteAssessmentPublic";
+import { projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
+import { selectWebsiteAtlasPreview } from "../utils/websiteAtlasPreview";
+import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { describeSiteAssessmentRetry } from "../utils/siteAssessmentQueue";
 /**
  * The brief an operator reads, and the confirmation that makes it binding.
@@ -181,6 +184,7 @@ async function readRequestForStatus(requestId: string): Promise<{
   site_task_scope?: { supported?: unknown; reason?: unknown } | null;
   siteName?: string | null;
   captureRights: ReturnType<typeof projectWebsiteCaptureRights>;
+  preparationOutcome: TaskOutcome | null;
   /** Whether robot teams can see the job and request an evaluation. */
   jobAccess: ReturnType<typeof teamJobAccess> | null;
   recommended: boolean;
@@ -204,6 +208,8 @@ async function readRequestForStatus(requestId: string): Promise<{
   const contactFirstName = await plain(contact?.firstName);
   return {
     captureRights: projectWebsiteCaptureRights(data),
+    preparationOutcome: projectWebsiteCaptureRights(data).derived_scene_generation_allowed
+      ? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(data, `walkthrough-${requestId}`)) : null,
     siteTaskGates: gateAnswersOnFile(data),
     site_task_brief_confirmed_at: data.site_task_brief_confirmed_at,
     capture_coverage: (data.capture_coverage as never) ?? null,
@@ -1025,6 +1031,8 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady: Boolean(sceneViewUrl),
         scenePreparationFailed: reconstruction?.state === "failed",
+        preparationOutcome: payload.scope === "owner" && request && !request.captureRights.consent_revoked
+          && payload.captureId === `walkthrough-${payload.requestId}` ? request.preparationOutcome : null,
         preparationStatus,
         preparationOverdue,
         sceneProgression,

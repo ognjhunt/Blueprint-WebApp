@@ -93,7 +93,7 @@ export function nextWebsitePreparationWatch(previous: WebsitePreparationWatch | 
     // Each terminal transition is reported to operators once.
     if (previous?.kind === "ended" && previous.attempt_count === status.attempt_count) return previous;
     return {...base, kind: "ended", state: status.state, attempt_count: status.attempt_count,
-      terminal_reason: status.schema_version === "website_preparation_status.v2" ? status.terminal_reason : null,
+      terminal_reason: status.terminal_reason,
       due_at_ms: nowMs};
   }
   if (previous?.kind === "unchanged_state" && previous.state === status.state) return previous;

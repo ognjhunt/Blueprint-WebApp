@@ -1,4 +1,5 @@
 import { buildPolicyRunLicense } from "../utils/policyRunLicense";
+import { projectAtlasPreparationOutcome } from "../utils/taskPreparationOutcome";
 import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
 import { updatePreferencesInputSchema } from "../../client/src/types/updatePreferences";
 import { buildUpdatePreferences, savedUpdatePreferences, bindVerifiedPreferenceAccount } from "../utils/updatePreferences";
@@ -76,7 +77,7 @@ import { accountHasAdmission } from "../utils/accountInvitations";
 import { resolveAccessContext } from "../utils/access-control";
 import { siteVisitOptions } from "../../client/src/data/sitePilotIntent";
 import { projectWebsiteCaptureWithdrawal, recordWebsiteCaptureWithdrawal } from "../utils/websiteCaptureWithdrawal";
-import { downloadableWebsiteAtlasPreview, projectWebsiteAtlasPreview, WEBSITE_ATLAS_CAPTURE_ID,
+import { downloadableWebsiteAtlasPreview, projectWebsiteAtlasPreview, selectWebsiteAtlasPreview, WEBSITE_ATLAS_CAPTURE_ID,
   websiteAtlasPreviewDownloadUrl } from "../utils/websiteAtlasPreview";
 import { projectPilotBooking } from "../utils/pilotContactExchange";
 import { listCheckpoints } from "../utils/robotCheckpoints";
@@ -696,6 +697,8 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         footageReviewAutomated: isSiteVideoEvidenceEnabled(),
         scenePreviewReady,
         scenePreparationFailed: reconstruction?.state === "failed",
+        preparationOutcome: !consentRevoked
+          ? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(record, `walkthrough-${requestId}`)) : null,
         preparationStatus,
         preparationOverdue,
         sceneProgression,
@@ -718,6 +721,10 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
       .catch(() => logger.warn("Site advisory workspace return wake unavailable"));
   }
   if (consentRevoked) task.status = "Recording consent withdrawn";
+  else if (task.readiness?.outcome) {
+    task.status = task.readiness.outcome.title;
+    task.nextStep = task.readiness.outcome.nextStep;
+  }
   // Development-only, unscaled; gone the moment recording consent is withdrawn.
   task.atlasPreview = consentRevoked ? null : projectWebsiteAtlasPreview(record);
   // The booked pilot with the robot team's contact, while both consents stand.

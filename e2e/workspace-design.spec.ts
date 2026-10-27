@@ -1,7 +1,31 @@
 import { test, expect, type Page } from "@playwright/test";
 import { mockExternalFonts } from "./helpers/static-assets";
 import { anonymizedOpportunityDraft } from "../client/src/types/taskBrowse";
+import { processingFailure, projectPreparationOutcome } from "../server/utils/taskPreparationOutcome";
 test.beforeEach(mockExternalFonts);
+const outcomeCases = [processingFailure({label: "Reconstruction status", digest: `sha256:${"a".repeat(64)}`}),
+  projectPreparationOutcome({category: "robot_incompatibility", reason: "robot_carry_path_rejected",
+    basis: "conservative_configuration_check", robot_id: "franka_panda", evidence_digest: `sha256:${"b".repeat(64)}`}),
+  projectPreparationOutcome({category: "insufficient_evidence", reason: "task_evidence_incomplete",
+    basis: "missing_evidence", robot_id: null, evidence_digest: `sha256:${"c".repeat(64)}`})];
+for (const width of [1440, 390]) for (const outcome of outcomeCases) {
+  test(`preparation outcome ${outcome.category} is readable at ${width}px`, async ({page}, info) => {
+    const snapshot = await seed(page, "site_operator");
+    snapshot.tasks = [{...structuredClone(task), results: [], pilotRecommended: false,
+      status: outcome.title, nextStep: outcome.nextStep,
+      readiness: {decision: outcome.category, headline: outcome.title, operatorAction: null,
+        missingViews: [], nextUpdateIso: null, outcome}}];
+    await page.setViewportSize({width, height: 1024});
+    await page.goto("/app/tasks/task-1");
+    const notice = page.getByRole("region", {name: "Preparation outcome"});
+    await expect(notice).toBeVisible();
+    await expect(notice.getByText(outcome.scope, {exact: true})).toBeVisible();
+    await expect(notice.getByText(/Next step — Blueprint/)).toBeVisible();
+    await expect(page.getByRole("heading", {name: "No evaluation results yet"})).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({path: info.outputPath(`outcome-${outcome.category}-${width}.png`), fullPage: true});
+  });
+}
 const terms = {
   successRate: 95,
   cycleTimeSeconds: 30,

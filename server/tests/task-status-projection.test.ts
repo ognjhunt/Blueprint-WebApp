@@ -33,24 +33,24 @@ describe("a persisted preview preparation failure", () => {
     coversScene: true, scenePreparationFailed: true });
   it("distinguishes failed preview preparation from active assessment", () => {
     const projected = projectTaskStatus(failed());
-    expect(projected.decision).toBe("footage_received");
-    expect(projected.headline).toMatch(/scene preview preparation could not finish/i);
+    expect(projected.decision).toBe("processing_failure");
+    expect(projected.headline).toMatch(/Blueprint could not finish processing/i);
     expect(projected.stage).toBeNull();
     expect(projected.operatorAction).toBeNull();
   });
-  it("preserves withdrawal, brief and disposition gates", () => {
+  it("preserves withdrawal and assigns an internal failure to Blueprint before brief and disposition gates", () => {
     expect(projectTaskStatus({ ...failed(), consentRevoked: true }).headline).toMatch(/withdrawn/i);
-    // The preparation problem stays the headline; the confirmation rides with it.
+    // Fixing our processing problem is not delegated to the site's confirmation.
     const unconfirmed = projectTaskStatus({ ...failed(), briefConfirmed: false });
-    expect(unconfirmed.decision).toBe("footage_received");
-    expect(unconfirmed.operatorAction).toMatch(/confirm it/i);
-    expect(projectTaskStatus({ ...failed(), disposition: "needs_conversation" }).decision).toBe("call_needed");
-    expect(projectTaskStatus({ ...failed(), disposition: "not_now" }).decision).toBe("not_now");
+    expect(unconfirmed.decision).toBe("processing_failure");
+    expect(unconfirmed.operatorAction).toBeNull();
+    expect(projectTaskStatus({ ...failed(), disposition: "needs_conversation" }).decision).toBe("processing_failure");
+    expect(projectTaskStatus({ ...failed(), disposition: "not_now" }).decision).toBe("processing_failure");
     const unclaimed = projectTaskStatus({ ...failed(), disposition: "qualified", claimed: false });
-    expect(unclaimed.decision).toBe("save_account");
-    expect(unclaimed.headline).toMatch(/review the scene preview preparation issue/i);
+    expect(unclaimed.decision).toBe("processing_failure");
+    expect(unclaimed.outcome?.actionOwner).toBe("blueprint");
     expect(unclaimed.headline).not.toMatch(/start building/i);
-    expect(projectTaskStatus({ ...failed(), coversScene: false, missingViews: ["infeed"] }).decision).toBe("add_views");
+    expect(projectTaskStatus({ ...failed(), coversScene: false, missingViews: ["infeed"] }).decision).toBe("processing_failure");
   });
   it("preserves queued, observed and no-result screening runs", () => {
     expect(projectTaskStatus({ ...failed(), screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 } }).decision).toBe("screening");

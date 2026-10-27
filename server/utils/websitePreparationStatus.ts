@@ -1,5 +1,7 @@
 /** Current-source preparation status; never a native assessment or preview verdict. */
 import { z } from "zod";
+import { preparationOutcomeSchema, projectPreparationOutcome } from "./taskPreparationOutcome";
+import type { TaskOutcome } from "../../client/src/types/taskOutcome";
 import { signedWebsitePipelineRequest } from "./websitePipelineSignedRequest";
 import { dbAdmin as db, storageAdmin } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
@@ -53,15 +55,20 @@ const receiptV2 = receiptBase.extend({
   code: z.enum(statesV2.map(state => codes[state]) as [string, ...string[]]),
   terminal_reason: z.enum(WEBSITE_PREPARATION_TERMINAL_REASONS).nullable(),
 }).strict();
-/** A Pipeline that predates v2 keeps answering v1; both stay readable. */
-export const websitePreparationReceiptSchema = z.union([receiptV1, receiptV2]);
+const receiptV3 = receiptV2.extend({
+  schema_version: z.literal("website_preparation_status.v3"),
+  outcome: preparationOutcomeSchema.nullable(),
+}).strict();
+/** Older Pipelines keep answering v1/v2; v3 adds a retained evidence finding. */
+export const websitePreparationReceiptSchema = z.union([receiptV1, receiptV2, receiptV3]);
 export type WebsitePreparationReceipt = z.infer<typeof websitePreparationReceiptSchema>;
 type PreparationState = typeof statesV2[number];
-/** Asks the Pipeline for v2; a Pipeline that predates it ignores the header. */
+/** Asks for v3; older Pipelines cap negotiation at their newest known version. */
 export const WEBSITE_PREPARATION_STATUS_VERSION_HEADER = "x-blueprint-preparation-status-version";
 export type PublicWebsitePreparationStatus = {
   state: PreparationState | "unavailable"; correlationId: string | null;
   terminalReason?: WebsitePreparationTerminalReason | null;
+  outcome?: TaskOutcome | null;
 };
 export type WebsitePreparationNoticeMilestone = "preparation_needs_attention" | "preparation_ended";
 export type WebsitePreparationIntent = {requestId: string; captureId: string; eventId: string; correlationId: string;
@@ -99,13 +106,15 @@ function noticeFor(selector: WebsitePreparationSelector, status: WebsitePreparat
     ? {eventId: websitePreparationEventId(selector), milestone: "preparation_needs_attention"} : null;
 }
 const terminalReasonOf = (status: WebsitePreparationReceipt) =>
-  status.schema_version === "website_preparation_status.v2" ? status.terminal_reason : null;
+  status.schema_version !== "website_preparation_status.v1" ? status.terminal_reason : null;
 function parseReceipt(raw: unknown, selector: WebsitePreparationSelector): WebsitePreparationReceipt {
   const receipt = websitePreparationReceiptSchema.parse(raw);
   websitePreparationSelectorSchema.parse(receiptSelectors(receipt));
   if (crossRuntimeDigest(receiptSelectors(receipt)) !== crossRuntimeDigest(selector)
       || codes[receipt.state] !== receipt.code
       || (receipt.state === "failed_terminal") !== (terminalReasonOf(receipt) !== null)
+      || receipt.schema_version === "website_preparation_status.v3" && receipt.outcome !== null
+        && !["awaiting_inputs", "failed_retryable", "failed_terminal"].includes(receipt.state)
       || crossRuntimeArtifactDigest(receipt as unknown as Record<string, unknown>, "status_digest") !== receipt.status_digest)
     throw unavailable();
   return receipt;
@@ -150,7 +159,7 @@ async function readCanonicalLedger(selector: WebsitePreparationSelector, signal?
   const signed = signedWebsitePipelineRequest("/api/live-pipeline/website-preparation-status", body);
   if (!signed) throw unavailable();
   const response = await fetch(signed.url, {method: "POST", redirect: "error", signal: signal ?? AbortSignal.timeout(5_000),
-    body, headers: {"content-type": "application/json", ...signed.headers, [WEBSITE_PREPARATION_STATUS_VERSION_HEADER]: "2"}});
+    body, headers: {"content-type": "application/json", ...signed.headers, [WEBSITE_PREPARATION_STATUS_VERSION_HEADER]: "3"}});
   if (!response.ok || !response.body || Number(response.headers.get("content-length")) > 8192) throw unavailable();
   const reader = response.body.getReader(); let length = 0; const chunks: Buffer[] = [];
   try {
@@ -324,7 +333,9 @@ export async function loadCurrentWebsitePreparationStatus(requestId: string, cap
     const {status} = await fresh(captureId, requestId, deps);
     // Customer correlation is company-derived; never trust caller supplied correlation text.
     return {state: status.state, correlationId: `bp-prep-${status.status_digest.slice(7, 23)}`,
-      terminalReason: terminalReasonOf(status)};
+      terminalReason: terminalReasonOf(status),
+      ...(status.schema_version === "website_preparation_status.v3"
+        ? {outcome: status.outcome ? projectPreparationOutcome(status.outcome) : null} : {})};
   } catch { return {state: "unavailable", correlationId: null}; }
 }
 export async function canNotifyCurrentWebsitePreparationIssue(requestId: string, eventId: string,

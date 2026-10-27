@@ -1,5 +1,7 @@
 import type { SiteAdvisory } from "@/types/siteAdvisory";
 import { SiteAdvisoryReport } from "@/components/site/SiteAdvisoryReport";
+import { TaskOutcomeNotice } from "@/components/site/TaskOutcomeNotice";
+import type { TaskOutcome } from "@/types/taskOutcome";
 import { isLikelyPhone } from "@/lib/device";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
@@ -42,6 +44,7 @@ type TaskStatus = {
   decision: string;
   headline: string;
   operatorAction: string | null;
+  outcome?: TaskOutcome | null;
   missingViews: string[];
   nextUpdateIso: string | null;
   /**
@@ -507,8 +510,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           captureReceived: data.captureReceived === true,
           footageReviewAutomated: data.footageReviewAutomated !== false,
         });
-      else if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null);
-      } catch { if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null } : null); }
+      else if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null, outcome: null } : null);
+      } catch { if (alive) setStatus(previous => previous ? { ...previous, siteAdvisory: null, outcome: null } : null); }
       if (alive) timer = setTimeout(poll, 6000);
     }
     void poll();
@@ -556,6 +559,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           {status.operatorAction}
         </p>
       )}
+      <TaskOutcomeNotice outcome={status.outcome} />
       {waitingTimeline(status.decision) && (
         <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>{waitingTimeline(status.decision)}</p>
       )}
