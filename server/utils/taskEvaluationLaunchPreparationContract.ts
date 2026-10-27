@@ -236,7 +236,7 @@ export const surfaceTargetSchema = z.object({
   stable_seconds: z.number().finite().positive(),
   maximum_linear_speed_m_s: z.number().finite().positive(),
   maximum_angular_speed_rad_s: z.number().finite().positive(),
-  maximum_tilt_rad: z.number().finite().positive().lt(Math.PI / 2),
+  maximum_tilt_rad: z.number().finite().positive().max(Math.PI),
   target_digest: digest,
 }).strict().superRefine((value, context) => {
   if (canonicalArtifactDigest(value, "target_digest") !== value.target_digest) context.addIssue({
