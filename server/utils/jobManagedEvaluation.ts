@@ -12,6 +12,7 @@ import { parseVerifiedTaskEvaluationRunPublication } from "./taskEvaluationRunCo
 import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncContract";
 import { parseBetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
+import { isTaskFamilyStrategy, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 
 export const jobManagedEvidenceBindingSchema = z.object({
   job_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
@@ -275,8 +276,14 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
           const intake = (await store.collection("taskEvaluationSceneIntakes").doc(run.source_scene_intake_id).get()).data();
           if (!intake || typeof intake.source_session_id !== "string" || intake.website_request_id !== jobId || intake.receipt?.intent_id !== run.source_scene_intent_id
             || intake.revocation_requested || intake.state !== "completed" || intake.pipeline_status?.status !== "completed"
-            || intake.pipeline_status?.phase !== "scene_prepared" || intake.pipeline_status?.result_reference?.digest !== run.source_scene_revision_digest
+            || !preparationPhaseMatchesTask(intake.request, intake.pipeline_status)
+            || intake.pipeline_status?.result_reference?.digest !== run.source_scene_revision_digest
             || crossRuntimeArtifactDigest(intake.pipeline_status, "status_digest") !== intake.pipeline_status.status_digest) return null;
+          if (isTaskFamilyStrategy(intake.request?.task?.strategy)
+            && (crossRuntimeDigest(intake.request) !== intake.request_digest
+              || intake.receipt.request_digest !== intake.request_digest
+              || crossRuntimeArtifactDigest(intake.receipt, "receipt_digest") !== intake.receipt.receipt_digest
+              || intake.pipeline_status.request_digest !== intake.request_digest)) return null;
           const capture = sourceSession ? { captureId: intake.source_session_id }
             : await readManagedScreeningCapture(jobId, intake.source_session_id);
           await assertManagedScreeningCaptureCurrent(jobId, capture, reference => reference.get());

@@ -4,11 +4,75 @@ import { parseBetaPolicyScreeningPublication, screeningPublicationTransition } f
 import { assertScreeningSceneSource } from "../utils/betaPolicyScreeningIngest";
 import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
-import { crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
-import { screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
+import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
+import { familyScreeningFixture, screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
 import producerPublication from "./fixtures/pipeline-beta-policy-screening-publication.v1.json";
+import producerFamilyStatus from "./fixtures/pipeline-family-prepared-status.v1.json";
 
 describe("many-candidate diagnostic screening", () => {
+  it("accepts a screening source emitted by the actual Python family handoff and canonical progression", () => {
+    const { publication, brief, job } = screeningFixture();
+    const source = producerFamilyStatus.source;
+    const scope = { ...managedJobTask({ binding: { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) }, record: job, brief }),
+      sourceWebsiteCaptureId: source.capture_id, sourceCaptureSessionId: null, taskContextDigest: source.task_context_digest,
+      taskIds: [source.task_id], teamNamespace: producerFamilyStatus.request.owner.organization_id };
+    const intake = { website_request_id: "req1", source_session_id: source.capture_id, state: "completed",
+      request: producerFamilyStatus.request, request_digest: producerFamilyStatus.status.request_digest,
+      receipt: producerFamilyStatus.receipt, pipeline_status: producerFamilyStatus.status };
+    expect(() => assertScreeningSceneSource({ ...publication, site_id: producerFamilyStatus.site_id, source }, intake, scope)).not.toThrow();
+  });
+  it.each(["valid", "catalog", "configuration", "candidate", "extra"])("honors an explicitly selected family policy identity (%s)", fault => {
+    const fixture = familyScreeningFixture();
+    const candidate = fixture.publication.candidates[0];
+    const request = { ...fixture.intake.request, task: { ...fixture.intake.request.task,
+      policy_selection: { candidate_id: candidate.candidate_id, catalog_digest: fixture.publication.catalog_digest,
+        configuration_digest: candidate.configuration_digest } } };
+    const requestDigest = crossRuntimeDigest(request);
+    const receipt = { ...fixture.intake.receipt, request_digest: requestDigest };
+    const status = { ...fixture.intake.pipeline_status, request_digest: requestDigest };
+    const intake = { ...fixture.intake, request, request_digest: requestDigest,
+      receipt: { ...receipt, receipt_digest: crossRuntimeArtifactDigest(receipt, "receipt_digest") },
+      pipeline_status: { ...status, status_digest: crossRuntimeArtifactDigest(status, "status_digest") } };
+    const publication = { ...fixture.publication, candidates: [structuredClone(candidate)] };
+    if (fault === "catalog") publication.catalog_digest = screeningSha("9");
+    if (fault === "configuration") publication.candidates[0].configuration_digest = screeningSha("9");
+    if (fault === "candidate") publication.candidates[0].candidate_id = "another-candidate";
+    if (fault === "extra") publication.candidates.push(fixture.publication.candidates[1]);
+    const scope = managedJobTask({ binding: { job_id: fixture.brief.requestId, brief_digest: scientificBriefDigest(fixture.brief) },
+      record: fixture.job, brief: fixture.brief });
+    const check = () => assertScreeningSceneSource(publication, intake, scope);
+    if (fault === "valid") expect(check).not.toThrow();
+    else expect(check).toThrow("screening_scene_source_mismatch");
+  });
+  it("accepts a source-bound CPU family preparation without claiming native application or policy execution", () => {
+    const { publication, intake, brief, job } = familyScreeningFixture();
+    const scope = managedJobTask({ binding: { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) }, record: job, brief });
+    expect(() => assertScreeningSceneSource(publication, intake, scope)).not.toThrow();
+    expect(intake.pipeline_status.result_reference.native_application_claimed).toBe(false);
+    expect(intake.pipeline_status.result_reference.policy_episode_claimed).toBe(false);
+  });
+
+  it.each(["phase", "legacy_phase", "success", "native", "runtime", "catalog", "application", "episode", "qualification", "family", "source", "context", "revoke"])("refuses a re-sealed family preparation %s mismatch", fault => {
+    const { publication, intake, brief, job } = familyScreeningFixture();
+    const scope = managedJobTask({ binding: { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) }, record: job, brief });
+    const reference = intake.pipeline_status.result_reference;
+    if (fault === "phase") intake.pipeline_status.phase = "awaiting_execution";
+    if (fault === "legacy_phase") intake.pipeline_status.phase = "scene_prepared";
+    if (fault === "success") reference.task_success_contract_digest = screeningSha("5");
+    if (fault === "native") reference.native_runtime_contract_digest = screeningSha("5");
+    if (fault === "runtime") reference.task_family_runtime_selection = { ...reference.task_family_runtime_selection, runtime_id: "another-runtime" };
+    if (fault === "catalog") reference.task_family_runtime_selection = { ...reference.task_family_runtime_selection, runtime_catalog_digest: screeningSha("5") };
+    if (fault === "application") reference.native_application_claimed = true;
+    if (fault === "episode") reference.policy_episode_claimed = true;
+    if (fault === "qualification") reference.pre_policy_site_qualification_required = false;
+    if (fault === "family") reference.task_family = "insertion";
+    if (fault === "source") reference.digest = screeningSha("5");
+    if (fault === "context") publication.source.task_context_digest = screeningSha("5");
+    if (fault === "revoke") Object.assign(intake, { revocation_requested: true });
+    intake.pipeline_status.status_digest = crossRuntimeArtifactDigest(intake.pipeline_status, "status_digest");
+    expect(() => assertScreeningSceneSource(publication, intake, scope)).toThrow("screening_scene_source_mismatch");
+  });
+
   it("screens the retained proposed preparation task without weakening agreed-task evaluation", () => {
     const { publication, intake, brief, job } = screeningFixture(true);
     const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };

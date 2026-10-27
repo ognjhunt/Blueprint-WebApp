@@ -536,7 +536,8 @@ export function SceneIntakeForm({
                   : intake.pipeline_status?.status || intake.state,
               ))}
             </p>
-            {intake.pipeline_status?.phase ? <p className="text-sm">{intake.pipeline_status.phase}</p> : null}
+            {intake.pipeline_status?.phase ? <p className="text-sm">{intake.pipeline_status.phase === "family_native_prepared"
+              ? "Prepared for evaluation" : intake.pipeline_status.phase}</p> : null}
             {[intake.blocker, ...(intake.pipeline_status?.blockers || [])]
               .filter(Boolean)
               .map((blocker, i) => <p key={i} className="text-sm text-ink-600">{humanize(String(blocker))}</p>)}

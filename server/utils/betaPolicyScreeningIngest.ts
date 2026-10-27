@@ -7,13 +7,21 @@ import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { encodeTaskEvaluationRunPublication, publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { parseBetaPolicyScreeningPublication, screeningPublicationTransition, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
+import { isTaskFamilyStrategy, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 
 export function assertScreeningSceneSource(publication: BetaPolicyScreeningPublication, intake: Record<string, any>,
   scope: ReturnType<typeof managedJobTask>) {
   const source = publication.source;
   const status = intake.pipeline_status;
+  const family = isTaskFamilyStrategy(intake.request?.task?.strategy);
+  const prepared = preparationPhaseMatchesTask(intake.request, status);
+  const selection = family ? intake.request.task.policy_selection : undefined;
+  const selectedPolicyMatches = selection === undefined || selection !== null && typeof selection === "object"
+    && publication.catalog_digest === selection.catalog_digest
+    && publication.candidates.length === 1 && publication.candidates[0].candidate_id === selection.candidate_id
+    && publication.candidates[0].configuration_digest === selection.configuration_digest;
   if (!intake.request || !intake.receipt || !intake.website_request_id
-    || intake.revocation_requested || intake.state !== "completed" || status?.status !== "completed" || status?.phase !== "scene_prepared"
+    || intake.revocation_requested || intake.state !== "completed" || status?.status !== "completed" || !prepared || !selectedPolicyMatches
     || crossRuntimeDigest(intake.request) !== intake.request_digest
     || intake.receipt.request_digest !== intake.request_digest
     || crossRuntimeArtifactDigest(intake.receipt, "receipt_digest") !== intake.receipt.receipt_digest

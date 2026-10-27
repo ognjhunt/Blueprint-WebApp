@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import express from "express";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { buildPipelineSyncSignature } from "../utils/pipelineSyncSecurity";
-import { screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
+import { familyScreeningFixture, screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
 import { crossRuntimeArtifactDigest } from "../utils/crossRuntimeCanonical";
 import { publicationFromResultRecord } from "../utils/taskEvaluationRunPublicationStorage";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
@@ -91,6 +91,35 @@ it("atomically stores diagnostic progress in existing managed evidence and accep
   status.result_reference.digest = screeningSha("9");
   status.status_digest = crossRuntimeArtifactDigest(status, "status_digest");
   expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
+});
+
+it("stores signed single-candidate family results against typed CPU preparation and replays the exact publication", async () => {
+  const { publication, intake } = familyScreeningFixture();
+  store.rows.set("taskEvaluationSceneIntakes/intake-one", intake);
+  const completed = sealScreening({ ...publication, status: "completed", candidates: [{ ...publication.candidates[0],
+    status: "completed", episodes_scored: 3, episodes_succeeded: 2, episodes_failed: 1,
+    success_rate: 2 / 3, session_result_digest: screeningSha("6") }] });
+  const url = await endpoint();
+  expect((await send(url, signed(completed))).status).toBe(201);
+  expect((await (await send(url, signed(completed))).json()).status).toBe("replayed");
+  const run = store.rows.get("taskEvaluationPolicyRuns/campaign-one");
+  const retained = publicationFromResultRecord(store.rows.get(`captureTaskEvaluationRuns/${run.result_record_id}`));
+  expect(retained).toEqual(completed);
+  expect(run.screening_execution_observed).toBe(true);
+  const briefDigest = scientificBriefDigest(store.rows.get("siteTaskBriefs/job-one"));
+  expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(true);
+  for (const field of ["native_runtime_contract_digest", "runtime_catalog_digest", "request_digest"] as const) {
+    const changed = structuredClone(intake);
+    if (field === "native_runtime_contract_digest") changed.pipeline_status.result_reference.native_runtime_contract_digest = screeningSha("9");
+    else if (field === "runtime_catalog_digest") changed.pipeline_status.result_reference.task_family_runtime_selection.runtime_catalog_digest = screeningSha("9");
+    else {
+      changed.request.task.native_runtime_contract_digest = screeningSha("9");
+      changed.pipeline_status.result_reference.native_runtime_contract_digest = screeningSha("9");
+    }
+    changed.pipeline_status.status_digest = crossRuntimeArtifactDigest(changed.pipeline_status, "status_digest");
+    store.rows.set("taskEvaluationSceneIntakes/intake-one", changed);
+    expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
+  }
 });
 
 it("refuses cross-site and revoked source publications without partial records", async () => {
