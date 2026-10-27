@@ -32,7 +32,6 @@ export async function assessmentProposesPreparation(packet: Record<string, any>,
   const raw = siteAssessmentSchema.parse(packet.raw_model_assessment);
   const rendered = renderSourceBoundAssessment(raw, new Map(packet.sources.map((s: any) => [s.source_id, s])), duration);
   return rendered.verification.unverified_claims === 0
-    && !["no_robot", "process_change"].includes(raw.next_action.kind)
     && raw.approaches.some(approach => approach.disposition === "plausible");
 }
 

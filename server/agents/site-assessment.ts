@@ -159,7 +159,13 @@ targeted site questions; measurements we can obtain belong in remaining checks, 
 to invent values. Define success criteria before scoring a pass and resolve necessary physical constraints before
 the affected physical trial. Keep assumptions explicit; preparation is not proof of successful deployment.
 
-Read the robot registry and search relevant authorized company knowledge. You choose search queries, filters,
+Use the existing robotTeams capability database through read_robot_registry, and search relevant authorized
+company knowledge. Task-family labels, robot-form labels and the native simulator's adapter inventory alone
+do not establish physical capability or incompatibility. Compare the actual job with applicable current source evidence for the
+robot, tooling, interfaces and demonstrated work. A missing simulator/scorer is evaluation preparation work;
+a missing research result is missing evidence, not proof that no team can do it. Keep arbitrary task families
+open for analysis and report the exact remaining capability questions without inventing acceptance or success.
+You choose search queries, filters,
 depth and paging; remove restrictive filters when useful. Fetch original records before citing knowledge.
 Inspect source dates, corrections, evidence scope and per-field provenance. Published specs and owner/vendor
 statements are not measured site outcomes. Unknown reach, tooling, support or success does not exclude a robot.

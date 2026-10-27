@@ -181,3 +181,29 @@ it("stores the Pipeline's execution offer only for the signed, matching capture"
     await new Promise<void>(resolve => server.close(() => resolve()));
   }
 });
+
+it("retains an explicit native family hint without treating arbitrary work as pick-and-place",()=>{
+  const source={...brief(true),summary:"Align the flexible membrane",taskFamily:"general_task" as const};
+  const projected=projectWebsiteTaskContext(source);
+  expect(projected.task_family).toBe("general_task");
+  expect(projected.description).toBe(source.summary);
+  expect(projected.context_digest).not.toBe(projectWebsiteTaskContext(brief(true)).context_digest);
+  expect(projectWebsiteTaskContext(brief(true))).not.toHaveProperty("task_family");
+});
+
+it("binds unconfirmed novel proposals explicitly instead of invoking legacy pick-and-place",()=>{
+  const projected=projectWebsiteTaskContext({...brief(false),summary:"Folding towels"});
+  expect(projected).toMatchObject({confirmed:false,task_family:"general_task"});
+});
+
+it("rederives unconfirmed task hints after the footage reader changes the description",()=>{
+  expect(projectWebsiteTaskContext({...brief(false),taskFamily:"rigid_pick_and_place",summary:"Folding towels"}))
+    .toMatchObject({task_family:"general_task"});
+  expect(projectWebsiteTaskContext({...brief(false),taskFamily:"general_task",summary:"Pick up each rigid carton and place it on the table"}))
+    .toMatchObject({task_family:"rigid_pick_and_place"});
+});
+
+it("binds legacy confirmed novel tasks as general instead of invoking the absent-family default",()=>{
+  expect(projectWebsiteTaskContext({...brief(true),summary:"Folding towels"}))
+    .toMatchObject({confirmed:true,task_family:"general_task"});
+});

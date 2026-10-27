@@ -1,4 +1,5 @@
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
+import { screenTaskScope } from "./siteTaskScope";
 import { canonicalArtifactDigest } from "./taskCandidateContract";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { hasCurrentRecordingConsent } from "./recordingConsent";
@@ -57,6 +58,12 @@ function projectTaskItem(item: TaskItem, requestId: string) {
 /** Minimal, current task snapshot. Never forwards owner contact or identity. */
 export function projectWebsiteTaskContext(brief: SiteTaskBriefRecord, captureRights?: ReturnType<typeof projectWebsiteCaptureRights>,
   evidence?: { inventory?: TaskItemInventoryRecord | null; captureId?: string; captureBinding?: Record<string, unknown>; purpose?: "scene_preparation" }) {
+  // Legacy confirmed captures retain their digest. An unconfirmed proposal
+  // must bind its explicit task semantics before any native preparation can
+  // default it into a narrower evaluator; old ambiguous grants fail closed.
+  const inferred = screenTaskScope({ summary: brief.summary, successDefinition: brief.successCriteria?.successDefinition });
+  const family = brief.taskFamily !== undefined || !brief.confirmedAtIso || !inferred.supported
+    ? inferred.kind ?? "general_task" : undefined;
   const value = {
     schema_version: "website_site_task_context.v1",
     ...(evidence?.purpose ? { purpose: evidence.purpose } : {}),
@@ -64,6 +71,7 @@ export function projectWebsiteTaskContext(brief: SiteTaskBriefRecord, captureRig
     scene_id: `site-${brief.requestId}`,
     capture_id: evidence?.captureId ?? `walkthrough-${brief.requestId}`,
     description: brief.summary,
+    ...(family ? { task_family: family } : {}),
     confirmed: Boolean(brief.confirmedAtIso),
     confirmed_at: brief.confirmedAtIso,
     operator_answers: brief.operatorAnswers ?? {},

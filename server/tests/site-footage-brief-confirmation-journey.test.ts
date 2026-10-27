@@ -368,18 +368,18 @@ describe("a site that sends footage with no description", () => {
     expect(outbox(`${jobId}:brief-screening:task-not-yet-supported`)).toBeUndefined();
   });
 
-  it("is asked for one sentence again, not told the job is out of scope, when the sentence names no job", async () => {
+  it("accepts an unfamiliar description for analysis without a keyword whitelist", async () => {
     const { jobId, token } = await startJob({ task: "" });
     await claim(jobId);
     await sendFootage(token);
     const body = await confirmBrief(token, { summary: "Cartons", successCriteria: { successDefinition: null, successRate: null,
       cycleTimeSeconds: null, unknown: true } });
-    expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "unclear" });
-    expect(body.screening?.headline).toMatch(/one sentence/i);
+    expect(doc(`inboundRequests/${jobId}`).site_task_scope).toMatchObject({ supported: false, reason: "other",disposition:"accepted_for_analysis" });
+    expect(body.screening?.headline).toMatch(/preparing an evaluation/i);
     const notice = outbox(`${jobId}:brief-screening:task-not-yet-supported`);
-    expect(notice?.subject).toMatch(/one sentence/i);
-    expect(notice?.subject).not.toMatch(/preparing its evaluation/i);
-    expect(notice?.body).toMatch(/Describe the job in one sentence/);
-    expect((await jobStatus(token)).status.headline).toMatch(/one sentence/i);
+    expect(notice?.subject).toMatch(/preparing its evaluation/i);
+    expect(notice?.subject).not.toMatch(/one sentence/i);
+    expect(notice?.body).toMatch(/accepted your job/);
+    expect((await jobStatus(token)).status.headline).toMatch(/preparing an evaluation/i);
   });
 });

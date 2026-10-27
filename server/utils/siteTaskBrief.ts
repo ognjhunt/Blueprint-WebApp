@@ -100,6 +100,8 @@ export interface SiteTaskBriefRecord {
   requestId: string;
   /** One line: what we think the job is. */
   summary: string;
+  /** Native preparation hint; general_task keeps unresolved tasks out of narrower scorers. */
+  taskFamily?: "rigid_pick_and_place" | "articulated_open_close" | "general_task";
   /** What we read, and what each reading rests on. */
   proposed: ProposedGateAnswer[];
   /**
@@ -181,6 +183,7 @@ export function draftBrief(params: {
   return {
     requestId: params.requestId,
     summary: params.summary,
+    taskFamily: screenTaskScope({ summary: params.summary }).kind ?? "general_task",
     proposed: params.proposed.filter((answer) =>
       binding.some((field) => field.id === answer.fieldId),
     ),
@@ -318,6 +321,7 @@ export async function mergeBriefProposals(params: {
       unresolved: unresolvedGates(brief.captureMode, proposed),
       draftedFrom: [...new Set([...brief.draftedFrom, ...proposed.map((answer) => answer.basis)])],
     };
+    next.taskFamily = screenTaskScope({ summary: next.summary, successDefinition: next.successCriteria?.successDefinition }).kind ?? "general_task";
     transaction.set(ref, next);
     const factDigest = (rows: readonly ProposedGateAnswer[]) => humanDecisionDigest(rows.map(({ fieldId, value, basis }) => ({ fieldId, value, basis })).sort((a, b) => a.fieldId.localeCompare(b.fieldId)));
     const changedFacts = brief.summary !== next.summary || factDigest(brief.proposed) !== factDigest(proposed);
@@ -455,6 +459,8 @@ export async function confirmBrief(params: {
     successDefinition: confirmed.successCriteria?.successDefinition ?? null,
   }), nowIso());
 
+  confirmed.taskFamily = scope.kind ?? "general_task";
+
   // Confirmation attests to answers, not to footage we have never received.
   const evidence = { hasAny: true, hasVisual: false, explainsTask: true,
     coversScene: false, missingCoverage: undefined as string[] | undefined };
@@ -481,8 +487,8 @@ export async function confirmBrief(params: {
       if (humanDecisionDigest(current.data()) !== humanDecisionDigest(brief)) throw new Error("brief_changed_before_confirmation");
       if (previousRequest && humanDecisionDigest(gateAnswersOnFile(requestSnapshot.data() ?? {})) !== humanDecisionDigest(gateAnswersOnFile(previousRequest)))
         throw new Error("brief_answers_changed_before_confirmation");
-      const materialChange = humanDecisionDigest({ answers: gateAnswersOnFile(previousRequest ?? {}),
-        unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null }) !== humanDecisionDigest({ answers,
+      const materialChange = humanDecisionDigest({ summary: brief.summary, taskFamily: brief.taskFamily ?? null, answers: gateAnswersOnFile(previousRequest ?? {}),
+        unknown: [...(brief.operatorUnknown ?? [])].sort(), success: brief.successCriteria ?? null }) !== humanDecisionDigest({ summary: confirmed.summary, taskFamily: confirmed.taskFamily ?? null, answers,
         unknown: [...unknown].sort(), success: confirmed.successCriteria ?? null });
       tx.set(briefRef, confirmed, { merge: true });
       tx.set(requestRef,

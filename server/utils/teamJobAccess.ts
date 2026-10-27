@@ -122,7 +122,7 @@ function hasBuiltScene(request: Record<string, any>): boolean {
  * cover", because that would silently drop supply.
  */
 export function isRunnableTask(request: InboundRequest): boolean {
-  if (request.request?.buyerType === "robot_team" || operatorListingPaused(request)
+  if (taskScopeNotSupported(request as InboundRequest & { site_task_scope?: unknown }) || request.request?.buyerType === "robot_team" || operatorListingPaused(request)
     || request.site_task_triage?.disposition !== "qualified") return false;
   const measured = coverageEvidenceFrom(request as never);
   const readiness = assessReadiness({
@@ -178,10 +178,6 @@ export function teamJobAccess(record: RecordLike): TeamJobAccess {
     ({ listed: false, evaluationAvailable: false, reason, details: null });
   if (raw.request?.buyerType !== "site_operator") return closed("not_a_site_job");
   if (raw.debug?.autoCreatedByPipeline === true) return closed("pipeline_placeholder");
-  // An evaluation of a job we cannot score would test a different task, so
-  // teams never see it. Only a recorded screen closes a job; unscreened
-  // records keep their existing access.
-  if (taskScopeNotSupported(raw)) return closed("task_not_yet_supported");
   // A grant is for the card's text fields only. It never authorizes footage or raw intake.
   const details = approvedTaskDetails(raw);
   if (!details) return closed("not_listed");
@@ -194,6 +190,10 @@ export function teamJobAccess(record: RecordLike): TeamJobAccess {
     return closed("development_only");
   const hold = rightsHold(raw);
   if (hold) return closed(hold);
+  // Task-family coverage cannot hide an admitted job card. It only holds
+  // execution: a generic task must never reuse another task's runtime proof.
+  if (taskScopeNotSupported(raw))
+    return { listed: true, evaluationAvailable: false, reason: "task_not_yet_supported", details };
   // Listed. An evaluation also needs the recording grant free admission
   // requires, and a scene that is proven to run.
   if (!rights.derived_scene_generation_allowed)
