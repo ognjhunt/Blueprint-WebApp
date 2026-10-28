@@ -234,8 +234,14 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
         || oldRun.data()?.job_source_fingerprint !== scope.sourceFingerprint)
         throw new Error("screening_campaign_identity_conflict");
       const transition = screeningPublicationTransition(previous, publication);
-      if (transition !== "updated") return { status: transition, run_id: publication.campaign_id,
-        publication_digest: previous.publication_digest, revision: previous.revision };
+      if (transition !== "updated") {
+        // Delivery replay never suppresses a newer durable owner decision.
+        if (ownerClosed) transaction.set(runRef, { cancellationRequested: true,
+          state: ["cancelled", "closed"].includes(oldRun.data()?.state) ? oldRun.data()!.state : "closed" },
+        { mergeFields: ["cancellationRequested", "state"] });
+        return { status: transition, run_id: publication.campaign_id,
+          publication_digest: previous.publication_digest, revision: previous.revision };
+      }
     }
     const now = new Date().toISOString();
     transaction.set(resultRef, { schema_version: "capture_task_evaluation_run_record.v2", record_id: resultId,

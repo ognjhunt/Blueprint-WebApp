@@ -13,6 +13,7 @@ import { parsePipelinePolicyCanaryPublication } from "./policyCanaryWebappSyncCo
 import { parseBetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import { isTaskFamilyStrategy, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
+import { websiteRunClosure } from "./websiteRunClosure";
 
 export const jobManagedEvidenceBindingSchema = z.object({
   job_id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/),
@@ -290,6 +291,7 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
       if (!screeningScopes.has(scopeKey)) screeningScopes.set(scopeKey, (async () => {
         try {
           const intake = (await store.collection("taskEvaluationSceneIntakes").doc(run.source_scene_intake_id).get()).data();
+          if (typeof intake?.source_session_id === "string" && websiteRunClosure(job.data(), jobId, intake.source_session_id)) return null;
           if (!intake || typeof intake.source_session_id !== "string" || intake.website_request_id !== jobId || intake.receipt?.intent_id !== run.source_scene_intent_id
             || intake.revocation_requested || intake.state !== "completed" || intake.pipeline_status?.status !== "completed"
             || !preparationPhaseMatchesTask(intake.request, intake.pipeline_status)

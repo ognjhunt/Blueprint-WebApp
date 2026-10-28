@@ -239,6 +239,23 @@ it.each([false, true])("retains late owner-closed evidence historically in actua
   expect((await observeBetaScreeningExecutionControl(fixture.request)).status).toBe("stopped");
 });
 
+it.each([false, true])("reads current owner closure before any monitor observation (publication replay=%s)", async replay => {
+  const closure = { schema_version: "website_run_closure.v1", request_id: "job-one", capture_id: fixture.request.source.capture_id,
+    decision: "conservative_abstention", actor: "signed_owner_link", source_identity_digest: screeningSha("7"),
+    closed_at_iso: new Date(NOW).toISOString(), new_execution_authorized: false, explicit_resume_required: true, physical_validation: false };
+  row("inboundRequests/job-one").website_run_closures = { [closure.capture_id]: { ...closure, closure_digest: crossRuntimeDigest(closure) } };
+  const readback = () => loadManagedJobEvidence("job-one", scientificBriefDigest(row("siteTaskBriefs/job-one")));
+  expect((await readback())[0].current).toBe(false);
+  if (replay) {
+    expect((await ingestBetaPolicyScreening(fixture.publication)).status).toBe("replayed");
+    expect(row("taskEvaluationPolicyRuns/campaign-one").state).toBe("closed");
+    expect(row("taskEvaluationPolicyRuns/campaign-one").cancellationRequested).toBe(true);
+  }
+  expect((await readback())[0].current).toBe(false);
+  expect(row("taskEvaluationPolicyRuns/campaign-one").publication_digest).toBe(fixture.publication.publication_digest);
+  expect(controls()).toBeUndefined();
+});
+
 it("never treats a completed candidate as permission to resume processing", async () => {
   const completed = sealScreening({ ...fixture.publication, status: "queued", revision: 2,
     candidates: fixture.publication.candidates.map((candidate, index) => index ? candidate : { ...candidate,
