@@ -29,6 +29,15 @@ const state = vi.hoisted(() => ({
   coverage: [] as string[],
 }));
 
+// This route suite uses signature-only transport fixtures. The real local
+// media probe and a genuine no-metadata upload are covered separately.
+vi.mock("../utils/selfCaptureMediaMetadata", async importOriginal => {
+  const actual = await importOriginal<typeof import("../utils/selfCaptureMediaMetadata")>();
+  const { fixtureCaptureMediaMetadata } = await import("./helpers/capture-media-probe");
+  return { ...actual, probeCaptureVideo: vi.fn(async () => fixtureCaptureMediaMetadata()),
+    probeStoredCaptureVideo: vi.fn(async () => fixtureCaptureMediaMetadata()) };
+});
+
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
   return {

@@ -28,6 +28,8 @@ import {
   storedPartIndices,
 } from "../utils/captureParts";
 import { isAcceptedVideoHeader, VIDEO_NOT_RECOGNIZED, VIDEO_SIGNATURE_BYTES } from "../utils/videoMagicBytes";
+import { probeCaptureVideo, probeStoredCaptureVideo, VideoProbeError,
+  type VideoProbe } from "../utils/selfCaptureMediaMetadata";
 import { z } from "zod";
 
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
@@ -208,15 +210,6 @@ async function spooledFileHead(path: string): Promise<Buffer> {
   }
 }
 
-function safeJsonParse(value: unknown): unknown {
-  if (typeof value !== "string" || !value.trim()) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
 function extensionOf(fileName: string) {
   const match = /\.([a-z0-9]+)$/i.exec(fileName.trim());
   return match ? match[1].toLowerCase() : "";
@@ -226,25 +219,15 @@ function storageBucketName() {
   return process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com";
 }
 
-/**
- * What the page measured about the video, as opposed to what it assumed.
- *
- * `validateManifest` in `cloud/extract-frames` requires width, height,
- * `fps_source` and `capture_start_epoch_ms`, and a capture whose manifest fails
- * validation produces a blocked report rather than a scene. None of those four
- * can be read from the file server-side — this deployment has no ffprobe — so
- * the browser reads them off a `<video>` element and sends them here.
- *
- * Every one is a measurement. Nothing is defaulted to a plausible number,
- * because a fabricated frame rate would ride along in the capture record as
- * though somebody had observed it.
- */
+/** Retained manifest metadata; new uploads are measured locally by the server. */
 export type BrowserVideoMetadata = {
   widthPx: number;
   heightPx: number;
   fps: number;
   durationSeconds: number;
   recordedAtEpochMs: number;
+  captureStartBasis?: "server_upload_received";
+  probe?: VideoProbe;
 };
 
 export function parseVideoMetadata(input: unknown): BrowserVideoMetadata | null {
@@ -321,6 +304,9 @@ export function buildBrowserCaptureManifest(input: {
     width: input.video.widthPx,
     height: input.video.heightPx,
     capture_start_epoch_ms: input.video.recordedAtEpochMs,
+    ...(input.video.probe ? { video_metadata_provenance: input.video.probe,
+      capture_start_epoch_ms_basis: input.video.captureStartBasis,
+      recording_time_known: false } : {}),
     duration_seconds: input.video.durationSeconds,
     size_bytes: input.sizeBytes,
   };
@@ -1266,15 +1252,17 @@ router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCap
     return res.status(503).json({ error: "Uploads are unavailable right now. Try again shortly." });
   }
 
-  // Refused before the bytes are stored rather than after. Without these the
-  // manifest cannot validate, and an invalid manifest means the extractor
-  // writes a blocked report instead of a scene -- which would look, from the
-  // site's side, exactly like a successful upload.
-  const videoMetadata = parseVideoMetadata(safeJsonParse(req.body?.metadata));
-  if (!videoMetadata) {
-    return res.status(400).json({
-      error: "We could not read this video's dimensions. Try recording in your phone's camera app.",
-      code: "video_metadata_missing",
+  // Local inspection reads the original bytes, even when this browser cannot
+  // play them. Browser-supplied dimensions and frame rate are never authority.
+  let videoMetadata: BrowserVideoMetadata;
+  try {
+    videoMetadata = await probeCaptureVideo(file.path);
+  } catch (error) {
+    const unavailable = !(error instanceof VideoProbeError) || error.code !== "video_unreadable";
+    return res.status(unavailable ? 503 : 422).json({
+      code: unavailable ? "video_probe_unavailable" : "video_unreadable",
+      error: unavailable ? "We could not inspect your video right now. Keep the original file and try this upload again shortly."
+        : "We could not read a complete video stream from this file. Choose the original .mov or .mp4 from your camera; you do not need to film the job again.",
     });
   }
 
@@ -1512,18 +1500,7 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
     return res.status(415).json({ error: "Record as .mov or .mp4." });
   }
 
-  // Same refusal as the single POST, and for the same reason: without these the
-  // manifest cannot validate, and an invalid manifest means the extractor
-  // writes a blocked report instead of a scene -- which looks, from the site's
-  // side, exactly like a successful upload.
-  const videoMetadata = parseVideoMetadata(parsed.data.metadata);
-  if (!videoMetadata) {
-    return res.status(400).json({
-      error: "We could not read this video's dimensions.",
-      code: "video_metadata_missing",
-    });
-  }
-
+  // Metadata is measured from the completed bytes below, not supplied by the browser.
   if (!storageAdmin) {
     return res.status(503).json({ error: "Uploads are unavailable right now." });
   }
@@ -1558,13 +1535,14 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
   }
 
   let writtenVideo: WrittenObject | null = null;
+  let probeVideo: WrittenObject | null = null;
   try {
     const composition = await composeParts({
       bucket,
       rawPrefix,
-      objectPath,
+      objectPath: `${rawPrefix}/parts/probe-${randomUUID()}.${extension}`,
       expectedParts: parsed.data.parts,
-      ifGenerationMatch: write.ifGenerationMatch,
+      ifGenerationMatch: 0,
     });
     if (!composition.ok) {
       // Name the missing parts so the client can resend them before composition.
@@ -1574,16 +1552,33 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
         code: composition.reason, missing: composition.missing,
       });
     }
-    writtenVideo = composition.video;
+    probeVideo = composition.video;
+    if (composition.video.size_bytes !== parsed.data.sizeBytes) {
+      return res.status(409).json({ code: "video_identity_mismatch", error: "The uploaded parts do not match this video's size. Check the upload and retry its missing parts." });
+    }
+    const videoMetadata = await probeStoredCaptureVideo(composition.video, () =>
+      storageAdmin!.bucket(storageBucketName()).file(composition.video.object_name,
+        { generation: composition.video.generation }).createReadStream());
+    const composed = await storageAdmin.bucket(storageBucketName()).combine(
+      [storageAdmin.bucket(storageBucketName()).file(composition.video.object_name,
+        { generation: composition.video.generation })], objectPath,
+      { ifGenerationMatch: write.ifGenerationMatch });
+    writtenVideo = capturedWriteIdentity(objectPath, composed[1]);
 
     const outcome = await finishStoredCapture({ payload, objectPath, rawPrefix,
-      videoMetadata, sizeBytes: parsed.data.sizeBytes, video: composition.video,
+      videoMetadata, sizeBytes: parsed.data.sizeBytes, video: writtenVideo,
       reservation: write.reservation });
 
     // Keep parts after a failed finish so a retry can recover without reupload.
     if (outcome.status === 201 || outcome.body.state === "held") await discardParts(bucket, rawPrefix);
     return res.status(outcome.status).json(outcome.body);
   } catch (error) {
+    if (error instanceof VideoProbeError) {
+      const unreadable = error.code === "video_unreadable";
+      return res.status(unreadable ? 422 : 503).json({ code: error.code,
+        error: unreadable ? "We could not read a complete video stream. Choose the original camera file; you do not need to film the job again."
+          : "Your uploaded parts are saved. We could not inspect them right now. Retry finishing this upload shortly." });
+    }
     logger.error({ error, captureId: payload.captureId },
       "Could not compose capture parts into the walkthrough");
     if (writtenVideo) {
@@ -1592,6 +1587,11 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
     }
     return res.status(503).json({ error: "We could not assemble your upload. Please retry." });
   } finally {
+    // This copy was created solely for local inspection. Original parts remain
+    // available on failure, and the canonical video is never removed here.
+    if (probeVideo) await storageAdmin.bucket(storageBucketName()).file(probeVideo.object_name,
+      { generation: probeVideo.generation }).delete({ ifGenerationMatch: probeVideo.generation,
+      ignoreNotFound: true }).catch(() => undefined);
     await releaseBrowserUpload(write.reservation).catch((error) => logger.warn(
       { error, captureId: payload.captureId }, "Could not release failed browser write reservation"));
   }
