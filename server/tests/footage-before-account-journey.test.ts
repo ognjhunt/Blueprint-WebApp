@@ -298,6 +298,8 @@ describe("a job whose video arrived before its account", () => {
     expect(again.body.error).toMatch(/you don't need to send it again/i);
     await reconcile();
     expect(notices(jobId, "footage_before_account")).toHaveLength(1);
+    expect(notices(jobId, "footage_before_account")[0].body).not.toMatch(/\bsave\b.*account|verify.*email|confirm.*brief/i);
+    expect(notices(jobId, "footage_before_account")[0].body).toContain("Follow the same job:");
 
     await confirmBrief(token);
     expect((await jobStatus(token)).status).toMatchObject({ decision: "footage_before_account", operatorAction: null });

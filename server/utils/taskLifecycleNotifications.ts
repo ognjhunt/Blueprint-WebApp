@@ -37,7 +37,6 @@ export type TaskLifecycleMilestone = Extract<
   | "listing_live"
   | "screening_cleared"
   | "screening_not_now"
-  | "screening_started"
   | "results_ready"
   | "run_no_result"
   | "awaiting_evaluations"
@@ -131,10 +130,6 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "An update on your Blueprint job",
     body: (url) => `The reviewed information leaves a consequential assessment blocker unresolved. Your job page shows the reason and what is needed. Blueprint owns the follow-through; reply in your job conversation with a correction or use the optional job page when that information changes.\n\nOpen your job:\n${url}`,
   },
-  screening_started: {
-    subject: "An evaluation of your job has started",
-    body: (url) => `Blueprint has started an evaluation run of one candidate against your scene. We will email you again when it reports a result.\n\nOpen your job:\n${url}`,
-  },
   results_ready: {
     subject: "Results are in from an evaluation of your job",
     body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run of one candidate against your scene has finished${detail ? `: ${detail}` : ""}. This is a bounded simulation estimate for one candidate, not a physical test; it never certifies physical performance or safety.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
@@ -161,7 +156,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
     subject: "Your video arrived before your job was saved to an account",
     // Owner decision 2026-10-18: said once, plainly. A re-upload cannot help on
     // Pipeline main, so it is never asked for.
-    body: (url, _detail, _counterpart, workspaceUrl) => `Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. You don't need to send it again. ${workspaceUrl ? `Your job is saved to your account:\n${workspaceUrl}` : `Save the job to your account from your job page, so you can follow it there:\n${url}`}\n\nWe email you when that changes.`,
+    body: (url, _detail, _counterpart, workspaceUrl) => `Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. Blueprint needs to review this older recording. You don't need to send it again. Follow the same job:\n${workspaceUrl || url}\n\nWe email you when that changes.`,
   },
   pilot_request: {
     subject: "A partner asked to have its system evaluated on your job",

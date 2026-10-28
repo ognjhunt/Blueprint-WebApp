@@ -124,11 +124,10 @@ describe("marking a run started", () => {
     expect(typeof (after.dispatch as { startedAtIso: string }).startedAtIso).toBe("string");
     expect(Number(after.settlementDueAtMs)).toBeGreaterThanOrEqual(Date.now() + executionTtlMs() - 5_000);
     expect(after.state).toBe("requested");
-    // One email per run: each team picking the task up is its own event.
+    // Candidate starts stay internal; the dispatch and deadline still persist.
     const notices = [...sharedFakeFirestoreState.docs.entries()]
       .filter(([key]) => key.startsWith("captureOutbox/req-1:screening_started:"));
-    expect(notices).toHaveLength(1);
-    expect(notices[0][1]).toMatchObject({ kind: "screening_started", to: "owner@example.com" });
+    expect(notices).toHaveLength(0);
   });
 
   it("refuses to start a run that already concluded", async () => {

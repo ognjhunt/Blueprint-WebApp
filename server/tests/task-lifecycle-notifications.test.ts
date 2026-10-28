@@ -54,17 +54,14 @@ describe("task lifecycle notifications", () => {
     expect([...sharedFakeFirestoreState.docs.keys()].filter(key => key.startsWith("captureOutbox/"))).toHaveLength(1);
   });
 
-  it("keeps each observed milestone distinct without claiming a result", async () => {
+  it("brings the site back to a viewable reconstruction without claiming a test result", async () => {
     await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "scene_ready" });
-    await enqueueTaskLifecycleNotification({ requestId: "req-1", milestone: "screening_started" });
 
     const scene = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:scene_ready") as Record<string, unknown>;
-    const screening = sharedFakeFirestoreState.docs.get("captureOutbox/req-1:screening_started") as Record<string, unknown>;
     expect(scene.body).toMatch(/your scene is ready/i);
-    expect(screening.body).toMatch(/has started an evaluation run/i);
-    expect(screening.body).toMatch(/again when it reports a result/i);
-    expect(screening.body).not.toMatch(/succeeded|result:/i);
-    expect(screening.body).toMatch(/— The Blueprint team$/);
+    expect(scene.body).not.toMatch(/has started an evaluation run|succeeded|result:/i);
+    expect(scene.body).toMatch(/— The Blueprint team$/);
+    expect(sharedFakeFirestoreState.docs.has("captureOutbox/req-1:screening_started")).toBe(false);
   });
 
   it("sends each run or request its own email, and a retry of one event none", async () => {
@@ -111,7 +108,7 @@ it("recovers a persisted ready scene notice without another controller poll", as
 });
 
 describe('withdrawal fences capture-derived notices without suppressing recovery',()=>{
- it.each(['video_received','scene_ready','screening_cleared','screening_started','results_ready','run_no_result'] as const)('does not enqueue %s after persisted withdrawal',async milestone=>{
+ it.each(['video_received','scene_ready','screening_cleared','results_ready','run_no_result'] as const)('does not enqueue %s after persisted withdrawal',async milestone=>{
   sharedFakeFirestoreState.docs.set('inboundRequests/req-1',{contact:{email:'encrypted:owner@example.com'},request:{consent_attestation:{granted:false,withdrawn_at_iso:'2026-10-08T00:00:00Z'}}});
   expect(await enqueueTaskLifecycleNotification({requestId:'req-1',milestone})).toEqual({enqueued:false,reason:'consent_withdrawn'});
   expect([...sharedFakeFirestoreState.docs.keys()].some(key=>key.startsWith('captureOutbox/'))).toBe(false);

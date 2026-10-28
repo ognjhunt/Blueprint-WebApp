@@ -683,18 +683,8 @@ export async function markRunStarted(params: {
   });
   if (!claimed) return false;
 
-  // Only a successful CAS (or its same-owner idempotent retry) reaches here.
-  // The retry repairs an enqueue lost after the run was durably claimed.
-  try {
-    if (isSiteEvaluation(claimed)) await enqueueTaskLifecycleNotification({
-      requestId: claimed.sceneId,
-      milestone: "screening_started",
-      // One email per run: each team picking the task up is its own event.
-      eventId: params.runId,
-    });
-  } catch (error) {
-    logger.warn({ error, runId: params.runId }, "Could not enqueue screening-started notice");
-  }
+  // Starting a candidate is internal progress. The existing result notice
+  // brings the customer back when there is an outcome to review.
   return true;
 }
 
