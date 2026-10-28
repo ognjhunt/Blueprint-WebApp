@@ -62,7 +62,7 @@ const written = vi.hoisted(() => new Map<string, string>());
 const storedVersions = vi.hoisted(() => new Map<string, { body: Buffer; metadata: Record<string, string> }>());
 const generations = vi.hoisted(() => ({ next: 1 }));
 const writeGate = vi.hoisted(() => ({ current: null as null | { entered(): void; wait: Promise<void> } }));
-const cleanupGate = vi.hoisted(() => ({ current: null as null | { wait: Promise<void> } }));
+const cleanupGate = vi.hoisted(() => ({ current: null as null | { wait: Promise<void>; entered?: () => void } }));
 const writeFault = vi.hoisted(() => ({ manifestOnce: false, markerOnce: false, readUnavailable: false,
   manifestError: null as unknown, manifestResponseSize: undefined as unknown,
   beforeManifestExists: null as null | (() => void) }));
@@ -71,7 +71,7 @@ vi.mock("node:fs/promises", async importOriginal => {
   const original = await importOriginal<typeof import("node:fs/promises")>();
   return { ...original, unlink: async (path: Parameters<typeof original.unlink>[0]) => {
     const gate = cleanupGate.current;
-    if (gate && typeof path === "string" && path.includes("/self-capture-")) await gate.wait;
+    if (gate && typeof path === "string" && path.includes("/self-capture-")) { gate.entered?.(); await gate.wait; }
     return original.unlink(path);
   } };
 });
@@ -442,15 +442,71 @@ async function waitForUploadRelease(requestId: string) {
 }
 
 describe("saved footage and processing are separate receipts", () => {
+  it("retains the original before a probe outage and retries its exact generation without another upload", async () => {
+    seedRequest("req-probe-outage", { disposition: "qualified" });
+    const { VideoProbeError } = await import("../utils/selfCaptureMediaMetadata");
+    mediaProbe.local.mockRejectedValueOnce(new VideoProbeError("video_probe_unavailable"));
+    await withRoutes(async baseUrl => {
+      expect(await uploadFor(baseUrl, "req-probe-outage", "original video"))
+        .toMatchObject({ status: 502, body: { captureReceived: true, processingRetryAvailable: true } });
+      const sessionPath = "captureUploadSessions/walkthrough-req-probe-outage";
+      const saved = structuredClone(sharedFakeFirestoreState.docs.get(sessionPath)!.browser_stored_upload);
+      const original = JSON.parse(saved.manifest_json);
+      expect(original).toMatchObject({ media_probe_pending: true });
+      expect(original).not.toHaveProperty("fps_source");
+      expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+      const videoVersions = [...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"));
+      expect(await retryProcessing(baseUrl, "req-probe-outage"))
+        .toMatchObject({ status: 200, body: { state: "processing_ready" } });
+      expect(mediaProbe.stored).toHaveBeenCalledWith(saved.video, expect.any(Function),
+        { receivedAtEpochMs: Date.parse(saved.completed_at_iso) });
+      const completed = sharedFakeFirestoreState.docs.get(sessionPath)!.browser_pending_delivery;
+      expect(completed.video).toEqual(saved.video);
+      expect(completed.completed_at_iso).toBe(saved.completed_at_iso);
+      const manifest = JSON.parse(written.get(completed.manifest.object_name)!.toString());
+      expect(manifest.capture_rights).toEqual(original.capture_rights);
+      expect(manifest.site_task_context).toEqual(original.site_task_context);
+      expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(videoVersions);
+    });
+  });
+
+  it("keeps an unreadable source without publishing it and permits a same-job corrected walkthrough", async () => {
+    seedRequest("req-probe-unreadable", { disposition: "qualified" });
+    const { VideoProbeError } = await import("../utils/selfCaptureMediaMetadata");
+    mediaProbe.local.mockRejectedValueOnce(new VideoProbeError("video_unreadable"));
+    await withRoutes(async baseUrl => {
+      expect(await uploadFor(baseUrl, "req-probe-unreadable", "unreadable original"))
+        .toMatchObject({ status: 409, body: { captureReceived: true, code: "video_unreadable", processingRetryAvailable: false } });
+      expect([...written.keys()].some(name => name.endsWith("capture_upload_complete.json"))).toBe(false);
+      const sessionPath = "captureUploadSessions/walkthrough-req-probe-unreadable";
+      const original = structuredClone(sharedFakeFirestoreState.docs.get(sessionPath));
+      const token = tokenFrom(captureUploadUrlFor("req-probe-unreadable"));
+      const update = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/supplement`, { method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ mode: "replacement", requestId: "00000000-0000-4000-8000-000000000001" }) });
+      expect(update.status, await update.clone().text()).toBe(200);
+      expect(await update.json()).toMatchObject({ ok: true, originalRetained: true });
+      expect(sharedFakeFirestoreState.docs.get(sessionPath)).toEqual(original);
+      expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+    });
+  });
+
   it("keeps an interrupted upload reserved through cleanup before admitting processing retry", async () => {
     seedRequest("req-cleanup-drain", { disposition: "qualified" });
     writeFault.manifestOnce = true;
     let releaseCleanup!: () => void;
-    cleanupGate.current = { wait: new Promise<void>(resolve => { releaseCleanup = resolve; }) };
+    let notifyCleanup!: () => void;
+    const cleanupStarted = new Promise<void>(resolve => { notifyCleanup = resolve; });
+    cleanupGate.current = { wait: new Promise<void>(resolve => { releaseCleanup = resolve; }), entered: notifyCleanup };
     try {
       await withRoutes(async baseUrl => {
-        expect(await uploadFor(baseUrl, "req-cleanup-drain", "original video"))
-          .toMatchObject({ status: 502, body: { captureReceived: true, state: "processing_pending" } });
+        let acknowledged = false;
+        const upload = uploadFor(baseUrl, "req-cleanup-drain", "original video").then(result => {
+          acknowledged = true;
+          return result;
+        });
+        await Promise.race([cleanupStarted, upload.then(() => { throw Error("Cleanup gate was bypassed"); })]);
+        expect(acknowledged).toBe(false);
         const sessionPath = "captureUploadSessions/walkthrough-req-cleanup-drain";
         const originalReservation = sharedFakeFirestoreState.docs.get(sessionPath)?.browser_upload_reservation;
         expect(originalReservation).toMatchObject({ capture_id: "walkthrough-req-cleanup-drain" });
@@ -460,6 +516,7 @@ describe("saved footage and processing are separate receipts", () => {
         expect(sharedFakeFirestoreState.docs.get(sessionPath)?.browser_upload_reservation).toEqual(originalReservation);
         expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(versions);
         releaseCleanup();
+        expect(await upload).toMatchObject({ status: 502, body: { captureReceived: true, state: "processing_pending" } });
         await waitForUploadRelease("req-cleanup-drain");
         expect(await retryProcessing(baseUrl, "req-cleanup-drain"))
           .toMatchObject({ status: 200, body: { state: "processing_ready" } });
@@ -1733,17 +1790,18 @@ describe("a link is a destination, not a permission", () => {
     expect(original!.body).toEqual(bytes);
   });
 
-  it("rejects unreadable media even when browser claims complete metadata", async () => {
+  it("retains unreadable media without publishing it even when the browser claims complete metadata", async () => {
     const actual = await vi.importActual<typeof import("../utils/selfCaptureMediaMetadata")>("../utils/selfCaptureMediaMetadata");
     mediaProbe.local.mockImplementationOnce(actual.probeCaptureVideo);
     seedRequest("req-unreadable-browser-claims", { disposition: "qualified" });
     await withRoutes(async baseUrl => {
       const response = await uploadFor(baseUrl, "req-unreadable-browser-claims");
-      expect(response.status).toBe(422);
-      expect(response.body).toMatchObject({ code: "video_unreadable" });
-      expect(String(response.body.error)).toMatch(/original.*\.mov or \.mp4/);
+      expect(response.status).toBe(409);
+      expect(response.body).toMatchObject({ code: "video_unreadable", captureReceived: true, processingRetryAvailable: false });
+      expect(String(response.body.error)).toMatch(/original file is saved/);
     });
-    expect([...written.keys()].some(name => name.includes("req-unreadable-browser-claims"))).toBe(false);
+    expect([...written.keys()].some(name => name.includes("req-unreadable-browser-claims") && name.endsWith("/walkthrough.mov"))).toBe(true);
+    expect([...written.keys()].some(name => name.includes("req-unreadable-browser-claims") && name.endsWith("capture_upload_complete.json"))).toBe(false);
     expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
   });
 });

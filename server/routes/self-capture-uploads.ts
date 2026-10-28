@@ -83,7 +83,8 @@ import { buildBrowserDelivery, capturedWriteIdentity, captureWriteFailureDiagnos
 import { browserPendingDecisionKey, storedCapturePrivacyCleared, loadBrowserPending, prepareLegacyBrowserFinish,
   publishBrowserPending, recordBrowserPending,
   releaseBrowserUpload, reserveBrowserUpload, recordBrowserStoredUpload, loadBrowserStoredUpload,
-  reserveBrowserStoredUploadRetry, type BrowserStoredUpload, type BrowserPending,
+  reserveBrowserStoredUploadRetry, completeBrowserStoredUploadProbe, recordBrowserVideoProbeFailure,
+  type BrowserStoredUpload, type BrowserPending,
   type BrowserWriteReservation } from "../utils/websiteBrowserPending";
 
 import { activateCaptureSupplement, issueCaptureSupplement, validateCaptureSupplement } from "../utils/captureSupplement";
@@ -268,7 +269,7 @@ export function parseVideoMetadata(input: unknown): BrowserVideoMetadata | null 
 export function buildBrowserCaptureManifest(input: {
   payload: { sceneId: string; captureId: string; requestId: string };
   objectPath: string;
-  video: BrowserVideoMetadata;
+  video: BrowserVideoMetadata | null;
   sizeBytes: number;
   taskContext?: { description: string; confirmed: boolean; confirmed_at: string | null };
   captureRights?: ReturnType<typeof projectWebsiteCaptureRights>;
@@ -301,14 +302,13 @@ export function buildBrowserCaptureManifest(input: {
     retention: websiteCaptureRetention(input.firstReceivedAtIso ?? null),
     capture_tier_hint: "video_only",
     has_lidar: false,
-    fps_source: input.video.fps,
-    width: input.video.widthPx,
-    height: input.video.heightPx,
+    ...(input.video ? { fps_source: input.video.fps,
+    width: input.video.widthPx, height: input.video.heightPx,
     capture_start_epoch_ms: input.video.recordedAtEpochMs,
-    ...(input.video.probe ? { video_metadata_provenance: input.video.probe,
+    duration_seconds: input.video.durationSeconds } : { media_probe_pending: true }),
+    ...(input.video?.probe ? { video_metadata_provenance: input.video.probe,
       capture_start_epoch_ms_basis: input.video.captureStartBasis,
       recording_time_known: false } : {}),
-    duration_seconds: input.video.durationSeconds,
     size_bytes: input.sizeBytes,
   };
 }
@@ -499,7 +499,8 @@ async function finishStoredCapture(params: {
   payload: { requestId: string; sceneId: string; captureId: string };
   objectPath: string;
   rawPrefix: string;
-  videoMetadata: BrowserVideoMetadata;
+  videoMetadata: BrowserVideoMetadata | null;
+  probeFilePath?: string;
   sizeBytes: number;
   video: WrittenObject;
   reservation: BrowserWriteReservation;
@@ -561,6 +562,20 @@ async function finishStoredCapture(params: {
     }
     captureWriteStage = "stored_video_verify";
     if (!(await verifiedStoredVideo(storedUpload.video))) throw new Error("browser_delivery_source_changed");
+    if (JSON.parse(storedUpload.manifest_json).media_probe_pending === true) {
+      if (!originalManifestConsent(storedUpload.manifest_json)) throw new Error("source_revoked");
+      try {
+        const options = { receivedAtEpochMs: Date.parse(storedUpload.completed_at_iso) };
+        const measured = params.probeFilePath ? await probeCaptureVideo(params.probeFilePath, options)
+          : await probeStoredCaptureVideo(storedUpload.video, () => bucket.file(storedUpload!.video.object_name,
+            { generation: storedUpload!.video.generation }).createReadStream(), options);
+        storedUpload = await completeBrowserStoredUploadProbe(storedUpload, measured, params.reservation);
+      } catch (error) {
+        if (error instanceof VideoProbeError && error.code === "video_unreadable")
+          await recordBrowserVideoProbeFailure(storedUpload, params.reservation);
+        throw error;
+      }
+    }
     const manifestName = `${rawPrefix}/manifest.json`;
     const manifestBytes = Buffer.from(storedUpload.manifest_json);
     const manifestFile = bucket.file(manifestName);
@@ -1085,7 +1100,7 @@ router.post("/:token/processing-retry", async (req: Request, res: Response) => {
       const metadata = parseVideoMetadata({ widthPx: original.width, heightPx: original.height,
         fps: original.fps_source, durationSeconds: original.duration_seconds,
         recordedAtEpochMs: original.capture_start_epoch_ms });
-      if (!metadata) throw new Error("browser_pending_invalid");
+      if (!metadata && original.media_probe_pending !== true) throw new Error("browser_pending_invalid");
       const outcome = await finishStoredCapture({ payload, objectPath: stored.video.object_name,
         rawPrefix: stored.video.object_name.slice(0, stored.video.object_name.lastIndexOf("/")),
         videoMetadata: metadata, sizeBytes: stored.video.size_bytes, video: stored.video,
@@ -1263,20 +1278,6 @@ router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCap
     return res.status(503).json({ error: "Uploads are unavailable right now. Try again shortly." });
   }
 
-  // Local inspection reads the original bytes, even when this browser cannot
-  // play them. Browser-supplied dimensions and frame rate are never authority.
-  let videoMetadata: BrowserVideoMetadata;
-  try {
-    videoMetadata = await probeCaptureVideo(file.path);
-  } catch (error) {
-    const unavailable = !(error instanceof VideoProbeError) || error.code !== "video_unreadable";
-    return res.status(unavailable ? 503 : 422).json({
-      code: unavailable ? "video_probe_unavailable" : "video_unreadable",
-      error: unavailable ? "We could not inspect your video right now. Keep the original file and try this upload again shortly."
-        : "We could not read a complete video stream from this file. Choose the original .mov or .mp4 from your camera; you do not need to film the job again.",
-    });
-  }
-
   // The destination comes from the signed token, never from the request body,
   // so a caller cannot aim someone else's capture prefix at their own file.
   const objectPath = selfCaptureObjectPath({
@@ -1319,7 +1320,10 @@ router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCap
     // The shared finish path writes the manifest before that marker and passes
     // both streamed and composed uploads through the same privacy gate.
     const outcome = await finishStoredCapture({ payload, objectPath, rawPrefix,
-      videoMetadata, sizeBytes: file.size, video: writtenVideo, reservation: write.reservation });
+      videoMetadata: null, probeFilePath: file.path, sizeBytes: file.size, video: writtenVideo, reservation: write.reservation });
+    // Do not offer an immediate retry while this write still owns its claim.
+    await discardUploadedFile(file);
+    await releaseBrowserUpload(write.reservation);
     return res.status(outcome.status).json(outcome.body);
   } catch (error) {
     logger.error({ error, captureId: payload.captureId }, "Self-capture canonical write failed");
