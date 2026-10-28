@@ -122,7 +122,8 @@ test("returning owner keeps the received recording and gets same-job update guid
   await expect(page.getByRole("button", { name: "Upload a new recording", exact: true })).toHaveCount(0);
   await expect(page.locator('input[type="file"]')).toHaveCount(0);
   const update = page.locator("details").filter({ has: page.getByText("Update walkthrough (optional)", { exact: true }) });
-  await expect(update).toContainText("Send a complete updated walkthrough, including any missing views. Your job and original video stay saved.");
+  await expect(update).toContainText("If your job or recording has changed, you can send a complete updated walkthrough.");
+  await expect(update).toContainText("Your job and original video stay saved.");
   await expect(update.getByRole("button", { name: "Update walkthrough", exact: true })).toBeHidden();
   await page.getByText("Update walkthrough (optional)", { exact: true }).click();
   await expect(update.getByRole("button", { name: "Update walkthrough", exact: true })).toBeEnabled();
