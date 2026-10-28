@@ -46,6 +46,8 @@ const COVERAGE_REASONS = new Set(["atlas_scene_planner_abstained", "atlas_task_a
   "atlas_insufficient_overlapping_distinct_views", "atlas_coverage_anchor_quality_insufficient"]);
 const TASK_REASONS = new Set(["atlas_scene_subject_origin_uncertain", "atlas_scene_subject_origin_changed",
   "atlas_synthetic_subject_requires_preserved_capture"]);
+const GEOMETRY_REASONS = new Set(["atlas_preserved_completion_no_exportable_geometry",
+  "atlas_generated_view_registration_unresolved", "atlas_source_visibility_uncertain"]);
 
 /** Takes only an already verified, capture-specific receipt. A ready/newer state clears the stop. */
 export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | null): TaskOutcome | null {
@@ -59,5 +61,14 @@ export function projectAtlasPreparationOutcome(preview: WebsiteAtlasPreview | nu
   if (preview.state === "needs_input" && TASK_REASONS.has(preview.reason ?? ""))
     return evidenceNeeded("The task subject and the captured objects could not be bound consistently without changing the observed scene.",
       preview.preview_digest, "Task subject finding");
+  if (preview.state === "needs_input" && GEOMETRY_REASONS.has(preview.reason ?? ""))
+    return evidenceNeeded("The available scene evidence did not establish usable, consistently registered geometry for this task.",
+      preview.preview_digest, "Scene geometry finding");
+  if (preview.state === "needs_input"
+    && preview.reason === "atlas_recorded_source_views_must_be_recovered_before_generation")
+    return { ...processingFailure({label: "Saved scene views", digest: preview.preview_digest}),
+      title: "Blueprint needs to finish reconstructing the saved video",
+      reason: "Blueprint identified useful views in your saved video that still need to be incorporated into the reconstruction.",
+      nextStep: "Blueprint needs to finish using those saved views before proposing generated completion or a robot evaluation. Your recording remains saved; no new upload is required." };
   return processingFailure({ label: "Reconstruction status", digest: preview.preview_digest });
 }
