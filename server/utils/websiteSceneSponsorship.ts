@@ -11,7 +11,7 @@ import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
 import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEvaluationLaunchStore";
 import { sceneProviderTerms } from "./taskEvaluationSceneIntake";
 import { websiteAtlasRuntimePolicy, atlasAllowanceUsage, resolveWebsiteAtlasGrant, websiteAtlasAutomaticLane,
-  websiteAtlasGrantOwner, websiteAtlasGrantPolicy, type AtlasAuxiliaryProvider } from "./websiteAtlasAuthorization";
+  websiteAtlasGrantOwner, websiteAtlasGrantPolicy, websiteAtlasSourceVideoIdentity, type AtlasAuxiliaryProvider } from "./websiteAtlasAuthorization";
 import { triageGateAnswers } from "../../client/src/lib/gateTriage";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
@@ -715,6 +715,110 @@ export async function amendWebsitePreparationRequestLimit(
   }));
 }
 
+function preparationObservationBinding(requestId: string, captureId: string, command: z.infer<typeof preparationSpendRequest>) {
+  return { request_id: requestId, scene_id: `site-${requestId}`, capture_id: captureId,
+    command_digest: digest(command), task_context_digest: command.task_context_digest,
+    ...(command.source_video_digest ? { source_video_digest: command.source_video_digest } : {}) };
+}
+
+/** Historical accounting only. Neither absence nor a retained admission fences
+ * an earlier in-flight reservation RPC or authorizes dispatch, retry or release.
+ * This transaction deliberately has no writes and checks no current grant clock.
+ */
+export async function observeWebsitePreparationSpend(requestId: string, input: z.infer<typeof preparationSpendRequest>,
+  captureId = `walkthrough-${requestId}`) {
+  const command = preparationSpendRequest.parse(input);
+  if (!db) throw new Error("website_capture_rights_store_unavailable");
+  const store = db;
+  const captureBinding = await resolveWebsiteCaptureBinding(requestId, `site-${requestId}`, captureId);
+  return storeTimeout(store.runTransaction(async transaction => {
+    const [request, brief, inventory] = await Promise.all([
+      transaction.get(store.collection("inboundRequests").doc(requestId)),
+      transaction.get(store.collection(TASK_BRIEFS_COLLECTION).doc(requestId)),
+      transaction.get(store.collection("siteTaskItemInventories").doc(requestId)),
+    ]);
+    if (!request.exists) throw new Error("task_brief_missing");
+    await assertWebsiteCaptureBindingInTransaction(transaction, requestId, captureBinding);
+    const record = request.data()!;
+    const reservations = record.website_preparation_reservations === undefined ? {} : record.website_preparation_reservations;
+    if (!reservations || typeof reservations !== "object" || Array.isArray(reservations))
+      throw new Error("website_scene_preparation_observation_invalid");
+    const key = command.allocation_binding_digest.slice(7), row = reservations[key];
+    const commandDigest = digest(command);
+    if (Object.hasOwn(reservations, key) && (!row || typeof row !== "object" || Array.isArray(row)))
+      throw new Error("website_scene_preparation_observation_invalid");
+    if (row && row.command_digest !== commandDigest) throw new Error("idempotency_conflict");
+    if (row) {
+      const retainedCommand = preparationSpendRequest.safeParse(Object.fromEntries(
+        Object.keys(preparationSpendRequest.shape).filter(field => Object.hasOwn(row.admission ?? {}, field))
+          .map(field => [field, row.admission[field]])));
+      if (!retainedCommand.success || digest(retainedCommand.data) !== commandDigest
+        || row.admission.schema_version !== "paid_lane_admission.v1" || row.admission.status !== "admitted"
+        || digest(row.admission.blockers) !== digest([]) || row.admission.external_disclosure_allowed !== true
+        || !/^sha256:[a-f0-9]{64}$/.test(row.admission.sponsorship_digest)
+        || !Number.isFinite(row.admission.expires_at_epoch) || row.admission.expires_at_epoch <= 0)
+        throw new Error("website_scene_preparation_observation_invalid");
+      if (row.settlement !== undefined) {
+        const { actual_cost_usd: actual, status, ...settledCommand } = row.settlement ?? {};
+        const settled = preparationSettlementRequest.safeParse(settledCommand);
+        const expected = settled.success ? (settled.data.provider === "vast" || settled.data.provider === "openai"
+          ? settled.data.provider_charge_amount_usd : "total_credits" in settled.data ? settled.data.total_credits / 1250 : 0) : null;
+        if (!settled.success || status !== "settled" || actual !== expected || actual > command.maximum_cost_usd
+          || settled.data.task_context_digest !== command.task_context_digest
+          || settled.data.allocation_binding_digest !== command.allocation_binding_digest || settled.data.provider !== command.provider
+          || settled.data.provider === "openai" && settled.data.completed_request_count !== command.request_count)
+          throw new Error("website_scene_preparation_observation_invalid");
+      }
+    }
+    // New rows retain their exact capture mapping. Legacy rows need a retained
+    // native grant/history, an exact Atlas grant, or the current source projection.
+    // Missing provenance is unknown, never an authoritative not_reserved result.
+    const binding = preparationObservationBinding(requestId, captureId, command);
+    let sourceKnown = false;
+    if (row?.observation_binding !== undefined) {
+      if (digest(row.observation_binding) !== digest(binding))
+        throw new Error("website_scene_preparation_observation_source_mismatch");
+      sourceKnown = true;
+    } else {
+      const grants = [record.website_scene_sponsorship, ...(record.website_scene_sponsorship_history ?? [])];
+      const native = grants.some(grant => {
+        if (!grant || typeof grant !== "object") return false;
+        const { authority_digest, ...payload } = grant;
+        return authority_digest === digest(payload) && grant.schema_version === "website_scene_sponsorship.v1"
+          && grant.request_id === requestId && grant.scene_id === binding.scene_id && grant.capture_id === captureId
+          && grant.task_context_digest === command.task_context_digest
+          && (!row || row.admission.sponsorship_digest === authority_digest);
+      });
+      const atlas = record.website_atlas_grants?.[captureId];
+      const sourceIdentity = command.source_video_digest ? websiteAtlasSourceVideoIdentity(
+        (await transaction.get(store.collection("captureUploadSessions").doc(captureId))).data()) : null;
+      const atlasMatches = atlas?.schema_version === "website_atlas_authorization.v2" && atlas.request_id === requestId
+        && atlas.capture_id === captureId && Boolean(command.source_video_digest)
+        && atlas.source_video_digest === command.source_video_digest
+        && sourceIdentity !== null && digest(atlas.source_video_identity) === digest(sourceIdentity)
+        && (!row || row.admission.atlas_authorization_digest === digest(atlas));
+      sourceKnown = native && !command.source_video_digest || Boolean(row && atlasMatches);
+      if (!sourceKnown && brief.exists && brief.data()!.requestId === requestId) {
+        const items = inventory.exists ? inventory.data() as TaskItemInventoryRecord : null;
+        if (items && (items.requestId !== requestId || !Array.isArray(items.items)))
+          throw new Error("website_task_item_inventory_invalid");
+        const context = projectWebsiteTaskContext(brief.data() as SiteTaskBriefRecord, projectWebsiteCaptureRights(record), {
+          inventory: items, captureId, captureBinding, purpose: retainedWebsiteScenePurpose(record) });
+        sourceKnown = context.context_digest === command.task_context_digest && (!command.source_video_digest || atlasMatches);
+      }
+    }
+    if (!sourceKnown) throw new Error("website_scene_preparation_observation_source_unknown");
+    const observation = { schema_version: "website_preparation_spend_observation.v1", request_id: requestId,
+      scene_id: binding.scene_id, capture_id: captureId, command_digest: commandDigest,
+      allocation_binding_digest: command.allocation_binding_digest,
+      status: row ? "reserved" : "not_reserved", dispatch_authorized: false, observed_at_epoch: Date.now() / 1000,
+      ...(row ? { admission: row.admission, ...(row.settlement === undefined ? {} : { settlement: row.settlement }) } : {}) };
+    if (Buffer.byteLength(JSON.stringify(observation), "utf8") > 200_000)
+      throw new Error("website_scene_preparation_observation_too_large");
+    return observation;
+  }));
+}
+
 /** Reserve the full quote once; retries never replenish the preparation cap. */
 export async function reserveWebsitePreparationSpend(requestId: string, input: z.infer<typeof preparationSpendRequest>,
   captureId = `walkthrough-${requestId}`) {
@@ -825,7 +929,8 @@ export async function reserveWebsitePreparationSpend(requestId: string, input: z
         provider_training_authorized: command.provider === "openai" || Boolean(auxiliaryTerms) ? false : atlas.provider_training_authorized } : {}),
       expires_at_epoch: Math.min(authority.expires_at_epoch, atlas?.expires_at_epoch ?? authority.expires_at_epoch, auxiliaryExpiresAt) };
     transaction.update(ref, { website_preparation_reservations: { ...reservations,
-      [key]: { command_digest: digest(command), admission } } });
+      [key]: { command_digest: digest(command), admission,
+        observation_binding: preparationObservationBinding(requestId, captureId, command) } } });
     return admission;
   }));
 }
