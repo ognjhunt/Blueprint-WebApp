@@ -5,7 +5,7 @@ import { ingestBetaPolicyScreening, observeBetaScreeningExecutionControl, parseB
   type BetaScreeningExecutionControlRequest } from "../utils/betaPolicyScreeningIngest";
 import { screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
-import { loadManagedJobEvidence } from "../utils/jobManagedEvaluation";
+import { loadManagedJobEvidence, assertManagedJobEvidenceReference } from "../utils/jobManagedEvaluation";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
 
 const store = vi.hoisted(() => ({ state: { docs: new Map<string, any>() }, fail: false }));
@@ -253,6 +253,30 @@ it.each([false, true])("reads current owner closure before any monitor observati
   }
   expect((await readback())[0].current).toBe(false);
   expect(row("taskEvaluationPolicyRuns/campaign-one").publication_digest).toBe(fixture.publication.publication_digest);
+  expect(controls()).toBeUndefined();
+});
+
+it.each(["owner_closure", "scene_revocation", "scene_revision"])("current evidence references share the actual readback source join (%s)", async change => {
+  const completed = sealScreening({ ...fixture.publication, status: "completed", revision: 2,
+    candidates: fixture.publication.candidates.map(candidate => ({ ...candidate, status: "completed", episodes_scored: 3,
+      episodes_succeeded: 2, episodes_failed: 1, success_rate: 2 / 3, session_result_digest: screeningSha("8") })) });
+  await ingestBetaPolicyScreening(completed);
+  const briefDigest = scientificBriefDigest(row("siteTaskBriefs/job-one"));
+  const reference = { runId: "campaign-one", resultDigest: completed.publication_digest };
+  expect((await assertManagedJobEvidenceReference("job-one", briefDigest, reference)).current).toBe(true);
+  const scientificBytes = JSON.stringify(row(`captureTaskEvaluationRuns/${row("taskEvaluationPolicyRuns/campaign-one").result_record_id}`));
+  if (change === "owner_closure") {
+    const closure = { schema_version: "website_run_closure.v1", request_id: "job-one", capture_id: fixture.request.source.capture_id,
+      decision: "conservative_abstention", actor: "signed_owner_link", source_identity_digest: screeningSha("7"),
+      closed_at_iso: new Date(NOW).toISOString(), new_execution_authorized: false, explicit_resume_required: true, physical_validation: false };
+    row("inboundRequests/job-one").website_run_closures = { [closure.capture_id]: { ...closure, closure_digest: crossRuntimeDigest(closure) } };
+  } else if (change === "scene_revocation") fixture.intake.revocation_requested = true;
+  else {
+    fixture.intake.pipeline_status.result_reference.digest = screeningSha("9"); resealIntake(fixture.intake);
+  }
+  expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
+  await expect(assertManagedJobEvidenceReference("job-one", briefDigest, reference)).rejects.toThrow("job_managed_evidence_reference_unavailable_or_stale");
+  expect(JSON.stringify(row(`captureTaskEvaluationRuns/${row("taskEvaluationPolicyRuns/campaign-one").result_record_id}`))).toBe(scientificBytes);
   expect(controls()).toBeUndefined();
 });
 

@@ -255,6 +255,38 @@ export function projectManagedJobEvidence(
       ...(decision.physical_evidence_still_required.length ? ["The decision still requires separately authoritative physical evidence."] : [])] };
 }
 
+/** Workspace readback and proposal references use the same current screening source. */
+async function currentManagedScreeningScope(args: {
+  jobId: string; currentBriefDigest: string; run: Record<string, any>;
+  record: Record<string, any> | undefined; brief: Record<string, any> | undefined;
+  inventory: TaskItemInventoryRecord | null; sourceSession: Record<string, any> | null;
+  read: (reference: FirebaseFirestore.DocumentReference) => Promise<FirebaseFirestore.DocumentSnapshot>;
+}) {
+  const { jobId, currentBriefDigest, run, record, brief, inventory, sourceSession, read } = args;
+  try {
+    const intake = (await read(db!.collection("taskEvaluationSceneIntakes").doc(run.source_scene_intake_id))).data();
+    if (typeof intake?.source_session_id === "string" && websiteRunClosure(record, jobId, intake.source_session_id)) return null;
+    if (!intake || typeof intake.source_session_id !== "string" || intake.website_request_id !== jobId || intake.receipt?.intent_id !== run.source_scene_intent_id
+      || intake.revocation_requested || intake.state !== "completed" || intake.pipeline_status?.status !== "completed"
+      || !preparationPhaseMatchesTask(intake.request, intake.pipeline_status)
+      || intake.pipeline_status?.result_reference?.digest !== run.source_scene_revision_digest
+      || crossRuntimeArtifactDigest(intake.pipeline_status, "status_digest") !== intake.pipeline_status.status_digest) return null;
+    if (isTaskFamilyStrategy(intake.request?.task?.strategy)
+      && (crossRuntimeDigest(intake.request) !== intake.request_digest
+        || intake.receipt.request_digest !== intake.request_digest
+        || crossRuntimeArtifactDigest(intake.receipt, "receipt_digest") !== intake.receipt.receipt_digest
+        || intake.pipeline_status.request_digest !== intake.request_digest)) return null;
+    const capture = sourceSession ? { captureId: intake.source_session_id }
+      : await readManagedScreeningCapture(jobId, intake.source_session_id);
+    await assertManagedScreeningCaptureCurrent(jobId, capture, read);
+    return managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record, brief,
+      inventory, sourceSession, allowProposedScreening: true, screeningCapture: capture });
+  } catch (error) {
+    if (!(error instanceof Error) || !/^job_[a-z_]+$/.test(error.message)) throw error;
+    return null;
+  }
+}
+
 export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: string): Promise<ManagedJobEvidenceSummary[]> {
   if (!db) return [];
   const store = db;
@@ -288,31 +320,10 @@ export async function loadManagedJobEvidence(jobId: string, currentBriefDigest: 
     let screeningScope: ReturnType<typeof managedJobTask> | null = null;
     if (run.run_kind === "beta_policy_screening" && typeof run.source_scene_intake_id === "string") {
       const scopeKey = `${run.source_scene_intake_id}:${run.source_scene_intent_id}:${run.source_scene_revision_digest}`;
-      if (!screeningScopes.has(scopeKey)) screeningScopes.set(scopeKey, (async () => {
-        try {
-          const intake = (await store.collection("taskEvaluationSceneIntakes").doc(run.source_scene_intake_id).get()).data();
-          if (typeof intake?.source_session_id === "string" && websiteRunClosure(job.data(), jobId, intake.source_session_id)) return null;
-          if (!intake || typeof intake.source_session_id !== "string" || intake.website_request_id !== jobId || intake.receipt?.intent_id !== run.source_scene_intent_id
-            || intake.revocation_requested || intake.state !== "completed" || intake.pipeline_status?.status !== "completed"
-            || !preparationPhaseMatchesTask(intake.request, intake.pipeline_status)
-            || intake.pipeline_status?.result_reference?.digest !== run.source_scene_revision_digest
-            || crossRuntimeArtifactDigest(intake.pipeline_status, "status_digest") !== intake.pipeline_status.status_digest) return null;
-          if (isTaskFamilyStrategy(intake.request?.task?.strategy)
-            && (crossRuntimeDigest(intake.request) !== intake.request_digest
-              || intake.receipt.request_digest !== intake.request_digest
-              || crossRuntimeArtifactDigest(intake.receipt, "receipt_digest") !== intake.receipt.receipt_digest
-              || intake.pipeline_status.request_digest !== intake.request_digest)) return null;
-          const capture = sourceSession ? { captureId: intake.source_session_id }
-            : await readManagedScreeningCapture(jobId, intake.source_session_id);
-          await assertManagedScreeningCaptureCurrent(jobId, capture, reference => reference.get());
-          return managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record: job.data(), brief: brief.data(),
-            inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
-            sourceSession, allowProposedScreening: true, screeningCapture: capture });
-        } catch (error) {
-          if (!(error instanceof Error) || !/^job_[a-z_]+$/.test(error.message)) throw error;
-          return null;
-        }
-      })());
+      if (!screeningScopes.has(scopeKey)) screeningScopes.set(scopeKey, currentManagedScreeningScope({
+        jobId, currentBriefDigest, run, record: job.data(), brief: brief.data(),
+        inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+        sourceSession, read: reference => reference.get() }));
       screeningScope = await screeningScopes.get(scopeKey)!;
     }
     const result = typeof run.result_record_id === "string"
@@ -347,13 +358,17 @@ export async function assertManagedJobEvidenceReference(jobId: string, currentBr
     read(store.collection("inboundRequests").doc(jobId)), read(store.collection("siteTaskBriefs").doc(jobId)),
     read(store.collection("siteTaskItemInventories").doc(jobId)),
   ]);
-  const scope = managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record: job.data(),
-    brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
-    sourceSession: await readManagedJobSourceSession(job.data(), read) });
   const run = snapshot.data();
   if (!run || run.job_evidence_binding?.job_id !== jobId || typeof run.result_record_id !== "string") {
     throw new Error("job_managed_evidence_reference_unavailable_or_stale");
   }
+  const sourceSession = await readManagedJobSourceSession(job.data(), read);
+  const scope = run.run_kind === "beta_policy_screening"
+    ? await currentManagedScreeningScope({ jobId, currentBriefDigest, run, record: job.data(), brief: brief.data(),
+      inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null, sourceSession, read })
+    : managedJobTask({ binding: { job_id: jobId, brief_digest: currentBriefDigest }, record: job.data(),
+      brief: brief.data(), inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null, sourceSession });
+  if (!scope) throw new Error("job_managed_evidence_reference_unavailable_or_stale");
   const result = await read(store.collection("captureTaskEvaluationRuns").doc(run.result_record_id));
   const row = projectManagedJobEvidence(snapshot.id, run, result.exists ? result.data()! : null,
     jobId, currentBriefDigest, scope.taskContextDigest, scope.sourceFingerprint);
