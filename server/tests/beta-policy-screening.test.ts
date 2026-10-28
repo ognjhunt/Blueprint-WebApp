@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { parseBetaPolicyScreeningPublication, screeningPublicationTransition } from "../utils/betaPolicyScreeningContract";
+import { parseBetaPolicyScreeningPublication, screeningPublicationTransition, screeningCampaignIdentity } from "../utils/betaPolicyScreeningContract";
 import { assertScreeningSceneSource } from "../utils/betaPolicyScreeningIngest";
 import { managedJobTask, projectManagedJobEvidence } from "../utils/jobManagedEvaluation";
 import { scientificBriefDigest } from "../utils/jobEvidenceContract";
@@ -167,4 +167,13 @@ describe("many-candidate diagnostic screening", () => {
     expect(project().limitations.join(" ")).toMatch(/does not declare a winner/);
     expect(project(crossRuntimeDigest("changed source")).current).toBe(false);
   });
+});
+
+it("preserves the original screening campaign identity digest shape", () => {
+  const { publication: value } = screeningFixture();
+  const historical = crossRuntimeDigest({ campaign_id: value.campaign_id, site_id: value.site_id, source: value.source,
+    plan_digest: value.plan_digest, catalog_digest: value.catalog_digest, scenario_plan_digest: value.scenario_plan_digest,
+    candidates: value.candidates.map(row => ({ candidate_id: row.candidate_id, configuration_digest: row.configuration_digest,
+      display_name: row.display_name, episodes_planned: row.episodes_planned })), budget_limit: value.budget.limit_usd });
+  expect(screeningCampaignIdentity(value)).toBe(historical);
 });

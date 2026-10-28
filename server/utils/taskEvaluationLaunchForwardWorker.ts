@@ -4,6 +4,7 @@ import { isSiteVideoEvidenceEnabled } from "../config/env";
 import { isGeminiVideoConfigured } from "../agents/provider-config";
 import { processSceneIntakeQueue } from "./taskEvaluationSceneIntake";
 import { processJobEvidenceForwardQueue } from "./jobEvidenceForwardWorker";
+import { processBetaPolicyFinalistQueue } from "./betaPolicyFinalist";
 import { resolveExecutionAccessContext } from "./access-control";
 import type { Response } from "express";
 import {
@@ -369,6 +370,7 @@ export function startTaskEvaluationLaunchForwardWorker() {
     }
     startLane("job-evidence", processJobEvidenceForwardQueue, "Job evidence delivery reconciliation failed");
     startLane("scene-intake", processSceneIntakeQueue, "Task Evaluation scene intake reconciliation failed");
+    startLane("beta-finalists", processBetaPolicyFinalistQueue, "Beta finalist continuation reconciliation failed");
     startLane("launch-forward", processTaskEvaluationLaunchForwardQueue, "Task Evaluation launch forward reconciliation failed");
     startLane("terminal-closure", closeExpiredTaskEvaluationLaunches, "Task Evaluation launch terminal closure reconciliation failed");
     startLane("terminal-repair", repairControlPlaneBlockedLaunches, "Task Evaluation launch terminal flag repair failed");

@@ -2,7 +2,7 @@ import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { projectWebsiteCaptureRights } from "./websiteTaskContext";
 import { JobMarketplaceError } from "./jobMarketplaceWorkflow";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
-import { jobEvidenceRequestSchema, jobEvidenceSummary, scientificBriefDigest, scientificContext, jobEvidenceCaptureSessionId, verifyJobEvidencePublication, type JobEvidencePublication } from "./jobEvidenceContract";
+import { jobEvidenceRequestSchema, jobEvidenceSummary, scientificBriefDigest, scientificContext, jobEvidenceCaptureSessionId, jobEvidenceSourceIsCurrent, verifyJobEvidencePublication, type JobEvidencePublication } from "./jobEvidenceContract";
 
 export async function readJobEvidence(jobId: string, brief: Record<string, any> | null, admin = false) {
   if (!db || !brief?.confirmedAtIso) return { evidence: [], evidenceContext: null };
@@ -23,7 +23,8 @@ export async function readJobEvidence(jobId: string, brief: Record<string, any> 
         ? "Further evidence work was cancelled. Pipeline had already completed this question."
         : "This evidence request was cancelled before Pipeline accepted it. No evaluation was created.",
       nextAction: "Use a new question if evidence is still needed. This cancelled request cannot support a new proposal." } : {};
-    const inactive = value.cancellationRequested || value.summary?.state === "cancelled";
+    const inactive = value.cancellationRequested || value.summary?.state === "cancelled"
+      || !jobEvidenceSourceIsCurrent(jobId, job.data()!, value);
     if (value.summary) return { ...value.summary, current: !inactive && value.summary.briefDigest === digest && (!value.summary.testbedDigest || value.summary.testbedDigest === context?.testbed.testbed_digest),
       ...(cancellationPending ? { state: "unavailable", summary: "Cancellation was requested. Blueprint is awaiting confirmation that this question has stopped.",
         nextAction: "No further evidence work will be requested for this question. Its earlier result remains available as history." } : {}),
@@ -53,6 +54,10 @@ export async function assertJobEvidenceRequestActive(jobId: string, requestId: s
   const value = saved.data();
   if (!value || value.request?.job_id !== jobId || value.request?.request_id !== requestId
     || value.request?.request_digest !== requestDigest) throw new JobMarketplaceError("evidence_scope_changed", "The saved evidence request is unavailable. Review its applicability before using this result.");
+  const jobRef = db.collection("inboundRequests").doc(jobId);
+  const job = await (transaction ? transaction.get(jobRef) : jobRef.get());
+  if (!job.exists || !jobEvidenceSourceIsCurrent(jobId, job.data()!, value))
+    throw new JobMarketplaceError("evidence_scope_changed", "This evidence belongs to an earlier recording. Review the current source before using it.");
   if (value.cancellationRequested || value.summary?.state === "cancelled") {
     throw new JobMarketplaceError("evidence_cancelled", "This evidence request was cancelled. Review this proposal against current evidence before proceeding.");
   }

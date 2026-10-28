@@ -199,12 +199,14 @@ router.post("/admin/:requestId/evidence", handle(async (req, res) => {
     if (Buffer.byteLength(JSON.stringify(value), "utf8") > 750_000) throw new JobMarketplaceError("evidence_too_large", "Retain large scientific artifacts in the existing object store before requesting evidence.", 413);
     const ref = jobRef.collection("jobEvidenceRequests").doc(value.request_id);
     const previous = await tx.get(ref);
-    if (previous.exists && previous.data()!.request.request_digest !== value.request_digest) {
+    const sourceCaptureId = jobEvidenceCaptureSessionId(jobId, job.data()!);
+    if (previous.exists && (previous.data()!.request.request_digest !== value.request_digest
+      || (previous.data()!.sourceCaptureId ?? `walkthrough-${jobId}`) !== sourceCaptureId)) {
       throw new JobMarketplaceError("idempotency_conflict", "This question request was already used with different scope. Refresh before creating a new question.");
     }
     if (!previous.exists || !previous.data()!.deliveryState) {
       const intent = jobEvidenceDeliveryIntent("submit", res.locals.firebaseUser!.uid);
-      if (!previous.exists) tx.create(ref, { request: value, createdAtIso: new Date().toISOString(), sequence: -1, ...intent });
+      if (!previous.exists) tx.create(ref, { request: value, sourceCaptureId, createdAtIso: new Date().toISOString(), sequence: -1, ...intent });
       else tx.update(ref, intent);
       tx.update(jobRef, jobEvidenceQueueMarker(intent.deliveryId, intent.deliveryCreatedAtMs));
     }

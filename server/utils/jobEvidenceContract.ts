@@ -66,10 +66,18 @@ export const jobEvidenceSourceBindingSchema = z.object({
 /** A real retained native session is selected by the accepted task action, never invented from a job ID. */
 export function jobEvidenceCaptureSessionId(jobId: string, record: Record<string, any>) {
   const source = jobEvidenceSourceBindingSchema.safeParse(record.job_evidence_source);
+  if (typeof record.active_capture_id === "string" && jobEvidenceId.safeParse(record.active_capture_id).success)
+    return record.active_capture_id;
   if (source.success && source.data.job_id === jobId) return source.data.capture_session_id;
   // Read the legacy document only if one exists. It still needs its explicit,
   // current signed task binding before scientificContext will admit it.
   return `walkthrough-${jobId}`;
+}
+
+/** Legacy unbound questions become historical when a different recording is selected. */
+export function jobEvidenceSourceIsCurrent(jobId: string, record: Record<string, any>, saved: Record<string, any>) {
+  return record.active_capture_id == null
+    || record.active_capture_id === (saved.sourceCaptureId ?? `walkthrough-${jobId}`);
 }
 
 export function scientificContext(session: Record<string, any> | null, binding?: {
@@ -78,6 +86,7 @@ export function scientificContext(session: Record<string, any> | null, binding?:
   const source = session?.pipeline_site_task_testbed;
   if (!binding || !source || !projectWebsiteCaptureRights(binding.record).derived_scene_generation_allowed
     || session?.capture_access?.future_processing_allowed === false || session?.completed_capture_lifecycle) return null;
+  if (binding.record.active_capture_id != null && binding.record.active_capture_id !== session?.session_id) return null;
   if (binding.record.job_evidence_source) {
     const pointer = jobEvidenceSourceBindingSchema.safeParse(binding.record.job_evidence_source);
     const retained = jobEvidenceSourceBindingSchema.safeParse(session?.job_evidence_source_binding);

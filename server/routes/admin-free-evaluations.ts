@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { requireExecutionRole } from "../middleware/requireAdminRole";
 import { admitFreeWorkspaceEvaluation } from "../utils/freeEvaluationHandoff";
+import { admitBetaPolicyFinalist } from "../utils/betaPolicyFinalist";
 
 const router = Router();
 router.use(requireExecutionRole);
 router.post("/:requestId/admit", async (req, res) => {
   try {
-    const result = await admitFreeWorkspaceEvaluation(req.params.requestId, req.body, res.locals.firebaseUser!.uid);
+    const admit = req.body?.finalistId === undefined ? admitFreeWorkspaceEvaluation : admitBetaPolicyFinalist;
+    const result = await admit(req.params.requestId, req.body, res.locals.firebaseUser!.uid);
     return res.status(result.created ? 201 : 200).json({ ...result, customerPriceUsd: 0,
       executionStarted: false });
   } catch (error) {

@@ -53,3 +53,41 @@ The existing v4 two-candidate canary contract is unchanged.
 Deploy through the existing exact-SHA CI-gated Render workflow. Deploy this
 consumer before enabling producer publication. A green website deployment proves
 the consumer is present; it does not prove a RoboLab GPU run completed.
+
+## Automatic continuation to full finalist scoring
+
+Completed screening atomically records no-spend preparation for each completed,
+independently scored candidate with a successful episode and no retained blockers.
+These intents live beside their parent run in `taskEvaluationPolicyRuns`; stable
+IDs bind the campaign, candidate, job, scientific brief and source fingerprint.
+Budget-only publication updates do not create another continuation. The existing
+launch-forward worker drains them, using the existing Pipeline signing identity:
+
+- `POST /api/live-pipeline/beta-policy-finalists` prepares the exact retained
+  candidate and private 200-episode matrix without allocating a provider.
+- A bound receipt supplies the immutable plan and actual compute floor. The
+  existing operations job panel shows one explicit approval for that plan, its
+  Blueprint cap, expiry and single paid attempt. It submits through the existing
+  `/api/admin/free-evaluations/:jobId/admit` route with the authenticated approver.
+- The durable worker posts that exact authority to
+  `/api/live-pipeline/beta-policy-finalists/:finalistId/authorize`, then polls the
+  same record. Pipeline independently checks its configured founder authority,
+  current source, runtime, spending controls and allocator admission. An operations
+  page view or prepared plan cannot authorize execution.
+- Full results return through the existing signed screening publication endpoint
+  with `purpose: "finalist"`, one 200-episode candidate and its exact
+  `finalist_binding`. The consumer requires the retained named approval and cap
+  before accepting the result on the same job. Screening keeps its existing $15
+  ceiling; finalist spend stays within the separately approved existing $20 cap.
+
+Delivery intent stays pending until the terminal publication is durably accepted.
+Lost responses replay the same Pipeline identity; a storage failure cannot drop
+an otherwise completed result or authorize another paid attempt. Unsupported
+full-evaluation routes retain a specific preparation limitation. The current
+full-scoring continuation is diagnostic/development evidence; counts alone do not
+create a recommendation, a met owner pass mark, or physical validation.
+
+Selecting a successfully published replacement capture makes the earlier source's
+managed and generic evidence historical. Existing scientific request/result bytes
+remain immutable. Source metadata on the WebApp's delivery record binds new
+questions to the selected recording; proposal attachment rechecks that selection.
