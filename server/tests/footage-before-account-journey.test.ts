@@ -9,11 +9,13 @@
  * on both job pages and in one email, instead of an indefinite "preparing" or
  * an unreadable status, and no upload invites a video that cannot be used.
  *
- * Nothing here is a hand-built job record. Each job starts from the real
+ * Each job starts from the real
  * `POST /api/inbound-request` handler with the exact body the public start form
  * sends; footage goes through the real upload route; the site saves the job
  * through the real `POST /api/workspace/claim`; the pages read the real status
- * and workspace routes; the email is queued by the real reconcile.
+ * and workspace routes; the email is queued by the real reconcile. The
+ * historical fixture explicitly removes the new server-bound source fields
+ * before seeding old ownerless footage; current guest jobs retain them.
  *
  * Substituted: the account rule for the one legacy upload that predates it
  * (`authorizeCaptureUpload` admits it as it did before 2026-10-18), Firebase
@@ -208,6 +210,14 @@ async function jobStatus(token: string) {
 
 /** A guest's video sent before the account, as the start form allowed until 2026-10-18. */
 async function legacyGuestUpload(token: string) {
+  const { verifyCaptureUploadToken } = await import("../utils/captureUploadToken");
+  const binding = verifyCaptureUploadToken(token)!;
+  const record = doc(`inboundRequests/${binding.requestId}`);
+  // Replay a genuinely historical source, not a current guest job whose
+  // immutable subject now makes account ordering safe.
+  delete record.capture_owner_uid;
+  delete record.capture_owner_bound_at_iso;
+  expect(record.account_owner_uid).toBeUndefined();
   legacy.guestUploadsAllowed = true;
   try { expect([200, 201]).toContain((await sendFootage(token)).status); }
   finally { legacy.guestUploadsAllowed = false; }
@@ -274,6 +284,9 @@ describe("a job whose video arrived before its account", () => {
   it("says so on both job pages and in one email once the job is saved, and takes no video it cannot use", async () => {
     const { jobId, token } = await startJob();
     await legacyGuestUpload(token);
+    const sourceSession = structuredClone(doc(`captureUploadSessions/walkthrough-${jobId}`));
+    const rawVideo = `scenes/site-${jobId}/captures/walkthrough-${jobId}/raw/walkthrough.mov`;
+    const [videoIdentity] = await sharedUploadBucket.bucket.file(rawVideo).getMetadata();
 
     // Unsaved and unconfirmed: the site's own steps stay ahead of it, so no email yet.
     expect((await jobStatus(token)).status.decision).toBe("confirm_brief");
@@ -297,6 +310,9 @@ describe("a job whose video arrived before its account", () => {
     const { readiness } = await workspaceTask(jobId);
     expect(readiness).toMatchObject({ decision: "footage_before_account", headline: (page.status as { headline: string }).headline });
     expect((await sendFootage(token)).body.code).toBe("footage_before_account");
+    expect(doc(`captureUploadSessions/walkthrough-${jobId}`)).toEqual(sourceSession);
+    expect((await sharedUploadBucket.bucket.file(rawVideo).getMetadata())[0]).toEqual(videoIdentity);
+    expect((await sharedUploadBucket.bucket.file(rawVideo).download())[0]).toEqual(quickTime());
 
     // One email, said once.
     await reconcile();

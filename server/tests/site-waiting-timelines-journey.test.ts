@@ -252,9 +252,9 @@ describe("the job page says how long each waiting stage usually takes", () => {
     expect(await pageWait(token)).toEqual({ decision: "confirm_brief", wait: null });
     await completeBriefReview();
     expect(await pageWait(token)).toEqual({ decision: "confirm_brief", wait: null });
-    // Footage waits for a saved job, so saving it is the site's next step.
+    // The source is already bound: recording can proceed without account setup.
     await confirmBrief(token);
-    expect(await pageWait(token)).toEqual({ decision: "save_account", wait: null });
+    expect(await pageWait(token)).toEqual({ decision: "record", wait: null });
   });
 
   it("follows a saved job from its footage review to waiting for a robot team", async () => {
