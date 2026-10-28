@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 for (const width of [1440, 390]) {
-  test(`saved site job leads directly to account setup at ${width}px`, async ({ page, context, baseURL }) => {
+  test(`saved site job offers optional account setup at ${width}px`, async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width, height: 1000 });
     const mutations: string[] = [], errors: string[] = [];
     page.on("pageerror", error => errors.push(error.message));
@@ -24,10 +24,12 @@ for (const width of [1440, 390]) {
     await expect(page).toHaveURL(/\/contact\/site-operator$/);
     await page.locator("#start-location").fill("Austin, TX");
     await page.locator("#start-email").fill("qa@example.invalid");
-    await page.locator("#start-company").fill("Synthetic QA site");
+    await expect(page.locator("#start-company")).toHaveCount(0);
+    await expect(page.locator("#start-password")).toHaveCount(0);
     await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
     const signup = page.getByRole("link", { name: "Create an account for this job", exact: true });
     await expect(signup).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Save this job to your account (optional)", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", "/claim/fixture.claim?mode=signin");
     expect(mutations).toEqual(["/api/inbound-request"]);
     await signup.click();

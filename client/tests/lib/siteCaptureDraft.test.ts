@@ -6,13 +6,28 @@ import { readSiteCaptureRecovery, writeSiteCaptureRecovery, forgetSiteCaptureRec
 const now = 1000000000;
 const make = (): SiteCaptureRecovery => ({ version: 1, savedAt: now,
     requestId: "capture-00000000-0000-4000-8000-000000000001", retryToken: "00000000-0000-4000-8000-000000000002",
-    draft: { task: "Synthetic task", location: "Austin TX", email: "qa@example.invalid", company: "Owned fixture", method: "phone", region: "us", regionManuallySet: false }, pending: null });
+    draft: { task: "Synthetic task", location: "Austin TX", email: "qa@example.invalid", method: "phone", region: "us", regionManuallySet: false }, pending: null });
 function pending(row: SiteCaptureRecovery, acknowledged = false) {
     return { endpoint: "/api/inbound-request" as const, acknowledged,
         body: JSON.stringify({ requestId: row.requestId, retryToken: row.retryToken, buyerType: "site_operator", taskStatement: row.draft.task, siteLocation: row.draft.location, captureRegion: row.draft.region }) };
 }
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(now); localStorage.clear(); });
 afterEach(() => vi.useRealTimers());
+
+it("retains a legacy company value and the exact frozen submission after the company field is removed", () => {
+    const key = siteCaptureDraftKey(null, "none"), row = make();
+    row.draft.company = "Legacy site";
+    row.pending = pending(row);
+    const body = JSON.parse(row.pending.body);
+    row.pending.body = JSON.stringify({ ...body, company: row.draft.company });
+    localStorage.setItem(key, JSON.stringify(row));
+    const restored = readSiteCaptureRecovery(key)!;
+    expect(restored.draft.company).toBe("Legacy site");
+    expect(writeSiteCaptureRecovery(key, { ...restored, savedAt: now + 1,
+        pending: { ...restored.pending!, acknowledged: true } })).toBe(true);
+    expect(readSiteCaptureRecovery(key)).toMatchObject({ draft: { company: "Legacy site" },
+        pending: { body: row.pending.body, acknowledged: true } });
+});
 const definitions = ["anonymous", "account-a"].flatMap(scope => [
     { condition: "unsubmitted", age: 0 }, { condition: "uncertain", age: 0 }, { condition: "saved", age: 0 },
     { condition: "ttl-before", age: SITE_CAPTURE_DRAFT_TTL_MS - 1 }, { condition: "ttl-exact", age: SITE_CAPTURE_DRAFT_TTL_MS }, { condition: "ttl-after", age: SITE_CAPTURE_DRAFT_TTL_MS + 1 },

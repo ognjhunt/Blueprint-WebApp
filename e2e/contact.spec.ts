@@ -54,7 +54,6 @@ test("capture takes the country from the address and asks only when it cannot", 
   await page.goto("/contact/site-operator", { waitUntil: "domcontentloaded" });
   await page.locator("#start-location").fill("Berlin");
   await page.locator("#start-email").fill("owner@example.test");
-  await page.locator("#start-company").fill("Acme Foods");
   // A city alone does not name its country, so Start asks for it in the address.
   await page.getByRole("button", { name: "Start free assessment", exact: true }).click();
   await expect(page.getByText(/Add the country to the address/)).toBeVisible();

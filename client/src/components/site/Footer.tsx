@@ -36,7 +36,7 @@ export function Footer() {
               Blueprint
             </a>
             <p className="mt-7 text-sm leading-7 text-runway-mute">
-              Blueprint runs candidate robots and policies against a business's real job and recommends the approach and deployment companies that fit.
+              Blueprint runs candidate robots and policies against a business's real job in a simulation of its site and shows a bounded estimate of what works.
             </p>
             {/*
               Service area sits in the footer so it is on every page rather than

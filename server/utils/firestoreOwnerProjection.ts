@@ -2,7 +2,7 @@
 import { strictBoundedProofJson } from "./strictBoundedProofJson";
 
 export const OWNER_FIRESTORE_FIELD_PATHS = [
-  "account_owner_uid", "claimed_at_iso", "request.buyerType", "request.capture_mode",
+  "account_owner_uid", "claimed_at_iso", "capture_owner_uid", "capture_owner_bound_at_iso", "request.buyerType", "request.capture_mode",
   "request.consent_attestation.granted", "request.consent_attestation.statement_version",
   "request.consent_attestation.recorded_at_iso", "consent_revoked", "consent_revoked_at",
   "consent_status", "future_processing_allowed", "request.consent_revoked",

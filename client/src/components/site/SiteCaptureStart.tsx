@@ -21,9 +21,6 @@ import { PRIVACY_URL, TERMS_URL } from "@/lib/legalAcceptance";
 import { FILMING_NOTICE, FOOTAGE_UPLOAD_NOTICE } from "@/lib/footageNotice";
 import { DESCRIPTION_AUTHORITY_STATEMENT, DESCRIPTION_AUTHORITY_VERSION } from "@/lib/siteSubmissionAuthority";
 import { withFirebaseAuthHeaders } from "@/lib/firebaseAuthHeaders";
-import { createDetachedPasswordAccount, detachedAccountUser, sendAccountVerification } from "@/lib/accountAuth";
-import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
-import { friendlyAuthError } from "@/lib/siteClaim";
 import {
   CAPTURE_VIDEO_ACCEPT,
   captureTokenFromUrl,
@@ -65,10 +62,6 @@ type State =
       // What became of the video attached to the form. "none" is no video, not
       // a failure; "failed" means the job is saved but receipt is unconfirmed.
       uploaded: "none" | VideoUploadResult["status"];
-      // A guest's video waits for the account: the scene robot teams evaluate
-      // is built only for a claimed site, and the Pipeline refuses footage
-      // whose owner changed after upload (audit P1-8, interim).
-      videoAwaitsAccount: boolean;
       uploadMessage: string | null;
       processingRetryAvailable: boolean;
     }
@@ -280,15 +273,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
   // When it is ticked the video is attached right here, so the form is the
   // whole submission rather than a step before another upload page.
   const hasFootage = method === "upload";
-  // Footage waits for a saved job (owner decision 2026-10-18). A video sent
-  // before its job has an account is born with no owner, and saving the job
-  // afterwards is an owner change the Pipeline refuses for that capture. A
-  // signed-in site workspace (or an account this form sets up as one) owns the
-  // job from the start, and so does a guest who creates its account with this
-  // form (owner decision 2026-10-22); only their video goes with the form, and
-  // the upload routes refuse any other.
-  const newAccount = !currentUser && hasFootage && region !== "non_us";
-  const videoWithForm = siteWorkspace || newAccount;
+  // The signed job link and server-bound source identity let a guest upload
+  // immediately. Saving to an account remains available after the job exists.
   const [footage, setFootage] = useState<File | null>(null);
   const [footageError, setFootageError] = useState<string | null>(null);
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
@@ -335,7 +321,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
     const data = new FormData(formRef.current);
     const field = (name: string) => String(data.get(name) ?? "");
     retain({ ...recovery.current, savedAt: Date.now(), draft: {
-      task: field("startTask"), location: place ? place.label : field("startLocation"), email: field("startEmail"), company: field("startCompany"),
+      task: field("startTask"), location: place ? place.label : field("startLocation"), email: field("startEmail"),
+      ...(recovery.current.draft.company !== undefined ? { company: recovery.current.draft.company } : {}),
       ...(field("startFrequency") ? { jobFrequency: field("startFrequency") } : {}),
       ...(field("startReadiness") ? { purchaseReadiness: field("startReadiness") as SiteCaptureRecovery["draft"]["purchaseReadiness"] } : {}),
       method, region: place ? (place.countryCode ? (place.countryCode === "US" ? "us" : "non_us") : "") : region,
@@ -374,15 +361,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       if (active.current) { setStorageAvailable(false); setClearStatus("failed"); }
     } finally { operationInFlight.current = false; }
   }
-  /** Sign-in returns here (`AuthContext` reads `redirectAfterAuth`), so the site account sends the video with this form. */
-  function rememberThisForm() {
-    try {
-      window.sessionStorage.setItem("redirectAfterAuth", `${window.location.pathname}${window.location.search}`);
-    } catch {
-      // Sign-in still works; the person comes back to this page by hand.
-    }
-  }
-
   // Whether the phone handoff below is worth anything here. This form is
   // filled in from whatever device is at hand, including the phone that is
   // about to do the filming -- and a code pointing a phone at itself is not a
@@ -402,44 +380,20 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       document.querySelector<HTMLInputElement>("#start-location")?.focus();
       return;
     }
-    if (!retained && footageWanted && videoWithForm && !footage) return;
+    if (!retained && footageWanted && !footage) return;
 
     const data = new FormData(formRef.current!);
     const operationRecovery = recovery.current;
     let savedAnswers = retained ? JSON.parse(retained.body) as Record<string, unknown> : null;
-    const savedFields: Record<string, string> = { startTask: "taskStatement", startLocation: "siteLocation", startEmail: "email", startCompany: "company" };
+    const savedFields: Record<string, string> = { startTask: "taskStatement", startLocation: "siteLocation", startEmail: "email" };
     const read = (key: string) => String(savedAnswers ? savedAnswers[savedFields[key]] ?? "" : data.get(key) ?? "").trim();
     let email = currentUser?.email || read("startEmail");
     const location = read("startLocation");
-    const password = String(data.get("startPassword") ?? "");
-    if (!retained && newAccount && password.length < MIN_PASSWORD_LENGTH) {
-      setState({ status: "failed", message: `Choose a password of ${MIN_PASSWORD_LENGTH} characters or more.` });
-      document.querySelector<HTMLInputElement>("#start-password")?.focus();
-      return;
-    }
     operationInFlight.current = true;
     setState({ status: "working" });
 
     try {
-      // The account comes first, so the job is born owned and its video can go
-      // with it. Only the job and the upload see it; this page stays signed out.
-      // A retried save of that job goes under the same account.
-      let owner = currentUser ?? (retained?.endpoint === "/api/workspace/capture-start" ? await detachedAccountUser() : null);
-      // A filled honeypot is a bot: it gets the guest path's fake success, not an account.
-      const createsAccount = !retained && newAccount && !read("honeypot");
-      if (createsAccount) {
-        try {
-          owner = await createDetachedPasswordAccount(email.toLowerCase(), password);
-        } catch (error) {
-          if (!active.current) return;
-          setState({ status: "failed", message: (error as { code?: string } | null)?.code === "auth/email-already-in-use"
-            ? "An account already uses this email. Sign in first to upload the video here."
-            : friendlyAuthError(error, "We could not create your account. Please try again.") });
-          return;
-        }
-        void sendAccountVerification(owner, `${window.location.origin}/app`).catch(() => {});
-        if (!active.current) return;
-      }
+      const owner = currentUser;
       const headers = await withAppCheckHeader(await withFirebaseAuthHeaders(owner, await withCsrfHeader({ "Content-Type": "application/json" })));
       let body = retained?.body ?? JSON.stringify({
           requestId: operationRecovery.requestId,
@@ -448,7 +402,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           firstName: "",
           lastName: "",
           email: email.toLowerCase(),
-          company: read("startCompany"),
           roleTitle: "Site operator",
           buyerType: "site_operator",
           // No account: the capture link is the credential. Terms and Privacy
@@ -507,7 +460,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       // Unknown type (the lookup is still in flight or failed) still tries the
       // workspace first; a refusal falls back with the same answers intact.
       let savedToWorkspace = retained ? retained.endpoint === "/api/workspace/capture-start"
-        : createsAccount || siteWorkspace || (Boolean(currentUser) && workspaceType !== null && workspaceType !== "robot_team");
+        : siteWorkspace || (Boolean(currentUser) && workspaceType !== null && workspaceType !== "robot_team");
       let endpoint: "/api/workspace/capture-start" | "/api/inbound-request" = savedToWorkspace ? "/api/workspace/capture-start" : "/api/inbound-request";
       let frozen;
       try {
@@ -578,7 +531,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           JSON.stringify({
             name: "",
             email,
-            company: read("startCompany"),
           }),
         );
       } catch {
@@ -595,11 +547,8 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
       let uploadMessage: string | null = null;
       let processingRetryAvailable = false;
       const captureToken = captureUrl ? captureTokenFromUrl(captureUrl) : null;
-      // Only a job saved to an account from the start uploads here. Otherwise
-      // the video waits for the account.
-      const uploadNow = savedToWorkspace;
-      const videoAwaitsAccount = submissionFootageWanted && regionApproved && !uploadNow;
-      if (!recoveredSubmission && uploadNow && submissionFootageWanted && footage && regionApproved && captureToken) {
+      // Both guest and account jobs already have a stable server-bound owner.
+      if (!recoveredSubmission && submissionFootageWanted && footage && regionApproved && captureToken) {
         setUploadPercent(0);
         const outcome = await uploadSelfCaptureVideo(captureToken, footage, setUploadPercent);
         uploaded = outcome.status;
@@ -628,7 +577,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         uploaded,
         uploadMessage,
         processingRetryAvailable,
-        videoAwaitsAccount,
       });
       if (recoveredSubmission && captureUrl) void refreshReceivedVideo(captureUrl);
     } catch {
@@ -671,26 +619,6 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
               <a className="ms-button ms-button-large ms-intake-job-link" href={state.captureUrl}>Open your job and assessment</a>
             </p>
           </>
-        ) : state.videoAwaitsAccount && state.captureUrl ? (
-          <>
-            {/* The account comes before the video: the scene Blueprint
-                evaluates candidates in is built only for a claimed site, and a video sent
-                first could not be resumed under the account (P1-8). */}
-            <h2 style={{ marginTop: 0 }}>Save your job to your account, then send your video.</h2>
-            <p className="ms-field-hint">
-              Save the job to your account before sending its video so the recording stays linked to the same owner.
-              Create your account or sign in with {state.email}, then open your job and send the video you already have.
-            </p>
-            {state.claimUrl && <div className="ms-intake-account-links">
-              <a className="ms-button ms-button-large" href={state.claimUrl}>Create an account for this job</a>
-              <a className="ms-text-link" href={`${state.claimUrl}?mode=signin`}>Sign in to save this job</a>
-            </div>}
-            <p className="ms-field-hint" style={{ marginTop: "20px" }}>
-              After you save it, send the video from your job page:{" "}
-              <a className="ms-text-link" href={`${state.captureUrl}${state.captureUrl.includes("?") ? "&" : "?"}video=existing`}>Open the uploader</a>.
-              Keep this private link; we also email it to {state.email}.
-            </p>
-          </>
         ) : state.selfRecording && state.captureUrl ? (
           <>
             <h2 style={{ marginTop: 0 }}>
@@ -699,17 +627,16 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                 : state.hasFootage ? "Send us what you have." : "Film the work area."}
             </h2>
             {/* Two purposes, one recording. Footage they already hold may
-                explain the job and cover the scene; if it does we reuse it, and
-                if it only does the first we ask for the specific views that are
-                missing rather than for "a better video". What we never do is
-                make them film something they have already filmed. */}
+                explain the job and cover the scene. The existing update path
+                retains the original and accepts a complete updated walkthrough
+                on the same job; the recovery copy must match that path. */}
             <p className="ms-field-hint">
               {state.uploaded === "failed"
                 ? `${state.uploadMessage ?? "We could not confirm the video upload."} Keep your original video and open your job page to check its status.`
                 : state.hasFootage
                 ? "Upload the video you already have through this link. We will tell you "
-                  + "whether it covers the work area well enough to build the scene, or which extra "
-                  + "views would finish the job — you will not be asked to film it all again."
+                  + "whether it covers the work area well enough to build the scene. If more coverage is needed, "
+                  + "you can update the walkthrough on this same job. Your original video stays saved."
                 : "One video of one work area, on any phone. Thirty seconds of the actual cycle is "
                   + "enough. On an iPhone the link opens a small Blueprint camera when that is "
                   + "available; everywhere else the recorder opens in the browser. Assessment starts once we receive the video."}
@@ -752,15 +679,11 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         )}
         {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
         {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
-        {!state.workspaceUrl && state.claimUrl && !state.videoAwaitsAccount && <section className="ms-intake-account" aria-label="Save this job to your account">
-          <h2>Save this job to your account</h2>
-          {/* Not optional for evaluation: the scene candidates run against is
-              built only for a claimed site (`websiteSceneSponsorship`), and its
-              video is accepted only once the job is saved, so the recording's
-              owner is the same from upload on, as the Pipeline requires. */}
+        {!state.workspaceUrl && state.claimUrl && <section className="ms-intake-account" aria-label="Save this job to your account">
+          <h2>Save this job to your account (optional)</h2>
           <p className="ms-field-hint">
-            Save the job to an account with {state.email} before sending video or preparing a site-specific evaluation.
-            {" "}Save it now: we accept its video once it is saved. Your private job link keeps working either way.
+            Your private job link lets you upload, review the brief and follow progress.
+            Create an account with {state.email} if you want this job in your workspace.
           </p>
           <div className="ms-intake-account-links">
             <a className="ms-text-link" href={state.claimUrl}>Create an account for this job</a>
@@ -853,12 +776,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
           </p>
         ) : (
           <>
-          {/* Signed in to an account that cannot hold a site: its video waits
-              for the job's site account, and the uploader carries the notice. */}
-          {!videoWithForm && <p className="ms-field-hint" role="note" aria-label="Save this job to an account first">
-            Send the video from your job page once the job is saved to a site account.
-          </p>}
-          {videoWithForm && <label htmlFor="start-footage">
+          <label htmlFor="start-footage">
             <span>Upload the video</span>
             <span className="ms-field-hint">A .mov or .mp4 of one full cycle of the job.</span>
             <span className="ms-field-hint">{FOOTAGE_UPLOAD_NOTICE}</span>
@@ -882,7 +800,7 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             />
             {footageError && <span role="alert" className="ms-field-hint" style={{ color: "var(--ms-alert, #b00)" }}>{footageError}</span>}
             {footage && <span className="ms-field-hint">{formatBytes(footage.size)}. It uploads when you select Start free assessment.</span>}
-          </label>}
+          </label>
           </>
         )
       ) : null}
@@ -932,28 +850,15 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         <span className="ms-field-hint">
           Where we send your private link to record or upload the video, review the brief and follow progress.
         </span>
-        <input id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required maxLength={320} />
+        <input id="start-email" name="startEmail" type="email" defaultValue={recovery.current.draft.email} required autoComplete="email" maxLength={320} />
       </label>
 
-      <label htmlFor="start-company">
-        <span>Company</span>
-        <input id="start-company" name="startCompany" type="text" defaultValue={recovery.current.draft.company} required autoComplete="organization" maxLength={200} />
-      </label>
 
-      {/* Never retained in a draft or a recovery body. */}
-      {newAccount && <label htmlFor="start-password">
-        <span>Create a password</span>
-        <span className="ms-field-hint">
-          {MIN_PASSWORD_LENGTH} characters or more. Have an account?{" "}
-          <a className="ms-text-link" href="/sign-in" onClick={rememberThisForm}>Sign in first</a>
-        </span>
-        <input id="start-password" name="startPassword" type="password" required minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password" maxLength={128} />
-      </label>}
 
       </>}
       {currentUser && workspaceType !== undefined && (siteWorkspace
         ? <p className="ms-field-hint">Saving to your workspace as {currentUser.email}.</p>
-        : <p className="ms-field-hint">Signed in as {currentUser.email}, which is not a site workspace. This site will be saved to the link we email you, and you can claim it later.</p>)}
+        : <p className="ms-field-hint">Signed in as {currentUser.email}, which is not a site workspace. Use the private job link we email you; saving it to a site account is optional.</p>)}
 
       <details className="ms-task-interest ms-visitor-detail">
         <summary>Add job details and buying plans (optional)</summary>
@@ -974,10 +879,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             <option value="">Not sure yet</option>
             <option value="exploring">Exploring whether automation makes sense</option>
             <option value="planning">Planning a pilot</option>
-            <option value="ready_for_proposals">Ready to review delivery proposals</option>
+            <option value="ready_for_proposals">Ready to run a pilot</option>
           </select>
         </label>
-        <p className="ms-field-hint">A budget is not required to start. We can clarify output targets, installation and ongoing costs before asking providers for proposals. Submitting does not authorize spending.</p>
+        <p className="ms-field-hint">A budget is not required to start. We can clarify output targets, installation and ongoing costs before any pilot. Submitting does not authorize spending.</p>
       </details>
 
       {/* Bot bait: hidden from people, honoured by the server. */}

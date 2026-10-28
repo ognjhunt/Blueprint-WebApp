@@ -638,6 +638,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
   // Where the task sits on the assessment ladder, from the same projection the
   // account-free capture page uses. Best-effort: a failure to read the brief is
   // a missing readiness line, not a failed task load.
+  const currentCapture = siteWalkthroughIdentity(requestId, record);
   try {
     const brief = await getBrief(requestId);
     let stage: ReturnType<typeof assessReadiness>["stage"] | null = null;
@@ -657,16 +658,16 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         reconstructed: false,
       }).stage;
     }
-    const captureSession = await db!.collection("captureUploadSessions").doc(`walkthrough-${requestId}`).get();
+    const captureSession = await db!.collection("captureUploadSessions").doc(currentCapture.captureId).get();
     const reconstruction = captureSession.data()?.world_reconstruction;
     // A video that arrived before the job's account cannot be prepared after
     // the account exists; its status is never read as progress (2026-10-18).
     const footageBeforeAccount = !consentRevoked && await footageArrivedBeforeAccount(requestId, record) === true;
     const preparationStatus = !footageBeforeAccount && !consentRevoked && captureSession.data()?.website_preparation
-      ? await loadCurrentWebsitePreparationStatus(requestId, `walkthrough-${requestId}`) : null;
+      ? await loadCurrentWebsitePreparationStatus(requestId, currentCapture.captureId) : null;
     const preparationOverdue = !consentRevoked && websitePreparationOverdue(captureSession.data()?.website_preparation_watch);
     const sceneProgression = preparationStatus?.state === "handed_off"
-      ? await loadWebsiteSceneProgression(requestId, `walkthrough-${requestId}`) : null;
+      ? await loadWebsiteSceneProgression(requestId, currentCapture.captureId) : null;
     const scenePreviewReady = !consentRevoked && reconstruction?.state === "ready"
       && [reconstruction?.assets?.launchUrl, reconstruction?.assets?.panoUrl].some((value: unknown) => {
         try { const url = new URL(String(value || "")); return url.protocol === "https:" && !url.username && !url.password; }
@@ -685,7 +686,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     // Whether the site has filmed, read as the private job page reads it, so a
     // filmed site is never told to film. Unreadable is not "not filmed": it
     // leaves the readiness line out (the catch below) rather than guess.
-    const walkthrough = consentRevoked ? null : await savedWalkthrough(siteWalkthroughIdentity(requestId));
+    const walkthrough = consentRevoked ? null : await savedWalkthrough(currentCapture);
     if (!consentRevoked && !walkthrough) throw new Error("walkthrough_status_unavailable");
     task.readiness = projectTaskStatus(
       taskStatusInputFrom({
@@ -699,9 +700,9 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         scenePreviewReady,
         scenePreparationFailed: reconstruction?.state === "failed",
         ownerClosureOutcome: !consentRevoked
-          ? projectWebsiteRunClosure(record, requestId, `walkthrough-${requestId}`) : null,
+          ? projectWebsiteRunClosure(record, requestId, currentCapture.captureId) : null,
         preparationOutcome: !consentRevoked
-          ? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(record, `walkthrough-${requestId}`)) : null,
+          ? projectAtlasPreparationOutcome(selectWebsiteAtlasPreview(record, currentCapture.captureId)) : null,
         preparationStatus,
         preparationOverdue,
         sceneProgression,
@@ -711,6 +712,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         site_task_scope: (record.site_task_scope as { supported?: unknown; reason?: unknown } | undefined) ?? null,
         bookingUrl: bookingUrl(),
         jobAccess: teamJobAccess(record),
+        capture_owner_uid: record.capture_owner_uid,
         recommended: Boolean(record.pilot_recommendation),
       }),
     );
@@ -718,7 +720,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
     task.readiness = null;
   }
 
-  task.siteAdvisory = consentRevoked ? null : await loadCurrentSiteAdvisory(requestId, `walkthrough-${requestId}`, { expectedOwnerUid: record.account_owner_uid ?? null });
+  task.siteAdvisory = consentRevoked ? null : await loadCurrentSiteAdvisory(requestId, currentCapture.captureId, { expectedOwnerUid: record.account_owner_uid ?? null });
   if (task.siteAdvisory?.state === "queued" || task.siteAdvisory?.state === "running") {
     void import("../utils/siteAssessmentQueue").then(({ tickSiteAssessments }) => tickSiteAssessments(1))
       .catch(() => logger.warn("Site advisory workspace return wake unavailable"));

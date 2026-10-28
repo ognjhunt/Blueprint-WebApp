@@ -4,17 +4,20 @@ import { receivedVideoResult, retrySelfCaptureProcessing, uploadSelfCaptureVideo
 const token = "synthetic-upload-token";
 const pending = { captureReceived: true, state: "processing_pending", processingRetryAvailable: true };
 const xhrOutcome = { status: 502, body: pending as Record<string, unknown>, event: "load" };
+const requests: UploadRequest[] = [];
 
 class UploadRequest extends EventTarget {
+  constructor() { super(); requests.push(this); }
   upload = new EventTarget();
   status = xhrOutcome.status;
   responseText = JSON.stringify(xhrOutcome.body);
   timeout = 0;
   open = vi.fn();
-  send = vi.fn(() => queueMicrotask(() => this.dispatchEvent(new Event(xhrOutcome.event))));
+  send = vi.fn((_body?: Document | XMLHttpRequestBodyInit | null) => queueMicrotask(() => this.dispatchEvent(new Event(xhrOutcome.event))));
 }
 
 beforeEach(() => {
+  requests.length = 0;
   vi.useFakeTimers();
   xhrOutcome.status = 502; xhrOutcome.body = pending; xhrOutcome.event = "load";
   vi.stubGlobal("XMLHttpRequest", UploadRequest);
@@ -39,6 +42,20 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 describe("verified receipt versus processing", () => {
+  it("sends the original bytes without browser playback or frame-rate callbacks", async () => {
+    // This is the unsupported-codec/no-frame-callback browser regression: any
+    // attempt to open a decoder fails, but sending the file must still work.
+    vi.mocked(document.createElement).mockImplementation(() => { throw new Error("no video decoder"); });
+    vi.mocked(URL.createObjectURL).mockImplementation(() => { throw new Error("no playback support"); });
+    const file = new File(["original camera bytes"], "original.MOV", { type: "application/octet-stream" });
+    expect(await uploadSelfCaptureVideo(token, file)).toMatchObject({ status: "processing_pending" });
+    expect(document.createElement).not.toHaveBeenCalled();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    const sent = requests[0].send.mock.calls[0][0] as FormData;
+    expect(sent.get("video")).toBe(file);
+    expect(sent.has("metadata")).toBe(false);
+  });
+
   it("does not interpret an unsupported retained claim as receipt", () => {
     expect(receivedVideoResult({ state: "processing_pending", processingRetryAvailable: true })).toBeNull();
     expect(receivedVideoResult({ ok: true })).toBeNull();
@@ -125,4 +142,33 @@ it.each(transportCases)("$caseId transport $event HTTP $http receipt $receipt", 
   expect(result.status).toBe(receipt === "absent" ? "failed" : receipt === "processing_ready" ? "done" : receipt);
   if (event !== "load" || receipt === "absent") expect(fetch).toHaveBeenCalledExactlyOnceWith(`/api/self-capture/uploads/${token}/status`);
   else expect(fetch).not.toHaveBeenCalled();
+});
+
+describe("the browser never blocks an upload because it cannot read the video", () => {
+  const sentBodies: FormData[] = [];
+  class RecordingRequest extends UploadRequest {
+    send = vi.fn((body: FormData) => { sentBodies.push(body); queueMicrotask(() => this.dispatchEvent(new Event("load"))); });
+  }
+  beforeEach(() => { sentBodies.length = 0; vi.stubGlobal("XMLHttpRequest", RecordingRequest); });
+
+  it("sends the file with no metadata when the browser cannot decode it", async () => {
+    vi.mocked(document.createElement).mockImplementation(((name: string) => {
+      if (name !== "video") throw new Error(`unexpected element ${name}`);
+      return { set onerror(callback: () => void) { queueMicrotask(callback); } } as unknown as HTMLVideoElement;
+    }) as typeof document.createElement);
+    const file = new File(["hevc"], "IMG_0001.MOV", { lastModified: 1_757_980_800_000 });
+    expect(await uploadSelfCaptureVideo(token, file)).toMatchObject({ status: "processing_pending" });
+    expect(sentBodies).toHaveLength(1);
+    expect(sentBodies[0].get("video")).toBe(file);
+    expect(sentBodies[0].has("metadata")).toBe(false);
+    expect(document.createElement).not.toHaveBeenCalled();
+  });
+
+  it("sends a playable file immediately and leaves all measurement to the server", async () => {
+    const file = new File(["mp4"], "walk.mp4", { lastModified: 1_757_980_800_000 });
+    await uploadSelfCaptureVideo(token, file);
+    expect(sentBodies[0].get("video")).toBe(file);
+    expect(sentBodies[0].has("metadata")).toBe(false);
+    expect(document.createElement).not.toHaveBeenCalled();
+  });
 });

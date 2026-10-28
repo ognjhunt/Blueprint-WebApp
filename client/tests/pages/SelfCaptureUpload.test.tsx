@@ -12,8 +12,8 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import SelfCaptureUpload from "@/pages/SelfCaptureUpload";
 import { processingFailure } from "../../../server/utils/taskPreparationOutcome";
 
-const route = vi.hoisted(() => ({ token: "tok-e2e" }));
-vi.mock("wouter", () => ({ useRoute: () => [true, { token: route.token }] }));
+const route = vi.hoisted(() => ({ token: "tok-e2e", navigate: vi.fn() }));
+vi.mock("wouter", () => ({ useRoute: () => [true, { token: route.token }], useLocation: () => ["/capture-upload/test", route.navigate] }));
 
 const TOKEN = "tok-e2e";
 const videoUpload = vi.hoisted(() => ({ send: vi.fn(), retry: vi.fn() }));
@@ -60,6 +60,7 @@ function setUserAgent(ua: string) {
 
 beforeEach(() => {
   route.token = TOKEN;
+  route.navigate.mockReset();
   videoUpload.send.mockReset();
   videoUpload.retry.mockReset();
   vi.stubGlobal("fetch", mockFetch());
@@ -241,7 +242,7 @@ describe("video first owner return", () => {
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(videoUpload.retry).not.toHaveBeenCalled();
   });
-  it("keeps a measured coverage gap on the saved job and routes a new recording through support", async () => {
+  it("keeps a measured coverage gap on the saved job and offers missing views under the same job", async () => {
     const fetcher = ownerFetch(false);
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
@@ -251,12 +252,32 @@ describe("video first owner return", () => {
     }));
     render(<SelfCaptureUpload />);
     expect(await screen.findByText("Video received.")).toBeVisible();
-    expect(screen.getByRole("link", { name: "contact Blueprint" })).toHaveAttribute("href", expect.stringContaining("mailto:hello@tryblueprint.io"));
+    expect(screen.getByRole("button", { name: "Update walkthrough" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Upload a video file" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Upload a new recording" })).not.toBeInTheDocument();
-    expect(screen.getByText(/fresh recording permission/)).toBeInTheDocument();
+    expect(screen.getByText(/Your job and original video stay saved/)).toBeInTheDocument();
     expect(videoUpload.send).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Add footage when you are ready (optional)" })).not.toBeInTheDocument();
+  });
+  it.each([{ missingViews: [] }, { missingViews: ["pallet"] }])("opens one complete same-job update with missing views $missingViews without sending another upload", async ({ missingViews }) => {
+    const fallback = ownerFetch(false, true);
+    const fetcher = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith(`/api/site-task-brief/${TOKEN}/status`)) return Promise.resolve({ ok: true,
+        json: async () => ({ captureReceived: true, status: { decision: missingViews.length ? "add_views" : "footage_received",
+          headline: "Your video is saved.", operatorAction: null, missingViews } }) });
+      if (String(input).endsWith("/supplement")) return Promise.resolve({ ok: true,
+        json: async () => ({ ok: true, url: "/capture-upload/signed-same-job-update" }) });
+      return fallback(input);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    render(<SelfCaptureUpload />);
+    await screen.findByText("Video received.");
+    expect(screen.queryByRole("button", { name: "Upload a replacement walkthrough" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Update walkthrough" }));
+    await waitFor(() => expect(route.navigate).toHaveBeenCalledWith("/capture-upload/signed-same-job-update"));
+    const call = fetcher.mock.calls.find(([input]) => String(input).endsWith("/supplement"))!;
+    expect(JSON.parse(String(call[1]?.body))).toMatchObject({ mode: "replacement", requestId: expect.any(String) });
+    expect(videoUpload.send).not.toHaveBeenCalled();
   });
   it("lets the owner link withdraw recording permission after an explicit confirmation", async () => {
     const fetcher = ownerFetch(false);
@@ -741,17 +762,17 @@ describe("SelfCaptureUpload asks for the brief confirmation an evaluation needs"
     });
   }
 
-  it("shows an unconfirmed brief as an open, required step once footage is in", async () => {
+  it("keeps draft review open while automatic evaluation can continue", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", ownerFetch({ captureReceived: true, confirmedAtIso: null }));
     render(<SelfCaptureUpload />);
 
     const step = await screen.findByRole("region", { name: "Confirm your job brief" });
     expect(step.closest("details")).toBeNull();
-    expect(step).toHaveTextContent(/We can evaluate your job only after you confirm this brief/);
+    expect(step).toHaveTextContent(/Blueprint can prepare and evaluate your job while you review this brief/);
     // The confirm control is on the page, with nothing to open first.
     expect(screen.getByRole("button", { name: "This is right — confirm it" })).toBeVisible();
-    // The brief, never the job card's own optional extras, is what must not read as optional.
+    // The draft remains directly editable without claiming evaluation waits for it.
     expect(screen.queryByText("Correct job details (optional)")).not.toBeInTheDocument();
     expect(screen.queryByText(/no confirmation is required|without confirming/i)).not.toBeInTheDocument();
   });

@@ -1,9 +1,9 @@
 import type { JobManagedEvidenceSummary } from "@/types/jobMarketplace";
 
-/** The same accepted diagnostic summary appears in the site and operations workspaces. */
+/** The same accepted job evaluation appears in the site and operations workspaces. */
 export function PolicyScreeningCandidates({ screening }: { screening: NonNullable<JobManagedEvidenceSummary["screening"]> }) {
   return <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-    <caption className="sr-only">Early policy screening candidates</caption>
+    <caption className="sr-only">Candidates evaluated for your job</caption>
     <thead><tr><th scope="col">Candidate</th><th scope="col">Progress</th><th scope="col">Scored outcomes</th></tr></thead>
     <tbody>{screening.candidates.map(candidate => <tr key={candidate.candidateId}>
       <th scope="row" className="py-2 pr-3 font-medium">{candidate.name}</th>

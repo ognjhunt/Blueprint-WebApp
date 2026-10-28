@@ -362,7 +362,7 @@ export const BLUEPRINT_MCP_TOOLS: BlueprintMcpTool[] = [
   {
     name: "blueprint.team.plan",
     description:
-      "Paid planning is unavailable during the free beta (403 paid_evaluations_disabled). Request a free invited evaluation through the workspace.",
+      "Paid planning is unavailable during the free beta (403 paid_evaluations_disabled). Offer your policy on a job through the workspace; Blueprint runs it free.",
     inputSchema: teamPlanSchema,
   },
   {

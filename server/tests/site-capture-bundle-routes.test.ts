@@ -29,6 +29,15 @@ const state = vi.hoisted(() => ({
   coverage: [] as string[],
 }));
 
+// This route suite uses signature-only transport fixtures. The real local
+// media probe and a genuine no-metadata upload are covered separately.
+vi.mock("../utils/selfCaptureMediaMetadata", async importOriginal => {
+  const actual = await importOriginal<typeof import("../utils/selfCaptureMediaMetadata")>();
+  const { fixtureCaptureMediaMetadata } = await import("./helpers/capture-media-probe");
+  return { ...actual, probeCaptureVideo: vi.fn(async () => fixtureCaptureMediaMetadata()),
+    probeStoredCaptureVideo: vi.fn(async () => fixtureCaptureMediaMetadata()) };
+});
+
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
   return {
@@ -213,17 +222,17 @@ async function uploadEverything(device: DeviceBundle, bindingDigest: string) {
 }
 
 describe("the link check tells the app what to record", () => {
-  it("does not issue a supplement token or mutate existing captures", async () => {
+  it("requires a valid update intent before issuing another capture token", async () => {
     const before = structuredClone([...sharedFakeFirestoreState.docs]);
     const response = await api("POST", `${token()}/supplement`, {});
-    expect(response.status).toBe(409);
-    expect(response.body.code).toBe("capture_replacement_requires_new_job");
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("supplement_request_invalid");
     expect([...sharedFakeFirestoreState.docs]).toEqual(before);
     expect(state.bucket.writeLog).toEqual([]);
     expect(state.bucket.calls.getSignedUrl + state.bucket.calls.createResumableUpload).toBe(0);
   });
 
-  it("keeps an old supplement's receipts readable but refuses new browser and bundle writes", async () => {
+  it("keeps an old supplement's receipts readable but refuses writes without its parent proof", async () => {
     const captureId = `supplement-${"a".repeat(40)}`;
     const supplement = { parent_capture_id: CAPTURE_ID, parent_bundle_digest: `sha256:${"b".repeat(64)}`,
       parent_manifest_uri: `gs://blueprint-8c1ca.appspot.com/${RAW}/manifest.json`, coverage_digest: "c".repeat(64) };
@@ -245,12 +254,12 @@ describe("the link check tells the app what to record", () => {
       const result = await api("POST", `${linkToken}/${suffix}`, { parts: 1, extension: "mov", sizeBytes: 20,
         metadata: { widthPx: 1920, heightPx: 1080, durationSeconds: 61, fps: 30, recordedAtEpochMs: 1_758_000_000_000 } });
       expect(result.status).toBe(409);
-      expect(result.body.code).toBe("capture_replacement_requires_new_job");
+      expect(result.body.code).toBe("capture_lineage_unverified");
     }
     for (const [method, suffix] of [["POST", ""], ["PUT", "/parts/0?extension=mov"]]) {
       const result = await fetch(`${baseUrl}/api/self-capture/uploads/${linkToken}${suffix}`, { method });
       expect(result.status).toBe(409);
-      expect(await result.json()).toMatchObject({ code: "capture_replacement_requires_new_job" });
+      expect(await result.json()).toMatchObject({ code: "capture_lineage_unverified" });
     }
     expect([...sharedFakeFirestoreState.docs]).toEqual(beforeDocs);
     expect([...state.bucket.objects]).toEqual(beforeObjects);
@@ -1089,4 +1098,34 @@ describe("a realistic bundle stays far under the API rate limit", () => {
     expect(apiRequests).toBeLessThanOrEqual(12);
     expect(apiRequests).toBeLessThan(300 / 10);
   });
+});
+
+it.each([false, true])("updates a completed capture under the same job and preserves original bytes (privacy hold=%s)", async privacyHeld => {
+  const { device, bindingDigest } = await bundleFor({ lidar: false });
+  const planDigest = await uploadEverything(device, bindingDigest);
+  state.privacy.push(APPROVED);
+  expect((await api("POST", `${token()}/bundle/complete`, { plan_digest: planDigest })).status).toBe(201);
+  const original = state.bucket.names().filter(name => name.startsWith(`${RAW}/`))
+    .map(name => [name, createHash("sha256").update(state.bucket.objects.get(name)!.data).digest("hex")]);
+  const issued = await api("POST", `${token()}/supplement`, { mode: "replacement", requestId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" });
+  expect(issued.status).toBe(200);
+  expect(issued.body.captureId).toMatch(/^supplement-[a-f0-9]{40}$/);
+  const replay = await api("POST", `${token()}/supplement`, { mode: "replacement", requestId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" });
+  expect(replay.body.captureId).toBe(issued.body.captureId);
+  const target = await linkCheck(issued.body.token);
+  const child = syntheticDeviceBundle({ sceneId: SCENE_ID, captureId: issued.body.captureId,
+    binding: target.body.bundle.binding, lidar: false });
+  const plan = await api("POST", `${issued.body.token}/bundle`, planBody(child, target.body.bundle.binding_digest));
+  expect(plan.status).toBe(200); uploadTargets(child, plan.body.targets);
+  state.privacy.push(privacyHeld ? PENDING : APPROVED);
+  const complete = await api("POST", `${issued.body.token}/bundle/complete`, { plan_digest: plan.body.plan_digest });
+  if (privacyHeld) {
+    expect(complete.body.state).toBe("held");
+    expect(sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`)?.active_capture_id).not.toBe(issued.body.captureId);
+    state.privacy.push(APPROVED);
+    expect((await linkCheck(issued.body.token)).body.bundle.state).toBe("complete");
+  } else expect(complete.status).toBe(201);
+  expect(sharedFakeFirestoreState.docs.get(`inboundRequests/${REQUEST_ID}`)?.active_capture_id).toBe(issued.body.captureId);
+  for (const [name, digest] of original) expect(createHash("sha256").update(state.bucket.objects.get(name)!.data).digest("hex")).toBe(digest);
+  expect((await api("POST", `${token("film")}/supplement`, { mode: "replacement", requestId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" })).status).toBe(403);
 });

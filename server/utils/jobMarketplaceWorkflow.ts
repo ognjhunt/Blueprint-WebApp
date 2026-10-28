@@ -149,7 +149,7 @@ export function projectJobMarketplace(record: Record<string, any>, brief: Record
       : "Record or upload a video of the work so Blueprint can draft the brief and assess your job.";
   let actionOwner: JobMarketplaceWorkflow["actionOwner"] = "site";
   if (briefAgreed) { stage = "brief_agreed"; nextAction = "Build the site simulation from your video, then run and compare candidate robots, policies and policy APIs against your job."; actionOwner = "blueprint"; }
-  if (briefAgreed && optionsAssessed) { stage = "options_assessed"; nextAction = review?.nextAction ?? "Review which deployment companies support the recommended approach and request comparable delivery proposals."; actionOwner = "blueprint"; }
+  if (briefAgreed && optionsAssessed) { stage = "options_assessed"; nextAction = review?.nextAction ?? "Blueprint is checking which deployment company can deliver the approach that works on your job."; actionOwner = "blueprint"; }
   if (briefAgreed && proposals.some(p => p.status === "available")) {
     stage = "proposals_ready"; nextAction = "Review the scope, cost, support and acceptance criteria, then choose a proposal."; actionOwner = "site";
   }

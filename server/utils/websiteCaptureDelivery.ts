@@ -1,3 +1,4 @@
+import { isWebsiteCaptureId } from "./websiteCaptureIdentity";
 /** Immutable server-side proof of one browser upload's completed Storage writes. */
 import { createHash } from "node:crypto";
 import { crossRuntimeCanonicalJson, crossRuntimeDigest } from "./crossRuntimeCanonical";
@@ -138,7 +139,7 @@ export function buildBrowserDelivery(input: {
   const expected = `scenes/${input.sceneId}/captures/${input.captureId}`;
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(input.requestId)
       || input.sceneId !== `site-${input.requestId}`
-      || input.captureId !== `walkthrough-${input.requestId}`
+      || !isWebsiteCaptureId(input.requestId, input.sceneId, input.captureId)
       || input.rawPrefix !== `${expected}/raw`
       || !input.video.object_name.startsWith(`${input.rawPrefix}/walkthrough.`)
       || !/\.(mov|mp4)$/.test(input.video.object_name)

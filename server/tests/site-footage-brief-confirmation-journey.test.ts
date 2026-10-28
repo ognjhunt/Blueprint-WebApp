@@ -31,6 +31,15 @@ import { siteCaptureStartSubmission } from "./helpers/siteCaptureStartSubmission
 
 const sendEmail = vi.hoisted(() => vi.fn(async (_message: { to?: unknown }) => ({ sent: true })));
 
+// This route suite uses signature-only transport fixtures. The real local
+// media probe and a genuine no-metadata upload are covered separately.
+vi.mock("../utils/selfCaptureMediaMetadata", async importOriginal => {
+  const actual = await importOriginal<typeof import("../utils/selfCaptureMediaMetadata")>();
+  const { fixtureCaptureMediaMetadata } = await import("./helpers/capture-media-probe");
+  return { ...actual, probeCaptureVideo: vi.fn(async () => fixtureCaptureMediaMetadata()),
+    probeStoredCaptureVideo: vi.fn(async () => fixtureCaptureMediaMetadata()) };
+});
+
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE, fakeArrayUnion } = await import("./helpers/fake-firestore");
   const { sharedUploadBucket: bucket } = await import("./helpers/fake-upload-bucket");
@@ -207,14 +216,15 @@ describe("a site that sends its footage before confirming its brief", () => {
     await claim(jobId);
     await sendFootage(token);
     const { teamJobAccess } = await import("../utils/teamJobAccess");
-    // The reason the step is not optional: the job cannot be evaluated yet.
+    // Team-library access retains its existing brief agreement requirement.
+    // The automatic Blueprint job evaluation has separate source-bound admission.
     expect(teamJobAccess(doc(`inboundRequests/${jobId}`)).evaluationAvailable).toBe(false);
 
     const { status, captureReceived } = await jobStatus(token);
     expect(captureReceived).toBe(true);
     expect(status.decision).toBe("confirm_brief");
     expect(status.headline).toMatch(/confirm your job brief/i);
-    expect(status.headline).toMatch(/we can evaluate your job only after you confirm it/i);
+    expect(status.headline).toMatch(/can prepare and evaluate the job while you review it/i);
     expect(status.headline).not.toMatch(/without confirming|optional|no confirmation/i);
     expect(status.operatorAction).toMatch(/confirm/i);
   });
@@ -235,8 +245,12 @@ describe("a site that sends its footage before confirming its brief", () => {
     const [originalBytes] = await sharedUploadBucket.bucket.file(original.video.object_name,
       { generation: original.video.generation }).download();
     // An ambiguous new upload is refused; the retained original creates no second notice.
-    expect(await sendFootage(token, 409)).toMatchObject({ captureReceived: true,
-      uploadState: "processing_ready", code: "capture_replacement_requires_new_job" });
+    const duplicate = await sendFootage(token, 409);
+    expect(duplicate).toMatchObject({ captureReceived: true,
+      uploadState: "processing_ready", code: "capture_already_saved", repairAvailable: true });
+    expect(duplicate.message).toMatch(/original recording stays saved/i);
+    expect(duplicate.message).toMatch(/Update walkthrough on this job/i);
+    expect(duplicate.message).not.toMatch(/start a new job|original recording (was|has been) replaced/i);
     expect(doc(`captureUploadSessions/walkthrough-${jobId}`).browser_pending_delivery).toEqual(original);
     const originalFile = sharedUploadBucket.bucket.file(original.video.object_name);
     expect((await originalFile.getMetadata())[0].generation).toBe(original.video.generation);

@@ -64,10 +64,12 @@ describe("free beta pricing", () => {
     expect(siteCopy).not.toMatch(/\bmatch(?:ed|es|ing)?\b/i);
   });
 
-  it("keeps proposal selection with the customer and preserves evidence limits", () => {
+  it("keeps pilot approval with the customer and preserves evidence limits", () => {
     expect(siteAssessment.bounded).toMatch(/evidence limits/i);
-    expect(siteAssessment.bounded).toMatch(/comparable proposals/i);
+    expect(siteAssessment.bounded).toMatch(/never certifies physical performance or safety/i);
     expect(siteAssessment.bounded).toMatch(/You choose and approve/i);
+    const siteCopy = [siteAssessment.summary, siteAssessment.allIn, siteAssessment.bounded, ...siteAssessment.covers].join(" ");
+    expect(siteCopy).not.toMatch(/comparable|delivery proposal|recommendation|book/i);
   });
 });
 

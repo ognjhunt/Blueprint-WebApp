@@ -101,7 +101,7 @@ describe("atomic inbound request ownership", () => {
   it("accepts video-first intake and authorized recording setup without requiring text", async () => {
     const { server, baseUrl } = await start();
     try {
-      const body = { ...payload("video-no-text", "video@example.test"), taskStatement: "", taskDescription: "",
+      const body = { ...payload("video-no-text", "video@example.test"), company: undefined, capture_owner_uid: "forged-owner", taskStatement: "", taskDescription: "",
         hasExistingFootage: true, descriptionOnly: false,
         publicTaskListing: { consent: true, statementVersion: "public-task-card-v1", details: anonymizedOpportunityDraft("") } };
       const post = (input: unknown) => fetch(`${baseUrl}/`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
@@ -109,6 +109,9 @@ describe("atomic inbound request ownership", () => {
       expect(response.status).toBe(201);
       expect((await response.json()).captureUrl).toContain("/capture-upload/");
       const saved = sharedFakeFirestoreState.docs.get("inboundRequests/video-no-text")!;
+      expect(saved.capture_owner_uid).toMatch(/^site-job-[a-f0-9]{40}$/);
+      expect(saved.capture_owner_uid).not.toBe("forged-owner");
+      expect(saved.account_owner_uid).toBeUndefined();
       expect(saved.request).toMatchObject({ taskStatement: "", taskDescription: null, siteTaskGates: null, siteTaskSpec: {} });
       expect(saved.public_task_listing.details.title).toBe("Work assessment opportunity");
       const captureSetup = await post({ ...body, requestId: "capture-setup", hasExistingFootage: false, descriptionOnly: true,

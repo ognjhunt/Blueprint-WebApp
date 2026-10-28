@@ -1,4 +1,11 @@
-/** Diagnostic multi-candidate screening; deliberately separate from the frozen v4 canary. */
+/**
+ * The beta job's automatic multi-candidate evaluation; separate from the frozen v4 canary.
+ *
+ * One tier (owner decision 2026-10-28): the run under the site's allowance is
+ * the job's evaluation, published as a bounded simulation estimate. v1 rows
+ * were labelled diagnostic-only before that decision; they stay readable and
+ * are shown the same way. Neither version is physical or ADP evidence.
+ */
 import { z } from "zod";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
 
@@ -30,20 +37,28 @@ const candidate = z.object({
   }
 });
 
-export const betaPolicyScreeningPublicationSchema = z.object({
-  schema_version: z.literal("beta_policy_screening_publication.v1"),
+export const betaPolicyScreeningSourceSchema = z.object({
+  scene_intent_id: identifier, scene_intent_digest: digest, capture_id: identifier,
+  task_id: identifier, task_context_digest: digest, scene_revision_digest: digest,
+}).strict();
+
+const publicationFields = {
   campaign_id: identifier, site_id: identifier, revision: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
   plan_digest: digest, catalog_digest: digest, scenario_plan_digest: digest,
-  source: z.object({ scene_intent_id: identifier, scene_intent_digest: digest, capture_id: identifier,
-    task_id: identifier, task_context_digest: digest, scene_revision_digest: digest }).strict(),
+  source: betaPolicyScreeningSourceSchema,
   status: z.enum(["queued", "running", "completed", "blocked", "reconciliation_required"]),
-  purpose: z.literal("screening"), execution_operator: z.object({ kind: z.literal("blueprint") }).strict(),
-  claim_ceiling: z.literal("diagnostic_policy_execution"), recommendation_eligible: z.literal(false),
+  execution_operator: z.object({ kind: z.literal("blueprint") }).strict(),
   candidates: z.array(candidate).min(1).max(256),
   budget: z.object({ currency: z.literal("USD"), limit_usd: dollars, committed_upper_bound_usd: dollars,
     spent_upper_bound_usd: dollars, reserved_usd: dollars }).strict(),
   generated_at: z.string().datetime({ offset: true }), publication_digest: digest,
-}).strict().superRefine((value, ctx) => {
+};
+const jobEvaluationPublication = z.object({ ...publicationFields, schema_version: z.literal("beta_policy_screening_publication.v2"),
+  purpose: z.literal("job_evaluation"), claim_ceiling: z.literal("simulation_estimate") }).strict();
+const retainedPublication = z.object({ ...publicationFields, schema_version: z.literal("beta_policy_screening_publication.v1"),
+  purpose: z.literal("screening"), claim_ceiling: z.literal("diagnostic_policy_execution"), recommendation_eligible: z.literal(false) }).strict();
+export const betaPolicyScreeningPublicationSchema = z.discriminatedUnion("schema_version", [jobEvaluationPublication, retainedPublication])
+  .superRefine((value, ctx) => {
   const budget = value.budget;
   if (![budget.limit_usd, budget.committed_upper_bound_usd, budget.spent_upper_bound_usd, budget.reserved_usd]
     .every(amount => dollars.safeParse(amount).success)) return;

@@ -1,3 +1,4 @@
+import { newWebsiteCaptureOwnerBinding } from "../utils/websiteCaptureOwner";
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
 import { newJobFanoutIntent } from "../utils/newJobAlerts";
@@ -1101,7 +1102,7 @@ export async function submitInboundRequest(req: Request, res: Response) {
     );
     const missingFields: string[] = [];
     if (!payload.requestId) missingFields.push("requestId");
-    // A site starts with a task, an email and a company; no name is asked.
+    // A site starts with a task and an email; no name or company is asked.
     if (buyerType !== "site_operator" && !payload.firstName?.trim()) missingFields.push("firstName");
     if (buyerType !== "site_operator" && !payload.lastName?.trim()) missingFields.push("lastName");
     if (!payload.company?.trim()) missingFields.push("company");
@@ -1714,6 +1715,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
     } = {
       requestId: payload.requestId,
       ...(res.locals.workspaceIntake || {}),
+      ...(buyerType === "site_operator" ? newWebsiteCaptureOwnerBinding(payload.requestId,
+        res.locals.workspaceIntake?.account_owner_uid, new Date().toISOString()) : {}),
       intake_retry_token_hash: intakeRetryTokenHash(payload.retryToken),
       site_submission_id: payload.requestId,
       queue_key: routing.queueKey,

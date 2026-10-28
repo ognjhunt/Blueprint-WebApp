@@ -138,7 +138,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   },
   results_ready: {
     subject: "Results are in from an evaluation of your job",
-    body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run of one candidate against your scene has finished${detail ? `: ${detail}` : ""}. This is a simulation result for one candidate, not a physical test or a recommendation; a recommendation comes only from the finalists' full scoring.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
+    body: (url, detail, _counterpart, workspaceUrl) => `An evaluation run of one candidate against your scene has finished${detail ? `: ${detail}` : ""}. This is a bounded simulation estimate for one candidate, not a physical test; it never certifies physical performance or safety.\n\n${whereRunsAre(url, workspaceUrl, "See the run")}`,
   },
   run_no_result: {
     subject: "An evaluation run ended without a result",
@@ -151,7 +151,7 @@ const copy: Record<TaskLifecycleMilestone, { subject: string; body: (url: string
   no_team_passed: {
     subject: "No evaluation of your job has passed yet",
     // `detail` is what would change that (`qualifiedGap`), as /beta promises.
-    body: (url, detail, _counterpart, workspaceUrl) => `Every simulation evaluation of your job so far has finished, and none passed. These runs do not support a pilot recommendation. ${detail || "We need stronger evidence for this tested configuration before recommending it."} Blueprint will assess what further evidence or another candidate would help the decision, and while your job card stays published, approved partners can still ask for their systems to be evaluated. Nothing is needed from you for these completed runs.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
+    body: (url, detail, _counterpart, workspaceUrl) => `Every simulation evaluation of your job so far has finished, and none passed. ${detail || "We need stronger evidence for this tested configuration."} Blueprint will assess what further evidence or another candidate would help the decision, and while your job card stays published, approved partners can still ask for their systems to be evaluated. Nothing is needed from you for these completed runs.\n\n${whereRunsAre(url, workspaceUrl, "See each run")}`,
   },
   no_qualified_evaluation: {
     subject: "Your job's evaluations finished, with no result that counts yet",
@@ -343,7 +343,7 @@ export async function notifyIfNoTeamPassed(requestId: string, concludedRunId: st
     const { qualifiedGap } = await import("./taskStatusProjection");
     const gap = qualifiedGap(settled.screening.closestQualified);
     return enqueueTaskLifecycleNotification({ requestId, milestone: "no_team_passed", eventId: concludedRunId,
-      detail: gap.shortfall ? `${gap.shortfall} For a recommendation supported by this simulation route, an evaluation must ${gap.requirement}.` : undefined });
+      detail: gap.shortfall ? `${gap.shortfall} To pass in this simulation, a candidate needs to ${gap.requirement}.` : undefined });
   }
   if (settled?.state === "no_qualified_evaluation") {
     return enqueueTaskLifecycleNotification({ requestId, milestone: "no_qualified_evaluation" });

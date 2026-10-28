@@ -43,12 +43,14 @@ function isWorkflow(value: unknown): value is JobMarketplaceWorkflow {
 }
 
 /** The signed owner link is the credential; remounting keeps every record scoped to that link. */
-type JobWorkspaceProps = { token: string; preparationOutcome?: TaskOutcome | null; currentStatusKnown?: boolean };
+type JobWorkspaceProps = { token: string; preparationOutcome?: TaskOutcome | null; currentStatusKnown?: boolean;
+  currentNextAction?: { text: string; owner: "site" | "blueprint" };
+};
 export function JobWorkspace(props: JobWorkspaceProps) {
   return <JobWorkspaceForToken key={props.token} {...props} />;
 }
 
-function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = true }: JobWorkspaceProps) {
+function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = true, currentNextAction }: JobWorkspaceProps) {
   const [workflow, setWorkflow] = useState<JobMarketplaceWorkflow | null>(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -118,6 +120,10 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
   const available = workflow.proposals.filter(proposal => proposal.status === "available");
   const visibleProposals = workflow.proposals.filter(proposal => proposal.status !== "withdrawn");
   const selected = workflow.proposals.find(proposal => proposal.id === workflow.selection?.proposalId && proposal.revision === workflow.selection.proposalRevision);
+  // The current source/preparation read owns the next step until proposals
+  // arrive. Later commercial commitments keep their own exact quote action.
+  const currentAction = !visibleProposals.length && !workflow.selection && !workflow.agreement && !workflow.outcome
+    ? currentNextAction : undefined;
   const completed: MarketplaceJobStage[] = ["job_submitted"];
   if (workflow.briefAgreed) completed.push("brief_agreed");
   if (workflow.optionsAssessed) completed.push("options_assessed");
@@ -130,17 +136,28 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     <JobProgress stage={workflow.stage} completed={completed} />
     <div className="job-next-action">
       <p className="job-eyebrow">Next action · {currentStatusKnown
-        ? preparationOutcome ? owners[preparationOutcome.actionOwner] : owners[workflow.actionOwner]
+        ? preparationOutcome ? owners[preparationOutcome.actionOwner] : owners[currentAction?.owner ?? workflow.actionOwner]
         : owners.blueprint}</p>
       <p>{!currentStatusKnown ? "Checking the current job status. Your saved job remains available."
-        : preparationOutcome?.nextStep ?? workflow.nextAction}</p>
+        : preparationOutcome?.nextStep ?? currentAction?.text ?? workflow.nextAction}</p>
     </div>
     {error && <p role="status" className="ms-field-hint">Updates could not be refreshed. Last loaded details are shown. <button type="button" className="ms-text-link" onClick={() => setRefresh(value => value + 1)}>Try again</button></p>}
     {workflow.review && <div className="job-review">
       <h3>{workflow.review.disposition === "no_suitable_option" ? "No suitable option yet" : workflow.review.disposition === "more_information" ? "A little more information is needed" : "What we know so far"}</h3>
       <p>{workflow.review.summary}</p>
-      {currentStatusKnown && !preparationOutcome && workflow.review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{workflow.review.nextAction}</p>}
+      {currentStatusKnown && !preparationOutcome && !currentAction && workflow.review.nextAction !== workflow.nextAction && <p className="ms-field-hint">{workflow.review.nextAction}</p>}
     </div>}
+    {workflow.managedEvidenceUnavailable && <p role="status" className="ms-field-hint">Policy results are temporarily unavailable. Reload this page to retry.</p>}
+    {(workflow.managedEvidence ?? []).filter(item => item.current && item.screening).map(item => <section
+      key={item.runId} className="job-review" aria-label="Simulation results for your job">
+      <h3>{item.state === "completed" && item.screening!.candidates.some(candidate => candidate.scored > 0)
+        ? "Your simulation estimate" : "Simulation evaluation"}</h3>
+      <p>{item.summary}</p>
+      <PolicyScreeningCandidates screening={item.screening!} />
+      {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
+    </section>)}
+    {((workflow.evidence ?? []).length > 0 || (workflow.managedEvidence ?? []).length > 0) && <details className="job-planning-details">
+      <summary>Technical evidence and test details</summary>
     {(workflow.evidence ?? []).length > 0 && <section className="job-review" aria-label="Evidence for your job">
       <h3>Evidence for your job</h3>
       {workflow.evidence!.map(item => <article key={item.requestId} className="mt-3">
@@ -152,18 +169,20 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
         <p className="ms-field-hint break-all">Reference: {item.publicationDigest ?? item.requestId}{item.decisionDigest ? ` · Decision: ${item.decisionDigest}` : ""}</p>
       </article>)}
     </section>}
-    {workflow.managedEvidenceUnavailable && <p role="status" className="ms-field-hint">Policy results are temporarily unavailable. Reload this page to retry.</p>}
     {(workflow.managedEvidence ?? []).length > 0 && <section className="job-review" aria-label="Managed policy evidence for your job">
       <h3>Policy evidence for your job</h3>
       {workflow.managedEvidence!.map(item => <article key={item.runId} id={`managed-evidence-${encodeURIComponent(item.runId)}`} className="mt-3">
         <h4>{item.current ? item.state.replace(/_/g, " ") : "Historical — the job scope changed"}</h4>
+        {(!item.current || !item.screening) && <>
         <p>{item.summary}</p><p>Next: {item.nextAction}</p>
         {item.screening && <PolicyScreeningCandidates screening={item.screening} />}
         {item.limitations.map((limit, index) => <p className="ms-field-hint" key={index}>{limit}</p>)}
+        </>}
         <p className="ms-field-hint break-all">Run: {item.runId}{item.resultDigest ? ` · Result: ${item.resultDigest}` : ""}</p>
       </article>)}
     </section>}
     {workflow.jobId && (workflow.evidence ?? []).some(item => item.current && ["information_required", "blocked", "unavailable"].includes(item.state)) ? <p className="ms-field-hint"><a className="ms-text-link" href={`/app/captures?jobId=${encodeURIComponent(workflow.jobId!)}`}>Add task-specific capture evidence</a> when Blueprint needs it. Use the account that owns this job; the existing recording permissions still apply.</p> : null}
+    </details>}
     <BuyingRequirements key="requirements" locked={Boolean(workflow.agreement)} requirements={workflow.requirements} pending={pending} onSave={value => save("requirements", "PATCH", value)} />
 
     <section className="job-proposals" aria-labelledby="delivery-proposals-title">

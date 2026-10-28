@@ -152,7 +152,7 @@ describe("the decision ladder", () => {
 });
 
 describe("source coverage remains an explicit gap without preempting reconstruction", () => {
-  it("reviews reconstruction first and preserves immutable-source rules if more views remain necessary", () => {
+  it("gives one same-job action for a requested supplementary view", () => {
     const status = projectTaskStatus(
       base({
         briefDrafted: true,
@@ -166,10 +166,9 @@ describe("source coverage remains an explicit gap without preempting reconstruct
     expect(status.decision).toBe("add_views");
     expect(status.operatorAction).toContain("a view of the pallet area");
     expect(status.headline).not.toMatch(/would finish/i);
-    expect(status.operatorAction).toMatch(/new job.*complete walkthrough.*fresh recording permission/i);
-    expect(status.operatorAction).toMatch(/cannot add to or replace/i);
-    expect(status.operatorAction).toMatch(/first check what reconstruction can recover/i);
-    expect(status.operatorAction).toMatch(/if additional source views are still necessary/i);
+    expect(status.operatorAction).toMatch(/to this job/i);
+    expect(status.operatorAction).toMatch(/original recording.*linked/i);
+    expect(status.operatorAction).not.toMatch(/new job|contact|hello@/i);
     expect(status.headline).not.toMatch(/before we can build/i);
   });
 
@@ -198,6 +197,8 @@ describe("source coverage remains an explicit gap without preempting reconstruct
 
     expect(status.decision).toBe("add_views");
     expect(status.headline).not.toMatch(/would finish/i);
+    expect(status.operatorAction).toBeNull();
+    expect(status.headline).toContain("most of the room");
   });
 
   it("does not fire on a shortfall with no named views, which nobody could act on", () => {
@@ -431,10 +432,10 @@ describe("what a waiting job is waiting on", () => {
     expect(status.decision).toBe("no_team_passed");
     expect(status.headline).toMatch(/The closest qualified evaluation succeeded in 172 of 200 episodes \(86%\), against your pass mark of 95%/);
     expect(status.headline).toMatch(/its median cycle time was 34 s against your target of 30 s/);
-    expect(status.headline).toMatch(/A recommendation needs a candidate's full evaluation to reach 95% with a median cycle time of 30 s or less/);
+    expect(status.headline).toMatch(/A candidate needs to reach 95% with a median cycle time of 30 s or less on your job/);
     const rateOnly = projectTaskStatus({ ...ready, recommended: false, screening: { ...settled,
       closestQualified: { ...settled.closestQualified, medianCycleSeconds: null, cycleTimeSeconds: null, cycleTimeMissed: false } } });
-    expect(rateOnly.headline).toMatch(/A recommendation needs a candidate's full evaluation to reach 95%\./);
+    expect(rateOnly.headline).toMatch(/A candidate needs to reach 95% on your job\./);
     expect(rateOnly.headline).not.toMatch(/cycle time/);
   });
 
@@ -524,12 +525,11 @@ describe("a cleared site that is not saved to an account yet", () => {
 /** Owner decision 2026-10-18: a video that arrived before the job's account. */
 describe("a video that arrived before the job's account", () => {
   const ARRIVED = /^Your video arrived before this job was saved to an account, so we can't use it to build your scene yet\./;
-  it("is said plainly, ahead of any preparation state, with the account as an unsaved job's step", () => {
+  it("yields to current source-bound preparation but preserves an unowned historical capture", () => {
     const unsaved = projectTaskStatus(base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true,
       footageBeforeAccount: true, claimed: false, preparationStatus: { state: "preparing", correlationId: "bp-prep-0000000000000000" } as never }));
-    expect(unsaved).toMatchObject({ decision: "footage_before_account", operatorAction: "Save this job to your account." });
-    expect(unsaved.headline).toMatch(ARRIVED);
-    expect(unsaved.headline).not.toMatch(/preparing|taking longer/i);
+    expect(unsaved).toMatchObject({ decision: "assessing", operatorAction: null });
+    expect(unsaved.headline).toMatch(/preparing your job/i);
     const saved = projectTaskStatus(base({ briefDrafted: true, briefConfirmed: true, hasStoredCapture: true, footageBeforeAccount: true }));
     expect(saved).toMatchObject({ decision: "footage_before_account", operatorAction: null });
     expect(saved.headline).toMatch(/You don't need to send it again; we email you when that changes\.$/);
@@ -555,4 +555,42 @@ describe("a video that arrived before the job's account", () => {
     expect(projectTaskStatus(base({ hasStoredCapture: true, footageBeforeAccount: true, consentRevoked: true })).headline)
       .toMatch(/Recording consent was withdrawn/);
   });
+});
+
+
+describe("source-bound preparation supersedes earlier intake hints", () => {
+  it.each(["not_now", "needs_conversation"] as const)("shows observed preparation while %s facts stay unresolved", disposition => {
+    const status = projectTaskStatus(base({briefDrafted: true, briefConfirmed: true, hasStoredCapture: true,
+      claimed: false, disposition, taskScope: {supported: false, reason: "task_family_not_supported"},
+      preparationStatus: {state: "preparing", correlationId: null}}));
+    expect(status.decision).toBe("assessing");
+    expect(status.headline).toMatch(/preparing your job/i);
+    expect(status.operatorAction).toBeNull();
+    expect(status.headline).not.toMatch(/not building|account|call/i);
+  });
+  it("keeps confirmation as the only site action while preparation continues", () => {
+    const status = projectTaskStatus(base({briefDrafted: true, briefConfirmed: false, hasStoredCapture: true,
+      claimed: false, disposition: "needs_conversation", preparationStatus: {state: "preparing", correlationId: null}}));
+    expect(status.decision).toBe("confirm_brief");
+    expect(status.headline).toMatch(/preparing your job.*confirm your job brief/i);
+    expect(status.operatorAction).toMatch(/confirm/i);
+    expect(status.operatorAction).not.toMatch(/account|call/i);
+  });
+  it("does not turn unavailable preparation into proof of progress", () => {
+    const status = projectTaskStatus(base({briefDrafted: true, briefConfirmed: true, disposition: "needs_conversation",
+      preparationStatus: {state: "unavailable", correlationId: null}}));
+    expect(status.decision).toBe("call_needed");
+  });
+  it("does not require an account after a retained authorized upload", () => {
+    const status = projectTaskStatus(base({briefDrafted: true, briefConfirmed: true, disposition: "qualified",
+      claimed: false, sourceOwned: true, hasStoredCapture: true}));
+    expect(status.decision).not.toBe("save_account");
+    expect(status.operatorAction ?? "").not.toMatch(/account/i);
+  });
+});
+
+it("projects guest source ownership without inventing an account claim", () => {
+  const input = taskStatusInputFrom({briefDrafted: true, stage: null, capture_owner_uid: "source-owner", account_owner_uid: null});
+  expect(input.sourceOwned).toBe(true);
+  expect(input.claimed).toBe(false);
 });

@@ -37,6 +37,15 @@ import {
   waitingTimeline,
 } from "../../client/src/data/betaTimelines";
 
+// This route suite uses signature-only transport fixtures. The real local
+// media probe and a genuine no-metadata upload are covered separately.
+vi.mock("../utils/selfCaptureMediaMetadata", async importOriginal => {
+  const actual = await importOriginal<typeof import("../utils/selfCaptureMediaMetadata")>();
+  const { fixtureCaptureMediaMetadata } = await import("./helpers/capture-media-probe");
+  return { ...actual, probeCaptureVideo: vi.fn(async () => fixtureCaptureMediaMetadata()),
+    probeStoredCaptureVideo: vi.fn(async () => fixtureCaptureMediaMetadata()) };
+});
+
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE, fakeArrayUnion } = await import("./helpers/fake-firestore");
   const { sharedUploadBucket: bucket } = await import("./helpers/fake-upload-bucket");
@@ -243,9 +252,9 @@ describe("the job page says how long each waiting stage usually takes", () => {
     expect(await pageWait(token)).toEqual({ decision: "confirm_brief", wait: null });
     await completeBriefReview();
     expect(await pageWait(token)).toEqual({ decision: "confirm_brief", wait: null });
-    // Footage waits for a saved job, so saving it is the site's next step.
+    // The source is already bound: recording can proceed without account setup.
     await confirmBrief(token);
-    expect(await pageWait(token)).toEqual({ decision: "save_account", wait: null });
+    expect(await pageWait(token)).toEqual({ decision: "record", wait: null });
   });
 
   it("follows a saved job from its footage review to waiting for a robot team", async () => {

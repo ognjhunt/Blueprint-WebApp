@@ -10,7 +10,9 @@
  * A built scene is not yet "ready" for the site (owner decision 2026-10-22):
  * it is ready once its task objects are in and our first internal test on it
  * has started. That is `testing`: a policy test ran inside the intake, or the
- * Pipeline accepted one on a configured scene of the intake's task.
+ * Pipeline accepted one on a configured scene of the intake's task. Once the
+ * automatic evaluation completes, its estimate is the job's result
+ * (`evaluated`, owner decision 2026-10-28).
  */
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
@@ -41,10 +43,11 @@ export function policyTestAccepted(run: Record<string, any> | null | undefined):
 }
 
 export function projectWebsiteSceneProgression(record: Record<string, any> | null | undefined,
-  testAccepted = false): TaskSceneProgression | null {
+  testAccepted: boolean | "evaluated" = false): TaskSceneProgression | null {
   const state = record?.state;
   const phase = record?.pipeline_status?.phase;
-  if (state === "completed") return { state: testAccepted || phase === "policy_canary_complete" ? "testing" : "completed" };
+  if (state === "completed") return { state: testAccepted === "evaluated" ? "evaluated"
+    : testAccepted || phase === "policy_canary_complete" ? "testing" : "completed" };
   // The worker's own terminal states: a typed terminal refusal, or the intent's authority ended.
   if (state === "blocked" || state === "expired" || state === "revoked") return { state: "ended" };
   if (!IN_FLIGHT.has(state)) return null;
@@ -76,16 +79,23 @@ export async function* queryPages(query: FirebaseFirestore.Query, size = 100) {
  * intake's task, in the intake's own team. A configured scene carries the
  * task's objects, so this is the first internal test of the finished scene.
  */
-async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Record<string, any>): Promise<boolean> {
+async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Record<string, any>): Promise<boolean | "evaluated"> {
   const taskId = intake.request?.task?.task_id;
   const team = intake.request?.owner?.organization_id;
   if (typeof taskId !== "string" || !taskId || typeof team !== "string" || !team) return false;
   if (typeof intake.receipt?.intent_id === "string") {
+    let observed = false;
     for await (const rows of queryPages(store.collection(POLICY_RUN_COLLECTION)
       .where("source_scene_intent_id", "==", intake.receipt.intent_id))) {
-      if (rows.some(row => row.data()?.run_kind === "beta_policy_screening"
-        && row.data()?.team_namespace === team && row.data()?.screening_execution_observed === true)) return true;
+      for (const row of rows) {
+        const run = row.data();
+        if (run?.run_kind !== "beta_policy_screening" || run.team_namespace !== team) continue;
+        // A completed campaign with a scored episode is the job's estimate.
+        if (run.state === "completed" && run.episodes_scored > 0) return "evaluated";
+        observed ||= run.screening_execution_observed === true;
+      }
     }
+    if (observed) return true;
   }
   const launchIds: string[] = [];
   for await (const rows of queryPages(store.collection("taskEvaluationLaunches")

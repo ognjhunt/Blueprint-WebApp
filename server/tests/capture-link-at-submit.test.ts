@@ -22,10 +22,20 @@
 import express from "express";
 import { createServer } from "node:http";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import type { Server } from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { sharedFakeFirestore, sharedFakeFirestoreState } from "./helpers/fake-firestore";
+import { fixtureCaptureMediaMetadata } from "./helpers/capture-media-probe";
+
+// These authorization/privacy tests use signature-only fixtures. Real media
+// probing is exercised below and in self-capture-media-metadata.test.ts.
+const mediaProbe = vi.hoisted(() => ({ local: vi.fn(), stored: vi.fn() }));
+vi.mock("../utils/selfCaptureMediaMetadata", async importOriginal => ({
+  ...await importOriginal<typeof import("../utils/selfCaptureMediaMetadata")>(),
+  probeCaptureVideo: mediaProbe.local, probeStoredCaptureVideo: mediaProbe.stored,
+}));
 
 // The privacy screen is exercised in its own file; here it only has to be
 // controllable, so the marker-writing path can be tested on both answers.
@@ -52,7 +62,7 @@ const written = vi.hoisted(() => new Map<string, string>());
 const storedVersions = vi.hoisted(() => new Map<string, { body: Buffer; metadata: Record<string, string> }>());
 const generations = vi.hoisted(() => ({ next: 1 }));
 const writeGate = vi.hoisted(() => ({ current: null as null | { entered(): void; wait: Promise<void> } }));
-const cleanupGate = vi.hoisted(() => ({ current: null as null | { wait: Promise<void> } }));
+const cleanupGate = vi.hoisted(() => ({ current: null as null | { wait: Promise<void>; entered?: () => void } }));
 const writeFault = vi.hoisted(() => ({ manifestOnce: false, markerOnce: false, readUnavailable: false,
   manifestError: null as unknown, manifestResponseSize: undefined as unknown,
   beforeManifestExists: null as null | (() => void) }));
@@ -61,14 +71,14 @@ vi.mock("node:fs/promises", async importOriginal => {
   const original = await importOriginal<typeof import("node:fs/promises")>();
   return { ...original, unlink: async (path: Parameters<typeof original.unlink>[0]) => {
     const gate = cleanupGate.current;
-    if (gate && typeof path === "string" && path.includes("/self-capture-")) await gate.wait;
+    if (gate && typeof path === "string" && path.includes("/self-capture-")) { gate.entered?.(); await gate.wait; }
     return original.unlink(path);
   } };
 });
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE } = await import("./helpers/fake-firestore");
-  const { Writable } = await import("node:stream");
+  const { Readable, Writable } = await import("node:stream");
   return {
     default: {
       firestore: {
@@ -83,14 +93,16 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
       bucket: () => ({
         getFiles: async ({ prefix }: { prefix: string }) => [[...written.keys()]
           .filter(name => name.startsWith(prefix)).map(name => ({ name }))],
-        combine: async (sources: string[], destination: string, options?: { ifGenerationMatch?: number | string }) => {
+        combine: async (sources: Array<string | { name: string; generation?: string }>, destination: string, options?: { ifGenerationMatch?: number | string }) => {
           const latest = (name: string) => [...storedVersions.entries()].reverse()
             .find(([key]) => key.startsWith(`${name}@`))?.[1];
           if (options?.ifGenerationMatch !== undefined
               && String(options.ifGenerationMatch) !== String(latest(destination)?.metadata.generation ?? 0))
             throw Object.assign(new Error("compose precondition failed"), { code: 412 });
-          const body = Buffer.concat(sources.map(name => {
-            const stored = latest(name);
+          const body = Buffer.concat(sources.map(source => {
+            const name = typeof source === "string" ? source : source.name;
+            const stored = typeof source === "object" && source.generation
+              ? storedVersions.get(`${name}@${source.generation}`) : latest(name);
             if (!stored) throw new Error("missing_compose_source");
             return stored.body;
           }));
@@ -113,6 +125,8 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
             written.set(path, path.endsWith("walkthrough.mov") ? "<binary>" : body.toString("utf8"));
           };
           return {
+          name: path,
+          generation: options?.generation,
           delete: async () => {
             if (!options?.generation) throw new Error("deletion must bind the exact generation");
             storedVersions.delete(`${path}@${options.generation}`);
@@ -159,6 +173,11 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
             const value = current();
             if (!value) throw Object.assign(new Error("missing"), { code: 404 });
             return [value.body];
+          },
+          createReadStream: () => {
+            const value = current();
+            if (!value) throw Object.assign(new Error("missing"), { code: 404 });
+            return Readable.from([value.body]);
           },
           // The route now streams uploads to disk-backed temp files and into
           // storage through a write stream, so the fake has to speak that
@@ -261,6 +280,8 @@ function seedRequest(
 }
 
 beforeEach(() => {
+  mediaProbe.local.mockReset().mockResolvedValue(fixtureCaptureMediaMetadata());
+  mediaProbe.stored.mockReset().mockResolvedValue(fixtureCaptureMediaMetadata());
   sharedFakeFirestoreState.docs.clear();
   written.clear();
   storedVersions.clear();
@@ -393,6 +414,13 @@ async function uploadFor(baseUrl: string, requestId: string, bytes = "x", extens
   return { status: response.status, body: (await response.json()) as Record<string, unknown> };
 }
 
+function expectSameJobVideoRepair(body: Record<string, unknown>) {
+  expect(body.repairAvailable).toBe(true);
+  expect(body.message).toMatch(/original recording stays saved/i);
+  expect(body.message).toMatch(/Update walkthrough on this job/i);
+  expect(body.message).not.toMatch(/start a new job|original recording (was|has been) replaced/i);
+}
+
 async function uploadStatus(baseUrl: string, requestId: string) {
   const token = tokenFrom(captureUploadUrlFor(requestId));
   const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}`);
@@ -414,15 +442,71 @@ async function waitForUploadRelease(requestId: string) {
 }
 
 describe("saved footage and processing are separate receipts", () => {
+  it("retains the original before a probe outage and retries its exact generation without another upload", async () => {
+    seedRequest("req-probe-outage", { disposition: "qualified" });
+    const { VideoProbeError } = await import("../utils/selfCaptureMediaMetadata");
+    mediaProbe.local.mockRejectedValueOnce(new VideoProbeError("video_probe_unavailable"));
+    await withRoutes(async baseUrl => {
+      expect(await uploadFor(baseUrl, "req-probe-outage", "original video"))
+        .toMatchObject({ status: 502, body: { captureReceived: true, processingRetryAvailable: true } });
+      const sessionPath = "captureUploadSessions/walkthrough-req-probe-outage";
+      const saved = structuredClone(sharedFakeFirestoreState.docs.get(sessionPath)!.browser_stored_upload);
+      const original = JSON.parse(saved.manifest_json);
+      expect(original).toMatchObject({ media_probe_pending: true });
+      expect(original).not.toHaveProperty("fps_source");
+      expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+      const videoVersions = [...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"));
+      expect(await retryProcessing(baseUrl, "req-probe-outage"))
+        .toMatchObject({ status: 200, body: { state: "processing_ready" } });
+      expect(mediaProbe.stored).toHaveBeenCalledWith(saved.video, expect.any(Function),
+        { receivedAtEpochMs: Date.parse(saved.completed_at_iso) });
+      const completed = sharedFakeFirestoreState.docs.get(sessionPath)!.browser_pending_delivery;
+      expect(completed.video).toEqual(saved.video);
+      expect(completed.completed_at_iso).toBe(saved.completed_at_iso);
+      const manifest = JSON.parse(written.get(completed.manifest.object_name)!.toString());
+      expect(manifest.capture_rights).toEqual(original.capture_rights);
+      expect(manifest.site_task_context).toEqual(original.site_task_context);
+      expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(videoVersions);
+    });
+  });
+
+  it("keeps an unreadable source without publishing it and permits a same-job corrected walkthrough", async () => {
+    seedRequest("req-probe-unreadable", { disposition: "qualified" });
+    const { VideoProbeError } = await import("../utils/selfCaptureMediaMetadata");
+    mediaProbe.local.mockRejectedValueOnce(new VideoProbeError("video_unreadable"));
+    await withRoutes(async baseUrl => {
+      expect(await uploadFor(baseUrl, "req-probe-unreadable", "unreadable original"))
+        .toMatchObject({ status: 409, body: { captureReceived: true, code: "video_unreadable", processingRetryAvailable: false } });
+      expect([...written.keys()].some(name => name.endsWith("capture_upload_complete.json"))).toBe(false);
+      const sessionPath = "captureUploadSessions/walkthrough-req-probe-unreadable";
+      const original = structuredClone(sharedFakeFirestoreState.docs.get(sessionPath));
+      const token = tokenFrom(captureUploadUrlFor("req-probe-unreadable"));
+      const update = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/supplement`, { method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ mode: "replacement", requestId: "00000000-0000-4000-8000-000000000001" }) });
+      expect(update.status, await update.clone().text()).toBe(200);
+      expect(await update.json()).toMatchObject({ ok: true, originalRetained: true });
+      expect(sharedFakeFirestoreState.docs.get(sessionPath)).toEqual(original);
+      expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
+    });
+  });
+
   it("keeps an interrupted upload reserved through cleanup before admitting processing retry", async () => {
     seedRequest("req-cleanup-drain", { disposition: "qualified" });
     writeFault.manifestOnce = true;
     let releaseCleanup!: () => void;
-    cleanupGate.current = { wait: new Promise<void>(resolve => { releaseCleanup = resolve; }) };
+    let notifyCleanup!: () => void;
+    const cleanupStarted = new Promise<void>(resolve => { notifyCleanup = resolve; });
+    cleanupGate.current = { wait: new Promise<void>(resolve => { releaseCleanup = resolve; }), entered: notifyCleanup };
     try {
       await withRoutes(async baseUrl => {
-        expect(await uploadFor(baseUrl, "req-cleanup-drain", "original video"))
-          .toMatchObject({ status: 502, body: { captureReceived: true, state: "processing_pending" } });
+        let acknowledged = false;
+        const upload = uploadFor(baseUrl, "req-cleanup-drain", "original video").then(result => {
+          acknowledged = true;
+          return result;
+        });
+        await Promise.race([cleanupStarted, upload.then(() => { throw Error("Cleanup gate was bypassed"); })]);
+        expect(acknowledged).toBe(false);
         const sessionPath = "captureUploadSessions/walkthrough-req-cleanup-drain";
         const originalReservation = sharedFakeFirestoreState.docs.get(sessionPath)?.browser_upload_reservation;
         expect(originalReservation).toMatchObject({ capture_id: "walkthrough-req-cleanup-drain" });
@@ -432,6 +516,7 @@ describe("saved footage and processing are separate receipts", () => {
         expect(sharedFakeFirestoreState.docs.get(sessionPath)?.browser_upload_reservation).toEqual(originalReservation);
         expect([...storedVersions.keys()].filter(name => name.includes("/walkthrough.mov@"))).toEqual(versions);
         releaseCleanup();
+        expect(await upload).toMatchObject({ status: 502, body: { captureReceived: true, state: "processing_pending" } });
         await waitForUploadRelease("req-cleanup-drain");
         expect(await retryProcessing(baseUrl, "req-cleanup-drain"))
           .toMatchObject({ status: 200, body: { state: "processing_ready" } });
@@ -964,9 +1049,11 @@ describe("the privacy question is asked before anything is derived", () => {
       const sessionPath = "captureUploadSessions/walkthrough-req-legacy-no-session";
       sharedFakeFirestoreState.docs.delete(sessionPath);
       const before = [...storedVersions];
-      expect(await uploadFor(baseUrl, "req-legacy-no-session", "replacement", "mp4"))
+      const refused = await uploadFor(baseUrl, "req-legacy-no-session", "replacement", "mp4");
+      expect(refused)
         .toMatchObject({ status: 409, body: { captureReceived: true, uploadState: "retained",
-          code: "capture_replacement_requires_new_job" } });
+          code: "capture_already_saved" } });
+      expectSameJobVideoRepair(refused.body);
       expect(sharedFakeFirestoreState.docs.has(sessionPath)).toBe(false);
       expect([...storedVersions]).toEqual(before);
     });
@@ -986,7 +1073,9 @@ describe("the privacy question is asked before anything is derived", () => {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
       });
       expect(result.status).toBe(409);
-      expect((await result.json()).code).toBe("capture_replacement_requires_new_job");
+      const refused = await result.json();
+      expect(refused.code).toBe("capture_already_saved");
+      expectSameJobVideoRepair(refused);
     });
   });
 
@@ -1217,8 +1306,8 @@ describe("the privacy question is asked before anything is derived", () => {
       const before = [...storedVersions];
       const refused = await uploadFor(baseUrl, "req-privacy-generation", "V2", extension);
       expect(refused).toMatchObject({ status: 409, body: { captureReceived: true,
-        uploadState: "processing_ready", code: "capture_replacement_requires_new_job" } });
-      expect(refused.body.message).toContain("No new recording was accepted");
+        uploadState: "processing_ready", code: "capture_already_saved" } });
+      expectSameJobVideoRepair(refused.body);
       expect(refused.body.state).toBeUndefined();
       expect([...storedVersions]).toEqual(before);
       expect(screenCaptureForPrivacy).toHaveBeenCalledTimes(1);
@@ -1243,8 +1332,10 @@ describe("the privacy question is asked before anything is derived", () => {
             metadata: { widthPx: 1920, heightPx: 1080, durationSeconds: 61, fps: 30, recordedAtEpochMs: 1_758_000_000_000 } }),
         });
         expect(response.status).toBe(409);
-        expect(await response.json()).toMatchObject({ captureReceived: true, uploadState: "processing_ready",
-          code: "capture_replacement_requires_new_job" });
+        const refused = await response.json();
+        expect(refused).toMatchObject({ captureReceived: true, uploadState: "processing_ready",
+          code: "capture_already_saved" });
+        expectSameJobVideoRepair(refused);
       }
       expect([...storedVersions]).toEqual(before);
     });
@@ -1639,12 +1730,79 @@ describe("a link is a destination, not a permission", () => {
       return { status: response.status, body: (await response.json()) as Record<string, unknown> };
     });
 
-    // Past authorization and past the file and extension checks, stopped by the
-    // metadata this request deliberately omits. That is the next check and a
-    // different one, so it proves the gate opened rather than that the upload
-    // succeeded; only a 409 would mean it had not.
-    expect(result.status).toBe(400);
-    expect(result.body.code).toBe("video_metadata_missing");
+    expect(result.status).toBe(201);
+    expect(result.body.captureReceived).toBe(true);
+    expect(mediaProbe.local).toHaveBeenCalledOnce();
+  });
+
+  it("uploads real footage without browser metadata and retains server-observed timing", async () => {
+    const { resolveFfmpegBinary } = await import("../agents/adapters/video-audio-strip");
+    const binary = await resolveFfmpegBinary();
+    if (!binary) throw new Error("Pinned ffmpeg is required for the real-upload regression");
+    const actual = await vi.importActual<typeof import("../utils/selfCaptureMediaMetadata")>("../utils/selfCaptureMediaMetadata");
+    mediaProbe.local.mockImplementationOnce(actual.probeCaptureVideo);
+    const bytes = execFileSync(binary, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+      "testsrc2=size=160x120:rate=10", "-frames:v", "10", "-c:v", "mpeg4",
+      "-movflags", "frag_keyframe+empty_moov", "-f", "mp4", "pipe:1"]);
+    seedRequest("req-real-no-browser-metadata", { disposition: "qualified" });
+    await withRoutes(async baseUrl => {
+      const token = tokenFrom(captureUploadUrlFor("req-real-no-browser-metadata"));
+      const body = new FormData();
+      body.append("video", new Blob([bytes], { type: "application/octet-stream" }), "original.mp4");
+      const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}`, { method: "POST", body });
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({ captureReceived: true });
+    });
+    const manifestEntry = [...written.entries()].find(([name]) => name.includes("req-real-no-browser-metadata") && name.endsWith("/manifest.json"));
+    const manifest = JSON.parse(manifestEntry![1]);
+    expect(manifest).toMatchObject({ width: 160, height: 120, fps_source: 10, duration_seconds: 1,
+      capture_start_epoch_ms_basis: "server_upload_received", recording_time_known: false,
+      video_metadata_provenance: { method: "ffmpeg_source_samples.v1", sample_count: 10 } });
+  });
+
+  it("finishes real uploaded parts without browser metadata using their exact generation", async () => {
+    const { resolveFfmpegBinary } = await import("../agents/adapters/video-audio-strip");
+    const binary = await resolveFfmpegBinary();
+    if (!binary) throw new Error("Pinned ffmpeg is required for the real-parts regression");
+    const actual = await vi.importActual<typeof import("../utils/selfCaptureMediaMetadata")>("../utils/selfCaptureMediaMetadata");
+    mediaProbe.stored.mockImplementationOnce(actual.probeStoredCaptureVideo);
+    const bytes = execFileSync(binary, ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+      "testsrc2=size=160x120:rate=10", "-frames:v", "10", "-c:v", "mpeg4",
+      "-movflags", "frag_keyframe+empty_moov", "-f", "mp4", "pipe:1"]);
+    seedRequest("req-real-parts-no-metadata", { disposition: "qualified" });
+    await withRoutes(async baseUrl => {
+      const token = tokenFrom(captureUploadUrlFor("req-real-parts-no-metadata"));
+      const body = new FormData();
+      body.append("part", new Blob([bytes]), "part");
+      const part = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/0?extension=mp4`, { method: "PUT", body });
+      expect(part.status).toBe(200);
+      const response = await fetch(`${baseUrl}/api/self-capture/uploads/${token}/parts/complete`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ parts: 1, extension: "mp4", sizeBytes: bytes.length }),
+      });
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({ captureReceived: true });
+    });
+    const manifestEntry = [...written.entries()].find(([name]) => name.includes("req-real-parts-no-metadata") && name.endsWith("/manifest.json"));
+    expect(JSON.parse(manifestEntry![1])).toMatchObject({ width: 160, height: 120, fps_source: 10,
+      duration_seconds: 1, video_metadata_provenance: { method: "ffmpeg_source_samples.v1", sample_count: 10 } });
+    const original = [...storedVersions.values()].find(item => item.metadata.name.includes("req-real-parts-no-metadata") && item.metadata.name.endsWith("/walkthrough.mp4"));
+    expect(original!.body).toEqual(bytes);
+  });
+
+  it("retains unreadable media without publishing it even when the browser claims complete metadata", async () => {
+    const actual = await vi.importActual<typeof import("../utils/selfCaptureMediaMetadata")>("../utils/selfCaptureMediaMetadata");
+    mediaProbe.local.mockImplementationOnce(actual.probeCaptureVideo);
+    seedRequest("req-unreadable-browser-claims", { disposition: "qualified" });
+    await withRoutes(async baseUrl => {
+      const response = await uploadFor(baseUrl, "req-unreadable-browser-claims");
+      expect(response.status).toBe(409);
+      expect(response.body).toMatchObject({ code: "video_unreadable", captureReceived: true, processingRetryAvailable: false });
+      expect(String(response.body.error)).toMatch(/original file is saved/);
+    });
+    expect([...written.keys()].some(name => name.includes("req-unreadable-browser-claims") && name.endsWith("/walkthrough.mov"))).toBe(true);
+    expect([...written.keys()].some(name => name.includes("req-unreadable-browser-claims") && name.endsWith("capture_upload_complete.json"))).toBe(false);
+    expect(screenCaptureForPrivacy).not.toHaveBeenCalled();
   });
 });
 

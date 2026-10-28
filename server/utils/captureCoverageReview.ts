@@ -154,7 +154,7 @@ export async function reviewCaptureCoverage(params: {
 
   const supplement = db ? (await db.collection("captureSupplements").doc(params.captureId).get()).data() : null;
   if (supplement) await validateCaptureSupplement({ ...params, supplement: supplement.supplement });
-  const additive = supplement?.parent_coverage?.supplement_would_finish === true
+  const additive = supplement?.recording_scope !== "complete_walkthrough" && supplement?.parent_coverage?.supplement_would_finish === true
     && supplement?.parent_coverage?.binding?.brief_digest === humanDecisionDigest(brief);
   const requestedViews = additive ? supplement.parent_coverage.missing_coverage.map((label: string, index: number) => ({ id: `additional-${index}`, label })) : [
     { id: "work-area", label: "The whole work area, from a few steps back" },
@@ -252,7 +252,7 @@ export async function reviewCaptureCoverage(params: {
             `${emailGreeting(contact.firstName)}\n\n`
             + "Your footage is saved. These views are still needed before we can build the scene:\n\n"
             + finding.missingCoverage.map((view) => `- ${view}`).join("\n")
-            + "\n\nReply with your job reference so we can help you start a new job with a complete walkthrough and fresh recording permission. Your original job and footage stay saved. The existing link cannot add to or replace that recording, and the new job needs its own review before evaluation.\n\n"
+            + "\n\nOpen your existing job link and choose Add missing views or Update video. Your job and original footage stay saved; there is no need to start a new job.\n\n"
             + EMAIL_SIGN_OFF,
         });
       }
@@ -285,6 +285,7 @@ export async function recordCoverageFinding(
     const [request, brief] = await Promise.all([tx.get(ref), tx.get(db!.collection("siteTaskBriefs").doc(requestId))]);
     const value = request.data();
     const privacy = value?.capture_privacy_source_bound_decision || value?.capture_privacy_screen;
+    if (value?.active_capture_id && value.active_capture_id !== captureId) throw new Error("coverage_source_superseded");
     if (!hasCurrentRecordingConsent(value?.request?.consent_attestation)) throw new Error("coverage_recording_consent_required");
     if (binding && (humanDecisionDigest(brief.data()) !== binding.brief_digest
       || humanDecisionDigest(privacy?.producer_source || null) !== humanDecisionDigest(binding.source)

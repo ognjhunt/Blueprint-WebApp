@@ -79,7 +79,7 @@ function retainedAssessmentRetryIdentity(jobId: string, runId: string): string {
   try { sessionStorage.setItem(key, JSON.stringify({ identity, created: Date.now() })); } catch { /* Memory fallback below. */ }
   return identity;
 }
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 
 import { Helmet } from "@/lib/helmet";
 
@@ -121,6 +121,30 @@ export default function SelfCaptureUpload() {
 }
 
 function SelfCaptureUploadForToken({ token }: { token: string }) {
+  const [, navigate] = useLocation();
+  const [startingVideoUpdate, setStartingVideoUpdate] = useState(false);
+  const [isVideoUpdate, setIsVideoUpdate] = useState(false);
+  const [videoUpdateError, setVideoUpdateError] = useState<string | null>(null);
+  const videoUpdateIntent = useRef<string | null>(null);
+  async function updateVideo() {
+    if (startingVideoUpdate || scope !== "owner") return;
+    setStartingVideoUpdate(true); setVideoUpdateError(null);
+    videoUpdateIntent.current ??= crypto.randomUUID();
+    try {
+      const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/supplement`, {
+        method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }),
+        // The current processing path takes a complete walkthrough. A coverage
+        // report may still describe an earlier recording, so it must not gate
+        // this owner-requested update or choose a different upload contract.
+        body: JSON.stringify({ mode: "replacement", requestId: videoUpdateIntent.current }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.ok || typeof result.url !== "string" || !result.url.startsWith("/capture-upload/"))
+        throw new Error(result?.error || "We could not start the update. Your original video is saved.");
+      navigate(result.url);
+    } catch (error) { setVideoUpdateError(error instanceof Error ? error.message : "We could not start the update. Try again."); }
+    finally { setStartingVideoUpdate(false); }
+  }
 
   const [link, setLink] = useState<LinkState>({ status: "checking" });
   const [upload, setUpload] = useState<UploadState>({ status: "idle" });
@@ -350,6 +374,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
           return;
         }
 
+        setIsVideoUpdate(data.isVideoUpdate === true);
         const received = receivedVideoResult(data);
         if (received) {
           setLink({
@@ -535,7 +560,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
 
   // Saved on this device, or on another one: the laptop that showed the QR
   // code reaches the same layout once the phone's recording lands.
-  // A coverage gap never grants a second recording under the saved identity.
+  // Updates get their own immutable capture under this same job.
   const saved = upload.status === "processing_pending" || upload.status === "held"
     || upload.status === "done" || status?.captureReceived === true;
 
@@ -638,9 +663,10 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
       </h1>
 
       {saved && (link.status === "valid" || link.status === "held") && scope === "owner"
-        && <JobWorkspace token={token} preparationOutcome={status?.outcome} currentStatusKnown={currentStatusKnown} />}
+        && <JobWorkspace token={token} preparationOutcome={status?.outcome} currentStatusKnown={currentStatusKnown} currentNextAction={status ? {text: status.operatorAction || status.headline, owner: status.operatorAction || status.decision === "confirm_brief" ? "site" : "blueprint"} : undefined} />}
       {link.status !== "valid" && statusCard}
 
+      {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">Film or upload a complete updated walkthrough of the job, including the missing views. This updates the same job and keeps your original video.</p>}
       {/* A filming link opens the recorder; a held link explains its hold. */}
       {link.status === "checking" && (
         <p style={{ color: "var(--ms-muted)" }}>Checking your link…</p>
@@ -796,12 +822,14 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                     : null}
                 </p>
               </div>
-              {!blueprintActionPending && <p className="ms-field-hint">
-                This link keeps your original recording. If another recording is needed, <a
-                  className="ms-text-link" href="mailto:hello@tryblueprint.io?subject=Help%20with%20a%20new%20capture%20job">contact Blueprint</a>
-                {" "}for help starting a new job with a complete walkthrough and fresh recording permission.
-                Your existing job stays saved; the new job needs its own review before evaluation.
-              </p>}
+              {scope === "owner" && link.status === "valid" && <section aria-label="Update job video" style={{ margin: "16px 0" }}>
+                <p className="ms-field-hint">Send a complete updated walkthrough, including any missing views. Your job and original video stay saved.</p>
+                <button type="button" className="ms-button" disabled={startingVideoUpdate}
+                  onClick={() => void updateVideo()}>
+                  {startingVideoUpdate ? "Opening video update…" : "Update walkthrough"}
+                </button>
+                {videoUpdateError && <p role="alert">{videoUpdateError}</p>}
+              </section>}
               {!blueprintActionPending && upload.status === "processing_pending" && upload.processingRetryAvailable && (
                 <p><button type="button" className="ms-button" disabled={retryingProcessing} onClick={() => void retryProcessing()}>
                   {retryingProcessing ? "Retrying processing…" : "Retry processing"}
@@ -834,7 +862,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               {scope === "owner" && brief && !briefConfirmed && !editingBrief && !blueprintActionPending && (
                 <section aria-label="Confirm your job brief" style={{ border: "1px solid var(--ms-rule)", padding: "16px", margin: "16px 0" }}>
                   <h2 style={{ marginTop: 0 }}>Confirm your job brief</h2>
-                  <p className="ms-field-hint">We can evaluate your job only after you confirm this brief. Check the summary and answers, correct anything that is wrong, then confirm it.</p>
+                  <p className="ms-field-hint">Blueprint can prepare and evaluate your job while you review this brief. Check the summary and answers, correct anything that is wrong, then confirm your review.</p>
                   <TaskBriefReview
                     key={token}
                     token={token}

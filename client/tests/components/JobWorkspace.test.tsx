@@ -226,7 +226,11 @@ it("shows exact abstention limits without advancing a job or selecting a proposa
     claims: [{ claimId: "reach", verdict: "abstention", rationale: "Missing metric observation." }],
   }] })));
   render(<JobWorkspace token="owner-token" />);
-  expect(await screen.findByText(/available geometry cannot answer clearance/)).toBeVisible();
+  const details = await screen.findByText("Technical evidence and test details");
+  expect(details.closest("details")).not.toHaveAttribute("open");
+  expect(screen.getByText(/available geometry cannot answer clearance/)).not.toBeVisible();
+  fireEvent.click(details);
+  expect(screen.getByText(/available geometry cannot answer clearance/)).toBeVisible();
   expect(screen.getByText("Physical success has not been established.")).toBeVisible();
   expect(screen.getByText(/Missing metric observation/)).toBeVisible();
   expect(screen.queryByRole("button", { name: /Choose this proposal/ })).not.toBeInTheDocument();
@@ -261,9 +265,50 @@ it("shows every screened candidate without creating a pilot recommendation", asy
       candidates: Array.from({ length: 36 }, (_, index) => ({ candidateId: `candidate-${index}`, name: `Candidate ${index}`,
         state: index ? "pending" : "running", planned: 3, scored: 0, succeeded: 0, failed: 0, void: 0, blockers: [] })) } }] })));
   render(<JobWorkspace token="owner-token" />);
-  const table = await screen.findByRole("table", { name: "Early policy screening candidates" });
+  fireEvent.click(await screen.findByText("Technical evidence and test details"));
+  const table = await screen.findByRole("table", { name: "Candidates evaluated for your job" });
   expect(within(table).getAllByRole("row")).toHaveLength(37);
   expect(within(table).getByText("Candidate 35")).toBeVisible();
   expect(screen.getByText("Screening does not qualify a pilot.")).toBeVisible();
   expect(screen.queryByRole("button", { name: /Choose this pilot proposal/ })).not.toBeInTheDocument();
+});
+
+it("shows the current simulation result before opening technical history", async () => {
+  const result = {
+    runId: "current-evaluation", state: "completed", current: true, resultDigest: "sha256:accepted-result",
+    summary: "Your job's simulation estimate: 1 candidate ran, with 3 episodes scored.",
+    nextAction: "Blueprint uses this estimate to recommend the next step.",
+    limitations: ["Simulation does not certify physical performance or safety."],
+    href: "#managed-evidence-current-evaluation", screening: { candidates: [{ candidateId: "candidate-1", name: "Current candidate",
+      state: "completed", planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0, blockers: [] }] },
+  };
+  fetchMock.mockResolvedValue(response(workflow({ managedEvidence: [result, { ...result,
+    runId: "previous-evaluation", current: false, summary: "An estimate for the previous recording.", screening: undefined,
+  }] })));
+  render(<JobWorkspace token="owner-token" />);
+  expect(await screen.findByText(result.summary)).toBeVisible();
+  expect(screen.getByRole("table", { name: "Candidates evaluated for your job" })).toBeVisible();
+  expect(screen.getByText("2 succeeded · 1 failed · 0 unscorable")).toBeVisible();
+  expect(within(screen.getByRole("region", { name: "Simulation results for your job" })).getByText(result.limitations[0])).toBeVisible();
+  expect(screen.getByText("Technical evidence and test details").closest("details")).not.toHaveAttribute("open");
+  expect(screen.getByText("An estimate for the previous recording.")).not.toBeVisible();
+  expect(screen.getByText(/Run: current-evaluation/)).not.toBeVisible();
+  expect(screen.queryByRole("button", { name: /Choose this pilot proposal/ })).not.toBeInTheDocument();
+});
+
+
+it("uses one current preparation action until delivery proposals are available", async () => {
+  fetchMock.mockResolvedValue(response(workflow({actionOwner:"site",nextAction:"Confirm the old brief."})));
+  render(<JobWorkspace token="owner-token" currentNextAction={{text:"Blueprint is preparing the recording; nothing is needed from you.",owner:"blueprint"}} />);
+  expect(await screen.findByText("Next action · Blueprint")).toBeVisible();
+  expect(screen.getByText("Blueprint is preparing the recording; nothing is needed from you.")).toBeVisible();
+  expect(screen.queryByText("Confirm the old brief.")).not.toBeInTheDocument();
+});
+
+it("keeps the exact proposal choice as the action after preparation", async () => {
+  fetchMock.mockResolvedValue(response(workflow({stage:"proposals_ready",proposals:[proposal],actionOwner:"site",nextAction:"Choose a delivery proposal."})));
+  render(<JobWorkspace token="owner-token" currentNextAction={{text:"Preparing the recording.",owner:"blueprint"}} />);
+  expect(await screen.findByText("Choose a delivery proposal.")).toBeVisible();
+  expect(screen.getByText("Next action · You")).toBeVisible();
+  expect(screen.queryByText("Preparing the recording.")).not.toBeInTheDocument();
 });

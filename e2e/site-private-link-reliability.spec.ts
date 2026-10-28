@@ -81,7 +81,7 @@ test("owner can request an authorized assessment retry while keeping the saved r
   await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
 });
 
-test("returning owner keeps the received recording and gets fresh-job recovery guidance without new writes", async ({ page }, info) => {
+test("returning owner keeps the received recording and gets same-job update guidance without new writes", async ({ page }, info) => {
   const token = "retained-recording-fixture";
   const writes: string[] = [];
   await page.route("**/api/**", route => {
@@ -105,25 +105,61 @@ test("returning owner keeps the received recording and gets fresh-job recovery g
   await page.goto(`/capture-upload/${token}?video=existing`);
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toBeVisible();
+  await expect(page.getByText("Next action · You", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Upload a new recording", exact: true })).toHaveCount(0);
   await expect(page.locator('input[type="file"]')).toHaveCount(0);
   expect(writes).toEqual([]);
   await page.reload();
   await expect(page.getByText("Video received.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Next action · You", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Upload a new recording", exact: true })).toHaveCount(0);
   await expect(page.locator('input[type="file"]')).toHaveCount(0);
-  await expect(page.getByText(/This link keeps your original recording/)).toContainText(
-    "for help starting a new job with a complete walkthrough and fresh recording permission.");
-  await expect(page.getByText(/This link keeps your original recording/)).toContainText(
-    "Your existing job stays saved; the new job needs its own review before evaluation.");
-  const support = page.getByRole("link", { name: "contact Blueprint", exact: true });
-  await expect(support).toHaveAttribute("href", "mailto:hello@tryblueprint.io?subject=Help%20with%20a%20new%20capture%20job");
-  expect(await support.getAttribute("href")).not.toContain(token);
+  const update = page.getByRole("region", { name: "Update job video", exact: true });
+  await expect(update).toContainText("Send a complete updated walkthrough, including any missing views. Your job and original video stay saved.");
+  await expect(update.getByRole("button", { name: "Update walkthrough", exact: true })).toBeEnabled();
+  await expect(page.getByRole("link", { name: "contact Blueprint", exact: true })).toHaveCount(0);
+  await expect(page.getByText(/starting a new job|new job needs its own review/i)).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Confirm your job brief", exact: true })).toBeVisible();
   await expect(page.getByText("Your job brief is confirmed.", { exact: false })).toHaveCount(0);
-  await page.screenshot({ path: info.outputPath("retained-recording-fresh-job-guidance.png"), fullPage: true });
+  await page.screenshot({ path: info.outputPath("retained-recording-same-job-guidance.png"), fullPage: true });
   // Neither returning nor reloading uploads bytes, grants new permission, or confirms the brief.
   expect(writes).toEqual([]);
+});
+
+test("the current simulation estimate is visible while technical references stay folded", async ({ page }, info) => {
+  const token = "scored-result-fixture";
+  const writes: string[] = [];
+  await page.route("**/api/**", route => {
+    const request = route.request(), url = new URL(request.url());
+    if (request.method() !== "GET" && url.pathname !== "/api/analytics/ingest") writes.push(url.pathname);
+    if (url.pathname.startsWith("/api/job-workflow/owner/")) return route.fulfill({ json: {
+      ...legacyJobWorkflow(), managedEvidence: [{ runId: "accepted-evaluation", state: "completed", current: true,
+        resultDigest: "sha256:fixture-result", summary: "Your job's simulation estimate: 1 candidate ran, with 3 episodes scored.",
+        nextAction: "Blueprint uses this estimate to recommend the next step.",
+        limitations: ["Simulation does not certify physical performance or safety."], href: "#managed-evidence-accepted-evaluation",
+        screening: { candidates: [{ candidateId: "candidate-1", name: "Current candidate", state: "completed",
+          planned: 3, scored: 3, succeeded: 2, failed: 1, void: 0, blockers: [] }] } }],
+    } });
+    if (url.pathname === `/api/self-capture/uploads/${token}/status`) return route.fulfill({ json: {
+      ok: true, state: "open", captureReceived: true, uploadState: "processing_ready", accepts: ["mov", "mp4"],
+    } });
+    if (url.pathname === `/api/site-task-brief/${token}`) return route.fulfill({ json: {
+      ready: true, scope: "owner", brief: { summary: "Cartons onto a pallet", captureMode: "self_capture", proposed: [], unresolved: [], confirmedAtIso: null },
+    } });
+    if (url.pathname === `/api/site-task-brief/${token}/status`) return route.fulfill({ json: {
+      scope: "owner", captureReceived: true, status: { decision: "confirm_brief", headline: "Review your job brief.", operatorAction: null, missingViews: [] },
+    } });
+    return route.fulfill({ status: 503, json: { error: "Unstubbed local API" } });
+  });
+  await page.goto(`/capture-upload/${token}?video=existing`);
+  await expect(page.getByRole("heading", { name: "Your simulation estimate" })).toBeVisible();
+  await expect(page.getByRole("table", { name: "Candidates evaluated for your job" })).toBeVisible();
+  await expect(page.getByText("2 succeeded · 1 failed · 0 unscorable")).toBeVisible();
+  await expect(page.getByText("Simulation does not certify physical performance or safety.")).toBeVisible();
+  await expect(page.getByText("Technical evidence and test details").locator("..")).not.toHaveAttribute("open");
+  await expect(page.getByText(/Run: accepted-evaluation/)).not.toBeVisible();
+  expect(writes).toEqual([]);
+  await page.screenshot({ path: info.outputPath("current-simulation-result-visible.png"), fullPage: true });
 });
 
 test.beforeEach(async ({ context, baseURL }) => {
@@ -207,7 +243,6 @@ test("desktop handoff recognizes retained footage without claiming processing co
   await page.goto("/contact/site-operator");
   await page.locator("#start-location").fill("Austin, TX");
   await page.locator("#start-email").fill("operator@example.test");
-  await page.locator("#start-company").fill("Fixture site");
   await page.getByRole("button", { name: "Start free assessment" }).click();
   await expect(page.getByRole("heading", { name: "Film the work area." })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open your job page", exact: true })).toHaveAttribute("href", "/capture-upload/held-fixture");
@@ -244,7 +279,7 @@ test("the person filming is asked for the video and nothing else", async ({ page
   await page.screenshot({ path: info.outputPath("video-only-film-link-local-fixture.png"), fullPage: true });
 });
 
-const READINESS_NOTE = "Blueprint evaluates candidate robots and policies that look right for this job in a simulation of your site. If Blueprint recommends an approach, it will be one that passed a full evaluation on your job. This is a first read from your video, not a promise that any robot can do the job.";
+const READINESS_NOTE = "Blueprint runs candidate robots and policies that look right for this job in a simulation of your site and shows you a bounded estimate of what works. This is a first read from your video, not a promise that any robot can do the job.";
 
 function readinessFixture(overrides: Record<string, unknown> = {}) {
   const notNeeded = "between spots isn't needed: the object moves about 90 cm (estimated from your video).";
@@ -256,8 +291,8 @@ function readinessFixture(overrides: Record<string, unknown> = {}) {
       { id: "brief", label: "Job brief confirmed", state: "done", owner: "site" },
       { id: "scene", label: "Your site rebuilt in 3D", state: "in_progress", owner: "blueprint" },
       { id: "evaluation", label: "Blueprint evaluates candidate robots and policies in simulation", state: "pending", owner: "blueprint" },
-      { id: "recommendation", label: "Blueprint recommends the approach that wins", state: "pending", owner: "blueprint" },
-      { id: "booking", label: "You book the pilot", state: "pending", owner: "site" },
+      { id: "recommendation", label: "Blueprint shows you what works", state: "pending", owner: "blueprint" },
+      { id: "booking", label: "You decide whether to pilot", state: "pending", owner: "site" },
     ], meanwhile: "Blueprint is rebuilding your work area in 3D from your video." },
     briefPath: "/readiness-brief/brief-token.signature",
     report: {

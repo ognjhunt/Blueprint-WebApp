@@ -21,7 +21,7 @@ const contents = [
   ["workspace-reconstruction", "Reconstruct the workspace"],
   ["task-objects", "Prepare the objects"],
   ["robot-comparison", "Compare robots and policies"],
-  ["recommendation", "Choose a deployment partner"],
+  ["recommendation", "See what works"],
   ["on-site-testing", "Test on site"],
   ["pilot-decision", "Decide what comes next"],
 ] as const;
@@ -71,8 +71,8 @@ export function WarehousePilotSequence() {
         <section className="ms-pilot-step" id="robot-comparison" aria-labelledby="robot-comparison-title">
           <p className="ms-eyebrow">04 · Evaluation</p>
           <h3 id="robot-comparison-title">Compare suitable robots and policies in simulation.</h3>
-          <p>Blueprint runs many candidate robots and policies—the software that controls a robot—in the reconstructed work area, using APIs or other supported access. Where a system needs access or an integration, its technology provider supplies it; you do not need to find or invite anyone. Quick screening runs are diagnostic and decide which candidates go forward. The finalists are then scored in full against the same placement criteria.</p>
-          <p>You see the tested conditions, completed placements and failures for each option, so the recommendation is grounded in your job.</p>
+          <p>Blueprint runs many candidate robots and policies—the software that controls a robot—in the reconstructed work area, using APIs or other supported access. Where a system needs access or an integration, its technology provider supplies it; you do not need to find or invite anyone. Every candidate is scored against the same placement criteria.</p>
+          <p>You see the tested conditions, completed placements and failures for each option, so the result is grounded in your job.</p>
           <p className="ms-pilot-disclosure">The three evaluations below use illustrative policy labels and outcomes. A simulated pass is an estimate, not proof of real performance or safety.</p>
           <div className="ms-pilot-comparison">
             <h4>A · Fixed arm</h4>
@@ -89,16 +89,16 @@ export function WarehousePilotSequence() {
         </section>
 
         <section className="ms-pilot-step" id="recommendation" aria-labelledby="recommendation-title">
-          <p className="ms-eyebrow">05 · Recommendation</p>
-          <h3 id="recommendation-title">Compare delivery proposals and choose your partner.</h3>
-          <p>Blueprint recommends the approach that wins on your job (in this example, setup B) and the deployment companies that support it. After our review, we invite those companies to quote against the same brief, covering equipment, installation, ongoing cost, timing and support. You choose the partner and agree the pilot price and terms directly.</p>
-          <p>No approved budget is needed to start. Blueprint assessment, evaluations, recommendations and coordination are free during the beta, with no cut of the pilot.</p>
+          <p className="ms-eyebrow">05 · Result</p>
+          <h3 id="recommendation-title">See what works on your job.</h3>
+          <p>You get a bounded simulation estimate of what works on your job (in this example, setup B), or &ldquo;held&rdquo; if we can&apos;t simulate that kind of job yet. Blueprint then works alongside a deployment company that can deliver the approach. You agree the pilot price and terms directly with that company.</p>
+          <p>No approved budget is needed to start. Blueprint&apos;s simulation and results are free during the beta, with no cut of the pilot.</p>
         </section>
 
         <section className="ms-pilot-step" id="on-site-testing" aria-labelledby="on-site-testing-title">
           <p className="ms-eyebrow">06 · On-site trial</p>
           <h3 id="on-site-testing-title">Test the approach at the real bench.</h3>
-          <p>Once you and the deployment partner agree the pilot, the partner supplies and integrates the system, trains operators and provides the support you agree. Test the task at your site and measure completed placements, cycle time and human interventions against the agreed criteria.</p>
+          <p>Once you and the deployment company agree the pilot, the deployment company supplies and integrates the system, trains operators and provides the support you agree. Test the task at your site and measure completed placements, cycle time and human interventions against the agreed criteria.</p>
           <PilotImage src="/illustrations/warehouse-pilot/07-on-site-testing.webp" width={1448} height={1086} alt="A close view of an illustrative on-site test: a wheeled robot supports a blue case in its grippers above an empty tray pocket while a technician supervises from a laptop beside the bench." caption="Illustrative on-site trial: the grippers support the case above the empty pocket before placement." />
         </section>
 

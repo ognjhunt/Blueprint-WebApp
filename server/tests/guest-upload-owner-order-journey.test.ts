@@ -1,30 +1,6 @@
 // @vitest-environment node
-/**
- * Audit P1-8, then the owner decision of 2026-10-18: footage waits for a saved
- * job.
- *
- * The Pipeline prepares a website capture only while the owner it observed
- * when the capture was born is still the owner (`website_preparation_status.py`
- * requires the current `capture_owner` to equal the birth
- * `capture_owner_user_id`), and the scene robot teams evaluate is built only
- * for a claimed site. So the order of "save the job to an account" and "send
- * the video" decides whether the job can ever reach a team evaluation. A
- * re-upload cannot repair the wrong order either: the Pipeline keys the birth
- * on the capture and refuses a second delivery to it. So every upload route
- * refuses footage until the job is saved (`authorizeCaptureUpload`).
- *
- * Nothing here is a hand-built job record. Each job starts from the real
- * `POST /api/inbound-request` handler with the exact body the public start form
- * sends (`helpers/siteCaptureStartSubmission.ts`, pinned by the component's own
- * test). The site saves the job through the real `POST /api/workspace/claim`,
- * the footage lands through the real `POST /api/self-capture/uploads/:token`,
- * and the owner is read by the real `observeWebsiteCaptureOwner` the Pipeline
- * calls.
- *
- * Substituted: Firebase persistence and Cloud Storage (the observation's
- * readers are built on them here), ID-token verification, outbound email
- * delivery, Slack, analytics, model calls and the privacy screen's model step.
- */
+/** Secure guest upload must retain the same source owner through a later
+ * verified account claim. Uses the real intake, upload, claim and observer. */
 import express from "express";
 import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -33,6 +9,15 @@ import { sharedUploadBucket } from "./helpers/fake-upload-bucket";
 import { siteCaptureStartSubmission } from "./helpers/siteCaptureStartSubmission";
 
 const sendEmail = vi.hoisted(() => vi.fn(async (_message: { to?: unknown }) => ({ sent: true })));
+
+// This route suite uses signature-only transport fixtures. The real local
+// media probe and a genuine no-metadata upload are covered separately.
+vi.mock("../utils/selfCaptureMediaMetadata", async importOriginal => {
+  const actual = await importOriginal<typeof import("../utils/selfCaptureMediaMetadata")>();
+  const { fixtureCaptureMediaMetadata } = await import("./helpers/capture-media-probe");
+  return { ...actual, probeCaptureVideo: vi.fn(async () => fixtureCaptureMediaMetadata()),
+    probeStoredCaptureVideo: vi.fn(async () => fixtureCaptureMediaMetadata()) };
+});
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE, fakeArrayUnion } = await import("./helpers/fake-firestore");
@@ -185,24 +170,39 @@ async function observedOwner(jobId: string): Promise<string | null> {
   return (observation.capture_owner as { user_id?: string } | null)?.user_id ?? null;
 }
 
-describe("the order of saving the job and sending the video", () => {
-  it("keeps one owner from upload on when the job is saved to an account first", async () => {
+describe("guest capture ownership across account setup", () => {
+  it("retains the server-bound source owner when account setup happens before upload", async () => {
     const { jobId, token } = await startJob();
+    const boundOwner = doc(`inboundRequests/${jobId}`).capture_owner_uid;
     const uid = await claim(jobId);
     await sendFootage(token);
-    // Born owned: the owner at upload is the owner the Pipeline keeps finding.
-    const birth = await observedOwner(jobId);
-    expect(birth).toBe(uid);
-    expect(await observedOwner(jobId)).toBe(birth);
+    expect(await observedOwner(jobId)).toBe(boundOwner);
+    expect(doc(`inboundRequests/${jobId}`).account_owner_uid).toBe(uid);
   });
 
-  it("refuses a guest's video before the account, so the owner the Pipeline checks never changes", async () => {
+  it("accepts video before account setup and preserves its observed source and bytes after claiming", async () => {
     const { jobId, token } = await startJob();
-    expect((await sendFootage(token, 409)).code).toBe("site_account_required");
-    // Nothing was born: there is no capture for the Pipeline to observe.
-    await expect(observedOwner(jobId)).rejects.toThrow();
-    const uid = await claim(jobId);
+    expect(doc(`inboundRequests/${jobId}`).account_owner_uid).toBeUndefined();
     await sendFootage(token);
-    expect(await observedOwner(jobId)).toBe(uid);
+    const birth = await observedOwner(jobId);
+    expect(birth).toMatch(/^site-job-[a-f0-9]{40}$/);
+    const sessionBefore = structuredClone(doc(`captureUploadSessions/walkthrough-${jobId}`));
+    const uid = await claim(jobId);
+    expect(await observedOwner(jobId)).toBe(birth);
+    expect(doc(`inboundRequests/${jobId}`).capture_owner_uid).toBe(birth);
+    expect(doc(`inboundRequests/${jobId}`).account_owner_uid).toBe(uid);
+    expect(doc(`captureUploadSessions/walkthrough-${jobId}`)).toEqual(sessionBefore);
+  });
+
+  it("never turns an arbitrary claimed email or forged token into access to a guest capture", async () => {
+    const { jobId, token } = await startJob();
+    const response = await fetch(`${base}/api/self-capture/uploads/${token}tampered`, { method: "POST" });
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    const { createSiteClaimToken } = await import("../utils/request-review-auth");
+    const denied = await fetch(`${base}/api/workspace/claim`, { method: "POST",
+      headers: { "content-type": "application/json", "x-fixture-user": "another-user", "x-fixture-email": "another@example.test" },
+      body: JSON.stringify({ token: createSiteClaimToken(jobId) }) });
+    expect(denied.status).toBe(403);
+    expect(doc(`inboundRequests/${jobId}`).account_owner_uid).toBeUndefined();
   });
 });

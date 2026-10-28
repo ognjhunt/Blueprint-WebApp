@@ -245,8 +245,8 @@ export default function Evaluation() {
                 ? `Site decision: ${statusLabel(item.outcome)}.`
                 : item.successRate !== null
                   ? counts
-                    ? "Blueprint reviews the results. When an approach passes its full evaluation, Blueprint recommends it with deployment companies that support it, and the site chooses its delivery partner."
-                    : "This run cannot back a recommendation."
+                    ? "Blueprint reviews the results and shows the site a bounded estimate of what works. If the site goes ahead, Blueprint works alongside a deployment company on the real site."
+                    : "This run does not count toward the site's result."
                   : "You can return here to track the request. No compute starts before the run is authorized."}
             </p>
             {item.taskId && (

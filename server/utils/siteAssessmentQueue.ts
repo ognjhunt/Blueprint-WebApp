@@ -1,3 +1,4 @@
+import { isWebsiteCaptureId } from "./websiteCaptureIdentity";
 import { createHash, randomUUID } from "node:crypto";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { isSiteVideoEvidenceEnabled } from "../config/env";
@@ -30,7 +31,7 @@ export type SiteAssessmentSpendBlocker = {
 };
 const RUN_LEASE_MS = 30 * 60_000;
 const sha = (packet: unknown) => createHash("sha256").update(JSON.stringify(packet)).digest("hex");
-const pointer = (jobId: string, job: SiteAssessmentJob) => ({ job_id: jobId,
+const pointer = (jobId: string, job: SiteAssessmentJob) => ({ job_id: jobId, capture_id: job.capture_id,
   source_key: job.source_key, context_digest: job.context_digest, state: job.state });
 const queuedJob = (pending: BrowserPending, contextDigest: string): SiteAssessmentJob => {
   const sourceKey = browserPendingDecisionKey(pending), id = advisoryJobId(pending.request_id, sourceKey, contextDigest);
@@ -44,6 +45,7 @@ function currentAuthority(job: Pick<SiteAssessmentJob, "request_id" | "capture_i
   raw: Record<string, any> | undefined, brief: Record<string, any> | null, session: Record<string, any> | undefined) {
   const pending = session?.browser_pending_delivery as BrowserPending | undefined;
   const privacy = raw?.capture_privacy_source_bound_decision;
+  if (raw?.active_capture_id && raw.active_capture_id !== job.capture_id) return null;
   if (!raw || raw.request?.buyerType !== "site_operator" || !projectWebsiteCaptureRights(raw).derived_scene_generation_allowed
     || !pending || pending.request_id !== job.request_id || pending.capture_id !== job.capture_id
     || session?.browser_upload_reservation || session?.browser_stored_upload || pending.state !== "published"
@@ -56,18 +58,18 @@ function currentAuthority(job: Pick<SiteAssessmentJob, "request_id" | "capture_i
 
 /** Called only inside the first actual held→published transaction. No backfill. */
 export async function enqueueNewPublishedSiteAssessment(tx: FirebaseFirestore.Transaction, pending: BrowserPending) {
-  if (!db || !isSiteVideoEvidenceEnabled() || pending.capture_id !== `walkthrough-${pending.request_id}`) return;
+  if (!db || !isSiteVideoEvidenceEnabled() || !isWebsiteCaptureId(pending.request_id, pending.scene_id, pending.capture_id)) return;
   const requestRef = db.collection("inboundRequests").doc(pending.request_id);
   const [request, brief] = await Promise.all([tx.get(requestRef), tx.get(db.collection("siteTaskBriefs").doc(pending.request_id))]);
   const raw = request.data(), ownerContext = brief.exists ? brief.data()! : null;
   const sourceKey = browserPendingDecisionKey(pending), contextDigest = advisoryContextDigest(raw || {}, ownerContext);
   const candidate = { request_id: pending.request_id, capture_id: pending.capture_id, source_key: sourceKey, context_digest: contextDigest };
-  if (!currentAuthority(candidate, raw, ownerContext, { browser_pending_delivery: { ...pending, state: "published" } })) return;
+  if (!currentAuthority(candidate, raw ? { ...raw, active_capture_id: pending.capture_id } : raw, ownerContext, { browser_pending_delivery: { ...pending, state: "published" } })) return;
   const id = advisoryJobId(pending.request_id, sourceKey, contextDigest);
   const ref = db.collection(SITE_ASSESSMENT_JOBS).doc(id), prior = await tx.get(ref);
   const job: SiteAssessmentJob = prior.exists ? prior.data() as SiteAssessmentJob : queuedJob(pending, contextDigest);
   if (!prior.exists) tx.set(ref, { ...job, created_at_ms: Date.now() });
-  tx.set(requestRef, { site_advisory: pointer(id, job) }, { merge: true });
+  tx.set(requestRef, { site_advisory: pointer(id, job), active_capture_id: pending.capture_id }, { merge: true });
 }
 
 /** A saved brief correction is new input, not a retry of the old assessment.
@@ -80,7 +82,8 @@ export async function prepareBriefContextSiteAssessment(tx: FirebaseFirestore.Tr
   if (!db || !isSiteVideoEvidenceEnabled()) return null;
   const previousId = record.site_advisory?.job_id;
   if (typeof previousId !== "string" || !/^advisory-[a-f0-9]{64}$/.test(previousId)) return null;
-  const captureId = `walkthrough-${requestId}`;
+  const captureId = typeof record.active_capture_id === "string" && isWebsiteCaptureId(requestId, `site-${requestId}`, record.active_capture_id)
+    ? record.active_capture_id : `walkthrough-${requestId}`;
   const [previousSnap, sessionSnap] = await Promise.all([
     tx.get(db.collection(SITE_ASSESSMENT_JOBS).doc(previousId)),
     tx.get(db.collection("captureUploadSessions").doc(captureId)),
@@ -153,7 +156,8 @@ export async function prepareCustomerReplySiteAssessment(store: FirebaseFirestor
   if (!fresh.length) return none("already_current");
   const previousId = record.site_advisory?.job_id;
   if (typeof previousId !== "string" || !/^advisory-[a-f0-9]{64}$/.test(previousId)) return none("source_unavailable");
-  const captureId = `walkthrough-${requestId}`;
+  const captureId = typeof record.active_capture_id === "string" && isWebsiteCaptureId(requestId, `site-${requestId}`, record.active_capture_id)
+    ? record.active_capture_id : `walkthrough-${requestId}`;
   const [previousSnap, briefSnap, sessionSnap] = await Promise.all([
     tx.get(store.doc(`${SITE_ASSESSMENT_JOBS}/${previousId}`)), tx.get(store.doc(`siteTaskBriefs/${requestId}`)),
     tx.get(store.doc(`captureUploadSessions/${captureId}`)),
@@ -401,7 +405,7 @@ async function selectRetryJob(tx: FirebaseFirestore.Transaction, requestId: stri
   if (typeof id !== "string" || !/^advisory-[a-f0-9]{64}$/.test(id)) throw new Error("advisory_retry_unavailable");
   const ref = db!.collection(SITE_ASSESSMENT_JOBS).doc(id), snap = await tx.get(ref), job = snap.data() as SiteAssessmentJob;
   if (!job || job.schema_version !== "site_assessment_job.v1" || job.request_id !== requestId
-    || job.capture_id !== `walkthrough-${requestId}` || id !== advisoryJobId(requestId, job.source_key, job.context_digest)
+    || !isWebsiteCaptureId(requestId, `site-${requestId}`, job.capture_id) || id !== advisoryJobId(requestId, job.source_key, job.context_digest)
     || raw.site_advisory.source_key !== job.source_key || raw.site_advisory.context_digest !== job.context_digest)
     throw new Error("advisory_retry_unavailable");
   const session = await tx.get(db!.collection("captureUploadSessions").doc(job.capture_id));

@@ -1,24 +1,10 @@
 // @vitest-environment node
 /**
- * Owner decision (2026-10-18): footage waits for a saved job.
- *
- * A walkthrough sent before its job had an account is born in the Pipeline with
- * no owner. Saving the job later changes the owner, and the Pipeline refuses
- * that capture from then on: its preparation status is never readable again and
- * a re-upload under the same capture cannot replace the first birth. So the
- * only footage the WebApp accepts is footage for a job already saved to an
- * account, on every upload route, decided where every upload is decided
- * (`authorizeCaptureUpload`).
- *
- * Nothing here is a hand-built job record. Each job starts from the real
- * `POST /api/inbound-request` handler with the exact body the public start form
- * sends (`helpers/siteCaptureStartSubmission.ts`); footage goes through the
- * real `POST /api/self-capture/uploads/:token` and resumable parts routes; the
- * site saves the job through the real `POST /api/workspace/claim`.
- *
- * Substituted: Firebase persistence, Cloud Storage and ID-token verification
- * (the site owner is a fixture principal), outbound email delivery, Slack,
- * analytics, model calls and the privacy screen's model step.
+ * New guest jobs bind their capture source before account setup. Whole-video
+ * and resumable uploads use the existing signed job link; later verified
+ * account claims add workspace access without rewriting source or bytes.
+ * Real intake, upload/status and claim routes run with fake persistence,
+ * storage, identity verification and provider/media work.
  */
 import express from "express";
 import { createServer, type Server } from "node:http";
@@ -26,6 +12,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { sharedFakeFirestoreState as state } from "./helpers/fake-firestore";
 import { sharedUploadBucket } from "./helpers/fake-upload-bucket";
 import { siteCaptureStartSubmission } from "./helpers/siteCaptureStartSubmission";
+
+// This route suite uses signature-only transport fixtures. The real local
+// media probe and a genuine no-metadata upload are covered separately.
+vi.mock("../utils/selfCaptureMediaMetadata", async importOriginal => {
+  const actual = await importOriginal<typeof import("../utils/selfCaptureMediaMetadata")>();
+  const { fixtureCaptureMediaMetadata } = await import("./helpers/capture-media-probe");
+  return { ...actual, probeCaptureVideo: vi.fn(async () => fixtureCaptureMediaMetadata()),
+    probeStoredCaptureVideo: vi.fn(async () => fixtureCaptureMediaMetadata()) };
+});
 
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { sharedFakeFirestore, FAKE_FIELD_DELETE, fakeArrayUnion } = await import("./helpers/fake-firestore");
@@ -141,8 +136,9 @@ async function sendFootage(token: string) {
 
 /** The first piece of a resumable upload. */
 async function sendPart(token: string) {
-  const response = await fetch(`${base}/api/self-capture/uploads/${token}/parts/0`, { method: "PUT",
-    headers: { "content-type": "application/octet-stream" }, body: quickTime() });
+  const form = new FormData();
+  form.append("part", new Blob([quickTime()], { type: "video/quicktime" }), "part-0.mov");
+  const response = await fetch(`${base}/api/self-capture/uploads/${token}/parts/0?extension=mov`, { method: "PUT", body: form });
   return { status: response.status, body: await response.json() as { code?: string } };
 }
 
@@ -173,38 +169,54 @@ async function jobStatus(token: string) {
   return response.json() as Promise<{ status: { decision: string }; claimUrl: string | null }>;
 }
 
-describe("footage waits for a saved job", () => {
-  it("refuses a guest's video on every upload route, and says what to do", async () => {
-    const { token } = await startJob();
-    const whole = await sendFootage(token);
-    expect(whole.status).toBe(409);
-    expect(whole.body.code).toBe("site_account_required");
-    expect(whole.body.error).toMatch(/Save this job to your account before you send its video/);
-    expect((await sendPart(token)).body.code).toBe("site_account_required");
-    // Nothing was written for the Pipeline to birth.
-    const { bucket } = sharedUploadBucket;
-    const [files] = await bucket.getFiles({ prefix: "scenes/" });
-    expect(files).toEqual([]);
+describe("guest video intake with stable source ownership", () => {
+  it("accepts a guest video or resumable part through its signed job link without an account", async () => {
+    const wholeJob = await startJob();
+    const owner = doc(`inboundRequests/${wholeJob.jobId}`).capture_owner_uid;
+    expect(owner).toMatch(/^site-job-[a-f0-9]{40}$/);
+    expect(doc(`inboundRequests/${wholeJob.jobId}`).account_owner_uid).toBeUndefined();
+    const whole = await sendFootage(wholeJob.token);
+    expect(whole.status).toBe(201);
+    expect(whole.body.captureReceived).toBe(true);
+    const rawVideo = `scenes/site-${wholeJob.jobId}/captures/walkthrough-${wholeJob.jobId}/raw/walkthrough.mov`;
+    expect((await sharedUploadBucket.bucket.file(rawVideo).download())[0]).toEqual(quickTime());
+    expect(doc(`inboundRequests/${wholeJob.jobId}`).capture_owner_uid).toBe(owner);
+
+    const partJob = await startJob();
+    expect((await sendPart(partJob.token)).status).toBe(200);
+    expect(doc(`inboundRequests/${partJob.jobId}`).account_owner_uid).toBeUndefined();
+    expect(sharedUploadBucket.objectNames().some(name => name.includes(`captures/walkthrough-${partJob.jobId}/`))).toBe(true);
   });
 
-  it("offers the account on the job page from the start, and says why the upload waits", async () => {
+  it("offers optional account setup while the guest upload link is already usable", async () => {
     const { jobId, token } = await startJob();
-    const link = await uploadLink(token);
-    expect(link).toMatchObject({ state: "held", holdReason: "site_account_required" });
-    expect(link.detail).toMatch(/Save this job to your account before you send its video/);
-    // Before any brief is confirmed: saving is the way to send the video.
+    expect(await uploadLink(token)).toMatchObject({ state: "ready", holdReason: null });
     expect((await jobStatus(token)).claimUrl).toMatch(/\/claim\//);
+    const owner = doc(`inboundRequests/${jobId}`).capture_owner_uid;
     await claim(jobId);
     expect((await jobStatus(token)).claimUrl).toBeNull();
-    expect((await uploadLink(token)).holdReason).not.toBe("site_account_required");
+    expect(await uploadLink(token)).toMatchObject({ state: "ready", holdReason: null });
+    expect(doc(`inboundRequests/${jobId}`).capture_owner_uid).toBe(owner);
   });
 
-  it("takes the same video once the job is saved to an account", async () => {
+  it("preserves the guest source and original receipt through account claim and refuses same-capture replacement", async () => {
     const { jobId, token } = await startJob();
-    expect((await sendFootage(token)).status).toBe(409);
+    const request = doc(`inboundRequests/${jobId}`);
+    const source = { uid: request.capture_owner_uid, boundAt: request.capture_owner_bound_at_iso };
+    expect((await sendFootage(token)).status).toBe(201);
+    const before = structuredClone(doc(`captureUploadSessions/walkthrough-${jobId}`));
+    const rawVideo = `scenes/site-${jobId}/captures/walkthrough-${jobId}/raw/walkthrough.mov`;
+    const [videoBefore] = await sharedUploadBucket.bucket.file(rawVideo).getMetadata();
     await claim(jobId);
-    const sent = await sendFootage(token);
-    expect([200, 201]).toContain(sent.status);
-    expect(sent.body.captureReceived).toBe(true);
+    expect(doc(`inboundRequests/${jobId}`)).toMatchObject({ capture_owner_uid: source.uid,
+      capture_owner_bound_at_iso: source.boundAt, account_owner_uid: `site-owner-${jobId}` });
+    expect(doc(`captureUploadSessions/walkthrough-${jobId}`)).toEqual(before);
+    const again = await sendFootage(token);
+    expect(again.status).toBe(409);
+    expect(again.body.code).toBe("capture_already_saved");
+    expect(again.body.error).toMatch(/Update walkthrough on this job/);
+    expect(doc(`captureUploadSessions/walkthrough-${jobId}`)).toEqual(before);
+    expect((await sharedUploadBucket.bucket.file(rawVideo).getMetadata())[0]).toEqual(videoBefore);
+    expect((await sharedUploadBucket.bucket.file(rawVideo).download())[0]).toEqual(quickTime());
   });
 });

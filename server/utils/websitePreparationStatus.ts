@@ -1,3 +1,4 @@
+import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Current-source preparation status; never a native assessment or preview verdict. */
 import { z } from "zod";
 import { preparationOutcomeSchema, projectPreparationOutcome } from "./taskPreparationOutcome";
@@ -17,7 +18,6 @@ import { buildBrowserDelivery } from "./websiteCaptureDelivery";
 import { verifiedPendingManifest, verifiedPendingMarker } from "./websiteBrowserUploadStatus";
 import type { BrowserPending } from "./websiteBrowserPending";
 import { retainedWebsiteScenePurpose, currentWebsitePreparationStatusContext } from "./websiteSceneSponsorship";
-import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent, type PreparedAssessmentProposal } from "./siteAssessmentPreparation";
 import { nextWebsitePreparationWatch, parseWebsitePreparationWatch, WEBSITE_PREPARATION_WATCH_DUE_FIELD,
   WEBSITE_PREPARATION_WATCH_FIELD } from "./websitePreparationWatch";
 
@@ -78,7 +78,7 @@ export interface StoredWebsitePreparation {
   notification: { eventId: string; state: "pending" | "enqueued" } | null;
 }
 export interface PreparationAuthority { fingerprint: string; binding?: Record<string, any>; owner: string | null;
-  preparation?: PreparedAssessmentProposal | null; sponsorshipDigest?: string }
+  sponsorshipDigest?: string }
 export interface WebsitePreparationDeps {
   readLedger(selector: WebsitePreparationSelector, signal?: AbortSignal): Promise<unknown>;
   verifyCurrent(selector: WebsitePreparationSelector, transaction?: FirebaseFirestore.Transaction, signal?: AbortSignal): Promise<PreparationAuthority>;
@@ -183,9 +183,6 @@ async function verifyCurrent(selector: WebsitePreparationSelector, transaction?:
   if (!session || session.browser_upload_reservation || session.browser_stored_upload) throw unavailable();
   const request = await get("inboundRequests", selector.request_id);
   const purpose = retainedWebsiteScenePurpose(request);
-  const preparation = purpose ? await loadAssessmentPreparationProposal(selector.request_id, selector.capture_id) : null;
-  if (transaction && purpose) await assertAssessmentPreparationCurrent(transaction, preparation, request ?? {},
-    {requestId: selector.request_id, captureId: selector.capture_id});
   const observed = await withWebsiteOwnerDeps(3_000, deps => observeWebsiteCaptureOwner({
     request_id: selector.request_id, scene_id: selector.scene_id, capture_id: selector.capture_id,
     completion_marker_generation: selector.completion_marker_generation, ...(purpose ? {purpose} : {})}, deps));
@@ -220,13 +217,14 @@ async function verifyCurrent(selector: WebsitePreparationSelector, transaction?:
   const brief = await get(TASK_BRIEFS_COLLECTION, selector.request_id) as SiteTaskBriefRecord;
   const inventory = await get(TASK_ITEM_INVENTORY_COLLECTION, selector.request_id) as TaskItemInventoryRecord;
   if (projectWebsiteCaptureRights(request).consent_revoked) throw new Error("website_preparation_authority_ended");
-  const owner = typeof request?.account_owner_uid === "string" ? request.account_owner_uid : null;
+  const sourceOwner = websiteCaptureOwnerUid(request);
+  const owner = typeof sourceOwner === "string" ? sourceOwner : null;
   if (!brief || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
     || observed.purpose !== purpose || (purpose ? observed.capture_owner?.user_id ?? null : observed.capture_owner?.user_id) !== owner
     || !purpose && owner === null
     || currentWebsitePreparationStatusContext({requestId: selector.request_id, brief, record: request ?? {}, inventory,
-      captureId: selector.capture_id, captureBinding: binding, assessmentPreparationProposal: preparation?.proposal}).context_digest !== selector.task_context_digest) throw unavailable();
-  return {fingerprint: sourceFingerprint(session), binding, owner, preparation,
+      captureId: selector.capture_id, captureBinding: binding}).context_digest !== selector.task_context_digest) throw unavailable();
+  return {fingerprint: sourceFingerprint(session), binding, owner,
     ...(purpose ? {sponsorshipDigest: request!.website_scene_sponsorship.authority_digest} : {})};
 }
 const defaultDeps: WebsitePreparationDeps = {
@@ -244,15 +242,13 @@ const defaultDeps: WebsitePreparationDeps = {
       const brief = (await tx.get(store.collection(TASK_BRIEFS_COLLECTION).doc(selector.request_id))).data() as SiteTaskBriefRecord;
       const inventory = (await tx.get(store.collection(TASK_ITEM_INVENTORY_COLLECTION).doc(selector.request_id))).data() as TaskItemInventoryRecord;
       await assertWebsiteCaptureBindingInTransaction(tx, selector.request_id, authority.binding);
-      if (authority.preparation) await assertAssessmentPreparationCurrent(tx, authority.preparation, request ?? {},
-        {requestId: selector.request_id, captureId: selector.capture_id});
-      const owner = typeof request?.account_owner_uid === "string" ? request.account_owner_uid : null;
+      const sourceOwner = websiteCaptureOwnerUid(request);
+      const owner = typeof sourceOwner === "string" ? sourceOwner : null;
       if (!session || sourceFingerprint(session) !== authority.fingerprint || !brief
         || owner !== authority.owner || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
         || authority.sponsorshipDigest !== undefined && request?.website_scene_sponsorship?.authority_digest !== authority.sponsorshipDigest
         || currentWebsitePreparationStatusContext({requestId: selector.request_id, brief, record: request ?? {}, inventory,
-          captureId: selector.capture_id, captureBinding: authority.binding,
-          assessmentPreparationProposal: authority.preparation?.proposal}).context_digest !== selector.task_context_digest) throw unavailable();
+          captureId: selector.capture_id, captureBinding: authority.binding}).context_digest !== selector.task_context_digest) throw unavailable();
       const preparation = mergeWebsitePreparationStatus(parseStored(session.website_preparation), selector, status);
       const watch = nextWebsitePreparationWatch(parseWebsitePreparationWatch(session[WEBSITE_PREPARATION_WATCH_FIELD]),
         preparation, Date.now());

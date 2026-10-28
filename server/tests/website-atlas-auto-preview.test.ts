@@ -125,9 +125,9 @@ describe("automatic consented Atlas grant", () => {
       store.rows.get(REQUEST).website_scene_sponsorship = { owner: { user_id: "blueprint-preparation" } };
       await expect(configure()).rejects.toThrow("website_atlas_source_consent_required");
       await expect(reserveWebsitePreparationSpend("req1", atlasSpend())).rejects.toThrow("website_atlas_source_consent_required");
-      // The browser upload's preparation lane still waits on its assessment, as today.
+      // A browser upload no longer waits on its assessment; like any upload it needs a sponsorship.
       upload("browser");
-      await expect(reserveWebsitePreparationSpend("req1", atlasSpend())).rejects.toThrow("website_assessment_preparation_pending");
+      await expect(reserveWebsitePreparationSpend("req1", atlasSpend())).rejects.toThrow("website_scene_sponsorship_missing");
       expect(store.writes).toEqual([]);
     });
 
@@ -168,6 +168,25 @@ describe("automatic consented Atlas grant", () => {
     store.rows.get(SESSION).browser_pending_delivery.video.generation = "1761134400000002";
     await expect(configure()).rejects.toThrow("website_atlas_source_consent_required");
     expect(store.writes).toEqual(["website_atlas_grants"]);
+  });
+
+  it("retains a guest source grant through account setup without widening source or spending rights", async () => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+    upload();
+    const record=store.rows.get(REQUEST);
+    delete record.account_owner_uid;
+    record.capture_owner_uid="site-job-fixed-source";
+    record.capture_owner_bound_at_iso="2026-10-28T00:00:00.000Z";
+    const first=await configure();
+    expect(first.authority.accepted_by).toBe("site-job-fixed-source");
+    store.rows.get(REQUEST).account_owner_uid="verified-owner";
+    store.rows.get(REQUEST).claimed_at_iso="2026-10-28T01:00:00.000Z";
+    expect((await configure()).authority).toEqual(first.authority);
+    store.rows.get(REQUEST).capture_owner_uid="different-source";
+    await expect(configure()).rejects.toThrow("website_atlas_source_owner_mismatch");
+    store.rows.get(REQUEST).capture_owner_uid="site-job-fixed-source";
+    store.rows.get(REQUEST).consent_revoked=true;
+    await expect(configure()).rejects.toThrow("source_revoked");
   });
 
   it("refuses a changed owner, changed terms, expiry and withdrawn consent like an explicit grant", async () => {
@@ -452,11 +471,11 @@ describe("Atlas reservations under an automatic grant", () => {
       task_context_digest: sha("8"), maximum_cost_usd: .05 }))).rejects.toThrow("website_scene_sponsorship_binding_invalid");
     expect(store.rows.get(REQUEST).website_scene_sponsorship).toBeUndefined();
     expect(Object.keys(store.rows.get(REQUEST).website_atlas_grants)).toEqual(["walkthrough-req1"]);
-    // Non-Atlas preparation keeps its path: this browser upload still waits on its
-    // assessment, and an upload without one still needs the existing sponsorship.
+    // Non-Atlas preparation keeps its path: it needs the existing sponsorship,
+    // never a finished assessment.
     const meta = { task_context_digest: contextDigest(), allocation_binding_digest: sha("4"),
       resource_class: "evaluator_api" as const, provider: "meta" as const, maximum_cost_usd: .05, request_count: 1 };
-    await expect(reserveWebsitePreparationSpend("req1", meta)).rejects.toThrow("website_assessment_preparation_pending");
+    await expect(reserveWebsitePreparationSpend("req1", meta)).rejects.toThrow("website_scene_sponsorship_missing");
     upload("bundle");
     await expect(reserveWebsitePreparationSpend("req1", meta)).rejects.toThrow("website_scene_sponsorship_missing");
   });
@@ -545,6 +564,30 @@ describe("Pipeline Atlas preview status", () => {
     record.website_atlas_previews["walkthrough-req1"] = ready();
     record.consent_revoked = true;
     expect(projectWebsiteAtlasPreview(record)).toBeNull();
+  });
+
+  it("shows the selected update's progress instead of an older ready preview", () => {
+    upload();
+    const record = store.rows.get(REQUEST), child = `supplement-${"a".repeat(40)}`;
+    const original = ready();
+    record.active_capture_id = child;
+    record.website_atlas_previews = { "walkthrough-req1": original,
+      [child]: preview({ capture_id: child, state: "processing", revision: 1 }) };
+    expect(projectWebsiteAtlasPreview(record)).toMatchObject({ captureId: child,
+      state: "processing", downloadAvailable: false });
+    expect(record.website_atlas_previews["walkthrough-req1"]).toEqual(original);
+    record.consent_revoked = true;
+    expect(projectWebsiteAtlasPreview(record)).toBeNull();
+  });
+
+  it("keeps the old preview historical while a selected update has no preview yet", () => {
+    upload();
+    const record = store.rows.get(REQUEST);
+    record.website_atlas_previews = { "walkthrough-req1": ready() };
+    record.active_capture_id = `supplement-${"a".repeat(40)}`;
+    expect(projectWebsiteAtlasPreview(record)).toBeNull();
+    delete record.active_capture_id;
+    expect(projectWebsiteAtlasPreview(record)).toMatchObject({ captureId: "walkthrough-req1", state: "ready" });
   });
 });
 
@@ -683,7 +726,7 @@ it("gives an automatic preview its own SAM and review consent, pinned to their t
   // Only Atlas preview work reaches this consent; ordinary Meta work keeps its own path.
   await expect(reserveWebsitePreparationSpend("req1", { task_context_digest: contextDigest(),
     allocation_binding_digest: sha("4"), resource_class: "evaluator_api", provider: "meta",
-    maximum_cost_usd: .05, request_count: 1 })).rejects.toThrow("website_assessment_preparation_pending");
+    maximum_cost_usd: .05, request_count: 1 })).rejects.toThrow("website_scene_sponsorship_missing");
   // Withdrawn consent stops them like every other preview call.
   store.rows.get(REQUEST).consent_revoked = true;
   await expect(reserveWebsitePreparationSpend("req1", atlasSpend({ allocation_binding_digest: sha("4"),

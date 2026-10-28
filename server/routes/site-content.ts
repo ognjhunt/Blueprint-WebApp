@@ -17,7 +17,7 @@ const definitions = [
   {
     term: "Site sign-up",
     definition:
-      "Sign-up is open for sites: anyone can start a job, and Blueprint also onboards sites by hand. Partners join by invitation after their application is reviewed. Starting a job is not a signed order or a commitment to run a pilot; the site approves the brief, chooses a proposal and agrees pilot terms before physical work.",
+      "Sign-up is open for sites: anyone can start a job with an email and a video, and Blueprint also onboards sites by hand. Partner applications are reviewed before access. Starting a job is not a signed order or a commitment to run a pilot; the site confirms the brief and agrees any pilot terms with the deployment company before physical work.",
   },
   {
     term: "Exact-site world model",
@@ -117,13 +117,13 @@ const pages = [
     path: "/how-it-works",
     title: "How It Works",
     description:
-      "Send video of the job and review the brief drafted from its analysis. Blueprint runs candidate robots, policies and policy APIs against the job in a site simulation and recommends the approach that wins plus deployment companies that support it; you review their delivery proposals and measure an agreed pilot.",
+      "Send video of the job and review the brief drafted from its analysis. Blueprint runs candidate robots, policies and policy APIs against the job in a site simulation itself and shows you a bounded estimate of what works, or “held” if it can't simulate that kind of job yet. Blueprint then works alongside a deployment company on your site.",
   },
   {
     path: "/beta",
     title: "Beta program",
     description:
-      `Free for sites and partners. Sites can start a job immediately, and Blueprint also onboards sites by hand; partners join by invitation. ${pilotReplacementPolicy} Blueprint runs the candidate evaluations itself, and a partner's system is evaluated free when invited. The beta has no private paid evaluations, balances or top-ups.`,
+      `Free for sites and partners. Sites can start a job immediately, and Blueprint also onboards sites by hand. ${pilotReplacementPolicy} Blueprint runs the candidate evaluations itself; a technology provider can give Blueprint free access to its policy or an integration. The beta has no private paid evaluations, balances or top-ups.`,
   },
   {
     path: "/contact/site-operator",
@@ -133,7 +133,7 @@ const pages = [
   {
     path: "/contact/robot-team",
     title: "Robot teams",
-    description: "Robot teams and technology providers apply for an invitation to make their systems available for Blueprint's evaluations of real site jobs, free during the beta.",
+    description: "Robot teams and technology providers apply to give Blueprint access to a policy or an integration, which Blueprint runs in its own evaluations of real site jobs, free during the beta.",
   },
   {
     path: "/sites",

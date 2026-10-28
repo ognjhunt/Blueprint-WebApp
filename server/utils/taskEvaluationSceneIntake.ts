@@ -8,7 +8,6 @@ import { withTaskEvaluationLaunchStoreTimeout as storeTimeout } from "./taskEval
 import { logger } from "../logger";
 import { loadWebsiteSceneSponsorship, validateWebsiteSponsoredIntake,
   validateWebsiteSponsoredProviderTerms, currentWebsiteSceneContext } from "./websiteSceneSponsorship";
-import { loadAssessmentPreparationProposal, assertAssessmentPreparationCurrent } from "./siteAssessmentPreparation";
 import { assertWebsiteCaptureBindingInTransaction, resolveWebsiteCaptureBinding } from "./websiteCaptureBinding";
 import type { SiteTaskBriefRecord } from "./siteTaskBrief";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
@@ -825,10 +824,6 @@ export async function processSceneIntakeQueue(limit = 10) {
             }
             if (sponsoredAuthority) validateWebsiteSponsoredProviderTerms(record.command, sponsoredAuthority);
             else validateSceneProviderTerms(record.command);
-            const assessment = record.website_request_id
-              ? await loadAssessmentPreparationProposal(record.website_request_id, record.source_session_id) : null;
-            if (assessment && sceneDigest(assessment.proposal) !== sceneDigest(sponsoredAuthority?.assessment_preparation_proposal))
-              throw new Error("website_assessment_preparation_pending");
             const captureBinding = record.website_request_id
               ? await resolveWebsiteCaptureBinding(record.website_request_id, `site-${record.website_request_id}`, record.source_session_id) : undefined;
             // Count a possibly dispatched POST, not a failed local precheck or
@@ -847,14 +842,11 @@ export async function processSceneIntakeQueue(limit = 10) {
                   const brief = (await transaction.get(db!.collection("siteTaskBriefs").doc(record.website_request_id))).data() as SiteTaskBriefRecord;
                   const inventory = (await transaction.get(db!.collection("siteTaskItemInventories").doc(record.website_request_id))).data() as TaskItemInventoryRecord | undefined;
                   await assertWebsiteCaptureBindingInTransaction(transaction, record.website_request_id, captureBinding);
-                  await assertAssessmentPreparationCurrent(transaction, assessment, request ?? {},
-                    {requestId: record.website_request_id, captureId: record.source_session_id});
                   const rootDigest = sponsoredAuthority?.assessment_parent_authority_digest
                     ?? sponsoredAuthority?.continuation_parent_authority_digest ?? sponsoredAuthority?.authority_digest;
                   if (request?.website_scene_sponsorship?.authority_digest !== rootDigest || !brief
                     || currentWebsiteSceneContext({requestId: record.website_request_id, brief, record: request ?? {}, inventory,
-                      captureId: record.source_session_id, captureBinding,
-                      assessmentPreparationProposal: assessment?.proposal}).context_digest !== sponsoredAuthority?.task_context_digest)
+                      captureId: record.source_session_id, captureBinding}).context_digest !== sponsoredAuthority?.task_context_digest)
                     throw new Error("website_scene_sponsorship_binding_invalid");
                 }
                 transaction.update(row.ref, {
@@ -876,9 +868,6 @@ export async function processSceneIntakeQueue(limit = 10) {
       } catch (error) {
         const rawCode =
           error instanceof Error ? error.message : "forward_failed";
-        // This typed refusal is issued before the marker write and POST.
-        // Ambiguous transaction/transport failures keep their conservative count.
-        if (rawCode === "website_assessment_preparation_pending") deliveryReserved = false;
         const code =
           [
             "saved_execution_setup_required",
@@ -906,7 +895,6 @@ export async function processSceneIntakeQueue(limit = 10) {
             "website_scene_development_test_not_authorized",
             "revocation_requested_before_delivery",
           ].includes(rawCode) || /^pipeline_intake_http_[0-9]{3}$/.test(rawCode) || rawCode.startsWith("website_scene_sponsorship_")
-            || rawCode.startsWith("website_assessment_preparation_")
             ? rawCode
             : "pipeline_transport_failed";
         const terminal = [

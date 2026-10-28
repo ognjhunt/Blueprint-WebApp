@@ -991,10 +991,13 @@ export interface InboundRequest {
   requestId: string;
   /**
    * The site account that owns the job, once saved to one: the claim route, or
-   * a job started from a signed-in site workspace. Footage is accepted only
-   * while this is set (`authorizeCaptureUpload`).
+   * a job started from a signed-in site workspace. This controls account
+   * access; new capture ownership is bound separately before video arrives.
    */
   account_owner_uid?: string | null;
+  /** Immutable source subject; account claims never rewrite it. */
+  capture_owner_uid?: string;
+  capture_owner_bound_at_iso?: string;
   /** Hash of the public form's private retry token; never store the token itself. */
   intake_retry_token_hash?: string | null;
   site_submission_id: string;

@@ -28,6 +28,8 @@ import {
   storedPartIndices,
 } from "../utils/captureParts";
 import { isAcceptedVideoHeader, VIDEO_NOT_RECOGNIZED, VIDEO_SIGNATURE_BYTES } from "../utils/videoMagicBytes";
+import { probeCaptureVideo, probeStoredCaptureVideo, VideoProbeError,
+  type VideoProbe } from "../utils/selfCaptureMediaMetadata";
 import { z } from "zod";
 
 import { storageAdmin } from "../../client/src/lib/firebaseAdmin";
@@ -81,9 +83,11 @@ import { buildBrowserDelivery, capturedWriteIdentity, captureWriteFailureDiagnos
 import { browserPendingDecisionKey, storedCapturePrivacyCleared, loadBrowserPending, prepareLegacyBrowserFinish,
   publishBrowserPending, recordBrowserPending,
   releaseBrowserUpload, reserveBrowserUpload, recordBrowserStoredUpload, loadBrowserStoredUpload,
-  reserveBrowserStoredUploadRetry, type BrowserStoredUpload, type BrowserPending,
+  reserveBrowserStoredUploadRetry, completeBrowserStoredUploadProbe, recordBrowserVideoProbeFailure,
+  type BrowserStoredUpload, type BrowserPending,
   type BrowserWriteReservation } from "../utils/websiteBrowserPending";
 
+import { activateCaptureSupplement, issueCaptureSupplement, validateCaptureSupplement } from "../utils/captureSupplement";
 import { admitUploadBytes, uploadRefusal } from "../utils/betaAbuseCaps";
 import { requireAppCheck } from "../middleware/appCheck";
 
@@ -208,15 +212,6 @@ async function spooledFileHead(path: string): Promise<Buffer> {
   }
 }
 
-function safeJsonParse(value: unknown): unknown {
-  if (typeof value !== "string" || !value.trim()) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
 function extensionOf(fileName: string) {
   const match = /\.([a-z0-9]+)$/i.exec(fileName.trim());
   return match ? match[1].toLowerCase() : "";
@@ -226,25 +221,15 @@ function storageBucketName() {
   return process.env.FIREBASE_STORAGE_BUCKET || "blueprint-8c1ca.appspot.com";
 }
 
-/**
- * What the page measured about the video, as opposed to what it assumed.
- *
- * `validateManifest` in `cloud/extract-frames` requires width, height,
- * `fps_source` and `capture_start_epoch_ms`, and a capture whose manifest fails
- * validation produces a blocked report rather than a scene. None of those four
- * can be read from the file server-side — this deployment has no ffprobe — so
- * the browser reads them off a `<video>` element and sends them here.
- *
- * Every one is a measurement. Nothing is defaulted to a plausible number,
- * because a fabricated frame rate would ride along in the capture record as
- * though somebody had observed it.
- */
+/** Retained manifest metadata; new uploads are measured locally by the server. */
 export type BrowserVideoMetadata = {
   widthPx: number;
   heightPx: number;
   fps: number;
   durationSeconds: number;
   recordedAtEpochMs: number;
+  captureStartBasis?: "server_upload_received";
+  probe?: VideoProbe;
 };
 
 export function parseVideoMetadata(input: unknown): BrowserVideoMetadata | null {
@@ -284,7 +269,7 @@ export function parseVideoMetadata(input: unknown): BrowserVideoMetadata | null 
 export function buildBrowserCaptureManifest(input: {
   payload: { sceneId: string; captureId: string; requestId: string };
   objectPath: string;
-  video: BrowserVideoMetadata;
+  video: BrowserVideoMetadata | null;
   sizeBytes: number;
   taskContext?: { description: string; confirmed: boolean; confirmed_at: string | null };
   captureRights?: ReturnType<typeof projectWebsiteCaptureRights>;
@@ -317,11 +302,13 @@ export function buildBrowserCaptureManifest(input: {
     retention: websiteCaptureRetention(input.firstReceivedAtIso ?? null),
     capture_tier_hint: "video_only",
     has_lidar: false,
-    fps_source: input.video.fps,
-    width: input.video.widthPx,
-    height: input.video.heightPx,
+    ...(input.video ? { fps_source: input.video.fps,
+    width: input.video.widthPx, height: input.video.heightPx,
     capture_start_epoch_ms: input.video.recordedAtEpochMs,
-    duration_seconds: input.video.durationSeconds,
+    duration_seconds: input.video.durationSeconds } : { media_probe_pending: true }),
+    ...(input.video?.probe ? { video_metadata_provenance: input.video.probe,
+      capture_start_epoch_ms_basis: input.video.captureStartBasis,
+      recording_time_known: false } : {}),
     size_bytes: input.sizeBytes,
   };
 }
@@ -420,7 +407,7 @@ async function beginBrowserCanonicalWrite(
   }
 }
 
-const NEW_CAPTURE_JOB_MESSAGE = "This link cannot replace or extend the job's original recording. No new recording was accepted. Contact hello@tryblueprint.io with your job reference so we can help you start a new job with a complete walkthrough and fresh recording permission. The new job needs its own review before evaluation.";
+const NEW_CAPTURE_JOB_MESSAGE = "Your original recording stays saved. Use Update walkthrough on this job to send a complete updated recording, including any missing views.";
 
 /** The write request carries no source identity; expose its retained receipt without claiming a replay. */
 async function finalizedCaptureResponse(payload: CaptureIdentity, res: Response) {
@@ -428,7 +415,7 @@ async function finalizedCaptureResponse(payload: CaptureIdentity, res: Response)
   const receipt = await describeBrowserUpload(payload, authorization.allowed);
   const message = `${receipt.captureReceived ? "Your original recording is saved. " : "Keep your original file while its saved status is checked. "}${NEW_CAPTURE_JOB_MESSAGE}`;
   return res.status(409).json({
-    ...receipt, code: "capture_replacement_requires_new_job", retryable: false,
+    ...receipt, code: "capture_already_saved", retryable: false, repairAvailable: true,
     message, detail: message, error: message,
   });
 }
@@ -512,7 +499,8 @@ async function finishStoredCapture(params: {
   payload: { requestId: string; sceneId: string; captureId: string };
   objectPath: string;
   rawPrefix: string;
-  videoMetadata: BrowserVideoMetadata;
+  videoMetadata: BrowserVideoMetadata | null;
+  probeFilePath?: string;
   sizeBytes: number;
   video: WrittenObject;
   reservation: BrowserWriteReservation;
@@ -574,6 +562,20 @@ async function finishStoredCapture(params: {
     }
     captureWriteStage = "stored_video_verify";
     if (!(await verifiedStoredVideo(storedUpload.video))) throw new Error("browser_delivery_source_changed");
+    if (JSON.parse(storedUpload.manifest_json).media_probe_pending === true) {
+      if (!originalManifestConsent(storedUpload.manifest_json)) throw new Error("source_revoked");
+      try {
+        const options = { receivedAtEpochMs: Date.parse(storedUpload.completed_at_iso) };
+        const measured = params.probeFilePath ? await probeCaptureVideo(params.probeFilePath, options)
+          : await probeStoredCaptureVideo(storedUpload.video, () => bucket.file(storedUpload!.video.object_name,
+            { generation: storedUpload!.video.generation }).createReadStream(), options);
+        storedUpload = await completeBrowserStoredUploadProbe(storedUpload, measured, params.reservation);
+      } catch (error) {
+        if (error instanceof VideoProbeError && error.code === "video_unreadable")
+          await recordBrowserVideoProbeFailure(storedUpload, params.reservation);
+        throw error;
+      }
+    }
     const manifestName = `${rawPrefix}/manifest.json`;
     const manifestBytes = Buffer.from(storedUpload.manifest_json);
     const manifestFile = bucket.file(manifestName);
@@ -763,8 +765,8 @@ async function refuseIfAppBundle(
   res: Response,
 ): Promise<boolean> {
   if (payload.supplement) {
-    res.status(409).json({ error: NEW_CAPTURE_JOB_MESSAGE, code: "capture_replacement_requires_new_job" });
-    return true;
+    try { await validateCaptureSupplement(payload as Parameters<typeof validateCaptureSupplement>[0]); }
+    catch { res.status(409).json({ code: "capture_lineage_unverified", error: "We could not verify this video update. Reopen your job and try again." }); return true; }
   }
   let occupied = false;
   try {
@@ -844,7 +846,9 @@ async function resumeStoredCapture(payload: NonNullable<ReturnType<typeof verify
         if (currentSource && ((freshlyCleared && screenedSource?.kind === currentSource.kind
             && screenedSource.key === currentSource.key)
             || await storedCapturePrivacyCleared(payload.requestId, payload.captureId, currentSource))) {
-          if (await finishClearedBundle(payload, bundleServiceDeps(bundleStorage), currentSource) === "conflict") {
+          const finished = await finishClearedBundle(payload, bundleServiceDeps(bundleStorage), currentSource);
+          if (finished === "finished") await activateCaptureSupplement(payload);
+          if (finished === "conflict") {
             logger.error({ requestId: payload.requestId, captureId: payload.captureId },
               "A cleared app bundle could not be finished: its completion source changed");
           }
@@ -874,8 +878,9 @@ async function respondCaptureUploadStatus(req: Request, res: Response, recoverLe
     const authorization = await authorizeCaptureUpload(payload.requestId);
     // Existing app/legacy consumers still recover through their status polling
     // contract. Modern browser receipts use the explicit retry route below.
-    if (recoverLegacy && !payload.supplement) {
+    if (recoverLegacy) {
       try {
+        if (payload.supplement) await validateCaptureSupplement(payload);
         if (await legacyStatusRecoveryAllowed(payload, authorization.allowed)) await resumeStoredCapture(payload);
       } catch (error) {
         logger.warn({ error, captureId: payload.captureId }, "Legacy capture status recovery remains held");
@@ -902,6 +907,7 @@ async function respondCaptureUploadStatus(req: Request, res: Response, recoverLe
     return res.json({
       ok: true,
       captureId: payload.captureId,
+      isVideoUpdate: Boolean(payload.supplement),
       expiresAt: new Date(payload.exp * 1000).toISOString(),
       accepts: [...ALLOWED_EXTENSIONS],
       ...(bundle ? { bundle } : {}),
@@ -1057,7 +1063,10 @@ router.post("/:token/advisory-retry", async (req: Request, res: Response) => {
 router.post("/:token/processing-retry", async (req: Request, res: Response) => {
   const payload = verifyCaptureUploadToken(String(req.params.token || ""));
   if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
-  if (payload.supplement) return res.status(409).json({ code: "capture_replacement_requires_new_job", error: NEW_CAPTURE_JOB_MESSAGE });
+  if (payload.supplement) {
+    try { await validateCaptureSupplement(payload); }
+    catch { return res.status(409).json({ code: "capture_lineage_unverified", error: "Reopen your job to update its video." }); }
+  }
   res.setHeader("Cache-Control", "no-store");
   const authorization = await authorizeCaptureUpload(payload.requestId);
   if (!authorization.allowed) return res.status(409).json({ state: "held", processingRetryAvailable: false,
@@ -1091,7 +1100,7 @@ router.post("/:token/processing-retry", async (req: Request, res: Response) => {
       const metadata = parseVideoMetadata({ widthPx: original.width, heightPx: original.height,
         fps: original.fps_source, durationSeconds: original.duration_seconds,
         recordedAtEpochMs: original.capture_start_epoch_ms });
-      if (!metadata) throw new Error("browser_pending_invalid");
+      if (!metadata && original.media_probe_pending !== true) throw new Error("browser_pending_invalid");
       const outcome = await finishStoredCapture({ payload, objectPath: stored.video.object_name,
         rawPrefix: stored.video.object_name.slice(0, stored.video.object_name.lastIndexOf("/")),
         videoMetadata: metadata, sizeBytes: stored.video.size_bytes, video: stored.video,
@@ -1211,7 +1220,10 @@ function authorizeBeforeCaptureBody(kind: "walkthrough" | "part" | "item_image")
       if (!payload) return res.status(404).json({ error: "This upload link is not valid or has expired." });
       const authorization = await authorizeCaptureUpload(payload.requestId);
       if (!authorization.allowed) return res.status(409).json({ code: authorization.holdReason, error: authorization.detail });
-      if (payload.supplement) return res.status(409).json({ code: "capture_replacement_requires_new_job", error: NEW_CAPTURE_JOB_MESSAGE });
+      if (payload.supplement) {
+        try { await validateCaptureSupplement(payload); }
+        catch { return res.status(409).json({ code: "capture_lineage_unverified", error: "Reopen your job to update its video." }); }
+      }
       if (!(await admitUploadRequest(req, res, kind, payload))) return;
       res.once("finish", () => { void discardUploadedFile((req as UploadRequest).file); });
       next();
@@ -1266,18 +1278,6 @@ router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCap
     return res.status(503).json({ error: "Uploads are unavailable right now. Try again shortly." });
   }
 
-  // Refused before the bytes are stored rather than after. Without these the
-  // manifest cannot validate, and an invalid manifest means the extractor
-  // writes a blocked report instead of a scene -- which would look, from the
-  // site's side, exactly like a successful upload.
-  const videoMetadata = parseVideoMetadata(safeJsonParse(req.body?.metadata));
-  if (!videoMetadata) {
-    return res.status(400).json({
-      error: "We could not read this video's dimensions. Try recording in your phone's camera app.",
-      code: "video_metadata_missing",
-    });
-  }
-
   // The destination comes from the signed token, never from the request body,
   // so a caller cannot aim someone else's capture prefix at their own file.
   const objectPath = selfCaptureObjectPath({
@@ -1320,7 +1320,10 @@ router.post("/:token", requireAppCheck("upload_walkthrough"), authorizeBeforeCap
     // The shared finish path writes the manifest before that marker and passes
     // both streamed and composed uploads through the same privacy gate.
     const outcome = await finishStoredCapture({ payload, objectPath, rawPrefix,
-      videoMetadata, sizeBytes: file.size, video: writtenVideo, reservation: write.reservation });
+      videoMetadata: null, probeFilePath: file.path, sizeBytes: file.size, video: writtenVideo, reservation: write.reservation });
+    // Do not offer an immediate retry while this write still owns its claim.
+    await discardUploadedFile(file);
+    await releaseBrowserUpload(write.reservation);
     return res.status(outcome.status).json(outcome.body);
   } catch (error) {
     logger.error({ error, captureId: payload.captureId }, "Self-capture canonical write failed");
@@ -1512,18 +1515,7 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
     return res.status(415).json({ error: "Record as .mov or .mp4." });
   }
 
-  // Same refusal as the single POST, and for the same reason: without these the
-  // manifest cannot validate, and an invalid manifest means the extractor
-  // writes a blocked report instead of a scene -- which looks, from the site's
-  // side, exactly like a successful upload.
-  const videoMetadata = parseVideoMetadata(parsed.data.metadata);
-  if (!videoMetadata) {
-    return res.status(400).json({
-      error: "We could not read this video's dimensions.",
-      code: "video_metadata_missing",
-    });
-  }
-
+  // Metadata is measured from the completed bytes below, not supplied by the browser.
   if (!storageAdmin) {
     return res.status(503).json({ error: "Uploads are unavailable right now." });
   }
@@ -1558,13 +1550,14 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
   }
 
   let writtenVideo: WrittenObject | null = null;
+  let probeVideo: WrittenObject | null = null;
   try {
     const composition = await composeParts({
       bucket,
       rawPrefix,
-      objectPath,
+      objectPath: `${rawPrefix}/parts/probe-${randomUUID()}.${extension}`,
       expectedParts: parsed.data.parts,
-      ifGenerationMatch: write.ifGenerationMatch,
+      ifGenerationMatch: 0,
     });
     if (!composition.ok) {
       // Name the missing parts so the client can resend them before composition.
@@ -1574,16 +1567,33 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
         code: composition.reason, missing: composition.missing,
       });
     }
-    writtenVideo = composition.video;
+    probeVideo = composition.video;
+    if (composition.video.size_bytes !== parsed.data.sizeBytes) {
+      return res.status(409).json({ code: "video_identity_mismatch", error: "The uploaded parts do not match this video's size. Check the upload and retry its missing parts." });
+    }
+    const videoMetadata = await probeStoredCaptureVideo(composition.video, () =>
+      storageAdmin!.bucket(storageBucketName()).file(composition.video.object_name,
+        { generation: composition.video.generation }).createReadStream());
+    const composed = await storageAdmin.bucket(storageBucketName()).combine(
+      [storageAdmin.bucket(storageBucketName()).file(composition.video.object_name,
+        { generation: composition.video.generation })], objectPath,
+      { ifGenerationMatch: write.ifGenerationMatch });
+    writtenVideo = capturedWriteIdentity(objectPath, composed[1]);
 
     const outcome = await finishStoredCapture({ payload, objectPath, rawPrefix,
-      videoMetadata, sizeBytes: parsed.data.sizeBytes, video: composition.video,
+      videoMetadata, sizeBytes: parsed.data.sizeBytes, video: writtenVideo,
       reservation: write.reservation });
 
     // Keep parts after a failed finish so a retry can recover without reupload.
     if (outcome.status === 201 || outcome.body.state === "held") await discardParts(bucket, rawPrefix);
     return res.status(outcome.status).json(outcome.body);
   } catch (error) {
+    if (error instanceof VideoProbeError) {
+      const unreadable = error.code === "video_unreadable";
+      return res.status(unreadable ? 422 : 503).json({ code: error.code,
+        error: unreadable ? "We could not read a complete video stream. Choose the original camera file; you do not need to film the job again."
+          : "Your uploaded parts are saved. We could not inspect them right now. Retry finishing this upload shortly." });
+    }
     logger.error({ error, captureId: payload.captureId },
       "Could not compose capture parts into the walkthrough");
     if (writtenVideo) {
@@ -1592,6 +1602,11 @@ router.post("/:token/parts/complete", requireAppCheck("upload_parts_complete"), 
     }
     return res.status(503).json({ error: "We could not assemble your upload. Please retry." });
   } finally {
+    // This copy was created solely for local inspection. Original parts remain
+    // available on failure, and the canonical video is never removed here.
+    if (probeVideo) await storageAdmin.bucket(storageBucketName()).file(probeVideo.object_name,
+      { generation: probeVideo.generation }).delete({ ifGenerationMatch: probeVideo.generation,
+      ignoreNotFound: true }).catch(() => undefined);
     await releaseBrowserUpload(write.reservation).catch((error) => logger.warn(
       { error, captureId: payload.captureId }, "Could not release failed browser write reservation"));
   }
@@ -1608,8 +1623,8 @@ async function bundleGate(req: Request, res: Response) {
   }
   const authorization = await authorizeCaptureUpload(payload.requestId);
   if (payload.supplement) {
-    res.status(409).json({ code: "capture_replacement_requires_new_job", error: NEW_CAPTURE_JOB_MESSAGE });
-    return null;
+    try { await validateCaptureSupplement(payload); }
+    catch { res.status(409).json({ code: "capture_lineage_unverified", error: "Reopen your job to update its video." }); return null; }
   }
   if (!authorization.allowed) {
     res.status(409).json({
@@ -1630,9 +1645,17 @@ async function bundleGate(req: Request, res: Response) {
 router.post("/:token/supplement", async (req, res) => {
   const gate = await bundleGate(req, res);
   if (!gate) return;
-  // Existing supplemental records remain retained and inspectable. The current
-  // Pipeline owner observer cannot admit them, so do not issue another token.
-  return res.status(409).json({ code: "capture_replacement_requires_new_job", error: NEW_CAPTURE_JOB_MESSAGE });
+  if (gate.payload.scope === "film") return res.status(403).json({ code: "supplement_owner_required", error: "Open the owner's job link to update the video." });
+  const parsed = z.object({ mode: z.enum(["replacement", "additional_views"]), requestId: z.string().uuid() }).strict().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ code: "supplement_request_invalid", error: "Choose how to update your video and try again." });
+  try {
+    const result = await issueCaptureSupplement(gate.payload, parsed.data);
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, ...result, url: `/capture-upload/${result.token}`, originalRetained: true });
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "capture_update_unavailable";
+    return res.status(409).json({ code, error: "Your original video is saved. We could not start this update. Refresh the job and try again." });
+  }
 });
 router.post("/:token/bundle", async (req: Request, res: Response) => {
   const gate = await bundleGate(req, res);
@@ -1667,6 +1690,7 @@ router.post("/:token/bundle/complete", async (req: Request, res: Response) => {
   if (!gate) return;
   try {
     const outcome = await completeBundle(gate.payload, req.body, gate.deps);
+    if (outcome.status === 201) await activateCaptureSupplement(gate.payload);
     res.setHeader("Cache-Control", "no-store");
     return res.status(outcome.status).json(outcome.body);
   } catch (error) {
