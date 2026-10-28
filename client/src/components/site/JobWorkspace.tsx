@@ -10,34 +10,18 @@ import type {
   MarketplaceJobStage,
 } from "@/types/jobMarketplace";
 
-const stages: Array<[MarketplaceJobStage, string]> = [
-  ["job_submitted", "Job submitted"],
-  ["brief_agreed", "Brief agreed"],
-  ["options_assessed", "Options assessed"],
-  ["proposals_ready", "Proposals ready"],
-  ["pilot_agreed", "Pilot agreed"],
-  ["results_recorded", "Results recorded"],
-];
+const stages: MarketplaceJobStage[] = ["job_submitted", "brief_agreed", "options_assessed",
+  "proposals_ready", "pilot_agreed", "results_recorded"];
 
 const owners = { site: "You", blueprint: "Blueprint", deployment_partner: "Delivery partner", none: "No action needed" };
 const evidenceLabels = { prior_deployment: "Prior deployment", simulation: "Simulation", physical_trial: "Physical trial", unverified: "Not yet verified" };
 const money = (value: number | null) => value === null ? "Quote needed" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value);
 
-/** Progress is based on recorded milestones, never an elapsed-time estimate. */
-export function JobProgress({ stage, completed = [] }: { stage: MarketplaceJobStage; completed?: MarketplaceJobStage[] }) {
-  return <ol className="job-progress" aria-label="Job milestones">
-    {stages.map(([id, label], index) => <li key={id} data-complete={completed.includes(id)} aria-current={id === stage ? "step" : undefined}>
-      <span className="job-progress-number" aria-hidden="true">{completed.includes(id) ? "✓" : index + 1}</span>
-      <span>{label}<span className="job-progress-status">{id === stage ? "Current step" : completed.includes(id) ? "Recorded" : "Not yet recorded"}</span></span>
-    </li>)}
-  </ol>;
-}
-
 function isWorkflow(value: unknown): value is JobMarketplaceWorkflow {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<JobMarketplaceWorkflow>;
   return item.schemaVersion === "job_marketplace.v1" && typeof item.revision === "string"
-    && stages.some(([id]) => id === item.stage) && Array.isArray(item.proposals)
+    && stages.some(id => id === item.stage) && Array.isArray(item.proposals)
     && Boolean(item.requirements) && typeof item.nextAction === "string"
     && Object.prototype.hasOwnProperty.call(owners, item.actionOwner ?? "");
 }
@@ -124,23 +108,15 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
   // arrive. Later commercial commitments keep their own exact quote action.
   const currentAction = !visibleProposals.length && !workflow.selection && !workflow.agreement && !workflow.outcome
     ? currentNextAction : undefined;
-  const completed: MarketplaceJobStage[] = ["job_submitted"];
-  if (workflow.briefAgreed) completed.push("brief_agreed");
-  if (workflow.optionsAssessed) completed.push("options_assessed");
-  if (available.length) completed.push("proposals_ready");
-  if (workflow.agreement) completed.push("pilot_agreed");
-  if (workflow.outcome) completed.push("results_recorded");
-
   return <><section className="job-workspace" aria-labelledby="job-progress-title">
-    <h2 id="job-progress-title">Your job, step by step</h2>
-    <JobProgress stage={workflow.stage} completed={completed} />
-    <div className="job-next-action">
+    <h2 id="job-progress-title">Results and proposals</h2>
+    {!currentAction && <div className="job-next-action">
       <p className="job-eyebrow">Next action · {currentStatusKnown
-        ? preparationOutcome ? owners[preparationOutcome.actionOwner] : owners[currentAction?.owner ?? workflow.actionOwner]
+        ? preparationOutcome ? owners[preparationOutcome.actionOwner] : owners[workflow.actionOwner]
         : owners.blueprint}</p>
       <p>{!currentStatusKnown ? "Checking the current job status. Your saved job remains available."
-        : preparationOutcome?.nextStep ?? currentAction?.text ?? workflow.nextAction}</p>
-    </div>
+        : preparationOutcome?.nextStep ?? workflow.nextAction}</p>
+    </div>}
     {error && <p role="status" className="ms-field-hint">Updates could not be refreshed. Last loaded details are shown. <button type="button" className="ms-text-link" onClick={() => setRefresh(value => value + 1)}>Try again</button></p>}
     {workflow.review && <div className="job-review">
       <h3>{workflow.review.disposition === "no_suitable_option" ? "No suitable option yet" : workflow.review.disposition === "more_information" ? "A little more information is needed" : "What we know so far"}</h3>
@@ -183,8 +159,6 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
     </section>}
     {workflow.jobId && (workflow.evidence ?? []).some(item => item.current && ["information_required", "blocked", "unavailable"].includes(item.state)) ? <p className="ms-field-hint"><a className="ms-text-link" href={`/app/captures?jobId=${encodeURIComponent(workflow.jobId!)}`}>Add task-specific capture evidence</a> when Blueprint needs it. Use the account that owns this job; the existing recording permissions still apply.</p> : null}
     </details>}
-    <BuyingRequirements key="requirements" locked={Boolean(workflow.agreement)} requirements={workflow.requirements} pending={pending} onSave={value => save("requirements", "PATCH", value)} />
-
     <section className="job-proposals" aria-labelledby="delivery-proposals-title">
       <h3 id="delivery-proposals-title">Delivery proposals</h3>
       {!available.length ? <p className="ms-field-hint">No delivery proposal is ready to review. Blueprint will identify suitable options and explain any checks still needed.</p>
@@ -195,6 +169,8 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
         onSelect={() => save("select", "POST", { proposalId: proposal.id, expectedRevision: proposal.revision, authorized: true })} />)}
       {workflow.selection && (!selected || selected.status !== "available") && <p role="status">Your selected proposal changed or is no longer available. Ask Blueprint to review the updated scope before making another commitment.</p>}
     </section>
+
+    <BuyingRequirements key="requirements" locked={Boolean(workflow.agreement)} requirements={workflow.requirements} pending={pending} onSave={value => save("requirements", "PATCH", value)} />
 
     {selected && selected.status !== "withdrawn" && <section className="job-agreement" aria-labelledby="pilot-agreement-title">
       <h3 id="pilot-agreement-title">{selected.status === "review_required" ? "Your previous choice needs review" : workflow.agreement ? "Pilot agreement recorded" : "Your choice is recorded"}</h3>

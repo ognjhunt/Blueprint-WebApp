@@ -6,13 +6,6 @@
 .job-workspace p { line-height: 1.6; }
 .job-workspace .ms-form { max-width: none; }
 .job-workspace .ms-form button { justify-self: start; }
-.job-progress { list-style: none; padding: 0; margin: 0 0 24px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 12px; }
-.job-progress li { display: flex; align-items: flex-start; gap: 8px; color: var(--ms-muted, #5c675f); font-size: 13px; line-height: 1.4; min-width: 0; }
-.job-progress-number { display: grid; place-items: center; flex: 0 0 24px; height: 24px; border: 1px solid var(--ms-rule, #d5d8d0); border-radius: 50%; font-size: 11px; }
-.job-progress li[aria-current="step"] { color: var(--ms-ink, #19241e); font-weight: 650; }
-.job-progress li[aria-current="step"] .job-progress-number { border-color: currentColor; }
-.job-progress li[data-complete="true"] .job-progress-number { color: var(--ms-green, #31583f); background: #edf2e9; border-color: #cbd8c7; }
-.job-progress-status { display: block; margin-top: 3px; font-size: 11px; font-weight: 400; }
 .job-next-action { background: #edf2e9; border-left: 3px solid var(--ms-green, #31583f); padding: 14px 16px; margin-bottom: 22px; }
 .job-next-action p { margin: 0; }
 .job-next-action .job-eyebrow { font-size: 12px; font-weight: 650; margin-bottom: 4px; }
@@ -36,4 +29,4 @@
 .job-proposal-choice { margin-top: 20px; }
 .job-workspace .ms-check-row { display: flex; align-items: flex-start; gap: 10px; }
 .job-workspace .ms-check-row input { flex: 0 0 auto; width: 17px; min-height: 17px; margin-top: 3px; }
-@media (max-width: 480px) { .job-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 10px; } .job-proposal-card { padding: 16px; } .job-facts { grid-template-columns: 1fr; } }
+@media (max-width: 480px) { .job-proposal-card { padding: 16px; } .job-facts { grid-template-columns: 1fr; } }

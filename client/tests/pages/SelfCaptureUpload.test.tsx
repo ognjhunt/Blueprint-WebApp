@@ -113,8 +113,8 @@ describe("video first owner return", () => {
     vi.stubGlobal("fetch", fetcher);
     render(<SelfCaptureUpload />);
     expect(await screen.findByRole("region", { name: "Preparation outcome" })).toHaveTextContent(outcome.scope);
-    expect(await screen.findByText("Next action · Blueprint")).toBeVisible();
-    expect(screen.getByText("Your recording is saved. The next step is with Blueprint.")).toBeVisible();
+    expect(screen.getByText(outcome.nextStep)).toBeVisible();
+    expect(screen.getAllByText(outcome.nextStep)).toHaveLength(1);
     expect(screen.getByText("Saved job brief")).toBeVisible();
     expect(screen.queryByRole("region", { name: "Confirm your job brief" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /confirm it|Retry processing/ })).not.toBeInTheDocument();
@@ -462,12 +462,13 @@ describe("explicit assessment retry", () => {
   it("keeps the acknowledged video and brief through a current-source retry refusal", async () => {
     const read = retryFetch({ available: true }); vi.stubGlobal("fetch", read);
     render(<SelfCaptureUpload />);
-    fireEvent.click(await screen.findByRole("button", { name: "Try assessment again" }));
+    fireEvent.click(await screen.findByText("Processing details"));
+    fireEvent.click(screen.getByRole("button", { name: "Try assessment again" }));
     await screen.findByText("The current assessment could not be retried. Your recording is saved. Check this page for the next step.");
     expect(screen.queryByText("private provider detail")).not.toBeInTheDocument();
     expect(await screen.findByText("Video received.")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Your saved job" })).toBeVisible();
-    expect(screen.getByText("Job reference: bp-advisory-aaaaaaaaaaaaaaaa")).toBeVisible();
+    expect(screen.getByText("Reference: bp-advisory-aaaaaaaaaaaaaaaa")).toBeVisible();
+    expect(screen.getByText("Processing details").closest("details")).toHaveAttribute("open");
     // The draft remains available without interrupting the job after refusal.
     expect(screen.getByText("Review or correct job details (optional)")).toBeVisible();
     expect(screen.getByLabelText("Review your job brief")).not.toHaveAttribute("open");
@@ -480,7 +481,8 @@ describe("explicit assessment retry", () => {
     const read = retryFetch({ available: true, post: () => new Promise(resolve => { finish = resolve; }) });
     vi.stubGlobal("fetch", read);
     const { rerender } = render(<SelfCaptureUpload />);
-    fireEvent.click(await screen.findByRole("button", { name: "Try assessment again" }));
+    fireEvent.click(await screen.findByText("Processing details"));
+    fireEvent.click(screen.getByRole("button", { name: "Try assessment again" }));
     await waitFor(() => expect(read.mock.calls.some(call => String(call[0]).endsWith("/advisory-retry"))).toBe(true));
     route.token = "second-token"; rerender(<SelfCaptureUpload />);
     await screen.findByText("This link was withdrawn.");
@@ -835,7 +837,7 @@ describe("SelfCaptureUpload for footage sent with no description", () => {
   });
 });
 
-describe("SelfCaptureUpload says how long a waiting stage takes", () => {
+describe("SelfCaptureUpload shows the current update without a generic waiting checklist", () => {
   function withStatus(decision: string) {
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
@@ -848,11 +850,12 @@ describe("SelfCaptureUpload says how long a waiting stage takes", () => {
     ["assessing", "We confirm the checks needed for your job and explain the next step. Timing depends on the evidence and compatible systems available."],
     ["awaiting_teams", "We are checking compatible options and delivery support. Your job page shows who needs to act next; we email you when there is an update."],
     ["received", "We usually reply within an hour."],
-  ])("shows the expected wait while %s", async (decision, line) => {
+  ])("shows the current %s update without another timeline", async (decision, line) => {
     setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36");
     withStatus(decision);
     render(<SelfCaptureUpload />);
-    expect(await screen.findByText(line)).toBeInTheDocument();
+    expect(await screen.findByText(`Status for ${decision}.`)).toBeInTheDocument();
+    expect(screen.queryByText(line)).not.toBeInTheDocument();
   });
   it("shows no wait for a step that is the site's own", async () => {
     setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36");

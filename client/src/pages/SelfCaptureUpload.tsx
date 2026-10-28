@@ -6,7 +6,6 @@ import { isLikelyPhone } from "@/lib/device";
 import { PublicTaskListing } from "@/components/site/PublicTaskListing";
 import { JobWorkspace } from "@/components/site/JobWorkspace";
 import { NextTaskUpdate } from "@/components/site/NextTaskUpdate";
-import { waitingTimeline } from "@/data/betaTimelines";
 /**
  * The page an operator or filmer opens from a private job link.
  *
@@ -569,10 +568,8 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const accountHold = link.status === "held"
     && (link.holdReason === "site_account_required" || link.holdReason === "footage_before_account");
 
-  // "Where this stands", for the operator who has no account. It carries a
-  // re-film request when there is one, so it is never dropped -- but on a
-  // recordable link the camera is the page, so it moves below the camera. When
-  // there is no camera yet (a held or checking link) it stays at the top.
+  // One current update. Saved jobs show it before results; a fresh capture
+  // keeps the recorder first. Optional corrections do not become next steps.
   const statusCard = status && currentStatusKnown ? (
     <div
       style={{
@@ -582,11 +579,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         background: "var(--ms-paper)",
       }}
     >
-      {saved && scope === "owner" && status.siteAdvisory?.correlationId
-        && status.siteAdvisory.state !== "authority_ended" && <>
-        <h2>Your saved job</h2>
-        <p>Job reference: {status.siteAdvisory.correlationId}</p>
-      </>}
       <strong>{status.outcome ? status.headline : upload.status === "processing_pending" || upload.status === "held"
         ? "Your video is saved."
         : existingVideoOnly && !saved && status.decision !== "add_views"
@@ -598,18 +590,16 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         </p>
       )}
       <TaskOutcomeNotice showTitle={false} outcome={status.outcome} />
-      {waitingTimeline(status.decision) && (
-        <p className="ms-field-hint" style={{ margin: "8px 0 0" }}>{waitingTimeline(status.decision)}</p>
-      )}
       <NextTaskUpdate nextUpdateIso={status.nextUpdateIso} />
-      <SiteAdvisoryReport advisory={status.siteAdvisory} />
+      <SiteAdvisoryReport advisory={status.siteAdvisory}>
       {scope === "owner" && link.status === "valid" && status.siteAdvisory?.state === "needs_review"
         && status.assessment_retry_available === true && status.assessment_job_id && status.assessment_run_id && (
-        <p><button type="button" className="ms-button" disabled={retryingAssessment || operationInFlight.current} onClick={() => void retryAssessment()}>
+        <p><button type="button" className="ms-text-link" disabled={retryingAssessment || operationInFlight.current} onClick={() => void retryAssessment()}>
           {retryingAssessment ? "Requesting assessment retry…" : "Try assessment again"}
         </button></p>
       )}
       {assessmentRetryMessage && <p role="status">{assessmentRetryMessage}</p>}
+      </SiteAdvisoryReport>
       {status.sceneViewUrl && (
         <p style={{ margin: "10px 0 0" }}>
           <a className="ms-text-link" href={status.sceneViewUrl} target="_blank" rel="noreferrer">
@@ -663,9 +653,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
         {link.status === "held" || saved ? "Your job" : existingVideoOnly ? "Upload your existing video" : onAPhone ? "Film the work area" : "Upload or record your job"}
       </h1>
 
+      {(saved || link.status !== "valid") && statusCard}
       {saved && (link.status === "valid" || link.status === "held") && scope === "owner"
         && <JobWorkspace token={token} preparationOutcome={status?.outcome} currentStatusKnown={currentStatusKnown} currentNextAction={status ? {text: status.operatorAction || status.headline, owner: status.operatorAction || status.decision === "confirm_brief" ? "site" : "blueprint"} : undefined} />}
-      {link.status !== "valid" && statusCard}
 
       {isVideoUpdate && !saved && <p className="ms-field-hint" role="status">{additionalViewsOnly
         ? "Film only the missing area. Start with a view that overlaps your earlier recording, then show the missing area. We use both recordings on this job and keep the originals."
@@ -811,7 +801,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                 style={{ marginBottom: "8px" }}
               >
                 <strong>Video received.</strong>
-                <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
+                {(!status || !currentStatusKnown || upload.status === "processing_pending" || upload.status === "held") && <p style={{ color: "var(--ms-muted)", marginTop: "8px", marginBottom: 0 }}>
                   {blueprintActionPending
                     ? currentStatusKnown ? "Your recording is saved. The next step is with Blueprint."
                       : "Blueprint is checking the current status. Keep your original recording."
@@ -821,7 +811,7 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   {!blueprintActionPending && (upload.status === "processing_pending" || upload.status === "held")
                     ? "You can check the job brief while processing is pending."
                     : null}
-                </p>
+                </p>}
               </div>
               {scope === "owner" && link.status === "valid" && <details aria-label="Update job video" style={{ margin: "16px 0" }}>
                 <summary>Add or update video (optional)</summary>
@@ -843,13 +833,6 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
                   {retryingProcessing ? "Retrying processing…" : "Retry processing"}
                 </button></p>
               )}
-              {/* Saved is not finished. The brief confirmation is the site's
-                  attestation, the thing that lets the job be evaluated.
-                  Hiding it the moment a video lands used to end the visit with the
-                  qualification undone, recoverable only by knowing to reload. The
-                  site sends only its video otherwise: Blueprint infers the rest. */}
-              {statusCard}
-
               {scope === "owner" && brief && blueprintActionPending && !editingBrief && <details style={{margin: "16px 0"}}>
                 <summary>Saved job brief</summary>
                 <p>{brief.summary}</p>

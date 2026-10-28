@@ -6,8 +6,11 @@ completion. Advisory missing-view findings remain internal context rather than
 a required upload or brief-confirmation step. The website only reports ready
 work when the corresponding retained reconstruction or result exists.
 
-The saved-job page keeps corrections and extra video in collapsed optional
-details. Historical coverage from another recording cannot become the selected
+The saved-job page shows one current update, followed by results and proposals.
+Internal brief/review milestones are no longer a customer checklist. Processing
+support, corrections, extra video and opportunity-sharing guidance stay in
+collapsed optional details. Upload emails no longer require brief confirmation;
+result notices link guests to the private job page without an account step. Historical coverage from another recording cannot become the selected
 recording's next action. Current failures, consent withdrawal and real result
 limitations remain visible without inventing progress or physical success.
 
@@ -34,8 +37,15 @@ founder holds. Local/hosted tests are source evidence; completion still requires
 the exact deployed pair and a real supported upload through a scored result,
 return visit and recovery.
 
-Validation: 447 focused tests passed across the saved-job page, status API and
+Validation: 491 focused tests passed across the saved-job page, status API and
 workspace, notifications, actual two-recording upload routes, source bindings,
 grants, coverage/advisory queues and source previews. TypeScript and Graphify
 passed; the shared fixture matches Pipeline byte for byte. No live upload,
 provider/model call, new account, spending or deployment was performed.
+
+A local read-only browser preview with synthetic API responses passed at 390 px
+and the desktop viewport: one current reconstruction update, no horizontal
+overflow, no visible film/confirm/publish request, no open details and no console
+errors. Optional processing support opens only on demand. Preview images are
+retained outside the repository; this is rendered UI evidence, not production
+reconstruction, scoring or delivery proof. No form, email or upload was sent.
