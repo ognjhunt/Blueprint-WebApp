@@ -462,12 +462,9 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     };
   }
 
-  // Filmed, and the brief we drafted is still unconfirmed: the one step left
-  // that is the site's own. No later waiting rung may stand in for it. "We
-  // are checking your footage" or "your preview is ready" read as though
-  // nothing were asked of the site, and the job waited unopened. A
-  // preparation problem keeps its own headline below and carries the ask.
-  // Waiting for our capacity is preparation in progress, not a problem.
+  // Keep the owner's draft review available without presenting it as a
+  // prerequisite for the automatic job evaluation. Preparation failures keep
+  // their own current action; waiting for capacity remains preparation.
   const preparationProblem = input.scenePreparationFailed === true || Boolean(input.preparationStatus
     && input.preparationStatus.state !== "preparing" && input.preparationStatus.state !== "capacity_delayed"
     && input.preparationStatus.state !== "handed_off");
@@ -477,8 +474,8 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "confirm_brief",
       headline: observedPreparation
-        ? "We are preparing your job from the recording. Confirm your job brief before we evaluate it."
-        : "We have your recording. Next, confirm your job brief: we can evaluate your job only after you confirm it.",
+        ? "We are preparing your job from the recording while you review and confirm your job brief."
+        : "Your recording is saved. Review and confirm your job brief; Blueprint can prepare and evaluate the job while you review it.",
       operatorAction: confirmationAsk,
     };
   }

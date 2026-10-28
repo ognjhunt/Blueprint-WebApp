@@ -216,14 +216,15 @@ describe("a site that sends its footage before confirming its brief", () => {
     await claim(jobId);
     await sendFootage(token);
     const { teamJobAccess } = await import("../utils/teamJobAccess");
-    // The reason the step is not optional: the job cannot be evaluated yet.
+    // Team-library access retains its existing brief agreement requirement.
+    // The automatic Blueprint job evaluation has separate source-bound admission.
     expect(teamJobAccess(doc(`inboundRequests/${jobId}`)).evaluationAvailable).toBe(false);
 
     const { status, captureReceived } = await jobStatus(token);
     expect(captureReceived).toBe(true);
     expect(status.decision).toBe("confirm_brief");
     expect(status.headline).toMatch(/confirm your job brief/i);
-    expect(status.headline).toMatch(/we can evaluate your job only after you confirm it/i);
+    expect(status.headline).toMatch(/can prepare and evaluate the job while you review it/i);
     expect(status.headline).not.toMatch(/without confirming|optional|no confirmation/i);
     expect(status.operatorAction).toMatch(/confirm/i);
   });
