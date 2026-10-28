@@ -25,8 +25,6 @@ vi.mock("../../client/src/lib/firebaseAdmin", async () => {
 });
 vi.mock("../utils/websiteCaptureOwnerTransport", () => ({ withWebsiteOwnerDeps: async (_ms: number, action: (deps: any) => Promise<unknown>) => action({}) }));
 vi.mock("../utils/websiteCaptureOwnerObservation", () => ({ observeWebsiteCaptureOwner: async () => runtime.observation }));
-vi.mock("../utils/siteAssessmentPreparation", () => ({ loadAssessmentPreparationProposal: async () => null,
-  assertAssessmentPreparationCurrent: async () => undefined }));
 
 const { buildBrowserDelivery } = await import("../utils/websiteCaptureDelivery");
 const { projectWebsiteTaskContext, projectWebsiteCaptureRights } = await import("../utils/websiteTaskContext");
