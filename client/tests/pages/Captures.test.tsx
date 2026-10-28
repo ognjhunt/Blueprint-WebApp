@@ -250,7 +250,7 @@ describe("app/Captures", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Upload a capture" }));
     fireEvent.change(screen.getByLabelText("Scene ID"), { target: { value: "packing-line-a" } });
     fireEvent.change(screen.getByLabelText("Capture file"), {
-      target: { files: [new File(["x"], "tiny.mp4", { type: "video/mp4" })] },
+      target: { files: [new File([], "empty.mp4", { type: "video/mp4" })] },
     });
     const upload = screen.getByRole("button", { name: "Upload" });
     expect(upload).toBeEnabled();
@@ -258,10 +258,23 @@ describe("app/Captures", () => {
     fireEvent.submit(upload.closest("form")!);
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Videos must be larger than 5 MB and no larger than 50 GB.");
+    expect(alert).toHaveTextContent("The file is empty or larger than 50 GB.");
     expect(alert.closest("form")).not.toBeNull();
     expect(alert).not.toHaveTextContent(/Reload the page/);
     expect(state.create).not.toHaveBeenCalled();
+  });
+
+  it("admits a short video to the existing rights checks before any upload", async () => {
+    render(<Captures />);
+    fireEvent.click(await screen.findByRole("button", { name: "Upload a capture" }));
+    fireEvent.change(screen.getByLabelText("Scene ID"), { target: { value: "packing-line-a" } });
+    fireEvent.change(screen.getByLabelText("Capture file"), {
+      target: { files: [new File(["x"], "short.mp4", { type: "video/mp4" })] },
+    });
+    fireEvent.submit(screen.getByRole("button", { name: "Upload" }).closest("form")!);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Confirm the rights and consent statements before uploading.");
+    expect(state.create).not.toHaveBeenCalled();
+    expect(state.upload).not.toHaveBeenCalled();
   });
 
   it("opens one capture on its own and records a task approval as pending", async () => {
