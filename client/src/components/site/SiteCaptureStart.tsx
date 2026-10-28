@@ -627,17 +627,16 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
                 : state.hasFootage ? "Send us what you have." : "Film the work area."}
             </h2>
             {/* Two purposes, one recording. Footage they already hold may
-                explain the job and cover the scene; if it does we reuse it, and
-                if it only does the first we ask for the specific views that are
-                missing rather than for "a better video". What we never do is
-                make them film something they have already filmed. */}
+                explain the job and cover the scene. The existing update path
+                retains the original and accepts a complete updated walkthrough
+                on the same job; the recovery copy must match that path. */}
             <p className="ms-field-hint">
               {state.uploaded === "failed"
                 ? `${state.uploadMessage ?? "We could not confirm the video upload."} Keep your original video and open your job page to check its status.`
                 : state.hasFootage
                 ? "Upload the video you already have through this link. We will tell you "
-                  + "whether it covers the work area well enough to build the scene, or which extra "
-                  + "views would finish the job — you will not be asked to film it all again."
+                  + "whether it covers the work area well enough to build the scene. If more coverage is needed, "
+                  + "you can update the walkthrough on this same job. Your original video stays saved."
                 : "One video of one work area, on any phone. Thirty seconds of the actual cycle is "
                   + "enough. On an iPhone the link opens a small Blueprint camera when that is "
                   + "available; everywhere else the recorder opens in the browser. Assessment starts once we receive the video."}

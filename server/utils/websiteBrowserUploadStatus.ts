@@ -141,6 +141,11 @@ export async function describeBrowserUpload(payload: CaptureIdentity, allowed: b
             detail: "Your video is saved. We could not verify its current processing status. Keep the original file while we check it." } };
       }
       const currentRights = await loadWebsiteCaptureRights(payload.requestId);
+      if (stored?.probe_failure === "video_unreadable" && manifest !== null && JSON.parse(manifest).media_probe_pending === true
+        && currentRights.derived_scene_generation_allowed && originalManifestConsent(manifest)) {
+        return { captureReceived: true, uploadState: "retained", processingRetryAvailable: false,
+          processingHold: { code: "video_unreadable", detail: "Your original file is saved, but we could not read its video stream. Update the walkthrough on this job or contact Blueprint for help." } };
+      }
       const retryAvailable = allowed && currentRights.derived_scene_generation_allowed === true
         && manifest !== null && originalManifestConsent(manifest);
       return { captureReceived: true,
