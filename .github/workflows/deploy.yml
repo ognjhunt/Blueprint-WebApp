@@ -459,10 +459,12 @@ jobs:
           worker_deploy_commit="${DEPLOY_COMMIT}"
 
           # Poll GET /version.json until the exact requested SHA is serving
-          # traffic. Timeout: 20 minutes.
+          # traffic. Timeout: 20 minutes. Under pipefail a timed-out curl would
+          # end the step (exit 28) and roll back a healthy release, so a
+          # transport failure reads as "unreachable" and the poll continues.
           deployed_sha=""
           for attempt in $(seq 1 40); do
-            deployed_sha=$(curl -sf --max-time 20 "${BASE_URL}/version.json" | { grep -o '"git_sha"[^,}]*' || true; } | { grep -o '[0-9a-f]\{40\}' || true; })
+            deployed_sha=$({ curl -sf --max-time 20 "${BASE_URL}/version.json" || true; } | { grep -o '"git_sha"[^,}]*' || true; } | { grep -o '[0-9a-f]\{40\}' || true; })
             if [ "${deployed_sha}" = "${DEPLOY_REF}" ]; then
               break
             fi
@@ -479,8 +481,21 @@ jobs:
           # process serves traffic; /health/ready reports launch readiness and
           # is recorded truthfully (its verdict is evidence, and a not-ready
           # verdict fails this gate because the service is not beta-servable).
-          health_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "${BASE_URL}/health")
-          ready_code=$(curl -s -o /tmp/deploy-evidence/health-ready-body.json -w "%{http_code}" --max-time 20 "${BASE_URL}/health/ready")
+          # Only a probe that got no answer is retried; any HTTP status is the
+          # verdict as returned.
+          probe() {
+            local url="$1" body="$2" code rc
+            for probe_attempt in 1 2 3 4 5 6; do
+              rc=0
+              code=$(curl -s -o "${body}" -w "%{http_code}" --max-time 20 "${url}") || rc=$?
+              if [ "${rc}" -eq 0 ]; then printf '%s' "${code}"; return 0; fi
+              echo "${url} attempt ${probe_attempt}/6: no answer (curl exit ${rc}). Retrying in 10s." >&2
+              sleep "${PROBE_RETRY_SECONDS:-10}"
+            done
+            printf '0'
+          }
+          health_code=$(probe "${BASE_URL}/health" /dev/null)
+          ready_code=$(probe "${BASE_URL}/health/ready" /tmp/deploy-evidence/health-ready-body.json)
           finished_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           printf '{"web_render_deploy_id":"%s","web_render_deploy_status":"%s","web_render_commit":"%s","worker_render_deploy_id":"%s","worker_render_deploy_status":"%s","worker_render_commit":"%s","deploy_ref":"%s","live_git_sha":"%s","health_status":%s,"health_ready_status":%s,"started_at":"%s","finished_at":"%s"}\n' \
             "${RENDER_WEB_DEPLOY_ID}" "${web_deploy_status}" "${web_deploy_commit}" "${RENDER_WORKER_DEPLOY_ID}" "${worker_deploy_status}" "${worker_deploy_commit}" "${DEPLOY_REF}" "${deployed_sha}" "${health_code}" "${ready_code}" "${started_at}" "${finished_at}" > "${evidence}"
