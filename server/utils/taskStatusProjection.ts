@@ -342,10 +342,10 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
       ...base,
       decision: "add_views",
       headline: input.supplementWouldFinish
-        ? "Your footage is saved. One extra view is needed."
+        ? "Your recording is saved. Update the walkthrough to include the missing view."
         : `Your footage is saved. Blueprint is reviewing its scene coverage gaps, starting with ${input.missingViews[0]}.`,
       operatorAction: input.supplementWouldFinish
-        ? `Add a view of ${input.missingViews[0]} to this job. Keep the original recording; the extra view stays linked to it.`
+        ? `Upload an updated walkthrough of the full job cycle, including ${input.missingViews[0]}, to this job. Your original recording stays saved and linked to this job.`
         : null,
     };
   }
