@@ -248,7 +248,7 @@ describe("video first owner return", () => {
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.endsWith(`/api/site-task-brief/${TOKEN}/status`)) return Promise.resolve({ ok: true,
-        json: async () => ({ captureReceived: true, status: { decision: "add_views", headline: "Add a view of the pallet.", operatorAction: "Film the pallet.", missingViews: ["pallet"] } }) });
+        json: async () => ({ captureReceived: true, status: { decision: "footage_received", headline: "Blueprint is preparing your reconstruction.", operatorAction: null, missingViews: ["pallet"] } }) });
       return fetcher(input);
     }));
     render(<SelfCaptureUpload />);

@@ -1,5 +1,9 @@
 # Reconstruction belongs to Blueprint
 
+The independent customer cleanup is WebApp #1137. This optional recording
+continuation stacks on it; core simplification has no dependency on these v2
+inputs or on Pipeline #3037.
+
 After a site uploads, Blueprint handles reconstruction and evaluation. Atlas
 searches existing video frames, reuses retained work and performs bounded scene
 completion. Advisory missing-view findings remain internal context rather than
