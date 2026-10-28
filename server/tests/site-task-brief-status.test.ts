@@ -117,8 +117,8 @@ afterEach(async () => {
   );
 });
 
-async function status() {
-  const response = await fetch(`${baseUrl}/api/site-task-brief/${token()}/status`);
+async function status(credential = token()) {
+  const response = await fetch(`${baseUrl}/api/site-task-brief/${credential}/status`);
   return { code: response.status, body: await response.json() };
 }
 
@@ -416,6 +416,62 @@ describe("GET /api/site-task-brief/:token/status", () => {
     storage.objects.set("scenes/scene-1/captures/cap-1/raw/capture_upload_complete.json",
       { generation: "1", size: "2", crc32c: "AAAAAA==" });
     expect((await status()).body).toMatchObject({ captureReceived: true, uploadState: "retained" });
+  });
+
+  it("keeps a signed app capture's source when the request also selects a website revision", async () => {
+    const childId = `supplement-${"a".repeat(40)}`;
+    const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, active_capture_id: childId });
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/cap-1", {
+      world_reconstruction: { state: "failed", blocker: "provider_failed" },
+    });
+    sharedFakeFirestoreState.docs.set(`captureUploadSessions/${childId}`, {
+      world_reconstruction: { state: "ready", assets: { launchUrl: "https://viewer.example/website-revision" } },
+    });
+    storage.objects.set("scenes/scene-1/captures/cap-1/raw/capture_upload_complete.json",
+      { generation: "1", size: "2", crc32c: "AAAAAA==" });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    const { code, body } = await status();
+    expect(code).toBe(200);
+    expect(body).toMatchObject({ captureReceived: true, uploadState: "retained", sceneViewUrl: null,
+      status: { decision: "processing_failure", operatorAction: null } });
+    expect(JSON.stringify(body)).not.toContain("website-revision");
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+    expect(storage.write).not.toHaveBeenCalled();
+    expect(enqueueOutbox).not.toHaveBeenCalled();
+  });
+
+  it("follows an explicit website revision while preserving film scope and withdrawal", async () => {
+    const childId = `supplement-${"b".repeat(40)}`;
+    const request = sharedFakeFirestoreState.docs.get("inboundRequests/req-1")!;
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, active_capture_id: childId });
+    sharedFakeFirestoreState.docs.set("captureUploadSessions/walkthrough-req-1", {
+      world_reconstruction: { state: "failed", blocker: "provider_failed" },
+    });
+    sharedFakeFirestoreState.docs.set(`captureUploadSessions/${childId}`, {
+      world_reconstruction: { state: "ready", assets: { launchUrl: "https://viewer.example/current-revision" } },
+    });
+    storage.objects.set(`scenes/site-req-1/captures/${childId}/raw/capture_upload_complete.json`,
+      { generation: "2", size: "2", crc32c: "AAAAAA==" });
+    const credentials = (scope: "owner" | "film") => createCaptureUploadToken({ requestId: "req-1",
+      captureId: "walkthrough-req-1", sceneId: "site-req-1", scope });
+    const before = structuredClone([...sharedFakeFirestoreState.docs]);
+    expect((await status(credentials("owner"))).body).toMatchObject({ captureReceived: true, uploadState: "retained",
+      sceneViewUrl: "https://viewer.example/current-revision", status: { decision: "assessing" } });
+    expect((await status(credentials("film"))).body).toMatchObject({ captureReceived: true,
+      sceneViewUrl: null, claimUrl: null });
+    expect([...sharedFakeFirestoreState.docs]).toEqual(before);
+
+    sharedFakeFirestoreState.docs.set("inboundRequests/req-1", { ...request, active_capture_id: childId, consent_revoked: true });
+    const withdrawn = structuredClone([...sharedFakeFirestoreState.docs]);
+    const { body } = await status(credentials("owner"));
+    expect(body.sceneViewUrl).toBeNull();
+    expect(body.status.headline).toMatch(/withdrawn/i);
+    expect(body.status.operatorAction).toBeNull();
+    expect([...sharedFakeFirestoreState.docs]).toEqual(withdrawn);
+    expect(storage.write).not.toHaveBeenCalled();
+    expect(enqueueOutbox).not.toHaveBeenCalled();
+    expect(deliverOutbox).not.toHaveBeenCalled();
   });
 
   it("refuses a saved receipt belonging to a different scene", async () => {

@@ -100,16 +100,28 @@ describe("a job we cannot score", () => {
       .not.toBe("task_not_yet_supported");
   });
 
-  it("shows the same not-yet on the job page, ahead of every later rung", () => {
+  it("shows the scope hint while no preparation or evaluation has been observed", () => {
+    const status = projectTaskStatus(taskStatusInputFrom({
+      briefDrafted: true, stage: null, site_task_brief_confirmed_at: "2026-10-01",
+      site_task_triage: { disposition: "qualified" }, site_task_scope: { supported: false, reason: "liquid" },
+      screening: null,
+      site_task_next_update_iso: null,
+    }));
+    expect(status.decision).toBe("not_yet_supported");
+    expect(status.headline).toMatch(/preparing an evaluation/);
+    expect(status.operatorAction).toMatch(/liquids.*cover: picking up one rigid object and placing it at another spot on a supported destination surface, and opening one door, drawer or lid/);
+  });
+
+  it("shows an actual queued evaluation ahead of an older scope hint without claiming execution or results", () => {
     const status = projectTaskStatus(taskStatusInputFrom({
       briefDrafted: true, stage: null, site_task_brief_confirmed_at: "2026-10-01",
       site_task_triage: { disposition: "qualified" }, site_task_scope: { supported: false, reason: "liquid" },
       screening: { teams: 1, queued: 1, running: 0, reported: 0, noResult: 0 },
       site_task_next_update_iso: null,
     }));
-    expect(status.decision).toBe("not_yet_supported");
-    expect(status.headline).toMatch(/preparing an evaluation/);
-    expect(status.operatorAction).toMatch(/liquids.*cover: picking up one rigid object and placing it at another spot on a supported destination surface, and opening one door, drawer or lid/);
+    expect(status.decision).toBe("screening");
+    expect(status.headline).toBe("Robot screening has not started. Results are not available yet.");
+    expect(status.operatorAction).toBeNull();
   });
 
   it("names only the job kinds Blueprint's evaluation can score, everywhere", () => {
