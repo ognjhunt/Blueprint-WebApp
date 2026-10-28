@@ -97,11 +97,11 @@ export interface SiteReadinessResponse {
   report: SiteReadinessReport | null;
   /**
    * The printable brief's read-only link, on the owner's read only. The owner's
-   * job link never goes on paper: it can book the pilot and withdraw consent.
+   * job link never goes on paper: it can act on the job and withdraw consent.
    */
   briefPath: string | null;
 }
 
 export const READINESS_BRIEF_FOOTER =
   "Prepared by Blueprint from your video and what you told us. It is a first read, not a promise that any robot can do "
-  + "the job. If Blueprint recommends an approach, it will be one that passed a full evaluation on your job.";
+  + "the job. Blueprint's simulation of your job gives a bounded estimate; it never certifies physical performance or safety.";

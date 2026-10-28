@@ -53,7 +53,7 @@ function ConfiguredSceneOfferingDetail({ offering }: { offering: ConfiguredScene
       ) : (
         <p className="ms-site-cta">
           <a href={robotTeamRequestHref(offering.title, "site-detail-configured-scene")} className="ms-button">
-            Ask to evaluate this job <ArrowRight size={18} aria-hidden="true" />
+            Offer your system for this job <ArrowRight size={18} aria-hidden="true" />
           </a>
         </p>
       )}
@@ -171,7 +171,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
             <p>{site.summary}</p>
             <p className="ms-site-cta">
               <a href={siteRequestHref(site)} className="ms-button">
-                Ask to evaluate this job <ArrowRight size={18} aria-hidden="true" />
+                Offer your system for this job <ArrowRight size={18} aria-hidden="true" />
               </a>
             </p>
             <figure className="ms-site-figure">
@@ -192,7 +192,7 @@ export default function SiteDetail({ params }: SiteDetailProps) {
                   ))}
                 </ul>
               ) : (
-                <p>Detailed scope and access are agreed with the site before evaluation or a delivery proposal.</p>
+                <p>Detailed scope and access are agreed with the site before evaluation.</p>
               )}
             </section>
 

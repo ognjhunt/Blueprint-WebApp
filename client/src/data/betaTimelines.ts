@@ -3,8 +3,8 @@
  * form, /beta and the job page. One named constant each, so the owner can
  * change a range in one place (owner request, 2026-10-18).
  *
- * Ranges, never dates, and never a recommendation date: a recommendation
- * follows only when a candidate's full evaluation of the job passes.
+ * Ranges, never dates, and never a result date: the result follows only when
+ * Blueprint's simulation of the job reports it.
  */
 
 /** Our reply to what a site sends: a new job, footage, written answers. */

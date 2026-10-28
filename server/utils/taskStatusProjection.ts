@@ -367,7 +367,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
     return {
       ...base,
       decision: "no_team_passed",
-      headline: `No evaluation of your job has passed yet. ${runs} on your job finished without passing, so there is no recommended pilot. ${gap.shortfall ? `${gap.shortfall} ` : ""}A recommendation needs a candidate's full evaluation to ${gap.requirement}${input.openForEvaluations ? "; your job stays open for evaluation, and we email you when another one starts" : ""}.`,
+      headline: `No evaluation of your job has passed yet. ${runs} on your job finished without passing. ${gap.shortfall ? `${gap.shortfall} ` : ""}A candidate needs to ${gap.requirement} on your job${input.openForEvaluations ? "; your job stays open for evaluation, and we email you when another one starts" : ""}.`,
       operatorAction: null,
     };
   }

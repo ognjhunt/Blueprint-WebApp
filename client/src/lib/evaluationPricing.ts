@@ -1,15 +1,14 @@
 /**
  * The beta is free for everyone (founder decision, 2026-10-13).
  *
- * Sites pay nothing to submit a job, have it screened, have robot teams
- * evaluate it in simulation, receive Blueprint's recommendation, or book the
- * recommended pilot. Robot teams pay nothing to evaluate a job they are invited
- * to. There are no balances, top-ups, private paid evaluations or checkout
- * during the beta, and no future price is announced here.
+ * Sites pay nothing to submit a job, have Blueprint simulate it and run the
+ * candidates, or see the result. Technology providers pay nothing to give
+ * Blueprint access to a policy or an integration. There are no balances,
+ * top-ups, private paid evaluations or checkout during the beta, and no future
+ * price is announced here.
  *
- * The physical pilot that follows a booking is agreed directly between the
- * site and the robot team. Blueprint takes no cut of it and charges nothing
- * for it.
+ * Any physical pilot is agreed directly between the site and the deployment
+ * company. Blueprint takes no cut of it and charges nothing for it.
  */
 
 /**
@@ -40,20 +39,20 @@ export const betaFeeUsd = 0;
 export const pilotReplacementPolicy =
   "If a delivery partner withdraws or changes its proposed scope before agreement, Blueprint helps review suitable alternatives. A replacement needs its own evidence and your approval. Blueprint charges no fee during the beta, so there is no fee to refund.";
 
-/** What a site pays for screening, evaluation, a recommendation and booking: nothing. */
+/** What a site pays for the simulation, the evaluation and its result: nothing. */
 export const siteAssessment = {
   amount: betaFeeUsd,
   unit: "during the beta",
-  summary: "A clear buying decision for one recurring job at one site.",
+  summary: "A bounded simulation estimate for one recurring job at one site.",
   covers: [
     "A job brief drafted from your video and reviewed with you: objects, cycle, exceptions, timing and required outcomes.",
     "A site simulation reconstructed from your video, with compatible robots and policies evaluated against the job criteria.",
-    "Comparable delivery proposals and a reasoned recommendation, or a plain answer when no suitable option is available.",
-    "A pilot scope with the delivery partner, price, support and acceptance criteria for you to approve.",
+    "A bounded estimate of what works on your job, or “held” when we can't simulate that kind of job yet.",
+    "Blueprint works alongside a deployment company on your site; you approve the pilot's price, support and acceptance criteria.",
   ],
   allIn:
-    "Free during the beta. Submitting a job, assessment, evaluation, proposal review and pilot coordination cost nothing.",
-  bounded: "A recommendation for your job, with evidence limits and comparable proposals. You choose and approve the delivery partner and pilot terms.",
+    "Free during the beta. Submitting a job, the simulation, its result and pilot coordination cost nothing.",
+  bounded: "A bounded estimate for your job, with its evidence limits; it never certifies physical performance or safety. You choose and approve any pilot terms.",
   /**
    * Precise about what a robot team actually receives, because the loose
    * version — "they get your footage" — is both wrong and alarming. What they
@@ -66,7 +65,7 @@ export const siteAssessment = {
   whatWeGetFromIt:
     "Sites and partners pay nothing for Blueprint assessment during the beta. Robot teams never receive your recording. Approved observations may support controlled evaluation under the rights you grant; evaluation permission does not grant training permission.",
   whatIsNotFree:
-    "Blueprint assessment and coordination are free during the beta. Physical pilot costs are quoted by the delivery partner and agreed directly with the site. Blueprint takes no cut of the pilot.",
+    "Blueprint assessment and coordination are free during the beta. Physical pilot costs are quoted by the deployment company and agreed directly with the site. Blueprint takes no cut of the pilot.",
 } as const;
 
 /* -------------------------------------------------------------------------

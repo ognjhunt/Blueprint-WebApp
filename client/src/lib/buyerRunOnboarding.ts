@@ -68,6 +68,6 @@ export const buyerRunReceiveLinks: BuyerRunReceiveLink[] = [
     label: "Robot team beta guide",
     href: "/beta/buyer-guide",
     body:
-      "How invited evaluations work, what a result means, review states, and support escalation.",
+      "How Blueprint runs your policy, what a result means, review states, and support escalation.",
   },
 ];

@@ -49,7 +49,7 @@ export interface TeamEvaluationTerms {
   policyInterfaces: Array<{ policyInterfaceId: string; robot: "droid_franka" | "team_declared"; summary: string }>;
 }
 export const taskStageLabels = { capture: "Being captured", preparing: "Scene in preparation", ready: "Ready to evaluate" };
-export const opportunityLabels = { open: "Open to pilot proposals", past: "Past opportunity", not_seeking: "Evaluation only" };
+export const opportunityLabels = { open: "Open to a pilot", past: "Past opportunity", not_seeking: "Evaluation only" };
 
 /** Conservative, non-identifying text only. Never publish arbitrary intake prose. */
 export function anonymizedOpportunityDraft(description: string): TaskListingDetails {

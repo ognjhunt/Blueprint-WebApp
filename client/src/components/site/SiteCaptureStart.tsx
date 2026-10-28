@@ -960,10 +960,10 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
             <option value="">Not sure yet</option>
             <option value="exploring">Exploring whether automation makes sense</option>
             <option value="planning">Planning a pilot</option>
-            <option value="ready_for_proposals">Ready to review delivery proposals</option>
+            <option value="ready_for_proposals">Ready to run a pilot</option>
           </select>
         </label>
-        <p className="ms-field-hint">A budget is not required to start. We can clarify output targets, installation and ongoing costs before asking providers for proposals. Submitting does not authorize spending.</p>
+        <p className="ms-field-hint">A budget is not required to start. We can clarify output targets, installation and ongoing costs before any pilot. Submitting does not authorize spending.</p>
       </details>
 
       {/* Bot bait: hidden from people, honoured by the server. */}

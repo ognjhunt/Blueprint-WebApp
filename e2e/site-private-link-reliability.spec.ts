@@ -243,7 +243,7 @@ test("the person filming is asked for the video and nothing else", async ({ page
   await page.screenshot({ path: info.outputPath("video-only-film-link-local-fixture.png"), fullPage: true });
 });
 
-const READINESS_NOTE = "Blueprint evaluates candidate robots and policies that look right for this job in a simulation of your site. If Blueprint recommends an approach, it will be one that passed a full evaluation on your job. This is a first read from your video, not a promise that any robot can do the job.";
+const READINESS_NOTE = "Blueprint runs candidate robots and policies that look right for this job in a simulation of your site and shows you a bounded estimate of what works. This is a first read from your video, not a promise that any robot can do the job.";
 
 function readinessFixture(overrides: Record<string, unknown> = {}) {
   const notNeeded = "between spots isn't needed: the object moves about 90 cm (estimated from your video).";
@@ -255,8 +255,8 @@ function readinessFixture(overrides: Record<string, unknown> = {}) {
       { id: "brief", label: "Job brief confirmed", state: "done", owner: "site" },
       { id: "scene", label: "Your site rebuilt in 3D", state: "in_progress", owner: "blueprint" },
       { id: "evaluation", label: "Blueprint evaluates candidate robots and policies in simulation", state: "pending", owner: "blueprint" },
-      { id: "recommendation", label: "Blueprint recommends the approach that wins", state: "pending", owner: "blueprint" },
-      { id: "booking", label: "You book the pilot", state: "pending", owner: "site" },
+      { id: "recommendation", label: "Blueprint shows you what works", state: "pending", owner: "blueprint" },
+      { id: "booking", label: "You decide whether to pilot", state: "pending", owner: "site" },
     ], meanwhile: "Blueprint is rebuilding your work area in 3D from your video." },
     briefPath: "/readiness-brief/brief-token.signature",
     report: {

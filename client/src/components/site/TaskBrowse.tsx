@@ -81,7 +81,7 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
       </select></label>
       <label>Region<input aria-label="Filter by region" placeholder="Any region" value={region} maxLength={80} onChange={e => setRegion(e.target.value)} /></label>
       <label>Availability<select aria-label="Filter by availability" value={availability} onChange={e => setAvailability(e.target.value)}>
-        <option value="">Live and past</option><option value="open">Open to pilot proposals</option>
+        <option value="">Live and past</option><option value="open">Open to a pilot</option>
         <option value="ready">Ready to evaluate</option><option value="past">Past opportunities</option>
       </select></label>
     </div>
@@ -100,11 +100,11 @@ export function TaskBrowse({ inWorkspace = false }: { inWorkspace?: boolean } = 
       <ul className="ms-task-list">{filtered.map(item => <li key={item.id}>
         <div className="ms-task-heading"><div><div className="ms-task-meta"><span>{taskStageLabels[item.stage]}</span><span>{opportunityLabels[item.opportunity]}</span></div>
         <h2>{item.title}</h2></div><TaskThumbnail src={item.thumbnailUrl} title={item.title} taskFamily={item.taskFamily} /></div><TaskFacts details={item} />
-        {item.evaluationAvailable ? <a className="ms-text-link" href={inWorkspace ? `/app/opportunities/${encodeURIComponent(item.id)}` : "/app"}>Request a free invited evaluation</a> : <p className="ms-field-hint">An evaluation is not ready yet. You can still assess the shared job and provide proposal inputs.</p>}
+        {item.evaluationAvailable ? <a className="ms-text-link" href={inWorkspace ? `/app/opportunities/${encodeURIComponent(item.id)}` : "/app"}>Offer your system for this job</a> : <p className="ms-field-hint">An evaluation is not ready yet. You can still review the shared job.</p>}
         {item.opportunity === "open" && currentUser && !access?.staff && <TeamJobResponse jobId={item.id} user={currentUser} />}
       </li>)}</ul>
     </>}
-    <p className="ms-field-hint">Approved beta evaluations are free and share results with the site.</p>
+    <p className="ms-field-hint">Blueprint runs approved systems free during the beta and shares the results with the site.</p>
     <p className="ms-field-hint">{!inWorkspace && <><a href="/agent-access.openapi.json">Agent API (OpenAPI spec, JSON)</a> · </>}<a href="mailto:hello@tryblueprint.io">Talk to a person</a></p>
   </section>;
 }

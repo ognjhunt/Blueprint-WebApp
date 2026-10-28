@@ -90,7 +90,8 @@ describe("build output", () => {
     expect(html).toContain("Warehouse walkthrough contents");
     expect(html).toContain("The video is required to reconstruct and evaluate your site.");
     expect(html).toContain("Compare suitable robots and policies in simulation.");
-    expect(html).toContain("Compare delivery proposals");
+    expect(html).toContain("See what works on your job.");
+    expect(html).not.toContain("Compare delivery proposals");
     expect(html).not.toContain('id="evaluation-example"');
     expect(html).not.toContain('id="match-package"');
     for (const image of manifest.images) {
@@ -238,7 +239,8 @@ describe("build output", () => {
     expect(llmsFull).toContain("early_access_required");
     expect(llms).toContain("https://tryblueprint.io/beta");
     expect(llms).toContain("free beta");
-    expect(llms).toContain("compare delivery proposals and coordinate a measured pilot");
+    expect(llms).toContain("works alongside a deployment company on the real site");
+    expect(llms).not.toMatch(/compare delivery proposals|full scoring|join by invitation|invited evaluation/);
     expect(llms).not.toMatch(/\$99\b|top-ups remain|\bmatch(?:ed|es|ing)?\b/);
     expect(llms).not.toContain("$2,500");
     expect(llms).not.toMatch(/5% fee|capped at \$5,000|authorized buyer/);
@@ -252,9 +254,10 @@ describe("build output", () => {
     expect(homeHtml).toContain("Find the right way to automate your work.");
     expect(homeHtml).toContain("Start with a video; we draft the job description from it.");
     expect(homeHtml).toContain("One job. A clear pilot plan.");
-    expect(homeHtml).toContain("Quoted by a delivery partner and agreed before the pilot");
+    expect(homeHtml).toContain("Quoted by the deployment company and agreed before the pilot");
     expect(homeHtml).not.toContain("The same task, in simulation.");
-    expect(homeHtml).toContain("Review comparable proposals");
+    expect(homeHtml).toContain("work alongside a deployment company");
+    expect(homeHtml).not.toContain("Review comparable proposals");
     expect(homeHtml).toContain("Free during the beta");
     expect(homeHtml).toContain("Site video, simulation comparisons and a measured physical pilot");
     expect(homeHtml).not.toContain('aria-hidden="true">Book this pilot</span>');

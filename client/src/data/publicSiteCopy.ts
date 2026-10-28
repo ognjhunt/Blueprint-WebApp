@@ -447,7 +447,7 @@ export const robotTeamHero = {
   chips: [
     "Less repeated site discovery",
     "Free to browse and screen",
-    "Free invited evaluation",
+    "Free during the beta",
   ],
 } as const;
 

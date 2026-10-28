@@ -4,7 +4,7 @@
     "title": "Blueprint Robot-Team Agent API",
     "version": "2026-07-29",
     "summary": "Headless discovery of scoped site jobs and bounded evaluation tools for robot teams.",
-    "description": "Blueprint starts with required site video, drafts the job description from its analysis, reconstructs the work area in simulation, compares compatible robots and policies, and helps sites review delivery proposals for a measured pilot. The customer chooses and contracts with a delivery partner. The beta is free for sites and partners; Blueprint takes no cut of pilot costs. This API exposes capture-backed job discovery, grounded questions and bounded Task Evaluation Run intake. It does not grant an invitation, authorize physical access or award a contract. Simulation results are bounded estimates, not proof of physical performance or safety. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement and hosted-session access controls remain unchanged; standalone purchasing is retired."
+    "description": "Blueprint starts with required site video, drafts the job description from its analysis, reconstructs the work area in simulation, runs compatible robots and policies itself, and shows the site a bounded estimate of what works, or “held” when it can't simulate that kind of job yet. Blueprint then works alongside a deployment company on the real site; the customer contracts with the deployment company. The beta is free for sites and partners; Blueprint takes no cut of pilot costs. This API exposes capture-backed job discovery, grounded questions and bounded Task Evaluation Run intake. It does not grant an invitation, authorize physical access or award a contract. Simulation results are bounded estimates, not proof of physical performance or safety. Pipeline owns evidence-method routing and scientific verdicts. Historical order, entitlement and hosted-session access controls remain unchanged; standalone purchasing is retired."
   },
   "servers": [
     {
@@ -31,7 +31,7 @@
     },
     {
       "name": "Team",
-      "description": "Register an approved robot team and manage its agent key. Robot teams join by invitation after application review, so registration needs the invitation from the approval email (or an approved account); it grants no evaluation: evaluations are free during the beta and run only on Blueprint's invitation and approval."
+      "description": "Register an approved robot team and manage its agent key. Robot teams apply to give Blueprint access to a policy; after application review, registration needs the invitation from the approval email (or an approved account). It grants no evaluation: Blueprint runs each evaluation itself, free during the beta, after its approval."
     },
     {
       "name": "Legacy commerce",
@@ -177,7 +177,7 @@
         },
         "responses": {
           "201": {
-            "description": "Team registered. `agentKey` is returned once. Registration authorizes no evaluation; evaluations run only on Blueprint's invitation and approval.",
+            "description": "Team registered. `agentKey` is returned once. Registration authorizes no evaluation; Blueprint runs each evaluation itself after its approval.",
             "content": {
               "application/json": {
                 "schema": {

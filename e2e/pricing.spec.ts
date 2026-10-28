@@ -14,10 +14,11 @@ test("historical pricing leads to the free beta page with one action", async ({ 
   await expect(page.locator("article")).not.toContainText("$99");
 });
 
-test("terms make the beta free, with an evaluated recommendation and no Blueprint fee", async ({ page }) => {
+test("terms make the beta free, with Blueprint running the evaluation and no Blueprint fee", async ({ page }) => {
   await page.goto("/terms");
-  await expect(page.getByText(/booking the recommended pilot cost the site nothing/)).toBeVisible();
-  await expect(page.getByText(/Blueprint recommends one robot team whose evaluation on your job passed/)).toBeVisible();
+  await expect(page.getByText(/building the simulation, the evaluation and its result cost the site nothing/)).toBeVisible();
+  await expect(page.getByText(/Teams do not run their own evaluations of a site's job/)).toBeVisible();
+  await expect(page.getByText(/Blueprint recommends one robot team whose evaluation on your job passed/)).toHaveCount(0);
   await expect(page.getByText(/There is no Blueprint fee, invoice or payment step/)).toBeVisible();
   await expect(page.getByText(/Blueprint charges no fee for and takes no percentage of any pilot or deployment/)).toBeVisible();
   await expect(page.getByText(/The beta has no paid private evaluations, balances, top-ups or checkout/)).toBeVisible();

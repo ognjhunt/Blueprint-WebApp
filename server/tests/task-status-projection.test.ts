@@ -431,10 +431,10 @@ describe("what a waiting job is waiting on", () => {
     expect(status.decision).toBe("no_team_passed");
     expect(status.headline).toMatch(/The closest qualified evaluation succeeded in 172 of 200 episodes \(86%\), against your pass mark of 95%/);
     expect(status.headline).toMatch(/its median cycle time was 34 s against your target of 30 s/);
-    expect(status.headline).toMatch(/A recommendation needs a candidate's full evaluation to reach 95% with a median cycle time of 30 s or less/);
+    expect(status.headline).toMatch(/A candidate needs to reach 95% with a median cycle time of 30 s or less on your job/);
     const rateOnly = projectTaskStatus({ ...ready, recommended: false, screening: { ...settled,
       closestQualified: { ...settled.closestQualified, medianCycleSeconds: null, cycleTimeSeconds: null, cycleTimeMissed: false } } });
-    expect(rateOnly.headline).toMatch(/A recommendation needs a candidate's full evaluation to reach 95%\./);
+    expect(rateOnly.headline).toMatch(/A candidate needs to reach 95% on your job\./);
     expect(rateOnly.headline).not.toMatch(/cycle time/);
   });
 

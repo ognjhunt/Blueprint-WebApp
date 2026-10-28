@@ -516,18 +516,18 @@ test("site can coordinate a visit without a false completion", async ({
     "remains scheduled until confirmed",
   );
 });
-test("site reviews results and continues to delivery proposals on the job page", async ({
+test("site reviews results and continues to the pilot on the job page", async ({
   page,
 }) => {
   await seed(page, "site_operator");
   await page.goto("/app/tasks/task-1");
   await expect(page.getByRole("button", { name: /Invite to pilot/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Pilot", exact: true })).toBeVisible();
-  await expect(page.getByText(/Review the proposed approach, cost, support and evidence on your job page\. Choose a delivery partner, then agree pilot terms directly\./)).toBeVisible();
+  await expect(page.getByText(/Review the proposed approach, cost, support and evidence on your job page\. If you go ahead, you agree pilot terms directly with the deployment company\./)).toBeVisible();
   await expect(page.getByRole("button", { name: "Review the proposal on your job page →" })).toBeVisible();
   // No proposal action appears before Blueprint has a pilot proposal.
   await page.goto("/app/tasks/task-2");
-  await expect(page.getByText(/No pilot proposal is ready yet\./)).toBeVisible();
+  await expect(page.getByText(/No pilot is planned yet\./)).toBeVisible();
   await expect(page.getByRole("button", { name: /Review the proposal on your job page/ })).toHaveCount(0);
 });
 test("robot team saves a setup and requests an evaluation from an opening", async ({
