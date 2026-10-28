@@ -2,6 +2,7 @@
 // Actual pure context/sponsorship functions; no private store, credentials or network.
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest as digest } from "../utils/crossRuntimeCanonical";
+import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import { projectWebsiteTaskContext, projectWebsiteCaptureRights } from "../utils/websiteTaskContext";
 import { confirmFamilyTaskAnswer, familyAuthoringStatusSchema, familyTaskContextBasis,
   type FamilyTaskAnswer } from "../utils/siteTaskFamilyFacts";
@@ -191,4 +192,58 @@ it("returns a bounded source-conflict code for malformed private source metadata
   f.brief.familyTaskAuthoring.sourceFingerprint = "invalid-private-source-metadata";
   expect(() => answer(f, { requirementId: "press:target_id", answer: "red" }, { parentProven: false }))
     .toThrow("family_task_facts_source_changed");
+});
+
+it.each(["description", "unknowns", "inventory"])("refuses an unrelated but independently re-sealed parent %s in actual sponsorship/status", field => {
+  const f = fixture(); answer(f, { requirementId: "press:target_id", answer: "red" });
+  f.record.website_preparation_reservations = { retainedUnknown: { pending: true, maximum_cost_usd: 4 } };
+  const retained = structuredClone(f.record), proof = f.brief.familyTaskFactContinuation;
+  if (field === "description") proof.parent_context.description += " with another job";
+  if (field === "unknowns") proof.parent_context.unresolved = ["different-owner-fact"];
+  if (field === "inventory") proof.parent_context.task_items = [{ item_id: "other", label: "Other source" }];
+  proof.parent_context.context_digest = proof.parent_context.canonicalization === "rfc8785"
+    ? crossRuntimeArtifactDigest(proof.parent_context, "context_digest")
+    : canonicalArtifactDigest(proof.parent_context, "context_digest");
+  proof.parent_task_context_digest = proof.parent_context.context_digest;
+  proof.transition_digest = crossRuntimeArtifactDigest(proof, "transition_digest");
+  expect(familyTaskFactContinuationMatches(f.brief, context(f), f.record.website_scene_sponsorship)).toBe(false);
+  expect(() => currentGrant(f)).toThrow("website_scene_sponsorship_changed");
+  expect(() => currentWebsitePreparationStatusContext({ requestId: f.brief.requestId,
+    captureId: context(f).capture_id, brief: f.brief, record: f.record }))
+    .toThrow("website_scene_sponsorship_binding_invalid");
+  expect(f.record).toEqual(retained);
+});
+
+it.each(["inherited_root", "inherited_consent", "nonenumerable_expiry"])("refuses %s instead of authenticating properties outside the root payload", shape => {
+  const f = fixture(); answer(f, { requirementId: "press:target_id", answer: "red" });
+  const original = f.record.website_scene_sponsorship;
+  const root: any = shape === "inherited_root" ? Object.create(original) : structuredClone(original);
+  if (shape === "inherited_consent") root.consent = Object.create(root.consent);
+  if (shape === "nonenumerable_expiry") Object.defineProperty(root, "expires_at_epoch", { value: root.expires_at_epoch, enumerable: false });
+  const { authority_digest: _old, ...payload } = root;
+  root.authority_digest = digest(payload);
+  f.record.website_scene_sponsorship = root;
+  const proof = f.brief.familyTaskFactContinuation;
+  proof.origin.authority_digest = root.authority_digest;
+  proof.transition_digest = crossRuntimeArtifactDigest(proof, "transition_digest");
+  expect(familyTaskFactContinuationMatches(f.brief, context(f), root)).toBe(false);
+  expect(() => currentGrant(f)).toThrow("website_scene_sponsorship_changed");
+  expect(() => currentWebsitePreparationStatusContext({ requestId: f.brief.requestId,
+    captureId: context(f).capture_id, brief: f.brief, record: f.record }))
+    .toThrow("website_scene_sponsorship_binding_invalid");
+  expect(f.record.website_scene_sponsorship).toBe(root);
+});
+
+it.each(["root", "consent", "both"])("keeps valid own null-prototype %s maps within the same root caps and expiry", shape => {
+  const f = fixture(); answer(f, { requirementId: "press:target_id", answer: "red" });
+  const original = structuredClone(f.record.website_scene_sponsorship);
+  if (shape === "consent" || shape === "both") f.record.website_scene_sponsorship.consent = Object.assign(Object.create(null), original.consent);
+  if (shape === "root" || shape === "both") f.record.website_scene_sponsorship = Object.assign(Object.create(null), f.record.website_scene_sponsorship);
+  expect(familyTaskFactContinuationMatches(f.brief, context(f), f.record.website_scene_sponsorship)).toBe(true);
+  expect(currentGrant(f)).toMatchObject({ task_context_digest: context(f).context_digest,
+    expires_at_epoch: original.expires_at_epoch, max_paid_attempts: original.max_paid_attempts,
+    upstream_max_spend_usd: original.upstream_max_spend_usd, max_total_spend_usd: original.max_total_spend_usd });
+  expect(currentWebsitePreparationStatusContext({ requestId: f.brief.requestId,
+    captureId: context(f).capture_id, brief: f.brief, record: f.record })).toEqual(context(f));
+  expect(f.record.website_scene_sponsorship).toEqual(original);
 });

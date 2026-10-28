@@ -63,7 +63,8 @@ function currentTransition(brief: FamilyTaskBriefState, context: Context): Famil
       || value.request_id !== context.request_id || value.scene_id !== context.scene_id
       || value.capture_id !== context.capture_id || value.task_context_digest !== context.context_digest
       || value.parent_context !== null && (!validContext(value.parent_context)
-        || value.parent_context.context_digest !== value.parent_task_context_digest)
+        || value.parent_context.context_digest !== value.parent_task_context_digest
+        || familyTaskNonFactContextDigest(value.parent_context) !== value.non_fact_context_digest)
       || value.non_fact_context_digest !== familyTaskNonFactContextDigest(context)
       || value.source_fingerprint !== source.sourceFingerprint
       || value.source_video_digest !== source.status.source_video_digest
@@ -73,9 +74,19 @@ function currentTransition(brief: FamilyTaskBriefState, context: Context): Famil
     return value;
   } catch { return null; }
 }
+function plainOwnMap(value: unknown, required: readonly string[]): value is Record<string, any> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return false;
+  const fields = Object.getOwnPropertyDescriptors(value);
+  return required.every(key => fields[key]?.enumerable === true && Object.hasOwn(fields[key], "value"));
+}
 function rootMatches(root: Record<string, any> | undefined, context: Context): root is Record<string, any> {
-  if (!root || typeof root !== "object" || Array.isArray(root)) return false;
   try {
+    if (!plainOwnMap(root, ["authority_digest", "schema_version", "sponsor", "purpose", "request_id",
+      "scene_id", "capture_id", "task_context_digest", "expires_at_epoch", "consent"])
+      || !plainOwnMap(root.consent, ["rights_reference", "task_confirmed", "private_processing_authorized",
+        "provider_training_authorized", "spend_authorized"])) return false;
     const { authority_digest, ...payload } = root;
     return sha.safeParse(authority_digest).success && authority_digest === digest(payload)
       && root.schema_version === "website_scene_sponsorship.v1" && root.sponsor === "blueprint"
