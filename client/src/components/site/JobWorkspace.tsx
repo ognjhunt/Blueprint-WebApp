@@ -104,9 +104,10 @@ function JobWorkspaceForToken({ token, preparationOutcome, currentStatusKnown = 
   const available = workflow.proposals.filter(proposal => proposal.status === "available");
   const visibleProposals = workflow.proposals.filter(proposal => proposal.status !== "withdrawn");
   const selected = workflow.proposals.find(proposal => proposal.id === workflow.selection?.proposalId && proposal.revision === workflow.selection.proposalRevision);
-  // The current source/preparation read owns the next step until proposals
-  // arrive. Later commercial commitments keep their own exact quote action.
-  const currentAction = !visibleProposals.length && !workflow.selection && !workflow.agreement && !workflow.outcome
+  // Keep the current update once. A distinct commercial choice still takes
+  // priority over an older preparation update when a proposal arrives.
+  const currentAction = currentStatusKnown && ((!visibleProposals.length && !workflow.selection && !workflow.agreement && !workflow.outcome)
+    || (currentNextAction?.text === workflow.nextAction && currentNextAction.owner === workflow.actionOwner))
     ? currentNextAction : undefined;
   return <><section className="job-workspace" aria-labelledby="job-progress-title">
     <h2 id="job-progress-title">Results and proposals</h2>

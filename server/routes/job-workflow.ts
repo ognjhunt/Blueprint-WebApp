@@ -17,7 +17,7 @@ import { assertJobEvidenceVideo, deliverJobEvidenceRequest, jobEvidenceDeliveryI
 import {
   deliveryProposalSchema, JobMarketplaceError, makeProposal, optionsReviewSchema, outcomeSchema, pilotAgreementSchema,
   projectJobMarketplace, proposalIdSchema, requirementsSchema, revisionSchema, selectedProposal, selectProposalSchema,
-  storedMarketplace, workflowDigest, proposalScopeRevision, type StoredJobMarketplace,
+  storedMarketplace, workflowDigest, proposalScopeRevision, hasProposalScope, type StoredJobMarketplace,
 } from "../utils/jobMarketplaceWorkflow";
 
 const router = Router();
@@ -46,10 +46,13 @@ function assertJob(record: Record<string, any> | undefined): asserts record is R
     "Recording permission was withdrawn. Contact Blueprint to review this job before continuing.");
 }
 function assertBrief(brief: Record<string, any> | null) {
-  if (!brief?.confirmedAtIso || !Number.isFinite(Date.parse(brief.confirmedAtIso))) throw new JobMarketplaceError("brief_not_agreed", "Agree the job brief before publishing or selecting a delivery proposal.");
+  if (!brief?.confirmedAtIso || !Number.isFinite(Date.parse(brief.confirmedAtIso))) throw new JobMarketplaceError("brief_not_agreed", "Agree the job brief before requesting task-specific evidence.");
+}
+function assertProposalScope(brief: Record<string, any> | null) {
+  if (!hasProposalScope(brief)) throw new JobMarketplaceError("job_scope_unavailable", "Blueprint needs to finish drafting this job before preparing a delivery proposal.");
 }
 function assertCurrentBrief(proposal: { briefRevision: string }, brief: Record<string, any> | null, state: StoredJobMarketplace) {
-  assertBrief(brief);
+  assertProposalScope(brief);
   if (proposal.briefRevision !== proposalScopeRevision(brief, state.requirements)) throw new JobMarketplaceError("brief_changed", "The job brief or buying requirements changed. Blueprint must review this proposal against the current job before you proceed.");
 }
 async function readWorkflow(requestId: string, admin = false) {
@@ -280,7 +283,7 @@ async function assertProposalEvidence(requestId: string, input: z.infer<typeof d
 router.post("/admin/:requestId/review", handle(async (req, res) => {
   const input = parse(optionsReviewSchema, req.body);
   return res.json(await mutateWorkflow(res.locals.jobWorkflowRequestId, res.locals.firebaseUser!.uid, "options_reviewed", (state, brief, now) => {
-    assertBrief(brief);
+    assertProposalScope(brief);
     return { ...state, review: { ...input, reviewedAtIso: now, scopeRevision: proposalScopeRevision(brief, state.requirements) } };
   }));
 }));
@@ -298,7 +301,7 @@ router.post("/admin/:requestId/proposals", handle(async (req, res) => {
       if (workflowDigest(previousInput) !== workflowDigest(input)) throw new JobMarketplaceError("idempotency_conflict", "This proposal request was already used with different details. Refresh before creating a new proposal.");
       return state;
     }
-    assertBrief(brief);
+    assertProposalScope(brief);
     if (state.proposals.length >= 20) throw new JobMarketplaceError("proposal_limit", "This job already has 20 proposals. Contact engineering to archive its proposal history.");
     if (state.agreement) throw new JobMarketplaceError("pilot_already_agreed", "A pilot is already agreed. Reconcile the existing agreement before adding alternatives.");
     return { ...state, proposals: [...state.proposals, makeProposal(input, proposalId, now, proposalScopeRevision(brief, state.requirements))] };
@@ -309,7 +312,7 @@ router.put("/admin/:requestId/proposals/:proposalId", handle(async (req, res) =>
   const input = parse(deliveryProposalSchema.extend({ expectedRevision: revisionSchema }).strict(), req.body);
   const evidenceBriefDigest = await assertProposalEvidence(res.locals.jobWorkflowRequestId, input);
   return res.json(await mutateWorkflow(res.locals.jobWorkflowRequestId, res.locals.firebaseUser!.uid, "proposal_revised", async (state, brief, now, _record, transaction) => {
-    assertBrief(brief);
+    assertProposalScope(brief);
     if (evidenceBriefDigest && (!brief || scientificBriefDigest(brief) !== evidenceBriefDigest)) throw new JobMarketplaceError("evidence_scope_changed", "The job brief changed while evidence was attached. Refresh the current scope.");
     const existing = state.proposals.find(proposal => proposal.id === id);
     if (!existing || existing.revision !== input.expectedRevision) throw new JobMarketplaceError("proposal_changed", "The proposal changed. Refresh before editing.");

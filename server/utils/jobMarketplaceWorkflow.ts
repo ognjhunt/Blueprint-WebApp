@@ -75,7 +75,7 @@ export function workflowDigest(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex");
 }
 
-/** Quote scope follows confirmed work, not who or when the same brief was confirmed. */
+/** Quote scope follows the job's content, not who or when a draft was confirmed. */
 export function proposalScopeRevision(brief: unknown, requirements: JobBuyingRequirements): string {
   const value = brief && typeof brief === "object" ? brief as Record<string, any> : {};
   return workflowDigest({ brief: {
@@ -88,6 +88,11 @@ export function proposalScopeRevision(brief: unknown, requirements: JobBuyingReq
     pilotIntent: value.pilotIntent ?? null,
     unresolved: [...(value.unresolved ?? [])].sort(),
   }, requirements });
+}
+
+/** Blueprint can prepare a quote from its draft; the customer reviews the quote itself. */
+export function hasProposalScope(brief: Record<string, any> | null): boolean {
+  return typeof brief?.summary === "string" && brief.summary.trim().length > 0;
 }
 
 export function requirementsFrom(record: Record<string, any>): JobBuyingRequirements {
@@ -135,37 +140,38 @@ export function projectJobMarketplace(record: Record<string, any>, brief: Record
   // Keep recorded commitments visible if a historical capture is unavailable.
   // A written draft alone never advances a new video-backed assessment.
   const assessmentStarted = captureReceived === true || Boolean(value.agreement);
+  const scopeAvailable = assessmentStarted && hasProposalScope(brief);
   const briefAgreed = assessmentStarted && Boolean(brief?.confirmedAtIso && Number.isFinite(Date.parse(brief.confirmedAtIso)));
   const currentBriefRevision = proposalScopeRevision(brief, value.requirements);
   const proposals = value.proposals.map(proposal => proposal.status === "available" && (proposal.briefRevision !== currentBriefRevision || evidenceReviewProposalIds.has(proposal.id))
     ? { ...proposal, status: "review_required" as const } : proposal);
   const review = value.review?.scopeRevision === currentBriefRevision ? value.review : null;
   const reviewRequired = proposals.some(proposal => proposal.status === "review_required") || Boolean(value.review && !review);
-  const optionsAssessed = briefAgreed && Boolean(review || proposals.some(proposal => proposal.status === "available"));
+  const optionsAssessed = scopeAvailable && Boolean(review || proposals.some(proposal => proposal.status === "available"));
   let stage: JobMarketplaceWorkflow["stage"] = "job_submitted";
   let nextAction = captureReceived === null
     ? "We could not read your recording status. Refresh the job to try again."
-    : captureReceived ? "Review the brief drafted from your video and correct any missing details."
+    : captureReceived ? "Blueprint handles reconstruction and evaluation and will update this job with the results and any delivery proposal."
       : "Record or upload a video of the work so Blueprint can draft the brief and assess your job.";
-  let actionOwner: JobMarketplaceWorkflow["actionOwner"] = "site";
+  let actionOwner: JobMarketplaceWorkflow["actionOwner"] = captureReceived !== false ? "blueprint" : "site";
   if (briefAgreed) { stage = "brief_agreed"; nextAction = "Build the site simulation from your video, then run and compare candidate robots, policies and policy APIs against your job."; actionOwner = "blueprint"; }
-  if (briefAgreed && optionsAssessed) { stage = "options_assessed"; nextAction = review?.nextAction ?? "Blueprint is checking which deployment company can deliver the approach that works on your job."; actionOwner = "blueprint"; }
-  if (briefAgreed && proposals.some(p => p.status === "available")) {
+  if (optionsAssessed) { stage = "options_assessed"; nextAction = review?.nextAction ?? "Blueprint is checking which deployment company can deliver the approach that works on your job."; actionOwner = "blueprint"; }
+  if (scopeAvailable && proposals.some(p => p.status === "available")) {
     stage = "proposals_ready"; nextAction = "Review the scope, cost, support and acceptance criteria, then choose a proposal."; actionOwner = "site";
   }
-  if (briefAgreed && value.selection) { stage = "proposals_ready"; nextAction = "Agree the pilot's scope, price and terms with the delivery partner. Selection alone is not a contract."; actionOwner = "deployment_partner"; }
-  if (briefAgreed && value.agreement) { stage = "pilot_agreed"; nextAction = "Run the agreed pilot and measure its outcome against the acceptance criteria."; actionOwner = "deployment_partner"; }
-  if (briefAgreed && value.outcome) { stage = "results_recorded"; nextAction = "Review the reported outcome together and decide whether to expand, change the setup or stop."; actionOwner = "site"; }
+  if (scopeAvailable && value.selection) { stage = "proposals_ready"; nextAction = "Agree the pilot's scope, price and terms with the delivery partner. Selection alone is not a contract."; actionOwner = "deployment_partner"; }
+  if (scopeAvailable && value.agreement) { stage = "pilot_agreed"; nextAction = "Run the agreed pilot and measure its outcome against the acceptance criteria."; actionOwner = "deployment_partner"; }
+  if (scopeAvailable && value.outcome) { stage = "results_recorded"; nextAction = "Review the reported outcome together and decide whether to expand, change the setup or stop."; actionOwner = "site"; }
   const selected = value.selection && proposals.find(proposal => proposal.id === value.selection!.proposalId);
   const blockingReview = selected ? selected.status === "review_required"
     : reviewRequired && !proposals.some(proposal => proposal.status === "available");
-  if (briefAgreed && blockingReview) { stage = "brief_agreed"; nextAction = selected && evidenceReviewProposalIds.has(selected.id)
+  if (scopeAvailable && blockingReview) { stage = briefAgreed ? "brief_agreed" : "job_submitted"; nextAction = selected && evidenceReviewProposalIds.has(selected.id)
     ? "Evidence supporting this proposal no longer applies to the current task or configuration. Blueprint and the delivery partner must review the affected proposal before you proceed. Recorded agreements and reports retain their original scope."
     : "The job brief changed. Blueprint and the delivery partner must review the affected proposals before you proceed. Recorded agreements and reports refer to their original proposal scope."; actionOwner = "blueprint"; }
   return { schemaVersion: "job_marketplace.v1", revision: workflowDigest(value), requirements: value.requirements,
     briefAgreed, optionsAssessed, reviewRequired, stage, nextAction, actionOwner, review,
-    proposals: briefAgreed ? proposals : [], selection: briefAgreed ? value.selection : null,
-    agreement: briefAgreed ? value.agreement : null, outcome: briefAgreed ? value.outcome : null };
+    proposals: scopeAvailable ? proposals : [], selection: scopeAvailable ? value.selection : null,
+    agreement: scopeAvailable ? value.agreement : null, outcome: scopeAvailable ? value.outcome : null };
 }
 
 export class JobMarketplaceError extends Error {

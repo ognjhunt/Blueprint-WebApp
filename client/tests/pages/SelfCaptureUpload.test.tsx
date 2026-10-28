@@ -673,25 +673,34 @@ describe("SelfCaptureUpload once robot teams have run", () => {
     nextUpdateIso: null,
   };
 
-  it("offers the claim link when results exist and nobody owns the site", async () => {
+  it("keeps account saving optional when the private job already shows results", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", mockFetchWithStatus(results, "http://localhost/claim/tok-claim"));
     render(<SelfCaptureUpload />);
 
     expect(await screen.findAllByText(/41 of 50 episodes/)).not.toHaveLength(0);
-    const link = screen.getByRole("link", { name: /claim your site to see the results/i });
+    const optional = screen.getByText("Save this job to an account (optional)");
+    expect(optional.closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText("Save this job to your account")).not.toBeVisible();
+    expect(screen.queryByText(/claim your site to see the results/i)).not.toBeInTheDocument();
+    fireEvent.click(optional);
+    const link = screen.getByRole("link", { name: "Save this job to your account" });
     expect(link).toHaveAttribute("href", "http://localhost/claim/tok-claim");
   });
 
-  it("offers the claim as a way to follow the task before any results exist", async () => {
+  it("does not require an account while Blueprint prepares a saved recording", async () => {
     setUserAgent(DESKTOP_UA);
     const waiting = { decision: "footage_received", headline: "We have your recording and are checking whether it covers the work area.", operatorAction: null, missingViews: [], nextUpdateIso: null };
     vi.stubGlobal("fetch", mockFetchWithStatus(waiting, "http://localhost/claim/tok-claim"));
     render(<SelfCaptureUpload />);
 
-    const link = await screen.findByRole("link", { name: /claim your site to follow this job/i });
+    const optional = await screen.findByText("Save this job to an account (optional)");
+    expect(optional.closest("details")).not.toHaveAttribute("open");
+    expect(screen.queryByText(/Create and verify your site account before Blueprint builds the scene/)).not.toBeInTheDocument();
+    fireEvent.click(optional);
+    const link = screen.getByRole("link", { name: "Save this job to your account" });
     expect(link).toHaveAttribute("href", "http://localhost/claim/tok-claim");
-    expect(screen.getByText(/Create and verify your site account before Blueprint builds the scene/)).toBeInTheDocument();
+    expect(link).toBeVisible();
   });
 
   it("offers no claim link when the server offered none", async () => {
@@ -701,6 +710,7 @@ describe("SelfCaptureUpload once robot teams have run", () => {
 
     expect(await screen.findAllByText(/41 of 50 episodes/)).not.toHaveLength(0);
     expect(screen.queryByRole("link", { name: /claim your site/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("Save this job to an account (optional)")).not.toBeInTheDocument();
   });
 
   it("shows the owner-only persisted scene viewer returned by status", async () => {
@@ -712,14 +722,17 @@ describe("SelfCaptureUpload once robot teams have run", () => {
     expect(link).toHaveAttribute("href", "https://viewer.example/world-1");
   });
 
-  it("offers signup at the visual scene milestone before any robot evaluation", async () => {
+  it("opens the scene directly while account saving stays optional", async () => {
     setUserAgent(DESKTOP_UA);
     vi.stubGlobal("fetch", mockFetchWithStatus({ ...results, decision: "assessing",
       headline: "Preparing your task", operatorAction: null }, "/claim/scene-owner", "https://viewer.example/world-1"));
     render(<SelfCaptureUpload />);
-    expect(await screen.findByRole("link", { name: "Save your scene and follow progress" }))
-      .toHaveAttribute("href", "/claim/scene-owner");
-    expect(screen.getByRole("link", { name: "View your scene" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "View your scene" })).toBeVisible();
+    const optional = screen.getByText("Save this job to an account (optional)");
+    expect(optional.closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText("Save this job to your account")).not.toBeVisible();
+    fireEvent.click(optional);
+    expect(screen.getByRole("link", { name: "Save this job to your account" })).toHaveAttribute("href", "/claim/scene-owner");
     expect(screen.queryByText(/41 of 50 episodes/)).not.toBeInTheDocument();
   });
 });
@@ -908,7 +921,7 @@ describe("SelfCaptureUpload shows the current update without a generic waiting c
 });
 
 describe("SelfCaptureUpload once evaluations settle without a pass", () => {
-  it.each(["no_team_passed", "no_qualified_evaluation"])("offers the claim as the way to see the runs (%s)", async (decision) => {
+  it.each(["no_team_passed", "no_qualified_evaluation"])("keeps settled results independent of optional account saving (%s)", async (decision) => {
     setUserAgent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0 Safari/537.36");
     vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
@@ -918,7 +931,11 @@ describe("SelfCaptureUpload once evaluations settle without a pass", () => {
       return mockFetch()(input);
     }));
     render(<SelfCaptureUpload />);
-    expect(await screen.findByRole("link", { name: "Claim your site to see the results" })).toHaveAttribute("href", "/claim/settled");
+    const optional = await screen.findByText("Save this job to an account (optional)");
+    expect(optional.closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText("Save this job to your account")).not.toBeVisible();
+    fireEvent.click(optional);
+    expect(screen.getByRole("link", { name: "Save this job to your account" })).toHaveAttribute("href", "/claim/settled");
     expect(screen.queryByText(/before Blueprint builds the scene/)).not.toBeInTheDocument();
   });
 });

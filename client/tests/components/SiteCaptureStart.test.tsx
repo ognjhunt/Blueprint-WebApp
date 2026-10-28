@@ -1021,11 +1021,15 @@ it("offers account setup only after the site and job have been saved", async () 
   await renderReady(<SiteCaptureStart />);
   expect(screen.queryByRole("link", { name: "Create an account for this job" })).not.toBeInTheDocument();
   fireEvent.change(document.querySelector("#start-email")!, { target: { value: "owner@example.com" } }); fillAndSubmit();
-  expect(await screen.findByRole("link", { name: "Create an account for this job" })).toHaveAttribute("href", "/claim/job.signed");
+  const optional = await screen.findByText("Save this job to your account (optional)");
+  expect(optional.closest("details")).not.toHaveAttribute("open");
+  expect(screen.getByText("Create an account for this job")).not.toBeVisible();
+  fireEvent.click(optional);
+  expect(screen.getByRole("link", { name: "Create an account for this job" })).toHaveAttribute("href", "/claim/job.signed");
   expect(screen.getByRole("link", { name: "Sign in to save this job" })).toHaveAttribute("href", "/claim/job.signed?mode=signin");
   // The private link already supports this job; account setup stays optional.
   const account = screen.getByRole("region", { name: "Save this job to your account" });
-  expect(account).toHaveTextContent("Your private job link lets you upload, review the brief and follow progress.");
+  expect(account).toHaveTextContent("Your private job link already lets you upload, see results and review proposals.");
   expect(account).toHaveTextContent(/optional/i);
   expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
   expect(postsTo("/api/inbound-request")).toHaveLength(1);

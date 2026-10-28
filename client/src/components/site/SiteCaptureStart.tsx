@@ -680,15 +680,17 @@ function SiteCaptureStartForm({ storageKey, cleared = false, onSavedChange }: { 
         {state.workspaceUrl && <p><a className="ms-text-link" href={state.workspaceUrl}>Saved in your workspace</a></p>}
         {state.linkOnlyNote && <p className="ms-field-hint">{state.linkOnlyNote}</p>}
         {!state.workspaceUrl && state.claimUrl && <section className="ms-intake-account" aria-label="Save this job to your account">
-          <h2>Save this job to your account (optional)</h2>
+          <details>
+          <summary>Save this job to your account (optional)</summary>
           <p className="ms-field-hint">
-            Your private job link lets you upload, review the brief and follow progress.
+            Your private job link already lets you upload, see results and review proposals.
             Create an account with {state.email} if you want this job in your workspace.
           </p>
           <div className="ms-intake-account-links">
             <a className="ms-text-link" href={state.claimUrl}>Create an account for this job</a>
             <a className="ms-text-link" href={`${state.claimUrl}?mode=signin`}>Sign in to save this job</a>
           </div>
+          </details>
         </section>}
         <div className="ms-intake-reset">
           <ClearDraftControl status={clearStatus} onClear={forgetDraft} />
