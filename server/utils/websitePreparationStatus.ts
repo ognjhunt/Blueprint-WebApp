@@ -1,3 +1,4 @@
+import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Current-source preparation status; never a native assessment or preview verdict. */
 import { z } from "zod";
 import { preparationOutcomeSchema, projectPreparationOutcome } from "./taskPreparationOutcome";
@@ -220,7 +221,8 @@ async function verifyCurrent(selector: WebsitePreparationSelector, transaction?:
   const brief = await get(TASK_BRIEFS_COLLECTION, selector.request_id) as SiteTaskBriefRecord;
   const inventory = await get(TASK_ITEM_INVENTORY_COLLECTION, selector.request_id) as TaskItemInventoryRecord;
   if (projectWebsiteCaptureRights(request).consent_revoked) throw new Error("website_preparation_authority_ended");
-  const owner = typeof request?.account_owner_uid === "string" ? request.account_owner_uid : null;
+  const sourceOwner = websiteCaptureOwnerUid(request);
+  const owner = typeof sourceOwner === "string" ? sourceOwner : null;
   if (!brief || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
     || observed.purpose !== purpose || (purpose ? observed.capture_owner?.user_id ?? null : observed.capture_owner?.user_id) !== owner
     || !purpose && owner === null
@@ -246,7 +248,8 @@ const defaultDeps: WebsitePreparationDeps = {
       await assertWebsiteCaptureBindingInTransaction(tx, selector.request_id, authority.binding);
       if (authority.preparation) await assertAssessmentPreparationCurrent(tx, authority.preparation, request ?? {},
         {requestId: selector.request_id, captureId: selector.capture_id});
-      const owner = typeof request?.account_owner_uid === "string" ? request.account_owner_uid : null;
+      const sourceOwner = websiteCaptureOwnerUid(request);
+      const owner = typeof sourceOwner === "string" ? sourceOwner : null;
       if (!session || sourceFingerprint(session) !== authority.fingerprint || !brief
         || owner !== authority.owner || !projectWebsiteCaptureRights(request).derived_scene_generation_allowed
         || authority.sponsorshipDigest !== undefined && request?.website_scene_sponsorship?.authority_digest !== authority.sponsorshipDigest

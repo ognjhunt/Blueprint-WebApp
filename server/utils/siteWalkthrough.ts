@@ -1,3 +1,4 @@
+import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /**
  * Whether a website job's walkthrough is saved, as every job page reads it.
  *
@@ -53,8 +54,13 @@ export async function savedWalkthrough(payload: CaptureIdentity) {
  * Null when the notice cannot be read, which no caller may take as "yes".
  */
 export async function footageArrivedBeforeAccount(requestId: string,
-  record: { account_owner_uid?: unknown; claimed_at_iso?: unknown } | null | undefined): Promise<boolean | null> {
+  record: { account_owner_uid?: unknown; claimed_at_iso?: unknown; capture_owner_uid?: unknown; capture_owner_bound_at_iso?: unknown } | null | undefined): Promise<boolean | null> {
   if (!db || !record) return null;
+  // A server-bound source subject existed before upload; account setup cannot
+  // turn those bytes into an ownership change. Malformed explicit bindings
+  // fail closed in upload/owner admission rather than falling back to account.
+  if (Object.prototype.hasOwnProperty.call(record, "capture_owner_uid"))
+    return typeof websiteCaptureOwnerUid(record) === "string" && Boolean(websiteCaptureOwnerUid(record)) ? false : null;
   let receivedIso: string | null;
   try {
     const notice = await db.collection("captureOutbox").doc(`${requestId}:video_received`).get();

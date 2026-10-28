@@ -33,17 +33,12 @@
  * sentence in our logs are the same sentence, and there is no way for the two
  * to drift apart.
  *
- * ## Footage waits for a saved job
+ * ## Source ownership is independent of account setup
  *
- * Two preconditions sit beside the rule: the current recording grant, and an
- * account that owns the job. A walkthrough is born in the Pipeline with the
- * job's owner at that moment; a video sent before the job was saved to an
- * account is born with none, and saving the job afterwards is an owner change
- * the Pipeline refuses for that capture for good (owner decision 2026-10-18).
- * So bytes are accepted only for a saved job, on every upload route, and the
- * hold says so in the one sentence the page and the logs share. A job whose
- * video already arrived before its account is held too: sending it again
- * cannot be used either, so the link says that rather than take it.
+ * A new website job has a server-assigned capture subject before it receives
+ * bytes. Its signed owner/film link and current recording grant authorize an
+ * upload. A later verified account claim adds access without changing that
+ * source identity. Legacy ownerless captures keep their historical hold.
  */
 
 import { hasCurrentRecordingConsent } from "./recordingConsent";
@@ -53,6 +48,7 @@ import { decideDispatchForRequest } from "../agents/workflows";
 import type { InboundRequest } from "../types/inbound-request";
 import type { CaptureDispatchDecision } from "./captureDispatch";
 import { footageArrivedBeforeAccount } from "./siteWalkthrough";
+import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 
 export interface CaptureUploadAuthorization {
   /** Whether bytes may be written for this request right now. */
@@ -164,7 +160,8 @@ export async function authorizeCaptureUpload(
     );
   }
 
-  if (typeof request.account_owner_uid !== "string" || !request.account_owner_uid) {
+  const sourceOwner = websiteCaptureOwnerUid(request);
+  if (typeof sourceOwner !== "string" || !sourceOwner) {
     return held(SITE_ACCOUNT_REQUIRED, SITE_ACCOUNT_REQUIRED_DETAIL, request);
   }
 

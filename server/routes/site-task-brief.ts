@@ -197,6 +197,8 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
   contactFirstName?: string | null;
   /** Set once the operator has claimed the site into an account. */
   account_owner_uid?: string | null;
+  capture_owner_uid?: string;
+  capture_owner_bound_at_iso?: string;
   /** When the claim saved the job to that account; absent for a job started signed in. */
   claimed_at_iso?: string | null;
   site_task_triage?: { disposition?: string | null } | null;
@@ -241,6 +243,8 @@ async function readRequestForStatus(requestId: string, captureId = `walkthrough-
       typeof data.account_owner_uid === "string" && data.account_owner_uid
         ? data.account_owner_uid
         : null,
+    ...(typeof data.capture_owner_uid === "string" ? {capture_owner_uid: data.capture_owner_uid,
+      capture_owner_bound_at_iso: data.capture_owner_bound_at_iso as string} : {}),
     claimed_at_iso: typeof data.claimed_at_iso === "string" ? data.claimed_at_iso : null,
     site_task_triage: (data.site_task_triage as SiteTaskTriageSummary | undefined) ?? null,
     // Stored plaintext fields, which is what the access predicate reads.
@@ -1064,6 +1068,7 @@ router.get("/:token/status", async (req: Request, res: Response) => {
         site_task_scope: request?.site_task_scope ?? null,
         bookingUrl: bookingUrl(),
         account_owner_uid: request?.account_owner_uid ?? null,
+        capture_owner_uid: request?.capture_owner_uid,
         jobAccess: request?.jobAccess ?? null,
         ...(request ? { recommended: request.recommended } : {}),
       }),

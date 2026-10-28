@@ -1,3 +1,4 @@
+import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 import { taskScopeNotSupported } from "./siteTaskScope";
 import { websiteDevelopmentTestEnvironment } from "./websiteDevelopmentTest";
 /** Blueprint funds preparation; capture consent never authorizes a site-owner charge. */
@@ -205,10 +206,10 @@ export function websiteSceneSponsorship(input: {
   // prepare the captured scene. Full native evaluation remains held until a
   // compatible task adapter/scorer exists; scene preparation grants no pass.
   if (taskScopeNotSupported(input.record) && !developmentSiteTest && !(preparationOnly && proposal)) throw new Error("website_scene_site_not_qualified");
-  // Legacy/evaluation grants retain the account claim gate. Explicit source-
-  // bound preparation is funded by the configured Blueprint owner and never
-  // invents a site account or a customer charge.
-  if (!(preparationOnly && proposal) && (typeof input.record.account_owner_uid !== "string" || !input.record.account_owner_uid)) {
+  // A durable source subject suffices; account setup is not execution authority.
+  // Rights, confirmed task, configured Blueprint funding and spend caps remain.
+  const sourceOwner = websiteCaptureOwnerUid(input.record);
+  if (!(preparationOnly && proposal) && (typeof sourceOwner !== "string" || !sourceOwner)) {
     throw new Error("website_scene_site_unclaimed");
   }
   const claudeConsent = input.record.request?.claude_authoring_consent;

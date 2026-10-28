@@ -1,3 +1,4 @@
+import { newWebsiteCaptureOwnerBinding } from "../utils/websiteCaptureOwner";
 import { anonymizedOpportunityDraft } from "../../client/src/types/taskBrowse";
 import { taskListingSchema, listingConsentVersion } from "../utils/taskListingDetails";
 import { newJobFanoutIntent } from "../utils/newJobAlerts";
@@ -1714,6 +1715,8 @@ export async function submitInboundRequest(req: Request, res: Response) {
     } = {
       requestId: payload.requestId,
       ...(res.locals.workspaceIntake || {}),
+      ...(buyerType === "site_operator" ? newWebsiteCaptureOwnerBinding(payload.requestId,
+        res.locals.workspaceIntake?.account_owner_uid, new Date().toISOString()) : {}),
       intake_retry_token_hash: intakeRetryTokenHash(payload.retryToken),
       site_submission_id: payload.requestId,
       queue_key: routing.queueKey,

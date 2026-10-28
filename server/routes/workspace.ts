@@ -711,6 +711,7 @@ async function hydrateTask(requestId: string, record: Record<string, any>) {
         site_task_scope: (record.site_task_scope as { supported?: unknown; reason?: unknown } | undefined) ?? null,
         bookingUrl: bookingUrl(),
         jobAccess: teamJobAccess(record),
+        capture_owner_uid: record.capture_owner_uid,
         recommended: Boolean(record.pilot_recommendation),
       }),
     );

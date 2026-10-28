@@ -1,3 +1,4 @@
+import { websiteCaptureOwnerUid, websiteCaptureOwnerClaimedAt, websiteCaptureOwnerBasis } from "./websiteCaptureOwner";
 /** Read-only original website owner and exact producer source observation. */
 import { createHash } from "node:crypto";
 import { crossRuntimeDigest } from "./crossRuntimeCanonical";
@@ -151,14 +152,17 @@ export async function observeWebsiteCaptureOwner(
   const first = await deps.readRequest(input.request_id);
   if (!first || !validUpdateTime(first.updateTime)) throw new Error("owner_request_missing");
   const record = first.data;
-  const owner = record.account_owner_uid;
+  const owner = websiteCaptureOwnerUid(record);
+  if (Object.prototype.hasOwnProperty.call(record, "capture_owner_uid")
+      && (typeof owner !== "string" || !/^[A-Za-z0-9._-]{1,128}$/.test(owner)
+        || !cleanIso(record.capture_owner_bound_at_iso))) throw new Error("owner_identity_invalid");
   if (record.request?.buyerType !== "site_operator"
       || record.request?.capture_mode !== "self_capture"
       || !(input.purpose === "scene_preparation" && (owner === undefined || owner === null))
         && (typeof owner !== "string" || !/^[A-Za-z0-9._-]{1,128}$/.test(owner))) {
     throw new Error("owner_identity_invalid");
   }
-  const claimed = record.claimed_at_iso ?? null;
+  const claimed = websiteCaptureOwnerClaimedAt(record) ?? null;
   if (claimed !== null && !cleanIso(claimed)) throw new Error("owner_claim_invalid");
   const attestation = record.request?.consent_attestation;
   if (attestation?.granted !== true || attestation.statement_version !== "2026-09-18.v1"
@@ -225,7 +229,7 @@ export async function observeWebsiteCaptureOwner(
   if (!Number.isSafeInteger(observedAt) || observedAt <= 0) throw new Error("owner_clock_invalid");
   const source = { ...(input.purpose ? {purpose: input.purpose} : {}), request_id: input.request_id, scene_id: input.scene_id,
     capture_id: input.capture_id, bucket: deps.bucket, raw_prefix_uri: `gs://${deps.bucket}/${prefix}`,
-    capture_owner: owner === undefined || owner === null ? null : { user_id: owner, basis: "inboundRequests.account_owner_uid" },
+    capture_owner: owner === undefined || owner === null ? null : { user_id: owner, basis: websiteCaptureOwnerBasis(record) },
     ownership_record: { claimed_at_iso: claimed }, consent_attestation: consent, capture_rights: rights,
     completion_marker: { object_name: markerName, generation: markerIdentity.generation,
       size_bytes: markerIdentity.size_bytes, sha256: sha(markerRead.bytes) },

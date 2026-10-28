@@ -237,3 +237,26 @@ it("v2 DATA-only preserves a real claimed owner and refuses malformed identities
     await expect(observeWebsiteCaptureOwner(input,f.deps)).rejects.toThrow("owner_identity_invalid");
   }
 });
+
+it("keeps the exact source projection stable through a later verified account claim", async () => {
+  const f=fixture(); const original=f.deps.readRequest;
+  const source={capture_owner_uid:"site-job-source",capture_owner_bound_at_iso:"2026-09-28T00:00:00.000Z"};
+  let account:Record<string,unknown>={};
+  f.deps.readRequest=async()=>{const row=await original();return {...row,data:{...row.data,...source,...account}};};
+  const input={request_id:"r1",scene_id:"site-r1",capture_id:"walkthrough-r1",completion_marker_generation:"100"};
+  const before=await observeWebsiteCaptureOwner(input,f.deps);
+  expect(before.capture_owner).toEqual({user_id:"site-job-source",basis:"inboundRequests.capture_owner_uid"});
+  account={account_owner_uid:"verified-account",claimed_at_iso:"2026-10-28T00:00:00.000Z"};
+  const after=await observeWebsiteCaptureOwner(input,f.deps);
+  expect(after.source_projection_digest).toBe(before.source_projection_digest);
+  expect(after.ownership_record).toEqual(before.ownership_record);
+});
+
+it.each([{capture_owner_uid:null}, {capture_owner_uid:""}, {capture_owner_uid:"source-owner"},
+  {capture_owner_uid:"source-owner",capture_owner_bound_at_iso:"not-a-date"}])(
+  "never downgrades a malformed explicit source binding to ownerless preparation: %s",async binding=>{
+    const f=fixture();const read=f.deps.readRequest;
+    f.deps.readRequest=async()=>{const row=await read();return {...row,data:{...row.data,...binding}};};
+    await expect(observeWebsiteCaptureOwner({request_id:"r1",scene_id:"site-r1",capture_id:"walkthrough-r1",
+      completion_marker_generation:"100",purpose:"scene_preparation"},f.deps)).rejects.toThrow("owner_identity_invalid");
+  });

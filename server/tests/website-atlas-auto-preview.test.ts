@@ -170,6 +170,25 @@ describe("automatic consented Atlas grant", () => {
     expect(store.writes).toEqual(["website_atlas_grants"]);
   });
 
+  it("retains a guest source grant through account setup without widening source or spending rights", async () => {
+    vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
+    upload();
+    const record=store.rows.get(REQUEST);
+    delete record.account_owner_uid;
+    record.capture_owner_uid="site-job-fixed-source";
+    record.capture_owner_bound_at_iso="2026-10-28T00:00:00.000Z";
+    const first=await configure();
+    expect(first.authority.accepted_by).toBe("site-job-fixed-source");
+    store.rows.get(REQUEST).account_owner_uid="verified-owner";
+    store.rows.get(REQUEST).claimed_at_iso="2026-10-28T01:00:00.000Z";
+    expect((await configure()).authority).toEqual(first.authority);
+    store.rows.get(REQUEST).capture_owner_uid="different-source";
+    await expect(configure()).rejects.toThrow("website_atlas_source_owner_mismatch");
+    store.rows.get(REQUEST).capture_owner_uid="site-job-fixed-source";
+    store.rows.get(REQUEST).consent_revoked=true;
+    await expect(configure()).rejects.toThrow("source_revoked");
+  });
+
   it("refuses a changed owner, changed terms, expiry and withdrawn consent like an explicit grant", async () => {
     vi.stubEnv("BLUEPRINT_WEBSITE_ATLAS_GRANT_POLICY_JSON", JSON.stringify(policy));
     upload("bundle");

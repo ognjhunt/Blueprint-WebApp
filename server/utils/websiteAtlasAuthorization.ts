@@ -1,3 +1,4 @@
+import { websiteCaptureOwnerUid } from "./websiteCaptureOwner";
 /** Explicit, source-bound Atlas beta disclosure and allowance. ADP-040 / Day 28. */
 import { z } from "zod";
 import { crossRuntimeDigest as digest } from "./crossRuntimeCanonical";
@@ -137,7 +138,7 @@ export function websiteAtlasAutomaticLane(input: EnvRowMatch) {
  * row (docs/atlas-beta-integration.md), the site account for an automatic grant. */
 export function websiteAtlasGrantOwner(record: Record<string, any>, grant: { accepted_by: string; grant_basis?: string }) {
   const owner = grant.grant_basis === "automatic_consented_preview"
-    ? record.account_owner_uid : record.website_scene_sponsorship?.owner?.user_id;
+    ? websiteCaptureOwnerUid(record) : record.website_scene_sponsorship?.owner?.user_id;
   return typeof owner === "string" && owner ? owner : null;
 }
 
@@ -171,7 +172,7 @@ export async function resolveWebsiteAtlasGrant(input: EnvRowMatch & GrantChecks 
       throw new Error("website_atlas_source_consent_required");
     return { grant: checkedGrant(parsed.data, input), created: null };
   }
-  const owner = input.record.account_owner_uid;
+  const owner = websiteCaptureOwnerUid(input.record);
   if (!input.create || !input.sourceVideoDigest || !identity || typeof owner !== "string" || !owner.trim()
     || !input.captureRights.derived_scene_generation_allowed || input.captureRights.consent_revoked)
     throw new Error("website_atlas_source_consent_required");

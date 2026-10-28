@@ -1,13 +1,10 @@
 /**
  * Claim your site — the identity moment of the site-operator funnel.
  *
- * Everything before this page was account-free on purpose: the signed link
- * was the credential for filming, uploading and confirming the brief. But
- * once the scene is real and the site is entering supply, the operator needs
- * authority a forwardable link cannot carry — listing control, pausing,
- * results, and later, money. So this page converts link-custody into
- * account-custody: verify the email the invite was sent to, and the site
- * attaches to their workspace.
+ * The signed private job link can receive footage and corrections before
+ * account setup. This page verifies the submitted email and adds workspace
+ * access; the server-bound source owner and retained video stay unchanged.
+ * Account-only listing and workspace controls still require the verified owner.
  *
  * Deliberately one page, one form: create or sign in, terms if needed, and
  * the claim completes in place. No state to reason about afterwards — if the
