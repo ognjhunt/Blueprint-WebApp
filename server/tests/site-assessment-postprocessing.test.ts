@@ -62,3 +62,36 @@ it.each(["source", "context", "usage", "incomplete", "error", "tool", "unknown_r
   if (mode === "quarantine") r.mutation_reconciliation_required = true;
   expect(recoverSiteAssessmentPostprocessing(run, binding)).toBeNull();
 });
+
+it("quarantines published supply-record fields as registry context, one accepted shape each", () => {
+  const fixture = failedDescriptionAssessment(), registry = fixture.sources[1];
+  Object.assign(registry.content as any, { status: "prospect", willing_supply: false,
+    supply_agreements_missing: ["freeEvaluation", "pilotIfPassed"] });
+  const cite = (field: string) => ({ text: `Claim from ${field}`, basis: "published", evidence: [{ source_id: registry.source_id,
+    at_seconds: null, selector: { kind: "qualified_field", observation_index: null, field_path: [field] } }] });
+  (fixture.raw as any).known = [cite("willing_supply"), cite("status"), cite("supply_agreements_missing")];
+  const result = renderSourceBoundAssessment(fixture.raw, new Map(fixture.sources.map(s => [s.source_id, s])) as any, 2);
+  expect(result.verification).toMatchObject({ unverified_claims: 0, unqualified_registry_context_claims: 3 });
+  expect(result.assessment.known.map((claim: any) => [claim.basis, claim.verification_status]))
+    .toEqual(Array(3).fill(["unknown", "interpretation"]));
+  expect(result.assessment.known[0].text).toContain("Registry record willing_supply: false");
+  expect(result.assessment.known[2].text).toContain("freeEvaluation, pilotIfPassed");
+});
+
+it.each([["willing_supply", "false"], ["status", " "], ["supply_agreements_missing", []],
+  ["supply_agreements_missing", [3]], ["name", "Fixture team"]])("keeps a published %s citation of %j refused", (field, value) => {
+  const fixture = failedDescriptionAssessment();
+  (fixture.sources[1].content as any)[field] = value;
+  (fixture.raw as any).known[0].evidence[0].selector.field_path = [field];
+  expect(() => renderSourceBoundAssessment(fixture.raw, new Map(fixture.sources.map(s => [s.source_id, s])) as any, 2))
+    .toThrow("assessment_registry_source_basis_required");
+});
+
+it("never turns a supply-record field into a measured claim", () => {
+  const fixture = failedDescriptionAssessment();
+  (fixture.sources[1].content as any).willing_supply = true;
+  (fixture.raw as any).known[0].evidence[0].selector.field_path = ["willing_supply"];
+  (fixture.raw as any).known[0].basis = "measured";
+  expect(() => renderSourceBoundAssessment(fixture.raw, new Map(fixture.sources.map(s => [s.source_id, s])) as any, 2))
+    .toThrow("assessment_registry_source_basis_required");
+});

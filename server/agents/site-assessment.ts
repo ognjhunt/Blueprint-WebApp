@@ -457,23 +457,36 @@ Question (data): ${JSON.stringify(question)}\nOperator statements (claims, not v
   };
 }
 
+/** Registry record fields a published claim may cite as context, each with its only accepted shape. */
+const REGISTRY_CONTEXT_FIELDS: Record<string, (value: unknown) => string | null> = {
+  capabilityDescription: value => typeof value === "string" && value.trim() ? `Unqualified registry description: ${value}` : null,
+  status: value => typeof value === "string" && value.trim() ? `Registry record status: ${value}` : null,
+  willing_supply: value => typeof value === "boolean" ? `Registry record willing_supply: ${value}` : null,
+  supply_agreements_missing: value => Array.isArray(value) && value.length
+    && value.every(item => typeof item === "string" && item.trim())
+    ? `Registry record supply agreements missing: ${value.join(", ")}` : null,
+};
+
 /** Source binding establishes wording provenance, never video truth or deployment fit. */
 export function renderSourceBoundAssessment(raw: SiteAssessment, sources: ReadonlyMap<string, Source>, duration: number | null) {
-  // Registry descriptions are research context, not qualified capability fields.
-  // Keep their exact source and the raw model claim; never let an optional
-  // description masquerade as a measured/published specification or discard
-  // the other independently bound observations in an assessment.
+  // Registry descriptions and supply-record fields are research context, not
+  // qualified capability fields. Keep their exact source and the raw model
+  // claim; never let an optional description or a record status masquerade as
+  // a measured/published specification or discard the other independently
+  // bound observations in an assessment.
   const descriptions = (value: any): string[] | null => {
     if (value?.basis !== "published" || !Array.isArray(value.evidence) || !value.evidence.length) return null;
     const texts: string[] = [];
     for (const ref of value.evidence) {
       const source = sources.get(ref.source_id), selector = ref.selector;
-      const content = source?.content as { capabilityDescription?: unknown } | undefined;
-      if (source?.kind !== "robot_registry" || selector?.kind !== "qualified_field"
-        || selector.observation_index !== null || !Array.isArray(selector.field_path)
-        || selector.field_path.length !== 1 || selector.field_path[0] !== "capabilityDescription"
-        || typeof content?.capabilityDescription !== "string" || !content.capabilityDescription.trim()) return null;
-      texts.push(content.capabilityDescription);
+      const field = Array.isArray(selector?.field_path) && selector.field_path.length === 1 ? selector.field_path[0] : null;
+      const render = typeof field === "string" && Object.prototype.hasOwnProperty.call(REGISTRY_CONTEXT_FIELDS, field)
+        ? REGISTRY_CONTEXT_FIELDS[field] : null;
+      const text = render && source?.kind === "robot_registry" && selector?.kind === "qualified_field"
+        && selector.observation_index === null && source.content && typeof source.content === "object"
+        ? render((source.content as Record<string, unknown>)[field!]) : null;
+      if (!text) return null;
+      texts.push(text);
     }
     return texts;
   };
@@ -557,7 +570,7 @@ export function renderSourceBoundAssessment(raw: SiteAssessment, sources: Readon
         verification.interpretation_claims++;
         verification.unqualified_registry_context_claims++;
         return { ...structuredClone(value), basis: "unknown", verification_status: "interpretation",
-          text: context.map(text => `Unqualified registry description: ${text}`).join("\n")
+          text: context.join("\n")
             + " This is research context; it does not establish a capability specification or site suitability." };
       }
       if (["estimate", "unknown"].includes(value.basis)) {
