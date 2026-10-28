@@ -12,6 +12,13 @@ does not become a prerequisite for Blueprint's private evaluation. Upload emails
 no longer require brief confirmation; guest result notices use the existing
 private job link without introducing an account step.
 
+Compatibility reads of `confirm_brief` and `add_views` remain optional hints
+after an authorized recording is received. They cannot restore a required
+customer question or filming request. A failed current-status read shows the
+checking update and clears the old outcome; a retained next-step projection
+cannot hide that update. Evidence gaps stay Blueprint's work, with the limits
+visible in the job rather than an automatic request for another recording.
+
 This is based on the existing v1 intake and complete-walkthrough update. It has
 no dependency on extra-clip inputs, the v2 continuation, a new Pipeline consumer,
 new grants, new services or new customer controls. Optional extra recordings are
@@ -30,3 +37,11 @@ details and no visible film/confirm/publish request. There were no console error
 No browser form, live upload, email, account, provider/model call, spending or
 deployment occurred. Retain the coordinated release owner and founder holds.
 Actual deployment and a supported upload-to-scored-result run remain acceptance.
+
+The browser-contract follow-up passes 69 focused page/outcome cases, including
+legacy correction hints and stop → unavailable → resumed status. It also updates
+the existing browser expectations for one current next step, optional brief
+correction and collapsed support details. Actual local browser reads confirm
+all three bounded outcomes at 390 px and 1440 px, the optional correction form,
+unavailable status and support visibility. The API is synthetic and read only;
+hosted browser CI and production acceptance remain separate.
