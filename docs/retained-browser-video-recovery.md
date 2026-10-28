@@ -1,6 +1,6 @@
 # Recover a saved video without a customer return visit
 
-Once the original recording is retained, a failed server probe, manifest write
+Once the original recording and its receipt are retained, a failed server probe, manifest write
 or completion-marker write is Blueprint's work. The existing capture-outbox
 worker resumes the exact retained generation even when the browser and HTTP
 request are gone. Upload completion and worker recovery share the same manifest,
@@ -29,7 +29,8 @@ Validation covers closed-HTTP recovery, marker-only recovery, both queue kinds
 making progress, no second video generation or probe, current authority and
 source selection, reservation ownership, bounded download and the scheduler's
 existing disable flag. The nine impacted server suites pass 192 cases; the two
-customer-page suites pass 161. TypeScript, Graphify and whitespace checks pass.
+customer-page suites pass 164 and the bounded-outcome suite passes eight.
+TypeScript, Graphify and whitespace checks pass.
 The tests use local HTTP, fake storage/Firestore and scripted transport seams;
 they do not establish live reconstruction or a scored result.
 
