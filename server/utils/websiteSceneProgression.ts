@@ -90,8 +90,8 @@ async function firstTestAccepted(store: FirebaseFirestore.Firestore, intake: Rec
       for (const row of rows) {
         const run = row.data();
         if (run?.run_kind !== "beta_policy_screening" || run.team_namespace !== team) continue;
-        // A completed campaign has at least one scored candidate: the job's estimate.
-        if (run.state === "completed") return "evaluated";
+        // A completed campaign with a scored episode is the job's estimate.
+        if (run.state === "completed" && run.episodes_scored > 0) return "evaluated";
         observed ||= run.screening_execution_observed === true;
       }
     }

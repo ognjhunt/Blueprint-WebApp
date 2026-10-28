@@ -164,6 +164,25 @@ describe("automatic many-candidate job evaluation", () => {
     expect(() => screeningPublicationTransition(completed, sealScreening({ ...completed, revision: 4, status: "running" }))).toThrow("screening_revision_conflict");
   });
 
+  it("shows no estimate for a completed run whose candidates scored no episode", () => {
+    const { publication, brief, job } = screeningFixture();
+    const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
+    const scope = managedJobTask({ binding, record: job, brief });
+    const voided = sealScreening({ ...publication, revision: 2, status: "completed", candidates: publication.candidates.map((row, index) => index > 0
+      ? { ...row, status: "blocked", blockers: ["beta_screening_site_budget_exhausted"] }
+      : { ...row, status: "completed", episodes_scored: 0, episodes_succeeded: 0, episodes_failed: 0, episodes_void: 3, success_rate: null, session_result_digest: screeningSha("9") }) });
+    const run = { run_id: voided.campaign_id, run_kind: "beta_policy_screening", state: "completed", result_record_id: "result-one",
+      job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
+      configuration_digest: voided.plan_digest, source_scene_intent_id: voided.source.scene_intent_id,
+      source_scene_revision_digest: voided.source.scene_revision_digest, publication_digest: voided.publication_digest, publication_revision: 2 };
+    const projected = projectManagedJobEvidence(voided.campaign_id, run, { record_id: "result-one", publication: voided },
+      brief.requestId, binding.brief_digest, scope.taskContextDigest, scope.sourceFingerprint)!;
+    expect(projected.state).toBe("blocked");
+    expect(projected.summary).toMatch(/^No simulation estimate yet/);
+    expect(projected.limitations.join(" ")).not.toMatch(/estimate from 0 scored/);
+    expect(projected.limitations.join(" ")).toMatch(/does not certify physical performance or safety/);
+  });
+
   it("projects the run as the job's simulation estimate, and retains stale source as historical", () => {
     const { publication, brief, job } = screeningFixture();
     const binding = { job_id: brief.requestId, brief_digest: scientificBriefDigest(brief) };
@@ -189,7 +208,8 @@ describe("automatic many-candidate job evaluation", () => {
     expect(finished.resultDigest).toBe(completed.publication_digest);
     expect(finished.summary).toBe("Your job's simulation estimate: 2 of 36 candidates ran, with 6 episodes scored against the job's success criteria.");
     expect(finished.nextAction).toMatch(/recommend the next step/);
-    expect(finished.limitations).toEqual([expect.stringMatching(/^A bounded simulation estimate from 6 scored episodes across 2 candidates.*does not certify physical performance or safety\.$/),
+    expect(finished.limitations).toEqual([expect.stringMatching(/^A bounded simulation estimate from 6 scored episodes across 2 candidates, for this job's recorded task and simulated conditions only\.$/),
+      "A simulation result is a bounded estimate. It does not certify physical performance or safety.",
       "34 candidates did not run; each row lists why."]);
   });
 });

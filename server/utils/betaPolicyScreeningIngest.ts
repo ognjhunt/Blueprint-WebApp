@@ -98,6 +98,7 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       source_scene_revision_digest: publication.source.scene_revision_digest, configuration_digest: publication.plan_digest,
       job_evidence_binding: binding, job_task_context_digest: scope.taskContextDigest, job_source_fingerprint: scope.sourceFingerprint,
       publication_digest: publication.publication_digest, publication_revision: publication.revision, result_record_id: resultId,
+      episodes_scored: publication.candidates.reduce<number>((sum, row) => sum + row.episodes_scored, 0),
       screening_execution_observed: oldRun.data()?.screening_execution_observed === true
         || publication.candidates.some(row => ["running", "completed"].includes(row.status) || row.episodes_scored > 0),
       created_at_iso: oldRun.data()?.created_at_iso ?? now, updated_at_iso: now });

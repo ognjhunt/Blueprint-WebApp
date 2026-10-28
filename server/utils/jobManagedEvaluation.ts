@@ -203,16 +203,19 @@ export function projectManagedJobEvidence(
     const scored = value.candidates.reduce((sum, row) => sum + row.episodes_scored, 0);
     const notRun = value.candidates.filter(row => ["blocked", "unavailable", "deferred"].includes(row.status)).length;
     const candidates = (count: number) => `${count} candidate${count === 1 ? "" : "s"}`;
-    return { ...base, state: value.status, resultDigest: ["completed", "blocked"].includes(value.status) ? value.publication_digest : null,
-      summary: value.status === "completed"
+    // A run whose candidates finished with no scored episode has no estimate to show.
+    const status = value.status === "completed" && scored === 0 ? "blocked" : value.status;
+    return { ...base, state: status, resultDigest: ["completed", "blocked"].includes(status) ? value.publication_digest : null,
+      summary: status === "completed"
         ? `Your job's simulation estimate: ${completed} of ${total} candidates ran, with ${scored} episodes scored against the job's success criteria.`
-        : value.status === "blocked" ? `No simulation estimate yet: none of the ${candidates(total)} produced a scored result.`
+        : status === "blocked" ? `No simulation estimate yet: none of the ${candidates(total)} produced a scored result.`
           : `Simulation evaluation of your job: ${completed} of ${total} candidates finished; ${scored} episodes scored so far.`,
-      nextAction: value.status === "completed" ? "Blueprint uses this estimate to recommend the next step for your job, then works with a deployment company on any physical pilot."
-        : value.status === "blocked" || value.status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
+      nextAction: status === "completed" ? "Blueprint uses this estimate to recommend the next step for your job, then works with a deployment company on any physical pilot."
+        : status === "blocked" || status === "reconciliation_required" ? "Blueprint is reviewing the recorded limitations before any further run."
           : "Candidate progress will update as each test finishes.",
       limitations: [
-        `A bounded simulation estimate from ${scored} scored episode${scored === 1 ? "" : "s"} across ${candidates(completed)}, for this job's recorded task and simulated conditions only. It does not certify physical performance or safety.`,
+        ...(scored ? [`A bounded simulation estimate from ${scored} scored episode${scored === 1 ? "" : "s"} across ${candidates(completed)}, for this job's recorded task and simulated conditions only.`] : []),
+        "A simulation result is a bounded estimate. It does not certify physical performance or safety.",
         ...(notRun ? [`${candidates(notRun)} did not run; each row lists why.`] : []),
       ],
       screening: { budget: { limitUsd: value.budget.limit_usd, committedUpperBoundUsd: value.budget.committed_upper_bound_usd,
