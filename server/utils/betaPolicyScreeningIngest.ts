@@ -3,14 +3,15 @@ import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { scientificBriefDigest } from "./jobEvidenceContract";
-import { assertManagedScreeningCaptureCurrent, managedJobTask, readManagedJobSourceSession, readManagedScreeningCapture } from "./jobManagedEvaluation";
+import { assertManagedScreeningCaptureCurrent, assertScreeningSceneSource, managedJobTask, readManagedJobSourceSession, readManagedScreeningCapture } from "./jobManagedEvaluation";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { encodeTaskEvaluationRunPublication, publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
 import { betaPolicyScreeningSourceSchema, parseBetaPolicyScreeningPublication, screeningPublicationTransition,
   screeningTerminalCandidateStates, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
-import { isTaskFamilyStrategy, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
 import { assertWebsiteRunOpen, websiteRunClosure } from "./websiteRunClosure";
+
+export { assertScreeningSceneSource } from "./jobManagedEvaluation";
 
 const controlId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
 const controlSha = z.string().regex(/^sha256:[a-f0-9]{64}$/);
@@ -67,8 +68,9 @@ export async function observeBetaScreeningExecutionControl(request: BetaScreenin
       || !controlId.safeParse(run.job_evidence_binding?.job_id).success
       || binding.site_id !== `site-${run.job_evidence_binding.job_id}`)
       throw new Error("screening_control_identity_conflict");
-    const controls = run.screening_execution_controls ?? {};
-    if (!controls || typeof controls !== "object" || Array.isArray(controls)) throw new Error("screening_control_record_unavailable");
+    const controls = run.screening_execution_controls === undefined ? {} : run.screening_execution_controls;
+    if (!controls || typeof controls !== "object" || ![Object.prototype, null].includes(Object.getPrototypeOf(controls)))
+      throw new Error("screening_control_record_unavailable");
     // The same attempt, allocator invocation, or owned resource cannot be rebound
     // to a different preparation, authority, candidate, or source on restart.
     for (const [key, value] of Object.entries(controls)) {
@@ -138,7 +140,7 @@ export async function observeBetaScreeningExecutionControl(request: BetaScreenin
         // Only known current-source refusals are durable stops. Unknown storage,
         // malformed closure and transient service errors stay unproven (503).
         if (/^job_(not_found|brief_not_agreed|brief_changed|capture_processing_not_authorized|scene_not_prepared|scene_task_changed|evaluation_source_(binding_invalid|unavailable|changed))$/.test(code)
-          || ["screening_scene_source_mismatch", "website_run_closed_by_owner"].includes(code)) stopReason = code;
+          || ["screening_scene_source_mismatch", "website_run_closed_by_owner", "website_run_capture_superseded"].includes(code)) stopReason = code;
         else throw error;
       }
     }
@@ -150,43 +152,15 @@ export async function observeBetaScreeningExecutionControl(request: BetaScreenin
       applicability: stopReason ? "historical_only" as const : "current" as const };
     const control = executionControlSchema.parse({ ...value, control_digest: crossRuntimeDigest(value) });
     const ownerClosed = stopReason === "website_run_closed_by_owner";
-    const campaignCancelled = ownerClosed || stopReason === "screening_run_cancelled";
+    // A consumed source/authority stop applies to this campaign even when the
+    // source is later repaired. Normal candidate completion only closes its
+    // attempt and leaves the recorded estimate applicable.
+    const campaignCancelled = stopReason !== null && stopReason !== "screening_candidate_closed";
     const update = { screening_execution_controls: { ...controls, [controlKey]: control },
       ...(campaignCancelled ? { cancellationRequested: true, ...(ownerClosed ? { state: "closed" } : {}) } : {}) };
     transaction.set(runRef, update, { mergeFields: Object.keys(update) });
     return control;
   });
-}
-
-export function assertScreeningSceneSource(publication: BetaPolicyScreeningPublication, intake: Record<string, any>,
-  scope: ReturnType<typeof managedJobTask>) {
-  const source = publication.source;
-  const status = intake.pipeline_status;
-  const family = isTaskFamilyStrategy(intake.request?.task?.strategy);
-  const prepared = preparationPhaseMatchesTask(intake.request, status);
-  const selection = family ? intake.request.task.policy_selection : undefined;
-  const selectedPolicyMatches = selection === undefined || selection !== null && typeof selection === "object"
-    && publication.catalog_digest === selection.catalog_digest
-    && publication.candidates.length === 1 && publication.candidates[0].candidate_id === selection.candidate_id
-    && publication.candidates[0].configuration_digest === selection.configuration_digest;
-  if (!intake.request || !intake.receipt || !intake.website_request_id
-    || intake.revocation_requested || intake.state !== "completed" || status?.status !== "completed" || !prepared || !selectedPolicyMatches
-    || crossRuntimeDigest(intake.request) !== intake.request_digest
-    || intake.receipt.request_digest !== intake.request_digest
-    || crossRuntimeArtifactDigest(intake.receipt, "receipt_digest") !== intake.receipt.receipt_digest
-    || intake.receipt.intent_id !== source.scene_intent_id || intake.receipt.intent_digest !== source.scene_intent_digest
-    || crossRuntimeArtifactDigest(status, "status_digest") !== status.status_digest
-    || status.intent_id !== source.scene_intent_id || status.intent_digest !== source.scene_intent_digest
-    || status.request_digest !== intake.request_digest || crossRuntimeDigest(status.owner) !== crossRuntimeDigest(intake.request.owner)
-    || status.result_reference?.digest !== source.scene_revision_digest
-    || intake.request.submission_id !== source.capture_id || intake.request.task?.task_id !== source.task_id
-    || intake.source_session_id !== (scope.sourceCaptureSessionId ?? scope.sourceWebsiteCaptureId)
-    || source.capture_id !== (scope.sourceCaptureSessionId ?? scope.sourceWebsiteCaptureId)
-    || intake.request.owner?.organization_id !== scope.teamNamespace
-    || publication.site_id !== `site-${intake.website_request_id}` || source.task_context_digest !== scope.taskContextDigest
-    || (scope.taskIds.length > 0 && !scope.taskIds.includes(source.task_id))) {
-    throw new Error("screening_scene_source_mismatch");
-  }
 }
 
 /** Existing immutable scene intake supplies job authority; producer IDs never select an arbitrary job. */

@@ -1,20 +1,37 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Timestamp } from "firebase-admin/firestore";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "../utils/crossRuntimeCanonical";
 import { ingestBetaPolicyScreening, observeBetaScreeningExecutionControl, parseBetaScreeningExecutionControlRequest,
   type BetaScreeningExecutionControlRequest } from "../utils/betaPolicyScreeningIngest";
 import { screeningFixture, screeningSha, sealScreening } from "./fixtures/beta-policy-screening";
 import { projectWebsiteCaptureRights, projectWebsiteTaskContext } from "../utils/websiteTaskContext";
 import { loadManagedJobEvidence, assertManagedJobEvidenceReference } from "../utils/jobManagedEvaluation";
-import { scientificBriefDigest } from "../utils/jobEvidenceContract";
+import { jobEvidenceTaskInventoryDigest, scientificBriefDigest } from "../utils/jobEvidenceContract";
+import sourceExamples from "./fixtures/job-evidence-producer-examples.v1.json";
 
-const store = vi.hoisted(() => ({ state: { docs: new Map<string, any>() }, fail: false }));
+const store = vi.hoisted(() => ({ state: { docs: new Map<string, any>() }, fail: false, writes: [] as string[] }));
 vi.mock("../../client/src/lib/firebaseAdmin", async () => {
   const { createFakeFirestore } = await import("./helpers/fake-firestore");
   const database = createFakeFirestore(store.state);
   return { dbAdmin: { ...database, runTransaction: async (fn: any) => {
     if (store.fail) throw new Error("mock_storage_unreachable");
-    return database.runTransaction(fn);
+    return database.runTransaction(async (tx: any) => fn({ ...tx,
+      get: async (ref: any) => {
+        const snapshot = await tx.get(ref), raw = store.state.docs.get(ref.path);
+        return { ...snapshot, data: () => {
+          const value = snapshot.data();
+          // JSON cloning in the shared fake otherwise erases Firestore scalar
+          // prototypes and cannot reproduce a corrupt native map boundary.
+          if (value && Object.hasOwn(raw ?? {}, "screening_execution_controls"))
+            value.screening_execution_controls = raw.screening_execution_controls;
+          return value;
+        } };
+      },
+      set: (ref: any, value: any, options: any) => {
+        store.writes.push(ref.path); return tx.set(ref, value, options);
+      },
+    }));
   } } };
 });
 const NOW = Date.parse("2026-10-28T12:00:00Z"), EXPIRY = NOW + 3_600_000;
@@ -26,16 +43,31 @@ function resealIntake(intake: any) {
   intake.pipeline_status.request_digest = intake.request_digest;
   intake.pipeline_status.status_digest = crossRuntimeArtifactDigest(intake.pipeline_status, "status_digest");
 }
-async function seed(jobId = "job-one", campaignId = "campaign-one", publicationVersion: "v1" | "v2" = "v2") {
+async function seed(jobId = "job-one", campaignId = "campaign-one", publicationVersion: "v1" | "v2" = "v2", nativeGuest = false) {
   const fixture = screeningFixture();
   fixture.brief.requestId = jobId;
   const context = projectWebsiteTaskContext(fixture.brief, projectWebsiteCaptureRights(fixture.job));
   fixture.job.website_scene_sponsorship.capture_id = context.capture_id;
   fixture.job.website_scene_sponsorship.task_context_digest = context.context_digest;
+  const captureId = nativeGuest ? `guest-${jobId}` : context.capture_id;
+  if (nativeGuest) {
+    const producer = sourceExamples.native_request;
+    const source = { schema_version: "job_evidence_source_binding.v1", job_id: jobId, capture_session_id: captureId,
+      intake_id: producer.intake_id, source_capture_digest: producer.testbed.source_capture_bundles[0].digest,
+      brief_digest: scientificBriefDigest(fixture.brief), task_inventory_digest: jobEvidenceTaskInventoryDigest(fixture.brief, null),
+      command_request_id: "approved-command", approved_task_digest: producer.approved_task_digest };
+    fixture.job.job_evidence_source = source;
+    store.state.docs.set(`captureUploadSessions/${captureId}`, { session_id: captureId, request: { intake_id: producer.intake_id },
+      job_evidence_source_binding: source, approved_task_definition: { approved_task_digest: producer.approved_task_digest },
+      pipeline_site_task_testbed: { job_id: jobId, brief_digest: source.brief_digest, approved_task_digest: source.approved_task_digest,
+        testbed: producer.testbed, decision_evidence_request: producer.decision_evidence_request,
+        testbed_canonical_json: producer.testbed_canonical_json, decision_request_canonical_json: producer.decision_request_canonical_json,
+        compiled_card_canonical_json: producer.compiled_card_canonical_json } });
+  }
   const intake: any = fixture.intake;
   intake.website_request_id = jobId;
-  intake.source_session_id = context.capture_id;
-  intake.request.submission_id = context.capture_id;
+  intake.source_session_id = captureId;
+  intake.request.submission_id = captureId;
   intake.request.task.task_id = `website-${context.context_digest.slice(7, 27)}`;
   intake.request.execution = { expires_at_epoch: EXPIRY / 1000 };
   intake.receipt.intent_id = `scene-${jobId}`;
@@ -45,7 +77,7 @@ async function seed(jobId = "job-one", campaignId = "campaign-one", publicationV
     ...(publicationVersion === "v1" ? { schema_version: "beta_policy_screening_publication.v1" as const,
       purpose: "screening" as const, claim_ceiling: "diagnostic_policy_execution" as const, recommendation_eligible: false as const } : {}),
     campaign_id: campaignId, site_id: context.scene_id,
-    source: { ...fixture.publication.source, scene_intent_id: intake.receipt.intent_id, capture_id: context.capture_id,
+    source: { ...fixture.publication.source, scene_intent_id: intake.receipt.intent_id, capture_id: captureId,
       task_id: intake.request.task.task_id, task_context_digest: context.context_digest } });
   store.state.docs.set(`inboundRequests/${jobId}`, fixture.job);
   store.state.docs.set(`siteTaskBriefs/${jobId}`, fixture.brief);
@@ -65,9 +97,27 @@ let fixture: Awaited<ReturnType<typeof seed>>;
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(NOW);
   store.state.docs.clear(); store.fail = false; fixture = await seed();
+  store.writes.length = 0;
 });
 afterEach(() => { vi.useRealTimers(); store.fail = false; });
 const controls = () => row("taskEvaluationPolicyRuns/campaign-one").screening_execution_controls;
+
+it.each([
+  ["null", () => null], ["Date", () => new Date(1)], ["Firestore bytes", () => Buffer.alloc(0)],
+  ["Map", () => new Map()], ["Timestamp", () => Timestamp.fromMillis(1)],
+] as const)("refuses a persisted non-map execution control value without a write (%s)", async (_kind, makeValue) => {
+  const value = makeValue();
+  row("taskEvaluationPolicyRuns/campaign-one").screening_execution_controls = value;
+  await expect(observeBetaScreeningExecutionControl(fixture.request)).rejects.toThrow("screening_control_record_unavailable");
+  expect(store.writes).toEqual([]);
+  expect(controls()).toBe(value);
+});
+
+it.each([() => ({}), () => Object.create(null)])("accepts an empty plain/native map without inventing another run", async makeValue => {
+  row("taskEvaluationPolicyRuns/campaign-one").screening_execution_controls = makeValue();
+  expect((await observeBetaScreeningExecutionControl(fixture.request)).status).toBe("current");
+  expect(store.writes).toEqual(["taskEvaluationPolicyRuns/campaign-one"]);
+});
 
 it.each(["v1", "v2"] as const)("joins execution control to the same exact source for publication %s", async version => {
   store.state.docs.clear();
@@ -269,7 +319,7 @@ it.each([false, true])("reads current owner closure before any monitor observati
   expect(controls()).toBeUndefined();
 });
 
-it.each(["owner_closure", "scene_revocation", "scene_revision"])("current evidence references share the actual readback source join (%s)", async change => {
+it.each(["owner_closure", "active_capture", "scene_revocation", "scene_revision", "request_bytes", "receipt_source", "status_source"])("current evidence references share the actual readback source join (%s)", async change => {
   const completed = sealScreening({ ...fixture.publication, status: "completed", revision: 2,
     candidates: fixture.publication.candidates.map(candidate => ({ ...candidate, status: "completed", episodes_scored: 3,
       episodes_succeeded: 2, episodes_failed: 1, success_rate: 2 / 3, session_result_digest: screeningSha("8") })) });
@@ -283,14 +333,77 @@ it.each(["owner_closure", "scene_revocation", "scene_revision"])("current eviden
       decision: "conservative_abstention", actor: "signed_owner_link", source_identity_digest: screeningSha("7"),
       closed_at_iso: new Date(NOW).toISOString(), new_execution_authorized: false, explicit_resume_required: true, physical_validation: false };
     row("inboundRequests/job-one").website_run_closures = { [closure.capture_id]: { ...closure, closure_digest: crossRuntimeDigest(closure) } };
-  } else if (change === "scene_revocation") fixture.intake.revocation_requested = true;
-  else {
+  } else if (change === "active_capture") row("inboundRequests/job-one").active_capture_id = `supplement-${"a".repeat(40)}`;
+  else if (change === "scene_revocation") fixture.intake.revocation_requested = true;
+  else if (change === "request_bytes") fixture.intake.request.task.task_id = "changed-without-resealing";
+  else if (change === "receipt_source") fixture.intake.receipt.intent_digest = screeningSha("9");
+  else if (change === "status_source") {
+    fixture.intake.pipeline_status.intent_digest = screeningSha("9"); resealIntake(fixture.intake);
+  } else {
     fixture.intake.pipeline_status.result_reference.digest = screeningSha("9"); resealIntake(fixture.intake);
   }
   expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
   await expect(assertManagedJobEvidenceReference("job-one", briefDigest, reference)).rejects.toThrow("job_managed_evidence_reference_unavailable_or_stale");
   expect(JSON.stringify(row(`captureTaskEvaluationRuns/${row("taskEvaluationPolicyRuns/campaign-one").result_record_id}`))).toBe(scientificBytes);
   expect(controls()).toBeUndefined();
+});
+
+it.each(["consent", "scene", "capture"])("keeps consumed %s revocation historical after source recovery and late publication", async kind => {
+  const otherSite = await seed("job-two", "campaign-two");
+  const otherAttempt = { ...fixture.request, candidate_id: fixture.publication.candidates[1].candidate_id,
+    attempt_id: "second-attempt", invocation_id: screeningSha("8"), prepared_digest: screeningSha("7"),
+    authority_digest: screeningSha("6"), resource_name: "second-owned-resource" };
+  await observeBetaScreeningExecutionControl(fixture.request);
+  await observeBetaScreeningExecutionControl(otherAttempt);
+  const job = row("inboundRequests/job-one");
+  if (kind === "consent") job.consent_revoked = true;
+  else if (kind === "scene") fixture.intake.revocation_requested = true;
+  else store.state.docs.set(`captureUploadSessions/${fixture.request.source.capture_id}`, { capture_access: { future_processing_allowed: false } });
+  const stopped = await observeBetaScreeningExecutionControl(fixture.request);
+  expect(stopped).toMatchObject({ status: "stopped", applicability: "historical_only" });
+  job.consent_revoked = false; fixture.intake.revocation_requested = false;
+  store.state.docs.delete(`captureUploadSessions/${fixture.request.source.capture_id}`);
+  const briefDigest = scientificBriefDigest(row("siteTaskBriefs/job-one"));
+  expect((await loadManagedJobEvidence("job-one", briefDigest))[0].current).toBe(false);
+  const completed = sealScreening({ ...fixture.publication, status: "completed", revision: 2,
+    candidates: fixture.publication.candidates.map(candidate => ({ ...candidate, status: "completed", episodes_scored: 3,
+      episodes_succeeded: 2, episodes_failed: 1, success_rate: 2 / 3, session_result_digest: screeningSha("8") })) });
+  await ingestBetaPolicyScreening(completed);
+  const evidence = (await loadManagedJobEvidence("job-one", briefDigest))[0];
+  expect(evidence).toMatchObject({ current: false, resultDigest: completed.publication_digest });
+  expect(evidence.screening?.candidates[0]).toMatchObject({ state: "completed", scored: 3 });
+  await expect(assertManagedJobEvidenceReference("job-one", briefDigest, { runId: "campaign-one", resultDigest: completed.publication_digest }))
+    .rejects.toThrow("job_managed_evidence_reference_unavailable_or_stale");
+  expect(await observeBetaScreeningExecutionControl(fixture.request)).toEqual(stopped);
+  expect((await observeBetaScreeningExecutionControl(otherAttempt)).status).toBe("stopped");
+  expect((await observeBetaScreeningExecutionControl(otherSite.request)).status).toBe("current");
+  expect(row("taskEvaluationPolicyRuns/campaign-one").publication_digest).toBe(completed.publication_digest);
+});
+
+it("turns capture supersession into a durable owned stop rather than a transient source outage", async () => {
+  await observeBetaScreeningExecutionControl(fixture.request);
+  row("inboundRequests/job-one").active_capture_id = `supplement-${"a".repeat(40)}`;
+  const stopped = await observeBetaScreeningExecutionControl(fixture.request);
+  expect(stopped).toMatchObject({ status: "stopped", applicability: "historical_only", stop_reason: "website_run_capture_superseded" });
+  row("inboundRequests/job-one").active_capture_id = fixture.request.source.capture_id;
+  expect(await observeBetaScreeningExecutionControl(fixture.request)).toEqual(stopped);
+});
+
+it("joins native guest evidence to its current capture as well as its retained source session", async () => {
+  store.state.docs.clear();
+  const native = await seed("job-one", "campaign-one", "v2", true);
+  const completed = sealScreening({ ...native.publication, status: "completed", revision: 2,
+    candidates: native.publication.candidates.map(candidate => ({ ...candidate, status: "completed", episodes_scored: 3,
+      episodes_succeeded: 2, episodes_failed: 1, success_rate: 2 / 3, session_result_digest: screeningSha("8") })) });
+  await ingestBetaPolicyScreening(completed);
+  const job = row("inboundRequests/job-one"), briefDigest = scientificBriefDigest(row("siteTaskBriefs/job-one"));
+  const reference = { runId: "campaign-one", resultDigest: completed.publication_digest };
+  job.active_capture_id = native.request.source.capture_id;
+  expect((await assertManagedJobEvidenceReference("job-one", briefDigest, reference)).current).toBe(true);
+  job.active_capture_id = "guest-new-current";
+  expect((await loadManagedJobEvidence("job-one", briefDigest))[0]).toMatchObject({ current: false, resultDigest: completed.publication_digest });
+  await expect(assertManagedJobEvidenceReference("job-one", briefDigest, reference))
+    .rejects.toThrow("job_managed_evidence_reference_unavailable_or_stale");
 });
 
 it("never treats a completed candidate as permission to resume processing", async () => {
@@ -300,6 +413,8 @@ it("never treats a completed candidate as permission to resume processing", asyn
       success_rate: 2 / 3, session_result_digest: screeningSha("8") }) });
   await ingestBetaPolicyScreening(completed);
   expect((await observeBetaScreeningExecutionControl(fixture.request)).stop_reason).toBe("screening_candidate_closed");
+  expect(row("taskEvaluationPolicyRuns/campaign-one").cancellationRequested).not.toBe(true);
+  expect((await loadManagedJobEvidence("job-one", scientificBriefDigest(row("siteTaskBriefs/job-one"))))[0].current).toBe(true);
 });
 
 it("rejects unscoped or unknown request fields and non-finite or unsafe caller deadlines", () => {
