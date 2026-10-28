@@ -17,6 +17,9 @@ export async function taskLifecycleNotificationIsCurrent(
  entry:{kind:OutboxKind;requestId:string;preparationEventId?:string;to?:string},
  transaction?:FirebaseFirestore.Transaction,
 ):Promise<boolean>{
+ // Coverage repair belongs to Blueprint. Suppress old queued requests too,
+ // without deleting the retained finding or pretending missing views exist.
+ if(entry.kind==='coverage_shortfall')return false;
  // Both preparation notices: current consent and recipient, and the same current event.
  if(entry.kind==='preparation_needs_attention'||entry.kind==='preparation_ended'){
   if(!/^sha256:[a-f0-9]{64}$/.test(entry.preparationEventId||''))return false;

@@ -522,13 +522,13 @@ describe("a video that arrived before the job's account", () => {
       screening: { queued: 1, running: 0, reported: 0, noResult: 0 } as never })).decision).not.toBe("footage_before_account");
   });
 
-  it("never outranks a scope verdict, a step of the site's own or saving the job", () => {
+  it("preserves scope limits while keeping legacy-source recovery with Blueprint", () => {
     const arrived = { briefDrafted: true, hasStoredCapture: true, footageBeforeAccount: true } as const;
     expect(projectTaskStatus(base({ ...arrived, briefConfirmed: true,
       taskScope: { supported: false, reason: "container" } } as never)).decision).toBe("not_yet_supported");
     expect(projectTaskStatus(base({ ...arrived, briefConfirmed: false })).decision).toBe("footage_before_account");
-    expect(projectTaskStatus(base({ ...arrived, briefConfirmed: true, disposition: "qualified", claimed: false })).decision)
-      .toBe("save_account");
+    expect(projectTaskStatus(base({ ...arrived, briefConfirmed: true, disposition: "qualified", claimed: false })))
+      .toMatchObject({ decision: "footage_before_account", operatorAction: null });
   });
 
   it("never outranks withdrawn consent", () => {

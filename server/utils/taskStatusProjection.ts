@@ -268,8 +268,8 @@ function countLabel(count: number, noun: string): string {
 }
 
 /**
- * What the site does about an unconfirmed brief. Robot teams can evaluate only
- * a confirmed job (`teamJobAccess` → `isRunnableTask`), so this is never optional.
+ * Legacy brief review before a recording. Once authorized footage arrives,
+ * Blueprint owns automatic preparation and evaluation.
  */
 const CONFIRM_BRIEF_ACTION = "Open your job brief, check the summary and answers, correct anything that is wrong, and confirm it.";
 
@@ -449,7 +449,7 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
 
   // Legacy jobs without a retained source owner still need an account claim.
   // A signed guest recording already has its own source authority.
-  if (input.disposition === "qualified" && input.claimed === false && !input.sourceOwned && !observedPreparation) {
+  if (input.disposition === "qualified" && input.claimed === false && !input.sourceOwned && !observedPreparation && !input.footageBeforeAccount) {
     return {
       ...base,
       decision: "save_account",
@@ -469,15 +469,12 @@ export function projectTaskStatus(input: TaskStatusInput): TaskStatus {
   // what the job page shows (`footageBeforeAccountShown`).
   if (input.footageBeforeAccount && !input.sourceOwned && !observedPreparation
       && !(input.screening && input.screening.queued + input.screening.running + input.screening.reported + input.screening.noResult > 0)) {
-    const unsaved = input.claimed === false;
     return {
       decision: "footage_before_account",
       stage: null,
       headline: "Your video arrived before this job was saved to an account, so we can't use it to build your scene yet. "
-        + (unsaved
-          ? "You don't need to send it again: save the job to your account, and we email you when that changes."
-          : "You don't need to send it again; we email you when that changes."),
-      operatorAction: unsaved ? "Save this job to your account." : null,
+        + "Blueprint needs to review this older recording. You don't need to send it again; we email you when that changes.",
+      operatorAction: null,
       missingViews: [],
       nextUpdateIso: null,
     };
