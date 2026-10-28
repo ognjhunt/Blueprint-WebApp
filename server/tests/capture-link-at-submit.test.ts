@@ -417,7 +417,7 @@ async function uploadFor(baseUrl: string, requestId: string, bytes = "x", extens
 function expectSameJobVideoRepair(body: Record<string, unknown>) {
   expect(body.repairAvailable).toBe(true);
   expect(body.message).toMatch(/original recording stays saved/i);
-  expect(body.message).toMatch(/Update video on this job/i);
+  expect(body.message).toMatch(/Update walkthrough on this job/i);
   expect(body.message).not.toMatch(/start a new job|original recording (was|has been) replaced/i);
 }
 

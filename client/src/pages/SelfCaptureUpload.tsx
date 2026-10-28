@@ -125,15 +125,18 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
   const [startingVideoUpdate, setStartingVideoUpdate] = useState(false);
   const [isVideoUpdate, setIsVideoUpdate] = useState(false);
   const [videoUpdateError, setVideoUpdateError] = useState<string | null>(null);
-  const videoUpdateIntent = useRef<{ mode: string; id: string } | null>(null);
-  async function updateVideo(mode: "replacement" | "additional_views") {
+  const videoUpdateIntent = useRef<string | null>(null);
+  async function updateVideo() {
     if (startingVideoUpdate || scope !== "owner") return;
     setStartingVideoUpdate(true); setVideoUpdateError(null);
-    if (videoUpdateIntent.current?.mode !== mode) videoUpdateIntent.current = { mode, id: crypto.randomUUID() };
+    videoUpdateIntent.current ??= crypto.randomUUID();
     try {
       const response = await fetch(`/api/self-capture/uploads/${encodeURIComponent(token)}/supplement`, {
         method: "POST", headers: await withCsrfHeader({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ mode, requestId: videoUpdateIntent.current.id }),
+        // The current processing path takes a complete walkthrough. A coverage
+        // report may still describe an earlier recording, so it must not gate
+        // this owner-requested update or choose a different upload contract.
+        body: JSON.stringify({ mode: "replacement", requestId: videoUpdateIntent.current }),
       });
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.ok || typeof result.url !== "string" || !result.url.startsWith("/capture-upload/"))
@@ -822,11 +825,9 @@ function SelfCaptureUploadForToken({ token }: { token: string }) {
               {scope === "owner" && link.status === "valid" && <section aria-label="Update job video" style={{ margin: "16px 0" }}>
                 <p className="ms-field-hint">Send a complete updated walkthrough, including any missing views. Your job and original video stay saved.</p>
                 <button type="button" className="ms-button" disabled={startingVideoUpdate}
-                  onClick={() => void updateVideo(status?.missingViews?.length ? "additional_views" : "replacement")}>
+                  onClick={() => void updateVideo()}>
                   {startingVideoUpdate ? "Opening video update…" : "Update walkthrough"}
                 </button>
-                {Boolean(status?.missingViews?.length) && <button type="button" className="ms-text-link" disabled={startingVideoUpdate}
-                  style={{ marginLeft: "16px" }} onClick={() => void updateVideo("replacement")}>Upload a replacement walkthrough</button>}
                 {videoUpdateError && <p role="alert">{videoUpdateError}</p>}
               </section>}
               {!blueprintActionPending && upload.status === "processing_pending" && upload.processingRetryAvailable && (

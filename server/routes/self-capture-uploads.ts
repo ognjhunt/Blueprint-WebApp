@@ -407,7 +407,7 @@ async function beginBrowserCanonicalWrite(
   }
 }
 
-const NEW_CAPTURE_JOB_MESSAGE = "Your original recording stays saved. Use Update video on this job to add the missing views or send an updated walkthrough.";
+const NEW_CAPTURE_JOB_MESSAGE = "Your original recording stays saved. Use Update walkthrough on this job to send a complete updated recording, including any missing views.";
 
 /** The write request carries no source identity; expose its retained receipt without claiming a replay. */
 async function finalizedCaptureResponse(payload: CaptureIdentity, res: Response) {
