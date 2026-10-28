@@ -91,6 +91,61 @@ describe("video first owner return", () => {
       return mockFetch()(input);
     });
   }
+  it.each(["confirm_brief", "add_views"])("keeps legacy %s hints optional for a received recording", async decision => {
+    const fallback = ownerFetch(false, true);
+    const read = vi.fn((input: RequestInfo | URL, init?: RequestInit) => String(input) === `/api/site-task-brief/${TOKEN}/status`
+      ? Promise.resolve({ ok: true, json: async () => ({ captureReceived: true, status: {
+        decision, headline: "Review your saved job brief.", operatorAction: "Please record another view before continuing.",
+        missingViews: ["rear of shelf"], nextUpdateIso: null,
+      } }) }) : fallback(input, init));
+    vi.stubGlobal("fetch", read);
+    render(<SelfCaptureUpload />);
+    await screen.findByText("Blueprint is preparing your reconstruction.", { selector: "strong" });
+    expect(screen.queryByText("Please record another view before continuing.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Review your saved job brief.")).not.toBeInTheDocument();
+    expect(read.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
+    expect(videoUpload.send).not.toHaveBeenCalled();
+    expect(videoUpload.retry).not.toHaveBeenCalled();
+  });
+  it("keeps one current update when a processing stop becomes unavailable and resumes", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let available = true, stopped = true;
+    const outcome = processingFailure(), fallback = ownerFetch(false, true);
+    const read = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `/api/site-task-brief/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({
+        ready: true, scope: "owner", brief: { summary: "Move a ball from floor to tabletop", captureMode: "self_capture",
+          proposed: [], unresolved: [], confirmedAtIso: null },
+      }) });
+      if (url === `/api/site-task-brief/${TOKEN}/status`) return Promise.resolve({ ok: available,
+        json: async () => available ? { captureReceived: true, status: stopped
+          ? { decision: outcome.category, headline: outcome.title, outcome, operatorAction: null, missingViews: [] }
+          : { decision: "confirm_brief", headline: "Review the saved brief.", operatorAction: null, missingViews: [] } }
+          : { error: "Status unavailable" } });
+      if (url === `/api/job-workflow/owner/${TOKEN}`) return Promise.resolve({ ok: true, json: async () => ({
+        schemaVersion: "job_marketplace.v1", revision: "workflow-1", stage: "job_submitted", briefAgreed: false,
+        optionsAssessed: false, reviewRequired: false, nextAction: "Review the saved brief.", actionOwner: "site",
+        requirements: {}, review: null, proposals: [], selection: null, agreement: null, outcome: null,
+      }) });
+      return fallback(input, init);
+    });
+    vi.stubGlobal("fetch", read);
+    const page = render(<SelfCaptureUpload />);
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(screen.getByRole("region", { name: "Preparation outcome" })).toBeVisible();
+      available = false;
+      await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+      expect(screen.getAllByText("Checking the current job status. Your saved job remains available.")).toHaveLength(1);
+      expect(screen.queryByRole("region", { name: "Preparation outcome" })).not.toBeInTheDocument();
+      available = true; stopped = false;
+      await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+      expect(screen.getByText("Blueprint is preparing your reconstruction.", { selector: "strong" })).toBeVisible();
+      expect(screen.getByLabelText("Review your job brief")).not.toHaveAttribute("open");
+      expect(screen.queryByText("Review the saved brief.")).not.toBeInTheDocument();
+      expect(read.mock.calls.every(([, init]) => !init?.method || init.method === "GET")).toBe(true);
+    } finally { page.unmount(); vi.useRealTimers(); }
+  });
   it.each([null, "2026-10-01T00:00:00Z"])("keeps a Blueprint processing stop consistent with brief confirmation %s", async confirmedAtIso => {
     const fallback = ownerFetch(false, true);
     const outcome = processingFailure();
@@ -383,7 +438,7 @@ describe("retained video processing recovery", () => {
     const read = retainedFetch({ captureReceived, uploadState, processingRetryAvailable: false });
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => String(input).startsWith("/api/site-task-brief/") && String(input).endsWith("/status")
       ? Promise.resolve({ ok: true, json: async () => ({ captureReceived, status: {
-        decision: "footage_received", headline: "We are checking your footage.", operatorAction: null, missingViews: [], nextUpdateIso: null,
+        decision: captureReceived ? "confirm_brief" : "footage_received", headline: "We are checking your footage.", operatorAction: null, missingViews: [], nextUpdateIso: null,
       } }) }) : read(input)));
     render(<SelfCaptureUpload />);
     await screen.findByText(headline, { selector: "strong" });
