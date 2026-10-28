@@ -7,6 +7,8 @@ import { z } from "zod";
 
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { logger } from "../logger";
+import {firebaseCapturePrefix, resolveFirebaseCaptureStorage, type FirebaseCapturePart,
+  type FirebaseCaptureTarget} from "../utils/firebaseCaptureStorage";
 import { parseVerifiedCaptureQaPublication } from "../utils/captureQaContract";
 import {
   canonicalArtifactDigest,
@@ -278,6 +280,8 @@ type SessionRecord = Record<string, unknown> & {
   request_fingerprint_sha256: string;
   request: SessionRequest;
   provider_file_id?: string;
+  provider?: "backblaze" | "firebase";
+  firebase_parts?: FirebaseCapturePart[];
   object_path?: string;
   storage_uri?: string;
   part_size_bytes: number;
@@ -295,6 +299,31 @@ type SessionRecord = Record<string, unknown> & {
   capture_access?: Record<string, unknown>;
   pipeline_reconstruction?: Record<string, any>;
 };
+
+function firebaseUpload(record: SessionRecord) {
+  const storage = resolveFirebaseCaptureStorage();
+  if (!storage || record.provider !== "firebase" || !record.object_path) throw Error("capture_firebase_storage_unavailable");
+  const target: FirebaseCaptureTarget = {ownerUid: record.owner_user_id, sessionId: record.session_id,
+    objectPath: record.object_path, contentType: record.request.original_file.media_type,
+    sizeBytes: record.request.original_file.size_bytes, partSizeBytes: record.part_size_bytes,
+    partCount: record.expected_part_count};
+  return {storage, target};
+}
+async function captureParts(record: SessionRecord) {
+  if (record.provider === "firebase") {
+    const {storage, target} = firebaseUpload(record);
+    return storage.listParts(target, record.firebase_parts || []);
+  }
+  return listBackblazeCaptureParts(record.provider_file_id!);
+}
+async function deleteCaptureObject(record: SessionRecord, version = record.provider_file_id!) {
+  if (record.provider === "firebase") {
+    const {storage, target} = firebaseUpload(record);
+    await storage.cleanupParts(target);
+    return storage.deleteFile(target, version);
+  }
+  return deleteBackblazeCaptureFile({fileId: version, fileName: record.object_path!});
+}
 
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
@@ -418,6 +447,7 @@ function publicSession(record: SessionRecord, uploadedParts: StoredCapturePart[]
     media_type: record.request.original_file.media_type,
     part_size_bytes: record.part_size_bytes,
     expected_part_count: record.expected_part_count,
+    storage_provider: record.provider || "backblaze",
     uploaded_parts: uploadedParts,
     storage_uri: record.status === "uploaded_verification_pending" ? record.storage_uri || null : null,
     upload_validation: record.upload_validation || { status: "pending" },
@@ -506,6 +536,17 @@ function reconstructionProjection(record: SessionRecord) {
 }
 
 async function processCompletedCaptureIntake(record: SessionRecord): Promise<SessionRecord> {
+  if (record.provider === "firebase" && record.firebase_parts_cleanup_pending === true) {
+    try {
+      const {storage, target} = firebaseUpload(record);
+      await storage.cleanupParts(target);
+      await db!.collection("captureUploadSessions").doc(record.session_id)
+        .set({firebase_parts_cleanup_pending: false}, {merge: true});
+      record = {...record, firebase_parts_cleanup_pending: false};
+    } catch {
+      logger.warn({sessionId: record.session_id}, "Completed source retained; temporary-part cleanup needs retry");
+    }
+  }
   if (record.pipeline_capture_intake_receipt) return record;
   const readiness = captureUploadIntakeForwardingReadiness();
   if (!readiness.endpointConfigured) {
@@ -549,9 +590,9 @@ async function processCompletedCaptureIntake(record: SessionRecord): Promise<Ses
   }
   let forwardResult;
   try {
-    const transfer = await createBackblazeCaptureDownloadGrant({
-      objectPath: record.object_path,
-    });
+    const transfer = record.provider === "firebase"
+      ? await firebaseUpload(record).storage.downloadGrant(firebaseUpload(record).target, record.provider_file_id!)
+      : await createBackblazeCaptureDownloadGrant({objectPath: record.object_path});
     forwardResult = await forwardCaptureUploadToPipeline({
       captureSessionId: record.session_id,
       customerId: record.owner_user_id,
@@ -1013,8 +1054,9 @@ router.post("/", async (req, res) => {
   const user = authenticatedUser(res);
   if (!user.uid) return res.status(401).json({ error: "Missing authenticated user" });
   if (!db) return res.status(503).json({ error: "Capture upload session store is unavailable" });
-  if (resolveStorageProviderName() !== "backblaze") {
-    return res.status(409).json({ error: "Resumable capture storage is not configured" });
+  const providerName = resolveStorageProviderName();
+  if (providerName === "firebase" && !resolveFirebaseCaptureStorage()) {
+    return res.status(503).json({ error: "Capture storage is unavailable" });
   }
   const parsed = sessionRequestSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -1048,7 +1090,8 @@ router.post("/", async (req, res) => {
 
   const now = new Date().toISOString();
   const smallMesh = request.capture_authority_profile.startsWith("provided_scene_") && request.original_file.size_bytes < MIN_RESUMABLE_FILE_BYTES;
-  const partSize = smallMesh ? request.original_file.size_bytes : configuredPartSize(request.original_file.size_bytes);
+  const partSize = smallMesh ? request.original_file.size_bytes : Math.min(
+    configuredPartSize(request.original_file.size_bytes), providerName === "firebase" ? 32 * MEBIBYTE : MAX_CAPTURE_FILE_BYTES);
   const expectedPartCount = Math.ceil(request.original_file.size_bytes / partSize);
   if ((!smallMesh && expectedPartCount < 2) || expectedPartCount > MAX_PARTS) {
     return res.status(422).json({
@@ -1056,7 +1099,9 @@ router.post("/", async (req, res) => {
     });
   }
   const extension = fileExtensionFor(request)!;
-  const objectPath = `captures/${user.uid}/intakes/${sessionId}/${sessionId}${extension}`;
+  const objectPath = providerName === "firebase"
+    ? `${firebaseCapturePrefix(user.uid, sessionId)}/${sessionId}${extension}`
+    : `captures/${user.uid}/intakes/${sessionId}/${sessionId}${extension}`;
   const pending: SessionRecord = {
     schema_version: "capture_upload_session_record.v1",
     session_id: sessionId,
@@ -1068,7 +1113,7 @@ router.post("/", async (req, res) => {
     request,
     request_fingerprint_sha256: fingerprint,
     status: "provider_start_pending",
-    provider: "backblaze",
+    provider: providerName,
     object_path: objectPath,
     part_size_bytes: partSize,
     expected_part_count: expectedPartCount,
@@ -1095,6 +1140,19 @@ router.post("/", async (req, res) => {
   }
 
   try {
+    if (providerName === "firebase") {
+      const {storage, target} = firebaseUpload(pending);
+      const forwarding = captureUploadIntakeForwardingReadiness();
+      const active: SessionRecord = {...pending, status: "upload_pending", firebase_parts: [],
+        storage_uri: storage.storageUri(target), ...(smallMesh ? {upload_transport: "single_file"} : {}),
+        pipeline_capture_handoff: {status: !forwarding.endpointConfigured ? "not_configured"
+          : !forwarding.tokenConfigured ? "blocked" : "not_started", performed: false,
+          required: forwarding.required, endpoint_configured: forwarding.endpointConfigured,
+          blocker: !forwarding.endpointConfigured ? "capture_upload_intake_forward_url_missing"
+            : !forwarding.tokenConfigured ? "capture_upload_intake_forward_token_missing" : null}};
+      await ref.set(active, {merge: false});
+      return res.status(201).json(publicSession(active));
+    }
     if (smallMesh) {
       const active: SessionRecord = {...pending,status:"upload_pending",upload_transport:"single_file"};
       await ref.set(active,{merge:false});
@@ -1155,12 +1213,14 @@ router.get("/:sessionId", async (req, res) => {
   }
   let parts: StoredCapturePart[] = [];
   if (
-    result.record.provider_file_id &&
+    (result.record.provider === "firebase" || result.record.provider_file_id) &&
     ["upload_pending", "uploading"].includes(result.record.status)
   ) {
     try {
-      parts = await listBackblazeCaptureParts(result.record.provider_file_id);
+      parts = await captureParts(result.record);
     } catch (error) {
+      if (result.record.provider === "firebase")
+        return res.status(503).json({error: "Stored upload parts could not be verified; retry this upload"});
       logger.warn({ sessionId: result.record.session_id, err: error }, "Could not refresh capture upload parts");
     }
   }
@@ -2436,10 +2496,7 @@ router.post("/:sessionId/lifecycle", async (req, res) => {
       });
     }
     try {
-      const providerReceipt = await deleteBackblazeCaptureFile({
-        fileId: record.provider_file_id,
-        fileName: record.object_path,
-      });
+      const providerReceipt = await deleteCaptureObject(record);
       const storageReceipt: Record<string, unknown> = {
         schema_version: "capture_storage_deletion_receipt.v1",
         provider: providerReceipt.provider,
@@ -2681,6 +2738,51 @@ const smallMeshUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * MEBIBYTE, files: 1 },
 });
+
+const firebasePartUpload = multer({storage: multer.memoryStorage(), limits: {fileSize: 32 * MEBIBYTE, files: 1}});
+router.post("/:sessionId/parts/:partNumber", async (req, res, next) => {
+  const user = authenticatedUser(res);
+  if (!user.uid) return res.status(401).json({error: "Missing authenticated user"});
+  const owned = await readOwnedSession(req.params.sessionId, user.uid);
+  if (!owned.record) return res.status(owned.status).json({error: "Capture upload not found"});
+  const record = owned.record, number = Number(req.params.partNumber);
+  if (record.provider !== "firebase" || !["upload_pending", "uploading"].includes(record.status)
+    || record.firebase_completion || !Number.isInteger(number) || number < 1 || number > record.expected_part_count)
+    return res.status(409).json({error: "Capture upload is not accepting this part"});
+  res.locals.firebasePartRecord = record;
+  next();
+}, firebasePartUpload.single("part"), async (req, res) => {
+  const record = res.locals.firebasePartRecord as SessionRecord;
+  const file = (req as typeof req & {file?: {buffer: Buffer}}).file;
+  if (!file) return res.status(422).json({error: "Capture part is empty"});
+  const ref = db!.collection("captureUploadSessions").doc(record.session_id);
+  try {
+    const {storage, target} = firebaseUpload(record);
+    const receipt = await storage.savePart(target, Number(req.params.partNumber), file.buffer,
+      String(req.headers["x-blueprint-content-sha1"] || ""));
+    const retained = await db!.runTransaction(async transaction => {
+      const latest = (await transaction.get(ref)).data() as SessionRecord;
+      if (!["upload_pending", "uploading"].includes(latest.status) || latest.firebase_completion) return false;
+      const parts = latest.firebase_parts || [], prior = parts.find(row => row.partNumber === receipt.partNumber);
+      if (prior && stable(prior) !== stable(receipt)) throw Error("capture_firebase_part_changed");
+      transaction.set(ref, {status: "uploading", firebase_parts: [...parts.filter(row => row.partNumber !== receipt.partNumber), receipt],
+        updated_at_iso: new Date().toISOString()}, {merge: true});
+      return true;
+    });
+    if (!retained) {
+      const latest = (await ref.get()).data() as SessionRecord;
+      if (["cancelled", "revoked", "revocation_in_progress"].includes(latest.status)) await storage.cleanupParts(target);
+      return res.status(409).json({error: "Capture upload closed before this part was admitted"});
+    }
+    return res.status(200).json({schema_version: "capture_upload_part_receipt.v1", ...receipt});
+  } catch (error) {
+    logger.warn({sessionId: record.session_id, errorName: error instanceof Error ? error.message : "unknown"}, "Capture part not admitted");
+    const refused = error instanceof Error && ["capture_firebase_part_bytes_invalid", "capture_part_conflict",
+      "capture_firebase_part_changed"].includes(error.message);
+    return res.status(refused ? 409 : 503).json({error: refused
+      ? "Capture part did not match the saved upload" : "Capture part could not be stored; resume the same upload"});
+  }
+});
 router.post(
   "/:sessionId/file",
   async (req, res, next) => {
@@ -2756,7 +2858,9 @@ router.post(
         return res.json(
           publicSession(await processCompletedCaptureIntake(claimed)),
         );
-      const uploaded = await uploadSmallBackblazeCapture({
+      const uploaded = record.provider === "firebase"
+        ? await firebaseUpload(record).storage.uploadSmall(firebaseUpload(record).target, file.buffer)
+        : await uploadSmallBackblazeCapture({
         objectPath: record.object_path!,
         data: file.buffer,
         contentType: record.request.original_file.media_type,
@@ -2788,7 +2892,7 @@ router.post(
         transaction.set(ref,{...latest,...completed},{merge:false});return {...latest,...completed};
       });
       if (!retained) {
-        await deleteBackblazeCaptureFile({fileId:uploaded.fileId,fileName:record.object_path!});
+        await deleteCaptureObject(record, uploaded.fileId);
         await ref.set({small_upload_cleanup_pending:false},{merge:true});
         return res.status(409).json({error:"small_mesh_upload_cancelled_before_admission"});
       }
@@ -2824,6 +2928,50 @@ router.post("/:sessionId/complete", async (req, res) => {
   if (record.status === "uploaded_verification_pending") {
     const processed = await processCompletedCaptureIntake(record);
     return res.status(200).json({ ...publicSession(processed), already_complete: true });
+  }
+  if (record.provider === "firebase") {
+    if (!["upload_pending", "uploading"].includes(record.status))
+      return res.status(409).json({error: "Capture upload cannot be completed from its current state"});
+    const ref = db!.collection("captureUploadSessions").doc(record.session_id);
+    try {
+      const {storage, target} = firebaseUpload(record);
+      const parts = await storage.listParts(target, record.firebase_parts || []);
+      const blockers = validateProviderParts(record, parts, parsed.data.part_sha1_array);
+      if (blockers.length) return res.status(422).json({error: "Capture upload parts are incomplete or mismatched", blockers});
+      const completion = {parts, digest: `sha256:${sha256Text(stable(parts))}`};
+      const frozen = await db!.runTransaction(async transaction => {
+        const latest = (await transaction.get(ref)).data() as SessionRecord;
+        if (!["upload_pending", "uploading"].includes(latest.status)
+          || latest.capture_access?.future_processing_allowed === false
+          || stable(latest.firebase_parts || []) !== stable(record.firebase_parts || []))
+          throw Error("capture_firebase_upload_changed");
+        const prior = latest.firebase_completion as typeof completion | undefined;
+        if (prior && prior.digest !== completion.digest) throw Error("capture_firebase_completion_changed");
+        transaction.set(ref, {firebase_completion: completion}, {merge: true});
+        return {...latest, firebase_completion: completion};
+      });
+      const written = await storage.finish(target, frozen.firebase_completion.parts);
+      const completed = await db!.runTransaction(async transaction => {
+        const latest = (await transaction.get(ref)).data() as SessionRecord;
+        if (latest.status === "uploaded_verification_pending" || latest.pipeline_capture_intake_receipt) return latest;
+        if (!["upload_pending", "uploading"].includes(latest.status)
+          || (latest.firebase_completion as typeof completion | undefined)?.digest !== completion.digest)
+          throw Error("capture_firebase_completion_changed");
+        const next: SessionRecord = {...latest, status: "uploaded_verification_pending",
+          provider_file_id: written.fileId, storage_uri: written.storageUri,
+          firebase_parts_cleanup_pending: true,
+          upload_validation: {status: "provider_parts_verified", part_count: parts.length,
+            size_bytes: target.sizeBytes, storage_generation: written.fileId},
+          content_addressing: {status: "pending_server_sha256_verification"},
+          updated_at_iso: new Date().toISOString(), error: null};
+        transaction.set(ref, next, {merge: false});
+        return next;
+      });
+      return res.status(200).json(publicSession(await processCompletedCaptureIntake(completed), parts));
+    } catch (error) {
+      logger.warn({sessionId: record.session_id, errorName: error instanceof Error ? error.name : "unknown"}, "Capture completion needs reconciliation");
+      return res.status(503).json({error: "Capture completion requires reconciliation; resume the same upload"});
+    }
   }
   if (!["upload_pending", "uploading"].includes(record.status) || !record.provider_file_id) {
     return res.status(409).json({ error: "Capture upload cannot be completed from its current state" });
@@ -2891,9 +3039,13 @@ router.delete("/:sessionId", async (req, res) => {
   if (!result.record) return res.status(result.status).json({ error: "Capture upload not found" });
   const record = result.record;
   if (record.status === "cancelled") {
+    if (record.provider === "firebase") {
+      try {const {storage, target} = firebaseUpload(record); await storage.cleanupParts(target);}
+      catch {return res.status(503).json({error: "Capture part cleanup requires retry"});}
+    }
     if (record.small_upload_cleanup_pending && record.provider_file_id && record.object_path) {
       try {
-        await deleteBackblazeCaptureFile({fileId:record.provider_file_id,fileName:record.object_path});
+        await deleteCaptureObject(record);
         await db!.collection("captureUploadSessions").doc(record.session_id).set({small_upload_cleanup_pending:false},{merge:true});
       } catch {return res.status(502).json({error:"Small mesh cancellation cleanup requires retry"});}
     }
@@ -2901,6 +3053,19 @@ router.delete("/:sessionId", async (req, res) => {
   }
   if (record.status === "uploaded_verification_pending") {
     return res.status(409).json({ error: "Completed capture uploads require the revocation workflow" });
+  }
+  if (record.provider === "firebase") {
+    const ref = db!.collection("captureUploadSessions").doc(record.session_id);
+    const cancelled = await db!.runTransaction(async transaction => {
+      const latest = (await transaction.get(ref)).data() as SessionRecord;
+      if (latest.firebase_completion) return null;
+      const next = {...latest, status: "cancelled", updated_at_iso: new Date().toISOString()};
+      transaction.set(ref, next, {merge: false}); return next;
+    });
+    if (!cancelled) return res.status(409).json({error: "Capture completion is being reconciled; resume the same upload"});
+    try {const {storage, target} = firebaseUpload(record); await storage.cleanupParts(target);}
+    catch {return res.status(503).json({error: "Capture part cleanup requires retry"});}
+    return res.status(200).json(publicSession(cancelled));
   }
   if (record.provider_file_id) {
     try {

@@ -43,14 +43,15 @@ export type StoredCapturePart = {
 };
 
 export type CaptureDownloadGrant = {
-  provider: "backblaze";
+  provider: "backblaze" | "firebase";
   url: string;
   authorizationToken: string;
   expiresAtIso: string;
+  generation?: string;
 };
 
 export type CaptureDeletionReceipt = {
-  provider: "backblaze";
+  provider: "backblaze" | "firebase";
   fileId: string;
   fileName: string;
   deletedAtIso: string;

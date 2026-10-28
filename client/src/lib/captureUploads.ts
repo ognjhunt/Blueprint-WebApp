@@ -25,6 +25,7 @@ export type CaptureUploadSession = {
   media_type: string;
   part_size_bytes: number;
   expected_part_count: number;
+  storage_provider?: "firebase" | "backblaze";
   uploaded_parts: Array<{
     partNumber: number;
     contentLength: number;
@@ -789,11 +790,19 @@ async function uploadPart(params: {
   partNumber: number;
   blob: Blob;
   sha1: string;
+  storageProvider?: "firebase" | "backblaze";
 }) {
   let lastStatus = 0;
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
+      if (params.storageProvider === "firebase") {
+        const form = new FormData(); form.append("part", params.blob, "part.bin");
+        await apiRequest(params.currentUser,
+          `/api/capture-uploads/${encodeURIComponent(params.sessionId)}/parts/${params.partNumber}`,
+          {method: "POST", body: form, headers: {"x-blueprint-content-sha1": params.sha1}});
+        return;
+      }
       const authorization = await authorizePart(
         params.currentUser,
         params.sessionId,
@@ -816,6 +825,8 @@ async function uploadPart(params: {
       if (!transient) break;
     } catch (error) {
       lastError = error;
+      if (error instanceof CaptureUploadRequestError && error.status < 500
+        && ![401, 408, 429].includes(error.status)) throw error;
     }
     if (attempt < 3) {
       await new Promise((resolve) => window.setTimeout(resolve, attempt * 250));
@@ -864,6 +875,7 @@ export async function uploadCaptureFile(params: {
         partNumber,
         blob,
         sha1,
+        storageProvider: params.session.storage_provider,
       });
     }
     receipts.push(sha1);

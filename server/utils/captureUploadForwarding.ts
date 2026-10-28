@@ -28,6 +28,9 @@ export const captureUploadIntakeReceiptSchema = z.object({
     scanner: z.string().min(1),
   }).passthrough(),
   capture_qa_report: z.record(z.string(), z.unknown()),
+  capture_upload_received_at: z.string().datetime({offset: true}).optional(),
+  capture_profile_validation_status: z.enum(["validated", "blocked", "not_applicable_to_profile"]).optional(),
+  capture_profile_validation_digest: z.string().regex(/^sha256:[0-9a-f]{64}$/).nullable().optional(),
   already_exists: z.boolean(),
   proof_boundary: z.object({
     server_sha256_verified: z.literal(true),
@@ -44,6 +47,9 @@ const processingResultSchema = z.object({
   schema_version: z.literal("capture_upload_processing_result.v1"),
   receipt: captureUploadIntakeReceiptSchema,
   capture_qa_publication: z.unknown().optional(),
+  // Retained supervisor progress is metadata; it cannot authorize a task or
+  // upgrade the independently verified Capture QA publication below.
+  task_evaluation_supervisor: z.record(z.string(), z.unknown()).optional(),
 }).strict();
 
 export type CaptureUploadIntakeReceipt = z.infer<typeof captureUploadIntakeReceiptSchema>;
@@ -132,6 +138,7 @@ export async function forwardCaptureUploadToPipeline(params: {
       url: params.transfer.url,
       authorization: params.transfer.authorizationToken,
       expires_at_iso: params.transfer.expiresAtIso,
+      ...(params.transfer.provider === "firebase" ? {generation: params.transfer.generation} : {}),
     },
   };
   const body = JSON.stringify(submission);

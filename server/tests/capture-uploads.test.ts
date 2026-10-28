@@ -11,6 +11,11 @@ import { canonicalArtifactDigest } from "../utils/taskCandidateContract";
 import { scientificBriefDigest, jobEvidenceTaskInventoryDigest } from "../utils/jobEvidenceContract";
 
 const state = vi.hoisted(() => ({
+  provider: "backblaze" as "firebase" | "backblaze",
+  firebaseReady: true,
+  firebase: {storageUri: (target: {objectPath: string}) => `gs://blueprint-8c1ca.appspot.com/${target.objectPath}`,
+    savePart: vi.fn(), listParts: vi.fn(), finish: vi.fn(), uploadSmall: vi.fn(), downloadGrant: vi.fn(),
+    cleanupParts: vi.fn(), deleteFile: vi.fn()},
   records: new Map<string, Record<string, unknown>>(),
   start: vi.fn(),
   smallUpload: vi.fn(),
@@ -39,6 +44,7 @@ const state = vi.hoisted(() => ({
 
 vi.mock("../../client/src/lib/firebaseAdmin", () => ({
   default: {},
+  storageAdmin: null,
   dbAdmin: {
     runTransaction: async <T>(
       callback: (transaction: {
@@ -106,7 +112,7 @@ vi.mock("../utils/storage-provider", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../utils/storage-provider")>();
   return {
     ...actual,
-    resolveStorageProviderName: () => "backblaze",
+    resolveStorageProviderName: () => state.provider,
     startBackblazeResumableCapture: state.start,
     uploadSmallBackblazeCapture: state.smallUpload,
     authorizeBackblazeCapturePart: state.authorize,
@@ -121,6 +127,11 @@ vi.mock("../utils/storage-provider", async (importOriginal) => {
 
 vi.mock("../utils/taskCandidateForwarding", () => ({
   forwardTaskCandidateDecisionToPipeline: state.forward,
+}));
+
+vi.mock("../utils/firebaseCaptureStorage", async (original) => ({
+  ...await original<typeof import("../utils/firebaseCaptureStorage")>(),
+  resolveFirebaseCaptureStorage: () => state.firebaseReady ? state.firebase : null,
 }));
 
 vi.mock("../utils/captureUploadForwarding", async (importOriginal) => {
@@ -866,6 +877,9 @@ async function createSession(socketPath: string) {
 }
 
 afterEach(() => {
+  state.provider = "backblaze";
+  state.firebaseReady = true;
+  for (const method of Object.values(state.firebase)) if (vi.isMockFunction(method)) method.mockReset();
   state.records.clear();
   state.start.mockReset();
   state.smallUpload.mockReset();
@@ -2859,5 +2873,95 @@ describe("resumable capture uploads", () => {
     } finally {
       await stopServer(stranger.server, stranger.socketPath);
     }
+  });
+});
+
+function useFirebaseStorage() {
+  state.provider = 'firebase';
+  state.firebase.listParts.mockImplementation(async (_target, receipts) => [...receipts].sort((a,b) => a.partNumber-b.partNumber));
+  state.firebase.finish.mockImplementation(async target => ({provider:'firebase', fileId:'1793207002780033',
+    storageUri:state.firebase.storageUri(target)}));
+  state.firebase.savePart.mockImplementation(async (_target, number, bytes, sha1) => ({
+    partNumber:number, contentLength:bytes.length, contentSha1:sha1, generation:'1793207002780001'}));
+  state.firebase.cleanupParts.mockResolvedValue(undefined);
+}
+function postPart(socketPath: string, requestPath: string, bytes: Buffer, sha1: string) {
+  const boundary='test-owned-capture-part';
+  const body=Buffer.concat([Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="part"; filename="part.bin"\r\nContent-Type: application/octet-stream\r\n\r\n`),bytes,Buffer.from(`\r\n--${boundary}--\r\n`)]);
+  return new Promise<{status:number; body:Record<string,any>}>((resolve,reject) => {
+    const req=httpRequest({socketPath,path:requestPath,method:'POST',headers:{
+      'Content-Type':`multipart/form-data; boundary=${boundary}`,'Content-Length':body.length,'x-blueprint-content-sha1':sha1}},res => {
+      const chunks:Buffer[]=[];res.on('data',chunk=>chunks.push(chunk));
+      res.on('end',()=>resolve({status:res.statusCode!,body:JSON.parse(Buffer.concat(chunks).toString())}));
+    });req.on('error',reject);req.end(body);
+  });
+}
+describe('normal owner captures on current Firebase storage',()=>{
+  it('creates a source session without B2 configuration or a fabricated native file identity',async()=>{
+    useFirebaseStorage();const {server,socketPath}=await startServer();
+    try {
+      const original=request();original.governance.consent='not_required';
+      const result=await postJson(socketPath,'/capture-uploads',original), created=await result.json() as any;
+      expect(result.status).toBe(201);expect(created.storage_provider).toBe('firebase');
+      expect(created.claim_boundary.capture_accepted).toBe(false);
+      const saved=state.records.get(created.session_id)!;
+      expect(saved.object_path).toMatch(/^operations\/capture-uploads\/buyer-123\//);
+      expect(saved.provider_file_id).toBeUndefined();
+      expect((saved.request as any).governance.consent).toBe('not_required');
+      expect(state.start).not.toHaveBeenCalled();expect(state.intakeForward).not.toHaveBeenCalled();
+    } finally {await stopServer(server,socketPath);}
+  });
+  it('refuses unavailable current storage before a session or provider operation exists',async()=>{
+    useFirebaseStorage();state.firebaseReady=false;const {server,socketPath}=await startServer();
+    try {expect((await postJson(socketPath,'/capture-uploads',request())).status).toBe(503);
+      expect(state.records.size).toBe(0);expect(state.start).not.toHaveBeenCalled();}
+    finally {await stopServer(server,socketPath);}
+  });
+  it('retains real part receipts and reconciles a completed source without recomposing it',async()=>{
+    useFirebaseStorage();const {server,socketPath}=await startServer();
+    try {
+      const created=await createSession(socketPath), id=String(created.session_id), saved=state.records.get(id)!;
+      const count=Number(saved.expected_part_count), partSize=Number(saved.part_size_bytes), total=(saved.request as any).original_file.size_bytes;
+      const parts=Array.from({length:count},(_,i)=>({partNumber:i+1,contentLength:i===count-1?total-i*partSize:partSize,
+        contentSha1:String(i+1).repeat(40),generation:String(1793207002780000+i)}));
+      state.records.set(id,{...saved,status:'uploading',firebase_parts:parts});
+      const command={schema_version:'capture_upload_completion_request.v1',part_sha1_array:parts.map(p=>p.contentSha1)};
+      const complete=await postJson(socketPath,`/capture-uploads/${id}/complete`,command);
+      expect(complete.status).toBe(200);expect((await complete.json() as any).upload_status).toBe('uploaded_verification_pending');
+      expect(state.records.get(id)?.provider_file_id).toBe('1793207002780033');
+      expect(state.firebase.finish).toHaveBeenCalledOnce();expect(state.firebase.cleanupParts).toHaveBeenCalledOnce();
+      expect((await postJson(socketPath,`/capture-uploads/${id}/complete`,command)).status).toBe(200);
+      expect(state.firebase.finish).toHaveBeenCalledOnce();expect(state.finish).not.toHaveBeenCalled();
+    } finally {await stopServer(server,socketPath);}
+  });
+  it('retries temporary-part cleanup after a completed source without recomposing or forwarding again',async()=>{
+    useFirebaseStorage();const {server,socketPath}=await startServer();
+    try {
+      const created=await createSession(socketPath), id=String(created.session_id), saved=state.records.get(id)!;
+      state.records.set(id,{...saved,status:'uploaded_verification_pending',provider_file_id:'1793207002780033',
+        firebase_parts_cleanup_pending:true,pipeline_capture_intake_receipt:{schema_version:'retained-receipt'}});
+      state.firebase.cleanupParts.mockRejectedValueOnce(Error('temporary storage failure'));
+      const command={schema_version:'capture_upload_completion_request.v1',part_sha1_array:['a'.repeat(40),'b'.repeat(40)]};
+      expect((await postJson(socketPath,`/capture-uploads/${id}/complete`,command)).status).toBe(200);
+      expect(state.records.get(id)?.firebase_parts_cleanup_pending).toBe(true);
+      expect((await postJson(socketPath,`/capture-uploads/${id}/complete`,command)).status).toBe(200);
+      expect(state.records.get(id)?.firebase_parts_cleanup_pending).toBe(false);
+      expect(state.firebase.cleanupParts).toHaveBeenCalledTimes(2);
+      expect(state.firebase.finish).not.toHaveBeenCalled();expect(state.intakeForward).not.toHaveBeenCalled();
+    } finally {await stopServer(server,socketPath);}
+  });
+  it('does not admit a part when its owner cancels while the storage write is in flight',async()=>{
+    useFirebaseStorage();const {server,socketPath}=await startServer();
+    try {
+      const created=await createSession(socketPath), id=String(created.session_id);
+      state.firebase.savePart.mockImplementation(async()=>{
+        state.records.set(id,{...state.records.get(id)!,status:'cancelled'});
+        return {partNumber:1,contentLength:2,contentSha1:'a'.repeat(40),generation:'1793207002780001'};
+      });
+      const response=await postPart(socketPath,`/capture-uploads/${id}/parts/1`,Buffer.from('ab'),'a'.repeat(40));
+      expect(response.status).toBe(409);expect(state.records.get(id)?.status).toBe('cancelled');
+      expect(state.records.get(id)?.firebase_parts).toEqual([]);expect(state.firebase.cleanupParts).toHaveBeenCalledOnce();
+      expect(state.intakeForward).not.toHaveBeenCalled();
+    } finally {await stopServer(server,socketPath);}
   });
 });
