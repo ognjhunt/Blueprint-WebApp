@@ -1,13 +1,158 @@
 import { createHash } from "node:crypto";
+import { z } from "zod";
 import { dbAdmin as db } from "../../client/src/lib/firebaseAdmin";
 import { crossRuntimeArtifactDigest, crossRuntimeDigest } from "./crossRuntimeCanonical";
 import { scientificBriefDigest } from "./jobEvidenceContract";
 import { assertManagedScreeningCaptureCurrent, managedJobTask, readManagedJobSourceSession, readManagedScreeningCapture } from "./jobManagedEvaluation";
 import { SCENE_INTAKE_COLLECTION } from "./taskEvaluationSceneIntake";
 import { encodeTaskEvaluationRunPublication, publicationFromResultRecord } from "./taskEvaluationRunPublicationStorage";
-import { parseBetaPolicyScreeningPublication, screeningPublicationTransition, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
+import { betaPolicyScreeningPublicationSchema, parseBetaPolicyScreeningPublication, screeningPublicationTransition,
+  screeningTerminalCandidateStates, type BetaPolicyScreeningPublication } from "./betaPolicyScreeningContract";
 import type { TaskItemInventoryRecord } from "./taskItemInventory";
 import { isTaskFamilyStrategy, preparationPhaseMatchesTask } from "./taskFamilySceneIntake";
+import { assertWebsiteRunOpen } from "./websiteRunClosure";
+
+const controlId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$/);
+const controlSha = z.string().regex(/^sha256:[a-f0-9]{64}$/);
+const controlTime = z.number().int().positive().max(8_640_000_000_000_000);
+const executionControlBindingSchema = z.object({
+  campaign_id: controlId, site_id: controlId, plan_digest: controlSha, candidate_id: controlId,
+  configuration_digest: controlSha, attempt_id: controlId, invocation_id: controlSha,
+  prepared_digest: controlSha, authority_digest: controlSha, resource_name: controlId,
+  source: betaPolicyScreeningPublicationSchema.shape.source,
+}).strict();
+const executionControlRequestSchema = executionControlBindingSchema.extend({
+  schema_version: z.literal("blueprint.beta_policy_screening_execution_control_request.v1"),
+  execution_deadline_at_ms: controlTime.optional(),
+}).strict();
+export type BetaScreeningExecutionControlRequest = z.infer<typeof executionControlRequestSchema>;
+const executionControlSchema = z.object({
+  schema_version: z.literal("blueprint.beta_policy_screening_execution_control.v1"),
+  binding: executionControlBindingSchema, binding_digest: controlSha,
+  revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER), status: z.enum(["current", "stopped"]),
+  cancellation_requested: z.boolean(), stop_reason: z.string().regex(/^[a-z_]+$/).nullable(),
+  execution_deadline_at_ms: controlTime, observed_at_iso: z.string().datetime(), next_check_at_ms: controlTime,
+  new_execution_authorized: z.literal(false), read_only_closeout_allowed: z.literal(true),
+  applicability: z.enum(["current", "historical_only"]), control_digest: controlSha,
+}).strict().superRefine((value, ctx) => {
+  if (value.binding_digest !== crossRuntimeDigest(value.binding)
+    || value.control_digest !== crossRuntimeArtifactDigest(value, "control_digest")
+    || value.cancellation_requested !== (value.status === "stopped")
+    || (value.status === "stopped") !== (value.stop_reason !== null)
+    || value.applicability !== (value.status === "stopped" ? "historical_only" : "current"))
+    ctx.addIssue({ code: "custom", message: "Screening execution control integrity mismatch" });
+});
+
+export function parseBetaScreeningExecutionControlRequest(value: unknown): BetaScreeningExecutionControlRequest | null {
+  const parsed = executionControlRequestSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+/** A signed control-plane observation of an existing run, never launch/spending authority or a GPU credential. */
+export async function observeBetaScreeningExecutionControl(request: BetaScreeningExecutionControlRequest) {
+  // Keep the exported helper safe for non-HTTP callers too.
+  if (!parseBetaScreeningExecutionControlRequest(request)) throw new Error("screening_control_request_invalid");
+  if (!db) throw new Error("screening_store_unavailable");
+  const store = db;
+  const { schema_version: _schema, execution_deadline_at_ms: requestedDeadline, ...binding } = request;
+  const bindingDigest = crossRuntimeDigest(binding), controlKey = bindingDigest.slice(7);
+  const runRef = store.collection("taskEvaluationPolicyRuns").doc(binding.campaign_id);
+  return store.runTransaction(async transaction => {
+    const run = (await transaction.get(runRef)).data();
+    if (!run || run.run_kind !== "beta_policy_screening" || run.run_id !== binding.campaign_id
+      || run.configuration_digest !== binding.plan_digest || run.source_scene_intent_id !== binding.source.scene_intent_id
+      || run.source_scene_revision_digest !== binding.source.scene_revision_digest
+      || run.job_task_context_digest !== binding.source.task_context_digest
+      || !controlId.safeParse(run.source_scene_intake_id).success || !controlId.safeParse(run.result_record_id).success
+      || !controlId.safeParse(run.job_evidence_binding?.job_id).success
+      || binding.site_id !== `site-${run.job_evidence_binding.job_id}`)
+      throw new Error("screening_control_identity_conflict");
+    const controls = run.screening_execution_controls ?? {};
+    if (!controls || typeof controls !== "object" || Array.isArray(controls)) throw new Error("screening_control_record_unavailable");
+    // The same attempt, allocator invocation, or owned resource cannot be rebound
+    // to a different preparation, authority, candidate, or source on restart.
+    for (const [key, value] of Object.entries(controls)) {
+      const parsed = executionControlSchema.safeParse(value);
+      if (!parsed.success || key !== parsed.data.binding_digest.slice(7)) throw new Error("screening_control_record_unavailable");
+      if (key !== controlKey && (parsed.data.binding.attempt_id === binding.attempt_id
+        || parsed.data.binding.invocation_id === binding.invocation_id || parsed.data.binding.resource_name === binding.resource_name))
+        throw new Error("screening_control_identity_conflict");
+    }
+    const previous = controls[controlKey] as z.infer<typeof executionControlSchema> | undefined;
+    // Restart may always read a retained stop to finish its own teardown. It
+    // cannot regain processing authority by repairing or replacing the source.
+    if (previous?.status === "stopped") return previous;
+    const jobId = run.job_evidence_binding.job_id as string;
+    const [result, intakeSnapshot, jobSnapshot, brief, inventory, capture] = await Promise.all([
+      transaction.get(store.collection("captureTaskEvaluationRuns").doc(run.result_record_id)),
+      transaction.get(store.collection(SCENE_INTAKE_COLLECTION).doc(run.source_scene_intake_id)),
+      transaction.get(store.collection("inboundRequests").doc(jobId)),
+      transaction.get(store.collection("siteTaskBriefs").doc(jobId)),
+      transaction.get(store.collection("siteTaskItemInventories").doc(jobId)),
+      transaction.get(store.collection("captureUploadSessions").doc(binding.source.capture_id)),
+    ]);
+    const publication = result.exists ? parseBetaPolicyScreeningPublication(publicationFromResultRecord(result.data()!)) : null;
+    const candidate = publication?.candidates.find(row => row.candidate_id === binding.candidate_id);
+    if (!publication || publication.campaign_id !== binding.campaign_id || publication.site_id !== binding.site_id
+      || publication.plan_digest !== binding.plan_digest || publication.publication_digest !== run.publication_digest
+      || publication.revision !== run.publication_revision || crossRuntimeDigest(publication.source) !== crossRuntimeDigest(binding.source)
+      || candidate?.configuration_digest !== binding.configuration_digest
+      || result.data()?.run_id !== binding.campaign_id || result.data()?.record_id !== run.result_record_id
+      || result.data()?.owner_user_id !== run.owner_user_id || result.data()?.organization_id !== run.team_namespace)
+      throw new Error("screening_control_identity_conflict");
+    const intake = intakeSnapshot.data(), job = jobSnapshot.data(), retainedCapture = capture.data();
+    const expiry = intake?.request?.execution?.expires_at_epoch;
+    const sourceDeadline = typeof expiry === "number" ? Math.floor(expiry * 1000) : NaN;
+    // A missing expiry is uncertainty, not an unlimited grant. No decision is
+    // written and the existing bounded monitor grace must expire closed.
+    if (!controlTime.safeParse(sourceDeadline).success) throw new Error("screening_control_authority_unavailable");
+    const deadline = Math.min(sourceDeadline, requestedDeadline ?? sourceDeadline,
+      previous?.execution_deadline_at_ms ?? sourceDeadline);
+    const now = Date.now();
+    let stopReason: string | null = null;
+    if (run.cancellationRequested === true || ["cancelled", "closed"].includes(run.state)) stopReason = "screening_run_cancelled";
+    else if (screeningTerminalCandidateStates.has(candidate!.status)) stopReason = "screening_candidate_closed";
+    else if (deadline <= now) stopReason = "screening_authority_expired";
+    else if (intake?.revocation_requested || ["revoked", "closeout_pending", "cancelled"].includes(intake?.state))
+      stopReason = "screening_scene_authority_revoked";
+    else if (job?.capture_withdrawal || job?.workspace_task?.paused === true
+      || retainedCapture?.capture_access?.future_processing_allowed === false || retainedCapture?.completed_capture_lifecycle
+      || ["revoked", "revocation_in_progress", "cancelled"].includes(retainedCapture?.status))
+      stopReason = "job_capture_processing_not_authorized";
+    if (!stopReason) {
+      try {
+        assertWebsiteRunOpen(job, jobId, binding.source.capture_id);
+        const screeningCapture = job?.job_evidence_source ? { captureId: binding.source.capture_id }
+          : await readManagedScreeningCapture(jobId, binding.source.capture_id);
+        await assertManagedScreeningCaptureCurrent(jobId, screeningCapture, ref => transaction.get(ref));
+        const scope = managedJobTask({ binding: run.job_evidence_binding, record: job, brief: brief.data(),
+          allowProposedScreening: true, screeningCapture,
+          inventory: inventory.exists ? inventory.data() as TaskItemInventoryRecord : null,
+          sourceSession: await readManagedJobSourceSession(job, ref => transaction.get(ref)) });
+        if (!intake || intake.website_request_id !== jobId || intake.request?.owner?.user_id !== run.owner_user_id
+          || scope.teamNamespace !== run.team_namespace || scope.sourceFingerprint !== run.job_source_fingerprint)
+          throw new Error("screening_scene_source_mismatch");
+        assertScreeningSceneSource(publication, intake, scope);
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "";
+        // Only known current-source refusals are durable stops. Unknown storage,
+        // malformed closure and transient service errors stay unproven (503).
+        if (/^job_(not_found|brief_not_agreed|brief_changed|capture_processing_not_authorized|scene_not_prepared|scene_task_changed|evaluation_source_(binding_invalid|unavailable|changed))$/.test(code)
+          || ["screening_scene_source_mismatch", "website_run_closed_by_owner"].includes(code)) stopReason = code;
+        else throw error;
+      }
+    }
+    const value = { schema_version: "blueprint.beta_policy_screening_execution_control.v1" as const,
+      binding, binding_digest: bindingDigest, revision: (previous?.revision ?? 0) + 1,
+      status: stopReason ? "stopped" as const : "current" as const, cancellation_requested: Boolean(stopReason), stop_reason: stopReason,
+      execution_deadline_at_ms: deadline, observed_at_iso: new Date(now).toISOString(), next_check_at_ms: now + 60_000,
+      new_execution_authorized: false as const, read_only_closeout_allowed: true as const,
+      applicability: stopReason ? "historical_only" as const : "current" as const };
+    const control = executionControlSchema.parse({ ...value, control_digest: crossRuntimeDigest(value) });
+    transaction.set(runRef, { screening_execution_controls: { ...controls, [controlKey]: control } }, { mergeFields: ["screening_execution_controls"] });
+    return control;
+  });
+}
 
 export function assertScreeningSceneSource(publication: BetaPolicyScreeningPublication, intake: Record<string, any>,
   scope: ReturnType<typeof managedJobTask>) {
@@ -92,7 +237,10 @@ export async function ingestBetaPolicyScreening(publication: BetaPolicyScreening
       run_id: publication.campaign_id, owner_user_id: intake.request.owner.user_id, organization_id: scope.teamNamespace,
       access_visibility: "private", created_at_iso: oldResult.data()?.created_at_iso ?? now, updated_at_iso: now,
       publication_storage: encodeTaskEvaluationRunPublication(publication) });
-    transaction.set(runRef, { run_id: publication.campaign_id, run_kind: "beta_policy_screening", state: publication.status,
+    transaction.set(runRef, { ...(oldRun.data()?.screening_execution_controls !== undefined
+      ? { screening_execution_controls: oldRun.data()!.screening_execution_controls } : {}),
+      ...(oldRun.data()?.cancellationRequested === true ? { cancellationRequested: true } : {}),
+      run_id: publication.campaign_id, run_kind: "beta_policy_screening", state: publication.status,
       owner_user_id: intake.request.owner.user_id, team_namespace: scope.teamNamespace,
       source_scene_intent_id: publication.source.scene_intent_id, source_scene_intake_id: intakeRef.id,
       source_scene_revision_digest: publication.source.scene_revision_digest, configuration_digest: publication.plan_digest,
